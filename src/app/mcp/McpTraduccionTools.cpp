@@ -80,7 +80,7 @@ void McpService::registerTraduccionTools() {
             "se publica en la salida `nombre` («<desde> · <a>» si no se dice). Esa salida se usa como cualquier otra: "
             "texto_a_voz {lee} con una voz del idioma, subtítulos en un `rotulo` (fuente de texto de la escena), `archivo` "
             "(.txt y .srt). Queda como una tarjeta «Traducir» en el rack de audio de `fuente` (si no se dice, el de la voz a "
-            "texto que publica `desde`); su `id` es «<fuente>#<nodo>». `espera_ms`: cuánto espera el fin de la oración (600). "
+            "texto que publica `desde`); su `id` es «<fuente>#<nodo>». `espera_ms`: cuánto espera el fin de la oración (600); `maximo_ms`: lo más que junta sin punto antes de traducir (8000). "
             "Si falta bajar un paquete, traduccion_bajar.";
         x.inputSchema = {{"type", "object"},
                          {"required", {"desde", "a"}},
@@ -92,7 +92,8 @@ void McpService::registerTraduccionTools() {
                            {"fuente", {{"type", "string"}, {"description", "la fuente de audio en cuyo rack va la tarjeta"}}},
                            {"rotulo", {{"type", "string"}}},
                            {"archivo", {{"type", "boolean"}}},
-                           {"espera_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}}}}};
+                           {"espera_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
+                           {"maximo_ms", {{"type", "integer"}, {"minimum", 1000}, {"maximum", 60000}}}}}};
         x.examples = {R"({"desde": "Orador", "a": "en", "rotulo": "Subtítulos EN"})"};
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error("el traductor no está"));
@@ -111,7 +112,7 @@ void McpService::registerTraduccionTools() {
         x.title = "Pausar o cambiar una traducción";
         x.category = "traduccion";
         x.description = "Cambia una traducción (`id` de `traducciones`, «<fuente>#<nodo>» de su tarjeta): `activa` (pausarla), "
-                        "`desde`, `idioma_desde`, `a`, `nombre`, `rotulo`, `archivo`, `espera_ms`. Con `quitar: true` saca la tarjeta.";
+                        "`desde`, `idioma_desde`, `a`, `nombre`, `rotulo`, `archivo`, `espera_ms`, `maximo_ms`. Con `quitar: true` saca la tarjeta.";
         x.inputSchema = {{"type", "object"},
                          {"required", {"id"}},
                          {"properties",
@@ -124,6 +125,7 @@ void McpService::registerTraduccionTools() {
                            {"archivo", {{"type", "boolean"}}},
                            {"nombre", {{"type", "string"}}},
                            {"espera_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
+                           {"maximo_ms", {{"type", "integer"}, {"minimum", 1000}, {"maximum", 60000}}},
                            {"quitar", {{"type", "boolean"}}}}}};
         x.run = [t](const json& a, Done done) {
             if (!t) return done(ToolResult::error("el traductor no está"));

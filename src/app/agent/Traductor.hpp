@@ -23,8 +23,9 @@
 // ORACIONES ENTERAS. La transcripción continua manda un pedazo en cada pausa
 // del orador, a veces a mitad de una idea; traducido suelto sale mal. Se juntan
 // los pedazos hasta que uno termina en punto (., ?, !, …) o pasa `espera_ms`
-// (0,6 s por defecto) sin que llegue otro; uno muy largo se corta en la última
-// coma.
+// (0,6 s por defecto) sin que llegue otro. Si el orador encadena sin punto, a
+// los `maximo_ms` de juntar (8 s por defecto) o a los 280 caracteres se traduce
+// lo que hay, hasta la última coma si la hay.
 //
 // CADA TRADUCCIÓN ES UNA TARJETA «Traducir» del rack de audio (AudioRack, sin
 // audio: va al lado de la voz a texto cuya salida traduce) y se guarda con el
@@ -193,6 +194,7 @@ class Traductor : public QObject {
     struct Junta {
         QString texto;
         QTimer* timer = nullptr;
+        qint64 desde = 0; ///< cuándo llegó el primer pedazo de lo que se está juntando
     };
     std::map<std::string, Junta> juntas_;
     void soltar(const std::string& id);

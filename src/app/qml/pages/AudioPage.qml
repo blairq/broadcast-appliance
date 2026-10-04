@@ -1100,6 +1100,12 @@ Rectangle {
                         text: Studio.voz.ultimo !== "" ? "Último dictado: «" + Studio.voz.ultimo + "»" : Studio.voz.estado
                         color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
                     }
+                    // Cuándo corta una frase (pausa, largo máximo, umbral): es de toda
+                    // la transcripción continua, también está en Configuración.
+                    AjustesCorte {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto" && parent.d.modo === "continuo"
+                    }
                     Repeater {
                         model: parent.d.tipo === "texto" && parent.d.modo === "continuo"
                                ? Studio.voz.transcripcion.filter(x => x.flujo === parent.d.flujo).slice(-12) : []

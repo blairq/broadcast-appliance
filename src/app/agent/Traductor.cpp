@@ -206,7 +206,8 @@ std::string Traductor::agregar(const std::string& desde, const std::string& idio
            {"activa", opciones.value("activa", true)},
            {"rotulo", opciones.value("rotulo", std::string())},
            {"archivo", opciones.value("archivo", false)},
-           {"espera_ms", opciones.value("espera_ms", 600)}};
+           {"espera_ms", opciones.value("espera_ms", 600)},
+           {"maximo_ms", opciones.value("maximo_ms", 8000)}};
     if (opciones.contains("fuente")) t["fuente"] = opciones["fuente"];
     if (tarjetas_.agregar) {
         std::string id;
@@ -229,7 +230,7 @@ std::string Traductor::agregar(const std::string& desde, const std::string& idio
 
 std::string Traductor::ajustar(const std::string& id, const json& cambios) {
     json c = json::object();
-    for (const char* k : {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde", "espera_ms", "desde"})
+    for (const char* k : {"activa", "rotulo", "archivo", "nombre", "a", "idioma_desde", "espera_ms", "maximo_ms", "desde"})
         if (cambios.contains(k)) c[k] = cambios[k];
     if (c.contains("a") && !nombresIdiomas().count(c.value("a", std::string()))) return "idioma «" + c.value("a", std::string()) + "» desconocido";
     if (c.contains("idioma_desde") && !nombresIdiomas().count(c.value("idioma_desde", std::string())))
@@ -496,25 +497,34 @@ void Traductor::alFrase(const QString& flujo, const QString& texto) {
         if (t.value("desde", "") != f || !t.value("activa", true)) continue;
         const std::string id = t.value("id", "");
         Junta& j = juntas_[id];
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        if (j.texto.isEmpty()) j.desde = ahora;
         j.texto = j.texto.isEmpty() ? texto.trimmed() : j.texto + " " + texto.trimmed();
         if (!j.timer) {
             j.timer = new QTimer(this);
             j.timer->setSingleShot(true);
             connect(j.timer, &QTimer::timeout, this, [this, id]() { soltar(id); });
         }
+        const int espera = t.value("espera_ms", 600);
+        const qint64 maximo = t.value("maximo_ms", 8000);
         if (cierra(j.texto)) {
             j.timer->stop();
             soltar(id);
-        } else if (j.texto.size() > kLargoMaximo) {
-            // Demasiado largo sin punto: se traduce hasta la última coma y el resto espera.
+        } else if (j.texto.size() > kLargoMaximo || ahora - j.desde >= maximo) {
+            // Demasiado largo o demasiado tiempo sin punto: se traduce hasta la
+            // última coma (si deja algo razonable) y el resto sigue juntándose.
+            j.timer->stop();
             const int c = j.texto.lastIndexOf(',');
             const QString resto = c > 40 ? j.texto.mid(c + 1).trimmed() : QString();
             if (c > 40) j.texto = j.texto.left(c + 1);
             soltar(id);
-            juntas_[id].texto = resto;
-            if (!resto.isEmpty()) juntas_[id].timer->start(t.value("espera_ms", 600));
+            Junta& r = juntas_[id];
+            r.texto = resto;
+            r.desde = ahora;
+            if (!resto.isEmpty()) r.timer->start(espera);
         } else {
-            j.timer->start(t.value("espera_ms", 600));
+            // La pausa normal, sin pasarse del máximo.
+            j.timer->start(static_cast<int>(std::clamp<qint64>(maximo - (ahora - j.desde), 0, espera)));
         }
     }
 }

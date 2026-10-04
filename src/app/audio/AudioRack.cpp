@@ -594,7 +594,7 @@ std::string AudioRack::addTraduccion(const json& opciones) {
     n->kind = "traducir";
     n->id = newId("traducir");
     n->traduccion = json{{"desde", ""}, {"idioma_desde", "es"}, {"a", "en"}, {"nombre", ""}, {"rotulo", ""}, {"archivo", false},
-                         {"activa", true}, {"espera_ms", 600}};
+                         {"activa", true}, {"espera_ms", 600}, {"maximo_ms", 8000}};
     if (opciones.is_object())
         for (auto it = opciones.begin(); it != opciones.end(); ++it) n->traduccion[it.key()] = it.value();
     n->label = etiquetaTraduccion(n->traduccion);
