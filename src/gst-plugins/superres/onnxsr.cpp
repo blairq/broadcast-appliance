@@ -40,6 +40,13 @@
 //   Alto y ancho libres se fijan al tamaño de la cámara al abrir la sesión (las
 //   aceleradoras compilan para tamaños fijos).
 //
+// NVIDIA SIN BAJAR A LA CPU (si GStreamer trae gst-cuda): la entrada puede ser
+//   memory:CUDAMemory (lo que entrega nvh264dec/nvh265dec): el cuadro se copia
+//   de placa a placa a los tensores de la red (cuMemcpy2D, sin pasar por la
+//   CPU), la red corre con IoBinding en CUDA/TensorRT y la salida baja a la
+//   CPU una vez (libobs la necesita ahí igual). Comparte el contexto CUDA del
+//   pipeline (consultas y mensajes de GstContext, como los elementos de nvcodec).
+//
 // GStreamer: NV12 de entrada y salida (al doble), LATENCY con lo que tarda
 //   la red, QoS, metadatos que no dependen del tamaño. La red corre en un hilo
 //   propio con un cuadro en vuelo (el hilo de streaming no espera a la red);
@@ -64,6 +71,9 @@
 #else
 #include <dlfcn.h>
 #endif
+#endif
+#if defined(BA_HAVE_GST_CUDA)
+#include <gst/cuda/gstcuda.h>
 #endif
 
 #include <algorithm>
@@ -331,6 +341,20 @@ struct Red {
     int iw = 0, ih = 0; ///< lo que recibe (float)
     std::string proveedor;
     std::vector<float> in; ///< el tensor de entrada (float), reusado
+    // Tensores en la placa (entrada CUDAMemory con CUDA/TensorRT).
+    std::unique_ptr<Ort::MemoryInfo> memCuda;
+    std::unique_ptr<Ort::Allocator> alCuda;
+    void* yD = nullptr;
+    void* uvD = nullptr;
+    void* y2D = nullptr;
+    void* uv2D = nullptr;
+    int bw = 0, bh = 0;
+    ~Red() {
+        if (alCuda)
+            for (void* p : {yD, uvD, y2D, uv2D})
+                if (p != nullptr) alCuda->Free(p);
+    }
+    bool enPlaca() const { return nv12 && (proveedor == "cuda" || proveedor == "tensorrt"); }
 };
 #endif
 
@@ -403,6 +427,10 @@ struct _BaOnnxSr {
 #endif
     Obrero* obrero;
     std::deque<Trabajo*>* pendientes;
+    gboolean entradaCuda; ///< la entrada es memory:CUDAMemory
+#if defined(BA_HAVE_GST_CUDA)
+    GstCudaContext* cuda;
+#endif
     gboolean activo;
     ba::sr::Demora* demora;
 };
@@ -427,8 +455,13 @@ enum {
     PROP_BIBLIOTECA
 };
 
-static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-                                                              GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
+#if defined(BA_HAVE_GST_CUDA)
+#define CAPS_ENTRADA GST_VIDEO_CAPS_MAKE("NV12") ";" GST_VIDEO_CAPS_MAKE_WITH_FEATURES(GST_CAPS_FEATURE_MEMORY_CUDA_MEMORY, "NV12")
+#else
+#define CAPS_ENTRADA GST_VIDEO_CAPS_MAKE("NV12")
+#endif
+static GstStaticPadTemplate sinkTpl =
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS(CAPS_ENTRADA));
 static GstStaticPadTemplate srcTpl =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
 
@@ -575,7 +608,27 @@ static void abrirRed(BaOnnxSr* s, int w, int h) {
 
 static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* filtro) {
     auto* s = BA_ONNXSR(bt);
-    return ba::sr::transformarCaps(dir, caps, filtro, s->activo && hayModelo(s));
+    // La memoria: sale siempre en la de sistema; entra en la de sistema o (con
+    // gst-cuda) en la de CUDA.
+    GstCaps* sinMem = gst_caps_new_empty();
+    for (guint i = 0; i < gst_caps_get_size(caps); ++i)
+        gst_caps_append_structure(sinMem, gst_structure_copy(gst_caps_get_structure(caps, i)));
+    GstCaps* r = ba::sr::transformarCaps(dir, sinMem, nullptr, s->activo && hayModelo(s));
+    gst_caps_unref(sinMem);
+#if defined(BA_HAVE_GST_CUDA)
+    if (dir == GST_PAD_SRC) {
+        GstCaps* conCuda = gst_caps_copy(r);
+        for (guint i = 0; i < gst_caps_get_size(conCuda); ++i)
+            gst_caps_set_features(conCuda, i, gst_caps_features_new(GST_CAPS_FEATURE_MEMORY_CUDA_MEMORY, nullptr));
+        r = gst_caps_merge(conCuda, r); // CUDA primero: si el de arriba puede, sin bajar a la CPU
+    }
+#endif
+    if (filtro != nullptr) {
+        GstCaps* f = gst_caps_intersect_full(filtro, r, GST_CAPS_INTERSECT_FIRST);
+        gst_caps_unref(r);
+        r = f;
+    }
+    return r;
 }
 
 static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize, GstCaps* otras, gsize* otro) {
@@ -589,8 +642,25 @@ static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcap
     auto* s = BA_ONNXSR(bt);
     if (!gst_video_info_from_caps(&s->in, incaps) || !gst_video_info_from_caps(&s->out, outcaps)) return FALSE;
     s->procesa = GST_VIDEO_INFO_WIDTH(&s->out) == 2 * GST_VIDEO_INFO_WIDTH(&s->in);
+    const GstCapsFeatures* fe = gst_caps_get_size(incaps) > 0 ? gst_caps_get_features(incaps, 0) : nullptr;
+    s->entradaCuda = FALSE;
+#if defined(BA_HAVE_GST_CUDA)
+    if (fe != nullptr && gst_caps_features_contains(fe, GST_CAPS_FEATURE_MEMORY_CUDA_MEMORY)) {
+        if (!gst_cuda_ensure_element_context(GST_ELEMENT(s), -1, &s->cuda)) {
+            GST_ELEMENT_ERROR(s, RESOURCE, NOT_FOUND, ("no hay un contexto CUDA"), (nullptr));
+            return FALSE;
+        }
+        s->entradaCuda = TRUE;
+    }
+#else
+    (void)fe;
+#endif
     soltarRed(s); // se abre al primer cuadro, con este tamaño
-    gst_base_transform_set_passthrough(bt, !s->procesa);
+    // Mismo tamaño pero de CUDA a sistema: no es pasante (hay que bajarlo).
+    gst_base_transform_set_passthrough(bt, !s->procesa && !s->entradaCuda);
+    GST_INFO_OBJECT(s, "%dx%d %s, %s", GST_VIDEO_INFO_WIDTH(&s->in), GST_VIDEO_INFO_HEIGHT(&s->in),
+                    s->entradaCuda ? "en la placa (CUDAMemory)" : "en memoria de sistema",
+                    s->procesa ? "agranda" : "no agranda");
     return TRUE;
 }
 
@@ -753,8 +823,98 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
 }
 #endif
 
+#if defined(BA_HAVE_GST_CUDA) && defined(BA_HAVE_ORT)
+/// Copia un plano de 8 bits entre memorias (placa/sistema), con sus pasos.
+static bool copiar2D(const void* src, int pasoSrc, bool srcPlaca, void* dst, int pasoDst, bool dstPlaca, int ancho,
+                     int alto) {
+    CUDA_MEMCPY2D c = {};
+    c.srcMemoryType = srcPlaca ? CU_MEMORYTYPE_DEVICE : CU_MEMORYTYPE_HOST;
+    if (srcPlaca)
+        c.srcDevice = reinterpret_cast<CUdeviceptr>(src);
+    else
+        c.srcHost = src;
+    c.srcPitch = static_cast<size_t>(pasoSrc);
+    c.dstMemoryType = dstPlaca ? CU_MEMORYTYPE_DEVICE : CU_MEMORYTYPE_HOST;
+    if (dstPlaca)
+        c.dstDevice = reinterpret_cast<CUdeviceptr>(dst);
+    else
+        c.dstHost = dst;
+    c.dstPitch = static_cast<size_t>(pasoDst);
+    c.WidthInBytes = static_cast<size_t>(ancho);
+    c.Height = static_cast<size_t>(alto);
+    return CuMemcpy2D(&c) == CUDA_SUCCESS;
+}
+
+/// NV12 en la placa: CUDAMemory -> tensores de la red (placa a placa) -> red
+/// (IoBinding, CUDA/TensorRT) -> cuadro de salida (baja una vez).
+static bool correrEnPlaca(BaOnnxSr* s, Red* r, GstBuffer* inbuf, GstVideoFrame* fo) {
+    const int w = GST_VIDEO_INFO_WIDTH(&s->in), h = GST_VIDEO_INFO_HEIGHT(&s->in);
+    if (!r->alCuda || r->bw != w || r->bh != h) {
+        r->memCuda = std::make_unique<Ort::MemoryInfo>("Cuda", OrtDeviceAllocator, 0, OrtMemTypeDefault);
+        r->alCuda = std::make_unique<Ort::Allocator>(*r->sesion, *r->memCuda);
+        r->yD = r->alCuda->Alloc(static_cast<size_t>(w) * h);
+        r->uvD = r->alCuda->Alloc(static_cast<size_t>(w) * h / 2);
+        r->y2D = r->alCuda->Alloc(static_cast<size_t>(4) * w * h);
+        r->uv2D = r->alCuda->Alloc(static_cast<size_t>(2) * w * h);
+        r->bw = w;
+        r->bh = h;
+    }
+    GstVideoFrame fi;
+    if (!gst_video_frame_map(&fi, &s->in, inbuf, static_cast<GstMapFlags>(GST_MAP_READ | GST_MAP_CUDA))) return false;
+    bool ok = gst_cuda_context_push(s->cuda);
+    if (ok) {
+        ok = copiar2D(GST_VIDEO_FRAME_PLANE_DATA(&fi, 0), GST_VIDEO_FRAME_PLANE_STRIDE(&fi, 0), true, r->yD, w, true,
+                      w, h) &&
+             copiar2D(GST_VIDEO_FRAME_PLANE_DATA(&fi, 1), GST_VIDEO_FRAME_PLANE_STRIDE(&fi, 1), true, r->uvD, w, true,
+                      w, h / 2);
+        gst_cuda_context_pop(nullptr);
+    }
+    gst_video_frame_unmap(&fi);
+    if (!ok) return false;
+    const auto tensor = [&](void* p, int64_t alto, int64_t ancho) {
+        const std::array<int64_t, 4> d{1, 1, alto, ancho};
+        return Ort::Value::CreateTensor(*r->memCuda, p, static_cast<size_t>(alto * ancho), d.data(), d.size(),
+                                        ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8);
+    };
+    Ort::IoBinding io(*r->sesion);
+    io.BindInput(r->entradas[0].c_str(), tensor(r->yD, h, w));
+    io.BindInput(r->entradas[1].c_str(), tensor(r->uvD, h / 2, w));
+    io.BindOutput(r->salidas[0].c_str(), tensor(r->y2D, 2 * h, 2 * w));
+    io.BindOutput(r->salidas[1].c_str(), tensor(r->uv2D, h, 2 * w));
+    r->sesion->Run(Ort::RunOptions{nullptr}, io);
+    io.SynchronizeOutputs();
+    // Baja una vez, directo a los planos del cuadro de salida.
+    if (!gst_cuda_context_push(s->cuda)) return false;
+    ok = copiar2D(r->y2D, 2 * w, true, GST_VIDEO_FRAME_PLANE_DATA(fo, 0), GST_VIDEO_FRAME_PLANE_STRIDE(fo, 0), false,
+                  2 * w, 2 * h) &&
+         copiar2D(r->uv2D, 2 * w, true, GST_VIDEO_FRAME_PLANE_DATA(fo, 1), GST_VIDEO_FRAME_PLANE_STRIDE(fo, 1), false,
+                  2 * w, h);
+    gst_cuda_context_pop(nullptr);
+    return ok;
+}
+#endif
+
 /// Un cuadro (en el hilo de la red): false si no se pudo usar la red.
 static bool procesar(BaOnnxSr* s, GstBuffer* inbuf, GstBuffer* outbuf) {
+#if defined(BA_HAVE_GST_CUDA) && defined(BA_HAVE_ORT)
+    if (s->entradaCuda && s->red != nullptr && s->red->enPlaca()) {
+        GstVideoFrame fo;
+        if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) return false;
+        const gint64 t0 = g_get_monotonic_time();
+        bool ok = false;
+        try {
+            ok = correrEnPlaca(s, s->red, inbuf, &fo);
+        } catch (const std::exception& e) {
+            ponerError(s, std::string("la red en la placa falló: ") + e.what());
+        }
+        gst_video_frame_unmap(&fo);
+        if (ok) {
+            s->demora->anotar(static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
+            return true;
+        }
+        // Si falló, sigue por el camino de la CPU (el mapeo baja el cuadro).
+    }
+#endif
     GstVideoFrame fi, fo;
     if (!gst_video_frame_map(&fi, &s->in, inbuf, GST_MAP_READ)) return false;
     if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) {
@@ -948,9 +1108,22 @@ static gboolean parar(GstBaseTransform* bt) {
 }
 
 static gboolean consultar(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
+#if defined(BA_HAVE_GST_CUDA)
+    if (GST_QUERY_TYPE(q) == GST_QUERY_CONTEXT &&
+        gst_cuda_handle_context_query(GST_ELEMENT(bt), q, BA_ONNXSR(bt)->cuda))
+        return TRUE;
+#endif
     return ba::sr::consultaLatencia(bt, q, *BA_ONNXSR(bt)->demora,
                                     GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->query, dir);
 }
+
+#if defined(BA_HAVE_GST_CUDA)
+/// El contexto CUDA del pipeline (el de nvcodec): el mismo para todos.
+static void ponerContexto(GstElement* e, GstContext* c) {
+    gst_cuda_handle_set_context(e, c, -1, &BA_ONNXSR(e)->cuda);
+    GST_ELEMENT_CLASS(ba_onnxsr_parent_class)->set_context(e, c);
+}
+#endif
 
 static gboolean eventoEntrada(GstBaseTransform* bt, GstEvent* ev) {
     auto* s = BA_ONNXSR(bt);
@@ -979,6 +1152,9 @@ static void ba_onnxsr_finalize(GObject* o) {
     g_free(s->error);
     delete s->errorMu;
     delete s->demora;
+#if defined(BA_HAVE_GST_CUDA)
+    if (s->cuda != nullptr) gst_object_unref(s->cuda);
+#endif
     G_OBJECT_CLASS(ba_onnxsr_parent_class)->finalize(o);
 }
 
@@ -1044,6 +1220,9 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     bt->sink_event = GST_DEBUG_FUNCPTR(eventoEntrada);
     bt->fixate_caps = GST_DEBUG_FUNCPTR(ba::sr::fijarCaps);
     bt->transform_meta = GST_DEBUG_FUNCPTR(ba::sr::transformarMeta);
+#if defined(BA_HAVE_GST_CUDA)
+    ge->set_context = GST_DEBUG_FUNCPTR(ponerContexto);
+#endif
     bt->passthrough_on_same_caps = GST_DEBUG_FUNCPTR(TRUE);
 }
 
@@ -1064,6 +1243,10 @@ static void ba_onnxsr_init(BaOnnxSr* s) {
 #endif
     s->obrero = new Obrero();
     s->pendientes = new std::deque<Trabajo*>();
+    s->entradaCuda = FALSE;
+#if defined(BA_HAVE_GST_CUDA)
+    s->cuda = nullptr;
+#endif
     s->activo = TRUE;
     s->demora = new ba::sr::Demora();
     gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);

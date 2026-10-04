@@ -41,6 +41,23 @@ if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
     target_link_libraries(gstbasuperres PRIVATE "${_ba_ort}")
     target_compile_definitions(gstbasuperres PRIVATE BA_HAVE_ORT=1)
 endif()
+# NVIDIA sin bajar a la CPU (baonnxsr con memory:CUDAMemory): gst-cuda de
+# GStreamer y los encabezados stub de CUDA que trae GStreamer (no hace falta el
+# SDK de CUDA: gst-cuda carga el controlador al correr).
+if(NOT APPLE AND DEFINED BA_GST_LIBDIR)
+    get_filename_component(_ba_gst_raiz "${BA_GST_LIBDIR}" DIRECTORY)
+    if(WIN32)
+        set(_ba_gstcuda "${_ba_gst_raiz}/lib/gstcuda-1.0.lib")
+    else()
+        set(_ba_gstcuda "${BA_GST_LIBDIR}/libgstcuda-1.0.so")
+    endif()
+    if(EXISTS "${_ba_gstcuda}" AND EXISTS "${_ba_gst_raiz}/include/gstreamer-1.0/gst/cuda/gstcuda.h")
+        target_include_directories(gstbasuperres PRIVATE "${CMAKE_SOURCE_DIR}/third_party/gst-cuda-stub")
+        target_link_libraries(gstbasuperres PRIVATE "${_ba_gstcuda}")
+        target_compile_definitions(gstbasuperres PRIVATE BA_HAVE_GST_CUDA=1 GST_USE_UNSTABLE_API=1)
+        message(STATUS "gst-cuda: baonnxsr acepta memory:CUDAMemory")
+    endif()
+endif()
 if(APPLE)
     target_link_libraries(gstbasuperres PRIVATE "-framework VideoToolbox" "-framework CoreVideo" "-framework CoreMedia" "-framework Foundation"
         "-framework CoreML" "-framework Accelerate")
