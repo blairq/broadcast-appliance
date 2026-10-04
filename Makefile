@@ -337,7 +337,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-herramientas
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -1471,6 +1471,11 @@ deps-gstreamer-win: deps-obs deps-qt
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_DEV)" URL="$(GST_WIN_URL)/$(GST_WIN_DEV)" SHA="$(GST_WIN_DEV_SHA)" QUE="GStreamer (Windows, cabeceras)" && \
 	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win" \
 		"$(EXTERNS_DIR)/obs-studio/bin/64bit" "$(EXTERNS_DIR)/qt6/6.6.3/msvc2019_64/bin"
+
+# Los bindings de Python de GStreamer para el Python 3.12 del bundle (macOS).
+.PHONY: deps-gst-python-mac
+deps-gst-python-mac: deps-gstreamer-macos deps-python
+	bash tools/deps/gst-python-mac.sh "$(DL_DIR)"
 
 .PHONY: deps-gstreamer-macos
 deps-gstreamer-macos:

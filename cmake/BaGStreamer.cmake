@@ -31,6 +31,11 @@ if(APPLE AND EXISTS "${BA_GST_FW}/Versions/1.0/lib/libgstreamer-1.0.dylib")
     # El framework entero, con sus enlaces simbólicos, al lado de libobs.
     install(DIRECTORY "${BA_GST_FW}" DESTINATION bin/64bit USE_SOURCE_PERMISSIONS
             PATTERN "include" EXCLUDE PATTERN "Headers" EXCLUDE PATTERN "pkgconfig" EXCLUDE)
+    # libgstpython para el Python 3.12 del bundle (tools/deps/gst-python-mac.sh):
+    # elementos de GStreamer escritos en Python. Va con los plugins propios.
+    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/gst-python-mac/libgstpython.dylib")
+        install(FILES "${CMAKE_SOURCE_DIR}/extern/gst-python-mac/libgstpython.dylib" DESTINATION gst-plugins COMPONENT bundle)
+    endif()
     message(STATUS "GStreamer: ${BA_GST_FW}")
 elseif(UNIX AND NOT APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-linux/lib/libgstreamer-1.0.so")
     set(BA_HAVE_GST ON)

@@ -65,7 +65,13 @@ trap 'rm -rf "$T"' EXIT
 export PATH="$T/venv/bin:$PATH"
 command -v pkg-config >/dev/null || "$T/venv/bin/pip" install -q "pkgconf==2.4.3.post1"
 STAGE="$T/stage"
-export PKG_CONFIG_PATH="$STAGE/lib/pkgconfig:$FW/lib/pkgconfig"
+# Los .pc de python-build-standalone apuntan a donde lo compilaron (/install):
+# copias con la ruta de extern/python (gst-python enlaza libpython).
+mkdir -p "$T/pc"
+for f in "$ROOT"/extern/python/lib/pkgconfig/*.pc; do
+    sed "s|^prefix=.*|prefix=$ROOT/extern/python|" "$f" >"$T/pc/$(basename "$f")"
+done
+export PKG_CONFIG_PATH="$STAGE/lib/pkgconfig:$T/pc:$FW/lib/pkgconfig"
 export LDFLAGS="-L$FW/lib -Wl,-headerpad_max_install_names"
 export CFLAGS="-I$FW/Headers"
 
@@ -96,12 +102,12 @@ REL_FW_DESDE_GI="@loader_path/../../../../../bin/64bit/GStreamer.framework/Versi
 for so in $(find "$SITE/gi" -name '*.so'); do
     # De la ruta absoluta del framework de compilar a @rpath.
     for dep in $(otool -L "$so" | awk 'NR>1{print $1}' | grep "$FW/lib/" || true); do
-        install_name_tool -change "$dep" "@rpath/lib/$(basename "$dep")" "$so"
+        install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$so"
     done
     d="$(dirname "$so")"
     prof="$(python3 -c "import os,sys; print(os.path.relpath('$SITE', '$d'))")"
-    install_name_tool -add_rpath "@loader_path/$prof/../../../../bin/64bit/GStreamer.framework/Versions/1.0" "$so" 2>/dev/null || true
-    install_name_tool -add_rpath "$FW" "$so" 2>/dev/null || true
+    install_name_tool -add_rpath "@loader_path/$prof/../../../../bin/64bit/GStreamer.framework/Versions/1.0/lib" "$so" 2>/dev/null || true
+    install_name_tool -add_rpath "$FW/lib" "$so" 2>/dev/null || true
     codesign -f -s - "$so" 2>/dev/null || true
 done
 if [ -f "$OUT/libgstpython.dylib" ]; then
@@ -109,12 +115,12 @@ if [ -f "$OUT/libgstpython.dylib" ]; then
     for dep in $(otool -L "$so" | awk 'NR>1{print $1}' | grep -E "$FW/lib/|$ROOT/extern/python" || true); do
         case "$dep" in
         *libpython*) install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$so" ;;
-        *) install_name_tool -change "$dep" "@rpath/lib/$(basename "$dep")" "$so" ;;
+        *) install_name_tool -change "$dep" "@rpath/$(basename "$dep")" "$so" ;;
         esac
     done
     # En el bundle: gst-plugins/ → ../python/lib y ../bin/64bit/GStreamer.framework/Versions/1.0
     install_name_tool -add_rpath "@loader_path/../python/lib" "$so" 2>/dev/null || true
-    install_name_tool -add_rpath "@loader_path/../bin/64bit/GStreamer.framework/Versions/1.0" "$so" 2>/dev/null || true
+    install_name_tool -add_rpath "@loader_path/../bin/64bit/GStreamer.framework/Versions/1.0/lib" "$so" 2>/dev/null || true
     codesign -f -s - "$so" 2>/dev/null || true
 fi
 echo "$PYGO_VER $GST_VER" >"$OUT/.version"
