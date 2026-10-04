@@ -44,9 +44,6 @@
 #include <util/platform.h>
 
 #include "ba_gst.hpp"
-#if defined(__APPLE__)
-#include "ba_coreml_mac.hpp"
-#endif
 #include "ba_video_estudio.hpp"
 
 #include <algorithm>
@@ -79,8 +76,7 @@ enum class Tipo {
     Retardo,
     Rostros,
     Normalizar,
-    Sincro,
-    CoreMl  ///< superresolución CoreML sin copias a la CPU (macOS: ba_coreml_mac)
+    Sincro
 };
 
 /// La huella de cada cuadro de una tarjeta `sincro`: una grilla de luma de
@@ -208,10 +204,6 @@ struct Paso {
     bool marcar = false;
     // obs
     std::shared_ptr<InstanciaObs> obs;
-#if defined(__APPLE__)
-    // superresolución CoreML (IOSurface, sin pasar por la CPU)
-    std::shared_ptr<ba::coreml::TarjetaCoreMl> cml;
-#endif
 #if defined(BA_HAVE_GST)
     // gst: un módulo de GStreamer
     std::shared_ptr<ba::gst::TarjetaGst> gst;
@@ -225,9 +217,6 @@ struct Plan {
     std::map<std::string, std::shared_ptr<Retardo>> retardos;
     std::map<std::string, std::shared_ptr<Analisis>> analisis;
     std::map<std::string, std::shared_ptr<Huella>> huellas;
-#if defined(__APPLE__)
-    std::map<std::string, std::shared_ptr<ba::coreml::TarjetaCoreMl>> cml;
-#endif
 #if defined(BA_HAVE_GST)
     std::map<std::string, std::shared_ptr<ba::gst::TarjetaGst>> gst;
 #endif
@@ -419,18 +408,6 @@ void correccion(const std::string& mDecl, bool cDecl, const std::string& mReal, 
     }
 }
 
-/// ¿La tarjeta de superresolución va por CoreML nativo (macOS, sin copias)?
-bool esCoreMl(obs_data_t* q) {
-#if defined(__APPLE__)
-    return q != nullptr && std::string(obs_data_get_string(q, "motor")) == "coreml" &&
-           *obs_data_get_string(q, "modelo") != '\0' &&
-           (!obs_data_has_user_value(q, "activo") || obs_data_get_bool(q, "activo"));
-#else
-    (void)q;
-    return false;
-#endif
-}
-
 std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
     auto plan = std::make_shared<Plan>();
     if (json == nullptr || *json == '\0') return plan;
@@ -524,22 +501,6 @@ std::shared_ptr<Plan> armarPlan(const char* json, const Plan* anterior) {
                 plan->gst[n.id] = p.gst;
 #else
                 continue; // sin GStreamer: la tarjeta no se calcula
-#endif
-            } else if (n.tipo == "superres" && esCoreMl(q)) {
-#if defined(__APPLE__)
-                // Superresolución CoreML SIN copias a la CPU (IOSurface de punta a
-                // punta: ba_coreml_mac). Se reusa la del plan anterior si es el mismo modelo.
-                p.tipo = Tipo::CoreMl;
-                const std::string modelo = obs_data_get_string(q, "modelo");
-                const int escalaRed = static_cast<int>(obs_data_get_int(q, "escala_red"));
-                if (anterior != nullptr) {
-                    const auto it = anterior->cml.find(n.id);
-                    if (it != anterior->cml.end() && it->second->modelo() == modelo &&
-                        it->second->escalaRed() == (escalaRed == 4 ? 4 : 2))
-                        p.cml = it->second;
-                }
-                if (!p.cml) p.cml = std::make_shared<ba::coreml::TarjetaCoreMl>(modelo, escalaRed);
-                plan->cml[n.id] = p.cml;
 #endif
             } else if (n.tipo == "superres") {
 #if defined(BA_HAVE_GST)
@@ -1120,9 +1081,6 @@ bool procesar(Grafo* g, const Plan& plan) {
 #if defined(BA_HAVE_GST)
         if (p.tipo == Tipo::Gst && p.gst) ow = iw * p.gst->factor(), oh = ih * p.gst->factor();
 #endif
-#if defined(__APPLE__)
-        if (p.tipo == Tipo::CoreMl && p.cml) ow = iw * p.cml->factor(), oh = ih * p.cml->factor();
-#endif
         tam[i] = {ow, oh};
         g->tw = ow;
         g->th = oh;
@@ -1222,35 +1180,6 @@ bool procesar(Grafo* g, const Plan& plan) {
                 gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
                 // Al empezar, los guardados todavía están vacíos: pasa el de ahora.
                 pasada(g, viejo != nullptr ? viejo : en, "Copiar");
-                break;
-            }
-            case Tipo::CoreMl: {
-#if defined(__APPLE__)
-                const bool corrio = p.cml && p.cml->procesar(en, iw, ih);
-                {
-                    std::lock_guard<std::mutex> l(g->estadoLock);
-                    const std::string e = p.cml ? p.cml->error() : "sin tarjeta";
-                    if (corrio || e.empty())
-                        g->errores.erase(p.id);
-                    else
-                        g->errores[p.id] = e;
-                    if (p.cml) {
-                        char av[160];
-                        std::snprintf(av, sizeof av, "CoreML sin copias a la CPU: la red tarda %.1f ms; el cuadro sale %.0f ms después",
-                                      p.cml->msRed(), p.cml->demoraMs());
-                        g->avisos[p.id] = corrio ? av : "CoreML: cargando el modelo (mientras, agrandado común)";
-                        g->demoras[p.id] = p.cml->demoraMs();
-                    }
-                }
-                if (corrio) break;
-#endif
-                // Todavía sin resultado: la imagen agrandada común (el tamaño no salta).
-                gs_texrender_end(destino);
-                gs_texrender_reset(destino);
-                if (gs_texrender_begin(destino, ow, oh)) {
-                    gs_ortho(0.0f, static_cast<float>(ow), 0.0f, static_cast<float>(oh), -100.0f, 100.0f);
-                    pasada(g, en, "Copiar");
-                }
                 break;
             }
             case Tipo::Gst:
