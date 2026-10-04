@@ -31,9 +31,13 @@
 #include <cstring>
 #include <string>
 #include <thread>
+#include <vector>
+#if defined(_WIN32)
+#include <windows.h>
+#else
 #include <signal.h>
 #include <unistd.h>
-#include <vector>
+#endif
 
 namespace {
 
@@ -715,7 +719,16 @@ plugin.correr()
         }
         if (gerr != nullptr) g_error_free(gerr);
         // Sin el plugin: la tarjeta deja pasar la imagen (no se traba).
-        if (pid > 0) kill(static_cast<pid_t>(pid), SIGTERM);
+        if (pid > 0) {
+#if defined(_WIN32)
+            if (HANDLE h = OpenProcess(PROCESS_TERMINATE, FALSE, static_cast<DWORD>(pid))) {
+                TerminateProcess(h, 1);
+                CloseHandle(h);
+            }
+#else
+            kill(static_cast<pid_t>(pid), SIGTERM);
+#endif
+        }
         for (int i = 0; i < 100; ++i) {
             im = dibujar(fuente);
             siguienteCuadro();
