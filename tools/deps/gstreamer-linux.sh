@@ -112,8 +112,8 @@ for f in "$PREFIX"/lib/gstreamer-1.0/libgstpython*.so; do
     [ -f "$f" ] && patchelf --set-rpath '$ORIGIN/..:$ORIGIN/../../..:$ORIGIN/../../../../../python/lib' "$f"
 done
 # Las extensiones de gi (_gi*.so) buscan libgirepository y GStreamer: van a
-# python/lib/python3.12/site-packages/gi en el bundle.
-find "$PREFIX/lib/python3.12" -name '*.so' -type f -exec sh -c 'patchelf --set-rpath "\$ORIGIN/../../../../../bin/64bit/gstreamer/lib:\$ORIGIN/../../../../../bin/64bit" "$1"' _ {} \; 2>/dev/null || true
+# python/lib/python3.12/site-packages/gi (y gi/overrides, un nivel más) en el bundle.
+find "$PREFIX/lib/python3.12" -name '*.so' -type f -exec sh -c 'patchelf --set-rpath "\$ORIGIN/../../../../../bin/64bit/gstreamer/lib:\$ORIGIN/../../../../../bin/64bit:\$ORIGIN/../../../../../../bin/64bit/gstreamer/lib:\$ORIGIN/../../../../../../bin/64bit" "$1"' _ {} \; 2>/dev/null || true
 strip --strip-unneeded "$PREFIX"/lib/*.so* "$PREFIX"/lib/gstreamer-1.0/*.so 2>/dev/null || true
 
 echo "$VER $COMMIT" >"$PREFIX/.version"
