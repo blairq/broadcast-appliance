@@ -67,7 +67,12 @@ static GType tipoProveedor() {
         static const GEnumValue v[] = {{0, "El mejor que haya", "auto"},
                                        {1, "Solo el procesador", "cpu"},
                                        {2, "CoreML (macOS: GPU y Neural Engine)", "coreml"},
-                                       {3, "DirectML (Windows: cualquier GPU)", "dml"},
+                                       {3, "DirectML (Windows: AMD, NVIDIA, Intel)", "dml"},
+                                       {4, "TensorRT (NVIDIA: compila la red para la placa)", "tensorrt"},
+                                       {5, "CUDA (NVIDIA)", "cuda"},
+                                       {6, "MIGraphX (AMD en Linux: compila la red)", "migraphx"},
+                                       {7, "ROCm (AMD en Linux)", "rocm"},
+                                       {8, "OpenVINO (Intel)", "openvino"},
                                        {0, nullptr, nullptr}};
         g_once_init_leave(&t, g_enum_register_static("BaSuperResProveedor", v));
     }
@@ -75,7 +80,8 @@ static GType tipoProveedor() {
 }
 static const char* kMotores[] = {"auto", "apple", "fsr", "onnx", "coreml", "glsl"};
 constexpr int kNumMotores = 6;
-static const char* kProveedores[] = {"auto", "cpu", "coreml", "dml"};
+static const char* kProveedores[] = {"auto", "cpu", "coreml", "dml", "tensorrt", "cuda", "migraphx", "rocm", "openvino"};
+constexpr int kNumProveedores = 9;
 
 G_BEGIN_DECLS
 #define BA_TYPE_SUPERRES (ba_superres_get_type())
@@ -259,7 +265,7 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             break;
         case PROP_PROVEEDOR:
             g_free(s->proveedor);
-            s->proveedor = g_strdup(kProveedores[std::clamp(g_value_get_enum(v), 0, 3)]);
+            s->proveedor = g_strdup(kProveedores[std::clamp(g_value_get_enum(v), 0, kNumProveedores - 1)]);
             if (s->motor != nullptr &&
                 g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "proveedor") != nullptr)
                 g_object_set(s->motor, "proveedor", s->proveedor, nullptr);
@@ -295,7 +301,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_NITIDEZ: g_value_set_double(v, s->nitidez); break;
         case PROP_PROVEEDOR: {
             int i = 0;
-            for (int k = 0; k < 4; ++k)
+            for (int k = 0; k < kNumProveedores; ++k)
                 if (std::string(s->proveedor) == kProveedores[k]) i = k;
             g_value_set_enum(v, i);
             break;
@@ -382,9 +388,12 @@ static void ba_superres_class_init(BaSuperResClass* k) {
         go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
     gst_element_class_set_static_metadata(
         ge, "Superresolución x2", "Filter/Effect/Video/Scaler",
-        "Duplica la resolución: Apple (VideoToolbox), FSR 1 (AMD) o una red ONNX", "Broadcast Appliance");
+        "Duplica la resolución: Apple (VideoToolbox), FSR 1, una red ONNX (cualquier placa), CoreML o un shader de mpv",
+        "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
+    gst_type_mark_as_plugin_api(tipoMotor(), static_cast<GstPluginAPIFlags>(0));
+    gst_type_mark_as_plugin_api(tipoProveedor(), static_cast<GstPluginAPIFlags>(0));
 }
 
 static void ba_superres_init(BaSuperRes* s) {
