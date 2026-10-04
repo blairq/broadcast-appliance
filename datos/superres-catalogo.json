@@ -1,0 +1,132 @@
+{
+ "_comentario": "Los plugins de superresolución que la app puede instalar (video/SuperRes, tarjeta «Superresolución»). Cada uno es una receta: de dónde se baja (URL fija y sha256), qué es y cómo se instala. «red» se convierte en el laboratorio (assets/superres/laboratorio.py) a CoreML (.mlmodelc, Mac: ANE/GPU) y a ONNX (Windows con DirectML, Linux); «glsl» es un shader de usuario de mpv (corre en OpenGL en los tres sistemas); «integrado» viene con el programa. Instalado, cada plugin queda en Datos/Modelos/superres/<id>/plugin.json. Para agregar un método nuevo, alcanza con sumar su receta acá.",
+ "plugins": [
+  {
+   "id": "apple",
+   "nombre": "Apple VideoToolbox x2",
+   "tipo": "integrado",
+   "motor": "apple",
+   "escala": 2,
+   "plataformas": ["mac"],
+   "descripcion": "La superresolución de Apple (red neuronal del sistema, macOS 26). Muy rápida (~3 ms); reconstruye detalle sin inventar mucho.",
+   "licencia": "parte de macOS"
+  },
+  {
+   "id": "fsr",
+   "nombre": "FSR 1 de AMD (shaders)",
+   "tipo": "integrado",
+   "motor": "fsr",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Solo shaders, sin IA: agranda siguiendo los bordes (EASU) y afila (RCAS). Cualquier GPU, casi sin costo.",
+   "licencia": "MIT (AMD FidelityFX)"
+  },
+  {
+   "id": "realesr-general-x4v3",
+   "nombre": "Real-ESRGAN general x4 (compacto)",
+   "tipo": "red",
+   "escala": 4,
+   "entrada_mitad": true,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Red generativa: limpia ruido y compresión e inventa bordes nítidos (aspecto «pintado» en texturas finas). En CoreML ~39 ms por cuadro en el ANE con la entrada a la mitad: vivo a 25 fps.",
+   "origen": {"url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth", "sha256": "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292"},
+   "licencia": "BSD-3-Clause (Real-ESRGAN, xinntao)"
+  },
+  {
+   "id": "realesr-animevideov3",
+   "nombre": "Real-ESRGAN video x4 (animevideov3)",
+   "tipo": "red",
+   "escala": 4,
+   "entrada_mitad": true,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "La variante de Real-ESRGAN pensada para video: la mitad de capas que la general (más rápida). Entrenada con animación: bordes muy limpios, alisa la textura.",
+   "origen": {"url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth", "sha256": "b8a8376811077954d82ca3fcf476f1ac3da3e8a68a4f4d71363008000a18b75d"},
+   "licencia": "BSD-3-Clause (Real-ESRGAN, xinntao)"
+  },
+  {
+   "id": "realesrgan-x2plus",
+   "nombre": "Real-ESRGAN x2plus (RRDB, grande)",
+   "tipo": "red",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "El Real-ESRGAN completo x2 (RRDBNet, 16,7 millones de parámetros): el de más calidad de la familia, pero muy pesado. Para planos fijos o fotos, no para vivo.",
+   "origen": {"url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth", "sha256": "49fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb"},
+   "licencia": "BSD-3-Clause (Real-ESRGAN, xinntao)"
+  },
+  {
+   "id": "lsdir-compact-x4",
+   "nombre": "LSDIR Compact x4 (fotos)",
+   "tipo": "red",
+   "escala": 4,
+   "entrada_mitad": true,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Red compacta (la de Real-ESRGAN) entrenada con LSDIR, un set grande de fotos reales: más natural que Real-ESRGAN en escenas reales, misma velocidad.",
+   "origen": {"url": "https://huggingface.co/Phips/4xLSDIRCompact/resolve/ed6230a1e1526f6f428a9c71b6f481290114783d/4xLSDIRCompact.safetensors", "sha256": "8f1ded4b07da32a89e6b066d8e606abaf269d9cd3c280a63ed5c143b109288e2"},
+   "licencia": "CC-BY-4.0 (Philip Hofmann)"
+  },
+  {
+   "id": "nomosuni-compact-x2",
+   "nombre": "NomosUni Compact x2 (con compresión JPG)",
+   "tipo": "red",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Red compacta x2 universal entrenada con compresión JPG y distintos agrandados: pensada para imágenes comprimidas como las de una cámara IP.",
+   "origen": {"url": "https://huggingface.co/Phips/2xNomosUni_compact_multijpg/resolve/4774921957bcbd222e7e4861728b02ebb3502c31/2xNomosUni_compact_multijpg.safetensors", "sha256": "ea51bc7aa05c801e42c85aa84007b8bb1dcd3f11d85d5979b26b29e4c8610401"},
+   "licencia": "CC-BY-4.0 (Philip Hofmann)"
+  },
+  {
+   "id": "span-x2",
+   "nombre": "SPAN x2",
+   "tipo": "red",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Red liviana y fiel (no inventa), entrenada con fotos limpias. Mejora poco en cámaras comprimidas.",
+   "origen": {"url": "https://objectstorage.us-phoenix-1.oraclecloud.com/n/ax6ygfvpvzka/b/open-modeldb-files/o/2x-spanx2-ch48.pth", "sha256": "0b20caeea7af5507ec3bdc63ff5a141a28506279d2cfec909c417ecb308d3f93"},
+   "licencia": "Apache-2.0 (SPAN, Wan et al.)"
+  },
+  {
+   "id": "fsrcnnx-x2-8",
+   "nombre": "FSRCNNX x2 (shader, liviano)",
+   "tipo": "glsl",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Una red chica escrita como shader de mpv (FSRCNNX 8-0-4-1): corre en la GPU por OpenGL en cualquier sistema, sin IA aparte. Más nítida que FSR, sin inventar.",
+   "origen": {"url": "https://github.com/igv/FSRCNN-TensorFlow/releases/download/1.1/FSRCNNX_x2_8-0-4-1.glsl", "sha256": "e800dbc5c1c95185cc82216c597724533ff5f2880179f256eef600f03e8dc2ae"},
+   "licencia": "MIT (igv)"
+  },
+  {
+   "id": "fsrcnnx-x2-16",
+   "nombre": "FSRCNNX x2 (shader, más calidad)",
+   "tipo": "glsl",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "FSRCNNX 16-0-4-1: el doble de filtros que el liviano, más detalle y más costo de GPU.",
+   "origen": {"url": "https://github.com/igv/FSRCNN-TensorFlow/releases/download/1.1/FSRCNNX_x2_16-0-4-1.glsl", "sha256": "d5a24a271e5d9a3f7f7a053b150c460a44c25b3cf7f770857d57cc3a2e1c9965"},
+   "licencia": "MIT (igv)"
+  },
+  {
+   "id": "anime4k-upscale-s",
+   "nombre": "Anime4K Upscale CNN x2 S (shader)",
+   "tipo": "glsl",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "La variante más liviana de Anime4K (red en shaders de mpv): líneas finas y marcadas, pensada para dibujos; en imagen real afila mucho los bordes.",
+   "origen": {"url": "https://github.com/bloc97/Anime4K/releases/download/v4.0.1/Anime4K_v4.0.zip", "sha256": "139cd282086457c5adc79caf7b75b8b825091d71c9b54958c18745fea62d7ed7", "miembro": "Anime4K_Upscale_CNN_x2_S.glsl"},
+   "licencia": "MIT (bloc97)"
+  },
+  {
+   "id": "anime4k-upscale-m",
+   "nombre": "Anime4K Upscale CNN x2 M (shader)",
+   "tipo": "glsl",
+   "escala": 2,
+   "plataformas": ["mac", "windows", "linux"],
+   "descripcion": "Anime4K mediano: más calidad que el S, más costo de GPU.",
+   "origen": {"url": "https://github.com/bloc97/Anime4K/releases/download/v4.0.1/Anime4K_v4.0.zip", "sha256": "139cd282086457c5adc79caf7b75b8b825091d71c9b54958c18745fea62d7ed7", "miembro": "Anime4K_Upscale_CNN_x2_M.glsl"},
+   "licencia": "MIT (bloc97)"
+  }
+ ],
+ "evaluados_no_aptos": [
+  {"id": "seedvr2", "nombre": "SeedVR2 (ByteDance)", "motivo": "Superresolución de video por difusión con un transformer de 3.000 a 7.000 millones de parámetros: en una Mac tarda segundos o minutos por cuadro y pide decenas de GB de memoria. Útil para restaurar un video grabado, no para vivo."},
+  {"id": "swift-vssr", "nombre": "Swift VSSR", "motivo": "No se encontró un modelo publicado con ese nombre (pesos y licencia). Si aparece, se suma como receta."}
+ ]
+}

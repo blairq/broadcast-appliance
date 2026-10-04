@@ -86,7 +86,7 @@ inline bool escalarCampo(GstStructure* st, const char* campo, int por) {
 /// caps del otro lado: el doble (o la mitad) PRIMERO y, detrás, la misma forma (pasante).
 /// `puede(ancho, alto)` (opcional): si el motor acepta ese tamaño de ENTRADA (cuando es fijo).
 inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* filtro, bool activo,
-                                bool (*puede)(int, int) = nullptr) {
+                                bool (*puede)(int, int) = nullptr, int factor = 2) {
     GstCaps* doble = gst_caps_new_empty();
     GstCaps* igual = gst_caps_new_empty();
     for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
@@ -99,10 +99,10 @@ inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* fil
         if (puede != nullptr && gst_structure_get_int(st, "width", &w) &&
             gst_structure_get_int(st, "height", &h)) {
             const bool entrada = dir == GST_PAD_SINK;
-            if (entrada ? !puede(w, h) : (w % 2 != 0 || h % 2 != 0 || !puede(w / 2, h / 2))) continue;
+            if (entrada ? !puede(w, h) : (w % factor != 0 || h % factor != 0 || !puede(w / factor, h / factor))) continue;
         }
         GstStructure* x = gst_structure_copy(st);
-        const int por = dir == GST_PAD_SINK ? 2 : -2;
+        const int por = dir == GST_PAD_SINK ? factor : -factor;
         if (escalarCampo(x, "width", por) && escalarCampo(x, "height", por))
             gst_caps_append_structure_full(doble, x, feat ? gst_caps_features_copy(feat) : nullptr);
         else
@@ -115,6 +115,21 @@ inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* fil
         out = f;
     }
     return out;
+}
+
+/// Al fijar el formato de salida: `factor` veces la entrada, exacto si se puede.
+inline GstCaps* fijarCapsPor(GstPadDirection dir, GstCaps* caps, GstCaps* otras, int factor) {
+    otras = gst_caps_make_writable(otras);
+    if (dir == GST_PAD_SINK && gst_caps_get_size(caps) > 0 && gst_caps_get_size(otras) > 0) {
+        const GstStructure* in = gst_caps_get_structure(caps, 0);
+        GstStructure* out = gst_caps_get_structure(otras, 0);
+        int w = 0, h = 0;
+        if (gst_structure_get_int(in, "width", &w) && gst_structure_get_int(in, "height", &h)) {
+            gst_structure_fixate_field_nearest_int(out, "width", w * factor);
+            gst_structure_fixate_field_nearest_int(out, "height", h * factor);
+        }
+    }
+    return gst_caps_fixate(otras);
 }
 
 /// Al fijar el formato de salida: el doble exacto de la entrada si se puede.

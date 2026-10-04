@@ -14,6 +14,13 @@ Comandos (cada uno escribe su avance como una línea JSON por stdout):
            que mira), el resultado se ajusta a ella. Unos minutos.
   span     Baja SPAN x2 (Apache-2.0, de los autores) y lo convierte.
   esrgan   Baja Real-ESRGAN compacto general x4v3 (BSD-3) y lo convierte.
+  instalar Instala un PLUGIN de superresolución desde su receta (--receta, la de
+           datos/superres-catalogo.json): baja el archivo y verifica su sha256;
+           una «red» la exporta a ONNX (Windows/Linux) y, en macOS, a CoreML
+           compilado (.mlmodelc: entrada y salida como imagen, los tamaños de
+           cámara comunes, FP16, para el Neural Engine) y mide cuánto tarda; un
+           «glsl» (shader de mpv) se guarda tal cual. Deja la carpeta del plugin
+           (--salida) con su plugin.json.
 
 Los ONNX tienen entrada `entrada` [1, C, alto, ancho] float 0..1 y salida
 `salida` [1, C, alto*f, ancho*f], con alto y ancho libres (los fija baonnxsr).
@@ -124,6 +131,166 @@ def convertir(clave: str, salida: str, carpeta: str) -> None:
         "pesos": PESOS[clave]["url"], "sha256_pesos": sha, "licencia": PESOS[clave]["licencia"],
     })
     decir(ev="listo", modelo=salida, escala=d.scale, canales=canales, arquitectura=d.architecture.name)
+
+
+# --- Plugins (recetas del catálogo) ---------------------------------------------------------
+
+# Los tamaños de cámara comunes (ancho, alto): CoreML los compila fijos (el Neural
+# Engine no acepta tamaños libres). Una red x4 trabaja con la entrada a la mitad.
+TAMANOS = [(768, 576), (704, 576), (720, 576), (720, 480), (640, 480), (960, 540), (1280, 720)]
+COREMLTOOLS = "coremltools==9.0"
+
+
+def bajar_receta(origen: dict, carpeta: str) -> str:
+    """Baja el archivo de la receta (verificado por sha256) y, si es un zip, saca `miembro`."""
+    import zipfile
+
+    url, sha = origen["url"], origen["sha256"]
+    nombre = os.path.basename(url.split("?")[0])
+    ruta = os.path.join(carpeta, nombre)
+    if not (os.path.exists(ruta) and hashlib.sha256(open(ruta, "rb").read()).hexdigest() == sha):
+        decir(ev="progreso", texto=f"Bajando {nombre}…", pct=5)
+        req = urllib.request.Request(url, headers={"User-Agent": "BroadcastAppliance"})
+        with urllib.request.urlopen(req, timeout=300) as r, open(ruta + ".parte", "wb") as f:
+            shutil.copyfileobj(r, f)
+        got = hashlib.sha256(open(ruta + ".parte", "rb").read()).hexdigest()
+        if got != sha:
+            os.remove(ruta + ".parte")
+            raise SystemExit(f"el archivo bajado no es el esperado (sha256 {got[:12]}… en vez de {sha[:12]}…)")
+        os.replace(ruta + ".parte", ruta)
+    if origen.get("miembro"):
+        with zipfile.ZipFile(ruta) as z:
+            cand = [n for n in z.namelist() if n.endswith("/" + origen["miembro"]) or n == origen["miembro"]]
+            if not cand:
+                raise SystemExit(f"no está {origen['miembro']} adentro de {nombre}")
+            destino = os.path.join(carpeta, origen["miembro"])
+            with z.open(cand[0]) as src, open(destino, "wb") as dst:
+                shutil.copyfileobj(src, dst)
+        return destino
+    return ruta
+
+
+def asegurar_coremltools(libs: str) -> bool:
+    try:
+        import coremltools  # noqa: F401
+
+        return True
+    except ImportError:
+        pass
+    if not libs:
+        return False
+    decir(ev="progreso", texto="Bajando coremltools (una vez)…", pct=55)
+    r = subprocess.run([sys.executable, "-m", "pip", "install", "-q", "--disable-pip-version-check",
+                        "--no-warn-script-location", "--target", libs, COREMLTOOLS], capture_output=True, text=True)
+    if r.returncode != 0:
+        decir(ev="aviso", texto="no se pudo bajar coremltools: " + r.stderr[-300:])
+        return False
+    import importlib
+
+    importlib.invalidate_caches()
+    try:
+        import coremltools  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+def a_coreml(modelo, escala: int, mitad: bool, salida_dir: str, canales: int) -> dict:
+    """La red a CoreML: imagen RGB 0..255 de entrada y de salida (CoreML convierte el
+    color en el Neural Engine o la GPU), los tamaños comunes fijos, FP16. Devuelve
+    {archivo, tamanos, ms} (ms: medido con el primer tamaño en el Neural Engine)."""
+    import numpy as np
+    import torch
+    import coremltools as ct
+    from coremltools.models.utils import compile_model
+
+    class Envuelto(torch.nn.Module):
+        def __init__(self, m):
+            super().__init__()
+            self.m = m
+
+        def forward(self, x):
+            return (self.m(x / 255.0) * 255.0).clamp(0, 255)
+
+    if canales != 3:
+        raise SystemExit("CoreML: solo redes RGB (3 canales)")
+    w = Envuelto(modelo.eval().float().cpu()).eval()
+    tam = [((a // 2, b // 2) if mitad else (a, b)) for a, b in TAMANOS]
+    tam = list(dict.fromkeys(tam))  # sin repetidos, en orden
+    ancho0, alto0 = tam[0]
+    tr = torch.jit.trace(w, torch.rand(1, 3, alto0, ancho0) * 255)
+    formas = ct.EnumeratedShapes(shapes=[(1, 3, h, a) for a, h in tam], default=(1, 3, alto0, ancho0))
+    ml = ct.convert(tr, inputs=[ct.ImageType(name="entrada", shape=formas, color_layout=ct.colorlayout.RGB)],
+                    outputs=[ct.ImageType(name="salida", color_layout=ct.colorlayout.RGB)],
+                    compute_precision=ct.precision.FLOAT16, minimum_deployment_target=ct.target.macOS14)
+    paquete = os.path.join(salida_dir, "modelo.mlpackage")
+    shutil.rmtree(paquete, ignore_errors=True)
+    ml.save(paquete)
+    compilado = os.path.join(salida_dir, "modelo.mlmodelc")
+    shutil.rmtree(compilado, ignore_errors=True)
+    compile_model(paquete, compilado)
+    shutil.rmtree(paquete, ignore_errors=True)
+    # Medir: el primer tamaño, en el Neural Engine.
+    from PIL import Image
+
+    ml2 = ct.models.CompiledMLModel(compilado, compute_units=ct.ComputeUnit.CPU_AND_NE)
+    img = Image.fromarray((np.random.rand(alto0, ancho0, 3) * 255).astype("uint8"))
+    for _ in range(2):
+        ml2.predict({"entrada": img})
+    t = time.time()
+    k = 6
+    for _ in range(k):
+        ml2.predict({"entrada": img})
+    ms = round(1000 * (time.time() - t) / k, 1)
+    return {"archivo": "modelo.mlmodelc", "tamanos": [[a, h] for a, h in tam], "ms": ms,
+            "ms_tamano": [ancho0, alto0]}
+
+
+def instalar(args) -> None:
+    receta = json.loads(open(args.receta, encoding="utf-8").read())
+    carpeta = os.path.abspath(args.salida)
+    os.makedirs(carpeta, exist_ok=True)
+    plugin = dict(receta)
+    plugin["instalado"] = time.strftime("%Y-%m-%d %H:%M")
+    archivo = bajar_receta(receta["origen"], carpeta)
+    plugin["archivos"] = {}
+    if receta["tipo"] == "glsl":
+        destino = os.path.join(carpeta, "shader.glsl")
+        if os.path.abspath(archivo) != destino:
+            shutil.copyfile(archivo, destino)
+        plugin["archivos"]["glsl"] = "shader.glsl"
+    elif receta["tipo"] == "red":
+        import spandrel
+
+        decir(ev="progreso", texto="Cargando la red…", pct=30)
+        d = spandrel.ModelLoader().load_from_file(archivo)
+        canales = d.input_channels
+        plugin.update({"arquitectura": d.architecture.name, "canales": canales})
+        if d.scale != receta.get("escala", d.scale):
+            decir(ev="aviso", texto=f"la red agranda x{d.scale} (la receta decía x{receta.get('escala')})")
+            plugin["escala"] = d.scale
+        decir(ev="progreso", texto="Exportando a ONNX…", pct=45)
+        exportar(d.model, canales, os.path.join(carpeta, "modelo.onnx"), {"nombre": receta["nombre"]})
+        os.remove(os.path.join(carpeta, "modelo.onnx.json"))
+        plugin["archivos"]["onnx"] = "modelo.onnx"
+        if sys.platform == "darwin" and asegurar_coremltools(args.libs):
+            decir(ev="progreso", texto="Convirtiendo a CoreML (Neural Engine)…", pct=65)
+            try:
+                c = a_coreml(d.model, plugin["escala"], bool(receta.get("entrada_mitad")), carpeta, canales)
+                plugin["archivos"]["coreml"] = c["archivo"]
+                plugin["coreml_tamanos"] = c["tamanos"]
+                plugin["ms_coreml"] = c["ms"]
+                plugin["ms_coreml_tamano"] = c["ms_tamano"]
+            except Exception as e:  # noqa: BLE001
+                decir(ev="aviso", texto=f"CoreML no se pudo: {type(e).__name__}: {e}")
+        if os.path.abspath(archivo).startswith(carpeta):
+            os.remove(archivo)  # los pesos originales ya no hacen falta
+    else:
+        raise SystemExit(f"tipo de plugin desconocido: {receta['tipo']}")
+    with open(os.path.join(carpeta, "plugin.json"), "w", encoding="utf-8") as f:
+        json.dump(plugin, f, ensure_ascii=False, indent=1)
+    decir(ev="listo", plugin=receta["id"], carpeta=carpeta, archivos=plugin["archivos"], ms_coreml=plugin.get("ms_coreml"))
 
 
 # --- La red chica ------------------------------------------------------------------------
@@ -301,7 +468,8 @@ def entrenar_chica(args) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("comando", choices=["chica", "span", "esrgan"])
+    ap.add_argument("comando", choices=["chica", "span", "esrgan", "instalar"])
+    ap.add_argument("--receta", default="", help="instalar: el JSON de la receta (del catálogo)")
     ap.add_argument("--salida", required=True)
     ap.add_argument("--pesos", default=None, help="carpeta para los pesos bajados")
     ap.add_argument("--uri", default="")
@@ -327,6 +495,8 @@ def main() -> None:
     try:
         if a.comando == "chica":
             entrenar_chica(a)
+        elif a.comando == "instalar":
+            instalar(a)
         else:
             convertir(a.comando, a.salida, a.pesos or os.path.dirname(os.path.abspath(a.salida)))
     except SystemExit as e:

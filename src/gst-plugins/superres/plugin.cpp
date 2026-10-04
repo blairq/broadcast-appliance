@@ -8,16 +8,18 @@
 //
 //     basuperres    EL elemento: duplica la resolución con el motor que se
 //                   pida. Es lo que usa la tarjeta «Superresolución» del grafo.
-//                     motor=auto|apple|fsr|onnx   (auto: la red si hay `modelo`;
+//                     motor=auto|apple|fsr|onnx|coreml (auto: la red si hay `modelo`;
 //                                                  si no, Apple en macOS 26; si
 //                                                  no, FSR)
-//                     modelo=ruta.onnx             (motor onnx)
+//                     modelo=ruta.onnx|.mlmodelc   (motores onnx y coreml)
+//                     escala-red=2|4               (coreml: 4 = la red recibe la mitad)
 //                     nitidez=0.2                  (FSR: cuánto afila, en paradas)
 //                     proveedor=auto|cpu|coreml|dml (onnx: con qué acelerar)
 //                   y para leer: motor-usado, ms-por-cuadro, error.
 //     bavtsuperres  Apple (VideoToolbox, macOS 26).   vtsuperres_mac.mm
 //     bafsr         FSR 1 de AMD (OpenGL).            fsr.cpp
 //     baonnxsr      una red ONNX (ONNX Runtime).      onnxsr.cpp
+//     bacoremlsr    una red CoreML (Neural Engine).   coremlsr_mac.mm
 //
 //   Ejemplo:  gst-launch-1.0 videotestsrc ! video/x-raw,width=640,height=360 !
 //             basuperres motor=fsr ! autovideosink
@@ -38,6 +40,7 @@ gboolean ba_registrar_onnxsr(GstPlugin* plugin);
 #if defined(__APPLE__)
 gboolean ba_registrar_vtsuperres(GstPlugin* plugin);
 gboolean ba_vtsuperres_soportado();
+gboolean ba_registrar_coremlsr(GstPlugin* plugin);
 #endif
 }
 
@@ -50,6 +53,7 @@ static GType tipoMotor() {
             {1, "Apple VideoToolbox (macOS 26, entrada hasta 960x960)", "apple"},
             {2, "FSR 1 de AMD (OpenGL, cualquier GPU)", "fsr"},
             {3, "Una red ONNX (propiedad modelo)", "onnx"},
+            {4, "Una red CoreML (.mlmodelc, Neural Engine/GPU de la Mac)", "coreml"},
             {0, nullptr, nullptr}};
         g_once_init_leave(&t, g_enum_register_static("BaSuperResMotor", v));
     }
@@ -67,7 +71,8 @@ static GType tipoProveedor() {
     }
     return t;
 }
-static const char* kMotores[] = {"auto", "apple", "fsr", "onnx"};
+static const char* kMotores[] = {"auto", "apple", "fsr", "onnx", "coreml"};
+constexpr int kNumMotores = 5;
 static const char* kProveedores[] = {"auto", "cpu", "coreml", "dml"};
 
 G_BEGIN_DECLS
@@ -80,7 +85,10 @@ struct _BaSuperRes {
     GstElement* convEntrada;
     GstElement* nv12;
     GstElement* motor;
+    GstElement* mitad;      ///< videoscale antes del motor: una red x4 recibe la imagen a la mitad
+    GstElement* mitadCaps;  ///< y su tamaño exacto (la mitad de lo que entra al bin)
     GstElement* convSalida;
+    gint escalaRed;    ///< lo que agranda la red (2; 4 = entra a la mitad y sale x2)
     gchar* pedido; ///< motor pedido
     gchar* usado;  ///< motor que quedó
     gchar* modelo;
@@ -99,6 +107,7 @@ enum {
     PROP_NITIDEZ,
     PROP_PROVEEDOR,
     PROP_ACTIVO,
+    PROP_ESCALA_RED,
     PROP_MOTOR_USADO,
     PROP_MS,
     PROP_ERROR
@@ -120,7 +129,7 @@ static bool hay(const char* fabrica) {
 static std::string elegir(BaSuperRes* s) {
     const std::string p = s->pedido != nullptr ? s->pedido : "auto";
     const bool conModelo = s->modelo != nullptr && *s->modelo != '\0';
-    if (p == "apple" || p == "fsr" || p == "onnx") return p;
+    if (p == "apple" || p == "fsr" || p == "onnx" || p == "coreml") return p;
     if (conModelo && hay("baonnxsr")) return "onnx";
 #if defined(__APPLE__)
     if (ba_vtsuperres_soportado()) return "apple";
@@ -135,13 +144,26 @@ static void armar(BaSuperRes* s) {
         gst_bin_remove(GST_BIN(s), s->motor);
         s->motor = nullptr;
     }
+    for (GstElement** x : {&s->mitad, &s->mitadCaps})
+        if (*x != nullptr) {
+            gst_element_set_state(*x, GST_STATE_NULL);
+            gst_bin_remove(GST_BIN(s), *x);
+            *x = nullptr;
+        }
+    gst_element_unlink(s->nv12, s->convSalida);
     g_free(s->error);
     s->error = nullptr;
     const std::string m = s->activo ? elegir(s) : "ninguno";
-    const char* fabrica = m == "apple"  ? "bavtsuperres"
-                          : m == "onnx" ? "baonnxsr"
-                          : m == "fsr"  ? "bafsr"
-                                        : "identity";
+    const char* fabrica = m == "apple"    ? "bavtsuperres"
+                          : m == "onnx"   ? "baonnxsr"
+                          : m == "fsr"    ? "bafsr"
+                          : m == "coreml" ? "bacoremlsr"
+                                          : "identity";
+    // El formato que pide el motor: CoreML trabaja en BGRA (el modelo convierte
+    // el color en el acelerador); los demás, en NV12.
+    GstCaps* c = gst_caps_from_string(m == "coreml" ? "video/x-raw,format=BGRA" : "video/x-raw,format=NV12");
+    g_object_set(s->nv12, "caps", c, nullptr);
+    gst_caps_unref(c);
     GstElement* e = gst_element_factory_make(fabrica, "motor");
     if (!s->activo) {
         // Apagado: pasa sin tocar (y sin agrandar).
@@ -152,6 +174,8 @@ static void armar(BaSuperRes* s) {
     } else if (m == "onnx") {
         g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "proveedor",
                      s->proveedor != nullptr ? s->proveedor : "auto", nullptr);
+    } else if (m == "coreml") {
+        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "escala", s->escalaRed, nullptr);
     } else if (m == "fsr") {
         g_object_set(e, "nitidez", s->nitidez, nullptr);
     }
@@ -161,8 +185,39 @@ static void armar(BaSuperRes* s) {
     gst_element_post_message(GST_ELEMENT(s), gst_message_new_latency(GST_OBJECT(s)));
     s->motor = e;
     gst_bin_add(GST_BIN(s), e);
-    gst_element_link_many(s->nv12, e, s->convSalida, nullptr);
+    if (m == "coreml" && s->escalaRed == 4) {
+        // Una red x4 recibe la imagen a la mitad: sale x2 de la original con la
+        // cuarta parte del trabajo (la negociación fija el tamaño: el motor pide
+        // la cuarta parte de lo que sale).
+        s->mitad = gst_element_factory_make("videoscale", "mitad");
+        s->mitadCaps = gst_element_factory_make("capsfilter", "mitad-tamano");
+        gst_bin_add_many(GST_BIN(s), s->mitad, s->mitadCaps, nullptr);
+        gst_element_link_many(s->nv12, s->mitad, s->mitadCaps, e, s->convSalida, nullptr);
+        gst_element_sync_state_with_parent(s->mitad);
+        gst_element_sync_state_with_parent(s->mitadCaps);
+    } else {
+        gst_element_link_many(s->nv12, e, s->convSalida, nullptr);
+    }
     gst_element_sync_state_with_parent(e);
+}
+
+/// Al llegar el formato de la cámara: la red x4 recibe exactamente la mitad
+/// (si no, nada obliga a achicar y la salida quedaría x4).
+static GstPadProbeReturn alFormato(GstPad*, GstPadProbeInfo* info, gpointer data) {
+    auto* s = static_cast<BaSuperRes*>(data);
+    GstEvent* ev = GST_PAD_PROBE_INFO_EVENT(info);
+    if (GST_EVENT_TYPE(ev) != GST_EVENT_CAPS || s->mitadCaps == nullptr) return GST_PAD_PROBE_OK;
+    GstCaps* caps = nullptr;
+    gst_event_parse_caps(ev, &caps);
+    int w = 0, h = 0;
+    if (caps != nullptr && gst_caps_get_size(caps) > 0 &&
+        gst_structure_get_int(gst_caps_get_structure(caps, 0), "width", &w) &&
+        gst_structure_get_int(gst_caps_get_structure(caps, 0), "height", &h)) {
+        GstCaps* m = gst_caps_new_simple("video/x-raw", "width", G_TYPE_INT, w / 2, "height", G_TYPE_INT, h / 2, nullptr);
+        g_object_set(s->mitadCaps, "caps", m, nullptr);
+        gst_caps_unref(m);
+    }
+    return GST_PAD_PROBE_OK;
 }
 
 static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
@@ -171,7 +226,7 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
     switch (id) {
         case PROP_MOTOR:
             g_free(s->pedido);
-            s->pedido = g_strdup(kMotores[std::clamp(g_value_get_enum(v), 0, 3)]);
+            s->pedido = g_strdup(kMotores[std::clamp(g_value_get_enum(v), 0, kNumMotores - 1)]);
             rearmar = true;
             break;
         case PROP_ACTIVO:
@@ -197,6 +252,10 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
                 g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "nitidez") != nullptr)
                 g_object_set(s->motor, "nitidez", s->nitidez, nullptr);
             break;
+        case PROP_ESCALA_RED:
+            s->escalaRed = g_value_get_int(v);
+            rearmar = true;
+            break;
         case PROP_PROVEEDOR:
             g_free(s->proveedor);
             s->proveedor = g_strdup(kProveedores[std::clamp(g_value_get_enum(v), 0, 3)]);
@@ -215,12 +274,13 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     switch (id) {
         case PROP_MOTOR: {
             int i = 0;
-            for (int k = 0; k < 4; ++k)
+            for (int k = 0; k < kNumMotores; ++k)
                 if (std::string(s->pedido) == kMotores[k]) i = k;
             g_value_set_enum(v, i);
             break;
         }
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
+        case PROP_ESCALA_RED: g_value_set_int(v, s->escalaRed); break;
         case PROP_MODELO: g_value_set_string(v, s->modelo); break;
         case PROP_NITIDEZ: g_value_set_double(v, s->nitidez); break;
         case PROP_PROVEEDOR: {
@@ -290,6 +350,10 @@ static void ba_superres_class_init(BaSuperResClass* k) {
                                     g_param_spec_boolean("activo", "Activo",
                                                          "Agranda (FALSE: pasa sin tocar, del mismo tamaño)",
                                                          TRUE, vivo));
+    g_object_class_install_property(go, PROP_ESCALA_RED,
+                                    g_param_spec_int("escala-red", "Escala de la red",
+                                                     "Lo que agranda la red del modelo (2; 4 = entra a la mitad y sale x2)",
+                                                     2, 4, 2, listo));
     g_object_class_install_property(
         go, PROP_MOTOR_USADO, g_param_spec_string("motor-usado", "Motor usado", "El que quedó", nullptr, ro));
     g_object_class_install_property(
@@ -313,6 +377,9 @@ static void ba_superres_init(BaSuperRes* s) {
     s->activo = TRUE;
     s->error = nullptr;
     s->motor = nullptr;
+    s->mitad = nullptr;
+    s->mitadCaps = nullptr;
+    s->escalaRed = 2;
     s->convEntrada = gst_element_factory_make("videoconvert", "entrada");
     s->nv12 = gst_element_factory_make("capsfilter", "nv12");
     s->convSalida = gst_element_factory_make("videoconvert", "salida");
@@ -322,6 +389,7 @@ static void ba_superres_init(BaSuperRes* s) {
     gst_bin_add_many(GST_BIN(s), s->convEntrada, s->nv12, s->convSalida, nullptr);
     gst_element_link(s->convEntrada, s->nv12);
     GstPad* in = gst_element_get_static_pad(s->convEntrada, "sink");
+    gst_pad_add_probe(in, GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, alFormato, s, nullptr);
     GstPad* out = gst_element_get_static_pad(s->convSalida, "src");
     gst_element_add_pad(GST_ELEMENT(s),
                         gst_ghost_pad_new_from_template("sink", in, gst_static_pad_template_get(&sinkTpl)));
@@ -335,7 +403,7 @@ static void ba_superres_init(BaSuperRes* s) {
 static gboolean plugin_init(GstPlugin* plugin) {
     gboolean ok = ba_registrar_fsr(plugin) && ba_registrar_onnxsr(plugin);
 #if defined(__APPLE__)
-    ok = ok && ba_registrar_vtsuperres(plugin);
+    ok = ok && ba_registrar_vtsuperres(plugin) && ba_registrar_coremlsr(plugin);
 #endif
     return ok && gst_element_register(plugin, "basuperres", GST_RANK_NONE, BA_TYPE_SUPERRES);
 }
