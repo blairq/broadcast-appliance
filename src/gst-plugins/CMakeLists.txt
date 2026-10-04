@@ -36,6 +36,7 @@ if(APPLE)
         INSTALL_RPATH "@loader_path/../bin/64bit;@loader_path/../bin/64bit/GStreamer.framework/Versions/1.0/lib"
         BUILD_RPATH "${BA_ORT_DIR}/lib;${BA_GST_LIBDIR}")
 elseif(NOT WIN32)
-    set_target_properties(gstbasuperres PROPERTIES PREFIX "lib" INSTALL_RPATH "$ORIGIN/../bin/64bit")
+    set_target_properties(gstbasuperres PROPERTIES PREFIX "lib" INSTALL_RPATH "$ORIGIN/../bin/64bit;$ORIGIN/../bin/64bit/gstreamer/lib"
+        BUILD_RPATH "${BA_ORT_DIR}/lib;${BA_GST_LIBDIR}")
 endif()
 install(TARGETS gstbasuperres LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)

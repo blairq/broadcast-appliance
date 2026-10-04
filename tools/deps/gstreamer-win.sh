@@ -50,7 +50,10 @@ mkdir -p "$OUT"
 # según lo que haya), y del de desarrollo las cabeceras y los .lib.
 cp -a "$R"/. "$OUT/"
 cp -a "$D/include" "$OUT/"
-cp -an "$D"/lib/. "$OUT/lib/"
+cp -a "$D"/lib/*.lib "$OUT/lib/"
+mkdir -p "$OUT/lib/glib-2.0" "$OUT/lib/gstreamer-1.0"
+cp -a "$D/lib/glib-2.0/include" "$OUT/lib/glib-2.0/"
+cp -a "$D/lib/gstreamer-1.0/include" "$OUT/lib/gstreamer-1.0/" # gst/gl/gstglconfig.h
 
 # Las DLL que ya trae el bundle con el mismo nombre.
 : >"$OUT/duplicadas.txt"

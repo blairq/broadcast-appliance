@@ -39,7 +39,7 @@ elseif(UNIX AND NOT APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-linux
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(BA_GLIB REQUIRED IMPORTED_TARGET glib-2.0 gobject-2.0)
     add_library(ba::gstreamer INTERFACE IMPORTED)
-    target_include_directories(ba::gstreamer INTERFACE "${_g}/include/gstreamer-1.0")
+    target_include_directories(ba::gstreamer INTERFACE "${_g}/include/gstreamer-1.0" "${_g}/lib/gstreamer-1.0/include")
     set(_libs "")
     foreach(_l gstreamer-1.0 gstbase-1.0 gstapp-1.0 gstvideo-1.0 gstaudio-1.0 gstnet-1.0 gstpbutils-1.0 gstgl-1.0)
         list(APPEND _libs "${_g}/lib/lib${_l}.so")
@@ -58,19 +58,20 @@ elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-
     set(BA_GST_LIBDIR "${_g}/bin")
     add_library(ba::gstreamer INTERFACE IMPORTED)
     target_include_directories(ba::gstreamer INTERFACE "${_g}/include/gstreamer-1.0" "${_g}/include/glib-2.0"
-                                                       "${_g}/lib/glib-2.0/include")
+                                                       "${_g}/lib/glib-2.0/include" "${_g}/lib/gstreamer-1.0/include")
     set(_libs "")
     foreach(_l gstreamer-1.0 gstbase-1.0 gstapp-1.0 gstvideo-1.0 gstaudio-1.0 gstnet-1.0 gstpbutils-1.0 gstgl-1.0 glib-2.0 gobject-2.0)
         list(APPEND _libs "${_g}/lib/${_l}.lib")
     endforeach()
     target_link_libraries(ba::gstreamer INTERFACE ${_libs})
     target_compile_definitions(ba::gstreamer INTERFACE BA_HAVE_GST=1)
-    install(DIRECTORY "${_g}/bin/" DESTINATION bin/64bit COMPONENT bundle)
+    install(DIRECTORY "${_g}/bin/" DESTINATION bin/64bit COMPONENT bundle PATTERN "*.pdb" EXCLUDE)
     # Todo lo demás (plugins, escáner, Python de los plugins, GIO, presets),
     # menos lo que es solo para compilar.
     install(DIRECTORY "${_g}/" DESTINATION bin/64bit/gstreamer COMPONENT bundle
             PATTERN "bin" EXCLUDE PATTERN "include" EXCLUDE PATTERN "*.lib" EXCLUDE PATTERN "*.def" EXCLUDE
-            PATTERN "*.a" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "duplicadas.txt" EXCLUDE)
+            PATTERN "*.a" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "duplicadas.txt" EXCLUDE
+            PATTERN "*.pdb" EXCLUDE) # símbolos de depuración (231 MB): no hacen nada en el aparato
     message(STATUS "GStreamer: ${_g}")
 else()
     message(STATUS "GStreamer: no está (make deps-gstreamer-macos / -linux / -win); se compila sin él")
