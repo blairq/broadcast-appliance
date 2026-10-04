@@ -35,7 +35,7 @@ OUT="$EXT/gst-python-win"
 log() { printf '\033[1;36m[gst-python-win]\033[0m %s\n' "$*"; }
 morir() { log "ERROR: $*"; exit 1; }
 
-GST_VER="$(sed -n 's/^Version: *//p' "$GW/lib/pkgconfig/gstreamer-1.0.pc")"
+GST_VER="$(sed -n 's/^Version: *//p' "$GW/lib/pkgconfig/gstreamer-1.0.pc" | tr -d '\r')"
 PYGO_VER=3.50.2
 PYGO_SHA=ece6b860aab77cb649fdfc6e88d8a83765e7a62f7ffd39a628d6e2a0d397a7ff
 GSTPY_SHA_1_26_11=11316ba769b56d26d8b1464c7198a9924caeae48134f7db59171faf1a73dc436
