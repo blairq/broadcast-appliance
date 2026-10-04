@@ -81,7 +81,7 @@ void MonitorVoz::reproducir(const float* muestras, std::size_t n, std::uint32_t 
     // Pegado a lo que ya está sonando; si no suena nada, un poco adelante de
     // ahora (lo que necesita libobs para no tirarlo por viejo).
     const std::uint64_t ahora = os_gettime_ns();
-    std::uint64_t ts = std::max(proximo_, ahora + 50'000'000ULL);
+    std::uint64_t ts = std::max<std::uint64_t>(proximo_, ahora + 50'000'000ULL);
     // Si la callaron, lo nuevo va después de lo que quedó encolado (que suena
     // silenciado), y se le devuelve el sonido justo cuando termina.
     if (silencioHasta_ != 0) {
@@ -89,7 +89,7 @@ void MonitorVoz::reproducir(const float* muestras, std::size_t n, std::uint32_t 
             obs_source_set_muted(fuente_, false);
             silencioHasta_ = 0;
         } else {
-            ts = std::max(ts, silencioHasta_ + 20'000'000ULL);
+            ts = std::max<std::uint64_t>(ts, silencioHasta_ + 20'000'000ULL);
             obs_source_t* ref = obs_source_get_ref(fuente_);
             const std::uint64_t hasta = silencioHasta_;
             std::thread([ref, hasta]() {
@@ -111,12 +111,12 @@ void MonitorVoz::reproducirEn(const float* muestras, std::size_t n, std::uint32_
     if (!asegurar()) return;
     const std::uint64_t ahora = os_gettime_ns();
     // Desde dónde sigue el audio: lo encolado, o un poco adelante de ahora.
-    std::uint64_t desde = std::max(proximo_, ahora + 50'000'000ULL);
+    std::uint64_t desde = std::max<std::uint64_t>(proximo_, ahora + 50'000'000ULL);
     if (silencioHasta_ != 0) {
         if (ahora >= silencioHasta_) {
             obs_source_set_muted(fuente_, false);
         } else {
-            desde = std::max(desde, silencioHasta_ + 20'000'000ULL);
+            desde = std::max<std::uint64_t>(desde, silencioHasta_ + 20'000'000ULL);
             obs_source_t* ref = obs_source_get_ref(fuente_);
             const std::uint64_t hasta = silencioHasta_;
             std::thread([ref, hasta]() {

@@ -203,7 +203,7 @@ void VocesRack::decirCon(const nlohmann::json& tarjeta, const QString& texto) {
                         std::uint64_t ts;
                         {
                             std::lock_guard<std::mutex> l(proximoLock_);
-                            ts = std::max(proximo_[clave], ahora + 60'000'000ULL);
+                            ts = std::max<std::uint64_t>(proximo_[clave], ahora + 60'000'000ULL);
                             proximo_[clave] = ts + static_cast<std::uint64_t>(hechos) * 1'000'000'000ULL / kSalida;
                         }
                         ring->pushEn(out.data(), out.data(), static_cast<std::uint32_t>(hechos), ts, ahora, kSalida);
