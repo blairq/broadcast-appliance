@@ -70,10 +70,8 @@ done
 
 # El Python de destino, bajo Wine (meson lo corre para conocerlo).
 export WINEPREFIX="$T/wineprefix" WINEDEBUG=-all DISPLAY= WINEDLLOVERRIDES="mscoree,mshtml="
-cat >"$T/python-win" <<EOF
-#!/bin/sh
-exec "$WINE" "$PYW/python.exe" "\$@"
-EOF
+export BA_WINE="$WINE" BA_PYW="$PYW"
+cp "$ROOT/tools/deps/python-wine.py" "$T/python-win"
 chmod +x "$T/python-win"
 "$WINE" wineboot -u >/dev/null 2>&1 || true
 
