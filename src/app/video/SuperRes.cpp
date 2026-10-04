@@ -489,10 +489,12 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
             for (size_t i = 0; (i = t.find("{dir}", i)) != std::string::npos;) t.replace(i, 5, dir.string());
             props[k] = t;
         }
-        return json{{"elemento", el},
-                    {"propiedades", props},
-                    {"memoria", p.value("memoria", std::string())},
-                    {"escala_red", p.value("escala", 2)}};
+        json r{{"elemento", el},
+               {"propiedades", props},
+               {"memoria", p.value("memoria", std::string())},
+               {"escala_red", p.value("escala", 2)}};
+        if (p.contains("memoria_salida")) r["memoria_salida"] = p["memoria_salida"];
+        return r;
     }
     if (p.value("tipo", "") == "glsl") {
         if (!archivos.contains("glsl")) return fallar("plugin.json de «" + id + "» sin shader");
@@ -507,6 +509,19 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         return json{{"motor", "coreml"}, {"modelo", (dir / archivos["coreml"].get<std::string>()).string()},
                     {"escala_red", escalaRed},
                     {"unidades", p.value("coreml_precision", std::string("fp16")) == "fp32" ? "gpu" : "auto"}};
+#endif
+#if !defined(__APPLE__)
+    // NVIDIA con el ONNX Runtime de GPU: la red NV12 va directo como elemento
+    // con memory:CUDAMemory (el decodificador de la placa le entrega el cuadro
+    // sin bajarlo; baonnxsr lo copia de placa a placa y entrega en sistema).
+    if (archivos.contains("onnx_nv12") && runtimeGpu().value("placa", std::string()) == "nvidia" &&
+        !qEnvironmentVariableIsEmpty("BA_ORT_GPU"))
+        return json{{"elemento", "baonnxsr"},
+                    {"propiedades", {{"modelo", (dir / archivos["onnx_nv12"].get<std::string>()).string()},
+                                     {"proveedor", "auto"}}},
+                    {"memoria", "CUDAMemory"},
+                    {"memoria_salida", ""},
+                    {"escala_red", 2}};
 #endif
     // La versión NV12 (todo en la placa: color, mitad, vuelta a NV12) si está;
     // si no, la float (baonnxsr igual le da la mitad a una x4).

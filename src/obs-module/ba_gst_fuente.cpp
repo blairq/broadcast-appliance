@@ -136,6 +136,7 @@ struct Filtro {
     std::string id, elemento;
     std::string nombre; ///< el id sin caracteres raros: el nombre del elemento es ba_f_<nombre>
     std::string memoria; ///< la que pide (CUDAMemory, GLMemory, D3D11Memory, D3D12Memory; "" = sistema)
+    bool saleEnSistema = false; ///< entrega en memoria de sistema (no hace falta bajar después)
     std::vector<std::pair<std::string, std::string>> props;
 };
 
@@ -480,6 +481,8 @@ std::vector<Filtro> leerFiltros(obs_data_t* d, const char* clave) {
         f.id = obs_data_get_string(x, "id");
         f.elemento = obs_data_get_string(x, "elemento");
         f.memoria = obs_data_get_string(x, "memoria");
+        f.saleEnSistema = obs_data_has_user_value(x, "memoria_salida") &&
+                          std::string(obs_data_get_string(x, "memoria_salida")).empty();
         if (f.id.empty()) f.id = std::to_string(i);
         f.nombre = f.id;
         for (char& c : f.nombre)
@@ -587,7 +590,7 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
         }
         if (hayPuente)
             r += std::string(m->second.first) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! " +
-                 m->second.second + " ! ";
+                 (f.saleEnSistema ? std::string() : std::string(m->second.second) + " ! ");
         else
             r += std::string(conv) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! ";
     }

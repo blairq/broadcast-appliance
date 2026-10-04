@@ -1156,6 +1156,7 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
                 f["elemento"] = q["elemento"];
                 f["propiedades"] = q.value("propiedades", json::object());
                 if (!q.value("memoria", std::string()).empty()) f["memoria"] = q["memoria"];
+                if (q.contains("memoria_salida")) f["memoria_salida"] = q["memoria_salida"];
                 video.push_back(f);
                 movidas.insert(id);
                 cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
