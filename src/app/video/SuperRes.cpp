@@ -38,6 +38,20 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
+    // Un ONNX Runtime con GPU (NVIDIA: CUDA/TensorRT; AMD en Linux:
+    // ROCm/MIGraphX) bajado a Datos/Herramientas/onnxruntime-gpu: baonnxsr lo
+    // carga en vez del del programa (variable BA_ORT_GPU, antes de que
+    // GStreamer abra una red).
+    if (qEnvironmentVariableIsEmpty("BA_ORT_GPU")) {
+        const fs::path base = root_ / "Herramientas" / "onnxruntime-gpu" / "lib";
+#if defined(_WIN32)
+        const fs::path lib = base / "onnxruntime.dll";
+#else
+        const fs::path lib = base / "libonnxruntime.so";
+#endif
+        std::error_code e2;
+        if (fs::exists(lib, e2)) qputenv("BA_ORT_GPU", QByteArray::fromStdString(lib.string()));
+    }
     // Las tarjetas guardan el id del plugin; al mandarlas a la cadena de la
     // entrada se traduce a lo de esta máquina (CoreML, ONNX…).
     if (video_ != nullptr)
@@ -406,9 +420,86 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         return json{{"motor", "coreml"}, {"modelo", (dir / archivos["coreml"].get<std::string>()).string()},
                     {"escala_red", escalaRed}};
 #endif
-    if (archivos.contains("onnx") && motores().contains("onnx"))
-        return json{{"motor", "onnx"}, {"modelo", (dir / archivos["onnx"].get<std::string>()).string()}, {"escala_red", 2}};
+    // La versión NV12 (todo en la placa: color, mitad, vuelta a NV12) si está;
+    // si no, la float (baonnxsr igual le da la mitad a una x4).
+    for (const char* clave : {"onnx_nv12", "onnx"})
+        if (archivos.contains(clave) && motores().contains("onnx"))
+            return json{{"motor", "onnx"}, {"modelo", (dir / archivos[clave].get<std::string>()).string()},
+                        {"escala_red", 2}};
     return fallar("«" + id + "» no tiene un modelo que corra en esta máquina");
+}
+
+namespace {
+/// La placa de video de esta máquina, por lo que deja ver el sistema (sin
+/// cargar nada): nvidia, amd, intel o "".
+std::string placaDeVideo() {
+    std::error_code ec;
+#if defined(_WIN32)
+    const fs::path sys = fs::path(qEnvironmentVariable("SystemRoot", "C:\\Windows").toStdWString()) / "System32";
+    if (fs::exists(sys / "nvcuda.dll", ec)) return "nvidia";
+    if (fs::exists(sys / "amdhip64.dll", ec) || fs::exists(sys / "atiadlxx.dll", ec)) return "amd";
+    if (fs::exists(sys / "igdumdim64.dll", ec) || fs::exists(sys / "igd10iumd64.dll", ec)) return "intel";
+    return {};
+#elif defined(__linux__)
+    if (fs::exists("/proc/driver/nvidia/version", ec)) return "nvidia";
+    std::string otra;
+    for (const auto& e : fs::directory_iterator("/sys/class/drm", ec)) {
+        std::ifstream f(e.path() / "device" / "vendor");
+        std::string v;
+        if (!(f >> v)) continue;
+        if (v == "0x10de") return "nvidia";
+        if (v == "0x1002") otra = "amd";
+        if (v == "0x8086" && otra.empty()) otra = "intel";
+    }
+    return otra;
+#else
+    return {};
+#endif
+}
+} // namespace
+
+json SuperRes::runtimeGpu() const {
+    json out{{"placa", placaDeVideo()}};
+    const fs::path dir = root_ / "Herramientas" / "onnxruntime-gpu";
+    std::ifstream f(dir / "runtime.json");
+    if (f) {
+        const json r = json::parse(f, nullptr, false);
+        if (r.is_object()) out["instalado"] = r;
+    }
+    const std::string placa = out["placa"];
+#if defined(__APPLE__)
+    out["sugerido"] = "";
+    out["nota"] = "en la Mac el ONNX Runtime del programa ya usa CoreML (GPU y Neural Engine), y las redes "
+                  "instaladas corren en CoreML nativo: no hace falta bajar nada";
+#elif defined(_WIN32)
+    out["sugerido"] = placa == "nvidia" ? "nvidia" : placa == "intel" ? "intel" : "";
+    out["nota"] = placa == "amd" || placa.empty()
+                      ? "con AMD (también las integradas Ryzen) el programa ya usa DirectML: no hace falta bajar nada"
+                      : "DirectML ya anda; el runtime de " + placa + " es más rápido (TensorRT compila la red para la placa)";
+#else
+    out["sugerido"] = placa;
+    if (placa == "amd")
+        out["nota"] = "AMD en Linux usa ROCm/MIGraphX: necesita el controlador amdgpu y ROCm 6.4 del sistema";
+#endif
+    out["activo"] = !qEnvironmentVariableIsEmpty("BA_ORT_GPU");
+    return out;
+}
+
+std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool conTensorRt) {
+#if defined(__APPLE__)
+    (void)tipoPedido;
+    (void)conTensorRt;
+    return "en la Mac no hace falta: CoreML ya viene";
+#else
+    const std::string tipo = tipoPedido.empty() ? runtimeGpu().value("sugerido", std::string()) : tipoPedido;
+    if (tipo != "nvidia" && tipo != "amd" && tipo != "intel")
+        return "no hay un runtime de GPU para bajar acá (tipo: nvidia, amd o intel)";
+    const fs::path script = ba::platform::bundleRoot() / "superres" / "runtime_gpu.py";
+    QStringList args{q8(script), "--tipo", QString::fromStdString(tipo), "--salida",
+                     q8(root_ / "Herramientas" / "onnxruntime-gpu")};
+    if (!conTensorRt) args << "--sin-tensorrt";
+    return correr("Bajar el ONNX Runtime de GPU (" + QString::fromStdString(tipo) + ")", {}, args, [](bool) {});
+#endif
 }
 
 std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id) {

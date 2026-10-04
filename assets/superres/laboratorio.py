@@ -103,6 +103,75 @@ def exportar(modelo, canales: int, salida: str, descripcion: dict) -> None:
         json.dump(descripcion, f, ensure_ascii=False, indent=1)
 
 
+def exportar_nv12(modelo, canales: int, escala: int, salida: str) -> None:
+    """La red ENVUELTA para baonnxsr: entra y sale la imagen como la tiene
+    GStreamer (NV12, uint8: `y` [1,1,alto,ancho] y `uv` [1,1,alto/2,ancho]
+    con U y V intercalados) y todo lo demás pasa ADENTRO, en la placa: el
+    color (BT.709, rango limitado), la mitad para una red x4, el agrandado del
+    color de una red de luma y la vuelta a NV12 al doble. Por la memoria viaja
+    1,5 byte por píxel en vez de 12 (float RGB) y la CPU no toca un píxel."""
+    import torch
+    import torch.nn.functional as F
+
+    class Envuelta(torch.nn.Module):
+        def __init__(self, red):
+            super().__init__()
+            self.red = red
+
+        def forward(self, y, uv):
+            yf = (y.float() - 16.0) / 219.0
+            h2, w = uv.shape[2], uv.shape[3]
+            c = uv.float().reshape(1, 1, h2, w // 2, 2)
+            u = (c[..., 0] - 128.0) / 224.0
+            v = (c[..., 1] - 128.0) / 224.0
+            if canales == 1:
+                out = self.red(yf).clamp(0, 1)  # luma al doble
+                # El color al doble, aparte (el ojo ve el detalle en la luma).
+                u2 = F.interpolate(u, scale_factor=2.0, mode="bilinear", align_corners=False)
+                v2 = F.interpolate(v, scale_factor=2.0, mode="bilinear", align_corners=False)
+                y2 = out
+            else:
+                if escala == 4:
+                    # x4: la red recibe la mitad (la luma promediada; el color ya está a la mitad).
+                    yy = F.avg_pool2d(yf, 2)
+                    uu, vv = u, v
+                else:
+                    yy = yf
+                    uu = F.interpolate(u, scale_factor=2.0, mode="bilinear", align_corners=False)
+                    vv = F.interpolate(v, scale_factor=2.0, mode="bilinear", align_corners=False)
+                rgb = torch.cat([yy + 1.5748 * vv, yy - 0.1873 * uu - 0.4681 * vv, yy + 1.8556 * uu], 1).clamp(0, 1)
+                o = self.red(rgb).clamp(0, 1)  # x2 de la original
+                r, g, b = o[:, 0:1], o[:, 1:2], o[:, 2:3]
+                y2 = 0.2126 * r + 0.7152 * g + 0.0722 * b
+                med = F.avg_pool2d(o, 2)  # el color a la mitad de la salida (4:2:0)
+                r, g, b = med[:, 0:1], med[:, 1:2], med[:, 2:3]
+                u2 = -0.1146 * r - 0.3854 * g + 0.5 * b
+                v2 = 0.5 * r - 0.4542 * g - 0.0458 * b
+            yo = (y2 * 219.0 + 16.0).round().clamp(0, 255).to(torch.uint8)
+            uo = (u2 * 224.0 + 128.0).round().clamp(0, 255)
+            vo = (v2 * 224.0 + 128.0).round().clamp(0, 255)
+            uvo = torch.stack([uo, vo], -1).reshape(1, 1, uo.shape[2], uo.shape[3] * 2).to(torch.uint8)
+            return yo, uvo
+
+    m = Envuelta(modelo.eval().cpu()).eval()
+    y = torch.randint(16, 235, (1, 1, 64, 64), dtype=torch.uint8)
+    uv = torch.randint(16, 240, (1, 1, 32, 64), dtype=torch.uint8)
+    tmp = salida + ".tmp"
+    kw = dict(
+        input_names=["y", "uv"],
+        output_names=["y2", "uv2"],
+        dynamic_axes={"y": {2: "alto", 3: "ancho"}, "uv": {2: "alto_c", 3: "ancho"},
+                      "y2": {2: "alto_s", 3: "ancho_s"}, "uv2": {2: "alto_cs", 3: "ancho_s"}},
+        opset_version=17,
+    )
+    with torch.no_grad():
+        try:
+            torch.onnx.export(m, (y, uv), tmp, dynamo=False, **kw)
+        except TypeError:
+            torch.onnx.export(m, (y, uv), tmp, **kw)
+    os.replace(tmp, salida)
+
+
 # --- Modelos de terceros ----------------------------------------------------------------
 
 def bajar(clave: str, carpeta: str) -> str:
@@ -274,6 +343,12 @@ def instalar(args) -> None:
         exportar(d.model, canales, os.path.join(carpeta, "modelo.onnx"), {"nombre": receta["nombre"]})
         os.remove(os.path.join(carpeta, "modelo.onnx.json"))
         plugin["archivos"]["onnx"] = "modelo.onnx"
+        decir(ev="progreso", texto="Exportando la versión NV12 (todo en la placa)…", pct=55)
+        try:
+            exportar_nv12(d.model, canales, plugin.get("escala", d.scale), os.path.join(carpeta, "modelo-nv12.onnx"))
+            plugin["archivos"]["onnx_nv12"] = "modelo-nv12.onnx"
+        except Exception as e:  # noqa: BLE001
+            decir(ev="aviso", texto=f"la versión NV12 no se pudo: {type(e).__name__}: {e}")
         if sys.platform == "darwin" and asegurar_coremltools(args.libs):
             decir(ev="progreso", texto="Convirtiendo a CoreML (Neural Engine)…", pct=65)
             try:

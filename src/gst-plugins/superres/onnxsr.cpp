@@ -114,6 +114,32 @@ static const OrtApiBase* baseDe(const std::string& ruta, std::string& error) {
     // RTLD_DEEPBIND (Linux): sus símbolos internos no se mezclan con los del
     // ONNX Runtime del programa (que ya está cargado para rostros y voz).
 #if defined(__linux__)
+    // Sus dependencias (CUDA, cuDNN, TensorRT, ROCm, OpenVINO…) están en su
+    // carpeta, que no está en la ruta de búsqueda: se cargan antes, globales,
+    // y así el núcleo y sus proveedores las encuentran por nombre (lo mismo que
+    // hace onnxruntime.preload_dlls en Python). Las que dependen de otras
+    // fallan la primera vez: se reintenta hasta que no avanza.
+    {
+        namespace fs = std::filesystem;
+        std::vector<fs::path> pendientes;
+        std::error_code ec;
+        for (const auto& e : fs::directory_iterator(fs::path(ruta).parent_path(), ec)) {
+            const std::string n = e.path().filename().string();
+            if (n.find(".so") == std::string::npos || n.rfind("libonnxruntime", 0) == 0) continue;
+            pendientes.push_back(e.path());
+        }
+        for (bool avanzo = true; avanzo && !pendientes.empty();) {
+            avanzo = false;
+            for (auto it = pendientes.begin(); it != pendientes.end();) {
+                if (dlopen(it->c_str(), RTLD_NOW | RTLD_GLOBAL) != nullptr) {
+                    it = pendientes.erase(it);
+                    avanzo = true;
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
     void* h = dlopen(ruta.c_str(), RTLD_NOW | RTLD_LOCAL | RTLD_DEEPBIND);
 #else
     void* h = dlopen(ruta.c_str(), RTLD_NOW | RTLD_LOCAL);

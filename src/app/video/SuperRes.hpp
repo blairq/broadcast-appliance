@@ -84,6 +84,14 @@ class SuperRes : public QObject {
     /// a la que tiene). "" o el error.
     std::string tarjetaConPlugin(const std::string& entrada, const std::string& id);
 
+    // --- ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel), bajado a pedido ----------
+    /// Qué placa hay (nvidia, amd, intel o ninguna), qué runtime está instalado
+    /// y qué se recomienda bajar. {placa, instalado: {tipo}?, sugerido, nota}.
+    json runtimeGpu() const;
+    /// Baja el ONNX Runtime de GPU para `tipo` (nvidia, amd, intel; vacío = el sugerido)
+    /// a Datos/Herramientas/onnxruntime-gpu. Corre como trabajo. "" o el error.
+    std::string instalarRuntimeGpu(const std::string& tipo, bool conTensorRt = true);
+
     // --- Interfaz ---------------------------------------------------------------------
     QVariantList modelosQml() const;
     Q_INVOKABLE QString prepararUi() { return q(prepararLaboratorio()); }

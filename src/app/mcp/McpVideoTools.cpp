@@ -1015,6 +1015,46 @@ void McpService::registerVideoTools() {
         }
         {
             Tool t;
+            t.name = "superres_runtime_gpu";
+            t.title = "El ONNX Runtime de GPU de esta máquina (NVIDIA, AMD, Intel)";
+            t.category = "video";
+            t.readOnly = true;
+            t.description =
+                "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
+                "compila la red para esa placa; AMD en Linux: ROCm/MIGraphX; Intel: OpenVINO) y qué conviene. "
+                "En Windows con AMD (también las integradas Ryzen) y en la Mac no hace falta: DirectML y CoreML "
+                "vienen con el programa. Se baja con superres_runtime_gpu_instalar.";
+            t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+            t.run = [srp](const json&, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                done(ToolResult().data(srp->runtimeGpu()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_runtime_gpu_instalar";
+            t.title = "Bajar el ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel)";
+            t.category = "video";
+            t.description =
+                "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
+                "conviene para esta placa), con versiones fijas de PyPI verificadas por sha256. NVIDIA: varios GB "
+                "(CUDA 13, cuDNN, TensorRT; `tensorrt` false para bajar solo CUDA). Al terminar hay que "
+                "reiniciar el programa. El avance, en superres_estado (`trabajo`).";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"tipo", {{"type", "string"}, {"enum", {"", "nvidia", "amd", "intel"}}}},
+                               {"tensorrt", {{"type", "boolean"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->instalarRuntimeGpu(a.value("tipo", std::string()), a.value("tensorrt", true));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Bajando: superres_estado muestra el avance; al terminar, reiniciar."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
             t.name = "superres_instalar";
             t.title = "Instalar un plugin de superresolución del catálogo";
             t.category = "video";
