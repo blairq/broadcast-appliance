@@ -26,6 +26,9 @@ ld-linux-aarch64.so.1
 libc.so.6
 libm.so.6
 libmvec.so.1
+# glibc / libxcrypt: los pide el Python de los plugins (python-build-standalone).
+libutil.so.1
+libcrypt.so.1
 libdl.so.2
 libpthread.so.0
 librt.so.1
@@ -82,6 +85,8 @@ libgthread-2.0.so.0
 libgobject-2.0.so.0
 libgmodule-2.0.so.0
 libgio-2.0.so.0
+# libffi: la pide libgobject (base); los bindings de Python (gi) también.
+libffi.so.8
 libdbus-1.so.3
 libgssapi_krb5.so.2
 libz.so.1

@@ -37,7 +37,7 @@ JOBS="${1:-$(nproc)}"
 VER=1.28.7
 COMMIT=070125524a8422e29d3b69a372ed4f62fd343ffa
 # Subir RECETA al cambiar opciones: si no, «ya está» y no recompila.
-RECETA=3
+RECETA=4
 URL=https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 SRC="$ROOT/extern/.build-gstreamer"
 PREFIX="$ROOT/extern/gstreamer-linux"
@@ -74,6 +74,31 @@ dependency_names = gobject-introspection-1.0
 program_names = g-ir-scanner, g-ir-compiler, g-ir-annotation-tool, g-ir-doc-tool, g-ir-inspect, g-ir-generate
 WRAP
 
+# bzip2 y mpg123: GStreamer las busca en el sistema (sin subproyecto). Desde
+# fuente fijada a una carpeta aparte; sus .so se copian a lib/ al final.
+LADO="$SRC/lado"
+command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
+baja() { # url archivo sha
+    local f="$ROOT/extern/.downloads/$2"
+    [ -f "$f" ] && [ "$(sha256sum "$f" | cut -d' ' -f1)" = "$3" ] && return 0
+    curl -fL --retry 3 -o "$f.part" "$1"
+    [ "$(sha256sum "$f.part" | cut -d' ' -f1)" = "$3" ] || { log "ERROR: sha256 de $2"; exit 1; }
+    mv "$f.part" "$f"
+}
+if [ ! -f "$LADO/.listo-2" ]; then
+    rm -rf "$LADO" && mkdir -p "$LADO/src" "$LADO/lib" "$LADO/include"
+    baja https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz bzip2-1.0.8.tar.gz ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269
+    # mpg123: sha256 del tarball oficial (mpg123.de), fijado al bajarlo.
+    baja https://www.mpg123.de/download/mpg123-1.33.7.tar.bz2 mpg123-1.33.7.tar.bz2 31d0e35a4ca567ec9b5ebda6c3062bb4435d6d3eacd6ef0d95cadd7854dc03ee
+    tar -xzf "$ROOT/extern/.downloads/bzip2-1.0.8.tar.gz" -C "$LADO/src"
+    (cd "$LADO/src/bzip2-1.0.8" && make -s -f Makefile-libbz2_so CFLAGS="-O2 -fPIC -D_FILE_OFFSET_BITS=64" >/dev/null 2>&1 \
+        && cp -a libbz2.so.1.0* "$LADO/lib/" && ln -sf libbz2.so.1.0 "$LADO/lib/libbz2.so" && cp bzlib.h "$LADO/include/")
+    tar -xjf "$ROOT/extern/.downloads/mpg123-1.33.7.tar.bz2" -C "$LADO/src"
+    (cd "$LADO/src/mpg123-1.33.7" && ./configure -q --prefix="$LADO" --libdir="$LADO/lib" --disable-static \
+        --with-default-audio=dummy --with-audio=dummy >/dev/null && make -s -j"$JOBS" >/dev/null && make -s install >/dev/null)
+    touch "$LADO/.listo-2"
+fi
+
 # Lo de extern/obs-deps-linux primero; después, el sistema (la base). SRT está
 # compilado estático (va dentro de libobs): su .pc deja en Libs.private lo que
 # pide (mbedTLS, la de C++), y el plugin no lo enlazaba. Un .pc corregido, solo
@@ -85,9 +110,10 @@ for n in srt haisrt; do
     sed -e 's/^Libs: \(.*\)$/Libs: \1 -lmbedtls -lmbedx509 -lmbedcrypto -lstdc++ -lm -lpthread/' -e '/^Libs.private:/d' \
         "$DEPS/lib/pkgconfig/$n.pc" >"$PC/$n.pc"
 done
-export PKG_CONFIG_PATH="$PC:$DEPS/lib/pkgconfig:$DEPS/share/pkgconfig"
-export CFLAGS="-O2" CXXFLAGS="-O2"
-export LDFLAGS="-L$DEPS/lib"
+export PKG_CONFIG_PATH="$PC:$LADO/lib/pkgconfig:$DEPS/lib/pkgconfig:$DEPS/share/pkgconfig"
+export CFLAGS="-O2 -I$LADO/include" CXXFLAGS="-O2"
+export LDFLAGS="-L$LADO/lib -L$DEPS/lib"
+export LIBRARY_PATH="$LADO/lib"
 
 B="$SRC/b"
 rm -rf "$PREFIX"
@@ -97,6 +123,7 @@ log "configurando $VER ($COMMIT)"
 if [ -f "$B/build.ninja" ]; then RECONF=--reconfigure; meson configure --clearcache "$B" >/dev/null; else RECONF=; fi
 meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto -Dpkg_config_path="$PKG_CONFIG_PATH" \
+    -Dpython.platlibdir=lib/python3.12/site-packages -Dpython.purelibdir=lib/python3.12/site-packages \
     --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123,gobject-introspection,pygobject \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
     -Dgpl=enabled -Dorc=enabled \
@@ -112,6 +139,7 @@ log "compilando ($JOBS hilos)"
 ninja -C "$B" -j"$JOBS" >"$SRC/compilar.log" 2>&1 || { tail -40 "$SRC/compilar.log"; exit 1; }
 meson install -C "$B" --quiet >/dev/null
 
+cp -a "$LADO"/lib/libbz2.so.1.0* "$LADO"/lib/libmpg123.so* "$LADO"/lib/libout123.so* "$LADO"/lib/libsyn123.so* "$PREFIX/lib/" 2>/dev/null || true
 # Lo que no va en el bundle: cabeceras y .pc quedan (los usa el build), el
 # resto de herramientas de desarrollo no.
 rm -rf "$PREFIX/share/gtk-doc" "$PREFIX/share/man" "$PREFIX/lib/cmake"

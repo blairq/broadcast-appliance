@@ -56,6 +56,11 @@ rm -rf "$OUT/share"
 rm -rf "$OUT"/lib/python3.*/test "$OUT"/lib/python3.*/idlelib "$OUT"/lib/python3.*/tkinter \
        "$OUT"/lib/python3.*/turtledemo "$OUT"/lib/tcl* "$OUT"/lib/tk* "$OUT"/lib/itcl* "$OUT"/lib/thread*
 "$OUT/bin/python3" -m pip install -q --disable-pip-version-check --no-warn-script-location "${LIBS[@]}"
+# Las bibliotecas que trae cada rueda (carpeta <paquete>.libs, de auditwheel):
+# se encuentran entre sí por $ORIGIN (si no, solo por el RPATH de la extensión).
+if [ "$(uname -s)" = Linux ] && command -v patchelf >/dev/null; then
+    find "$OUT"/lib/python3.*/site-packages -path '*.libs/*.so*' -type f -exec patchelf --set-rpath '$ORIGIN' {} \;
+fi
 # El bytecode, precompilado acá: en ejecución Python corre con -B (no escribe
 # nada adentro del programa: escribir en la .app rompe el sello de la firma).
 find "$OUT" -name '__pycache__' -type d -prune -exec rm -rf {} +

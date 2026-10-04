@@ -39,10 +39,11 @@ install(CODE "
                         RESULT_VARIABLE _rc ERROR_QUIET)
     endforeach()
 
+    # (y GStreamer del bundle: ba-sources lo usa para las tarjetas gst)
     file(GLOB _plugins \"\${_plug}/*.so\")
     foreach(_p IN LISTS _plugins)
         execute_process(COMMAND \"${BA_PATCHELF}\"
-                        --set-rpath \"\\\$ORIGIN:\\\$ORIGIN/../../bin/64bit\" \"\${_p}\"
+                        --set-rpath \"\\\$ORIGIN:\\\$ORIGIN/../../bin/64bit:\\\$ORIGIN/../../bin/64bit/gstreamer/lib\" \"\${_p}\"
                         RESULT_VARIABLE _rc ERROR_QUIET)
     endforeach()
 

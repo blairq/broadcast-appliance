@@ -36,6 +36,10 @@ fi
 resolvable() { # <elf> <soname>
   local elf="$1" need="$2" dir rp d
   dir="$(cd "$(dirname "$elf")" && pwd)"
+  # Un NEEDED con ruta ($ORIGIN/../lib/libpython3.12.so.1.0): esa ruta, tal cual.
+  case "$need" in
+  */*) d="${need//\$ORIGIN/$dir}"; d="${d//\$\{ORIGIN\}/$dir}"; [ -e "$d" ] && return 0; return 1 ;;
+  esac
   rp=$(readelf -d "$elf" 2>/dev/null | sed -n 's/.*(\(RUNPATH\|RPATH\)).*\[\(.*\)\]/\2/p' | head -1)
   IFS=':' read -ra dirs <<<"$rp"
   for d in "${dirs[@]}"; do
