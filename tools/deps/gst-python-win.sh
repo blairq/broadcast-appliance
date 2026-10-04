@@ -71,6 +71,8 @@ done
 # El Python de destino, bajo Wine (meson lo corre para conocerlo).
 export WINEPREFIX="$T/wineprefix" WINEDEBUG=-all DISPLAY= WINEDLLOVERRIDES="mscoree,mshtml="
 export BA_WINE="$WINE" BA_PYW="$PYW"
+# Windows no distingue mayúsculas: el Python dice «Include» y la carpeta es «include».
+[ -e "$PYW/Include" ] || ln -s include "$PYW/Include"
 cp "$ROOT/tools/deps/python-wine.py" "$T/python-win"
 chmod +x "$T/python-win"
 "$WINE" wineboot -u >/dev/null 2>&1 || true
