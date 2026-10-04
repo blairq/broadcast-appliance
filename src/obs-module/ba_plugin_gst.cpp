@@ -555,6 +555,21 @@ void filtroFinalizar(GObject* o) {
     G_OBJECT_CLASS(ba_plugin_filtro_parent_class)->finalize(o);
 }
 
+/// LATENCY: lo de arriba más lo que puede esperar la vuelta (espera-ms): así,
+/// en una cadena que sincroniza, el resto se atrasa lo mismo (el audio de un
+/// plugin de audio no se adelanta al video, y viceversa).
+gboolean filtroConsulta(GstBaseTransform* bt, GstPadDirection dir, GstQuery* q) {
+    if (!GST_BASE_TRANSFORM_CLASS(ba_plugin_filtro_parent_class)->query(bt, dir, q)) return FALSE;
+    if (dir == GST_PAD_SRC && GST_QUERY_TYPE(q) == GST_QUERY_LATENCY) {
+        gboolean vivo = FALSE;
+        GstClockTime min = 0, max = GST_CLOCK_TIME_NONE;
+        gst_query_parse_latency(q, &vivo, &min, &max);
+        const GstClockTime propia = static_cast<GstClockTime>(reinterpret_cast<BaPluginFiltro*>(bt)->f->esperaMs) * GST_MSECOND;
+        gst_query_set_latency(q, vivo, min + propia, GST_CLOCK_TIME_IS_VALID(max) ? max + propia : max);
+    }
+    return TRUE;
+}
+
 void ba_plugin_filtro_class_init(BaPluginFiltroClass* k) {
     auto* go = G_OBJECT_CLASS(k);
     go->set_property = filtroPoner;
@@ -593,6 +608,7 @@ void ba_plugin_filtro_class_init(BaPluginFiltroClass* k) {
     bt->transform_ip = filtroTransformar;
     bt->set_caps = filtroCaps;
     bt->stop = filtroParar;
+    bt->query = filtroConsulta;
     bt->passthrough_on_same_caps = FALSE;
 }
 

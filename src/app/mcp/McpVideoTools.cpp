@@ -917,6 +917,40 @@ void McpService::registerVideoTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "entrada_filtros_audio";
+        t.title = "Filtros de audio de una entrada (en su cadena de GStreamer)";
+        t.category = "video";
+        t.description =
+            "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
+            "plugin): elementos de GStreamer en la cadena de su audio, en orden. Para un plugin de Python de "
+            "audio: {\"elemento\": \"baplugin\", \"propiedades\": {\"plugin\": id, \"tarjeta\": nombre, "
+            "\"parametros\": \"{...}\"}}; también cualquier elemento de audio (audiodynamic, audioecho, "
+            "audiocheblimit, volume…; gst-inspect los lista con video_modulos). La demora que agreguen se "
+            "compensa sola: el colchón de la entrada atrasa el video lo mismo. Sin `filtros`, devuelve los "
+            "que tiene.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}}},
+                           {"filtros",
+                            {{"type", "array"},
+                             {"items",
+                              {{"type", "object"},
+                               {"properties",
+                                {{"elemento", {{"type", "string"}}}, {"propiedades", {{"type", "object"}}}}}}}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "filtros": [{"elemento": "audiodynamic", "propiedades": {"mode": "compressor", "ratio": 0.5, "threshold": 0.3}}]})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string e = a.value("entrada", std::string());
+            if (!a.contains("filtros")) return done(ToolResult().data({{"entrada", e}, {"filtros", v->filtrosAudioDe(e)}}));
+            const std::string err = v->filtrosAudio(e, a["filtros"]);
+            if (!err.empty()) return done(ToolResult::error(err));
+            done(ToolResult().data({{"entrada", e}, {"filtros", v->filtrosAudioDe(e)}}));
+        };
+        core_.addTool(std::move(t));
+    }
     if (video::SuperRes* sr = vm_.superresVideo()) {
         const QPointer<video::SuperRes> srp = sr;
         {

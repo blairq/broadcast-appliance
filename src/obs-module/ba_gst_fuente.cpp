@@ -28,7 +28,9 @@
 // colorimetría (BT.601/709, rango limitado o completo) y así se le pasa a
 // libobs, que convierte bien y en la GPU.
 //
-// LOS FILTROS (`filtros`, JSON): las tarjetas del grafo de video (y de audio)
+// LOS FILTROS (`filtros`, JSON; y `filtros_audio`, un arreglo aparte): las
+// tarjetas del grafo de video y los filtros de audio de la entrada (p. ej.
+// `baplugin medio=audio` de un plugin de Python, audiodynamic, un eco…)
 // corren ACÁ, como elementos de GStreamer en la cadena de la entrada —no en
 // libobs—:
 //     {"video": [{"id", "elemento", "propiedades": {…}}, …],
@@ -751,14 +753,25 @@ void actualizar(void* data, obs_data_t* s) {
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
     const std::string superresModelo = obs_data_get_string(s, "superres_modelo");
     const bool ntpSync = obs_data_get_bool(s, "ntp_sync");
-    const std::string filtrosJson = obs_data_get_string(s, "filtros");
+    // Los de audio también pueden venir aparte (`filtros_audio`: un arreglo):
+    // los pone otra parte del programa que el grafo de video.
+    const std::string filtrosJson =
+        std::string(obs_data_get_string(s, "filtros")) + "|" + obs_data_get_string(s, "filtros_audio");
     std::vector<Filtro> filtrosV, filtrosA;
     bool alfa = false;
-    if (!filtrosJson.empty()) {
-        if (obs_data_t* fj = obs_data_create_from_json(filtrosJson.c_str())) {
+    if (const char* fv = obs_data_get_string(s, "filtros"); fv != nullptr && *fv != '\0') {
+        if (obs_data_t* fj = obs_data_create_from_json(fv)) {
             filtrosV = leerFiltros(fj, "video");
             filtrosA = leerFiltros(fj, "audio");
             alfa = obs_data_get_bool(fj, "alfa");
+            obs_data_release(fj);
+        }
+    }
+    if (const char* fa = obs_data_get_string(s, "filtros_audio"); fa != nullptr && *fa != '\0') {
+        const std::string envuelto = std::string("{\"audio\":") + fa + "}";
+        if (obs_data_t* fj = obs_data_create_from_json(envuelto.c_str())) {
+            for (auto& x : leerFiltros(fj, "audio"))
+                filtrosA.push_back(std::move(x));
             obs_data_release(fj);
         }
     }

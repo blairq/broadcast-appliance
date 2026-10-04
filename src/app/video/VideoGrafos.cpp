@@ -1666,6 +1666,48 @@ std::string VideoGrafos::superresMotor(const std::string& entrada, const std::st
     return {};
 }
 
+namespace {
+bool hayElemento(const char* elemento);
+} // namespace
+
+std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& filtros) {
+    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
+        return "«" + entrada + "» no es una entrada de GStreamer (red, pipeline o plugin)";
+    if (!filtros.is_array()) return "`filtros` tiene que ser una lista de {elemento, propiedades}";
+    json limpios = json::array();
+    int i = 0;
+    for (const auto& f : filtros) {
+        const std::string el = f.is_object() ? f.value("elemento", std::string()) : std::string();
+        if (el.empty()) return "a un filtro le falta `elemento`";
+        if (!hayElemento(el.c_str())) return "GStreamer no tiene el elemento «" + el + "»";
+        json x = {{"id", f.value("id", "a" + std::to_string(i++))}, {"elemento", el}};
+        json pr = json::object();
+        for (const auto& [k, v] : f.value("propiedades", json::object()).items())
+            pr[k] = v.is_string() ? v.get<std::string>() : v.dump();
+        x["propiedades"] = pr;
+        limpios.push_back(x);
+    }
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return "no existe «" + entrada + "»";
+    obs_data_t* d = obs_data_create();
+    obs_data_set_string(d, "filtros_audio", limpios.empty() ? "" : limpios.dump().c_str());
+    actualizarFuente(src, d);
+    obs_data_release(d);
+    obs_source_release(src);
+    rt_.save();
+    return {};
+}
+
+json VideoGrafos::filtrosAudioDe(const std::string& entrada) const {
+    obs_source_t* src = obs_get_source_by_name(entrada.c_str());
+    if (src == nullptr) return json::array();
+    obs_data_t* d = obs_source_get_settings(src);
+    const json j = json::parse(obs_data_get_string(d, "filtros_audio"), nullptr, false);
+    obs_data_release(d);
+    obs_source_release(src);
+    return j.is_array() ? j : json::array();
+}
+
 QString VideoGrafos::superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo) {
     return q(superresMotor(entrada.toStdString(), motor.toStdString(), modelo.toStdString()));
 }

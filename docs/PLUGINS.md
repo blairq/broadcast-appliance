@@ -44,9 +44,18 @@ Plugins/ptz-rally/
      ▼
   ba-sources (módulo de video, en el proceso de libobs):
      bapluginsrc  → origen de ba_gst_fuente (colchón y reloj del estudio)
-     baplugin     → tarjeta `gst` del grafo de video, o en cualquier pipeline
-     ba_plugin_audio → filtro de audio de OBS sobre cualquier fuente
+     baplugin     → tarjeta `gst` del grafo de video, o en cualquier pipeline;
+                    en una entrada de GStreamer corre EN SU CADENA (capa de entrada):
+                    video con las tarjetas del grafo, audio con entrada_filtros_audio
+     ba_plugin_audio → filtro de audio de OBS sobre cualquier fuente (las que no son de GStreamer)
 ```
+
+**Audio en la cadena de la entrada.** Una tarjeta de audio de un plugin va en la cadena de
+GStreamer de la entrada con `entrada_filtros_audio`:
+`{"entrada": "Cámara 1", "filtros": [{"elemento": "baplugin", "propiedades": {"plugin": "mi-plugin",
+"tarjeta": "limpiar", "medio": "audio"}}]}`. `baplugin` declara su demora (consulta LATENCY: lo que
+puede esperar la vuelta, `espera-ms`) y el colchón de la entrada mide la demora real de audio y
+video y atrasa los dos lo mismo: el audio procesado no se adelanta ni se atrasa respecto de la imagen.
 
 **Fuera de proceso, siempre.** Un plugin no puede trabar ni tumbar la emisión:
 - corre en su propio proceso;

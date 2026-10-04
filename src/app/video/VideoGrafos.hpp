@@ -163,6 +163,12 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE bool haySuperres() const;
     /// El motor de superresolución de una entrada de red: "" (ninguno), apple,
     /// fsr u onnx (con `modelo`, la ruta del .onnx). "" o el error.
+    /// Los filtros de AUDIO de una entrada de GStreamer (elementos de GStreamer
+    /// en la cadena de su audio: `baplugin medio=audio` de un plugin de Python,
+    /// audiodynamic, audioecho…): [{elemento, propiedades}]. Vacío: ninguno.
+    /// La demora que agreguen se compensa sola (el colchón atrasa el video igual).
+    std::string filtrosAudio(const std::string& entrada, const nlohmann::json& filtros);
+    nlohmann::json filtrosAudioDe(const std::string& entrada) const;
     std::string superresMotor(const std::string& entrada, const std::string& motor,
                               const std::string& modelo);
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
