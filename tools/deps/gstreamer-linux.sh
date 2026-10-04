@@ -20,6 +20,12 @@
 # mpg123) se compilan como subproyectos fijados del
 # propio GStreamer (--force-fallback-for) y viajan en gstreamer/lib.
 #
+# Python: la introspección (los .typelib y libgirepository) y los bindings
+# (PyGObject y gst-python, con libgstpython para escribir elementos en Python),
+# compilados con el Python 3.12 de Ubuntu 24.04: la misma versión que el de
+# los plugins (extern/python), así que las extensiones le sirven. Quedan en
+# lib/python3.12/site-packages y lib/girepository-1.0.
+#
 # RPATH: las bibliotecas se encuentran entre sí ($ORIGIN), los plugins suben a
 # lib/ ($ORIGIN/..) y a bin/64bit ($ORIGIN/../../..) para FFmpeg y compañía.
 #
@@ -75,12 +81,12 @@ log "configurando $VER ($COMMIT)"
 if [ -f "$B/build.ninja" ]; then RECONF=--reconfigure; meson configure --clearcache "$B" >/dev/null; else RECONF=; fi
 meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto -Dpkg_config_path="$PKG_CONFIG_PATH" \
-    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123 \
+    --force-fallback-for=ogg,vorbis,opus,flac,bzip2,mpg123,gobject-introspection,pygobject \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
     -Dgpl=enabled -Dorc=enabled \
-    -Dpython=disabled -Ddevtools=disabled -Dges=disabled -Drs=disabled -Dgst-examples=disabled -Dsharp=disabled \
+    -Dpython=enabled -Dintrospection=enabled -Ddevtools=disabled -Dges=disabled -Drs=disabled -Dgst-examples=disabled -Dsharp=disabled \
     -Dlibnice=disabled -Dgtk=disabled -Dqt5=disabled -Dqt6=disabled -Dtls=disabled -Dwebrtc=disabled \
-    -Dtests=disabled -Dexamples=disabled -Ddoc=disabled -Dintrospection=disabled -Dnls=disabled -Dbenchmarks=disabled \
+    -Dtests=disabled -Dexamples=disabled -Ddoc=disabled -Dnls=disabled -Dbenchmarks=disabled \
     -Dgst-plugins-base:gl=enabled -Dgst-plugins-base:x11=enabled -Dgst-plugins-base:alsa=enabled \
     -Dgst-plugins-good:pulse=enabled -Dgst-plugins-good:v4l2=enabled \
     -Dgst-plugins-bad:srt=enabled -Dgst-plugins-bad:va=enabled \
