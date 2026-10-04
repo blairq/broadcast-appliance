@@ -47,7 +47,8 @@ fi
 [ "$SOLO_WINE" = 1 ] && exit 0
 
 export WINEPREFIX="$B/wineprefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=" DISPLAY=
-export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/obs-studio/bin/64bit;$ROOT/extern/msvc/redist"
+# (GStreamer antes que el OBS: con el mismo nombre va la de GStreamer, como en el bundle.)
+export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/obs-studio/bin/64bit;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
 # Los tests de audio cargan el LSP de Windows (tools/deps/lsp-win.sh) por ruta Windows.
 if [ -f "$ROOT/extern/lsp/windows-x86_64/lsp-plugins.clap" ]; then
     export BA_LSP_CLAP="Z:${ROOT//\//\\}\\extern\\lsp\\windows-x86_64\\lsp-plugins.clap"

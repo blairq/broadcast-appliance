@@ -15,7 +15,7 @@
 #   lib/gstreamer-1.0/  los plugins
 #   lib/gio/modules/    TLS de GIO (rtsps, https)
 #   libexec/            gst-plugin-scanner.exe
-#   Lib/, etc/, share/  Python de los plugins de Python, configuración, presets
+#   etc/, share/        configuración, presets (sin las piezas de Python 3.13)
 #   include/, lib/*.lib las cabeceras y bibliotecas de importación (solo build)
 #
 # Va TODO (también Python, GTK y los plugins de Qt). Las DLL con el mismo
@@ -56,5 +56,11 @@ cp -a "$D/lib/glib-2.0/include" "$OUT/lib/glib-2.0/"
 cp -a "$D/lib/gstreamer-1.0/include" "$OUT/lib/gstreamer-1.0/" # gst/gl/gstglconfig.h
 cp -a "$D/lib/pkgconfig" "$OUT/lib/" # para compilar los bindings de Python (gst-python-win.sh)
 
-echo "1.26.11 msvc_x86_64 r3" >"$OUT/.version"
+# Las piezas para Python 3.13 (el plugin gstpython.dll y gi en Lib/): el
+# Python de los plugins es el 3.12 y sus bindings se compilan aparte
+# (gst-python-win.sh, su gstpython.dll va a gst-plugins/). Dos plugins
+# «python» chocarían, y el de 3.13 no carga (no hay python313.dll).
+rm -f "$OUT"/lib/gstreamer-1.0/gstpython.dll "$OUT"/lib/gstreamer-1.0/gstpython.pdb
+rm -rf "$OUT/Lib"
+echo "1.26.11 msvc_x86_64 r4" >"$OUT/.version"
 log "listo: $OUT ($(du -sh "$OUT" | cut -f1), $(ls "$OUT"/lib/gstreamer-1.0/*.dll | wc -l) plugins)"

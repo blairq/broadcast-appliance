@@ -79,3 +79,9 @@ wldap32.dll
 ws2_32.dll
 wtsapi32.dll
 xinput1_4.dll
+
+# Parte de Windows 10/11 (las piden deno y los plugins de GStreamer: el
+# generador de números al azar de bcrypt, DirectSound, Winsock 1).
+bcryptprimitives.dll
+dsound.dll
+wsock32.dll
