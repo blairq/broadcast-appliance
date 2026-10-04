@@ -15,6 +15,8 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+
+#include <nlohmann/json.hpp>
 #if defined(BA_HAVE_CLAP)
 #include "audio/EquipoAudio.hpp"
 #include "audio/Matriz.hpp"
@@ -287,6 +289,16 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     audio::registrarMonitorVoz();     // la voz del asistente, solo a los auriculares
     audio::registrarEntradaVirtual(); // las entradas virtuales de la matriz de mezcla
     audio::registrarEntradaFisica();  // las entradas del equipo (placas, cada canal)
+    // Las entradas de audio que todavía se están abriendo: la placa no las repite.
+    audio::setDispositivosReservados([this]() {
+        std::set<std::string> out;
+        for (const auto& p : pendingAudio_) {
+            const auto j = nlohmann::json::parse(p.first.settingsJson, nullptr, false);
+            if (j.is_object() && j.contains("device_id") && j["device_id"].is_string())
+                out.insert(j["device_id"].get<std::string>());
+        }
+        return out;
+    });
 #endif
 #if defined(BA_HAVE_NDI)
     ndi::registerSourceType(); // entrada NDI(R) abierta (libNoIDea)
@@ -319,6 +331,26 @@ void BroadcastEngine::shutdown() {
     }
     releaseScenes(); // transicion, escenas, fuentes y vumetros
 
+#if defined(__APPLE__)
+    // Los micrófonos de CoreAudio (mac-capture) siguen entregando audio desde
+    // su hilo hasta que la fuente se destruye, y obs_shutdown libera la salida
+    // de audio ANTES que las fuentes: un bloque que llegaba en ese medio
+    // tumbaba la app al cerrar (copy_audio_data -> audio_output_get_planes).
+    // Se los desconecta del dispositivo antes (uno que no existe: para y no
+    // vuelve a arrancar).
+    obs_enum_sources(
+        [](void*, obs_source_t* s) {
+            const char* id = obs_source_get_unversioned_id(s);
+            if (id != nullptr && std::string(id).rfind("coreaudio_", 0) == 0) {
+                obs_data_t* d = obs_data_create();
+                obs_data_set_string(d, "device_id", "ba-cerrando");
+                obs_source_update(s, d);
+                obs_data_release(d);
+            }
+            return true;
+        },
+        nullptr);
+#endif
     obs_shutdown();
     started_ = false;
     releaseWindowingPlatform();

@@ -82,7 +82,10 @@ std::string redactUrl(std::string url) {
 }
 
 bool isNetworkInput(const std::string& type, const json& settings) {
-    return type == "ba_ndi_input" || (type == "ffmpeg_source" && !settings.value("is_local_file", true));
+    // ba_gst_fuente: las de red sincronizadas (video_entrada_red, camara_agregar)
+    // y las de los plugins de Python.
+    return type == "ba_ndi_input" || type == "ba_gst_fuente" ||
+           (type == "ffmpeg_source" && !settings.value("is_local_file", true));
 }
 
 } // namespace ba::app::inputs

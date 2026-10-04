@@ -3,6 +3,9 @@
 // ============================================================================
 
 #include "audio/RackManager.hpp"
+#include "platform/Paths.hpp"
+
+#include "audio/GrabadorWav.hpp"
 
 #include <mutex>
 
@@ -18,6 +21,7 @@
 #include <atomic>
 
 #include <obs.h>
+#include <util/platform.h>
 
 #include <cstdlib>
 #include <fstream>
@@ -145,6 +149,10 @@ struct RackManager::Filter {
     std::string source;
     std::unique_ptr<AudioRack> rack;
     obs_source_t* tap = nullptr; // salida de escucha (puede ser nullptr)
+    // Grabación de la tarjeta de salida: el hilo de audio toma una copia del
+    // puntero bajo este mutex (muy corto) y le agrega lo que llegó.
+    std::mutex grabMu;
+    std::shared_ptr<GrabadorWav> grab;
 };
 
 namespace {
@@ -194,13 +202,23 @@ obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
         out.timestamp = audio->timestamp;
         obs_source_output_audio(f->tap, &out);
     }
-    // Voz a texto: lo que junto su nodo va al reconocedor (copia y vuelve).
-    const uint32_t tf = f->rack->textoFrames();
-    if (tf > 0) {
+    if (mf > 0) {
+        std::shared_ptr<GrabadorWav> g;
+        {
+            std::lock_guard<std::mutex> l(f->grabMu);
+            g = f->grab;
+        }
+        if (g) g->agregar(f->rack->monitorPlane(0), f->rack->monitorPlane(1), mf);
+    }
+    // Voz a texto: lo que juntó cada nodo va al reconocedor (copia y vuelve).
+    {
         std::lock_guard<std::mutex> l(g_textoLock);
-        if (g_texto)
-            g_texto(f->source, f->rack->textoModoAudio(), f->rack->textoData(), tf,
-                    audio_output_get_sample_rate(obs_get_audio()));
+        if (g_texto) {
+            const uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
+            f->rack->textosCapturados([sr](const std::string& flujo, int modo, const float* m, uint32_t n) {
+                g_texto(flujo, modo, m, n, sr);
+            });
+        }
     }
     return audio;
 }
@@ -242,10 +260,20 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
     saveTimer_.setSingleShot(true);
     saveTimer_.setInterval(800);
     connect(&saveTimer_, &QTimer::timeout, this, &RackManager::saveNow);
+    revision_.setInterval(2000);
+    connect(&revision_, &QTimer::timeout, this, [this]() {
+        montarPendientes();
+        sincronizarGrabaciones();
+        normalizarFlujos();
+        sincronizarEntradas();
+    });
+    revision_.start();
 }
 
 RackManager::~RackManager() {
     saveNow();
+    revision_.stop();
+    tomas_.clear(); // cada Toma saca su callback
     // Los filtros siguen vivos en OBS; que no apunten al manager.
     for (auto& [name, f] : filters_)
         (void)f;
@@ -265,6 +293,8 @@ std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
         libTried_ = true;
         std::vector<fs::path> candidates;
         if (const char* env = std::getenv("BA_LSP_CLAP")) candidates.emplace_back(env);
+        // Viene con el programa: del bundle; y de la raíz de datos (copia sombra, layout viejo).
+        candidates.push_back(ba::platform::bundleRoot() / "plugins" / "lsp" / "lsp-plugins.clap");
         candidates.push_back(root_ / "plugins" / "lsp" / "lsp-plugins.clap");
 #ifdef BA_DEV_LSP_CLAP
         candidates.emplace_back(BA_DEV_LSP_CLAP); // arbol de build (desarrollo)
@@ -296,6 +326,21 @@ void RackManager::attach(Filter* f) {
 }
 
 void RackManager::detach(Filter* f) {
+    // Su fuente se va (la borraron, o la app se está cerrando y las entradas
+    // virtuales se destruyen antes del último guardado): el rack queda como
+    // pendiente, para volver cuando la fuente reaparezca. Antes se perdía.
+    if (f->rack && filters_.contains(f->source) && filters_[f->source] == f) {
+        if (!pending_.is_object()) pending_ = json::object();
+        pending_[f->source] = f->rack->save();
+    }
+    {
+        std::shared_ptr<GrabadorWav> g;
+        {
+            std::lock_guard<std::mutex> l(f->grabMu);
+            g.swap(f->grab);
+        }
+        if (g) g->terminar();
+    }
     for (auto it = filters_.begin(); it != filters_.end(); ++it)
         if (it->second == f) {
             filters_.erase(it);
@@ -501,20 +546,124 @@ std::string RackManager::setTexto(const std::string& source, const std::string& 
     std::string e;
     AudioRack* r = rack(source, true, &e);
     if (r == nullptr) return e;
-    r->addTexto(modo);
+    const auto ts = r->textos();
+    if (!ts.empty()) {
+        r->setTextoModo(ts.front().id, modo);
+    } else if (addTexto(source, modo, {}, &e).empty()) {
+        return e;
+    }
     markDirty();
     emit changed();
     return {};
 }
 
-RackManager::json RackManager::fuentesConTexto() const {
+bool RackManager::flujoLibre(const std::string& flujo, const std::string& salvoRack,
+                             const std::string& salvoNodo) const {
+    for (const auto& [nombre, f] : filters_)
+        if (f->rack)
+            for (const auto& t : f->rack->textos())
+                if (t.flujo == flujo && !(nombre == salvoRack && t.id == salvoNodo)) return false;
+    return true;
+}
+
+std::string RackManager::addTexto(const std::string& source, const std::string& modo,
+                                  const std::string& flujo, std::string* error) {
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
+    std::string nombre = flujo;
+    if (nombre.empty()) {
+        nombre = source;
+        for (int i = 2; !flujoLibre(nombre, {}, {}); ++i)
+            nombre = source + " " + std::to_string(i);
+    } else if (!flujoLibre(nombre, {}, {})) {
+        if (error != nullptr) *error = "ya hay una salida de texto «" + nombre + "»";
+        return {};
+    }
+    const std::string id = r->addTexto(modo, nombre);
+    markDirty();
+    emit changed();
+    return id;
+}
+
+std::string RackManager::setTextoOpciones(const std::string& source, const std::string& nodo,
+                                          const json& cambios) {
+    std::string e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (r->kindOf(nodo) != "texto") return "'" + nodo + "' no es una voz a texto";
+    if (cambios.contains("flujo")) {
+        const std::string f = cambios.value("flujo", "");
+        if (f.empty()) return "la salida de texto necesita un nombre";
+        if (!flujoLibre(f, source, nodo)) return "ya hay una salida de texto «" + f + "»";
+        r->setTextoFlujo(nodo, f);
+    }
+    if (cambios.contains("modo")) r->setTextoModo(nodo, cambios.value("modo", "dictado"));
+    if (cambios.contains("salidas")) {
+        json actuales = json::object();
+        for (const auto& t : r->textos())
+            if (t.id == nodo) actuales = t.salidas.is_object() ? t.salidas : json::object();
+        for (auto it = cambios["salidas"].begin(); it != cambios["salidas"].end(); ++it)
+            actuales[it.key()] = it.value();
+        r->setTextoSalidas(nodo, actuales);
+    }
+    markDirty();
+    emit changed();
+    return {};
+}
+
+void RackManager::quitarTextos(const std::string& source) {
+    AudioRack* r = rack(source, false);
+    if (r == nullptr) return;
+    std::string e;
+    for (const auto& t : r->textos())
+        r->remove(t.id, &e);
+    markDirty();
+    emit changed();
+}
+
+RackManager::json RackManager::textos() const {
     json out = json::array();
     for (const auto& [nombre, f] : filters_)
-        if (f != nullptr && f->rack) {
-            const std::string m = f->rack->textoModo();
-            if (!m.empty()) out.push_back({{"fuente", nombre}, {"modo", m}});
-        }
+        if (f != nullptr && f->rack)
+            for (const auto& t : f->rack->textos())
+                out.push_back({{"flujo", t.flujo},
+                               {"fuente", nombre},
+                               {"nodo", t.id},
+                               {"modo", t.modo},
+                               {"salidas", t.salidas.is_object() ? t.salidas : json::object()}});
     return out;
+}
+
+RackManager::json RackManager::textoDe(const std::string& flujo) const {
+    for (const auto& t : textos())
+        if (t.value("flujo", "") == flujo) return t;
+    return nullptr;
+}
+
+RackManager::json RackManager::fuentesConTexto() const {
+    json out = json::array();
+    for (const auto& t : textos())
+        out.push_back({{"fuente", t["fuente"]}, {"modo", t["modo"]}, {"flujo", t["flujo"]}});
+    return out;
+}
+
+void RackManager::normalizarFlujos() {
+    bool algo = false;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& t : f->rack->textos()) {
+            if (!t.flujo.empty() && flujoLibre(t.flujo, nombre, t.id)) continue;
+            std::string n = t.flujo.empty() ? nombre : t.flujo;
+            for (int i = 2; !flujoLibre(n, nombre, t.id); ++i)
+                n = (t.flujo.empty() ? nombre : t.flujo) + " " + std::to_string(i);
+            f->rack->setTextoFlujo(t.id, n);
+            algo = true;
+        }
+    }
+    if (algo) {
+        saveTimer_.start();
+        emit changed();
+    }
 }
 
 AudioRack* RackManager::rack(const std::string& source, bool create, std::string* error) {
@@ -676,7 +825,13 @@ std::string RackManager::plantillaDeTipo(const std::string& tipo) const {
     return {};
 }
 
-void RackManager::markDirty() { saveTimer_.start(); }
+void RackManager::markDirty() {
+    saveTimer_.start();
+    sincronizarGrabaciones();
+    normalizarFlujos();
+    sincronizarEntradas();
+    emit editado();
+}
 
 void RackManager::saveNow() {
     json all = pending_.is_object() ? pending_ : json::object();
@@ -772,6 +927,360 @@ void RackManager::restore() {
         obs_source_release(src);
         rack(it.key(), true);
     }
+}
+
+// --- Tarjetas de entrada (el audio de otra fuente) ---------------------------------
+
+struct RackManager::Toma {
+    std::string fuente;
+    obs_source_t* src = nullptr;
+    std::shared_ptr<anillo::Ring> ring = std::make_shared<anillo::Ring>();
+
+    static void alAudio(void* p, obs_source_t*, const ::audio_data* data, bool muted) {
+        auto* t = static_cast<Toma*>(p);
+        if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
+        const auto* l = reinterpret_cast<const float*>(data->data[0]);
+        const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
+        const std::uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
+        if (muted) {
+            std::vector<float> z(data->frames, 0.0f);
+            t->ring->pushEn(z.data(), z.data(), data->frames, data->timestamp, os_gettime_ns(), sr);
+        } else {
+            t->ring->pushEn(l, r, data->frames, data->timestamp, os_gettime_ns(), sr);
+        }
+    }
+    ~Toma() {
+        // Si libobs ya se apagó (cierre temprano), la fuente ya no existe.
+        if (src != nullptr && obs_initialized()) {
+            obs_source_remove_audio_capture_callback(src, &Toma::alAudio, this);
+            obs_source_release(src);
+        }
+    }
+};
+
+std::string RackManager::validarEntrada(const std::string& source, const std::string& fuente) const {
+    if (fuente.empty()) return "falta de qué fuente traer el audio";
+    if (fuente == source) return "una fuente no puede traer su propio audio (sería un lazo)";
+    obs_source_t* src = obs_get_source_by_name(fuente.c_str());
+    if (src == nullptr) return "no existe la fuente '" + fuente + "'";
+    const bool audio = (obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) != 0;
+    obs_source_release(src);
+    if (!audio) return "'" + fuente + "' no tiene audio";
+    // Lazo entre racks: si `fuente` (o lo que trae su rack, y así) ya trae el
+    // audio de `source`, el sonido daría vueltas (con eco, por la demora).
+    std::set<std::string> vistas;
+    std::vector<std::string> pendientes{fuente};
+    while (!pendientes.empty()) {
+        const std::string f = pendientes.back();
+        pendientes.pop_back();
+        if (!vistas.insert(f).second) continue;
+        auto it = filters_.find(f);
+        if (it == filters_.end() || !it->second->rack) continue;
+        for (const auto& [nodo, origen] : it->second->rack->entradas()) {
+            if (origen == source)
+                return "'" + fuente + "' ya trae el audio de '" + source +
+                       "' (directa o indirectamente): sería un lazo";
+            pendientes.push_back(origen);
+        }
+    }
+    return {};
+}
+
+std::string RackManager::addEntrada(const std::string& source, const std::string& fuente,
+                                    std::string* error) {
+    const std::string e = validarEntrada(source, fuente);
+    if (!e.empty()) {
+        if (error != nullptr) *error = e;
+        return {};
+    }
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
+    const std::string id = r->addEntrada(fuente);
+    markDirty();
+    emit changed();
+    return id;
+}
+
+std::string RackManager::setEntradaFuente(const std::string& source, const std::string& nodo,
+                                          const std::string& fuente) {
+    std::string e = validarEntrada(source, fuente);
+    if (!e.empty()) return e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setEntradaFuente(nodo, fuente)) return "'" + nodo + "' no es una tarjeta de entrada";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+std::set<std::string> RackManager::fuentesDeEntradas() const {
+    std::set<std::string> out;
+    for (const auto& [nombre, f] : filters_)
+        if (f->rack)
+            for (const auto& [nodo, fuente] : f->rack->entradas())
+                if (!fuente.empty()) out.insert(fuente);
+    return out;
+}
+
+void RackManager::sincronizarEntradas() {
+    if (!obs_initialized()) return;
+    std::set<std::string> quiero;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& [nodo, fuente] : f->rack->entradas()) {
+            const std::string clave = nombre + "\n" + nodo;
+            // Una toma vieja de otra fuente (cambió la tarjeta) se rehace.
+            auto it = tomas_.find(clave);
+            if (it != tomas_.end() && (it->second->fuente != fuente || obs_source_removed(it->second->src))) {
+                f->rack->setEntradaAnillo(nodo, nullptr);
+                tomas_.erase(it);
+                it = tomas_.end();
+            }
+            if (fuente.empty() || !validarEntrada(nombre, fuente).empty()) {
+                f->rack->setEntradaAnillo(nodo, nullptr);
+                continue;
+            }
+            quiero.insert(clave);
+            if (it == tomas_.end()) {
+                obs_source_t* src = obs_get_source_by_name(fuente.c_str());
+                if (src == nullptr) continue; // todavía no existe: en la próxima vuelta
+                auto t = std::make_unique<Toma>();
+                t->fuente = fuente;
+                t->src = src; // la referencia queda en la toma
+                obs_source_add_audio_capture_callback(src, &Toma::alAudio, t.get());
+                it = tomas_.emplace(clave, std::move(t)).first;
+            }
+            f->rack->setEntradaAnillo(nodo, it->second->ring);
+        }
+    }
+    // Texto a voz: cada tarjeta con su anillo (lo llena VocesRack).
+    std::set<std::string> hablasVivas;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& h : f->rack->hablas()) {
+            const std::string nodo = h.value("id", "");
+            const std::string clave = nombre + "\n" + nodo;
+            hablasVivas.insert(clave);
+            auto& ring = anillosHabla_[clave];
+            if (!ring) ring = std::make_shared<anillo::Ring>();
+            f->rack->setEntradaAnillo(nodo, ring);
+        }
+    }
+    for (auto it = anillosHabla_.begin(); it != anillosHabla_.end();)
+        it = hablasVivas.contains(it->first) ? std::next(it) : anillosHabla_.erase(it);
+    for (auto it = tomas_.begin(); it != tomas_.end();) {
+        if (quiero.contains(it->first)) {
+            ++it;
+            continue;
+        }
+        // El rack o la tarjeta ya no están: se saca la toma (si el rack sigue,
+        // su tarjeta ya no apunta al anillo).
+        const std::string rackNombre = it->first.substr(0, it->first.find('\n'));
+        const std::string nodo = it->first.substr(it->first.find('\n') + 1);
+        if (auto f = filters_.find(rackNombre); f != filters_.end() && f->second->rack)
+            f->second->rack->setEntradaAnillo(nodo, nullptr);
+        it = tomas_.erase(it);
+    }
+}
+
+void RackManager::montarPendientes() {
+    if (!obs_initialized() || !pending_.is_object()) return;
+    std::vector<std::string> nombres;
+    for (auto it = pending_.begin(); it != pending_.end(); ++it)
+        if (!filters_.contains(it.key())) nombres.push_back(it.key());
+    for (const std::string& n : nombres) {
+        obs_source_t* src = obs_get_source_by_name(n.c_str());
+        if (src == nullptr) continue;
+        obs_source_release(src);
+        rack(n, true);
+    }
+}
+
+// --- Grabar lo que le llega a la tarjeta de salida -----------------------------------
+
+std::string RackManager::setGrabar(const std::string& source, bool grabar) {
+    std::string e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setGrabar(grabar))
+        return "'" + source + "' no tiene tarjeta de salida de audio (agregala con «+ Salida»)";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::grabacion(const std::string& source) const {
+    auto it = filters_.find(source);
+    if (it == filters_.end() || !it->second->rack) return json{{"grabando", false}};
+    Filter* f = it->second;
+    bool conCable = false;
+    for (const auto& c : f->rack->describe().value("cables", json::array()))
+        if (c.value("hacia", "") == "salida-audio") conCable = true;
+    json j{{"grabar", f->rack->grabar()}, {"conCable", conCable}, {"grabando", false}};
+    std::shared_ptr<GrabadorWav> g;
+    {
+        std::lock_guard<std::mutex> l(f->grabMu);
+        g = f->grab;
+    }
+    if (g) {
+        j["grabando"] = g->grabando();
+        j["archivo"] = g->archivo().string();
+        j["segundos"] = g->segundos();
+        j["bytes"] = g->bytes();
+    }
+    return j;
+}
+
+void RackManager::sincronizarGrabaciones() {
+    for (auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        const bool quiere = f->rack->grabar();
+        std::shared_ptr<GrabadorWav> actual;
+        {
+            std::lock_guard<std::mutex> l(f->grabMu);
+            actual = f->grab;
+        }
+        if (quiere && !actual) {
+            // Un nombre de archivo sin caracteres raros.
+            std::string seguro;
+            for (char c : nombre)
+                seguro += (std::string("/\\:*?\"<>|").find(c) == std::string::npos &&
+                           static_cast<unsigned char>(c) >= 32)
+                              ? c
+                              : '_';
+            const std::string fecha = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss").toStdString();
+            auto g = std::make_shared<GrabadorWav>(carpetaGrabaciones() / (seguro + "-" + fecha),
+                                                   static_cast<std::uint32_t>(sampleRate()));
+            if (!g->empezar().empty()) continue;
+            std::lock_guard<std::mutex> l(f->grabMu);
+            f->grab = std::move(g);
+        } else if (!quiere && actual) {
+            {
+                std::lock_guard<std::mutex> l(f->grabMu);
+                f->grab.reset();
+            }
+            actual->terminar();
+        }
+    }
+}
+
+// --- Texto a voz ------------------------------------------------------------------------
+
+std::string RackManager::addHabla(const std::string& source, const json& opciones, std::string* error) {
+    AudioRack* r = rack(source, true, error);
+    if (r == nullptr) return {};
+    const std::string id = r->addHabla(opciones);
+    markDirty();
+    emit changed();
+    return id;
+}
+
+std::string RackManager::setHablaOpciones(const std::string& source, const std::string& nodo,
+                                          const json& cambios) {
+    std::string e;
+    AudioRack* r = rack(source, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setHablaOpciones(nodo, cambios)) return "'" + nodo + "' no es una tarjeta de texto a voz";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::hablas() const {
+    json out = json::array();
+    for (const auto& [nombre, f] : filters_)
+        if (f != nullptr && f->rack)
+            for (json h : f->rack->hablas()) {
+                h["fuente"] = nombre;
+                h["nodo"] = h.value("id", "");
+                h.erase("id");
+                out.push_back(h);
+            }
+    return out;
+}
+
+// --- Traducir ------------------------------------------------------------------------------
+
+namespace {
+bool partirId(const std::string& id, std::string& fuente, std::string& nodo) {
+    const auto i = id.rfind('#');
+    if (i == std::string::npos || i == 0 || i + 1 == id.size()) return false;
+    fuente = id.substr(0, i);
+    nodo = id.substr(i + 1);
+    return true;
+}
+} // namespace
+
+std::string RackManager::addTraduccion(const json& t, std::string* error) {
+    std::string fuente = t.value("fuente", std::string());
+    const std::string desde = t.value("desde", std::string());
+    if (fuente.empty() && !desde.empty()) {
+        const json tx = textoDe(desde);
+        if (tx.is_object()) fuente = tx.value("fuente", std::string());
+        if (fuente.empty())
+            for (const auto& x : traducciones())
+                if (x.value("nombre", std::string()) == desde ||
+                    (x.value("nombre", std::string()).empty() &&
+                     x.value("desde", std::string()) + " · " + x.value("a", std::string()) == desde))
+                    fuente = x.value("fuente", std::string());
+    }
+    if (fuente.empty()) {
+        if (error)
+            *error = "no hay una voz a texto que publique «" + desde +
+                     "»: decí en qué fuente va la tarjeta (`fuente`)";
+        return {};
+    }
+    AudioRack* r = rack(fuente, true, error);
+    if (r == nullptr) return {};
+    json o = t;
+    o.erase("fuente");
+    o.erase("id");
+    const std::string nodo = r->addTraduccion(o);
+    markDirty();
+    emit changed();
+    return fuente + "#" + nodo;
+}
+
+std::string RackManager::setTraduccionOpciones(const std::string& id, const json& cambios) {
+    std::string fuente, nodo, e;
+    if (!partirId(id, fuente, nodo)) return "no hay una traducción «" + id + "»";
+    AudioRack* r = rack(fuente, false, &e);
+    if (r == nullptr) return e;
+    if (!r->setTraduccionOpciones(nodo, cambios)) return "no hay una traducción «" + id + "»";
+    markDirty();
+    emit changed();
+    return {};
+}
+
+std::string RackManager::quitarTraduccion(const std::string& id) {
+    std::string fuente, nodo, e;
+    if (!partirId(id, fuente, nodo)) return "no hay una traducción «" + id + "»";
+    AudioRack* r = rack(fuente, false, &e);
+    if (r == nullptr) return e;
+    if (r->kindOf(nodo) != "traducir") return "no hay una traducción «" + id + "»";
+    if (!r->remove(nodo, &e)) return e;
+    markDirty();
+    emit changed();
+    return {};
+}
+
+RackManager::json RackManager::traducciones() const {
+    json out = json::array();
+    for (const auto& [nombre, f] : filters_)
+        if (f != nullptr && f->rack)
+            for (json t : f->rack->traducciones()) {
+                t["fuente"] = nombre;
+                t["nodo"] = t.value("id", "");
+                t["id"] = nombre + "#" + t.value("id", std::string());
+                out.push_back(t);
+            }
+    return out;
+}
+
+std::shared_ptr<anillo::Ring> RackManager::anilloHabla(const std::string& source,
+                                                       const std::string& nodo) const {
+    auto it = anillosHabla_.find(source + "\n" + nodo);
+    return it == anillosHabla_.end() ? nullptr : it->second;
 }
 
 } // namespace ba::app::audio

@@ -116,6 +116,9 @@ class PersonasViewModel : public QObject {
     /// Pide mirar quién hay en `feed`. La respuesta llega en `vistos`, más
     /// tarde: el reconocimiento no corre en el hilo de la interfaz.
     Q_INVOKABLE void mirar(const QString& feed);
+    /// Una cámara del estudio que se analiza o se sigue (PTZ): lleva su
+    /// tarjeta «Rostros» mientras `usar` (ver Seguidor).
+    void usarCamara(const QString& entrada, bool usar);
 
     /// Las claves de video que se pueden mirar, con su etiqueta.
     Q_INVOKABLE QVariantList fuentes() const;
@@ -131,6 +134,9 @@ class PersonasViewModel : public QObject {
     ///        si ya hay otra en vuelo; false para lo que alguien espera.
     using Analisis = std::function<void(std::vector<Reconocedor::Visto>, const QImage&, const QString&)>;
     void pedirAnalisis(const QString& feed, bool descartable, Analisis luego);
+    /// Una cámara del estudio recién pedida tarda unos cuadros en tener imagen
+    /// (su tarjeta empieza a bajar con el primer pedido): se reintenta ~2 s.
+    void reintentarAnalisis(const QString& feed, Analisis luego, int intento);
 
     /// La libreta EN USO, para quien tenga que trabajar sobre la misma y no
     /// sobre otra copia del archivo.
@@ -156,6 +162,9 @@ class PersonasViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    /// Pone o saca las tarjetas «Rostros» en las cámaras del estudio que se
+    /// usan (anotado, puerta, la que mira la página). Ver VideoGrafos.
+    void sincronizarRostros();
     /// El motor de la página: mira `feed`, devuelve quién hay, y si
     /// `registrar` anota sola a la que no conoce. Lo usan la vista (sin
     /// registrar, salvo que el interruptor esté puesto en esa misma cámara) y

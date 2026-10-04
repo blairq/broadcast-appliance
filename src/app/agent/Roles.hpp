@@ -12,7 +12,7 @@
 // Un rol es:
 //   * un juego de herramientas MCP (categorias): lo que NO esta, no lo puede
 //     tocar ni por accidente, y no lo paga en tokens;
-//   * los disparadores que lo despiertan (tipos de vigilancia del AlertEngine);
+//   * los disparadores que lo despiertan (tipos de disparador del AlertEngine);
 //   * su prompt, que es el CLAUDE.md/AGENTS.md del espacio de trabajo del rol;
 //   * como agrupa: una corrida por evento (lobby) o una cada tanto (chat).
 // Todo eso lo fija el sistema. Lo que elige el operador —si esta activo, con
@@ -39,7 +39,7 @@ struct Rol {
     std::string titulo;
     std::string descripcion;
     std::vector<std::string> categorias;   ///< las suyas (mas las comunes de Roles::comunes)
-    std::vector<std::string> disparadores; ///< tipos de vigilancia que atiende
+    std::vector<std::string> disparadores; ///< tipos de disparador que atiende
     std::string prompt;                    ///< el archivo de instrucciones del espacio de trabajo
     int agruparMs = 0;                     ///< 0: una corrida por evento; N: junta lo que llegue en N ms
     int agruparMax = 1;                    ///< tope de eventos por corrida

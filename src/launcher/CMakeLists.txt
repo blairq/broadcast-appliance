@@ -76,6 +76,11 @@ target_link_libraries(test_updater PRIVATE ba_core)
 add_test(NAME test_updater COMMAND test_updater)
 
 # La salida capturada de A y B (Logs/app.log): rotacion y encabezado por corrida.
+# La carpeta de datos al lado de la .app (macOS) y la mudanza.
+add_executable(test_datos tests/test_datos.cpp Datos.cpp)
+target_include_directories(test_datos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+add_test(NAME test_datos COMMAND test_datos)
+
 add_executable(test_child_output tests/test_child_output.cpp ChildOutput.cpp)
 target_include_directories(test_child_output PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(test_child_output PRIVATE ba_core)

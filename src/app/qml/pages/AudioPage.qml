@@ -87,6 +87,9 @@ Rectangle {
         if (t === "monitor") return "#a78bfa"
         if (t === "texto") return "#22c55e"
         if (t === "generator") return "#f59e0b"
+        if (t === "entrada") return "#38bdf8"
+        if (t === "habla") return "#f472b6"
+        if (t === "traducir") return "#eab308"
         return Theme.accent
     }
     function fmtDb(v) { return (v === undefined || v === null || v <= -139) ? "—" : (Math.round(v * 10) / 10).toFixed(1) }
@@ -192,7 +195,9 @@ Rectangle {
 
         // --- Fuentes con audio + salida de escucha -------------------------------------------
         ColumnLayout {
+            Layout.fillWidth: false  // ancho fijo aunque un texto largo empuje (ver EquiposPage)
             Layout.preferredWidth: 250
+            Layout.maximumWidth: 250
             Layout.fillHeight: true
             spacing: 10
 
@@ -314,105 +319,50 @@ Rectangle {
             Layout.fillHeight: true
             spacing: 10
 
-            // El Flow va dentro de un Item que el layout dimensiona: si se le
-            // deja a el mismo el Layout.fillWidth, su alto depende del ancho y
-            // el ancho de su alto, y Qt aborta el layout ("polish loop").
-            Item {
+            // Misma barra que el video: qué veo · qué agrego · cómo lo miro · ⋯
+            BarraGrafo {
                 Layout.fillWidth: true
-                implicitHeight: barra.implicitHeight
-            Flow {
-                id: barra
-                width: parent.width
-                spacing: 6
-                Text { text: page.au ? page.au.source : ""; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
-                Item { width: 12; height: 1 }
-                // Primero de la fila: manda el audio de esta fuente a una salida
-                // del equipo (auriculares, parlantes) sin tocar lo que va al aire.
-                GlassButton {
-                    compact: true
-                    text: "+ Salida"
-                    activeColor: "#a78bfa"
-                    active: true
-                    onClicked: outPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Agrega una tarjeta de salida de audio a este grafo: conectale lo que quieras oír."
-                }
-                // Voz a texto: como una salida, pero al reconocedor (dictado al
-                // asistente o transcripción continua).
-                GlassButton {
-                    compact: true
-                    visible: Studio.voz.disponible
-                    text: "+ Voz a texto"
-                    activeColor: "#22c55e"
-                    active: true
-                    onClicked: textoPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Transcribe lo que le llega: para dictarle al asistente o para subtítulos y acta."
-                    Popup {
-                        id: textoPopup
-                        y: parent.height + 4
-                        padding: 8
-                        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-                        ColumnLayout {
-                            spacing: 6
-                            GlassButton {
-                                Layout.fillWidth: true; compact: true; text: "Dictado al asistente (F9)"
-                                onClicked: { page.msg = page.au.addTexto("dictado"); textoPopup.close() }
-                            }
-                            GlassButton {
-                                Layout.fillWidth: true; compact: true; text: "Transcripción continua"
-                                onClicked: { page.msg = page.au.addTexto("continuo"); textoPopup.close() }
-                            }
-                        }
-                    }
-                }
-                Repeater {
-                    model: page.au ? page.au.catalog : []
-                    delegate: GlassButton {
-                        required property var modelData
-                        compact: true
-                        text: "+ " + modelData.titulo
-                        onClicked: page.msg = page.au.addModule(modelData.clave, "")
-                        ToolTip.visible: hovered; ToolTip.text: modelData.ayuda; ToolTip.delay: 400
-                    }
-                }
-                GlassButton { compact: true; text: "+ Analizador"; onClicked: page.msg = page.au.addAnalyzer() }
-                GlassButton { compact: true; text: "+ Generador"; onClicked: page.msg = page.au.addGenerator() }
-                GlassButton { compact: true; text: "+ Filtros…"; icon: "⌕"; onClicked: catalogoFiltros.open()
-                              ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno." }
+                titulo: page.au ? page.au.source : ""
+                agregar: [
+                    { titulo: "Conectar", items: [
+                        { t: "Salida (auriculares, parlantes…)", color: "#a78bfa", f: () => outPopup.open(),
+                          tip: "Una tarjeta de salida de audio en este grafo: conectale lo que quieras oír, sin tocar lo que va al aire." }
+                    ].concat((page.au ? page.au.sources.filter(x => x.nombre !== page.au.source) : []).map(x => ({
+                        t: "Entrada: " + x.nombre, color: "#38bdf8", f: () => page.msg = page.au.addEntrada(x.nombre),
+                        tip: "Trae el audio de «" + x.nombre + "»" + (x.grupo ? " (" + x.grupo + ")" : "") + " como una tarjeta de este grafo."
+                    }))) },
+                    { titulo: "Procesar", items: (page.au ? page.au.catalog : []).map(c => ({
+                        t: c.titulo, tip: c.ayuda, f: () => page.msg = page.au.addModule(c.clave, "")
+                    })).concat([{ t: "Filtros LSP…", tip: "Todos los filtros LSP con captura, búsqueda avanzada y para qué sirve cada uno.", f: () => catalogoFiltros.open() }]) },
+                    { titulo: "Medir y generar", items: [
+                        { t: "Analizador", tip: "Espectro y niveles de lo que le llega", f: () => page.msg = page.au.addAnalyzer() },
+                        { t: "Generador", tip: "Tono, ruido o barrido para probar la cadena", f: () => page.msg = page.au.addGenerator() }
+                    ] },
+                    { titulo: "Voz", items: [].concat(
+                        Studio.voces ? [{ t: "Texto a voz", color: "#f472b6", f: () => page.msg = page.au.addHabla(),
+                                          tip: "Dice en voz alta (con la voz y el idioma que elijas) lo que llega por una salida de texto." }] : [],
+                        Studio.traductor ? [{ t: "Traducir", color: "#eab308", f: () => page.msg = page.au.addTraduccion(),
+                                              tip: "Traduce lo que publica una «Voz a texto» a otro idioma y lo publica en otra salida de texto (subtítulos, archivo, texto a voz)." }] : [],
+                        Studio.voz.disponible ? [
+                            { t: "Voz a texto: dictado al asistente (F9)", color: "#22c55e", f: () => page.msg = page.au.addTexto("dictado"),
+                              tip: "Transcribe lo que le llega para dictarle al asistente." },
+                            { t: "Voz a texto: transcripción continua", color: "#22c55e", f: () => page.msg = page.au.addTexto("continuo"),
+                              tip: "Transcribe todo el tiempo: subtítulos y acta." }
+                        ] : []) }
+                ]
+                acciones: [
+                    // Un rack armado a mano es media hora de trabajo: guardarlo con
+                    // nombre permite ponérselo a otra fuente en un clic.
+                    { t: "Plantillas", icon: "▤", f: () => plantillasPopup.open(),
+                      tip: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado" },
+                    { t: "Traducción…", icon: "文", f: () => traduccionPopup.open(),
+                      tip: "Traducir en vivo una salida de texto (lo que transcribe «Voz a texto») a otro idioma, y el glosario de términos" }
+                ]
                 // Si una ventana LSP no aparece (casi siempre: el zoom de su menú
                 // la hizo más grande que la pantalla), esto la vuelve a la normalidad.
-                GlassButton {
-                    compact: true; text: "Restablecer interfaz LSP"; icon: "↺"
-                    onClicked: page.msg = page.au.restablecerInterfazLsp()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece."
-                }
-                Item { width: 12; height: 1 }
-                // Un rack armado a mano es media hora de trabajo: guardarlo con
-                // nombre permite ponerselo a otra fuente en un clic.
-                GlassButton {
-                    compact: true
-                    text: "Plantillas"
-                    icon: "▤"
-                    onClicked: plantillasPopup.open()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Guardar este rack con nombre, o ponerle a esta fuente uno guardado"
-                }
-                Item { width: 12; height: 1 }
-                GlassButton {
-                    compact: true; text: "Ordenar"
-                    onClicked: page.au.tidy()
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Acomoda las tarjetas en la grilla, siguiendo el orden de la cadena"
-                }
-                GlassButton {
-                    compact: true; text: "Grilla"; active: page.showGrid
-                    onClicked: page.showGrid = !page.showGrid
-                    ToolTip.visible: hovered; ToolTip.delay: 400
-                    ToolTip.text: "Dejar la grilla a la vista (si no, aparece sola al mover algo)"
-                }
-            }
+                mas: [{ t: "Restablecer interfaz LSP", f: () => page.msg = page.au.restablecerInterfazLsp(),
+                        tip: "Cierra las ventanas LSP y vuelve su zoom, escala y letra a lo de fábrica (guarda una copia). Para cuando la interfaz de un filtro no aparece." }]
+                lienzo: lienzoAudio
             }
             Text {
                 Layout.fillWidth: true
@@ -424,26 +374,46 @@ Rectangle {
             }
 
             Rectangle {
+                id: lienzoAudio
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 radius: 16
                 color: Qt.rgba(0, 0, 0, 0.25)
                 border.color: Qt.rgba(1, 1, 1, 0.06)
                 clip: true
+                // La API que usa BarraGrafo (la misma que el Patchbay del video).
+                property real zoom: 0   // 0 = que entre a lo ancho (sin agrandar)
+                property alias grilla: page.showGrid
+                readonly property real anchoGrafo: {
+                    let m = 0
+                    for (let k = 0; k < page.nodes.length; ++k) m = Math.max(m, page.nodes[k].x + page.nodeW)
+                    return m + 40
+                }
+                readonly property real escala: zoom > 0 ? zoom : Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+                function acercar(f) { zoom = Math.max(0.25, Math.min(2.5, escala * f)) }
+                function ordenar() { page.au.tidy() }
+                // Cmd/Ctrl + rueda: zoom (la rueda sola sigue desplazando).
+                WheelHandler {
+                    target: null
+                    acceptedModifiers: Qt.ControlModifier | Qt.MetaModifier
+                    onWheel: (ev) => lienzoAudio.acercar(ev.angleDelta.y > 0 ? 1.12 : 1 / 1.12)
+                }
 
                 Flickable {
                     id: flick
                     anchors.fill: parent
-                    contentWidth: 2600
-                    contentHeight: 1400
+                    contentWidth: canvas.width * lienzoAudio.escala
+                    contentHeight: canvas.height * lienzoAudio.escala
                     interactive: page.wire === null
                     ScrollBar.horizontal: ScrollBar {}
                     ScrollBar.vertical: ScrollBar {}
 
                     Item {
                         id: canvas
-                        width: flick.contentWidth
-                        height: flick.contentHeight
+                        width: 2600
+                        height: 1400
+                        scale: lienzoAudio.escala
+                        transformOrigin: Item.TopLeft
                         MouseArea { anchors.fill: parent; onClicked: page.au.select("") }
 
                         // Grilla: fija con el boton, o mientras se acomoda algo.
@@ -951,14 +921,178 @@ Rectangle {
                         visible: parent.d.tipo === "analyzer" || parent.d.tipo === "generator"
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
                     }
-                    // Voz a texto: el modo, y lo que va transcribiendo
+                    // Texto a voz: idioma, voz, qué salida lee, velocidad, probar
+                    ColumnLayout {
+                        id: hablaCol
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "habla"
+                        spacing: 6
+                        readonly property var h: (parent.d && parent.d.habla) || ({})
+                        readonly property var voces: Studio.voces ? Studio.voces.voces : []
+                        readonly property var vozActual: voces.find(v => v.repo === h.voz)
+                        property string idioma: vozActual ? vozActual.idioma : "es"
+                        property string estado: ""
+                        Timer {
+                            interval: 1000; repeat: true; triggeredOnStart: true
+                            running: hablaCol.visible && page.visible && !!Studio.voces
+                            onTriggered: hablaCol.estado = Studio.voces.estado(page.au.source, page.au.selected)
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Idioma"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: Studio.voces ? Studio.voces.idiomas : []
+                                textRole: "nombre"; valueRole: "codigo"
+                                currentIndex: Math.max(0, (Studio.voces ? Studio.voces.idiomas : []).findIndex(x => x.codigo === hablaCol.idioma))
+                                onActivated: hablaCol.idioma = currentValue
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Voz"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            ComboBox {
+                                id: vozBox
+                                Layout.fillWidth: true
+                                readonly property var lista: [{repo: "", nombre: "La del sistema", instalada: true}].concat(hablaCol.voces.filter(v => v.idioma === hablaCol.idioma))
+                                model: lista.map(v => v.nombre + (v.instalada ? "" : "  (bajar)"))
+                                currentIndex: Math.max(0, lista.findIndex(v => v.repo === (hablaCol.h.voz || "")))
+                                onActivated: {
+                                    const v = lista[currentIndex]
+                                    if (!v.instalada) Studio.voces.bajar(v.repo)
+                                    page.msg = page.au.setHablaOpciones(page.au.selected, {voz: v.repo})
+                                }
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Lee"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                readonly property var lista: ["(nada: solo lo que le pidan)"].concat((Studio.flujos ? Studio.flujos.flujos : []).map(f => f.nombre))
+                                model: lista
+                                currentIndex: Math.max(0, lista.indexOf(hablaCol.h.flujo || ""))
+                                onActivated: page.msg = page.au.setHablaOpciones(page.au.selected, {flujo: currentIndex === 0 ? "" : currentText})
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "La salida de texto que dice en voz alta (por ejemplo, lo que transcribe una «Voz a texto»)."
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "Velocidad"; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 70 }
+                            Slider { Layout.fillWidth: true; from: 0.5; to: 2.0; stepSize: 0.05; value: hablaCol.h.velocidad || 1.0
+                                     onMoved: page.au.setHablaOpciones(page.au.selected, {velocidad: value}) }
+                            Text { text: (hablaCol.h.velocidad || 1.0).toFixed(2) + "×"; color: Theme.textFaint; font.pixelSize: 11 }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            TextField { id: hablaPrueba; Layout.fillWidth: true; placeholderText: "Escribí algo para que lo diga" }
+                            GlassButton { compact: true; text: "Decir"; enabled: hablaPrueba.text.trim() !== ""
+                                          onClicked: page.msg = Studio.voces.decir(page.au.source, page.au.selected, hablaPrueba.text) }
+                        }
+                        Text { Layout.fillWidth: true; text: hablaCol.estado; color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap }
+                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    // Traducir: qué traduce, a qué idioma, dónde publica
+                    TarjetaTraduccion {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "traducir"
+                        traduccionId: parent.d.traduccion_id || ""
+                        onQuitar: page.au.removeNode(page.au.selected)
+                        onAbrirGlosario: traduccionPopup.open()
+                    }
+                    // Salida de audio: grabar todo lo que le llega
+                    ColumnLayout {
+                        id: grabCol
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "monitor"
+                        spacing: 4
+                        property var g: ({})
+                        Timer {
+                            interval: 1000; repeat: true; triggeredOnStart: true
+                            running: grabCol.visible && page.visible
+                            onTriggered: grabCol.g = page.au.grabacion()
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Toggle { checked: !!grabCol.g.grabar
+                                     onToggled: (w) => { page.msg = page.au.setGrabar(w); grabCol.g = page.au.grabacion() } }
+                            Text { Layout.fillWidth: true; text: "Grabar todo lo que le llega en un archivo (.wav)"; color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                            Rectangle { visible: !!grabCol.g.grabando; width: 10; height: 10; radius: 5; color: Theme.live }
+                        }
+                        Text {
+                            Layout.fillWidth: true; visible: !!grabCol.g.grabando; color: Theme.textDim; font.pixelSize: 11; wrapMode: Text.WrapAnywhere
+                            text: {
+                                const s = Math.floor(grabCol.g.segundos || 0)
+                                const t = Math.floor(s / 3600) + ":" + ("0" + Math.floor(s / 60) % 60).slice(-2) + ":" + ("0" + s % 60).slice(-2)
+                                return "Grabando " + t + " · " + ((grabCol.g.bytes || 0) / 1048576).toFixed(1) + " MB\n" + (grabCol.g.archivo || "")
+                            }
+                        }
+                        Text { Layout.fillWidth: true; visible: !!grabCol.g.grabar && !grabCol.g.conCable; color: Theme.warn; font.pixelSize: 11; wrapMode: Text.WordWrap
+                               text: "La tarjeta no tiene cable: conectale lo que quieras grabar." }
+                        GlassButton { compact: true; text: "Abrir la carpeta"; onClicked: Qt.openUrlExternally("file://" + grabCol.g.carpeta) }
+                    }
+                    // Entrada: de qué fuente trae el audio
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "entrada"
+                        Text { text: "Fuente"; color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox {
+                            id: entradaFuente
+                            Layout.fillWidth: true
+                            readonly property var lista: page.au ? page.au.sources.filter(x => x.nombre !== page.au.source).map(x => x.nombre) : []
+                            model: lista
+                            currentIndex: lista.indexOf(parent.parent.d.fuente || "")
+                            onActivated: page.msg = page.au.setEntradaFuente(page.au.selected, currentText)
+                        }
+                        GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    // Voz a texto: el nombre de su salida, el modo, las salidas, y lo que va transcribiendo
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto"
+                        Text { text: "Salida"; color: Theme.textDim; font.pixelSize: 12 }
+                        TextField {
+                            id: flujoNombre
+                            Layout.fillWidth: true
+                            text: parent.parent.d.flujo || ""
+                            placeholderText: "Nombre de la salida de texto"
+                            onEditingFinished: if (text !== (parent.parent.d.flujo || ""))
+                                                   page.msg = page.au.setTextoOpciones(page.au.selected, {flujo: text})
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Con este nombre se usa en otras partes: disparadores, texto a voz, MCP."
+                        }
+                    }
                     Flow {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "texto"
-                        GlassButton { compact: true; text: "Dictado"; active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.addTexto("dictado") }
-                        GlassButton { compact: true; text: "Continuo"; active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.addTexto("continuo") }
+                        GlassButton { compact: true; text: "Dictado"; active: parent.parent.d.modo === "dictado"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "dictado"}) }
+                        GlassButton { compact: true; text: "Continuo"; active: parent.parent.d.modo === "continuo"; onClicked: page.msg = page.au.setTextoOpciones(page.au.selected, {modo: "continuo"}) }
                         GlassButton { compact: true; text: "Quitar"; onClicked: page.au.removeNode(page.au.selected) }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto"
+                        Toggle {
+                            checked: !!(parent.parent.d.salidas && parent.parent.d.salidas.archivo)
+                            onToggled: (w) => page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {archivo: w}})
+                        }
+                        Text { Layout.fillWidth: true; text: "Guardar en archivo (.txt con hora y .srt)"; color: Theme.text; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto"
+                        Text { text: "Subtítulos en"; color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox {
+                            Layout.fillWidth: true
+                            readonly property var lista: ["(ninguno)"].concat(page.au ? page.au.fuentesDeTexto() : [])
+                            model: lista
+                            currentIndex: Math.max(0, lista.indexOf((parent.parent.d.salidas && parent.parent.d.salidas.rotulo) || "(ninguno)"))
+                            onActivated: page.msg = page.au.setTextoOpciones(page.au.selected, {salidas: {rotulo: currentIndex === 0 ? "" : currentText}})
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Una fuente de texto de la escena: su texto pasa a ser la última frase (subtítulo)."
+                        }
                     }
                     Text {
                         Layout.fillWidth: true
@@ -966,9 +1100,16 @@ Rectangle {
                         text: Studio.voz.ultimo !== "" ? "Último dictado: «" + Studio.voz.ultimo + "»" : Studio.voz.estado
                         color: Theme.textDim; font.pixelSize: 12; wrapMode: Text.WordWrap
                     }
+                    // Cuándo corta una frase (pausa, largo máximo, umbral): es de toda
+                    // la transcripción continua, también está en Configuración.
+                    AjustesCorte {
+                        Layout.fillWidth: true
+                        visible: parent.d.tipo === "texto" && parent.d.modo === "continuo"
+                        flujo: parent.d.flujo || ""
+                    }
                     Repeater {
                         model: parent.d.tipo === "texto" && parent.d.modo === "continuo"
-                               ? Studio.voz.transcripcion.filter(x => x.fuente === page.au.source).slice(-12) : []
+                               ? Studio.voz.transcripcion.filter(x => x.flujo === parent.d.flujo).slice(-12) : []
                         delegate: Text {
                             required property var modelData
                             Layout.fillWidth: true
@@ -1274,6 +1415,32 @@ Rectangle {
     }
 
     // --- Plantillas de rack ---------------------------------------------------
+    Popup {
+        id: traduccionPopup
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 80, 900)
+        height: Math.min(parent.height - 80, 760)
+        modal: true
+        padding: 18
+        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 10
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "Traducción en vivo"; color: Theme.text; font { pixelSize: 18; weight: Font.DemiBold } Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cerrar"; onClicked: traduccionPopup.close() }
+            }
+            ScrollView {
+                id: trScroll
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                clip: true
+                PanelTraduccion { width: trScroll.availableWidth }
+            }
+        }
+    }
     Popup {
         id: plantillasPopup
         anchors.centerIn: Overlay.overlay

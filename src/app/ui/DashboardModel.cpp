@@ -34,7 +34,7 @@ const Kind kKinds[] = {
     // Primera a proposito: es la que se mira todo el tiempo.
     {"direccion", "Dirección"}, {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
     {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
-    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"},
+    {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"}, {"ptz", "Control PTZ"},
 };
 
 } // namespace
@@ -266,6 +266,8 @@ QSizeF tamanoInicial(const QString& kind) {
     // Ancha y baja: la tira en perspectiva necesita lugar a los costados para
     // que se vean las de al lado, que es de donde sale la orientacion.
     if (kind == "carrusel") return {0.40, 0.30};
+    // Alta: joystick, zoom y las posiciones guardadas debajo.
+    if (kind == "ptz") return {0.24, 0.42};
     return {0.28, 0.30};
 }
 

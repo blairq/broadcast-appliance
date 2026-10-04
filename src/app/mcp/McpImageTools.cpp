@@ -249,15 +249,37 @@ void McpService::registerImageTools() {
             withImageProps(json{{"name", {{"type", "string"}, {"description", "Fuente o escena."}}}});
         t.inputSchema["required"] = {"name"};
         t.run = [&rt, &core](const json& a, Done done) {
-            QImage img;
-            std::string err;
-            if (!renderSource(rt, a["name"], a.value("maxWidth", 1280), img, err))
-                return done(ToolResult::error(err));
-            ToolResult r;
-            r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" +
-                   std::to_string(img.height()) + ")");
-            addImage(r, img, a, 1280, core, rt.dataRoot());
-            done(r);
+            // Una fuente recién creada (una cámara de red que todavía conecta)
+            // da negro el primer instante: se reintenta un poco antes de
+            // contestar con una imagen que engaña.
+            auto intento = std::make_shared<std::function<void(int)>>();
+            *intento = [&rt, &core, a, done, intento](int n) {
+                QImage img;
+                std::string err;
+                if (!renderSource(rt, a["name"], a.value("maxWidth", 1280), img, err)) {
+                    QTimer::singleShot(0, [intento]() { *intento = nullptr; });
+                    return done(ToolResult::error(err));
+                }
+                bool negra = !img.isNull();
+                const QImage chica = img.scaled(32, 18);
+                for (int y = 0; y < chica.height() && negra; ++y)
+                    for (int x = 0; x < chica.width() && negra; ++x)
+                        if (qGray(chica.pixel(x, y)) > 6) negra = false;
+                if (negra && n < 8) {
+                    QTimer::singleShot(250, [intento, n]() {
+                        if (*intento) (*intento)(n + 1);
+                    });
+                    return;
+                }
+                QTimer::singleShot(0, [intento]() { *intento = nullptr; });
+                ToolResult r;
+                r.text("'" + a["name"].get<std::string>() + "' (" + std::to_string(img.width()) + "x" +
+                       std::to_string(img.height()) + ")" +
+                       (negra ? " — sale NEGRA (sin señal todavía, o la imagen es negra de verdad)" : ""));
+                addImage(r, img, a, 1280, core, rt.dataRoot());
+                done(r);
+            };
+            (*intento)(0);
         };
         core_.addTool(std::move(t));
     }
@@ -543,7 +565,8 @@ void McpService::registerImageTools() {
                {{"type", "string"},
                 {"description",
                  "que mirar: 'programa' (lo que sale al aire, por defecto), 'interfaz' (la "
-                 "pantalla de la app), o una clave de feeds_list (guest:1, lobby:2, armada...)"}}}}}};
+                 "pantalla de la app), el NOMBRE de una escena o fuente (cualquiera, este o no al aire: no "
+                 "hace falta armarla), o una clave de feeds_list (guest:1, lobby:2, armada...)"}}}}}};
         t.examples = {R"({"que": "Se ve a alguien o esta el cuadro en negro?"})",
                       R"({"que": "El rotulo de abajo dice el nombre correcto?", "fuente": "programa"})",
                       R"({"que": "Cuantas personas hay en cuadro?", "fuente": "guest:1"})"};
@@ -564,8 +587,13 @@ void McpService::registerImageTools() {
                 if (!renderSource(rt, "", 1280, img, err) && !feedImage(vm, "program", img))
                     return done(ToolResult::error("No hay imagen del programa: " + err));
             } else if (!feedImage(vm, fuente, img)) {
-                return done(
-                    ToolResult::error("Sin imagen en '" + fuente + "'. feeds_list muestra los validos."));
+                // Una escena o una fuente por su nombre: se dibuja aparte (no toca
+                // el programa ni la armada).
+                if (!renderSource(rt, fuente, 1280, img, err))
+                    return done(ToolResult::error("Sin imagen en '" + fuente +
+                                                  "': no es una escena, una fuente ni una "
+                                                  "clave de feeds_list (" +
+                                                  err + ")."));
             }
             if (img.isNull()) return done(ToolResult::error("No se pudo tomar la imagen."));
 

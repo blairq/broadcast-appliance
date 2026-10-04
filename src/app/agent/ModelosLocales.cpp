@@ -3,6 +3,9 @@
 // ============================================================================
 #include "agent/ModelosLocales.hpp"
 
+#include "agent/ArgumentosLocales.hpp"
+
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDesktopServices>
@@ -11,6 +14,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <QProcess>
 #include <QSysInfo>
 #include <QUrl>
@@ -112,6 +116,49 @@ std::string carpetaDeRepo(const std::string& repo) {
     return s;
 }
 
+std::string huellaEsquema(const json& inputSchema) {
+    // nlohmann ordena las claves y, sin sangría, no pone espacios: lo mismo que
+    // json.dumps(sort_keys=True, separators=(',', ':')) del lado de la fábrica.
+    const QByteArray h =
+        QCryptographicHash::hash(QByteArray::fromStdString(inputSchema.dump()), QCryptographicHash::Sha256)
+            .toHex();
+    return h.left(16).toStdString();
+}
+
+json compararFicha(const json& mj, const json& app) {
+    json r = json::object();
+    const json eps = mj.value("endpoints", json::array());
+    json iguales = json::array(), cambiaron = json::array(), noEstan = json::array(), porCat = json::object();
+    for (const json& e : eps) {
+        if (!e.is_object()) continue;
+        const std::string n = e.value("nombre", std::string());
+        const std::string cat = e.value("categoria", std::string("otras"));
+        porCat[cat] = porCat.value(cat, 0) + 1;
+        if (!app.contains(n))
+            noEstan.push_back(n);
+        else if (huellaEsquema(app[n]) == e.value("esquema_huella", std::string()))
+            iguales.push_back(n);
+        else
+            cambiaron.push_back(n);
+    }
+    const int enApp = app.is_object() ? static_cast<int>(app.size()) : 0;
+    const int usables = static_cast<int>(iguales.size() + cambiaron.size());
+    r["entrenadas"] = eps.size();
+    r["iguales"] = iguales.size();
+    r["cambiaron"] = cambiaron;
+    r["no_estan"] = noEstan;
+    r["herramientas_app"] = enApp;
+    r["sin_entrenar"] = std::max(0, enApp - usables);
+    r["cobertura"] = enApp > 0 ? static_cast<double>(iguales.size()) / enApp : 0.0;
+    r["por_categoria"] = porCat;
+    r["lista"] = iguales; // las que el modelo conoce tal cual
+    const json m = mj.value("modelo", json::object());
+    for (const char* k : {"build", "version", "fecha", "base", "perfil", "commit"})
+        if (m.contains(k)) r[k] = m[k];
+    if (mj.contains("inventario_mcp")) r["inventario_entrenamiento"] = mj["inventario_mcp"];
+    return r;
+}
+
 std::string plataformaCatalogo() {
     const QString arch = QSysInfo::currentCpuArchitecture();
     const std::string a = (arch == "arm64" || arch == "aarch64") ? "arm64" : "x64";
@@ -137,6 +184,8 @@ ModelosLocales::ModelosLocales(fs::path raizDatos, QString dirBinarios, QObject*
 ModelosLocales::~ModelosLocales() {
     cancelar_ = true;
     if (hiloDescarga_.joinable()) hiloDescarga_.join();
+    for (auto& h : hilosFicha_)
+        if (h.joinable()) h.join();
     if (proc_ != nullptr) {
         proc_->disconnect(this);
         proc_->kill();
@@ -259,6 +308,147 @@ void ModelosLocales::abrirCarpeta() const {
     QDesktopServices::openUrl(QUrl::fromLocalFile(deRuta(carpetaModelos())));
 }
 
+// --- con qué herramientas se entrenó (modelo.json) ----------------------------------
+
+namespace {
+/// Los pesos de un repo según su API (?blobs=true): nombre -> sha256 de LFS.
+std::map<std::string, std::string> pesosDe(const RepoHf& r, const std::string& soloGguf) {
+    std::map<std::string, std::string> m;
+    for (const ArchivoHf& a : r.archivos) {
+        const auto termina = [&a](const char* x) {
+            const std::string e(x);
+            return a.nombre.size() >= e.size() &&
+                   a.nombre.compare(a.nombre.size() - e.size(), e.size(), e) == 0;
+        };
+        if (termina(".safetensors") || (termina(".gguf") && (soloGguf.empty() || a.nombre == soloGguf ||
+                                                             a.nombre.rfind("mmproj", 0) == 0)))
+            m[a.nombre] = a.sha256;
+    }
+    return m;
+}
+
+net::HttpResponse pedirHf(const std::string& url) {
+    net::HttpRequest req;
+    req.url = url;
+    req.timeoutMs = 20000;
+    return net::HttpsClient::request(req);
+}
+} // namespace
+
+json ModelosLocales::ficha(const QString& repo) const {
+    const auto it = fichasJson_.find(repo);
+    return it == fichasJson_.end() ? json::object() : it->second;
+}
+
+void ModelosLocales::ponerFicha(const QString& repo, json f) {
+    fichasJson_[repo] = f;
+    fichas_[repo] = aVariant(f);
+    emit fichasCambio();
+}
+
+void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
+    const json entrada = entradaCatalogo(repo);
+    if (entrada.empty() || (entrada.contains("tipo") && entrada.value("tipo", std::string()) != "reactivo"))
+        return;
+    const std::string est = ficha(repo).value("estado", std::string());
+    if (!forzar && (est == "ok" || est == "sin_ficha" || est == "buscando")) return;
+    ponerFicha(repo, {{"estado", "buscando"}});
+    const std::string r = repo.toStdString();
+    const std::string revision = entrada.value("revision", std::string());
+    const std::string archivo =
+        entrada.value("archivo", json()).is_string() ? entrada["archivo"].get<std::string>() : "";
+    const fs::path bajado = carpetaDe(repo) / "modelo.json";
+    const fs::path guardado = carpetaModelos() / ".fichas" / (carpetaDeRepo(r) + ".json");
+    const bool estaBajado = instalado(repo);
+    QPointer<ModelosLocales> yo(this);
+    hilosFicha_.emplace_back([yo, repo, r, revision, archivo, bajado, guardado, estaBajado, forzar]() {
+        json mj, f = json::object();
+        std::string nota, de;
+        const auto leer = [](const fs::path& p) {
+            QFile q(deRuta(p));
+            return q.open(QIODevice::ReadOnly) ? json::parse(q.readAll().toStdString(), nullptr, false)
+                                               : json();
+        };
+        std::error_code ec;
+        if (estaBajado && fs::exists(bajado, ec)) {
+            mj = leer(bajado);
+            de = "el modelo bajado";
+        } else if (!forzar && fs::exists(guardado, ec)) {
+            const json g = leer(guardado);
+            if (g.is_object()) {
+                mj = g.value("modelo_json", json());
+                nota = g.value("nota", std::string());
+                de = g.value("de", std::string("Hugging Face"));
+                if (mj.is_null()) f = {{"estado", "sin_ficha"}, {"nota", nota}};
+            }
+        }
+        if (mj.is_null() && f.empty()) {
+            const std::string rev = revision.empty() ? "main" : revision;
+            const net::HttpResponse res =
+                pedirHf("https://huggingface.co/" + r + "/resolve/" + rev + "/modelo.json");
+            if (!res.error.empty()) {
+                f = {{"estado", "error"}, {"nota", "Sin conexión con Hugging Face: " + res.error}};
+            } else if (res.status == 200) {
+                mj = json::parse(res.body, nullptr, false);
+                de = "Hugging Face (" + rev.substr(0, 10) + ")";
+            } else if (rev != "main") {
+                // El commit fijado en el catálogo es de antes del modelo.json: vale
+                // el de ahora solo si los pesos son los MISMOS (mismo sha256).
+                const net::HttpResponse a =
+                    pedirHf("https://huggingface.co/api/models/" + r + "/revision/" + rev + "?blobs=true");
+                const net::HttpResponse b = pedirHf("https://huggingface.co/api/models/" + r + "?blobs=true");
+                const auto pa = pesosDe(leerRepoHf(a.body), archivo),
+                           pb = pesosDe(leerRepoHf(b.body), archivo);
+                bool mismos = !pa.empty();
+                for (const auto& [n, h] : pa)
+                    mismos = mismos && !h.empty() && pb.count(n) && pb.at(n) == h;
+                if (mismos) {
+                    const net::HttpResponse m =
+                        pedirHf("https://huggingface.co/" + r + "/resolve/main/modelo.json");
+                    if (m.status == 200) {
+                        mj = json::parse(m.body, nullptr, false);
+                        de = "Hugging Face (main)";
+                        nota = "El modelo.json se publicó después del commit fijado en el catálogo; los "
+                               "pesos son los mismos, así que le corresponde.";
+                    }
+                } else if (a.status == 200 && b.status == 200) {
+                    nota = "El repo tiene un modelo.json más nuevo, pero los pesos cambiaron desde el commit "
+                           "fijado: no corresponde a esta versión.";
+                }
+                if (mj.is_null() && nota.empty()) nota = "El repo todavía no publica modelo.json.";
+            } else {
+                const net::HttpResponse a = pedirHf("https://huggingface.co/api/models/" + r);
+                nota = a.status == 200 ? "El repo todavía no publica modelo.json."
+                                       : "El repo es privado o ya no existe en Hugging Face.";
+            }
+            if (mj.is_discarded()) {
+                mj = json();
+                nota = "El modelo.json del repo no es un JSON válido.";
+            }
+            if (f.empty()) {
+                // Se guarda para mirarlo sin red la próxima vez (también el «no hay»).
+                QDir().mkpath(deRuta(guardado.parent_path()));
+                escribir(deRuta(guardado), QByteArray::fromStdString(
+                                               json{{"modelo_json", mj}, {"nota", nota}, {"de", de}}.dump()));
+            }
+        }
+        if (f.empty() && (mj.is_null() || !mj.is_object() || !mj.contains("endpoints")))
+            f = {{"estado", "sin_ficha"}, {"nota", nota}};
+        QMetaObject::invokeMethod(qApp, [yo, repo, mj, f, nota, de]() {
+            if (!yo) return;
+            if (!f.empty()) return yo->ponerFicha(repo, f);
+            json r = compararFicha(mj, yo->herramientas_ ? yo->herramientas_() : json::object());
+            r["estado"] = "ok";
+            r["de"] = de;
+            if (!nota.empty()) r["nota"] = nota;
+            // Lo que decía el catálogo, para ver si coincide con lo que dice el modelo.
+            const json e = yo->entradaCatalogo(repo);
+            if (e.contains("herramientas")) r["catalogo_dice"] = e["herramientas"];
+            yo->ponerFicha(repo, r);
+        });
+    });
+}
+
 // --- descarga ----------------------------------------------------------------------
 
 void ModelosLocales::descargar(const QString& repo) {
@@ -359,6 +549,13 @@ void ModelosLocales::descargar(const QString& repo) {
         std::uint64_t hecho = 0;
         for (const ArchivoHf& a : archivos) {
             if (!err.isEmpty()) break;
+            // Al cerrar la app (o cancelar) se corta acá, sin esperar a bajar el
+            // siguiente: el cierre esperaba la bajada entera y el launcher lo
+            // tomaba por un cuelgue (y reabría la app).
+            if (cancelar_) {
+                err = "Descarga cancelada.";
+                break;
+            }
             const fs::path final = staging / desdeUtf8(a.nombre);
             fs::create_directories(final.parent_path(), ec);
             // Lo que ya está bajado y verificado no se vuelve a bajar: se enlaza
@@ -413,6 +610,17 @@ void ModelosLocales::descargar(const QString& repo) {
                           {"archivos", archivos.size()},
                           {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
             escribir(deRuta(staging / ".ok"), QByteArray::fromStdString(ok.dump(1)));
+            // Si el commit fijado no traía modelo.json pero se validó uno con los
+            // MISMOS pesos (ver revisarHerramientas), viaja con el modelo.
+            if (!fs::exists(staging / "modelo.json", ec)) {
+                QFile g(deRuta(carpetaModelos() / ".fichas" / (carpetaDeRepo(r) + ".json")));
+                if (g.open(QIODevice::ReadOnly)) {
+                    const json gj = json::parse(g.readAll().toStdString(), nullptr, false);
+                    if (gj.is_object() && gj.value("modelo_json", json()).is_object())
+                        escribir(deRuta(staging / "modelo.json"),
+                                 QByteArray::fromStdString(gj["modelo_json"].dump(1)));
+                }
+            }
             // Recién ahora se reemplaza el que hubiera (los enlaces duros
             // mantienen vivos los archivos reusados).
             fs::remove_all(destino, ec);
@@ -420,7 +628,8 @@ void ModelosLocales::descargar(const QString& repo) {
             if (ec) err = "No se pudo dejar el modelo en su lugar: " + QString::fromStdString(ec.message());
         }
         if (!err.isEmpty()) fs::remove_all(staging, ec);
-        QMetaObject::invokeMethod(this, [this, err]() {
+        QMetaObject::invokeMethod(this, [this, err, r]() {
+            if (err.isEmpty()) revisarHerramientas(QString::fromStdString(r), true);
             descargando_ = false;
             progreso_ = err.isEmpty() ? 1.0 : 0.0;
             textoDescarga_ = err.isEmpty() ? "Listo." : err;
@@ -568,6 +777,16 @@ void ModelosLocales::elegir(const QString& frase, Respuesta r) {
     pedir(json{{"op", "elegir"}, {"frase", frase.toStdString()}, {"sesgo", sesgo_}}, std::move(r));
 }
 
+void ModelosLocales::llamar(const QString& estadoJson, const QString& frase, Respuesta r) {
+    json pedido{{"op", "llamar"}, {"frase", frase.toStdString()}, {"sesgo", sesgo_}, {"max", 256}};
+    if (!estadoJson.isEmpty()) pedido["estado"] = estadoJson.toStdString();
+    pedir(std::move(pedido), std::move(r));
+}
+
+void ModelosLocales::preparar(const QString& estadoJson, Respuesta r) {
+    pedir(json{{"op", "preparar"}, {"estado", estadoJson.toStdString()}}, std::move(r));
+}
+
 void ModelosLocales::generar(const QString& texto, bool conPrefijo, int maxTokens,
                              std::function<void(const QString&)> delta, Respuesta fin) {
     pedir(
@@ -602,10 +821,35 @@ void ModelosLocales::probarVision(const QString& imagen, const QString& pregunta
     });
 }
 
+void ModelosLocales::probarFrase(const QString& frase, Respuesta r) {
+    if (formato() != "tc" || !probadorTc_) return elegir(frase, std::move(r));
+    probadorTc_(frase, [r](const json& j) {
+        if (j.contains("error")) return r(j);
+        json out{{"tipo", j.value("tipo", std::string())},
+                 {"crudo", j.value("crudo", std::string())},
+                 {"prob", j.value("prob", 0.0)},
+                 {"ms", j.value("ms", 0.0)}};
+        const argumentos::LlamadaTc l = argumentos::leerTc(j.value("crudo", std::string()));
+        if (!l.hay) {
+            out["herramienta"] = "";
+            out["derivar"] = false;
+            out["resumen"] = "🗣 " + j.value("texto", std::string());
+            return r(out);
+        }
+        std::string args;
+        for (const auto& [k, v] : l.parametros)
+            args += (args.empty() ? "" : ", ") + k + ": " + v;
+        out["herramienta"] = l.funcion;
+        out["derivar"] = l.funcion == "derivar";
+        out["resumen"] = l.funcion + "(" + args + ")";
+        r(out);
+    });
+}
+
 void ModelosLocales::probar(const QString& frase) {
     const QString f = frase.trimmed();
     if (f.isEmpty()) return;
-    elegir(f, [this, f](const json& j) {
+    probarFrase(f, [this, f](const json& j) {
         QVariantMap v = aVariant(j);
         v["frase"] = f;
         pruebas_.prepend(v);

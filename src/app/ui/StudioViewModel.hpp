@@ -29,6 +29,10 @@ class ModelosLocales;
 class Roles;
 class Voz;
 class VozPrompter;
+class FlujosTexto;
+class Traductor;
+class Subtitulos;
+class VocesRack;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
@@ -36,6 +40,23 @@ class RackManager;
 class Matriz;
 class AudioViewModel;
 } // namespace ba::app::audio
+
+namespace ba::app::ptz {
+class ControlCamaras;
+} // namespace ba::app::ptz
+namespace ba::app::video {
+class VideoGrafos;
+class SuperRes;
+} // namespace ba::app::video
+namespace ba::app::red {
+class Red;
+} // namespace ba::app::red
+namespace ba::app::plugins {
+class Plugins;
+} // namespace ba::app::plugins
+namespace ba::app::dispositivos {
+class Dispositivos;
+} // namespace ba::app::dispositivos
 
 namespace ba::app {
 
@@ -48,6 +69,7 @@ class PrompterViewModel;
 class PantallasViewModel;
 class QrViewModel;
 class PersonasViewModel;
+class Seguidor;
 class PublicoViewModel;
 class CarruselViewModel;
 class MediosViewModel;
@@ -158,6 +180,27 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* vozPrompter READ vozPrompter CONSTANT)
     /// La matriz de mezcla (fuentes × pistas y buses virtuales): audio/Matriz.hpp.
     Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
+    /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
+    /// ptz/ControlCamaras.hpp.
+    Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
+    /// Analizar las caras de una cámara y seguir a una con el PTZ (ui/Seguidor).
+    Q_PROPERTY(QObject* seguidor READ seguidor CONSTANT)
+    /// Los equipos: detectores, catálogo y acciones (dispositivos/Dispositivos).
+    Q_PROPERTY(QObject* dispositivos READ dispositivosQml CONSTANT)
+    /// Los grafos de tarjetas de video de cada entrada (video/VideoGrafos).
+    Q_PROPERTY(QObject* video READ video CONSTANT)
+    /// Los equipos de video de la red (escáner, credenciales, ficha, agregar): red/Red.hpp.
+    Q_PROPERTY(QObject* red READ red CONSTANT)
+    /// Los plugins de Python (pages/PluginsPage.qml).
+    Q_PROPERTY(QObject* plugins READ pluginsQml CONSTANT)
+    /// Las salidas de texto (voz a texto con nombre): agent/FlujosTexto.hpp.
+    Q_PROPERTY(QObject* flujos READ flujos CONSTANT)
+    /// Las tarjetas «Texto a voz»: voces, idiomas y lo que dicen (agent/VocesRack.hpp).
+    Q_PROPERTY(QObject* voces READ voces CONSTANT)
+    /// La traducción en vivo de las salidas de texto, con su glosario (agent/Traductor.hpp).
+    Q_PROPERTY(QObject* traductor READ traductor CONSTANT)
+    /// La superresolución de las entradas de red: motores, modelos, laboratorio (video/SuperRes.hpp).
+    Q_PROPERTY(QObject* superres READ superres CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
@@ -240,6 +283,24 @@ class StudioViewModel : public QObject {
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
+    QObject* camaras() const;
+    QObject* video() const;
+    video::VideoGrafos* videoGrafos() const { return video_.get(); }
+    QObject* red() const;
+    red::Red* redEquipos() const { return red_.get(); }
+    /// Los plugins de Python (docs/PLUGINS.md).
+    plugins::Plugins* plugins() const { return plugins_.get(); }
+    QObject* pluginsQml() const;
+    QObject* seguidor() const;
+    Seguidor* seguidorPtz() const { return seguidor_.get(); }
+    QObject* dispositivosQml() const;
+    dispositivos::Dispositivos* equipos() const { return dispositivos_.get(); }
+    QObject* flujos() const;
+    QObject* voces() const;
+    QObject* traductor() const;
+    QObject* superres() const;
+    video::SuperRes* superresVideo() const { return superres_.get(); }
+    agent::Traductor* traductorAgent() const { return traductor_.get(); }
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
     QObject* messages() const;
     QObject* inputs() const;
@@ -404,6 +465,17 @@ class StudioViewModel : public QObject {
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
+    std::unique_ptr<ptz::ControlCamaras> camaras_;
+    std::unique_ptr<video::VideoGrafos> video_;
+    std::unique_ptr<red::Red> red_;
+    std::unique_ptr<plugins::Plugins> plugins_;
+    std::unique_ptr<Seguidor> seguidor_;
+    std::unique_ptr<dispositivos::Dispositivos> dispositivos_;
+    std::unique_ptr<agent::FlujosTexto> flujos_;
+    std::unique_ptr<agent::VocesRack> voces_;
+    std::unique_ptr<agent::Traductor> traductor_;
+    std::unique_ptr<agent::Subtitulos> subtitulos_;
+    std::unique_ptr<video::SuperRes> superres_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<YouTubeViewModel> youtube_;

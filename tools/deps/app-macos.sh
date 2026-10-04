@@ -94,8 +94,18 @@ printf 'APPL????' >"$C/PkgInfo"
 # cubre entera. El launcher (Contents/MacOS) queda fuera del manifest, como en
 # Linux y Windows, donde tampoco se verifica a si mismo.
 "$ROOT/tools/deploy" --solo-manifest "$R" >/dev/null
-log "firmando la .app (ad-hoc)"
-codesign --force -s - "$APP" || morir "no se pudo firmar la .app"
+# Con el certificado propio (tools/firma-local.sh) la identidad de la app no
+# cambia entre compilaciones y macOS recuerda los permisos (cámara,
+# micrófono); solo si firma SIN preguntar. Si no, ad-hoc.
+FIRMA="-"
+if security find-identity -p codesigning 2>/dev/null | grep -q '"BA Desarrollo local"'; then
+    PRUEBA="$(mktemp)"
+    cp /usr/bin/true "$PRUEBA"
+    if timeout 15 codesign -f -s "BA Desarrollo local" "$PRUEBA" 2>/dev/null; then FIRMA="BA Desarrollo local"; fi
+    rm -f "$PRUEBA"
+fi
+log "firmando la .app ($([ "$FIRMA" = "-" ] && echo ad-hoc || echo "$FIRMA"))"
+codesign --force -s "$FIRMA" "$APP" || morir "no se pudo firmar la .app"
 codesign --verify --strict "$APP" || morir "la firma de la .app no verifica"
 log "listo: $APP ($(du -sh "$APP" | cut -f1))"
 
@@ -109,8 +119,10 @@ cat >"$STAGE/Leeme primero.txt" <<'TXT'
 BROADCAST APPLIANCE PARA macOS (Apple Silicon, macOS 13.3 o más nuevo)
 ======================================================================
 
-1. Arrastrá "BroadcastAppliance" a Aplicaciones (o a una carpeta de tu disco
-   externo: es portable, todo lo que usa y lo que graba queda adentro).
+1. Arrastrá "BroadcastAppliance" a Aplicaciones o, mejor, a una carpeta
+   propia (por ejemplo en un disco externo): es portable. Al lado de la app
+   se crea la carpeta "BroadcastAppliance Datos" con la configuración, las
+   grabaciones y los modelos: para llevarla a otra Mac, llevá las dos cosas.
    No lo abras desde este disco (.dmg): ahí es de solo lectura.
 
 2. La PRIMERA vez: clic derecho sobre BroadcastAppliance -> Abrir -> Abrir.
@@ -123,9 +135,10 @@ BROADCAST APPLIANCE PARA macOS (Apple Silicon, macOS 13.3 o más nuevo)
    Para capturar la pantalla hay que darlo en Ajustes -> Privacidad y
    seguridad -> Grabación de pantalla, y volver a abrir el programa.
 
-Las grabaciones y la configuración quedan dentro de la app (clic derecho ->
-Mostrar contenido del paquete -> Contents -> Resources -> Recordings). El
-manual completo está en Contents/Resources/LEEME.txt.
+Las grabaciones y la configuración quedan en "BroadcastAppliance Datos", al
+lado de la app (no adentro: así la app sigue sellada y macOS no la vuelve a
+verificar ni a pedir los permisos). El manual completo está en
+Contents/Resources/LEEME.txt.
 TXT
 rm -f "$DMG"
 log "armando $(basename "$DMG")"

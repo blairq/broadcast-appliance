@@ -20,7 +20,7 @@
 // del usuario, y a salvo de las actualizaciones. Las claves de API, cifradas
 // en Credenciales/ y solo en el entorno del proceso del agente.
 //
-// Alertas: cada disparo de una vigilancia (AlertEngine) con "llm" se escribe
+// Alertas: cada disparo de un disparador (AlertEngine) con "llm" se escribe
 // en el prompt del agente (agrupadas si llegan juntas) y lo despierta... salvo
 // que un ROL activo lo reclame (ver Roles/Despachador): entonces lo atiende un
 // agente de un solo tiro y esta conversacion no se entera.
@@ -125,10 +125,14 @@ class AgentViewModel : public QObject {
     /// La que fija esta version del sistema (agentes.json, compilado).
     QString pinnedVersion() const;
     bool running() const { return localActivo_ || session_->running(); }
+    /// Un asistente GRANDE andando (no el modelo local): a quien derivar.
+    bool asistenteGrande() const { return !localActivo_ && session_->running(); }
+    /// El asistente es el modelo local y está «andando» (lo que le llega va a Voz).
+    bool asistenteLocal() const { return localActivo_; }
     /// El MODELO LOCAL como motor (proveedor «local»): lo engancha StudioViewModel
-    /// con agent/Voz. `rol`: quién pide ("asistente" o un rol); `vigilancia`:
-    /// viene de una vigilancia (se dice en voz alta y nunca se hace sola).
-    using Local = std::function<void(const QString& rol, const QString& texto, bool vigilancia)>;
+    /// con agent/Voz. `rol`: quién pide ("asistente" o un rol); `disparador`:
+    /// viene de un disparador (se dice en voz alta y nunca se hace solo).
+    using Local = std::function<void(const QString& rol, const QString& texto, bool disparador)>;
     void setLocal(Local l) { local_ = std::move(l); }
     bool mcpReady() const { return mcpReady_ ? mcpReady_() : false; }
     QString lastError() const { return lastError_; }

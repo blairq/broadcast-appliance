@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include "GuiMode.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDir>
 #include <QFontDatabase>
@@ -29,14 +30,17 @@
 #include <cstdio>
 
 #include "agent/AgentViewModel.hpp"
+#include "agent/ModelosLocales.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "ui/VideoItem.hpp"
+#include <QElapsedTimer>
 
 namespace ba::app {
 
@@ -86,15 +90,20 @@ int runGui(int argc, char** argv) {
 
     int result = 0;
     {
+        QElapsedTimer relojGui;
+        relojGui.start();
         StudioViewModel vm(rt);
+        ba::diag::registro().info("arranque: el modelo de la app, " + std::to_string(relojGui.restart()) +
+                                  " ms");
         auto* frames = static_cast<FrameService*>(vm.frames());
         VideoItem::setService(frames);
         qmlRegisterSingletonInstance("BA", 1, 0, "Studio", &vm);
         qmlRegisterType<VideoItem>("BA", 1, 0, "VideoItem");
         qmlRegisterType<term::TerminalView>("BA", 1, 0, "TerminalView");
         // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
-        for (const QString& dir : {QString::fromStdWString((rt.dataRoot() / "data" / "fonts").wstring()),
-                                   QCoreApplication::applicationDirPath() + "/../../data/fonts"}) {
+        for (const QString& dir :
+             {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),
+              QCoreApplication::applicationDirPath() + "/../../data/fonts"}) {
             const QStringList fonts = QDir(dir).entryList({"*.ttf"}, QDir::Files);
             for (const QString& f : fonts)
                 QFontDatabase::addApplicationFont(dir + "/" + f);
@@ -108,7 +117,10 @@ int runGui(int argc, char** argv) {
         // exporta, asi lo que se ve es exactamente lo que sale.
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
+        relojGui.restart();
         engine.load(QUrl("qrc:/qml/Main.qml"));
+        ba::diag::registro().info("arranque: la interfaz (QML), " + std::to_string(relojGui.restart()) +
+                                  " ms");
         if (engine.rootObjects().isEmpty()) {
             std::printf("ba-app: no se pudo cargar la interfaz QML\n");
             rt.stop();
@@ -131,14 +143,36 @@ int runGui(int argc, char** argv) {
         }
 
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
+        relojGui.restart();
         mcp::McpService mcpService(rt, vm);
+        ba::diag::registro().info("arranque: el servidor MCP, " + std::to_string(relojGui.restart()) + " ms");
         mcpService.setMainWindow([&engine]() -> QQuickWindow* {
             return engine.rootObjects().isEmpty() ? nullptr
                                                   : qobject_cast<QQuickWindow*>(engine.rootObjects().first());
         });
+        // Con qué herramientas se entrenó cada modelo local (su modelo.json) se
+        // compara contra las de hoy: el esquema de cada una, tal cual lo ve el modelo.
+        if (auto* ml = qobject_cast<agent::ModelosLocales*>(vm.modelos())) {
+            ml->setHerramientas([&mcpService]() {
+                nlohmann::json m = nlohmann::json::object();
+                for (const auto& t : mcpService.core().tools())
+                    m[t.name] = t.inputSchema;
+                return m;
+            });
+        }
         auto* agentVm = static_cast<agent::AgentViewModel*>(vm.agent());
         agentVm->setSystemPrompt([&mcpService]() { return mcpService.agentPrompt(); });
         agentVm->setMcpReady([&mcpService]() { return mcpService.port() != 0; });
+        // Los plugins de Python llaman herramientas del servidor (lo mismo que
+        // puede el asistente) y arrancan los que estaban prendidos.
+        if (auto* pl = vm.plugins()) {
+            pl->setLlamador([&mcpService](const std::string& h, const nlohmann::json& args,
+                                          std::function<void(nlohmann::json)> listo) {
+                mcpService.core().callTool({{"name", h}, {"arguments", args}}, std::move(listo),
+                                           mcp::CallContext{"plugin", ""});
+            });
+            QTimer::singleShot(3000, pl, [pl]() { pl->arrancarGuardados(); });
+        }
         if (rt.config().mcpEnabled) {
             if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {
                 std::printf("ba-app: servidor MCP en %s (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)\n",

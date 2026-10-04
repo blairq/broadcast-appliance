@@ -18,6 +18,7 @@
 //   --app-arg=<x>    argumento extra para A (repetible)
 //   --gw-arg=<x>     argumento extra para B (repetible)
 
+#include "Datos.hpp"
 #include "Log.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
@@ -49,10 +50,25 @@ constexpr const char* kExeSuffix = "";
 
 int runLauncher(const std::vector<std::string>& args) {
     // Portable: caches de librerias al bundle (lo heredan A y B).
-    ba::platform::redirectUserDirs();
     const std::filesystem::path root = ba::platform::bundleRoot();
+    // Los datos: la misma carpeta en Windows y Linux; en macOS, al lado de la
+    // .app (escribir adentro rompe su firma). La primera vez se mudan.
+    std::vector<std::string> mudados;
+    const std::filesystem::path datos = ba::launcher::prepararDatos(root, ba::platform::dataRoot(), mudados);
+    // Todo el launcher (y sus hijos) usa esta raíz: las caches, Runtime/, Logs/.
+    {
+        const std::u8string d = datos.u8string();
+#ifdef _WIN32
+        _putenv_s(ba::platform::kDataRootEnv, std::string(d.begin(), d.end()).c_str());
+#else
+        setenv(ba::platform::kDataRootEnv, std::string(d.begin(), d.end()).c_str(), 1);
+#endif
+    }
+    ba::platform::redirectUserDirs();
     const std::filesystem::path bin = root / "bin" / "64bit";
-    ba::launcher::Log::init((root / "Logs" / "launcher.log").string());
+    ba::launcher::Log::init((datos / "Logs" / "launcher.log").string());
+    for (const std::string& m : mudados)
+        ba::launcher::Log::write(ba::launcher::Log::Level::Info, "datos", 0, m);
 
     // --update <carpeta> / --update-rollback [--start]: reemplaza el programa sin
     // tocar los datos (ver Updater.hpp).
@@ -97,15 +113,16 @@ int runLauncher(const std::vector<std::string>& args) {
 
     ba::launcher::Supervisor::Config cfg;
     cfg.root = root;
+    cfg.dataRoot = datos;
     cfg.appExe = bin / (std::string("ba-app") + kExeSuffix);
     cfg.gatewayExe = bin / (std::string("ba-gateway") + kExeSuffix);
-    cfg.logsDir = root / "Logs";
+    cfg.logsDir = datos / "Logs";
 
     // Config/launcher.json (lo escribe la interfaz de A): copia sombra,
     // dialogo de recuperacion y argumentos extra de A y B. La linea de
     // comandos, mas abajo, lo pisa.
     {
-        std::ifstream in(root / "Config" / "launcher.json");
+        std::ifstream in(datos / "Config" / "launcher.json");
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
         if (in && j.is_object()) {
             cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);

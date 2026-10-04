@@ -260,14 +260,17 @@ if ! done_mark libpng; then
   cmake --build "$d/build" -j"$JOBS" >/dev/null && cmake --install "$d/build" >/dev/null
   mark libpng
 fi
-if ! done_mark cairo; then
-  d=$(fetch cairo); log "cairo (xlib/xcb + freetype/fontconfig del sistema)"
+# cairo2: con glib (base del sistema) para cairo-gobject, que pide el plugin
+# cairo de GStreamer (cairooverlay).
+if ! done_mark cairo2; then
+  d=$(fetch cairo); log "cairo (xlib/xcb + freetype/fontconfig del sistema, con cairo-gobject)"
+  rm -rf "$d/build"
   meson setup "$d/build" "$d" --prefix="$PREFIX" --libdir=lib --buildtype=release \
     -Dxlib=enabled -Dxcb=enabled -Dfreetype=enabled -Dfontconfig=enabled -Dpng=enabled -Dzlib=enabled \
-    -Dtests=disabled -Dglib=disabled -Dspectre=disabled -Dsymbol-lookup=disabled -Dgtk2-utils=disabled \
+    -Dtests=disabled -Dglib=enabled -Dspectre=disabled -Dsymbol-lookup=disabled -Dgtk2-utils=disabled \
     -Dquartz=disabled -Dtee=disabled -Dgtk_doc=false -Dc_link_args="$LDFLAGS" >/dev/null
   ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
-  mark cairo
+  mark cairo2
 fi
 
 # git a un commit fijado (el hash ES la verificacion).

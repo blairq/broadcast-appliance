@@ -1,0 +1,75 @@
+// src/obs-module/data/ptz-digital.effect — PTZ digital (ba_ptz_digital)
+//
+// Una sola pasada: cada píxel de la salida lee el punto que le toca dentro de
+// la ventana recortada (origen + uv * escala) con interpolación bicúbica
+// Catmull-Rom, que al ampliar deja los bordes más definidos que la bilineal.
+// La bicúbica sale de 9 lecturas bilineales en lugar de 16 (los pesos de las
+// dos muestras del medio se juntan en una lectura bilineal desplazada).
+//
+// Ojo (como en mejora-imagen.effect): nada de variables locales de una letra,
+// la traducción a GLSL de libobs se rompe.
+
+uniform float4x4 ViewProj;
+uniform texture2d image;
+uniform float2 texel;   // 1 / tamaño de la fuente
+uniform float2 origen;  // esquina de la ventana (0..1)
+uniform float2 escala;  // tamaño de la ventana (0..1)
+
+sampler_state lineal {
+	Filter   = Linear;
+	AddressU = Clamp;
+	AddressV = Clamp;
+};
+
+struct VertInOut {
+	float4 pos : POSITION;
+	float2 uv  : TEXCOORD0;
+};
+
+VertInOut VSDefault(VertInOut vert_in)
+{
+	VertInOut vert_out;
+	vert_out.pos = mul(float4(vert_in.pos.xyz, 1.0), ViewProj);
+	vert_out.uv  = vert_in.uv;
+	return vert_out;
+}
+
+float4 PSRecorte(VertInOut vert_in) : TARGET
+{
+	float2 punto = origen + vert_in.uv * escala;
+	float2 tam = 1.0 / texel;
+	float2 pos = punto * tam;
+	float2 centro1 = floor(pos - 0.5) + 0.5;
+	float2 frac1 = pos - centro1;
+
+	float2 peso0 = frac1 * (-0.5 + frac1 * (1.0 - 0.5 * frac1));
+	float2 peso1 = 1.0 + frac1 * frac1 * (-2.5 + 1.5 * frac1);
+	float2 peso2 = frac1 * (0.5 + frac1 * (2.0 - 1.5 * frac1));
+	float2 peso3 = frac1 * frac1 * (-0.5 + 0.5 * frac1);
+	float2 peso12 = peso1 + peso2;
+	float2 desp12 = peso2 / peso12;
+
+	float2 uv0 = (centro1 - 1.0) * texel;
+	float2 uv3 = (centro1 + 2.0) * texel;
+	float2 uv12 = (centro1 + desp12) * texel;
+
+	float4 acc = image.Sample(lineal, float2(uv0.x, uv0.y)) * peso0.x * peso0.y;
+	acc += image.Sample(lineal, float2(uv12.x, uv0.y)) * peso12.x * peso0.y;
+	acc += image.Sample(lineal, float2(uv3.x, uv0.y)) * peso3.x * peso0.y;
+	acc += image.Sample(lineal, float2(uv0.x, uv12.y)) * peso0.x * peso12.y;
+	acc += image.Sample(lineal, float2(uv12.x, uv12.y)) * peso12.x * peso12.y;
+	acc += image.Sample(lineal, float2(uv3.x, uv12.y)) * peso3.x * peso12.y;
+	acc += image.Sample(lineal, float2(uv0.x, uv3.y)) * peso0.x * peso3.y;
+	acc += image.Sample(lineal, float2(uv12.x, uv3.y)) * peso12.x * peso3.y;
+	acc += image.Sample(lineal, float2(uv3.x, uv3.y)) * peso3.x * peso3.y;
+	return saturate(acc);
+}
+
+technique Recorte
+{
+	pass
+	{
+		vertex_shader = VSDefault(vert_in);
+		pixel_shader  = PSRecorte(vert_in);
+	}
+}

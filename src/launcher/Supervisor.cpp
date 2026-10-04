@@ -41,6 +41,11 @@ constexpr int kTerminateMs = 3000;  // espera tras SIGTERM antes de matar
 // watchdog lo declaraba colgado en el mismo milisegundo y lo mataba. Un crash
 // durante el arranque se detecta igual (el proceso sale).
 constexpr std::uint64_t kStartupGraceMs = 20000;
+// Si todavía no latió NUNCA, se lo espera más: el primer arranque después de
+// instalar o actualizar, macOS verifica la firma de cientos de binarios antes
+// de dejarlos correr (9 s solo para cargar, comprobado) y a los 20 s se lo
+// mataba en pleno arranque. Un cuelgue de verdad al arrancar se ve igual.
+constexpr std::uint64_t kPrimerLatidoMs = 90000;
 // Espera antes de relanzar un hijo que salio con exit_code::kEnvironment.
 constexpr std::uint64_t kEnvironmentRetryMs = 60000;
 
@@ -125,7 +130,12 @@ void Supervisor::requestStop() { stopRequested_.store(true); }
 
 bool Supervisor::inStartupGrace(bool isA) const {
     const std::uint64_t at = launchedAtMs_[isA ? 1 : 0];
-    return at != 0 && nowMs() - at < kStartupGraceMs;
+    if (at == 0) return false;
+    const std::uint64_t pasado = nowMs() - at;
+    if (pasado < kStartupGraceMs) return true;
+    const bool latio =
+        health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
+    return !latio && pasado < kPrimerLatidoMs;
 }
 
 int Supervisor::run() {
@@ -233,7 +243,9 @@ bool Supervisor::startChild(bool isA) {
     const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
     ChildProcess::Config c;
     c.exePath = isA ? cfg_.appExe : cfg_.gatewayExe;
-    c.workDir = cfg_.root;
+    // Los hijos trabajan en la raiz de los DATOS (y la reciben en BA_DATA_ROOT):
+    // en macOS es la carpeta al lado de la .app, no el bundle.
+    c.workDir = cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot;
     c.name = isA ? "A" : "B";
     c.args = isA ? cfg_.appArgs : cfg_.gatewayArgs;
     if (isA && appNeedsRestore_) {
@@ -254,6 +266,7 @@ bool Supervisor::startChild(bool isA) {
     }
     launchedAtMs_[isA ? 1 : 0] = nowMs();
     health_.setIdentity(slot, child(isA).pid(), kProcVersion);
+    latidoAlLanzar_[isA ? 1 : 0] = health_.read(slot).lastBeatQpc;
     health_.setState(slot, ba::ipc::ProcessState::Running);
     return true;
 }

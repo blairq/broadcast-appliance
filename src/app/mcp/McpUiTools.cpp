@@ -134,37 +134,50 @@ void McpService::registerUiTools() {
         t.title = "Sacar un panel a su ventana";
         t.category = "interfaz";
         t.description =
-            "Abre el padron, la cola de preguntas o la urna en su PROPIA ventana, para mandarla a "
-            "otro monitor.";
-        t.details = "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
-                    "diferencia entre tener «Publico» en el segundo monitor y tener la cola de preguntas en "
-                    "uno y la urna en otro: cuando hay alguien moderando y alguien conduciendo, cada uno "
-                    "mira lo suyo.\n\n"
-                    "Los tres:\n"
-                    "- `padron`: quienes vienen y quienes llegaron. Es el que va en el mostrador de la "
-                    "entrada.\n"
-                    "- `preguntas`: la cola del publico, para moderarla.\n"
-                    "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n\n"
-                    "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
-                    "mantienen sincronizadas solas. Cerrarla no pierde nada.\n\n"
-                    "Despues se la manda al monitor que corresponda con `ventana_mover`: la ventana se llama "
-                    "`ba:panel:<id>` y `ventana_listar` la muestra. Si ese panel ya esta afuera, no se abre "
-                    "otro igual.\n\n"
-                    "El operador hace lo mismo con el boton ⧉ del panel.";
+            "Abre el padron, la cola de preguntas, la urna, el carrusel o el control PTZ de una camara en su "
+            "PROPIA ventana, para mandarla a otro monitor.";
+        t.details =
+            "MAS FINO QUE `ui_page_window`, que saca una pagina entera. En un evento esa es la "
+            "diferencia entre tener «Publico» en el segundo monitor y tener la cola de preguntas en "
+            "uno y la urna en otro: cuando hay alguien moderando y alguien conduciendo, cada uno "
+            "mira lo suyo.\n\n"
+            "Los tres:\n"
+            "- `padron`: quienes vienen y quienes llegaron. Es el que va en el mostrador de la "
+            "entrada.\n"
+            "- `preguntas`: la cola del publico, para moderarla.\n"
+            "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n"
+            "- `carrusel`: el control del carrusel.\n"
+            "- `ptz`: el control PTZ de la camara `entrada`, con su imagen en vivo para apuntar "
+            "con el mouse (clic: centrar; cuadro: encuadrar). Uno por camara: `ba:panel:ptz:<entrada>`.\n\n"
+            "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
+            "mantienen sincronizadas solas. Cerrarla no pierde nada.\n\n"
+            "Despues se la manda al monitor que corresponda con `ventana_mover`: la ventana se llama "
+            "`ba:panel:<id>` y `ventana_listar` la muestra. Si ese panel ya esta afuera, no se abre "
+            "otro igual.\n\n"
+            "El operador hace lo mismo con el boton ⧉ del panel.";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"panel"}},
             {"properties",
-             {{"panel", {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel"}}}}}}};
-        t.examples = {R"({"panel": "preguntas"})"};
+             {{"panel",
+               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "ptz"}}}},
+              {"entrada", {{"type", "string"}, {"description", "Con panel=ptz: la entrada de video."}}}}}};
+        t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})"};
         t.run = [self](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-            const std::string id = a["panel"].get<std::string>();
-            const QString titulo = id == "padron"      ? "Padrón"
-                                   : id == "preguntas" ? "Preguntas"
-                                   : id == "carrusel"  ? "Carrusel"
-                                                       : "Votación";
+            std::string id = a["panel"].get<std::string>();
+            QString titulo = id == "padron"      ? "Padrón"
+                             : id == "preguntas" ? "Preguntas"
+                             : id == "carrusel"  ? "Carrusel"
+                                                 : "Votación";
+            if (id == "ptz") {
+                const std::string entrada = a.value("entrada", std::string());
+                if (entrada.empty())
+                    return done(ToolResult::error("Falta `entrada`: la camara (ver ptz_camaras)."));
+                id = "ptz:" + entrada;
+                titulo = "PTZ — " + QString::fromStdString(entrada);
+            }
             QMetaObject::invokeMethod(w, "sacarPanel", Q_ARG(QVariant, QString::fromStdString(id)),
                                       Q_ARG(QVariant, titulo));
             done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierto en su propia ventana (ba:panel:" +

@@ -159,6 +159,16 @@ Rectangle {
                         id: netCol
                         anchors.fill: parent
                         spacing: 8
+                        GlassButton {
+                            Layout.fillWidth: true
+                            text: "Buscar cámaras en la red…"
+                            icon: "⌕"
+                            active: true
+                            onClicked: { buscador.escenas = page.inp.scenes; buscador.open() }
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Encuentra cámaras IP y grabadores (ONVIF, RTSP), reconoce la marca, prueba sus URLs típicas, guarda la clave cifrada y las conecta con su PTZ"
+                        }
+                        Text { text: "o a mano:"; color: Theme.textFaint; font.pixelSize: 11 }
                         TextField { id: netUrl; Layout.fillWidth: true; placeholderText: "rtsp://usuario:clave@192.168.1.50:554/stream1" }
                         Flow {
                             Layout.fillWidth: true
@@ -284,4 +294,6 @@ Rectangle {
             }
         }
     }
+
+    BuscadorRed { id: buscador }
 }

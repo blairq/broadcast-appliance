@@ -30,13 +30,40 @@ Item {
 
     readonly property bool completa: ventana.visibility === Window.FullScreen
 
+    // CAMBIAR `screen` NO MUEVE LA VENTANA (en Mac, y en Windows según el
+    // caso): queda donde estaba, con las coordenadas del monitor viejo, y el
+    // botón parecía no hacer nada. Además de la pantalla hay que llevarla:
+    // al centro del monitor elegido, achicada si no entra.
+    property var destino: null
+    property bool volver: false
     function aMonitor(pantalla) {
-        const volver = completa || !Studio.puedeUbicarVentanas
-        if (completa) ventana.visibility = Window.Windowed
-        ventana.screen = pantalla
+        destino = pantalla
+        volver = completa || !Studio.puedeUbicarVentanas
+        if (completa) {
+            // Salir de pantalla completa tiene animación (Mac): mover recién después.
+            ventana.visibility = Window.Windowed
+            llevar.interval = Qt.platform.os === "osx" ? 800 : 150
+            llevar.restart()
+        } else {
+            llevarYa()
+        }
+    }
+    function llevarYa() {
+        const s = destino
+        if (!s) return
+        if (ventana.visibility === Window.Maximized) ventana.visibility = Window.Windowed
+        ventana.screen = s
+        const w = Math.min(ventana.width, s.width - 40), h = Math.min(ventana.height, s.height - 80)
+        ventana.width = w
+        ventana.height = h
+        ventana.x = s.virtualX + Math.round((s.width - w) / 2)
+        ventana.y = s.virtualY + Math.round((s.height - h) / 2)
+        ventana.raise()
+        ventana.requestActivate()
         if (volver) reentrar.restart()
     }
-    Timer { id: reentrar; interval: 180; onTriggered: barra.ventana.visibility = Window.FullScreen }
+    Timer { id: llevar; onTriggered: barra.llevarYa() }
+    Timer { id: reentrar; interval: 300; onTriggered: barra.ventana.visibility = Window.FullScreen }
 
     Timer { id: esconder; interval: 2200; onTriggered: caja.opacity = 0 }
     Component.onCompleted: esconder.start()

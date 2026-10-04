@@ -254,12 +254,22 @@ endif()
 # Va contra el ONNX Runtime de los rostros, asi que hace falta ese tambien. Sin
 # los dos, la app compila igual y la voz no aparece (BA_HAVE_VOZ). Los modelos
 # de voz no viajan: se bajan a pedido.
-set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
+if(WIN32)
+    set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx-win") # make deps-sherpa-onnx-win
+else()
+    set(BA_SHERPA_DIR "${CMAKE_SOURCE_DIR}/extern/sherpa-onnx")
+endif()
 set(BA_HAVE_VOZ OFF)
 # (y los racks de audio: Escucha, Habla y MonitorVoz viven en audio/, que sin
 # CLAP no se compila)
-if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok"
-   AND EXISTS "${CMAKE_SOURCE_DIR}/extern/rostros/onnxruntime/include/onnxruntime_cxx_api.h")
+# (extern/ puede tener el sherpa-onnx de OTRO sistema —el volumen de Docker es
+# el mismo para Linux y Windows—: se mira que estén las bibliotecas de ESTE.)
+if(MSVC)
+    set(_ba_sherpa_lib "${BA_SHERPA_DIR}/lib/sherpa-onnx-core.lib")
+else()
+    set(_ba_sherpa_lib "${BA_SHERPA_DIR}/lib/libsherpa-onnx-core.a")
+endif()
+if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${_ba_sherpa_lib}" AND BA_HAVE_ORT)
     set(BA_HAVE_VOZ ON)
 else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|Habla)\\.cpp$")
@@ -309,6 +319,10 @@ ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast
 # MinGW GUI: subsistema GUI (sin consola), igual que el launcher. Sin esto,
 # MinGW enlaza como consola y el CRT espera `main` en vez de `WinMain`/
 # `wWinMain` (ver el trampoline WinMain->wWinMain en main.cpp).
+# GStreamer (si está vendoreado): el catálogo de módulos y sus propiedades.
+if(BA_HAVE_GST)
+    target_link_libraries(ba-app PRIVATE ba::gstreamer)
+endif()
 if(WIN32)
     # main.cpp trae su propio wWinMain: sin el de Qt (Qt6::EntryPointPrivate).
     set_target_properties(ba-app PROPERTIES WIN32_EXECUTABLE ON qt_no_entrypoint ON)
@@ -372,6 +386,10 @@ if(BA_HAVE_LIBOBS)
             # qt/lib: el Qt vendoreado que viaja en el bundle (BaQtDeploy.cmake).
             INSTALL_RPATH "$ORIGIN;$ORIGIN/qt/lib")
     endif()
+    # Despues de fijar los rpath de arriba (los pisarian): GStreamer, del bundle.
+    if(TARGET ba::gstreamer)
+        ba_gst_rpath(ba-app "")
+    endif()
 else()
     target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=0)
 endif()
@@ -432,6 +450,13 @@ endif()
     # El catalogo de filtros LSP en castellano (Audio -> filtros).
     qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")
+    # El escaner de red: las marcas de camaras con sus URLs tipicas y la base de
+    # fabricantes por MAC (registro OUI de la IEEE). Van como archivos (data/red).
+    install(FILES "${CMAKE_SOURCE_DIR}/datos/camaras-urls.json" "${CMAKE_SOURCE_DIR}/datos/oui.tsv"
+            DESTINATION data/red COMPONENT bundle)
+    # La documentacion en castellano de los modulos de GStreamer (Video -> agregar modulo).
+    qt_add_resources(ba-app "ba_gst_modulos" PREFIX "/video" BASE "${CMAKE_SOURCE_DIR}/datos"
+                     FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
     # Las reglas con las que el modelo local completa argumentos (agent/ArgumentosLocales).
     qt_add_resources(ba-app "ba_voz" PREFIX "/voz" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/voz-argumentos.txt")
@@ -443,7 +468,8 @@ endif()
             RENAME lsp-capturas-LEEME.txt COMPONENT bundle)
     # Los modelos locales que se ofrecen bajar (los actualiza la fabrica al subir).
     qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
-                     FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")
+                     FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json"
+                           "${CMAKE_SOURCE_DIR}/datos/glosario-traduccion.json")
     # El logo, para el icono de la ventana (tools/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
@@ -542,6 +568,15 @@ endif()
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
 
+    # El PTZ: protocolos byte a byte y cada backend contra una camara falsa
+    # (VISCA UDP/TCP, Panasonic HTTP, ONVIF HTTP con WS-Security, WS-Discovery).
+    add_executable(test_ptz tests/test_ptz.cpp ptz/PtzProtocolos.cpp ptz/PtzBackend.cpp ptz/PtzVisca.cpp
+                   ptz/PtzPanasonic.cpp ptz/PtzOnvif.cpp ptz/OnvifBusqueda.cpp ptz/Posiciones.cpp)
+    target_include_directories(test_ptz PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_ptz PRIVATE Qt6::Core Qt6::Network)
+    set_target_properties(test_ptz PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_ptz COMMAND test_ptz)
+
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
         add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp)
@@ -570,13 +605,52 @@ endif()
     add_executable(test_voz_prompter tests/test_voz_prompter.cpp agent/VozPrompterPlan.cpp)
     target_include_directories(test_voz_prompter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_voz_prompter COMMAND test_voz_prompter)
+    # Grabar lo que le llega a la tarjeta de salida (.wav, con partes).
+    add_executable(test_grabador_wav tests/test_grabador_wav.cpp audio/GrabadorWav.cpp)
+    target_include_directories(test_grabador_wav PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    add_test(NAME test_grabador_wav COMMAND test_grabador_wav)
     # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
+    # El catálogo de módulos de GStreamer (con el GStreamer vendoreado).
+    if(BA_HAVE_GST)
+        add_executable(test_catalogo_gst tests/test_catalogo_gst.cpp video/CatalogoGst.cpp)
+        target_include_directories(test_catalogo_gst PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_catalogo_gst PRIVATE ba_core ba::gstreamer)
+        ba_gst_rpath(test_catalogo_gst "")
+        target_compile_definitions(test_catalogo_gst PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+            BA_TEST_GST_DOCS="${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
+        add_test(NAME test_catalogo_gst COMMAND test_catalogo_gst)
+        set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
+    endif()
+    # El grafo de tarjetas de video (video/GrafoVideo), sin GPU.
+    add_executable(test_grafo_video tests/test_grafo_video.cpp video/GrafoVideo.cpp)
+    target_include_directories(test_grafo_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_grafo_video PRIVATE ba_core)
+    add_test(NAME test_grafo_video COMMAND test_grafo_video)
+
+    # La medición de desfase entre dos entradas (datos sintéticos).
+    add_executable(test_sincronia tests/test_sincronia.cpp video/Sincronia.cpp)
+    target_include_directories(test_sincronia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_sincronia PRIVATE ba_core)
+    add_test(NAME test_sincronia COMMAND test_sincronia)
+
+    add_executable(test_diagnostico_video tests/test_diagnostico_video.cpp video/Diagnostico.cpp)
+    target_include_directories(test_diagnostico_video PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_diagnostico_video PRIVATE ba_core)
+    add_test(NAME test_diagnostico_video COMMAND test_diagnostico_video)
+
+    # El escáner de red: la base OUI, la biblioteca de URLs y RTSP (sin red).
+    add_executable(test_red tests/test_red.cpp red/Biblioteca.cpp red/Rtsp.cpp red/Plan.cpp)
+    target_include_directories(test_red PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_red PRIVATE ba_core Qt6::Core)
+    target_compile_definitions(test_red PRIVATE BA_TEST_DATOS="${CMAKE_SOURCE_DIR}/datos")
+    add_test(NAME test_red COMMAND test_red)
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
     set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
-    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp net/HttpsClient.cpp)
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp
+                   net/HttpsClient.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_modelos_locales PRIVATE BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}"
@@ -794,7 +868,7 @@ endif()
     target_link_libraries(test_account_guides PRIVATE ba_core Qt6::Core)
     set_target_properties(test_account_guides PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_account_guides COMMAND test_account_guides)
-    # Vigilancias (alertas) con entradas y reloj falsos.
+    # Disparadores (alertas) con entradas y reloj falsos.
     add_executable(test_alerts tests/test_alerts.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
     target_include_directories(test_alerts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_alerts PRIVATE ba_core Qt6::Core)

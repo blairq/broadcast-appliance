@@ -9,6 +9,7 @@
 // Las dos quedan como fuentes de escena normales (source_update, capturas...).
 // ============================================================================
 
+#include "platform/Paths.hpp"
 #include <QTimer>
 
 #include <algorithm>
@@ -20,6 +21,7 @@
 #endif
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/InputsViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -39,6 +41,28 @@ void McpService::registerInputTools() {
         return !a.contains("layout") ||
                parseLayout(a["layout"], spec.rect.x, spec.rect.y, spec.rect.w, spec.rect.h, err);
     };
+    {
+        Tool t;
+        t.name = "entrada_borrar";
+        t.title = "Borrar una entrada";
+        t.category = "entradas";
+        t.destructive = true;
+        t.description = "Borra la entrada `nombre` (cámara, capturadora, de red, de un plugin): la saca de "
+                        "TODAS las escenas y de "
+                        "la app, con su grafo de video. Para sacarla de una sola escena, source_remove.";
+        t.inputSchema = {
+            {"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            const std::string n = a.value("nombre", std::string());
+            if (rt.engine().sourceTypeId(n).empty())
+                return done(ToolResult::error("no hay una entrada «" + n + "»"));
+            auto* inp = static_cast<InputsViewModel*>(vm.inputs());
+            if (inp == nullptr) return done(ToolResult::error("las entradas no están disponibles"));
+            inp->remove(QString::fromStdString(n));
+            done(ToolResult::ok("Borrada: «" + n + "»."));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "video_input_add";
@@ -94,6 +118,9 @@ void McpService::registerInputTools() {
         t.category = "entradas";
         t.openWorld = true;
         t.description =
+            "SI HAY QUE SINCRONIZARLA con otras (varios streams, varias camaras de red), usá "
+            "video_entrada_red: esa "
+            "tiene colchon y reloj del estudio y se mide con video_sincronia; esta no. "
             "Agrega a una escena una señal por la red: camara IP (rtsp://usuario:clave@ip:554/ruta), RTMP, "
             "SRT "
             "(srt://ip:puerto?mode=caller), HLS/HTTP(S) o UDP/RTP. Con reconexion automatica y latencia baja "
@@ -122,7 +149,7 @@ void McpService::registerInputTools() {
             if (inputs::networkScheme(url).empty())
                 return done(ToolResult::error(
                     "URL no soportada: rtsp, rtsps, rtmp, rtmps, srt, http(s), udp, rtp o tcp."));
-            const std::string ca = (rt.dataRoot() / "data" / "cacert.pem").string();
+            const std::string ca = (ba::platform::bundleRoot() / "data" / "cacert.pem").string();
             SourceSpec spec = inputs::networkSpec(
                 url, a.value("name", "Red " + inputs::redactUrl(url).substr(0, 40)), a, ca);
             std::string err;

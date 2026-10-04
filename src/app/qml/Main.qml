@@ -171,6 +171,10 @@ ApplicationWindow {
         PersonasPage { leftInset: win.insetPagina }
         PublicoPage { leftInset: win.insetPagina }
         MediosPage { leftInset: win.insetPagina }
+        PtzPage { leftInset: win.insetPagina }
+        VideoPage { leftInset: win.insetPagina }
+        PluginsPage { leftInset: win.insetPagina }
+        EquiposPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -198,12 +202,16 @@ ApplicationWindow {
     Component { id: cmpQr;         QrPage {} }
     Component { id: cmpPublico;    PublicoPage {} }
     Component { id: cmpMedios;     MediosPage {} }
+    Component { id: cmpPtz;        PtzPage {} }
+    Component { id: cmpVideo;      VideoPage {} }
+    Component { id: cmpPlugins;    PluginsPage {} }
+    Component { id: cmpEquipos;    EquiposPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios][i] || null
+                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos][i] || null
     }
 
     ListModel { id: sueltas }
@@ -219,12 +227,16 @@ ApplicationWindow {
     // El control del carrusel afuera: en vivo se maneja con una mano mientras
     // la principal tiene las escenas. Es la misma tarjeta del dashboard.
     Component { id: cmpPanelCarrusel;  CarruselContent {} }
+    // El PTZ de una cámara afuera, con su imagen para apuntar con el mouse.
+    // Uno por cámara: el id es «ptz:<entrada>».
+    Component { id: cmpPanelPtz;       PtzContent {} }
 
     function componenteDePanel(id) {
         return id === "padron" ? cmpPanelPadron
              : id === "preguntas" ? cmpPanelPreguntas
              : id === "votacion" ? cmpPanelVotacion
-             : id === "carrusel" ? cmpPanelCarrusel : null
+             : id === "carrusel" ? cmpPanelCarrusel
+             : id.startsWith("ptz:") ? cmpPanelPtz : null
     }
 
     function sacarPanel(id, titulo) {

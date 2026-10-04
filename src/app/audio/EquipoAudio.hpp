@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <functional>
 #include <QMediaDevices>
 #include <QObject>
 #include <QVariantList>
@@ -45,6 +46,12 @@ struct Ring;
 
 /// Registra el tipo de fuente de las entradas físicas (al arrancar libobs).
 void registrarEntradaFisica();
+/// Los dispositivos de entrada que ya son (o van a ser) una entrada de audio
+/// de la app aunque su fuente todavía no exista: con el audio del sistema
+/// trabado, la entrada del micrófono tarda en abrirse, y mientras tanto la
+/// placa tomaba el MISMO nombre («Micrófono de MacBook Pro») y libobs
+/// renombraba la de la app a «… 2». Lo da el motor (sus entradas pendientes).
+void setDispositivosReservados(std::function<std::set<std::string>()> f);
 
 class EquipoAudio : public QObject {
     Q_OBJECT
@@ -76,6 +83,8 @@ class EquipoAudio : public QObject {
     QVariantList dispositivos() const;
 
     nlohmann::json guardado() const;
+    /// CoreAudio contestó (en otro hilo) cuántos canales tiene un dispositivo.
+    void canalesSabidos();
     void cargar(const nlohmann::json& j);
 
    signals:

@@ -16,6 +16,7 @@
 
 #include "diag/DiarioDeArranque.hpp"
 #include "OperatorEngine.hpp"
+#include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
 #include "Registrar.hpp"
 #include "security/CredentialStore.hpp"
@@ -136,6 +137,10 @@ int dispatch(int argc, char** argv) {
 #endif
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
     ba::platform::redirectUserDirs();
+    // ffmpeg, ffprobe, yt-dlp, deno y gst-launch del bundle, primeros en el
+    // PATH: los heredan los plugins, la terminal y el asistente (nadie baja
+    // nada). Datos/Herramientas, si existe, va antes (un yt-dlp más nuevo).
+    ba::platform::prepararHerramientas(ba::platform::dataRoot() / "Herramientas");
     // El registro, ANTES que nada: lo primero que puede fallar es el arranque,
     // y si el registro se abre despues, eso no queda escrito en ningun lado.
     ba::app::registrarTodo(ba::platform::dataRoot());

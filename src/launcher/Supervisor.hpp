@@ -43,6 +43,7 @@ class Supervisor {
     /// Configuracion del supervisor.
     struct Config {
         std::filesystem::path root;           // raiz del bundle (ba::platform::bundleRoot)
+        std::filesystem::path dataRoot;       // raiz de los datos (ba::platform::dataRoot; vacia = root)
         std::filesystem::path appExe;         // bin/64bit/ba-app(.exe)
         std::filesystem::path gatewayExe;     // bin/64bit/ba-gateway(.exe)
         std::filesystem::path logsDir;        // Logs/ (dumps y salida de A y B)
@@ -108,6 +109,7 @@ class Supervisor {
     // periodo de gracia de arranque no se evalua el heartbeat (libobs tarda en
     // cargar modulos y el proceso todavia no late).
     std::uint64_t launchedAtMs_[2] = {0, 0};
+    std::uint64_t latidoAlLanzar_[2] = {0, 0}; ///< el latido que había al lanzarlo (para saber si ya latió)
     bool inStartupGrace(bool isA) const;
 
     // Politica de reinicio (spec 3.1.8).

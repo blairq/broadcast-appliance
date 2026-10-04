@@ -61,11 +61,30 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE QString addModule(const QString& moduleOrId, const QString& after = {});
     Q_INVOKABLE QString addAnalyzer();
     Q_INVOKABLE QString addGenerator();
+    /// Tarjeta ENTRADA: trae el audio de otra fuente a este grafo.
+    Q_INVOKABLE QString addEntrada(const QString& fuente);
+    Q_INVOKABLE QString setEntradaFuente(const QString& node, const QString& fuente);
+    /// Tarjeta TEXTO A VOZ (dice una salida de texto o lo que se le pide).
+    Q_INVOKABLE QString addHabla();
+    /// {flujo?, voz?, hablante?, velocidad?}
+    Q_INVOKABLE QString setHablaOpciones(const QString& node, const QVariantMap& cambios);
+    /// Tarjeta TRADUCIR: traduce una salida de texto a otro idioma (la usa
+    /// Studio.traductor; se ajusta con Studio.traductor.ajustarUi(«<fuente>#<nodo>»)).
+    Q_INVOKABLE QString addTraduccion();
+    /// Grabar todo lo que le llega a la tarjeta de salida (.wav).
+    Q_INVOKABLE QString setGrabar(bool grabar);
+    /// {grabar, grabando, archivo, segundos, bytes, conCable, carpeta}.
+    Q_INVOKABLE QVariantMap grabacion() const;
     /// Agrega (o reapunta) la salida de audio de esta fuente: una tarjeta mas
     /// en el grafo, con el nombre del dispositivo elegido.
     Q_INVOKABLE QString addOutput(const QString& device);
     /// Nodo de voz a texto en esta fuente ("dictado" o "continuo"; si ya hay, cambia el modo).
+    /// Agrega OTRA voz a texto (cada una con su salida de texto con nombre).
     Q_INVOKABLE QString addTexto(const QString& modo);
+    /// Cambia una voz a texto: {modo?, flujo?, salidas?: {archivo, rotulo}}.
+    Q_INVOKABLE QString setTextoOpciones(const QString& node, const QVariantMap& cambios);
+    /// Las fuentes de texto (para subtítulos en un rótulo).
+    Q_INVOKABLE QStringList fuentesDeTexto() const;
     /// El catálogo de filtros LSP por familia (datos/lsp-catalogo.json, en
     /// castellano) con sus variantes reales: [{clave, nombre, categoria,
     /// ilustracion, vivo, esFiltro, descripcion, usoVivo, etiquetas,

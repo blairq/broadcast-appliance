@@ -16,6 +16,8 @@
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
 
+#include <obs.h>
+
 namespace ba::app::audio {
 
 using json = nlohmann::json;
@@ -190,10 +192,42 @@ void AudioViewModel::rebuildDetail() {
             rep["bandas"] = bands;
             j["analisis"] = rep;
         }
-        if (r->kindOf(id) == "texto") {
-            j["modo"] = r->textoModo();
+        if (r->kindOf(id) == "entrada") {
+            for (const auto& n : r->describe()["nodos"])
+                if (n["id"] == id) j["fuente"] = n.value("fuente", "");
             j["ayuda"] =
-                r->textoModo() == "continuo"
+                "Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
+                "sola: cableala a donde la quieras (la mezcla, el sidechain de un compresor, la voz a "
+                "texto). Si la fuente es una entrada de placa, su captura se abre sola.";
+        }
+        if (r->kindOf(id) == "habla") {
+            for (const auto& h : r->hablas())
+                if (h.value("id", "") == id) j["habla"] = h;
+            j["ayuda"] =
+                "Dice con la voz elegida lo que llega por una salida de texto (o lo que escribas abajo). "
+                "Suena por su puerto: cableala a la mezcla, a la salida de audio o a otra voz a texto. "
+                "Ponela en una fuente que siempre tenga audio (una entrada virtual, un micrófono): el "
+                "rack procesa mientras su fuente suena.";
+        }
+        if (r->kindOf(id) == "traducir") {
+            j["traduccion_id"] = source_.toStdString() + "#" + id;
+            j["ayuda"] = "Traduce lo que publica una salida de texto (la de una «Voz a texto») y lo publica "
+                         "en otra, en otro "
+                         "idioma: esa se usa como cualquiera (subtítulos, archivo, una tarjeta «Texto a voz» "
+                         "con una voz del "
+                         "idioma). No lleva cables: no toca el audio.";
+        }
+        if (r->kindOf(id) == "texto") {
+            std::string modo = "dictado";
+            for (const auto& t : r->textos())
+                if (t.id == id) {
+                    modo = t.modo;
+                    j["flujo"] = t.flujo;
+                    j["salidas"] = t.salidas.is_object() ? t.salidas : json::object();
+                }
+            j["modo"] = modo;
+            j["ayuda"] =
+                modo == "continuo"
                     ? "Transcribe sin parar lo que le llega (subtítulos, acta): frase por frase, 1 a 3 s "
                       "después. El texto se ve abajo y por MCP (voz_transcripcion). No toca lo que sale al "
                       "aire."
@@ -250,12 +284,36 @@ QString AudioViewModel::addModule(const QString& moduleOrId, const QString& afte
 
 QString AudioViewModel::addTexto(const QString& modo) {
     if (rack(true) == nullptr) return "Elegí una fuente con audio.";
-    const std::string e = mgr_.setTexto(source_.toStdString(), modo.toStdString());
-    if (!e.empty()) return QString::fromStdString(e);
-    select("voz-a-texto");
+    std::string e;
+    const std::string id = mgr_.addTexto(source_.toStdString(), modo.toStdString(), {}, &e);
+    if (id.empty()) return QString::fromStdString(e);
+    select(QString::fromStdString(id));
     rebuildGraph();
     rebuildDetail();
     return {};
+}
+
+QString AudioViewModel::setTextoOpciones(const QString& node, const QVariantMap& cambios) {
+    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(),
+                               nullptr, false);
+    const std::string e = mgr_.setTextoOpciones(source_.toStdString(), node.toStdString(), c);
+    rebuildGraph();
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QStringList AudioViewModel::fuentesDeTexto() const {
+    QStringList out;
+    obs_enum_sources(
+        [](void* p, obs_source_t* s) {
+            const char* id = obs_source_get_unversioned_id(s);
+            if (id != nullptr && std::string(id).rfind("text_", 0) == 0)
+                static_cast<QStringList*>(p)->append(QString::fromUtf8(obs_source_get_name(s)));
+            return true;
+        },
+        &out);
+    out.sort();
+    return out;
 }
 
 QString AudioViewModel::addAnalyzer() {
@@ -267,6 +325,78 @@ QString AudioViewModel::addAnalyzer() {
     select(QString::fromStdString(id));
     rebuildGraph();
     return {};
+}
+
+QString AudioViewModel::addEntrada(const QString& fuente) {
+    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    std::string e;
+    const std::string id = mgr_.addEntrada(source_.toStdString(), fuente.toStdString(), &e);
+    if (id.empty()) return QString::fromStdString(e);
+    autoLayout();
+    select(QString::fromStdString(id));
+    rebuildGraph();
+    rebuildDetail();
+    return {};
+}
+
+QString AudioViewModel::setEntradaFuente(const QString& node, const QString& fuente) {
+    const std::string e =
+        mgr_.setEntradaFuente(source_.toStdString(), node.toStdString(), fuente.toStdString());
+    rebuildGraph();
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::addHabla() {
+    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    std::string e;
+    const std::string id = mgr_.addHabla(source_.toStdString(), json::object(), &e);
+    if (id.empty()) return QString::fromStdString(e);
+    autoLayout();
+    select(QString::fromStdString(id));
+    rebuildGraph();
+    rebuildDetail();
+    return {};
+}
+
+QString AudioViewModel::addTraduccion() {
+    if (source_.isEmpty()) return "Elegí una fuente con audio.";
+    // Si este rack tiene una voz a texto, traduce lo que ella publica.
+    std::string desde;
+    for (const auto& t : mgr_.textos())
+        if (t.value("fuente", std::string()) == source_.toStdString()) {
+            desde = t.value("flujo", std::string());
+            break;
+        }
+    std::string e;
+    const std::string id =
+        mgr_.addTraduccion({{"fuente", source_.toStdString()}, {"desde", desde}, {"a", "en"}}, &e);
+    if (id.empty()) return QString::fromStdString(e);
+    autoLayout();
+    select(QString::fromStdString(id.substr(id.rfind('#') + 1)));
+    rebuildGraph();
+    rebuildDetail();
+    return {};
+}
+
+QString AudioViewModel::setHablaOpciones(const QString& node, const QVariantMap& cambios) {
+    const json c = json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(),
+                               nullptr, false);
+    const std::string e = mgr_.setHablaOpciones(source_.toStdString(), node.toStdString(), c);
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QString AudioViewModel::setGrabar(bool grabar) {
+    const std::string e = mgr_.setGrabar(source_.toStdString(), grabar);
+    rebuildDetail();
+    return QString::fromStdString(e);
+}
+
+QVariantMap AudioViewModel::grabacion() const {
+    QVariantMap m = toVariant(mgr_.grabacion(source_.toStdString())).toMap();
+    m["carpeta"] = QString::fromStdString(mgr_.carpetaGrabaciones().string());
+    return m;
 }
 
 QString AudioViewModel::addGenerator() {

@@ -54,6 +54,9 @@ class OperatorMessages : public QObject {
     /// options[], allowText, ttlSec, participantId, participantName, to,
     /// guestText, suggestions[].
     int post(const json& spec);
+    /// Cambia título, texto, plataforma y campos de un aviso que sigue abierto
+    /// (p. ej. sumarle cámaras a un formulario de claves). false si ya se cerró.
+    bool revise(int id, const json& spec);
     json get(int id) const;
     json list(bool includeClosed) const;
     /// `cb` recibe el item cuando se contesta/cierra, o {} al vencer.

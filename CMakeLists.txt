@@ -236,7 +236,11 @@ if(BA_WIN_STATIC_PART)
     return()
 endif()
 
+include(${CMAKE_SOURCE_DIR}/cmake/BaOnnxRuntime.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/BaGStreamer.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/BaPython.cmake)
+include(${CMAKE_SOURCE_DIR}/cmake/BaHerramientas.cmake)
 
 # macOS 26 (Xcode 26) ya no trae AGL.framework, pero el FindWrapOpenGL de Qt
 # 6.6 lo enlaza igual ("framework 'AGL' not found"). Qt lo busca en la cache
@@ -265,6 +269,10 @@ endif()
 add_subdirectory(src/app)
 add_subdirectory(src/grafico)
 add_subdirectory(src/obs-module)
+# Plugins de GStreamer propios (superresolución): solo si hay GStreamer.
+if(BA_HAVE_GST)
+    add_subdirectory(src/gst-plugins)
+endif()
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
 # El layout espeja el portable de OBS (spec §5.1). Las rutas de destino son

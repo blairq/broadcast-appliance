@@ -282,8 +282,8 @@ Item {
                                "el archivo y la línea."
                     }
                 }
-                Binding { target: content.item; property: "cardId"; value: card.cardId; when: content.status === Loader.Ready && card.kind === "monitor" }
-                Binding { target: content.item; property: "source"; value: card.source; when: content.status === Loader.Ready && card.kind === "monitor" }
+                Binding { target: content.item; property: "cardId"; value: card.cardId; when: content.status === Loader.Ready && (card.kind === "monitor" || card.kind === "ptz") }
+                Binding { target: content.item; property: "source"; value: card.source; when: content.status === Loader.Ready && (card.kind === "monitor" || card.kind === "ptz") }
             }
         }
     }

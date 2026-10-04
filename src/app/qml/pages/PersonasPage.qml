@@ -47,7 +47,7 @@ Rectangle {
         onTriggered: page.mirar()
     }
     Component.onCompleted: page.pv.refrescar()
-    Connections { target: page.pv; function onNotify(t, k) { ApplicationWindow.window.toast(t, k) } }
+    Connections { target: page.pv; function onNotify(t, k) { Studio.notify(t, k) } }
 
     ColumnLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 18 }

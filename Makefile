@@ -205,6 +205,8 @@ lint:
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
 # obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
 release:
+	@# Desde cero: lo que se instaló antes y ya no va (de una receta vieja) no queda.
+	rm -rf release
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@# Linux: el bundle no puede depender de bibliotecas de terceros del sistema.
 	@if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release; fi
@@ -235,7 +237,8 @@ deps-webrtc-win:
 # para los headers), libwebrtc de Windows y las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win
+          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -303,7 +306,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
 # fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
 deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -337,7 +340,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con obs-deps.
 deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx
+            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -991,6 +994,14 @@ ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER
 deps-sherpa-onnx: deps-rostros
 	tools/deps/sherpa-onnx.sh
 
+# Windows: el ONNX Runtime oficial con DirectML (tools/deps/onnxruntime-win.sh)
+# y sherpa-onnx compilado con clang-cl contra él, cada uno en su carpeta.
+.PHONY: deps-onnxruntime-win deps-sherpa-onnx-win
+deps-onnxruntime-win:
+	tools/deps/onnxruntime-win.sh "$(DL_DIR)"
+deps-sherpa-onnx-win: deps-onnxruntime-win deps-win-toolchain
+	tools/deps/sherpa-onnx.sh win
+
 deps-rostros:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)/rostros/modelos"
@@ -1394,3 +1405,99 @@ clean:
 
 clean-all:
 	rm -rf $(BUILD_DIR) release docs/_build
+
+# --- GStreamer (macOS) ---------------------------------------------------------
+# El GStreamer.framework oficial (relocalizable), desarmado sin instalarlo:
+# tools/deps/gstreamer-macos.sh. Versión y sha256 fijados (los .sha256sum que
+# publica gstreamer.freedesktop.org).
+GST_VER := 1.28.7
+GST_URL := https://origin.gstreamer.freedesktop.org/data/pkg/osx/$(GST_VER)
+GST_RT := gstreamer-1.0-$(GST_VER)-universal.pkg
+GST_RT_SHA := 529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994
+GST_DEV := gstreamer-1.0-devel-$(GST_VER)-universal.pkg
+GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
+# --- Python de los plugins (docs/PLUGINS.md) -----------------------------------
+# CPython relocalizable de python-build-standalone: va adentro del programa
+# (Resources/python). Versión y sha256 fijados (el digest que publica GitHub).
+PY_REL := 20261001
+PY_VER := 3.12.15
+PY_URL := https://github.com/astral-sh/python-build-standalone/releases/download/$(PY_REL)
+PY_TGZ_macos-arm64 := cpython-$(PY_VER)+$(PY_REL)-aarch64-apple-darwin-install_only_stripped.tar.gz
+PY_SHA_macos-arm64 := 10cab8f6ed6202fdd81637aa6eda4af8d5b7eaa8fc42f9df3c6bea4923de0d93
+PY_TGZ_linux-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
+PY_SHA_linux-x64 := 7bb1659e3235077b7f63d5b6eb6ce653c6fcd6c5041e9d5f73b42ce10421464d
+PY_TGZ_win-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
+PY_SHA_win-x64 := 52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986aaa
+
+# El del sistema que compila (macOS o Linux) en extern/python; el de Windows,
+# en extern/python-win (sus bibliotecas se bajan con el pip del de Linux).
+.PHONY: deps-python deps-python-win
+deps-python:
+	@if [ -x "$(EXTERNS_DIR)/python/bin/python3" ] && [ "$$($(EXTERNS_DIR)/python/bin/python3 -c 'import platform; print(platform.python_version())')" = "$(PY_VER)" ] && \
+	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt' 2>/dev/null; then \
+		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_$(HERR_PLAT)))" SHA="$(PY_SHA_$(HERR_PLAT))" QUE="Python" && \
+	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" "$(EXTERNS_DIR)/python" $(HERR_PLAT)
+deps-python-win: deps-python
+	@if [ -f "$(EXTERNS_DIR)/python-win/python.exe" ] && [ -d "$(EXTERNS_DIR)/python-win/Lib/site-packages/ctranslate2" ] && \
+	    grep -q "$(PY_VER)" "$(EXTERNS_DIR)/python-win/.version" 2>/dev/null; then \
+		echo "Python de Windows ya está ($(EXTERNS_DIR)/python-win)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_win-x64)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_win-x64))" SHA="$(PY_SHA_win-x64)" QUE="Python (Windows)" && \
+	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ_win-x64)" "$(EXTERNS_DIR)/python-win" win-x64 "$(EXTERNS_DIR)/python/bin/python3"
+
+# --- Herramientas de medios (ffmpeg, ffprobe, yt-dlp, deno) --------------------
+# Adentro del programa (herramientas/): para arreglar o bajar un video sin
+# bajar nada en el momento. Versiones y sha256 fijados en el script.
+# HERR_PLAT: macos-arm64 | linux-x64 | linux-arm64 | win-x64 (por defecto, el host).
+HERR_HOST := $(shell uname -s)-$(shell uname -m)
+HERR_PLAT ?= $(if $(filter Darwin-arm64,$(HERR_HOST)),macos-arm64,$(if $(filter Linux-x86_64,$(HERR_HOST)),linux-x64,$(if $(filter Linux-aarch64,$(HERR_HOST)),linux-arm64,win-x64)))
+
+.PHONY: deps-herramientas
+deps-herramientas:
+	@if [ -f "$(EXTERNS_DIR)/herramientas/$(HERR_PLAT)/LICENCIAS.txt" ] && grep -q "yt-dlp 2026.08.19" "$(EXTERNS_DIR)/herramientas/$(HERR_PLAT)/LICENCIAS.txt"; then \
+		echo "Herramientas ya están ($(EXTERNS_DIR)/herramientas/$(HERR_PLAT))"; exit 0; fi; \
+	bash tools/deps/herramientas.sh "$(HERR_PLAT)" "$(DL_DIR)" "$(EXTERNS_DIR)/herramientas/$(HERR_PLAT)"
+
+.PHONY: deps-herramientas-win
+deps-herramientas-win:
+	@$(MAKE) --no-print-directory deps-herramientas HERR_PLAT=win-x64
+
+# GStreamer de Linux: desde fuente, la misma versión (tools/deps/gstreamer-linux.sh).
+.PHONY: deps-gstreamer-linux
+deps-gstreamer-linux: deps-obs-linux
+	bash tools/deps/gstreamer-linux.sh $(JOBS)
+
+# GStreamer de Windows: el oficial de MSVC, desarmado (tools/deps/gstreamer-win.sh).
+GST_WIN_VER := 1.26.11
+GST_WIN_URL := https://origin.gstreamer.freedesktop.org/data/pkg/windows/$(GST_WIN_VER)/msvc
+GST_WIN_RT := gstreamer-1.0-msvc-x86_64-$(GST_WIN_VER).msi
+GST_WIN_RT_SHA := 31cbc21fa0950b5c1e79c80959b2799805cb05a7a35953a13a9f790776137605
+GST_WIN_DEV := gstreamer-1.0-devel-msvc-x86_64-$(GST_WIN_VER).msi
+GST_WIN_DEV_SHA := af0a0720692052aaf5fb0cf2847ef34a87016ef0f914328d516f049e6c86f587
+.PHONY: deps-gstreamer-win
+deps-gstreamer-win: deps-obs deps-qt
+	@if [ "$$(cat $(EXTERNS_DIR)/gstreamer-win/.version 2>/dev/null)" = "$(GST_WIN_VER) msvc_x86_64 r4" ]; then \
+		echo "GStreamer de Windows ya está ($(EXTERNS_DIR)/gstreamer-win)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_RT)" URL="$(GST_WIN_URL)/$(GST_WIN_RT)" SHA="$(GST_WIN_RT_SHA)" QUE="GStreamer (Windows)" && \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_DEV)" URL="$(GST_WIN_URL)/$(GST_WIN_DEV)" SHA="$(GST_WIN_DEV_SHA)" QUE="GStreamer (Windows, cabeceras)" && \
+	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win" \
+		"$(EXTERNS_DIR)/obs-studio/bin/64bit" "$(EXTERNS_DIR)/qt6/6.6.3/msvc2019_64/bin"
+
+# Los bindings de Python de GStreamer para el Python 3.12 del bundle (macOS).
+.PHONY: deps-gst-python-mac
+deps-gst-python-mac: deps-gstreamer-macos deps-python
+	bash tools/deps/gst-python-mac.sh "$(DL_DIR)"
+
+# Los bindings de Python de GStreamer para el Python 3.12 de Windows (clang-cl, meson bajo Wine).
+.PHONY: deps-gst-python-win
+deps-gst-python-win: deps-gstreamer-win deps-python-win deps-win-toolchain
+	bash tools/ci/test-win.sh --solo-wine
+	bash tools/deps/gst-python-win.sh "$(DL_DIR)"
+
+.PHONY: deps-gstreamer-macos
+deps-gstreamer-macos:
+	@if [ -f "$(EXTERNS_DIR)/gstreamer-macos/GStreamer.framework/Versions/1.0/lib/libgstreamer-1.0.dylib" ]; then \
+		echo "GStreamer ya está ($(EXTERNS_DIR)/gstreamer-macos)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_RT)" URL="$(GST_URL)/$(GST_RT)" SHA="$(GST_RT_SHA)" QUE="GStreamer" && \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_DEV)" URL="$(GST_URL)/$(GST_DEV)" SHA="$(GST_DEV_SHA)" QUE="GStreamer (cabeceras)" && \
+	bash tools/deps/gstreamer-macos.sh "$(DL_DIR)/$(GST_RT)" "$(DL_DIR)/$(GST_DEV)" "$(EXTERNS_DIR)/gstreamer-macos"

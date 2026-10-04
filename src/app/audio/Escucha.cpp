@@ -31,6 +31,8 @@ struct Escucha::Corriente {
     std::optional<so::LinearResampler> rs;
     std::uint32_t frecuencia = 0;
     std::vector<float> resto; // muestras a 16 kHz que no completan una ventana del VAD
+    int version = -1;         // de los cortes con que se armó el VAD
+    std::size_t hablado = 0;  // muestras de la frase en curso (para el indicador)
 };
 
 Escucha::Escucha() : hilo_([this]() { bucle(); }) {}
@@ -164,6 +166,24 @@ void Escucha::setFrase(Frase f) {
     frase_ = std::move(f);
 }
 
+void Escucha::setCortes(const Cortes& c) {
+    std::lock_guard<std::mutex> l(contLock_);
+    cortes_.pausa = std::clamp(c.pausa, 0.1, 3.0);
+    cortes_.maximo = std::clamp(c.maximo, 2.0, 30.0);
+    cortes_.umbral = std::clamp(c.umbral, 0.1, 0.95);
+    ++versionCortes_;
+}
+
+Escucha::Cortes Escucha::cortes() const {
+    std::lock_guard<std::mutex> l(contLock_);
+    return cortes_;
+}
+
+std::map<std::string, Escucha::Oido> Escucha::oido() const {
+    std::lock_guard<std::mutex> l(contLock_);
+    return oido_;
+}
+
 void Escucha::abrirContinuo(const std::string& clave) {
     std::lock_guard<std::mutex> l(contLock_);
     pendientes_[clave].abierta = true;
@@ -190,6 +210,8 @@ void Escucha::alimentarContinuo(const std::string& clave, const float* muestras,
 void Escucha::atenderCorrientes() {
     std::map<std::string, Pendiente> lote;
     Frase frase;
+    Cortes cortes;
+    int version = 0;
     std::string vadModelo;
     {
         std::lock_guard<std::mutex> l(contLock_);
@@ -208,18 +230,29 @@ void Escucha::atenderCorrientes() {
         }
         frase = frase_;
         vadModelo = vadModelo_;
+        cortes = cortes_;
+        version = versionCortes_;
+        for (auto it = oido_.begin(); it != oido_.end();)
+            it = pendientes_.count(it->first) ? std::next(it) : oido_.erase(it);
     }
     if (lote.empty() || !cargado_ || !motor_ || vadModelo.empty()) return;
     for (auto& [clave, p] : lote) {
         auto& c = corrientes_[clave];
-        if (!c) {
-            c = std::make_unique<Corriente>();
+        if (!c) c = std::make_unique<Corriente>();
+        if (c->version != version) {
+            // Cortes nuevos (o la primera vez): el VAD se arma con ellos. Al
+            // pasar `max_speech_duration`, sherpa-onnx sube el umbral y corta en
+            // la próxima caída de la voz: una pausa corta, no a mitad de palabra.
             so::VadModelConfig v;
             v.silero_vad.model = vadModelo;
-            v.silero_vad.min_silence_duration = 0.5f;
-            v.silero_vad.max_speech_duration = 15.0f; // una frase larga se corta igual
+            v.silero_vad.min_silence_duration = static_cast<float>(cortes.pausa);
+            v.silero_vad.max_speech_duration = static_cast<float>(cortes.maximo);
+            v.silero_vad.threshold = static_cast<float>(cortes.umbral);
             v.sample_rate = kFrecuenciaModelo;
+            c->vad.reset();
             c->vad.emplace(so::VoiceActivityDetector::Create(v, 30.0f));
+            c->version = version;
+            c->hablado = 0;
             if (!c->vad->Get()) continue;
         }
         if (c->frecuencia != p.frecuencia) {
@@ -236,8 +269,14 @@ void Escucha::atenderCorrientes() {
         c->resto.insert(c->resto.end(), a16.begin(), a16.end());
         const std::size_t w = 512;
         std::size_t usado = 0;
-        for (; usado + w <= c->resto.size(); usado += w)
+        for (; usado + w <= c->resto.size(); usado += w) {
             c->vad->AcceptWaveform(c->resto.data() + usado, w);
+            c->hablado = c->vad->IsDetected() ? c->hablado + w : 0;
+        }
+        {
+            std::lock_guard<std::mutex> l(contLock_);
+            oido_[clave] = Oido{c->vad->IsDetected(), static_cast<double>(c->hablado) / kFrecuenciaModelo};
+        }
         c->resto.erase(c->resto.begin(), c->resto.begin() + static_cast<std::ptrdiff_t>(usado));
         while (!c->vad->IsEmpty()) {
             const so::SpeechSegment seg = c->vad->Front();

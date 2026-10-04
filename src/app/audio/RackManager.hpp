@@ -23,6 +23,8 @@
 #include <QObject>
 #include <QTimer>
 
+#include <set>
+
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -69,15 +71,30 @@ class RackManager : public QObject {
     json auriculares() const { return json{{"id", monitorId_}, {"nombre", monitorName_}}; }
 
     // --- Voz a texto ----------------------------------------------------------
-    /// Pone (o cambia de modo) el nodo de voz a texto en el rack de `source`,
-    /// montando el rack si no tiene. `modo`: "dictado" o "continuo".
+    /// Pone (o cambia de modo) la voz a texto en el rack de `source`, montando
+    /// el rack si no tiene: si ya tiene una, le cambia el modo a la primera.
+    /// `modo`: "dictado" o "continuo".
     std::string setTexto(const std::string& source, const std::string& modo);
-    /// Las fuentes con nodo de voz a texto: [{fuente, modo}].
+    /// Agrega OTRA voz a texto al rack de `source` con la salida de texto
+    /// `flujo` ("" = el nombre de la fuente, o «<fuente> 2»...). Devuelve el
+    /// id del nodo o "" con el error.
+    std::string addTexto(const std::string& source, const std::string& modo, const std::string& flujo,
+                         std::string* error);
+    /// Cambia una voz a texto: {modo?, flujo?, salidas?: {archivo, rotulo}}.
+    std::string setTextoOpciones(const std::string& source, const std::string& nodo, const json& cambios);
+    /// Quita TODAS las voces a texto del rack de `source`.
+    void quitarTextos(const std::string& source);
+    /// Las salidas de texto (las voces a texto de todos los racks):
+    /// [{flujo, fuente, nodo, modo, salidas}].
+    json textos() const;
+    /// La de ese nombre (null si no hay).
+    json textoDe(const std::string& flujo) const;
+    /// Las fuentes con voz a texto: [{fuente, modo, flujo}] (compatibilidad).
     json fuentesConTexto() const;
-    /// A dónde va el audio de esos nodos: (fuente, modo 1=dictado 2=continuo,
+    /// A dónde va el audio de esos nodos: (flujo, modo 1=dictado 2=continuo,
     /// mono, frames, frecuencia). Se llama EN EL HILO DE AUDIO de OBS: tiene
     /// que copiar y volver. Una sola para toda la app (la Voz).
-    using TextoSink = std::function<void(const std::string& fuente, int modo, const float* mono, uint32_t n,
+    using TextoSink = std::function<void(const std::string& flujo, int modo, const float* mono, uint32_t n,
                                          uint32_t frecuencia)>;
     static void setTextoSink(TextoSink sink);
     // --- Plantillas -----------------------------------------------------------
@@ -103,6 +120,50 @@ class RackManager : public QObject {
     /// solas las fuentes nuevas de ese tipo de libobs.
     std::string plantillaPorDefecto(const std::string& nombre, const std::string& tipo);
 
+    /// Tarjeta ENTRADA en el rack de `source`: trae el audio de `fuente`
+    /// (después de su propio rack). Devuelve el id del nodo o "" con el error.
+    std::string addEntrada(const std::string& source, const std::string& fuente, std::string* error);
+    /// Cambia de qué fuente trae el audio una tarjeta de entrada.
+    std::string setEntradaFuente(const std::string& source, const std::string& nodo,
+                                 const std::string& fuente);
+    /// "" si el rack de `source` puede traer el audio de `fuente`; si no, por
+    /// qué (no existe, es ella misma, o haría un lazo entre racks).
+    std::string validarEntrada(const std::string& source, const std::string& fuente) const;
+    /// Las fuentes de las que algún rack trae audio (la Matriz abre las
+    /// entradas de placa que se usen así).
+    std::set<std::string> fuentesDeEntradas() const;
+
+    // --- Texto a voz (tarjeta «habla») ------------------------------------------
+    /// Agrega una tarjeta TEXTO A VOZ al rack de `source`. Opciones: {flujo,
+    /// voz, hablante, velocidad}. Devuelve el id o "" con el error.
+    std::string addHabla(const std::string& source, const json& opciones, std::string* error);
+    std::string setHablaOpciones(const std::string& source, const std::string& nodo, const json& cambios);
+    /// Todas: [{fuente, nodo, flujo, voz, hablante, velocidad}].
+    json hablas() const;
+    /// El anillo por el que suena esa tarjeta (nulo si no existe).
+    std::shared_ptr<anillo::Ring> anilloHabla(const std::string& source, const std::string& nodo) const;
+
+    // --- Traducir (tarjeta «traducir», la usa agent/Traductor) -------------------
+    /// Agrega una tarjeta TRADUCIR. `t`: {fuente?, desde, idioma_desde, a, nombre,
+    /// rotulo, archivo, activa, espera_ms}. Sin `fuente` va al rack de la voz a
+    /// texto que publica `desde` (o de la traducción que lo publica). Devuelve el
+    /// id «<fuente>#<nodo>» o "" con el error.
+    std::string addTraduccion(const json& t, std::string* error);
+    /// `id`: «<fuente>#<nodo>».
+    std::string setTraduccionOpciones(const std::string& id, const json& cambios);
+    std::string quitarTraduccion(const std::string& id);
+    /// Todas: [{id, fuente, nodo, desde, idioma_desde, a, nombre, rotulo, archivo, activa, espera_ms}].
+    json traducciones() const;
+
+    // --- Grabar lo que le llega a la tarjeta de salida -------------------------
+    /// Prende o apaga la grabación de la tarjeta «Salida de audio» de `source`
+    /// (Recordings/Audio/<fuente>-<fecha>.wav). "" o el error.
+    std::string setGrabar(const std::string& source, bool grabar);
+    /// {grabando, archivo, segundos, bytes, conCable} de la tarjeta de salida.
+    json grabacion(const std::string& source) const;
+    /// Carpeta de las grabaciones de audio.
+    std::filesystem::path carpetaGrabaciones() const { return root_ / "Recordings" / "Audio"; }
+
     /// Algo cambio en un rack: se guarda en un momento.
     void markDirty();
     /// Guarda ya (tambien al salir).
@@ -126,6 +187,8 @@ class RackManager : public QObject {
 
    signals:
     void changed();
+    /// Cambió algo de algún rack (cada markDirty: también al quitar una tarjeta a mano).
+    void editado();
 
    private:
     std::filesystem::path root_;
@@ -148,6 +211,25 @@ class RackManager : public QObject {
     std::string monitorId_;   // "" = sin escucha aparte
     std::string monitorName_; // el nombre que espera libobs junto al id
     json pending_;            // racks guardados de fuentes que todavia no existen
+
+    /// La toma de audio de una tarjeta de entrada: el callback de captura de
+    /// la fuente de origen empuja a su anillo; el rack lo saca.
+    struct Toma;
+    std::map<std::string, std::unique_ptr<Toma>> tomas_;                ///< "<rack>\n<nodo>"
+    std::map<std::string, std::shared_ptr<anillo::Ring>> anillosHabla_; ///< "<rack>\n<nodo>"
+    /// Pone y saca las tomas según las tarjetas de entrada de todos los racks.
+    void sincronizarEntradas();
+    /// Monta los racks guardados cuya fuente apareció después (invitados que
+    /// llegan, entradas virtuales y de placa que se crean tarde).
+    void montarPendientes();
+    /// Cada voz a texto con un nombre de salida, único en todo el sistema
+    /// (los racks viejos no tenían: toman el de su fuente).
+    void normalizarFlujos();
+    /// Arranca o para los grabadores según la marca de cada tarjeta de salida.
+    void sincronizarGrabaciones();
+    bool flujoLibre(const std::string& flujo, const std::string& salvoRack,
+                    const std::string& salvoNodo) const;
+    QTimer revision_;
 };
 
 } // namespace ba::app::audio

@@ -24,6 +24,8 @@ class VideoItem : public QQuickItem {
     Q_PROPERTY(QString source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(FillMode fillMode READ fillMode WRITE setFillMode NOTIFY fillModeChanged)
     Q_PROPERTY(bool hasFrame READ hasFrame NOTIFY hasFrameChanged)
+    /// El tamaño del cuadro (para ubicar el mouse sobre la imagen con Fit).
+    Q_PROPERTY(QSize frameSize READ frameSize NOTIFY frameSizeChanged)
    public:
     enum FillMode { Fit, Cover };
     Q_ENUM(FillMode)
@@ -35,6 +37,7 @@ class VideoItem : public QQuickItem {
     FillMode fillMode() const { return fillMode_; }
     void setFillMode(FillMode m);
     bool hasFrame() const { return !image_.isNull(); }
+    QSize frameSize() const { return image_.size(); }
 
     /// Lo fija el arranque de la UI (unico servicio de frames).
     static void setService(FrameService* service);
@@ -43,6 +46,7 @@ class VideoItem : public QQuickItem {
     void sourceChanged();
     void fillModeChanged();
     void hasFrameChanged();
+    void frameSizeChanged();
 
    protected:
     QSGNode* updatePaintNode(QSGNode* old, UpdatePaintNodeData*) override;

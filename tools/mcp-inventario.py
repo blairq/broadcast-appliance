@@ -23,7 +23,11 @@ import sys
 from datetime import datetime, timezone
 
 RAIZ = pathlib.Path(__file__).resolve().parents[1]
-MCP = RAIZ / "release" / "bin" / "64bit" / "ba-mcp"
+# La app que está andando (la que tiene Runtime/mcp.json): release/ (Linux,
+# Windows) o el paquete de macOS.
+_CANDIDATAS = [RAIZ / "release", RAIZ / "dist" / "BroadcastAppliance.app" / "Contents" / "Resources"]
+APP = next((c for c in _CANDIDATAS if (c / "Runtime" / "mcp.json").exists()), _CANDIDATAS[0])
+MCP = APP / "bin" / "64bit" / "ba-mcp"
 
 
 def del_aparato():
@@ -34,7 +38,7 @@ def del_aparato():
         '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}\n'
     )
     r = subprocess.run([str(MCP)], input=pedidos, capture_output=True, text=True,
-                       timeout=120, cwd=str(RAIZ / "release"))
+                       timeout=120, cwd=str(APP))
     for linea in r.stdout.splitlines():
         if '"id":2' not in linea:
             continue
@@ -92,6 +96,9 @@ def etiquetas():
     """Las del buscador (McpEtiquetas.cpp): por nombre exacto y por prefijo."""
     txt = (RAIZ / "src/app/mcp/McpEtiquetas.cpp").read_text(encoding="utf-8")
     exactas, prefijos = {}, {}
+    # Las familias son las de la tabla kFamilias (se aplican por prefijo).
+    bloque = re.search(r"kFamilias\[\]\s*=\s*\{(.*?)\n\};", txt, re.S)
+    familias = set(re.findall(r'\{"([a-z_0-9]+)",', bloque.group(1))) if bloque else set()
     # Una entrada puede ocupar varias lineas: se juntan los literales pegados.
     for m in re.finditer(r'\{"([a-z_0-9]+)",\s*((?:"[^"]*"\s*)+)\}', txt):
         clave = m.group(1)
@@ -99,9 +106,7 @@ def etiquetas():
         # el inventario de «a», «del» y «la», que no dicen nada de la
         # herramienta. Como frase se lee lo que alguien diria en voz alta.
         valor = " ".join(re.findall(r'"([^"]*)"', m.group(2))).strip()
-        (prefijos if clave.endswith("_") and clave.count("_") == 1 and
-         not any(c.isdigit() for c in clave) and clave[:-1].isalpha() and
-         f'"{clave}"' in txt and clave.endswith("_") else exactas)[clave] = valor
+        (prefijos if clave in familias else exactas)[clave] = valor
     return exactas, prefijos
 
 

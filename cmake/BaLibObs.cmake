@@ -204,7 +204,7 @@ else()
         set(BA_OBS_DEPS_PREFIX "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")
         # + lo que piden los plugins LSP (CLAP): cairo, pixman, libpng, libsndfile.
         foreach(_pat avcodec avdevice avfilter avformat avutil swresample swscale x264 va va-drm v4l2 v4lconvert
-                     cairo pixman-1 png16 sndfile)
+                     cairo cairo-gobject pixman-1 png16 sndfile)
             file(GLOB _dep "${BA_OBS_DEPS_PREFIX}/lib/lib${_pat}.so.*")
             list(APPEND BA_LIBOBS_RUNTIME_LIBS ${_dep})
         endforeach()

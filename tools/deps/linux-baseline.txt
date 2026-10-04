@@ -15,7 +15,7 @@
 #   - ALSA/PulseAudio                               -> el servidor de audio
 #   - udev, drm                                     -> dispositivos del kernel
 #   - fontconfig/freetype                           -> las fuentes del sistema
-#   - glib/gthread/gmodule/dbus/gssapi, zlib/zstd/bz2, libatomic
+#   - glib/gthread/gmodule/gio/dbus/gssapi, zlib/zstd/bz2, libatomic
 #                                                   -> lo que exige Qt oficial
 #     (gmodule: Qt PDF; bz2 y libatomic: el motor FFmpeg de Qt Multimedia)
 # libstdc++/libgcc_s: el bundle lleva los suyos en bin/64bit/cxx/ y el
@@ -25,6 +25,10 @@ ld-linux-x86-64.so.2
 ld-linux-aarch64.so.1
 libc.so.6
 libm.so.6
+libmvec.so.1
+# glibc / libxcrypt: los pide el Python de los plugins (python-build-standalone).
+libutil.so.1
+libcrypt.so.1
 libdl.so.2
 libpthread.so.0
 librt.so.1
@@ -80,6 +84,9 @@ libglib-2.0.so.0
 libgthread-2.0.so.0
 libgobject-2.0.so.0
 libgmodule-2.0.so.0
+libgio-2.0.so.0
+# libffi: la pide libgobject (base); los bindings de Python (gi) también.
+libffi.so.8
 libdbus-1.so.3
 libgssapi_krb5.so.2
 libz.so.1

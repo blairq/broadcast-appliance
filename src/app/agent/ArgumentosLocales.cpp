@@ -318,6 +318,63 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
     return r;
 }
 
+LlamadaTc leerTc(const std::string& generado) {
+    LlamadaTc l;
+    static const std::regex llamada(
+        R"(<tool_call>\s*<function=([^>\n]+)>([\s\S]*?)</function>\s*</tool_call>)");
+    static const std::regex parametro(R"(<parameter=([^>\n]+)>\n?([\s\S]*?)\n?</parameter>)");
+    std::smatch m;
+    if (!std::regex_search(generado, m, llamada)) return l;
+    l.hay = true;
+    l.funcion = m[1].str();
+    const std::string cuerpo = m[2].str();
+    for (std::sregex_iterator it(cuerpo.begin(), cuerpo.end(), parametro), fin; it != fin; ++it)
+        l.parametros.emplace_back((*it)[1].str(), (*it)[2].str());
+    return l;
+}
+
+json argsDesdeTc(const LlamadaTc& llamada, const json& ficha) {
+    const json props = ficha.value("inputSchema", json::object()).value("properties", json::object());
+    static const std::regex numero(R"(\s*-?\d+(\.\d+)?\s*)");
+    static const std::regex conSigno(R"(\s*[+-]\d+(\.\d+)?\s*)");
+    json args = json::object();
+    for (const auto& [k, crudo] : llamada.parametros) {
+        std::string v = crudo;
+        // Sin los blancos de los bordes (el formato pone saltos de línea).
+        const auto a = v.find_first_not_of(" \t\r\n"), b = v.find_last_not_of(" \t\r\n");
+        v = a == std::string::npos ? std::string() : v.substr(a, b - a + 1);
+        const json p = props.value(k, json::object());
+        const std::string tipo = p.value("type", std::string());
+        if (tipo == "number" || tipo == "integer") {
+            if (!v.empty() && v[0] == '=' && std::regex_match(v.substr(1), numero)) {
+                const double x = std::stod(v.substr(1));
+                args[k] = tipo == "integer" ? json(static_cast<long long>(std::llround(x))) : json(x);
+            } else if (std::regex_match(v, conSigno)) {
+                args[k] = v; // cambio: validar lo suma al valor actual
+            } else if (std::regex_match(v, numero)) {
+                const double x = std::stod(v);
+                args[k] = tipo == "integer" ? json(static_cast<long long>(std::llround(x))) : json(x);
+            } else {
+                args[k] = v;
+            }
+        } else if (tipo == "boolean") {
+            args[k] = v == "true" || v == "verdadero" || v == "sí" || v == "si" || v == "1";
+        } else if (tipo == "array" || tipo == "object") {
+            const json j = json::parse(v, nullptr, false);
+            if (!j.is_discarded())
+                args[k] = j;
+            else if (tipo == "array")
+                args[k] = json::array({v});
+            else
+                args[k] = v;
+        } else {
+            // Texto (y enums): tal cual; un «=» adelante de un texto no significa nada.
+            args[k] = v;
+        }
+    }
+    return args;
+}
+
 std::string resumen(const json& args) {
     std::string out;
     for (auto it = args.begin(); it != args.end(); ++it) {

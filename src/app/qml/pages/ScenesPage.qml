@@ -366,7 +366,9 @@ Rectangle {
 
         // --- Fuentes y propiedades -------------------------------------------------
         ColumnLayout {
+            Layout.fillWidth: false  // ancho fijo aunque un texto largo empuje (ver EquiposPage)
             Layout.preferredWidth: 420
+            Layout.maximumWidth: 420
             Layout.fillHeight: true
             spacing: 12
             Panel {

@@ -33,6 +33,13 @@ espera (``obs_module_load``) y registra:
   (`ba::ipc::SharedAudioRing`), el transporte Spout (`ba::ipc::SpoutTransport`)
   y el canal de control (`ba::ipc::ControlProtocol`) para el retorno de
   invitados (spec §4).
+- **Filtro «Mejorar imagen»** (``ba_mejora_imagen``): ruido temporal, color
+  guiado por el brillo y nitidez CAS, en la GPU y sin demora
+  (``data/mejora-imagen.effect``, que libobs traduce a D3D11 u OpenGL).
+- **Filtro «PTZ digital»** (``ba_ptz_digital``): pan/tilt/zoom recortando en
+  la GPU (bicúbica), con joystick y presets por proc handler
+  (``data/ptz-digital.effect``). Lo maneja el módulo PTZ de la app: ver
+  ``docs/PTZ.md``.
 
 Enlaza `ba_core`.
 

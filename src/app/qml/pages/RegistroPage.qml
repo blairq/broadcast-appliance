@@ -20,6 +20,16 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var r: Studio.registro
+    // Solo se releen los logs mientras esta vista está a la vista.
+    property bool mirando: false
+    function avisarVista() {
+        if (visible === mirando) return
+        mirando = visible
+        r.mirar(visible)
+    }
+    onVisibleChanged: avisarVista()
+    Component.onCompleted: avisarVista()
+    Component.onDestruction: if (mirando) r.mirar(false)
 
     function colorDeNivel(n) {
         switch (n) {
@@ -94,7 +104,7 @@ Rectangle {
                     copiador.text = page.r.comoTexto()
                     copiador.selectAll()
                     copiador.copy()
-                    ApplicationWindow.window.toast("Registro copiado (" + page.r.lineas.length + " líneas)", "ok")
+                    Studio.notify("Registro copiado (" + page.r.lineas.length + " líneas)", "ok")
                 }
             }
             GlassButton {
@@ -292,20 +302,20 @@ Rectangle {
                             Layout.preferredWidth: 110
                             text: modelData.hora
                             color: Theme.textFaint
-                            font { family: "monospace"; pixelSize: 11 }
+                            font { family: Theme.mono; pixelSize: 11 }
                         }
                         Text {
                             Layout.preferredWidth: 72
                             text: modelData.nivel
                             color: page.colorDeNivel(modelData.nivelN)
-                            font { family: "monospace"; pixelSize: 11; weight: Font.DemiBold }
+                            font { family: Theme.mono; pixelSize: 11; weight: Font.DemiBold }
                         }
                         Text {
                             Layout.preferredWidth: 90
                             elide: Text.ElideRight
                             text: modelData.modulo
                             color: Theme.textDim
-                            font { family: "monospace"; pixelSize: 11 }
+                            font { family: Theme.mono; pixelSize: 11 }
                         }
                         Text {
                             Layout.preferredWidth: 42
@@ -313,7 +323,7 @@ Rectangle {
                             // ceros no informa y roba lugar al texto.
                             text: modelData.codigo !== 0 ? String(modelData.codigo) : ""
                             color: Theme.textFaint
-                            font { family: "monospace"; pixelSize: 11 }
+                            font { family: Theme.mono; pixelSize: 11 }
                         }
                         Text {
                             id: txt
@@ -321,7 +331,7 @@ Rectangle {
                             wrapMode: Text.WrapAnywhere
                             text: modelData.texto
                             color: page.colorDeNivel(modelData.nivelN)
-                            font { family: "monospace"; pixelSize: 11 }
+                            font { family: Theme.mono; pixelSize: 11 }
                         }
                     }
                 }

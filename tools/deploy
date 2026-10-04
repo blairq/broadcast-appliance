@@ -350,7 +350,12 @@ json_escape() {
       # Extensiones/: las escribe el operador (o el asistente) y cambian sin
       # que cambie la version. Verificarlas haria que cada tarjeta nueva
       # rompiera la comprobacion de integridad.
+      # Los demas de abajo tambien son del usuario: modelos bajados (GB),
+      # agentes, caches, respaldos, compartidos, exportados, medios y los
+      # graficos que se editan. En macOS ni siquiera estan en el bundle (van al
+      # lado de la .app), pero en Windows y Linux si.
       Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*|Extensiones/*) continue ;;
+      Modelos/*|Agentes/*|Cache/*|Respaldos/*|Shares/*|Exportado/*|Media/*|Graficos/*) continue ;;
     esac
     hash="$(sha256_of "$abs")"
     if [ "$first" -eq 1 ]; then

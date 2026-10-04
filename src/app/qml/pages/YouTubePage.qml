@@ -135,7 +135,7 @@ Rectangle {
                                 id: clientJson
                                 placeholderText: "{\"installed\":{\"client_id\":\"….apps.googleusercontent.com\", \"client_secret\":\"…\", …}}"
                                 wrapMode: TextEdit.WrapAnywhere
-                                font.family: "monospace"; font.pixelSize: 12
+                                font.family: Theme.mono; font.pixelSize: 12
                                 color: Theme.text
                                 background: Rectangle { radius: 10; color: Theme.field; border.color: Theme.glassBorder }
                             }

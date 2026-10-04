@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/InputsViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <QImage>
 #include <QMetaObject>
@@ -12,6 +13,7 @@
 #include <thread>
 
 #include <nlohmann/json.hpp>
+#include <obs.h>
 
 #include "AppRuntime.hpp"
 #include "InputSpecs.hpp"
@@ -164,10 +166,14 @@ void InputsViewModel::rebuildInputs() {
             {"kind", hw      ? "hardware"
                      : isNdi ? "ndi"
                              : "red"},
-            {"where",
-             QString::fromStdString(hw      ? s.value(inputs::kVideoProp, std::string())
-                                    : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
-                                            : inputs::redactUrl(s.value("input", std::string())))},
+            {"where", QString::fromStdString(
+                          hw      ? s.value(inputs::kVideoProp, std::string())
+                          : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
+                          : type == "ba_gst_fuente"
+                              ? (s.contains("ba_plugin")
+                                     ? "Plugin: " + s.value("ba_plugin", std::string())
+                                     : inputs::redactUrl(s.value("uri", s.value("pipeline", std::string()))))
+                              : inputs::redactUrl(s.value("input", std::string())))},
             {"width", w},
             {"height", h},
             {"receiving", w > 0},
@@ -268,8 +274,9 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
         return "La direccion tiene que empezar con rtsp://, rtmp://, srt://, http(s)://, udp:// o rtp://.";
     const std::string nm =
         name.trimmed().isEmpty() ? "Red " + inputs::redactUrl(u).substr(0, 40) : name.trimmed().toStdString();
-    const SourceSpec spec = inputs::networkSpec(u, nm, json{{"latency", lowLatency ? "low" : "normal"}},
-                                                (rt_.dataRoot() / "data" / "cacert.pem").string());
+    const SourceSpec spec =
+        inputs::networkSpec(u, nm, json{{"latency", lowLatency ? "low" : "normal"}},
+                            (ba::platform::bundleRoot() / "data" / "cacert.pem").string());
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();
@@ -289,6 +296,12 @@ void InputsViewModel::remove(const QString& name) {
             if (src == n) rt_.removeSource(sc, n);
     // Las entradas de audio no estan en ninguna escena: van por su canal global.
     rt_.removeAudioInput(n);
+    // Una que ya no estaba en ninguna escena (p. ej. la de un plugin cuya
+    // escena se borro) seguia existiendo: se la saca de libobs.
+    if (obs_source_t* src = obs_get_source_by_name(n.c_str())) {
+        obs_source_remove(src);
+        obs_source_release(src);
+    }
     rt_.save();
     vm_.refreshModels();
     refresh();

@@ -26,7 +26,7 @@ Item {
             }
             GlassButton {
                 text: "Copiar"; compact: true
-                onClicked: { urlHelper.text = Studio.joinUrl; urlHelper.selectAll(); urlHelper.copy(); ApplicationWindow.window.toast("Link copiado", "ok") }
+                onClicked: { urlHelper.text = Studio.joinUrl; urlHelper.selectAll(); urlHelper.copy(); Studio.notify("Link copiado", "ok") }
             }
             TextEdit { id: urlHelper; visible: false }
         }

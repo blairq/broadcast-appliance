@@ -50,6 +50,15 @@ std::filesystem::path bundleRootFor(const std::filesystem::path& exeDir);
 /// sombra (spec 3.1.5) apunta a la copia, no al disco.
 std::filesystem::path bundleRoot();
 
+/// Raiz de los datos para una raiz de bundle (funcion pura, testeable).
+///
+/// En Windows y Linux es la misma carpeta. En macOS, si el bundle es
+/// `<X>.app/Contents/Resources`, los datos van AL LADO de la .app:
+/// `<dir>/<X> Datos/`. Lo que se escribe adentro de una .app rompe el sello
+/// de su firma (macOS la vuelve a verificar entera y no reconoce su identidad
+/// para los permisos de camara y microfono). Sigue siendo portable: se lleva
+/// la carpeta con las dos cosas.
+std::filesystem::path dataRootFor(const std::filesystem::path& bundleRoot);
 /// Variable de entorno con la que el launcher le indica a A y B la raiz REAL.
 inline constexpr const char* kDataRootEnv = "BA_DATA_ROOT";
 
@@ -58,7 +67,7 @@ inline constexpr const char* kDataRootEnv = "BA_DATA_ROOT";
 /// Cuando A y B corren desde la copia sombra, sus binarios estan en una cache
 /// pero los datos viven en el disco real: el launcher lo informa por
 /// `BA_DATA_ROOT`. Sin esa variable (proceso lanzado a mano) es la raiz del
-/// bundle.
+/// bundle (`dataRootFor(bundleRoot())`: en macOS, la carpeta al lado de la .app).
 std::filesystem::path dataRoot();
 
 /// Estado de ejecucion DENTRO del bundle portable: `<datos>/Runtime/`

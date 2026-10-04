@@ -85,6 +85,24 @@ class Escucha {
     // frases y cada una se transcribe apenas termina (1-3 s de retraso). Usa
     // el MISMO reconocedor que el dictado (un solo modelo en memoria).
     using Frase = std::function<void(const std::string& clave, const Resultado& r)>;
+    /// Cuándo se corta una frase. `pausa`: silencio que la termina (s);
+    /// `maximo`: lo más que dura (s; al pasarlo se corta en la próxima pausa
+    /// corta, no en seco); `umbral`: cuán seguro tiene que estar el detector de
+    /// que es voz (0..1; más alto ignora más el ruido de la sala).
+    struct Cortes {
+        double pausa = 0.35;
+        double maximo = 6.0;
+        double umbral = 0.5;
+    };
+    /// Cambia los cortes de todas las corrientes (las rearma: se pierde la frase en curso).
+    void setCortes(const Cortes& c);
+    Cortes cortes() const;
+    /// Lo que oye cada corriente ahora: clave -> {hablando, segundos de la frase en curso}.
+    struct Oido {
+        bool hablando = false;
+        double segundos = 0;
+    };
+    std::map<std::string, Oido> oido() const;
     /// A dónde van las frases (en el hilo de Escucha).
     void setFrase(Frase f);
     void abrirContinuo(const std::string& clave);
@@ -115,11 +133,14 @@ class Escucha {
         std::uint32_t frecuencia = 48000;
         bool abierta = true;
     };
-    std::mutex contLock_;
+    mutable std::mutex contLock_;
     std::map<std::string, Pendiente> pendientes_;
     std::map<std::string, std::unique_ptr<Corriente>> corrientes_; // solo el hilo de trabajo
     Frase frase_;
     std::string vadModelo_;
+    Cortes cortes_;                    ///< bajo contLock_
+    int versionCortes_ = 0;            ///< bajo contLock_: al cambiar, las corrientes se rearman
+    std::map<std::string, Oido> oido_; ///< bajo contLock_
 
     std::mutex colaLock_;
     std::condition_variable colaCv_;

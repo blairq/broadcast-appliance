@@ -40,6 +40,7 @@
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -112,6 +113,11 @@ class Voz : public QObject {
     Q_PROPERTY(QVariantList salidasAudio READ salidasAudio NOTIFY cambio)
     /// Las herramientas que se hacen sin preguntar: [{herramienta, titulo}].
     Q_PROPERTY(QVariantList automaticas READ automaticas NOTIFY cambio)
+    /// Cuándo corta una frase la transcripción continua (subtítulos, traducción):
+    /// {pausa, maximo, umbral} (ver audio::Escucha::Cortes).
+    Q_PROPERTY(QVariantMap cortes READ cortes NOTIFY cambio)
+    /// Lo que oye ahora cada transcripción continua: [{flujo, hablando, segundos}].
+    Q_PROPERTY(QVariantList oido READ oido NOTIFY oidoCambio)
 
    public:
     Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent = nullptr);
@@ -125,6 +131,10 @@ class Voz : public QObject {
     QString ultimo() const { return ultimo_; }
     QString tecla() const { return "F9"; }
 
+    QVariantMap cortes() const;
+    QVariantList oido() const { return oido_; }
+    /// Cambia los cortes (y los guarda). "" o el error.
+    Q_INVOKABLE QString setCortes(double pausa, double maximo, double umbral);
     Q_INVOKABLE void apretar();
     Q_INVOKABLE void soltar();
     Q_INVOKABLE void cancelar();
@@ -148,6 +158,9 @@ class Voz : public QObject {
 
     /// Los racks de audio (si esta compilación los tiene): de ahí sale la voz.
     void setRacks(audio::RackManager* racks);
+    /// Las salidas de texto: cada frase transcripta se publica ahí con el
+    /// nombre de su tarjeta.
+    void setFlujos(class FlujosTexto* flujos) { flujos_ = flujos; }
     QString microfono() const;
     /// Elegir el micrófono del operador entre las fuentes con audio. Devuelve el error o "".
     Q_INVOKABLE QString setMicrofono(const QString& fuente);
@@ -205,14 +218,29 @@ class Voz : public QObject {
     Q_INVOKABLE void setAutomatica(const QString& herramienta, bool on);
     /// Lo que hace con una frase dictada (también sirve para probar escribiendo).
     Q_INVOKABLE void atender(const QString& frase);
+    /// Modelo v2: que lea ya el estado del aparato (lo hace solo al apretar
+    /// F9), así el pedido que sigue solo procesa la frase. `listo` cuando
+    /// terminó (o enseguida si no corresponde).
+    void prepararTc(std::function<void()> listo = {});
+    /// Si hay un asistente grande andando (al que derivar). Sin esto, o si el
+    /// pedido vino del propio asistente «Modelo local», derivar no lo manda a
+    /// ningún lado: se le avisa al operador.
+    void setAsistenteGrande(std::function<bool()> f) { asistenteGrande_ = std::move(f); }
+    /// Si el asistente es el propio modelo local: entonces lo derivado no se
+    /// deja en la barra (la barra se lo mandaría, y volvería acá).
+    void setAsistenteLocal(std::function<bool()> f) { asistenteLocal_ = std::move(f); }
+    /// v2: lo que el modelo haría con la frase, con el estado de ahora, SIN
+    /// hacerlo (para «Probar» y modelo_local_elegir). La respuesta de llamar.
+    void probarTc(const QString& frase, std::function<void(const nlohmann::json&)> r);
     /// Lo que le llega al MODELO LOCAL como motor de un agente o del asistente
-    /// (proveedor «local»): `quien` es el rol o "asistente". Una vigilancia se
+    /// (proveedor «local»): `quien` es el rol o "asistente". Un disparador se
     /// dice primero en voz alta y sus acciones solo se PROPONEN (nunca se hacen
     /// solas, aunque estén entre las automáticas: el modelo toma un aviso como
     /// una orden, y «terminó el video» le sugiere cortar la grabación).
-    void atenderDesde(const QString& texto, const QString& quien, bool vigilancia);
+    void atenderDesde(const QString& texto, const QString& quien, bool disparador);
 
    signals:
+    void oidoCambio();
     void cambio();
     void transcripcionCambio();
     /// Una frase nueva de la transcripción continua.
@@ -237,6 +265,14 @@ class Voz : public QObject {
 
     /// Completa los argumentos con el modelo local (generar) y los valida;
     /// después decide: hacer (si es automática y válida) o proponer.
+    /// Modelo v2 (formato tc): estado + frase en una sola vuelta; la llamada
+    /// se lee y se valida (o es charla, derivar o falta_dato).
+    /// v2: el estado como lo lee el modelo (JSON compacto).
+    static QString estadoTc(const nlohmann::json& estado);
+    void atenderTc(int id, const QString& frase, const QString& origen);
+    /// Lo que no es para el modelo local (derivar, error): al asistente
+    /// grande si hay uno y el pedido no vino de él; si no, se avisa.
+    void derivarA(int id, const QString& frase, const QString& origen, const std::string& motivo);
     void completar(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f);
     void decidir(int id, const QString& frase, const QString& herramienta, const FichaHerramienta& f,
                  const nlohmann::json& args, const QStringList& notas, const QStringList& bloqueos);
@@ -260,14 +296,19 @@ class Voz : public QObject {
     Ficha ficha_;
     Ejecutor ejecutor_;
     Contexto contexto_;
+    std::function<bool()> asistenteGrande_;
+    std::function<bool()> asistenteLocal_;
     std::string sistemaArgs_; ///< las reglas para completar argumentos (datos/voz-argumentos.txt)
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;
     bool contestarConVoz_ = true;
+    double cortePausa_ = 0.35, corteMaximo_ = 6.0, corteUmbral_ = 0.5;
+    QVariantList oido_;
+    ::QTimer* oidoT_ = nullptr;
     QVariantMap vozParaOtros_;
     QStringList automaticas_;
     int ultimoId_ = 0;       ///< el `id` de la última frase atendida (bitácora)
-    QSet<int> soloProponer_; ///< frases (id) cuyas acciones no se hacen solas (vigilancias)
+    QSet<int> soloProponer_; ///< frases (id) cuyas acciones no se hacen solas (disparadores)
     std::unique_ptr<audio::Escucha> escucha_;
     QString cargados_; ///< los repos con los que se cargó (para recargar si cambian)
     bool lista_ = false;
@@ -288,6 +329,7 @@ class Voz : public QObject {
     int pendientes_ = 0; ///< frases encargadas que todavía no terminaron
 
     audio::RackManager* racks_ = nullptr;
+    class FlujosTexto* flujos_ = nullptr;
     std::atomic<bool> tomando_{false}; ///< el hilo de audio lo lee
     std::mutex tomasLock_;
     struct Toma {

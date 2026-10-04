@@ -10,6 +10,9 @@
 //               en la GPU)
 //   "guest:N"   video del invitado N tal como lo publica B (BA.Guest.N);
 //               se lee directo del transporte entre procesos, sin libobs
+//   "entrada:X" la entrada de video X tal como sale de sus filtros (con el
+//               recorte del PTZ digital), mientras alguien la pida con
+//               mirarEntrada (la tarjeta PTZ suelta)
 //
 // Modelo de threading: todo en el thread de la UI; `poll()` lo llama un timer.
 // ============================================================================
@@ -53,6 +56,9 @@ class FrameService : public QObject {
     /// Que escena mirar en la clave "armada" ("" = ninguna). La pone
     /// StudioViewModel cada vez que cambia el bus de preview.
     void setArmada(const QString& escena);
+    /// Pide (o suelta) el video en vivo de una entrada en la clave
+    /// "entrada:<nombre>". Cuenta pedidos: se renderiza mientras alguien la mire.
+    Q_INVOKABLE void mirarEntrada(const QString& entrada, bool mirar);
     /// Cambia la cantidad de invitados.
     void setGuests(int guests);
     /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
@@ -85,6 +91,9 @@ class FrameService : public QObject {
     std::vector<std::uint8_t> sceneBuf_;  ///< vista previa del editor de escenas
     std::vector<std::uint8_t> armadaBuf_; ///< vista previa de la escena ARMADA
     QString armada_;
+    std::map<QString, int> entradas_; ///< entradas pedidas y cuántos las miran
+    std::map<QString, std::vector<std::uint8_t>> entradaBufs_;
+    std::uint64_t vueltas_ = 0;
     std::uint64_t programSerial_ = 0;
 };
 

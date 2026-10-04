@@ -31,6 +31,7 @@ void VideoItem::setSource(const QString& s) {
     image_ = QImage();
     emit sourceChanged();
     emit hasFrameChanged();
+    emit frameSizeChanged();
     refresh();
 }
 
@@ -48,11 +49,15 @@ void VideoItem::refresh() {
         return;
     }
     const bool had = !image_.isNull();
+    const QSize antes = image_.size();
     if (service_->latest(source_, image_, serial_)) {
         dirty_ = true;
         update();
         if (!had) {
             emit hasFrameChanged();
+        }
+        if (image_.size() != antes) {
+            emit frameSizeChanged();
         }
     }
 }

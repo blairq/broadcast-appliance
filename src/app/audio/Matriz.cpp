@@ -121,6 +121,17 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
             sincronizarTomas();
             armarPlan();
         }
+        // Las tarjetas «Entrada» de los racks pueden haber empezado (o dejado)
+        // de usar una entrada de placa. Solo si cambió: abrir una captura toca
+        // CoreAudio en este hilo, y con el audio del sistema trabado cada
+        // reintento colgaba la app.
+        if (usadasPorOtros_) {
+            std::set<std::string> otros = usadasPorOtros_();
+            if (otros != ultimosOtros_) {
+                ultimosOtros_ = std::move(otros);
+                usarEquipo();
+            }
+        }
     });
     lento_.start(3000);
     hilo_ = std::thread([this]() { bucleMezcla(); });
@@ -129,6 +140,8 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
 Matriz::~Matriz() {
     salir_ = true;
     if (hilo_.joinable()) hilo_.join();
+    // Si libobs ya se apagó (cierre temprano), sus fuentes ya no existen.
+    if (!obs_initialized()) return;
     setActiva(false);
     {
         std::lock_guard<std::mutex> l(tomasLock_);
@@ -542,11 +555,14 @@ void Matriz::alAudio(void* param, obs_source_t*, const ::audio_data* data, bool 
     if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
     const auto* l = reinterpret_cast<const float*>(data->data[0]);
     const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
+    // Con hora: la voz del sistema y la del teleprompter entregan frases enteras
+    // agendadas a futuro; sin esto el anillo las recortaba a 80 ms.
+    const std::uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
     if (muted) {
         std::vector<float> z(data->frames, 0.0f);
-        t->ring.push(z.data(), z.data(), data->frames);
+        t->ring.pushEn(z.data(), z.data(), data->frames, data->timestamp, os_gettime_ns(), sr);
     } else {
-        t->ring.push(l, r, data->frames);
+        t->ring.pushEn(l, r, data->frames, data->timestamp, os_gettime_ns(), sr);
     }
 }
 
@@ -585,7 +601,9 @@ void Matriz::usarEquipo() {
     for (const auto& [k, e] : envios_)
         if (k.second.rfind("fis:", 0) == 0 && !e.mute) columnas.insert(k.second);
     equipo_->usarColumnas(columnas);
-    // Entradas físicas que se usan (una pista, la escucha o un envío): su captura se abre.
+    // Entradas físicas que se usan (una pista, la escucha, un envío o la
+    // tarjeta «Entrada» de un rack): su captura se abre.
+    const std::set<std::string> otros = usadasPorOtros_ ? usadasPorOtros_() : std::set<std::string>{};
     for (const auto& f : filas_) {
         if (!equipo_->esEntradaFisica(f)) continue;
         bool usa = false;
@@ -595,6 +613,7 @@ void Matriz::usarEquipo() {
         }
         for (const auto& [k, e] : envios_)
             if (k.first == f) usa = true;
+        if (otros.contains(f)) usa = true;
         if (usa) entradas.insert(f);
     }
     equipo_->usarEntradas(entradas);

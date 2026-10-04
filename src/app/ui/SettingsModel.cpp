@@ -42,6 +42,10 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"video.outputWidth", "Video", "Ancho de salida", "int", {}, 320, 7680, "px", "Resolucion que se codifica (se escala desde el lienzo).", "live", 1920},
         {"video.outputHeight", "Video", "Alto de salida", "int", {}, 240, 4320, "px", "", "live", 1080},
         {"video.fps", "Video", "Cuadros por segundo", "choice", choices({{"24","24"},{"25","25"},{"30","30"},{"50","50"},{"60","60"}}), 0, 0, "fps", "", "live", "30"},
+        {"mejora.activa", "Video", "Mejorar imagen de las cámaras", "bool", {}, 0, 0, "", "Limpia el ruido, pega el color a los bordes (el LED del micrófono, la corbata) y afila, en la GPU y sin demora. Cada entrada puede seguir esto, forzarlo o apagarlo en Cámaras PTZ.", "live", false},
+        {"mejora.ruido", "Video", "Mejorar imagen: ruido", "int", {}, 0, 100, "%", "Cuánto se mezcla con el cuadro anterior donde no hay movimiento.", "live", 60},
+        {"mejora.color", "Video", "Mejorar imagen: color pegado al brillo", "int", {}, 0, 100, "%", "Saca el color corrido alrededor de los bordes.", "live", 70},
+        {"mejora.nitidez", "Video", "Mejorar imagen: nitidez", "int", {}, 0, 100, "%", "Enfoque adaptativo (sin halos).", "live", 50},
         // --- Codificacion ----------------------------------------------------
         {"encoder.video", "Codificacion", "Codificador de video", "choice", encoders, 0, 0, "", "Si el elegido no esta o falla al arrancar, se usa el siguiente disponible y al final x264.", "live", "auto"},
         {"encoder.bitrate", "Codificacion", "Bitrate de video", "int", {}, 500, 50000, "kbps", "", "live", 6000},
@@ -116,6 +120,10 @@ QVariantMap SettingsModel::current() const {
         {"video.outputWidth", c.video.outputWidth},
         {"video.outputHeight", c.video.outputHeight},
         {"video.fps", QString::number(c.video.fpsNum)},
+        {"mejora.activa", c.mejora.activa},
+        {"mejora.ruido", c.mejora.ruido},
+        {"mejora.color", c.mejora.color},
+        {"mejora.nitidez", c.mejora.nitidez},
         {"encoder.video", qs(c.encoder.videoEncoder)},
         {"encoder.bitrate", c.encoder.videoBitrateKbps},
         {"encoder.rateControl", qs(c.encoder.rateControl)},
@@ -286,6 +294,14 @@ QString SettingsModel::apply() {
             c.video = v; // se guarda igual: rige al proximo arranque
             notes << "Video: " + qs(rt_.lastError()) + " (se aplica al reiniciar).";
         }
+    }
+    if (changed("mejora.")) {
+        c.mejora.activa = b("mejora.activa");
+        c.mejora.ruido = i("mejora.ruido");
+        c.mejora.color = i("mejora.color");
+        c.mejora.nitidez = i("mejora.nitidez");
+        notes << (c.mejora.activa ? "Mejorar imagen: prendido en las cámaras que siguen lo general."
+                                  : "Mejorar imagen: apagado en las cámaras que siguen lo general.");
     }
     if (changed("encoder.")) {
         EncoderConfig e = c.encoder;

@@ -294,13 +294,13 @@ std::vector<Rol> deFabrica() {
         r.push_back(std::move(x));
     }
     {
-        // Las vigilancias que no toma nadie más. Con el modelo local de fábrica:
+        // Los disparadores que no toma nadie más. Con el modelo local de fábrica:
         // es instantáneo y no necesita internet; las dice en voz alta, contesta
         // lo que es leer y propone (nunca hace solo) lo que sea una acción.
         Rol x;
         x.id = "vigilante";
         x.titulo = "Vigilante";
-        x.descripcion = "Atiende las vigilancias que no toma otro agente (fin de un video, tiempo de un "
+        x.descripcion = "Atiende los disparadores que no toma otro agente (fin de un video, tiempo de un "
                         "orador, el chat, el disco, los temporizadores): las avisa en voz alta y propone "
                         "qué hacer.";
         x.categorias = {"estado", "escenas", "audio", "sala", "oradores", "operador"};
@@ -322,10 +322,23 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // «equipo». El asistente se quedo sin poder poner musica ni mirar el
         // disco, y no fallaba nada: simplemente esas herramientas no existian
         // para el. Ver el aviso de McpCore::setRoles.
-        "escenas",  "fuentes",   "imagenes", "sala",    "oradores",  "salidas", "graficos",   "rostros",
-        "interfaz", "ventanas",  "operador", "medios",  "recetas",   "audio",   "audio_rack", "config",
-        "sistema",  "equipo",    "entradas", "alertas", "pantallas", "evento",  "prompter",   "qr",
-        "cuentas",  "asistente", "youtube",  "twitch",  "facebook",  "padron",  "preguntas",  "laminas"};
+        "escenas", "fuentes", "imagenes", "sala", "oradores", "salidas", "graficos", "rostros", "interfaz",
+        "ventanas", "operador", "medios", "recetas", "audio", "audio_rack", "config", "sistema", "equipo",
+        "entradas", "alertas", "pantallas", "evento", "prompter", "qr", "cuentas", "asistente", "youtube",
+        "twitch", "facebook", "padron", "preguntas", "laminas",
+        // El grafo de video (tarjetas, módulos de GStreamer, controladores,
+        // compositor, relojes y sincronía) y las cámaras PTZ: armar bien un
+        // pipeline es justo lo que el operador le va a pedir. Faltaban, y la
+        // ayuda igual se las describía (probado: terminaba metiendo cadenas de
+        // GStreamer a mano en fuentes sueltas).
+        "video", "camaras",
+        // Los plugins de Python: cuando un equipo no se puede manejar con lo que
+        // hay, el asistente escribe uno (no se queda en «no puedo»).
+        "plugins",
+        // Los equipos: detectar y manejar (red, esta máquina, USB), con acciones declaradas.
+        "equipos",
+        // La traducción en vivo y su glosario de términos del evento.
+        "traduccion"};
     return c;
 }
 

@@ -338,25 +338,51 @@ void McpService::registerAudioTools() {
         t.name = "audio_module_add";
         t.title = "Agregar un modulo";
         t.category = "audio_rack";
-        t.description = "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, "
-                        "compresor, deesser, "
-                        "eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de "
-                        "`after` (vacio = "
-                        "justo antes de la salida). `preset` aplica valores de partida (p. ej. \"voz\"). "
-                        "Tambien \"analizador\".";
-        t.inputSchema = {{"type", "object"},
-                         {"properties",
-                          {{"source", kSource},
-                           {"module", {{"type", "string"}}},
-                           {"after", {{"type", "string"}}},
-                           {"label", {{"type", "string"}}},
-                           {"preset", {{"type", "string"}}}}},
-                         {"required", {"source", "module"}}};
+        t.description =
+            "Agrega un modulo al rack de la fuente (lo crea si no tiene): del catalogo (gate, "
+            "compresor, deesser, "
+            "eq, multibanda, limitador) o cualquier id LSP. Se inserta en la cadena despues de "
+            "`after` (vacio = "
+            "justo antes de la salida). `preset` aplica valores de partida (p. ej. \"voz\"). "
+            "Tambien \"analizador\", y \"entrada\" con `fuente`: trae el audio de OTRA fuente "
+            "(el microfono, un invitado, un canal de placa) como una tarjeta del grafo; despues se "
+            "cablea con audio_patch (sale por \"out\"). \"traducir\" pone una tarjeta Traducir (sin "
+            "cables) que traduce la salida de texto `desde` al idioma `a`; se ajusta con traduccion_ajustar.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"source", kSource},
+              {"module", {{"type", "string"}}},
+              {"after", {{"type", "string"}}},
+              {"label", {{"type", "string"}}},
+              {"preset", {{"type", "string"}}},
+              {"fuente", {{"type", "string"}}},
+              {"desde", {{"type", "string"}}},
+              {"a", {{"type", "string"}, {"enum", {"es", "en", "pt", "fr", "de", "ru", "zh"}}}}}},
+            {"required", {"source", "module"}}};
         t.run = [mgr](const json& a, Done done) {
             std::string e;
+            const std::string mod = a.value("module", "");
+            if (mod == "entrada") {
+                const std::string id = mgr()->addEntrada(a.value("source", ""), a.value("fuente", ""), &e);
+                if (id.empty()) return done(ToolResult::error(e));
+                AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
+                return done(
+                    ToolResult().data(json{{"nodo", id}, {"rack", r != nullptr ? r->describe() : json()}}));
+            }
+            if (mod == "traducir") {
+                const std::string id = mgr()->addTraduccion({{"fuente", a.value("source", "")},
+                                                             {"desde", a.value("desde", "")},
+                                                             {"a", a.value("a", "en")}},
+                                                            &e);
+                if (id.empty()) return done(ToolResult::error(e));
+                return done(
+                    ToolResult().data(json{{"id", id},
+                                           {"aviso", "ajustala con traduccion_ajustar {id}; traducciones "
+                                                     "muestra si falta bajar el idioma"}}));
+            }
             AudioRack* r = mgr()->rack(a.value("source", ""), true, &e);
             if (r == nullptr) return done(ToolResult::error(e));
-            const std::string mod = a.value("module", "");
             if (mod == "analizador" || mod == "analyzer") {
                 const std::string id = r->addAnalyzer(a.value("label", ""), a.value("after", ""));
                 if (id.empty()) return done(ToolResult::error("no existe el nodo " + a.value("after", "")));
@@ -467,6 +493,25 @@ void McpService::registerAudioTools() {
             json res = r->describe();
             if (!errors.empty()) res["errores"] = errors;
             done(ToolResult().data(res));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_ordenar";
+        t.title = "Acomodar las tarjetas del rack";
+        t.category = "audio_rack";
+        t.description = "Acomoda las tarjetas del rack de `source` en la grilla siguiendo el orden de la "
+                        "cadena (el botón "
+                        "«Ordenar» de la página Audio). No cambia ningún cable.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"source", kSource}}}, {"required", {"source"}}};
+        t.run = [mgr](const json& a, Done done) {
+            std::string e;
+            AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
+            if (r == nullptr) return done(ToolResult::error(e.empty() ? "esa fuente no tiene rack" : e));
+            r->layoutGrid();
+            mgr()->markDirty();
+            done(ToolResult().data(r->describe()));
         };
         core_.addTool(std::move(t));
     }
@@ -814,16 +859,27 @@ void McpService::registerAudioTools() {
             "COMO SE USA: `salida` es el id que informa `audio_outputs`. Agrega (o reapunta) en el grafo "
             "de esa fuente una tarjeta con el nombre de la salida; el audio recien se oye cuando se le "
             "conecta algo con `audio_patch` (p. ej. {desde: \"in\", hacia: \"salida-audio\"}). No "
-            "cambia lo que sale al aire.";
-        t.inputSchema = {{"type", "object"},
-                         {"properties", {{"source", kSource}, {"salida", {{"type", "string"}}}}},
-                         {"required", {"source", "salida"}}};
+            "cambia lo que sale al aire. `grabar: true` graba todo lo que le llega a la tarjeta en un .wav "
+            "(Recordings/Audio/); `grabar: false` lo corta (sin `salida`, solo cambia eso).";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"source", kSource}, {"salida", {{"type", "string"}}}, {"grabar", {{"type", "boolean"}}}}},
+            {"required", {"source"}}};
         t.run = [mgr](const json& a, Done done) {
-            const std::string e = mgr()->setOutput(a.value("source", ""), a.value("salida", ""));
-            if (!e.empty()) return done(ToolResult::error(e));
+            const std::string src = a.value("source", "");
+            if (a.contains("salida")) {
+                const std::string e = mgr()->setOutput(src, a.value("salida", ""));
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            if (a.contains("grabar")) {
+                const std::string e = mgr()->setGrabar(src, a.value("grabar", false));
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
             std::string re;
-            AudioRack* r = mgr()->rack(a.value("source", ""), false, &re);
-            done(ToolResult().data(r != nullptr ? r->describe() : json::object()));
+            AudioRack* r = mgr()->rack(src, false, &re);
+            done(ToolResult().data(json{{"rack", r != nullptr ? r->describe() : json::object()},
+                                        {"grabacion", mgr()->grabacion(src)}}));
         };
         core_.addTool(std::move(t));
     }

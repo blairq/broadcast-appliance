@@ -60,7 +60,7 @@ void McpService::registerAssistantTools() {
         t.title = "Configurar el asistente";
         t.category = "asistente";
         t.description =
-            "Cambia proveedor, modelo, arranque automatico y si los avisos de vigilancias van al "
+            "Cambia proveedor, modelo, arranque automatico y si los avisos de disparadores van al "
             "chat. `assistant_status` lista los proveedores que hay y los modelos de cada uno. La "
             "clave de API se carga en la pestaña (no por aca).";
         t.inputSchema = {{"type", "object"},

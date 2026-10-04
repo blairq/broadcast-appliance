@@ -62,17 +62,9 @@ list(APPEND BA_CORE_SOURCES "${BA_QRCODEGEN}/qrcodegen.cpp")
 # agrega una capacidad, no es un cimiento.
 set(BA_ROSTROS_DIR "${CMAKE_SOURCE_DIR}/extern/rostros")
 set(BA_HAVE_ROSTROS OFF)
-# El runtime de ESTA plataforma: extern/rostros tiene uno solo (el que bajo
-# `make deps-rostros`), y el de Linux en un build de Windows no enlaza.
-if(WIN32)
-    set(_ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.lib")
-elseif(APPLE)
-    set(_ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.dylib")
-else()
-    set(_ba_ort_lib "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so")
-endif()
-if(EXISTS "${BA_ROSTROS_DIR}/onnxruntime/include/onnxruntime_cxx_api.h"
-   AND EXISTS "${BA_ROSTROS_DIR}/modelos/yunet.onnx" AND EXISTS "${_ba_ort_lib}")
+# El runtime de ESTA plataforma (cmake/BaOnnxRuntime.cmake); los modelos, de
+# extern/rostros (son los mismos en todas).
+if(BA_HAVE_ORT AND EXISTS "${BA_ROSTROS_DIR}/modelos/yunet.onnx")
     set(BA_HAVE_ROSTROS ON)
 else()
     list(FILTER BA_CORE_SOURCES EXCLUDE REGEX ".*/rostros/.*")
@@ -80,16 +72,14 @@ endif()
 
 add_library(ba_core STATIC ${BA_CORE_SOURCES})
 if(BA_HAVE_ROSTROS)
-    target_include_directories(ba_core PUBLIC "${BA_ROSTROS_DIR}/onnxruntime/include")
-    target_link_libraries(ba_core PUBLIC "${_ba_ort_lib}")
+    target_include_directories(ba_core PUBLIC "${BA_ORT_DIR}/include")
+    target_link_libraries(ba_core PUBLIC "${BA_ORT_LIB}")
     target_compile_definitions(ba_core PUBLIC BA_HAVE_ROSTROS=1)
     # La biblioteca viaja en el bundle, como todo lo demas.
-    file(GLOB _ba_ort_runtime "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime.so*"
-                              "${BA_ROSTROS_DIR}/onnxruntime/lib/onnxruntime.dll"
-                              "${BA_ROSTROS_DIR}/onnxruntime/lib/libonnxruntime*.dylib")
-    install(FILES ${_ba_ort_runtime} DESTINATION bin/64bit)
+    # (en Windows, con DirectML.dll)
+    install(FILES ${BA_ORT_RUNTIME} DESTINATION bin/64bit)
     install(DIRECTORY "${BA_ROSTROS_DIR}/modelos/" DESTINATION data/rostros FILES_MATCHING PATTERN "*.onnx")
-    install(FILES "${BA_ROSTROS_DIR}/onnxruntime/LICENSE" DESTINATION data/licencias
+    install(FILES "${BA_ORT_DIR}/LICENSE" DESTINATION data/licencias
             RENAME onnxruntime-MIT.txt OPTIONAL)
 endif()
 target_include_directories(ba_core PUBLIC "${BA_QRCODEGEN}")

@@ -33,7 +33,7 @@ Rectangle {
         const t = Math.max(0, Math.round(s))
         return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0")
     }
-    function avisar(txt, tipo) { ApplicationWindow.window.toast(txt, tipo || "error") }
+    function avisar(txt, tipo) { Studio.notify(txt, tipo || "error") }
     /// Los errores de los ViewModel vuelven como string: vacío es que salió bien.
     function chequear(err, bien) {
         if (err && err !== "") avisar(err)

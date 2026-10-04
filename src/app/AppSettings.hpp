@@ -64,9 +64,19 @@ struct TransitionConfig {
     int durationMs = 300;
 };
 
+/// «Mejorar imagen» (filtro ba_mejora_imagen) en las entradas de video: lo
+/// general; cada entrada puede seguirlo, forzarlo o apagarlo (Cámaras PTZ).
+struct MejoraConfig {
+    bool activa = false;
+    int ruido = 60;   ///< 0..100
+    int color = 70;   ///< 0..100
+    int nitidez = 50; ///< 0..100
+};
+
 /// Configuracion de A (app.json) + opciones de linea de comandos.
 struct AppConfig {
     VideoConfig video;
+    MejoraConfig mejora;
     EncoderConfig encoder;
     bool record = false; ///< grabar al arrancar
     RecordConfig rec;

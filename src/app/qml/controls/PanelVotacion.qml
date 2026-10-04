@@ -335,7 +335,7 @@ Item {
                     text: modelData.nombre
                     onClicked: {
                         const err = Studio.pantallas.mostrar(modelData.id, "votacion", {})
-                        if (err) ApplicationWindow.window.toast(err, "error")
+                        if (err) Studio.notify(err, "error")
                         proyectarDlg.close()
                     }
                 }

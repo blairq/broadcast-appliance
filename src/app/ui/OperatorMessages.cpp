@@ -94,6 +94,18 @@ int OperatorMessages::post(const json& spec) {
     return seq_;
 }
 
+bool OperatorMessages::revise(int id, const json& spec) {
+    for (auto& m : items_) {
+        if (m["id"] != id) continue;
+        if (m.value("status", std::string()) != "open") return false;
+        for (const char* k : {"title", "text", "platform", "fields"})
+            if (spec.contains(k)) m[k] = spec[k];
+        emit changed();
+        return true;
+    }
+    return false;
+}
+
 nlohmann::json OperatorMessages::get(int id) const {
     for (const auto& m : items_)
         if (m["id"] == id) return m;

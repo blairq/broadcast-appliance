@@ -3,6 +3,8 @@
 // ============================================================================
 #include "agent/Voz.hpp"
 
+#include "agent/FlujosTexto.hpp"
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -11,6 +13,7 @@
 #include <QKeyEvent>
 #include <QRegularExpression>
 #include <QTime>
+#include <QTimer>
 
 #include <algorithm>
 #include <chrono>
@@ -43,18 +46,45 @@ Voz::Voz(AppRuntime& rt, ModelosLocales& modelos, QObject* parent)
     monitor_ = std::make_unique<audio::MonitorVoz>();
     monitor_->preparar(); // «Voz del sistema», ya en Audio y en la Matriz
     leerAjustes();
+    escucha_->setCortes({cortePausa_, corteMaximo_, corteUmbral_});
+    // Lo que oye cada transcripción continua, para el indicador de la interfaz
+    // (encontrar el punto justo de los cortes hablando).
+    oidoT_ = new QTimer(this);
+    oidoT_->setInterval(200);
+    connect(oidoT_, &QTimer::timeout, this, [this]() {
+        QVariantList l;
+        for (const auto& [k, o] : escucha_->oido())
+            l << QVariantMap{
+                {"flujo", QString::fromStdString(k)}, {"hablando", o.hablando}, {"segundos", o.segundos}};
+        if (l != oido_) {
+            oido_ = l;
+            emit oidoCambio();
+        }
+    });
+    oidoT_->start();
     // Las frases de la transcripción continua (llegan en el hilo de Escucha).
-    escucha_->setFrase([this](const std::string& fuente, const audio::Escucha::Resultado& r) {
-        QMetaObject::invokeMethod(this, [this, fuente, r]() {
-            const QString f = QString::fromStdString(fuente), t = QString::fromStdString(r.texto);
-            transcripcion_.push_back(QVariantMap{{"fuente", f},
+    // La clave es el nombre de la SALIDA DE TEXTO (la tarjeta), no la fuente.
+    escucha_->setFrase([this](const std::string& flujo, const audio::Escucha::Resultado& r) {
+        QMetaObject::invokeMethod(this, [this, flujo, r]() {
+            const QString fl = QString::fromStdString(flujo), t = QString::fromStdString(r.texto);
+            QString fuente = fl;
+#if defined(BA_HAVE_CLAP)
+            if (racks_ != nullptr) {
+                const auto d = racks_->textoDe(flujo);
+                if (d.is_object()) fuente = QString::fromStdString(d.value("fuente", flujo));
+            }
+#endif
+            transcripcion_.push_back(QVariantMap{{"fuente", fuente},
+                                                 {"flujo", fl},
                                                  {"texto", t},
                                                  {"hora", QTime::currentTime().toString("HH:mm:ss")},
                                                  {"segundos", r.segundosDeAudio}});
             while (transcripcion_.size() > 200)
                 transcripcion_.removeFirst();
             emit transcripcionCambio();
-            emit frase(f, t);
+            emit frase(fuente, t);
+            if (flujos_ != nullptr)
+                flujos_->publicar(fl, t, "Voz a texto en «" + fuente + "»", r.segundosDeAudio);
         });
     });
     connect(&modelos_, &ModelosLocales::cambio, this, &Voz::revisarModelos);
@@ -163,6 +193,7 @@ void Voz::apretar() {
     feed.setPushToTalk(true); // desde acá el lobby ya no oye al operador
     grabando_ = true;
     setEstado("Escuchando… (soltá para mandar)");
+    prepararTc(); // mientras habla, el modelo v2 ya lee el estado
 #endif
 }
 
@@ -277,8 +308,8 @@ void Voz::revisarCorrientes() {
 #if defined(BA_HAVE_VOZ) && defined(BA_HAVE_CLAP)
     if (racks_ == nullptr) return;
     std::set<std::string> ahora;
-    for (const auto& f : racks_->fuentesConTexto())
-        if (f.value("modo", std::string()) == "continuo") ahora.insert(f.value("fuente", std::string()));
+    for (const auto& f : racks_->textos())
+        if (f.value("modo", std::string()) == "continuo") ahora.insert(f.value("flujo", std::string()));
     for (const auto& c : continuas_)
         if (!ahora.contains(c)) escucha_->cerrarContinuo(c);
     for (const auto& c : ahora)
@@ -302,7 +333,8 @@ QVariantList Voz::fuentesTexto() const {
     if (racks_ != nullptr)
         for (const auto& f : racks_->fuentesConTexto())
             out.push_back(QVariantMap{{"fuente", QString::fromStdString(f.value("fuente", std::string()))},
-                                      {"modo", QString::fromStdString(f.value("modo", std::string()))}});
+                                      {"modo", QString::fromStdString(f.value("modo", std::string()))},
+                                      {"flujo", QString::fromStdString(f.value("flujo", std::string()))}});
 #endif
     return out;
 }
@@ -311,12 +343,7 @@ QString Voz::setTexto(const QString& fuente, const QString& modo) {
 #if defined(BA_HAVE_CLAP)
     if (racks_ == nullptr) return "Esta compilación no tiene racks de audio.";
     if (modo.isEmpty()) {
-        audio::AudioRack* r = racks_->rack(fuente.toStdString(), false);
-        if (r == nullptr) return {};
-        std::string e;
-        r->remove("voz-a-texto", &e);
-        racks_->markDirty();
-        emit racks_->changed();
+        racks_->quitarTextos(fuente.toStdString());
         return {};
     }
     if (modo != "dictado" && modo != "continuo") return "El modo es «dictado» o «continuo».";
@@ -383,15 +410,15 @@ void Voz::setAutomatica(const QString& herramienta, bool on) {
     emit cambio();
 }
 
-void Voz::atenderDesde(const QString& texto, const QString& quien, bool vigilancia) {
-    if (!vigilancia) {
+void Voz::atenderDesde(const QString& texto, const QString& quien, bool disparador) {
+    if (!disparador) {
         atenderDe(texto, "asistente:" + quien, nlohmann::json::object());
         return;
     }
-    // El encargo de una vigilancia viene como «[HH:mm:ss] aviso (vigilancia x,
+    // El encargo de un disparador viene como «[HH:mm:ss] aviso (disparador x,
     // tipo y)», una por línea si se juntaron: se dice y se atiende el aviso.
     static const QRegularExpression hora("^\\[\\d\\d:\\d\\d:\\d\\d\\]\\s*");
-    static const QRegularExpression cola("\\s*\\(vigilancia [^)]*\\)\\s*$");
+    static const QRegularExpression cola("\\s*\\(disparador [^)]*\\)\\s*$");
     for (QString linea : texto.split('\n', Qt::SkipEmptyParts)) {
         linea.remove(hora);
         linea.remove(cola);
@@ -400,7 +427,7 @@ void Voz::atenderDesde(const QString& texto, const QString& quien, bool vigilanc
         const int id = ultimoId_ + 1; // el que va a tomar atenderDe
         soloProponer_.insert(id);
         responder(id, linea);
-        atenderDe(linea, "vigilancia:" + quien, nlohmann::json{{"vigilancia", true}});
+        atenderDe(linea, "disparador:" + quien, nlohmann::json{{"disparador", true}});
     }
 }
 
@@ -421,27 +448,37 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
                              : !ficha_         ? "sin herramientas MCP"
                                        : "modelo local no listo (" + modelos_.estado().toStdString() + ")"},
                   {"texto", f.toStdString()}});
+        // Vino del asistente «Modelo local» (o es él quien lo recibiría):
+        // devolvérselo sería un bucle.
+        if (origen.startsWith("asistente:") || (asistenteLocal_ && asistenteLocal_())) {
+            responder(id, !modelos_.listo() ? "El modelo local no está listo todavía."
+                                            : "El modelo local está apagado para lo dictado.");
+            return;
+        }
         emit dictado(f);
+        return;
+    }
+    // Modelo v2 (tool calling nativo): una sola vuelta, con el estado.
+    if (modelos_.formato() == "tc") {
+        atenderTc(id, f, origen);
         return;
     }
     bitacora(id, "modelo_pedido",
              {{"op", "elegir"}, {"frase", f.toStdString()}, {"modelo", modelos_.activo().toStdString()}});
     const auto t0 = std::chrono::steady_clock::now();
-    modelos_.elegir(f, [this, f, id, t0](const nlohmann::json& j) {
+    modelos_.elegir(f, [this, f, id, t0, origen](const nlohmann::json& j) {
         const double ms =
             std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-        QMetaObject::invokeMethod(this, [this, f, j, id, ms]() {
+        QMetaObject::invokeMethod(this, [this, f, j, id, ms, origen]() {
             bitacora(id, "modelo_respuesta", {{"respuesta", j}, {"ms_ida_y_vuelta", ms}});
             const QString h = QString::fromStdString(j.value("herramienta", std::string()));
             const FichaHerramienta ficha = h.isEmpty() ? FichaHerramienta{} : ficha_(h);
             // `derivar`, un error o algo que no existe: es del asistente.
             if (j.contains("error") || h.isEmpty() || h == "derivar" || !ficha.existe) {
-                bitacora(id, "al_asistente",
-                         {{"motivo", j.contains("error") ? "error del modelo"
-                                     : h == "derivar"    ? "derivar"
-                                                         : "herramienta inexistente: " + h.toStdString()},
-                          {"texto", f.toStdString()}});
-                emit dictado(f);
+                derivarA(id, f, origen,
+                         j.contains("error") ? "error del modelo"
+                         : h == "derivar"    ? "derivar"
+                                             : "herramienta inexistente: " + h.toStdString());
                 return;
             }
             if (ficha.requiereDatos)
@@ -450,6 +487,141 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
                 decidir(id, f, h, ficha, nlohmann::json::object(), {}, {});
         });
     });
+}
+
+QString Voz::estadoTc(const nlohmann::json& estado) {
+    // JSON compacto, con los acentos de verdad (como se entrenó). El MISMO
+    // texto en preparar y en llamar: si difiere en un byte, no se aprovecha.
+    return estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump()) : QString();
+}
+
+void Voz::prepararTc(std::function<void()> listo) {
+    if (!usarModeloLocal_ || !modelos_.listo() || modelos_.formato() != "tc" || !contexto_) {
+        if (listo) listo();
+        return;
+    }
+    contexto_([this, listo](const nlohmann::json& estado) {
+        const QString e = estadoTc(estado);
+        if (e.isEmpty()) {
+            if (listo) listo();
+            return;
+        }
+        modelos_.preparar(e, [this, listo](const nlohmann::json& j) {
+            QMetaObject::invokeMethod(this, [this, j, listo]() {
+                bitacora(0, "preparado", j);
+                if (listo) listo();
+            });
+        });
+    });
+}
+
+void Voz::probarTc(const QString& frase, std::function<void(const nlohmann::json&)> r) {
+    const auto conEstado = [this, frase, r](const nlohmann::json& estado) {
+        modelos_.llamar(estadoTc(estado), frase, [this, r](const nlohmann::json& j) {
+            QMetaObject::invokeMethod(this, [r, j]() { r(j); });
+        });
+    };
+    if (contexto_)
+        contexto_(conEstado);
+    else
+        conEstado(nlohmann::json::object());
+}
+
+void Voz::derivarA(int id, const QString& f, const QString& origen, const std::string& motivo) {
+    // Un asistente grande andando, y el pedido no vino de él: es suyo.
+    const bool delAsistente = origen.startsWith("asistente:");
+    if (!delAsistente && asistenteGrande_ && asistenteGrande_()) {
+        bitacora(id, "al_asistente", {{"motivo", motivo}, {"texto", f.toStdString()}});
+        emit dictado(f);
+        return;
+    }
+    // Si no, NO se le devuelve: con el asistente «Modelo local», dictado()
+    // volvía a entrar acá y derivaba de nuevo, sin fin. Tampoco se lo pasa a
+    // una charla del mismo modelo sin herramientas: medido, a «escribile a
+    // Juan…» contesta «le escribo a Juan» sin haber hecho nada.
+    bitacora(id, "sin_asistente", {{"motivo", motivo}, {"texto", f.toStdString()}});
+    responder(id, "Eso es para el asistente grande, y no está andando.");
+    // Queda escrito en la barra, para no perderlo (salvo que la barra se lo
+    // vaya a mandar al mismo modelo local).
+    if (!delAsistente && !(asistenteLocal_ && asistenteLocal_())) emit dictado(f);
+}
+
+void Voz::atenderTc(int id, const QString& f, const QString& origen) {
+    // El estado que se entrenó: escenas, fuentes, audio (el micrófono del
+    // operador primero), participantes, gráficos y carruseles. Sin contexto
+    // (no debería pasar) va sin estado: el modelo lo toma como charla.
+    const auto conEstado = [this, id, f, origen](const nlohmann::json& estado) {
+        const QString estadoJson = estadoTc(estado);
+        bitacora(id, "modelo_pedido",
+                 {{"op", "llamar"},
+                  {"frase", f.toStdString()},
+                  {"modelo", modelos_.activo().toStdString()},
+                  {"estado", estadoJson.toStdString()}});
+        const auto t0 = std::chrono::steady_clock::now();
+        modelos_.llamar(estadoJson, f, [this, id, f, estado, t0, origen](const nlohmann::json& j) {
+            const double ms =
+                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+            QMetaObject::invokeMethod(this, [this, id, f, estado, j, ms, origen]() {
+                bitacora(id, "modelo_respuesta",
+                         {{"op", "llamar"}, {"respuesta", j}, {"ms_ida_y_vuelta", ms}});
+                if (j.contains("error")) {
+                    derivarA(id, f, origen, "error del modelo: " + j.value("error", std::string()));
+                    return;
+                }
+                const std::string crudo = j.value("crudo", j.value("texto", std::string()));
+                const argumentos::LlamadaTc l = argumentos::leerTc(crudo);
+                // Charla: el modelo contesta en texto.
+                if (!l.hay) {
+                    const QString texto = QString::fromStdString(j.value("texto", std::string())).trimmed();
+                    bitacora(id, "charla", {{"texto", texto.toStdString()}});
+                    if (texto.isEmpty()) {
+                        derivarA(id, f, origen, "charla vacía");
+                        return;
+                    }
+                    emit notify("🗣 " + texto, "ok");
+                    responder(id, texto);
+                    return;
+                }
+                const QString h = QString::fromStdString(l.funcion);
+                if (h == "derivar") {
+                    derivarA(id, f, origen, "derivar");
+                    return;
+                }
+                if (h == "falta_dato") {
+                    QString pregunta;
+                    for (const auto& [k, v] : l.parametros)
+                        if (k == "pregunta") pregunta = QString::fromStdString(v).trimmed();
+                    if (pregunta.isEmpty()) pregunta = "Me falta un dato: ¿cuál?";
+                    bitacora(id, "falta_dato", {{"pregunta", pregunta.toStdString()}});
+                    emit notify("❓ " + pregunta, "ok");
+                    responder(id, pregunta);
+                    return;
+                }
+                const FichaHerramienta ficha = ficha_ ? ficha_(h) : FichaHerramienta{};
+                if (!ficha.existe) {
+                    derivarA(id, f, origen, "herramienta inexistente: " + h.toStdString());
+                    return;
+                }
+                const nlohmann::json crudos = argumentos::argsDesdeTc(l, ficha.ficha);
+                const auto r = argumentos::validar(h.toStdString(), ficha.ficha, crudos, estado);
+                QStringList notas, bloqueos;
+                for (const auto& n : r.notas)
+                    notas << QString::fromStdString(n);
+                for (const auto& b : r.bloqueos)
+                    bloqueos << QString::fromStdString(b);
+                bitacora(id, "argumentos",
+                         {{"crudos", crudos},
+                          {"args", r.args},
+                          {"notas", notas.join(" | ").toStdString()},
+                          {"bloqueos", bloqueos.join(" | ").toStdString()}});
+                decidir(id, f, h, ficha, r.args, notas, bloqueos);
+            });
+        });
+    };
+    if (contexto_)
+        contexto_(conEstado);
+    else
+        conEstado(nlohmann::json::object());
 }
 
 void Voz::completar(int id, const QString& frase, const QString& h, const FichaHerramienta& ficha) {
@@ -513,7 +685,7 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
     // Automática y sin dudas: se hace. Con dudas (un nombre que no existe, un
     // dato que falta) se propone igual, para que el operador lo vea.
     // Una pregunta (solo lee) no cambia nada: se contesta sin preguntar.
-    // Una vigilancia: solo lo que lee se hace solo; las acciones, propuestas.
+    // Un disparador: solo lo que lee se hace solo; las acciones, propuestas.
     const bool automatica = automaticas_.contains(h) && !soloProponer_.contains(id);
     if ((automatica || ficha.lectura) && bloqueos.isEmpty()) {
         bitacora(id, "automatica", {{"herramienta", h.toStdString()}, {"args", args}});
@@ -695,6 +867,9 @@ void Voz::leerAjustes() {
     velocidad_ = std::clamp(j.value("velocidad", 1.0), 0.7, 1.5);
     usarModeloLocal_ = j.value("modeloLocal", true);
     contestarConVoz_ = j.value("contestarConVoz", true);
+    cortePausa_ = j.value("corte_pausa", 0.35);
+    corteMaximo_ = j.value("corte_maximo", 6.0);
+    corteUmbral_ = j.value("corte_umbral", 0.5);
     automaticas_.clear();
     for (const auto& h : j.value("automaticas", nlohmann::json::array()))
         if (h.is_string()) automaticas_ << QString::fromStdString(h.get<std::string>());
@@ -709,11 +884,33 @@ void Voz::guardarAjustes() const {
                            {"velocidad", velocidad_},
                            {"modeloLocal", usarModeloLocal_},
                            {"contestarConVoz", contestarConVoz_},
+                           {"corte_pausa", cortePausa_},
+                           {"corte_maximo", corteMaximo_},
+                           {"corte_umbral", corteUmbral_},
                            {"automaticas", autos}};
     const QString ruta = archivoAjustes(rt_.dataRoot());
     QDir().mkpath(QFileInfo(ruta).absolutePath());
     QFile f(ruta);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QByteArray::fromStdString(j.dump(1)));
+}
+
+QVariantMap Voz::cortes() const {
+    return {{"pausa", cortePausa_}, {"maximo", corteMaximo_}, {"umbral", corteUmbral_}};
+}
+
+QString Voz::setCortes(double pausa, double maximo, double umbral) {
+    if (pausa < 0.1 || pausa > 3) return "La pausa va de 0,1 a 3 s.";
+    if (maximo < 2 || maximo > 30) return "El largo máximo va de 2 a 30 s.";
+    if (umbral < 0.1 || umbral > 0.95) return "El umbral va de 0,1 a 0,95.";
+    cortePausa_ = pausa;
+    corteMaximo_ = maximo;
+    corteUmbral_ = umbral;
+#if defined(BA_HAVE_VOZ)
+    escucha_->setCortes({pausa, maximo, umbral});
+#endif
+    guardarAjustes();
+    emit cambio();
+    return {};
 }
 
 QVariantList Voz::voces() const {

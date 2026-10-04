@@ -71,6 +71,17 @@ RepoHf leerRepoHf(const std::string& cuerpo);
 std::string shaBlobGit(const std::filesystem::path& archivo);
 /// La carpeta de un repo dentro de Modelos/: "BlairQ/x" -> "BlairQ__x".
 std::string carpetaDeRepo(const std::string& repo);
+
+/// La huella del esquema de una herramienta, como la escribe el modelo.json
+/// del repo («esquema_huella_metodo»): sha256 del inputSchema en JSON con las
+/// claves ordenadas, sin espacios, UTF-8; los primeros 16 hex.
+std::string huellaEsquema(const nlohmann::json& inputSchema);
+
+/// Compara lo que dice el modelo.json (con qué herramientas se entrenó el
+/// modelo) con las herramientas de la app de hoy ({nombre: inputSchema}).
+/// Devuelve {entrenadas, iguales, cambiaron: [..], no_estan: [..],
+/// herramientas_app, sin_entrenar, cobertura (0..1), por_categoria, ...}.
+nlohmann::json compararFicha(const nlohmann::json& modeloJson, const nlohmann::json& herramientasApp);
 /// La plataforma como la nombra el catálogo: mac-arm64, linux-x64, win-x64.
 std::string plataformaCatalogo();
 
@@ -99,6 +110,9 @@ class ModelosLocales : public QObject {
     Q_PROPERTY(bool alArrancar READ alArrancar WRITE setAlArrancar NOTIFY cambio)
     /// Las últimas pruebas (frase, herramienta, prob, ms), la más nueva primero.
     Q_PROPERTY(QVariantList pruebas READ pruebas NOTIFY pruebasCambio)
+    /// Con qué herramientas se entrenó cada modelo (su modelo.json) comparado con
+    /// las de la app de hoy: repo -> {estado: buscando|ok|sin_ficha|error, ...}.
+    Q_PROPERTY(QVariantMap fichas READ fichas NOTIFY fichasCambio)
 
    public:
     using json = nlohmann::json;
@@ -139,11 +153,37 @@ class ModelosLocales : public QObject {
     /// Preguntarle algo de una imagen (ruta o file:// URL): va a `pruebas`.
     Q_INVOKABLE void probarVision(const QString& imagen, const QString& pregunta);
     Q_INVOKABLE void abrirCarpeta() const;
+    /// Busca el modelo.json del repo (el bajado, el guardado o el de Hugging
+    /// Face) y lo compara con las herramientas de hoy; el resultado va a `fichas`.
+    Q_INVOKABLE void revisarHerramientas(const QString& repo, bool forzar = false);
+    QVariantMap fichas() const { return fichas_; }
+    /// La ficha de un repo ya revisada (o vacía).
+    json ficha(const QString& repo) const;
+    /// Quién dice las herramientas de hoy ({nombre: inputSchema}); lo pone GuiMode.
+    void setHerramientas(std::function<json()> f) { herramientas_ = std::move(f); }
 
     /// Para el resto de la app: qué herramienta atiende la frase. Contesta
     /// {"herramienta","derivar","prob","ms"} o {"error"}; sin modelo listo,
     /// {"error":"sin modelo"} enseguida.
     void elegir(const QString& frase, Respuesta r);
+    /// Modelos v2 (formato «tc», tool calling nativo): una sola vuelta con el
+    /// estado (JSON compacto; vacío = charla) y la frase. Responde {crudo,
+    /// texto, tipo: llamada|charla, herramienta, prob, ms} o {error}.
+    void llamar(const QString& estadoJson, const QString& frase, Respuesta r);
+    /// Modelos v2: lee el estado antes de que llegue la frase (al apretar F9),
+    /// para que `llamar` con ese MISMO estado solo procese la frase: el primer
+    /// token pasa de ~1,1 s a ~0,3 s. Responde {preparado, ms, tokens} o {error}.
+    void preparar(const QString& estadoJson, Respuesta r);
+    /// v2: quien arma el estado del aparato y llama (Voz). Con esto, `probar`
+    /// y `probarFrase` muestran la llamada entera, no solo el nombre.
+    using Probador = std::function<void(const QString& frase, Respuesta r)>;
+    void setProbadorTc(Probador p) { probadorTc_ = std::move(p); }
+    /// Lo que haría el modelo con la frase, SIN hacerlo. v1: {herramienta,
+    /// derivar, prob, ms}. v2: además {tipo, crudo, resumen («audio_set(name:
+    /// Música, volumeDb: +6)» o la charla)}.
+    void probarFrase(const QString& frase, Respuesta r);
+    /// "tc" si el modelo activo es v2 (tool calling nativo), "v1" si no.
+    QString formato() const { return info_.value("formato", "v1").toString(); }
     /// Texto corto (con MTP si rinde): `delta` va llegando, `fin` al final.
     void generar(const QString& texto, bool conPrefijo, int maxTokens,
                  std::function<void(const QString&)> delta, Respuesta fin);
@@ -167,6 +207,7 @@ class ModelosLocales : public QObject {
     void cambio();
     void descargaCambio();
     void pruebasCambio();
+    void fichasCambio();
     void notify(const QString& text, const QString& kind);
 
    private:
@@ -194,6 +235,7 @@ class ModelosLocales : public QObject {
     QString mtp_ = "no"; ///< la cabeza todavía no rinde: sin MTP hasta reentrenarla
     bool alArrancar_ = false;
     QVariantList pruebas_;
+    Probador probadorTc_;
 
     QProcess* proc_ = nullptr;
     QByteArray pendiente_;
@@ -203,6 +245,12 @@ class ModelosLocales : public QObject {
         std::function<void(const QString&)> delta;
     };
     std::map<std::int64_t, Espera> esperas_;
+
+    QVariantMap fichas_;
+    std::map<QString, json> fichasJson_;
+    std::function<json()> herramientas_;
+    std::vector<std::thread> hilosFicha_;
+    void ponerFicha(const QString& repo, json ficha);
 
     std::thread hiloDescarga_;
     std::atomic<bool> cancelar_{false};

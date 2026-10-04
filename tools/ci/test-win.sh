@@ -9,13 +9,17 @@
 # Microsoft enlazado estatico, asi que tambien atrapan diferencias del CRT
 # real que el ucrtbase propio de Wine taparia.
 #
-# Uso: tools/ci/test-win.sh [build/win]
+# Uso: tools/ci/test-win.sh [--solo-wine] [build/win]
 # ============================================================================
 set -uo pipefail
 # macOS no trae sha256sum (shasum -a 256 da el mismo formato).
 command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# --solo-wine: solo deja Wine listo en extern/toolchain/wine (lo usa
+# tools/deps/gst-python-win.sh para correr el Python de Windows).
+SOLO_WINE=0
+[ "${1:-}" = --solo-wine ] && { SOLO_WINE=1; shift; mkdir -p "$ROOT/build/win"; }
 B="$(cd "${1:-$ROOT/build/win}" && pwd)"
 TC="$ROOT/extern/toolchain"
 DL="$ROOT/extern/.downloads"
@@ -40,9 +44,11 @@ if [ "$(cat "$TC/wine/.version" 2>/dev/null)" != "$WINE_NAME" ]; then
     rm -rf "$B/wineprefix" # un prefijo de otra variante de Wine no sirve
     echo "$WINE_NAME" >"$TC/wine/.version"
 fi
+[ "$SOLO_WINE" = 1 ] && exit 0
 
 export WINEPREFIX="$B/wineprefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=" DISPLAY=
-export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/obs-studio/bin/64bit;$ROOT/extern/msvc/redist"
+# (GStreamer antes que el OBS: con el mismo nombre va la de GStreamer, como en el bundle.)
+export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/obs-studio/bin/64bit;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
 # Los tests de audio cargan el LSP de Windows (tools/deps/lsp-win.sh) por ruta Windows.
 if [ -f "$ROOT/extern/lsp/windows-x86_64/lsp-plugins.clap" ]; then
     export BA_LSP_CLAP="Z:${ROOT//\//\\}\\extern\\lsp\\windows-x86_64\\lsp-plugins.clap"

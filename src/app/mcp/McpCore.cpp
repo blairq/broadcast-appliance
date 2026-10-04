@@ -626,9 +626,13 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     const std::string name = params["name"].get<std::string>();
     const json args = params.contains("arguments") && params["arguments"].is_object() ? params["arguments"]
                                                                                       : json::object();
-    const auto finish = [done](const ToolResult& r) {
+    // Un aviso que va al final de la respuesta (p. ej. argumentos que no existen).
+    auto nota = std::make_shared<std::string>();
+    const auto finish = [done, nota](const ToolResult& r) {
         json out{{"content", r.content}, {"isError", r.isError}};
         if (!r.structured.is_null()) out["structuredContent"] = r.structured;
+        if (!nota->empty() && out["content"].is_array())
+            out["content"].push_back({{"type", "text"}, {"text", *nota}});
         done(out);
     };
     const Tool* tool = findTool(name);
@@ -653,10 +657,12 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     // Fuera del juego del rol: se niega ANTES de validar, explicando de quien
     // es. La herramienta existe, pero no para este cliente.
     if (!permitida(*tool, ctx.rol)) {
-        finish(ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
-                                 "`) no esta en el juego del rol `" + ctx.rol +
-                                 "`. Si el encargo la necesita, pediselo a otro rol con `agente_encargar` "
-                                 "o dejalo dicho en tu resumen final."));
+        finish(
+            ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
+                              "`) no esta en el juego del rol `" + ctx.rol +
+                              "`. `agente_roles` dice que roles tienen esa categoria: si alguno la tiene, "
+                              "pediselo con `agente_encargar`; si ninguno, no se puede desde aca: decile al "
+                              "operador que hace falta y no improvises otro camino."));
         return;
     }
     const std::string problem = validate(tool->inputSchema, args);
@@ -664,6 +670,20 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         finish(ToolResult::error("Argumentos invalidos para " + name + ": " + problem +
                                  ". Ficha completa: help {\"tool\": \"" + name + "\"}."));
         return;
+    }
+    // Un argumento que la herramienta no conoce se ignora… y se avisa: si no,
+    // un nombre equivocado (`name` en vez de `fuente`) pasa callado y la
+    // herramienta hace otra cosa (mira el programa en vez de la escena pedida).
+    if (const json props = tool->inputSchema.value("properties", json::object());
+        props.is_object() && !props.empty()) {
+        std::string ignorados, acepta;
+        for (auto it = args.begin(); it != args.end(); ++it)
+            if (!props.contains(it.key())) ignorados += (ignorados.empty() ? "`" : ", `") + it.key() + "`";
+        if (!ignorados.empty()) {
+            for (auto it = props.begin(); it != props.end(); ++it)
+                acepta += (acepta.empty() ? "`" : ", `") + it.key() + "`";
+            *nota = "OJO: " + name + " no conoce " + ignorados + " (se ignoró). Acepta: " + acepta + ".";
+        }
     }
     // Estado de la salvaguarda de ESTA sesion (lo sabe el servidor, no el modelo).
     if (name == "security_status") {

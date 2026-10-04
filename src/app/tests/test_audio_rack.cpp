@@ -10,6 +10,7 @@
 //      tocar el audio en vivo) y respuesta de un modulo neutro (plana).
 // ============================================================================
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -181,6 +182,74 @@ int main() {
         monPeak = std::max(monPeak, std::fabs(rack.monitorPlane(0)[i]));
     CHECK(monPeak > 0.45f && monPeak < 0.55f, "la salida oye la entrada tal cual");
     CHECK(std::fabs(outWired - outNoWire) < 0.02f, "la salida no altera lo que sale al aire");
+    // 5b. Tarjeta ENTRADA: el audio de otra fuente llega por su anillo y se
+    //     suma donde se la cablee; sin anillo, silencio. Se guarda su fuente.
+    {
+        AudioRack r3(lib, &svc, 48000);
+        const std::string ent = r3.addEntrada("Micrófono");
+        CHECK(ent == "entrada" && r3.entradas().size() == 1 && r3.entradas()[0].second == "Micrófono",
+              "agrega la tarjeta de entrada");
+        CHECK(r3.connect(ent, "out", "out", "in", &err), "se cablea la entrada a la mezcla");
+        auto ring = std::make_shared<anillo::Ring>();
+        r3.setEntradaAnillo(ent, ring);
+        // La otra fuente manda 0.25 constante; la propia, silencio.
+        std::vector<float> otra(480, 0.25f), l(480, 0.f), rr(480, 0.f);
+        float* planes[2] = {l.data(), rr.data()};
+        float pico = 0;
+        for (int b = 0; b < 10; ++b) {
+            ring->push(otra.data(), otra.data(), 480);
+            std::fill(l.begin(), l.end(), 0.f);
+            std::fill(rr.begin(), rr.end(), 0.f);
+            r3.process(planes, 2, 480);
+            pico = std::max(pico, l[100]);
+        }
+        CHECK(std::fabs(pico - 0.25f) < 0.01f, "lo que llega de la otra fuente sale en la mezcla");
+        r3.setEntradaAnillo(ent, nullptr);
+        std::fill(l.begin(), l.end(), 0.f);
+        r3.process(planes, 2, 480);
+        CHECK(std::fabs(l[100]) < 1e-6, "sin anillo, la entrada es silencio");
+        // Audio agendado a futuro (la voz del sistema dice la frase entera de
+        // una vez, para dentro de 1 s): suena a su hora y entero.
+        {
+            anillo::Ring futuro;
+            std::vector<float> frase(9600, 0.5f); // 200 ms
+            const std::uint64_t ahora = 1'000'000'000'000ULL;
+            futuro.pushEn(frase.data(), frase.data(), 9600, ahora + 1'000'000'000ULL, ahora, 48000);
+            std::vector<float> a(48000), b(48000);
+            futuro.pop(a.data(), b.data(), 48000);
+            const bool silencioAntes = std::all_of(a.begin(), a.end(), [](float x) { return x == 0.f; });
+            std::vector<float> c(9600), d(9600);
+            futuro.pop(c.data(), d.data(), 9600);
+            const bool frasEntera = std::all_of(c.begin(), c.end(), [](float x) { return x == 0.5f; });
+            CHECK(silencioAntes && frasEntera,
+                  "lo agendado a futuro suena a su hora y entero (no se recorta)");
+        }
+        AudioRack r4(lib, &svc, 48000);
+        CHECK(r4.load(r3.save(), &err) && r4.entradas().size() == 1 && r4.entradas()[0].second == "Micrófono",
+              "la tarjeta de entrada se guarda con su fuente");
+        CHECK(r4.setEntradaFuente(ent, "Invitado 1") && r4.entradas()[0].second == "Invitado 1",
+              "se le cambia la fuente");
+    }
+    // 5c. Tarjeta TRADUCIR: sin puertos, fuera del proceso de audio; se
+    //     guarda con sus opciones y el título dice el idioma.
+    {
+        AudioRack r5(lib, &svc, 48000);
+        const std::string tr = r5.addTraduccion({{"desde", "Orador"}, {"a", "pt"}});
+        CHECK(!tr.empty() && r5.kindOf(tr) == "traducir" && r5.traducciones().size() == 1,
+              "agrega la tarjeta de traducir");
+        CHECK(!r5.connect("in", "out", tr, "in", &err), "no se le puede cablear audio");
+        std::vector<float> l(480, 0.5f), rr(480, 0.5f);
+        float* planes[2] = {l.data(), rr.data()};
+        r5.process(planes, 2, 480);
+        CHECK(std::fabs(l[100] - 0.5f) < 0.01f, "el audio pasa igual con la tarjeta puesta");
+        CHECK(r5.setTraduccionOpciones(tr, {{"a", "fr"}, {"espera_ms", 900}}), "se ajusta");
+        AudioRack r6(lib, &svc, 48000);
+        CHECK(r6.load(r5.save(), &err), "carga un rack con traducir");
+        const json t = r6.traducciones().at(0);
+        CHECK(t.value("desde", "") == "Orador" && t.value("a", "") == "fr" && t.value("espera_ms", 0) == 900,
+              "la traducción vuelve del archivo con sus opciones");
+        CHECK(r5.remove(tr, &err) && r5.traducciones().empty(), "se quita");
+    }
     // 6. Cables por canal: la derecha de un modulo a la izquierda de otro, y
     //    un solo canal (la otra mitad queda en silencio).
     {

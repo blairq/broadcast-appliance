@@ -12,6 +12,15 @@
 //   salida     una salida de audio del equipo (auriculares, parlantes): copia
 //              lo que le llega para mandarlo a ese dispositivo. No toca lo que
 //              sale al aire; se patchea desde donde se quiera oir.
+//   entrada    el audio de OTRA fuente (el micrófono, un invitado, un canal
+//              de una placa), después de su propio rack: una tarjeta más del
+//              grafo, que se patchea a donde se quiera (la mezcla, el
+//              sidechain de un compresor, la voz a texto). Solo salida.
+//   habla      TEXTO A VOZ: dice (con la voz y el idioma elegidos) lo que
+//              llega por una salida de texto, o lo que se le pide; su audio
+//              sale por su puerto y se patchea como cualquier otro.
+//   traducir   TRADUCIR (sin audio): toma una salida de texto (la de una voz
+//              a texto) y publica otra en otro idioma (agent/Traductor).
 //   texto      VOZ A TEXTO (uno por rack): copia lo que le llega para el
 //              reconocedor. Modo «dictado» (push-to-talk al asistente) o
 //              «continuo» (transcripción: subtítulos, acta). Tampoco toca lo que
@@ -32,6 +41,7 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -42,6 +52,7 @@
 
 #include "audio/Analyzer.hpp"
 #include "audio/ClapHost.hpp"
+#include "audio/RingEstereo.hpp"
 
 namespace ba::app::audio {
 
@@ -64,16 +75,54 @@ class AudioRack {
     std::string addAnalyzer(const std::string& label, const std::string& after);
     /// Generador suelto (no se conecta solo: se patchea a mano o se usa para medir).
     std::string addGenerator(const std::string& label);
+    /// Tarjeta ENTRADA: el audio de la fuente `fuente` (no se conecta sola: se
+    /// patchea). El audio lo trae RackManager (setEntradaAnillo).
+    std::string addEntrada(const std::string& fuente, const std::string& label = {});
+    bool setEntradaFuente(const std::string& id, const std::string& fuente);
+    /// Las tarjetas de entrada: (id del nodo, fuente).
+    std::vector<std::pair<std::string, std::string>> entradas() const;
+    /// El anillo del que lee la tarjeta (nulo = silencio). Sirve para las
+    /// tarjetas «entrada» y «habla».
+    void setEntradaAnillo(const std::string& id, std::shared_ptr<anillo::Ring> ring);
+    /// Tarjeta TEXTO A VOZ. Opciones: {flujo (la salida de texto que lee, ""
+    /// = ninguna), voz (repo del modelo, "" = la del sistema), hablante,
+    /// velocidad}. El audio lo pone RackManager/VocesRack en su anillo.
+    std::string addHabla(const json& opciones);
+    bool setHablaOpciones(const std::string& id, const json& cambios);
+    /// [{id, flujo, voz, hablante, velocidad}]
+    json hablas() const;
+    /// Tarjeta TRADUCIR (sin audio): traduce una salida de texto a otro idioma y
+    /// publica otra. Opciones: {desde, idioma_desde, a, nombre (la salida que
+    /// publica, "" = «<desde> · <a>»), rotulo, archivo, activa, espera_ms}. Lo
+    /// hace agent/Traductor, que lee las tarjetas de todos los racks.
+    std::string addTraduccion(const json& opciones);
+    bool setTraduccionOpciones(const std::string& id, const json& cambios);
+    /// [{id, desde, idioma_desde, a, nombre, rotulo, archivo, activa, espera_ms}]
+    json traducciones() const;
     /// Nodo de SALIDA de audio del equipo (uno por rack). `device` es el id del
     /// dispositivo y `label` su nombre. Si ya hay uno, le cambia el destino.
     std::string addOutput(const std::string& device, const std::string& label);
-    /// Nodo de VOZ A TEXTO (uno por rack): `modo` "dictado" o "continuo". Si
-    /// ya hay uno, le cambia el modo. Nuevo, se conecta solo a lo que va a la
-    /// mezcla (el final de la cadena); después se patchea donde se quiera.
-    std::string addTexto(const std::string& modo);
-    /// "" (sin nodo), "dictado" o "continuo".
+    /// Nodo de VOZ A TEXTO (puede haber varios): `modo` "dictado" o
+    /// "continuo"; `flujo` es el nombre de su SALIDA DE TEXTO (único en todo el
+    /// sistema: lo valida RackManager). Nuevo, se conecta solo a lo que va a
+    /// la mezcla; después se patchea donde se quiera.
+    std::string addTexto(const std::string& modo, const std::string& flujo);
+    bool setTextoModo(const std::string& id, const std::string& modo);
+    bool setTextoFlujo(const std::string& id, const std::string& flujo);
+    /// Las salidas del texto: {archivo: bool, rotulo: "<fuente de texto>"}.
+    bool setTextoSalidas(const std::string& id, const json& salidas);
+    struct TextoInfo {
+        std::string id, flujo, modo;
+        json salidas;
+    };
+    std::vector<TextoInfo> textos() const;
+    /// El modo de la primera voz a texto ("" si no hay).
     std::string textoModo() const;
     bool hasOutput() const;
+    /// La tarjeta de salida graba todo lo que le llega a un archivo (lo hace
+    /// RackManager; esto es la marca, que se guarda con el rack).
+    bool setGrabar(bool grabar);
+    bool grabar() const;
     /// Id del dispositivo de la salida ("" si no hay nodo de salida).
     std::string outputDevice() const;
     bool remove(const std::string& id, std::string* error);
@@ -126,12 +175,10 @@ class AudioRack {
     /// canales). Vale hasta el `process()` siguiente y solo en ese hilo.
     uint32_t monitorFrames() const { return monFrames_; }
     const float* monitorPlane(int ch) const;
-    /// Lo que junto el nodo de voz a texto en el ULTIMO `process()` (mono).
-    /// Mismo contrato que el monitor: solo en el hilo de audio.
-    uint32_t textoFrames() const { return txtFrames_; }
-    const float* textoData() const { return txt_.data(); }
-    /// 0 = sin nodo, 1 = dictado, 2 = continuo (se puede leer desde el audio).
-    int textoModoAudio() const { return txtModo_.load(std::memory_order_relaxed); }
+    /// Lo que juntó cada nodo de voz a texto en el ÚLTIMO `process()` (mono):
+    /// fn(flujo, modo 1 dictado | 2 continuo, muestras, n). Solo en el hilo de
+    /// audio, justo después de `process()`.
+    void textosCapturados(const std::function<void(const std::string&, int, const float*, uint32_t)>& fn);
 
     struct Node;
 
@@ -173,9 +220,6 @@ class AudioRack {
     static constexpr uint32_t kMonitorCap = 8192;
     std::vector<float> monL_, monR_;
     uint32_t monFrames_ = 0;
-    std::vector<float> txt_;
-    uint32_t txtFrames_ = 0;
-    std::atomic<int> txtModo_{0};
 
     std::mutex planLock_;
     std::unique_ptr<Plan> plan_;

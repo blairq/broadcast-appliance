@@ -49,7 +49,7 @@ Se activa y desactiva en Configuración → **Asistente (MCP)**.
 | Twitch | `twitch_status`, `twitch_setup`, `twitch_login` (código para twitch.tv/activate), `twitch_logout`, `twitch_channel` (título, categoría, etiquetas, búsqueda), `twitch_live_start`, `twitch_live_stop`, `twitch_stream_status`, `twitch_videos`, `twitch_video_delete`, `twitch_chat` |
 | Facebook (Páginas) | `facebook_status`, `facebook_setup`, `facebook_login`, `facebook_logout`, `facebook_pages` (listar / elegir), `facebook_live_list` / `_create` (prueba sin publicar o público) / `_publish` / `_end`, `facebook_videos`, `facebook_video_update` (editar / borrar), `facebook_video_upload`, `facebook_chat` (comentarios) |
 | Chat en pantalla | `chat_overlay_add`: fuente **Chat en vivo** que mezcla YouTube, Twitch, Facebook y la sala |
-| Vigilancias | `alert_types`, `alert_create`, `alert_list`, `alert_update`, `alert_delete`, `alert_events`, `alert_wait` |
+| Disparadores | `alert_types`, `alert_create`, `alert_list`, `alert_update`, `alert_delete`, `alert_events`, `alert_wait` |
 | Pestaña Asistente | `assistant_status`, `assistant_config`, `assistant_install`, `assistant_run`, `assistant_send` |
 | Sistema | `system_info` (carpeta, credenciales, respaldos), `system_update` (actualizar / volver atrás) |
 | El equipo | `system_hardware` (todo junto), `monitors`, `audio_devices`, `video_devices` (formatos de cada cámara) |
@@ -92,7 +92,7 @@ solo se conecta a la cadena al aire con `al_aire: true`. LSP no publica sus
 medidores internos por CLAP: los medidores los calcula el rack.
 Guía completa: `help {"topic": "audio_rack"}`.
 
-## Vigilancias (alertas): que el servidor avise
+## Disparadores (alertas): que el servidor avise
 
 El asistente no tiene que consultar cada tanto con temporizadores: le pide al
 servidor que vigile (`alert_create`) y el servidor evalúa cada 250 ms contra el
@@ -110,14 +110,14 @@ temporizadores (`in` / `at` / `every`). Cada disparo:
 - queda en la cola de `alert_events`; un cliente externo puede esperar con
   `alert_wait` (vuelve apenas hay un aviso).
 
-Las vigilancias se guardan en `Config/alertas.json`.
+Los disparadores se guardan en `Config/alertas.json`.
 
 ## Pestaña Asistente (chat dentro de la app)
 
 La pestaña **✦** (abajo en la barra) corre, en una terminal propia (libvterm +
 pseudo-terminal), la interfaz oficial del agente elegido, ya conectada a este
 servidor por el puente `ba-mcp` y con un prompt del sistema que se genera de
-esta misma ayuda (cómo trabajar, reglas de seguridad, ofrecer vigilancias):
+esta misma ayuda (cómo trabajar, reglas de seguridad, ofrecer disparadores):
 
 | Proveedor | Agente | Cómo entra |
 |---|---|---|

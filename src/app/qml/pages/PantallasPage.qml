@@ -60,7 +60,7 @@ Rectangle {
         default: return "sin consultar"
         }
     }
-    function avisar(t, tipo) { ApplicationWindow.window.toast(t, tipo || "error") }
+    function avisar(t, tipo) { Studio.notify(t, tipo || "error") }
     function chequear(err) { if (err && err !== "") page.avisar(err); return !err || err === "" }
 
     ColumnLayout {

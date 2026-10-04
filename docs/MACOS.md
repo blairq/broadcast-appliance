@@ -116,6 +116,24 @@ cd release && BA_GATEWAY_PIN=123456 ./BroadcastAppliance --no-recovery-ui --app-
 Logs: `release/Logs/` (`launcher.log`, `app.log`, `gateway.log`) y la salida
 de la terminal.
 
+## Los datos, al lado de la .app (no adentro)
+
+La configuración, los registros, las grabaciones, los modelos bajados y las credenciales van en
+**`<carpeta de la app>/BroadcastAppliance Datos/`**, no dentro de `BroadcastAppliance.app`
+(`ba::platform::dataRootFor`). Escribir adentro de la .app rompe el sello de su firma: macOS la vuelve a
+verificar entera («Verificando Broadcast Appliance…», varios GB) y deja de reconocer su identidad para los
+permisos de cámara y micrófono. Con los datos afuera, la .app queda sellada mientras se usa
+(`codesign --verify --strict` da «valid on disk»).
+
+- La primera vez, el launcher muda a la carpeta nueva lo que versiones anteriores dejaron adentro
+  (`src/launcher/Datos.cpp`) y siembra `Graficos/` y `Extensiones/` de fábrica (sin pisar lo editado).
+- Sigue siendo portable: se llevan las dos cosas juntas (la .app y su carpeta de datos).
+- Windows y Linux no cambian: datos y programa en la misma carpeta portable.
+
+**Firma con identidad fija.** `tools/firma-local.sh` crea una vez el certificado autofirmado «BA Desarrollo
+local» (en el llavero, sin cuenta de Apple). Firmada con él, la identidad de la app no cambia entre
+compilaciones y macOS recuerda los permisos. Sin el certificado se firma ad-hoc, como antes.
+
 ## 7. Publicar en GitHub (`make publicar`)
 
 El CI de GitHub corre **solo a mano** (Actions → CI → Run workflow). Lo normal

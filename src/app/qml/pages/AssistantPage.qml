@@ -1,7 +1,7 @@
 // Pagina Asistente: chat con el LLM que maneja la app por MCP. A la izquierda
 // la terminal con la interfaz oficial del agente (Claude Code, Gemini CLI u
 // opencode); a la derecha el proveedor/modelo, pedidos rapidos y las
-// vigilancias (alertas) con sus avisos. Todo sale de Studio.agent.
+// disparadores (alertas) con sus avisos. Todo sale de Studio.agent.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -246,7 +246,7 @@ Rectangle {
                                 Layout.preferredHeight: 150
                                 clip: true
                                 TextArea { id: extraF; wrapMode: TextEdit.NoWrap; selectByMouse: true
-                                           font { family: "monospace"; pixelSize: 11 } }
+                                           font { family: Theme.mono; pixelSize: 11 } }
                             }
                             Text { text: "Instrucciones para este modelo (se suman al prompt)"
                                    color: Theme.textDim; font.pixelSize: 12 }
@@ -265,7 +265,7 @@ Rectangle {
                                         const e = ag.guardarModeloPropio(urlF.text, modF.text, nomF.text,
                                                                          extraF.text, instF.text,
                                                                          piensaT.checked)
-                                        ApplicationWindow.window.toast(
+                                        Studio.notify(
                                             e === "" ? "Modelo propio guardado" : e,
                                             e === "" ? "ok" : "error")
                                     }
@@ -290,7 +290,7 @@ Rectangle {
                         }
                         RowLayout {
                             Toggle { checked: ag.alertsToChat; onToggled: (wanted) => ag.setAlertsToChat(wanted) }
-                            Text { text: "Avisos de las vigilancias al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                            Text { text: "Avisos de los disparadores al chat"; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                         }
                         GlassButton { compact: true; text: "Carpeta de agentes"; icon: "▸"; onClicked: ag.openAgentsFolder() }
                         // Se actualizo desde la pestaña: se puede volver a la que
@@ -333,7 +333,10 @@ Rectangle {
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: alertCol.implicitHeight + 64
-                    title: "Vigilancias (" + ag.alerts.length + ")"
+                    id: panelDisparadores
+                    // Los de los plugins que se declaran disparadores (cuando ninguno de los tipos alcanza).
+                    readonly property var dePlugins: Studio.plugins ? Studio.plugins.lista.filter(p => p.disparador) : []
+                    title: "Disparadores (" + (ag.alerts.length + dePlugins.length) + ")"
                     ColumnLayout {
                         id: alertCol
                         anchors.fill: parent
@@ -353,6 +356,27 @@ Rectangle {
                                     Text { text: modelData.type + (modelData.fired > 0 ? " · " + modelData.fired + " avisos" : ""); color: Theme.textFaint; font.pixelSize: 10 }
                                 }
                                 GlassButton { compact: true; text: "✕"; onClicked: ag.deleteAlert(modelData.id) }
+                            }
+                        }
+                        Repeater {
+                            model: panelDisparadores.dePlugins
+                            delegate: RowLayout {
+                                id: filaPlugin
+                                required property var modelData
+                                Layout.fillWidth: true
+                                readonly property bool prendido: modelData.estado !== "apagado" && modelData.estado !== "caido"
+                                Toggle { checked: filaPlugin.prendido; onToggled: (wanted) => Studio.plugins.prender(modelData.id, wanted) }
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 0
+                                    Text { text: modelData.nombre; color: filaPlugin.prendido ? Theme.text : Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
+                                    Text {
+                                        Layout.fillWidth: true; elide: Text.ElideRight
+                                        text: "plugin · " + (modelData.dice ? modelData.dice.texto : modelData.estado) + (modelData.error ? " · " + modelData.error : "")
+                                        color: modelData.error ? Theme.warn : Theme.textFaint; font.pixelSize: 10
+                                    }
+                                }
+                                GlassButton { compact: true; text: "Plugins"; onClicked: ApplicationWindow.window.page = 23 }
                             }
                         }
                         Text { visible: ag.events.length > 0; text: "Últimos avisos"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } Layout.topMargin: 6 }

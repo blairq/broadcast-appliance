@@ -93,12 +93,20 @@ Window {
             focus: true
             sourceComponent: w.contenido
             // El panel ya está en su ventana: que no ofrezca sacarlo otra vez.
-            onLoaded: if (item && item.enVentana !== undefined) item.enVentana = true
+            onLoaded: {
+                if (!item) return
+                // Los paneles con algo propio (la tarjeta PTZ: «ptz:<entrada>»)
+                // lo leen de su id.
+                if (item.panelId !== undefined) item.panelId = w.panelId
+                if (item.enVentana !== undefined) item.enVentana = true
+            }
         }
     }
 
     Shortcut {
-        sequence: StandardKey.Cancel
+        // `sequences`: StandardKey.Cancel tiene varias teclas (Esc y Cmd+.) y con
+        // `sequence` Qt avisaba que solo tomaba una.
+        sequences: [StandardKey.Cancel]
         onActivated: w.close()
     }
 }

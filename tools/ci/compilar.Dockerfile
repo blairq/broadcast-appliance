@@ -21,7 +21,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8
 RUN apt-get update && apt-get install -y --no-install-recommends \
       cmake build-essential pkg-config git curl ca-certificates rsync unzip xz-utils zstd file \
-      ccache ninja-build clang patchelf p7zip-full binutils \
+      ccache ninja-build clang patchelf p7zip-full binutils flex bison libglib2.0-dev python3-dev python3-setuptools clang-format \
       python3 python3-venv \
       libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev libxcb1-dev \
       libxcb-randr0-dev libxcb-shm0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev \
