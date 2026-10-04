@@ -149,5 +149,7 @@ rm -rf "$OUT" && mkdir -p "$OUT"
 find "$T/b2" -name 'gstpython*.dll' -exec cp {} "$OUT/" \;
 ls "$SITE/gi"/_gi*.pyd "$SITE/gi/overrides"/_gi_gst*.pyd >/dev/null || morir "faltan las extensiones compiladas"
 "$VENV/bin/python" -m compileall -q "$SITE/gi" >/dev/null 2>&1 || true
+# Los enlaces que se pusieron para meson no van en el bundle.
+rm -f "$PYW/Include" "$PYW/libs/python3.12.lib"
 echo "$PYGO_VER $GST_VER" >"$OUT/.version"
 log "listo: gi en $SITE, plugin en $OUT ($(ls "$OUT"))"

@@ -19,7 +19,7 @@ if(EXISTS "${_ba_py}")
     # Con su bytecode (precompilado en tools/deps/python.sh): corre con -B. Las
     # cabeceras y los .lib son solo para compilar extensiones.
     install(DIRECTORY "${BA_PYTHON_DIR}/" DESTINATION python USE_SOURCE_PERMISSIONS COMPONENT bundle
-            PATTERN "include" EXCLUDE PATTERN "libs" EXCLUDE PATTERN ".version" EXCLUDE)
+            PATTERN "include" EXCLUDE PATTERN "Include" EXCLUDE PATTERN "libs" EXCLUDE PATTERN ".version" EXCLUDE)
     message(STATUS "Python de los plugins: ${BA_PYTHON_DIR}")
 else()
     message(STATUS "Python de los plugins: no está (make deps-python); los plugins no van a poder correr")
