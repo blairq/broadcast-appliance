@@ -76,6 +76,19 @@ elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-
     endforeach()
     target_link_libraries(ba::gstreamer INTERFACE ${_libs})
     target_compile_definitions(ba::gstreamer INTERFACE BA_HAVE_GST=1)
+    # Las DLL que también trae el OBS (su FFmpeg 7.0; GStreamer trae la 7.1, la
+    # misma versión mayor: el OBS anda con la nueva, gst-libav no con la vieja):
+    # va la de GStreamer. Windows carga una sola por nombre.
+    set(_ba_obs_libs "")
+    foreach(_l IN LISTS BA_LIBOBS_RUNTIME_LIBS)
+        get_filename_component(_n "${_l}" NAME)
+        if(EXISTS "${_g}/bin/${_n}")
+            message(STATUS "GStreamer: ${_n} (la de GStreamer, no la del OBS)")
+        else()
+            list(APPEND _ba_obs_libs "${_l}")
+        endif()
+    endforeach()
+    set(BA_LIBOBS_RUNTIME_LIBS ${_ba_obs_libs})
     install(DIRECTORY "${_g}/bin/" DESTINATION bin/64bit COMPONENT bundle PATTERN "*.pdb" EXCLUDE)
     # Todo lo demás (plugins, escáner, Python de los plugins, GIO, presets),
     # menos lo que es solo para compilar.

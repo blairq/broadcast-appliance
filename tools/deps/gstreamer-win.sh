@@ -18,9 +18,9 @@
 #   Lib/, etc/, share/  Python de los plugins de Python, configuración, presets
 #   include/, lib/*.lib las cabeceras y bibliotecas de importación (solo build)
 #
-# Va TODO (también Python, GTK y los plugins de Qt). Las DLL que el bundle ya trae con el mismo nombre (el FFmpeg de OBS, zlib…)
-# no se copian: Windows usa una sola por nombre, la que está junto al .exe.
-# La lista queda en extern/gstreamer-win/duplicadas.txt.
+# Va TODO (también Python, GTK y los plugins de Qt). Las DLL con el mismo
+# nombre que las del OBS (su FFmpeg: 7.0 en el OBS, 7.1 acá) las resuelve
+# cmake/BaGStreamer.cmake: va la de GStreamer (Windows carga una sola por nombre).
 #
 # Uso: tools/deps/gstreamer-win.sh <runtime.msi> <devel.msi> <salida> [dir con DLL del bundle...]
 # ============================================================================
@@ -56,17 +56,5 @@ cp -a "$D/lib/glib-2.0/include" "$OUT/lib/glib-2.0/"
 cp -a "$D/lib/gstreamer-1.0/include" "$OUT/lib/gstreamer-1.0/" # gst/gl/gstglconfig.h
 cp -a "$D/lib/pkgconfig" "$OUT/lib/" # para compilar los bindings de Python (gst-python-win.sh)
 
-# Las DLL que ya trae el bundle con el mismo nombre.
-: >"$OUT/duplicadas.txt"
-for dir in "$@"; do
-    [ -d "$dir" ] || continue
-    for f in "$OUT"/bin/*.dll; do
-        n="$(basename "$f")"
-        if [ -e "$dir/$n" ]; then
-            echo "$n (queda la de $dir)" >>"$OUT/duplicadas.txt"
-            rm -f "$f"
-        fi
-    done
-done
-echo "1.26.11 msvc_x86_64 r2" >"$OUT/.version"
-log "listo: $OUT ($(du -sh "$OUT" | cut -f1), $(ls "$OUT/lib/gstreamer-1.0" | wc -l) plugins, $(wc -l <"$OUT/duplicadas.txt") DLL ya estaban)"
+echo "1.26.11 msvc_x86_64 r3" >"$OUT/.version"
+log "listo: $OUT ($(du -sh "$OUT" | cut -f1), $(ls "$OUT"/lib/gstreamer-1.0/*.dll | wc -l) plugins)"
