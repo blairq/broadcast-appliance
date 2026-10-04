@@ -205,6 +205,8 @@ lint:
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
 # obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
 release:
+	@# Desde cero: lo que se instaló antes y ya no va (de una receta vieja) no queda.
+	rm -rf release
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@# Linux: el bundle no puede depender de bibliotecas de terceros del sistema.
 	@if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release; fi
