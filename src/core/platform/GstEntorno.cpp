@@ -67,6 +67,14 @@ bool prepararGst() {
     ponerTexto("GST_PLUGIN_PATH_1_0", "");
     ponerTexto("GST_PLUGIN_PATH", "");
 #ifdef _WIN32
+    // Las DLL de GStreamer están junto al .exe (bin/64bit): el escáner de
+    // plugins (otro proceso, en libexec/) y los plugins que carga las buscan
+    // por el PATH.
+    {
+        const char* p = std::getenv("PATH");
+        const std::string bin = texto(bundleRoot() / "bin" / "64bit");
+        ponerTexto("PATH", (bin + ";" + (p != nullptr ? p : "")).c_str());
+    }
     const char* escaner = "gst-plugin-scanner.exe";
 #else
     const char* escaner = "gst-plugin-scanner";

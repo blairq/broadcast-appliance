@@ -55,9 +55,11 @@ export CFLAGS="-O2" CXXFLAGS="-O2"
 export LDFLAGS="-L$DEPS/lib"
 
 B="$SRC/b"
-rm -rf "$B" "$PREFIX"
+rm -rf "$PREFIX"
 log "configurando $VER ($COMMIT)"
-meson setup "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
+# Si ya hay una carpeta de compilación, se reconfigura (solo se recompila lo que cambia).
+[ -f "$B/build.ninja" ] && RECONF=--reconfigure || RECONF=
+meson setup $RECONF "$B" "$SRC" --prefix="$PREFIX" --libdir=lib --libexecdir=libexec --buildtype=release \
     --wrap-mode=default -Dauto_features=auto \
     -Dbase=enabled -Dgood=enabled -Dbad=enabled -Dugly=enabled -Dlibav=enabled -Drtsp_server=enabled \
     -Dgpl=enabled -Dorc=enabled \

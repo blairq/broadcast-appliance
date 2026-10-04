@@ -235,7 +235,7 @@ deps-webrtc-win:
 # para los headers), libwebrtc de Windows y las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win deps-herramientas-win
+          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -303,7 +303,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (libobs y sus deps desde
 # fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
 deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -1438,6 +1438,27 @@ deps-herramientas:
 .PHONY: deps-herramientas-win
 deps-herramientas-win:
 	@$(MAKE) --no-print-directory deps-herramientas HERR_PLAT=win-x64
+
+# GStreamer de Linux: desde fuente, la misma versión (tools/deps/gstreamer-linux.sh).
+.PHONY: deps-gstreamer-linux
+deps-gstreamer-linux: deps-obs-linux
+	bash tools/deps/gstreamer-linux.sh $(JOBS)
+
+# GStreamer de Windows: el oficial de MSVC, desarmado (tools/deps/gstreamer-win.sh).
+GST_WIN_VER := 1.26.11
+GST_WIN_URL := https://origin.gstreamer.freedesktop.org/data/pkg/windows/$(GST_WIN_VER)/msvc
+GST_WIN_RT := gstreamer-1.0-msvc-x86_64-$(GST_WIN_VER).msi
+GST_WIN_RT_SHA := 31cbc21fa0950b5c1e79c80959b2799805cb05a7a35953a13a9f790776137605
+GST_WIN_DEV := gstreamer-1.0-devel-msvc-x86_64-$(GST_WIN_VER).msi
+GST_WIN_DEV_SHA := af0a0720692052aaf5fb0cf2847ef34a87016ef0f914328d516f049e6c86f587
+.PHONY: deps-gstreamer-win
+deps-gstreamer-win: deps-obs deps-qt
+	@if [ "$$(cat $(EXTERNS_DIR)/gstreamer-win/.version 2>/dev/null)" = "$(GST_WIN_VER) msvc_x86_64" ]; then \
+		echo "GStreamer de Windows ya está ($(EXTERNS_DIR)/gstreamer-win)"; exit 0; fi; \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_RT)" URL="$(GST_WIN_URL)/$(GST_WIN_RT)" SHA="$(GST_WIN_RT_SHA)" QUE="GStreamer (Windows)" && \
+	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_DEV)" URL="$(GST_WIN_URL)/$(GST_WIN_DEV)" SHA="$(GST_WIN_DEV_SHA)" QUE="GStreamer (Windows, cabeceras)" && \
+	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win" \
+		"$(EXTERNS_DIR)/obs-studio/bin/64bit" "$(EXTERNS_DIR)/qt6/6.6.3/msvc2019_64/bin"
 
 .PHONY: deps-gstreamer-macos
 deps-gstreamer-macos:
