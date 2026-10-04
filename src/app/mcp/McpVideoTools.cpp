@@ -996,7 +996,9 @@ void McpService::registerVideoTools() {
                 "de superresolución instalado (superres_plugins: apple, fsr, realesr-general-x4v3, la red propia…): "
                 "la app lo corre con lo mejor de ESTA máquina (CoreML en la Mac, ONNX con DirectML o TensorRT en "
                 "Windows/Linux). Si la entrada ya tiene la tarjeta, le cambia el plugin. A mano (sin plugin): "
-                "`motor` apple | fsr | onnx | coreml con `modelo` (ruta). `despues`: tras qué tarjeta (vacío: al final).";
+                "`motor` apple | fsr | onnx | coreml con `modelo` (ruta). `despues`: tras qué tarjeta (vacío: al final). "
+                "`unidades` (redes CoreML en la Mac): auto (Neural Engine), ane, gpu o cpu: con dos redes a la vez, una en "
+                "la GPU reparte la carga (la GPU también compone la imagen, así que suele ser más lenta).";
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
@@ -1004,13 +1006,16 @@ void McpService::registerVideoTools() {
                                {"plugin", {{"type", "string"}, {"description", "id de superres_plugins"}}},
                                {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx", "coreml"}}}},
                                {"modelo", {{"type", "string"}}},
+                               {"unidades", {{"type", "string"}, {"enum", {"auto", "ane", "gpu", "cpu"}}}},
                                {"despues", {{"type", "string"}}}}}};
             t.examples = {R"({"entrada": "Axis terreno", "plugin": "realesr-general-x4v3"})"};
             t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
                 if (!srp || v == nullptr) return done(ToolResult::error("no disponible"));
                 const std::string entrada = a.value("entrada", std::string());
                 if (a.contains("plugin")) {
-                    const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()));
+                    json extra = json::object();
+                    if (a.contains("unidades")) extra["unidades"] = a.value("unidades", std::string("auto"));
+                    const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()), extra);
                     if (!e.empty()) return done(ToolResult::error(e));
                     return done(ToolResult().text("Tarjeta con el plugin «" + a.value("plugin", std::string()) +
                                                   "». video_estado muestra el tamaño nuevo y su demora (el audio se "
@@ -1044,6 +1049,55 @@ void McpService::registerVideoTools() {
             t.run = [srp](const json&, Done done) {
                 if (!srp) return done(ToolResult::error("no disponible"));
                 done(ToolResult().data({{"plugins", srp->plugins()}}));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_plugin_elemento";
+            t.title = "Crear un plugin de superresolución propio con cualquier elemento de GStreamer";
+            t.category = "video";
+            t.description =
+                "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/SUPERRESOLUCION.md): cualquier "
+                "elemento de GStreamer —de GStreamer o propio, con su biblioteca en Datos/Modelos/superres/<id>/gst/— "
+                "que después se elige como cualquier plugin (superres_tarjeta {plugin: id}). `memoria`: vacía "
+                "(sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory: la cadena de la entrada sube a esa memoria "
+                "antes y baja después, sin pasar por la CPU si el decodificador ya entrega ahí. `memoria_salida` \"\" "
+                "si el elemento ya entrega en memoria de sistema. `propiedades`: las del elemento ({dir} = la carpeta "
+                "del plugin). `escala`: lo que agranda (2).";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"id", "elemento"}},
+                             {"properties",
+                              {{"id", {{"type", "string"}}},
+                               {"nombre", {{"type", "string"}}},
+                               {"elemento", {{"type", "string"}}},
+                               {"memoria", {{"type", "string"}, {"enum", {"", "CUDAMemory", "GLMemory", "D3D11Memory", "D3D12Memory"}}}},
+                               {"memoria_salida", {{"type", "string"}}},
+                               {"propiedades", {{"type", "object"}}},
+                               {"escala", {{"type", "integer"}}},
+                               {"descripcion", {{"type", "string"}}}}}};
+            t.examples = {R"({"id": "fsrcnnx-gl", "nombre": "FSRCNNX en GL", "elemento": "baglsl", "memoria": "GLMemory", "propiedades": {"shader": "{dir}/shader.glsl"}})"};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->guardarPluginElemento(a);
+                if (!e.empty() && e.rfind("guardado", 0) != 0) return done(ToolResult::error(e));
+                done(ToolResult().text(e.empty() ? "Plugin guardado: se elige con superres_tarjeta {plugin}." : e));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_plugin_borrar";
+            t.title = "Borrar un plugin de superresolución instalado";
+            t.category = "video";
+            t.description = "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
+                            "shader o un plugin propio. Los del catálogo se pueden volver a instalar.";
+            t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->borrarPlugin(a.value("id", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Borrado."));
             };
             core_.addTool(std::move(t));
         }
@@ -1140,7 +1194,9 @@ void McpService::registerVideoTools() {
             t.name = "superres_aplicar";
             t.title = "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)";
             t.category = "video";
-            t.description = "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
+            t.description = "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
+                            "elección de placa usá superres_tarjeta {plugin}.) "
+                            "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
                             "de Apple, la mejor en una Mac con "
                             "macOS 26), fsr (FSR 1, cualquier GPU), onnx (con `modelo`: el archivo de "
                             "superres_estado, p. ej. "

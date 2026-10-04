@@ -87,7 +87,7 @@ class SuperRes : public QObject {
     json resolverPlugin(const std::string& id, std::string* error) const;
     /// Pone una tarjeta «Superresolución» con ese plugin en la entrada (o se lo cambia
     /// a la que tiene). "" o el error.
-    std::string tarjetaConPlugin(const std::string& entrada, const std::string& id);
+    std::string tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra = json::object());
 
     // --- ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel), bajado a pedido ----------
     /// Qué placa hay (nvidia, amd, intel o ninguna), qué runtime está instalado
@@ -96,6 +96,13 @@ class SuperRes : public QObject {
     /// Baja el ONNX Runtime de GPU para `tipo` (nvidia, amd, intel; vacío = el sugerido)
     /// a Datos/Herramientas/onnxruntime-gpu. Corre como trabajo. "" o el error.
     std::string instalarRuntimeGpu(const std::string& tipo, bool conTensorRt = true);
+
+    // --- Plugins propios de tipo «elemento» (contrato abierto) ------------------------
+    /// Crea (o reemplaza) Datos/Modelos/superres/<id>/plugin.json para un elemento de
+    /// GStreamer: {id, nombre, elemento, memoria, memoria_salida?, propiedades, escala, descripcion}.
+    std::string guardarPluginElemento(const json& p);
+    /// Borra un plugin instalado (su carpeta). "" o el error.
+    std::string borrarPlugin(const std::string& id);
 
     // --- Interfaz ---------------------------------------------------------------------
     QVariantList modelosQml() const;
@@ -111,6 +118,14 @@ class SuperRes : public QObject {
     Q_INVOKABLE QString borrarModelo(const QString& archivo);
     Q_INVOKABLE QVariantList pluginsUi() const;
     Q_INVOKABLE QString instalarPluginUi(const QString& id) { return q(instalarPlugin(id.toStdString())); }
+    Q_INVOKABLE QVariantMap runtimeGpuUi() const;
+    Q_INVOKABLE QString instalarRuntimeGpuUi(const QString& tipo, bool tensorrt) {
+        return q(instalarRuntimeGpu(tipo.toStdString(), tensorrt));
+    }
+    Q_INVOKABLE QString guardarPluginElementoUi(const QVariantMap& p);
+    Q_INVOKABLE QString borrarPluginUi(const QString& id) { return q(borrarPlugin(id.toStdString())); }
+    /// Los plugins instalados de tipo «elemento», con su plugin.json completo.
+    Q_INVOKABLE QVariantList pluginsElementoUi() const;
     Q_INVOKABLE QString destilarUi(const QString& entrada, const QString& maestro, double minutos, bool aplicar,
                                    bool cpu) {
         return q(destilar(entrada.toStdString(), maestro.toStdString(), minutos, aplicar, cpu));

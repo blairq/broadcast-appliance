@@ -55,7 +55,8 @@ json fabrica(const std::string& tipo) {
     // mandar el grafo (CoreML en la Mac, ONNX/DirectML o TensorRT en Windows…).
     if (tipo == "superres")
         return {{"plugin", ""},        {"motor", "auto"}, {"modelo", ""},   {"escala_red", 2},
-                {"nitidez", 0.2},      {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
+                {"nitidez", 0.2},      {"proveedor", "auto"}, {"activo", true}, {"esperar", 0},
+                {"unidades", "auto"}}; // CoreML: auto (Neural Engine), ane, gpu, cpu
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca

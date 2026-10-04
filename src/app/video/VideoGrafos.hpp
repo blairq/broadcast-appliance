@@ -102,6 +102,10 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QVariantList modulosGst() const;
     /// Las propiedades de un módulo, para el detalle del catálogo.
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
+    /// Las propiedades de un elemento con estos valores puestos (para editar un filtro ya armado).
+    Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
+    /// Los filtros de audio de GStreamer (para la cadena de audio de una entrada).
+    Q_INVOKABLE QVariantList modulosAudio() const;
     /// "GStreamer 1.28.7", o por qué no está.
     Q_INVOKABLE QString versionGst() const;
     /// Las entradas virtuales que se pueden crear: [{id, nombre, descripcion, pipeline}].
@@ -118,7 +122,8 @@ class VideoGrafos : public QObject {
                                 const std::string& modelo, const std::string& despues);
     /// La tarjeta «Superresolución» con un plugin (por id; lo traduce SuperRes):
     /// la agrega o le cambia el plugin a la que hay. "" o el error.
-    std::string superresPlugin(const std::string& entrada, const std::string& plugin);
+    std::string superresPlugin(const std::string& entrada, const std::string& plugin,
+                               const nlohmann::json& extra = nlohmann::json::object());
     Q_INVOKABLE QString agregarSuperresUi(const QString& motor, const QString& modelo,
                                           const QString& despues);
     /// Crea una entrada virtual en la escena (vacía = la del aire): `preset` es
@@ -173,6 +178,8 @@ class VideoGrafos : public QObject {
     /// Agrega uno de los de uso común (compresor, pasa_altos, eco, volumen) al final.
     Q_INVOKABLE QString agregarFiltroAudioUi(const QString& entrada, const QString& cual);
     Q_INVOKABLE QString quitarFiltroAudioUi(const QString& entrada, int indice);
+    /// Reemplaza todos los filtros de audio de la entrada (editor: agregar, editar, ordenar).
+    Q_INVOKABLE QString ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros);
     std::string superresMotor(const std::string& entrada, const std::string& motor,
                               const std::string& modelo);
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);

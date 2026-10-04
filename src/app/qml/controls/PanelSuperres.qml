@@ -11,9 +11,18 @@ ColumnLayout {
     readonly property var sr: Studio.superres
     readonly property var tr: sr ? sr.trabajo : ({})
     property var red: []
+    property var gpu: ({})
+    property var propios: []
+    /// El plugin con el que abrir la sección «Destilar» (lo pone la tarjeta).
+    property string maestroPedido: ""
     spacing: 14
 
-    function refrescar() { red = vg ? vg.estadoRed().filter(e => e.gstreamer !== undefined) : [] }
+    function refrescar() {
+        red = vg ? vg.estadoRed().filter(e => e.gstreamer !== undefined) : []
+        gpu = sr ? sr.runtimeGpuUi() : ({})
+        propios = sr ? sr.pluginsElementoUi() : []
+    }
+    readonly property var redesCatalogo: sr ? (sr.modelos, sr.pluginsUi()).filter(p => p.tipo === "red" && !p.propio) : []
     function avisar(e, ok) { if (e !== "") Studio.notify(e, "error"); else if (ok) Studio.notify(ok, "info") }
     Timer { interval: 2000; running: panel.visible; repeat: true; triggeredOnStart: true; onTriggered: panel.refrescar() }
 
@@ -130,6 +139,225 @@ ColumnLayout {
                   " dB del agrandado común (" + ((panel.tr.psnr_red - panel.tr.psnr_bicubico) >= 0 ? "+" : "") +
                   Number((panel.tr.psnr_red || 0) - (panel.tr.psnr_bicubico || 0)).toFixed(2) + " dB)"
             color: (panel.tr.psnr_red || 0) > (panel.tr.psnr_bicubico || 0) ? Theme.ok : Theme.amber; font.pixelSize: 12
+        }
+    }
+
+    // --- Placa de video ------------------------------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    Text { text: "Placa de video y aceleración"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        color: Theme.textDim; font.pixelSize: 12
+        text: "Placa detectada: " + (panel.gpu.placa ? panel.gpu.placa.toUpperCase() : "ninguna conocida") +
+              (panel.gpu.instalado ? " · runtime de GPU bajado: " + panel.gpu.instalado.tipo + (panel.gpu.activo ? " (en uso)" : " (reiniciá el programa para usarlo)")
+                                   : " · sin runtime de GPU bajado") +
+              (panel.gpu.nota ? ". " + panel.gpu.nota : "")
+    }
+    RowLayout {
+        visible: panel.gpu.sugerido !== undefined && Qt.platform.os !== "osx"
+        Layout.fillWidth: true
+        spacing: 8
+        ComboBox {
+            id: tipoGpu
+            Layout.preferredWidth: 240
+            model: [ { t: "NVIDIA (CUDA + TensorRT)", v: "nvidia" }, { t: "AMD en Linux (ROCm/MIGraphX)", v: "amd" }, { t: "Intel (OpenVINO)", v: "intel" } ]
+            textRole: "t"
+            currentIndex: Math.max(0, model.findIndex(o => o.v === panel.gpu.sugerido))
+        }
+        CheckBox {
+            id: conTrt
+            visible: tipoGpu.currentIndex === 0
+            text: "Con TensorRT (compila la red para la placa; ~2 GB más)"
+            checked: true
+        }
+        GlassButton {
+            compact: true; active: true
+            text: panel.tr.corriendo ? "Trabajando…" : "Bajar el runtime de GPU"
+            enabled: !panel.tr.corriendo
+            onClicked: panel.avisar(panel.sr.instalarRuntimeGpuUi(tipoGpu.model[tipoGpu.currentIndex].v, conTrt.checked), "Bajando: al terminar, reiniciá el programa")
+        }
+        Item { Layout.fillWidth: true }
+    }
+
+    // --- Destilar ---------------------------------------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    Text { text: "Destilar una red chica de una grande"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        color: Theme.textDim; font.pixelSize: 11
+        text: "Una red propia chica (corre en vivo hasta en la CPU) aprende a imitar a una red grande (el maestro) mirando lo que ve " +
+              "la cámara: sirve en máquinas donde el maestro no da en vivo. En la CPU tarda más pero no calienta la GPU."
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        ComboBox { id: entradaDest; Layout.preferredWidth: 200; model: panel.red.map(e => e.entrada) }
+        Text { text: "maestro"; color: Theme.textDim; font.pixelSize: 12 }
+        ComboBox {
+            id: maestro
+            Layout.preferredWidth: 240
+            model: panel.redesCatalogo
+            textRole: "nombre"
+            currentIndex: Math.max(0, panel.redesCatalogo.findIndex(p => p.id === (panel.maestroPedido || "realesr-general-x4v3")))
+        }
+        Text { text: "minutos"; color: Theme.textDim; font.pixelSize: 12 }
+        SpinBox { id: minDest; from: 1; to: 240; value: 15; editable: true }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 12
+        CheckBox { id: destCpu; text: "En la CPU (no calienta la GPU)"; checked: true }
+        CheckBox { id: destAplicar; text: "Ponerla en la entrada al terminar"; checked: true }
+        GlassButton {
+            compact: true; active: true
+            text: panel.tr.corriendo ? "Trabajando…" : "Destilar"
+            enabled: !panel.tr.corriendo && entradaDest.currentText !== "" && maestro.currentIndex >= 0
+            onClicked: panel.avisar(panel.sr.destilarUi(entradaDest.currentText, panel.redesCatalogo[maestro.currentIndex].id,
+                                                         minDest.value, destAplicar.checked, destCpu.checked), "")
+        }
+        Item { Layout.fillWidth: true }
+    }
+
+    // --- Plugins propios (elementos de GStreamer) ------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    RowLayout {
+        Layout.fillWidth: true
+        Text { text: "Plugins propios (elementos de GStreamer)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+        GlassButton { compact: true; text: "Nuevo…"; onClicked: editorPropio.abrir(null) }
+    }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        color: Theme.textDim; font.pixelSize: 11
+        text: "Cualquier elemento de GStreamer como método de superresolución: uno de GStreamer, o uno propio (por ejemplo una red " +
+              "compilada con TensorRT para la placa) con su biblioteca en la carpeta gst/ del plugin. Si trabaja en memoria de la placa " +
+              "(CUDA, OpenGL, Direct3D) la entrada se la da sin pasar por la CPU. Después se elige en la tarjeta como cualquier otro."
+    }
+    Text {
+        visible: panel.propios.length === 0
+        text: "No hay plugins propios."
+        color: Theme.textFaint; font.pixelSize: 12
+    }
+    Repeater {
+        model: panel.propios
+        delegate: RowLayout {
+            id: pp
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: 8
+            Text { text: pp.modelData.nombre || pp.modelData.id; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 220; elide: Text.ElideRight }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: pp.modelData.elemento + (pp.modelData.memoria ? " · " + pp.modelData.memoria : " · memoria de sistema") +
+                      " · x" + (pp.modelData.escala || 2) + (pp.modelData.anda ? "" : " · ✕ " + (pp.modelData.error || "no anda acá"))
+                color: pp.modelData.anda ? Theme.textDim : Theme.live; font.pixelSize: 11
+            }
+            GlassButton { compact: true; text: "Editar"; onClicked: editorPropio.abrir(pp.modelData) }
+            GlassButton { compact: true; text: "✕"; onClicked: { panel.avisar(panel.sr.borrarPluginUi(pp.modelData.id), "Plugin borrado"); panel.refrescar() } }
+        }
+    }
+    Popup {
+        id: editorPropio
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(parent.width - 60, 720)
+        height: Math.min(parent.height - 60, 680)
+        modal: true
+        padding: 16
+        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+        property string pid: ""
+        property string nombre: ""
+        property string elemento: ""
+        property string memoria: ""
+        property bool saleSistema: false
+        property int escala: 2
+        property string descripcion: ""
+        property var valores: ({})
+        property string busca: ""
+        readonly property var modulos: panel.vg ? panel.vg.modulosGst() : []
+        readonly property var visibles: modulos.filter(m => busca === "" || (m.elemento + " " + (m.nombre || "")).toLowerCase().indexOf(busca.toLowerCase()) >= 0)
+        function abrir(p) {
+            pid = p ? p.id : ""; nombre = p ? (p.nombre || "") : ""; elemento = p ? p.elemento : ""
+            memoria = p ? (p.memoria || "") : ""; saleSistema = p ? (p.memoria_salida === "") : false
+            escala = p ? (p.escala || 2) : 2; descripcion = p ? (p.descripcion || "") : ""
+            valores = p ? Object.assign({}, p.propiedades || {}) : ({}); busca = ""
+            open()
+        }
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "Plugin propio"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: editorPropio.close() }
+                GlassButton {
+                    compact: true; active: true; text: "Guardar"
+                    onClicked: {
+                        const p = { id: editorPropio.pid, nombre: editorPropio.nombre, elemento: editorPropio.elemento,
+                                    memoria: editorPropio.memoria, escala: editorPropio.escala, descripcion: editorPropio.descripcion,
+                                    propiedades: editorPropio.valores }
+                        if (editorPropio.saleSistema) p.memoria_salida = ""
+                        const e = panel.sr.guardarPluginElementoUi(p)
+                        if (e !== "" && e.indexOf("guardado") !== 0) { Studio.notify(e, "error"); return }
+                        Studio.notify(e !== "" ? e : "Plugin guardado: ya se puede elegir en la tarjeta", e !== "" ? "error" : "info")
+                        panel.refrescar()
+                        editorPropio.close()
+                    }
+                }
+            }
+            GridLayout {
+                columns: 2
+                Layout.fillWidth: true
+                columnSpacing: 8; rowSpacing: 6
+                Text { text: "Id"; color: Theme.textDim; font.pixelSize: 12 }
+                TextField { Layout.fillWidth: true; text: editorPropio.pid; placeholderText: "mi-red-trt (letras, números, guiones)"; onTextEdited: editorPropio.pid = text }
+                Text { text: "Nombre"; color: Theme.textDim; font.pixelSize: 12 }
+                TextField { Layout.fillWidth: true; text: editorPropio.nombre; onTextEdited: editorPropio.nombre = text }
+                Text { text: "Elemento"; color: Theme.textDim; font.pixelSize: 12 }
+                RowLayout {
+                    Layout.fillWidth: true
+                    TextField { Layout.preferredWidth: 150; placeholderText: "Buscar"; text: editorPropio.busca; onTextEdited: editorPropio.busca = text }
+                    ComboBox {
+                        Layout.fillWidth: true
+                        model: editorPropio.visibles
+                        textRole: "elemento"
+                        displayText: editorPropio.elemento !== "" ? editorPropio.elemento : "— elegí un elemento —"
+                        onActivated: (i) => { editorPropio.elemento = editorPropio.visibles[i].elemento; editorPropio.valores = ({}) }
+                    }
+                    // Uno propio que todavía no está registrado: el nombre a mano.
+                    TextField { Layout.preferredWidth: 140; placeholderText: "o el nombre a mano"; onEditingFinished: if (text !== "") editorPropio.elemento = text }
+                }
+                Text { text: "Memoria"; color: Theme.textDim; font.pixelSize: 12 }
+                RowLayout {
+                    ComboBox {
+                        model: [ { t: "Sistema (CPU)", v: "" }, { t: "CUDA (NVIDIA)", v: "CUDAMemory" }, { t: "OpenGL", v: "GLMemory" },
+                                 { t: "Direct3D 11", v: "D3D11Memory" }, { t: "Direct3D 12", v: "D3D12Memory" } ]
+                        textRole: "t"
+                        currentIndex: Math.max(0, model.findIndex(o => o.v === editorPropio.memoria))
+                        onActivated: (i) => editorPropio.memoria = model[i].v
+                    }
+                    CheckBox { visible: editorPropio.memoria !== ""; text: "Entrega en memoria de sistema"; checked: editorPropio.saleSistema; onToggled: editorPropio.saleSistema = checked }
+                }
+                Text { text: "Agranda"; color: Theme.textDim; font.pixelSize: 12 }
+                SpinBox { from: 1; to: 4; value: editorPropio.escala; onValueModified: editorPropio.escala = value }
+                Text { text: "Descripción"; color: Theme.textDim; font.pixelSize: 12 }
+                TextField { Layout.fillWidth: true; text: editorPropio.descripcion; onTextEdited: editorPropio.descripcion = text }
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: "Propiedades del elemento. En un texto, {dir} es la carpeta del plugin (para un modelo o un .engine que dejes ahí)."
+                color: Theme.textFaint; font.pixelSize: 11
+            }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                clip: true
+                FormularioPropiedades {
+                    width: parent ? parent.width : 400
+                    props: editorPropio.elemento !== "" && panel.vg ? panel.vg.propiedadesModuloCon(editorPropio.elemento, editorPropio.valores) : []
+                    onCambio: (n, v) => { const x = Object.assign({}, editorPropio.valores); x[n] = String(v); editorPropio.valores = x }
+                }
+            }
         }
     }
 

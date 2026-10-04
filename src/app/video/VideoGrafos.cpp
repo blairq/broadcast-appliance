@@ -435,6 +435,25 @@ QVariantList VideoGrafos::propiedadesModulo(const QString& elemento) const {
     return controlesGst(gst().propiedades(elemento.toStdString(), json::object()));
 }
 
+QVariantList VideoGrafos::propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const {
+    // Los valores guardados vienen como texto (así van a GStreamer): se pasan al tipo de cada propiedad.
+    json act = json::object();
+    for (auto it = valores.begin(); it != valores.end(); ++it) {
+        const QString t = it.value().toString();
+        bool okN = false;
+        const double n = t.toDouble(&okN);
+        if (t == "true" || t == "false")
+            act[it.key().toStdString()] = t == "true";
+        else if (okN)
+            act[it.key().toStdString()] = n;
+        else
+            act[it.key().toStdString()] = t.toStdString();
+    }
+    return controlesGst(gst().propiedades(elemento.toStdString(), act));
+}
+
+QVariantList VideoGrafos::modulosAudio() const { return aVariant(gst().modulosAudio()).toList(); }
+
 QString VideoGrafos::versionGst() const {
     return gst().disponible() ? q(gst().version()) : q("Sin GStreamer: " + gst().error());
 }
@@ -508,7 +527,7 @@ std::string VideoGrafos::agregarSuperres(const std::string& entrada, const std::
     });
 }
 
-std::string VideoGrafos::superresPlugin(const std::string& entrada, const std::string& plugin) {
+std::string VideoGrafos::superresPlugin(const std::string& entrada, const std::string& plugin, const json& extra) {
     const std::string e = entrada.empty() ? entrada_.toStdString() : entrada;
     return editar([&](GrafoVideo& g) -> std::string {
         // Si ya tiene una tarjeta de superresolución, se le cambia el plugin.
@@ -517,12 +536,15 @@ std::string VideoGrafos::superresPlugin(const std::string& entrada, const std::s
                 json p = n.params;
                 p["plugin"] = plugin;
                 p["activo"] = true;
+                for (const auto& [k, v] : extra.items()) p[k] = v;
                 std::string err;
                 g.ajustar(n.id, p, &err);
                 return err;
             }
         std::string err;
-        g.agregar("superres", e, "", json{{"plugin", plugin}}, &err);
+        json p{{"plugin", plugin}};
+        for (const auto& [k, v] : extra.items()) p[k] = v;
+        g.agregar("superres", e, "", p, &err);
         return err;
     });
 }
@@ -1741,6 +1763,12 @@ QString VideoGrafos::agregarFiltroAudioUi(const QString& entrada, const QString&
     f["id"] = cual.toStdString() + std::to_string(l.size());
     l.push_back(f);
     return q(filtrosAudio(entrada.toStdString(), l));
+}
+
+QString VideoGrafos::ponerFiltrosAudioUi(const QString& entrada, const QVariantList& filtros) {
+    const json l = json::parse(QJsonDocument::fromVariant(filtros).toJson(QJsonDocument::Compact).toStdString(),
+                               nullptr, false);
+    return q(filtrosAudio(entrada.toStdString(), l.is_array() ? l : json::array()));
 }
 
 QString VideoGrafos::quitarFiltroAudioUi(const QString& entrada, int indice) {

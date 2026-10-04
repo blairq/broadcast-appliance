@@ -716,16 +716,30 @@ Rectangle {
                                 checked: !page.paramsEf || page.paramsEf.activo !== false
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { activo: checked }))
                             }
+                            // Una red CoreML (Mac): dónde corre. Con dos redes a la vez, una en la GPU reparte la carga.
+                            RowLayout {
+                                visible: srPanel.motores.indexOf("coreml") >= 0 && !!srPanel.actual && !!srPanel.actual.archivos && !!srPanel.actual.archivos.coreml
+                                spacing: 6
+                                Text { text: "Corre en"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.fillWidth: true
+                                    model: [ { t: "Elegir solo (Neural Engine)", v: "auto" }, { t: "Neural Engine", v: "ane" },
+                                             { t: "GPU (compite con la composición)", v: "gpu" }, { t: "Procesador (lento)", v: "cpu" } ]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.unidades) || "auto")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { unidades: model[i].v }))
+                                }
+                            }
                             RowLayout {
                                 spacing: 6
                                 GlassButton { compact: true; text: srPanel.avanzado ? "Ocultar avanzado" : "Avanzado…"; onClicked: srPanel.avanzado = !srPanel.avanzado }
-                                GlassButton { compact: true; text: "Entrenar la red propia…"; onClicked: superresPop.open() }
+                                GlassButton { compact: true; text: "Red propia, placa y plugins…"; onClicked: { panelSr.maestroPedido = ""; superresPop.open() } }
                                 // Destilar: una red chica que imita a la red elegida, a medida de esta cámara.
                                 GlassButton {
                                     compact: true
                                     visible: !!srPanel.actual && srPanel.actual.tipo === "red" && !srPanel.actual.propio
                                     text: "Destilar una red chica de esta…"
-                                    onClicked: page.avisar(srPanel.sr.destilarUi(page.vg.entrada, srPanel.elegido, 15, true, true))
+                                    onClicked: { panelSr.maestroPedido = srPanel.elegido; superresPop.open() }
                                 }
                             }
                             // A mano: un motor y un modelo (sin plugin).
@@ -932,7 +946,7 @@ Rectangle {
                 Layout.fillHeight: true
                 contentWidth: availableWidth
                 clip: true
-                PanelSuperres { width: srScroll.availableWidth; vg: page.vg; visible: superresPop.opened }
+                PanelSuperres { id: panelSr; width: srScroll.availableWidth; vg: page.vg; visible: superresPop.opened }
             }
         }
     }

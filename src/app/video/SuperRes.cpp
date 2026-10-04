@@ -605,11 +605,91 @@ std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool con
 #endif
 }
 
-std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id) {
+std::string SuperRes::tarjetaConPlugin(const std::string& entrada, const std::string& id, const json& extra) {
     if (video_ == nullptr) return "no hay video";
     std::string err;
     if (resolverPlugin(id, &err).empty()) return err;
-    return video_->superresPlugin(entrada, id);
+    return video_->superresPlugin(entrada, id, extra);
+}
+
+QVariantMap SuperRes::runtimeGpuUi() const { return qv(runtimeGpu()).toMap(); }
+
+std::string SuperRes::guardarPluginElemento(const json& p) {
+    std::string id = p.value("id", std::string());
+    for (char& c : id)
+        if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') c = '-';
+    if (id.empty()) return "falta el id (letras, números y guiones)";
+    const std::string el = p.value("elemento", std::string());
+    if (el.empty()) return "falta el elemento de GStreamer";
+    for (const auto& r : catalogo_)
+        if (r.value("id", "") == id) return "«" + id + "» es un plugin del catálogo: elegí otro id";
+    const std::string mem = p.value("memoria", std::string());
+    if (!mem.empty() && mem != "CUDAMemory" && mem != "GLMemory" && mem != "D3D11Memory" && mem != "D3D12Memory")
+        return "memoria: vacía (sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory";
+    json props = json::object();
+    for (const auto& [k, v] : p.value("propiedades", json::object()).items())
+        props[k] = v.is_string() ? v.get<std::string>() : v.dump();
+    json out{{"id", id},
+             {"nombre", p.value("nombre", id)},
+             {"tipo", "elemento"},
+             {"elemento", el},
+             {"propiedades", props},
+             {"memoria", mem},
+             {"escala", std::clamp(p.value("escala", 2), 1, 4)},
+             {"medio", "video"},
+             {"descripcion", p.value("descripcion", std::string())},
+             {"plataformas", p.value("plataformas", json::array({"mac", "windows", "linux"}))},
+             {"instalado", QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm").toStdString()}};
+    if (p.contains("memoria_salida")) out["memoria_salida"] = p["memoria_salida"];
+    const fs::path dir = carpetaModelos() / id;
+    std::error_code ec;
+    fs::create_directories(dir / "gst", ec);
+    std::ofstream f(dir / "plugin.json");
+    if (!f) return "no se pudo escribir " + (dir / "plugin.json").string();
+    f << out.dump(1);
+    f.close();
+    // Que ande acá ya (si el elemento no está, lo dice: puede faltar su biblioteca en gst/).
+    std::string err;
+    resolverPlugin(id, &err);
+    emit cambio();
+    return err.empty() ? std::string() : "guardado, pero: " + err;
+}
+
+std::string SuperRes::borrarPlugin(const std::string& id) {
+    if (id.empty() || id.find('/') != std::string::npos || id.find('\\') != std::string::npos || id[0] == '.')
+        return "id inválido";
+    const fs::path dir = carpetaModelos() / id;
+    std::error_code ec;
+    if (!fs::exists(dir / "plugin.json", ec)) return "no hay un plugin instalado «" + id + "»";
+    fs::remove_all(dir, ec);
+    emit cambio();
+    return ec ? ec.message() : std::string();
+}
+
+QString SuperRes::guardarPluginElementoUi(const QVariantMap& p) {
+    const json j = json::parse(QJsonDocument::fromVariant(p).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    return q(guardarPluginElemento(j.is_object() ? j : json::object()));
+}
+
+QVariantList SuperRes::pluginsElementoUi() const {
+    json out = json::array();
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(carpetaModelos(), ec)) {
+        if (!e.is_directory()) continue;
+        std::ifstream f(e.path() / "plugin.json");
+        if (!f) continue;
+        const json p = json::parse(f, nullptr, false);
+        if (p.is_object() && p.value("tipo", "") == "elemento") {
+            json x = p;
+            x["id"] = e.path().filename().string();
+            x["carpeta"] = e.path().string();
+            std::string err;
+            x["anda"] = !resolverPlugin(x["id"], &err).empty();
+            if (!err.empty()) x["error"] = err;
+            out.push_back(x);
+        }
+    }
+    return qv(out).toList();
 }
 
 QString SuperRes::borrarModelo(const QString& archivo) {

@@ -228,6 +228,8 @@ const char* kSalida = "#ifdef GL_ES\nprecision highp float;\n#endif\n"
 struct _BaGlsl {
     GstGLFilter parent;
     gchar* archivo;
+    gchar* codigo;         ///< el shader en el texto (gana sobre `archivo`)
+    GstStructure* uniformes; ///< floats que se le pasan a cada pasada (bajo GST_OBJECT_LOCK)
     gboolean activo;
     gchar* error;
     std::vector<Pasada>* pasadas;
@@ -245,7 +247,7 @@ G_DEFINE_TYPE(BaGlsl, ba_glsl, GST_TYPE_GL_FILTER)
 GST_DEBUG_CATEGORY_STATIC(ba_glsl_debug);
 #define GST_CAT_DEFAULT ba_glsl_debug
 
-enum { PROP_0, PROP_SHADER, PROP_ACTIVO, PROP_FACTOR, PROP_PASADAS, PROP_ERROR };
+enum { PROP_0, PROP_SHADER, PROP_CODIGO, PROP_UNIFORMES, PROP_ACTIVO, PROP_FACTOR, PROP_PASADAS, PROP_ERROR };
 
 static void ponerError(BaGlsl* s, const std::string& e) {
     GST_OBJECT_LOCK(s);
@@ -277,23 +279,29 @@ static int factorDe(const std::vector<Pasada>& ps, int w, int h) {
 static void cargarShader(BaGlsl* s) {
     s->pasadas->clear();
     s->factor = 1;
-    if (s->archivo == nullptr || *s->archivo == '\0') return;
-    std::ifstream f(s->archivo);
-    if (!f) {
-        ponerError(s, std::string("no se pudo leer ") + s->archivo);
-        return;
+    std::string texto;
+    if (s->codigo != nullptr && *s->codigo != '\0') {
+        texto = s->codigo;
+    } else {
+        if (s->archivo == nullptr || *s->archivo == '\0') return;
+        std::ifstream f(s->archivo);
+        if (!f) {
+            ponerError(s, std::string("no se pudo leer ") + s->archivo);
+            return;
+        }
+        std::stringstream ss;
+        ss << f.rdbuf();
+        texto = ss.str();
     }
-    std::stringstream ss;
-    ss << f.rdbuf();
     std::string e;
-    if (!leerShader(ss.str(), *s->pasadas, e)) {
+    if (!leerShader(texto, *s->pasadas, e)) {
         s->pasadas->clear();
         ponerError(s, e);
         return;
     }
     s->factor = factorDe(*s->pasadas, 1920, 1080);
     ponerError(s, "");
-    GST_INFO_OBJECT(s, "%s: %zu pasadas, x%d", s->archivo, s->pasadas->size(), s->factor);
+    GST_INFO_OBJECT(s, "%s: %zu pasadas, x%d", s->codigo ? "(código)" : s->archivo, s->pasadas->size(), s->factor);
 }
 
 // --- Caps ----------------------------------------------------------------------------
@@ -463,6 +471,15 @@ static void dibujar(BaGlsl* s, GstGLShader* sh, guint destino, int w, int h,
     gst_gl_shader_set_uniform_2f(sh, "target_size", static_cast<gfloat>(2 * inW), static_cast<gfloat>(2 * inH));
     gst_gl_shader_set_uniform_1i(sh, "frame", static_cast<gint>(s->cuadro));
     gst_gl_shader_set_uniform_1f(sh, "random", static_cast<gfloat>(g_random_double()));
+    // Los parámetros del que lo usa (p. ej. la nitidez de FSR), en vivo.
+    GST_OBJECT_LOCK(s);
+    if (s->uniformes != nullptr)
+        for (gint i = 0; i < gst_structure_n_fields(s->uniformes); ++i) {
+            const gchar* n = gst_structure_nth_field_name(s->uniformes, i);
+            gdouble d = 0;
+            if (gst_structure_get_double(s->uniformes, n, &d)) gst_gl_shader_set_uniform_1f(sh, n, static_cast<gfloat>(d));
+        }
+    GST_OBJECT_UNLOCK(s);
     if (s->vao != 0) gl->BindVertexArray(s->vao);
     gl->BindBuffer(GL_ARRAY_BUFFER, s->vbo);
     const GLint pos = gst_gl_shader_get_attribute_location(sh, "a_position");
@@ -572,6 +589,20 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             cargarShader(s);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
             break;
+        case PROP_CODIGO:
+            g_free(s->codigo);
+            s->codigo = g_value_dup_string(v);
+            cargarShader(s);
+            gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
+            break;
+        case PROP_UNIFORMES: {
+            const GstStructure* u = gst_value_get_structure(v);
+            GST_OBJECT_LOCK(s);
+            if (s->uniformes != nullptr) gst_structure_free(s->uniformes);
+            s->uniformes = u != nullptr ? gst_structure_copy(u) : nullptr;
+            GST_OBJECT_UNLOCK(s);
+            break;
+        }
         case PROP_ACTIVO:
             s->activo = g_value_get_boolean(v);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
@@ -584,6 +615,12 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_GLSL(o);
     switch (id) {
         case PROP_SHADER: g_value_set_string(v, s->archivo); break;
+        case PROP_CODIGO: g_value_set_string(v, s->codigo); break;
+        case PROP_UNIFORMES:
+            GST_OBJECT_LOCK(s);
+            gst_value_set_structure(v, s->uniformes);
+            GST_OBJECT_UNLOCK(s);
+            break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_FACTOR: g_value_set_int(v, s->factor); break;
         case PROP_PASADAS: g_value_set_int(v, static_cast<gint>(s->pasadas->size())); break;
@@ -599,6 +636,8 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
 static void finalizar(GObject* o) {
     auto* s = BA_GLSL(o);
     g_free(s->archivo);
+    g_free(s->codigo);
+    if (s->uniformes != nullptr) gst_structure_free(s->uniformes);
     g_free(s->error);
     delete s->pasadas;
     delete s->propias;
@@ -619,6 +658,15 @@ static void ba_glsl_class_init(BaGlslClass* k) {
                                     g_param_spec_string("shader", "Shader",
                                                         "Un user shader de mpv (.glsl: FSRCNNX, Anime4K…)", nullptr,
                                                         listo));
+    g_object_class_install_property(go, PROP_CODIGO,
+                                    g_param_spec_string("codigo", "Código",
+                                                        "El shader de mpv en el texto (gana sobre `shader`)", nullptr,
+                                                        listo));
+    g_object_class_install_property(
+        go, PROP_UNIFORMES,
+        g_param_spec_boxed("uniformes", "Uniformes",
+                           "Valores (float) que reciben todas las pasadas: «u, nitidez=(double)0.2»", GST_TYPE_STRUCTURE,
+                           vivo));
     g_object_class_install_property(go, PROP_ACTIVO,
                                     g_param_spec_boolean("activo", "Activo", "FALSE: pasa sin tocar", TRUE, vivo));
     g_object_class_install_property(
@@ -642,6 +690,8 @@ static void ba_glsl_class_init(BaGlslClass* k) {
 
 static void ba_glsl_init(BaGlsl* s) {
     s->archivo = nullptr;
+    s->codigo = nullptr;
+    s->uniformes = nullptr;
     s->activo = TRUE;
     s->error = nullptr;
     s->pasadas = new std::vector<Pasada>();
