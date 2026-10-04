@@ -290,9 +290,42 @@ def a_coreml(modelo, escala: int, mitad: bool, salida_dir: str, canales: int) ->
     ancho0, alto0 = tam[0]
     tr = torch.jit.trace(w, torch.rand(1, 3, alto0, ancho0) * 255)
     formas = ct.EnumeratedShapes(shapes=[(1, 3, h, a) for a, h in tam], default=(1, 3, alto0, ancho0))
-    ml = ct.convert(tr, inputs=[ct.ImageType(name="entrada", shape=formas, color_layout=ct.colorlayout.RGB)],
-                    outputs=[ct.ImageType(name="salida", color_layout=ct.colorlayout.RGB)],
-                    compute_precision=ct.precision.FLOAT16, minimum_deployment_target=ct.target.macOS14)
+    from PIL import Image
+
+    # Una imagen de prueba con algo de todo (degradés, bordes, ruido) para
+    # comparar CoreML con PyTorch.
+    yy, xx = np.mgrid[0:alto0, 0:ancho0]
+    prueba = np.stack([xx / ancho0, yy / alto0, ((xx // 16 + yy // 16) % 2) * 0.8 + 0.1], -1)
+    prueba = np.clip(prueba + np.random.RandomState(1).normal(0, 0.03, prueba.shape), 0, 1)
+    prueba8 = (prueba * 255).astype("uint8")
+    with torch.no_grad():
+        ref = w(torch.from_numpy(prueba8).permute(2, 0, 1)[None].float()).numpy()[0].transpose(1, 2, 0)
+
+    def convertir(precision):
+        return ct.convert(tr, inputs=[ct.ImageType(name="entrada", shape=formas, color_layout=ct.colorlayout.RGB)],
+                          outputs=[ct.ImageType(name="salida", color_layout=ct.colorlayout.RGB)],
+                          compute_precision=precision, minimum_deployment_target=ct.target.macOS14)
+
+    def psnr(m):
+        out = np.asarray(m.predict({"entrada": Image.fromarray(prueba8)})["salida"].convert("RGB")).astype("float64")
+        mse = float(np.mean((out - ref) ** 2))
+        return 99.0 if mse == 0 else 10 * np.log10(255.0 ** 2 / mse)
+
+    # FP16 (el Neural Engine). Algunas redes (SPAN: normaliza x255 adentro) se
+    # desbordan en FP16 y salen con los colores rotos: si se aleja de PyTorch,
+    # FP32 (corre en la GPU, más lento pero bien).
+    ml = convertir(ct.precision.FLOAT16)
+    precision = "fp16"
+    try:
+        p16 = psnr(ml)
+        decir(ev="progreso", texto=f"CoreML FP16 contra PyTorch: {p16:.1f} dB", pct=75)
+        if p16 < 32:
+            decir(ev="aviso", texto=f"FP16 se aleja ({p16:.1f} dB): se convierte en FP32 (GPU)")
+            ml = convertir(ct.precision.FLOAT32)
+            precision = "fp32"
+            decir(ev="progreso", texto=f"CoreML FP32 contra PyTorch: {psnr(ml):.1f} dB", pct=80)
+    except Exception as e:  # noqa: BLE001
+        decir(ev="aviso", texto=f"no se pudo comparar con PyTorch: {e}")
     paquete = os.path.join(salida_dir, "modelo.mlpackage")
     shutil.rmtree(paquete, ignore_errors=True)
     ml.save(paquete)
@@ -300,10 +333,9 @@ def a_coreml(modelo, escala: int, mitad: bool, salida_dir: str, canales: int) ->
     shutil.rmtree(compilado, ignore_errors=True)
     compile_model(paquete, compilado)
     shutil.rmtree(paquete, ignore_errors=True)
-    # Medir: el primer tamaño, en el Neural Engine.
-    from PIL import Image
-
-    ml2 = ct.models.CompiledMLModel(compilado, compute_units=ct.ComputeUnit.CPU_AND_NE)
+    # Medir: el primer tamaño, en el Neural Engine (FP32: en la GPU).
+    ml2 = ct.models.CompiledMLModel(
+        compilado, compute_units=ct.ComputeUnit.CPU_AND_NE if precision == "fp16" else ct.ComputeUnit.CPU_AND_GPU)
     img = Image.fromarray((np.random.rand(alto0, ancho0, 3) * 255).astype("uint8"))
     for _ in range(2):
         ml2.predict({"entrada": img})
@@ -313,7 +345,7 @@ def a_coreml(modelo, escala: int, mitad: bool, salida_dir: str, canales: int) ->
         ml2.predict({"entrada": img})
     ms = round(1000 * (time.time() - t) / k, 1)
     return {"archivo": "modelo.mlmodelc", "tamanos": [[a, h] for a, h in tam], "ms": ms,
-            "ms_tamano": [ancho0, alto0]}
+            "ms_tamano": [ancho0, alto0], "precision": precision}
 
 
 def instalar(args) -> None:
@@ -357,6 +389,7 @@ def instalar(args) -> None:
                 plugin["coreml_tamanos"] = c["tamanos"]
                 plugin["ms_coreml"] = c["ms"]
                 plugin["ms_coreml_tamano"] = c["ms_tamano"]
+                plugin["coreml_precision"] = c.get("precision", "fp16")
             except Exception as e:  # noqa: BLE001
                 decir(ev="aviso", texto=f"CoreML no se pudo: {type(e).__name__}: {e}")
         if os.path.abspath(archivo).startswith(carpeta):

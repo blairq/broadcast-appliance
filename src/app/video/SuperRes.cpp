@@ -455,8 +455,10 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     const int escalaRed = escala == 4 ? 4 : 2; // una x4 entra a la mitad y sale x2
 #if defined(__APPLE__)
     if (archivos.contains("coreml") && motores().contains("coreml"))
+        // FP32 (redes que se desbordan en FP16, como SPAN): en la GPU, el Neural Engine no la corre.
         return json{{"motor", "coreml"}, {"modelo", (dir / archivos["coreml"].get<std::string>()).string()},
-                    {"escala_red", escalaRed}};
+                    {"escala_red", escalaRed},
+                    {"unidades", p.value("coreml_precision", std::string("fp16")) == "fp32" ? "gpu" : "auto"}};
 #endif
     // La versión NV12 (todo en la placa: color, mitad, vuelta a NV12) si está;
     // si no, la float (baonnxsr igual le da la mitad a una x4).
