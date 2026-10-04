@@ -1358,6 +1358,13 @@
    "para": "Raya en diagonal las zonas sobreexpuestas.",
    "uso": "En un monitor de cabina: ver qué cámara quema las altas luces antes de que salga al aire.",
    "tarjeta": true
+  },
+  "gtk4paintablesink": {
+   "titulo": "Salida a GTK 4",
+   "categoria": "Salidas",
+   "para": "Entrega el video a una interfaz hecha con GTK 4 (un GdkPaintable).",
+   "uso": "Plugins de Python con ventana propia en GTK.",
+   "tarjeta": false
   }
  }
 }
