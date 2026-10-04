@@ -172,7 +172,7 @@ int main() {
     }
     obs_add_module_path(BA_SOURCES_MODULE_DIR, BA_SOURCES_MODULE_DIR "/%module%");
 #if defined(BA_TEST_GST_RAIZ)
-    setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1); // el GStreamer vendoreado (extern/)
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, TRUE); // el GStreamer vendoreado (extern/)
 #endif
 #if defined(BA_TEST_OBS_FILTERS)
     // obs-filters (el de OBS, vendoreado), para la tarjeta de un filtro de OBS.
@@ -574,7 +574,7 @@ int main() {
     }
 #endif
 
-#if defined(BA_TEST_GST_RAIZ) && defined(BA_TEST_PYTHON)
+#if defined(BA_TEST_GST_RAIZ) && defined(BA_TEST_PYTHON) && !defined(_WIN32) // (lanza el plugin con sleep | python: Unix)
     // 11. Un plugin de Python (docs/PLUGINS.md): su tarjeta en el grafo
     // (`baplugin`) y su entrada de video y audio (`bapluginsrc` adentro de
     // ba_gst_fuente). Python puro, sin numpy: corre con el Python vendoreado.
