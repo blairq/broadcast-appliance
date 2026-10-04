@@ -113,7 +113,7 @@ EOF
 VENV="$T/venv"
 python3 -m venv "$VENV"
 "$VENV/bin/pip" install -q --disable-pip-version-check "meson==1.9.1" "ninja==1.13.0"
-export PATH="$VENV/bin:$PATH"
+export PATH="$VENV/bin:$LLVM:$PATH"
 
 log "PyGObject $PYGO_VER"
 meson setup "$T/b1" "$T/pygobject-$PYGO_VER" --cross-file "$T/cruzado.ini" --prefix="$T/stage" --libdir=lib \
