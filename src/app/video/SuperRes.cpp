@@ -6,6 +6,10 @@
 #include "plugins/Hijo.hpp"
 #include "video/VideoGrafos.hpp"
 
+#if defined(BA_HAVE_GST)
+#include <gst/gst.h>
+#endif
+
 #include <QDateTime>
 #include <QFile>
 #include <QJsonDocument>
@@ -323,7 +327,7 @@ json SuperRes::plugins() const {
                 for (const char* k : {"ms_coreml", "ms_coreml_tamano", "arquitectura", "archivos", "instalado"})
                     if (inst.contains(k)) r[k == std::string("instalado") ? "fecha_instalado" : k] = inst[k];
         }
-        if (r.value("tipo", "") == "glsl") aca = motores().contains("glsl"); // baglsl (OpenGL)
+        if (r.value("tipo", "") == "glsl") aca = motores.contains("glsl"); // baglsl (OpenGL)
         r["aca"] = aca;
         r.erase("origen");
         out.push_back(r);
@@ -412,6 +416,36 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     const json p = json::parse(f, nullptr, false);
     if (!p.is_object()) return fallar("plugin.json de «" + id + "» roto");
     const json archivos = p.value("archivos", json::object());
+    if (p.value("tipo", "") == "elemento") {
+        // CONTRATO ABIERTO: un elemento de GStreamer cualquiera (de GStreamer, o
+        // propio en <plugin>/gst/: una red compilada para la placa, p. ej. con
+        // TensorRT y memory:CUDAMemory). plugin.json:
+        //   {"tipo": "elemento", "elemento": "mitrt", "propiedades": {...},
+        //    "memoria": "CUDAMemory"|"GLMemory"|"D3D11Memory"|"D3D12Memory"|"",
+        //    "escala": 2, "medio": "video"|"audio", "latencia_ms": 12,
+        //    "plataformas": ["windows", "linux"]}
+        // Las propiedades pueden usar {dir} (la carpeta del plugin).
+        const std::string el = p.value("elemento", std::string());
+        if (el.empty()) return fallar("plugin.json de «" + id + "» sin `elemento`");
+#if defined(BA_HAVE_GST)
+        std::error_code e3;
+        if (fs::is_directory(dir / "gst", e3)) gst_registry_scan_path(gst_registry_get(), (dir / "gst").string().c_str());
+        GstElementFactory* fac = gst_element_factory_find(el.c_str());
+        if (fac == nullptr) return fallar("GStreamer no tiene el elemento «" + el + "» (¿falta su biblioteca en " +
+                                          (dir / "gst").string() + "?)");
+        gst_object_unref(fac);
+#endif
+        json props = json::object();
+        for (const auto obj_ = p.value("propiedades", json::object()); const auto& [k, v] : obj_.items()) {
+            std::string t = v.is_string() ? v.get<std::string>() : v.dump();
+            for (size_t i = 0; (i = t.find("{dir}", i)) != std::string::npos;) t.replace(i, 5, dir.string());
+            props[k] = t;
+        }
+        return json{{"elemento", el},
+                    {"propiedades", props},
+                    {"memoria", p.value("memoria", std::string())},
+                    {"escala_red", p.value("escala", 2)}};
+    }
     if (p.value("tipo", "") == "glsl") {
         if (!archivos.contains("glsl")) return fallar("plugin.json de «" + id + "» sin shader");
         if (!motores().contains("glsl")) return fallar("este sistema no tiene el motor de shaders (baglsl)");

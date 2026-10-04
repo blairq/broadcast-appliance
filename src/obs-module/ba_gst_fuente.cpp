@@ -135,6 +135,7 @@ GstClock* relojDe(const std::string& tipo, const std::string& servidor, int puer
 struct Filtro {
     std::string id, elemento;
     std::string nombre; ///< el id sin caracteres raros: el nombre del elemento es ba_f_<nombre>
+    std::string memoria; ///< la que pide (CUDAMemory, GLMemory, D3D11Memory, D3D12Memory; "" = sistema)
     std::vector<std::pair<std::string, std::string>> props;
 };
 
@@ -478,6 +479,7 @@ std::vector<Filtro> leerFiltros(obs_data_t* d, const char* clave) {
         Filtro f;
         f.id = obs_data_get_string(x, "id");
         f.elemento = obs_data_get_string(x, "elemento");
+        f.memoria = obs_data_get_string(x, "memoria");
         if (f.id.empty()) f.id = std::to_string(i);
         f.nombre = f.id;
         for (char& c : f.nombre)
@@ -524,7 +526,7 @@ std::string firmaDe(const std::vector<Filtro>& v, const std::vector<Filtro>& a, 
     std::string r = alfa ? "A|" : "|";
     for (const auto* l : {&v, &a}) {
         for (const auto& f : *l) {
-            r += f.id + "=" + f.elemento + "{";
+            r += f.id + "=" + f.elemento + "@" + f.memoria + "{";
             for (const auto& [k, val] : f.props) {
                 GParamSpec* ps = especDe(f.elemento, k);
                 if (ps != nullptr && (ps->flags & GST_PARAM_MUTABLE_PLAYING) != 0) continue;
@@ -565,7 +567,29 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
             avisos.push_back("no está el elemento «" + f.elemento + "» (filtro " + f.id + "): pasa sin él");
             continue;
         }
-        r += std::string(conv) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! ";
+        // Un elemento que trabaja en la placa: subir antes y bajar después (si
+        // ya viene en esa memoria —un decodificador de la placa—, la subida
+        // pasa de largo: sin copias).
+        static const std::map<std::string, std::pair<const char*, const char*>> kMemorias{
+            {"CUDAMemory", {"cudaupload ! cudaconvertscale", "cudadownload"}},
+            {"GLMemory", {"glupload ! glcolorconvert", "gldownload"}},
+            {"D3D11Memory", {"d3d11upload ! d3d11convert", "d3d11download"}},
+            {"D3D12Memory", {"d3d12upload ! d3d12convert", "d3d12download"}}};
+        const auto m = kMemorias.find(f.memoria);
+        bool hayPuente = m != kMemorias.end();
+        if (hayPuente) {
+            const std::string sube = m->second.first;
+            const std::string primero = sube.substr(0, sube.find(' '));
+            hayPuente = hayFabrica(primero) && hayFabrica(m->second.second);
+            if (!hayPuente)
+                avisos.push_back("no hay " + primero + " para darle " + f.memoria + " a «" + f.elemento +
+                                 "»: va en memoria de sistema");
+        }
+        if (hayPuente)
+            r += std::string(m->second.first) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! " +
+                 m->second.second + " ! ";
+        else
+            r += std::string(conv) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! ";
     }
     return r;
 }
@@ -632,12 +656,22 @@ void armar(Fuente* f) {
         // se procesa cada cuadro repetido. Con una cola que descarta lo viejo:
         // si un filtro tarda, no se acumula demora. Píxel cuadrado primero (las
         // redes y libobs no saben de píxeles no cuadrados).
-        const std::string cadena =
-            std::string(f->normalizar ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") +
-            "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! " + cadenaV +
-            "videoconvert ! ";
-        antesSink = f->normalizar ? "deinterlace mode=auto ! " + cadena + "videorate ! videoconvertscale ! "
-                                  : cadena;
+        // Si el primer filtro trabaja en la placa, va PRIMERO (pegado al
+        // decodificador, que entonces entrega en esa memoria: sin bajar a la
+        // CPU) y lo que solo anda en la CPU (desentrelazar, píxel cuadrado)
+        // después.
+        const bool placaPrimero = !filtrosV.empty() && !filtrosV.front().memoria.empty();
+        const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
+        if (placaPrimero) {
+            antesSink = cola + cadenaV + "videoconvert ! " +
+                        (f->normalizar ? "deinterlace mode=auto ! videorate ! videoconvertscale ! " : "");
+        } else {
+            const std::string cadena =
+                std::string(f->normalizar ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") +
+                cola + cadenaV + "videoconvert ! ";
+            antesSink = f->normalizar ? "deinterlace mode=auto ! " + cadena + "videorate ! videoconvertscale ! "
+                                      : cadena;
+        }
     }
     if (f->alfa) {
         // Con transparencia (croma, recorte): BGRA, que libobs recibe con alfa.
@@ -898,13 +932,48 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                             g_object_get(el, "ms-por-cuadro", &ms, nullptr);
                             obs_data_set_double(e, "ms", ms);
                         }
-                        for (const char* prop : {"error", "motor-usado", "proveedor-usado", "unidades-usadas"}) {
-                            GParamSpec* ps = g_object_class_find_property(k, prop);
-                            if (ps == nullptr || ps->value_type != G_TYPE_STRING) continue;
-                            gchar* v = nullptr;
-                            g_object_get(el, prop, &v, nullptr);
-                            if (v != nullptr && *v != '\0') obs_data_set_string(e, prop, v);
-                            g_free(v);
+                        // Lo que informa (sus propiedades de solo lectura: lo que tarda,
+                        // el motor, el factor, por qué no anda…), sea el elemento que sea.
+                        guint n = 0;
+                        GParamSpec** pss = g_object_class_list_properties(k, &n);
+                        obs_data_t* info = obs_data_create();
+                        for (guint i = 0; i < n; ++i) {
+                            GParamSpec* ps = pss[i];
+                            if ((ps->flags & G_PARAM_READABLE) == 0 || (ps->flags & G_PARAM_WRITABLE) != 0) continue;
+                            if (ps->owner_type == GST_TYPE_ELEMENT || ps->owner_type == GST_TYPE_OBJECT ||
+                                ps->owner_type == G_TYPE_OBJECT)
+                                continue;
+                            GValue v = G_VALUE_INIT;
+                            g_value_init(&v, ps->value_type);
+                            g_object_get_property(G_OBJECT(el), ps->name, &v);
+                            if (G_VALUE_HOLDS_STRING(&v)) {
+                                const char* t = g_value_get_string(&v);
+                                if (t != nullptr && *t != '\0') obs_data_set_string(info, ps->name, t);
+                            } else if (G_VALUE_HOLDS_DOUBLE(&v)) {
+                                obs_data_set_double(info, ps->name, g_value_get_double(&v));
+                            } else if (G_VALUE_HOLDS_INT(&v)) {
+                                obs_data_set_int(info, ps->name, g_value_get_int(&v));
+                            } else if (G_VALUE_HOLDS_BOOLEAN(&v)) {
+                                obs_data_set_bool(info, ps->name, g_value_get_boolean(&v));
+                            }
+                            g_value_unset(&v);
+                        }
+                        g_free(pss);
+                        // Lo de siempre, arriba (compatibilidad): error, motor-usado…
+                        for (const char* prop : {"error", "motor-usado", "proveedor-usado", "unidades-usadas"})
+                            if (obs_data_has_user_value(info, prop))
+                                obs_data_set_string(e, prop, obs_data_get_string(info, prop));
+                        obs_data_set_obj(e, "info", info);
+                        obs_data_release(info);
+                        // Y lo que negoció: el tamaño que sale.
+                        if (GstPad* pad = gst_element_get_static_pad(el, "src")) {
+                            if (GstCaps* c = gst_pad_get_current_caps(pad)) {
+                                gchar* t = gst_caps_to_string(c);
+                                obs_data_set_string(e, "caps", t);
+                                g_free(t);
+                                gst_caps_unref(c);
+                            }
+                            gst_object_unref(pad);
                         }
                         gst_object_unref(el);
                     }

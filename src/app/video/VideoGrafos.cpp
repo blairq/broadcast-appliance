@@ -1007,6 +1007,7 @@ void VideoGrafos::aplicar(const std::string& entrada) {
             const bool igual = js == obs_data_get_string(actual, "filtros");
             obs_data_release(actual);
             if (!igual) {
+                blog(LOG_INFO, "[video-grafo] «%s»: filtros en la entrada: %s", entrada.c_str(), js.c_str());
                 obs_data_t* d = obs_data_create();
                 obs_data_set_string(d, "filtros", js.c_str());
                 actualizarFuente(src, d);
@@ -1130,7 +1131,7 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             const std::string el = p.value("elemento", std::string());
             if (el.empty()) break;
             f["elemento"] = el;
-            for (const auto& [k, v] : p.value("propiedades", json::object()).items())
+            for (const auto obj_ = p.value("propiedades", json::object()); const auto& [k, v] : obj_.items())
                 pr[k] = v.is_string() ? v.get<std::string>()
                         : v.is_boolean() ? std::string(v.get<bool>() ? "true" : "false")
                         : v.is_number_integer() ? std::to_string(v.get<long long>())
@@ -1148,6 +1149,20 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
                     for (const auto& [k, v] : r.items()) q[k] = v;
                 else
                     activo = false; // sin el plugin acá: pasa sin tocar
+            }
+            // Un plugin que ES un elemento (contrato abierto): va directo, con
+            // la memoria que pide (la cadena sube y baja de la placa alrededor).
+            if (activo && q.contains("elemento")) {
+                f["elemento"] = q["elemento"];
+                f["propiedades"] = q.value("propiedades", json::object());
+                if (!q.value("memoria", std::string()).empty()) f["memoria"] = q["memoria"];
+                video.push_back(f);
+                movidas.insert(id);
+                cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+                for (auto& c : cables)
+                    if (c.value("desde", "") == id) c["desde"] = "in";
+                nodos.erase(it);
+                continue;
             }
             const std::string motor = q.value("motor", std::string("auto"));
             if (!motor.empty() && motor != "auto") pr["motor"] = motor;
@@ -1682,7 +1697,7 @@ std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& fi
         if (!hayElemento(el.c_str())) return "GStreamer no tiene el elemento «" + el + "»";
         json x = {{"id", f.value("id", "a" + std::to_string(i++))}, {"elemento", el}};
         json pr = json::object();
-        for (const auto& [k, v] : f.value("propiedades", json::object()).items())
+        for (const auto obj_ = f.value("propiedades", json::object()); const auto& [k, v] : obj_.items())
             pr[k] = v.is_string() ? v.get<std::string>() : v.dump();
         x["propiedades"] = pr;
         limpios.push_back(x);

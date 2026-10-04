@@ -602,7 +602,7 @@ void EquipoAudio::cargar(const nlohmann::json& j) {
     if (!j.is_object()) return;
     mostrar_ = j.value("mostrar", true);
     visibles_.clear();
-    for (const auto& [id, on] : j.value("visibles", nlohmann::json::object()).items())
+    for (const auto obj_ = j.value("visibles", nlohmann::json::object()); const auto& [id, on] : obj_.items())
         if (on.is_boolean()) visibles_[id] = on.get<bool>();
     refrescar();
 }

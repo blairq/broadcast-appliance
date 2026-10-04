@@ -901,7 +901,7 @@ void Matriz::cargar() {
         v.ajustes = e.value("ajustes", false);
         envios_[{e.value("fuente", std::string()), e.value("bus", std::string())}] = v;
     }
-    for (const auto& [fuente, mx] : j.value("mezcladores", json::object()).items())
+    for (const auto obj_ = j.value("mezcladores", json::object()); const auto& [fuente, mx] : obj_.items())
         if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
             // Las pistas 2-6 que toma la grabación individual no se reponen
             // de un guardado viejo: la grabación las pone y las saca sola.
@@ -912,13 +912,13 @@ void Matriz::cargar() {
     // (pistas, escucha) reconoce por nombre.
     equipo_->cargar(j.value("equipo", json::object()));
     pistasPlegadas_ = j.value("pistasPlegadas", true);
-    for (const auto& [fuente, mx2] : j.value("mezcladores", json::object()).items())
+    for (const auto obj_ = j.value("mezcladores", json::object()); const auto& [fuente, mx2] : obj_.items())
         if (equipo_->esEntradaFisica(fuente))
             if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
                 obs_source_set_audio_mixers(s, mx2.get<std::uint32_t>() & 0x3F);
                 obs_source_release(s);
             }
-    for (const auto& [fuente, on] : j.value("escucha", json::object()).items())
+    for (const auto obj_ = j.value("escucha", json::object()); const auto& [fuente, on] : obj_.items())
         if (obs_source_t* s = obs_get_source_by_name(fuente.c_str())) {
             if (on.is_boolean()) setEscucha(s, on.get<bool>());
             obs_source_release(s);
