@@ -1018,7 +1018,20 @@ static GstFlowReturn generar(GstBaseTransform* bt, GstBuffer** outbuf) {
 static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuffer* outbuf) {
     // Solo sin red en marcha (generar manda todo al hilo de la red).
     auto* s = BA_ONNXSR(bt);
-    if (s->procesa) procesar(s, inbuf, outbuf);
+    if (s->procesa) {
+        procesar(s, inbuf, outbuf);
+    } else if (s->entradaCuda) {
+        // Mismo tamaño (apagado): de la placa a la memoria de sistema, tal cual.
+        GstVideoFrame fi, fo;
+        if (!gst_video_frame_map(&fi, &s->in, inbuf, GST_MAP_READ)) return GST_FLOW_ERROR;
+        if (!gst_video_frame_map(&fo, &s->out, outbuf, GST_MAP_WRITE)) {
+            gst_video_frame_unmap(&fi);
+            return GST_FLOW_ERROR;
+        }
+        gst_video_frame_copy(&fo, &fi);
+        gst_video_frame_unmap(&fo);
+        gst_video_frame_unmap(&fi);
+    }
     return GST_FLOW_OK;
 }
 
