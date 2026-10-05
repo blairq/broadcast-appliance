@@ -1787,13 +1787,32 @@ void VideoGrafos::evaluarSuperres() {
             if (const auto* n = grafo_.nodo(id); n != nullptr && n->tipo == "superres") conSr.insert(entrada);
     if (conSr.empty()) {
         estadoProgramador_ = json::object();
+        presupuesto_ = json::object();
         return;
     }
-    const bool activo = programador_.value("activo", true);
-    const int maxActivas = std::clamp(programador_.value("max_activas", 3), 0, 16);
-    const int transicion = std::clamp(programador_.value("transicion_ms", 400), 0, 10000);
+    const json& cfg = programador_;
+    const bool activo = cfg.value("activo", true);
+    const bool automatica = cfg.value("capacidad", std::string("auto")) != "fija";
+    const int tope = std::clamp(cfg.value("max_activas", 3), 0, 16);
+    const double usoPct = std::clamp(cfg.value("uso_pct", 85.0), 10.0, 100.0);
+    const int transicion = std::clamp(cfg.value("transicion_ms", 400), 0, 10000);
+    const bool enPreview = cfg.value("en_preview", true);
+    const std::string sinTurno = cfg.value("sin_turno", std::string("barato")) == "reposo" ? "reposo" : "barato";
+    const double umbral = std::clamp(cfg.value("umbral_aumento", 1.1), 0.5, 4.0);
+    const json forzar = cfg.value("forzar", json::object());
     obs_video_info ovi{};
     obs_get_video_info(&ovi);
+    const double cuadroMs = ovi.fps_num > 0 ? 1000.0 * ovi.fps_den / ovi.fps_num : 33.3;
+
+    // Lo medido de cada red (cada ~1 s: el estado de la cadena cuesta algo).
+    if (ticsProgramador_++ % 4 == 0)
+        for (const std::string& e : conSr)
+            for (const auto& f : filtrosDeEntrada(e)) {
+                if (f.value("elemento", std::string()) != "basuperres") continue;
+                const json info = f.value("info", json::object());
+                medidasSr_[e] = {info.value("ms-por-cuadro", 0.0), info.value("acelerador", std::string("?"))};
+            }
+
     // Qué fuente es de qué entrada: la entrada misma, o una salida de su grafo.
     const auto entradaDe = [this](const std::string& nombre) -> std::string {
         if (esEntrada(nombre)) return nombre;
@@ -1815,44 +1834,100 @@ void VideoGrafos::evaluarSuperres() {
     const std::string escPrograma = rt_.engine().currentScene();
     const std::string escPreview = rt_.engine().scenePreviewName("armada");
     const auto enPrograma = anchosDe(escPrograma);
-    const auto enPreview = anchosDe(escPreview);
+    const auto enPreviewMap = enPreview ? anchosDe(escPreview) : std::map<std::string, double>{};
 
     struct Cand {
         std::string entrada;
-        double prioridad, aumento;
-        bool programa, preview;
+        double prioridad;
     };
     std::vector<Cand> candidatos;
     json estado = json::object();
+    std::map<std::string, std::string> quiero;
     for (const std::string& e : conSr) {
         const double ap = enPrograma.count(e) ? enPrograma.at(e) : 0.0;
-        const double av = enPreview.count(e) ? enPreview.at(e) : 0.0;
+        const double av = enPreviewMap.count(e) ? enPreviewMap.at(e) : 0.0;
         obs_source_t* src = obs_get_source_by_name(e.c_str());
         const double ancho = src != nullptr ? obs_source_get_width(src) : 0.0;
         if (src != nullptr) obs_source_release(src);
         // Cuánto se agranda en pantalla respecto de la cámara (la fuente sale x2).
         const double aumento = ancho > 0 ? std::max(ap, av) / (ancho / 2.0) : 0.0;
-        estado[e] = {{"programa", ap > 0}, {"preview", av > 0}, {"aumento", std::round(aumento * 100) / 100}};
-        // La red suma si la cámara se ve más grande que su imagen original.
-        if ((ap > 0 || av > 0) && aumento > 1.1)
-            candidatos.push_back({e, (ap > 0 ? 2.0 : 0.0) + (av > 0 ? 1.0 : 0.0) + std::min(aumento, 4.0) / 4.0, aumento,
-                                  ap > 0, av > 0});
+        const auto med = medidasSr_.count(e) ? medidasSr_[e] : std::pair<double, std::string>{0.0, "?"};
+        const std::string forzado = forzar.value(e, std::string("auto"));
+        estado[e] = {{"programa", ap > 0},
+                     {"preview", av > 0},
+                     {"aumento", std::round(aumento * 100) / 100},
+                     {"ms", std::round(med.first * 10) / 10},
+                     {"acelerador", med.second},
+                     {"forzado", forzado}};
+        const bool seVe = ap > 0 || av > 0;
+        quiero[e] = activo ? "reposo" : "activo";
+        if (!activo) continue;
+        if (forzado == "siempre") {
+            candidatos.push_back({e, 100.0}); // primero, consuma lo que consuma
+        } else if (forzado != "nunca" && seVe && aumento > umbral) {
+            double pr = (ap > 0 ? 2.0 : 0.0) + (av > 0 ? 1.0 : 0.0) + std::min(aumento, 4.0) / 4.0;
+            if (modoSr_.count(e) && modoSr_[e] == "activo") pr += 0.05; // estabilidad
+            candidatos.push_back({e, pr});
+        } else if (forzado == "nunca" && seVe && aumento > umbral) {
+            quiero[e] = sinTurno;
+        }
     }
     std::sort(candidatos.begin(), candidatos.end(), [](const Cand& a, const Cand& b) { return a.prioridad > b.prioridad; });
-    std::map<std::string, std::string> quiero;
-    for (const std::string& e : conSr) quiero[e] = activo ? "reposo" : "activo";
-    if (activo)
-        for (size_t i = 0; i < candidatos.size(); ++i)
-            quiero[candidatos[i].entrada] = static_cast<int>(i) < maxActivas ? "activo" : "barato";
+
+    // La capacidad: cada acelerador corre de a una red por vez; en un cuadro le
+    // entra lo que sumen sus redes hasta el % de uso. Lo que ya está activo tiene
+    // un margen (15 %) para no oscilar con la medición; lo nuevo entra si cabe y
+    // pasaron 2 s del último cambio (que la medición se asiente).
+    const double disponible = cuadroMs * usoPct / 100.0;
+    std::map<std::string, double> usado;
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    const bool puedeSumar = ahora - ultimoCambioSr_ > 2000;
+    int activas = 0;
+    for (int pasada = 0; pasada < 2 && activo; ++pasada)
+        for (const auto& c : candidatos) {
+            const bool yaActiva = modoSr_.count(c.entrada) && modoSr_[c.entrada] == "activo";
+            if ((pasada == 0) != yaActiva || quiero[c.entrada] == "activo") continue;
+            const auto med = medidasSr_.count(c.entrada) ? medidasSr_[c.entrada] : std::pair<double, std::string>{0.0, "?"};
+            // Sin medición todavía: lo de una red compacta en la Mac.
+            const double ms = med.first > 0 ? med.first : 35.0;
+            const bool forzada = c.prioridad >= 100.0;
+            bool entra = forzada;
+            if (!entra) {
+                if (activas >= tope) {
+                    entra = false;
+                } else if (!automatica) {
+                    entra = true;
+                } else {
+                    const double margen = yaActiva ? 1.15 : 1.0;
+                    // Un acelerador sin nada prendido: la de más prioridad entra aunque no
+                    // llegue a cada cuadro (procesa los que puede; los demás salen con el
+                    // agrandado común: nunca traba la entrada).
+                    const bool primeraDelAcelerador = usado.count(med.second) == 0 || usado[med.second] == 0.0;
+                    entra = (usado[med.second] + ms <= disponible * margen || primeraDelAcelerador) &&
+                            (yaActiva || puedeSumar);
+                }
+            }
+            if (entra) {
+                quiero[c.entrada] = "activo";
+                usado[med.second] += ms;
+                ++activas;
+            } else {
+                quiero[c.entrada] = sinTurno;
+            }
+        }
+    presupuesto_ = json::object();
+    for (const auto& [acc, ms] : usado)
+        presupuesto_[acc] = {{"usado_ms", std::round(ms * 10) / 10}, {"disponible_ms", std::round(disponible * 10) / 10}};
+
     for (const auto& [e, modo] : quiero) {
         estado[e]["modo"] = modo;
         if (modoSr_.count(e) && modoSr_[e] == modo) continue;
         if (controlEntrada(e, json{{"superres", modo}, {"transicion_ms", transicion}}).empty()) {
+            if (modo == "activo") ultimoCambioSr_ = ahora;
             modoSr_[e] = modo;
             blog(LOG_INFO, "[video-grafo] superresolución de «%s»: %s", e.c_str(), modo.c_str());
         }
     }
-    // Las que ya no tienen superresolución: se olvida lo mandado.
     for (auto it = modoSr_.begin(); it != modoSr_.end();)
         it = conSr.count(it->first) ? std::next(it) : modoSr_.erase(it);
     estadoProgramador_ = estado;
@@ -1861,6 +1936,9 @@ void VideoGrafos::evaluarSuperres() {
 json VideoGrafos::programador() const {
     json out = programador_;
     out["entradas"] = estadoProgramador_;
+    out["presupuesto"] = presupuesto_;
+    obs_video_info ovi{};
+    if (obs_get_video_info(&ovi) && ovi.fps_num > 0) out["cuadro_ms"] = std::round(10000.0 * ovi.fps_den / ovi.fps_num) / 10;
     out["programa"] = rt_.engine().currentScene();
     out["preview"] = rt_.engine().scenePreviewName("armada");
     return out;
@@ -1868,10 +1946,27 @@ json VideoGrafos::programador() const {
 
 std::string VideoGrafos::configurarProgramador(const json& cambios) {
     if (!cambios.is_object()) return "se esperaba un objeto";
-    for (const char* k : {"activo", "max_activas", "transicion_ms"})
+    for (const char* k : {"activo", "capacidad", "max_activas", "uso_pct", "transicion_ms", "en_preview", "sin_turno",
+                          "umbral_aumento"})
         if (cambios.contains(k)) programador_[k] = cambios[k];
+    // Forzar por entrada: {"Cámara 1": "siempre"|"nunca"|"auto"} (auto la saca de la lista).
+    if (cambios.contains("forzar") && cambios["forzar"].is_object()) {
+        json f = programador_.value("forzar", json::object());
+        for (const auto& [e, v] : cambios["forzar"].items()) {
+            const std::string x = v.is_string() ? v.get<std::string>() : "auto";
+            if (x == "siempre" || x == "nunca")
+                f[e] = x;
+            else
+                f.erase(e);
+        }
+        programador_["forzar"] = f;
+    }
     programador_["max_activas"] = std::clamp(programador_.value("max_activas", 3), 0, 16);
+    programador_["uso_pct"] = std::clamp(programador_.value("uso_pct", 85.0), 10.0, 100.0);
     programador_["transicion_ms"] = std::clamp(programador_.value("transicion_ms", 400), 0, 10000);
+    programador_["umbral_aumento"] = std::clamp(programador_.value("umbral_aumento", 1.1), 0.5, 4.0);
+    if (programador_.value("capacidad", std::string("auto")) != "fija") programador_["capacidad"] = "auto";
+    if (programador_.value("sin_turno", std::string("barato")) != "reposo") programador_["sin_turno"] = "barato";
     QSaveFile f(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
     if (f.open(QIODevice::WriteOnly)) {
         f.write(QByteArray::fromStdString(programador_.dump(1)));

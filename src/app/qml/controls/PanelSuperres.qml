@@ -98,61 +98,23 @@ ColumnLayout {
         }
     }
 
-    // --- Programador ------------------------------------------------------------------
+    // --- Programador (su menú propio: PanelProgramador) -------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
     RowLayout {
         Layout.fillWidth: true
-        Text { text: "Programador (programa y preview)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
-        Toggle {
-            checked: panel.prog.activo !== false
-            onToggled: (w) => { panel.avisar(panel.vg.configurarProgramadorUi({ activo: w }), w ? "Programador prendido" : "Programador apagado: todas las redes trabajan"); panel.refrescar() }
-        }
-    }
-    Text {
-        Layout.fillWidth: true; wrapMode: Text.WordWrap
-        color: Theme.textDim; font.pixelSize: 11
-        text: "Las redes de todas las cámaras quedan cargadas y calientes, pero solo trabajan las que se ven grandes en el programa o en el " +
-              "preview (la escena armada). Al pasar una cámara a preview la red entra de a poco (sin saltos ni cuadros negros), así sale " +
-              "al aire ya mejorada. Las que se ven pero no tienen turno van con el agrandado afilado; las que no se ven, en reposo."
-    }
-    RowLayout {
-        spacing: 8
-        Text { text: "Redes a la vez"; color: Theme.textDim; font.pixelSize: 12 }
-        SpinBox {
-            from: 0; to: 16; editable: true
-            value: panel.prog.max_activas !== undefined ? panel.prog.max_activas : 3
-            onValueModified: panel.avisar(panel.vg.configurarProgramadorUi({ max_activas: value }), "")
-        }
-        Text { text: "Transición (ms)"; color: Theme.textDim; font.pixelSize: 12 }
-        SpinBox {
-            from: 0; to: 3000; stepSize: 50; editable: true
-            value: panel.prog.transicion_ms !== undefined ? panel.prog.transicion_ms : 400
-            onValueModified: panel.avisar(panel.vg.configurarProgramadorUi({ transicion_ms: value }), "")
-        }
+        Text { text: "Programador (programa y preview)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
         Text {
-            text: "programa: " + (panel.prog.programa || "—") + " · preview: " + (panel.prog.preview || "—")
-            color: Theme.textFaint; font.pixelSize: 11
+            Layout.fillWidth: true; elide: Text.ElideRight
+            text: panel.prog.activo === false ? "apagado: todas las redes trabajan"
+                  : panel.progEntradas.filter(e => e.modo === "activo").length + " con red, " +
+                    panel.progEntradas.filter(e => e.modo === "barato").length + " afiladas, " +
+                    panel.progEntradas.filter(e => e.modo === "reposo").length + " en reposo · capacidad " +
+                    (panel.prog.capacidad === "fija" ? "fija" : "medida")
+            color: Theme.textDim; font.pixelSize: 12
         }
+        GlassButton { compact: true; text: "Configurar…"; onClicked: progPop.open() }
     }
-    Repeater {
-        model: panel.progEntradas
-        delegate: RowLayout {
-            id: pe
-            required property var modelData
-            spacing: 10
-            Text { text: pe.modelData.entrada; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 180; elide: Text.ElideRight }
-            StatusPill {
-                text: pe.modelData.modo === "activo" ? "red" : pe.modelData.modo === "barato" ? "afilado" : "reposo"
-                dot: pe.modelData.modo === "activo" ? Theme.ok : pe.modelData.modo === "barato" ? Theme.amber : Theme.textFaint
-                medidaDe: "afilado"
-            }
-            Text {
-                text: (pe.modelData.programa ? "al aire · " : "") + (pe.modelData.preview ? "en preview · " : "") +
-                      "se ve x" + Number(pe.modelData.aumento || 0).toFixed(2) + " de la cámara"
-                color: Theme.textDim; font.pixelSize: 11
-            }
-        }
-    }
+    PanelProgramador { id: progPop; vg: panel.vg }
 
     // --- Entrenar ---------------------------------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }

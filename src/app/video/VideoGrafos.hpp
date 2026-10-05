@@ -324,9 +324,16 @@ class VideoGrafos : public QObject {
     ResolverPlugin resolverPlugin_;
     void evaluarSuperres();
     QTimer programadorTimer_;
-    nlohmann::json programador_ = {{"activo", true}, {"max_activas", 3}, {"transicion_ms", 400}};
+    nlohmann::json programador_ = {{"activo", true},          {"capacidad", "auto"},      {"max_activas", 3},
+                                   {"uso_pct", 85},            {"transicion_ms", 400},     {"en_preview", true},
+                                   {"sin_turno", "barato"},    {"umbral_aumento", 1.1},    {"forzar", nlohmann::json::object()}};
     nlohmann::json estadoProgramador_ = nlohmann::json::object();
+    nlohmann::json presupuesto_ = nlohmann::json::object();
     std::map<std::string, std::string> modoSr_; ///< lo último mandado a cada entrada
+    /// Lo medido de cada red (cada ~1 s): ms por cuadro y en qué acelerador corre.
+    std::map<std::string, std::pair<double, std::string>> medidasSr_;
+    int ticsProgramador_ = 0;
+    qint64 ultimoCambioSr_ = 0;
     void aplicar(const std::string& entrada);
     /// Las tarjetas que cuelgan en fila de la entrada y son de imagen (color,
     /// croma, recorte, superresolución, módulos de GStreamer) pasan a la cadena

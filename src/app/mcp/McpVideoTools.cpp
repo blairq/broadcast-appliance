@@ -951,13 +951,25 @@ void McpService::registerVideoTools() {
             "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
             "(hasta `max_activas`, por prioridad: programa, preview, más grande), barato (se ve grande pero no tiene "
             "turno: agrandado afilado) o reposo (no se ve o se ve chica). Se prende al pasar a preview, con una mezcla "
-            "gradual de `transicion_ms`: la mejora entra sin saltos ni cuadros negros. Sin argumentos devuelve la "
-            "configuración y el estado de cada cámara; con `activo` false, todas las redes trabajan siempre.";
+            "gradual de `transicion_ms`: la mejora entra sin saltos ni cuadros negros. La CAPACIDAD se mide sola "
+            "(`capacidad` auto): cada acelerador (Neural Engine, GPU, CPU, CUDA, DirectML…) corre de a una red por vez, "
+            "así que entran las redes cuyo tiempo medido sume hasta `uso_pct` % de un cuadro en su acelerador "
+            "(`max_activas` es el tope); con `capacidad` fija, exactamente `max_activas`. `en_preview` false: solo lo "
+            "que está al aire. `sin_turno`: barato (afilado) o reposo. `umbral_aumento`: desde cuánto agrandada en "
+            "pantalla conviene la red (1.1 = más grande que la cámara). `forzar`: {entrada: siempre|nunca|auto}. "
+            "Sin argumentos devuelve la configuración, el estado de cada cámara (modo, ms, acelerador) y el "
+            "presupuesto usado de cada acelerador; con `activo` false, todas las redes trabajan siempre.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
+                           {"capacidad", {{"type", "string"}, {"enum", {"auto", "fija"}}}},
                            {"max_activas", {{"type", "integer"}}},
-                           {"transicion_ms", {{"type", "integer"}}}}}};
+                           {"uso_pct", {{"type", "number"}}},
+                           {"transicion_ms", {{"type", "integer"}}},
+                           {"en_preview", {{"type", "boolean"}}},
+                           {"sin_turno", {{"type", "string"}, {"enum", {"barato", "reposo"}}}},
+                           {"umbral_aumento", {{"type", "number"}}},
+                           {"forzar", {{"type", "object"}}}}}};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             if (!a.empty()) {

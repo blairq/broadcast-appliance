@@ -120,6 +120,8 @@ enum {
     PROP_ESCALA_RED,
     PROP_UNIDADES,
     PROP_UNIDADES_USADAS,
+    PROP_ACELERADOR,
+    PROP_MEZCLA,
     PROP_MOTOR_USADO,
     PROP_MS,
     PROP_ERROR
@@ -289,6 +291,39 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_ESCALA_RED: g_value_set_int(v, s->escalaRed); break;
         case PROP_UNIDADES: g_value_set_int(v, s->unidades); break;
+        case PROP_ACELERADOR: {
+            // Qué acelerador usa (para repartir: cada uno corre de a una red por vez).
+            std::string a = "ninguno";
+            const std::string u = s->usado != nullptr ? s->usado : "";
+            const auto leer = [&](const char* prop) {
+                gchar* x = nullptr;
+                if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), prop) != nullptr)
+                    g_object_get(s->motor, prop, &x, nullptr);
+                std::string r = x != nullptr ? x : "";
+                g_free(x);
+                return r;
+            };
+            if (u == "coreml") {
+                const std::string un = leer("unidades-usadas");
+                a = un == "gpu" ? "gpu" : un == "cpu" ? "cpu" : "neural-engine";
+            } else if (u == "onnx") {
+                const std::string pr = leer("proveedor-usado");
+                a = pr.empty() ? "cpu" : pr == "coreml" ? "neural-engine" : pr == "tensorrt" ? "cuda" : pr;
+            } else if (u == "apple") {
+                a = "videotoolbox";
+            } else if (u == "fsr" || u == "glsl") {
+                a = "gpu";
+            }
+            g_value_set_string(v, a.c_str());
+            break;
+        }
+        case PROP_MEZCLA: {
+            gdouble m = 1.0;
+            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "mezcla") != nullptr)
+                g_object_get(s->motor, "mezcla", &m, nullptr);
+            g_value_set_double(v, m);
+            break;
+        }
         case PROP_UNIDADES_USADAS: {
             gchar* u = nullptr;
             if (s->motor != nullptr &&
@@ -376,6 +411,15 @@ static void ba_superres_class_init(BaSuperResClass* k) {
         g_param_spec_int("unidades", "Unidades",
                          "coreml: dónde corre la red (0 auto = Neural Engine, 1 todas, 2 ane, 3 gpu, 4 cpu)", 0, 4,
                          0, listo));
+    g_object_class_install_property(
+        go, PROP_ACELERADOR,
+        g_param_spec_string("acelerador", "Acelerador",
+                            "Dónde corre la red: neural-engine, gpu, cpu, cuda, dml, migraphx, rocm, openvino, "
+                            "videotoolbox (para repartir el trabajo entre cámaras)",
+                            nullptr, ro));
+    g_object_class_install_property(
+        go, PROP_MEZCLA,
+        g_param_spec_double("mezcla", "Mezcla", "Cuánto de la red sale ahora (0 agrandado común, 1 la red)", 0, 1, 1, ro));
     g_object_class_install_property(
         go, PROP_UNIDADES_USADAS,
         g_param_spec_string("unidades-usadas", "Unidades usadas", "coreml: dónde quedó la red", nullptr, ro));
