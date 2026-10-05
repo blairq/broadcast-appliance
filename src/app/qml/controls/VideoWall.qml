@@ -89,8 +89,10 @@ Item {
             // Tally: rojo si está al aire (o es el programa), verde si está armada.
             Rectangle {
                 readonly property string f: wall.fuenteDe(modelData)
-                readonly property bool alAire: modelData === "program" || (f !== "" && (Studio.tally.aire || []).indexOf(f) >= 0)
-                readonly property bool armada: modelData === "armada" || (f !== "" && !alAire && (Studio.tally.armada || []).indexOf(f) >= 0)
+                // El programa y la armada no llevan borde: ya se sabe qué son (y un borde rojo
+                // permanente en el fondo del tablero se confunde con una alarma).
+                readonly property bool alAire: f !== "" && (Studio.tally.aire || []).indexOf(f) >= 0
+                readonly property bool armada: f !== "" && !alAire && (Studio.tally.armada || []).indexOf(f) >= 0
                 visible: wall.tally && (alAire || armada)
                 anchors.fill: parent; color: "transparent"; z: 2
                 border { color: alAire ? "#e53935" : "#2ecc71"; width: Math.max(3, Math.min(parent.width, parent.height) / 90) }

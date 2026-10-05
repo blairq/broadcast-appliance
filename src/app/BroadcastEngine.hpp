@@ -259,6 +259,15 @@ class BroadcastEngine {
     /// Tipo ("cut", "fade", "swipe", "slide", "fade_to_color") y duracion de
     /// la transicion entre escenas.
     bool setTransition(const std::string& type, int durationMs);
+    /// Pone `name` al aire con OTRA transición solo esta vez (`tipo`: cut, fade,
+    /// swipe, slide, fade_to_color; `ms` < 0 = la duración global). La global no cambia.
+    bool setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms);
+    /// T-bar: lleva la transición a mano hacia `name` (t de 0 a 1). Con `soltar`,
+    /// termina (si pasó la mitad, queda al aire; si no, vuelve). Devuelve true si
+    /// `name` quedó al aire.
+    bool transicionManual(const std::string& name, float t, bool soltar, bool* alAire);
+    /// En medio de una transición manual (y hacia qué escena).
+    std::string manualHacia() const { return manualHacia_; }
 
     // --- FTB y placa de seguridad (por encima de todo lo que sale) -------------
     /// Fundido a negro de la salida (canal 31, encima del programa). `ms` de
@@ -768,6 +777,12 @@ class BroadcastEngine {
     void asegurarVelos();
     void soltarVelos();
     obs_source* transition_ = nullptr;
+    obs_source* activa_ = nullptr;   ///< la que está en el canal del programa (la global o una de una vez)
+    std::map<std::string, obs_source*> deUnaVez_; ///< transiciones de un solo take, por tipo
+    std::string manualHacia_;        ///< T-bar: la escena a la que se está yendo
+    float manualT_ = 0;
+    obs_source* transicionDeTipo(const std::string& tipo);
+    void ponerEnPrograma(obs_source* tr);
     std::string transitionType_ = "fade";
     int transitionMs_ = 300;
     std::vector<std::pair<std::string, obs_source*>> sources_;

@@ -107,6 +107,8 @@ class AppRuntime {
     /// le pone la carpeta de `before`. Devuelve false si no existe.
     bool moveScene(const std::string& name, const std::string& before);
     bool setScene(const std::string& name);
+    /// Al aire con otra transición solo esta vez (ver BroadcastEngine::setCurrentSceneCon).
+    bool setSceneCon(const std::string& name, const std::string& tipo, int ms);
     bool setTransition(const std::string& type, int durationMs);
     bool addSource(const std::string& scene, const SourceSpec& spec);
     bool removeSource(const std::string& scene, const std::string& name);

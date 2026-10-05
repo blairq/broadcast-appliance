@@ -539,6 +539,17 @@ class StudioViewModel : public QObject {
     /// Y deja armada la que SALIO del aire, como cualquier mesa: despues de un
     /// take, el bus de preview queda con el plano anterior, listo para volver.
     Q_INVOKABLE void take();
+    /// AUTO con otra transición solo esta vez («cut» = CUT). `ms` < 0: la duración global.
+    Q_INVOKABLE void takeCon(const QString& tipo, int ms);
+    /// T-bar hacia la escena armada: `t` de 0 a 1; `soltar` termina (pasada la mitad, queda al aire).
+    Q_INVOKABLE void tbar(double t, bool soltar);
+    /// La transición con la que ENTRA una escena (vacío = la global). {tipo, ms}.
+    Q_INVOKABLE QVariantMap transicionEntrada(const QString& escena) const;
+    Q_INVOKABLE QString setTransicionEntrada(const QString& escena, const QString& tipo, int ms);
+    /// Audio que sigue al video (AFV): la fuente sube cuando su escena entra al aire y baja cuando sale.
+    Q_INVOKABLE bool afv(const QString& fuente) const { return afv_.contains(fuente); }
+    Q_INVOKABLE void setAfv(const QString& fuente, bool sigue);
+    QStringList afvFuentes() const { return QStringList(afv_.begin(), afv_.end()); }
     QString escenaArmada() const;
 
     /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
@@ -715,6 +726,13 @@ class StudioViewModel : public QObject {
     QVariantMap caida_;
     QVariantMap tally_;
     QVariantList mediosAlAire_;
+    nlohmann::json transicionesEntrada_ = nlohmann::json::object();
+    QSet<QString> afv_;
+    QHash<QString, float> afvVolumen_;
+    /// Cambia a `dest` con la transición que corresponda (la pedida, la de entrada de la escena o la global) y aplica el AFV.
+    bool cambiarEscena(const QString& dest, const QString& tipo, int ms);
+    void aplicarAfv(const QString& dest, int ms);
+    void guardarTransiciones() const;
     qint64 caidaMs_ = 0;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;

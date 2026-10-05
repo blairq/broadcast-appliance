@@ -169,7 +169,96 @@ bool BroadcastEngine::setTransition(const std::string& type, int durationMs) {
         obs_source_release(reinterpret_cast<obs_source_t*>(transition_));
     }
     transition_ = reinterpret_cast<obs_source*>(tr);
+    activa_ = transition_;
     transitionType_ = type;
+    return true;
+}
+
+obs_source* BroadcastEngine::transicionDeTipo(const std::string& tipo) {
+    if (tipo.empty() || tipo == transitionType_) return transition_;
+    auto it = deUnaVez_.find(tipo);
+    if (it != deUnaVez_.end()) return it->second;
+    obs_source_t* tr = obs_source_create_private(transitionId(tipo), ("transicion-" + tipo).c_str(), nullptr);
+    if (tr == nullptr) return nullptr;
+    obs_transition_set_size(tr, static_cast<uint32_t>(video_.baseWidth), static_cast<uint32_t>(video_.baseHeight));
+    deUnaVez_[tipo] = reinterpret_cast<obs_source*>(tr);
+    return deUnaVez_[tipo];
+}
+
+void BroadcastEngine::ponerEnPrograma(obs_source* tr) {
+    if (tr == nullptr || tr == activa_) return;
+    // La que entra arranca mostrando lo que ya está al aire (no hay salto).
+    if (obs_scene* cur = sceneByName(currentScene_))
+        obs_transition_set(reinterpret_cast<obs_source_t*>(tr), obs_scene_get_source(reinterpret_cast<obs_scene_t*>(cur)));
+    obs_set_output_source(kProgramChannel, reinterpret_cast<obs_source_t*>(tr));
+    activa_ = tr;
+}
+
+bool BroadcastEngine::setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms) {
+    obs_scene* sc = sceneByName(name);
+    if (sc == nullptr) {
+        setError("no existe la escena '" + name + "'");
+        return false;
+    }
+    if (transition_ == nullptr && !setTransition(transitionType_, transitionMs_)) return false;
+    obs_source* tr = transicionDeTipo(tipo);
+    if (tr == nullptr) {
+        setError("no existe la transicion '" + tipo + "'");
+        return false;
+    }
+    ponerEnPrograma(tr);
+    const int dur = ms < 0 ? transitionMs_ : ms;
+    obs_source_t* dest = obs_scene_get_source(reinterpret_cast<obs_scene_t*>(sc));
+    if (currentScene_.empty() || dur == 0 || tipo == "cut")
+        obs_transition_set(reinterpret_cast<obs_source_t*>(tr), dest);
+    else
+        obs_transition_start(reinterpret_cast<obs_source_t*>(tr), OBS_TRANSITION_MODE_AUTO, static_cast<uint32_t>(dur), dest);
+    manualHacia_.clear();
+    currentScene_ = name;
+    scene_ = sc;
+    return true;
+}
+
+bool BroadcastEngine::transicionManual(const std::string& name, float t, bool soltar, bool* alAire) {
+    if (alAire != nullptr) *alAire = false;
+    obs_scene* sc = sceneByName(name);
+    if (sc == nullptr) {
+        setError("no existe la escena '" + name + "'");
+        return false;
+    }
+    if (name == currentScene_) {
+        setError("esa escena ya está al aire");
+        return false;
+    }
+    // A mano se usa un fundido (un corte no tiene «medio camino»).
+    const std::string tipo = transitionType_ == "cut" ? "fade" : transitionType_;
+    if (transition_ == nullptr && !setTransition(transitionType_, transitionMs_)) return false;
+    obs_source* tr = transicionDeTipo(tipo);
+    if (tr == nullptr) return false;
+    auto* t2 = reinterpret_cast<obs_source_t*>(tr);
+    obs_source_t* dest = obs_scene_get_source(reinterpret_cast<obs_scene_t*>(sc));
+    if (manualHacia_ != name) {
+        ponerEnPrograma(tr);
+        obs_transition_start(t2, OBS_TRANSITION_MODE_MANUAL, static_cast<uint32_t>(std::max(1, transitionMs_)), dest);
+        manualHacia_ = name;
+    }
+    manualT_ = std::clamp(t, 0.0f, 1.0f);
+    obs_transition_set_manual_time(t2, manualT_);
+    if (manualT_ >= 1.0f || soltar) {
+        if (manualT_ >= 0.5f) {
+            obs_transition_set_manual_time(t2, 1.0f);
+            obs_transition_set(t2, dest);
+            currentScene_ = name;
+            scene_ = sc;
+            if (alAire != nullptr) *alAire = true;
+        } else {
+            obs_transition_set_manual_time(t2, 0.0f);
+            if (obs_scene* cur = sceneByName(currentScene_))
+                obs_transition_set(t2, obs_scene_get_source(reinterpret_cast<obs_scene_t*>(cur)));
+        }
+        manualHacia_.clear();
+        manualT_ = 0;
+    }
     return true;
 }
 
@@ -182,6 +271,8 @@ bool BroadcastEngine::setCurrentScene(const std::string& name) {
     if (transition_ == nullptr && !setTransition(transitionType_, transitionMs_)) {
         return false;
     }
+    ponerEnPrograma(transition_); // si el take anterior usó otra, vuelve la global
+    manualHacia_.clear();
     auto* tr = reinterpret_cast<obs_source_t*>(transition_);
     obs_source_t* dest = obs_scene_get_source(reinterpret_cast<obs_scene_t*>(sc));
     if (currentScene_.empty() || transitionMs_ == 0) {
@@ -209,6 +300,9 @@ void BroadcastEngine::releaseScenes() {
         obs_set_output_source(ch, nullptr);
     }
     meters_.clear(); // antes que las fuentes: los vumetros las referencian
+    for (auto& [t, tr] : deUnaVez_) obs_source_release(reinterpret_cast<obs_source_t*>(tr));
+    deUnaVez_.clear();
+    activa_ = nullptr;
     if (transition_ != nullptr) {
         obs_source_release(reinterpret_cast<obs_source_t*>(transition_));
         transition_ = nullptr;
@@ -1231,6 +1325,9 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
                                 static_cast<uint32_t>(video.baseWidth),
                                 static_cast<uint32_t>(video.baseHeight));
     }
+    for (auto& [t, tr] : deUnaVez_)
+        obs_transition_set_size(reinterpret_cast<obs_source_t*>(tr), static_cast<uint32_t>(video.baseWidth),
+                                static_cast<uint32_t>(video.baseHeight));
     if (feeds) {
         publishReturnFeeds();
     }

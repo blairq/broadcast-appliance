@@ -866,6 +866,15 @@ bool AppRuntime::setScene(const std::string& name) {
     return true;
 }
 
+bool AppRuntime::setSceneCon(const std::string& name, const std::string& tipo, int ms) {
+    if (!engine_.setCurrentSceneCon(name, tipo, ms)) {
+        lastError_ = engine_.lastError();
+        return false;
+    }
+    cfg_.currentScene = name;
+    return true;
+}
+
 bool AppRuntime::setTransition(const std::string& type, int durationMs) {
     if (!engine_.setTransition(type, durationMs)) {
         lastError_ = engine_.lastError();

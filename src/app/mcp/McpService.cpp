@@ -1104,6 +1104,78 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "scene_cut";
+        t.title = "CUT: corte seco a la armada";
+        t.category = "escenas";
+        t.description = "Pone al aire la escena armada con un CORTE (sin transicion), aunque la global sea un fundido. "
+                        "Deja armada la que salia.";
+        t.run = [&rt, &vm](const json&, Done done) {
+            const QString armada = vm.escenaArmada();
+            if (armada.isEmpty()) return done(ToolResult::error("No hay nada armado (scene_preview)."));
+            vm.takeCon("cut", 0);
+            if (rt.engine().currentScene() != armada.toStdString()) return done(ToolResult::error("No se pudo: " + rt.lastError()));
+            done(ToolResult::ok("AL AIRE (corte): " + armada.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "transicion_manual";
+        t.title = "T-bar: transicion a mano";
+        t.category = "escenas";
+        t.description = "Lleva la transicion hacia la escena armada a mano: `t` de 0 a 1 (la palanca). Con `soltar`, "
+                        "termina: pasada la mitad queda al aire, si no vuelve. Para un fader de la botonera: "
+                        "{\"t\": \"{{valor}}\"} con el fader de 0 a 1.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"t"}},
+                         {"properties", {{"t", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}, {"soltar", {{"type", "boolean"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            vm.tbar(a.value("t", 0.0), a.value("soltar", false));
+            done(ToolResult().data({{"al_aire", rt.engine().currentScene()}, {"hacia", rt.engine().manualHacia()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "escena_transicion";
+        t.title = "Transicion de entrada de una escena";
+        t.category = "escenas";
+        t.description = "La transicion con la que ENTRA la `escena` al aire (`tipo`: cut, fade, swipe, slide, "
+                        "fade_to_color; vacio = la global) y su duracion `ms`. Un take con transicion explicita manda sobre esta.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"escena"}},
+                         {"properties",
+                          {{"escena", {{"type", "string"}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"", "cut", "fade", "swipe", "slide", "fade_to_color"}}}},
+                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.setTransicionEntrada(QString::fromStdString(a.value("escena", std::string())),
+                                                      QString::fromStdString(a.value("tipo", std::string())), a.value("ms", -1));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Listo."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_afv";
+        t.title = "Audio que sigue al video";
+        t.category = "audio";
+        t.description = "Con `sigue_video`, la `fuente` sube (a su volumen) cuando entra al aire una escena que la tiene y "
+                        "baja a cero cuando sale, con la duracion de la transicion. Sin `sigue_video`, lista las que lo tienen.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"fuente", {{"type", "string"}}}, {"sigue_video", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("fuente") && a.contains("sigue_video"))
+                vm.setAfv(QString::fromStdString(a.value("fuente", std::string())), a.value("sigue_video", false));
+            json l = json::array();
+            for (const QString& f : vm.afvFuentes()) l.push_back(f.toStdString());
+            done(ToolResult().data({{"sigue_video", l}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "scene_take";
         t.title = "TAKE: sacar al aire la escena armada";
         t.category = "escenas";
@@ -1112,13 +1184,17 @@ void McpService::registerTools() {
         t.details = "Sin nada armado no hace nada y lo dice: armar primero con `scene_preview`.\n\n"
                     "Que el plano que SALE del aire quede armado es como funciona cualquier mesa: "
                     "despues de un take, volver a lo anterior es un solo take mas.";
-        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
-        t.run = [&rt, &vm](const json&, Done done) {
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"transicion", {{"type", "string"}, {"enum", {"cut", "fade", "swipe", "slide", "fade_to_color"}},
+                                           {"description", "otra transicion solo para este take (si no, la de entrada de la escena o la global)"}}},
+                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
             const QString armada = vm.escenaArmada();
             if (armada.isEmpty())
                 return done(ToolResult::error(
                     "No hay nada armado. Arma el proximo plano con scene_preview {\"name\": ...}."));
-            vm.take();
+            vm.takeCon(QString::fromStdString(a.value("transicion", std::string())), a.value("ms", -1));
             if (rt.engine().currentScene() != armada.toStdString())
                 return done(ToolResult::error("No se pudo: " + rt.lastError()));
             done(ToolResult::ok("AL AIRE: " + armada.toStdString() +

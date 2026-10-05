@@ -129,9 +129,45 @@ Item {
                 }
             }
             GlassButton {
-                text: "TAKE"; active: true
+                text: "CUT"
+                enabled: Studio.escenaArmada !== ""
+                onClicked: Studio.takeCon("cut", 0)
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Corte seco a la armada (sin transición)"
+            }
+            GlassButton {
+                text: "AUTO"; active: true
                 enabled: Studio.escenaArmada !== ""
                 onClicked: Studio.take()
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "TAKE con la transición (la de entrada de la escena o la global)"
+            }
+        }
+        // --- T-bar: la transición a mano --------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            enabled: Studio.escenaArmada !== ""
+            Text { text: "T-bar"; color: Theme.textDim; font.pixelSize: 11 }
+            Slider {
+                id: tbar
+                Layout.fillWidth: true
+                from: 0; to: 1; value: 0
+                onMoved: Studio.tbar(value, false)
+                onPressedChanged: if (!pressed) { Studio.tbar(value, true); value = 0 }
+            }
+            Text { text: "Entra con"; color: Theme.textDim; font.pixelSize: 11 }
+            ComboBox {
+                id: entrada
+                implicitWidth: 120
+                readonly property var actual: Studio.escenaArmada !== "" ? Studio.transicionEntrada(Studio.escenaArmada) : ({})
+                model: [ { t: "la global", v: "" }, { t: "corte", v: "cut" }, { t: "fundido", v: "fade" },
+                         { t: "barrido", v: "swipe" }, { t: "deslizar", v: "slide" }, { t: "a color", v: "fade_to_color" } ]
+                textRole: "t"
+                currentIndex: Math.max(0, model.findIndex(o => o.v === (actual.tipo || "")))
+                onActivated: (i) => {
+                    const e = Studio.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
+                    if (e !== "") Studio.notify(e, "error")
+                }
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La transición con la que entra la escena armada"
             }
         }
 

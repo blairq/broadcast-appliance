@@ -141,6 +141,21 @@ Item {
                     Text { anchors.centerIn: parent; text: muted ? "MUDO" : "M"; color: Theme.text; font { pixelSize: 10; weight: Font.Bold } }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: Studio.mixer.setMuted(name, !muted) }
                 }
+                // AFV: el audio sigue al video (sube y baja con su escena).
+                Rectangle {
+                    property bool on: Studio.afv(name)
+                    Layout.fillWidth: true
+                    height: 18; radius: 6
+                    color: on ? Qt.rgba(0.18, 0.44, 0.87, 0.7) : Qt.rgba(1, 1, 1, 0.05)
+                    Text { anchors.centerIn: parent; text: "AFV"; color: parent.on ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
+                    MouseArea {
+                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: { Studio.setAfv(name, !parent.on); parent.on = Studio.afv(name) }
+                    }
+                    ToolTip.visible: afvMa.containsMouse; ToolTip.delay: 500
+                    ToolTip.text: "Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale"
+                    MouseArea { id: afvMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
+                }
                 // El canal que manda el teclado se marca: sin esto, subir el
                 // volumen con las flechas es una apuesta.
                 Rectangle {
