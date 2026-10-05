@@ -74,6 +74,16 @@ Item {
                             MenuItem { text: "Calidad completa"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-max") }
                             MenuSeparator {}
                             MenuItem {
+                                text: "Grabar aparte (ISO)"
+                                onTriggered: {
+                                    const f = Studio.fuenteDeInvitado(semaforo.p.id)
+                                    if (f === "") { Studio.notify("Ese invitado no tiene una fuente en el programa todavía.", "warn"); return }
+                                    const e = Studio.isoUi(f, true)
+                                    Studio.notify(e === "" ? "Grabando «" + f + "» aparte" : e, e === "" ? "ok" : "error")
+                                }
+                            }
+                            MenuSeparator {}
+                            MenuItem {
                                 text: "Aprobar su cargo para el zócalo: «" + ((semaforo.p && semaforo.p.info) || "—") + "»"
                                 enabled: !!(semaforo.p && semaforo.p.info)
                                 onTriggered: { const e = Studio.aprobarInfoInvitado(semaforo.p.id, ""); Studio.notify(e !== "" ? e : "Cargo aprobado para el zócalo", e !== "" ? "error" : "info") }

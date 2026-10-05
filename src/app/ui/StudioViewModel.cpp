@@ -41,6 +41,7 @@
 #include "agent/Vocabulario.hpp"
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
+#include "control/Dsk.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
@@ -599,6 +600,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
         satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
+        dsk_ = std::make_unique<control::Dsk>(rt.dataRoot(), rt_.engine());
+        dsk_->setAlCambiar([this](const nlohmann::json& c) {
+            bus_->publicar("aire/dsk", c);
+            publicarTally(); // lo que muestra una capa también está al aire
+        });
         auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
         const auto aQt = [](const nlohmann::json& j) {
             return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
@@ -731,7 +737,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
     frameTick_.start(16); // hasta 60 Hz; FrameService solo avisa si hay frame nuevo
     // Tras una caída: la placa o el negro vuelven como estaban.
-    QTimer::singleShot(1500, this, [this]() { restaurarPlaca(); });
+    QTimer::singleShot(1500, this, [this]() {
+        restaurarPlaca();
+        if (dsk_) dsk_->restaurar();
+    });
 }
 
 StudioViewModel::~StudioViewModel() {
@@ -1241,7 +1250,10 @@ void StudioViewModel::publicarTally() {
             out << qs(f);
         return out;
     };
-    p->publicarTally(aire, armada, fuentesDe(aire), fuentesDe(armada), streaming(), recording());
+    QStringList enAire = fuentesDe(aire);
+    for (const std::string& f : rt_.engine().fuentesDsk())
+        if (!enAire.contains(qs(f))) enAire << qs(f);
+    p->publicarTally(aire, armada, enAire, fuentesDe(armada), streaming(), recording());
 }
 
 void StudioViewModel::armarEscena(const QString& name) {
@@ -1643,7 +1655,8 @@ void StudioViewModel::revisarSenales() {
     }
     // Una entrada AL AIRE sin señal: lo que se configuró (avisar, armar o cortar al respaldo).
     const nlohmann::json resp = leerRespaldos(rt_.dataRoot());
-    const auto alAire = rt_.engine().sceneSources(rt_.engine().currentScene());
+    auto alAire = rt_.engine().sceneSources(rt_.engine().currentScene());
+    for (const std::string& f : rt_.engine().fuentesDsk()) alAire.push_back(f); // el recuadro de LSA también
     for (const QString& e : sin) {
         if (respaldoHecho_.contains(e)) continue;
         if (std::find(alAire.begin(), alAire.end(), e.toStdString()) == alAire.end()) continue;
@@ -1738,9 +1751,12 @@ void StudioViewModel::publicarEventos() {
     };
     bus_->publicar("aire/escena", {{"escena", aire.toStdString()}});
     bus_->publicar("aire/armada", {{"escena", armada.toStdString()}});
+    nlohmann::json fuentesAire = fuentesDe(aire);
+    for (const std::string& f : rt_.engine().fuentesDsk())
+        if (std::find(fuentesAire.begin(), fuentesAire.end(), f) == fuentesAire.end()) fuentesAire.push_back(f);
     bus_->publicar("aire/tally", {{"programa", aire.toStdString()},
                                   {"preview", armada.toStdString()},
-                                  {"fuentes_programa", fuentesDe(aire)},
+                                  {"fuentes_programa", fuentesAire},
                                   {"fuentes_preview", fuentesDe(armada)},
                                   {"transmitiendo", streaming_},
                                   {"grabando", recording_}});
@@ -1803,6 +1819,15 @@ namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
+QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
+
+QStringList StudioViewModel::nombresParaDsk() const {
+    QStringList out;
+    for (const std::string& n : rt_.engine().sceneNames()) out << qs(n);
+    for (const std::string& n : rt_.engine().sourceNames())
+        if (!out.contains(qs(n))) out << qs(n);
+    return out;
+}
 
 void StudioViewModel::sincronizarBotonera() {
     if (!conference_ || !botonera_) return;
@@ -1904,6 +1929,73 @@ void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
     cli.post("/api/v1/botonera/resolver", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
              [](bool, const QJsonObject&) {});
     emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+QVariantList StudioViewModel::isosUi() const {
+    QVariantList out;
+    for (const auto& g : rt_.engine().sourceRecordings()) {
+        std::error_code ec;
+        const auto bytes = std::filesystem::file_size(g.path, ec);
+        out.append(QVariantMap{{"fuente", qs(g.source)},
+                               {"archivo", qs(g.path)},
+                               {"mb", ec ? 0.0 : static_cast<double>(bytes) / 1e6},
+                               {"audioPropio", g.audioPropio},
+                               {"activa", g.activa}});
+    }
+    return out;
+}
+
+QString StudioViewModel::isoUi(const QString& fuente, bool grabar) {
+    if (!grabar) {
+        rt_.stopSourceRecording(fuente.toStdString());
+        emit statusChanged();
+        return {};
+    }
+    const nlohmann::json d = rt_.discoGrabacion();
+    if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < 0.5)
+        return "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.";
+    if (static_cast<int>(rt_.engine().sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
+        return QString("Ya se graban %1 aparte (el tope): pará alguna.").arg(BroadcastEngine::kMaxIndividuales);
+    if (!rt_.startSourceRecording(fuente.toStdString())) return qs(rt_.lastError());
+    emit statusChanged();
+    return {};
+}
+
+QString StudioViewModel::fuenteDeInvitado(const QString& participante) const {
+    if (!conference_) return {};
+    const QJsonObject snap = static_cast<ConferenceViewModel*>(conference_.get())->client().snapshot();
+    for (const QJsonValue& v : snap.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (p.value("id").toString() != participante && p.value("name").toString() != participante) continue;
+        const int slot = p.value("slot").toInt();
+        if (slot <= 0) return {};
+        const QString f = "Invitado " + QString::number(slot);
+        for (const std::string& n : rt_.engine().sourceNames())
+            if (qs(n) == f) return f;
+        return {};
+    }
+    return {};
+}
+
+QString StudioViewModel::isoTodasUi(bool grabar) {
+    if (!grabar) {
+        rt_.stopAllSourceRecordings();
+        emit statusChanged();
+        return {};
+    }
+    QStringList errores;
+    for (const std::string& f : rt_.engine().sceneSources(rt_.engine().currentScene())) {
+        bool ya = false;
+        for (const auto& g : rt_.engine().sourceRecordings()) ya = ya || g.source == f;
+        if (ya) continue;
+        const QString e = isoUi(qs(f), true);
+        if (!e.isEmpty()) errores << qs(f) + ": " + e;
+    }
+    return errores.join("; ");
 }
 
 } // namespace ba::app

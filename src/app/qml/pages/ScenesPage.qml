@@ -78,6 +78,7 @@ Rectangle {
                     Layout.fillWidth: true
                     spacing: 4
                     BotonesSeguridad { Layout.fillWidth: true }
+                    FilaDsk { Layout.fillWidth: true }
                 }
                 CheckBox {
                     text: "Corte directo (sin preview)"

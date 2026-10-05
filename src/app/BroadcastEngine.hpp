@@ -267,6 +267,18 @@ class BroadcastEngine {
     /// La placa ("Cuarto intermedio", "Volvemos enseguida"…): una escena interna
     /// con fondo, texto e imagen opcional (canal 30), con fundido.
     bool placa(bool activar, const std::string& texto, const std::string& imagen, int ms);
+    // --- DSK: capas globales encima del programa (canales 1..4) ------------------
+    /// Arma el contenido de la capa `capa` (1..4): escenas o fuentes existentes,
+    /// por nombre, apiladas en ese orden. `recuadro` (opcional) achica cada una
+    /// a un recuadro: {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|
+    /// arriba_izquierda, tamano: 0..1 del ancho, margen: 0..0.2}.
+    bool dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro);
+    /// Sube o baja la capa con un fundido de `ms`.
+    bool dskMostrar(int capa, bool visible, int ms);
+    /// [{capa, visible, opacidad}] para las 4.
+    nlohmann::json dskEstado() const;
+    /// Las fuentes que muestran las capas que están arriba (para el tally y el interlock de PTZ).
+    std::vector<std::string> fuentesDsk() const;
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen} (lo que se ve ahora o va hacia eso).
     nlohmann::json estadoPlaca() const;
 
@@ -741,6 +753,9 @@ class BroadcastEngine {
         std::uint32_t canal = 0;
     };
     Velo veloFtb_, veloPlaca_;
+    Velo dsk_[4];
+    std::vector<std::string> dskContenido_[4];
+    void asegurarDsk(int i);
     bool ftbAudio_ = false;
     std::string placaTexto_, placaImagen_;
     float volumenAntesFtb_ = 1.0f;

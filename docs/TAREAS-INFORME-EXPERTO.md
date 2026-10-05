@@ -48,12 +48,12 @@
 | T22 | Vocabulario propio para el STT (legisladores, localidades) | P0 | hecho |
 | T23 | Interfaz para crear disparadores y notificación remota | P1 | falta |
 | T24 | Recuperación visible: cartel de causa, configuración con dos generaciones, volcados | P1 | parcial |
-| T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | falta |
+| T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | hecho (sin componer en el preview ni miniaturas) |
 | T26 | Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV | P1 | parcial |
 | T27 | Panel de salud de la salida | P1 | parcial |
 | T28 | Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink | P1 | falta |
 | T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | falta |
-| T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | parcial |
+| T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
 | T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | parcial |
 | T32 | Automixer para las bancas | P1 | falta (escrito, sin usar) |
 | T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | parcial |

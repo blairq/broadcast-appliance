@@ -85,7 +85,7 @@ void BroadcastEngine::soltarVelos() {
         obs_remove_tick_callback(&BroadcastEngine::tickVelos, this);
         tickVelo_ = false;
     }
-    for (Velo* v : {&veloFtb_, &veloPlaca_}) {
+    for (Velo* v : {&veloFtb_, &veloPlaca_, &dsk_[0], &dsk_[1], &dsk_[2], &dsk_[3]}) {
         if (v->fuente == nullptr) continue;
         obs_set_output_source(v->canal, nullptr);
         if (v->filtro != nullptr) obs_source_release(fuenteDe(v->filtro));
@@ -96,7 +96,7 @@ void BroadcastEngine::soltarVelos() {
 
 void BroadcastEngine::tickVelos(void* data, float seg) {
     auto* e = static_cast<BroadcastEngine*>(data);
-    for (Velo* v : {&e->veloFtb_, &e->veloPlaca_}) {
+    for (Velo* v : {&e->veloFtb_, &e->veloPlaca_, &e->dsk_[0], &e->dsk_[1], &e->dsk_[2], &e->dsk_[3]}) {
         if (v->fuente == nullptr || v->actual == v->objetivo) continue;
         const float paso = v->porSeg * seg;
         v->actual = v->objetivo > v->actual ? std::min(v->objetivo, v->actual + paso)

@@ -48,6 +48,8 @@ Item {
 
         // --- FTB y placa: tapar todo lo que sale a un toque ---------------------
         BotonesSeguridad { Layout.fillWidth: true }
+        // --- Capas DSK encima del programa (logo, intérprete LSA) --------------
+        FilaDsk { Layout.fillWidth: true }
 
         // --- Los dos buses -----------------------------------------------------
         RowLayout {

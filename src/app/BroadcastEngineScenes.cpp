@@ -299,6 +299,17 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
         obs_source_inc_active(src);
         obs_source_video_render(src);
         obs_source_dec_active(src);
+        // El PROGRAMA es lo que sale: encima de la escena van los canales de
+        // salida que estén puestos (las capas DSK 1..4, la placa, el negro).
+        if (name.empty()) {
+            gs_blend_function(GS_BLEND_ONE, GS_BLEND_INVSRCALPHA);
+            for (uint32_t ch = 1; ch < MAX_CHANNELS; ++ch) {
+                obs_source_t* capa = obs_get_output_source(ch);
+                if (capa == nullptr) continue;
+                obs_source_video_render(capa);
+                obs_source_release(capa);
+            }
+        }
         gs_blend_state_pop();
         gs_texrender_end(tr);
         gs_stage_texture(stage, gs_texrender_get_texture(tr));

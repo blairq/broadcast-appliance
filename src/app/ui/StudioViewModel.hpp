@@ -67,6 +67,7 @@ namespace ba::app::control {
 class BusEventos;
 class Botonera;
 class SatelliteServidor;
+class Dsk;
 }
 namespace ba::app {
 namespace legislatura {
@@ -129,6 +130,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
     /// Companion Satellite manejando la botonera (control/SatelliteServidor).
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
+    /// Las capas DSK encima del programa (control/Dsk): logo, intérprete LSA, zócalo fijo.
+    Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -299,6 +302,18 @@ class StudioViewModel : public QObject {
     control::Botonera& botonera() { return *botonera_; }
     QObject* botoneraQml() const;
     QObject* satelliteQml() const;
+    QObject* dskQml() const;
+    control::Dsk& dsk() { return *dsk_; }
+    /// Lo que se puede poner en una capa DSK: escenas y fuentes, por nombre.
+    Q_INVOKABLE QStringList nombresParaDsk() const;
+    /// Grabación ISO (cada entrada a su archivo): [{fuente, archivo, mb, audioPropio, activa}].
+    Q_INVOKABLE QVariantList isosUi() const;
+    /// Graba o deja de grabar una fuente aparte (chequea el disco y el tope). "" o el error.
+    Q_INVOKABLE QString isoUi(const QString& fuente, bool grabar);
+    /// La fuente de un invitado de la sala («Invitado N» por su lugar). "" si no tiene.
+    Q_INVOKABLE QString fuenteDeInvitado(const QString& participante) const;
+    /// Todas las de video de la escena al aire (true) o ninguna (false). Devuelve los errores.
+    Q_INVOKABLE QString isoTodasUi(bool grabar);
     control::SatelliteServidor& satellite() { return *satellite_; }
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
@@ -624,6 +639,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::BusEventos> bus_;
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
+    std::unique_ptr<control::Dsk> dsk_;
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

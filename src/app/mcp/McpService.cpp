@@ -2606,9 +2606,16 @@ void McpService::registerTools() {
              {{"arrancar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"parar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
               {"todas",
-               {{"type", "boolean"}, {"description", "Con `arrancar`: todas las de la escena al aire."}}}}}};
+               {{"type", "boolean"}, {"description", "Con `arrancar`: todas las de la escena al aire."}}},
+              {"invitado",
+               {{"type", "string"}, {"description", "Id o nombre de un invitado de la sala: graba su fuente."}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             std::vector<std::string> arrancar;
+            if (a.contains("invitado")) {
+                const QString f = vm.fuenteDeInvitado(QString::fromStdString(a.value("invitado", std::string())));
+                if (f.isEmpty()) return done(ToolResult::error("ese invitado no tiene una fuente en el programa (¿esta admitido?)"));
+                arrancar.push_back(f.toStdString());
+            }
             if (a.contains("arrancar") && a["arrancar"].is_array())
                 for (const json& s : a["arrancar"])
                     if (s.is_string()) arrancar.push_back(s.get<std::string>());
@@ -2628,6 +2635,11 @@ void McpService::registerTools() {
             for (const auto& g : rt.engine().sourceRecordings())
                 grabando.push_back(json{{"fuente", g.source},
                                         {"archivo", g.path},
+                                        {"mb", [&]() {
+                                             std::error_code ec;
+                                             const auto b = std::filesystem::file_size(g.path, ec);
+                                             return ec ? 0.0 : static_cast<double>(b) / 1e6;
+                                         }()},
                                         {"audioPropio", g.audioPropio},
                                         {"activa", g.activa}});
             emit vm.statusChanged();

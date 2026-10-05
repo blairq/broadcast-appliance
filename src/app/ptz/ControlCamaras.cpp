@@ -856,7 +856,9 @@ void ControlCamaras::guardar() {
 }
 
 bool ControlCamaras::alAire(const QString& entrada) const {
-    const auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
+    auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
+    // Lo que muestra una capa DSK (el recuadro del intérprete de LSA) también está al aire.
+    for (const std::string& f : rt_.engine().fuentesDsk()) ss.push_back(f);
     return std::find(ss.begin(), ss.end(), entrada.toStdString()) != ss.end();
 }
 

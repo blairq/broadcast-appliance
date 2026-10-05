@@ -339,7 +339,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "equipos",
         // La botonera (tablets, Stream Deck, MIDI) y el bus de eventos: el
         // operador le pide botones y plugins de superficies al asistente.
-        "botonera",
+        "botonera", "dsk",
         // La traducción en vivo y su glosario de términos del evento.
         "traduccion"};
     return c;

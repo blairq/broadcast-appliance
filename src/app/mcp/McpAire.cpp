@@ -39,6 +39,7 @@ const std::map<std::string, std::string>& fijas() {
         {"chat_destacar", "pone al aire un mensaje del público"},
         {"stream_destino_borrar", "borra un destino (si transmite, lo corta)"},
         {"aire_placa", "tapa la salida con una placa"},
+        {"dsk_mostrar", "sube o baja una capa (DSK) encima del programa"},
     };
     return m;
 }

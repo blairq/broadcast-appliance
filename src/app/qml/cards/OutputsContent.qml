@@ -124,6 +124,22 @@ Item {
                 }
             }
         }
+        // ISO: las entradas que se graban aparte.
+        RowLayout {
+            id: isos
+            Layout.fillWidth: true
+            property var lista: Studio.isosUi()
+            Timer { interval: 3000; running: true; repeat: true; onTriggered: isos.lista = Studio.isosUi() }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: isos.lista.length === 0 ? "ISO: ninguna entrada se graba aparte"
+                      : "ISO: " + isos.lista.length + " grabando · " + isos.lista.map(g => g.fuente + " " + Math.round(g.mb) + " MB").join(", ")
+                color: isos.lista.length > 0 ? Theme.live : Theme.textFaint
+                font.pixelSize: 10
+            }
+            GlassButton { compact: true; text: "Todas"; onClicked: { const e = Studio.isoTodasUi(true); if (e !== "") Studio.notify(e, "warn"); isos.lista = Studio.isosUi() } }
+            GlassButton { compact: true; text: "Ninguna"; enabled: isos.lista.length > 0; onClicked: { Studio.isoTodasUi(false); isos.lista = Studio.isosUi() } }
+        }
         // El disco a este bitrate y el pase a MP4 al terminar.
         Text {
             id: disco

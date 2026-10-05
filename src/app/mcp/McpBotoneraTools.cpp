@@ -22,6 +22,7 @@
 
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
+#include "control/Dsk.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -564,6 +565,76 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         };
         core.addTool(std::move(t));
     }
+    // --- DSK: capas encima del programa ---------------------------------------------------
+    core.addCategory("dsk", "Capas (DSK)",
+                     "Cuatro capas globales encima del programa que no cambian con la escena: logo o mosca, el "
+                     "recuadro del interprete de LSA, un zocalo fijo, un reloj.");
+    {
+        Tool t;
+        t.name = "dsk_listar";
+        t.title = "Capas DSK";
+        t.category = "dsk";
+        t.readOnly = true;
+        t.description = "Las 4 capas: nombre, contenido (escenas o fuentes), recuadro, si es fija (la de LSA: bajarla "
+                        "pide confirmacion), fundido y si esta arriba.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data({{"capas", vm.dsk().capas()}})); };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "dsk_definir";
+        t.title = "Definir una capa DSK";
+        t.category = "dsk";
+        t.description = "Arma la `capa` (1-4) con `contenido` (nombres de escenas o fuentes, apiladas en ese orden), "
+                        "`recuadro` opcional {posicion: abajo_derecha|abajo_izquierda|arriba_derecha|arriba_izquierda, "
+                        "tamano: 0..1 del ancho, margen}, `fijo` y `transicion_ms`. Con `lsa_entrada`, la plantilla "
+                        "«Interprete LSA»: esa entrada en un recuadro abajo a la derecha, fija. No la sube: dsk_mostrar.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"capa"}},
+                         {"properties",
+                          {{"capa", {{"type", "integer"}, {"minimum", 1}, {"maximum", 4}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"contenido", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"recuadro", {{"type", "object"}}},
+                           {"fijo", {{"type", "boolean"}}},
+                           {"transicion_ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 5000}}},
+                           {"lsa_entrada", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const int capa = a.value("capa", 1);
+            std::string e;
+            if (a.contains("lsa_entrada")) {
+                e = vm.dsk().plantillaLsa(capa, a.value("lsa_entrada", std::string()), "abajo_derecha", 0.28);
+            } else {
+                json d = a;
+                d.erase("capa");
+                e = vm.dsk().definir(capa, d);
+            }
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().text("Listo (todavia abajo: dsk_mostrar para subirla).").data({{"capas", vm.dsk().capas()}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "dsk_mostrar";
+        t.title = "Subir o bajar una capa DSK";
+        t.category = "dsk";
+        t.description = "Sube (`visible` true) o baja la `capa` con su fundido. Es de aire. Bajar una capa FIJA (el "
+                        "interprete de LSA) necesita `confirmar`: true, y solo si el operador lo pidio.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"capa", "visible"}},
+                         {"properties",
+                          {{"capa", {{"type", "integer"}, {"minimum", 1}, {"maximum", 4}}},
+                           {"visible", {{"type", "boolean"}}},
+                           {"confirmar", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const std::string e = vm.dsk().mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok(a.value("visible", true) ? "Arriba." : "Abajo."));
+        };
+        core.addTool(std::move(t));
+    }
+
     // --- Companion Satellite ---------------------------------------------------------------
     {
         Tool t;
