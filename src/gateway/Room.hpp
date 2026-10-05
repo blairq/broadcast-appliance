@@ -90,6 +90,8 @@ class Room {
         std::string info;       ///< cargo, tema...
         std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
         bool hasAvatar = false; ///< mando al menos una foto de su camara
+        nlohmann::json red = nlohmann::json::object(); ///< estadisticas de su conexion (GetStats)
+        int64_t redAvisadoMs = 0;                      ///< ultima vez que el cambio de red se publico
         // --- Modo oradores ---
         /// Presentador: se queda al aire con su lugar propio mientras los
         /// oradores rotan. No entra en la fila ni lo saca la rotacion.
@@ -180,6 +182,9 @@ class Room {
     /// Estado de sus medios que informa el navegador (mic, cam, screen, hand).
     void guestMedia(const std::string& id, const nlohmann::json& media);
     void setMediaUp(const std::string& id, bool up);
+    /// Las estadisticas de la conexion del participante (JSON de WebrtcSession).
+    /// Se publica si cambia el semaforo o cada ~6 s.
+    void setRed(const std::string& id, const nlohmann::json& red, int64_t nowMs);
     int chatFromGuest(const std::string& id, const std::string& text, int64_t nowMs);
 
     // --- Lado operador ------------------------------------------------------

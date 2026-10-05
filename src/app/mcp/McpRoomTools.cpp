@@ -361,6 +361,29 @@ void McpService::registerRoomTools() {
     }
     {
         Tool t;
+        t.name = "participant_calidad";
+        t.title = "Bajar o devolver la calidad de la camara de un invitado";
+        t.category = "sala";
+        t.description =
+            "Cuando la red de un invitado no da (room_status: `red.semaforo` ambar o rojo, perdida, jitter, RTT), "
+            "le pide a su navegador que mande menos: `maximo` 720p (techo 1,5 Mbps) o 360p (0,5 Mbps); 1080p "
+            "devuelve la calidad completa. No corta nada: baja resolucion y bitrate.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"participant", personProp},
+                           {"maximo", {{"type", "string"}, {"enum", {"1080p", "720p", "360p"}}}}}},
+                         {"required", {"participant", "maximo"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            const std::string m = a.value("maximo", std::string("720p"));
+            post(partPath(p, "request"), json{{"what", m == "1080p" ? "calidad-max" : "calidad-" + m}},
+                 "Pedido enviado: el navegador del invitado ajusta su camara.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "participant_profile";
         t.title = "Datos de una persona";
         t.category = "sala";

@@ -288,6 +288,7 @@ class SignalingServer {
     std::map<int, SessionOwner> sessionOwner_; // idx -> dueño
     std::map<std::string, int> sessionOf_;     // pid -> idx
     std::mutex sessLock_;
+    std::thread statsThread_; ///< cada 2 s: estadisticas de cada conexion -> Room
     /// Cierra la sesion de `pid` (si `anyGen` o si sigue siendo de `gen`).
     void releaseSession(const std::string& pid, uint64_t gen, bool anyGen);
     /// La sala cambio la ruta de `pid`: se aplica a su sesion o, si todavia no

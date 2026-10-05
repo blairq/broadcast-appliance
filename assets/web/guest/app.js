@@ -486,6 +486,30 @@
     else if (what === "mute-cam" && state.cam) { setCam(false); toast("El operador te pidió apagar la cámara"); }
     else if (what === "stop-screen" && state.screenStream) { stopScreen(); toast("El operador dejó de mostrar tu pantalla"); }
     else if (what === "lower-hand" && state.hand) { setHand(false); toast("El operador bajó tu mano"); }
+    else if (what.startsWith("calidad-")) limitarCalidad(what.slice(8));
+  }
+
+  // El operador baja (o devuelve) la calidad de la cámara cuando la red no da:
+  // menos resolución y un techo de bitrate, sin cortar nada.
+  async function limitarCalidad(nivel) {
+    if (!state.pc) return;
+    const sender = state.pc.getSenders().find(s => s.track && s.track.kind === "video" && s !== state.screenSender);
+    if (!sender) return;
+    const p = sender.getParameters();
+    if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+    const alto = (sender.track.getSettings && sender.track.getSettings().height) || 720;
+    const objetivo = nivel === "360p" ? 360 : nivel === "720p" ? 720 : 0;
+    if (objetivo > 0) {
+      p.encodings[0].scaleResolutionDownBy = Math.max(1, alto / objetivo);
+      p.encodings[0].maxBitrate = objetivo === 360 ? 500000 : 1500000;
+    } else {
+      delete p.encodings[0].maxBitrate;
+      p.encodings[0].scaleResolutionDownBy = 1;
+    }
+    try {
+      await sender.setParameters(p);
+      if (objetivo > 0) toast("Tu conexión está justa: el operador bajó la calidad de tu cámara a " + nivel + ".");
+    } catch (e) { /* el navegador no lo admite: sigue como estaba */ }
   }
 
   function sendMedia() {

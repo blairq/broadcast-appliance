@@ -242,6 +242,22 @@ void Room::setMediaUp(const std::string& id, bool up) {
     flush(out);
 }
 
+void Room::setRed(const std::string& id, const json& red, int64_t nowMs) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        Participant* p = findLocked(id);
+        if (p == nullptr || !red.is_object() || red.empty()) return;
+        const bool cambioSemaforo = p->red.value("semaforo", std::string()) != red.value("semaforo", std::string());
+        p->red = red;
+        if (cambioSemaforo || nowMs - p->redAvisadoMs > 6000) {
+            p->redAvisadoMs = nowMs;
+            out.roomChanged = true;
+        }
+    }
+    flush(out);
+}
+
 int Room::chatFromGuest(const std::string& id, const std::string& text, int64_t nowMs) {
     const std::string t = cleanText(text);
     if (t.empty()) return kEmpty;
@@ -330,8 +346,9 @@ int Room::setTalk(const std::string& id, bool on) {
 }
 
 int Room::request(const std::string& id, const std::string& what) {
-    static const char* kAllowed[] = {"mute-mic",   "mute-cam",    "unmute-mic",
-                                     "unmute-cam", "stop-screen", "lower-hand"};
+    static const char* kAllowed[] = {"mute-mic",   "mute-cam",    "unmute-mic",    "unmute-cam",
+                                     "stop-screen", "lower-hand", "calidad-720p", "calidad-360p",
+                                     "calidad-max"};
     if (std::none_of(std::begin(kAllowed), std::end(kAllowed), [&](const char* a) { return what == a; })) {
         return kBadState;
     }
@@ -686,6 +703,7 @@ json Room::toJson(const Participant& p) {
                 {"info", p.info},
                 {"contact", p.contact},
                 {"hasAvatar", p.hasAvatar},
+                {"red", p.red},
                 {"speaker", speakerName(p.speaker)},
                 {"presenter", p.presenter},
                 {"allottedSec", p.allottedSec},

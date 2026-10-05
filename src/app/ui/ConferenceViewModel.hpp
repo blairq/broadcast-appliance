@@ -195,6 +195,8 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void refreshSources() { emit operatorChanged(); }
     /// "mute-mic" | "mute-cam" | "stop-screen" | "lower-hand"
     Q_INVOKABLE void request(const QString& id, const QString& what);
+    /// El participante en el slot (1..invitados): {id, name, red{kbps_in, perdida_pct, jitter_ms, rtt_ms, semaforo}…}; {} si no hay.
+    Q_INVOKABLE QVariantMap participanteEnSlot(int slot) const;
     /// `to`: "all" o el id de un participante.
     Q_INVOKABLE void sendChat(const QString& to, const QString& text);
     Q_INVOKABLE void setLobby(bool on);

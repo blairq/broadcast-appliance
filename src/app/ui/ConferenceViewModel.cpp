@@ -478,6 +478,15 @@ QVariantList ConferenceViewModel::chatTargets() const {
     return out;
 }
 
+QVariantMap ConferenceViewModel::participanteEnSlot(int slot) const {
+    const QJsonObject snap = const_cast<ConferenceViewModel*>(this)->client().snapshot();
+    for (const QJsonValue& v : snap.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (p.value("slot").toInt() == slot) return p.toVariantMap();
+    }
+    return {};
+}
+
 QStringList ConferenceViewModel::slotNames() const {
     if (!online()) return {};
     return slotNames_;

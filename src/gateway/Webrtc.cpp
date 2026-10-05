@@ -65,6 +65,8 @@
 #include "api/peer_connection_interface.h"
 #include "api/rtp_transceiver_interface.h"
 #include "api/scoped_refptr.h"
+#include "api/stats/rtc_stats_collector_callback.h"
+#include "api/stats/rtcstats_objects.h"
 #include "api/set_local_description_observer_interface.h"
 #include "api/set_remote_description_observer_interface.h"
 #include "api/task_queue/default_task_queue_factory.h"
@@ -148,6 +150,7 @@ struct WebrtcSession::Impl {
         connected = false;
         if (was && cb.onStateChange) cb.onStateChange(false);
     }
+    std::string estadisticas() { return "{}"; }
 };
 
 #else
@@ -718,6 +721,82 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     std::atomic<bool> connected{false};
     std::atomic<uint64_t> localAudioBlocks{0};
     std::atomic<uint64_t> localVideoFrames{0};
+    // Estadisticas de la conexion (las arma el callback de GetStats).
+    std::mutex statsMu;
+    std::string statsJson = "{}";
+    uint64_t prevIn = 0, prevOut = 0, prevPkts = 0;
+    int64_t prevLost = 0;
+    int64_t prevMs = 0;
+
+    class StatsCb : public webrtc::RTCStatsCollectorCallback {
+       public:
+        explicit StatsCb(Impl* i) : impl_(i) {}
+        void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override {
+            uint64_t in = 0, out = 0, pkts = 0;
+            int64_t lost = 0;
+            double jitterMax = 0, rtt = -1;
+            uint32_t perdidos = 0, alto = 0, ancho = 0;
+            for (const webrtc::RTCStats& st : *report) {
+                if (st.type() == webrtc::RTCInboundRtpStreamStats::kType) {
+                    const auto& r = st.cast_to<webrtc::RTCInboundRtpStreamStats>();
+                    in += r.bytes_received.value_or(0);
+                    pkts += r.packets_received.value_or(0);
+                    lost += r.packets_lost.value_or(0);
+                    jitterMax = std::max(jitterMax, r.jitter.value_or(0.0));
+                    if (r.kind.value_or("") == "video") {
+                        perdidos += r.frames_dropped.value_or(0);
+                        alto = std::max(alto, r.frame_height.value_or(0));
+                        ancho = std::max(ancho, r.frame_width.value_or(0));
+                    }
+                } else if (st.type() == webrtc::RTCOutboundRtpStreamStats::kType) {
+                    out += st.cast_to<webrtc::RTCOutboundRtpStreamStats>().bytes_sent.value_or(0);
+                } else if (st.type() == webrtc::RTCIceCandidatePairStats::kType) {
+                    const auto& c = st.cast_to<webrtc::RTCIceCandidatePairStats>();
+                    if (c.nominated.value_or(false) && c.current_round_trip_time.has_value())
+                        rtt = *c.current_round_trip_time;
+                }
+            }
+            const int64_t ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      std::chrono::steady_clock::now().time_since_epoch())
+                                      .count();
+            std::lock_guard<std::mutex> l(impl_->statsMu);
+            const double dt = impl_->prevMs > 0 ? (ahora - impl_->prevMs) / 1000.0 : 0.0;
+            const double kin = dt > 0 && in >= impl_->prevIn ? (in - impl_->prevIn) * 8.0 / 1000.0 / dt : 0.0;
+            const double kout = dt > 0 && out >= impl_->prevOut ? (out - impl_->prevOut) * 8.0 / 1000.0 / dt : 0.0;
+            const double dp = pkts >= impl_->prevPkts ? static_cast<double>(pkts - impl_->prevPkts) : 0.0;
+            const double dl = static_cast<double>(std::max<int64_t>(0, lost - impl_->prevLost));
+            const double perdida = dp + dl > 0 ? 100.0 * dl / (dp + dl) : 0.0;
+            impl_->prevIn = in;
+            impl_->prevOut = out;
+            impl_->prevPkts = pkts;
+            impl_->prevLost = lost;
+            impl_->prevMs = ahora;
+            const double jit = jitterMax * 1000.0, rttMs = rtt >= 0 ? rtt * 1000.0 : -1;
+            const char* sem = (perdida > 5 || rttMs > 400 || jit > 50)   ? "rojo"
+                              : (perdida > 2 || rttMs > 200 || jit > 30) ? "ambar"
+                                                                         : "verde";
+            nlohmann::json j{{"kbps_in", std::lround(kin)},  {"kbps_out", std::lround(kout)},
+                             {"perdida_pct", std::round(perdida * 10) / 10},
+                             {"jitter_ms", std::lround(jit)}, {"rtt_ms", std::lround(rttMs)},
+                             {"cuadros_perdidos", perdidos},   {"alto", alto},
+                             {"ancho", ancho},                 {"semaforo", sem}};
+            impl_->statsJson = j.dump();
+        }
+
+       private:
+        Impl* impl_;
+    };
+
+    std::string estadisticas() {
+        rtc::scoped_refptr<webrtc::PeerConnectionInterface> p;
+        {
+            std::lock_guard<std::mutex> lock(m);
+            p = pc;
+        }
+        if (p && connected) p->GetStats(rtc::make_ref_counted<StatsCb>(this).get());
+        std::lock_guard<std::mutex> l(statsMu);
+        return statsJson;
+    }
 
     bool configure(const SessionCallbacks& c, void* factory) {
         close();
@@ -958,6 +1037,7 @@ void WebrtcSession::close() {
     if (impl_ != nullptr) impl_->close();
 }
 int WebrtcSession::slot() const { return impl_ != nullptr ? impl_->slot : 0; }
+std::string WebrtcSession::estadisticas() { return impl_ != nullptr ? impl_->estadisticas() : std::string("{}"); }
 uint64_t WebrtcSession::localAudioBlocks() const {
     return impl_ != nullptr ? impl_->localAudioBlocks.load() : 0;
 }

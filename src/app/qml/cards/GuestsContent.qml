@@ -51,6 +51,29 @@ Item {
                         color: Qt.rgba(0, 0, 0, 0.55)
                         Text { id: gl; anchors.centerIn: parent; text: Studio.conference.slotNames[index] || ("Invitado " + (index + 1)); color: Theme.text; font.pixelSize: 10 }
                     }
+                    // La red de este invitado: semáforo con las cifras y bajar su calidad.
+                    Rectangle {
+                        id: semaforo
+                        property var p: Studio.conference.participanteEnSlot(index + 1)
+                        Timer { interval: 2000; running: true; repeat: true; onTriggered: semaforo.p = Studio.conference.participanteEnSlot(index + 1) }
+                        readonly property var red: (p && p.red) || ({})
+                        visible: !!(p && p.id) && !!red.semaforo
+                        anchors { right: parent.right; top: parent.top; margins: 6 }
+                        width: 14; height: 14; radius: 7
+                        color: red.semaforo === "rojo" ? Theme.live : red.semaforo === "ambar" ? Theme.amber : Theme.ok
+                        border.color: "white"; border.width: 1
+                        ToolTip.visible: semHov.hovered
+                        ToolTip.text: "Red: " + (red.kbps_in || 0) + " kbps · pérdida " + (red.perdida_pct || 0) + " % · jitter " +
+                                      (red.jitter_ms || 0) + " ms · RTT " + (red.rtt_ms || 0) + " ms" + (red.alto ? " · " + red.alto + "p" : "")
+                        HoverHandler { id: semHov }
+                        TapHandler { onTapped: calidadMenu.popup() }
+                        Menu {
+                            id: calidadMenu
+                            MenuItem { text: "Bajar a 720p"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-720p") }
+                            MenuItem { text: "Bajar a 360p"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-360p") }
+                            MenuItem { text: "Calidad completa"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-max") }
+                        }
+                    }
                     // Lo que oye este invitado: el programa sin su voz (de fábrica) o el programa entero.
                     ComboBox {
                         id: oye

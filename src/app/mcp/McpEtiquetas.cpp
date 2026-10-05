@@ -109,6 +109,7 @@ const Fila kPropias[] = {
     {"audio_rack_vigia", "vigia modulos clap lento colgado bypass automatico watchdog audio"},
     {"audio_module_rearmar", "rearmar modulo saltado lento bypass automatico audio"},
     {"invitado_retorno", "mix-minus retorno invitado eco se escucha a si mismo oye programa sin su voz"},
+    {"participant_calidad", "calidad invitado red mala bajar resolucion 720p 360p bitrate conexion pixelada cortes"},
     {"supervisor_politica", "supervisor latido interfaz trabada colgada relanzar reiniciar watchdog aire"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},

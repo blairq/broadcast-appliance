@@ -160,6 +160,12 @@ class WebrtcSession {
 
     int slot() const;
 
+    /// Pide las estadisticas de la conexion (GetStats, asincronico) y devuelve
+    /// las ultimas que llegaron: {kbps_in, kbps_out, perdida_pct, jitter_ms,
+    /// rtt_ms, cuadros_perdidos, alto, ancho, semaforo: verde|ambar|rojo}
+    /// (JSON; "{}" si todavia no hay).
+    std::string estadisticas();
+
     /// Diagnosticos: bloques de audio / frames de video de retorno inyectados.
     uint64_t localAudioBlocks() const;
     uint64_t localVideoFrames() const;

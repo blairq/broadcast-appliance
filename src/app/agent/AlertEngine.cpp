@@ -137,6 +137,13 @@ json AlertEngine::types() {
            {"forSec", "segundos seguidos afuera antes de avisar (por defecto 30)"},
            {"soloAlAire", "solo transmitiendo o grabando (por defecto true)"}}},
          {"cooldownSec", 120}},
+        {{"type", "guest_quality"},
+         {"summary", "La conexión de un invitado se pone mala (semáforo ámbar o rojo: pérdida, jitter, RTT)."},
+         {"params",
+          {{"nivel", "rojo (por defecto) o ambar"},
+           {"forSec", "segundos seguidos así (por defecto 5)"},
+           {"soloAlAire", "solo los que están al aire (con slot) (por defecto true)"}}},
+         {"cooldownSec", 60}},
         {{"type", "input_signal"},
          {"summary", "Una entrada de video se queda sin señal (no llegan cuadros) un rato."},
          {"params",
@@ -609,6 +616,35 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
         } else {
             st.since.erase("afuera");
         }
+    } else if (type == "guest_quality" && in_.room) {
+        const json snap = in_.room();
+        const std::string nivel = p.value("nivel", std::string("rojo"));
+        const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 5.0) * 1000);
+        for (const auto& pa : snap.value("participants", json::array())) {
+            if (!pa.is_object()) continue;
+            if (p.value("soloAlAire", true) && pa.value("slot", 0) <= 0) continue;
+            const std::string id = pa.value("id", std::string());
+            const json red = pa.value("red", json::object());
+            const std::string sem = red.is_object() ? red.value("semaforo", std::string()) : std::string();
+            const bool malo = sem == "rojo" || (nivel == "ambar" && sem == "ambar");
+            const std::string k = "red:" + id;
+            if (malo) {
+                if (!st.since.count(k)) st.since[k] = now;
+                if (now - st.since[k] >= forMs && st.seen[k] != "1" && cooled(id)) {
+                    st.seen[k] = "1";
+                    mark(id);
+                    fire(rule, st,
+                         "La conexión de " + pa.value("name", id) + " está en " + sem + ": pérdida " +
+                             fmt1(red.value("perdida_pct", 0.0)) + " %, RTT " + std::to_string(red.value("rtt_ms", 0)) +
+                             " ms, jitter " + std::to_string(red.value("jitter_ms", 0)) +
+                             " ms. Se puede bajar su calidad (participant_calidad).",
+                         {{"participant", id}, {"red", red}}, now);
+                }
+            } else {
+                st.since.erase(k);
+                st.seen.erase(k);
+            }
+        }
     } else if (type == "input_signal" && in_.senales) {
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 3.0) * 1000);
         for (const auto& [nombre, conSenal] : in_.senales()) {
@@ -789,6 +825,8 @@ void AlertEngine::sembrar() {
         {{"type", "input_signal"}, {"name", "Entrada sin señal"}, {"params", {{"entrada", "*"}, {"forSec", 3}}},
          {"sonido", "critico"}, {"reconocer", true}},
         {{"type", "guest_drop"}, {"name", "Un invitado se cayó"}, {"params", json::object()}, {"sonido", "aviso"}},
+        {{"type", "guest_quality"}, {"name", "Invitado con mala conexión"},
+         {"params", {{"nivel", "rojo"}, {"forSec", 5}, {"soloAlAire", true}}}, {"sonido", "aviso"}},
         {{"type", "loudness"}, {"name", "Loudness fuera de objetivo"},
          {"params", {{"toleranciaLU", 2}, {"forSec", 30}, {"soloAlAire", true}}}, {"sonido", "ninguno"}},
     });

@@ -12,6 +12,7 @@
 
 #include "SignalingServer.hpp"
 
+#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -130,6 +131,25 @@ bool SignalingServer::start() {
     stop_.store(false);
     guestBoundPort_ = http::localPort(listenFd_);
     acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false);
+    // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
+    statsThread_ = std::thread([this] {
+        while (!stop_.load()) {
+            for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::vector<std::pair<std::string, int>> sesiones;
+            {
+                std::lock_guard<std::mutex> l(sessLock_);
+                for (const auto& [pid, idx] : sessionOf_) sesiones.emplace_back(pid, idx);
+            }
+            const int64_t ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      std::chrono::steady_clock::now().time_since_epoch())
+                                      .count();
+            for (const auto& [pid, idx] : sesiones)
+                if (WebrtcSession* s = hub_.session(idx)) {
+                    const nlohmann::json j = nlohmann::json::parse(s->estadisticas(), nullptr, false);
+                    if (j.is_object() && !j.empty()) room_.setRed(pid, j, ahora);
+                }
+        }
+    });
     log_.info("senalizacion: escuchando en " + cfg_.bindAddress + ":" + std::to_string(guestBoundPort_) +
               " (webroot=" + cfg_.webroot + ")");
 
@@ -176,13 +196,14 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
     if (listenFd_ < 0 && adminListenFd_ < 0 && activeConns_.load() == 0 && !acceptThread_.joinable() &&
-        !adminAcceptThread_.joinable()) {
+        !adminAcceptThread_.joinable() && !statsThread_.joinable()) {
         return;
     }
     stop_.store(true);
 
     // 1) Los threads de accept salen por `stop_` (su espera es acotada).
     if (acceptThread_.joinable()) acceptThread_.join();
+    if (statsThread_.joinable()) statsThread_.join();
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
     http::closeFd(listenFd_);
     listenFd_ = -1;
