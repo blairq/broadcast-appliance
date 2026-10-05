@@ -21,6 +21,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QPointer>
+#include <QImage>
 #include <QSaveFile>
 #include <QUrl>
 
@@ -1929,6 +1930,40 @@ void VideoGrafos::evaluarSuperres() {
                 quiero[c.entrada] = sinTurno;
             }
         }
+    // La alarma «no llega»: una red activa que tarda más que el umbral (de fábrica, el
+    // 80 % del cuadro) durante 2 s. Con el bypass automático pasa sola al modo barato
+    // (sin trabar la entrada) y vuelve a probar después de 15 s, 30 s, 1 min, 2 min…
+    const bool bypassAuto = cfg.value("bypass_auto", true);
+    const double umbralPct = std::clamp(cfg.value("umbral_pct", 80.0), 30.0, 200.0);
+    for (const std::string& e : conSr) {
+        Tarde& t = tarde_[e];
+        const bool activa = modoSr_.count(e) && modoSr_[e] == "activo";
+        const double ms = medidasSr_.count(e) ? medidasSr_[e].first : 0.0;
+        const bool lenta = activa && ms > cuadroMs * umbralPct / 100.0;
+        if (lenta) {
+            if (t.desde == 0) t.desde = ahora;
+        } else {
+            t.desde = 0;
+        }
+        if (t.veces > 0 && ahora - t.ultimaVez > 10 * 60 * 1000) t.veces = 0; // 10 min tranquila: de cero
+        if (t.desde != 0 && ahora - t.desde >= 2000 && !t.avisado) {
+            t.avisado = true;
+            t.ultimaVez = ahora;
+            if (bypassAuto) {
+                ++t.veces;
+                t.bypassHasta = ahora + std::min<qint64>(15000LL << std::min(t.veces - 1, 4), 120000);
+            }
+            blog(LOG_WARNING, "[video-grafo] superresolución de «%s» no llega: %.1f ms por cuadro (cuadro %.1f ms)%s",
+                 e.c_str(), ms, cuadroMs, bypassAuto ? "; pasada a barato" : "");
+            emit superresTarde(QString::fromStdString(e), ms, cuadroMs, bypassAuto);
+        }
+        if (!lenta && ahora >= t.bypassHasta) t.avisado = false;
+        const bool enBypass = bypassAuto && ahora < t.bypassHasta;
+        if (enBypass && quiero[e] == "activo") quiero[e] = sinTurno;
+        estado[e]["tarde"] = (t.desde != 0 && ahora - t.desde >= 2000) || enBypass;
+        if (enBypass) estado[e]["bypass_s"] = (t.bypassHasta - ahora + 999) / 1000;
+    }
+
     presupuesto_ = json::object();
     for (const auto& [acc, ms] : usado)
         presupuesto_[acc] = {{"usado_ms", std::round(ms * 10) / 10}, {"disponible_ms", std::round(disponible * 10) / 10}};
@@ -1961,7 +1996,7 @@ json VideoGrafos::programador() const {
 std::string VideoGrafos::configurarProgramador(const json& cambios) {
     if (!cambios.is_object()) return "se esperaba un objeto";
     for (const char* k : {"activo", "capacidad", "max_activas", "uso_pct", "transicion_ms", "en_preview", "sin_turno",
-                          "umbral_aumento"})
+                          "umbral_aumento", "bypass_auto", "umbral_pct"})
         if (cambios.contains(k)) programador_[k] = cambios[k];
     // Forzar por entrada: {"Cámara 1": "siempre"|"nunca"|"auto"} (auto la saca de la lista).
     if (cambios.contains("forzar") && cambios["forzar"].is_object()) {
@@ -1979,6 +2014,8 @@ std::string VideoGrafos::configurarProgramador(const json& cambios) {
     programador_["uso_pct"] = std::clamp(programador_.value("uso_pct", 85.0), 10.0, 100.0);
     programador_["transicion_ms"] = std::clamp(programador_.value("transicion_ms", 400), 0, 10000);
     programador_["umbral_aumento"] = std::clamp(programador_.value("umbral_aumento", 1.1), 0.5, 4.0);
+    programador_["umbral_pct"] = std::clamp(programador_.value("umbral_pct", 80.0), 30.0, 200.0);
+    if (cambios.contains("bypass_auto")) tarde_.clear(); // con el interruptor recién tocado, de cero
     if (programador_.value("capacidad", std::string("auto")) != "fija") programador_["capacidad"] = "auto";
     if (programador_.value("sin_turno", std::string("barato")) != "reposo") programador_["sin_turno"] = "barato";
     QSaveFile f(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
@@ -2093,6 +2130,14 @@ QStringList VideoGrafos::motoresSuperres() const {
          {std::pair{"apple", "bavtsuperres"}, {"fsr", "bafsr"}, {"onnx", "baonnxsr"}, {"coreml", "bacoremlsr"}, {"glsl", "baglsl"}})
         if (hayElemento(elemento)) l << motor;
     return l;
+}
+
+bool VideoGrafos::capturarCuadro(const std::string& entrada, QImage& cuadro) const {
+    std::vector<std::uint8_t> rgba;
+    int w = 0, h = 0;
+    if (!rt_.engine().captureSource(entrada, 3840, rgba, w, h) || w <= 0 || h <= 0) return false;
+    cuadro = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+    return !cuadro.isNull();
 }
 
 std::string VideoGrafos::uriDe(const std::string& entrada) const {

@@ -967,7 +967,10 @@ void McpService::registerVideoTools() {
             "que está al aire. `sin_turno`: barato (afilado) o reposo. `umbral_aumento`: desde cuánto agrandada en "
             "pantalla conviene la red (1.1 = más grande que la cámara). `forzar`: {entrada: siempre|nunca|auto}. "
             "Sin argumentos devuelve la configuración, el estado de cada cámara (modo, ms, acelerador) y el "
-            "presupuesto usado de cada acelerador; con `activo` false, todas las redes trabajan siempre.";
+            "presupuesto usado de cada acelerador; con `activo` false, todas las redes trabajan siempre. "
+            "Si una red no llega (tarda más del `umbral_pct` % del cuadro, 80 de fábrica, durante 2 s) suena la "
+            "alarma (disparador superres_tarde, evento superres/tarde) y, con `bypass_auto` (de fábrica, sí), pasa "
+            "sola a barato y vuelve a probar a los 15 s, 30 s, 1 min, 2 min; cada entrada dice `tarde` y `bypass_s`.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
@@ -978,7 +981,9 @@ void McpService::registerVideoTools() {
                            {"en_preview", {{"type", "boolean"}}},
                            {"sin_turno", {{"type", "string"}, {"enum", {"barato", "reposo"}}}},
                            {"umbral_aumento", {{"type", "number"}}},
-                           {"forzar", {{"type", "object"}}}}}};
+                           {"forzar", {{"type", "object"}}},
+                           {"bypass_auto", {{"type", "boolean"}}},
+                           {"umbral_pct", {{"type", "number"}}}}}};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             if (!a.empty()) {
@@ -1306,8 +1311,8 @@ void McpService::registerVideoTools() {
             t.category = "video";
             t.description =
                 "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
-                "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada de "
-                "red `entrada`: graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para "
+                "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada "
+                "`entrada` (de red o cámara local): graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para "
                 "máquinas donde el maestro no da en vivo. `minutos` de entrenamiento; `cpu` true para no usar la GPU "
                 "(más lento, no calienta); `aplicar` la pone en la entrada al terminar. Queda como plugin "
                 "«destilada-<entrada>» (superres_plugins). El avance, en superres_estado.";
@@ -1445,8 +1450,8 @@ void McpService::registerVideoTools() {
             t.name = "superres_entrenar";
             t.title = "Entrenar la red chica mirando una cámara (un botón)";
             t.category = "video";
-            t.description = "Graba ~1 minuto de la entrada de red `entrada` (de su dirección, sin tocar la "
-                            "imagen al aire), arma pares «la "
+            t.description = "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
+                            "dirección; una cámara local, cuadros de lo que sale de su grafo (4 por segundo). Arma pares «la "
                             "imagen achicada y comprimida -> la original» y entrena una red chica (solo "
                             "luma, x2) `minutos` minutos (5 de "
                             "fábrica) para deshacer lo que hace ESA cámara. Si ya había una red de esa "

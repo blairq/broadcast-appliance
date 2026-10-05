@@ -11,6 +11,7 @@
 #endif
 
 #include <QDateTime>
+#include <QImage>
 #include <QFile>
 #include <QJsonDocument>
 #include <QProcessEnvironment>
@@ -235,25 +236,67 @@ std::string SuperRes::convertir(const std::string& cual) {
     return lanzar();
 }
 
+std::string SuperRes::origen(const std::string& entrada, int segundos, std::function<void(QStringList)> listo) {
+    const std::string uri = video_->uriDe(entrada);
+    if (!uri.empty()) {
+        listo({"--uri", QString::fromStdString(uri)});
+        return {};
+    }
+    if (!video_->esEntrada(entrada)) return "«" + entrada + "» no es una entrada de video";
+    if (captura_.isActive()) return "ya se están capturando cuadros de otra entrada";
+    // Una cámara local: cuatro cuadros por segundo de lo que sale de su grafo, a una
+    // carpeta (el laboratorio la toma como «--entrada»).
+    std::string seguro;
+    for (char c : entrada)
+        seguro += (std::isalnum(static_cast<unsigned char>(c)) || c == '-') ? c : '_';
+    const fs::path carpeta = carpetaModelos() / (".captura-" + seguro);
+    std::error_code ec;
+    fs::remove_all(carpeta, ec);
+    fs::create_directories(carpeta, ec);
+    capturados_ = 0;
+    aCapturar_ = std::clamp(segundos, 10, 300) * 4;
+    trabajo_ = QVariantMap{{"que", "Capturar cuadros de «" + QString::fromStdString(entrada) + "»"},
+                           {"entrada", QString::fromStdString(entrada)}, {"corriendo", true}, {"pct", 0},
+                           {"texto", "Capturando lo que ve la cámara…"}};
+    emit trabajoCambio();
+    captura_.disconnect();
+    captura_.setInterval(250);
+    connect(&captura_, &QTimer::timeout, this, [this, entrada, carpeta, listo]() {
+        QImage img;
+        if (video_->capturarCuadro(entrada, img)) {
+            img.save(QString::fromStdString((carpeta / QString("%1.jpg").arg(capturados_, 5, 10, QChar('0')).toStdString()).string()),
+                     "JPG", 95);
+            ++capturados_;
+        }
+        trabajo_["pct"] = 100 * capturados_ / std::max(1, aCapturar_);
+        trabajo_["texto"] = QString("Capturando cuadros: %1 de %2").arg(capturados_).arg(aCapturar_);
+        emit trabajoCambio();
+        if (capturados_ >= aCapturar_) {
+            captura_.stop();
+            trabajo_["corriendo"] = false;
+            listo({"--entrada", QString::fromStdString(carpeta.string())});
+        }
+    });
+    captura_.start();
+    return {};
+}
+
 std::string SuperRes::entrenar(const std::string& entrada, double minutos, int segundos, bool aplicarAlFin) {
     if (video_ == nullptr) return "no hay video";
-    const std::string uri = video_->uriDe(entrada);
-    if (uri.empty())
-        return "«" + entrada + "» no es una entrada de red (se entrena grabando de su dirección)";
     minutos = std::clamp(minutos, 1.0, 120.0);
     std::string seguro;
     for (char c : entrada)
         seguro += (std::isalnum(static_cast<unsigned char>(c)) || c == '-') ? c : '_';
     const fs::path salida = carpetaModelos() / ("chica-" + seguro + ".onnx");
-    const auto lanzar = [=, this]() {
+    const auto lanzar = [=, this](const QStringList& desde) {
         const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
         QStringList a{q8(lab),      "chica",
-                      "--libs",     q8(libs()),
-                      "--uri",      QString::fromStdString(uri),
-                      "--segundos", QString::number(segundos),
-                      "--minutos",  QString::number(minutos),
-                      "--salida",   q8(salida),
-                      "--nombre",   QString::fromStdString("Red chica de «" + entrada + "»")};
+                      "--libs",     q8(libs())};
+        a << desde;
+        a << QStringList{"--segundos", QString::number(segundos),
+                         "--minutos",  QString::number(minutos),
+                         "--salida",   q8(salida),
+                         "--nombre",   QString::fromStdString("Red chica de «" + entrada + "»")};
         std::error_code ec;
         if (fs::exists(salida.string() + ".pt", ec)) a << "--desde" << q8(salida);
         return correr(
@@ -269,18 +312,26 @@ std::string SuperRes::entrenar(const std::string& entrada, double minutos, int s
                 emit cambio();
             });
     };
+    // Primero de dónde graba (la dirección, o cuadros de la cámara local); después el laboratorio.
+    const auto conOrigen = [=, this]() {
+        return origen(entrada, segundos, [this, lanzar](const QStringList& desde) {
+            const std::string e = lanzar(desde);
+            if (!e.empty()) {
+                trabajo_["error"] = QString::fromStdString(e);
+                emit trabajoCambio();
+            }
+        });
+    };
     if (!laboratorioListo()) {
-        despues_ = [lanzar]() { lanzar(); };
+        despues_ = [conOrigen]() { conOrigen(); };
         return prepararLaboratorio();
     }
-    return lanzar();
+    return conOrigen();
 }
 
 std::string SuperRes::destilar(const std::string& entrada, const std::string& maestro, double minutos,
                                bool aplicarAlFin, bool cpu) {
     if (video_ == nullptr) return "no hay video";
-    const std::string uri = video_->uriDe(entrada);
-    if (uri.empty()) return "«" + entrada + "» no es una entrada de red (se destila grabando de su dirección)";
     json receta;
     for (const auto& r : catalogo_)
         if (r.value("id", "") == (maestro.empty() ? std::string("realesr-general-x4v3") : maestro)) receta = r;
@@ -293,11 +344,12 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
     const fs::path salida = carpetaModelos() / ("destilada-" + seguro + ".onnx");
     const fs::path archivoReceta = carpetaModelos() / (".maestro-" + seguro + ".json");
     std::ofstream(archivoReceta) << receta.dump(1);
-    const auto lanzar = [=, this]() {
+    const int segundos = 60;
+    const auto lanzar = [=, this](const QStringList& desde) {
         const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
-        QStringList a{q8(lab),     "destilar",          "--libs",     q8(libs()),
-                      "--receta",  q8(archivoReceta),   "--uri",      QString::fromStdString(uri),
-                      "--segundos", "60",               "--minutos",  QString::number(minutos),
+        QStringList a{q8(lab), "destilar", "--libs", q8(libs()), "--receta", q8(archivoReceta)};
+        a << desde;
+        a << QStringList{"--segundos", "60",               "--minutos",  QString::number(minutos),
                       "--salida",  q8(salida),          "--pesos",    q8(carpetaModelos() / ".pesos"),
                       "--nombre",  QString::fromStdString("Destilada de " + receta.value("nombre", maestro) +
                                                            " para «" + entrada + "»")};
@@ -317,11 +369,21 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
                           emit cambio();
                       });
     };
+    // Primero de dónde graba (la dirección, o cuadros de la cámara local); después el laboratorio.
+    const auto conOrigen = [=, this]() {
+        return origen(entrada, segundos, [this, lanzar](const QStringList& desde) {
+            const std::string e = lanzar(desde);
+            if (!e.empty()) {
+                trabajo_["error"] = QString::fromStdString(e);
+                emit trabajoCambio();
+            }
+        });
+    };
     if (!laboratorioListo()) {
-        despues_ = [lanzar]() { lanzar(); };
+        despues_ = [conOrigen]() { conOrigen(); };
         return prepararLaboratorio();
     }
-    return lanzar();
+    return conOrigen();
 }
 
 void SuperRes::cancelar() {

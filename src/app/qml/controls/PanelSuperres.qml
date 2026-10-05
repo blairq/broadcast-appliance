@@ -122,7 +122,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 11
-        text: "Graba un minuto de la cámara (sin tocar lo que sale al aire), arma pares «la imagen achicada y comprimida → la " +
+        text: "Graba un minuto de la cámara (sin tocar lo que sale al aire: una de red, de su dirección; una local, cuadros de lo que sale de su grafo), arma pares «la imagen achicada y comprimida → la " +
               "original» y entrena una red chica que aprende a deshacer lo que hace ESA cámara. Al terminar la pone en la entrada " +
               "y dice cuánto mejora contra el agrandado común. Volver a entrenar sigue desde la anterior." +
               (panel.sr && !panel.sr.laboratorioListo ? " La primera vez baja el laboratorio (PyTorch, ~800 MB, una sola vez)." : "")
@@ -133,7 +133,8 @@ ColumnLayout {
         ComboBox {
             id: entradaEnt
             Layout.preferredWidth: 220
-            model: panel.red.map(e => e.entrada)
+            // Las de red graban de su dirección; las cámaras locales, cuadros de su grafo.
+            model: panel.vg ? panel.vg.entradas : panel.red.map(e => e.entrada)
         }
         Text { text: "minutos"; color: Theme.textDim; font.pixelSize: 12 }
         SpinBox { id: minutos; from: 1; to: 60; value: 5; editable: true }
@@ -215,7 +216,7 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         spacing: 8
-        ComboBox { id: entradaDest; Layout.preferredWidth: 200; model: panel.red.map(e => e.entrada) }
+        ComboBox { id: entradaDest; Layout.preferredWidth: 200; model: panel.vg ? panel.vg.entradas : panel.red.map(e => e.entrada) }
         Text { text: "maestro"; color: Theme.textDim; font.pixelSize: 12 }
         ComboBox {
             id: maestro

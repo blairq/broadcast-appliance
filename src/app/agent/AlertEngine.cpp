@@ -150,6 +150,11 @@ json AlertEngine::types() {
           {{"entrada", "\"*\" (todas, por defecto) o el nombre de la entrada"},
            {"forSec", "segundos sin señal (por defecto 3)"}}},
          {"cooldownSec", 30}},
+        {{"type", "superres_tarde"},
+         {"summary", "La superresolución de una entrada no llega a tiempo (tarda más que el umbral del cuadro); con el "
+                     "bypass automático, pasó sola al modo barato."},
+         {"params", {{"entrada", "\"*\" (todas, por defecto) o el nombre de la entrada"}}},
+         {"cooldownSec", 60}},
         {{"type", "timer"},
          {"summary", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos."},
          {"params",
@@ -666,6 +671,26 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                 st.seen.erase(k);
             }
         }
+    } else if (type == "superres_tarde" && in_.superres) {
+        const json sr = in_.superres();
+        for (auto it = sr.begin(); sr.is_object() && it != sr.end(); ++it) {
+            const std::string nombre = it.key();
+            if (!matchName(p.value("entrada", "*"), nombre)) continue;
+            const std::string k = "sr:" + nombre;
+            if (it.value().value("tarde", false)) {
+                if (st.seen[k] != "1" && cooled(nombre)) {
+                    st.seen[k] = "1";
+                    mark(nombre);
+                    const int bp = it.value().value("bypass_s", 0);
+                    fire(rule, st,
+                         "La superresolución de '" + nombre + "' no llega a tiempo (" + fmt1(it.value().value("ms", 0.0)) +
+                             " ms por cuadro)" + (bp > 0 ? ": pasada a barato " + std::to_string(bp) + " s." : "."),
+                         {{"entrada", nombre}}, now);
+                }
+            } else {
+                st.seen.erase(k);
+            }
+        }
     } else if (type == "timer") {
         const std::int64_t due = p.value("dueMs", std::int64_t{0});
         if (due > 0 && now >= due) {
@@ -829,6 +854,8 @@ void AlertEngine::sembrar() {
         {{"type", "guest_drop"}, {"name", "Un invitado se cayó"}, {"params", json::object()}, {"sonido", "aviso"}},
         {{"type", "guest_quality"}, {"name", "Invitado con mala conexión"},
          {"params", {{"nivel", "rojo"}, {"forSec", 5}, {"soloAlAire", true}}}, {"sonido", "aviso"}},
+        {{"type", "superres_tarde"}, {"name", "La superresolución no llega"}, {"params", {{"entrada", "*"}}},
+         {"sonido", "aviso"}},
         {{"type", "loudness"}, {"name", "Loudness fuera de objetivo"},
          {"params", {{"toleranciaLU", 2}, {"forSec", 30}, {"soloAlAire", true}}}, {"sonido", "ninguno"}},
     });

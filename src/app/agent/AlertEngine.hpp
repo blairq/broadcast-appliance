@@ -18,6 +18,7 @@
 //   speaker_time  remainingSec (0), participant (opcional)
 //   lobby         (alguien entra al lobby)
 //   hand          (alguien levanta la mano)
+//   superres_tarde (la superresolución de una entrada no llega a tiempo)
 //   guest_drop    (un invitado admitido se desconecta)
 //   chat          platform (all|youtube|twitch|facebook|room), contains | regex
 //   guest_message un invitado escribe en el chat de la sala (privateOnly)
@@ -83,6 +84,8 @@ struct AlertInputs {
     std::function<std::vector<std::pair<std::string, bool>>()> senales;
     /// El loudness de lo que sale ({i, tp_reciente, objetivo{lufs, tp}}).
     std::function<json()> loudness;
+    /// La superresolución de cada entrada: {entrada: {tarde, ms, bypass_s}} (programador).
+    std::function<json()> superres;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 

@@ -212,6 +212,9 @@ class VideoGrafos : public QObject {
     void reaplicarEntradas();
     /// La dirección de una entrada de red (para grabar de ella al entrenar). Vacía si no es de red.
     std::string uriDe(const std::string& entrada) const;
+    /// Un cuadro de la entrada tal como sale de su grafo (para entrenar con una cámara
+    /// local, que no tiene dirección de red). false si no hay imagen.
+    bool capturarCuadro(const std::string& entrada, QImage& cuadro) const;
     /// Atrasa el audio de la entrada lo que demoran sus tarjetas de superresolución.
     void compensarAudio(const std::string& entrada);
     /// La demora medida de cada tarjeta de la entrada (ms), por id de nodo.
@@ -323,6 +326,9 @@ class VideoGrafos : public QObject {
     void gstListo();
     /// El resultado de medirUi.
     void medicion(const QVariantMap& resultado);
+    /// La superresolución de una entrada no llega a tiempo (ms por cuadro sobre el
+    /// umbral durante 2 s). `bypass`: se la pasó sola al modo barato un rato.
+    void superresTarde(const QString& entrada, double ms, double cuadroMs, bool bypass);
 
    private:
     ResolverPlugin resolverPlugin_;
@@ -330,7 +336,18 @@ class VideoGrafos : public QObject {
     QTimer programadorTimer_;
     nlohmann::json programador_ = {{"activo", true},          {"capacidad", "auto"},      {"max_activas", 3},
                                    {"uso_pct", 85},            {"transicion_ms", 400},     {"en_preview", true},
-                                   {"sin_turno", "barato"},    {"umbral_aumento", 1.1},    {"forzar", nlohmann::json::object()}};
+                                   {"sin_turno", "barato"},    {"umbral_aumento", 1.1},    {"forzar", nlohmann::json::object()},
+                                   {"bypass_auto", true},      {"umbral_pct", 80}};
+    /// La alarma «no llega»: desde cuándo está lenta, hasta cuándo está en bypass y
+    /// cuántas veces seguidas pasó (cada vez espera el doble antes de volver a probar).
+    struct Tarde {
+        qint64 desde = 0;
+        qint64 bypassHasta = 0;
+        qint64 ultimaVez = 0;
+        int veces = 0;
+        bool avisado = false;
+    };
+    std::map<std::string, Tarde> tarde_;
     nlohmann::json estadoProgramador_ = nlohmann::json::object();
     nlohmann::json presupuesto_ = nlohmann::json::object();
     std::map<std::string, std::string> modoSr_; ///< lo último mandado a cada entrada

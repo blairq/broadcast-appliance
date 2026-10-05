@@ -63,7 +63,7 @@
 | T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | hecho (sin plantilla nominal en pantalla: T43; el hash cubre el acta, no la grabación) |
 | T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | hecho en parte (tally, vúmetro y cuenta regresiva por celda; falta el costo por nodo en el Patchbay) |
 | T39 | Scopes y legalizador broadcast-safe | P1 | falta |
-| T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | parcial |
+| T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | hecho |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (6 plantillas «Legislatura», orígenes votacion/quorum/hora para vínculos, «Armar en PVW» en Rótulos y `grafico_mostrar {armar}`; faltan campos vivos cuadro a cuadro y HTML) |
@@ -818,7 +818,18 @@
 - **Depende de:** nada.
 
 ### T40 · Superresolución: alarma, bypass y entrenamiento desde cámaras locales — P1
-- **Estado: parcial.**
+- **Estado: hecho (2026-10-05).**
+  - Alarma «no llega»: una red activa que tarda más que `umbral_pct` (80 % del cuadro de fábrica) durante 2 s.
+    Avisa al operador, publica `superres/tarde` en el bus y dispara el tipo nuevo `superres_tarde` (de fábrica, con sonido).
+  - Bypass automático (`bypass_auto`, de fábrica sí): pasa sola a barato y vuelve a probar con espera creciente
+    (15 s, 30 s, 1 min, 2 min; se reinicia tras 10 min tranquila).
+  - En el programador: cartel rojo «No llega» con el bypass que queda, interruptor y umbral.
+  - Entrenar y destilar desde una cámara local: 4 cuadros por segundo de lo que sale de su grafo a una carpeta,
+    que el laboratorio toma con `--entrada`. «Entrenar» ofrece todas las entradas.
+  - Herramientas: `superres_programador {bypass_auto, umbral_pct}`; `superres_entrenar` y `superres_destilar`
+    aceptan entradas locales.
+  - Falta probarlo en vivo con una red que no llegue (la máquina estaba caliente: no se dejó corriendo).
+- **Estado original: parcial.**
   - El programador ajusta al presupuesto (`src/app/video/VideoGrafos.cpp:1890-1934`), pero pasarse solo pone el número en ámbar (`PanelProgramador.qml:117`). La primera red de cada acelerador corre siempre (`:1913-1918`).
   - Se entrena solo desde una URI de red (`SuperRes.cpp:238`, `uriDe()` en `VideoGrafos.hpp:213`).
 - **Qué hacer.**

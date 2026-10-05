@@ -14,6 +14,7 @@
 #pragma once
 
 #include <QObject>
+#include <QTimer>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -167,6 +168,12 @@ class SuperRes : public QObject {
     std::string correr(const QString& que, const QString& entrada, const QStringList& args,
                        std::function<void(bool ok)> fin);
     void linea(const QByteArray& l);
+    /// De dónde graba el laboratorio: la dirección de red de la entrada (--uri) o, si
+    /// es una cámara local, una carpeta con cuadros capturados ahora (--entrada). Llama
+    /// a `listo` con los argumentos (enseguida, o al terminar de capturar). "" o el error.
+    std::string origen(const std::string& entrada, int segundos, std::function<void(QStringList)> listo);
+    QTimer captura_;
+    int capturados_ = 0, aCapturar_ = 0;
 
     json catalogo_ = json::array(); ///< las recetas (del recurso)
     std::filesystem::path root_;

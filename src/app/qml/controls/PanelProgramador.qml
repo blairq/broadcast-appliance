@@ -14,6 +14,13 @@ Popup {
         const e = p.entradas || {}
         return Object.keys(e).sort().map(k => Object.assign({ entrada: k }, e[k]))
     }
+    /// Las entradas cuya red no llega a tiempo (alarma, y bypass si está prendido).
+    readonly property var tardes: {
+        const out = []
+        const ent = pop.p.entradas || {}
+        for (const k in ent) if (ent[k].tarde) out.push({ entrada: k, ms: ent[k].ms, bypass_s: ent[k].bypass_s || 0 })
+        return out
+    }
     readonly property var presupuesto: {
         const b = p.presupuesto || {}
         return Object.keys(b).map(k => Object.assign({ acelerador: k }, b[k]))
@@ -118,6 +125,34 @@ Popup {
                             font.pixelSize: 11
                         }
                     }
+                }
+
+                // --- Si no llega ---------------------------------------------------------
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: pop.tardes.length > 0
+                    implicitHeight: tardeTxt.implicitHeight + 16
+                    radius: 8
+                    color: Qt.rgba(0.85, 0.15, 0.15, 0.25)
+                    border.color: Theme.live
+                    Text {
+                        id: tardeTxt
+                        anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }
+                        wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold
+                        text: "No llega: " + pop.tardes.map(t => "«" + t.entrada + "» (" + t.ms + " ms" +
+                              (t.bypass_s ? ", pasada a barato " + t.bypass_s + " s" : "") + ")").join(", ")
+                    }
+                }
+                RowLayout {
+                    spacing: 8
+                    Switch { checked: pop.p.bypass_auto !== false; onToggled: pop.poner({ bypass_auto: checked }, "") }
+                    Text { text: "Bypass automático"; color: Theme.text; font.pixelSize: 12 }
+                    Text { text: "cuando tarda más del"; color: Theme.textDim; font.pixelSize: 12 }
+                    SpinBox { from: 30; to: 200; stepSize: 5; editable: true
+                              value: pop.p.umbral_pct !== undefined ? pop.p.umbral_pct : 80
+                              onValueModified: pop.poner({ umbral_pct: value }, "") }
+                    Text { text: "% del cuadro durante 2 s: pasa sola a barato y vuelve a probar (15 s, 30 s, 1 min…)"
+                           color: Theme.textFaint; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                 }
 
                 // --- Cuándo ------------------------------------------------------------

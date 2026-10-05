@@ -377,6 +377,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return cache->second;
         };
         in.loudness = [this]() { return rt_.engine().loudness().json(); };
+        in.superres = [this]() { return video_ ? video_->programador().value("entradas", nlohmann::json::object()) : nlohmann::json::object(); };
         alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
@@ -713,6 +714,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
+    // La superresolución que no llega: aviso al operador y evento en el bus (T40).
+    connect(video_.get(), &video::VideoGrafos::superresTarde, this,
+            [this](const QString& e, double ms, double cuadroMs, bool bypass) {
+                emit notify(QString("La superresolución de «%1» no llega (%2 ms por cuadro de %3)%4")
+                                .arg(e).arg(ms, 0, 'f', 1).arg(cuadroMs, 0, 'f', 1)
+                                .arg(bypass ? ": pasada a barato" : ""),
+                            "warn");
+                if (bus_) bus_->publicar("superres/tarde", {{"entrada", e.toStdString()}, {"ms", ms}, {"cuadro_ms", cuadroMs}, {"bypass", bypass}});
+            });
     // Lo que la revisión previa del evento mira del aparato.
     evento_->setChequeosAparato([this]() {
         QVariantList out;
