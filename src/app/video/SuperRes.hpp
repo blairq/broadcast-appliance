@@ -24,6 +24,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace ba::app::plugins {
 class Hijo;
@@ -103,6 +104,19 @@ class SuperRes : public QObject {
     std::string guardarPluginElemento(const json& p);
     /// Borra un plugin instalado (su carpeta). "" o el error.
     std::string borrarPlugin(const std::string& id);
+    /// Las variantes de una red compiladas para un tamaño fijo (sus
+    /// variante.json); `plugin` vacío: las de todos.
+    json variantes(const std::string& plugin) const;
+    /// Compila la red de `plugin` para cada tamaño ("1024x576"): CoreML en la
+    /// Mac, ONNX fijo en todos (variantes.py, sin PyTorch). Un trabajo.
+    std::string crearVariantes(const std::string& plugin, const std::vector<std::string>& tamanos,
+                               const std::string& id, const std::string& motores, const std::string& para,
+                               const std::string& descripcion, bool reemplazar);
+    /// Los tamaños de las cámaras del estudio que todavía no tienen variante de `plugin`.
+    std::vector<std::string> tamanosSinVariante(const std::string& plugin) const;
+    std::string borrarVariante(const std::string& plugin, const std::string& id);
+    /// Cambia para qué es o la descripción (lo demás lo pone la herramienta).
+    std::string editarVariante(const std::string& plugin, const std::string& id, const json& cambios);
 
     // --- Interfaz ---------------------------------------------------------------------
     QVariantList modelosQml() const;
@@ -126,6 +140,16 @@ class SuperRes : public QObject {
     Q_INVOKABLE QString borrarPluginUi(const QString& id) { return q(borrarPlugin(id.toStdString())); }
     /// Los plugins instalados de tipo «elemento», con su plugin.json completo.
     Q_INVOKABLE QVariantList pluginsElementoUi() const;
+    Q_INVOKABLE QVariantList variantesUi(const QString& plugin) const;
+    Q_INVOKABLE QString crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
+                                        const QString& motores);
+    Q_INVOKABLE QString crearFaltantesUi(const QString& plugin);
+    Q_INVOKABLE QStringList tamanosSinVarianteUi(const QString& plugin) const;
+    Q_INVOKABLE QString borrarVarianteUi(const QString& plugin, const QString& id) {
+        return q(borrarVariante(plugin.toStdString(), id.toStdString()));
+    }
+    Q_INVOKABLE QString editarVarianteUi(const QString& plugin, const QString& id, const QString& para,
+                                         const QString& descripcion);
     Q_INVOKABLE QString destilarUi(const QString& entrada, const QString& maestro, double minutos, bool aplicar,
                                    bool cpu) {
         return q(destilar(entrada.toStdString(), maestro.toStdString(), minutos, aplicar, cpu));

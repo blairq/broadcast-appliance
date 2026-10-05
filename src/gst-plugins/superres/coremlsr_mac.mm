@@ -76,6 +76,8 @@ struct _BaCoreMlSr {
     GstBaseTransform parent;
     GstVideoInfo in, out;
     gchar* modelo;
+    gchar* variantes;      ///< "WxH=ruta;…": la red compilada para cada tamaño (si no, `modelo`)
+    std::string* rutaRed;  ///< la que se cargó (o se está cargando)
     gint escala; ///< lo que agranda la red (2 o 4)
     gboolean activo;
     gboolean procesa; ///< negociado: la salida es el doble de la entrada
@@ -120,6 +122,7 @@ GST_DEBUG_CATEGORY_STATIC(ba_coremlsr_debug);
 enum {
     PROP_0,
     PROP_MODELO,
+    PROP_VARIANTES,
     PROP_ESCALA,
     PROP_ACTIVO,
     PROP_MS,
@@ -165,7 +168,7 @@ static void ponerError(BaCoreMlSr* s, const std::string& e) {
 static gpointer cargar(gpointer data) {
     auto* s = static_cast<BaCoreMlSr*>(data);
     @autoreleasepool {
-        NSString* ruta = [NSString stringWithUTF8String:s->modelo != nullptr ? s->modelo : ""];
+        NSString* ruta = [NSString stringWithUTF8String:s->rutaRed->c_str()];
         MLModelConfiguration* conf = [[MLModelConfiguration alloc] init];
         int u = s->unidades;
         if (u == 0) u = 2; // auto: el Neural Engine
@@ -242,8 +245,8 @@ static void avisarTamano(BaCoreMlSr* s) {
     s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, s->redW, s->redH);
     if (!s->tamanoOk)
         ponerError(s, "la red no está compilada para " + std::to_string(s->redW) + "x" + std::to_string(s->redH) +
-                          ": sale agrandado común. Volvé a instalar el plugin con esta cámara conectada (se compila "
-                          "también para el tamaño de cada cámara del estudio)");
+                          ": sale agrandado común. Creá una variante para ese tamaño (Superresolución > Variantes, "
+                          "o superres_variante_crear)");
 }
 
 /// El formato cambia (NV12/BGRA -> BGRA): la salida es BGRA al doble.
@@ -291,7 +294,14 @@ static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcap
         s->poolSalida = crearPool(w, h);
     }
     s->tamanoOk = FALSE;
-    if (s->procesa && s->red == nullptr && s->cargando == nullptr && s->modelo != nullptr && *s->modelo != '\0')
+    // La variante compilada para este tamaño (o la general): si es otra que la
+    // cargada, se cambia.
+    const std::string ruta = ba::sr::rutaVariante(s->modelo, s->variantes, w, h);
+    if (ruta != *s->rutaRed) {
+        soltarRed(s);
+        *s->rutaRed = ruta;
+    }
+    if (s->procesa && s->red == nullptr && s->cargando == nullptr && !s->rutaRed->empty())
         s->cargando = g_thread_new("bacoremlsr-carga", cargar, s);
     if (s->red != nullptr) avisarTamano(s);
     GST_INFO_OBJECT(s, "CoreML red x%d %s (%dx%d -> red %dx%d)", s->escala, s->procesa ? "activo" : "apagado", w,
@@ -613,7 +623,14 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             soltarRed(s);
             g_free(s->modelo);
             s->modelo = g_value_dup_string(v);
+            s->rutaRed->clear(); // se elige al negociar (con las variantes)
             ponerError(s, "");
+            break;
+        case PROP_VARIANTES:
+            soltarRed(s);
+            g_free(s->variantes);
+            s->variantes = g_value_dup_string(v);
+            s->rutaRed->clear();
             break;
         case PROP_ESCALA: s->escala = g_value_get_int(v) >= 4 ? 4 : 2; break;
         case PROP_UNIDADES:
@@ -634,6 +651,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_COREMLSR(o);
     switch (id) {
         case PROP_MODELO: g_value_set_string(v, s->modelo); break;
+        case PROP_VARIANTES: g_value_set_string(v, s->variantes); break;
         case PROP_ESCALA: g_value_set_int(v, s->escala); break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_UNIDADES: g_value_set_enum(v, s->unidades); break;
@@ -719,6 +737,8 @@ static void ba_coremlsr_finalize(GObject* o) {
     delete s->listo;
     delete s->demora;
     g_free(s->modelo);
+    g_free(s->variantes);
+    delete s->rutaRed;
     g_free(s->error);
     G_OBJECT_CLASS(ba_coremlsr_parent_class)->finalize(o);
 }
@@ -740,6 +760,12 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
     const auto ro = static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS);
     g_object_class_install_property(go, PROP_MODELO,
                                     g_param_spec_string("modelo", "Modelo", "Ruta del .mlmodelc", "", listo));
+    g_object_class_install_property(
+        go, PROP_VARIANTES,
+        g_param_spec_string("variantes", "Variantes",
+                            "La red compilada para cada tamaño de entrada: «1024x576=/ruta/a.mlmodelc;640x360=…». "
+                            "Se usa la del tamaño que llega; si no hay, `modelo`",
+                            "", listo));
     g_object_class_install_property(go, PROP_ESCALA,
                                     g_param_spec_int("escala", "Escala de la red",
                                                      "Lo que agranda la red (2; 4 = recibe la mitad): sale x2", 2,
@@ -798,6 +824,8 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
 
 static void ba_coremlsr_init(BaCoreMlSr* s) {
     s->modelo = g_strdup("");
+    s->variantes = g_strdup("");
+    s->rutaRed = new std::string();
     s->escala = 2;
     s->activo = TRUE;
     s->procesa = FALSE;

@@ -17,6 +17,7 @@
 #include <QTimer>
 
 #include <fstream>
+#include <algorithm>
 #include <set>
 
 namespace fs = std::filesystem;
@@ -42,6 +43,12 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
     std::error_code ec;
     fs::create_directories(carpetaModelos(), ec);
     trabajo_ = {{"corriendo", false}};
+    // El catálogo de recetas (datos/superres-catalogo.json, recurso de Qt).
+    QFile cat(QStringLiteral(":/video/superres-catalogo.json"));
+    if (cat.open(QIODevice::ReadOnly)) {
+        const json c = json::parse(cat.readAll().toStdString(), nullptr, false);
+        if (c.is_object() && c.contains("plugins") && c["plugins"].is_array()) catalogo_ = c["plugins"];
+    }
     // Un ONNX Runtime con GPU (NVIDIA: CUDA/TensorRT; AMD en Linux:
     // ROCm/MIGraphX) bajado a Datos/Herramientas/onnxruntime-gpu: baonnxsr lo
     // carga en vez del del programa (variable BA_ORT_GPU, antes de que
@@ -455,6 +462,29 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
     return lanzar();
 }
 
+namespace {
+/// "WxH=ruta;…" con las variantes del plugin que tengan `clave` (coreml, onnx,
+/// onnx_nv12): la propiedad `variantes` de los motores.
+std::string variantesPara(const fs::path& dir, const char* clave) {
+    std::string out;
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(dir / "variantes", ec)) {
+        std::ifstream f(e.path() / "variante.json");
+        const json v = json::parse(f, nullptr, false);
+        if (!v.is_object()) continue;
+        const json a = v.value("archivos", json::object());
+        if (!a.contains(clave) || !a[clave].is_string()) continue;
+        const json en = v.value("entrada", json::object());
+        const int w = en.value("ancho", 0), h = en.value("alto", 0);
+        if (w <= 0 || h <= 0) continue;
+        const fs::path ruta = e.path() / a[clave].get<std::string>();
+        if (!fs::exists(ruta, ec)) continue;
+        out += (out.empty() ? "" : ";") + std::to_string(w) + "x" + std::to_string(h) + "=" + ruta.string();
+    }
+    return out;
+}
+} // namespace
+
 json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     auto fallar = [&](const std::string& e) {
         if (error) *error = e;
@@ -519,6 +549,7 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     if (archivos.contains("coreml") && motores().contains("coreml"))
         // FP32 (redes que se desbordan en FP16, como SPAN): en la GPU, el Neural Engine no la corre.
         return json{{"motor", "coreml"}, {"modelo", (dir / archivos["coreml"].get<std::string>()).string()},
+                    {"variantes", variantesPara(dir, "coreml")},
                     {"escala_red", escalaRed},
                     {"unidades", p.value("coreml_precision", std::string("fp16")) == "fp32" ? "gpu" : "auto"}};
 #endif
@@ -530,6 +561,7 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
         !qEnvironmentVariableIsEmpty("BA_ORT_GPU"))
         return json{{"elemento", "baonnxsr"},
                     {"propiedades", {{"modelo", (dir / archivos["onnx_nv12"].get<std::string>()).string()},
+                                     {"variantes", variantesPara(dir, "onnx_nv12")},
                                      {"proveedor", "auto"}}},
                     {"memoria", "CUDAMemory"},
                     {"memoria_salida", ""},
@@ -540,6 +572,7 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     for (const char* clave : {"onnx_nv12", "onnx"})
         if (archivos.contains(clave) && motores().contains("onnx"))
             return json{{"motor", "onnx"}, {"modelo", (dir / archivos[clave].get<std::string>()).string()},
+                        {"variantes", variantesPara(dir, clave)},
                         {"escala_red", 2}};
     return fallar("«" + id + "» no tiene un modelo que corra en esta máquina");
 }
@@ -713,6 +746,136 @@ QString SuperRes::borrarModelo(const QString& archivo) {
     fs::remove(p.string() + ".pt", ec);
     emit cambio();
     return ec ? QString::fromStdString(ec.message()) : QString();
+}
+
+// --- Variantes: la red compilada para un tamaño fijo -----------------------------------
+// <plugin>/variantes/<id>/{variante.json, modelo.mlmodelc | modelo.onnx | modelo-nv12.onnx}.
+// Las hace assets/superres/variantes.py con el Python del programa (coremltools
+// y onnx, sin PyTorch); el motor usa la del tamaño que le llega.
+
+json SuperRes::variantes(const std::string& plugin) const {
+    json out = json::array();
+    std::error_code ec;
+    const auto deUno = [&](const fs::path& dir) {
+        for (const auto& e : fs::directory_iterator(dir / "variantes", ec)) {
+            std::ifstream f(e.path() / "variante.json");
+            json v = json::parse(f, nullptr, false);
+            if (!v.is_object()) continue;
+            v["carpeta"] = e.path().string();
+            if (!v.contains("plugin")) v["plugin"] = dir.filename().string();
+            out.push_back(std::move(v));
+        }
+    };
+    if (!plugin.empty()) {
+        deUno(carpetaModelos() / plugin);
+    } else {
+        for (const auto& e : fs::directory_iterator(carpetaModelos(), ec))
+            if (e.is_directory()) deUno(e.path());
+    }
+    return out;
+}
+
+std::vector<std::string> SuperRes::tamanosSinVariante(const std::string& plugin) const {
+    std::set<std::string> hay;
+    for (const auto& v : variantes(plugin)) {
+        const json en = v.value("entrada", json::object());
+        hay.insert(std::to_string(en.value("ancho", 0)) + "x" + std::to_string(en.value("alto", 0)));
+    }
+    std::vector<std::string> out;
+    if (video_ == nullptr) return out;
+    for (const QString& e : video_->entradas()) {
+        const json st = video_->estadoEntrada(e.toStdString());
+        const json o = st.value("gstreamer", json::object()).value("origen", json::object());
+        const int w = o.value("ancho", 0), h = o.value("alto", 0);
+        if (w <= 0 || h <= 0) continue;
+        const std::string t = std::to_string(w - w % 2) + "x" + std::to_string(h - h % 2);
+        if (!hay.count(t) && std::find(out.begin(), out.end(), t) == out.end()) out.push_back(t);
+    }
+    return out;
+}
+
+std::string SuperRes::crearVariantes(const std::string& plugin, const std::vector<std::string>& tamanos,
+                                     const std::string& id, const std::string& motores, const std::string& para,
+                                     const std::string& descripcion, bool reemplazar) {
+    const fs::path dir = carpetaModelos() / plugin;
+    std::error_code ec;
+    if (plugin.empty() || !fs::exists(dir / "plugin.json", ec))
+        return "el plugin «" + plugin + "» no está instalado (superres_plugins los lista)";
+    if (tamanos.empty()) return "falta el tamaño (ancho y alto, o `faltantes`)";
+    if (!id.empty() && tamanos.size() > 1) return "`id` es para una sola variante";
+    std::string lista;
+    for (const auto& t : tamanos) {
+        const auto x = t.find('x');
+        if (x == std::string::npos || std::atoi(t.c_str()) < 16 || std::atoi(t.c_str() + x + 1) < 16)
+            return "tamaño inválido: «" + t + "» (ancho x alto, p. ej. 1024x576)";
+        lista += (lista.empty() ? "" : ",") + t;
+    }
+    const fs::path script = ba::platform::bundleRoot() / "superres" / "variantes.py";
+    QStringList args{q8(script), "crear", "--plugin", q8(dir), "--tamanos", QString::fromStdString(lista)};
+    if (!id.empty()) args << "--id" << QString::fromStdString(id);
+    if (!motores.empty()) args << "--motores" << QString::fromStdString(motores);
+    if (!para.empty()) args << "--para" << QString::fromStdString(para);
+    if (!descripcion.empty()) args << "--descripcion" << QString::fromStdString(descripcion);
+    if (reemplazar) args << "--reemplazar";
+    return correr("Variantes de «" + QString::fromStdString(plugin) + "» (" + QString::fromStdString(lista) + ")",
+                  {}, args, [this](bool ok) {
+                      if (ok && video_ != nullptr) video_->reaplicarEntradas(); // las tarjetas la usan ya
+                      emit cambio();
+                  });
+}
+
+std::string SuperRes::borrarVariante(const std::string& plugin, const std::string& id) {
+    if (id.empty() || id.find('/') != std::string::npos || id.find('\\') != std::string::npos || id == "..")
+        return "id inválido";
+    const fs::path d = carpetaModelos() / plugin / "variantes" / id;
+    std::error_code ec;
+    if (!fs::exists(d / "variante.json", ec)) return "no hay una variante «" + id + "» de «" + plugin + "»";
+    fs::remove_all(d, ec);
+    if (ec) return ec.message();
+    if (video_ != nullptr) video_->reaplicarEntradas();
+    emit cambio();
+    return {};
+}
+
+std::string SuperRes::editarVariante(const std::string& plugin, const std::string& id, const json& cambios) {
+    const fs::path j = carpetaModelos() / plugin / "variantes" / id / "variante.json";
+    std::ifstream f(j);
+    json v = json::parse(f, nullptr, false);
+    f.close();
+    if (!v.is_object()) return "no hay una variante «" + id + "» de «" + plugin + "»";
+    for (const char* k : {"para", "descripcion", "nombre"})
+        if (cambios.contains(k) && cambios[k].is_string()) v[k] = cambios[k];
+    std::ofstream o(j);
+    o << v.dump(1);
+    if (!o) return "no se pudo guardar " + j.string();
+    emit cambio();
+    return {};
+}
+
+QVariantList SuperRes::variantesUi(const QString& plugin) const { return qv(variantes(plugin.toStdString())).toList(); }
+
+QString SuperRes::crearVarianteUi(const QString& plugin, int ancho, int alto, const QString& para,
+                                  const QString& motores) {
+    return q(crearVariantes(plugin.toStdString(), {std::to_string(ancho) + "x" + std::to_string(alto)}, {},
+                            motores.toStdString(), para.toStdString(), {}, false));
+}
+
+QString SuperRes::crearFaltantesUi(const QString& plugin) {
+    const auto t = tamanosSinVariante(plugin.toStdString());
+    if (t.empty()) return "todas las cámaras del estudio ya tienen su variante";
+    return q(crearVariantes(plugin.toStdString(), t, {}, {}, {}, {}, false));
+}
+
+QStringList SuperRes::tamanosSinVarianteUi(const QString& plugin) const {
+    QStringList out;
+    for (const auto& t : tamanosSinVariante(plugin.toStdString())) out << QString::fromStdString(t);
+    return out;
+}
+
+QString SuperRes::editarVarianteUi(const QString& plugin, const QString& id, const QString& para,
+                                   const QString& descripcion) {
+    return q(editarVariante(plugin.toStdString(), id.toStdString(),
+                            json{{"para", para.toStdString()}, {"descripcion", descripcion.toStdString()}}));
 }
 
 } // namespace ba::app::video

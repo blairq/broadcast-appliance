@@ -348,7 +348,8 @@ def a_coreml(modelo, escala: int, mitad: bool, salida_dir: str, canales: int) ->
     compilado = os.path.join(salida_dir, "modelo.mlmodelc")
     shutil.rmtree(compilado, ignore_errors=True)
     compile_model(paquete, compilado)
-    shutil.rmtree(paquete, ignore_errors=True)
+    # El paquete queda: de él salen las variantes para otros tamaños
+    # (variantes.py, sin PyTorch).
     # Medir: el primer tamaño, en el Neural Engine (FP32: en la GPU).
     ml2 = ct.models.CompiledMLModel(
         compilado, compute_units=ct.ComputeUnit.CPU_AND_NE if precision == "fp16" else ct.ComputeUnit.CPU_AND_GPU)
@@ -360,7 +361,7 @@ def a_coreml(modelo, escala: int, mitad: bool, salida_dir: str, canales: int) ->
     for _ in range(k):
         ml2.predict({"entrada": img})
     ms = round(1000 * (time.time() - t) / k, 1)
-    return {"archivo": "modelo.mlmodelc", "tamanos": [[a, h] for a, h in tam], "ms": ms,
+    return {"archivo": "modelo.mlmodelc", "paquete": "modelo.mlpackage", "tamanos": [[a, h] for a, h in tam], "ms": ms,
             "ms_tamano": [ancho0, alto0], "precision": precision}
 
 
@@ -402,6 +403,7 @@ def instalar(args) -> None:
             try:
                 c = a_coreml(d.model, plugin["escala"], bool(receta.get("entrada_mitad")), carpeta, canales)
                 plugin["archivos"]["coreml"] = c["archivo"]
+                plugin["archivos"]["coreml_paquete"] = c["paquete"]
                 plugin["coreml_tamanos"] = c["tamanos"]
                 plugin["ms_coreml"] = c["ms"]
                 plugin["ms_coreml_tamano"] = c["ms_tamano"]

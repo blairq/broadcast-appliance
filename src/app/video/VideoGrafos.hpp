@@ -208,6 +208,8 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
     /// Qué motores hay en este sistema: [apple?, fsr?, onnx?].
     Q_INVOKABLE QStringList motoresSuperres() const;
+    /// Vuelve a armar la cadena de cada entrada (p. ej. hay variantes nuevas de una red).
+    void reaplicarEntradas();
     /// La dirección de una entrada de red (para grabar de ella al entrenar). Vacía si no es de red.
     std::string uriDe(const std::string& entrada) const;
     /// Atrasa el audio de la entrada lo que demoran sus tarjetas de superresolución.

@@ -1175,6 +1175,132 @@ void McpService::registerVideoTools() {
         }
         {
             Tool t;
+            t.name = "superres_variantes";
+            t.title = "Ver las variantes de las redes (compiladas para un tamaño fijo)";
+            t.category = "video";
+            t.description =
+                "Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo "
+                "(CoreML para el Neural Engine; ONNX fijo para TensorRT/DirectML). Cada una con su variante.json: "
+                "qué es, `para` qué cámara, `entrada`/`red`/`salida` (tamaños), `archivos`, `medido` (ms y "
+                "acelerador), cuándo y con qué se hizo. El motor usa sola la del tamaño que le llega; si no hay, la "
+                "general. `faltan`: los tamaños de las cámaras del estudio sin variante de ese plugin.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"plugin", {{"type", "string"}, {"description", "id del plugin (vacío: todos)"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string p = a.value("plugin", std::string());
+                json r{{"variantes", srp->variantes(p)}};
+                if (!p.empty()) r["faltan"] = srp->tamanosSinVariante(p);
+                done(ToolResult().data(r));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variante_crear";
+            t.title = "Compilar una red de superresolución para un tamaño de entrada";
+            t.category = "video";
+            t.description =
+                "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
+                "como llega a la tarjeta), o para varios (`tamanos`: [\"1024x576\", …]), o para todas las cámaras "
+                "del estudio que todavía no tienen la suya (`faltantes`: true). Sin PyTorch (coremltools y onnx "
+                "vienen en el programa): en la Mac CoreML (el Neural Engine solo corre tamaños compilados) y en "
+                "todos un ONNX con la forma fija. Es un trabajo: superres_estado muestra cómo va. Al terminar, las "
+                "tarjetas que usan ese plugin toman la variante del tamaño que les llega. Un shader GLSL no lleva "
+                "variantes: la placa lo compila para cualquier tamaño.";
+            t.details =
+                "`para` y `descripcion` quedan en variante.json (para qué cámara o uso es). `motores`: \"auto\" (todo "
+                "lo que tenga el plugin), o \"coreml\", \"onnx\", \"onnx_nv12\" separados por coma. Un plugin "
+                "instalado antes de esta versión no guardó el paquete CoreML: avisa, y hay que reinstalarlo "
+                "(superres_instalar) para hacer variantes CoreML; las ONNX salen igual. `reemplazar`: rehacer una "
+                "que ya existe. Un ancho o alto impar se redondea para abajo.";
+            t.inputSchema = {
+                {"type", "object"},
+                {"required", {"plugin"}},
+                {"properties",
+                 {{"plugin", {{"type", "string"}}},
+                  {"ancho", {{"type", "integer"}}},
+                  {"alto", {{"type", "integer"}}},
+                  {"tamanos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                  {"faltantes", {{"type", "boolean"}, {"description", "las cámaras del estudio sin variante"}}},
+                  {"entrada", {{"type", "string"}, {"description", "el tamaño de esta entrada (como llega)"}}},
+                  {"id", {{"type", "string"}, {"description", "de fábrica, «<ancho>x<alto>»"}}},
+                  {"motores", {{"type", "string"}}},
+                  {"para", {{"type", "string"}}},
+                  {"descripcion", {{"type", "string"}}},
+                  {"reemplazar", {{"type", "boolean"}}}}}};
+            t.examples = {R"({"plugin": "lsdir-compact-x4", "faltantes": true})",
+                          R"({"plugin": "nomosuni-compact-x2", "ancho": 1024, "alto": 576, "para": "cámara del patio"})"};
+            t.run = [srp, v](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string p = a.value("plugin", std::string());
+                std::vector<std::string> tam;
+                const auto par = [](int w, int h) { return std::to_string(w - w % 2) + "x" + std::to_string(h - h % 2); };
+                if (a.value("faltantes", false)) tam = srp->tamanosSinVariante(p);
+                for (const auto& x : a.value("tamanos", json::array()))
+                    if (x.is_string()) tam.push_back(x.get<std::string>());
+                if (a.contains("ancho") && a.contains("alto")) tam.push_back(par(a.value("ancho", 0), a.value("alto", 0)));
+                if (const std::string e = a.value("entrada", std::string()); !e.empty() && v) {
+                    const json o = v->estadoEntrada(e).value("gstreamer", json::object()).value("origen", json::object());
+                    if (o.value("ancho", 0) <= 0) return done(ToolResult::error("«" + e + "» todavía no tiene imagen"));
+                    tam.push_back(par(o.value("ancho", 0), o.value("alto", 0)));
+                }
+                if (tam.empty())
+                    return done(ToolResult::error(a.value("faltantes", false)
+                                                      ? "todas las cámaras del estudio ya tienen su variante"
+                                                      : "falta el tamaño: ancho y alto, tamanos, entrada o faltantes"));
+                const std::string e = srp->crearVariantes(p, tam, a.value("id", std::string()),
+                                                          a.value("motores", std::string()), a.value("para", std::string()),
+                                                          a.value("descripcion", std::string()), a.value("reemplazar", false));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().data(json{{"trabajo", "compilando"}, {"tamanos", tam},
+                                            {"siguiente", "superres_estado para ver cómo va; después superres_variantes"}}));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variante_editar";
+            t.title = "Cambiar para qué es una variante";
+            t.category = "video";
+            t.description = "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
+                            "Lo demás (tamaños, archivos, lo medido) lo escribe la herramienta.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"plugin", "id"}},
+                             {"properties",
+                              {{"plugin", {{"type", "string"}}},
+                               {"id", {{"type", "string"}}},
+                               {"para", {{"type", "string"}}},
+                               {"descripcion", {{"type", "string"}}},
+                               {"nombre", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->editarVariante(a.value("plugin", std::string()), a.value("id", std::string()), a);
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Guardado."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variante_borrar";
+            t.title = "Borrar una variante de una red";
+            t.category = "video";
+            t.description = "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"plugin", "id"}},
+                             {"properties", {{"plugin", {{"type", "string"}}}, {"id", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->borrarVariante(a.value("plugin", std::string()), a.value("id", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Borrada."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
             t.name = "superres_destilar";
             t.title = "Destilar una red grande en una propia chica, a medida de una cámara";
             t.category = "video";

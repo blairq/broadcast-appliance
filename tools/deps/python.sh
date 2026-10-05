@@ -29,8 +29,15 @@ mv "$OUT.tmp/python" "$OUT"
 rm -rf "$OUT.tmp"
 # Las bibliotecas que trae: numpy (casi todo plugin de video lo usa) y la
 # traducción en vivo (assets/traductor: CTranslate2 con los modelos OPUS-MT de
-# Argos y sus tokenizadores; sin torch ni stanza). Versiones fijas.
-LIBS=("numpy==2.5.3" "ctranslate2==4.8.2" "sentencepiece==0.2.2" "sacremoses==0.2.0" "subword-nmt==0.3.8")
+# Argos y sus tokenizadores; sin torch ni stanza) y las variantes de
+# superresolución (assets/superres/variantes.py: compilar una red para un
+# tamaño fijo, sin PyTorch: onnx en los tres sistemas, coremltools en la Mac).
+# Versiones fijas.
+LIBS=("numpy==2.5.3" "ctranslate2==4.8.2" "sentencepiece==0.2.2" "sacremoses==0.2.0" "subword-nmt==0.3.8"
+      "onnx==1.23.1" "pillow==12.3.0")
+if [ "$PLAT" = macos-arm64 ] || { [ -z "$PLAT" ] && [ "$(uname -s)" = Darwin ]; }; then
+    LIBS+=("coremltools==9.0")
+fi
 
 if [ "$PLAT" = win-x64 ]; then
     # Python de Windows: python.exe, Lib/, DLLs/, include/ y libs/ (los .lib
@@ -73,5 +80,5 @@ if [ "$(uname -s)" = Darwin ]; then
             file -b "$f" | grep -q Mach-O && codesign -f -s - "$f" 2>/dev/null || true
         done
 fi
-"$OUT/bin/python3" -c 'import sys, ssl, sqlite3, ctypes, ctranslate2, sentencepiece, sacremoses, subword_nmt; print("python", sys.version.split()[0], "ok")'
+"$OUT/bin/python3" -c 'import sys, ssl, sqlite3, ctypes, ctranslate2, sentencepiece, sacremoses, subword_nmt, onnx, PIL; print("python", sys.version.split()[0], "ok")'
 log "listo: $OUT ($(du -sh "$OUT" | cut -f1))"

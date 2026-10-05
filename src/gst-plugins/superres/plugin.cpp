@@ -98,6 +98,7 @@ struct _BaSuperRes {
     gchar* pedido; ///< motor pedido
     gchar* usado;  ///< motor que quedó
     gchar* modelo;
+    gchar* variantes; ///< la red fija para cada tamaño (motores onnx y coreml)
     gchar* proveedor;
     gint unidades; ///< coreml: 0 auto, 1 todas, 2 ane, 3 gpu, 4 cpu
     gdouble nitidez;
@@ -114,6 +115,7 @@ enum {
     PROP_0,
     PROP_MOTOR,
     PROP_MODELO,
+    PROP_VARIANTES,
     PROP_NITIDEZ,
     PROP_PROVEEDOR,
     PROP_ACTIVO,
@@ -210,10 +212,12 @@ static void armar(BaSuperRes* s) {
             g_strdup((std::string("no hay el motor «") + m + "» (" + fabrica + ") en este sistema").c_str());
         e = gst_element_factory_make("identity", "motor"); // la imagen sigue, sin agrandar
     } else if (m == "onnx") {
-        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "proveedor",
+        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "variantes",
+                     s->variantes != nullptr ? s->variantes : "", "proveedor",
                      s->proveedor != nullptr ? s->proveedor : "auto", nullptr);
     } else if (m == "coreml") {
-        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "escala", s->escalaRed, nullptr);
+        g_object_set(e, "modelo", s->modelo != nullptr ? s->modelo : "", "variantes",
+                     s->variantes != nullptr ? s->variantes : "", "escala", s->escalaRed, nullptr);
         gst_util_set_object_arg(G_OBJECT(e), "unidades", std::to_string(s->unidades).c_str());
     } else if (m == "fsr") {
         g_object_set(e, "nitidez", s->nitidez, nullptr);
@@ -255,6 +259,12 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
                 g_object_set(s->motor, "modelo", s->modelo != nullptr ? s->modelo : "", nullptr);
             else
                 rearmar = true; // en auto, un modelo cambia el motor
+            break;
+        case PROP_VARIANTES:
+            g_free(s->variantes);
+            s->variantes = g_value_dup_string(v);
+            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "variantes") != nullptr)
+                g_object_set(s->motor, "variantes", s->variantes != nullptr ? s->variantes : "", nullptr);
             break;
         case PROP_NITIDEZ:
             s->nitidez = g_value_get_double(v);
@@ -338,6 +348,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
             break;
         }
         case PROP_MODELO: g_value_set_string(v, s->modelo); break;
+        case PROP_VARIANTES: g_value_set_string(v, s->variantes); break;
         case PROP_NITIDEZ: g_value_set_double(v, s->nitidez); break;
         case PROP_PROVEEDOR: {
             int i = 0;
@@ -372,6 +383,7 @@ static void ba_superres_finalize(GObject* o) {
     g_free(s->pedido);
     g_free(s->usado);
     g_free(s->modelo);
+    g_free(s->variantes);
     g_free(s->proveedor);
     g_free(s->error);
     G_OBJECT_CLASS(ba_superres_parent_class)->finalize(o);
@@ -395,6 +407,12 @@ static void ba_superres_class_init(BaSuperResClass* k) {
         go, PROP_MOTOR, g_param_spec_enum("motor", "Motor", "Con qué se agranda", tipoMotor(), 0, listo));
     g_object_class_install_property(
         go, PROP_MODELO, g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (motor onnx)", "", vivo));
+    g_object_class_install_property(
+        go, PROP_VARIANTES,
+        g_param_spec_string("variantes", "Variantes",
+                            "La red compilada para cada tamaño de entrada («1024x576=/ruta;…», motores onnx y "
+                            "coreml): se usa la del tamaño que llega; si no hay, `modelo`",
+                            "", vivo));
     g_object_class_install_property(go, PROP_NITIDEZ,
                                     g_param_spec_double("nitidez", "Nitidez",
                                                         "FSR: cuánto afila, en paradas (0 = el máximo)", 0.0,
@@ -449,6 +467,7 @@ static void ba_superres_init(BaSuperRes* s) {
     s->pedido = g_strdup("auto");
     s->usado = nullptr;
     s->modelo = g_strdup("");
+    s->variantes = g_strdup("");
     s->proveedor = g_strdup("auto");
     s->nitidez = 0.2;
     s->activo = TRUE;

@@ -34,6 +34,23 @@
 
 namespace ba::sr {
 
+/// Las variantes de una red compiladas para un tamaño fijo (propiedad
+/// `variantes`: "1024x576=/ruta/a;640x360=/ruta/b", la arma la app con los
+/// variante.json del plugin). La del tamaño de entrada `w`x`h` o, si no hay,
+/// `modelo` (la general).
+inline std::string rutaVariante(const char* modelo, const char* variantes, int w, int h) {
+    const std::string clave = std::to_string(w) + "x" + std::to_string(h) + "=";
+    const std::string v = variantes != nullptr ? variantes : "";
+    size_t i = 0;
+    while (i < v.size()) {
+        size_t fin = v.find(';', i);
+        if (fin == std::string::npos) fin = v.size();
+        if (v.compare(i, clave.size(), clave) == 0) return v.substr(i + clave.size(), fin - i - clave.size());
+        i = fin + 1;
+    }
+    return modelo != nullptr ? modelo : "";
+}
+
 /// Multiplica (`por` > 0) o divide (`por` < 0) un campo entero: fijo, rango o lista.
 inline bool escalarCampo(GstStructure* st, const char* campo, int por) {
     const GValue* v = gst_structure_get_value(st, campo);

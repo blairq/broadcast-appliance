@@ -1434,12 +1434,14 @@ PY_SHA_win-x64 := 52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986a
 .PHONY: deps-python deps-python-win
 deps-python:
 	@if [ -x "$(EXTERNS_DIR)/python/bin/python3" ] && [ "$$($(EXTERNS_DIR)/python/bin/python3 -c 'import platform; print(platform.python_version())')" = "$(PY_VER)" ] && \
-	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt' 2>/dev/null; then \
+	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt, onnx, PIL' 2>/dev/null && \
+	    { [ "$$(uname -s)" != Darwin ] || $(EXTERNS_DIR)/python/bin/python3 -c 'import coremltools' 2>/dev/null; }; then \
 		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_$(HERR_PLAT)))" SHA="$(PY_SHA_$(HERR_PLAT))" QUE="Python" && \
 	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" "$(EXTERNS_DIR)/python" $(HERR_PLAT)
 deps-python-win: deps-python
 	@if [ -f "$(EXTERNS_DIR)/python-win/python.exe" ] && [ -d "$(EXTERNS_DIR)/python-win/Lib/site-packages/ctranslate2" ] && \
+	    [ -d "$(EXTERNS_DIR)/python-win/Lib/site-packages/onnx" ] && \
 	    grep -q "$(PY_VER)" "$(EXTERNS_DIR)/python-win/.version" 2>/dev/null; then \
 		echo "Python de Windows ya está ($(EXTERNS_DIR)/python-win)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_win-x64)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_win-x64))" SHA="$(PY_SHA_win-x64)" QUE="Python (Windows)" && \

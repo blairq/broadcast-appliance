@@ -144,6 +144,25 @@ declara su demora (LATENCY = `espera-ms`), y el colchón compensa la demora real
   no usa la GPU.
 - **`runtime_gpu.py`.** El ONNX Runtime de GPU, con versiones fijas de PyPI verificadas por sha256.
 
+## Variantes por resolución (`assets/superres/variantes.py`)
+
+Una red instalada sirve para cualquier tamaño, pero los aceleradores van mejor (o solo andan) con el tamaño
+fijo: el Neural Engine corre CoreML solo para tamaños compilados, y TensorRT y DirectML optimizan para una forma.
+Una **variante** es la misma red compilada para un tamaño de entrada, en `<plugin>/variantes/<id>/`:
+
+- `modelo.mlmodelc` (Mac), sacado de `modelo.mlpackage` (lo guarda `instalar` desde esta versión: un plugin
+  instalado antes hay que reinstalarlo para tener variantes CoreML);
+- `modelo.onnx` / `modelo-nv12.onnx` con las dimensiones fijas (onnx deduce las de adentro y las de salida);
+- `variante.json`: `id`, `plugin`, `nombre`, `descripcion`, `para` (qué cámara o uso), `entrada` (ancho, alto,
+  formatos, color), `red` (lo que entra a la red: la mitad en una x4, escala, arquitectura), `salida`, `archivos`,
+  `medido` (CoreML: ms y acelerador), `creada`, `herramienta` (con las versiones de coremltools y onnx), `licencia`.
+
+No hace falta PyTorch: corre con el Python del programa, que trae coremltools (Mac), onnx y pillow
+(`tools/deps/python.sh`). Puede haber muchas por plugin. La app arma la propiedad `variantes`
+(`"1024x576=/ruta;…"`) de `basuperres`, `bacoremlsr` y `baonnxsr`, y el motor usa la del tamaño que le llega
+(si no hay, la general). Si llega un tamaño sin variante, CoreML agranda común y lo avisa en `error`.
+Los shaders GLSL no llevan variantes: la placa los compila para cualquier tamaño.
+
 ## En la interfaz
 
 - **Tarjeta «Superresolución»** (Video, al seleccionarla):
@@ -158,6 +177,8 @@ declara su demora (LATENCY = `espera-ms`), y el colchón compensa la demora real
   - entrenar la red propia;
   - **placa de video**: detectada, runtime de GPU, bajar con o sin TensorRT;
   - **destilar**: entrada, maestro, minutos, CPU o GPU, aplicar;
+  - **variantes por resolución**: la red, las cámaras sin variante y «Crear las que faltan», otro tamaño a mano
+    (con «para qué» y qué motores), y cada variante con lo medido, su «para qué» editable y ✕;
   - **plugins propios**: crear, editar con las propiedades del elemento, borrar, ver si andan;
   - modelos.
 - **Panel de sincronía**: cada entrada de GStreamer muestra lo que corre en su cadena (con la demora de cada filtro
@@ -175,6 +196,7 @@ declara su demora (LATENCY = `espera-ms`), y el colchón compensa la demora real
 | `superres_runtime_gpu`, `superres_runtime_gpu_instalar` | Ver la placa y bajar su runtime. |
 | `superres_destilar` | Destilar una red. |
 | `superres_plugin_elemento`, `superres_plugin_borrar` | Crear y borrar plugins propios. |
+| `superres_variantes`, `superres_variante_crear`, `superres_variante_editar`, `superres_variante_borrar` | Variantes de una red por tamaño de entrada (`faltantes: true`: las cámaras que no la tienen). |
 | `entrada_filtros_audio` | Los filtros de audio de una entrada. |
 | `entrada_control` | Evento `ba/control` por la cadena de una entrada. |
 | `superres_programador` | Ver y configurar el programador. |

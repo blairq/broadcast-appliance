@@ -1002,6 +1002,10 @@ void VideoGrafos::sincronizar() {
     if (cambiaron || nuevos) emit cambio();
 }
 
+void VideoGrafos::reaplicarEntradas() {
+    for (const QString& e : entradas_) aplicar(e.toStdString());
+}
+
 void VideoGrafos::aplicar(const std::string& entrada) {
     obs_source_t* src = obs_get_source_by_name(entrada.c_str());
     if (src == nullptr) return;
@@ -1196,6 +1200,8 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             const std::string motor = q.value("motor", std::string("auto"));
             if (!motor.empty() && motor != "auto") pr["motor"] = motor;
             if (!q.value("modelo", std::string()).empty()) pr["modelo"] = q.value("modelo", std::string());
+            // Las variantes compiladas para cada tamaño (el motor usa la del que llega).
+            if (!q.value("variantes", std::string()).empty()) pr["variantes"] = q.value("variantes", std::string());
             if (q.value("escala_red", 2) > 2) pr["escala-red"] = std::to_string(q.value("escala_red", 2));
             if (!q.value("proveedor", std::string()).empty()) pr["proveedor"] = q.value("proveedor", std::string());
             pr["nitidez"] = decimal(q.value("nitidez", 0.2));

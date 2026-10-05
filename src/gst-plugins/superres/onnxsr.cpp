@@ -412,6 +412,8 @@ struct _BaOnnxSr {
     GstBaseTransform parent;
     GstVideoInfo in, out;
     gchar* modelo;
+    gchar* variantes;     ///< "WxH=ruta;…": la red fija para cada tamaño de cámara (si no, `modelo`)
+    std::string* rutaRed; ///< la que se abre (la variante del tamaño o `modelo`)
     gchar* proveedor;
     gchar* cache;
     gint dispositivo;
@@ -449,6 +451,7 @@ enum {
     PROP_0,
     PROP_ACTIVO,
     PROP_MODELO,
+    PROP_VARIANTES,
     PROP_PROVEEDOR,
     PROP_DISPOSITIVO,
     PROP_FP16,
@@ -513,16 +516,17 @@ static std::unique_ptr<Ort::Session> sesionCon(BaOnnxSr* s, Ort::Env& env, const
     for (const auto& [nombre, valor] :
          {std::pair{"alto", h}, {"ancho", w}, {"height", h}, {"width", w}, {"alto_c", h / 2}})
         Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(op, nombre, valor));
-    std::string cache = s->cache != nullptr && *s->cache != '\0' ? s->cache : std::string(s->modelo) + ".cache";
+    const std::string& modelo = *s->rutaRed;
+    std::string cache = s->cache != nullptr && *s->cache != '\0' ? s->cache : modelo + ".cache";
     cache = (std::filesystem::path(cache) / (p + "-" + std::to_string(s->dispositivo) + "-" + std::to_string(w) +
                                             "x" + std::to_string(h)))
                 .string();
     ba::ort::agregarProveedor(op, p, s->dispositivo, s->fp16, cache);
 #if defined(_WIN32)
-    const std::wstring ruta = std::filesystem::path(s->modelo).wstring();
+    const std::wstring ruta = std::filesystem::path(modelo).wstring();
     return std::make_unique<Ort::Session>(env, ruta.c_str(), op);
 #else
-    return std::make_unique<Ort::Session>(env, s->modelo, op);
+    return std::make_unique<Ort::Session>(env, modelo.c_str(), op);
 #endif
 }
 
@@ -564,6 +568,9 @@ static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
         if (r->nv12) return r.release(); // el laboratorio ya dejó la red para x2 de lo que entra
         const auto forma = info.GetShape();
         r->canales = forma.size() == 4 && forma[1] > 0 ? static_cast<int>(forma[1]) : 1;
+        // Una variante fija para una x4 viene a la mitad de la cámara: ya se sabe.
+        if (!r->mitad && forma.size() == 4 && forma[3] > 0 && forma[2] > 0 && forma[3] * 2 == w && forma[2] * 2 == h)
+            r->mitad = true;
         if (r->canales != 1 && r->canales != 3)
             throw std::runtime_error("el modelo tiene que tener 1 (luma) o 3 (RGB) canales de entrada");
         // Lo que agranda: una pasada de prueba (y de paso calienta la red).
@@ -600,7 +607,7 @@ static void abrirRed(BaOnnxSr* s, int w, int h) {
         Red* r = abrirCon(s, w, h, motivos);
         r->in.resize(static_cast<size_t>(r->canales) * std::max(r->iw, 1) * std::max(r->ih, 1));
         s->lista->store(r);
-        GST_INFO_OBJECT(s, "red %s: %s, x%d%s, %s (%s)", s->modelo, r->nv12 ? "NV12" : "float", r->factor,
+        GST_INFO_OBJECT(s, "red %s: %s, x%d%s, %s (%s)", s->rutaRed->c_str(), r->nv12 ? "NV12" : "float", r->factor,
                         r->mitad ? " a la mitad" : "", r->proveedor.c_str(), motivos.c_str());
         // Si se quedó con uno peor que el pedido, que se sepa por qué.
         ponerError(s, motivos.empty() || r->proveedor != "cpu" ? "" : "corre en la CPU: " + motivos);
@@ -1037,6 +1044,7 @@ static void quizasPreparar(BaOnnxSr* s) {
     } else if (s->preparando == nullptr && !hayError(s) && hayModelo(s)) {
         s->pw = GST_VIDEO_INFO_WIDTH(&s->in);
         s->ph = GST_VIDEO_INFO_HEIGHT(&s->in);
+        *s->rutaRed = ba::sr::rutaVariante(s->modelo, s->variantes, s->pw, s->ph);
         s->preparando = g_thread_new(
             "baonnxsr-preparar",
             [](gpointer d) -> gpointer {
@@ -1138,6 +1146,11 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
             soltarRed(s);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
             break;
+        case PROP_VARIANTES:
+            g_free(s->variantes);
+            s->variantes = g_value_dup_string(v);
+            soltarRed(s); // se vuelve a abrir con la del tamaño
+            break;
         case PROP_ACTIVO:
             s->activo = g_value_get_boolean(v);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
@@ -1170,6 +1183,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_ONNXSR(o);
     switch (id) {
         case PROP_MODELO: g_value_set_string(v, s->modelo); break;
+        case PROP_VARIANTES: g_value_set_string(v, s->variantes); break;
         case PROP_PROVEEDOR: g_value_set_string(v, s->proveedor); break;
         case PROP_DISPOSITIVO: g_value_set_int(v, s->dispositivo); break;
         case PROP_FP16: g_value_set_boolean(v, s->fp16); break;
@@ -1267,6 +1281,8 @@ static void ba_onnxsr_finalize(GObject* o) {
     delete s->lista;
 #endif
     g_free(s->modelo);
+    g_free(s->variantes);
+    delete s->rutaRed;
     g_free(s->proveedor);
     g_free(s->cache);
     g_free(s->error);
@@ -1294,6 +1310,12 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     g_object_class_install_property(
         go, PROP_MODELO,
         g_param_spec_string("modelo", "Modelo", "Ruta del .onnx (vacío: pasa sin tocar)", nullptr, rw));
+    g_object_class_install_property(
+        go, PROP_VARIANTES,
+        g_param_spec_string("variantes", "Variantes",
+                            "La red con tamaño fijo para cada tamaño de cámara: «1024x576=/ruta/a.onnx;…» "
+                            "(TensorRT y DirectML van mejor con tamaños fijos). Si no hay, `modelo`",
+                            nullptr, rw));
     g_object_class_install_property(
         go, PROP_PROVEEDOR,
         g_param_spec_string("proveedor", "Proveedor",
@@ -1362,6 +1384,8 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
 
 static void ba_onnxsr_init(BaOnnxSr* s) {
     s->modelo = nullptr;
+    s->variantes = nullptr;
+    s->rutaRed = new std::string();
     s->proveedor = g_strdup("auto");
     s->cache = nullptr;
     s->dispositivo = 0;

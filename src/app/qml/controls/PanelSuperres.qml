@@ -242,6 +242,124 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
     }
 
+    // --- Variantes por resolución ------------------------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    Text { text: "Variantes por resolución"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        color: Theme.textDim; font.pixelSize: 11
+        text: "La misma red compilada para un tamaño de entrada fijo: el Neural Engine (CoreML) solo corre tamaños compilados, y TensorRT y " +
+              "DirectML van mejor con la forma fija (ONNX). Cada variante guarda su ficha (variante.json: qué es, para qué cámara, tamaños de " +
+              "entrada, red y salida, lo medido). La tarjeta usa sola la del tamaño que le llega. Se hacen acá mismo, sin bajar nada. " +
+              "Los shaders GLSL no las necesitan: la placa los compila para cualquier tamaño."
+    }
+    ColumnLayout {
+        id: varSec
+        Layout.fillWidth: true
+        spacing: 8
+        readonly property var redes: panel.sr ? (panel.sr.modelos, panel.sr.pluginsUi()).filter(p => p.tipo === "red" && p.instalado) : []
+        property string plugin: ""
+        property var lista: []
+        property var faltan: []
+        readonly property string elegido: plugin !== "" ? plugin : (redes.length > 0 ? redes[0].id : "")
+        function refrescar() {
+            lista = panel.sr && elegido !== "" ? panel.sr.variantesUi(elegido) : []
+            faltan = panel.sr && elegido !== "" ? panel.sr.tamanosSinVarianteUi(elegido) : []
+        }
+        onElegidoChanged: refrescar()
+        Timer { interval: 3000; running: panel.visible; repeat: true; triggeredOnStart: true; onTriggered: varSec.refrescar() }
+        Connections { target: panel.sr; function onCambio() { varSec.refrescar() } }
+        Text {
+            visible: varSec.redes.length === 0
+            text: "No hay redes instaladas (Modelos, más abajo, o superres_instalar)."
+            color: Theme.textFaint; font.pixelSize: 12
+        }
+        RowLayout {
+            visible: varSec.redes.length > 0
+            Layout.fillWidth: true
+            spacing: 8
+            Text { text: "Red"; color: Theme.textDim; font.pixelSize: 12 }
+            ComboBox {
+                Layout.preferredWidth: 280
+                model: varSec.redes.map(p => p.nombre || p.id)
+                currentIndex: Math.max(0, varSec.redes.findIndex(p => p.id === varSec.elegido))
+                onActivated: (i) => varSec.plugin = varSec.redes[i].id
+            }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: varSec.faltan.length > 0 ? "Cámaras sin variante: " + varSec.faltan.join(", ") : "Todas las cámaras del estudio tienen la suya."
+                color: varSec.faltan.length > 0 ? Theme.amber : Theme.textFaint; font.pixelSize: 11
+            }
+            GlassButton {
+                compact: true; text: "Crear las que faltan"
+                enabled: varSec.faltan.length > 0 && !panel.tr.corriendo
+                onClicked: panel.avisar(panel.sr.crearFaltantesUi(varSec.elegido), "Compilando " + varSec.faltan.join(", ") + "…")
+            }
+        }
+        RowLayout {
+            visible: varSec.redes.length > 0
+            Layout.fillWidth: true
+            spacing: 8
+            Text { text: "Otro tamaño"; color: Theme.textDim; font.pixelSize: 12 }
+            SpinBox { id: varAncho; from: 16; to: 4096; stepSize: 2; value: 1280; editable: true }
+            Text { text: "×"; color: Theme.textDim }
+            SpinBox { id: varAlto; from: 16; to: 4096; stepSize: 2; value: 720; editable: true }
+            TextField { id: varPara; Layout.fillWidth: true; placeholderText: "Para qué (p. ej. «cámara del patio»)" }
+            ComboBox {
+                id: varMotores
+                implicitWidth: 150
+                model: [ { t: "Todo lo que tenga", v: "auto" }, { t: "Solo CoreML", v: "coreml" }, { t: "Solo ONNX", v: "onnx,onnx_nv12" } ]
+                textRole: "t"
+            }
+            GlassButton {
+                compact: true; active: true; text: "Crear"
+                enabled: !panel.tr.corriendo
+                onClicked: panel.avisar(panel.sr.crearVarianteUi(varSec.elegido, varAncho.value, varAlto.value, varPara.text,
+                                                                 varMotores.model[varMotores.currentIndex].v),
+                                        "Compilando " + varAncho.value + "x" + varAlto.value + "…")
+            }
+        }
+        Text {
+            visible: !!panel.tr.corriendo && String(panel.tr.que || "").indexOf("Variantes") === 0
+            Layout.fillWidth: true; elide: Text.ElideRight
+            text: (panel.tr.que || "") + " · " + (panel.tr.texto || "")
+            color: Theme.accent; font.pixelSize: 11
+        }
+        Repeater {
+            model: varSec.lista
+            delegate: RowLayout {
+                id: vr
+                required property var modelData
+                readonly property var en: modelData.entrada || {}
+                readonly property var sa: modelData.salida || {}
+                readonly property var med: (modelData.medido || {}).coreml || {}
+                Layout.fillWidth: true
+                spacing: 8
+                Text { text: vr.en.ancho + "×" + vr.en.alto; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } Layout.preferredWidth: 90 }
+                Text {
+                    Layout.preferredWidth: 300; elide: Text.ElideRight
+                    text: "→ " + vr.sa.ancho + "×" + vr.sa.alto + " · " + Object.keys(vr.modelData.archivos || {}).join(", ") +
+                          (vr.med.ms ? " · " + Number(vr.med.ms).toFixed(1) + " ms en " + (vr.med.acelerador || "?") : "") +
+                          " · " + (vr.modelData.creada || "")
+                    color: Theme.textDim; font.pixelSize: 11
+                    ToolTip.visible: vhov.hovered; ToolTip.delay: 400; ToolTip.text: vr.modelData.descripcion || ""
+                    HoverHandler { id: vhov }
+                }
+                TextField {
+                    Layout.fillWidth: true
+                    text: vr.modelData.para || ""
+                    placeholderText: "Para qué"
+                    onEditingFinished: if (text !== (vr.modelData.para || ""))
+                        panel.avisar(panel.sr.editarVarianteUi(vr.modelData.plugin, vr.modelData.id, text, vr.modelData.descripcion || ""), "Guardado")
+                }
+                GlassButton {
+                    compact: true; text: "✕"
+                    onClicked: { panel.avisar(panel.sr.borrarVarianteUi(vr.modelData.plugin, vr.modelData.id), "Variante borrada"); varSec.refrescar() }
+                }
+            }
+        }
+    }
+
     // --- Plugins propios (elementos de GStreamer) ------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
     RowLayout {

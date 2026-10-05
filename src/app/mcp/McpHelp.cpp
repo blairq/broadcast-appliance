@@ -685,6 +685,7 @@ Antes de traducir, cada término conocido se reemplaza por su traducción ya hec
 ## Recetas
 - Una cámara vieja en una Mac: `superres_tarjeta {"entrada": "Cámara 1", "motor": "apple"}`.
 - Probar FSR: `superres_tarjeta {"entrada", "motor": "fsr"}`.
+- Una red en una cámara de un tamaño raro (CoreML agranda común y lo avisa en `error`): `superres_variante_crear {"plugin", "faltantes": true}` compila la red para el tamaño de cada cámara que no tiene la suya (sin PyTorch; superres_estado muestra cómo va); `superres_variantes {"plugin"}` las lista con su ficha (para qué, tamaños, ms medidos).
 - Entrenar con un botón: `superres_entrenar {"entrada": "Cámara 1", "minutos": 5}` (graba ~1 minuto de la cámara sin tocar el aire, entrena y la aplica; dice cuánto mejora en dB contra el agrandado común). La primera vez baja el laboratorio (PyTorch, ~800 MB, una vez). Volver a entrenar sigue desde la red anterior.
 - SPAN o Real-ESRGAN: `superres_modelo {"cual": "span"}` y después `superres_tarjeta {"entrada", "motor": "onnx", "modelo": "span-x2.onnx"}`.
 - Sacarla: `superres_aplicar {"entrada", "motor": ""}`.
