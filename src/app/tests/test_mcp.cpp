@@ -363,6 +363,67 @@ int main(int argc, char** argv) {
         r2 = callT("salir_al_aire", json::object(), "A");
         CHECK(r2["result"].value("isError", false) && runs == 4,
               "sin aprobador: bloqueado, nunca se ejecuta");
+
+        // --- Guardas de aire: con aire, una herramienta de aire pedida por algo
+        // automático espera SIEMPRE a una persona (aunque la política sea "nunca").
+        {
+            int corridas = 0, preguntas = 0;
+            bool decide = false;
+            std::string motivo;
+            Tool t;
+            t.name = "scene_switch";
+            t.run = [&corridas](const json&, Done done) {
+                ++corridas;
+                done(ToolResult::ok("cambiada"));
+            };
+            sec.addTool(std::move(t));
+            sec.setApprovalPolicy(ApprovalPolicy::Never);
+            bool aire = false;
+            sec.setHayAire([&aire]() { return aire; });
+            sec.setApprover([&](const Tool&, const json&, const std::string& m, std::function<void(bool)> d) {
+                ++preguntas;
+                motivo = m;
+                d(decide);
+            });
+            const auto llamar = [&](const CallContext& c) {
+                json res;
+                sec.callTool({{"name", "scene_switch"}, {"arguments", json::object()}}, [&res](json x) { res = x; }, c);
+                return res;
+            };
+            llamar(CallContext{"Z", "", "asistente"});
+            CHECK(corridas == 1 && preguntas == 0, "sin aire: la de aire va directo");
+            aire = true;
+            json x = llamar(CallContext{"Z", "", "asistente"});
+            CHECK(preguntas == 1 && corridas == 1 && motivo.rfind("ACCIÓN DE AIRE", 0) == 0 && x.value("isError", false),
+                  "con aire: pregunta aunque la politica sea nunca, y rechazada no corre");
+            decide = true;
+            llamar(CallContext{"Z", "", "plugin"});
+            CHECK(preguntas == 2 && corridas == 2, "con aire, un plugin tambien pregunta; aprobada corre");
+            llamar(CallContext{"Z", "", "botonera", true});
+            CHECK(preguntas == 2 && corridas == 3, "una persona (botonera): no pregunta");
+            sec.setApprover({});
+            x = llamar(CallContext{"Z", "", "disparador"});
+            CHECK(corridas == 3 && x.value("structuredContent", json::object()).value("necesita_confirmacion", false),
+                  "sin aprobador: bloqueada, con necesita_confirmacion");
+            // En vivo, la voz solo lee o hace lo reversible sin preguntar.
+            int otras = 0;
+            Tool u;
+            u.name = "algo_que_cambia";
+            u.run = [&otras](const json&, Done done) {
+                ++otras;
+                done(ToolResult::ok("ok"));
+            };
+            sec.addTool(std::move(u));
+            json y;
+            sec.callTool({{"name", "algo_que_cambia"}, {"arguments", json::object()}}, [&y](json r) { y = r; },
+                         CallContext{"V", "", "voz"});
+            CHECK(otras == 0 && y.value("isError", false), "en vivo, la voz no cambia cosas sin preguntar");
+            sec.callTool({{"name", "algo_que_cambia"}, {"arguments", json::object()}}, [&y](json r) { y = r; },
+                         CallContext{"V", "", "asistente"});
+            CHECK(otras == 1, "el asistente con politica nunca: lo no-de-aire va directo");
+            CHECK(sec.aire().ajustar("scene_switch", "normal") != "", "las fijas no bajan");
+            sec.setHayAire({});
+        }
     }
 
     // --- 7) HTTP ---------------------------------------------------------------------

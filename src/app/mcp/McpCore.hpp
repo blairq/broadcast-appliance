@@ -45,6 +45,8 @@
 #include <string>
 #include <vector>
 
+#include "mcp/McpAire.hpp"
+
 #include <nlohmann/json.hpp>
 
 namespace ba::app::mcp {
@@ -101,6 +103,12 @@ struct Tool {
 struct CallContext {
     std::string session;
     std::string rol;
+    /// Quién pide: asistente, plugin, receta, disparador, voz, botonera… (para
+    /// las guardas de aire y el registro).
+    std::string origen;
+    /// Una persona apretó algo (p. ej. un botón de la botonera): no pasa por la
+    /// guarda de aire (ya decidió un humano).
+    bool humano = false;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.
@@ -176,6 +184,14 @@ class McpCore {
     using Approver = std::function<void(const Tool& tool, const json& args, const std::string& reason,
                                         std::function<void(bool approved)> decide)>;
     void setApprover(Approver fn) { approver_ = std::move(fn); }
+
+    /// --- Guardas de aire (McpAire) --------------------------------------------
+    /// Mientras `hayAire()` (transmitiendo, grabando o la sesión en vivo), una
+    /// herramienta de aire pedida por algo automático espera SIEMPRE a una
+    /// persona; y la voz y los disparadores solo leen o hacen lo reversible.
+    void setHayAire(std::function<bool()> fn) { hayAire_ = std::move(fn); }
+    bool hayAire() const { return hayAire_ && hayAire_(); }
+    McpAire& aire() { return aire_; }
 
     /// Lo que hay que hacer DESPUES de cada herramienta que modifica algo:
     /// persistir y avisarle a la interfaz.
@@ -314,6 +330,8 @@ class McpCore {
     std::vector<Resource> resources_;
     std::vector<Prompt> prompts_;
     Approver approver_;
+    std::function<bool()> hayAire_;
+    McpAire aire_;
     std::function<void()> sincronizar_;
     ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;
     struct Taint {

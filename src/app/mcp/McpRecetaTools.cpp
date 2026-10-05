@@ -266,7 +266,7 @@ void McpService::registerRecetaTools() {
                         }
                         (*siguiente)();
                     },
-                    CallContext{});
+                    CallContext{"", "", "receta"});
             };
             (*siguiente)();
         };

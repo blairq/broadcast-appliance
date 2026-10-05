@@ -301,6 +301,46 @@ Rectangle {
                     }
                 }
 
+                // Seguridad en vivo: lo que el asistente (y todo lo automático) no hace al aire sin preguntar.
+                Panel {
+                    id: segPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: segCol.implicitHeight + 64
+                    title: "Seguridad en vivo"
+                    property var info: ({})
+                    Timer { interval: 2000; running: page.visible; repeat: true; triggeredOnStart: true; onTriggered: segPanel.info = ag.aireUi() }
+                    ColumnLayout {
+                        id: segCol
+                        anchors.fill: parent
+                        spacing: 6
+                        RowLayout {
+                            Text { text: segPanel.info.hay_aire ? "🔒" : "🔓"; font.pixelSize: 14 }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: segPanel.info.hay_aire
+                                      ? "Al aire: consola (Bash) apagada; las acciones de aire las confirma una persona (Enter / Esc)."
+                                      : "Fuera del aire. Al transmitir o grabar, la consola se apaga y estas acciones piden confirmación."
+                                color: segPanel.info.hay_aire ? Theme.warn : Theme.textDim; font.pixelSize: 12
+                            }
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Repeater {
+                                model: segPanel.info.herramientas || []
+                                delegate: StatusPill {
+                                    required property var modelData
+                                    text: modelData.herramienta + (modelData.clase === "aire_si" ? " *" : "")
+                                    dot: modelData.fija ? Theme.live : Theme.warn
+                                    ToolTip.visible: segHov.hovered; ToolTip.delay: 400
+                                    ToolTip.text: (modelData.por_que || "agregada") + (modelData.clase === "aire_si" ? " (según los argumentos)" : "")
+                                    HoverHandler { id: segHov }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: quickCol.implicitHeight + 64

@@ -196,6 +196,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
     // El rol lo declara el cliente en cada pedido (el puente lo repite): no
     // hay que guardarlo por sesion, y un cliente sin rol sigue viendo todo.
     ctx.rol = headerValue(headers, "X-BA-Rol").trimmed().toStdString();
+    ctx.origen = "asistente";
     const auto isInit = [](const json& m) { return m.is_object() && m.value("method", "") == "initialize"; };
     if (isInit(msg) || (msg.is_array() && std::any_of(msg.begin(), msg.end(), isInit))) {
         const QString sid = randomHex(16);

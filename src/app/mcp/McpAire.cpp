@@ -1,0 +1,134 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+#include "mcp/McpAire.hpp"
+
+#include <fstream>
+
+namespace ba::app::mcp {
+
+using json = nlohmann::json;
+
+namespace {
+
+/// Las de siempre: cambian lo que ve o escucha el público, o cortan la salida.
+const std::map<std::string, std::string>& fijas() {
+    static const std::map<std::string, std::string> m{
+        {"scene_switch", "cambia la escena al aire"},
+        {"scene_take", "pasa el preview al aire"},
+        {"stream_stop", "corta la transmisión"},
+        {"stream_start", "arranca o cambia la transmisión"},
+        {"record_stop", "corta la grabación"},
+        {"participant_kick", "saca a un invitado de la sala"},
+        {"gateway_restart", "reinicia el gateway (corta a los invitados)"},
+        {"app_quit", "cierra el programa"},
+        {"transition_set", "cambia la transición"},
+        {"speaker_on_air", "pone o saca oradores del aire"},
+        {"source_remove", "borra una fuente (puede estar al aire)"},
+        {"scene_delete", "borra una escena"},
+        {"settings_set", "cambia ajustes (los de gateway o reinicio cortan)"},
+        {"audio_set", "cambia el audio (mute del máster corta el sonido)"},
+        {"ptz_mover", "mueve una cámara (si está al aire, se ve)"},
+        {"ptz_preset", "lleva una cámara a un preset (si está al aire, se ve)"},
+        {"ptz_ir_posicion", "lleva una cámara a una posición (si está al aire, se ve)"},
+        {"ptz_apuntar", "apunta una cámara (si está al aire, se ve)"},
+        {"ptz_encuadre", "reencuadra una cámara (si está al aire, se ve)"},
+        {"ptz_seguir", "una cámara sigue a alguien (si está al aire, se ve)"},
+        {"participant_talk", "abre o cierra el micrófono de un invitado"},
+    };
+    return m;
+}
+
+/// Las que cuentan solo con ciertos argumentos (el resto del tiempo son normales).
+bool condicionFija(const std::string& h, const json& a) {
+    if (h == "settings_set") {
+        // Lo que se aplica en caliente sin cortar es normal; gateway/reinicio, de aire.
+        for (const auto& [k, v] : a.value("values", json::object()).items()) {
+            (void)v;
+            if (k.rfind("gateway.", 0) == 0 || k.rfind("video.", 0) == 0 || k.rfind("encoder.", 0) == 0 ||
+                k.rfind("stream.", 0) == 0)
+                return true;
+        }
+        return false;
+    }
+    if (h == "audio_set") {
+        // Silenciar o bajar el máster / el programa.
+        const std::string f = a.value("source", a.value("fuente", std::string()));
+        return f.empty() || f == "master" || f == "máster" || f == "programa";
+    }
+    if (h == "speaker_on_air") return !a.value("on", a.value("al_aire", true)); // sacar a alguien
+    return true;
+}
+
+bool esAireSi(const std::string& h) {
+    return h == "settings_set" || h == "audio_set" || h == "speaker_on_air" || h.rfind("ptz_", 0) == 0;
+}
+
+} // namespace
+
+bool reversibleEnVivo(const std::string& h) {
+    static const std::set<std::string> s{"audio_set", "prompter_control", "ptz_parar"};
+    return s.count(h) != 0;
+}
+
+void McpAire::cargar(const std::filesystem::path& config) {
+    archivo_ = config;
+    std::ifstream f(config);
+    const json j = json::parse(f, nullptr, false);
+    std::lock_guard<std::mutex> l(mu_);
+    agregadas_.clear();
+    if (j.is_object())
+        for (const auto& x : j.value("aire", json::array()))
+            if (x.is_string()) agregadas_.insert(x.get<std::string>());
+}
+
+ClaseAire McpAire::clase(const std::string& h) const {
+    if (fijas().count(h)) return esAireSi(h) ? ClaseAire::AireSi : ClaseAire::Aire;
+    std::lock_guard<std::mutex> l(mu_);
+    return agregadas_.count(h) ? ClaseAire::Aire : ClaseAire::Normal;
+}
+
+bool McpAire::esDeAire(const std::string& h, const json& args) const {
+    switch (clase(h)) {
+        case ClaseAire::Normal: return false;
+        case ClaseAire::Aire: return true;
+        case ClaseAire::AireSi:
+            if (h.rfind("ptz_", 0) == 0) return condicion_ ? condicion_(h, args) : true;
+            return condicionFija(h, args);
+    }
+    return false;
+}
+
+json McpAire::lista() const {
+    json out = json::array();
+    for (const auto& [h, por] : fijas())
+        out.push_back({{"herramienta", h},
+                       {"clase", esAireSi(h) ? "aire_si" : "aire"},
+                       {"fija", true},
+                       {"por_que", por}});
+    std::lock_guard<std::mutex> l(mu_);
+    for (const auto& h : agregadas_)
+        if (!fijas().count(h)) out.push_back({{"herramienta", h}, {"clase", "aire"}, {"fija", false}});
+    return out;
+}
+
+std::string McpAire::ajustar(const std::string& h, const std::string& c) {
+    if (h.empty()) return "falta `herramienta`";
+    if (c != "aire" && c != "normal") return "`clase`: aire o normal";
+    if (fijas().count(h)) return c == "aire" ? "" : "«" + h + "» es de aire siempre: no se puede bajar";
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        if (c == "aire")
+            agregadas_.insert(h);
+        else
+            agregadas_.erase(h);
+    }
+    json j{{"aire", json::array()}};
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        for (const auto& x : agregadas_) j["aire"].push_back(x);
+    }
+    std::ofstream o(archivo_);
+    o << j.dump(1);
+    return o ? "" : "no se pudo guardar " + archivo_.string();
+}
+
+} // namespace ba::app::mcp

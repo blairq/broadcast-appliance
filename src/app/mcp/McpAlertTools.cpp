@@ -33,7 +33,8 @@ void McpService::registerAlertTools() {
                 {"id", "alerta-" + std::to_string(ev.value("id", 0))},
                 {"method", "tools/call"},
                 {"params", {{"name", a["tool"]}, {"arguments", a.value("arguments", json::object())}}}};
-            core_.handle(call, [](const json&) {});
+            core_.handle(call, [](const json&) {},
+                         CallContext{"disparador-" + std::to_string(ev.value("id", 0)), "", "disparador"});
         }
     });
 

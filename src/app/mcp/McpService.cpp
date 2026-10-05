@@ -345,7 +345,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                     if (datos.is_null()) datos = json::parse(texto, nullptr, false);
                     fin(!r.value("isError", false), datos.is_discarded() ? json() : datos, texto);
                 },
-                CallContext{sesion, ""});
+                CallContext{sesion, "", "voz"});
         };
         const auto llamar = [llamarEn](const std::string& nombre, const json& args,
                                        std::function<void(bool, const json&, const std::string&)> fin) {
@@ -614,15 +614,41 @@ void McpService::applySecurity() {
         const std::string id = p.value("id", "");
         return std::find(ids.begin(), ids.end(), id) != ids.end();
     });
+    // Guardas de aire (McpAire): qué es "hay aire" y cuándo una PTZ cuenta
+    // (la cámara está en la escena al aire).
+    core_.aire().cargar(rt_.dataRoot() / "Config" / "mcp-aire.json");
+    const auto hayAire = [this]() {
+        const EngineStatus st = rt_.engine().status();
+        if (st.streaming || st.recording) return true;
+        auto* ev = static_cast<EventoViewModel*>(vm_.evento());
+        return ev != nullptr && ev->enVivo();
+    };
+    core_.setHayAire(hayAire);
+    core_.aire().setCondicion([this](const std::string&, const json& a) {
+        const std::string e = a.value("entrada", std::string());
+        if (e.empty()) return true;
+        const auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
+        return std::find(ss.begin(), ss.end(), e) != ss.end();
+    });
+    if (auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent())) {
+        ag->setHayAire(hayAire);
+        ag->setAireInfo([this]() {
+            const json j{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}};
+            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+        });
+    }
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {
             auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
             std::string a = args.empty() ? std::string("(sin argumentos)") : args.dump(2);
             if (a.size() > 1200) a = a.substr(0, 1200) + "\n…";
+            const bool deAire = reason.rfind("ACCIÓN DE AIRE", 0) == 0;
             const int id = msgs->post(json{{"kind", "question"},
                                            {"approval", true},
-                                           {"priority", t.destructive ? "critical" : "warning"},
-                                           {"title", "¿Aprobás esta acción del asistente?"},
+                                           {"aire", deAire},
+                                           {"priority", deAire || t.destructive ? "critical" : "warning"},
+                                           {"title", deAire ? "ACCIÓN DE AIRE: ¿la confirmás?"
+                                                            : "¿Aprobás esta acción del asistente?"},
                                            {"text", t.title + " (" + t.name + ")"},
                                            {"details", a},
                                            {"reason", reason},
@@ -777,6 +803,45 @@ void McpService::registerTools() {
                      {"lastError", st.lastError},
                      {"latido", rt.latido().estado()},
                      {"room", room}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "mcp_aire_lista";
+        t.title = "Herramientas de aire";
+        t.category = "estado";
+        t.readOnly = true;
+        t.idempotent = true;
+        t.description =
+            "Las herramientas que cambian el aire (cortar, cambiar de escena, sacar a alguien, parar la "
+            "transmisión…). Con la transmisión o la grabación andando, si las pide algo automático (asistente, "
+            "plugin, receta, disparador, voz) esperan SIEMPRE que una persona confirme. `clase`: aire (siempre) "
+            "o aire_si (según los argumentos: settings de gateway/video/encoder, mute del máster, sacar un "
+            "orador, PTZ de la cámara al aire). `hay_aire`: si ahora cuentan. En vivo, la voz y los disparadores "
+            "solo leen o hacen lo reversible sin preguntar.";
+        t.run = [this](const json&, Done done) {
+            done(ToolResult().data(json{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "mcp_aire_ajustar";
+        t.title = "Sumar o sacar una herramienta de las de aire";
+        t.category = "estado";
+        t.description = "`clase`: aire (pide confirmación en vivo) o normal. Las de la lista fija no bajan. Solo "
+                        "fuera del aire (con la transmisión o la grabación andando, no se cambia).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"herramienta", "clase"}},
+                         {"properties",
+                          {{"herramienta", {{"type", "string"}}},
+                           {"clase", {{"type", "string"}, {"enum", {"aire", "normal"}}}}}}};
+        t.run = [this](const json& a, Done done) {
+            if (core_.hayAire()) return done(ToolResult::error("Al aire no se cambian las guardas de aire."));
+            const std::string e = core_.aire().ajustar(a.value("herramienta", std::string()), a.value("clase", std::string()));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(core_.aire().lista()));
         };
         core_.addTool(std::move(t));
     }

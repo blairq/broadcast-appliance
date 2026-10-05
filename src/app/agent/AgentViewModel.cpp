@@ -1164,8 +1164,15 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // lo que pueda afectarlo se consulta antes (ver McpHelp.cpp).
         // Edit/Write siguen fuera: los archivos se tocan por consola, que es
         // donde el operador ve el comando exacto.
-        o.args << "--allowedTools" << "mcp__broadcast" << "Bash" << "PowerShell" << "--disallowedTools"
-               << "Edit" << "Write" << "NotebookEdit";
+        // EN VIVO, sin consola: un comando del sistema no pasa por las guardas
+        // de aire del MCP (ver McpAire). Al terminar el aire se relanza con ella.
+        conConsola_ = !(hayAire_ && hayAire_());
+        if (conConsola_)
+            o.args << "--allowedTools" << "mcp__broadcast" << "Bash" << "PowerShell" << "--disallowedTools"
+                   << "Edit" << "Write" << "NotebookEdit";
+        else
+            o.args << "--allowedTools" << "mcp__broadcast" << "--disallowedTools" << "Bash" << "PowerShell"
+                   << "Edit" << "Write" << "NotebookEdit";
     }
     return o;
 }
@@ -1278,6 +1285,23 @@ void AgentViewModel::stop() {
 void AgentViewModel::restart() {
     stop();
     QTimer::singleShot(300, this, &AgentViewModel::start);
+}
+
+void AgentViewModel::setHayAire(std::function<bool()> fn) {
+    hayAire_ = std::move(fn);
+    if (vigiaAire_ != nullptr) return;
+    vigiaAire_ = new QTimer(this);
+    vigiaAire_->setInterval(2000);
+    connect(vigiaAire_, &QTimer::timeout, this, [this]() {
+        if (!session_->running() || !hayAire_) return;
+        const bool aire = hayAire_();
+        // Salió al aire con la consola prendida: se relanza sin ella.
+        if (aire && conConsola_) {
+            setError("Al aire: el asistente se relanzó sin consola (Bash/PowerShell) hasta que termine la emisión.");
+            restart();
+        }
+    });
+    vigiaAire_->start();
 }
 
 void AgentViewModel::send(const QString& text) {

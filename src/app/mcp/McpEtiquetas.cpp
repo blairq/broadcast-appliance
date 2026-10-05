@@ -86,6 +86,8 @@ const Fila kPropias[] = {
     {"help", "indice catalogo guia empezar"},
     {"help_search", "buscar herramienta encontrar funcion que hay para"},
     {"status", "estado general resumen como esta todo panorama salud"},
+    {"mcp_aire_lista", "aire guardas confirmar acciones peligrosas en vivo transmision bloqueo seguridad"},
+    {"mcp_aire_ajustar", "aire guardas agregar sacar herramienta confirmar en vivo"},
     {"supervisor_politica", "supervisor latido interfaz trabada colgada relanzar reiniciar watchdog aire"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},

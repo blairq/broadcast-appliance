@@ -169,7 +169,7 @@ int runGui(int argc, char** argv) {
             pl->setLlamador([&mcpService](const std::string& h, const nlohmann::json& args,
                                           std::function<void(nlohmann::json)> listo) {
                 mcpService.core().callTool({{"name", h}, {"arguments", args}}, std::move(listo),
-                                           mcp::CallContext{"plugin", ""});
+                                           mcp::CallContext{"plugin", "", "plugin"});
             });
             QTimer::singleShot(3000, pl, [pl]() { pl->arrancarGuardados(); });
         }

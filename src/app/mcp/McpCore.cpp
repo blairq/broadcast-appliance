@@ -763,25 +763,46 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     };
     // Salvaguarda: en una sesion contaminada (o con politica "siempre"), una
     // accion que modifica algo espera la aprobacion de una persona.
+    // Guardas de aire: con la transmisión o la grabación andando, lo que cambia
+    // el aire pedido por algo automático espera SIEMPRE a una persona, sin
+    // importar política, rol ni contaminación. La voz y los disparadores, en
+    // vivo, solo leen o hacen lo reversible sin preguntar.
+    const bool enAire = !ctx.humano && hayAire();
+    const bool deAire = enAire && aire_.esDeAire(name, args);
+    const bool automaticoEnVivo = enAire && !deAire && mutating(*tool) &&
+                                  (ctx.origen == "voz" || ctx.origen == "disparador") && !reversibleEnVivo(name);
     const bool needApproval =
-        mutating(*tool) &&
-        (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
-        !intakeAllows(*tool, args);
+        deAire || automaticoEnVivo ||
+        (mutating(*tool) &&
+         (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
+         !intakeAllows(*tool, args));
     if (!needApproval) {
         execute();
         return;
     }
+    const std::string quienPide = ctx.origen.empty() ? "el asistente" : ctx.origen;
     if (!approver_) {
-        finish(ToolResult::error(
-            "Accion bloqueada: esta sesion leyo contenido de invitados y no hay a quien pedirle "
-            "aprobacion. Pedile al operador que la haga el."));
+        ToolResult r = ToolResult::error(
+            deAire || automaticoEnVivo
+                ? "Accion de AIRE bloqueada (" + name + ", pedida por " + quienPide +
+                      "): con la transmision o la grabacion andando necesita que una persona la confirme, y no "
+                      "hay a quien preguntarle. Pedile al operador que la haga el."
+                : "Accion bloqueada: esta sesion leyo contenido de invitados y no hay a quien pedirle "
+                  "aprobacion. Pedile al operador que la haga el.");
+        if (deAire || automaticoEnVivo) r.structured = json{{"necesita_confirmacion", true}, {"motivo", "de aire"}};
+        finish(r);
         return;
     }
-    const std::string reason = policy_ == ApprovalPolicy::Always
-                                   ? "La politica pide aprobar toda accion del asistente."
-                                   : "El asistente leyo contenido de invitados de la sala (" +
-                                         taint_[session].source +
-                                         "): por seguridad, lo que modifica algo necesita tu aprobacion.";
+    const std::string reason =
+        deAire ? "ACCIÓN DE AIRE: «" + name + "» cambia lo que sale y la pidió " + quienPide +
+                     ". Con la transmisión o la grabación andando, siempre la confirma una persona."
+        : automaticoEnVivo
+            ? "ACCIÓN DE AIRE: en vivo, " + quienPide + " solo hace lo reversible sin preguntar; «" + name +
+                  "» necesita tu confirmación."
+        : policy_ == ApprovalPolicy::Always
+            ? "La politica pide aprobar toda accion del asistente."
+            : "El asistente leyo contenido de invitados de la sala (" + taint_[session].source +
+                  "): por seguridad, lo que modifica algo necesita tu aprobacion.";
     approver_(*tool, args, reason, [execute, finish, name](bool ok) {
         if (ok) {
             execute();

@@ -541,7 +541,7 @@ endif()
         target_link_options(ba-mcp PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-mcp RUNTIME DESTINATION bin/64bit)
-    add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
+    add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
                    mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp PRIVATE ba_core Qt6::Core Qt6::Network)

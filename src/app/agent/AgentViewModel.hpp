@@ -40,6 +40,8 @@
 #include "JsonSignals.hpp"
 
 #include <atomic>
+#include <QTimer>
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -178,6 +180,15 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
     Q_INVOKABLE void restart();
+    /// Guardas de aire: con la transmisión o la grabación andando, el asistente
+    /// interactivo corre SIN consola (Bash/PowerShell); si estaba con consola,
+    /// se relanza sin ella.
+    void setHayAire(std::function<bool()> fn);
+    /// La consola del asistente está apagada por el aire (para el candado de la barra).
+    Q_INVOKABLE bool consolaApagadaPorAire() const { return hayAire_ && hayAire_(); }
+    /// Las herramientas de aire (para la sección Seguridad): {hay_aire, herramientas}.
+    void setAireInfo(std::function<QVariantMap()> fn) { aireInfo_ = std::move(fn); }
+    Q_INVOKABLE QVariantMap aireUi() const { return aireInfo_ ? aireInfo_() : QVariantMap{}; }
     /// Escribe un pedido en el prompt del agente y lo manda.
     Q_INVOKABLE void send(const QString& text);
     Q_INVOKABLE void setAlertEnabled(const QString& id, bool on);
@@ -288,6 +299,10 @@ class AgentViewModel : public QObject {
     bool flushScheduled_ = false;
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
     std::function<bool(const nlohmann::json&)> reclamado_;
+    std::function<bool()> hayAire_;
+    bool conConsola_ = false; ///< el interactivo arrancó con Bash/PowerShell
+    QTimer* vigiaAire_ = nullptr;
+    std::function<QVariantMap()> aireInfo_;
 };
 
 } // namespace ba::app::agent

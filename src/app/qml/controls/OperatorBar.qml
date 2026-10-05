@@ -21,6 +21,7 @@ Item {
     implicitHeight: visible ? card.implicitHeight : 0
     // Llega algo nuevo: se muestra lo mas importante (va primero).
     onNChanged: index = 0
+    onCurChanged: if (cur && cur.aire) card.forceActiveFocus()
 
     function colorFor(p) {
         if (p === "critical") return "#ef4444"
@@ -35,7 +36,7 @@ Item {
     Rectangle {
         id: card
         width: parent.width
-        implicitHeight: col.implicitHeight + 26
+        implicitHeight: col.implicitHeight + 26 + (bar.cur && bar.cur.aire ? 16 : 0)
         radius: 18
         color: Qt.rgba(bar.accent.r * 0.16 + 0.05, bar.accent.g * 0.16 + 0.05, bar.accent.b * 0.16 + 0.06, 1)
         border.width: 2
@@ -47,9 +48,26 @@ Item {
             ColorAnimation { to: "#ef4444"; duration: 500 }
         }
 
+        // Una acción de AIRE: banda roja arriba, Enter aprueba y Esc rechaza.
+        focus: bar.cur !== null && bar.cur.aire === true
+        Keys.onReturnPressed: if (bar.cur && bar.cur.aire) bar.msgs.answer(bar.cur.id, "Aprobar")
+        Keys.onEnterPressed: if (bar.cur && bar.cur.aire) bar.msgs.answer(bar.cur.id, "Aprobar")
+        Keys.onEscapePressed: if (bar.cur && bar.cur.aire) bar.msgs.answer(bar.cur.id, "Rechazar")
+        Rectangle {
+            visible: bar.cur !== null && bar.cur.aire === true
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: 22; radius: 18
+            color: "#dc2626"
+            Text {
+                anchors.centerIn: parent
+                text: "ACCIÓN DE AIRE · Enter confirma · Esc rechaza"
+                color: "white"; font { pixelSize: 11; weight: Font.Bold; letterSpacing: 1 }
+            }
+        }
+
         ColumnLayout {
             id: col
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14; topMargin: bar.cur && bar.cur.aire ? 30 : 14 }
             spacing: 8
 
             RowLayout {

@@ -74,6 +74,7 @@ int OperatorMessages::post(const json& spec) {
            {"guestText", spec.value("guestText", "")},
            {"suggestions", spec.value("suggestions", json::array())},
            {"approval", spec.value("approval", false)},
+           {"aire", spec.value("aire", false)}, // una acción que cambia el aire (banda roja)
            {"details", spec.value("details", "")},
            {"reason", spec.value("reason", "")},
            {"platform", spec.value("platform", "")},
