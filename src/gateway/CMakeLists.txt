@@ -413,6 +413,13 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/pantalla")
         DESTINATION Web/pantalla
     )
 endif()
+# Puesto del corrector de subtítulos (/correccion/#k=…, T44).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/correccion")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/correccion/"
+        DESTINATION Web/correccion
+    )
+endif()
+
 # Teleprompter: la tablet del orador (/prompter) y el control del celular
 # (/prompter/#control). Lo sirve B, como el resto de las vistas web.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")

@@ -109,6 +109,7 @@
 #include "ui/YouTubeViewModel.hpp"
 #include "video/SuperRes.hpp"
 #include "medios/Playlist.hpp"
+#include "ui/PuestoCorreccion.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
 #include <QCoreApplication>
@@ -565,6 +566,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Las salidas de texto (antes que la Voz las use).
     flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
     marca("flujos");
+    // El puesto web del corrector de subtítulos (/correccion/, T44).
+    puestoCorreccion_ = std::make_unique<PuestoCorreccion>(static_cast<ConferenceViewModel*>(conference_.get())->client(),
+                                                           *flujos_, this);
     // Los cuadros «Subtítulos» de las escenas muestran una salida de texto.
     subtitulos_ = std::make_unique<agent::Subtitulos>(*flujos_);
     // Subtítulos ocultos (CC) en la transmisión: 608 o la API de YouTube.
@@ -2878,6 +2882,7 @@ QString StudioViewModel::cupoUi(int n) {
 }
 
 QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
+QObject* StudioViewModel::puestoCorreccionQml() const { return puestoCorreccion_.get(); }
 
 QVariantMap StudioViewModel::grabacionUi() const {
     nlohmann::json j = rt_.engine().grabacionEstado();

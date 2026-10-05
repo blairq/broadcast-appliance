@@ -54,6 +54,8 @@ class ConferenceClient : public QObject {
     void chatReceived(const QJsonObject& msg);
     /// La botonera (superficie de control): solicitud, entrada o conexión de una tablet.
     void botoneraEvento(const QJsonObject& ev);
+    /// Lo que mandó el corrector de subtítulos desde /correccion/ (T44): {id, texto?, descartar}.
+    void correccionEvento(const QJsonObject& ev);
     void sesionEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);

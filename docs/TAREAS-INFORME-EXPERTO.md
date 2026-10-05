@@ -67,7 +67,7 @@
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (6 plantillas «Legislatura», orígenes votacion/quorum/hora para vínculos, «Armar en PVW» en Rótulos y `grafico_mostrar {armar}`; faltan campos vivos cuadro a cuadro y HTML) |
-| T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
+| T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app, por MCP y en el puesto web /correccion/; faltan los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho (contador del medio, back-timing y playlist con in/out, auto-next, loop y PVW) |
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | hecho en parte (token MCP rotado, PIN por sesión; passphrase = decisión pendiente; los enlaces vencen con el PIN) |
@@ -953,7 +953,18 @@
 - **Depende de:** T16, T36, T37 y T25.
 
 ### T44 · Subtítulos con corrección humana y parciales — P1
-- **Estado: falta.**
+- **Estado: hecho en parte** (2026-10-05).
+  - **La cola** (`FlujosTexto`): lo que transcribe la voz espera N s; se aprueba, se corrige o se descarta (MCP `subtitulos_*` y panel Traducción).
+  - **Puesto web** `/correccion/#k=<clave>`:
+    - la clave es nueva en cada arranque de la sala;
+    - la página pide cada 500 ms las frases que esperan, con su cuenta regresiva y la barra; Enter aprueba con lo escrito, Esc descarta, ↑↓ cambia de frase;
+    - la app empuja las pendientes al gateway (`POST /api/v1/correccion/pendientes`, `PuestoCorreccion`);
+    - lo que manda el corrector vuelve por el SSE (evento `correccion`) y se aplica con `FlujosTexto::corregir`;
+    - el enlace con QR sale de «Puesto de corrección…» en el panel y de `subtitulos_puesto`. Si la sala escucha solo en esta máquina, da el de 127.0.0.1 con aviso.
+    - `texto_publicar {como_voz}` prueba la cadena sin hablar.
+  - **Probado de punta a punta en la app:** frase en la cola → aparece en `/api/correccion` → POST con el texto corregido → sale corregida y la cola queda vacía. Una clave mala da 403.
+  - **Falta:** los parciales en streaming (sherpa-onnx `OnlineRecognizer`) en la vista del corrector.
+  - Antes:
   - Las frases van directo a la caja de subtítulos (`src/app/agent/Subtitulos.hpp:28`, `alFrase`).
   - El reconocimiento corta por VAD sin parciales (`src/app/audio/Escucha.hpp:83-96`).
 - **Qué hacer.**

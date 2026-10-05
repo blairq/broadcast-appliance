@@ -813,6 +813,52 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                       {"token", token}});
         return;
     }
+    // T44: la app le pasa las frases que esperan; y pide el enlace del puesto (con QR).
+    if (path == "/api/v1/correccion/pendientes" && method == "POST") {
+        {
+            std::lock_guard<std::mutex> l(correccionMu_);
+            correccionPend_ = req.value("pendientes", json::array());
+            correccionMs_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now().time_since_epoch()).count();
+        }
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+    if (path == "/api/v1/correccion-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        std::string aviso;
+        if (!out.contains("url")) {
+            if (target != "local") {
+                out["ok"] = false;
+                sendJson(fd, 200, out);
+                return;
+            }
+            // La sala escucha solo en esta máquina: sirve igual para un corrector en
+            // esta misma computadora (otra pantalla); para otra máquina hay que abrirla.
+            out["url"] = "http://127.0.0.1:" + std::to_string(cfg_.port) + "/";
+            aviso = out.value("message", std::string("la sala escucha solo en esta máquina")) +
+                    " — este enlace sirve solo en esta computadora.";
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        const std::string url = origin + "/correccion/#k=" + cfg_.correccionKey;
+        const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x) row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        json resp{{"ok", true}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}};
+        if (!aviso.empty()) resp["message"] = aviso;
+        sendJson(fd, 200, resp);
+        return;
+    }
     if (path == "/api/v1/prompter-link" && method == "GET") {
         // El enlace del control, con la clave en el FRAGMENTO para que no
         // viaje en la URL pedida ni quede en los registros del servidor.

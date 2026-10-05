@@ -238,6 +238,7 @@ const Fila kPropias[] = {
     {"traduccion_rotulo", "rotulo traduccion automatica dsk aviso"},
     {"subtitulos_correccion", "correccion subtitulos demora corrector humano"},
     {"subtitulos_pendientes", "frases pendientes corregir subtitulos"},
+    {"subtitulos_puesto", "puesto corrector subtitulos enlace web corregir desde otra computadora estenotipista"},
     {"subtitulos_corregir", "corregir aprobar descartar frase subtitulos"},
     {"quorum_regla", "quorum mayoria simple absoluta dos tercios miembros reglas"},
     {"quorum_estado", "hay quorum presentes"},

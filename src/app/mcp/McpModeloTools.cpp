@@ -23,6 +23,8 @@
 #include "agent/VozPrompter.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #if defined(BA_HAVE_CLAP)
@@ -502,6 +504,31 @@ void McpService::registerModeloTools() {
     }
     {
         Tool t;
+        t.name = "subtitulos_puesto";
+        t.title = "Enlace del puesto web de corrección";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.description = "El enlace de la página /correccion/ (con su clave, que cambia en cada arranque de la sala) para "
+                        "que un corrector apruebe, corrija o descarte las frases desde otra computadora o un celular. "
+                        "`remoto: true` da el de afuera (túnel), si hay. La corrección tiene que estar prendida "
+                        "(subtitulos_correccion). Quien tenga el enlace puede corregir lo que sale al aire: pasalo con cuidado.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"remoto", {{"type", "boolean"}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* conf = static_cast<ConferenceViewModel*>(vmp->conference());
+            if (conf == nullptr || !conf->client().online()) return done(ToolResult::error("la sala no está corriendo"));
+            conf->client().get(QString("/api/v1/correccion-link?target=") + (a.value("remoto", false) ? "remote" : "local"),
+                               [done](bool ok, const QJsonObject& r) {
+                                   if (!ok || !r.value("ok").toBool())
+                                       return done(ToolResult::error(r.value("message").toString("la sala no dio el enlace").toStdString()));
+                                   json out{{"url", r.value("url").toString().toStdString()}};
+                                   if (r.contains("message")) out["aviso"] = r.value("message").toString().toStdString();
+                                   done(ToolResult().data(out));
+                               });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "subtitulos_pendientes";
         t.title = "Frases esperando correccion";
         t.category = "agentes";
@@ -548,13 +575,19 @@ void McpService::registerModeloTools() {
                         "escrito a mano o para probar la cadena sin hablar.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"flujo", "texto"}},
-                         {"properties", {{"flujo", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
+                         {"properties",
+                          {{"flujo", {{"type", "string"}}},
+                           {"texto", {{"type", "string"}}},
+                           {"como_voz", {{"type", "boolean"},
+                                         {"description", "Como si lo hubiera transcripto la voz: pasa por la cola del corrector "
+                                                         "si está prendida (para probar el puesto sin hablar)."}}}}}};
         t.run = [vmp = &vm_](const json& a, Done done) {
             auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
             if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
             const std::string f = a.value("flujo", std::string()), tx = a.value("texto", std::string());
             if (f.empty() || tx.empty()) return done(ToolResult::error("faltan `flujo` y `texto`"));
-            fl->publicar(QString::fromStdString(f), QString::fromStdString(tx), "Escrito a mano");
+            fl->publicar(QString::fromStdString(f), QString::fromStdString(tx),
+                         a.value("como_voz", false) ? "Voz a texto (prueba)" : "Escrito a mano");
             done(ToolResult().text("Publicado en «" + f + "»."));
         };
         core_.addTool(std::move(t));

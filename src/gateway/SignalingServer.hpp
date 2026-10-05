@@ -117,6 +117,8 @@ class SignalingServer {
         /// el enlace que el operador le pasa (o en el QR). Vacia = sin control
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
+        std::string correccionWebroot; // Web/correccion (puesto del corrector de subtítulos, T44)
+        std::string correccionKey;     // clave del puesto: nueva en cada arranque
         std::string rotulosWebroot;  // Web/rotulos (los rotulos desde el celular)
         std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
@@ -386,6 +388,10 @@ class SignalingServer {
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;
+    // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.
+    std::mutex correccionMu_;
+    nlohmann::json correccionPend_ = nlohmann::json::array();
+    std::int64_t correccionMs_ = 0;
     proxy::GestorProxy* proxy_ = nullptr;
     std::string publicAddress_;
     std::function<nlohmann::json()> networkStatus_;

@@ -105,6 +105,8 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit chatReceived(obj);
     } else if (event == "botonera") {
         emit botoneraEvento(obj);
+    } else if (event == "correccion") {
+        emit correccionEvento(obj);
     } else if (event == "sesion") {
         emit sesionEvento(obj);
     }

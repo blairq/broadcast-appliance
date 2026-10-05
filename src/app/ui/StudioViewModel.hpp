@@ -80,6 +80,7 @@ namespace ba::app {
 namespace medios {
 class Playlist;
 }
+class PuestoCorreccion;
 namespace legislatura {
 class CuerpoViewModel;
 class Bancas;
@@ -273,6 +274,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* plugins READ pluginsQml CONSTANT)
     /// Las salidas de texto (voz a texto con nombre): agent/FlujosTexto.hpp.
     Q_PROPERTY(QObject* flujos READ flujos CONSTANT)
+    /// El puesto web del corrector de subtítulos (para QrDialog: pedirQr / qrListo).
+    Q_PROPERTY(QObject* puestoCorreccion READ puestoCorreccionQml CONSTANT)
     /// Las tarjetas «Texto a voz»: voces, idiomas y lo que dicen (agent/VocesRack.hpp).
     Q_PROPERTY(QObject* voces READ voces CONSTANT)
     /// La traducción en vivo de las salidas de texto, con su glosario (agent/Traductor.hpp).
@@ -418,6 +421,7 @@ class StudioViewModel : public QObject {
     /// y la repetición {replay: {activa, segundos, ultimo}}.
     Q_INVOKABLE QVariantMap grabacionUi() const;
     QObject* playlistQml() const;
+    QObject* puestoCorreccionQml() const;
     medios::Playlist& playlist() { return *playlist_; }
     /// El cupo de invitados sin reiniciar la sala (hasta los reservados). "" o el error
     /// inmediato; el resultado de la sala llega a `listo` ("" = aplicado).
@@ -784,6 +788,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<Seguidor> seguidor_;
     std::unique_ptr<dispositivos::Dispositivos> dispositivos_;
     std::unique_ptr<agent::FlujosTexto> flujos_;
+    std::unique_ptr<PuestoCorreccion> puestoCorreccion_;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<agent::Traductor> traductor_;
     std::unique_ptr<agent::Subtitulos> subtitulos_;

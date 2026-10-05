@@ -521,6 +521,56 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
     }
 
+    // --- Puesto de corrección de subtítulos (T44) ------------------------------
+    // La página del corrector (/correccion/#k=<clave>) pide cada medio segundo
+    // las frases que esperan y manda las correcciones. Con clave (por arranque):
+    // corregir lo que sale al aire es poder escribir en pantalla.
+    if (method == "GET" && (path == "/correccion" || path.rfind("/correccion/", 0) == 0)) {
+        if (path == "/correccion") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /correccion/\r\n");
+            return;
+        }
+        std::string rel = path.substr(std::string("/correccion/").size());
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.correccionWebroot.empty() && serveStatic(fd, cfg_.correccionWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/correccion") {
+        const auto q = http::parseQuery(query);
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        const std::string clave = method == "POST" ? (req.is_object() ? req.value("k", std::string()) : std::string())
+                                                   : (q.count("k") ? http::urlDecode(q.at("k")) : std::string());
+        if (cfg_.correccionKey.empty() || clave != cfg_.correccionKey) {
+            ipRecordFailure(clientIp);
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        if (method == "GET") {
+            std::lock_guard<std::mutex> l(correccionMu_);
+            const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::system_clock::now().time_since_epoch()).count();
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"pendientes", correccionPend_}, {"edad_ms", correccionMs_ ? ahora - correccionMs_ : 0}}.dump(),
+                               "Cache-Control: no-store\r\n");
+            return;
+        }
+        if (method == "POST" && req.is_object() && req.contains("id")) {
+            // A la app (la fuente de verdad): ella decide si la frase todavía está.
+            json ev{{"id", req["id"]}, {"descartar", req.value("descartar", false)}};
+            if (req.contains("texto") && req["texto"].is_string()) {
+                std::string t = req["texto"].get<std::string>();
+                if (t.size() > 2000) t.resize(2000);
+                ev["texto"] = t;
+            }
+            broadcastToHosts("correccion", ev);
+            http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+            return;
+        }
+        http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"pedido"})");
+        return;
+    }
+
     // --- El latido de las superficies web -----------------------------------
     // Cada pagina del aparato avisa que esta viva y que muestra. Sin esto, que
     // el comando de mostrar salga bien no dice nada sobre si la pagina cargo.

@@ -262,6 +262,17 @@ ColumnLayout {
                 checked: corr.activa
                 onToggled: corr.fl.setCorreccionUi(checked, demora.value * 1000)
             }
+            // T44: el corrector puede estar en otra máquina (o en un celular): una página con su clave.
+            GlassButton { compact: true; text: "Puesto de corrección…"; onClicked: puestoQr.open()
+                          ToolTip.visible: hovered; ToolTip.delay: 400
+                          ToolTip.text: "Un enlace (y QR) para corregir desde otra computadora o un celular: ve las frases con su cuenta regresiva, Enter aprueba, Esc descarta" }
+        }
+        QrDialog {
+            id: puestoQr
+            fuente: Studio.puestoCorreccion
+            title: "Puesto de corrección de subtítulos"
+            ofreceClave: false
+            avisoConClave: "El enlace lleva la clave del puesto (cambia en cada arranque de la sala): quien lo tenga puede corregir lo que sale al aire."
         }
         Text {
             Layout.fillWidth: true; wrapMode: Text.WordWrap

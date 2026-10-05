@@ -600,6 +600,7 @@ int main(int argc, char** argv) {
         if (!guestRoot.has_filename()) guestRoot = guestRoot.parent_path(); // "Web/guest/"
         sigCfg.boardWebroot = (guestRoot.parent_path() / "board").string();
         sigCfg.prompterWebroot = (guestRoot.parent_path() / "prompter").string();
+        sigCfg.correccionWebroot = (guestRoot.parent_path() / "correccion").string();
         sigCfg.rotulosWebroot = (guestRoot.parent_path() / "rotulos").string();
         sigCfg.pantallaWebroot = (guestRoot.parent_path() / "pantalla").string();
         sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
@@ -612,6 +613,8 @@ int main(int argc, char** argv) {
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
     // usarlo, y una clave que no se guarda en ningun lado no se filtra.
     if (!ba::security::randomSecretHex(16, sigCfg.prompterKey)) sigCfg.prompterKey.clear();
+    // La del puesto de corrección de subtítulos (T44): también por arranque.
+    if (!ba::security::randomSecretHex(16, sigCfg.correccionKey)) sigCfg.correccionKey.clear();
     // Idem los rotulos, con su propia clave: que el que rotula desde el celular
     // no pueda ademas frenarle el texto al orador.
     if (!ba::security::randomSecretHex(16, sigCfg.rotulosKey)) sigCfg.rotulosKey.clear();
