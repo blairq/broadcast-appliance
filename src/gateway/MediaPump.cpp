@@ -395,11 +395,13 @@ void MediaPump::returnAudioThread() {
                     if (r.talk && hayVoz) // el programa baja (~-8 dB) para que la voz se entienda
                         for (size_t i = 0; i < n; ++i) mezcla[i] = std::clamp(mezcla[i] * 0.4f + voz[i], -1.0f, 1.0f);
                     if (s == prueba) {
-                        // Tono de 1 kHz a -12 dBFS, 250 ms sí y 250 no, desde que empezó la prueba.
+                        // Tono de 1 kHz a -12 dBFS, prendido según un código seudoaleatorio de
+                        // 16 tramos de 250 ms (no periódico: un ruido que se repite —un pitido
+                        // cada segundo— no se confunde con el eco).
                         const std::int64_t desde = pruebaDesdeNs_.load();
                         const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
                                                          std::chrono::steady_clock::now().time_since_epoch()).count();
-                        const bool on = ((ahoraNs - desde) / 250'000'000LL) % 2 == 0;
+                        const bool on = codigoPrueba((ahoraNs - desde) / 250'000'000LL);
                         const double paso = 2.0 * 3.14159265358979 * 1000.0 / cfg_.audioRate;
                         for (size_t i = 0; i + 1 < n; i += 2) {
                             const float t = on ? 0.25f * static_cast<float>(std::sin(pruebaFase_)) : 0.0f;
@@ -682,6 +684,48 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
     }
 }
 
+bool MediaPump::codigoPrueba(long long tramo) {
+    static constexpr unsigned kCodigo = 0b1011000111101010u; // 16 tramos, mitad prendidos
+    return tramo >= 0 && ((kCodigo >> (15 - (tramo % 16))) & 1u) != 0;
+}
+
+nlohmann::json MediaPump::analizarEco(const std::vector<double>& bins, int dur) {
+    // El patrón (1 = tono) en trozos de 20 ms: el código de 16 tramos de 250 ms, durante `dur`.
+    const auto tono = [dur](long b) { return b >= 0 && b * 20 < dur && codigoPrueba((b * 20) / 250); };
+    double mejor = -1e9, ecoDb = 0;
+    int demora = 0;
+    std::vector<double> porDemora;
+    for (int lag = 0; lag <= 50; ++lag) { // hasta 1 s de ida y vuelta
+        double on = 0, off = 0;
+        int non = 0, noff = 0;
+        for (size_t b = 0; b < bins.size(); ++b) {
+            if (bins[b] < 0) continue;
+            const long origen = static_cast<long>(b) - lag;
+            if (origen < 0 || origen * 20 >= dur) continue;
+            if (tono(origen)) on += bins[b], ++non;
+            else off += bins[b], ++noff;
+        }
+        if (non < 3 || noff < 3) continue;
+        const double db = 10.0 * std::log10((on / non + 1e-12) / (off / noff + 1e-12));
+        porDemora.push_back(db);
+        if (db > mejor) mejor = db, ecoDb = db, demora = lag * 20;
+    }
+    // Un eco de verdad sobresale en UNA demora; si todas dan parecido, es otra cosa
+    // (un ruido parejo de 1 kHz): se descuenta la mediana de las demás.
+    double mediana = 0;
+    if (!porDemora.empty()) {
+        std::vector<double> v = porDemora;
+        std::nth_element(v.begin(), v.begin() + static_cast<long>(v.size() / 2), v.end());
+        mediana = v[v.size() / 2];
+    }
+    const double sobresale = ecoDb - std::max(0.0, mediana);
+    return nlohmann::json{{"eco_db", std::round(sobresale * 10) / 10},
+                       {"eco_bruto_db", std::round(ecoDb * 10) / 10},
+                       {"demora_ms", demora},
+                       {"eco", sobresale > 10.0},
+                       {"trozos", bins.size()}};
+}
+
 std::string MediaPump::pruebaTecnica(int session, int ms) {
     const MediaRoute r = route(session);
     if (r.kind != MediaRoute::Kind::Program && r.kind != MediaRoute::Kind::Backstage)
@@ -701,28 +745,7 @@ std::string MediaPump::pruebaTecnica(int session, int ms) {
         std::lock_guard<std::mutex> l(pruebaLock_);
         bins = pruebaBins_;
     }
-    // El patrón (1 = tono) en trozos de 20 ms: 250 ms sí, 250 no, durante `dur`.
-    const auto tono = [dur](long b) { return b >= 0 && b * 20 < dur && ((b * 20) / 250) % 2 == 0; };
-    double mejor = -1e9, ecoDb = 0;
-    int demora = 0;
-    for (int lag = 0; lag <= 50; ++lag) { // hasta 1 s de ida y vuelta
-        double on = 0, off = 0;
-        int non = 0, noff = 0;
-        for (size_t b = 0; b < bins.size(); ++b) {
-            if (bins[b] < 0) continue;
-            const long origen = static_cast<long>(b) - lag;
-            if (origen < 0 || origen * 20 >= dur) continue;
-            if (tono(origen)) on += bins[b], ++non;
-            else off += bins[b], ++noff;
-        }
-        if (non < 3 || noff < 3) continue;
-        const double db = 10.0 * std::log10((on / non + 1e-12) / (off / noff + 1e-12));
-        if (db > mejor) mejor = db, ecoDb = db, demora = lag * 20;
-    }
-    nlohmann::json out{{"eco_db", std::round(ecoDb * 10) / 10},
-                       {"demora_ms", demora},
-                       {"eco", ecoDb > 10.0},
-                       {"trozos", bins.size()}};
+    nlohmann::json out = analizarEco(bins, dur);
     if (WebrtcSession* sess = hub_.session(session)) {
         const nlohmann::json red = nlohmann::json::parse(sess->estadisticas(), nullptr, false);
         if (red.is_object()) out["red"] = red;

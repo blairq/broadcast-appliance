@@ -748,7 +748,9 @@
     - mide con Goertzel cuánto 1 kHz vuelve por su micrófono, correlacionado con el patrón a cualquier demora hasta 1 s (`eco_db`, `demora_ms`);
     - agrega las estadísticas de red de la sesión (T15) y una `recomendacion` en castellano;
     - MCP: `invitado_prueba {participant}`; GUI: «Prueba técnica» en la tarjeta.
-    - **Sin probar con un invitado real:** el navegador sin pantalla no da micrófono.
+    - **Probado con un invitado simulado** (Chrome sin ventana con cámara y micrófono falsos): la red llega (rtt, pérdida, jitter, semáforo).
+    - Esa prueba encontró un falso eco: el micrófono falso hace un pitido de 1 kHz cada segundo, que coincidía con un patrón periódico. Por eso el tono va con un código seudoaleatorio de 16 tramos, y el eco tiene que sobresalir de la mediana de las demás demoras.
+    - `test_prueba_eco`: el eco del código se detecta a su demora; un pitido periódico y el silencio no dan eco.
   - Antes:
   - `participant_talk` solo funciona en el lobby (`src/gateway/Room.cpp:321`, `MediaPump.cpp:478-482`).
   - El cupo se fija al arrancar el gateway (`src/gateway/main.cpp:561,592`; `SettingsModel.cpp:68` dice "reinicia el gateway").

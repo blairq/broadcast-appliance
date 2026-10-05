@@ -43,6 +43,8 @@
 #include <thread>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include "dsp/Resampler.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
@@ -114,6 +116,11 @@ class MediaPump {
     /// micrófono (correlación con el patrón, a cualquier demora hasta 1 s). Bloquea `ms`.
     /// {eco_db (cuánto más 1 kHz hay con el tono que sin), demora_ms, eco: bool, red: {…}}.
     std::string pruebaTecnica(int session, int ms);
+    /// El código seudoaleatorio de la prueba (tramos de 250 ms): true = tono.
+    static bool codigoPrueba(long long tramo);
+    /// El análisis de la prueba: energía de 1 kHz del micrófono en trozos de 20 ms
+    /// (-1 = sin dato) contra el código, a demoras de 0 a 1 s. {eco_db, eco, demora_ms…}.
+    static nlohmann::json analizarEco(const std::vector<double>& bins, int dur);
 
    private:
     /// Canal de video B->A con tamaño fijo (el frame se ajusta adentro).
