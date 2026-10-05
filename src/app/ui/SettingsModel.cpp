@@ -45,6 +45,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"video.formato", "Video", "Formato de salida", "choice", choices({{"nv12","NV12 (8 bits 4:2:0, el de siempre)"},{"i420","I420 (8 bits 4:2:0)"},{"i444","I444 (8 bits 4:4:4)"},{"p010","P010 (10 bits 4:2:0, HDR)"},{"i010","I010 (10 bits 4:2:0)"}}), 0, 0, "", "Lo que reciben los codificadores. HDR necesita 10 bits (y un codificador que lo acepte: HEVC/AV1).", "live", "nv12"},
         {"video.color", "Video", "Espacio de color", "choice", choices({{"709","Rec. 709 (HD)"},{"601","Rec. 601 (SD)"},{"srgb","sRGB"},{"2100pq","Rec. 2100 PQ (HDR)"},{"2100hlg","Rec. 2100 HLG (HDR)"}}), 0, 0, "", "Las entradas que se normalizan se llevan a este espacio de color.", "live", "709"},
         {"video.rango", "Video", "Rango", "choice", choices({{"limitado","Limitado (16-235, broadcast)"},{"completo","Completo (0-255)"}}), 0, 0, "", "", "live", "limitado"},
+        {"video.legalizar", "Video", "Legalizar para TV", "choice", choices({{"no","No"},{"pal","Sí, PAL (+133 %)"},{"ntsc","Sí, estricto (+120 %)"},{"rango","Solo el rango (luma y croma)"}}), 0, 0, "", "Pasa cada entrada por el legalizador (balegal, en GStreamer): luma y croma en rango legal y, si se pasa la gama compuesta, menos saturación en ese punto. Para entregas a un canal.", "live", "no"},
         {"mejora.activa", "Video", "Mejorar imagen de las cámaras", "bool", {}, 0, 0, "", "Limpia el ruido, pega el color a los bordes (el LED del micrófono, la corbata) y afila, en la GPU y sin demora. Cada entrada puede seguir esto, forzarlo o apagarlo en Cámaras PTZ.", "live", false},
         {"mejora.ruido", "Video", "Mejorar imagen: ruido", "int", {}, 0, 100, "%", "Cuánto se mezcla con el cuadro anterior donde no hay movimiento.", "live", 60},
         {"mejora.color", "Video", "Mejorar imagen: color pegado al brillo", "int", {}, 0, 100, "%", "Saca el color corrido alrededor de los bordes.", "live", 70},
@@ -132,6 +133,7 @@ QVariantMap SettingsModel::current() const {
         {"video.formato", qs(c.video.formato)},
         {"video.color", qs(c.video.color)},
         {"video.rango", qs(c.video.rango)},
+        {"video.legalizar", qs(c.legalizar)},
         {"mejora.activa", c.mejora.activa},
         {"mejora.ruido", c.mejora.ruido},
         {"mejora.color", c.mejora.color},
@@ -358,6 +360,7 @@ QString SettingsModel::apply() {
     c.rec.container = s("record.container");
     c.rec.remuxAlTerminar = b("record.remux");
     c.record = b("record.onStart");
+    c.legalizar = s("video.legalizar");
     c.rec.calidad = s("record.calidad");
     c.rec.calidadCrf = i("record.crf");
     c.rec.pistas.clear();

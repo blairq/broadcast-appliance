@@ -210,6 +210,13 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QStringList motoresSuperres() const;
     /// Vuelve a armar la cadena de cada entrada (p. ej. hay variantes nuevas de una red).
     void reaplicarEntradas();
+    /// El legalizador broadcast-safe (balegal) al final de la cadena de cada entrada
+    /// de GStreamer: "no", "pal" (compuesta +133 %), "ntsc" (+120 %) o "rango" (solo
+    /// luma y croma). Rearma las cadenas si cambió.
+    void setLegalizar(const std::string& modo);
+    const std::string& legalizar() const { return legalizar_; }
+    /// Cada entrada de GStreamer: {entrada: "andando" | "falta" | el error del elemento}.
+    nlohmann::json estadoLegalizador() const;
     /// La dirección de una entrada de red (para grabar de ella al entrenar). Vacía si no es de red.
     std::string uriDe(const std::string& entrada) const;
     /// Un cuadro de la entrada tal como sale de su grafo (para entrenar con una cámara
@@ -400,6 +407,7 @@ class VideoGrafos : public QObject {
     std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
     std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
     std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
+    std::string legalizar_ = "no";
 };
 
 } // namespace ba::app::video

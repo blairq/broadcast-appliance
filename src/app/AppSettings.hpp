@@ -80,6 +80,8 @@ struct AppConfig {
     EncoderConfig encoder;
     bool record = false; ///< grabar al arrancar
     RecordConfig rec;
+    /// Legalizador broadcast-safe en cada entrada (balegal): no | pal | ntsc | rango.
+    std::string legalizar = "no";
     int replaySegundos = 0; ///< repetición: los últimos N s en memoria (0 = apagada)
     bool stream = false; ///< transmitir al arrancar
     StreamConfig streamCfg;

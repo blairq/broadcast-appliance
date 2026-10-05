@@ -285,6 +285,8 @@ Rectangle {
                       tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" },
                     { t: "Superresolución…", icon: "✦", f: () => superresPop.open(),
                       tip: "Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara" },
+                    { t: "Scopes…", icon: "◫", f: () => scopesPop.open(),
+                      tip: "Forma de onda, RGB parade, vectorscopio e histograma del programa o de la entrada, y el legalizador para TV" },
                     { t: "Programador de superresolución…", icon: "⚙", f: () => programadorPop.open(),
                       tip: "Qué cámaras usan la red según el programa y el preview, cuánto aguanta cada acelerador y cómo entra la mejora" }
                 ]
@@ -969,6 +971,7 @@ Rectangle {
 
     PanelSincronia { id: sincronia; vg: page.vg }
     PanelProgramador { id: programadorPop; vg: page.vg }
+    PanelScopes { id: scopesPop; entrada: page.vg ? page.vg.entrada : "" }
     Popup {
         id: superresPop
         anchors.centerIn: parent

@@ -6,7 +6,7 @@
 # programa y también `gst-launch-1.0` con su entorno.
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
-#   filtros/   bafiltros: bacolor, bacroma, barecorte (las tarjetas de imagen).
+#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal (las tarjetas de imagen y el legalizador).
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -23,7 +23,7 @@ function(ba_plugin_gst target)
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp)
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp)
 ba_plugin_gst(gstbafiltros)
 
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).

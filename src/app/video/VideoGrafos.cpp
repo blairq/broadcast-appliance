@@ -1007,6 +1007,27 @@ void VideoGrafos::reaplicarEntradas() {
     for (const QString& e : entradas_) aplicar(e.toStdString());
 }
 
+json VideoGrafos::estadoLegalizador() const {
+    json out = json::object();
+    for (const QString& q : entradas_) {
+        const std::string e = q.toStdString();
+        if (rt_.engine().sourceTypeId(e) != kTipoVirtual) continue;
+        std::string estado = "falta";
+        for (const auto& f : filtrosDeEntrada(e))
+            if (f.value("elemento", std::string()) == "balegal")
+                estado = f.contains("error") ? f["error"].dump() : f.value("andando", false) ? "andando" : "falta";
+        out[e] = estado;
+    }
+    return out;
+}
+
+void VideoGrafos::setLegalizar(const std::string& modo) {
+    const std::string m = modo == "pal" || modo == "ntsc" || modo == "rango" ? modo : std::string("no");
+    if (m == legalizar_) return;
+    legalizar_ = m;
+    reaplicarEntradas();
+}
+
 void VideoGrafos::aplicar(const std::string& entrada) {
     obs_source_t* src = obs_get_source_by_name(entrada.c_str());
     if (src == nullptr) return;
@@ -1032,7 +1053,15 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     json para = grafo_.paraFiltro(entrada);
     // Una entrada de GStreamer: sus tarjetas de imagen corren en su cadena.
     if (rt_.engine().sourceTypeId(entrada) == kTipoVirtual) {
-        const json filtros = pasarAEntrada(entrada, para);
+        json filtros = pasarAEntrada(entrada, para);
+        // Legalizar para TV: al final de la cadena, después de todas las tarjetas.
+        if (legalizar_ != "no") {
+            const std::string compuesto = legalizar_ == "pal" ? "1.33" : legalizar_ == "ntsc" ? "1.2" : "0";
+            if (!filtros.contains("video")) filtros["video"] = json::array();
+            filtros["video"].push_back({{"id", "legalizar"},
+                                        {"elemento", "balegal"},
+                                        {"propiedades", {{"modo", "1"}, {"compuesto", compuesto}}}});
+        }
         const std::string js = filtros.value("video", json::array()).empty() ? std::string() : filtros.dump();
         const auto ya = filtrosAplicados_.find(entrada);
         if (ya == filtrosAplicados_.end() || ya->second != js) {

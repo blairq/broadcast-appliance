@@ -108,6 +108,7 @@
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 #include "video/SuperRes.hpp"
+#include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
 #include <QCoreApplication>
 
@@ -714,6 +715,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
+    video_->setLegalizar(rt.config().legalizar);
     // La superresolución que no llega: aviso al operador y evento en el bus (T40).
     connect(video_.get(), &video::VideoGrafos::superresTarde, this,
             [this](const QString& e, double ms, double cuadroMs, bool bypass) {
@@ -1065,6 +1067,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         emit sceneChanged();
         frames_->setGuests(rt_.config().guests);
         camaras_->sincronizar(); // Mejorar imagen general: rige ya
+        video_->setLegalizar(rt_.config().legalizar);
     });
 
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
@@ -2744,6 +2747,41 @@ QVariantMap StudioViewModel::grabacionUi() const {
     nlohmann::json j = rt_.engine().grabacionEstado();
     j["replay"] = rt_.engine().replayEstado();
     return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+}
+
+QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const {
+    video::TipoScope t = video::TipoScope::Onda;
+    if (!video::tipoScopeDeTexto(tipo, t)) return {{"error", "tipo desconocido"}};
+    QImage img;
+    std::uint64_t serie = 0;
+    // El programa: el cuadro que ya se rinde para los monitores (no cuesta otro render).
+    if (fuente.isEmpty() && frames_->latest("program", img, serie) && !img.isNull()) {
+    } else {
+        std::vector<std::uint8_t> rgba;
+        int w = 0, h = 0;
+        if (!rt_.engine().captureSource(fuente.toStdString(), 640, rgba, w, h)) return {{"error", qs(rt_.engine().lastError())}};
+        img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+    }
+    const video::Legalidad l = video::medirLegalidad(img);
+    const QImage s = video::dibujarScope(img, t, std::clamp(ancho, 200, 1600), std::clamp(alto, 120, 1200));
+    QByteArray png;
+    QBuffer buf(&png);
+    buf.open(QIODevice::WriteOnly);
+    s.save(&buf, "PNG");
+    return {{"imagen", "data:image/png;base64," + QString::fromLatin1(png.toBase64())},
+            {"legalidad", QVariantMap{{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
+                                      {"blancos_quemados_pct", std::round(l.lumaAltaPct * 10) / 10},
+                                      {"fuera_de_gama_pct", std::round(l.cromaPct * 10) / 10}}},
+            {"legalizador", qs(rt_.config().legalizar)}};
+}
+
+QString StudioViewModel::legalizarUi(const QString& modo) {
+    const std::string m = modo.toStdString();
+    if (m != "no" && m != "pal" && m != "ntsc" && m != "rango") return "modo desconocido";
+    rt_.config().legalizar = m;
+    rt_.save();
+    video_->setLegalizar(m);
+    return {};
 }
 
 void StudioViewModel::esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo) {

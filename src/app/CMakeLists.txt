@@ -532,6 +532,12 @@ endif()
     target_link_libraries(test_dashboard_model PRIVATE Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
+    # Los instrumentos de video (forma de onda, vectorscopio, legalidad), sin GPU.
+    add_executable(test_scopes tests/test_scopes.cpp video/Scopes.cpp)
+    target_include_directories(test_scopes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_scopes PRIVATE Qt6::Core Qt6::Gui)
+    set_target_properties(test_scopes PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_scopes COMMAND test_scopes)
 
     # Servidor MCP: puente stdio (binario propio) y test del protocolo + HTTP.
     # Sin Qt y con el runtime de C++ estatico: solo necesita la libc (lo lanzan

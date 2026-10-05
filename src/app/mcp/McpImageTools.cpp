@@ -38,6 +38,8 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "video/Scopes.hpp"
+#include "video/VideoGrafos.hpp"
 #include <QBuffer>
 #include <thread>
 
@@ -232,6 +234,69 @@ void McpService::registerImageTools() {
                    "x" + std::to_string(img.height()) + ")");
             addImage(r, img, a, 1280, core, rt.dataRoot());
             done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_scope";
+        t.title = "Instrumentos de video (forma de onda, vectorscopio…)";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
+            "(`histograma`) del programa o de una `fuente`, más cuánto de la imagen está fuera de rango: "
+            "`legalidad` = % de negros aplastados, blancos quemados y puntos fuera de la gama compuesta PAL "
+            "(lo que balegal corrige). La imagen se guarda en disco (no viaja en la conversación).";
+        t.inputSchema = withImageProps(json{
+            {"fuente", {{"type", "string"}, {"description", "Fuente o escena; sin esto, el programa."}}},
+            {"tipo", {{"type", "string"}, {"enum", {"onda", "parade", "vector", "histograma"}}, {"default", "onda"}}}});
+        t.run = [&rt, &vm, &core](const json& a, Done done) {
+            video::TipoScope tipo = video::TipoScope::Onda;
+            if (!video::tipoScopeDeTexto(QString::fromStdString(a.value("tipo", std::string("onda"))), tipo))
+                return done(ToolResult::error("`tipo`: onda, parade, vector o histograma"));
+            const std::string fuente = a.value("fuente", std::string());
+            QImage img;
+            std::string err;
+            if (!renderSource(rt, fuente, 960, img, err) && (!fuente.empty() || !feedImage(vm, "program", img)))
+                return done(ToolResult::error("No hay imagen: " + err));
+            const video::Legalidad l = video::medirLegalidad(img);
+            const QImage s = video::dibujarScope(img, tipo, tipo == video::TipoScope::Vector ? 420 : 640,
+                                                 tipo == video::TipoScope::Vector ? 420 : 360);
+            ToolResult r;
+            r.text((fuente.empty() ? std::string("Programa") : "'" + fuente + "'") + " — " +
+                   a.value("tipo", std::string("onda")));
+            r.data(json{{"legalidad",
+                         {{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
+                          {"blancos_quemados_pct", std::round(l.lumaAltaPct * 10) / 10},
+                          {"fuera_de_gama_pct", std::round(l.cromaPct * 10) / 10}}},
+                        {"legalizador", vm.videoGrafos() != nullptr ? vm.videoGrafos()->legalizar() : std::string("no")}});
+            addImage(r, s, a, s.width(), core, rt.dataRoot());
+            done(r);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_legalizar";
+        t.title = "Legalizar para TV";
+        t.category = "imagenes";
+        t.description =
+            "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
+            "entrada): `modo` no | pal (luma/croma en rango y gama compuesta +133 %) | ntsc (más estricto, "
+            "+120 %) | rango (solo luma y croma). Para entregar a un canal. Sin argumentos informa.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"modo", {{"type", "string"}, {"enum", {"no", "pal", "ntsc", "rango"}}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            if (a.contains("modo")) {
+                rt.config().legalizar = a.value("modo", std::string("no"));
+                rt.save();
+                if (vm.videoGrafos() != nullptr) vm.videoGrafos()->setLegalizar(rt.config().legalizar);
+            }
+            json r{{"modo", rt.config().legalizar}};
+            if (vm.videoGrafos() != nullptr && rt.config().legalizar != "no")
+                r["entradas"] = vm.videoGrafos()->estadoLegalizador();
+            done(ToolResult().data(r));
         };
         core_.addTool(std::move(t));
     }

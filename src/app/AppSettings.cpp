@@ -208,6 +208,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.video.formato = get(video, "formato", c.video.formato);
     c.video.color = get(video, "color", c.video.color);
     c.video.rango = get(video, "rango", c.video.rango);
+    c.legalizar = get<std::string>(video, "legalizar", "no");
     const json mej = video.value("mejora", json::object());
     c.mejora.activa = get(mej, "activa", c.mejora.activa);
     c.mejora.ruido = get(mej, "ruido", c.mejora.ruido);
@@ -331,6 +332,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
           {"formato", c.video.formato},
           {"color", c.video.color},
           {"rango", c.video.rango},
+          {"legalizar", c.legalizar},
           {"mejora",
            {{"activa", c.mejora.activa},
             {"ruido", c.mejora.ruido},

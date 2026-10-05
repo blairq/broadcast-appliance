@@ -401,6 +401,11 @@ class StudioViewModel : public QObject {
     /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
     /// y la repetición {replay: {activa, segundos, ultimo}}.
     Q_INVOKABLE QVariantMap grabacionUi() const;
+    /// Un scope (onda|parade|vector|histograma) de `fuente` ("" = programa):
+    /// {imagen: data URL PNG, legalidad: {...}, legalizador} o {error}.
+    Q_INVOKABLE QVariantMap scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const;
+    /// Legalizar para TV: no | pal | ntsc | rango. "" o el error.
+    Q_INVOKABLE QString legalizarUi(const QString& modo);
     /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
     /// en la escena «Repetición» (lista para el take). "" o el error.
     Q_INVOKABLE QString repetirUi();

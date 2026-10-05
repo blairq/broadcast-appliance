@@ -62,7 +62,7 @@
 | T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | hecho |
 | T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | hecho (sin plantilla nominal en pantalla: T43; el hash cubre el acta, no la grabación) |
 | T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | hecho en parte (tally, vúmetro y cuenta regresiva por celda; falta el costo por nodo en el Patchbay) |
-| T39 | Scopes y legalizador broadcast-safe | P1 | falta |
+| T39 | Scopes y legalizador broadcast-safe | P1 | hecho (sin celda de multiview) |
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | hecho |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
@@ -817,7 +817,18 @@
 - **Depende de:** T19 y T46.
 
 ### T39 · Scopes y legalizador broadcast-safe — P1
-- **Estado: falta.** No hay scopes. Solo existe un ajuste de rango limitado o completo (`src/app/ui/SettingsModel.cpp:47`).
+- **Estado: hecho** (2026-10-05), salvo la celda del multiview.
+  - **Scopes** (`src/app/video/Scopes.cpp`): forma de onda de luma, RGB parade, vectorscopio (Cb/Cr BT.709, cajas al 75 % y línea de piel) e histograma. Se calculan sobre el cuadro del programa que ya se rinde para los monitores (o `captureSource` de una fuente), achicado a ≤480 px: no tocan la cadena al aire. `medirLegalidad` da el % de negros aplastados, blancos quemados y puntos fuera de la gama compuesta PAL. Test: `test_scopes`.
+  - **Legalizador `balegal`** (`src/gst-plugins/filtros/legal.cpp`), elemento de GStreamer en bafiltros:
+    - luma 16..235 (recorte o rodilla suave desde el 95 %) y croma 16..240;
+    - gama compuesta: donde luma ± croma se pasa del límite (1.33 PAL, 1.2 estricto), baja la saturación de ese punto;
+    - acepta NV12, I420, Y444 y RGB.
+    - Probado con barras al 100 %: el amarillo pasa de (251,251,0) a (250,250,10) con PAL y a (242,242,73) con el límite estricto. El rojo y el azul bajan; el verde queda.
+  - **Legalizar para TV:** `video.legalizar` = no | pal | ntsc | rango. `VideoGrafos::setLegalizar` pone `balegal` al final de la cadena de GStreamer de cada entrada (capa de entrada, no OBS). Probado en la app: «andando» en las 8 entradas, el programa sigue a 30 fps.
+  - **MCP:** `video_scope {fuente?, tipo}` (imagen a disco y `legalidad`), `video_legalizar {modo}` (con el estado por entrada).
+  - **GUI:** página Video → «Scopes…» (`PanelScopes.qml`): programa o la entrada elegida, los cuatro tipos a ~5 fps, legalidad y el selector «Legalizar para TV». También en Configuración → Video.
+  - **Límite:** lo que se agrega en la escena después de la entrada (zócalos, gráficos de OBS) no pasa por el legalizador. El panel lo dice.
+  - **Sin probar a mano:** el panel en pantalla (sin clics en esta sesión).
 - **Qué hacer.**
   - Elemento de GStreamer `bascopes`, propio en `src/gst-plugins/scopes`, o un shader GLSL: forma de onda Y y RGB parade, vectorscopio e histograma sobre una rama `tee` de la entrada o del programa, a 10 fps de baja resolución.
   - Legalizador: clip o soft-clip de luma y croma al rango legal en la salida de programa (opción, para entregas a TV), como elemento de GStreamer o filtro de OBS.

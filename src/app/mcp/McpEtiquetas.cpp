@@ -100,6 +100,8 @@ const Fila kPropias[] = {
     {"stream_destino_agregar", "agregar destino transmision respaldo multidestino youtube facebook twitch rtmp srt rist passphrase latencia"},
     {"replay_ajustes", "repeticion replay buffer ultimos segundos instant replay"},
     {"replay_guardar", "repetir repeticion replay guardar clip ultimos segundos volver a pasar"},
+    {"video_scope", "scope forma de onda waveform vectorscopio parade histograma niveles exposicion quemado legal"},
+    {"video_legalizar", "legalizar broadcast safe tv rango legal gama compuesta entregar canal"},
     {"salida_limpia", "senal limpia clean feed sin graficos sin zocalos sin dsk sin logo programa limpio canal"},
     {"salidas_profesionales", "srt rist ndi decklink sdi contribucion salidas profesionales"},
     {"stream_destino_editar", "editar destino transmision"},
