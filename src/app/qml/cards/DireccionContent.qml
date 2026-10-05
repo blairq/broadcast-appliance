@@ -50,6 +50,23 @@ Item {
         BotonesSeguridad { Layout.fillWidth: true }
         // --- Capas DSK encima del programa (logo, intérprete LSA) --------------
         FilaDsk { Layout.fillWidth: true }
+        // --- El punto del orden del día que se trata ------------------------------
+        RowLayout {
+            visible: Studio.ordenDelDia.puntos.length > 0
+            Layout.fillWidth: true
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: Studio.ordenDelDia.actual && Studio.ordenDelDia.actual.n
+                      ? "Punto " + Studio.ordenDelDia.actual.n + ": " + Studio.ordenDelDia.actual.titulo
+                      : "Orden del día: ningún punto en tratamiento"
+                color: Theme.text; font.pixelSize: 12
+            }
+            GlassButton {
+                compact: true; text: "Siguiente punto ▶"
+                enabled: Studio.ordenDelDia.puntos.some(p => p.estado === "pendiente")
+                onClicked: { const e = Studio.ordenDelDia.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
+            }
+        }
 
         // --- Los dos buses -----------------------------------------------------
         RowLayout {

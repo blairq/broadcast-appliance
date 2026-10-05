@@ -48,7 +48,8 @@ const std::map<std::string, std::string>& fijas() {
 bool condicionFija(const std::string& h, const json& a) {
     if (h == "settings_set") {
         // Lo que se aplica en caliente sin cortar es normal; gateway/reinicio, de aire.
-        for (const auto& [k, v] : a.value("values", json::object()).items()) {
+        const json valores = a.value("values", json::object()); // en una variable: items() no alarga la vida del temporal
+        for (const auto& [k, v] : valores.items()) {
             (void)v;
             if (k.rfind("gateway.", 0) == 0 || k.rfind("video.", 0) == 0 || k.rfind("encoder.", 0) == 0 ||
                 k.rfind("stream.", 0) == 0)

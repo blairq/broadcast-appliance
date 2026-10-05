@@ -247,6 +247,8 @@ class EventoViewModel : public QObject {
     ///
     /// `votaciones` es el historial que guarda la urna (vive en el gateway).
     QString acta(const QJsonArray& votaciones) const;
+    /// Lo que se suma al acta de otro lado (orden del día y uso de la palabra).
+    void setAnexoActa(std::function<QString()> fn) { anexoActa_ = std::move(fn); }
     /// La escribe en la carpeta del evento. Devuelve la ruta, o vacío.
     QString guardarActa(const QString& texto) const;
 
@@ -292,6 +294,7 @@ class EventoViewModel : public QObject {
     QString rutaDeDiscurso(const QString& rel) const { return discursoPathPriv(rel); }
 
    private:
+    std::function<QString()> anexoActa_;
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
     void anotar(const QString& texto, const QString& tipo);

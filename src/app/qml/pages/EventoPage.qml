@@ -366,6 +366,16 @@ Rectangle {
                     return r && r.nuevas > 0 ? "Público (" + r.nuevas + ")" : "Público"
                 }
             }
+            TabButton { text: "Orden del día" }
+        }
+
+        // ---- Orden del día ---------------------------------------------------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 3
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Orden del día y uso de la palabra"
+            PanelOrdenDelDia { anchors.fill: parent }
         }
 
         // ---- Padrón ----------------------------------------------------------

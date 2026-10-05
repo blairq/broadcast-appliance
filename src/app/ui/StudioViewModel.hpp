@@ -18,6 +18,8 @@
 #include <QString>
 #include <QTimer>
 
+#include <nlohmann/json.hpp>
+
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -74,6 +76,7 @@ namespace legislatura {
 class CuerpoViewModel;
 class Bancas;
 class SeguirMicrofono;
+class OrdenDelDia;
 }
 
 class AppRuntime;
@@ -135,6 +138,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
     /// Seguir al micrófono abierto: propone (o arma) la banca que pidió la palabra.
     Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
+    /// El orden del día de la sesión y el uso de la palabra (legislatura/OrdenDelDia).
+    Q_PROPERTY(QObject* ordenDelDia READ ordenDelDiaQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -308,6 +313,12 @@ class StudioViewModel : public QObject {
     QObject* dskQml() const;
     QObject* seguirMicrofonoQml() const;
     legislatura::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
+    QObject* ordenDelDiaQml() const;
+    legislatura::OrdenDelDia& ordenDelDia() { return *ordenDia_; }
+    /// Los oradores remotos con el tiempo que hablaron (de la sala): [{nombre, segundos}].
+    nlohmann::json remotosPalabra() const;
+    /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
+    Q_INVOKABLE QString capitulosPuntosUi() const;
     control::Dsk& dsk() { return *dsk_; }
     /// Lo que se puede poner en una capa DSK: escenas y fuentes, por nombre.
     Q_INVOKABLE QStringList nombresParaDsk() const;
@@ -646,6 +657,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
+    std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

@@ -672,7 +672,8 @@ std::string SuperRes::guardarPluginElemento(const json& p) {
     if (!mem.empty() && mem != "CUDAMemory" && mem != "GLMemory" && mem != "D3D11Memory" && mem != "D3D12Memory")
         return "memoria: vacía (sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory";
     json props = json::object();
-    for (const auto& [k, v] : p.value("propiedades", json::object()).items())
+    const json propsIn = p.value("propiedades", json::object()); // en una variable: items() no alarga la vida del temporal
+    for (const auto& [k, v] : propsIn.items())
         props[k] = v.is_string() ? v.get<std::string>() : v.dump();
     json out{{"id", id},
              {"nombre", p.value("nombre", id)},

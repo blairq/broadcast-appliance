@@ -749,6 +749,7 @@ QString EventoViewModel::acta(const QJsonArray& votaciones) const {
         }
     }
 
+    if (anexoActa_) t += anexoActa_();
     t += "---\n\n_Generada por Broadcast Appliance el " +
          QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm") + "._\n";
     return t;

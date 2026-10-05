@@ -47,6 +47,7 @@
 #include "agent/Vocabulario.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/SeguirMicrofono.hpp"
+#include "legislatura/OrdenDelDia.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
@@ -2322,6 +2323,69 @@ void McpService::registerTools() {
                 if (const std::string e = s.aceptar(); !e.empty()) return done(ToolResult::error(e));
             if (acc == "descartar") s.descartar();
             done(ToolResult().data(s.estado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "orden_del_dia_cargar";
+        t.title = "Cargar el orden del dia";
+        t.category = "oradores";
+        t.description = "Carga los puntos de la sesion desde `texto`: una linea por punto («1. Expte. 123/24 – Titulo», "
+                        "«2) Titulo») o CSV («n;expediente;titulo»). Reemplaza los que habia (el uso de la palabra sigue). "
+                        "Con `limpiar`: true empieza una sesion nueva (borra puntos y tiempos).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"texto", {{"type", "string"}}}, {"limpiar", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.value("limpiar", false)) vm.ordenDelDia().limpiar();
+            if (!a.contains("texto")) return done(ToolResult::ok("Sesion nueva."));
+            int n = 0;
+            const std::string e = vm.ordenDelDia().cargar(a.value("texto", std::string()), &n);
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().text("Cargados " + std::to_string(n) + " puntos.").data({{"puntos", vm.ordenDelDia().puntos()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "orden_del_dia_ver";
+        t.title = "Orden del dia";
+        t.category = "oradores";
+        t.readOnly = true;
+        t.description = "Los puntos con su estado (pendiente, en_tratamiento, votado, comision, retirado), cuando se "
+                        "trataron y el resultado; el punto actual; el uso de la palabra por orador (y por punto); y, si "
+                        "se esta grabando, los capitulos por punto para pegar en YouTube.";
+        t.run = [&vm](const json&, Done done) {
+            auto& o = vm.ordenDelDia();
+            done(ToolResult().data({{"puntos", o.puntos()},
+                                    {"actual", o.actual()},
+                                    {"tiempos_palabra", o.tiemposPalabra(vm.remotosPalabra())},
+                                    {"capitulos", vm.capitulosPuntosUi().toStdString()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "orden_del_dia_punto";
+        t.title = "Cambiar el estado de un punto";
+        t.category = "oradores";
+        t.description = "El punto `n` pasa a `estado` (en_tratamiento: cierra el anterior, pone «Punto N: …» en {punto} "
+                        "para los zocalos y lo marca para el acta y los capitulos), con `resultado` opcional («aprobado "
+                        "por unanimidad»). Con `siguiente`: true, el proximo pendiente pasa a tratamiento.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"n", {{"type", "integer"}, {"minimum", 1}}},
+                           {"estado", {{"type", "string"}, {"enum", {"pendiente", "en_tratamiento", "votado", "comision", "retirado"}}}},
+                           {"resultado", {{"type", "string"}}},
+                           {"siguiente", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto& o = vm.ordenDelDia();
+            const std::string e = a.value("siguiente", false)
+                                      ? o.siguiente()
+                                      : o.punto(a.value("n", 0), a.value("estado", std::string("en_tratamiento")),
+                                                a.value("resultado", std::string()));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data({{"actual", o.actual()}}));
         };
         core_.addTool(std::move(t));
     }

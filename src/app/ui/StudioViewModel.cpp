@@ -46,6 +46,7 @@
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/SeguirMicrofono.hpp"
+#include "legislatura/OrdenDelDia.hpp"
 #include "legislatura/Cuerpo.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
@@ -540,6 +541,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.microfono = [this](const std::string& f, bool abierto) { rt_.engine().setSourceMuted(f, !abierto); };
         bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
         seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
+        ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
+        if (auto* ev = static_cast<EventoViewModel*>(evento())) {
+            ev->setAnexoActa([this]() { return QString::fromStdString(ordenDia_->anexoActa(remotosPalabra())); });
+        }
     }
     marca("camaras");
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
@@ -1070,6 +1075,15 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         }
     }
     if (!primeroEnCola.isEmpty()) ctx["siguiente"] = primeroEnCola;
+    // El punto del orden del día que se está tratando: {punto.texto}, {punto.n}…
+    if (ordenDia_) {
+        const nlohmann::json p = ordenDia_->actual();
+        if (!p.empty())
+            ctx["punto"] = QJsonObject{{"n", p.value("n", 0)},
+                                       {"titulo", QString::fromStdString(p.value("titulo", std::string()))},
+                                       {"expediente", QString::fromStdString(p.value("expediente", std::string()))},
+                                       {"texto", QString("Punto %1: %2").arg(p.value("n", 0)).arg(QString::fromStdString(p.value("titulo", std::string())))}};
+    }
     // Un orador presencial (banca) al aire manda sobre el de la sala.
     if (bancas_) {
         const nlohmann::json b = bancas_->oradorParaZocalo();
@@ -1823,6 +1837,27 @@ QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
+QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }
+
+nlohmann::json StudioViewModel::remotosPalabra() const {
+    nlohmann::json out = nlohmann::json::array();
+    if (!conference_) return out;
+    const QJsonObject snap = static_cast<ConferenceViewModel*>(conference_.get())->client().snapshot();
+    for (const QJsonValue& v : snap.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        const qint64 ms = static_cast<qint64>(p.value("usedMs").toDouble());
+        if (ms > 0) out.push_back({{"nombre", p.value("name").toString().toStdString()}, {"segundos", ms / 1000}});
+    }
+    return out;
+}
+
+QString StudioViewModel::capitulosPuntosUi() const {
+    if (!recording_ || !ordenDia_) return {};
+    QString t;
+    for (const auto& c : ordenDia_->capitulos(recSinceMs_))
+        t += QString::fromStdString(c.value("marca", std::string()) + " " + c.value("titulo", std::string())) + "\n";
+    return t;
+}
 
 QStringList StudioViewModel::nombresParaDsk() const {
     QStringList out;

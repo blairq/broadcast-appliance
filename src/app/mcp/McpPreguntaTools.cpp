@@ -27,6 +27,7 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "legislatura/OrdenDelDia.hpp"
 
 namespace ba::app::mcp {
 namespace {
@@ -423,14 +424,16 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             // El historial de la urna vive en B: hay que ir a buscarlo antes de
             // poder escribir nada.
             conf->client().get(
-                "/api/v1/votacion?historial=1", [ev, done, soloVer](bool ok, const QJsonObject& r) {
+                "/api/v1/votacion?historial=1", [ev, done, soloVer, &vm](bool ok, const QJsonObject& r) {
                     const QJsonArray votaciones = ok ? r.value("historial").toArray() : QJsonArray{};
                     const QString texto = ev->acta(votaciones);
                     QString archivo;
                     if (!soloVer) archivo = ev->guardarActa(texto);
                     ToolResult res;
                     res.text(texto.toStdString());
-                    json out{{"acta", texto.toStdString()}, {"votaciones", votaciones.size()}};
+                    json out{{"acta", texto.toStdString()},
+                             {"votaciones", votaciones.size()},
+                             {"tiempos_palabra", vm.ordenDelDia().tiemposPalabra(vm.remotosPalabra())}};
                     if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();
                     // Si B no contesto, el acta sale igual PERO se dice: un acta a
                     // la que le faltan las votaciones y no lo aclara es peor que

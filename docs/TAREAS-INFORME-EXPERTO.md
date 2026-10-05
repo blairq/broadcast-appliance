@@ -59,7 +59,7 @@
 | T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | parcial |
 | T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
 | T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | falta |
-| T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | falta |
+| T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | hecho |
 | T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | parcial |
 | T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | parcial |
 | T39 | Scopes y legalizador broadcast-safe | P1 | falta |
