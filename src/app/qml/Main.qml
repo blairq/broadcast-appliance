@@ -552,6 +552,43 @@ ApplicationWindow {
         }
     }
 
+    // --- Volvimos de una caída: la causa y cuánto tardó el aire en volver -----------
+    Rectangle {
+        id: cartelCaida
+        readonly property var c: Studio.caidaReciente
+        visible: !!(c && c.causa)
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 70 }
+        width: Math.min(parent.width - 80, 720)
+        height: cartelCol.implicitHeight + 28
+        radius: 14
+        z: 70
+        color: Qt.rgba(0.1, 0.1, 0.12, 0.96)
+        border.color: Theme.amber
+        border.width: 2
+        Timer { running: cartelCaida.visible && !!cartelCaida.c.aire_vuelta_s; interval: 30000; onTriggered: Studio.cerrarCartelCaida() }
+        ColumnLayout {
+            id: cartelCol
+            anchors { fill: parent; margins: 14 }
+            spacing: 4
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: (cartelCaida.c.componente === "gateway" ? "El gateway (la sala)" : "El programa") + " se reinició: " + (cartelCaida.c.causa || "")
+                color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: cartelCaida.c.aire_vuelta_s !== undefined
+                      ? "El aire volvió " + Number(cartelCaida.c.aire_vuelta_s).toFixed(1) + " s después de la caída."
+                      : cartelCaida.c.habia_aire ? "Retomando lo que estaba al aire…" : "No había nada al aire: no hubo que retomar."
+                color: cartelCaida.c.aire_vuelta_s !== undefined || !cartelCaida.c.habia_aire ? Theme.ok : Theme.amber; font.pixelSize: 14
+            }
+            RowLayout {
+                Text { Layout.fillWidth: true; text: "El detalle queda en la página Registro."; color: Theme.textFaint; font.pixelSize: 11 }
+                GlassButton { compact: true; text: "Entendido"; onClicked: Studio.cerrarCartelCaida() }
+            }
+        }
+    }
+
     // --- Avisos (toasts) ------------------------------------------------------------
     Column {
         id: toasts

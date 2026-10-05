@@ -47,7 +47,7 @@
 | T21 | Closed captions (CEA-608 en el stream y API de subtítulos de YouTube) | P0 | hecho, sin probar contra YouTube ni el 608 en un reproductor |
 | T22 | Vocabulario propio para el STT (legisladores, localidades) | P0 | hecho |
 | T23 | Interfaz para crear disparadores y notificación remota | P1 | hecho (Telegram y mail sin probar contra servidores reales) |
-| T24 | Recuperación visible: cartel de causa, configuración con dos generaciones, volcados | P1 | parcial |
+| T24 | Recuperación visible: cartel de causa, configuración con dos generaciones, volcados | P1 | hecho en parte (cartel con causa y tiempo, dos generaciones de Config/; faltan volcados con Crashpad en Mac y Linux) |
 | T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | hecho (sin componer en el preview ni miniaturas) |
 | T26 | Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV | P1 | parcial |
 | T27 | Panel de salud de la salida | P1 | parcial |

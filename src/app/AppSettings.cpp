@@ -28,6 +28,15 @@ template <typename T> T get(const json& j, const char* key, T def) {
     }
 }
 
+} // namespace
+
+std::string& configRecuperada() {
+    static std::string r;
+    return r;
+}
+
+namespace {
+
 json readJson(const fs::path& path, bool& exists) {
     std::error_code ec;
     exists = fs::exists(path, ec);
@@ -37,6 +46,22 @@ json readJson(const fs::path& path, bool& exists) {
     std::ifstream in(path);
     json j = json::parse(in, nullptr, /*allow_exceptions=*/false, /*ignore_comments=*/true);
     if (j.is_discarded() || !j.is_object()) {
+        // Dos generaciones: si la actual está rota, la anterior (la que había
+        // antes del último guardado) suele estar bien.
+        fs::path prev = path;
+        prev += ".anterior";
+        std::ifstream pin(prev);
+        json pj = json::parse(pin, nullptr, false, true);
+        if (pj.is_object()) {
+            std::error_code cec;
+            fs::path backup = path;
+            backup += ".corrupto";
+            fs::copy_file(path, backup, fs::copy_options::overwrite_existing, cec);
+            std::printf("ba-app: %s no es JSON valido; se cargo la generacion anterior (%s)\n", path.string().c_str(),
+                        prev.string().c_str());
+            configRecuperada() = path.filename().string();
+            return pj;
+        }
         // El proximo guardado pisaria el archivo roto con los valores por
         // defecto: se deja una copia para poder recuperar escenas a mano.
         std::error_code cec;
@@ -64,6 +89,16 @@ bool writeJson(const fs::path& path, const json& j, std::string* err) {
             return false;
         }
         out << j.dump(2) << "\n";
+    }
+    // La generación anterior: la que estaba (si era JSON válido) queda como .anterior.
+    if (fs::exists(path, ec)) {
+        std::ifstream cur(path);
+        const json cj = json::parse(cur, nullptr, false, true);
+        if (cj.is_object()) {
+            fs::path prev = path;
+            prev += ".anterior";
+            fs::copy_file(path, prev, fs::copy_options::overwrite_existing, ec);
+        }
     }
     fs::rename(tmp, path, ec);
     if (ec) {

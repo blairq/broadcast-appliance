@@ -12,7 +12,10 @@
 #include "RecoveryUi.hpp"
 #include "ShadowCopy.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
+#include <fstream>
 #include <chrono>
 #include <thread>
 
@@ -300,6 +303,46 @@ void Supervisor::restartChild(bool isA) {
     }
 }
 
+namespace {
+/// Qué quiere decir el código con que terminó un proceso (para el cartel de la app).
+std::string causaDe(std::optional<int> code) {
+    if (!code) return "terminó sin código";
+    switch (*code) {
+        case 139: return "error de memoria (SIGSEGV)";
+        case 134: return "se abortó (SIGABRT)";
+        case 138: return "error de bus (SIGBUS)";
+        case 137: return "lo mató el sistema (SIGKILL: ¿falta de memoria?)";
+        case 136: return "error aritmético (SIGFPE)";
+        case 132: return "instrucción inválida (SIGILL)";
+        default: break;
+    }
+    if (static_cast<unsigned>(*code) == 0xC0000005u) return "violación de acceso (0xC0000005)";
+    if (static_cast<unsigned>(*code) == 0xC00000FDu) return "desbordamiento de pila (0xC00000FD)";
+    return "terminó con el código " + std::to_string(*code);
+}
+} // namespace
+
+void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code) {
+    // Runtime/ultima-caida.json lo lee la app al volver (el cartel con la causa);
+    // Runtime/caidas.jsonl queda como historial (supervisor_caidas).
+    const std::filesystem::path dir = (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Runtime";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+    const nlohmann::json j{{"componente", isA ? "app" : "gateway"},
+                           {"causa", causa},
+                           {"codigo", code ? nlohmann::json(*code) : nlohmann::json()},
+                           {"hora_ms", ms}};
+    {
+        std::ofstream o(dir / "ultima-caida.json", std::ios::trunc);
+        o << j.dump(1);
+    }
+    std::ofstream h(dir / "caidas.jsonl", std::ios::app);
+    h << j.dump() << "\n";
+}
+
 void Supervisor::handleCrash(bool isA) {
     const std::optional<int> code = child(isA).exitCode();
     const std::string name = isA ? "A" : "B";
@@ -321,6 +364,7 @@ void Supervisor::handleCrash(bool isA) {
         return;
     }
     BA_LOG_WARN("sup", code.value_or(-1), name + " termino inesperadamente; reiniciando con backoff");
+    anotarCaida(isA, causaDe(code), code);
     restartChild(isA);
 }
 
@@ -328,6 +372,7 @@ void Supervisor::handleHang(bool isA) {
     const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
     const std::string name = isA ? "A" : "B";
     BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
+    anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt);
     writeMinidump(child(isA).pid(), cfg_.logsDir / "dumps" / (name + ".dmp"));
     child(isA).kill();
     child(isA).waitExit(kTerminateMs);

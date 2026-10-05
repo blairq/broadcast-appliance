@@ -81,6 +81,8 @@ class Supervisor {
     bool startChild(bool isA);
     void restartChild(bool isA); // backoff + relanzamiento (comun a crash/hang)
     void handleCrash(bool isA);
+    /// Deja escrita la causa de la caída (Runtime/ultima-caida.json y caidas.jsonl).
+    void anotarCaida(bool isA, const std::string& causa, std::optional<int> code);
     void handleHang(bool isA);
 
     // --- Recuperacion (UI) --------------------------------------------------

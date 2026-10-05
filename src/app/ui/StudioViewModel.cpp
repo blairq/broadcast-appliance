@@ -45,6 +45,7 @@
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
 #include "control/Acciones.hpp"
+#include "AppSettings.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
@@ -394,6 +395,33 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
         }
         settings_->setEnVivo([this]() { return modoVivo(); });
+        // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
+        {
+            const auto archivo = rt.dataRoot() / "Runtime" / "ultima-caida.json";
+            std::ifstream f(archivo);
+            nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            if (j.is_object() && !j.value("vista", false) && ahora - j.value("hora_ms", 0LL) < 10 * 60 * 1000) {
+                caidaMs_ = j.value("hora_ms", 0LL);
+                caida_ = QVariantMap{{"causa", QString::fromStdString(j.value("causa", std::string()))},
+                                     {"componente", QString::fromStdString(j.value("componente", std::string()))},
+                                     {"hace_s", static_cast<int>((ahora - caidaMs_) / 1000)}};
+                // ¿Había algo al aire? Si no, no hay nada que esperar.
+                std::ifstream aa(ba::platform::stateDir() / "al-aire.json");
+                const nlohmann::json alAire = nlohmann::json::parse(aa, nullptr, false);
+                caida_["habia_aire"] = alAire.is_object() && (alAire.value("streaming", false) || alAire.value("recording", false));
+                j["vista"] = true; // el cartel sale una sola vez
+                f.close();
+                std::ofstream o(archivo);
+                o << j.dump(1);
+            }
+        }
+        if (!configRecuperada().empty())
+            QTimer::singleShot(3000, this, [this]() {
+                emit notify("La configuración «" + QString::fromStdString(configRecuperada()) +
+                                "» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).",
+                            "warn");
+            });
         {
             std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
             const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
@@ -1852,6 +1880,11 @@ QObject* StudioViewModel::busQml() const { return bus_.get(); }
 
 void StudioViewModel::publicarEventos() {
     if (!bus_) return;
+    // Volviendo de una caída: cuánto tardó el aire en volver.
+    if (!caida_.isEmpty() && !caida_.contains("aire_vuelta_s") && (streaming_ || recording_) && caidaMs_ > 0) {
+        caida_["aire_vuelta_s"] = (QDateTime::currentMSecsSinceEpoch() - caidaMs_) / 1000.0;
+        emit caidaChanged();
+    }
     // Al terminar el vivo, lo desbloqueado vuelve a quedar protegido para la próxima.
     if (const bool vivo = modoVivo(); vivo != estabaEnVivo_) {
         estabaEnVivo_ = vivo;
@@ -2229,6 +2262,25 @@ std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {
     o << nlohmann::json{{"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_}, {"paginas", p}}.dump(1);
     emit statusChanged();
     return {};
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+std::filesystem::path StudioViewModel::datosRaiz() const { return rt_.dataRoot(); }
+
+nlohmann::json StudioViewModel::caidas(int n) const {
+    std::ifstream f(rt_.dataRoot() / "Runtime" / "caidas.jsonl");
+    std::vector<nlohmann::json> todas;
+    std::string l;
+    while (std::getline(f, l)) {
+        const nlohmann::json j = nlohmann::json::parse(l, nullptr, false);
+        if (j.is_object()) todas.push_back(j);
+    }
+    nlohmann::json out = nlohmann::json::array();
+    for (int i = static_cast<int>(todas.size()) - 1; i >= 0 && static_cast<int>(out.size()) < n; --i) out.push_back(todas[static_cast<std::size_t>(i)]);
+    return out;
 }
 
 } // namespace ba::app

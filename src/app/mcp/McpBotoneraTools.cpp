@@ -752,6 +752,65 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         core.addTool(std::move(t));
     }
 
+    // --- Recuperación: caídas y generaciones de la configuración -----------------------------
+    {
+        Tool t;
+        t.name = "supervisor_caidas";
+        t.title = "Las ultimas caidas";
+        t.category = "botonera";
+        t.readOnly = true;
+        t.description = "Las ultimas `n` (10 de fabrica) caidas que anoto el supervisor: que se cayo (app o gateway), la "
+                        "causa (error de memoria, abortado, colgado…), el codigo y la hora. La ultima la muestra un cartel "
+                        "al volver, con cuanto tardo el aire en volver.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"n", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            json d{{"caidas", vm.caidas(a.value("n", 10))}};
+            const QVariantMap c = vm.caidaReciente();
+            if (!c.isEmpty()) {
+                d["recien"] = {{"causa", c.value("causa").toString().toStdString()}, {"habia_aire", c.value("habia_aire").toBool()}};
+                if (c.contains("aire_vuelta_s")) d["recien"]["aire_vuelta_s"] = c.value("aire_vuelta_s").toDouble();
+            }
+            done(ToolResult().data(d));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "config_generaciones";
+        t.title = "Generaciones de la configuracion";
+        t.category = "botonera";
+        t.description = "Cada archivo de Config/ guarda la version anterior (.anterior) al guardarse; si el actual esta "
+                        "roto, se carga solo el anterior. Sin argumentos, lista los que tienen anterior. Con `restaurar` "
+                        "(nombre del archivo, p. ej. app.json) y fuera de vivo, vuelve a la version anterior (rige al "
+                        "reiniciar).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"restaurar", {{"type", "string"}}}}}};
+        t.run = [&vm, &core](const json& a, Done done) {
+            namespace fs = std::filesystem;
+            const fs::path dir = vm.datosRaiz() / "Config";
+            if (a.contains("restaurar")) {
+                if (vm.modoVivo() || core.hayAire()) return done(ToolResult::error("no se restaura en vivo"));
+                const std::string n = fs::path(a.value("restaurar", std::string())).filename().string();
+                const fs::path prev = dir / (n + ".anterior");
+                std::error_code ec;
+                if (!fs::exists(prev, ec)) return done(ToolResult::error("no hay version anterior de " + n));
+                fs::copy_file(dir / n, dir / (n + ".reemplazado"), fs::copy_options::overwrite_existing, ec);
+                fs::copy_file(prev, dir / n, fs::copy_options::overwrite_existing, ec);
+                if (ec) return done(ToolResult::error(ec.message()));
+                return done(ToolResult::ok("Restaurado " + n + " (el que estaba quedo como .reemplazado). Rige al reiniciar."));
+            }
+            json lista = json::array();
+            std::error_code ec;
+            for (const auto& e : fs::directory_iterator(dir, ec)) {
+                const std::string n = e.path().filename().string();
+                if (n.size() > 9 && n.compare(n.size() - 9, 9, ".anterior") == 0)
+                    lista.push_back({{"archivo", n.substr(0, n.size() - 9)},
+                                     {"anterior_bytes", fs::file_size(e.path(), ec)}});
+            }
+            done(ToolResult().data({{"con_anterior", lista}}));
+        };
+        core.addTool(std::move(t));
+    }
+
     // --- Companion Satellite ---------------------------------------------------------------
     {
         Tool t;

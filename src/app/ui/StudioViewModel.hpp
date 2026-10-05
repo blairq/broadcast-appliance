@@ -17,6 +17,7 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <QVariantMap>
 
 #include <nlohmann/json.hpp>
 
@@ -151,6 +152,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* notificador READ notificadorQml CONSTANT)
     /// Modo en vivo (T48): transmitiendo o con el evento en vivo; protege páginas y ajustes que cortan.
     Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY statusChanged)
+    /// La caída de la que se acaba de volver (T24): {causa, componente, hace_s, aire_vuelta_s?} o vacío.
+    Q_PROPERTY(QVariantMap caidaReciente READ caidaReciente NOTIFY caidaChanged)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -339,6 +342,11 @@ class StudioViewModel : public QObject {
     QObject* notificadorQml() const;
     agent::Notificador& notificador() { return *notificador_; }
     bool modoVivo() const;
+    QVariantMap caidaReciente() const { return caida_; }
+    Q_INVOKABLE void cerrarCartelCaida() { caida_.clear(); emit caidaChanged(); }
+    /// Las últimas `n` caídas que anotó el supervisor (Runtime/caidas.jsonl).
+    nlohmann::json caidas(int n) const;
+    std::filesystem::path datosRaiz() const;
     /// ¿Hay que desbloquear la página `id` (del riel) para entrar? (en vivo y en la lista)
     Q_INVOKABLE bool paginaBloqueada(const QString& id) const;
     /// La desbloquea hasta que termine el vivo; el motivo queda en el registro.
@@ -600,6 +608,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void caidaChanged();
     void emparejamientoListo(const QVariantMap& r);
     void statusChanged();
     void sceneChanged();
@@ -693,6 +702,8 @@ class StudioViewModel : public QObject {
     QStringList paginasProtegidas_{"configuracion", "plugins", "agentes"};
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
+    QVariantMap caida_;
+    qint64 caidaMs_ = 0;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
     std::unique_ptr<legislatura::Quorum> quorum_;

@@ -181,4 +181,8 @@ bool saveLauncherSettings(const std::filesystem::path& path, const LauncherSetti
 /// Busca una escena por nombre (nullptr si no existe).
 SceneConfig* findScene(AppConfig& cfg, const std::string& name);
 
+/// Si al cargar, un archivo de configuración estaba roto y se usó su generación
+/// anterior: el nombre del archivo (vacío si no pasó).
+std::string& configRecuperada();
+
 } // namespace ba::app

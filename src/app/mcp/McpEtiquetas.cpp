@@ -155,6 +155,8 @@ const Fila kPropias[] = {
     {"botonera_emparejar", "emparejar tablet qr botonera codigo"},
     {"botonera_revocar", "revocar tablet token botonera"},
     {"botonera_auditoria", "auditoria registro botonera acciones"},
+    {"supervisor_caidas", "caidas reinicio causa crash supervisor"},
+    {"config_generaciones", "configuracion version anterior restaurar corrupta"},
     {"modo_vivo_estado", "modo en vivo proteger paginas candado"},
     {"modo_vivo_ajustes", "ajustes modo en vivo paginas protegidas"},
     {"notificador_listar", "notificadores avisos telegram mail webhook"},
