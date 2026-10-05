@@ -111,6 +111,8 @@ class AudioViewModel : public QObject {
                                      const QString& in, int outCh = -1, int inCh = -1);
     Q_INVOKABLE void moveNode(const QString& node, double x, double y);
     Q_INVOKABLE void setBypass(const QString& node, bool bypass);
+    /// Saca un módulo del bypass automático del vigía.
+    Q_INVOKABLE void rearmar(const QString& node);
     Q_INVOKABLE QString openEditor(const QString& node);
     /// Cierra las ventanas LSP y vuelve su configuración de pantalla a la de
     /// fábrica (con copia). Para cuando una interfaz LSP no aparece.

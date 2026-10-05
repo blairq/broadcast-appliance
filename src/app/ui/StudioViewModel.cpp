@@ -622,6 +622,10 @@ void StudioViewModel::onTick() {
         emit quitRequested();
         return;
     }
+    // El vigía de los módulos de audio: lo que saltó por lento o colgado.
+    if (++vigiaTicks_ % 10 == 0 && racks_ != nullptr)
+        for (const auto& m : racks_->tomarSaltados())
+            emit notify("Audio: «" + qs(m) + "» se saltó por lento (pasa sin procesar). Rearmalo en Audio cuando esté bien.", "warn");
     // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
     if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
         emit notify(QString("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");

@@ -666,6 +666,14 @@ void RackManager::normalizarFlujos() {
     }
 }
 
+std::vector<std::string> RackManager::tomarSaltados() {
+    std::vector<std::string> out;
+    for (auto& [fuente, f] : filters_)
+        if (f != nullptr && f->rack)
+            for (const auto& m : f->rack->tomarSaltados()) out.push_back(fuente + ": " + m);
+    return out;
+}
+
 AudioRack* RackManager::rack(const std::string& source, bool create, std::string* error) {
     auto it = filters_.find(source);
     if (it != filters_.end()) return it->second->rack.get();

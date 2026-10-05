@@ -54,6 +54,8 @@ class RackManager : public QObject {
     json audioSources() const;
     /// El rack de la fuente; con `create` lo monta si no tiene.
     AudioRack* rack(const std::string& source, bool create, std::string* error = nullptr);
+    /// Los módulos que el vigía saltó en todos los racks ("<fuente>: <módulo>").
+    std::vector<std::string> tomarSaltados();
     /// Quita el rack de la fuente (el audio vuelve a pasar directo).
     bool removeRack(const std::string& source);
 

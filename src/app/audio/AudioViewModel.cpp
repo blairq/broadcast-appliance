@@ -181,7 +181,11 @@ void AudioViewModel::rebuildDetail() {
                 j["presets"] = presets;
             }
             for (const auto& n : r->describe()["nodos"])
-                if (n["id"] == id) j["bypass"] = n.value("bypass", false);
+                if (n["id"] == id) {
+                    j["bypass"] = n.value("bypass", false);
+                    for (const char* k : {"bypass_auto", "ms_ultimo", "ms_medio", "ms_max", "ms_bloque"})
+                        if (n.contains(k)) j[k] = n[k];
+                }
         }
         if (Analyzer* a = r->analyzer(id)) {
             const Analyzer::Snapshot s = a->snapshot();
@@ -542,6 +546,13 @@ void AudioViewModel::moveNode(const QString& node, double x, double y) {
 void AudioViewModel::setBypass(const QString& node, bool bypass) {
     AudioRack* r = rack();
     if (r != nullptr && r->setBypass(node.toStdString(), bypass)) mgr_.markDirty();
+    rebuildGraph();
+    rebuildDetail();
+}
+
+void AudioViewModel::rearmar(const QString& node) {
+    AudioRack* r = rack();
+    if (r != nullptr) r->rearmar(node.toStdString());
     rebuildGraph();
     rebuildDetail();
 }

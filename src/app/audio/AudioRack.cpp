@@ -4,6 +4,8 @@
 
 #include "audio/AudioRack.hpp"
 
+#include <chrono>
+#include <thread>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -85,6 +87,10 @@ struct AudioRack::Node {
     std::unique_ptr<Analyzer> analyzer;
     std::unique_ptr<Generator> gen;
     std::atomic<bool> bypass{false};
+    // Vigía: lo que tarda process() (ms) y el bypass automático por lento.
+    std::atomic<float> msUltimo{0}, msMax{0}, msMedio{0};
+    int lentos = 0; // bloques lentos seguidos (solo el hilo de audio)
+    std::atomic<bool> bypassAuto{false};
     double x = 0, y = 0; // posicion en el patchbay
     // Medidores (el audio escribe potencia/pico lineales; se leen en dB).
     std::atomic<float> inPow{0}, outPow{0}, inPeak{0}, outPeak{0};
@@ -186,9 +192,11 @@ AudioRack::AudioRack(std::shared_ptr<ClapLibrary> lib, HostServices* services, d
     monL_.assign(kMonitorCap, 0.0f);
     monR_.assign(kMonitorCap, 0.0f);
     rebuild();
+    registrar(this, true);
 }
 
 AudioRack::~AudioRack() {
+    registrar(this, false);
     {
         std::lock_guard<std::mutex> lk(planLock_);
         plan_.reset();
@@ -906,8 +914,71 @@ void meterInto(std::atomic<float>& pow, std::atomic<float>& peak, float* const* 
 
 } // namespace
 
+namespace {
+std::atomic<int> g_umbralPct{50}, g_bloques{20};
+std::mutex g_racksMu;
+std::set<AudioRack*>* g_racks = nullptr;
+std::atomic<bool> g_vigiaAndando{false};
+std::int64_t ahoraNsRack() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
+} // namespace
+
+void AudioRack::registrar(AudioRack* r, bool alta) {
+    std::lock_guard<std::mutex> l(g_racksMu);
+    if (g_racks == nullptr) g_racks = new std::set<AudioRack*>();
+    if (alta)
+        g_racks->insert(r);
+    else
+        g_racks->erase(r);
+    // Un solo hilo vigía para todos los racks: cada 50 ms mira si alguno está
+    // adentro de un process() hace más de 200 ms.
+    if (alta && !g_vigiaAndando.exchange(true))
+        std::thread([] {
+            for (;;) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                std::lock_guard<std::mutex> l2(g_racksMu);
+                const std::int64_t ahora = ahoraNsRack();
+                for (AudioRack* x : *g_racks) {
+                    const std::int64_t desde = x->enProcesoDesde_.load();
+                    if (desde != 0 && ahora - desde > 200'000'000LL && !x->colgado_.exchange(true)) {
+                        std::lock_guard<std::mutex> l3(x->saltadosMu_);
+                        x->saltados_.push_back("rack colgado (un módulo no volvió en 200 ms)");
+                    }
+                }
+            }
+        }).detach();
+}
+
+AudioRack::json AudioRack::vigia() { return {{"umbral_pct", g_umbralPct.load()}, {"bloques", g_bloques.load()}}; }
+
+std::string AudioRack::ponerVigia(const json& v) {
+    if (v.contains("umbral_pct")) g_umbralPct = std::clamp(v.value("umbral_pct", 50), 10, 200);
+    if (v.contains("bloques")) g_bloques = std::clamp(v.value("bloques", 20), 1, 1000);
+    return {};
+}
+
+bool AudioRack::rearmar(const std::string& nodo) {
+    colgado_ = false;
+    Node* n = find(nodo);
+    if (n == nullptr) return false;
+    n->bypassAuto = false;
+    n->msMax = 0;
+    return true;
+}
+
+std::vector<std::string> AudioRack::tomarSaltados() {
+    std::lock_guard<std::mutex> l(saltadosMu_);
+    std::vector<std::string> v;
+    v.swap(saltados_);
+    return v;
+}
+
 void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
     monFrames_ = 0;
+    // Colgado (un módulo no volvió a tiempo): la señal pasa seca sin entrar.
+    if (colgado_.load(std::memory_order_relaxed)) return;
     std::unique_lock<std::mutex> lk(planLock_, std::try_to_lock);
     if (!lk.owns_lock() || !plan_ || plan_->inBuf < 0 || plan_->outRead < 0 || channels < 1) return;
     Plan& P = *plan_;
@@ -982,11 +1053,10 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                 node.gen->render(st.outArr[0], 2, n);
                 meterInto(node.outPow, node.outPeak, st.outArr[0], n, alpha);
             } else if (node.kind == "plugin") {
-                if (node.bypass.load(std::memory_order_relaxed)) {
-                    // Anulado: el modulo igual procesa (su interfaz, si esta
-                    // abierta, muestra el audio que entra: sin esto quedaba
-                    // quieta), pero lo que sale es la entrada tal cual.
-                    node.clap->process(st.inArr.data(), st.outArr.data(), n);
+                if (node.bypass.load(std::memory_order_relaxed) || node.bypassAuto.load(std::memory_order_relaxed)) {
+                    // Anulado (a mano o por el vigía): NO se llama al módulo —un
+                    // módulo trabado o lento no puede tocar el aire— y sale la
+                    // entrada tal cual.
                     for (size_t p = 0; p < st.outArr.size(); ++p)
                         for (int c = 0; c < 2; ++c) {
                             if (p == 0 && !st.inArr.empty())
@@ -995,7 +1065,26 @@ void AudioRack::process(float* const* planes, int channels, uint32_t frames) {
                                 std::memset(st.outArr[p][c], 0, n * sizeof(float));
                         }
                 } else {
+                    const std::int64_t t0 = ahoraNsRack();
+                    enProcesoDesde_.store(t0, std::memory_order_relaxed);
                     node.clap->process(st.inArr.data(), st.outArr.data(), n);
+                    enProcesoDesde_.store(0, std::memory_order_relaxed);
+                    const float ms = static_cast<float>(ahoraNsRack() - t0) / 1e6f;
+                    node.msUltimo.store(ms, std::memory_order_relaxed);
+                    if (ms > node.msMax.load(std::memory_order_relaxed)) node.msMax.store(ms, std::memory_order_relaxed);
+                    node.msMedio.store(node.msMedio.load(std::memory_order_relaxed) * 0.98f + ms * 0.02f,
+                                       std::memory_order_relaxed);
+                    const double bloqueMs = n * 1000.0 / sr_;
+                    if (ms > bloqueMs * g_umbralPct.load(std::memory_order_relaxed) / 100.0) {
+                        if (++node.lentos >= g_bloques.load(std::memory_order_relaxed)) {
+                            node.bypassAuto.store(true, std::memory_order_relaxed);
+                            node.lentos = 0;
+                            std::unique_lock<std::mutex> ls(saltadosMu_, std::try_to_lock);
+                            if (ls.owns_lock()) saltados_.push_back(node.label.empty() ? node.id : node.label);
+                        }
+                    } else {
+                        node.lentos = 0;
+                    }
                     // Salida mono de un modulo: R = L.
                     if (node.channels(0, false) == 1)
                         std::memcpy(st.outArr[0][1], st.outArr[0][0], n * sizeof(float));
@@ -1062,6 +1151,11 @@ json AudioRack::describe() const {
             j["modulo"] = n->pluginId;
             j["nombre"] = n->clap->desc().name;
             j["bypass"] = n->bypass.load();
+            j["bypass_auto"] = n->bypassAuto.load();
+            j["ms_ultimo"] = std::round(n->msUltimo.load() * 100) / 100;
+            j["ms_medio"] = std::round(n->msMedio.load() * 100) / 100;
+            j["ms_max"] = std::round(n->msMax.load() * 100) / 100;
+            j["ms_bloque"] = std::round(kMaxFrames * 1000.0 / sr_ * 100) / 100;
             j["editorAbierto"] = n->clap->editorOpen();
         }
         if (n->kind == "generator") {
@@ -1096,7 +1190,8 @@ json AudioRack::describe() const {
                          {"canalSalida", c.fromCh},
                          {"canalEntrada", c.toCh}});
     }
-    return json{{"nodos", nodes}, {"cables", conns}, {"frecuenciaMuestreo", sr_}};
+    return json{{"nodos", nodes}, {"cables", conns}, {"frecuenciaMuestreo", sr_}, {"colgado", colgado_.load()},
+                {"vigia", vigia()}};
 }
 
 json AudioRack::save() const {

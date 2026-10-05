@@ -543,6 +543,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     bool corteDirectoEditor_ = false;
+    unsigned vigiaTicks_ = 0;
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;

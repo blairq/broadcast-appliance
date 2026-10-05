@@ -907,6 +907,16 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "plugin"
+                        // El vigía: lo que tarda por bloque, y si lo saltó por lento.
+                        Text {
+                            visible: parent.parent.d.ms_medio !== undefined
+                            text: Number(parent.parent.d.ms_medio || 0).toFixed(2) + " ms/bloque (máx " + Number(parent.parent.d.ms_max || 0).toFixed(1) +
+                                  " de " + Number(parent.parent.d.ms_bloque || 0).toFixed(1) + ")"
+                            color: (parent.parent.d.ms_medio || 0) > (parent.parent.d.ms_bloque || 99) * 0.5 ? Theme.amber : Theme.textFaint
+                            font.pixelSize: 11
+                        }
+                        StatusPill { visible: !!parent.parent.d.bypass_auto; text: "Saltado por lento"; dot: Theme.live }
+                        GlassButton { compact: true; visible: !!parent.parent.d.bypass_auto; text: "Rearmar"; onClicked: page.au.rearmar(page.au.selected) }
                         GlassButton { compact: true; text: parent.parent.d.bypass ? "Activar" : "Anular"; onClicked: page.au.setBypass(page.au.selected, !parent.parent.d.bypass) }
                         GlassButton { compact: true; text: "Interfaz LSP"; enabled: !!parent.parent.d.tieneEditor; onClicked: page.msg = page.au.openEditor(page.au.selected) }
                         Repeater {
