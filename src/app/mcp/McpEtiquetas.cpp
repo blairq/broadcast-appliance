@@ -108,6 +108,7 @@ const Fila kPropias[] = {
     {"audio_loudness_objetivo", "loudness objetivo r128 a85 -23 -24 -16 -14 lufs"},
     {"audio_rack_vigia", "vigia modulos clap lento colgado bypass automatico watchdog audio"},
     {"audio_module_rearmar", "rearmar modulo saltado lento bypass automatico audio"},
+    {"invitado_retorno", "mix-minus retorno invitado eco se escucha a si mismo oye programa sin su voz"},
     {"supervisor_politica", "supervisor latido interfaz trabada colgada relanzar reiniciar watchdog aire"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},

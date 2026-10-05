@@ -796,6 +796,19 @@ class BroadcastEngine {
 
     // Canales IPC hacia el Proceso B (el lado PRODUCTOR).
     ba::ipc::SharedAudioRing returnAudio_;
+    // --- Mix-minus: cada invitado recibe el programa SIN su propia voz -------
+    // Se capta lo que aporta cada invitado (su fuente, después de filtros) y se
+    // resta del programa alineado por timestamp; sale por BA.Audio.Return.<n>.
+    struct MixMinus;
+    std::vector<std::unique_ptr<MixMinus>> mixMinus_; ///< [0] sin usar; 1..16
+    static void capturaInvitado(void* param, struct obs_source* src, const struct audio_data* data, bool muted);
+    void iniciarMixMinus(int slot, struct obs_source* src);
+    void soltarMixMinus();
+   public:
+    /// Lo que oye el invitado del slot: "mix_minus" (de fábrica) o "programa".
+    void setRetornoInvitado(int slot, const std::string& modo);
+    std::string retornoInvitado(int slot) const;
+   private:
     ba::ipc::SpoutSender programVideo_;
     bool returnFeedsActive_ = false;
 

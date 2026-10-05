@@ -56,6 +56,10 @@ class MediaPump {
    public:
     struct Cfg {
         std::wstring returnAudioName;   // BA.Audio.ContentForReturn (A->B)
+        // Mix-minus por slot (A->B): el programa sin la voz de ese invitado.
+        // Indexado por slot, [0] reservado. Si el de un slot no está, ese
+        // invitado recibe el retorno común.
+        std::vector<std::wstring> returnSlotNames; // BA.Audio.Return.<n>
         std::wstring programVideoName;  // BA.Program (A->B)
         std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
         std::wstring operatorAudioName; // BA.Audio.Operator (A->B, para el lobby)

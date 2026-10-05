@@ -736,9 +736,106 @@ void BroadcastEngine::programPeaksDb(float& left, float& right) {
     right = toDb(peakR_.exchange(0.0f, std::memory_order_relaxed));
 }
 
+struct BroadcastEngine::MixMinus {
+    obs_source_t* fuente = nullptr;
+    std::mutex mu;
+    // Lo que aportó el invitado, por número de muestra (timestamp * tasa):
+    // un buffer circular de ~2 s.
+    static constexpr std::size_t kCap = 96000;
+    std::vector<float> l = std::vector<float>(kCap, 0.0f), r = std::vector<float>(kCap, 0.0f);
+    std::uint64_t ultimo = 0; ///< última muestra escrita + 1
+    bool hayDatos = false;
+    ba::ipc::SharedAudioRing anillo;
+    std::vector<float> accum;
+    std::atomic<bool> mixMinus{true};
+};
+
+void BroadcastEngine::capturaInvitado(void* param, struct obs_source*, const struct audio_data* data, bool muted) {
+    auto* m = static_cast<MixMinus*>(param);
+    if (data == nullptr || data->frames == 0) return;
+    const std::uint64_t s0 = data->timestamp * 48000ULL / 1000000000ULL;
+    std::lock_guard<std::mutex> lk(m->mu);
+    const auto* L = reinterpret_cast<const float*>(data->data[0]);
+    const auto* R = reinterpret_cast<const float*>(data->data[1] != nullptr ? data->data[1] : data->data[0]);
+    // Si hubo un hueco, se borra lo viejo de ese tramo (silencio).
+    if (m->hayDatos && s0 > m->ultimo)
+        for (std::uint64_t k = m->ultimo; k < s0 && k - m->ultimo < MixMinus::kCap; ++k)
+            m->l[k % MixMinus::kCap] = m->r[k % MixMinus::kCap] = 0.0f;
+    for (uint32_t i = 0; i < data->frames; ++i) {
+        const std::size_t k = static_cast<std::size_t>((s0 + i) % MixMinus::kCap);
+        m->l[k] = muted || L == nullptr ? 0.0f : L[i];
+        m->r[k] = muted || R == nullptr ? 0.0f : R[i];
+    }
+    m->ultimo = s0 + data->frames;
+    m->hayDatos = true;
+}
+
+void BroadcastEngine::iniciarMixMinus(int slot, obs_source_t* src) {
+    if (mixMinus_.size() <= static_cast<size_t>(slot)) mixMinus_.resize(static_cast<size_t>(slot) + 1);
+    auto& mm = mixMinus_[static_cast<size_t>(slot)];
+    if (mm) return;
+    mm = std::make_unique<MixMinus>();
+    mm->fuente = src;
+    const std::wstring nombre = L"BA.Audio.Return." + std::to_wstring(slot);
+    ba::ipc::SharedAudioRing::init(nombre.c_str(), 2u, ba::ipc::audio_ring::kDefaultCapacityBlocks, currentPid(), 1u,
+                                   mm->anillo);
+    obs_source_add_audio_capture_callback(src, &BroadcastEngine::capturaInvitado, mm.get());
+}
+
+void BroadcastEngine::soltarMixMinus() {
+    for (auto& mm : mixMinus_)
+        if (mm && mm->fuente != nullptr) obs_source_remove_audio_capture_callback(mm->fuente, &BroadcastEngine::capturaInvitado, mm.get());
+    mixMinus_.clear();
+}
+
+void BroadcastEngine::setRetornoInvitado(int slot, const std::string& modo) {
+    if (slot < 1 || slot >= static_cast<int>(mixMinus_.size()) || !mixMinus_[static_cast<size_t>(slot)]) return;
+    mixMinus_[static_cast<size_t>(slot)]->mixMinus = modo != "programa";
+}
+
+std::string BroadcastEngine::retornoInvitado(int slot) const {
+    if (slot < 1 || slot >= static_cast<int>(mixMinus_.size()) || !mixMinus_[static_cast<size_t>(slot)]) return "programa";
+    return mixMinus_[static_cast<size_t>(slot)]->mixMinus ? "mix_minus" : "programa";
+}
+
 void BroadcastEngine::onRawAudio(struct audio_data* data) {
     if (returnAudio_.header() == nullptr || data->frames == 0) {
         return;
+    }
+    // Mix-minus de cada invitado: el programa menos lo que él aportó (con su
+    // volumen y si va a la pista 1), alineado por timestamp.
+    if (audio_.channels == 2 && data->data[0] != nullptr) {
+        const auto* PL = reinterpret_cast<const float*>(data->data[0]);
+        const auto* PR = reinterpret_cast<const float*>(data->data[1] != nullptr ? data->data[1] : data->data[0]);
+        const std::uint64_t s0 = data->timestamp * 48000ULL / 1000000000ULL;
+        for (size_t slot = 1; slot < mixMinus_.size(); ++slot) {
+            MixMinus* m = mixMinus_[slot].get();
+            if (m == nullptr || m->anillo.header() == nullptr) continue;
+            const bool restar = m->mixMinus.load() && m->fuente != nullptr &&
+                                (obs_source_get_audio_mixers(m->fuente) & 1) != 0 && !obs_source_muted(m->fuente);
+            const float vol = restar ? obs_source_get_volume(m->fuente) : 0.0f;
+            const std::size_t base = m->accum.size();
+            m->accum.resize(base + data->frames * 2);
+            {
+                std::lock_guard<std::mutex> lk(m->mu);
+                for (uint32_t i = 0; i < data->frames; ++i) {
+                    const std::uint64_t k = s0 + i;
+                    // Solo lo que el invitado efectivamente mandó para esa muestra.
+                    const bool hay = restar && m->hayDatos && k < m->ultimo && m->ultimo - k < MixMinus::kCap;
+                    const float gl = hay ? m->l[k % MixMinus::kCap] * vol : 0.0f;
+                    const float gr = hay ? m->r[k % MixMinus::kCap] * vol : 0.0f;
+                    m->accum[base + i * 2] = std::clamp(PL[i] - gl, -1.0f, 1.0f);
+                    m->accum[base + i * 2 + 1] = std::clamp(PR[i] - gr, -1.0f, 1.0f);
+                }
+            }
+            const std::size_t bf = m->anillo.blockFloats();
+            std::size_t pos = 0;
+            while (m->accum.size() - pos >= bf) {
+                m->anillo.push(m->accum.data() + pos, ba::ipc::HealthBlock::nowQpc());
+                pos += bf;
+            }
+            if (pos > 0) m->accum.erase(m->accum.begin(), m->accum.begin() + static_cast<std::ptrdiff_t>(pos));
+        }
     }
     const int ch = audio_.channels;
     const auto frames = static_cast<std::size_t>(data->frames);

@@ -332,6 +332,14 @@ int AppRuntime::start() {
 
     addGuests();
     addAudioInputs();
+    // Lo que oye cada invitado (mix-minus de fábrica): Config/retornos.json.
+    {
+        std::ifstream f(root_ / "Config" / "retornos.json");
+        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+        if (j.is_object())
+            for (const auto& [slot, modo] : j.items())
+                if (modo.is_string()) engine_.setRetornoInvitado(std::atoi(slot.c_str()), modo.get<std::string>());
+    }
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         engine_.createScene(sc.name);

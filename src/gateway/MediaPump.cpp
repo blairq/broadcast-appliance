@@ -296,7 +296,30 @@ void MediaPump::returnAudioThread() {
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block;
+    // Mix-minus: un lector por slot (se abren cuando A los publica).
+    const size_t nSlots = cfg_.returnSlotNames.size();
+    std::vector<SharedAudioRing> slotReaders(nSlots);
+    std::vector<bool> slotOpen(nSlots, false);
+    std::vector<std::vector<float>> slotBlock(nSlots);
+    auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     while (!stop_.load(std::memory_order_relaxed)) {
+        {
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastSlotRetry >= std::chrono::milliseconds(1000)) {
+                lastSlotRetry = now;
+                for (size_t s = 1; s < nSlots; ++s) {
+                    if (slotOpen[s] && slotReaders[s].stale()) {
+                        slotReaders[s] = SharedAudioRing{};
+                        slotOpen[s] = false;
+                    }
+                    if (!slotOpen[s] && !cfg_.returnSlotNames[s].empty() &&
+                        SharedAudioRing::openReader(cfg_.returnSlotNames[s].c_str(), slotReaders[s]).ok) {
+                        slotOpen[s] = true;
+                        log_.info("retorno mix-minus del slot " + std::to_string(s) + " abierto");
+                    }
+                }
+            }
+        }
         if (!open) {
             const auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
@@ -319,11 +342,26 @@ void MediaPump::returnAudioThread() {
         if (block.size() < n) block.resize(n);
         PoppedBlock blk;
         if (reader.pop(block.data(), blk)) {
+            // El bloque de cada slot con mix-minus (uno por vuelta, al mismo ritmo).
+            std::vector<const float*> deSlot(nSlots, nullptr);
+            for (size_t s = 1; s < nSlots; ++s) {
+                if (!slotOpen[s]) continue;
+                const size_t ns = slotReaders[s].blockFloats();
+                if (ns != n) continue;
+                if (slotBlock[s].size() < ns) slotBlock[s].resize(ns);
+                PoppedBlock b2;
+                // Un hueco del mix-minus (silencio de relleno): mejor el programa entero.
+                if (slotReaders[s].pop(slotBlock[s].data(), b2) && !b2.isSilence) deSlot[s] = b2.samples;
+            }
             for (int s : sessionsWhere([](const MediaRoute& r) {
                      return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
                  })) {
-                if (WebrtcSession* sess = hub_.session(s))
-                    sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
+                const MediaRoute r = route(s);
+                const float* fuente = blk.samples;
+                if (r.kind == MediaRoute::Kind::Program && r.index > 0 && static_cast<size_t>(r.index) < nSlots &&
+                    deSlot[static_cast<size_t>(r.index)] != nullptr)
+                    fuente = deSlot[static_cast<size_t>(r.index)];
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));

@@ -202,6 +202,7 @@ bool BroadcastEngine::buildScene() {
 }
 
 void BroadcastEngine::releaseScenes() {
+    soltarMixMinus();
     obs_set_output_source(kProgramChannel, nullptr);
     for (std::uint32_t ch = kFirstGuestAudioChannel; ch < kFirstGuestAudioChannel + kMaxGuestAudioChannels;
          ++ch) {
@@ -737,6 +738,8 @@ bool BroadcastEngine::addGuestAudio(int slot) {
         }
         sources_.emplace_back(name, reinterpret_cast<obs_source*>(src));
         attachMeter(name, reinterpret_cast<obs_source*>(src));
+        // Mix-minus: lo que aporta este invitado se resta de SU retorno.
+        iniciarMixMinus(slot, src);
     }
     // Global: suena en cualquier escena, como un microfono.
     obs_set_output_source(kFirstGuestAudioChannel + static_cast<std::uint32_t>(slot - 1), src);

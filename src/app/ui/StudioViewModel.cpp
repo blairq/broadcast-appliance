@@ -983,6 +983,24 @@ QString StudioViewModel::objetivoLoudnessUi(const QVariantMap& o) {
     return qs(e);
 }
 
+QString StudioViewModel::retornoInvitadoUi(int slot) const { return qs(rt_.engine().retornoInvitado(slot)); }
+
+QString StudioViewModel::setRetornoInvitadoUi(int slot, const QString& modo) {
+    if (modo != "mix_minus" && modo != "programa") return "retorno: mix_minus o programa";
+    if (slot < 1 || slot > rt_.config().guests) return "no hay un invitado " + QString::number(slot);
+    rt_.engine().setRetornoInvitado(slot, modo.toStdString());
+    nlohmann::json j = nlohmann::json::object();
+    {
+        std::ifstream f(rt_.dataRoot() / "Config" / "retornos.json");
+        const nlohmann::json x = nlohmann::json::parse(f, nullptr, false);
+        if (x.is_object()) j = x;
+    }
+    j[std::to_string(slot)] = modo.toStdString();
+    std::ofstream o(rt_.dataRoot() / "Config" / "retornos.json");
+    o << j.dump(1);
+    return {};
+}
+
 QVariantMap StudioViewModel::discoUi() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.discoGrabacion().dump())).object().toVariantMap();
 }

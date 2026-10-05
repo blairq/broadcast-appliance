@@ -2030,6 +2030,29 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "invitado_retorno";
+        t.title = "Lo que oye cada invitado";
+        t.category = "sala";
+        t.description = "Mix-minus: cada invitado recibe el programa SIN su propia voz (de fabrica), asi no se escucha "
+                        "con retardo ni hace eco. `retorno`: mix_minus o programa (el programa entero). Por `slot` "
+                        "(1..invitados). Sin `retorno`, dice lo de cada slot.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"slot", {{"type", "integer"}, {"minimum", 1}}},
+                           {"retorno", {{"type", "string"}, {"enum", {"mix_minus", "programa"}}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            if (a.contains("retorno")) {
+                const QString e = vm.setRetornoInvitadoUi(a.value("slot", 0), QString::fromStdString(a.value("retorno", std::string())));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
+            json out = json::object();
+            for (int s = 1; s <= rt.config().guests; ++s) out[std::to_string(s)] = rt.engine().retornoInvitado(s);
+            done(ToolResult().data(json{{"retornos", out}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "record_disco";
         t.title = "Disco de la grabacion";
         t.category = "salidas";

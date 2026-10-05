@@ -356,6 +356,9 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void grabarIgual();
     /// {libre_gb, horas, kbps, carpeta} y el remux: {archivo, destino, pct, andando, ok, error}.
     Q_INVOKABLE QVariantMap discoUi() const;
+    /// Lo que oye el invitado del slot: "mix_minus" (el programa sin su voz) o "programa".
+    Q_INVOKABLE QString retornoInvitadoUi(int slot) const;
+    Q_INVOKABLE QString setRetornoInvitadoUi(int slot, const QString& modo);
     /// El loudness de lo que sale: {m, s, i, tp, lra, segundos, gr_db, objetivo, fuera_de_objetivo}.
     Q_INVOKABLE QVariantMap loudnessUi() const;
     Q_INVOKABLE void resetLoudnessUi();

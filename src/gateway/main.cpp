@@ -530,11 +530,12 @@ int main(int argc, char** argv) {
     pumpCfg.operatorAudioName = toWide("BA.Audio.Operator");
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,
-                    &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames}) {
+                    &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {
         v->emplace_back();
     }
     for (int s = 1; s <= cfg.guests; ++s) {
         pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
+        pumpCfg.returnSlotNames.push_back(toWide("BA.Audio.Return." + std::to_string(s)));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
         pumpCfg.shareVideoNames.push_back(toWide("BA.GuestShare." + std::to_string(s)));
     }
