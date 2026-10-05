@@ -66,6 +66,7 @@ class Dispositivos;
 namespace ba::app::control {
 class BusEventos;
 class Botonera;
+class SatelliteServidor;
 }
 namespace ba::app {
 namespace legislatura {
@@ -126,6 +127,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bus READ busQml CONSTANT)
     /// La botonera (superficie de control de tablets y hardware): control/Botonera.
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
+    /// Companion Satellite manejando la botonera (control/SatelliteServidor).
+    Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -295,6 +298,8 @@ class StudioViewModel : public QObject {
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return *botonera_; }
     QObject* botoneraQml() const;
+    QObject* satelliteQml() const;
+    control::SatelliteServidor& satellite() { return *satellite_; }
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
@@ -618,6 +623,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;
     std::unique_ptr<control::Botonera> botonera_;
+    std::unique_ptr<control::SatelliteServidor> satellite_;
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

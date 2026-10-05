@@ -82,7 +82,7 @@
 | T56 | Superficie de control: editor en el escritorio | P1 | hecho (editor por formulario y JSON, sin arrastrar celdas) |
 | T57 | Superficie de control: herramientas MCP | P1 | hecho |
 | T58 | Superficie de control: superficies de hardware vía plugin | P1 | hecho (probado con un aparato falso, sin hardware real) |
-| T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | falta |
+| T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | Satellite hecho (API 1.7, modo simple; probado con un cliente simulado); falta la API remota HTTP |
 | T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | falta |
 
 **Ya hecho (no genera tarea)**

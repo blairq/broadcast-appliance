@@ -85,6 +85,23 @@ KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", TAG+="uaccess"
 y después `sudo udevadm control --reload-rules && sudo udevadm trigger` (desenchufar y volver a
 enchufar el aparato).
 
+## Companion Satellite
+
+Si ya tenés aparatos que maneja **Bitfocus Companion Satellite** (Stream Deck, Loupedeck, X-keys,
+Infinitton, paneles Blackmagic…), no hace falta ningún plugin: Satellite habla con la botonera como si
+fuera un Companion.
+
+1. Página Botonera → Aparatos → **Companion Satellite** → **Prender** (puerto 16622 de fábrica).
+2. En la máquina (o Raspberry Pi) donde están los aparatos, en Companion Satellite poné la IP de esta
+   máquina.
+3. La primera vez, su IP aparece como «quiere conectar un Satellite»: **Permitir**. (El protocolo de
+   Satellite no tiene clave: por eso solo se acepta la red local y las IP que vos permitas.)
+4. Cada aparato aparece en la lista como «Companion Satellite»: asignale perfil y página. Conviene una
+   página del mismo tamaño que el aparato (un Stream Deck MK.2 es 5 × 3).
+
+Las teclas muestran el texto, el color y el tally de cada celda; las acciones de aire se confirman
+apretando de nuevo la tecla que titila en amarillo.
+
 ## El bus de eventos
 
 Lo que muestra cada celda sale del **bus de eventos** de la app (pestaña **Eventos**): temas como
@@ -95,6 +112,6 @@ Lo que muestra cada celda sale del **bus de eventos** de la app (pestaña **Even
 ## Lo que falta
 
 - Probar con una tablet y con hardware reales (se probó con una tablet simulada y un aparato falso).
-- Compatibilidad con **Bitfocus Companion Satellite** (T59): que Companion Satellite maneje la grilla
-  con todos los aparatos que ya soporta.
+- Probar Companion Satellite de verdad (se probó con un cliente simulado que habla su protocolo) y la
+  «API remota» HTTP para el módulo Generic HTTP de Companion.
 - Editar celdas desde la tablet (el perfil tiene la opción, pero la tablet todavía no trae el editor).

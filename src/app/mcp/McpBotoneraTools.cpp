@@ -22,6 +22,7 @@
 
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
+#include "control/SatelliteServidor.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -563,6 +564,45 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         };
         core.addTool(std::move(t));
     }
+    // --- Companion Satellite ---------------------------------------------------------------
+    {
+        Tool t;
+        t.name = "botonera_satellite_estado";
+        t.title = "Companion Satellite: estado";
+        t.category = "botonera";
+        t.readOnly = true;
+        t.description = "El servidor de la Satellite API de Bitfocus Companion (TCP 16622): si esta prendido, las IP "
+                        "permitidas, las que pidieron y esperan aprobacion, y los Satellite conectados con sus "
+                        "aparatos (Stream Deck, Loupedeck, X-keys… que maneja Companion Satellite en otra maquina).";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.satellite().estado())); };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "botonera_satellite";
+        t.title = "Companion Satellite: prender, apagar, puerto";
+        t.category = "botonera";
+        t.description = "Prende (`activo`) o apaga el servidor de la Satellite API en `puerto` (16622 de fabrica). "
+                        "Cada aparato que agregue un Companion Satellite es un aparato mas de la botonera "
+                        "(botonera_dispositivo_asignar). El protocolo no tiene clave: solo red local y solo las IP "
+                        "que una PERSONA permite en la pagina Botonera (aca se pueden QUITAR con `quitar_ip`).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"puerto", {{"type", "integer"}, {"minimum", 1024}, {"maximum", 65535}}},
+                           {"quitar_ip", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto& s = vm.satellite();
+            if (a.contains("quitar_ip")) s.permitir(QString::fromStdString(a.value("quitar_ip", std::string())), false);
+            if (a.contains("activo") || a.contains("puerto")) {
+                const QString e = s.configurar(a.value("activo", s.activo()), a.value("puerto", s.puerto()));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
+            done(ToolResult().data(s.estado()));
+        };
+        core.addTool(std::move(t));
+    }
 }
+
 
 } // namespace ba::app::mcp

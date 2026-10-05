@@ -41,6 +41,7 @@
 #include "agent/Vocabulario.hpp"
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
+#include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/Cuerpo.hpp"
@@ -597,6 +598,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return out;
         };
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
+        satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
         auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
         const auto aQt = [](const nlohmann::json& j) {
             return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
@@ -628,6 +630,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                   [](bool, const QJsonObject&) {});
                     else if (origen == "plugin" && plugins_)
                         plugins_->superficieEstado(dev.toStdString(), msg);
+                    else if (origen == "satellite" && satellite_)
+                        satellite_->mensaje(dev.toStdString(), msg);
                 });
         connect(botonera_.get(), &control::Botonera::credencialesCambio, this, [this]() { sincronizarBotonera(); });
         connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
@@ -1798,6 +1802,7 @@ void StudioViewModel::publicarEventos() {
 namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
+QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 
 void StudioViewModel::sincronizarBotonera() {
     if (!conference_ || !botonera_) return;

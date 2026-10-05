@@ -579,6 +579,77 @@ Rectangle {
                     }
                 }
 
+                // Companion Satellite: los aparatos que maneja Companion Satellite en otra máquina.
+                Panel {
+                    Layout.fillWidth: true
+                    padding: 14
+                    implicitHeight: satCol.implicitHeight + 2 * padding
+                    readonly property var sat: Studio.satellite
+                    ColumnLayout {
+                        id: satCol
+                        anchors.fill: parent
+                        spacing: 8
+                        RowLayout {
+                            spacing: 10
+                            Text { text: "Companion Satellite"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            StatusPill {
+                                text: Studio.satellite.activo ? (Studio.satellite.error !== "" ? Studio.satellite.error : "escuchando en " + Studio.satellite.puerto) : "apagado"
+                                dot: Studio.satellite.activo ? (Studio.satellite.error !== "" ? Theme.live : Theme.ok) : Theme.textFaint
+                            }
+                            Item { Layout.fillWidth: true }
+                            SpinBox { id: satPuerto; from: 1024; to: 65535; value: Studio.satellite.puerto; editable: true; Layout.preferredWidth: 120 }
+                            GlassButton {
+                                compact: true
+                                text: Studio.satellite.activo ? "Apagar" : "Prender"
+                                active: !Studio.satellite.activo
+                                onClicked: {
+                                    const e = Studio.satellite.configurar(!Studio.satellite.activo, satPuerto.value)
+                                    if (e !== "") Studio.notify(e, "error")
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            color: Theme.textDim; font.pixelSize: 11
+                            text: "Instalá Companion Satellite (de Bitfocus, gratis) en la máquina o Raspberry Pi donde están enchufados los " +
+                                  "Stream Deck, Loupedeck, X-keys o paneles, y apuntalo a la IP de esta máquina. Cada aparato aparece abajo " +
+                                  "como uno más. El protocolo no tiene clave: solo se acepta la red local y las IP que permitas acá."
+                        }
+                        Repeater {
+                            model: Studio.satellite.pendientes
+                            delegate: RowLayout {
+                                required property string modelData
+                                spacing: 8
+                                Text { text: modelData + " quiere conectar un Satellite"; color: Theme.amber; font.pixelSize: 13 }
+                                GlassButton { compact: true; text: "Permitir"; active: true; onClicked: Studio.satellite.permitir(modelData, true) }
+                            }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "IP permitidas"; color: Theme.textDim; font.pixelSize: 12 }
+                            TextField {
+                                id: satIps
+                                Layout.fillWidth: true
+                                color: Theme.text
+                                text: Studio.satellite.ipPermitidas.join(", ")
+                                placeholderText: "192.168.1.40, 192.168.1.41"
+                            }
+                            GlassButton {
+                                compact: true; text: "Guardar"
+                                onClicked: Studio.satellite.setIpPermitidas(satIps.text.split(",").map(s => s.trim()).filter(s => s !== ""))
+                            }
+                        }
+                        Repeater {
+                            model: Studio.satellite.clientes
+                            delegate: Text {
+                                required property var modelData
+                                text: "● " + modelData.ip + (modelData.aparatos ? " — " + modelData.aparatos : " — sin aparatos")
+                                color: Theme.ok; font.pixelSize: 12
+                            }
+                        }
+                    }
+                }
+
                 RowLayout {
                     Layout.fillWidth: true
                     Text { text: "Aparatos"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
@@ -609,7 +680,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 2
                                 Text {
-                                    text: modelData.nombre + "  ·  " + (modelData.origen === "plugin" ? "hardware (plugin)" : "tablet")
+                                    text: modelData.nombre + "  ·  " + (modelData.origen === "plugin" ? "hardware (plugin)" : modelData.origen === "satellite" ? "Companion Satellite" : "tablet")
                                     color: Theme.text; font.pixelSize: 13
                                 }
                                 Text {

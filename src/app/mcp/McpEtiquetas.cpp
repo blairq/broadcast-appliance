@@ -155,6 +155,8 @@ const Fila kPropias[] = {
     {"botonera_emparejar", "emparejar tablet qr botonera codigo"},
     {"botonera_revocar", "revocar tablet token botonera"},
     {"botonera_auditoria", "auditoria registro botonera acciones"},
+    {"botonera_satellite", "companion satellite bitfocus stream deck loupedeck botonera"},
+    {"botonera_satellite_estado", "companion satellite estado clientes"},
     {"botonera_estado", "estado servidor botonera conexiones"},
     {"voz_vocabulario", "vocabulario voz texto transcripcion nombres propios"},
     {"voz_vocabulario_agregar", "agregar termino vocabulario transcripcion nombres cuerpo"},
