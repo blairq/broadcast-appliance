@@ -356,6 +356,11 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void grabarIgual();
     /// {libre_gb, horas, kbps, carpeta} y el remux: {archivo, destino, pct, andando, ok, error}.
     Q_INVOKABLE QVariantMap discoUi() const;
+    /// El loudness de lo que sale: {m, s, i, tp, lra, segundos, gr_db, objetivo, fuera_de_objetivo}.
+    Q_INVOKABLE QVariantMap loudnessUi() const;
+    Q_INVOKABLE void resetLoudnessUi();
+    /// {perfil: r128|a85|plataforma16|plataforma14|custom, lufs?, tp?}. "" o el error.
+    Q_INVOKABLE QString objetivoLoudnessUi(const QVariantMap& o);
     Q_INVOKABLE QVariantMap remuxUi() const;
     Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
     Q_INVOKABLE void stopStreaming();

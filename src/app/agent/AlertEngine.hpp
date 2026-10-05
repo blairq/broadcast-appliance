@@ -81,6 +81,8 @@ struct AlertInputs {
     std::function<double()> diskFreeGb;  ///< -1 = desconocido
     /// Las entradas de video y si tienen señal ({nombre, con_senal}).
     std::function<std::vector<std::pair<std::string, bool>>()> senales;
+    /// El loudness de lo que sale ({i, tp_reciente, objetivo{lufs, tp}}).
+    std::function<json()> loudness;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 

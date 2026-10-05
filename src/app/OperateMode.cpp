@@ -312,6 +312,11 @@ int AppRuntime::start() {
     }
     health_.beat(kHealthSlot);
     started_ = true;
+    {
+        std::ifstream f(root_ / "Config" / "loudness.json");
+        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+        if (j.is_object()) engine_.loudness().ponerObjetivo(j);
+    }
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
     // interfaz ya no hace que el supervisor corte el aire.
     if (health_.valid())
@@ -435,12 +440,15 @@ void AppRuntime::stop() {
 bool AppRuntime::startRecording() {
     std::error_code ec;
     fs::create_directories(cfg_.rec.directory, ec);
+    const EngineStatus antes = engine_.status();
     if (!engine_.startRecording(cfg_.rec, cfg_.encoder)) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: la grabacion no arranco: %s\n", lastError_.c_str());
         return false;
     }
     std::printf("ba-app: grabando en %s\n", cfg_.rec.directory.c_str());
+    // El integrado del loudness arranca con la sesión (si no había nada saliendo).
+    if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
     recordStopWanted_ = false;
     writeOnAirState();
     return true;
@@ -555,12 +563,14 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         lastError_ = "no hay servidor de transmision configurado";
         return false;
     }
+    const EngineStatus antes = engine_.status();
     if (!engine_.startStreaming(sc, cfg_.encoder, cambiarEnCaliente)) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: la transmision no arranco: %s\n", lastError_.c_str());
         return false;
     }
     std::printf("ba-app: transmitiendo a %s\n", sc.server.c_str());
+    if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
     streamStopWanted_ = false;
     if (!sc.key.empty()) {
         ba::security::CredentialStore::bundle().write(

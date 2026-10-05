@@ -332,6 +332,15 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         obs_shutdown();
         return false;
     }
+    // El loudness de lo que sale: la mezcla 0, siempre (no depende de las vueltas).
+    {
+        loudness_ = std::make_unique<audio::LoudnessPrograma>(audio_.sampleRate);
+        struct audio_convert_info ali = {};
+        ali.format = AUDIO_FORMAT_FLOAT_PLANAR;
+        ali.samples_per_sec = static_cast<uint32_t>(audio_.sampleRate);
+        ali.speakers = SPEAKERS_STEREO;
+        obs_add_raw_audio_callback(0, &ali, &BroadcastEngine::loudnessCallback, this);
+    }
 
     // 4-5) Modulos. Sin esto no hay codificadores ni salidas: es el paso que
     //      faltaba en el arranque anterior del Proceso A. Con un directorio
@@ -377,10 +386,19 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     return true;
 }
 
+void BroadcastEngine::loudnessCallback(void* param, size_t, struct audio_data* data) {
+    auto* e = static_cast<BroadcastEngine*>(param);
+    if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
+    const float* ch[2] = {reinterpret_cast<const float*>(data->data[0]),
+                          reinterpret_cast<const float*>(data->data[1] != nullptr ? data->data[1] : data->data[0])};
+    e->loudness_->alimentar(ch, 2, data->frames);
+}
+
 void BroadcastEngine::shutdown() {
     if (!started_) {
         return;
     }
+    obs_remove_raw_audio_callback(0, &BroadcastEngine::loudnessCallback, this);
     stopStreaming();
     stopExtras();
     stopRecording();

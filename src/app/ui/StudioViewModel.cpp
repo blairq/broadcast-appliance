@@ -354,6 +354,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
             return cache->second;
         };
+        in.loudness = [this]() { return rt_.engine().loudness().json(); };
         alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
@@ -959,6 +960,23 @@ void StudioViewModel::grabarIgual() {
     else
         emit notify("No se pudo grabar: " + qs(rt_.lastError()), "error");
     onTick();
+}
+
+QVariantMap StudioViewModel::loudnessUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().loudness().json().dump())).object().toVariantMap();
+}
+
+void StudioViewModel::resetLoudnessUi() { rt_.engine().loudness().reiniciar(); }
+
+QString StudioViewModel::objetivoLoudnessUi(const QVariantMap& o) {
+    const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(o)).toJson().toStdString(), nullptr, false);
+    const std::string e = rt_.engine().loudness().ponerObjetivo(j);
+    if (e.empty()) {
+        const auto ob = rt_.engine().loudness().objetivo();
+        std::ofstream f(rt_.dataRoot() / "Config" / "loudness.json");
+        f << nlohmann::json{{"perfil", ob.perfil}, {"lufs", ob.lufs}, {"tp", ob.tp}}.dump(1);
+    }
+    return qs(e);
 }
 
 QVariantMap StudioViewModel::discoUi() const {

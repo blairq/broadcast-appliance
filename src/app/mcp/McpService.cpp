@@ -1980,6 +1980,56 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "audio_loudness";
+        t.title = "Loudness de lo que sale";
+        t.category = "audio";
+        t.readOnly = true;
+        t.description = "El loudness del PROGRAMA (la mezcla que va a la transmision y la grabacion), EBU R128 / "
+                        "BS.1770-4: `m` momentaneo (400 ms), `s` corto (3 s), `i` integrado desde el reset (arranca "
+                        "solo al transmitir o grabar), `tp` true peak maximo (dBTP), `lra` rango, `gr_db` lo que "
+                        "baja el limitador del master, `objetivo` y `fuera_de_objetivo` (integrado a mas de 2 LU o TP "
+                        "arriba del techo). audio_measure es por fuente; esto es lo que sale.";
+        t.run = [&rt](const json&, Done done) { done(ToolResult().data(rt.engine().loudness().json())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_loudness_reset";
+        t.title = "Reiniciar el integrado del loudness";
+        t.category = "audio";
+        t.description = "Vuelve a cero el integrado, el LRA y el true peak maximo del programa.";
+        t.run = [&rt](const json&, Done done) {
+            rt.engine().loudness().reiniciar();
+            done(ToolResult::ok("Reiniciado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_loudness_objetivo";
+        t.title = "Objetivo de loudness";
+        t.category = "audio";
+        t.description = "`perfil`: r128 (-23 LUFS / -1 dBTP, de fabrica), a85 (-24 LKFS / -2), plataforma16 (-16 / -1), "
+                        "plataforma14 (-14 / -1) o custom con `lufs` y `tp`.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"perfil"}},
+                         {"properties",
+                          {{"perfil", {{"type", "string"}, {"enum", {"r128", "a85", "plataforma16", "plataforma14", "custom"}}}},
+                           {"lufs", {{"type", "number"}}},
+                           {"tp", {{"type", "number"}}}}}};
+        t.run = [&vm, &rt](const json& a, Done done) {
+            QVariantMap m;
+            m["perfil"] = QString::fromStdString(a.value("perfil", std::string("r128")));
+            if (a.contains("lufs")) m["lufs"] = a.value("lufs", -23.0);
+            if (a.contains("tp")) m["tp"] = a.value("tp", -1.0);
+            const QString e = vm.objetivoLoudnessUi(m);
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(rt.engine().loudness().json()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "record_disco";
         t.title = "Disco de la grabacion";
         t.category = "salidas";

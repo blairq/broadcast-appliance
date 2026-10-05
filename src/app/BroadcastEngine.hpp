@@ -45,6 +45,8 @@
 #include <string>
 
 #include <nlohmann/json.hpp>
+
+#include "audio/LoudnessPrograma.hpp"
 #include <utility>
 #include <vector>
 
@@ -267,6 +269,9 @@ class BroadcastEngine {
     bool placa(bool activar, const std::string& texto, const std::string& imagen, int ms);
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen} (lo que se ve ahora o va hacia eso).
     nlohmann::json estadoPlaca() const;
+
+    /// El loudness de lo que sale (mezcla 0): M/S/I, true peak, LRA (EBU R128).
+    audio::LoudnessPrograma& loudness() { return *loudness_; }
 
     /// El archivo que se está grabando (o el último) y en qué contenedor de verdad.
     std::string archivoGrabacion() const { return recordPath_; }
@@ -708,6 +713,8 @@ class BroadcastEngine {
     std::vector<std::pair<std::string, obs_scene*>> scenes_;
     std::string currentScene_;
     std::string activeServer_, activeKey_;
+    std::unique_ptr<audio::LoudnessPrograma> loudness_ = std::make_unique<audio::LoudnessPrograma>(48000);
+    static void loudnessCallback(void* param, size_t mix, struct audio_data* data);
     std::string recordPath_, remuxA_;   ///< lo que se graba y a qué pasarlo al terminar
     bool remuxAlTerminar_ = true;
     struct EstadoRemux;

@@ -71,6 +71,37 @@ Item {
             }
             Text { text: "Programa"; color: Theme.accentSoft; font { pixelSize: 11; weight: Font.DemiBold } }
         }
+        // Loudness de lo que sale (EBU R128): M y S en barras, el integrado en grande,
+        // true peak (rojo arriba del objetivo), LRA y el objetivo.
+        ColumnLayout {
+            id: ld
+            property var l: Studio.loudnessUi()
+            Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.loudnessUi() }
+            readonly property var ob: l.objetivo || ({ lufs: -23, tp: -1, perfil: "r128" })
+            Layout.fillHeight: true
+            Layout.preferredWidth: 96
+            spacing: 2
+            Text { text: "LOUDNESS"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.Bold; letterSpacing: 1 } }
+            RowLayout {
+                Layout.fillHeight: true
+                spacing: 3
+                LevelMeter { vertical: true; db: (ld.l.m || -120) + 18; Layout.fillHeight: true }   // escala: -18 LUFS ≈ 0 dBFS del medidor
+                LevelMeter { vertical: true; db: (ld.l.s || -120) + 18; Layout.fillHeight: true }
+                ColumnLayout {
+                    spacing: 0
+                    Text { text: ld.l.i > -70 ? Number(ld.l.i).toFixed(1) : "—"; font { pixelSize: 20; weight: Font.DemiBold }
+                           color: ld.l.i > -70 && Math.abs(ld.l.i - ld.ob.lufs) > 2 ? Theme.amber : Theme.text }
+                    Text { text: "LUFS I"; color: Theme.textFaint; font.pixelSize: 9 }
+                    Text { text: "TP " + (ld.l.tp > -100 ? Number(ld.l.tp).toFixed(1) : "—"); font.pixelSize: 11
+                           color: ld.l.tp > ld.ob.tp ? Theme.live : Theme.textDim }
+                    Text { text: "LRA " + Number(ld.l.lra || 0).toFixed(1); color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: "obj. " + ld.ob.lufs + " / " + ld.ob.tp; color: Theme.textFaint; font.pixelSize: 9 }
+                    Text { visible: (ld.l.gr_db || 0) < -0.1; text: "LIM " + Number(ld.l.gr_db).toFixed(1); color: Theme.amber; font.pixelSize: 10 }
+                }
+            }
+            GlassButton { compact: true; text: "Reset"; onClicked: Studio.resetLoudnessUi()
+                          ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Vuelve a cero el integrado y el LRA (arranca solo al transmitir o grabar)" }
+        }
         Rectangle { width: 1; Layout.fillHeight: true; color: Qt.rgba(1, 1, 1, 0.1) }
 
         ListView {

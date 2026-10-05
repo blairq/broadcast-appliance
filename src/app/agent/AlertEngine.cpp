@@ -130,6 +130,13 @@ json AlertEngine::types() {
            {"minMinutos", "o: minutos de grabacion que quedan al bitrate configurado (p. ej. 30)"},
            {"siempre", "avisar aunque no se este grabando (por defecto false)"}}},
          {"cooldownSec", 600}},
+        {{"type", "loudness"},
+         {"summary", "El loudness del programa se va del objetivo (integrado) o el true peak pasa el techo."},
+         {"params",
+          {{"toleranciaLU", "cuanto se puede alejar el integrado del objetivo (por defecto 2)"},
+           {"forSec", "segundos seguidos afuera antes de avisar (por defecto 30)"},
+           {"soloAlAire", "solo transmitiendo o grabando (por defecto true)"}}},
+         {"cooldownSec", 120}},
         {{"type", "input_signal"},
          {"summary", "Una entrada de video se queda sin señal (no llegan cuadros) un rato."},
          {"params",
@@ -573,6 +580,35 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                      " GB libres" + (minutos >= 0 ? " (~" + std::to_string(static_cast<int>(minutos)) + " min al bitrate actual)" : "") + ".",
                  {{"freeGb", free}, {"minutos", minutos}}, now);
         }
+    } else if (type == "loudness" && in_.loudness) {
+        if (p.value("soloAlAire", true) && in_.status) {
+            const auto s = in_.status();
+            if (!s.streaming && !s.recording) return;
+        }
+        const json l = in_.loudness();
+        const json ob = l.value("objetivo", json::object());
+        const double i = l.value("i", -120.0), tp = l.value("tp_reciente", -120.0);
+        const double objLufs = ob.value("lufs", -23.0), objTp = ob.value("tp", -1.0);
+        const double tol = p.value("toleranciaLU", 2.0);
+        const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 30.0) * 1000);
+        if (tp > objTp && cooled("tp")) {
+            mark("tp");
+            fire(rule, st, "El true peak del programa llegó a " + fmt1(tp) + " dBTP (techo " + fmt1(objTp) + ").",
+                 {{"tp", tp}}, now);
+        }
+        const bool afuera = i > -70 && std::abs(i - objLufs) > tol;
+        if (afuera) {
+            if (!st.since.count("afuera")) st.since["afuera"] = now;
+            if (now - st.since["afuera"] >= forMs && cooled("lufs")) {
+                mark("lufs");
+                fire(rule, st,
+                     "El loudness integrado del programa está en " + fmt1(i) + " LUFS (objetivo " + fmt1(objLufs) +
+                         "): " + (i > objLufs ? "bajá" : "subí") + " el nivel general.",
+                     {{"i", i}}, now);
+            }
+        } else {
+            st.since.erase("afuera");
+        }
     } else if (type == "input_signal" && in_.senales) {
         const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 3.0) * 1000);
         for (const auto& [nombre, conSenal] : in_.senales()) {
@@ -753,6 +789,8 @@ void AlertEngine::sembrar() {
         {{"type", "input_signal"}, {"name", "Entrada sin señal"}, {"params", {{"entrada", "*"}, {"forSec", 3}}},
          {"sonido", "critico"}, {"reconocer", true}},
         {{"type", "guest_drop"}, {"name", "Un invitado se cayó"}, {"params", json::object()}, {"sonido", "aviso"}},
+        {{"type", "loudness"}, {"name", "Loudness fuera de objetivo"},
+         {"params", {{"toleranciaLU", 2}, {"forSec", 30}, {"soloAlAire", true}}}, {"sonido", "ninguno"}},
     });
     for (json r : reglas) {
         r["fabrica"] = true;
