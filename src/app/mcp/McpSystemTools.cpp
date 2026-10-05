@@ -17,12 +17,14 @@
 #include <QStorageInfo>
 #include <QSysInfo>
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <thread>
 
 #include "AppRuntime.hpp"
 #include "InputSpecs.hpp"
+#include "audio/EntradasAudio.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -49,15 +51,12 @@ struct DeviceKind {
     const char* prop;
 };
 #if defined(_WIN32)
-const DeviceKind kAudioIn{"wasapi_input_capture", "device_id"};
 const DeviceKind kAudioOut{"wasapi_output_capture", "device_id"};
 const DeviceKind kVideo{"dshow_input", "video_device_id"};
 #elif defined(__APPLE__)
-const DeviceKind kAudioIn{"coreaudio_input_capture", "device_id"};
 const DeviceKind kAudioOut{"coreaudio_output_capture", "device_id"};
 const DeviceKind kVideo{"macos-avcapture", "device"};
 #else
-const DeviceKind kAudioIn{"pulse_input_capture", "device_id"};
 const DeviceKind kAudioOut{"pulse_output_capture", "device_id"};
 const DeviceKind kVideo{"v4l2_input", "device_id"};
 #endif
@@ -231,7 +230,7 @@ void McpService::registerSystemTools() {
                        {"totalGb", static_cast<double>(disk.bytesTotal()) / 1e9},
                        {"filesystem", disk.fileSystemType().toStdString()}}},
                      {"monitors", screensJson()},
-                     {"audioInputs", listToJson(e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))},
+                     {"audioInputs", listToJson(ba::app::audio::entradasDeAudio(e))},
                      {"audioOutputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
                      {"videoDevices", listToJson(e.sourceTypeListItems(kVideo.type, kVideo.prop))},
                      {"gpu", {{"renderer", e.graphicsDeviceName()}, {"cards", gpusJson()}}},
@@ -269,9 +268,9 @@ void McpService::registerSystemTools() {
         t.run = [&rt](const json&, Done done) {
             BroadcastEngine& e = rt.engine();
             done(ToolResult().data(
-                json{{"inputs", listToJson(e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))},
+                json{{"inputs", listToJson(ba::app::audio::entradasDeAudio(e))},
                      {"outputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
-                     {"inputSourceType", kAudioIn.type},
+                     {"inputSourceType", ba::app::inputs::kMicType},
                      {"outputSourceType", kAudioOut.type}}));
         };
         core_.addTool(std::move(t));
@@ -301,7 +300,7 @@ void McpService::registerSystemTools() {
                 if (dev == "default") {
                     name = "Entrada de audio predeterminada";
                 } else {
-                    for (const auto& d : e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))
+                    for (const auto& d : ba::app::audio::entradasDeAudio(e))
                         if (d.value == dev) name = d.name;
                 }
             }
@@ -312,6 +311,27 @@ void McpService::registerSystemTools() {
             done(ToolResult().data(json{{"nombre", name},
                                         {"dispositivo", dev},
                                         {"nota", "Suena en todas las escenas (canal global)."}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_input_remove";
+        t.title = "Quitar un microfono o entrada de audio";
+        t.category = "equipo";
+        t.destructive = true;
+        t.description =
+            "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
+            "las muestra). Deja de sonar en todas las escenas y no vuelve al arrancar.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
+        t.run = [&rt](const json& a, Done done) {
+            const std::string name = a.value("name", "");
+            const auto& l = rt.config().audioInputs;
+            if (std::none_of(l.begin(), l.end(), [&](const SourceSpec& s) { return s.name == name; }))
+                return done(ToolResult::error("no hay una entrada de audio «" + name + "»"));
+            rt.removeAudioInput(name);
+            rt.save();
+            done(ToolResult::ok("Quitada: " + name));
         };
         core_.addTool(std::move(t));
     }

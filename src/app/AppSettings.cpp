@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "AppSettings.hpp"
+#include "InputSpecs.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -294,7 +295,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     if (j.contains("audioInputs") && j["audioInputs"].is_array()) {
         c.audioInputs.clear();
         for (const auto& s : j["audioInputs"]) {
-            c.audioInputs.push_back(sourceFromJson(s));
+            SourceSpec spec = sourceFromJson(s);
+            // Los micrófonos de libobs de antes pasan a GStreamer (mismo nombre,
+            // volumen y silencio: los racks y los vínculos siguen andando).
+            if (inputs::migrarMicrofono(spec))
+                std::printf("ba-app: micrófono '%s' pasado a GStreamer\n", spec.name.c_str());
+            c.audioInputs.push_back(spec);
         }
     }
     if (c.scenes.empty()) {

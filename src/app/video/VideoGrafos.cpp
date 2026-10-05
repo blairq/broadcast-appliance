@@ -2102,6 +2102,105 @@ json VideoGrafos::filtrosAudioDe(const std::string& entrada) const {
     return j.is_array() ? j : json::array();
 }
 
+namespace {
+/// Ajuste de la mesa (MCP/interfaz) → propiedad de baautomixer.
+const std::map<std::string, std::string> kAjustesMesa{{"umbral_db", "umbral-db"},     {"hold_ms", "hold-ms"},
+                                                      {"piso_hold_db", "piso-hold-db"}, {"max_abiertos", "max-abiertos"},
+                                                      {"ataque_ms", "ataque-ms"},     {"liberacion_ms", "liberacion-ms"}};
+} // namespace
+
+std::string VideoGrafos::automixer(const std::string& entrada, const std::string& grupo) {
+    if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
+        return "«" + entrada + "» no es una entrada de GStreamer (los micrófonos del equipo lo son)";
+    json l = json::array();
+    json propsMesa = json::object();
+    for (const auto& f : filtrosAudioDe(entrada))
+        if (f.value("elemento", std::string()) != "baautomixer") l.push_back(f);
+    if (!grupo.empty()) {
+        // Si la mesa ya tiene micrófonos, el nuevo entra con sus ajustes.
+        for (const auto& m : automixerEstado())
+            if (m.value("grupo", std::string()) == grupo)
+                for (const auto& [k, prop] : kAjustesMesa)
+                    if (m["ajustes"].contains(k)) propsMesa[prop] = m["ajustes"][k];
+        propsMesa["grupo"] = grupo;
+        l.push_back({{"id", "automixer"}, {"elemento", "baautomixer"}, {"propiedades", propsMesa}});
+    }
+    return filtrosAudio(entrada, l);
+}
+
+std::string VideoGrafos::automixerAjustes(const std::string& grupo, const json& ajustes) {
+    if (!ajustes.is_object() || ajustes.empty()) return "faltan los ajustes";
+    for (const auto& [k, v] : ajustes.items())
+        if (!kAjustesMesa.count(k) || !v.is_number())
+            return "ajuste desconocido «" + k + "» (umbral_db, hold_ms, piso_hold_db, max_abiertos, ataque_ms, liberacion_ms)";
+    int n = 0;
+    for (const std::string& nombre : rt_.engine().sourceNames()) {
+        if (rt_.engine().sourceTypeId(nombre) != kTipoVirtual) continue;
+        json l = filtrosAudioDe(nombre);
+        bool toca = false;
+        for (auto& f : l)
+            if (f.value("elemento", std::string()) == "baautomixer" &&
+                f.value("propiedades", json::object()).value("grupo", std::string("mesa")) == grupo) {
+                for (const auto& [k, v] : ajustes.items())
+                    f["propiedades"][kAjustesMesa.at(k)] = k == "max_abiertos" ? json(v.get<int>()) : json(v.get<double>());
+                toca = true;
+            }
+        if (!toca) continue;
+        if (const std::string e = filtrosAudio(nombre, l); !e.empty()) return e;
+        ++n;
+    }
+    return n > 0 ? std::string() : "la mesa «" + grupo + "» no tiene micrófonos";
+}
+
+json VideoGrafos::automixerEstado() const {
+    std::map<std::string, json> mesas;
+    for (const std::string& nombre : rt_.engine().sourceNames()) {
+        if (rt_.engine().sourceTypeId(nombre) != kTipoVirtual) continue;
+        for (const auto& f : filtrosAudioDe(nombre)) {
+            if (f.value("elemento", std::string()) != "baautomixer") continue;
+            const json pr = f.value("propiedades", json::object());
+            const std::string g = pr.value("grupo", std::string("mesa"));
+            json& mesa = mesas[g];
+            if (mesa.is_null()) mesa = {{"grupo", g}, {"ajustes", json::object()}, {"microfonos", json::array()}};
+            for (const auto& [k, prop] : kAjustesMesa)
+                if (pr.contains(prop)) {
+                    const json& v = pr[prop];
+                    mesa["ajustes"][k] = v.is_string() ? json::parse(v.get<std::string>(), nullptr, false) : v;
+                }
+            json m{{"nombre", nombre}};
+            // Lo que informa el elemento andando (canal, ganancia-db, nivel-db).
+            for (const auto& vivo : filtrosDeEntrada(nombre))
+                if (vivo.value("elemento", std::string()) == "baautomixer") {
+                    m["andando"] = vivo.value("andando", false);
+                    const json info = vivo.value("info", json::object());
+                    if (info.contains("canal")) m["canal"] = info["canal"];
+                    if (info.contains("ganancia-db")) m["ganancia_db"] = std::round(info["ganancia-db"].get<double>() * 10) / 10;
+                    if (info.contains("nivel-db")) m["nivel_db"] = std::round(info["nivel-db"].get<double>() * 10) / 10;
+                }
+            mesa["microfonos"].push_back(m);
+        }
+    }
+    json out = json::array();
+    for (auto& [g, m] : mesas) out.push_back(m);
+    return out;
+}
+
+QVariantMap VideoGrafos::automixerUi() const {
+    json mics = json::array();
+    for (const auto& m : rt_.config().audioInputs)
+        if (m.id == kTipoVirtual) mics.push_back(m.name);
+    return aVariant(json{{"mesas", automixerEstado()}, {"microfonos", mics}}).toMap();
+}
+
+QString VideoGrafos::automixerPonerUi(const QString& entrada, const QString& grupo) {
+    return q(automixer(entrada.toStdString(), grupo.trimmed().toStdString()));
+}
+
+QString VideoGrafos::automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes) {
+    const json j = json::parse(QJsonDocument::fromVariant(ajustes).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    return q(automixerAjustes(grupo.toStdString(), j.is_object() ? j : json::object()));
+}
+
 QVariantList VideoGrafos::filtrosAudioUi(const QString& entrada) const {
     return aVariant(filtrosAudioDe(entrada.toStdString())).toList();
 }
@@ -2111,7 +2210,8 @@ QString VideoGrafos::agregarFiltroAudioUi(const QString& entrada, const QString&
         {"compresor", {{"elemento", "audiodynamic"}, {"propiedades", {{"mode", "compressor"}, {"characteristics", "soft-knee"}, {"ratio", 0.5}, {"threshold", 0.25}}}}},
         {"pasa_altos", {{"elemento", "audiocheblimit"}, {"propiedades", {{"mode", "high-pass"}, {"cutoff", 80.0}, {"poles", 4}}}}},
         {"eco", {{"elemento", "audioecho"}, {"propiedades", {{"delay", 250000000}, {"max-delay", 500000000}, {"intensity", 0.3}, {"feedback", 0.2}}}}},
-        {"volumen", {{"elemento", "volume"}, {"propiedades", {{"volume", 1.5}}}}}};
+        {"volumen", {{"elemento", "volume"}, {"propiedades", {{"volume", 1.5}}}}},
+        {"automixer", {{"elemento", "baautomixer"}, {"propiedades", {{"grupo", "mesa"}}}}}};
     const auto it = kComunes.find(cual.toStdString());
     if (it == kComunes.end()) return "filtro desconocido";
     json l = filtrosAudioDe(entrada.toStdString());

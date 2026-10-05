@@ -55,7 +55,7 @@
 | T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | hecho (sin ProRes) |
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
 | T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | hecho (sin aviso de correlación ni loudness por fuente) |
-| T32 | Automixer para las bancas | P1 | decisión pendiente (docs/DECISIONES-PENDIENTES.md: los micrófonos tienen que pasar a GStreamer) |
+| T32 | Automixer para las bancas | P1 | hecho (2026-10-05): micrófonos por GStreamer + `baautomixer` |
 | T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | hecho (IFB y prueba de eco sin probar con un invitado real) |
 | T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
 | T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | hecho en parte (plugin con simulador y TCP genérico; falta adaptarlo y probarlo con el equipo real del recinto) |
@@ -715,17 +715,14 @@
 - **Depende de:** T11 para el loudness por fuente.
 
 ### T32 · Automixer para las bancas — P1
-- **Estado: falta (escrito, sin usar).** Solo se instancia en `src/app/OperatorEngine.cpp:109,335-338`, que corre en `--headless-selftest` (`src/app/main.cpp:49`).
-- **Qué hacer.**
-  - Envolver `core/dsp/Automixer` como filtro de OBS que trabaja sobre un **grupo** de fuentes. Como el filtro de OBS es por fuente, se necesita un coordinador compartido: un `AutomixerGrupo` singleton, con el que cada filtro registra su nivel por bloque y del que recibe su ganancia (Dugan, suma de ganancias = 1).
-  - Indicador del micrófono que "abrió", publicado en el bus (T50), para T34.
-- **MCP.** Herramientas nuevas:
-  - `automixer_grupos`;
-  - `automixer_crear {nombre, fuentes: []}`;
-  - `automixer_ajustar {grupo, activo, ultimo_abierto_mantener_ms, ruido_umbral_db}`;
-  - `automixer_estado {grupo}` con la ganancia de cada fuente.
-- **GUI.** En la página Audio, una sección "Automezcla" con la lista de grupos, las fuentes con su barra de ganancia en vivo y el micrófono abierto resaltado. En el Mezclador, una insignia "AM" en los canales del grupo.
-- **Depende de:** nada. Lo usa T34.
+- **Estado: hecho** (2026-10-05), por GStreamer (opción A de docs/DECISIONES-PENDIENTES.md), no como filtro de OBS.
+  - **Micrófonos por GStreamer.** `audio_input_add` y la página Entradas arman un `ba_gst_fuente` con `pipeline_audio` (`osxaudiosrc unique-id=…` / `wasapi2src device=…` / `pulsesrc device=…`) y `microfono` = el dispositivo. La lista de dispositivos sale del `GstDeviceMonitor` (`src/app/audio/EntradasAudio.*`). Los micrófonos viejos de libobs pasan solos al cargar `app.json`, con el mismo nombre, volumen y silencio (en Mac y Linux el id es el mismo; en Windows se convierte el `{0.0.1…}` de libobs a la ruta de wasapi2src). Herramienta nueva `audio_input_remove`.
+  - **`baautomixer`** (plugin `baaudio`, `src/gst-plugins/audio/`): un `GstAudioFilter` en el lugar, al final de los filtros de audio del micrófono. Los del mismo `grupo` comparten en el proceso un `ba::dsp::Automixer` (Dugan): cada uno toma un canal libre al arrancar, reporta el RMS de su bloque y aplica la ganancia interpolada a lo largo del bloque. Los ajustes son de la mesa (`umbral-db`, `hold-ms`, `piso-hold-db`, `max-abiertos`, `ataque-ms`, `liberacion-ms`). `ganancia-db`, `nivel-db` y `canal` son de solo lectura (salen en el `estado` de la entrada).
+  - `Automixer::setLevelBlock()`: un bloque por llamada y el hold contado en muestras propias del canal (varios hilos, uno por micrófono, sin pisarse el tiempo). Test en `test_automixer`.
+  - **MCP:** `automixer` (sin argumentos: mesas, ajustes y ganancia/nivel en vivo de cada micrófono; `microfono(s)` + `grupo`: pone o saca; `grupo` + `ajustes`: los de la mesa).
+  - **GUI:** página Audio → «Mesa»: cada micrófono con su mesa (campo de texto), una barra con la ganancia que aplica ahora y el nivel que entra, y los ajustes de cada mesa. En los filtros de audio de una entrada (Sincronía), «Automixer (mesa)» en los rápidos.
+  - Probado en la app: dos micrófonos iguales en la mesa → −6,3 dB cada uno; una entrada con solo ruido → −31 dB; se guarda y vuelve igual al reiniciar.
+- **Falta:** publicar en el bus (T50) qué micrófono «abrió» (T34 sigue con los niveles) y la insignia «AM» en el Mezclador.
 
 ## Sala y Legislatura
 

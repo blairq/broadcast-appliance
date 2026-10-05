@@ -177,6 +177,22 @@ class VideoGrafos : public QObject {
     std::string filtrosAudio(const std::string& entrada, const nlohmann::json& filtros);
     nlohmann::json filtrosAudioDe(const std::string& entrada) const;
 
+    // --- Automixer de mesa redonda (T32) ---------------------------------------------------
+    /// Pone al micrófono (o a cualquier entrada de GStreamer con audio) en la mesa
+    /// `grupo`: un `baautomixer` al final de sus filtros de audio. Los de la misma mesa
+    /// se reparten la ganancia (Dugan): el que habla pasa al frente. `grupo` vacío: lo
+    /// saca de la mesa. "" o el error.
+    std::string automixer(const std::string& entrada, const std::string& grupo);
+    /// Los ajustes de la mesa (umbral_db, hold_ms, piso_hold_db, max_abiertos,
+    /// ataque_ms, liberacion_ms): se guardan en todos sus micrófonos. "" o el error.
+    std::string automixerAjustes(const std::string& grupo, const nlohmann::json& ajustes);
+    /// [{grupo, ajustes, microfonos: [{nombre, canal, ganancia_db, nivel_db}]}], en vivo.
+    nlohmann::json automixerEstado() const;
+    /// {mesas: automixerEstado, microfonos: [nombres de los micrófonos por GStreamer]}.
+    Q_INVOKABLE QVariantMap automixerUi() const;
+    Q_INVOKABLE QString automixerPonerUi(const QString& entrada, const QString& grupo);
+    Q_INVOKABLE QString automixerAjustesUi(const QString& grupo, const QVariantMap& ajustes);
+
     // --- Canal de control de las entradas de GStreamer ------------------------------------
     /// Manda `control` (un objeto plano) a la cadena de GStreamer de la entrada como
     /// evento estándar «ba/control» (personalizado, hacia abajo, fuera de banda): cada

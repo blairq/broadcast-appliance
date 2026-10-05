@@ -1028,6 +1028,48 @@ void McpService::registerVideoTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "automixer";
+        t.title = "Automixer de mesa redonda (micrófonos de las bancas)";
+        t.category = "audio";
+        t.description =
+            "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
+            "la suma queda acotada (no se suman ruido ni retorno al abrir muchos). Corre en GStreamer, en la "
+            "cadena de cada micrófono (`baautomixer`). Sin argumentos: las mesas, sus ajustes y, por "
+            "micrófono, la ganancia que aplica ahora y el nivel que entra. Con `microfono` y `grupo`: lo pone "
+            "en esa mesa (grupo \"\" lo saca). Con `grupo` y `ajustes`: cambia los de la mesa (umbral_db: "
+            "desde qué nivel cuenta como abierto; hold_ms y piso_hold_db: cuánto y a cuánto sostiene al que "
+            "acaba de hablar; max_abiertos; ataque_ms; liberacion_ms).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"microfono", {{"type", "string"}, {"description", "nombre de la entrada de audio"}}},
+                           {"microfonos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "varios a la vez"}}},
+                           {"grupo", {{"type", "string"}, {"description", "la mesa (p. ej. bancas)"}}},
+                           {"ajustes", {{"type", "object"}}}}}};
+        t.examples = {R"({"microfonos": ["Banca 1", "Banca 2", "Banca 3"], "grupo": "bancas"})",
+                      R"({"grupo": "bancas", "ajustes": {"umbral_db": -45, "max_abiertos": 3}})", R"({})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            std::vector<std::string> mics;
+            if (a.contains("microfono") && a["microfono"].is_string()) mics.push_back(a["microfono"]);
+            for (const auto& m : a.value("microfonos", json::array()))
+                if (m.is_string()) mics.push_back(m);
+            const bool hayGrupo = a.contains("grupo") && a["grupo"].is_string();
+            if (!mics.empty()) {
+                if (!hayGrupo) return done(ToolResult::error("falta `grupo` (\"\" para sacarlo de la mesa)"));
+                for (const auto& m : mics)
+                    if (const std::string e = v->automixer(m, a["grupo"]); !e.empty()) return done(ToolResult::error(e));
+            }
+            if (a.contains("ajustes")) {
+                if (!hayGrupo) return done(ToolResult::error("falta `grupo`"));
+                if (const std::string e = v->automixerAjustes(a["grupo"], a["ajustes"]); !e.empty())
+                    return done(ToolResult::error(e));
+            }
+            done(ToolResult().data({{"mesas", v->automixerEstado()}}));
+        };
+        core_.addTool(std::move(t));
+    }
     if (video::SuperRes* sr = vm_.superresVideo()) {
         const QPointer<video::SuperRes> srp = sr;
         {

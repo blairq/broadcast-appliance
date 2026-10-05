@@ -16,7 +16,9 @@
 #include <obs.h>
 
 #include "AppRuntime.hpp"
+#include "audio/EntradasAudio.hpp"
 #include "InputSpecs.hpp"
+#include "audio/EntradasAudio.hpp"
 #if defined(BA_HAVE_NDI)
 #include "NdiSource.hpp"
 #endif
@@ -112,7 +114,7 @@ void InputsViewModel::refresh() {
         devices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
                                 {"value", QString::fromStdString(d.value)}};
     audioDevices_.clear();
-    for (const auto& d : rt_.engine().sourceTypeListItems(inputs::kAudioInType, inputs::kAudioInProp))
+    for (const auto& d : audio::entradasDeAudio(rt_.engine()))
         audioDevices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
                                      {"value", QString::fromStdString(d.value)}};
     rebuildInputs();

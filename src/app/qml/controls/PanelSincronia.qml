@@ -274,7 +274,7 @@ Popup {
                                 }
                                 ComboBox {
                                     model: [ { t: "Rápidos…", v: "" }, { t: "Compresor", v: "compresor" }, { t: "Pasa altos (80 Hz)", v: "pasa_altos" },
-                                             { t: "Eco", v: "eco" }, { t: "Volumen x1,5", v: "volumen" } ]
+                                             { t: "Eco", v: "eco" }, { t: "Volumen x1,5", v: "volumen" }, { t: "Automixer (mesa)", v: "automixer" } ]
                                     textRole: "t"
                                     implicitWidth: 140
                                     onActivated: (i) => {

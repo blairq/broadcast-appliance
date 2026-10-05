@@ -419,7 +419,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                                 const std::string n = audio[i].value("nombre", std::string());
                                 if (obs_source_t* s = obs_get_source_by_name(n.c_str())) {
                                     const char* id = obs_source_get_unversioned_id(s);
-                                    if (id != nullptr && std::string(id) == inputs::kAudioInType) mic = n;
+                                    obs_data_t* d = obs_source_get_settings(s);
+                                    const json aj = d != nullptr ? json::parse(obs_data_get_json(d), nullptr, false) : json();
+                                    if (d != nullptr) obs_data_release(d);
+                                    if (id != nullptr && inputs::esMicrofono(id, aj)) mic = n;
                                     obs_source_release(s);
                                 }
                             }

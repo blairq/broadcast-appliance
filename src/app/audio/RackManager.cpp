@@ -6,6 +6,7 @@
 #include "platform/Paths.hpp"
 
 #include "audio/GrabadorWav.hpp"
+#include "InputSpecs.hpp"
 
 #include <mutex>
 
@@ -30,6 +31,17 @@
 namespace ba::app::audio {
 
 namespace fs = std::filesystem;
+
+namespace {
+/// ¿Es un micrófono del equipo? (por GStreamer: `ba_gst_fuente` con `microfono`).
+bool esMic(obs_source_t* s) {
+    obs_data_t* d = obs_source_get_settings(s);
+    if (d == nullptr) return false;
+    const bool si = inputs::esMicrofono(obs_source_get_id(s), nlohmann::json::parse(obs_data_get_json(d), nullptr, false));
+    obs_data_release(d);
+    return si;
+}
+} // namespace
 using json = nlohmann::json;
 
 // --- Servicios del hilo principal con Qt ----------------------------------------------
@@ -516,7 +528,7 @@ json RackManager::audioSources() const {
                 group = "Entradas del equipo (placas)";
             } else if (type == "ba_guest_audio") {
                 group = "Invitados";
-            } else if (type.find("_input_capture") != std::string::npos) {
+            } else if (type.find("_input_capture") != std::string::npos || esMic(s)) {
                 group = "Micrófonos y líneas del equipo";
             } else if (type.find("_output_capture") != std::string::npos) {
                 group = "Audio del equipo (lo que suena)";

@@ -4,6 +4,8 @@
 
 #include "InputSpecs.hpp"
 
+#include "audio/EntradasAudio.hpp"
+
 #include <algorithm>
 
 namespace ba::app::inputs {
@@ -36,11 +38,28 @@ SourceSpec hardwareSpec(const std::string& device, const std::string& name, cons
 
 SourceSpec audioInputSpec(const std::string& device, const std::string& name) {
     SourceSpec spec;
-    spec.id = kAudioInType;
+    spec.id = kMicType;
     spec.name = name;
-    spec.settingsJson = json{{kAudioInProp, device}}.dump();
+    spec.settingsJson =
+        json{{"pipeline_audio", audio::pipelineDeMicrofono(device)}, {"audio", true}, {"microfono", device}}.dump();
     spec.rect = CanvasRect{0.0f, 0.0f, 0.0f, 0.0f}; // solo audio
     return spec;
+}
+
+bool esMicrofono(const std::string& type, const json& settings) {
+    if (type == kAudioInLibobs) return true;
+    return type == kMicType && settings.is_object() && settings.contains("microfono");
+}
+
+bool migrarMicrofono(SourceSpec& spec) {
+    if (spec.id != kAudioInLibobs) return false;
+    const json viejo = json::parse(spec.settingsJson, nullptr, false);
+    const std::string dev =
+        audio::idDesdeLibobs(viejo.is_object() ? viejo.value(kAudioInProp, std::string("default")) : "default");
+    const SourceSpec nuevo = audioInputSpec(dev, spec.name);
+    spec.id = nuevo.id;
+    spec.settingsJson = nuevo.settingsJson;
+    return true;
 }
 
 SourceSpec networkSpec(const std::string& url, const std::string& name, const json& opts,

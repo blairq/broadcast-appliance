@@ -181,6 +181,11 @@ Rectangle {
         spacing: 4
         GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vista = "racks" }
         GlassButton { compact: true; text: "Matriz"; icon: "▦"; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+        GlassButton { compact: true; text: "Mesa"; active: page.vista === "mesa"; onClicked: page.vista = "mesa" }
+    }
+    MesaAutomixer {
+        visible: !!page.au && page.vista === "mesa" && page.visible
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
     }
     MatrizAudio {
         visible: !!page.au && !!Studio.matriz && page.vista === "matriz" && page.visible

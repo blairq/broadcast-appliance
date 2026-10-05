@@ -102,11 +102,11 @@ Solo localhost, token obligatorio, y se rechazan pedidos con Origin de otra pagi
 | `color_source_v3` | `color` (entero ABGR: 0xAABBGGRR, p. ej. rojo opaco = 4278190335), `width`, `height` |
 | `text_ft2_source_v2` | `text`, `font` {face, size}, `color1`, `color2`, `outline`, `drop_shadow` |
 | `v4l2_input` (Linux) | camara: `device_id`, resolucion (ver source_properties) |
-| `pulse_input_capture` / `alsa_input_capture` | microfono (Linux) |
 | `macos-avcapture` (macOS) | camara: `device` (ver source_properties) |
-| `coreaudio_input_capture` / `coreaudio_output_capture` (macOS) | microfono / audio del sistema: `device_id` |
+| `coreaudio_output_capture` (macOS) | audio del sistema: `device_id` |
+| microfonos (todos los sistemas) | entran por GStreamer: `audio_input_add` (no `source_add`); `ba_gst_fuente` con `pipeline_audio` y `microfono`. Filtros: `entrada_filtros_audio`; mesa redonda: `automixer` |
 | `screen_capture` (macOS) | pantalla o ventana (ScreenCaptureKit; pide permiso de grabacion de pantalla) |
-| `dshow_input` / `wasapi_input_capture` (Windows) | camara / microfono |
+| `dshow_input` (Windows) | camara |
 | `ba_guest_video` | invitado: `slot` (1..N), `channel` guest (camara) o share (pantalla compartida) |
 | `slideshow` | `files`, `slide_time` |
 | `ba_chat_overlay` | chat en vivo (YouTube, Twitch, Facebook y/o sala) sobre el video: `show_youtube`, `show_twitch`, `show_facebook`, `show_room` (o `channel` all/youtube/twitch/facebook/room), `max_messages`, `font_size`, `width`, `height`, `bg_opacity`, `show_names`, `fade_sec` |

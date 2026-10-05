@@ -113,6 +113,14 @@ class Automixer {
     /// :returns: ganancia lineal en [0, 1], siempre finita.
     float gainFor(int ch) const;
 
+    /// Como `setLevel()` pero para un BLOQUE de `frames` muestras con nivel
+    /// `rms`: la envolvente avanza `frames` muestras de una vez y el hold se
+    /// cuenta en muestras PROPIAS del canal. Es lo que usa un canal que corre
+    /// en su propio hilo (p. ej. el elemento de GStreamer `baautomixer`, un
+    /// pipeline por micrófono): varios escritores, uno por canal, sin pisarse
+    /// el tiempo (el `tick_` global cuenta llamadas de todos).
+    void setLevelBlock(int ch, float rms, int frames);
+
     /// Limpia todo el estado dinamico: energias suavizadas a cero y hold
     /// inactivo. No toca los parámetros actuales.
     void reset();
@@ -180,6 +188,10 @@ class Automixer {
     // Tick global: cuenta las llamadas a setLevel() (proxy de tiempo en el
     // dominio del thread de audio). Se usa para el hold sin reloj de sistema.
     std::atomic<long long> tick_ = 0;
+
+    // Hold de `setLevelBlock()`: muestras que le quedan a cada canal (solo lo
+    // escribe el hilo de ese canal; gainFor lo lee).
+    std::unique_ptr<std::atomic<long long>[]> holdLeft_;
 
     // --- Atenuacion por cantidad de micros abiertos (suavizada) ---
     // Valor actual (lineal) y objetivo. Se interpola con attFade_ (one-pole

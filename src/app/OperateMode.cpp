@@ -1081,6 +1081,9 @@ bool AppRuntime::updateSourceSettings(const std::string& name, const std::string
             }
         }
     }
+    // Y las entradas globales (micrófonos: p. ej. sus filtros de audio).
+    for (auto& s : cfg_.audioInputs)
+        if (s.name == name) s.settingsJson = current;
     return true;
 }
 
@@ -1095,6 +1098,8 @@ bool AppRuntime::setVolume(const std::string& name, float mul) {
             }
         }
     }
+    for (auto& s : cfg_.audioInputs)
+        if (s.name == name) s.volume = mul;
     return true;
 }
 
@@ -1109,6 +1114,8 @@ bool AppRuntime::setMuted(const std::string& name, bool muted) {
             }
         }
     }
+    for (auto& s : cfg_.audioInputs)
+        if (s.name == name) s.muted = muted;
     return true;
 }
 

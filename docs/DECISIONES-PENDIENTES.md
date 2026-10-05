@@ -21,6 +21,8 @@ Mezclador), así que no hay apuro de aire.
 
 ## T32 · Automixer de las bancas (y, de fondo, dónde vive el audio)
 
+**Decidido (2026-10-05): A, y todo lo demás también va pasando a GStreamer (libobs se va a sacar).** Hecho: micrófonos por GStreamer y `baautomixer` (ver T32 en TAREAS-INFORME-EXPERTO.md). Lo que queda en libobs: docs/MIGRACION-GSTREAMER.md.
+
 El automixer (Dugan, `src/core/dsp/Automixer`) está escrito y probado, pero para usarlo hay que meterlo en
 el camino del audio de cada micrófono. La regla es que el procesamiento vaya en GStreamer (capa de
 entrada), no en OBS. Hoy los micrófonos son fuentes **nativas de OBS** (`coreaudio_input_capture`,

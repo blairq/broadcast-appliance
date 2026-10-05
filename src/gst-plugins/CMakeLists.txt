@@ -7,6 +7,7 @@
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
 #   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal (las tarjetas de imagen y el legalizador).
+#   audio/     baaudio: baautomixer (mesa redonda por grupo).
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -25,6 +26,11 @@ endfunction()
 
 add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp)
 ba_plugin_gst(gstbafiltros)
+
+# El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).
+add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp")
+target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
+ba_plugin_gst(gstbaaudio)
 
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).
 set(_ba_ort "${BA_ORT_LIB}")

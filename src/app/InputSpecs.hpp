@@ -26,19 +26,33 @@ constexpr const char* kVideoProp = "device_id";
 #endif
 
 #if defined(_WIN32)
-constexpr const char* kAudioInType = "wasapi_input_capture";
+constexpr const char* kAudioInLibobs = "wasapi_input_capture";
 constexpr const char* kAudioInProp = "device_id";
 #elif defined(__APPLE__)
-constexpr const char* kAudioInType = "coreaudio_input_capture";
+constexpr const char* kAudioInLibobs = "coreaudio_input_capture";
 constexpr const char* kAudioInProp = "device_id";
 #else
-constexpr const char* kAudioInType = "pulse_input_capture";
+constexpr const char* kAudioInLibobs = "pulse_input_capture";
 constexpr const char* kAudioInProp = "device_id";
 #endif
 
-/// Entrada de audio del sistema (microfono, linea, interfaz). Sin video: no
-/// ocupa lugar en el lienzo.
+// kAudioInLibobs: el micrófono de libobs de antes (solo para listar mientras
+// GStreamer arranca y para pasar los viejos a GStreamer al cargar).
+
+/// Los micrófonos son un pipeline de GStreamer (audio/EntradasAudio.hpp).
+constexpr const char* kMicType = "ba_gst_fuente";
+
+/// Entrada de audio del sistema (microfono, linea, interfaz) por GStreamer
+/// (`ba_gst_fuente` con `pipeline_audio`; `microfono` guarda el dispositivo).
+/// Sin video: no ocupa lugar en el lienzo.
 SourceSpec audioInputSpec(const std::string& device, const std::string& name);
+
+/// ¿Es un micrófono del equipo? (el de GStreamer o uno viejo de libobs).
+bool esMicrofono(const std::string& type, const nlohmann::json& settings);
+
+/// Un micrófono viejo (fuente de libobs) pasado a GStreamer, con el mismo
+/// nombre, volumen y silencio. false si `spec` no era uno viejo.
+bool migrarMicrofono(SourceSpec& spec);
 
 /// Esquema soportado de una URL de red ("" si no).
 std::string networkScheme(const std::string& url);
