@@ -270,6 +270,10 @@ class BroadcastEngine {
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen} (lo que se ve ahora o va hacia eso).
     nlohmann::json estadoPlaca() const;
 
+    /// Subtítulos ocultos CEA-608 (canal 1) en la transmisión y en cada destino
+    /// adicional activo. Devuelve a cuántas salidas se mandó.
+    int enviarCaption(const std::string& texto, double segundos);
+
     /// El loudness de lo que sale (mezcla 0): M/S/I, true peak, LRA (EBU R128).
     audio::LoudnessPrograma& loudness() { return *loudness_; }
 

@@ -42,6 +42,7 @@
 #include "platform/Paths.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "agent/SubtitulosCC.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
@@ -2046,6 +2047,68 @@ void McpService::registerTools() {
                                                       QString::fromStdString(a.value("texto", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok("Aprobado: el zocalo ya lo usa."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cc_estado";
+        t.title = "Subtitulos ocultos (CC)";
+        t.category = "traduccion";
+        t.readOnly = true;
+        t.description = "Los subtitulos ocultos de la transmision (el espectador los prende en su reproductor): si estan "
+                        "prendidos, de que salida de texto salen (texto_flujos), el metodo (608 en el video, la API de "
+                        "YouTube, o los dos), cuantas lineas se mandaron y las ultimas.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(qvToJson(vm.cc().estado()))); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cc_activar";
+        t.title = "Prender los subtitulos ocultos";
+        t.category = "traduccion";
+        t.description = "`flujo`: la salida de texto (la transcripcion o una traduccion; texto_flujos). `metodo`: 608 (de "
+                        "fabrica: CEA-608 dentro del video de la transmision y de cada destino), youtube_http (la API de "
+                        "subtitulos de YouTube: `url` de ingesta del evento) o ambos.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"flujo"}},
+                         {"properties",
+                          {{"flujo", {{"type", "string"}}},
+                           {"metodo", {{"type", "string"}, {"enum", {"608", "youtube_http", "ambos"}}}},
+                           {"url", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            QVariantMap m{{"flujo", QString::fromStdString(a.value("flujo", std::string()))},
+                          {"metodo", QString::fromStdString(a.value("metodo", std::string("608")))}};
+            if (a.contains("url")) m["url"] = QString::fromStdString(a.value("url", std::string()));
+            const QString e = vm.cc().activar(m);
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(qvToJson(vm.cc().estado())));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cc_desactivar";
+        t.title = "Apagar los subtitulos ocultos";
+        t.category = "traduccion";
+        t.description = "Deja de mandar subtitulos ocultos.";
+        t.run = [&vm](const json&, Done done) {
+            vm.cc().desactivar();
+            done(ToolResult::ok("Apagados."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cc_probar";
+        t.title = "Probar los subtitulos ocultos";
+        t.category = "traduccion";
+        t.description = "Manda un `texto` de prueba por lo configurado (608 necesita una transmision activa).";
+        t.inputSchema = {{"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.cc().probar(QString::fromStdString(a.value("texto", std::string())));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Mandado."));
         };
         core_.addTool(std::move(t));
     }

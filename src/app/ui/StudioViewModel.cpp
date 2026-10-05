@@ -36,6 +36,7 @@
 #include "AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
+#include "agent/SubtitulosCC.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
@@ -474,6 +475,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("flujos");
     // Los cuadros «Subtítulos» de las escenas muestran una salida de texto.
     subtitulos_ = std::make_unique<agent::Subtitulos>(*flujos_);
+    // Subtítulos ocultos (CC) en la transmisión: 608 o la API de YouTube.
+    cc_ = std::make_unique<agent::SubtitulosCC>(*flujos_, rt.dataRoot(), [this](const QString& t, double s) {
+        return rt_.engine().enviarCaption(t.toStdString(), s);
+    });
     if (voz_) voz_->setFlujos(flujos_.get());
     // Las tarjetas «Texto a voz»: dicen lo que llega por una salida de texto.
     if (modelos_) {
@@ -1565,5 +1570,7 @@ void StudioViewModel::revisarSenales() {
         }
     }
 }
+
+QObject* StudioViewModel::ccQml() const { return cc_.get(); }
 
 } // namespace ba::app

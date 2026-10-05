@@ -342,4 +342,58 @@ ColumnLayout {
             }
         }
     }
+
+    // --- Subtítulos ocultos (CC) en la transmisión ---------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    ColumnLayout {
+        id: ccSec
+        Layout.fillWidth: true
+        spacing: 6
+        readonly property var cc: Studio.cc
+        property var e: cc ? cc.estado() : ({})
+        Connections { target: Studio.cc; function onCambio() { ccSec.e = Studio.cc.estado() } }
+        RowLayout {
+            Text { text: "Subtítulos ocultos (CC)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+            StatusPill { text: ccSec.e.activo ? "CC prendido · " + (ccSec.e.enviadas || 0) + " líneas" : "CC apagado"; dot: ccSec.e.activo ? Theme.ok : Theme.textFaint }
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 11
+            text: "El espectador los prende o apaga en su reproductor. 608: dentro del video de la transmisión (y de cada destino). " +
+                  "YouTube: por la API de subtítulos del evento (la URL de «HTTP POST» de YouTube Studio)."
+        }
+        RowLayout {
+            spacing: 6
+            Text { text: "Salida de texto"; color: Theme.textDim; font.pixelSize: 12 }
+            TextField { id: ccFlujo; Layout.preferredWidth: 160; text: ccSec.e.flujo || ""; placeholderText: "p. ej. Sala" }
+            ComboBox {
+                id: ccMetodo
+                implicitWidth: 150
+                model: [ { t: "608 en el video", v: "608" }, { t: "API de YouTube", v: "youtube_http" }, { t: "Los dos", v: "ambos" } ]
+                textRole: "t"
+                currentIndex: Math.max(0, model.findIndex(o => o.v === (ccSec.e.metodo || "608")))
+            }
+        }
+        TextField { id: ccUrl; Layout.fillWidth: true; visible: ccMetodo.currentIndex > 0
+                    placeholderText: ccSec.e.url_youtube ? "(URL guardada)" : "URL de subtítulos de YouTube (http://upload.youtube.com/closedcaption?…)" }
+        RowLayout {
+            spacing: 6
+            GlassButton {
+                compact: true; active: !ccSec.e.activo; text: ccSec.e.activo ? "Aplicar" : "Prender CC"
+                onClicked: {
+                    const cfg = { flujo: ccFlujo.text, metodo: ccMetodo.model[ccMetodo.currentIndex].v }
+                    if (ccUrl.text !== "") cfg.url = ccUrl.text
+                    const r = ccSec.cc.activar(cfg); if (r !== "") Studio.notify(r, "error")
+                }
+            }
+            GlassButton { compact: true; visible: !!ccSec.e.activo; text: "Apagar"; onClicked: ccSec.cc.desactivar() }
+            GlassButton { compact: true; text: "Probar"; onClicked: { const r = ccSec.cc.probar("Prueba de subtítulos"); if (r !== "") Studio.notify(r, "error") } }
+        }
+        Text {
+            visible: (ccSec.e.ultimas || []).length > 0
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: "Últimas: " + (ccSec.e.ultimas || []).slice(-3).join(" · ")
+            color: Theme.textFaint; font.pixelSize: 11
+        }
+    }
 }

@@ -1116,6 +1116,20 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     return true;
 }
 
+int BroadcastEngine::enviarCaption(const std::string& texto, double segundos) {
+    int n = 0;
+    const auto mandar = [&](void* o) {
+        auto* out = reinterpret_cast<obs_output_t*>(o);
+        if (out != nullptr && obs_output_active(out)) {
+            obs_output_output_caption_text2(out, texto.c_str(), segundos);
+            ++n;
+        }
+    };
+    mandar(streamOutput_);
+    for (auto& [id, x] : extras_) mandar(x.output);
+    return n;
+}
+
 bool BroadcastEngine::algunExtraActivo(const void* menos) const {
     for (const auto& [id, x] : extras_)
         if (x.output != nullptr && x.output != menos && obs_output_active(reinterpret_cast<obs_output_t*>(x.output)))

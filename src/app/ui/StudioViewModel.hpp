@@ -26,6 +26,7 @@
 namespace ba::app::agent {
 class AlertEngine;
 class AlarmaSonora;
+class SubtitulosCC;
 class AgentViewModel;
 class Despachador;
 class ModelosLocales;
@@ -114,6 +115,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
     /// La fila de oradores presenciales (bancas): legislatura/Bancas.
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
+    /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
+    Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -258,6 +261,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
+    QObject* ccQml() const;
+    agent::SubtitulosCC& cc() { return *cc_; }
     legislatura::Bancas& bancas() { return *bancas_; }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
     /// como el cargo de su zócalo. "" o el error.
@@ -564,6 +569,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<agent::Traductor> traductor_;
     std::unique_ptr<agent::Subtitulos> subtitulos_;
+    std::unique_ptr<agent::SubtitulosCC> cc_;
     std::unique_ptr<video::SuperRes> superres_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
