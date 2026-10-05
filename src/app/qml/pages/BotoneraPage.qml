@@ -191,11 +191,14 @@ Rectangle {
                             }
                         }
                     }
+                    TextField { id: pagNombre; Layout.fillWidth: true; placeholderText: "Nombre de la página nueva"; color: Theme.text }
                     RowLayout {
                         Layout.fillWidth: true
-                        TextField { id: pagNombre; Layout.fillWidth: true; placeholderText: "Página nueva"; color: Theme.text }
-                        SpinBox { id: pagCols; from: 1; to: 16; value: 5; implicitWidth: 80 }
-                        SpinBox { id: pagFilas; from: 1; to: 16; value: 3; implicitWidth: 80 }
+                        spacing: 4
+                        Text { text: "Col."; color: Theme.textDim; font.pixelSize: 11 }
+                        SpinBox { id: pagCols; from: 1; to: 16; value: 5; editable: true; Layout.preferredWidth: 96 }
+                        Text { text: "Filas"; color: Theme.textDim; font.pixelSize: 11 }
+                        SpinBox { id: pagFilas; from: 1; to: 16; value: 3; editable: true; Layout.preferredWidth: 96 }
                     }
                     RowLayout {
                         GlassButton {

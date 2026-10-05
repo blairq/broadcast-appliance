@@ -8,9 +8,9 @@
 # python-build-standalone (CPython relocalizable, sin rutas absolutas), la
 # variante `install_only_stripped`.
 #
-# Las bibliotecas que necesite cada plugin (numpy, pyusb, hidapi…) NO van acá:
-# se bajan a pedido a la carpeta del propio plugin (Datos/Plugins/<id>/_libs),
-# que es portable y sobrevive a las actualizaciones.
+# Las bibliotecas de uso común (numpy, pillow, hidapi, pyserial, mido, OSC,
+# streamdeck) vienen acá. Las raras que pida un plugin se bajan a pedido a su
+# carpeta (Datos/Plugins/<id>/_libs), portable y fuera del programa.
 #
 # Uso: tools/deps/python.sh <archivo.tar.gz> <salida> [plataforma] [python del host]
 #      (lo llaman make deps-python y deps-python-win)
@@ -34,7 +34,13 @@ rm -rf "$OUT.tmp"
 # tamaño fijo, sin PyTorch: onnx en los tres sistemas, coremltools en la Mac).
 # Versiones fijas.
 LIBS=("numpy==2.5.3" "ctranslate2==4.8.2" "sentencepiece==0.2.2" "sacremoses==0.2.0" "subword-nmt==0.3.8"
-      "onnx==1.23.1" "pillow==12.3.0")
+      "onnx==1.23.1" "pillow==12.3.0"
+      # Aparatos para los plugins (superficies de control, tally, pedales):
+      # HID con hidapi ADENTRO de la rueda (el Stream Deck va por ahí, ver
+      # ba_plugin.dispositivos.streamdeck_gestor: nada de libhidapi del sistema),
+      # serie, MIDI (CoreMIDI, WinMM, ALSA) y OSC.
+      "hidapi==0.15.0" "pyserial==3.5" "mido==1.3.3" "python-rtmidi==1.5.8" "python-osc==1.10.2"
+      "streamdeck==0.10.0")
 if [ "$PLAT" = macos-arm64 ] || { [ -z "$PLAT" ] && [ "$(uname -s)" = Darwin ]; }; then
     LIBS+=("coremltools==9.0")
 fi

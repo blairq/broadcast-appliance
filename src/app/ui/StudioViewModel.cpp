@@ -1844,8 +1844,23 @@ void StudioViewModel::emparejarTablet(const QString& perfil, const QString& nomb
             out["aviso"] = "El gateway escucha solo en esta máquina (127.0.0.1): una tablet no llega. Cambiá la "
                            "dirección de la sala a la red local en Configuración → Red (cualquiera en la red podría "
                            "ver las páginas públicas; la botonera igual pide su token).";
+        // El gateway escucha solo en esta máquina: la URL igual se arma con la IP
+        // de la red (anda en cuanto se abra el gateway a la red; el aviso lo dice).
+        if (base.isEmpty() && !lan.isEmpty()) {
+            if (https.value("enabled").toBool()) {
+                base = "https://" + lan.first() + ":" + QString::number(https.value("port").toInt(8789)) + "/";
+            } else {
+                for (const QJsonValue& v : r.value("urls").toArray()) {
+                    const QUrl u(v.toString());
+                    if (u.scheme() == "http" && u.port() > 0) {
+                        base = "http://" + lan.first() + ":" + QString::number(u.port()) + "/";
+                        break;
+                    }
+                }
+            }
+        }
         if (base.isEmpty()) {
-            out["error"] = "No encontré una dirección de la red local para la tablet.";
+            out["error"] = "No encontré una dirección de la red local para la tablet (¿está conectada la red?).";
             listo(out);
             return;
         }

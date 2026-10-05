@@ -438,12 +438,26 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
 #else
     const fs::path incluidos = python().parent_path().parent_path() / "lib" / "python3.12" / "site-packages";
 #endif
+    // Por el nombre de la DISTRIBUCIÓN (el .dist-info), no de la carpeta: pyserial
+    // se importa como «serial», python-osc como «pythonosc», hidapi es un .so suelto.
+    std::set<std::string> instalados;
+    {
+        std::error_code ec;
+        for (const auto& e : fs::directory_iterator(incluidos, ec)) {
+            std::string n = e.path().filename().string();
+            if (n.size() < 11 || n.compare(n.size() - 10, 10, ".dist-info") != 0) continue;
+            n = n.substr(0, n.find('-'));
+            for (auto& c : n)
+                c = (c == '-' || c == '.') ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            instalados.insert(n);
+        }
+    }
     auto yaViene = [&](std::string paquete) {
         const size_t corte = paquete.find_first_of("=<>![ ");
         if (corte != std::string::npos) paquete = paquete.substr(0, corte);
         for (auto& c : paquete)
-            c = c == '-' ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        return !paquete.empty() && fs::exists(incluidos / paquete);
+            c = (c == '-' || c == '.') ? '_' : static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return !paquete.empty() && (instalados.count(paquete) > 0 || fs::exists(incluidos / paquete));
     };
     std::vector<std::string> lista;
     for (const auto& d : deps)
