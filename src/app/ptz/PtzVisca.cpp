@@ -206,6 +206,11 @@ void PtzVisca::irAPreset(int n) {
     setEstado(listo(), QStringLiteral("Yendo al preset %1").arg(n));
 }
 
+void PtzVisca::irAPosicionCon(int n, const QString&, double velocidad) {
+    if (velocidad > 0) enviar(visca::velocidadPreset(n, velocidad, direccion_));
+    irAPreset(n);
+}
+
 void PtzVisca::guardarPreset(int n) {
     enviar(visca::preset(true, n, direccion_));
     setEstado(listo(), QStringLiteral("Preset %1 guardado en la cámara").arg(n));

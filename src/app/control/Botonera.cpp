@@ -616,6 +616,8 @@ json Botonera::plantillas() const {
                          {"descripcion", "Un fader por fuente con su medidor y mudo; loudness del programa"}},
                         {{"id", "legislatura"}, {"nombre", "Legislatura"},
                          {"descripcion", "Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE"}},
+                        {{"id", "recinto"}, {"nombre", "Recinto"},
+                         {"descripcion", "Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE"}},
                         {{"id", "prompter"}, {"nombre", "Prompter"},
                          {"descripcion", "Correr y parar, velocidad, avisos al orador"}}});
 }
@@ -711,6 +713,29 @@ json Botonera::armarPlantilla(const std::string& id) const {
                   {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
         usar(boton(5, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+    } else if (id == "recinto") {
+        // Como Legislatura, pero cada banca en su lugar de la grilla del recinto
+        // (hasta 16 columnas y 15 filas; la última fila es la de los comandos).
+        nombre = "Recinto";
+        const json r = g_.recinto ? g_.recinto() : json::object();
+        columnas = std::clamp(r.value("columnas", 0), 4, 16);
+        filas = std::clamp(r.value("filas", 0) + 1, 2, 16);
+        if (r.value("columnas", 0) < 1) return nullptr;
+        for (const auto& b : r.value("bancas", json::array())) {
+            const int x = b.value("columna", 0), y = b.value("fila", 0);
+            if (x >= columnas || y >= filas - 1) continue;
+            const std::string banca = b.value("banca", std::string());
+            const std::string nom = b.contains("integrante") ? b["integrante"].value("nombre", std::string()) : std::string();
+            usar(boton(x, y, banca + (nom.empty() ? "" : "\n" + nom), herr("banca_al_aire", {{"banca", banca}}),
+                       {lig("oradores/al_aire", "banca", "==", banca, "fondo", "#c62828")}));
+        }
+        const int f = filas - 1;
+        usar(boton(0, f, "Siguiente", herr("banca_al_aire"), json::array(), "#1f5f8a"));
+        usar(boton(1, f, "Terminar", herr("banca_terminar")));
+        usar(json{{"x", 2}, {"y", f}, {"ancho", columnas - 3}, {"tipo", "texto"},
+                  {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
+                  {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
+        usar(boton(columnas - 1, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
     } else if (id == "prompter") {
         nombre = "Prompter";
         columnas = 4;

@@ -47,6 +47,7 @@ class PtzOnvif : public PtzBackend {
     int memorias() const override { return capacidades().panTilt ? 1 : 0; }
     void grabarPosicion(int n, const QString& nombre, std::function<void(bool, QString)> listo) override;
     void irAPosicion(int n, const QString& token) override;
+    void irAPosicionCon(int n, const QString& token, double velocidad) override;
     void borrarPosicion(int n, const QString& token) override;
     QVariantMap motor() const override { return motor_; }
     QVariantMap funciones() const override { return funciones_; }

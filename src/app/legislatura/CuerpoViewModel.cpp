@@ -70,6 +70,16 @@ QString CuerpoViewModel::plantilla() {
     return Cuerpo::escribirPlantilla(ruta) ? QString::fromStdWString(ruta.wstring()) : QString();
 }
 
+QVariantMap CuerpoViewModel::recinto() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(c_->recinto().dump())).object().toVariantMap();
+}
+
+QString CuerpoViewModel::editarRecinto(const QVariantMap& cambios) {
+    const std::string e = c_->setRecinto(deMapa(cambios));
+    if (e.empty()) emit cambio();
+    return QString::fromStdString(e);
+}
+
 QVariantMap CuerpoViewModel::buscar(const QString& clave) const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(c_->buscar(clave.toStdString()).dump())).object().toVariantMap();
 }

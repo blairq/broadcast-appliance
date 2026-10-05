@@ -83,6 +83,95 @@ void Cuerpo::guardarArchivo() const {
     fs::rename(tmp, archivo_, ec);
 }
 
+json Cuerpo::recinto(bool completo) const {
+    json r = datos_.value("recinto", json::object());
+    if (!r.is_object()) r = json::object();
+    json out{{"filas", r.value("filas", 0)}, {"columnas", r.value("columnas", 0)}, {"bancas", json::array()}};
+    std::vector<std::string> ubicadas;
+    for (const auto& b : r.value("bancas", json::array())) {
+        json lugar{{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}};
+        ubicadas.push_back(plano(lugar["banca"].get<std::string>()));
+        if (completo) {
+            const json i = buscar(lugar["banca"].get<std::string>());
+            if (!i.empty() && plano(i.value("banca", std::string())) == ubicadas.back())
+                lugar["integrante"] = {{"id", i.value("id", std::string())},
+                                       {"nombre", i.value("nombre", std::string())},
+                                       {"bloque", i.value("bloque", std::string())},
+                                       {"preset_ptz", i.value("preset_ptz", json::object())},
+                                       {"validado", i.contains("validado_por")}};
+        }
+        out["bancas"].push_back(lugar);
+    }
+    if (completo) {
+        json sin = json::array();
+        for (const auto& i : datos_["integrantes"]) {
+            const std::string b = i.value("banca", std::string());
+            if (!b.empty() && std::find(ubicadas.begin(), ubicadas.end(), plano(b)) == ubicadas.end()) sin.push_back(b);
+        }
+        out["sin_lugar"] = sin;
+    }
+    return out;
+}
+
+std::string Cuerpo::setRecinto(const json& c) {
+    json r = recinto(false);
+    if (c.contains("filas")) r["filas"] = c.value("filas", 0);
+    if (c.contains("columnas")) r["columnas"] = c.value("columnas", 0);
+    const int filas = r.value("filas", 0), columnas = r.value("columnas", 0);
+    if (filas < 1 || filas > 40 || columnas < 1 || columnas > 60) return "filas entre 1 y 40 y columnas entre 1 y 60";
+    if (c.contains("bancas")) {
+        if (!c["bancas"].is_array()) return "bancas: una lista de {banca, fila, columna}";
+        r["bancas"] = json::array();
+        for (const auto& b : c["bancas"])
+            r["bancas"].push_back({{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}});
+    }
+    if (c.value("auto", false)) {
+        // Las bancas del cuerpo en orden (numérico si son números), de adelante
+        // para atrás y de izquierda a derecha.
+        std::vector<std::string> bancas;
+        for (const auto& i : datos_["integrantes"])
+            if (!i.value("banca", std::string()).empty()) bancas.push_back(i.value("banca", std::string()));
+        std::sort(bancas.begin(), bancas.end(), [](const std::string& a, const std::string& b) {
+            const bool na = !a.empty() && std::all_of(a.begin(), a.end(), ::isdigit), nb = !b.empty() && std::all_of(b.begin(), b.end(), ::isdigit);
+            if (na && nb) return std::stoll(a) < std::stoll(b);
+            if (na != nb) return na;
+            return a < b;
+        });
+        if (static_cast<int>(bancas.size()) > filas * columnas)
+            return "no entran " + std::to_string(bancas.size()) + " bancas en " + std::to_string(filas) + "×" + std::to_string(columnas);
+        r["bancas"] = json::array();
+        for (size_t k = 0; k < bancas.size(); ++k)
+            r["bancas"].push_back({{"banca", bancas[k]}, {"fila", static_cast<int>(k) / columnas}, {"columna", static_cast<int>(k) % columnas}});
+    }
+    if (c.contains("mover")) {
+        const json m = c["mover"];
+        const std::string banca = m.value("banca", std::string());
+        if (banca.empty()) return "mover: falta la banca";
+        auto& lista = r["bancas"];
+        for (auto it = lista.begin(); it != lista.end();)
+            it = plano(it->value("banca", std::string())) == plano(banca) ? lista.erase(it) : it + 1;
+        if (m.value("fila", 0) >= 0) lista.push_back({{"banca", banca}, {"fila", m.value("fila", 0)}, {"columna", m.value("columna", 0)}});
+    }
+    // Cada banca en un lugar válido, una sola vez, y un lugar por banca.
+    std::vector<std::string> vistas, lugares;
+    for (const auto& b : r["bancas"]) {
+        const std::string banca = b.value("banca", std::string());
+        const int f = b.value("fila", -1), col = b.value("columna", -1);
+        if (banca.empty()) return "hay un lugar sin banca";
+        if (f < 0 || f >= filas || col < 0 || col >= columnas)
+            return "la banca «" + banca + "» queda fuera de la grilla (" + std::to_string(filas) + "×" + std::to_string(columnas) + ")";
+        if (std::find(vistas.begin(), vistas.end(), plano(banca)) != vistas.end()) return "la banca «" + banca + "» está dos veces";
+        const std::string lugar = std::to_string(f) + "," + std::to_string(col);
+        if (std::find(lugares.begin(), lugares.end(), lugar) != lugares.end())
+            return "dos bancas en la fila " + std::to_string(f + 1) + ", columna " + std::to_string(col + 1);
+        vistas.push_back(plano(banca));
+        lugares.push_back(lugar);
+    }
+    datos_["recinto"] = r;
+    guardarArchivo();
+    return {};
+}
+
 void Cuerpo::setNombre(const std::string& n) {
     datos_["nombre"] = n;
     guardarArchivo();

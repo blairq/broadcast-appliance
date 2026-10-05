@@ -19,6 +19,9 @@ QJsonObject Posicion::json() const {
                   {"comentario", comentario},
                   {"creada", creada},
                   {"modificada", modificada}};
+    if (velocidad > 0) j["velocidad"] = velocidad;
+    if (segundos >= 0) j["segundos"] = segundos;
+    if (!miniatura.isEmpty()) j["miniatura"] = miniatura;
     if (ancho > 0 && alto > 0) j["definicion"] = QJsonObject{{"ancho", ancho}, {"alto", alto}};
     if (digital) j["digital"] = QJsonObject{{"x", x}, {"y", y}, {"zoom", zoom}};
     if (tieneCamara()) {
@@ -37,6 +40,9 @@ Posicion Posicion::desdeJson(const QJsonObject& j) {
     p.comentario = j.value("comentario").toString();
     p.creada = j.value("creada").toString();
     p.modificada = j.value("modificada").toString();
+    p.velocidad = j.value("velocidad").toDouble(0);
+    p.segundos = j.value("segundos").toDouble(-1);
+    p.miniatura = j.value("miniatura").toString();
     const QJsonObject d = j.value("definicion").toObject();
     p.ancho = d.value("ancho").toInt();
     p.alto = d.value("alto").toInt();

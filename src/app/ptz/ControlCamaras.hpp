@@ -120,23 +120,29 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE void sincronizar();
 
     // --- Posiciones con nombre (ptz/Posiciones) --------------------------------
-    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token}, creada,
-    /// modificada}]
+    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token},
+    /// velocidad?, segundos?, miniatura?, miniatura_ruta?, miniatura_url?, creada, modificada}]
     Q_INVOKABLE QVariantList posiciones(const QString& entrada) const;
     /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
     /// nombre. {ok, error, aviso, id}.
     Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre,
-                                          const QString& comentario);
-    /// cambios: {nombre?, comentario?, regrabar?: bool (vuelve a registrar
-    /// donde está ahora)}. {ok, error, aviso}.
+                                          const QString& comentario, double velocidad = 0, double segundos = -1);
+    /// cambios: {nombre?, comentario?, velocidad? (0..1, 0 = la de la cámara),
+    /// segundos? (-1 = sin fijar), regrabar?: bool (vuelve a registrar donde
+    /// está ahora, con foto nueva), miniatura?: bool (solo la foto)}. {ok, error, aviso}.
     Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre,
                                            const QVariantMap& cambios);
     /// Borra la posición (y libera su memoria en la cámara).
     Q_INVOKABLE QString borrarPosicion(const QString& entrada, const QString& idONombre);
-    /// Va a la posición: la cámara a su memoria y el recorte a su encuadre.
+    /// Va a la posición: la cámara a su memoria (con su velocidad) y el
+    /// recorte a su encuadre, en `segundos` (-1 = los de la posición, o 1).
     /// {ok, error, aviso}.
     Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre,
-                                        double segundos = 1.0);
+                                        double segundos = -1);
+    /// Saca la foto de la posición: lo que muestra la entrada AHORA, 320 px de
+    /// ancho, en Miniaturas/ptz/. "" o el error. Se llama sola al crear o
+    /// regrabar (un rato después, cuando el recorte ya llegó).
+    Q_INVOKABLE QString capturarMiniatura(const QString& entrada, const QString& idONombre);
 
     /// Para MCP: el estado de una entrada (o de todas), como json.
     QJsonObject estadoJson(const QString& entrada = {}) const;
@@ -163,6 +169,9 @@ class ControlCamaras : public QObject {
     /// cámara puede llegar después: ONVIF contesta el token). "" o el error;
     /// `aviso` lo que no se pudo.
     QString registrar(Camara& c, Posicion& p, QString& aviso);
+    /// La foto, un rato después (el recorte digital tarda en llegar).
+    void miniaturaPronto(const QString& entrada, const QString& id);
+    std::filesystem::path carpetaMiniaturas() const;
 
     bool interlockActivo_ = true;
     bool seguirSuavePermitido_ = true;

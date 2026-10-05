@@ -52,6 +52,27 @@ int main() {
         CHECK(c.buscar("3").value("microfono", nlohmann::json::object()).value("fuente", std::string()) == "Mic 3",
               "micrófono de la banca");
     }
+    {
+        Cuerpo c(dir / "cuerpo.json");
+        CHECK(!c.setRecinto({{"filas", 0}, {"columnas", 3}}).empty(), "filas en cero: error");
+        CHECK(!c.setRecinto({{"filas", 1}, {"columnas", 1}, {"auto", true}}).empty(), "dos bancas no entran en 1×1");
+        CHECK(c.setRecinto({{"filas", 2}, {"columnas", 3}, {"auto", true}}).empty(), "auto en 2×3");
+        auto r = c.recinto();
+        CHECK(r["bancas"].size() == 2 && r["bancas"][0].value("banca", std::string()) == "3" &&
+                  r["bancas"][1].value("columna", -1) == 1,
+              "auto: en orden, de izquierda a derecha");
+        CHECK(r["bancas"][0]["integrante"].value("nombre", std::string()) == "Ana Pérez" &&
+                  r["bancas"][0]["integrante"]["preset_ptz"].value("posicion", std::string()) == "banca 3",
+              "cada lugar trae su integrante y su preset");
+        CHECK(!c.setRecinto({{"mover", {{"banca", "4"}, {"fila", 0}, {"columna", 0}}}}).empty(), "no dos bancas en el mismo lugar");
+        CHECK(!c.setRecinto({{"mover", {{"banca", "4"}, {"fila", 5}, {"columna", 0}}}}).empty(), "fuera de la grilla");
+        CHECK(c.setRecinto({{"mover", {{"banca", "4"}, {"fila", 1}, {"columna", 2}}}}).empty(), "mover una banca");
+        CHECK(c.setRecinto({{"mover", {{"banca", "3"}, {"fila", -1}}}}).empty(), "sacar una banca");
+        r = c.recinto();
+        CHECK(r["bancas"].size() == 1 && r["sin_lugar"].size() == 1 && r["sin_lugar"][0] == "3", "la sacada queda sin lugar");
+        CHECK(!c.setRecinto({{"columnas", 2}}).empty(), "achicar la grilla con una banca afuera: error y no cambia");
+        CHECK(Cuerpo(dir / "cuerpo.json").recinto()["columnas"] == 3, "el recinto se guarda");
+    }
     CHECK(Cuerpo::escribirPlantilla(dir / "x" / "plantilla.csv"), "plantilla de ejemplo");
     fs::remove_all(dir);
     std::printf(fallas ? "\n%d FALLAS\n" : "\nTODO OK\n", fallas);

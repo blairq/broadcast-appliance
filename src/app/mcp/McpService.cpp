@@ -2666,6 +2666,63 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
+    // --- El recinto: la grilla de bancas (legislatura/Cuerpo) ------------------------
+    {
+        Tool t;
+        t.name = "recinto_ver";
+        t.title = "La grilla del recinto";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "Las bancas como se ven desde la cabina: {filas, columnas, bancas: [{banca, fila, columna, "
+                        "integrante: {id, nombre, bloque, preset_ptz, validado}}], sin_lugar: [bancas del cuerpo que "
+                        "no están en la grilla]}. Fila 0 = la de adelante; columna 0 = la izquierda desde la cabina.";
+        t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.cuerpo().cuerpo().recinto())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "recinto_editar";
+        t.title = "Armar la grilla del recinto";
+        t.category = "evento";
+        t.description = "Cambia la grilla: `filas` y `columnas`; `auto: true` acomoda todas las bancas del cuerpo en "
+                        "orden (de adelante para atrás, de izquierda a derecha); `mover: {banca, fila, columna}` una "
+                        "sola (fila -1 la saca); `bancas: [{banca, fila, columna}]` reemplaza la lista entera. Si algo "
+                        "no cierra (fuera de la grilla, dos en un lugar), no cambia nada y dice por qué.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"filas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 40}}},
+                           {"columnas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 60}}},
+                           {"auto", {{"type", "boolean"}}},
+                           {"mover",
+                            {{"type", "object"},
+                             {"properties",
+                              {{"banca", {{"type", "string"}}}, {"fila", {{"type", "integer"}}}, {"columna", {{"type", "integer"}}}}}}},
+                           {"bancas", {{"type", "array"}, {"items", {{"type", "object"}}}}}}}};
+        t.examples = {R"({"filas": 4, "columnas": 9, "auto": true})", R"({"mover": {"banca": "12", "fila": 0, "columna": 4}})"};
+        t.run = [&vm](const json& a, Done done) {
+            const std::string e = vm.cuerpo().cuerpo().setRecinto(a);
+            if (!e.empty()) return done(ToolResult::error(e));
+            emit vm.cuerpo().cambio();
+            done(ToolResult().data(vm.cuerpo().cuerpo().recinto()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "recinto_apuntar";
+        t.title = "Apuntar la cámara a una banca";
+        t.category = "camaras";
+        t.description = "Lleva la PTZ al preset de la banca (por banca, id o nombre) para tenerla lista, sin armar ni "
+                        "abrir micrófonos. No mueve la cámara que está al aire. Para ponerla al aire: banca_al_aire.";
+        t.inputSchema = {{"type", "object"}, {"required", {"banca"}}, {"properties", {{"banca", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.bancas().apuntar(QString::fromStdString(a.value("banca", std::string())));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Cámara en camino a la banca " + a.value("banca", std::string()) + "."));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "invitado_retorno";

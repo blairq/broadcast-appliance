@@ -64,7 +64,7 @@
 | T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | hecho en parte (tally, vúmetro y cuenta regresiva por celda; falta el costo por nodo en el Patchbay) |
 | T39 | Scopes y legalizador broadcast-safe | P1 | falta |
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | parcial |
-| T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | parcial |
+| T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | parcial |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
@@ -831,7 +831,8 @@
 - **Depende de:** T04 y T50.
 
 ### T41 · PTZ: presets con miniatura, grilla de bancas, velocidad — P1
-- **Estado: parcial.**
+- **Estado: hecho.** La foto se saca sola al crear o regrabar (Miniaturas/ptz/); `velocidad` va a la cabeza (VISCA 8x 01 7E 01 0B, ONVIF Speed) y `segundos` al recorte. El recinto vive en el Cuerpo (`recinto_ver`, `recinto_editar`, `recinto_apuntar`), con la grilla en la página PTZ («▦ Recinto») y la plantilla «Recinto» de la botonera. Lo de abajo es el pedido original.
+- **Estado original: parcial.**
   - Hay posiciones con nombre (`src/app/ptz/Posiciones.hpp:25-41`), pero sin imagen y sin grilla.
   - El preset no lleva velocidad (`src/app/ptz/PtzVisca.cpp:204-207`). Solo el movimiento digital tiene duración (`ControlCamaras.hpp:132`).
 - **Qué hacer.**

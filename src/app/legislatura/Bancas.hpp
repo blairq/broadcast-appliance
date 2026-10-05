@@ -57,6 +57,10 @@ class Bancas : public QObject {
     Q_INVOKABLE QString alAire(const QString& clave, const QString& modo = "armar");
     /// Saca a la del aire (cierra su micrófono y para el reloj).
     Q_INVOKABLE void terminar();
+    /// Solo la cámara: lleva la PTZ al preset de la banca (para tenerla lista),
+    /// sin armar ni abrir micrófonos. No mueve la cámara que está al aire.
+    /// "" o el error.
+    Q_INVOKABLE QString apuntar(const QString& clave);
     /// La primera de la fila al aire.
     Q_INVOKABLE QString siguiente(const QString& modo = "armar");
     Q_INVOKABLE void setAsignado(int segundos) { asignadoS_ = segundos; emit cambio(); }

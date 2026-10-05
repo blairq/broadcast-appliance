@@ -632,7 +632,8 @@ Equipos (`from ba_plugin import dispositivos as d`; dependencias `pyusb`, `libus
 ## Posiciones con nombre
 1. Encuadrar (ptz_mover / ptz_encuadre) y `ptz_posicion_crear {"entrada": ..., "nombre": "Atril", "comentario": ...}`: guarda el encuadre digital, la memoria de la camara y la definicion.
 2. `ptz_ir_posicion {"entrada": ..., "posicion": "Atril"}` (id o nombre) la lleva ahi.
-3. `ptz_posiciones` las lista; `ptz_posicion_editar` (nombre, comentario, `regrabar`) y `ptz_posicion_borrar`.
+3. `ptz_posiciones` las lista (con `miniatura_ruta`: la foto); `ptz_posicion_foto` la muestra; `ptz_posicion_editar` (nombre, comentario, `velocidad` 0..1, `segundos`, `regrabar`, `miniatura`) y `ptz_posicion_borrar`.
+4. El recinto (la grilla de bancas): `recinto_ver`, `recinto_editar {filas, columnas, auto | mover | bancas}` y `recinto_apuntar {banca}` (la cámara al preset de la banca, sin sacarla al aire).
 
 ## Configurar una camara motorizada
 1. ONVIF: `ptz_buscar` encuentra las de la red; `ptz_configurar {"entrada": ..., "backend": "onvif", "host": <direccion>, "usuario": ..., "clave": ...}`.

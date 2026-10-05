@@ -600,7 +600,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         legislatura::Bancas::Ganchos g;
         g.camaraAlAire = [this](const std::string& c) { return camaras_->alAire(QString::fromStdString(c)); };
         g.irAPosicion = [this](const std::string& c, const std::string& p) {
-            const QVariantMap r = camaras_->irAPosicion(QString::fromStdString(c), QString::fromStdString(p), 1.0);
+            const QVariantMap r = camaras_->irAPosicion(QString::fromStdString(c), QString::fromStdString(p), -1);
             return r.value("ok").toBool() ? std::string() : r.value("error").toString().toStdString();
         };
         g.escenaDe = [this](const std::string& camara) {
@@ -709,6 +709,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     out.emplace_back(i.value("banca", std::string()), i.value("nombre", std::string()));
             return out;
         };
+        g.recinto = [this]() { return cuerpo_->cuerpo().recinto(); };
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
         satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
         dsk_ = std::make_unique<control::Dsk>(rt.dataRoot(), rt_.engine());

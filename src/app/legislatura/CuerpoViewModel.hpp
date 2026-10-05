@@ -18,6 +18,8 @@ class CuerpoViewModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(QString nombre READ nombre NOTIFY cambio)
     Q_PROPERTY(QVariantList integrantes READ integrantes NOTIFY cambio)
+    /// {filas, columnas, bancas: [{banca, fila, columna, integrante?}], sin_lugar}.
+    Q_PROPERTY(QVariantMap recinto READ recinto NOTIFY cambio)
    public:
     CuerpoViewModel(std::filesystem::path datos, QObject* parent = nullptr);
     Cuerpo& cuerpo() { return *c_; }
@@ -34,6 +36,9 @@ class CuerpoViewModel : public QObject {
     /// Escribe la planilla de ejemplo en Exportado/ y devuelve la ruta.
     Q_INVOKABLE QString plantilla();
     Q_INVOKABLE QVariantMap buscar(const QString& clave) const;
+    QVariantMap recinto() const;
+    /// Ver Cuerpo::setRecinto. "" o el error.
+    Q_INVOKABLE QString editarRecinto(const QVariantMap& cambios);
 
    signals:
     void cambio();

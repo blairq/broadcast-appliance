@@ -33,6 +33,12 @@ struct Posicion {
     QString backend; ///< el que tenía la cámara: visca | onvif | panasonic ("" = sin)
     int memoria = 0; ///< VISCA / Panasonic (0 = ninguna)
     QString token;   ///< ONVIF
+    // Cómo se llega: velocidad de la cabeza (0..1; 0 = la de la cámara) y
+    // segundos del recorte digital (-1 = lo que diga quien la llama).
+    double velocidad = 0;
+    double segundos = -1;
+    // La foto de cómo se veía al registrarla (archivo en Miniaturas/ptz/, "" = sin).
+    QString miniatura;
     // La definición de la entrada al registrarla.
     int ancho = 0, alto = 0;
     QString creada, modificada; ///< ISO 8601

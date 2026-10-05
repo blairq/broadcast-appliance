@@ -18,7 +18,10 @@
 #include <obs.h>
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QFile>
+#include <QImage>
+#include <QUrl>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -169,7 +172,7 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
                                          : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
             {"presetsDigitales", presetsDig},
-            {"posiciones", c.posiciones.json().toVariantList()}};
+            {"posiciones", posiciones(qs(c.entrada))}};
 }
 
 QVariantList ControlCamaras::camaras() const {
@@ -483,7 +486,53 @@ QVariantMap ControlCamaras::posicion(const QString& entrada) const {
 
 QVariantList ControlCamaras::posiciones(const QString& entrada) const {
     auto it = camaras_.find(entrada.toStdString());
-    return it == camaras_.end() ? QVariantList{} : it->second->posiciones.json().toVariantList();
+    if (it == camaras_.end()) return {};
+    QVariantList out = it->second->posiciones.json().toVariantList();
+    for (QVariant& v : out) {
+        QVariantMap m = v.toMap();
+        const QString f = m.value("miniatura").toString();
+        if (f.isEmpty()) continue;
+        const QString ruta = QString::fromStdWString((carpetaMiniaturas() / f.toStdWString()).wstring());
+        if (!QFile::exists(ruta)) continue;
+        m["miniatura_ruta"] = ruta;
+        // La fecha en la URL: si se regraba, QML no muestra la foto vieja del caché.
+        m["miniatura_url"] = QUrl::fromLocalFile(ruta).toString() + "?v=" + m.value("modificada").toString();
+        v = m;
+    }
+    return out;
+}
+
+std::filesystem::path ControlCamaras::carpetaMiniaturas() const {
+    return archivo_.parent_path().parent_path() / "Miniaturas" / "ptz";
+}
+
+QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString& idONombre) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return error;
+    Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    std::vector<std::uint8_t> rgba;
+    int w = 0, h = 0;
+    if (!rt_.engine().captureSource(c->entrada, 320, rgba, w, h) || w <= 0 || h <= 0)
+        return QStringLiteral("La entrada «%1» no da imagen ahora: la posición queda sin foto").arg(entrada);
+    const QImage img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+    std::error_code ec;
+    std::filesystem::create_directories(carpetaMiniaturas(), ec);
+    const QString nombre = QString::fromStdString(nombreClave(c->entrada)) + "-" + p->id + ".jpg";
+    const QString ruta = QString::fromStdWString((carpetaMiniaturas() / nombre.toStdWString()).wstring());
+    if (!img.save(ruta, "JPG", 82)) return QStringLiteral("No se pudo guardar la foto en %1").arg(ruta);
+    p->miniatura = nombre;
+    p->modificada = Posiciones::ahora();
+    guardarPronto();
+    emit cambio();
+    return {};
+}
+
+void ControlCamaras::miniaturaPronto(const QString& entrada, const QString& id) {
+    // El recorte digital se mueve en ~0,3 s; la cabeza motorizada tarda más,
+    // pero al registrar ya está quieta (se registra donde está).
+    QTimer::singleShot(600, this, [this, entrada, id]() { capturarMiniatura(entrada, id); });
 }
 
 QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
@@ -544,7 +593,7 @@ QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
 }
 
 QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString& nombre,
-                                          const QString& comentario) {
+                                          const QString& comentario, double velocidad, double segundos) {
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return {{"ok", false}, {"error", error}};
@@ -553,6 +602,8 @@ QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString&
     Posicion nueva;
     nueva.nombre = nombre.trimmed();
     nueva.comentario = comentario.trimmed();
+    nueva.velocidad = qBound(0.0, velocidad, 1.0);
+    nueva.segundos = segundos < 0 ? -1 : qMin(segundos, 10.0);
     Posicion& p = c->posiciones.agregar(nueva);
     QString aviso;
     error = registrar(*c, p, aviso);
@@ -563,6 +614,7 @@ QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString&
     }
     guardarPronto();
     emit cambio();
+    miniaturaPronto(entrada, id);
     return {{"ok", true}, {"id", id}, {"aviso", aviso}};
 }
 
@@ -581,6 +633,9 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
         p->nombre = cambios["nombre"].toString().trimmed();
     }
     if (cambios.contains("comentario")) p->comentario = cambios["comentario"].toString().trimmed();
+    if (cambios.contains("velocidad")) p->velocidad = qBound(0.0, cambios["velocidad"].toDouble(), 1.0);
+    if (cambios.contains("segundos"))
+        p->segundos = cambios["segundos"].toDouble() < 0 ? -1 : qMin(cambios["segundos"].toDouble(), 10.0);
     QString aviso;
     if (cambios.value("regrabar").toBool()) {
         // Con ONVIF se borra la memoria vieja y se graba una nueva.
@@ -601,6 +656,7 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
     p->modificada = Posiciones::ahora();
     guardarPronto();
     emit cambio();
+    if (cambios.value("regrabar").toBool() || cambios.value("miniatura").toBool()) miniaturaPronto(entrada, p->id);
     return {{"ok", true}, {"aviso", aviso}};
 }
 
@@ -612,6 +668,10 @@ QString ControlCamaras::borrarPosicion(const QString& entrada, const QString& id
     if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
     // Libera la memoria en la cámara (si es la misma cámara que la grabó).
     if (c->hw && p->tieneCamara() && p->backend == c->backend) c->hw->borrarPosicion(p->memoria, p->token);
+    if (!p->miniatura.isEmpty()) {
+        std::error_code ec;
+        std::filesystem::remove(carpetaMiniaturas() / p->miniatura.toStdWString(), ec);
+    }
     c->posiciones.borrar(p->id);
     guardarPronto();
     emit cambio();
@@ -641,14 +701,15 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
                           .arg(p->backend, c->backend);
         } else {
             if (!c->hw->listo()) avisos << QStringLiteral("la cámara no contesta");
-            c->hw->irAPosicion(p->memoria, p->token);
+            c->hw->irAPosicionCon(p->memoria, p->token, p->velocidad);
             algo = true;
         }
     }
     if (p->digital) {
         if (!c->digital || !c->dig) {
             avisos << QStringLiteral("el PTZ digital está apagado: el recorte no se aplica");
-        } else if (c->dig->ir(p->x, p->y, p->zoom, qBound(0.0, segundos, 10.0))) {
+        } else if (c->dig->ir(p->x, p->y, p->zoom,
+                              qBound(0.0, segundos >= 0 ? segundos : (p->segundos >= 0 ? p->segundos : 1.0), 10.0))) {
             algo = true;
         }
     }

@@ -73,7 +73,23 @@ int main(int argc, char** argv) {
         llamadas.emplace_back(h, a);
         l(true, "");
     };
+    g.recinto = [] {
+        json banca{{"banca", "7"}, {"fila", 1}, {"columna", 3}, {"integrante", {{"nombre", "Ana"}}}};
+        return json{{"filas", 2}, {"columnas", 5}, {"bancas", json::array({banca})}};
+    };
     Botonera bot(dir.path().toStdString(), bus, g);
+    {
+        std::string idRec;
+        const std::string e = bot.crearPerfil({{"nombre", "Sala"}}, "recinto", &idRec);
+        const json pr = bot.perfil(idRec);
+        bool enSuLugar = false;
+        for (const auto& c : pr["paginas"][0]["celdas"])
+            if (c.value("x", -1) == 3 && c.value("y", -1) == 1 &&
+                c.value("accion", json::object()).value("args", json::object()).value("banca", std::string()) == "7")
+                enSuLugar = true;
+        CHECK(e.empty() && pr["paginas"][0]["filas"] == 3 && enSuLugar, "plantilla Recinto: cada banca en su lugar de la grilla");
+        bot.borrarPerfil(idRec);
+    }
     std::vector<json> mensajes;
     QObject::connect(&bot, &Botonera::mensaje, [&](const QString&, const json& m) { mensajes.push_back(m); });
 

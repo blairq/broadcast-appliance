@@ -405,7 +405,7 @@ Item {
                     // Al aire, en gris con candado: tocarla pregunta (se vería el movimiento).
                     opacity: t.cc && t.cc.alAire(t.entrada) ? 0.55 : 1
                     onClicked: {
-                        const ir = function() { const r = t.cc.irAPosicion(t.entrada, modelData.id, 1.0); t.avisar(r.ok ? (r.aviso || "") : r.error) }
+                        const ir = function() { const r = t.cc.irAPosicion(t.entrada, modelData.id, -1); t.avisar(r.ok ? (r.aviso || "") : r.error) }
                         if (!t.cc.alAire(t.entrada) || !t.cc.interlock().activo) { ir(); return }
                         ApplicationWindow.window.confirm({ title: "La cámara está al aire", text: "Moverla se ve en la transmisión. ¿Mover igual?",
                                                            accept: "Mover igual", reject: "Cancelar", action: ir })

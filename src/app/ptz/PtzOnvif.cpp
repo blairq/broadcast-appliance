@@ -325,6 +325,11 @@ void PtzOnvif::irAPosicion(int, const QString& token) {
     soap(servicios_.ptz, onvif::gotoPreset(perfil_.token, token), [](bool, const QByteArray&) {});
 }
 
+void PtzOnvif::irAPosicionCon(int, const QString& token, double velocidad) {
+    if (servicios_.ptz.isEmpty() || token.isEmpty()) return;
+    soap(servicios_.ptz, onvif::gotoPreset(perfil_.token, token, velocidad), [](bool, const QByteArray&) {});
+}
+
 void PtzOnvif::borrarPosicion(int, const QString& token) {
     if (servicios_.ptz.isEmpty() || token.isEmpty()) return;
     soap(servicios_.ptz, onvif::removePreset(perfil_.token, token), [this](bool ok, const QByteArray&) {

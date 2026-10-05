@@ -7,7 +7,13 @@
 //
 // Config/cuerpo.json: {nombre, integrantes: [{id, persona_id?, nombre,
 // cargo_oficial, bloque, distrito, banca, preset_ptz: {camara, posicion},
-// microfono: {fuente}, foto, validado_por, validado_en}]}.
+// microfono: {fuente}, foto, validado_por, validado_en}],
+// recinto: {filas, columnas, bancas: [{banca, fila, columna}]}}.
+//
+// EL RECINTO es la grilla de bancas como se ven desde la cabina: tocar una
+// banca la lleva al preset de su cámara (la reusan la página PTZ, la fila de
+// oradores y la botonera). Fila 0 es la de adelante (la más cerca de la
+// presidencia), columna 0 la de la izquierda vista desde la cabina.
 //
 // Lo que sale al aire de acá está VALIDADO por una persona (validado_por):
 // un integrante sin validar se marca y los zócalos lo avisan.
@@ -39,6 +45,16 @@ class Cuerpo {
     bool borrar(const std::string& id);
     /// Marca a un integrante como validado por `quien` (ahora).
     bool validar(const std::string& id, const std::string& quien);
+
+    /// El recinto. Con `completo`, cada lugar trae su integrante ({id, nombre,
+    /// bloque, preset_ptz, validado}) y `sin_lugar` las bancas del cuerpo que
+    /// todavía no están en la grilla.
+    json recinto(bool completo = true) const;
+    /// Cambia el recinto: {filas?, columnas?, bancas?: [{banca, fila, columna}]
+    /// (reemplaza la lista), mover?: {banca, fila, columna} (una sola; fila
+    /// -1 la saca), auto?: true (acomoda todas las bancas en orden, de
+    /// adelante para atrás)}. "" o el error (y no cambia nada).
+    std::string setRecinto(const json& cambios);
 
     /// Importa una planilla CSV (separada por coma o punto y coma, con
     /// encabezado: banca, nombre, cargo, bloque, distrito, camara, posicion,

@@ -73,6 +73,8 @@ class Botonera : public QObject {
         std::function<std::vector<std::string>()> fuentesAudio;
         /// (banca, nombre) del cuerpo, para la plantilla Legislatura.
         std::function<std::vector<std::pair<std::string, std::string>>()> bancas;
+        /// La grilla del recinto (legislatura/Cuerpo::recinto), para la plantilla Recinto.
+        std::function<json()> recinto;
         /// Nombres de herramientas que existen (para validar y el selector).
         std::function<std::set<std::string>()> herramientas;
     };

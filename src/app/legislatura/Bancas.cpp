@@ -98,6 +98,18 @@ QString Bancas::alAire(const QString& clave, const QString& modo) {
     return {};
 }
 
+QString Bancas::apuntar(const QString& clave) {
+    const json i = cuerpo_.buscar(clave.toStdString());
+    if (i.empty()) return "no hay nadie con esa banca, id o nombre en el cuerpo";
+    const json ptz = i.value("preset_ptz", json::object());
+    const std::string camara = ptz.value("camara", std::string()), posicion = ptz.value("posicion", std::string());
+    if (camara.empty() || posicion.empty()) return "la banca no tiene preset de cámara (Cuerpo)";
+    if (g_.camaraAlAire && g_.camaraAlAire(camara))
+        return QString::fromStdString("la cámara «" + camara + "» está al aire: no se mueve");
+    if (!g_.irAPosicion) return "el PTZ no está disponible";
+    return QString::fromStdString(g_.irAPosicion(camara, posicion));
+}
+
 void Bancas::terminar() {
     if (alAire_.empty()) return;
     const json i = cuerpo_.buscar(alAire_);

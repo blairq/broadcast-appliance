@@ -648,6 +648,8 @@ class StudioViewModel : public QObject {
     /// Alguien pidió identificar los monitores (ver `identificarPantallas`).
     void identificarPedido();
     void seccionConfigChanged();
+    /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
+    void mostrarSeccion(const QString& pagina, const QString& seccion);
     void canvasChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".

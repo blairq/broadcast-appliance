@@ -18,6 +18,7 @@
 
 #include "AppRuntime.hpp"
 
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -426,7 +427,9 @@ void McpService::registerPtzTools() {
         t.description =
             "Las posiciones guardadas de una cámara (o de todas): id, nombre, comentario, la definición en "
             "que se "
-            "registró, el encuadre digital (x, y, zoom) y la memoria de la cámara donde quedó grabada.";
+            "registró, el encuadre digital (x, y, zoom), la memoria de la cámara donde quedó grabada, la "
+            "velocidad y los segundos con que se va, y `miniatura_ruta` (la foto JPEG; se puede mirar con "
+            "image_view o mandarla a quien la pida).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
@@ -455,18 +458,32 @@ void McpService::registerPtzTools() {
             "cámara) y un "
             "`comentario`: el encuadre digital y, si la cámara es motorizada, la graba en una memoria de la "
             "cámara. "
-            "Guarda también la definición de la entrada. Primero encuadrá (ptz_mover, ptz_encuadre).";
-        t.inputSchema = {
-            {"type", "object"},
-            {"required", {"entrada", "nombre"}},
-            {"properties",
-             {{"entrada", entrada}, {"nombre", {{"type", "string"}}}, {"comentario", {{"type", "string"}}}}}};
+            "Guarda también la definición de la entrada y una FOTO (miniatura de 320 px, sale sola un "
+            "instante después). `velocidad` (0..1, 0 = la de la cámara) es la de la cabeza al volver; "
+            "`segundos` los del recorte digital. Primero encuadrá (ptz_mover, ptz_encuadre).";
+        const json velocidad = {{"type", "number"},
+                                {"minimum", 0},
+                                {"maximum", 1},
+                                {"description", "Velocidad de la cabeza al ir (0 = la de la cámara)."}};
+        const json segundos = {{"type", "number"},
+                               {"minimum", -1},
+                               {"maximum", 10},
+                               {"description", "Segundos del recorte digital al ir (-1 = sin fijar)."}};
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "nombre"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"nombre", {{"type", "string"}}},
+                           {"comentario", {{"type", "string"}}},
+                           {"velocidad", velocidad},
+                           {"segundos", segundos}}}};
         t.examples = {
             R"({"entrada": "Cámara 1", "nombre": "Atril", "comentario": "Plano medio del orador, con el logo"})"};
         t.run = [c, mapaAJson](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             const QVariantMap r =
-                c->crearPosicion(qarg(a, "entrada"), qarg(a, "nombre"), qarg(a, "comentario"));
+                c->crearPosicion(qarg(a, "entrada"), qarg(a, "nombre"), qarg(a, "comentario"),
+                                 a.value("velocidad", 0.0), a.value("segundos", -1.0));
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
         };
@@ -478,9 +495,9 @@ void McpService::registerPtzTools() {
         t.title = "Cambiar una posición";
         t.category = "camaras";
         t.idempotent = true;
-        t.description = "Cambia el `nombre` o el `comentario` de una posición; con `regrabar: true` la "
-                        "vuelve a registrar donde "
-                        "está ahora la cámara (encuadre, memoria y definición).";
+        t.description = "Cambia el `nombre`, el `comentario`, la `velocidad` (0..1) o los `segundos` de una "
+                        "posición; con `regrabar: true` la vuelve a registrar donde está ahora la cámara "
+                        "(encuadre, memoria, definición y foto); con `miniatura: true` solo saca la foto de nuevo.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
                          {"properties",
@@ -488,13 +505,19 @@ void McpService::registerPtzTools() {
                            {"posicion", posicion},
                            {"nombre", {{"type", "string"}}},
                            {"comentario", {{"type", "string"}}},
-                           {"regrabar", {{"type", "boolean"}}}}}};
+                           {"velocidad", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"segundos", {{"type", "number"}, {"minimum", -1}, {"maximum", 10}}},
+                           {"regrabar", {{"type", "boolean"}}},
+                           {"miniatura", {{"type", "boolean"}}}}}};
         t.run = [c, mapaAJson](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             QVariantMap cambios;
             if (a.contains("nombre")) cambios["nombre"] = qarg(a, "nombre");
             if (a.contains("comentario")) cambios["comentario"] = qarg(a, "comentario");
             if (a.contains("regrabar")) cambios["regrabar"] = a.value("regrabar", false);
+            if (a.contains("miniatura")) cambios["miniatura"] = a.value("miniatura", false);
+            if (a.contains("velocidad")) cambios["velocidad"] = a.value("velocidad", 0.0);
+            if (a.contains("segundos")) cambios["segundos"] = a.value("segundos", -1.0);
             const QVariantMap r = c->editarPosicion(qarg(a, "entrada"), qarg(a, "posicion"), cambios);
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
@@ -524,7 +547,8 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.description =
             "Lleva la cámara `entrada` a la posición (id o nombre): la cabeza a su memoria y el recorte a su "
-            "encuadre, en `segundos` (0 = corte; de fábrica 1). Avisa si la definición cambió desde que se "
+            "encuadre, en `segundos` (0 = corte; si no se dice, los de la posición o 1). La cabeza va con la "
+            "velocidad de la posición. Avisa si la definición cambió desde que se "
             "registró.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
@@ -537,11 +561,40 @@ void McpService::registerPtzTools() {
         t.run = [c, mapaAJson](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             const QVariantMap r =
-                c->irAPosicion(qarg(a, "entrada"), qarg(a, "posicion"), a.value("segundos", 1.0));
+                c->irAPosicion(qarg(a, "entrada"), qarg(a, "posicion"), a.value("segundos", -1.0));
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
         };
         conInterlock(t);
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_posicion_foto";
+        t.title = "La foto de una posición";
+        t.category = "camaras";
+        t.readOnly = true;
+        t.description = "La miniatura de una posición (cómo se veía cuando se registró), como imagen. Si no "
+                        "tiene, sacala con ptz_posicion_editar {miniatura: true} (la cámara tiene que estar ahí).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "posicion"}},
+                         {"properties", {{"entrada", entrada}, {"posicion", posicion}}}};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString clave = qarg(a, "posicion");
+            for (const QVariant& v : c->posiciones(qarg(a, "entrada"))) {
+                const QVariantMap m = v.toMap();
+                if (m["id"].toString() != clave && m["nombre"].toString().compare(clave, Qt::CaseInsensitive) != 0) continue;
+                QFile f(m.value("miniatura_ruta").toString());
+                if (!f.open(QIODevice::ReadOnly))
+                    return done(ToolResult::error("la posición «" + m["nombre"].toString().toStdString() + "» no tiene foto"));
+                ToolResult r;
+                r.text("«" + m["nombre"].toString().toStdString() + "» (" + m.value("miniatura_ruta").toString().toStdString() + ")");
+                r.image(f.readAll().toBase64().toStdString(), "image/jpeg");
+                return done(r);
+            }
+            done(ToolResult::error("No hay una posición «" + clave.toStdString() + "» en esa entrada"));
+        };
         core_.addTool(std::move(t));
     }
     {

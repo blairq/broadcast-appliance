@@ -71,9 +71,10 @@ void McpService::registerUiTools() {
              {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
               {"seccion",
                {{"type", "string"},
-                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                {"description", "Con page=configuracion: a que seccion ir (el nombre tal cual lo "
                                 "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+                                "navegacion\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
+                                "o el nombre de una entrada. Sin esto queda la que estaba."}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
@@ -85,8 +86,11 @@ void McpService::registerUiTools() {
             w->setProperty("page", pagina);
             // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
             // vea un salto; despues, no se nota.
-            if (a.contains("seccion") && a["seccion"].is_string())
-                vm.setSeccionConfig(QString::fromStdString(a["seccion"].get<std::string>()));
+            if (a.contains("seccion") && a["seccion"].is_string()) {
+                const QString s = QString::fromStdString(a["seccion"].get<std::string>());
+                if (a["page"] == "configuracion") vm.setSeccionConfig(s);
+                else emit vm.mostrarSeccion(QString::fromStdString(a["page"].get<std::string>()), s);
+            }
             done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
         };
         core_.addTool(std::move(t));
