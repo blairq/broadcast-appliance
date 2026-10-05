@@ -153,6 +153,9 @@ struct StreamConfig {
 struct RecordConfig {
     std::string directory;         ///< carpeta destino
     std::string container = "mkv"; ///< mkv sobrevive a un corte de energia; mp4 no
+    /// Con mp4/mov: se graba en MKV (sobrevive a un corte) y al terminar se
+    /// pasa al formato pedido sin recodificar (el MKV se borra si salió bien).
+    bool remuxAlTerminar = true;
 };
 
 /// Rutas del layout portable que el motor necesita (spec §5.1/§5.3).
@@ -264,6 +267,14 @@ class BroadcastEngine {
     bool placa(bool activar, const std::string& texto, const std::string& imagen, int ms);
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen} (lo que se ve ahora o va hacia eso).
     nlohmann::json estadoPlaca() const;
+
+    /// El archivo que se está grabando (o el último) y en qué contenedor de verdad.
+    std::string archivoGrabacion() const { return recordPath_; }
+    /// Pasa `archivo` (mkv) a `formato` (mp4/mov) sin recodificar, en otro hilo.
+    /// `borrarOrigen`: si salió bien. false si ya hay uno andando.
+    bool remux(const std::string& archivo, const std::string& formato, bool borrarOrigen);
+    /// {archivo, destino, pct, andando, ok, error}.
+    nlohmann::json remuxEstado() const;
 
     /// Compatibilidad: crea la escena "programa" y la pone al aire.
     bool buildScene();
@@ -697,6 +708,10 @@ class BroadcastEngine {
     std::vector<std::pair<std::string, obs_scene*>> scenes_;
     std::string currentScene_;
     std::string activeServer_, activeKey_;
+    std::string recordPath_, remuxA_;   ///< lo que se graba y a qué pasarlo al terminar
+    bool remuxAlTerminar_ = true;
+    struct EstadoRemux;
+    std::shared_ptr<EstadoRemux> remux_;
     Inicio ultimoInicio_ = Inicio::Iniciado;
     struct Extra {
         std::string server, key;

@@ -58,7 +58,8 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"encoder.audioBitrate", "Codificacion", "Bitrate de audio", "choice", choices({{"96","96"},{"128","128"},{"160","160"},{"192","192"},{"256","256"},{"320","320"}}), 0, 0, "kbps", "", "live", "160"},
         // --- Grabacion -------------------------------------------------------
         {"record.dir", "Grabacion", "Carpeta", "path", {}, 0, 0, "", "Relativa al bundle o absoluta.", "live", "Recordings"},
-        {"record.container", "Grabacion", "Formato", "choice", choices({{"mkv","MKV (sobrevive a un corte de energia)"},{"mp4","MP4"},{"mov","MOV"},{"flv","FLV"}}), 0, 0, "", "", "live", "mkv"},
+        {"record.container", "Grabacion", "Formato", "choice", choices({{"mkv","MKV (sobrevive a un corte de energia)"},{"mp4","MP4"},{"mov","MOV"},{"flv","FLV"}}), 0, 0, "", "MP4 y MOV se graban en MKV (un corte no los arruina) y se pasan al formato al terminar.", "live", "mkv"},
+        {"record.remux", "Grabacion", "Pasar a MP4/MOV al terminar", "bool", {}, 0, 0, "", "Con MP4 o MOV elegidos: al detener, el MKV se pasa al formato sin recodificar y se borra si salió bien.", "live", true},
         {"record.onStart", "Grabacion", "Grabar al arrancar", "bool", {}, 0, 0, "", "Respaldo local automatico.", "live", false},
         // --- Transmision -----------------------------------------------------
         {"stream.server", "Transmision", "Servidor RTMP", "text", {}, 0, 0, "", "p. ej. rtmp://a.rtmp.youtube.com/live2", "live", ""},
@@ -138,6 +139,7 @@ QVariantMap SettingsModel::current() const {
         {"encoder.audioBitrate", QString::number(c.encoder.audioBitrateKbps)},
         {"record.dir", qs(c.rec.directory)},
         {"record.container", qs(c.rec.container)},
+        {"record.remux", c.rec.remuxAlTerminar},
         {"record.onStart", c.record},
         {"stream.server", qs(c.streamCfg.server)},
         {"stream.keyEnv", qs(c.streamKeyEnv)},
@@ -330,6 +332,7 @@ QString SettingsModel::apply() {
     const std::filesystem::path recDir = s("record.dir");
     c.rec.directory = (recDir.is_absolute() ? recDir : rt_.dataRoot() / recDir).string();
     c.rec.container = s("record.container");
+    c.rec.remuxAlTerminar = b("record.remux");
     c.record = b("record.onStart");
     c.streamCfg.server = s("stream.server");
     c.streamKeyEnv = s("stream.keyEnv");

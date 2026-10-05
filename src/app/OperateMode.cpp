@@ -667,6 +667,16 @@ std::string AppRuntime::iniciarDestino(const std::string& id) {
     return errores;
 }
 
+nlohmann::json AppRuntime::discoGrabacion() const {
+    std::error_code ec;
+    fs::create_directories(cfg_.rec.directory, ec);
+    const auto info = fs::space(cfg_.rec.directory, ec);
+    const double gb = ec ? -1.0 : static_cast<double>(info.available) / 1e9;
+    const int kbps = cfg_.encoder.videoBitrateKbps + cfg_.encoder.audioBitrateKbps;
+    const double horas = gb >= 0 && kbps > 0 ? gb / (kbps * 1.05 * 3600.0 / 8.0 / 1e6) : -1.0;
+    return {{"libre_gb", gb}, {"horas", horas}, {"kbps", kbps}, {"carpeta", cfg_.rec.directory}};
+}
+
 void AppRuntime::detenerDestino(const std::string& id) {
     if (id == "todos")
         engine_.stopExtras();

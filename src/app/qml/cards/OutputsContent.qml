@@ -124,6 +124,19 @@ Item {
                 }
             }
         }
+        // El disco a este bitrate y el pase a MP4 al terminar.
+        Text {
+            id: disco
+            property var d: Studio.discoUi()
+            property var r: Studio.remuxUi()
+            Timer { interval: 5000; running: true; repeat: true; onTriggered: { disco.d = Studio.discoUi(); disco.r = Studio.remuxUi() } }
+            Layout.fillWidth: true; elide: Text.ElideRight
+            text: (d.horas >= 0 ? "Disco: " + Math.floor(d.horas) + " h " + Math.round((d.horas % 1) * 60) + " min a este bitrate" : "Disco: ?") +
+                  (r.andando ? " · pasando a " + String(r.destino).split(".").pop().toUpperCase() + " " + Math.round(r.pct) + "%" :
+                   r.destino ? (r.ok ? " · último pase a MP4 listo" : (r.error ? " · el pase a MP4 falló: " + r.error : "")) : "")
+            color: d.horas >= 0 && d.horas < 0.25 ? Theme.live : d.horas >= 0 && d.horas < 2 ? Theme.amber : Theme.textFaint
+            font.pixelSize: 10
+        }
         OutputRow {
             label: Studio.recording ? "GRABANDO" : "GRABACION"
             time: Studio.recordTime

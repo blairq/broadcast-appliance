@@ -31,6 +31,10 @@
 #endif
 
 #include <obs.h>
+#include <mutex>
+#include <atomic>
+#include <thread>
+#include <media-io/media-remux.h>
 #include <util/platform.h> // os_gettime_ns: el mismo reloj que usa libobs
 
 #include "WindowingPlatform.hpp"
@@ -1109,8 +1113,14 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     // Nombre por marca de tiempo, dentro de Recordings/ (layout §5.1).
     const auto now = std::chrono::system_clock::now();
     const auto secs = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-    const std::string path = rec.directory + "/ba-" + std::to_string(secs) + "." +
-                             (rec.container.empty() ? std::string("mkv") : rec.container);
+    // MP4/MOV no sobreviven a un corte (el índice va al final): se graba en MKV
+    // y se pasa al formato pedido al terminar, sin recodificar.
+    const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
+    const bool fragil = pedido == "mp4" || pedido == "mov";
+    const std::string path = rec.directory + "/ba-" + std::to_string(secs) + "." + (fragil ? std::string("mkv") : pedido);
+    remuxA_ = fragil ? pedido : std::string();
+    remuxAlTerminar_ = rec.remuxAlTerminar;
+    recordPath_ = path;
 
     obs_data_t* os = obs_data_create();
     obs_data_set_string(os, "path", path.c_str());
@@ -1134,16 +1144,83 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     return true;
 }
 
+struct BroadcastEngine::EstadoRemux {
+    std::mutex mu;
+    std::string archivo, destino, error;
+    std::atomic<float> pct{0};
+    std::atomic<bool> andando{false}, ok{false};
+};
+
 void BroadcastEngine::stopRecording() {
     if (recordOutput_ == nullptr) {
         return;
     }
     auto* out = reinterpret_cast<obs_output_t*>(recordOutput_);
-    if (obs_output_active(out)) {
+    const bool estaba = obs_output_active(out);
+    if (estaba) {
         obs_output_stop(out);
+    }
+    // Al terminar de escribir (el muxer cierra solo, un rato después), si se
+    // grabó en MKV en vez de MP4/MOV, se pasa al formato pedido.
+    if (estaba && !remuxA_.empty() && remuxAlTerminar_) {
+        obs_output_t* ref = obs_output_get_ref(out);
+        const std::string archivo = recordPath_, formato = remuxA_;
+        std::thread([this, ref, archivo, formato]() {
+            for (int i = 0; i < 600 && ref != nullptr && obs_output_active(ref); ++i)
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if (ref != nullptr) obs_output_release(ref);
+            remux(archivo, formato, true);
+        }).detach();
     }
     obs_output_release(out);
     recordOutput_ = nullptr;
+}
+
+bool BroadcastEngine::remux(const std::string& archivo, const std::string& formato, bool borrarOrigen) {
+    if (remux_ && remux_->andando) {
+        setError("ya hay un remux andando");
+        return false;
+    }
+    auto st = std::make_shared<EstadoRemux>();
+    const std::string destino = std::filesystem::path(archivo).replace_extension("." + formato).string();
+    st->archivo = archivo;
+    st->destino = destino;
+    st->andando = true;
+    remux_ = st;
+    std::thread([st, archivo, destino, borrarOrigen]() {
+        media_remux_job_t job = nullptr;
+        bool ok = media_remux_job_create(&job, archivo.c_str(), destino.c_str());
+        if (ok)
+            ok = media_remux_job_process(
+                job,
+                [](void* d, float pct) {
+                    static_cast<EstadoRemux*>(d)->pct = pct;
+                    return true;
+                },
+                st.get());
+        if (job != nullptr) media_remux_job_destroy(job);
+        // Verificar antes de borrar el MKV: que exista y que no sea mucho más chico.
+        std::error_code ec;
+        const auto tamO = std::filesystem::file_size(archivo, ec);
+        const auto tamD = std::filesystem::file_size(destino, ec);
+        const bool verificado = ok && !ec && tamD > 0 && tamD * 10 >= tamO * 9;
+        {
+            std::lock_guard<std::mutex> l(st->mu);
+            if (!verificado) st->error = ok ? "el archivo nuevo no se verificó (tamaño)" : "el remux falló";
+        }
+        if (verificado && borrarOrigen) std::filesystem::remove(archivo, ec);
+        st->ok = verificado;
+        st->pct = 100;
+        st->andando = false;
+    }).detach();
+    return true;
+}
+
+nlohmann::json BroadcastEngine::remuxEstado() const {
+    if (!remux_) return nlohmann::json::object();
+    std::lock_guard<std::mutex> l(remux_->mu);
+    return {{"archivo", remux_->archivo}, {"destino", remux_->destino}, {"pct", remux_->pct.load()},
+            {"andando", remux_->andando.load()}, {"ok", remux_->ok.load()}, {"error", remux_->error}};
 }
 
 // ============================================================================

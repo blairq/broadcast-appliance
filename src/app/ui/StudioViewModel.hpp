@@ -352,6 +352,11 @@ class StudioViewModel : public QObject {
     /// del formulario, {"importFile": ruta} o {"fromDownloads": true}. "" o el error.
     Q_INVOKABLE QString saveAccountCredential(const QString& platform, const QVariantMap& values);
     Q_INVOKABLE void toggleRecording();
+    /// Graba aunque quede poco disco (lo confirmó el operador).
+    Q_INVOKABLE void grabarIgual();
+    /// {libre_gb, horas, kbps, carpeta} y el remux: {archivo, destino, pct, andando, ok, error}.
+    Q_INVOKABLE QVariantMap discoUi() const;
+    Q_INVOKABLE QVariantMap remuxUi() const;
     Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
     Q_INVOKABLE void stopStreaming();
     /// Pasa la transmisión a otro destino estando al aire (lo confirmó el operador).
@@ -476,6 +481,8 @@ class StudioViewModel : public QObject {
     /// Se pidió transmitir a otro destino estando al aire: que el operador confirme.
     void pedirCambioDestino(const QString& actual, const QString& nuevoServer, const QString& nuevoKey);
     void destinosChanged();
+    /// Queda muy poco disco para grabar: que el operador confirme.
+    void pedirConfirmarGrabacion(double horas);
 
    private slots:
     void onTick();

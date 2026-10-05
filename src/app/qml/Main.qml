@@ -106,6 +106,14 @@ ApplicationWindow {
     Connections {
         target: Studio
         function onNotify(message, level) { toasts.show(message, level) }
+        function onPedirConfirmarGrabacion(horas) {
+            confirm({
+                title: "Queda muy poco disco",
+                text: "Alcanza para ~" + Math.round(horas * 60) + " minutos de grabación a este bitrate. ¿Grabar igual?",
+                accept: "Grabar igual", reject: "Cancelar",
+                action: function() { Studio.grabarIgual() }
+            })
+        }
         // Ya al aire y se pidió otro destino: nunca se cambia sin preguntar.
         function onPedirCambioDestino(actual, nuevoServer, nuevoKey) {
             confirm({

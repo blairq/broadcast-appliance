@@ -79,6 +79,9 @@ class AppRuntime {
     std::string borrarDestino(const std::string& id);
     /// Arranca un destino ("todos": todos los guardados). "" o el error.
     std::string iniciarDestino(const std::string& id);
+    /// El disco de la carpeta de grabación: {libre_gb, horas, kbps} (horas al
+    /// bitrate de video configurado + audio; -1 si no se sabe).
+    nlohmann::json discoGrabacion() const;
     void detenerDestino(const std::string& id); ///< "todos": todos
 
     // --- Escenas y fuentes (motor + configuracion) ----------------------------

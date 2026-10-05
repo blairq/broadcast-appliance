@@ -931,6 +931,17 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
 }
 
 void StudioViewModel::toggleRecording() {
+    if (!recording_) {
+        // Antes de grabar: cuánto alcanza el disco a este bitrate.
+        const nlohmann::json d = rt_.discoGrabacion();
+        const double horas = d.value("horas", -1.0);
+        if (horas >= 0 && horas < 0.25) {
+            emit pedirConfirmarGrabacion(horas);
+            return;
+        }
+        if (horas >= 0 && horas < 2)
+            emit notify(QString("Ojo: el disco alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1), "warn");
+    }
     if (recording_) {
         rt_.stopRecording();
     } else if (rt_.startRecording()) {
@@ -939,6 +950,23 @@ void StudioViewModel::toggleRecording() {
         emit notify("No se pudo grabar: " + qs(rt_.lastError()), "error");
     }
     onTick();
+}
+
+void StudioViewModel::grabarIgual() {
+    if (recording_) return;
+    if (rt_.startRecording())
+        emit notify("Grabando (con poco disco)", "warn");
+    else
+        emit notify("No se pudo grabar: " + qs(rt_.lastError()), "error");
+    onTick();
+}
+
+QVariantMap StudioViewModel::discoUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.discoGrabacion().dump())).object().toVariantMap();
+}
+
+QVariantMap StudioViewModel::remuxUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().remuxEstado().dump())).object().toVariantMap();
 }
 
 void StudioViewModel::startStreaming(const QString& server, const QString& key) {

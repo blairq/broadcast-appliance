@@ -192,6 +192,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     const fs::path recDir = get<std::string>(rec, "dir", "Recordings");
     c.rec.directory = (recDir.is_absolute() ? recDir : dataRoot / recDir).string();
     c.rec.container = get<std::string>(rec, "container", "mkv");
+    c.rec.remuxAlTerminar = get(rec, "remux", true);
 
     const json st = j.value("stream", json::object());
     c.stream = get(st, "enabled", false);
@@ -299,7 +300,8 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"record",
          {{"enabled", c.record},
           {"dir", relativeToRoot(c.rec.directory, dataRoot)},
-          {"container", c.rec.container}}},
+          {"container", c.rec.container},
+          {"remux", c.rec.remuxAlTerminar}}},
         {"stream", {{"enabled", c.stream}, {"server", c.streamCfg.server}, {"keyEnv", c.streamKeyEnv}}},
         {"guests",
          {{"count", c.guests},

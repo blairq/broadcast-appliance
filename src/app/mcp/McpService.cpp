@@ -1980,6 +1980,62 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "record_disco";
+        t.title = "Disco de la grabacion";
+        t.category = "salidas";
+        t.readOnly = true;
+        t.description = "Cuanto disco queda en la carpeta de grabacion y para cuantas horas alcanza al bitrate "
+                        "configurado; y el estado del ultimo pase a MP4 (remux).";
+        t.run = [&rt](const json&, Done done) {
+            done(ToolResult().data(json{{"disco", rt.discoGrabacion()}, {"remux", rt.engine().remuxEstado()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "record_remux";
+        t.title = "Pasar una grabacion a MP4/MOV";
+        t.category = "salidas";
+        t.description = "Pasa un `archivo` .mkv a `formato` (mp4, de fabrica, o mov) sin recodificar, en otro hilo "
+                        "(record_disco dice como va). `borrar_mkv`: borrar el original si salio bien (de fabrica false).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"archivo"}},
+                         {"properties",
+                          {{"archivo", {{"type", "string"}}},
+                           {"formato", {{"type", "string"}, {"enum", {"mp4", "mov"}}}},
+                           {"borrar_mkv", {{"type", "boolean"}}}}}};
+        t.run = [&rt](const json& a, Done done) {
+            const std::string f = a.value("archivo", std::string());
+            std::error_code ec;
+            if (!std::filesystem::exists(f, ec)) return done(ToolResult::error("no existe " + f));
+            if (!rt.engine().remux(f, a.value("formato", std::string("mp4")), a.value("borrar_mkv", false)))
+                return done(ToolResult::error(rt.engine().lastError()));
+            done(ToolResult().text("Pasando; record_disco dice como va.").data(rt.engine().remuxEstado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "record_ajustes";
+        t.title = "Ajustes de la grabacion";
+        t.category = "salidas";
+        t.description = "`contenedor`: mkv (de fabrica, sobrevive a un corte), mp4, mov o flv (mp4/mov se graban en MKV "
+                        "y se pasan al terminar); `remux_al_terminar`. Sin argumentos, los muestra.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"contenedor", {{"type", "string"}, {"enum", {"mkv", "mp4", "mov", "flv"}}}},
+                           {"remux_al_terminar", {{"type", "boolean"}}}}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (a.contains("contenedor")) rt.config().rec.container = a.value("contenedor", std::string("mkv"));
+            if (a.contains("remux_al_terminar")) rt.config().rec.remuxAlTerminar = a.value("remux_al_terminar", true);
+            if (a.contains("contenedor") || a.contains("remux_al_terminar")) rt.save();
+            done(ToolResult().data(json{{"contenedor", rt.config().rec.container},
+                                        {"remux_al_terminar", rt.config().rec.remuxAlTerminar}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "stream_destinos";
         t.title = "Destinos de la transmision";
         t.category = "salidas";
@@ -2121,7 +2177,18 @@ void McpService::registerTools() {
                         "configuracion. Es para cuando todavia no se esta grabando.";
         t.run = [&rt, &vm](const json&, Done done) {
             if (rt.engine().status().recording) return done(ToolResult::ok("Ya esta grabando."));
+            const json d = rt.discoGrabacion();
+            if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < 0.25)
+                return done(ToolResult::error("Queda disco para menos de 15 minutos a este bitrate: no se arranca sola. "
+                                              "Liberá espacio o que el operador lo arranque desde Salidas."));
             if (!rt.startRecording()) return done(ToolResult::error("No arranco: " + rt.lastError()));
+            emit vm.statusChanged();
+            return done(ToolResult()
+                            .text("Grabando en " + rt.engine().archivoGrabacion() + ".")
+                            .data(json{{"archivo", rt.engine().archivoGrabacion()},
+                                       {"contenedor_real", std::filesystem::path(rt.engine().archivoGrabacion()).extension().string()},
+                                       {"contenedor_pedido", rt.config().rec.container},
+                                       {"horas_restantes", d.value("horas", -1.0)}}));
             emit vm.statusChanged();
             done(ToolResult::ok("Grabando en " + rt.config().rec.directory + "."));
         };
