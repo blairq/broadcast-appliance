@@ -110,6 +110,37 @@ def errores(frase, herramienta, falta=False):
     return [p for p in verificar(frase, herramienta, falta) if not p.startswith("R7 aviso")]
 
 
+def errores_derivar(frase):
+    """STE-ES para una frase que va al asistente grande (derivar). Valen las reglas que
+    no dependen de la herramienta: R8 (largo), R3 (una accion), R2 (la palabra de
+    muchos sentidos lleva su objeto; el sentido no tiene por que ser de una propia). Y
+    R1 al reves: un verbo de accion del diccionario tiene UN significado, el de una
+    herramienta del chico; usado en una frase que no es para esa herramienta, rompe
+    «una palabra, un significado», y es justo lo que desdibuja el borde."""
+    global _dic
+    _dic = _dic or Diccionario()
+    ws = palabras(frase)
+    sin_mul = [w for w in ws if w not in _dic.muletillas]
+    prob = []
+    if not 3 <= len(ws) <= 16:
+        prob.append(f"R8 largo: {len(ws)} palabras (3 a 16)")
+    if frase.strip().startswith("¿") or frase.strip().endswith("?") or (sin_mul and sin_mul[0] in PREGUNTA):
+        return prob
+    nuc = _dic.nucleo(sin_mul)
+    acciones = [x for x in nuc if x[0] == "accion"]
+    if len({x[2]["verbo"] for x in acciones}) > 1:
+        prob.append("R3 mas de una accion: " + ", ".join(sorted({x[2]["verbo"] for x in acciones})))
+    for tipo, w, e in acciones:
+        prob.append(f"R1 «{w}» significa «{e['significado']}» ({', '.join(e['herramientas'][:3])}): no es para derivar")
+        break
+    if nuc and all(t == "polisemica" for t, _, _ in nuc):
+        tipo, w, e = nuc[0]
+        resto = sin_mul[sin_mul.index(w) + 1:] if w in sin_mul else []
+        if len(resto) < 1 or PRONOMBRE_SOLO.search(" ".join(resto)):
+            prob.append(f"R2 «{w}» tiene muchos sentidos y no lleva el objeto que fija cual")
+    return prob
+
+
 def verificar(frase, herramienta, falta=False):
     """Los problemas de una frase de entrenamiento para su herramienta (vacio = cumple)."""
     global _dic

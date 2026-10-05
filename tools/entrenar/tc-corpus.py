@@ -29,6 +29,7 @@ import argparse
 import hashlib
 import importlib.util
 import json
+import re
 import random
 import sys
 from pathlib import Path
@@ -243,7 +244,28 @@ def main():
         if p.exists():
             der += [json.loads(l)["frase"] for l in p.read_text().splitlines()
                     if l.strip() and json.loads(l)["herramienta"] == "derivar"]
-    der = sorted(set(der))
+    # FUERA las que no son derivar para ESTE perfil (su herramienta real, registrada
+    # en derivaciones-admin, ahora es propia: con la v4 eran 32, encuestas, prompter,
+    # recetas...) y las del banco y el examen (se colaban 9: nunca se entrena con eso)
+    import unicodedata
+
+    def _norm(s):
+        s = unicodedata.normalize("NFKD", s.lower()).encode("ascii", "ignore").decode()
+        return re.sub(r"\W+", " ", s).strip()
+    _mias = set(tc.esquemas().keys())
+    _real = {_norm(json.loads(l)["frase"]): json.loads(l)["herramienta"]
+             for l in (RAIZ / "datos/derivaciones-admin.jsonl").read_text().splitlines() if l.strip()}
+    _prohibidas = {_norm(json.loads(l)["frase"]) for f in (RAIZ / "datos/orientacion.jsonl",
+                                                          RAIZ / "datos/entrenamiento/examen.jsonl")
+                   for l in f.read_text().splitlines() if l.strip()}
+    der = sorted({f for f in der if _norm(f) not in _prohibidas and _real.get(_norm(f)) not in _mias})
+    # y en STE-ES (las reglas que no dependen de la herramienta, y ningun verbo que
+    # signifique una herramienta propia): ste_es.errores_derivar
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ste_es
+    n_der = len(der)
+    der = [f for f in der if not ste_es.errores_derivar(f)]
+    print(f"derivar: {len(der)} frases en STE-ES ({n_der - len(der)} fuera)")
     rnd.shuffle(der)
     base = len(ent)
     # derivar y charla son porciones del TOTAL

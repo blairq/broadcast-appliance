@@ -146,24 +146,55 @@ def main():
             if k < len(sq):
                 siguientes.setdefault(sq[:k], set()).add(sq[k])
     sig_t = {p: torch.tensor(sorted(v), device=dev) for p, v in siguientes.items()}
-    t_derivar = suf[tc.DERIVAR][0]
+
+    def camino(lg, sin_derivar):
+        """La eleccion restringida desde lg, con su puntaje (suma de log-probabilidades
+        entre las opciones validas de cada paso). sin_derivar: fuera los tokens que
+        solo llevan a derivar."""
+        pre, puntaje = (), 0.0
+        for paso in range(16):
+            vivos = quedan[pre] - ({tc.DERIVAR} if sin_derivar else set())
+            if len(vivos) == 1:
+                return next(iter(vivos)), puntaje
+            op = sig_t[pre]
+            if sin_derivar:
+                op = torch.tensor([t for t in op.tolist() if quedan[pre + (t,)] != {tc.DERIVAR}], device=dev)
+            lp_ = torch.log_softmax(lg.index_select(0, op).float(), 0)
+            k = int(lp_.argmax())
+            t = int(op[k])
+            puntaje += float(lp_[k])
+            pre += (t,)
+            lg = adelante([t])[-1]
+        vivos = quedan[pre] - ({tc.DERIVAR} if sin_derivar else set())
+        return next(iter(vivos)), puntaje
+
+    def puntaje_derivar(lg):
+        pre, puntaje = (), 0.0
+        for t in suf[tc.DERIVAR]:
+            if len(quedan[pre]) == 1:
+                break
+            op = sig_t[pre]
+            lp_ = torch.log_softmax(lg.index_select(0, op).float(), 0)
+            puntaje += float(lp_[(op == t).nonzero()[0, 0]])
+            pre += (t,)
+            lg = adelante([t])[-1]
+        return puntaje
 
     def elegir(usuario):
+        """Sin --sesgo: la eleccion greedy de siempre. Con --sesgo: derivar contra la
+        mejor propia, cada una con el puntaje de su secuencia ENTERA (antes el sesgo
+        se sumaba al primer token, «=», que derivar comparte con muchas otras: movia
+        un grupo de herramientas, no derivar)."""
         try:
             u = tok(usuario, add_special_tokens=False).input_ids
             lg = adelante(u + forzado)[-1]
-            pre = ()
-            for paso in range(16):
-                if len(quedan[pre]) == 1:
-                    return next(iter(quedan[pre]))
-                op = sig_t[pre]
-                val = lg.index_select(0, op).float()
-                if paso == 0 and args.sesgo:
-                    val = val + args.sesgo * (op == t_derivar).float()
-                t = int(op[int(val.argmax())])
-                pre += (t,)
-                lg = adelante([t])[-1]
-            return next(iter(quedan[pre]))
+            if not args.sesgo:
+                return camino(lg, False)[0]
+            f = ch.foto(kv)
+            propia, s_propia = camino(lg, True)
+            ch.volver(kv, f, Lp + len(u) + len(forzado))
+            s_der = puntaje_derivar(lg)
+            return tc.DERIVAR if s_der + args.sesgo > s_propia else propia
         finally:
             volver()
 
