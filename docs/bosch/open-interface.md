@@ -44,9 +44,10 @@ Todo esto se integra con lo que la app ya tiene:
 | Documento | Qué aporta | Dónde |
 |---|---|---|
 | *DCN Next Generation Open Interface Release 2.0* (Bosch, 2005, 210 págs.) | **Transporte serie** («Full» y «Simple»): escape, encabezado, ACK/NAK, latido, checksum | Leído por partes en Yumpu; falta el PDF completo |
-| *DCN NG Open Interface Release 4.5/4.7* (Bosch, 2020) | **Capa de mensajes y catálogo de funciones** con sus códigos (Apéndice B), estructuras, errores (Apéndice C) y ejemplos (Apéndice D). Transporte por TCP 9451 | `docs/referencias/bosch-dcn-ng-open-interface-4.7.pdf` (no se versiona: es de Bosch) |
-| *DCN NG Open Interface Release 4.1* (Bosch, 2013) | Lo mismo; menciona RS-232 para CCU individual (SCCU) | `docs/referencias/bosch-dcn-ng-open-interface-4.1.pdf` |
-| *DCN NG Installation and User Instructions* | Configuración del puerto RS-232 de la CCU (modos, velocidades) | ManualsLib |
+| *DCN NG Open Interface Release 4.5/4.7* (Bosch, 2020) | **Capa de mensajes y catálogo de funciones** con sus códigos (Apéndice B), estructuras, errores (Apéndice C) y ejemplos (Apéndice D). Transporte por TCP 9451 | `docs/bosch/dvd/manuales/open-interface/bosch-dcn-ng-open-interface-4.7.pdf` (no se versiona: es de Bosch) |
+| *DCN NG Open Interface Release 4.1* (Bosch, 2013) | Lo mismo; menciona RS-232 para CCU individual (SCCU) | `docs/bosch/dvd/manuales/open-interface/bosch-dcn-ng-open-interface-4.1.pdf` |
+| *DCN NG Installation and User Instructions* | Configuración del puerto RS-232 de la CCU (modos, velocidades) y de las DCN-DDI | `docs/bosch/dvd/manuales/instalacion-y-operacion/IUI_DCN_es.pdf` (y en inglés) |
+| *Open Interface 4.0* y *3.1x* del DVD, `OIQRC.pdf`, DDTK (`CCU_DDTK.exe`, `FNID.DEF`) y las librerías del software de Bosch | Verificación del transporte y de los formatos; funciones sin documentar | `docs/bosch/dvd/` (índice en [README.md](README.md)) |
 
 **Supuesto de diseño.** La capa de mensajes (tipos, identificadores de función, estructuras) es la
 misma en 2.x y 4.x: el 4.x documenta «cambios respecto de 2.68», o sea que la base es compartida.
@@ -413,6 +414,9 @@ CCU no depende de la app.
 ### 7.1 Unidad ↔ banca
 
 La CCU habla de **unidades** (`wUnitId`); la app, de **bancas** (Cuerpo y Recinto).
+
+Las bancas empotradas cuelgan de una **DCN-DDI**, que en modo doble atiende a dos delegados. Sus
+modos, cómo se direcciona y qué hay que relevar en la sala están en [dcn-ddi.md](dcn-ddi.md).
 
 - **Mapa:** campo nuevo `dcn_unidad` en cada integrante del Cuerpo (`Config/cuerpo.json`). También
   admite una planilla CSV (columna `unidad_dcn`).

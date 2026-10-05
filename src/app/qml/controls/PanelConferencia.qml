@@ -1,7 +1,7 @@
 // La central de conferencia del recinto (Bosch DCN): micrófonos de banca,
 // pedidos de palabra y oradores. Fuente: Studio.dcn (legislatura/ConferenciaDcn),
 // que le pide todo al plugin bosch-dcn; las respuestas llegan por `hecho` y
-// nada espera en la interfaz. Guía: docs/bosch-dcn-ng-open-interface.md §10.
+// nada espera en la interfaz. Guía: docs/bosch/open-interface.md §10.
 //
 // Arriba el enlace, el modo y los botones de todos los días (Siguiente, Cerrar
 // todos). En el medio la grilla del Recinto: un toque abre o cierra el

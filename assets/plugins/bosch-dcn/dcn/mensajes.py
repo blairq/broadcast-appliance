@@ -1,4 +1,4 @@
-"""La capa de mensajes DCN (común a serie y TCP): docs/bosch-dcn-ng-open-interface.md §4.
+"""La capa de mensajes DCN (común a serie y TCP): docs/bosch/open-interface.md §4.
 
 Un mensaje es ``{tipo, fn, error, datos}``; acá se arma y se desarma el ``T_MESSAGE`` del manual
 (``byType, wLength, byData``) y las estructuras de las funciones que usa el plugin. Todo con el byte

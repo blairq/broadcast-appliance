@@ -1,6 +1,6 @@
 """Bosch DCN Next Generation (Open Interface): micrófonos de banca, pedidos de palabra y oradores.
 
-Ver plugin.json y docs/bosch-dcn-ng-open-interface.md. El puerto serie (o el socket) lo maneja un
+Ver plugin.json y docs/bosch/open-interface.md. El puerto serie (o el socket) lo maneja un
 solo hilo de E/S NO BLOQUEANTE (dcn/transporte.py); acá nada espera adentro de ese hilo: los
 avisos de la CCU se convierten en eventos del bus y los controles que pide la app esperan el
 resultado de su pedido desde su propio hilo (los del SDK), con tiempo máximo.

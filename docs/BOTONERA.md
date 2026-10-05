@@ -123,7 +123,7 @@ Además de `fondo`, `color`, `texto`, `titilar`, `valor`, `icono`, `activo` y `n
 
 Las rutas de las ligaduras aceptan **filtros**: `pedidos[banca=5].turno` es el turno del pedido de la banca 5, y `abiertos.#` es cuántos elementos tiene la lista. Una acción con `"confirmar": true` se confirma en el aparato (como las de aire): la usa el micrófono del presidente.
 
-La plantilla **«Micrófonos de bancas»** arma una página con cada banca donde está en el recinto, con su foto: un toque le da o le corta el audio por la central (`dcn_microfono` con `{{no_activo}}`), mantener la pone al aire completa (`banca_al_aire`); abajo Siguiente, Cerrar todos, cuántos abiertos, quién habla, Limpiar pedidos y TAKE. Ver docs/bosch-dcn-ng-open-interface.md §11.
+La plantilla **«Micrófonos de bancas»** arma una página con cada banca donde está en el recinto, con su foto: un toque le da o le corta el audio por la central (`dcn_microfono` con `{{no_activo}}`), mantener la pone al aire completa (`banca_al_aire`); abajo Siguiente, Cerrar todos, cuántos abiertos, quién habla, Limpiar pedidos y TAKE. Ver docs/bosch/open-interface.md §11.
 
 ## Lo que falta
 

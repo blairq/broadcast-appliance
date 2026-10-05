@@ -1,6 +1,6 @@
 """Transportes del Open Interface: serie «Full» (2.x) y TCP 9451 (4.x). NO BLOQUEANTES.
 
-docs/bosch-dcn-ng-open-interface.md §3.
+docs/bosch/open-interface.md §3.
 
 UN SOLO HILO DE E/S por enlace y nada que espere adentro:
 

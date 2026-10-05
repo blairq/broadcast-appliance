@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // ConferenciaDcn: la central de conferencia Bosch DCN Next Generation vista
-// desde la app (docs/bosch-dcn-ng-open-interface.md). El protocolo lo habla el
+// desde la app (docs/bosch/open-interface.md). El protocolo lo habla el
 // plugin `bosch-dcn` (en su proceso, con el puerto serie no bloqueante); acá:
 //
 //   * el ESTADO, que el plugin publica en el bus como

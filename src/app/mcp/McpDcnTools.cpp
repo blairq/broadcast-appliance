@@ -7,7 +7,7 @@
 // se escucha (abrir/cerrar micrófonos, siguiente, cerrar todos, modo) están en
 // McpAire: si las dispara algo automático con aire, se piden confirmar.
 //
-// Guía: docs/bosch-dcn-ng-open-interface.md §9.
+// Guía: docs/bosch/open-interface.md §9.
 // ============================================================================
 
 #include "legislatura/ConferenciaDcn.hpp"
