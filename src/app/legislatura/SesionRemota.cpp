@@ -65,6 +65,7 @@ void SesionRemota::cargar() {
     const json j = json::parse(f, nullptr, false);
     if (!j.is_object()) return;
     if (j.value("credenciales", json()).is_object()) credenciales_ = j["credenciales"];
+    if (j.value("consolas", json()).is_object()) consolas_ = j["consolas"];
     graciaS_ = std::clamp(j.value("gracia_s", 120), 0, 3600);
     votoSegundos_ = std::clamp(j.value("voto_s", 60), 0, 3600);
 }
@@ -75,7 +76,8 @@ void SesionRemota::guardar() const {
     const auto tmp = archivo_.string() + ".tmp";
     {
         std::ofstream f(tmp);
-        f << json{{"credenciales", credenciales_}, {"gracia_s", graciaS_}, {"voto_s", votoSegundos_}}.dump(1);
+        f << json{{"credenciales", credenciales_}, {"consolas", consolas_}, {"gracia_s", graciaS_},
+                  {"voto_s", votoSegundos_}}.dump(1);
     }
     std::filesystem::rename(tmp, archivo_, ec);
 }
@@ -200,6 +202,13 @@ std::string SesionRemota::setDatos(const std::string& id, const json& datos) {
 
 json SesionRemota::paraGateway() const {
     json out = json::array();
+    // Las consolas de la presidencia: mismo esquema, id "consola:<id>".
+    for (auto it = consolas_.begin(); it != consolas_.end(); ++it)
+        out.push_back({{"id", "consola:" + it.key()},
+                       {"nombre", it.value().value("nombre", std::string())},
+                       {"sal", it.value().value("sal", std::string())},
+                       {"hash_token", it.value().value("hash_token", std::string())},
+                       {"hash_pin", it.value().value("hash_pin", std::string())}});
     for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) {
         const json i = integrante(it.key());
         if (!i.is_object()) continue; // si lo borraron del Cuerpo, su link deja de andar
@@ -233,6 +242,22 @@ void SesionRemota::evento(const json& ev) {
     const std::string tipo = ev.value("tipo", std::string());
     const std::string id = ev.value("id", std::string());
     if (id.empty()) return;
+    // La consola de la presidencia: no es un integrante.
+    if (id.rfind("consola:", 0) == 0) {
+        if (tipo == "conexion") {
+            const bool on = ev.value("conectado", false);
+            if (on) consolasConectadas_.insert(id);
+            else consolasConectadas_.erase(id);
+            anotar(on ? "consola_entro" : "consola_salio", "", {{"consola", id}, {"ip", ev.value("ip", std::string())}});
+            emit consolaConexion(QString::fromStdString(id), on);
+            emit cambio();
+        } else if (tipo == "consola") {
+            emit accionConsola(QString::fromStdString(id), ev.value("msg", json::object()));
+        } else if (tipo == "intento" || tipo == "bloqueo") {
+            anotar(tipo == "bloqueo" ? "consola_bloqueada" : "consola_intento", "", {{"consola", id}});
+        }
+        return;
+    }
     Estado& e = estado_[id];
     if (tipo == "conexion") {
         const bool on = ev.value("conectado", false);
@@ -432,6 +457,11 @@ void SesionRemota::fila(const std::vector<std::string>& cola, const std::string&
     info({{"hablando", hablando}});
 }
 
+void SesionRemota::ptt(const std::string& id, bool activo, const std::string& consola) {
+    emit enviar(QString::fromStdString(id), json{{"type", "ptt"}, {"activo", activo}, {"consola", consola}});
+    if (activo) anotar("ptt", id, {{"consola", consola}});
+}
+
 void SesionRemota::avisoTiempo(const std::string& id, const std::string& aviso) {
     emit enviar(QString::fromStdString(id), json{{"type", "tiempo"}, {"aviso", aviso}});
 }
@@ -444,6 +474,64 @@ void SesionRemota::info(const json& campos) {
             cambio = true;
         }
     if (cambio) emit enviar("*", conTipo("info", campos));
+}
+
+// --- La consola de la presidencia ------------------------------------------------------------
+
+json SesionRemota::generarConsola(const std::string& nombre) {
+    const std::string id = hexAleatorio(4);
+    const std::string token = hexAleatorio(32);
+    const quint32 n = QRandomGenerator::system()->bounded(1000000u);
+    char pin[8];
+    std::snprintf(pin, sizeof pin, "%06u", n);
+    const std::string sal = hexAleatorio(16);
+    consolas_[id] = {{"nombre", nombre.empty() ? std::string("Presidencia") : nombre},
+                     {"sal", sal},
+                     {"hash_token", sha256(sal + token)},
+                     {"hash_pin", sha256(sal + ":" + std::string(pin) + ":" + token)},
+                     {"creado_ms", ahoraMs()}};
+    guardar();
+    anotar("consola_creada", "", {{"consola", id}, {"nombre", nombre}});
+    emit credencialesCambio();
+    emit cambio();
+    const std::string frag = "/presidencia/#c=" + id + "&t=" + token;
+    json out{{"id", id}, {"pin", pin}, {"nombre", consolas_[id]["nombre"]}, {"link", origen_ + frag}};
+    try {
+        const auto qr = qrcodegen::QrCode::encodeText(out["link"].get<std::string>().c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json filas = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string f;
+            for (int x = 0; x < qr.getSize(); ++x) f.push_back(qr.getModule(x, y) ? '1' : '0');
+            filas.push_back(f);
+        }
+        out["qr"] = filas;
+    } catch (...) {
+    }
+    return out;
+}
+
+bool SesionRemota::revocarConsola(const std::string& id) {
+    if (!consolas_.contains(id)) return false;
+    consolas_.erase(id);
+    guardar();
+    emit credencialesCambio();
+    emit cambio();
+    return true;
+}
+
+json SesionRemota::consolas() const {
+    json out = json::array();
+    for (auto it = consolas_.begin(); it != consolas_.end(); ++it)
+        out.push_back({{"id", it.key()}, {"nombre", it.value().value("nombre", std::string())},
+                       {"conectada", consolasConectadas_.count("consola:" + it.key()) > 0},
+                       {"creado_ms", it.value().value("creado_ms", std::int64_t(0))}});
+    return out;
+}
+
+QVariantList SesionRemota::consolasUi() const { return aQv(consolas()).toList(); }
+
+QVariantMap SesionRemota::generarConsolaUi(const QString& nombre) {
+    return aQv(generarConsola(nombre.toStdString())).toMap();
 }
 
 // --- La votación ------------------------------------------------------------------------------

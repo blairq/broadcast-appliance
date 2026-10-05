@@ -63,7 +63,8 @@ function ponerPalabra(activa, segundos) {
   $("palabra").classList.toggle("oculto", !activa);
   $("palabra").classList.remove("minuto", "terminado");
   $("pedir").classList.toggle("oculto", activa);
-  if (!activa) { palabraHasta = 0; return; }
+  if (!activa) { palabraHasta = 0; microfono(pttActivo); return; }
+  microfono(true);
   palabraHasta = Date.now() + segundos * 1000;
   $("palabraTitulo").textContent = "Tenés la palabra";
   $("palabraTexto").textContent = "";
@@ -162,13 +163,64 @@ function mostrarResultado(m) {
 }
 
 // --- La cámara y las fotos ------------------------------------------------------
+let local = null;       // la cámara y el micrófono propios
 async function prenderCamara() {
   try {
-    const s = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 }, audio: false });
-    $("propia").srcObject = s;
-    $("sinCamara").classList.add("oculto");
+    local = await navigator.mediaDevices.getUserMedia({
+      video: { width: 640, height: 360 },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+    });
   } catch (e) {
+    // Sin micrófono (o sin permiso): por lo menos la cámara.
+    try { local = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 360 }, audio: false }); }
+    catch (e2) { local = null; }
+  }
+  if (local) {
+    // El micrófono solo se abre cuando tiene la palabra o la presidencia le habla.
+    for (const t of local.getAudioTracks()) t.enabled = false;
+    $("propia").srcObject = new MediaStream(local.getVideoTracks());
+    $("sinCamara").classList.add("oculto");
+  } else {
     $("sinCamara").classList.remove("oculto");
+  }
+}
+
+function microfono(abierto) {
+  if (!local) return;
+  for (const t of local.getAudioTracks()) t.enabled = abierto;
+}
+
+// --- La conexión directa con la consola de la presidencia (WebRTC) -----------------------
+// La consola ofrece; acá se contesta con la cámara y el micrófono. El gateway solo pasa
+// los mensajes (sin medios): anda en la red de la sala; desde afuera necesita TURN (R5).
+const conexiones = new Map(); // consola -> RTCPeerConnection
+let pttActivo = false;
+
+async function rtc(m) {
+  const de = m.de;
+  if (!de || de.indexOf("consola:") !== 0) return;
+  let pc = conexiones.get(de);
+  if (m.tipo === "offer") {
+    if (pc) pc.close();
+    pc = new RTCPeerConnection({ iceServers: [] });
+    conexiones.set(de, pc);
+    if (local) for (const t of local.getTracks()) pc.addTrack(t, local);
+    pc.ontrack = (ev) => { $("presidencia").srcObject = ev.streams[0] || new MediaStream([ev.track]); };
+    pc.onicecandidate = (ev) => {
+      if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "rtc", a: de, candidato: ev.candidate }));
+    };
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") conexiones.delete(de);
+    };
+    await pc.setRemoteDescription({ type: "offer", sdp: m.sdp });
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    ws.send(JSON.stringify({ type: "rtc", a: de, tipo: "answer", sdp: answer.sdp }));
+  } else if (m.candidato && pc) {
+    try { await pc.addIceCandidate(m.candidato); } catch (e) {}
+  } else if (m.tipo === "cerrar" && pc) {
+    pc.close();
+    conexiones.delete(de);
   }
 }
 
@@ -239,6 +291,15 @@ function recibir(m) {
       break;
     case "tiempo":
       avisoTiempo(m.aviso);
+      break;
+    case "rtc":
+      rtc(m);
+      break;
+    case "ptt":
+      pttActivo = !!m.activo;
+      $("pttAviso").classList.toggle("oculto", !pttActivo);
+      microfono(pttActivo || palabraHasta > 0);
+      if (pttActivo && navigator.vibrate) navigator.vibrate(200);
       break;
     case "votacion":
       ponerVotacion(m);

@@ -32,6 +32,7 @@
 #include <filesystem>
 #include <functional>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -96,6 +97,9 @@ class SesionRemota : public QObject {
     /// «ultimo_minuto» | «terminado»: aviso en su celular.
     void avisoTiempo(const std::string& integrante, const std::string& aviso);
     std::string conPalabra() const { return conPalabra_; }
+    /// «Apretar para hablar» desde la consola: le avisa al legislador que la presidencia
+    /// le habla (su navegador contesta la conexión directa de la consola).
+    void ptt(const std::string& integrante, bool activo, const std::string& consola);
     /// Mandarle algo a todos los conectados (el punto del orden del día, por ejemplo).
     void info(const json& campos);
 
@@ -126,6 +130,14 @@ class SesionRemota : public QObject {
     /// Las opciones de un menú de votación de la central (si_no, si_no_abstencion…).
     static json opcionesDeMenu(const std::string& menu);
 
+    // --- La consola web de la presidencia -------------------------------------------------
+    /// Un acceso para la consola (/presidencia/): {link, pin, id} UNA vez, o {error}.
+    json generarConsola(const std::string& nombre);
+    bool revocarConsola(const std::string& id);
+    /// [{id, nombre, conectada, creado_ms}]
+    json consolas() const;
+    bool hayConsolas() const { return !consolasConectadas_.empty(); }
+
     // --- Registro (va al acta) ---------------------------------------------------------
     json registro() const { return registro_; }
     std::string anexoActa() const;
@@ -151,6 +163,10 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QString abrirVotacionUi(const QString& tema, const QString& menu, int segundos);
     Q_INVOKABLE void pausarVotacionUi(bool pausa) { pausarVotacion(pausa); }
     Q_INVOKABLE void cerrarVotacionUi();
+    Q_PROPERTY(QVariantList consolasUi READ consolasUi NOTIFY cambio)
+    QVariantList consolasUi() const;
+    Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);
+    Q_INVOKABLE bool revocarConsolaUi(const QString& id) { return revocarConsola(id.toStdString()); }
     Q_INVOKABLE QString fotoUrl(const QString& integrante) const;
     void ponerFoto(const QString& integrante, const QByteArray& jpeg);
 
@@ -167,6 +183,10 @@ class SesionRemota : public QObject {
     void aviso(const QString& texto, const QString& nivel);
     /// Un remoto pidió la palabra (o canceló su pedido) desde el celular.
     void pedidoPalabra(const QString& integrante, bool pedir);
+    /// La consola de la presidencia pide algo (habilitar, dar la palabra, votar…).
+    void accionConsola(const QString& consola, const nlohmann::json& msg);
+    /// Se conectó o se fue una consola (para mandarle el estado).
+    void consolaConexion(const QString& consola, bool conectada);
 
    private:
     struct Estado {
@@ -194,6 +214,8 @@ class SesionRemota : public QObject {
     int votoSegundos_ = 60;
     std::map<QString, QByteArray> fotos_;
     std::string conPalabra_;
+    json consolas_ = json::object();          // id -> {nombre, sal, hash_token, hash_pin, creado_ms}
+    std::set<std::string> consolasConectadas_;
     std::map<std::string, int> turnos_; // lo último que se le dijo a cada uno
     json ultimaInfo_ = json::object();
     struct Votacion {

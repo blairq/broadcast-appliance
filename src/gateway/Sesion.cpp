@@ -67,6 +67,10 @@ constexpr std::size_t kMaxFoto = 96 * 1024;
 // Lo que la página puede mandar; lo demás se ignora. Las de la palabra y el voto
 // se agregan en sus fases (R2, R4): la app decide si las acepta.
 const std::set<std::string> kTipos{"hola", "palabra", "voto"};
+// Lo que manda la consola de la presidencia (la app lo valida y lo hace).
+const std::set<std::string> kTiposConsola{"hola",      "habilitar",  "deshabilitar", "expulsar", "dar_palabra",
+                                          "terminar",  "quitar_fila", "sumar_tiempo", "siguiente", "votacion",
+                                          "ptt",       "cast",        "foto_cuerpo",  "tiempo"};
 
 } // namespace
 
@@ -86,11 +90,11 @@ bool SesionBorde::origenValido(const std::string& headers) {
     return !host.empty() && o == host;
 }
 
-bool SesionBorde::servir(long long fd, const std::string& rel) {
+bool SesionBorde::servir(long long fd, const std::string& rel, const std::string& webroot) {
     std::error_code ec;
-    const auto raiz = std::filesystem::weakly_canonical(webroot_, ec);
-    if (ec || webroot_.empty()) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
-    const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot_) / http::urlDecode(rel), ec);
+    const auto raiz = std::filesystem::weakly_canonical(webroot, ec);
+    if (ec || webroot.empty()) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    const auto destino = std::filesystem::weakly_canonical(std::filesystem::path(webroot) / http::urlDecode(rel), ec);
     const std::string r = raiz.generic_string(), d = destino.generic_string();
     if (ec || d.size() < r.size() || d.compare(0, r.size(), r) != 0 || (d.size() > r.size() && d[r.size()] != '/'))
         return http::sendResponse(fd, 400, "text/plain", "ruta invalida\n"), true;
@@ -209,9 +213,12 @@ std::string SesionBorde::autenticarUsuario(const std::string& usuario, const std
 
 bool SesionBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
                           const std::string& headers, std::uint32_t clientIp) {
-    const bool ws = path == "/ws" && http::parseQuery(query).count("sesion") > 0;
+    const auto q = http::parseQuery(query);
+    const bool wsConsola = path == "/ws" && q.count("presidencia") > 0;
+    const bool ws = (path == "/ws" && q.count("sesion") > 0) || wsConsola;
     const bool pagina = path == "/sesion" || path.rfind("/sesion/", 0) == 0;
-    if (!ws && !pagina) return false;
+    const bool paginaConsola = path == "/presidencia" || path.rfind("/presidencia/", 0) == 0;
+    if (!ws && !pagina && !paginaConsola) return false;
     // La IP real si viene por el túnel (para el registro y los límites).
     std::string ip = http::getHeader(headers, "CF-Connecting-IP");
     // En la sala (red local) o afuera (por el túnel o una IP pública): la página lo
@@ -224,12 +231,15 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
         http::sendResponse(fd, 403, "text/plain", "origen invalido\n");
         return true;
     }
-    if (pagina) {
+    if (pagina || paginaConsola) {
         if (method != "GET") return http::sendResponse(fd, 405, "text/plain", "\n"), true;
-        if (path == "/sesion") return http::sendResponse(fd, 301, "text/plain", "", "Location: /sesion/\r\n"), true;
-        std::string rel = path.substr(std::string("/sesion/").size());
+        const std::string base = pagina ? "/sesion" : "/presidencia";
+        if (path == base) return http::sendResponse(fd, 301, "text/plain", "", "Location: " + base + "/\r\n"), true;
+        std::string rel = path.substr(base.size() + 1);
         if (rel.empty()) rel = "index.html";
-        return servir(fd, rel);
+        // La consola de la presidencia vive al lado: Web/presidencia.
+        return servir(fd, rel, paginaConsola ? (std::filesystem::path(webroot_).parent_path() / "presidencia").string()
+                                             : webroot_);
     }
     const std::string key = http::getHeader(headers, "Sec-WebSocket-Key");
     if (key.empty()) return http::sendResponse(fd, 400, "text/plain", "falta Sec-WebSocket-Key\n"), true;
@@ -243,7 +253,7 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
                            "Sec-WebSocket-Accept: " + accept + "\r\n\r\n";
     if (!http::sendAll(fd, ok.data(), ok.size())) return true;
     http::setSocketTimeout(fd, 0);
-    wsLoop(fd, ip, lugar);
+    wsLoop(fd, ip, lugar, wsConsola);
     return true;
 }
 
@@ -252,7 +262,7 @@ void SesionBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
     if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump());
 }
 
-void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string& lugar) {
+void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola) {
     auto c = std::make_shared<Conn>();
     c->fd = fd;
     c->ip = ip;
@@ -269,8 +279,11 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             http::writeWsFrame(fd, 0x8, "");
         };
         if (!m.is_object() || m.value("type", std::string()) != "auth") return rechazar("Mensaje inválido.");
-        const bool conUsuario = m.contains("u");
-        std::string id = m.value("i", std::string());
+        // La consola de la presidencia tiene su propia credencial (id "consola:<x>"); un
+        // legislador nunca entra por la consola ni la consola por la página del legislador.
+        const bool conUsuario = !consola && m.contains("u");
+        std::string id = consola ? "consola:" + m.value("c", std::string()) : m.value("i", std::string());
+        if (!consola && id.rfind("consola:", 0) == 0) return rechazar("Mensaje inválido.");
         if (!intentoPermitido(ip)) {
             log_.warn("sesion: demasiados intentos desde " + ip, -1);
             return rechazar("Demasiados intentos desde esta conexión. Esperá 10 minutos.");
@@ -340,7 +353,8 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         const std::int64_t ahora = ahoraMs();
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
-        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo) {
+        // La consola junta candidatos ICE de varias conexiones a la vez: más margen.
+        if (static_cast<int>(ventana.size()) >= (consola ? kMensajesPorSegundo * 4 : kMensajesPorSegundo)) {
             log_.warn("sesion: " + c->id + " manda demasiado; se corta", -1);
             break;
         }
@@ -350,6 +364,46 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         const std::string t = m.value("type", std::string());
         if (t == "ping") {
             enviar(c, {{"type", "pong"}});
+            continue;
+        }
+        if (t == "rtc") {
+            // Señalización WebRTC directa entre la consola de la presidencia y un
+            // legislador (ver la cara del que habla, hablarle «apretar para hablar»).
+            // El gateway solo la pasa: un legislador solo le puede escribir a una
+            // consola, y una consola solo a un legislador.
+            const std::string a = m.value("a", std::string());
+            const bool aConsola = a.rfind("consola:", 0) == 0;
+            if (!a.empty() && aConsola != consola) {
+                json r = m;
+                r.erase("a");
+                r["de"] = c->id;
+                std::shared_ptr<Conn> dest;
+                {
+                    std::lock_guard<std::mutex> l(mu_);
+                    auto it = conns_.find(a);
+                    if (it != conns_.end()) dest = it->second;
+                }
+                if (dest) enviar(dest, r);
+            }
+            continue;
+        }
+        if (consola) {
+            if (t == "foto") {
+                // La cara de un legislador conectado (la última foto de su cámara).
+                const std::string quien = m.value("id", std::string());
+                std::string jpeg;
+                {
+                    std::lock_guard<std::mutex> l(mu_);
+                    auto it = fotos_.find(quien);
+                    if (it != fotos_.end()) jpeg = it->second;
+                }
+                if (!jpeg.empty())
+                    enviar(c, {{"type", "foto"}, {"id", quien},
+                               {"jpeg", http::base64(reinterpret_cast<const uint8_t*>(jpeg.data()), jpeg.size())}});
+                continue;
+            }
+            // Lo demás lo decide la app (habilitar, dar la palabra, votar…).
+            if (kTiposConsola.count(t)) alApp_({{"tipo", "consola"}, {"id", c->id}, {"msg", m}});
             continue;
         }
         if (t == "foto") {
@@ -441,8 +495,11 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         std::vector<std::shared_ptr<Conn>> a;
         {
             std::lock_guard<std::mutex> l(mu_);
-            for (const auto& [cid, c] : conns_)
-                if (id == "*" || cid == id) a.push_back(c);
+            // "*" = todos los legisladores; "consolas" = todas las consolas de la presidencia.
+            for (const auto& [cid, c] : conns_) {
+                const bool esConsola = cid.rfind("consola:", 0) == 0;
+                if ((id == "*" && !esConsola) || (id == "consolas" && esConsola) || cid == id) a.push_back(c);
+            }
             if (que == "cortar") fotos_.erase(id);
         }
         for (const auto& c : a) {

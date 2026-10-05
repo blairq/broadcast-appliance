@@ -407,6 +407,11 @@ class StudioViewModel : public QObject {
     void sincronizarBotonera();
     void sincronizarSesion();
     void seguirVotacionCentral();
+    nlohmann::json estadoConsola() const;
+    void mandarEstadoConsola();
+    void enlaceProgramaConsola(const QString& consola);
+    void accionConsola(const QString& consola, const nlohmann::json& m);
+    QTimer consolaTimer_;
     nlohmann::json votacionCombinada(const nlohmann::json& rCentral) const;
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);

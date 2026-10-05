@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#6cace4" />
+  <title>Presidencia</title>
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="consola.css" />
+</head>
+<body>
+  <!--
+    La consola de la presidencia (docs/SESION-REMOTA.md §8): /presidencia/#c=<consola>&t=<token>.
+    El acceso lo genera la app (Legislatura → Conexiones remotas → «Nuevo acceso a la
+    consola…», o la herramienta sesion_consola) junto con un PIN. Todo lo que se hace
+    acá lo decide la app (la fuente de verdad); la consola pide y muestra.
+  -->
+
+  <!-- El fondo: olas celestes y blancas que se mueven despacio. -->
+  <div class="cielo" aria-hidden="true">
+    <svg class="olas" viewBox="0 0 1440 320" preserveAspectRatio="none">
+      <path class="ola ola1" d="M0,160 C240,220 480,100 720,150 C960,200 1200,110 1440,160 L1440,320 L0,320 Z" />
+      <path class="ola ola2" d="M0,190 C260,140 520,240 760,190 C1000,140 1220,230 1440,180 L1440,320 L0,320 Z" />
+      <path class="ola ola3" d="M0,230 C300,200 560,270 820,235 C1080,200 1260,260 1440,230 L1440,320 L0,320 Z" />
+    </svg>
+    <svg class="olas olas-arriba" viewBox="0 0 1440 320" preserveAspectRatio="none">
+      <path class="ola ola4" d="M0,120 C320,40 640,180 960,110 C1200,60 1320,120 1440,90 L1440,0 L0,0 Z" />
+    </svg>
+    <div class="sol"></div>
+  </div>
+
+  <!-- Entrar: el PIN de la consola. -->
+  <section id="entrar" class="vidrio entrar">
+    <div class="escudo"><div class="sol-chico"></div></div>
+    <h1>Presidencia</h1>
+    <p id="entrarTexto" class="tenue">Escribí el PIN de la consola.</p>
+    <form id="formPin" autocomplete="off">
+      <input id="pin" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" aria-label="PIN" autofocus />
+      <button class="boton celeste" type="submit" id="botonEntrar">Entrar</button>
+    </form>
+    <p id="error" class="error oculto"></p>
+  </section>
+
+  <main id="consola" class="consola oculto">
+    <header class="barra vidrio">
+      <div class="marca"><div class="sol-chico"></div><div><strong>Presidencia</strong><span id="cuerpo" class="tenue"></span></div></div>
+      <div id="punto" class="punto"></div>
+      <div class="espacio"></div>
+      <div id="quorum" class="chip">Quórum —</div>
+      <div id="remotos" class="chip">Remotos —</div>
+      <div id="central" class="chip">Central —</div>
+      <div id="reloj" class="chip reloj">--:--</div>
+      <span id="conexion" class="punto-con apagado" title="Conexión"></span>
+    </header>
+
+    <section class="col col-izq">
+      <article class="tarjeta vidrio inclinable">
+        <h2>Salida principal</h2>
+        <div class="pantalla"><iframe id="programa" title="Programa en vivo" allow="autoplay"></iframe>
+          <div id="sinPrograma" class="pantalla-vacia">Esperando el programa…</div></div>
+      </article>
+      <article class="tarjeta vidrio inclinable palabra" id="tarjetaPalabra">
+        <h2>En uso de la palabra</h2>
+        <div class="pantalla">
+          <video id="videoOrador" autoplay playsinline muted></video>
+          <img id="fotoOrador" class="foto-orador oculto" alt="" />
+          <div id="sinOrador" class="pantalla-vacia">Nadie tiene la palabra</div>
+          <div id="etiquetaPtt" class="etiqueta-ptt oculto">● Hablando con la presidencia</div>
+        </div>
+        <div class="orador">
+          <div class="anillo"><svg viewBox="0 0 120 120"><circle class="pista" cx="60" cy="60" r="52" />
+            <circle id="arco" class="arco" cx="60" cy="60" r="52" /></svg><span id="restante">--:--</span></div>
+          <div class="orador-datos"><strong id="nombreOrador">—</strong><span id="detalleOrador" class="tenue"></span></div>
+        </div>
+        <div class="acciones">
+          <button class="boton" data-accion="sumar" data-s="60">+1 min</button>
+          <button class="boton" data-accion="sumar" data-s="-30">−30 s</button>
+          <button class="boton rojo" data-accion="terminar">Terminar</button>
+          <button class="boton celeste" data-accion="siguiente">Siguiente ▶</button>
+        </div>
+        <label class="tiempo">Tiempo de cada uno <input id="asignado" type="number" min="10" step="30" /> s</label>
+      </article>
+    </section>
+
+    <section class="col col-centro">
+      <article class="tarjeta vidrio recinto-tarjeta">
+        <h2>Recinto <span id="resumenRecinto" class="tenue"></span></h2>
+        <div id="recinto" class="recinto"></div>
+        <div class="leyenda">
+          <span><i class="pt sala"></i>en la sala</span><span><i class="pt remoto"></i>remoto</span>
+          <span><i class="pt espera"></i>espera habilitación</span><span><i class="pt palabra"></i>con la palabra</span>
+          <span><i class="pt pidio"></i>pidió la palabra</span>
+        </div>
+      </article>
+    </section>
+
+    <section class="col col-der">
+      <article class="tarjeta vidrio inclinable" id="tarjetaEsperan">
+        <h2>Esperan que los habiliten</h2>
+        <div id="esperan" class="lista"></div>
+      </article>
+      <article class="tarjeta vidrio inclinable">
+        <h2>Pidieron la palabra <span id="cuantosPidieron" class="tenue"></span></h2>
+        <div id="fila" class="lista"></div>
+        <p class="tenue chico">Mantené apretado 🎙 para hablar con quien pidió la palabra: lo ves en «En uso de la palabra».</p>
+      </article>
+      <article class="tarjeta vidrio inclinable votacion" id="tarjetaVotacion">
+        <h2>Votación <span id="estadoVot" class="tenue"></span></h2>
+        <div id="votAbrir" class="vot-abrir">
+          <input id="votTema" type="text" placeholder="Tema a votar" />
+          <div class="fila-campos">
+            <select id="votMenu">
+              <option value="si_no_abstencion">Sí · No · Abstención</option>
+              <option value="si_no">Sí · No</option>
+              <option value="si_no_abstencion_nppv">Sí · No · Abst. · No participa</option>
+            </select>
+            <input id="votSegundos" type="number" min="0" step="10" title="Segundos para votar" />
+            <button class="boton rojo" id="votAbrirBoton">Abrir votación</button>
+          </div>
+          <div id="proximos" class="proximos"></div>
+        </div>
+        <div id="votEnCurso" class="vot-curso oculto">
+          <div class="vot-tema"><strong id="votTemaActual"></strong><span id="votReloj" class="vot-reloj"></span></div>
+          <div id="votBarras" class="barras"></div>
+          <div class="acciones">
+            <button class="boton" id="votPausar">Pausar</button>
+            <button class="boton rojo" id="votCerrar">Cerrar</button>
+            <button class="boton celeste oculto" id="votQuorum">Llevar a Quórum</button>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+
+  <!-- El menú de una banca. -->
+  <div id="menuBanca" class="menu vidrio oculto" role="menu"></div>
+  <div id="aviso" class="aviso oculto"></div>
+  <audio id="audioRemoto" autoplay></audio>
+  <script src="consola.js"></script>
+</body>
+</html>

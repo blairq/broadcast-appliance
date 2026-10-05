@@ -91,3 +91,6 @@ button:disabled { opacity: 0.5; }
 .res-totales { display: grid; gap: 10px; }
 .res-totales div { display: flex; justify-content: space-between; font-size: 22px; padding: 12px 16px;
   background: rgba(255,255,255,0.08); border-radius: 12px; }
+
+.ptt { padding: 14px; border-radius: 12px; display: flex; flex-direction: column; gap: 4px; text-align: center;
+  background: rgba(108, 172, 228, 0.22); border: 2px solid #6cace4; }

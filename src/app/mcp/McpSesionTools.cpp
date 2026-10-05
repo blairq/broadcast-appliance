@@ -233,6 +233,30 @@ void McpService::registerSesionTools() {
     }
     {
         Tool t;
+        t.name = "sesion_consola";
+        t.title = "Acceso a la consola web de la presidencia";
+        t.category = "sesion";
+        t.destructive = true;
+        t.description = "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
+                        "oradores y su tiempo, la votación, el programa en vivo y el legislador que habla, y «apretar para "
+                        "hablar» con los que pidieron la palabra. `accion` crear {nombre} (devuelve link y PIN UNA vez) | "
+                        "revocar {id} | listar.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"crear", "revocar", "listar"}}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"id", {{"type", "string"}}}}}};
+        t.run = [s](const json& a, Done done) {
+            const std::string acc = a.value("accion", std::string("listar"));
+            if (acc == "crear") return done(ToolResult().data(s->generarConsola(a.value("nombre", std::string("Presidencia")))));
+            if (acc == "revocar" && !s->revocarConsola(a.value("id", std::string())))
+                return done(ToolResult::error("no hay una consola con ese id"));
+            done(ToolResult().data({{"consolas", s->consolas()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "sesion_registro";
         t.title = "Registro de la banca virtual";
         t.category = "sesion";

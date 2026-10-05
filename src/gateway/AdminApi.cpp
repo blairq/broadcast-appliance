@@ -277,6 +277,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendJson(fd, 200, out);
         return;
     }
+    // El programa en vivo para la consola de la presidencia: la misma página de los
+    // televisores (/cast/), con su token; solo la ruta (la consola la abre en su origen).
+    if (path == "/api/v1/sesion/cast" && method == "GET") {
+        const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
+        if (token.empty()) {
+            sendJson(fd, 200, json{{"ok", false}, {"error", "sin token"}});
+            return;
+        }
+        sendJson(fd, 200, json{{"ok", true}, {"url", "/cast/?token=" + token + "&nombre=Presidencia"}});
+        return;
+    }
     if (sesion_ && sesion_->admin(fd, method, path, query, body)) return;
 
     const json req = body.empty() ? json::object() : json::parse(body, nullptr, false);

@@ -23,11 +23,19 @@
 //
 // App (API de control, loopback + Bearer):
 //   POST /api/v1/sesion/credenciales {participantes:[{id, nombre, banca, sal, hash_token, hash_pin}]}
-//   POST /api/v1/sesion/enviar       {id | "*", msg}
+//   POST /api/v1/sesion/enviar       {id | "*" (legisladores) | "consolas", msg}
 //   POST /api/v1/sesion/cortar       {id, motivo}
 //   GET  /api/v1/sesion/estado       conexiones vivas
 //   GET  /api/v1/sesion/foto?id=     la última foto de su cámara (image/jpeg)
 //   y por el SSE de siempre, evento "sesion": {tipo: conexion|entrada|intento|bloqueo, …}
+//
+// Presidencia (la consola web, docs/SESION-REMOTA.md §8):
+//   GET /presidencia/...       la página (Web/presidencia)
+//   GET /ws?presidencia=1      primer mensaje {type:"auth", c, t, pin}: credencial propia
+//        (id "consola:<c>"). Manda lo que la app decide (habilitar, dar_palabra,
+//        votacion, ptt…), pide fotos {type:"foto", id} y hace de punta de la
+//        señalización WebRTC directa con un legislador ({type:"rtc", a, …}: el
+//        gateway solo la pasa, y solo entre una consola y un legislador).
 //
 // Seguridad: el token del link (256 bits) y el PIN se guardan solo como hash con
 // sal; comparación en tiempo constante; 10 intentos por IP cada 10 min; 5 PIN
@@ -88,9 +96,9 @@ class SesionBorde {
         int fallas = 0;
         std::int64_t bloqueadoHastaMs = 0;
     };
-    void wsLoop(long long fd, const std::string& ip, const std::string& lugar);
+    void wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola);
     void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
-    bool servir(long long fd, const std::string& rel);
+    bool servir(long long fd, const std::string& rel, const std::string& webroot);
     bool intentoPermitido(const std::string& ip);
 
     std::string webroot_;

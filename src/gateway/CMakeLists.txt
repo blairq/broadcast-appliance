@@ -416,6 +416,12 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
 endif()
 
 # Botonera: la superficie de control de la tablet (/botonera/), emparejada por QR.
+# La consola web de la presidencia (/presidencia/, docs/SESION-REMOTA.md §8).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/presidencia")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/presidencia/"
+        DESTINATION Web/presidencia
+    )
+endif()
 # La sesión remota de los legisladores (/sesion/, docs/SESION-REMOTA.md).
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/sesion")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/sesion/"

@@ -47,6 +47,35 @@ ColumnLayout {
               "(el celular de respaldo si la central no anda) que desde afuera. El link, el PIN y la contraseña se ven una sola vez."
     }
 
+    // --- Consolas de la presidencia (la página web /presidencia/) ---------------------------
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 8
+        Text { color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; text: "Consola de la presidencia" }
+        Repeater {
+            model: cr.s ? cr.s.consolasUi : []
+            delegate: Rectangle {
+                required property var modelData
+                implicitWidth: filaC.implicitWidth + 16; implicitHeight: 30; radius: 15
+                color: Qt.rgba(1, 1, 1, 0.05); border.color: modelData.conectada ? Theme.ok : Qt.rgba(1, 1, 1, 0.12)
+                RowLayout {
+                    id: filaC
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text { text: (modelData.conectada ? "● " : "○ ") + modelData.nombre; color: modelData.conectada ? Theme.ok : Theme.textDim; font.pixelSize: 12 }
+                    Text { text: "✕"; color: Theme.textFaint; font.pixelSize: 12
+                           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                       onClicked: ApplicationWindow.window.confirm({ title: "¿Revocar el acceso de «" + modelData.nombre + "»?",
+                                           text: "La consola deja de andar ya.", accept: "Revocar", reject: "Cancelar",
+                                           action: function() { cr.s.revocarConsolaUi(modelData.id) } }) } }
+                }
+            }
+        }
+        GlassButton { compact: true; text: "Nuevo acceso a la consola…"
+                      onClicked: { const r = cr.s.generarConsolaUi("Presidencia"); if (r.error) Studio.notify(r.error, "error"); else credencial.mostrar(r) } }
+        Item { Layout.fillWidth: true }
+    }
+
     // --- Encabezado de la tabla ---------------------------------------------------------
     RowLayout {
         Layout.fillWidth: true
