@@ -23,6 +23,7 @@
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
+#include "control/Acciones.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -631,6 +632,90 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
             const std::string e = vm.dsk().mostrar(a.value("capa", 1), a.value("visible", true), a.value("confirmar", false));
             if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok(a.value("visible", true) ? "Arriba." : "Abajo."));
+        };
+        core.addTool(std::move(t));
+    }
+
+    // --- Acciones y atajos de teclado ----------------------------------------------------
+    {
+        Tool t;
+        t.name = "acciones_listar";
+        t.title = "Acciones de un golpe";
+        t.category = "botonera";
+        t.readOnly = true;
+        t.description = "El catalogo de acciones (TAKE, FTB, placa, siguiente banca, siguiente punto, prompter, armar o "
+                        "cortar a cada escena, mutear cada fuente, subir/bajar cada capa DSK…) con su id: lo usan los "
+                        "atajos de teclado (atajo_asignar) y accion_ejecutar.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data({{"acciones", vm.acciones().catalogo()}})); };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "atajos_listar";
+        t.title = "Atajos de teclado";
+        t.category = "botonera";
+        t.readOnly = true;
+        t.description = "Los atajos: tecla, accion y si es global (funciona aunque la ventana no tenga el foco).";
+        t.run = [&vm](const json&, Done done) {
+            done(ToolResult().data({{"atajos", vm.acciones().atajos()}, {"globales_disponibles", vm.acciones().globalesDisponibles()}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "atajo_asignar";
+        t.title = "Asignar un atajo de teclado";
+        t.category = "botonera";
+        t.description = "Asigna `tecla` («Ctrl+Shift+T», «F5», «Alt+1»; en la Mac «Ctrl» es Comando) a `accion` (id de "
+                        "acciones_listar). `global`: funciona aunque la ventana no tenga el foco (Mac y Windows). Una tecla "
+                        "que ya tiene otra accion da error: sacala primero. Un pedal de prompter que manda una tecla se "
+                        "asigna igual.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"tecla", "accion"}},
+                         {"properties", {{"tecla", {{"type", "string"}}}, {"accion", {{"type", "string"}}}, {"global", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const std::string e = vm.acciones().asignar(a.value("tecla", std::string()), a.value("accion", std::string()),
+                                                        a.value("global", false));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("Listo."));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "atajo_quitar";
+        t.title = "Quitar un atajo";
+        t.category = "botonera";
+        t.description = "Saca el atajo de `tecla` (o de la accion con ese id).";
+        t.inputSchema = {{"type", "object"}, {"required", {"tecla"}}, {"properties", {{"tecla", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (!vm.acciones().quitar(a.value("tecla", std::string()))) return done(ToolResult::error("no hay ese atajo"));
+            done(ToolResult::ok("Quitado."));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "accion_ejecutar";
+        t.title = "Ejecutar una accion";
+        t.category = "botonera";
+        t.description = "Ejecuta la `accion` (id de acciones_listar) como si se apretara su atajo, pero con los permisos "
+                        "y la guarda de aire del que lo pide.";
+        t.inputSchema = {{"type", "object"}, {"required", {"accion"}}, {"properties", {{"accion", {{"type", "string"}}}}}};
+        t.run = [&vm, &core](const json& a, Done done) {
+            const json r = vm.acciones().resolver(a.value("accion", std::string()));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            // Por el mismo camino y con el contexto de quien la pidió (la guarda de aire aplica).
+            const CallContext ctx = core.contextoEnCurso();
+            core.callTool({{"name", r.value("herramienta", std::string())}, {"arguments", r.value("args", json::object())}},
+                          [done](json res) {
+                              ToolResult tr;
+                              tr.isError = res.value("isError", false);
+                              for (const auto& c : res.value("content", json::array()))
+                                  if (c.value("type", "") == "text") tr.text(c.value("text", std::string()));
+                              done(tr);
+                          },
+                          ctx);
         };
         core.addTool(std::move(t));
     }

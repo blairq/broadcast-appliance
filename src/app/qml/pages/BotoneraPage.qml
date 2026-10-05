@@ -105,7 +105,7 @@ Rectangle {
             }
             Item { Layout.fillWidth: true }
             Repeater {
-                model: [ { id: "editor", t: "Editor" }, { id: "aparatos", t: "Aparatos" },
+                model: [ { id: "editor", t: "Editor" }, { id: "aparatos", t: "Aparatos" }, { id: "atajos", t: "Atajos" },
                          { id: "eventos", t: "Eventos" }, { id: "auditoria", t: "Auditoría" } ]
                 delegate: GlassButton {
                     required property var modelData
@@ -705,6 +705,96 @@ Rectangle {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // ========================= ATAJOS =========================
+        ColumnLayout {
+            id: atajosTab
+            visible: page.pestana === "atajos"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 8
+            property string capturando: ""   // id de la acción que espera su tecla
+            property var catalogo: []
+            onVisibleChanged: if (visible) catalogo = Studio.acciones.catalogoUi()
+            function teclaDe(ev) {
+                const k = ev.key
+                if (k === Qt.Key_Control || k === Qt.Key_Shift || k === Qt.Key_Alt || k === Qt.Key_Meta) return ""
+                const p = []
+                if (ev.modifiers & Qt.ControlModifier) p.push("Ctrl")
+                if (ev.modifiers & Qt.AltModifier) p.push("Alt")
+                if (ev.modifiers & Qt.ShiftModifier) p.push("Shift")
+                if (ev.modifiers & Qt.MetaModifier) p.push("Meta")
+                let n = ""
+                if (k >= Qt.Key_F1 && k <= Qt.Key_F35) n = "F" + (k - Qt.Key_F1 + 1)
+                else if ((k >= Qt.Key_A && k <= Qt.Key_Z) || (k >= Qt.Key_0 && k <= Qt.Key_9)) n = String.fromCharCode(k)
+                else n = ({ [Qt.Key_Space]: "Space", [Qt.Key_Return]: "Return", [Qt.Key_Enter]: "Enter", [Qt.Key_Escape]: "Esc",
+                            [Qt.Key_Left]: "Left", [Qt.Key_Right]: "Right", [Qt.Key_Up]: "Up", [Qt.Key_Down]: "Down",
+                            [Qt.Key_PageUp]: "PgUp", [Qt.Key_PageDown]: "PgDown", [Qt.Key_Home]: "Home", [Qt.Key_End]: "End",
+                            [Qt.Key_Tab]: "Tab", [Qt.Key_Period]: ".", [Qt.Key_Comma]: "," })[k] || ""
+                if (n === "") return ""
+                p.push(n)
+                return p.join("+")
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: Theme.textDim; font.pixelSize: 12
+                text: "Tocá «Asignar» y apretá la tecla (o el pedal del prompter, si manda una tecla). «Global»: funciona aunque " +
+                      "el programa no esté al frente" + (Studio.acciones.globalesDisponibles ? "." : " (en este sistema todavía no).") +
+                      " En la Mac, «Ctrl» es la tecla Comando."
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 2
+                model: atajosTab.catalogo
+                section.property: "grupo"
+                section.delegate: Text { text: section; color: Theme.textFaint; font.pixelSize: 11; topPadding: 8 }
+                delegate: RowLayout {
+                    required property var modelData
+                    width: ListView.view.width
+                    spacing: 8
+                    readonly property var atajo: Studio.acciones.atajos.find(a => a.accion === modelData.id)
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; text: modelData.nombre; color: Theme.text; font.pixelSize: 13 }
+                    Rectangle {
+                        Layout.preferredWidth: 160
+                        Layout.preferredHeight: 30
+                        radius: 8
+                        color: atajosTab.capturando === modelData.id ? Qt.rgba(1, 0.6, 0.2, 0.25) : Qt.rgba(1, 1, 1, 0.06)
+                        border.color: atajosTab.capturando === modelData.id ? Theme.amber : Theme.glassBorder
+                        focus: atajosTab.capturando === modelData.id
+                        Text {
+                            anchors.centerIn: parent
+                            text: atajosTab.capturando === modelData.id ? "Apretá la tecla…" : (parent.parent.atajo ? parent.parent.atajo.tecla : "—")
+                            color: Theme.text; font.pixelSize: 12; font.family: Theme.mono
+                        }
+                        Keys.onPressed: (ev) => {
+                            if (atajosTab.capturando !== modelData.id) return
+                            if (ev.key === Qt.Key_Escape && ev.modifiers === Qt.NoModifier) { atajosTab.capturando = ""; ev.accepted = true; return }
+                            const t = atajosTab.teclaDe(ev)
+                            if (t === "") return
+                            ev.accepted = true
+                            atajosTab.capturando = ""
+                            const e = Studio.acciones.asignarUi(t, modelData.id, globalF.checked)
+                            if (e !== "") Studio.notify(e, "error")
+                        }
+                    }
+                    CheckBox {
+                        id: globalF
+                        text: "Global"
+                        enabled: Studio.acciones.globalesDisponibles
+                        checked: !!(parent.atajo && parent.atajo.global)
+                        onToggled: if (parent.atajo) {
+                            const e = Studio.acciones.asignarUi(parent.atajo.tecla, modelData.id, checked)
+                            if (e !== "") Studio.notify(e, "error")
+                        }
+                    }
+                    GlassButton { compact: true; text: "Asignar"; onClicked: atajosTab.capturando = modelData.id }
+                    GlassButton { compact: true; text: "✕"; enabled: !!parent.atajo; onClicked: Studio.acciones.quitarUi(modelData.id) }
+                    GlassButton { compact: true; text: "▶"; onClicked: { const e = Studio.acciones.ejecutarUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
                 }
             }
         }

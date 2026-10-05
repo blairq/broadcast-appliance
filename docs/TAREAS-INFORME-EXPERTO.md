@@ -72,7 +72,7 @@
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | parcial |
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | parcial |
 | T48 | Modo en vivo que protege la interfaz | P1 | parcial |
-| T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | falta |
+| T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | hecho (globales en Mac y Windows; Linux solo locales; la pestaña está en Botonera) |
 | T50 | Bus de eventos de la app (para superficies, plugins y web) | P1 | hecho (bus, MCP, plugins; la pestaña Eventos está en la página Botonera) |
 | T51 | SDK de dispositivos para plugins: vendorear HID, MIDI, serie, OSC, Stream Deck | P1 | hecho en parte (bibliotecas vendoreadas, ejemplos de superficies y tally; falta la allowlist de herramientas por plugin) |
 | T52 | Superficie de control: modelo de datos y motor de acciones y estado | P1 | hecho |

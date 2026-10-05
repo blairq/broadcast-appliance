@@ -43,6 +43,7 @@
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
+#include "control/Acciones.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
@@ -651,6 +652,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
         satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
         dsk_ = std::make_unique<control::Dsk>(rt.dataRoot(), rt_.engine());
+        acciones_ = std::make_unique<control::Acciones>(rt.dataRoot());
+        {
+            auto& g = acciones_->ganchos();
+            g.escenas = [this]() { return rt_.engine().sceneNames(); };
+            g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
+            g.mudo = [this](const std::string& f) { return rt_.engine().sourceMuted(f); };
+            g.dskArriba = [this](int capa) {
+                for (const auto& c : dsk_->capas())
+                    if (c.value("capa", 0) == capa) return c.value("visible", false);
+                return false;
+            };
+        }
         dsk_->setAlCambiar([this](const nlohmann::json& c) {
             bus_->publicar("aire/dsk", c);
             publicarTally(); // lo que muestra una capa también está al aire
@@ -1896,6 +1909,7 @@ namespace ba::app {
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
+QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }
 QObject* StudioViewModel::quorumQml() const { return quorum_.get(); }

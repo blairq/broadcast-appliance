@@ -332,7 +332,7 @@ endif()
 target_link_libraries(ba-app PRIVATE ba_core mbedtls mbedx509 mbedcrypto) # HTTPS propio (net/HttpsClient)
 if(APPLE)
     # Los canales físicos de cada dispositivo (audio/EquipoAudio: Qt informa de más en la Mac).
-    target_link_libraries(ba-app PRIVATE "-framework CoreAudio" "-framework CoreFoundation")
+    target_link_libraries(ba-app PRIVATE "-framework CoreAudio" "-framework CoreFoundation" "-framework Carbon")
 endif()
 # Buscar Chromecast en la red (src/app/pantallas/Buscar.cpp).
 if(BA_MDNS_OK)

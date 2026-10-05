@@ -490,6 +490,20 @@ ApplicationWindow {
         enabled: franjaAlarma.critica
         onActivated: Studio.reconocerAlarmaUi(0)
     }
+    // Los atajos que configuró el operador (página Botonera → Atajos). Los
+    // globales los atiende el sistema (funcionan sin foco): acá van los locales.
+    Instantiator {
+        model: Studio.acciones ? Studio.acciones.atajos.filter(a => !a.global) : []
+        delegate: Shortcut {
+            required property var modelData
+            sequence: modelData.tecla
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                const e = Studio.acciones.ejecutarUi(modelData.accion)
+                if (e !== "") Studio.notify(e, "error")
+            }
+        }
+    }
 
     // --- Avisos (toasts) ------------------------------------------------------------
     Column {

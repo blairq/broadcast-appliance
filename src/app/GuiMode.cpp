@@ -34,6 +34,7 @@
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "control/Botonera.hpp"
+#include "control/Acciones.hpp"
 #include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
@@ -206,6 +207,24 @@ int runGui(int argc, char** argv) {
                 return out;
             };
         }
+        // Los atajos de teclado: una persona apretando una tecla (como la botonera).
+        vm.acciones().ganchos().ejecutar = [&mcpService, &vm](const std::string& h, const nlohmann::json& args,
+                                                              control::Acciones::Listo listo) {
+            mcp::CallContext ctx{"atajo", "", "atajo", true, {}};
+            mcpService.core().callTool({{"name", h}, {"arguments", args}},
+                                       [listo, &vm](nlohmann::json r) {
+                                           const bool ok = !r.value("isError", false);
+                                           std::string texto;
+                                           for (const auto& c : r.value("content", nlohmann::json::array()))
+                                               if (c.value("type", "") == "text") {
+                                                   texto = c.value("text", std::string());
+                                                   break;
+                                               }
+                                           if (!ok) emit vm.notify(QString::fromStdString(texto.substr(0, 200)), "error");
+                                           listo(ok, texto);
+                                       },
+                                       ctx);
+        };
         if (rt.config().mcpEnabled) {
             if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {
                 std::printf("ba-app: servidor MCP en %s (token: bin/64bit/ba-mcp --token; stdio: ba-mcp)\n",
