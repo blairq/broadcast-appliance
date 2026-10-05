@@ -109,6 +109,9 @@ class QtHostServices : public HostServices {
     }
 
     void stateDirty() override;
+    void latencyChanged() override {
+        QMetaObject::invokeMethod(owner_, []() { AudioRack::rehacerTodos(); }, Qt::QueuedConnection);
+    }
 
    private:
     /// Ya, si es el hilo principal; si no, encolado en él (en orden).

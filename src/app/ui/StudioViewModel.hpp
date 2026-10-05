@@ -198,6 +198,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString joinUrl READ joinUrl NOTIFY statusChanged)
     Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
+    /// Balística de los medidores (T31): "pico", "ppm" (EBU tipo IIb) o "vu".
+    Q_PROPERTY(QString balistica READ balistica WRITE setBalistica NOTIFY balisticaChanged)
+    /// La fuente que se escucha por el monitor (PFL), "" si ninguna.
+    Q_PROPERTY(QString pfl READ pfl NOTIFY pflChanged)
     // --- Submodelos -------------------------------------------------------------
     Q_PROPERTY(QObject* scenes READ scenes CONSTANT)
     Q_PROPERTY(QObject* sources READ sources CONSTANT)
@@ -408,6 +412,19 @@ class StudioViewModel : public QObject {
     /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
     /// y la repetición {replay: {activa, segundos, ultimo}}.
     Q_INVOKABLE QVariantMap grabacionUi() const;
+    QString balistica() const;
+    void setBalistica(const QString& b);
+    QString pfl() const;
+    /// PFL exclusivo: escucha `fuente` por el monitor (o la apaga si ya era esa). "" o el error.
+    Q_INVOKABLE QString pflUi(const QString& fuente);
+    /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro).
+    Q_INVOKABLE int retardoUi(const QString& fuente) const;
+    Q_INVOKABLE QString setRetardoUi(const QString& fuente, int ms);
+    /// Medir con aplauso: mide `segundos` sobre el programa y llama a `listo` con el
+    /// resultado (ver BroadcastEngine::terminarMedicionSincro). "" o el error al empezar.
+    QString medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo);
+    /// Lo mismo para la GUI: el resultado llega por medicionSincroLista(resultado).
+    Q_INVOKABLE QString medirSincroUi(int segundos);
     /// Un scope (onda|parade|vector|histograma) de `fuente` ("" = programa):
     /// {imagen: data URL PNG, legalidad: {...}, legalizador} o {error}.
     Q_INVOKABLE QVariantMap scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const;
@@ -696,6 +713,9 @@ class StudioViewModel : public QObject {
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
     void canvasChanged();
+    void medicionSincroLista(const QVariantMap& resultado);
+    void balisticaChanged();
+    void pflChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
     void notify(const QString& message, const QString& level);

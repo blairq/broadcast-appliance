@@ -2790,6 +2790,58 @@ QVariantMap StudioViewModel::crearAccesoHttpUi(const QString& perfil, const QStr
             {"url_ejemplo", urlApiRemota() + qs(r.value("ejemplo", std::string()))}};
 }
 
+QString StudioViewModel::balistica() const { return qs(rt_.config().balistica); }
+
+void StudioViewModel::setBalistica(const QString& b) {
+    const std::string v = b.toStdString();
+    if ((v != "pico" && v != "ppm" && v != "vu") || v == rt_.config().balistica) return;
+    rt_.config().balistica = v;
+    rt_.save();
+    emit balisticaChanged();
+}
+
+QString StudioViewModel::pfl() const {
+    for (const std::string& f : rt_.engine().audioSources())
+        if (rt_.engine().sourceMonitoring(f)) return qs(f);
+    return {};
+}
+
+QString StudioViewModel::pflUi(const QString& fuente) {
+    const std::string pedida = fuente.toStdString();
+    const bool apagar = pfl() == fuente; // tocar la que suena la apaga
+    // Exclusivo, como el solo de una mesa (lo mismo que audio_escuchar).
+    for (const std::string& f : rt_.engine().audioSources())
+        if (rt_.engine().sourceMonitoring(f) && (apagar || f != pedida)) rt_.engine().setSourceMonitoring(f, false);
+    if (!apagar && !pedida.empty() && !rt_.engine().setSourceMonitoring(pedida, true))
+        return "No existe la fuente de audio «" + fuente + "».";
+    emit pflChanged();
+    return {};
+}
+
+int StudioViewModel::retardoUi(const QString& fuente) const { return rt_.engine().sourceSyncOffset(fuente.toStdString()); }
+
+QString StudioViewModel::setRetardoUi(const QString& fuente, int ms) {
+    if (!rt_.engine().setSourceSyncOffset(fuente.toStdString(), std::clamp(ms, -5000, 5000)))
+        return qs(rt_.engine().lastError());
+    rt_.save();
+    return {};
+}
+
+QString StudioViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo) {
+    if (rt_.engine().midiendoSincro()) return "ya se está midiendo";
+    if (!rt_.engine().empezarMedicionSincro()) return qs(rt_.engine().lastError());
+    QTimer::singleShot(std::clamp(segundos, 4, 30) * 1000, this, [this, listo = std::move(listo)]() {
+        listo(rt_.engine().terminarMedicionSincro());
+    });
+    return {};
+}
+
+QString StudioViewModel::medirSincroUi(int segundos) {
+    return medirSincro(segundos, [this](const nlohmann::json& r) {
+        emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap());
+    });
+}
+
 QVariantMap StudioViewModel::grabacionUi() const {
     nlohmann::json j = rt_.engine().grabacionEstado();
     j["replay"] = rt_.engine().replayEstado();

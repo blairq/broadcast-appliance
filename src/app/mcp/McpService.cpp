@@ -1970,6 +1970,59 @@ void McpService::registerTools() {
 
     {
         Tool t;
+        t.name = "audio_sincro_medir";
+        t.title = "Medir la sincronía labios/voz con aplausos";
+        t.category = "audio";
+        t.description =
+            "Mide cuánto hay que atrasar el audio para que coincida con el video, con aplausos frente a la "
+            "cámara: durante `segundos` (de 4 a 30, 10 de fábrica) mira lo que SALE (cuadros del programa y "
+            "mezcla de audio) y empareja cada aplauso (pico de audio, cambio brusco en la imagen). La cámara "
+            "tiene que estar en el programa y su micrófono sonando. Avisá a la persona que aplauda 4 o 5 veces, "
+            "separadas. Con `aplicar_a` (una fuente de audio) y una medición confiable, le suma el retardo "
+            "medido al que ya tenía (audio_sincro). Devuelve retardo_ms, dispersión y si es confiable.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"segundos", {{"type", "integer"}, {"minimum", 4}, {"maximum", 30}}},
+                           {"aplicar_a", {{"type", "string"}}}}}};
+        t.run = [&rt, &vm, persist](const json& a, Done done) {
+            const std::string fuente = a.value("aplicar_a", std::string());
+            const QString e = vm.medirSincro(a.value("segundos", 10), [&rt, fuente, persist, done](const json& r0) {
+                json r = r0;
+                if (!fuente.empty() && r.value("confiable", false)) {
+                    const int nuevo = std::clamp(rt.engine().sourceSyncOffset(fuente) + r.value("retardo_ms", 0), -5000, 5000);
+                    if (rt.engine().setSourceSyncOffset(fuente, nuevo)) {
+                        persist();
+                        r["aplicado"] = {{"fuente", fuente}, {"ms", nuevo}};
+                    } else {
+                        r["aplicado_error"] = rt.engine().lastError();
+                    }
+                } else if (!fuente.empty()) {
+                    r["aplicado"] = false;
+                }
+                done(ToolResult().data(r));
+            });
+            if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_medidores";
+        t.title = "Balística de los medidores";
+        t.category = "audio";
+        t.description = "Cómo se mueven todos los medidores de la interfaz: `balistica` = pico (instantáneo), ppm "
+                        "(EBU tipo IIb: sube al instante y cae 24 dB en 2,8 s) o vu (integra ~300 ms: el volumen "
+                        "percibido). Sin argumentos dice cuál está.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"balistica", {{"type", "string"}, {"enum", {"pico", "ppm", "vu"}}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("balistica")) vm.setBalistica(QString::fromStdString(a.value("balistica", std::string("pico"))));
+            done(ToolResult().data(json{{"balistica", vm.balistica().toStdString()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_sincro";
         t.title = "Sincronizar labios y voz";
         t.category = "audio";

@@ -261,6 +261,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.transition.durationMs = get(tr, "durationMs", 300);
     const json ui = j.value("ui", json::object());
     c.theme = get<std::string>(ui, "theme", "dark");
+    c.balistica = get<std::string>(ui, "balistica", "pico");
     c.previewWidth = get(ui, "previewWidth", 960);
     const json mcp = j.value("mcp", json::object());
     c.mcpEnabled = get(mcp, "enabled", true);
@@ -364,7 +365,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"returnFeeds", c.returnFeeds},
         {"conference", {{"operatorVideo", c.operatorVideo}, {"operatorAudio", c.operatorAudio}}},
         {"transition", {{"type", c.transition.type}, {"durationMs", c.transition.durationMs}}},
-        {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}}},
+        {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}, {"balistica", c.balistica}}},
         {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}}},
         {"scenes", scenes},
         {"audioInputs", audioIns},

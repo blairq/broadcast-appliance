@@ -33,6 +33,8 @@ constexpr std::uint32_t kPrimerCanal = 40; // 0 programa, 1-16 invitados, 17-24 
 using anillo::AlDispositivo;
 using anillo::kBloque;
 using anillo::kColchon;
+/// Lo que agrega un cruce a un bus virtual: el colchón del hilo de mezcla (a 48 kHz).
+constexpr int kRetardoBusMs = static_cast<int>(kColchon * 1000 / 48000);
 using anillo::Ring;
 
 float dbALineal(double db) { return db <= -96.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0)); }
@@ -286,7 +288,8 @@ QVariantMap Matriz::cruces() const {
                                                                             {"ajustes", e.ajustes},
                                                                             {"nivelDb", e.nivelDb},
                                                                             {"pan", e.pan},
-                                                                            {"mute", e.mute}};
+                                                                            {"mute", e.mute},
+                                                                            {"retardo_ms", kRetardoBusMs}};
     return out;
 }
 
@@ -815,7 +818,9 @@ Matriz::json Matriz::estado() const {
                           {"nivelDb", e.nivelDb},
                           {"pan", e.pan},
                           {"mute", e.mute},
-                          {"ajustes", e.ajustes}});
+                          {"ajustes", e.ajustes},
+                          // Lo que suma pasar por la mezcla propia (las pistas nativas: 0).
+                          {"retardo_ms", kRetardoBusMs}});
     for (const auto& f : filas_) {
         json pis = json::array();
         bool oye = false;

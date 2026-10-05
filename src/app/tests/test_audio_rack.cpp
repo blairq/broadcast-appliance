@@ -110,6 +110,24 @@ int main() {
     CHECK(rack.connect("in", "out", "out", "in", &err), "cable en paralelo");
     const float par = feed(rack, 0.5f, 1);
     CHECK(par > wet + 0.3f, "las dos ramas se suman");
+    // Compensación de latencia (T31): con lookahead el compresor atrasa la señal;
+    // el rack lo informa y atrasa la rama seca para que lleguen juntas.
+    for (const auto& p : c->params())
+        if (p.name.find("ookahead") != std::string::npos) c->setValue(p.id, p.max);
+    feed(rack, 0.5f, 1);
+    CHECK(rack.disconnect("in", "out", "out", "in") && rack.connect("in", "out", "out", "in", &err), "se rearma el paralelo");
+    std::printf("latencia del compresor: %u muestras; del rack: %u\n", c->latencia(), rack.latenciaMuestras());
+    if (c->latencia() > 0) {
+        CHECK(rack.latenciaMuestras() == c->latencia(), "el rack informa la latencia de su rama más lenta");
+        CHECK(rack.describe()["latencia_ms"].get<double>() > 0, "y en ms en describe()");
+    } else {
+        std::printf("(el compresor no declaró latencia: no se prueba la compensación)\n");
+    }
+    for (const auto& p : c->params()) // el resto de la prueba, sin lookahead
+        if (p.name.find("ookahead") != std::string::npos) c->setValue(p.id, p.min);
+    feed(rack, 0.5f, 1);
+    std::printf("colgado tras el lookahead: %s\n", rack.describe()["colgado"].dump().c_str());
+    rack.rearmar(comp); // cambiar el lookahead re-arma el compresor (tarda): el vigía lo pudo marcar
     CHECK(rack.disconnect("in", "out", "out", "in"), "se saca");
     CHECK(!rack.connect(an, "out", comp, "in", &err), "un ciclo se rechaza");
     std::printf("ciclo: %s\n", err.c_str());

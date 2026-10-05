@@ -604,6 +604,18 @@ class BroadcastEngine {
     /// Lo llama la app en cada vuelta; no hace nada si no pasó nada.
     void atenderEncoderCaido(bool stream, bool record);
     bool encoderRespaldoActivo() const { return encoderRespaldo_; }
+
+    // --- Medir la sincronía labios/voz con un aplauso (T31) -----------------------
+    // Sobre lo que SALE: los cuadros crudos del programa (achicados a 160×90, luma) y
+    // la mezcla de audio del programa, con las marcas de tiempo de libobs (el mismo
+    // reloj). El aplauso es un pico de nivel en el audio y un cambio brusco entre
+    // cuadros en el video; la diferencia (mediana de varios) es lo que hay que
+    // atrasar el audio. La cámara del aplauso tiene que estar en el programa.
+    bool empezarMedicionSincro();
+    /// Termina y calcula: {ok, retardo_ms, dispersion_ms, aplausos, confiable, problema,
+    /// golpes_audio, golpes_video}.
+    nlohmann::json terminarMedicionSincro();
+    bool midiendoSincro() const { return medSincro_ != nullptr; }
     /// Las pistas (índice de libobs 1..5) que usa la grabación del programa: la
     /// grabación por entrada no las toma.
     int pistasGrabacionMask() const { return pistasGrabacionMask_; }
@@ -881,6 +893,8 @@ class BroadcastEngine {
     std::atomic<bool> encoderCayo_{false};
     std::atomic<bool> encoderCayoArchivo_{false};
     bool encoderRespaldo_ = false;
+    struct MedicionSincro;
+    std::unique_ptr<MedicionSincro> medSincro_;
     void soltarEncodersGrabacion();
     bool crearEncoderArchivo(const RecordConfig& rec, const EncoderConfig& enc, std::size_t desde);
     static void onReplaySaved(void* data, ::calldata* cd);

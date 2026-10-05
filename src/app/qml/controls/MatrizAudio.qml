@@ -337,6 +337,13 @@ Item {
                                         color: Qt.rgba(x0.col.r, x0.col.g, x0.col.b, 0.2)
                                         Rectangle { anchors.centerIn: parent; width: 2; height: parent.height; color: x0.col }
                                     }
+                                    // Cuánto retardo suma este cruce (los buses virtuales pasan por la mezcla propia).
+                                    Text {
+                                        visible: x0.activo && (x0.c.retardo_ms || 0) > 0
+                                        anchors { right: parent.right; top: parent.top; margins: 1 }
+                                        text: "+" + (x0.c.retardo_ms || 0)
+                                        color: Theme.amber; font.pixelSize: 8; z: 2
+                                    }
                                     // La tecla
                                     Rectangle {
                                         id: tecla

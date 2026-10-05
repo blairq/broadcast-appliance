@@ -227,6 +227,14 @@ class AudioRack {
     std::atomic<bool> colgado_{false};
     std::mutex saltadosMu_;
     std::vector<std::string> saltados_;
+    /// Vuelve a armar el plan de todos los racks (un plugin cambió su latencia).
+   public:
+    static void rehacerTodos();
+    /// La latencia del rack de la entrada a la salida, en muestras (lo que atrasa el audio).
+    uint32_t latenciaMuestras() const { return latenciaTotal_.load(); }
+
+   private:
+    std::atomic<uint32_t> latenciaTotal_{0};
     static void registrar(AudioRack* r, bool alta);
     std::shared_ptr<ClapLibrary> lib_;
     HostServices* services_ = nullptr;

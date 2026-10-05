@@ -188,7 +188,9 @@ struct ClapInstance::Host {
     static void stateDirty(const clap_host_t* h) {
         if (from(h)->inst->services_ != nullptr) from(h)->inst->services_->stateDirty();
     }
-    static void latencyChanged(const clap_host_t*) {}
+    static void latencyChanged(const clap_host_t* h) {
+        if (from(h)->inst->services_ != nullptr) from(h)->inst->services_->latencyChanged();
+    }
     static bool portsFlagSupported(const clap_host_t*, uint32_t) { return false; }
     static void portsRescan(const clap_host_t*, uint32_t) {}
 
@@ -608,6 +610,12 @@ void ClapInstance::audioThreadIdle() {
 }
 
 // --- Editor ------------------------------------------------------------------------------
+
+uint32_t ClapInstance::latencia() const {
+    if (plugin_ == nullptr || !active_) return 0;
+    auto* ext = static_cast<const clap_plugin_latency_t*>(plugin_->get_extension(plugin_, CLAP_EXT_LATENCY));
+    return ext != nullptr && ext->get != nullptr ? ext->get(plugin_) : 0;
+}
 
 bool ClapInstance::hasEditor() const {
     auto* gui = static_cast<const clap_plugin_gui_t*>(plugin_->get_extension(plugin_, CLAP_EXT_GUI));

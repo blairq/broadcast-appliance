@@ -103,6 +103,7 @@ struct AppConfig {
     std::string currentScene;
     TransitionConfig transition;
     std::string theme = "dark"; ///< "dark" | "light" | "system"
+    std::string balistica = "pico"; ///< medidores: pico | ppm (EBU IIb) | vu
     int previewWidth = 960;
     bool mcpEnabled = true; ///< servidor MCP (asistente de IA) en 127.0.0.1
     int mcpPort = 8790;

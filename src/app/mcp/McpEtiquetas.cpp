@@ -104,6 +104,8 @@ const Fila kPropias[] = {
     {"video_legalizar", "legalizar broadcast safe tv rango legal gama compuesta entregar canal"},
     {"botonera_api_remota", "companion generic http api remota botonera stream deck token acceso http"},
     {"plugin_aprobados", "plugins aprobados para el aire aprobar plugin hash en vivo seguro firmado"},
+    {"audio_sincro_medir", "medir sincronia labios aplauso claqueta retardo audio video desfasado"},
+    {"audio_medidores", "medidores vumetro ppm vu pico balistica aguja"},
     {"salida_limpia", "senal limpia clean feed sin graficos sin zocalos sin dsk sin logo programa limpio canal"},
     {"salidas_profesionales", "srt rist ndi decklink sdi contribucion salidas profesionales"},
     {"stream_destino_editar", "editar destino transmision"},

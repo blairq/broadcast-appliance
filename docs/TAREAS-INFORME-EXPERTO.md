@@ -54,7 +54,7 @@
 | T28 | Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink | P1 | hecho (NDI/Decklink de salida: no se empaquetan) |
 | T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | hecho (sin ProRes) |
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
-| T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | parcial |
+| T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | hecho (sin aviso de correlación ni loudness por fuente) |
 | T32 | Automixer para las bancas | P1 | decisión pendiente (docs/DECISIONES-PENDIENTES.md: los micrófonos tienen que pasar a GStreamer) |
 | T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | parcial |
 | T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
@@ -672,7 +672,25 @@
 ## Audio
 
 ### T31 · Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM — P1
-- **Estado: parcial.**
+- **Estado: hecho** (2026-10-05). Falta el aviso por correlación cruzada y el loudness por fuente.
+  - **PFL:** botón amarillo en cada tira del Mezclador (`Studio.pflUi`, exclusivo como `audio_escuchar`).
+  - **Retardo por canal:** clic en el nombre de la tira → «Retardo de …» (ms, ±40) con «Medir con aplauso».
+  - **Medir con aplauso** (`BroadcastEngine::empezarMedicionSincro` / `terminarMedicionSincro`):
+    - mira lo que SALE: los cuadros crudos del programa (`obs_add_raw_video_callback` a 160×90) y la mezcla de audio (`obs_add_raw_audio_callback`), en el mismo reloj de libobs;
+    - en el audio, el aplauso es un pico (trozos de 5 ms); en el video, el bloque 16×9 que más cambió entre cuadros;
+    - `SincroLabios` empareja los aplausos y da la mediana y la dispersión.
+    - MCP: `audio_sincro_medir {segundos, aplicar_a?}`.
+    - Probado: con la app andando recibe ~31 cuadros/s y ~240 trozos de audio/s, y sin aplausos dice «no se escuchó ningún aplauso».
+    - **Sin probar con aplausos reales.** Los umbrales (20 dB en audio, 12 niveles de luma en video) son de arranque.
+  - **Latencia CLAP:**
+    - `ClapInstance::latencia()` usa `CLAP_EXT_LATENCY`, y `latency_changed` rearma los racks;
+    - en el plan del rack, cada nodo suma la latencia de su entrada más lenta, y las ramas más rápidas que se juntan en una mezcla se atrasan con una línea de retardo (sin filtro peine con la señal seca);
+    - `audio_rack` devuelve `latencia_muestras` por plugin y la total (`latencia_ms`);
+    - probado en `test_audio_rack`: compresor LSP con lookahead, 960 muestras.
+    - Ojo: cambiar el lookahead re-arma el plugin, y el vigía puede marcar el rack «colgado» (`rearmar`).
+  - **Medidores:** balística pico, PPM (EBU IIb: cae 24 dB en 2,8 s) o VU (300 ms) en `LevelMeter`, para todos. Se elige en el Mezclador (PICO/PPM/VU) o con `audio_medidores {balistica}`.
+  - **Matriz:** cada cruce a un bus virtual muestra «+20» (el colchón de la mezcla propia). `audio_matriz` da `retardo_ms` por envío.
+  - Antes:
   - **PFL:** `audio_escuchar` existe (`src/app/mcp/McpService.cpp:1643`) y en la GUI es una columna de la Matriz (`MatrizAudio.qml:47,179,386`), no un botón por canal.
   - **Retardo:** existe en el motor y en el MCP `audio_sincro` (`BroadcastEngineScenes.cpp:900-916`, `McpService.cpp:1696-1724`), sin control en QML.
   - **SincroLabios:** solo está en los tests (`src/app/CMakeLists.txt:722`).

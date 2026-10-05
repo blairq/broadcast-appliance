@@ -21,6 +21,7 @@
 #include "audio/EquipoAudio.hpp"
 #include "audio/Matriz.hpp"
 #include "audio/MonitorVoz.hpp"
+#include "camaras/SincroLabios.hpp"
 #endif
 
 #include "ChatOverlaySource.hpp"
@@ -1594,6 +1595,101 @@ std::string BroadcastEngine::ultimoReplay() const {
 nlohmann::json BroadcastEngine::replayEstado() const {
     auto* r = reinterpret_cast<obs_output_t*>(replay_);
     return {{"activa", r != nullptr && obs_output_active(r)}, {"segundos", replaySegundos_}, {"ultimo", ultimoReplay()}};
+}
+
+// --- Sincronía labios/voz con aplauso ------------------------------------------------
+
+struct BroadcastEngine::MedicionSincro {
+    std::mutex mu;
+    std::vector<camaras::Muestra> audio, video;
+    std::vector<std::uint8_t> anterior;
+    static constexpr int kAncho = 160, kAlto = 90;
+
+    static void alVideo(void* p, struct video_data* f) {
+        auto* m = static_cast<MedicionSincro*>(p);
+        if (f == nullptr || f->data[0] == nullptr) return;
+        std::vector<std::uint8_t> luma(static_cast<size_t>(kAncho) * kAlto);
+        for (int y = 0; y < kAlto; ++y)
+            std::memcpy(luma.data() + static_cast<size_t>(y) * kAncho, f->data[0] + static_cast<size_t>(y) * f->linesize[0], kAncho);
+        std::lock_guard<std::mutex> l(m->mu);
+        if (!m->anterior.empty()) {
+            // El cambio del bloque (16×9) que MÁS cambió: unas manos que aplauden
+            // son chicas en el cuadro; el promedio de toda la imagen las diluye.
+            double maximo = 0;
+            for (int by = 0; by < kAlto; by += 9)
+                for (int bx = 0; bx < kAncho; bx += 16) {
+                    int suma = 0;
+                    for (int y = by; y < by + 9; ++y)
+                        for (int x = bx; x < bx + 16; ++x) {
+                            const size_t i = static_cast<size_t>(y) * kAncho + x;
+                            suma += std::abs(static_cast<int>(luma[i]) - static_cast<int>(m->anterior[i]));
+                        }
+                    maximo = std::max(maximo, suma / (16.0 * 9.0));
+                }
+            m->video.push_back({static_cast<int64_t>(f->timestamp / 1000000), maximo});
+        }
+        m->anterior.swap(luma);
+    }
+
+    static void alAudio(void* p, size_t, struct audio_data* d) {
+        auto* m = static_cast<MedicionSincro*>(p);
+        if (d == nullptr || d->data[0] == nullptr || d->frames == 0) return;
+        const auto* s = reinterpret_cast<const float*>(d->data[0]);
+        const uint32_t trozo = 240; // 5 ms a 48 kHz
+        const uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
+        std::lock_guard<std::mutex> l(m->mu);
+        for (uint32_t i = 0; i < d->frames; i += trozo) {
+            float pico = 0;
+            for (uint32_t k = i; k < std::min(d->frames, i + trozo); ++k) pico = std::max(pico, std::fabs(s[k]));
+            const double db = pico > 1e-6f ? 20.0 * std::log10(pico) : -120.0;
+            const int64_t ns = static_cast<int64_t>(d->timestamp) + static_cast<int64_t>(i) * 1000000000LL / std::max<uint32_t>(sr, 1);
+            m->audio.push_back({ns / 1000000, db});
+        }
+    }
+};
+
+bool BroadcastEngine::empezarMedicionSincro() {
+    if (!started_ || obs_get_video() == nullptr || obs_get_audio() == nullptr) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (medSincro_) return true;
+    medSincro_ = std::make_unique<MedicionSincro>();
+    video_scale_info conv{};
+    conv.format = VIDEO_FORMAT_I420;
+    conv.width = MedicionSincro::kAncho;
+    conv.height = MedicionSincro::kAlto;
+    conv.range = VIDEO_RANGE_DEFAULT;
+    conv.colorspace = VIDEO_CS_DEFAULT;
+    obs_add_raw_video_callback(&conv, &MedicionSincro::alVideo, medSincro_.get());
+    obs_add_raw_audio_callback(0, nullptr, &MedicionSincro::alAudio, medSincro_.get());
+    return true;
+}
+
+nlohmann::json BroadcastEngine::terminarMedicionSincro() {
+    if (!medSincro_) return {{"ok", false}, {"problema", "no se estaba midiendo"}};
+    obs_remove_raw_video_callback(&MedicionSincro::alVideo, medSincro_.get());
+    obs_remove_raw_audio_callback(0, &MedicionSincro::alAudio, medSincro_.get());
+    std::vector<camaras::Muestra> a, v;
+    {
+        std::lock_guard<std::mutex> l(medSincro_->mu);
+        a.swap(medSincro_->audio);
+        v.swap(medSincro_->video);
+    }
+    medSincro_.reset();
+    const auto ga = camaras::buscarGolpes(a, 20);   // 20 dB sobre el piso del audio
+    const auto gv = camaras::buscarGolpes(v, 12);   // 12 niveles de luma sobre el piso del bloque
+    const camaras::Medicion m = camaras::medirRetardo(ga, gv);
+    return {{"ok", m.ok},
+            {"retardo_ms", m.retardoMs},
+            {"dispersion_ms", m.dispersionMs},
+            {"aplausos", m.aplausos},
+            {"confiable", m.confiable},
+            {"problema", m.problema},
+            {"golpes_audio", ga.size()},
+            {"golpes_video", gv.size()},
+            {"muestras_audio", a.size()},
+            {"cuadros", v.size()}};
 }
 
 // --- Codificador caído en el aire ---------------------------------------------------
