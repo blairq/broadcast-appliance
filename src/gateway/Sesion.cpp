@@ -366,6 +366,26 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             enviar(c, {{"type", "pong"}});
             continue;
         }
+        // R3: el que tiene la palabra manda su micrófono y su cámara a la sala.
+        if (!consola && (t == "medios-oferta" || t == "medios-ice")) {
+            bool permitido;
+            {
+                std::lock_guard<std::mutex> l(mu_);
+                permitido = c->id == mediosDe_;
+            }
+            if (!permitido || !medios_.oferta) continue;
+            if (t == "medios-oferta") {
+                std::weak_ptr<Conn> w = c;
+                const bool ok = medios_.oferta(c->id, m.value("sdp", std::string()), [this, w](const json& r) {
+                    if (auto cc = w.lock()) enviar(cc, r);
+                });
+                if (!ok) enviar(c, {{"type", "medios"}, {"activo", false}, {"error", "no hay lugar para el audio en la sala"}});
+            } else if (medios_.ice) {
+                const json& cand = m.contains("candidate") ? m["candidate"] : json();
+                medios_.ice(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump());
+            }
+            continue;
+        }
         if (t == "rtc") {
             // Señalización WebRTC directa entre la consola de la presidencia y un
             // legislador (ver la cara del que habla, hablarle «apretar para hablar»).
@@ -437,6 +457,14 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         c->fd = -1;
     }
     // Si lo reemplazó otra conexión suya, no se avisa que se fue.
+    if (eraLaActual && medios_.cerrar) {
+        bool tenia;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            tenia = c->id == mediosDe_;
+        }
+        if (tenia) medios_.cerrar(c->id); // su WebRTC hacia la sala no sigue sin él
+    }
     if (eraLaActual) {
         alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", false}, {"ip", c->ip}});
         log_.info("sesion: " + c->id + " desconectado");
@@ -490,6 +518,11 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump());
         return true;
     }
+    if (que == "medios") {
+        ponerMediosDe(r.value("id", std::string()));
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"id", r.value("id", std::string())}}.dump());
+        return true;
+    }
     if (que == "enviar" || que == "cortar") {
         const std::string id = r.value("id", std::string());
         std::vector<std::shared_ptr<Conn>> a;
@@ -528,6 +561,23 @@ void SesionBorde::cerrar() {
         std::lock_guard<std::mutex> l(c->sendLock);
         if (c->fd >= 0) http::shutdownFd(c->fd);
     }
+}
+
+void SesionBorde::ponerMediosDe(const std::string& id) {
+    std::string antes;
+    std::shared_ptr<Conn> viejo, nuevo;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        antes = mediosDe_;
+        if (antes == id) return;
+        mediosDe_ = id;
+        if (auto it = conns_.find(antes); it != conns_.end()) viejo = it->second;
+        if (auto it = conns_.find(id); it != conns_.end()) nuevo = it->second;
+    }
+    if (!antes.empty() && medios_.cerrar) medios_.cerrar(antes);
+    if (viejo) enviar(viejo, {{"type", "medios"}, {"activo", false}});
+    if (nuevo) enviar(nuevo, {{"type", "medios"}, {"activo", true}});
+    log_.info("sesion: medios a la sala: " + (id.empty() ? std::string("nadie") : id));
 }
 
 } // namespace ba::gateway

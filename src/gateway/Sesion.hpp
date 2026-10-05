@@ -27,6 +27,9 @@
 //   POST /api/v1/sesion/cortar       {id, motivo}
 //   GET  /api/v1/sesion/estado       conexiones vivas
 //   GET  /api/v1/sesion/foto?id=     la última foto de su cámara (image/jpeg)
+//   POST /api/v1/sesion/medios       {id | ""}: quién manda audio y video a la sala (R3): al
+//        que entra se le dice {type:"medios", activo:true} y su celular ofrece
+//        ({type:"medios-oferta", sdp}, {type:"medios-ice", candidate}); al que sale, false.
 //   y por el SSE de siempre, evento "sesion": {tipo: conexion|entrada|intento|bloqueo, …}
 //
 // Presidencia (la consola web, docs/SESION-REMOTA.md §8):
@@ -73,6 +76,17 @@ class SesionBorde {
                const std::string& body);
     void cerrar();
 
+    /// R3: lo que manda el celular del que tiene la palabra va a la app por el
+    /// WebRTC del gateway. Lo arma SignalingServer (que tiene el hub y el pump).
+    struct Medios {
+        /// Una oferta del legislador `id`: `enviar` le contesta (respuesta e ICE). false si no se pudo.
+        std::function<bool(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar)>
+            oferta;
+        std::function<void(const std::string& id, const std::string& candidato)> ice;
+        std::function<void(const std::string& id)> cerrar;
+    };
+    void setMedios(Medios m) { medios_ = std::move(m); }
+
     // --- Para las pruebas ---
     static bool origenValido(const std::string& headers);
     /// "" si no coincide; el id del integrante si el token y el PIN son los suyos.
@@ -109,6 +123,9 @@ class SesionBorde {
     std::map<std::string, std::shared_ptr<Conn>> conns_; // una por integrante
     std::map<std::string, std::string> fotos_;           // id -> jpeg
     std::map<std::string, std::vector<std::int64_t>> intentos_;
+    Medios medios_;
+    std::string mediosDe_; ///< quién puede mandar audio y video a la sala (el que tiene la palabra)
+    void ponerMediosDe(const std::string& id);
 };
 
 } // namespace ba::gateway

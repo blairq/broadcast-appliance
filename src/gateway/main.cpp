@@ -515,7 +515,7 @@ int main(int argc, char** argv) {
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby
     // o en la fila de oradores, que ve el programa).
-    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage, cfg.guestVideoW, cfg.guestVideoH,
+    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 1 /* el remoto con la palabra */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
@@ -540,6 +540,9 @@ int main(int argc, char** argv) {
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
         pumpCfg.shareVideoNames.push_back(toWide("BA.GuestShare." + std::to_string(s)));
     }
+    // R3: el remoto con la palabra (un canal; [0] reservado como los demás).
+    pumpCfg.remotoAudioNames = {std::wstring(), toWide("BA.Audio.Remoto.1")};
+    pumpCfg.remotoVideoNames = {std::wstring(), toWide("BA.Remoto.1")};
     for (int k = 1; k <= cfg.lobbySlots; ++k) {
         pumpCfg.lobbyAudioNames.push_back(toWide("BA.Audio.Lobby." + std::to_string(k)));
         pumpCfg.lobbyVideoNames.push_back(toWide("BA.Lobby." + std::to_string(k)));

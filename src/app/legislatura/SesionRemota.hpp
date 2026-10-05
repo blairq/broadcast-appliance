@@ -187,6 +187,8 @@ class SesionRemota : public QObject {
     void accionConsola(const QString& consola, const nlohmann::json& msg);
     /// Se conectó o se fue una consola (para mandarle el estado).
     void consolaConexion(const QString& consola, bool conectada);
+    /// R3: quién manda audio y video a la sala (el remoto con la palabra; "" = nadie).
+    void mediosA(const QString& integrante);
 
    private:
     struct Estado {

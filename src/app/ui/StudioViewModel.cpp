@@ -945,6 +945,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         cli->post("/api/v1/sesion/enviar", aQt({{"id", id.toStdString()}, {"msg", msg}}),
                                   [](bool, const QJsonObject&) {});
                     });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::mediosA, this,
+                    [cli, aQt](const QString& id) {
+                        cli->post("/api/v1/sesion/medios", aQt({{"id", id.toStdString()}}), [](bool, const QJsonObject&) {});
+                    });
             connect(sesionRemota_.get(), &legislatura::SesionRemota::cortar, this,
                     [cli, aQt](const QString& id, const QString& motivo) {
                         cli->post("/api/v1/sesion/cortar", aQt({{"id", id.toStdString()}, {"motivo", motivo.toStdString()}}),

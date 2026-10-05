@@ -265,6 +265,31 @@ void AppRuntime::addGuests() {
             cfg_.scenes.front().sources.push_back(spec);
         }
     }
+    // R3 (docs/SESION-REMOTA.md): el legislador remoto con la palabra, como una
+    // entrada más. El audio es global (suena en cualquier escena, con su rack en
+    // Audio); el video va oculto a pantalla completa en la primera escena, como la
+    // pantalla de un invitado: el operador lo muestra (o lo usa en otra escena).
+    {
+        SourceSpec a;
+        a.id = "ba_guest_audio";
+        a.name = "Remoto con la palabra (audio)";
+        a.settingsJson = R"({"slot":1,"channel":"remoto"})";
+        if (!engine_.addGlobalAudio(a))
+            std::printf("ba-app: el audio del remoto con la palabra no entró: %s\n", engine_.lastError().c_str());
+        bool hayVideo = false;
+        for (const auto& sc : cfg_.scenes)
+            for (const auto& s : sc.sources)
+                hayVideo = hayVideo || (s.id == "ba_guest_video" && s.settingsJson.find("remoto") != std::string::npos);
+        if (!hayVideo && !cfg_.scenes.empty()) {
+            SourceSpec v;
+            v.id = "ba_guest_video";
+            v.name = "Remoto con la palabra";
+            v.settingsJson = R"({"slot":1,"channel":"remoto"})";
+            v.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+            v.visible = false;
+            cfg_.scenes.front().sources.push_back(v);
+        }
+    }
     // Pantalla o ventana que comparte cada invitado: a pantalla completa y
     // OCULTA; el operador la muestra cuando la quiere al aire.
     bool anyShare = false;

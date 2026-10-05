@@ -71,6 +71,8 @@ class MediaPump {
         std::vector<std::wstring> lobbyAudioNames;     // BA.Audio.Lobby.<k>
         std::vector<std::wstring> lobbyVideoNames;     // BA.Lobby.<k>
         std::vector<std::wstring> backstageVideoNames; // BA.Backstage.<k>
+        std::vector<std::wstring> remotoAudioNames;    // BA.Audio.Remoto.<k> (R3)
+        std::vector<std::wstring> remotoVideoNames;    // BA.Remoto.<k>
         int audioRate = 48000;
         int audioChannels = 2;
         int programW = 1280; // tamaño de los canales del programa (camara/pantalla)
@@ -167,6 +169,8 @@ class MediaPump {
     std::vector<std::unique_ptr<VideoOut>> backstageVideo_;
     std::vector<std::unique_ptr<AudioOut>> guestAudio_;
     std::vector<std::unique_ptr<AudioOut>> lobbyAudio_;
+    std::vector<std::unique_ptr<VideoOut>> remotoVideo_;
+    std::vector<std::unique_ptr<AudioOut>> remotoAudio_;
 
     // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
     // hilo del retorno la mezcla con el programa (una sola fuente por sesión).

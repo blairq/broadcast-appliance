@@ -431,6 +431,8 @@ void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos)
     }
     emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", palabra}, {"segundos", segundos},
                                                  {"desde_ms", ahoraMs()}});
+    // R3: su micrófono y su cámara entran a la app mientras tenga la palabra.
+    emit mediosA(QString::fromStdString(conPalabra_));
     emit cambio();
 }
 

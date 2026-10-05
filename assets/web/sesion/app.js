@@ -224,6 +224,36 @@ async function rtc(m) {
   }
 }
 
+// --- A la sala (R3): con la palabra, el micrófono y la cámara van a la app ----------
+// El gateway lo recibe como una entrada más («Remoto con la palabra»): suena en la sala
+// y en la transmisión, con los filtros del rack. Solo manda (no recibe nada por acá).
+let pcSala = null;
+
+async function iniciarSala() {
+  cerrarSala();
+  if (!local) await prenderCamara();
+  if (!local || !ws || ws.readyState !== 1) return;
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  pcSala = pc;
+  for (const t of local.getTracks()) pc.addTransceiver(t, { direction: "sendonly", streams: [local] });
+  pc.onicecandidate = (ev) => {
+    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "medios-ice", candidate: ev.candidate }));
+  };
+  pc.onconnectionstatechange = () => {
+    $("aSala").classList.toggle("oculto", pc.connectionState !== "connected");
+    if (pc.connectionState === "failed" && pcSala === pc) setTimeout(() => { if (pcSala === pc) iniciarSala(); }, 2000);
+  };
+  const oferta = await pc.createOffer();
+  await pc.setLocalDescription(oferta);
+  ws.send(JSON.stringify({ type: "medios-oferta", sdp: oferta.sdp }));
+}
+
+function cerrarSala() {
+  if (pcSala) { try { pcSala.close(); } catch (e) {} }
+  pcSala = null;
+  $("aSala").classList.add("oculto");
+}
+
 function mandarFoto() {
   const v = $("propia");
   if (!ws || ws.readyState !== 1 || !v.videoWidth) return;
@@ -294,6 +324,16 @@ function recibir(m) {
       break;
     case "rtc":
       rtc(m);
+      break;
+    case "medios":
+      if (m.activo) iniciarSala(); else cerrarSala();
+      if (m.error) error(m.error);
+      break;
+    case "medios-respuesta":
+      if (pcSala) pcSala.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
+      break;
+    case "medios-ice":
+      if (pcSala && m.candidate) pcSala.addIceCandidate(m.candidate).catch(() => {});
       break;
     case "ptt":
       pttActivo = !!m.activo;

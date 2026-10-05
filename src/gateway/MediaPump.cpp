@@ -245,6 +245,16 @@ void MediaPump::start() {
         lobbyVideo_.push_back(makeVideo(name(cfg_.lobbyVideoNames, k), cfg_.lobbyW, cfg_.lobbyH));
         lobbyAudio_.push_back(makeAudio(name(cfg_.lobbyAudioNames, k)));
     }
+    // R3: el legislador remoto con la palabra (a la app, como una entrada más).
+    remotoVideo_.clear();
+    remotoAudio_.clear();
+    remotoVideo_.emplace_back();
+    remotoAudio_.emplace_back();
+    const size_t remotos = cfg_.remotoVideoNames.empty() ? 0 : cfg_.remotoVideoNames.size() - 1;
+    for (size_t k = 1; k <= remotos; ++k) {
+        remotoVideo_.push_back(makeVideo(name(cfg_.remotoVideoNames, k), cfg_.programW, cfg_.programH));
+        remotoAudio_.push_back(makeAudio(name(cfg_.remotoAudioNames, k)));
+    }
     {
         std::lock_guard<std::mutex> lock(routesLock_);
         routes_.assign(static_cast<size_t>(hub_.sessions()) + 1, MediaRoute{});
@@ -667,6 +677,8 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
                r.index < static_cast<int>(lobbyAudio_.size())) {
         // El operador solo escucha a quien le esta hablando.
         publishAudio(*lobbyAudio_[static_cast<size_t>(r.index)], samples, n, rate);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoAudio_.size())) {
+        publishAudio(*remotoAudio_[static_cast<size_t>(r.index)], samples, n, rate);
     }
 }
 
@@ -731,6 +743,8 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
     } else if (r.kind == MediaRoute::Kind::Backstage && r.index >= 1 &&
                r.index < static_cast<int>(backstageVideo_.size())) {
         publishVideo(*backstageVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoVideo_.size())) {
+        publishVideo(*remotoVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
 }
 

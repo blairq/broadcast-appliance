@@ -61,23 +61,30 @@ constexpr int kDefaultSlot = 1;
 constexpr int kReopenMs = 500;
 
 /// Canal de origen: "guest" (camara/voz del invitado en el programa),
-/// "share" (su pantalla o ventana compartida, solo video) o "lobby" (preview y
-/// voz de alguien que espera; lo usa la vista del operador, nunca el programa).
+/// "share" (su pantalla o ventana compartida, solo video), "lobby" (preview y
+/// voz de alguien que espera; lo usa la vista del operador, nunca el programa) o
+/// "remoto" (el legislador remoto con la palabra, docs/SESION-REMOTA.md R3).
 std::string channelFromSettings(obs_data_t* settings) {
     const char* ch = obs_data_get_string(settings, "channel");
     const std::string c = ch != nullptr ? ch : "";
-    return (c == "share" || c == "lobby") ? c : std::string("guest");
+    return (c == "share" || c == "lobby" || c == "remoto") ? c : std::string("guest");
 }
 
 /// Nombre wide del canal de audio (BA.Audio.Guest.<n> / BA.Audio.Lobby.<n>).
 std::wstring audioName(const std::string& channel, int slot) {
-    const std::string s = (channel == "lobby" ? "BA.Audio.Lobby." : "BA.Audio.Guest.") + std::to_string(slot);
+    const std::string s = (channel == "lobby"    ? "BA.Audio.Lobby."
+                           : channel == "remoto" ? "BA.Audio.Remoto."
+                                                 : "BA.Audio.Guest.") +
+                          std::to_string(slot);
     return std::wstring(s.begin(), s.end());
 }
 
 /// Nombre wide del canal de video (BA.Guest / BA.GuestShare / BA.Lobby).
 std::wstring videoName(const std::string& channel, int slot) {
-    const char* base = channel == "share" ? "BA.GuestShare." : channel == "lobby" ? "BA.Lobby." : "BA.Guest.";
+    const char* base = channel == "share"    ? "BA.GuestShare."
+                       : channel == "lobby"  ? "BA.Lobby."
+                       : channel == "remoto" ? "BA.Remoto."
+                                             : "BA.Guest.";
     const std::string s = base + std::to_string(slot);
     return std::wstring(s.begin(), s.end());
 }
@@ -394,6 +401,7 @@ obs_properties_t* guestVideoProperties(void*) {
                                                  OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
     obs_property_list_add_string(ch, obs_module_text("Camara"), "guest");
     obs_property_list_add_string(ch, obs_module_text("Pantalla compartida"), "share");
+    obs_property_list_add_string(ch, obs_module_text("Remoto con la palabra"), "remoto");
     return props;
 }
 

@@ -274,6 +274,8 @@ class SignalingServer {
     void wsLoop(long long fd, const std::string& pid, uint64_t gen);
     void handleWsMessage(const std::string& pid, uint64_t gen, const nlohmann::json& msg);
     void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
+    /// R3: la oferta del celular de un legislador remoto con la palabra -> ruta Remoto 1.
+    bool ofertaRemoto(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
 
     struct WsConn {
         long long fd = -1;

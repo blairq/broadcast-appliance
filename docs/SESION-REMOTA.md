@@ -195,11 +195,18 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
     gateway solo pasa la señalización.
   - Probado con Chrome sin ventana: la conexión llega a «connected». El video real no se pudo probar
     ahí, porque ese Chrome no da cámara.
+- **R3 hecha (2026-10-05):**
+  - **Cómo entra:** cuando la app le da la palabra a un remoto, le avisa al gateway (`POST /api/v1/sesion/medios {id}`). El celular de ese legislador abre un WebRTC propio hacia el gateway (`medios-oferta` / `medios-ice`, solo envía) con su micrófono y su cámara.
+  - **El gateway** lo recibe en una sesión del pool con la ruta «Remoto» y lo publica en `BA.Audio.Remoto.1` / `BA.Remoto.1`. Hay un solo «remoto con la palabra»: si se le da a otro, al anterior se le corta.
+  - **En la app** son dos entradas:
+    - «Remoto con la palabra (audio)»: global, suena en la sala y en la transmisión, y se le pone el rack de filtros en Audio como a cualquier micrófono;
+    - «Remoto con la palabra» (video): oculta a pantalla completa en la primera escena, y se usa en cualquier escena.
+  - **«A la sala»:** en la Matriz, el cruce de «Remoto con la palabra (audio)» a una salida virtual con el dispositivo que va a la sala o a la entrada de la central.
+  - Así el celular es **micrófono** en el recinto si se cae la central.
+  - Al terminar la palabra (o si se desconecta) se cierra.
+  - **Probado de punta a punta** con Chrome sin ventana y cámara/micrófono falsos: entra con link y PIN, se habilita y `banca_al_aire` le da la palabra; el gateway acepta la oferta y conecta; en la app «Remoto con la palabra» muestra la imagen del celular y el audio se mueve (−58 a −33 dBFS); `banca_terminar` cierra los medios y el aviso del celular.
+  - No hay vuelta de audio por este camino: el programa lo ve en su página. Un remoto de afuera que necesite oír la sala usa la consola o la página.
 - **Falta:**
-  - **R3:** el audio y el video de los remotos como entradas agrupadas de la app (con filtros), la
-    salida «A la sala» y la vuelta de la sala. Es lo que hace que el celular sea **micrófono** en el
-    recinto si se cae la central. Hoy la presidencia los escucha por la consola, pero la sala y la
-    transmisión todavía no.
   - **R5:** escala hasta 4096, regulador de video y TURN. Sin TURN, el video directo y el WebRTC
     andan en la red de la sala, pero no siempre desde afuera.
   - **R6:** prueba real con celulares por HTTPS.

@@ -30,7 +30,10 @@ namespace ba::gateway {
 struct MediaRoute {
     /// Backstage: admitido en modo oradores, esperando su turno: RECIBE el
     /// programa pero lo que manda no va a ningun lado (ni al programa).
-    enum class Kind : uint8_t { None, Program, Lobby, Backstage };
+    /// Remoto: un legislador remoto con la palabra (docs/SESION-REMOTA.md R3): lo que
+    /// manda va a BA.Audio.Remoto.<n> / BA.Remoto.<n>; no recibe nada por acá (el
+    /// programa lo ve en su página).
+    enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto };
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
     bool talk = false; ///< el operador le habla (le llega su voz; adentro, mezclada con el retorno: IFB)
@@ -40,6 +43,7 @@ struct MediaRoute {
     /// `preview`: lugar de preview de la fila (1..backstageSlots) -> su camara
     /// sube a BA.Backstage.<k> (chica, solo para la vista del operador); 0 = no sube.
     static MediaRoute backstage(int preview = 0, bool talk = false) { return {Kind::Backstage, preview, talk}; }
+    static MediaRoute remoto(int canal) { return {Kind::Remoto, canal, false}; }
     bool operator==(const MediaRoute& o) const {
         return kind == o.kind && index == o.index && talk == o.talk;
     }

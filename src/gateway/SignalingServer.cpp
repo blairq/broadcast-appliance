@@ -103,6 +103,25 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
                                                 [this](const json& d) { broadcastToHosts("botonera", d); });
     sesion_ = std::make_unique<SesionBorde>(cfg_.sesionWebroot, log_,
                                             [this](const json& d) { broadcastToHosts("sesion", d); });
+    // R3: el micrófono y la cámara del remoto con la palabra van a la app por el
+    // mismo WebRTC que los invitados (una sesión del pool, ruta «Remoto»).
+    {
+        SesionBorde::Medios m;
+        m.oferta = [this](const std::string& id, const std::string& sdp, std::function<void(const json&)> enviar) {
+            return ofertaRemoto(id, sdp, std::move(enviar));
+        };
+        m.ice = [this](const std::string& id, const std::string& cand) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessLock_);
+                const auto it = sessionOf_.find("remoto:" + id);
+                if (it != sessionOf_.end()) idx = it->second;
+            }
+            if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
+        };
+        m.cerrar = [this](const std::string& id) { releaseSession("remoto:" + id, 0, true); };
+        sesion_->setMedios(std::move(m));
+    }
     sinks.dropGuest = [this](const std::string& pid) { dropGuest(pid); };
     // Los archivos de quien se fue quedan (el operador puede estar usandolos):
     // se borran a mano o al reiniciar B. La sesion WebRTC la cierra la ruta
@@ -1691,6 +1710,89 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
     // distinguir de uno al que no se le leyo el mensaje.
     log_.fmt("info", 0, "ws: offer de %s aceptado (sesion %d, %s%s)", pid.c_str(), idx,
              pantalla ? "pantalla" : "invitado", fresh ? ", sesion nueva" : "");
+}
+
+bool SignalingServer::ofertaRemoto(const std::string& id, const std::string& sdp,
+                                   std::function<void(const json&)> enviar) {
+    const std::string pid = "remoto:" + id;
+    int idx = 0;
+    bool fresh = false;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        // Un solo «remoto con la palabra»: si había otro, se le saca la sesión.
+        std::string otro;
+        for (const auto& [p, i] : sessionOf_)
+            if (p.rfind("remoto:", 0) == 0 && p != pid) otro = p;
+        if (!otro.empty()) {
+            const int vi = sessionOf_[otro];
+            sessionOwner_.erase(vi);
+            sessionOf_.erase(otro);
+            if (pump_ != nullptr) pump_->setRoute(vi, MediaRoute{});
+            if (WebrtcSession* s = hub_.session(vi)) s->close();
+        }
+        const auto it = sessionOf_.find(pid);
+        if (it != sessionOf_.end()) {
+            idx = it->second;
+        } else {
+            for (int s = 1; s <= hub_.sessions() && idx == 0; ++s)
+                if (sessionOwner_.count(s) == 0) idx = s;
+            fresh = idx > 0;
+        }
+        if (idx > 0) {
+            sessionOwner_[idx] = SessionOwner{pid, 0};
+            sessionOf_[pid] = idx;
+        }
+    }
+    WebrtcSession* sess = hub_.session(idx);
+    if (sess == nullptr) {
+        log_.warn("sesion: sin sesiones WebRTC libres para el remoto " + id, -1);
+        return false;
+    }
+    if (fresh) {
+        SessionCallbacks cb;
+        cb.onLocalAnswer = [this, enviar](const std::string& s) {
+            std::string out;
+            size_t pos = 0;
+            while (pos < s.size()) {
+                const size_t eol = s.find('\n', pos);
+                const std::string line = s.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos + 1);
+                if (line.rfind("a=candidate:", 0) == 0) {
+                    const std::string pub = publicCandidate(line.substr(2));
+                    if (!pub.empty()) out += "a=" + pub;
+                } else {
+                    out += line;
+                }
+                if (eol == std::string::npos) break;
+                pos = eol + 1;
+            }
+            enviar(json{{"type", "medios-respuesta"}, {"sdp", out}});
+        };
+        cb.onLocalIce = [this, enviar](const std::string& c) {
+            json cand = json::parse(c, nullptr, false);
+            if (cand.is_object() && cand.contains("candidate") && cand["candidate"].is_string()) {
+                const std::string pub = publicCandidate(cand["candidate"].get<std::string>());
+                if (pub.empty()) return;
+                cand["candidate"] = pub;
+            }
+            enviar(json{{"type", "medios-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
+        };
+        cb.onStateChange = [this, id, idx](bool up) {
+            log_.fmt("info", 0, "sesion: medios del remoto %s (sesion %d) %s", id.c_str(), idx, up ? "conectados" : "cerrados");
+            broadcastToHosts("sesion", json{{"tipo", "medios"}, {"id", id}, {"conectado", up}});
+        };
+        if (pump_ != nullptr) {
+            cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+            cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+        }
+        sess->configure(cb, hub_.rtcFactory());
+    }
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(1));
+    if (!sess->setRemoteOffer(sdp)) {
+        log_.warn("sesion: setRemoteOffer del remoto " + id + " falló", -1);
+        return false;
+    }
+    log_.fmt("info", 0, "sesion: oferta del remoto %s aceptada (sesion %d)", id.c_str(), idx);
+    return true;
 }
 
 void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen) {
