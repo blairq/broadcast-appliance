@@ -50,6 +50,8 @@
 //                                           multi?, defaultSlot?}
 //   POST   /api/v1/speakers/next           al aire el siguiente de la fila
 //   GET    /api/v1/board-link?target=local|remote  enlace + QR del tablero (tablet)
+//   GET    /api/v1/sesion/origen?target=local|remote  origen para los links de la sesión remota
+//   …/api/v1/sesion/*                       la sesión remota (ver Sesion.hpp)
 //   POST   /api/v1/view                    {participant, kind?:"camera"|"screen", sdp}
 //                                          -> {viewer, sdp}: video en vivo (relay de B)
 //   POST   /api/v1/view/<id>/keyframe      la vista se congelo
@@ -255,6 +257,27 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
     }
     // La botonera (superficie de control): la app le pasa credenciales y estado.
     if (botonera_ && botonera_->admin(fd, method, path, body)) return;
+    // La sesión remota: el origen para armar los links personales (la app agrega
+    // /sesion/#i=…&t=…) y después credenciales, mensajes y fotos de la cámara.
+    if (path == "/api/v1/sesion/origen" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "remote";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (out.contains("url")) {
+            std::string origin = out["url"].get<std::string>();
+            if (const size_t sch = origin.find("://"); sch != std::string::npos) {
+                const size_t end = origin.find_first_of("/?#", sch + 3);
+                if (end != std::string::npos) origin.resize(end);
+            }
+            out = json{{"ok", true}, {"target", target}, {"origen", origin},
+                       {"https", origin.rfind("https://", 0) == 0}};
+        } else {
+            out["ok"] = false;
+        }
+        sendJson(fd, 200, out);
+        return;
+    }
+    if (sesion_ && sesion_->admin(fd, method, path, query, body)) return;
 
     const json req = body.empty() ? json::object() : json::parse(body, nullptr, false);
     if (!req.is_object()) {

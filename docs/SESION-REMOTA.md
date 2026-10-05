@@ -8,6 +8,24 @@ Es un sistema **aparte de la sala de invitados**. Reusa sus piezas técnicas (se
 túnel, el camino de los medios a la app), pero no su modelo: acá cada participante es un **integrante
 del Cuerpo** con credencial propia, y lo que hace (estar presente, votar) va al acta.
 
+## 0. Transparente: en la sala o afuera
+
+No es solo para los de afuera: es **una banca virtual** que anda en cualquier lado. Para el sistema
+da lo mismo si el legislador está en el recinto o en su casa: **un integrante, una presencia, un
+voto**. Así también es el **respaldo de la central**: si se quema la CCU (o se corta el audio), los
+legisladores abren su link en el celular, votan y lo usan de micrófono, y la sesión sigue.
+
+- **Dónde está:** el gateway sabe si entró por la red local o desde internet (por el túnel). En la
+  sala el celular es **solo micrófono** (apretar para hablar) y **no** reproduce la sala (si no,
+  acopla con los parlantes); afuera recibe la vuelta de la sala. El legislador lo puede cambiar.
+- **Voz a la sala:** la salida «A la sala» de la matriz va a la entrada de la CCU cuando anda, o
+  directo a la potencia de sala cuando no (se elige en el panel de audio, sin tocar nada más).
+- **Fila y voto:** con la central, su fila y la de los celulares se unen; sin la central, la de los
+  celulares es la única. **Un voto por integrante:** si votó por la unidad y por el celular, vale el
+  último, y queda en el registro por dónde votó cada vez.
+- **Presencia:** cuenta igual estar presente por la central (asistencia de la CCU), por el celular o
+  las dos; nunca se cuenta dos veces.
+
 ## 1. Decisiones (2026-10-05)
 
 | Tema | Decisión |
@@ -69,6 +87,10 @@ del Cuerpo** con credencial propia, y lo que hace (estar presente, votar) va al 
 
 - **Asistencia:** los remotos `habilitado` cuentan como presentes en línea; el padrón ya separa
   `presenciales` y `enLinea`. Quórum suma las dos fuentes.
+- **Lo que le llega al legislador:** el **tema a votar** (y los que vienen, del orden del día); al
+  abrirse la votación, un **cartel rojo de votación** a pantalla completa con el tema, las opciones y
+  la **cuenta regresiva** del tiempo para votar (el de la central, `VT_C_GET_TIMER_VALUES`, o el que
+  fije la app); la confirmación de su voto; al cerrar, el resultado.
 - **Votación:** cuando se abre una votación (en la central o en la app), a los remotos habilitados les
   aparece la boleta con las mismas opciones. Pueden cambiar el voto mientras esté abierta (como en la
   unidad). Al cerrar:
@@ -132,11 +154,24 @@ Lo que cambia respecto de la sala de invitados (hoy 16 lugares fijos en memoria 
 
 | Fase | Qué | Depende de |
 |---|---|---|
-| **R1** | Credenciales por integrante (link + PIN), sala de sesión separada en el gateway, página `…/sesion/` con su cámara y su audio, estados conectado/habilitado, habilitar desde la app y por MCP, presentes en línea → padrón y Quórum, registro | — |
+| **R1** | Credenciales por integrante (link + PIN), borde propio en el gateway (`Sesion.hpp`), página `…/sesion/` con su cámara (foto cada 1 s mientras espera, para habilitarlo), estados conectado/habilitado, habilitar desde la app y por MCP, presentes en línea → padrón y Quórum, registro | — |
 | **R2** | Fila unificada (CCU + remotos), dar la palabra desde la app/botonera/MCP y desde `…/presidencia/`, abrir el audio del remoto, tiempo de palabra | R1 |
-| **R3** | Entradas agrupadas en Audio y Video (con filtros), «el remoto con la palabra» como entrada virtual, salida «A la central» | R1 |
-| **R4** | Boleta remota, resultado combinado CCU + remotos → Quórum y acta | R1, R2 |
+| **R3** | Audio y video por WebRTC hacia entradas agrupadas en Audio y Video (con filtros), «el remoto con la palabra» como entrada virtual, salida «A la central», la vuelta de la sala | R1 |
+| **R4** | Temas a votar, cartel rojo con cuenta regresiva, boleta remota, resultado combinado CCU + remotos → Quórum y acta | R1, R2 |
 | **R5** | Escala: lugares dinámicos, decodificar solo lo necesario, vuelta codificada una vez, simulcast, regulador, TURN | R1–R3 |
 | **R6** | Pruebas de carga (clientes simulados) y prueba real en la sala | todo |
 
 Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simulados).
+
+## 10. Estado
+
+- **R1 hecha (2026-10-05):**
+  - gateway: `src/gateway/Sesion.{hpp,cpp}`, con prueba `test_sesion_borde`;
+  - página `assets/web/sesion/`;
+  - app: `legislatura/SesionRemota` (prueba `test_sesion_remota`), pestaña Legislatura → Banca
+    virtual, herramientas `sesion_*` (estado, credencial, revocar, habilitar, expulsar, registro);
+  - presentes sumados a Quórum sin contar dos veces;
+  - registro anexado al acta.
+  - Probada de punta a punta con un cliente simulado. Falta probarla con un celular real por HTTPS.
+- **Siguiente:** R2 (fila única y palabra) y R4 (temas, cartel rojo, cuenta regresiva, boleta).
+

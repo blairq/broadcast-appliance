@@ -81,6 +81,7 @@ namespace legislatura {
 class CuerpoViewModel;
 class Bancas;
 class ConferenciaDcn;
+class SesionRemota;
 class SeguirMicrofono;
 class OrdenDelDia;
 class Quorum;
@@ -135,6 +136,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
     /// La central de conferencia Bosch DCN (micrófonos de banca): legislatura/ConferenciaDcn.
     Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
+    /// La banca virtual (sesión remota, en la sala o afuera): legislatura/SesionRemota.
+    Q_PROPERTY(QObject* sesionRemota READ sesionRemotaQml CONSTANT)
     /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
     /// El bus de eventos de la app (control/BusEventos): superficies, plugins, MCP.
@@ -310,10 +313,12 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
     QObject* dcnQml() const;
+    QObject* sesionRemotaQml() const;
     QObject* ccQml() const;
     agent::SubtitulosCC& cc() { return *cc_; }
     legislatura::Bancas& bancas() { return *bancas_; }
     legislatura::ConferenciaDcn& dcn() { return *dcn_; }
+    legislatura::SesionRemota* sesionRemota() { return sesionRemota_.get(); }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
     /// como el cargo de su zócalo. "" o el error.
     Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
@@ -400,6 +405,7 @@ class StudioViewModel : public QObject {
                          std::function<void(const QVariantMap&)> listo);
     /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
     void sincronizarBotonera();
+    void sincronizarSesion();
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
@@ -776,6 +782,7 @@ class StudioViewModel : public QObject {
     int busTicks_ = 0;
     std::unique_ptr<legislatura::Bancas> bancas_;
     std::unique_ptr<legislatura::ConferenciaDcn> dcn_;
+    std::unique_ptr<legislatura::SesionRemota> sesionRemota_;
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.

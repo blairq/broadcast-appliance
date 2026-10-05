@@ -76,6 +76,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Botonera.hpp"
+#include "Sesion.hpp"
 #include "Carruseles.hpp"
 #include "MediaRoute.hpp"
 #include "Preguntas.hpp"
@@ -128,6 +129,7 @@ class SignalingServer {
         /// preguntas la llene cualquiera que pase por el tunel.
         std::string publicoKey;
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
+        std::string sesionWebroot;   // Web/sesion (la sesión remota de los legisladores)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -367,6 +369,8 @@ class SignalingServer {
     Rotulador rotulador_;
     /// La botonera (superficie de control): borde de red, ver Botonera.hpp.
     std::unique_ptr<BotoneraBorde> botonera_;
+    /// La sesión remota (legisladores desde afuera): borde de red, ver Sesion.hpp.
+    std::unique_ptr<SesionBorde> sesion_;
     Preguntas preguntas_;
     Votacion votacion_;
     mutable std::mutex publicoM_;

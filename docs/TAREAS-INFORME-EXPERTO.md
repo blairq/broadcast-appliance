@@ -84,6 +84,7 @@
 | T58 | Superficie de control: superficies de hardware vía plugin | P1 | hecho (probado con un aparato falso, sin hardware real) |
 | T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | Satellite hecho (API 1.7, modo simple; probado con un cliente simulado); falta la API remota HTTP |
 | T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | falta |
+| T61 | Proxy propio con un nombre (DNS) por servicio y certificados automáticos | P2 | falta |
 
 **Ya hecho (no genera tarea)**
 - **fps fraccionarios**: `src/app/ui/SettingsModel.cpp:44` ofrece 24000/1001, 30000/1001 y 60000/1001; se guardan en `src/app/AppSettings.cpp:166-171` y `:283`.
@@ -1281,3 +1282,23 @@
 - **Toda herramienta MCP nueva** lleva etiquetas en `src/app/mcp/McpEtiquetas.cpp`, ayuda en `McpHelp.cpp` y entrada en el índice (`McpIndice.cpp`). Las que tocan el aire se registran en la tabla de T02.
 - **Todo lo que hace la GUI pasa por el mismo código que el MCP**: un ViewModel que llama a la misma función del motor, o `McpCore::callTool` con el origen `humano`. Así T02, la auditoría y el bus ven lo mismo venga de donde venga.
 - **Hardware no probado:** PTZ real, Chromecast real, NDI alfa, sistema de conferencia y superficies. Cada plugin o función de hardware tiene un "simulador" para probar sin el equipo, y queda en la lista de chequeo de T05 hasta probarlo con el equipo del recinto.
+
+### T61 · Proxy propio con un nombre (DNS) por servicio y certificados automáticos — P2
+
+Pedido del 2026-10-05: «una especie de Traefik propio», muy rápido.
+
+- **Qué:** un proxy inverso dentro del gateway que atiende el 443 (y el 80 para redirigir y para el
+  desafío ACME) y reparte por nombre (SNI / Host) a cada servicio: `sesion.<dominio>`,
+  `invitados.<dominio>`, `botonera.<dominio>`, `tablero.<dominio>`, `prompter.<dominio>`, la consola…
+  Cada servicio con su nombre, su certificado y sus reglas (solo red local, o también internet).
+- **Certificados automáticos:** ACME (Let's Encrypt u otro) con desafío HTTP-01 o DNS-01 (para la red
+  local sin puerto abierto, con la API del proveedor de DNS); renovación sola antes de vencer;
+  certificado propio de la casa como respaldo en la red local. Las claves en el almacén de secretos.
+- **Rápido:** sin copiar de más (splice / sendfile donde se pueda), HTTP/1.1 y HTTP/2, WebSocket,
+  conexiones persistentes hacia adentro, sin un hilo por conexión (kqueue / epoll / IOCP). Va junto con
+  la escala de la sesión remota (R5).
+- **Con el túnel:** Cloudflare puede seguir delante; el proxy reparte igual por nombre.
+- **GUI y MCP:** lista de servicios con su nombre, estado del certificado (vence el…), botón «renovar
+  ahora», y las herramientas para lo mismo.
+- **Portable:** nada del sistema; el TLS ya está (mbedtls en `net/TlsTerminator`).
+

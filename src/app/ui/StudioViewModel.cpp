@@ -52,6 +52,7 @@
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/ConferenciaDcn.hpp"
+#include "legislatura/SesionRemota.hpp"
 #include "legislatura/SeguirMicrofono.hpp"
 #include "legislatura/OrdenDelDia.hpp"
 #include "legislatura/Quorum.hpp"
@@ -646,19 +647,36 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
         ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
-        // Los presentes con voto salen del padrón del evento abierto.
+        // La banca virtual (sesión remota, en la sala o afuera): docs/SESION-REMOTA.md.
+        sesionRemota_ = std::make_unique<legislatura::SesionRemota>(cuerpo_->cuerpo(), rt.dataRoot());
+        // Los presentes con voto salen del padrón del evento abierto (o de la central),
+        // más los habilitados por la banca virtual, sin contar a nadie dos veces.
         quorum_ = std::make_unique<legislatura::Quorum>(rt.dataRoot(), [this]() {
+            const std::vector<std::string> virtuales = sesionRemota_ ? sesionRemota_->presentesBancas() : std::vector<std::string>{};
             // Si se eligió, los presentes los dice la asistencia de la central de conferencia.
             if (dcn_ && dcn_->presentesDeLaCentral())
-                if (const int p = dcn_->presentesCentral(); p >= 0) return p;
+                if (const int p = dcn_->presentesCentral(); p >= 0) {
+                    // Los que la central ya cuenta presentes en su banca no se suman.
+                    const nlohmann::json porBanca =
+                        dcn_->estado().value("asistencia", nlohmann::json::object()).value("por_banca", nlohmann::json::object());
+                    int extra = 0;
+                    for (const auto& b : virtuales)
+                        if (!porBanca.value(b, false)) ++extra;
+                    return p + extra;
+                }
             auto* ev = static_cast<EventoViewModel*>(evento());
-            if (ev == nullptr) return 0;
+            const int virt = sesionRemota_ ? sesionRemota_->presentes() : 0;
+            if (ev == nullptr) return virt;
             const QVariantMap r = ev->property("resumenPadron").toMap();
-            return r.value("conVoto").toInt() > 0 ? r.value("votoPresente").toInt() : r.value("presentes").toInt();
+            return (r.value("conVoto").toInt() > 0 ? r.value("votoPresente").toInt() : r.value("presentes").toInt()) + virt;
         });
         if (auto* ev = static_cast<EventoViewModel*>(evento())) {
             ev->setAnexoActa([this]() {
                 QString t = QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
+                if (sesionRemota_) {
+                    const std::string sr = sesionRemota_->anexoActa();
+                    if (!sr.empty()) t += QString::fromStdString("## Banca virtual\n\n```\n" + sr + "```\n\n");
+                }
                 // La transcripción de la sesión, con la huella de cada archivo (se puede verificar después).
                 const QStringList archivos = flujos_ ? flujos_->archivosDeSesion() : QStringList{};
                 if (!archivos.isEmpty()) {
@@ -862,6 +880,40 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             },
             [this](const std::string& id) { botonera_->quitarLocal(id); },
             [this](const std::string& id, const nlohmann::json& msg) { botonera_->entrada(id, msg); });
+        // La banca virtual: el gateway autentica y avisa; acá se decide.
+        if (sesionRemota_) {
+            connect(cli, &ConferenceClient::sesionEvento, this, [this](const QJsonObject& o) {
+                const nlohmann::json ev =
+                    nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+                if (ev.is_object()) sesionRemota_->evento(ev);
+            });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::enviar, this,
+                    [cli, aQt](const QString& id, const nlohmann::json& msg) {
+                        cli->post("/api/v1/sesion/enviar", aQt({{"id", id.toStdString()}, {"msg", msg}}),
+                                  [](bool, const QJsonObject&) {});
+                    });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::cortar, this,
+                    [cli, aQt](const QString& id, const QString& motivo) {
+                        cli->post("/api/v1/sesion/cortar", aQt({{"id", id.toStdString()}, {"motivo", motivo.toStdString()}}),
+                                  [](bool, const QJsonObject&) {});
+                    });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::fotoPedida, this, [this, cli](const QString& id) {
+                cli->getRaw("/api/v1/sesion/foto?id=" + QString::fromUtf8(QUrl::toPercentEncoding(id)),
+                            [this, id](bool ok, const QByteArray& b) {
+                                if (ok && sesionRemota_) sesionRemota_->ponerFoto(id, b);
+                            });
+            });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::aviso, this,
+                    [this](const QString& t, const QString& nivel) { emit notify(t, nivel); });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::credencialesCambio, this, [this]() { sincronizarSesion(); });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::cambio, this, [this]() {
+                if (quorum_) emit quorum_->cambio();
+            });
+            connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
+                if (on) sincronizarSesion();
+            });
+            sincronizarSesion();
+        }
     }
     marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
@@ -1898,6 +1950,7 @@ QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
 
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
 QObject* StudioViewModel::dcnQml() const { return dcn_.get(); }
+QObject* StudioViewModel::sesionRemotaQml() const { return sesionRemota_.get(); }
 
 namespace {
 nlohmann::json leerRespaldos(const std::filesystem::path& datos) {
@@ -2205,6 +2258,28 @@ QStringList StudioViewModel::nombresParaDsk() const {
     for (const std::string& n : rt_.engine().sourceNames())
         if (!out.contains(qs(n))) out << qs(n);
     return out;
+}
+
+void StudioViewModel::sincronizarSesion() {
+    if (!conference_ || !sesionRemota_) return;
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    if (!cli.online()) return;
+    const nlohmann::json body{{"participantes", sesionRemota_->paraGateway()}};
+    cli.post("/api/v1/sesion/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+             [](bool, const QJsonObject&) {});
+    // El origen de los links: el del túnel si hay; si no, el de la red local (HTTPS).
+    QPointer<StudioViewModel> yo(this);
+    cli.get("/api/v1/sesion/origen?target=remote", [yo, &cli](bool ok, const QJsonObject& r) {
+        if (!yo || !yo->sesionRemota_) return;
+        if (ok && r.value("ok").toBool()) {
+            yo->sesionRemota_->setOrigen(r.value("origen").toString().toStdString());
+            return;
+        }
+        cli.get("/api/v1/sesion/origen?target=local", [yo](bool ok2, const QJsonObject& r2) {
+            if (yo && yo->sesionRemota_ && ok2 && r2.value("ok").toBool())
+                yo->sesionRemota_->setOrigen(r2.value("origen").toString().toStdString());
+        });
+    });
 }
 
 void StudioViewModel::sincronizarBotonera() {

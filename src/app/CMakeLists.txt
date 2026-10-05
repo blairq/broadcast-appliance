@@ -280,6 +280,9 @@ if(MSVC)
 else()
     add_executable(ba-app ${BA_APP_SOURCES})
 endif()
+# QR de los links personales de la banca virtual (Nayuki, MIT; el mismo que el gateway).
+target_sources(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+target_include_directories(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
 if(BA_HAVE_VOZ)
     # Orden de enlace: de las APIs hacia abajo (son estaticas).
     set(BA_SHERPA_LIBS)
@@ -887,6 +890,12 @@ endif()
     target_link_libraries(test_seguir_microfono PRIVATE ba_core Qt6::Core)
     set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
+    add_executable(test_sesion_remota tests/test_sesion_remota.cpp legislatura/SesionRemota.cpp legislatura/SesionRemota.hpp
+                   legislatura/Cuerpo.cpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+    target_include_directories(test_sesion_remota PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+    target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_sesion_remota COMMAND test_sesion_remota)
     add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp legislatura/OrdenDelDia.cpp legislatura/OrdenDelDia.hpp
                    control/BusEventos.cpp control/BusEventos.hpp)
     target_include_directories(test_orden_del_dia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

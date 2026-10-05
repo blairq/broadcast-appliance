@@ -250,6 +250,14 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - **DDI doble:** una DCN-DDI en modo doble son dos micrófonos: la mitad izquierda es la unidad N y la derecha N+256; cada una se asigna a su banca (docs/bosch/dcn-ddi.md).
 - **Funciones sin documentar** (del software de Bosch, sin probar contra una CCU real): `dcn_funciones` las lista y `dcn_funcion {"nombre", "args"}` las llama; las peligrosas piden `confirmar`. Con nombre propio: `dcn_proximo` (próximo en hablar, turno del llamado nominal), `dcn_cerrar_tras_siguiente {"activo": true}`, `dcn_llamado_nominal {"bancas": [...]}`. Si el presidente maneja la votación desde su unidad, el estado de `dcn_votacion_resultado` lo sigue solo.
 - Problemas: `dcn_traza {"activa": true}` y `dcn_traza {"ultimas": 50}` (tramas en hexadecimal y contadores de reenvíos). Guía completa: docs/bosch/open-interface.md.)md"},
+    {"sesion", "Banca virtual (sesión remota)", "Legisladores desde el navegador, en la sala o afuera.",
+     R"md(La banca virtual (docs/SESION-REMOTA.md): cada integrante del Cuerpo puede entrar desde el navegador (celular, tablet, compu) con su **link personal y su PIN**, esté en el recinto o en su casa. También es el respaldo de la central: si la CCU se cae, los legisladores entran con el celular.
+1. **Link y PIN:** `sesion_credencial {"banca": "12"}` los genera y los muestra UNA vez (si ya tenía, el anterior deja de andar). Se le pasan al legislador por un canal seguro. `sesion_revocar` lo corta.
+2. **Habilitar:** cuando entra queda «esperando». Una persona lo mira por la cámara (Legislatura → Banca virtual muestra su foto) y lo habilita: `sesion_habilitar {"banca": "12"}`. Habilitado, cuenta como presente en Quórum (sin contarlo dos veces si la central ya lo tiene presente). **Nunca habilites a alguien que ninguna persona vio.**
+3. `sesion_estado`: quién está conectado, desde dónde (sala/afuera), quién lo habilitó. `sesion_expulsar` lo saca.
+4. `sesion_registro {"texto": true}`: lo que va al acta (entradas, habilitaciones, intentos fallidos, bloqueos).
+- Seguridad: 5 PIN errados bloquean ese acceso 15 minutos; un integrante, una conexión.
+- La palabra, el audio y el voto por la banca virtual llegan en las fases siguientes.)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
 
