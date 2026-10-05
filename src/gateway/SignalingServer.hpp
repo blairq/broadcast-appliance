@@ -75,6 +75,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Botonera.hpp"
 #include "Carruseles.hpp"
 #include "MediaRoute.hpp"
 #include "Preguntas.hpp"
@@ -126,6 +127,7 @@ class SignalingServer {
         /// todo el que esta en la sala—, es lo que evita que la cola de
         /// preguntas la llene cualquiera que pase por el tunel.
         std::string publicoKey;
+        std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -363,6 +365,8 @@ class SignalingServer {
     mutable std::mutex pantallasLock_;
     std::map<std::string, Pantalla> pantallas_;
     Rotulador rotulador_;
+    /// La botonera (superficie de control): borde de red, ver Botonera.hpp.
+    std::unique_ptr<BotoneraBorde> botonera_;
     Preguntas preguntas_;
     Votacion votacion_;
     mutable std::mutex publicoM_;

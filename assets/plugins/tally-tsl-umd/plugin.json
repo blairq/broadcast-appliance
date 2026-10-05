@@ -1,0 +1,9 @@
+{
+  "id": "tally-tsl-umd",
+  "nombre": "Tally por TSL UMD v5 (monitores, cámaras, mezcladores)",
+  "descripcion": "Escucha el tally de la app (tema aire/tally del bus de eventos) y lo manda por TSL UMD v5 (UDP) a los `destinos` (ip:puerto): cada fuente con su índice (`indices`: {\"Cámara 1\": 1, ...}; las que no estén, en el orden en que aparecen) en rojo si está al aire y en verde si está armada, con su nombre como texto del UMD. Repite el estado cada 2 s para los equipos que se prenden después. Solo la biblioteca estándar.",
+  "version": "1.0",
+  "principal": "plugin.py",
+  "dependencias": [],
+  "config": {"destinos": ["127.0.0.1:8900"], "indices": {}, "pantalla": 0}
+}

@@ -99,6 +99,8 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     Room::Sinks sinks;
     sinks.toGuest = [this](const std::string& pid, const json& msg) { sendToGuest(pid, msg); };
     sinks.toHosts = [this](const std::string& ev, const json& data) { broadcastToHosts(ev, data); };
+    botonera_ = std::make_unique<BotoneraBorde>(cfg_.botoneraWebroot, log_,
+                                                [this](const json& d) { broadcastToHosts("botonera", d); });
     sinks.dropGuest = [this](const std::string& pid) { dropGuest(pid); };
     // Los archivos de quien se fue quedan (el operador puede estar usandolos):
     // se borran a mano o al reiniciar B. La sesion WebRTC la cierra la ruta
@@ -394,6 +396,8 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         return;
     }
 
+    // La botonera (página, emparejamiento y su WebSocket) antes que la sala.
+    if (botonera_->atender(fd, method, path, query, headers, body, clientIp)) return;
     std::string upgrade = http::getHeader(headers, "Upgrade");
     for (auto& ch : upgrade)
         ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));

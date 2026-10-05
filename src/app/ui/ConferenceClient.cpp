@@ -103,6 +103,8 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit snapshotChanged();
     } else if (event == "chat") {
         emit chatReceived(obj);
+    } else if (event == "botonera") {
+        emit botoneraEvento(obj);
     }
 }
 

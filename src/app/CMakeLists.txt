@@ -873,6 +873,13 @@ endif()
     target_include_directories(test_cuerpo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_cuerpo PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_cuerpo COMMAND test_cuerpo)
+    # Bus de eventos y botonera (superficie de control) con ganchos falsos.
+    add_executable(test_botonera tests/test_botonera.cpp control/Botonera.cpp control/Botonera.hpp
+                   control/BusEventos.cpp control/BusEventos.hpp)
+    target_include_directories(test_botonera PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_botonera COMMAND test_botonera)
     add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE nlohmann_json::nlohmann_json)

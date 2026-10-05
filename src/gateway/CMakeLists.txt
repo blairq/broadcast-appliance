@@ -415,6 +415,13 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
     )
 endif()
 
+# Botonera: la superficie de control de la tablet (/botonera/), emparejada por QR.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/botonera")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/botonera/"
+        DESTINATION Web/botonera
+    )
+endif()
+
 # Publico: el que esta en la butaca, con su telefono (/publico/). Pregunta y
 # vota; no entra a la sala ni pide camara.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/publico")

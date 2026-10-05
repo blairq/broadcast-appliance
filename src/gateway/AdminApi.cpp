@@ -253,6 +253,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendErr(fd, 401, "auth");
         return;
     }
+    // La botonera (superficie de control): la app le pasa credenciales y estado.
+    if (botonera_ && botonera_->admin(fd, method, path, body)) return;
 
     const json req = body.empty() ? json::object() : json::parse(body, nullptr, false);
     if (!req.is_object()) {

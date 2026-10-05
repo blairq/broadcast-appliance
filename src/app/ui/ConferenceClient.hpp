@@ -52,6 +52,8 @@ class ConferenceClient : public QObject {
     void onlineChanged(bool online);
     void snapshotChanged();
     void chatReceived(const QJsonObject& msg);
+    /// La botonera (superficie de control): solicitud, entrada o conexión de una tablet.
+    void botoneraEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 

@@ -1,6 +1,7 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "control/BusEventos.hpp"
 #include "plugins/Hijo.hpp"
 
 #include "AppRuntime.hpp"
@@ -680,6 +681,10 @@ void Plugins::alSalir(const std::string& id, int codigo, bool caido) {
     const bool estabaListo = p.listo;
     p.listo = false;
     if (camaras_) camaras_->refrescarPlugins();
+    // Sus aparatos de hardware dejan de estar (vuelven cuando arranque de nuevo).
+    for (const auto& sid : superficiesDe_[id])
+        if (bajaSup_) bajaSup_(sid);
+    superficiesDe_.erase(id);
     if (p.porPedido || p.estado == "apagado") {
         emit cambio();
         return;
@@ -865,6 +870,22 @@ void Plugins::recibir(const std::string& id, const json& m) {
         avisar("«" + id + "»: " + m.value("texto", std::string()), m.value("prioridad", std::string("info")));
     } else if (t == "evento") {
         publicarEvento(id, m);
+    } else if (t == "superficie_registrar") {
+        // Un aparato de hardware del plugin: es una botonera más.
+        const std::string sid = "plugin:" + id + "/" + m.value("id", std::string("1"));
+        superficiesDe_[id].insert(sid);
+        if (altaSup_) altaSup_(sid, m.value("nombre", id), m.value("capacidades", json::object()));
+    } else if (t == "superficie_quitar") {
+        const std::string sid = "plugin:" + id + "/" + m.value("id", std::string("1"));
+        superficiesDe_[id].erase(sid);
+        if (bajaSup_) bajaSup_(sid);
+    } else if (t == "superficie_entrada") {
+        // Solo lo de un aparato que este plugin registró, y solo tipos de entrada.
+        const std::string sid = "plugin:" + id + "/" + m.value("id", std::string("1"));
+        static const std::set<std::string> tipos{"hola", "presionar", "soltar", "valor", "girar", "pagina", "confirmar", "cancelar"};
+        const json msg = m.value("msg", json::object());
+        if (superficiesDe_[id].count(sid) && msg.is_object() && tipos.count(msg.value("type", std::string())) && entradaSup_)
+            entradaSup_(sid, msg);
     } else if (t == "llamar") {
         const int n = m.value("n", 0);
         if (!llamador_) {
@@ -1021,6 +1042,30 @@ void Plugins::publicarEvento(const std::string& id, const json& m) {
     }
     emit evento(q(id), q(canal), q(ev["datos"].dump()));
     emit eventosCambio();
+    if (alPublicar_) alPublicar_("plugin/" + id + "/" + canal, ev["datos"]);
+}
+
+void Plugins::superficieEstado(const std::string& sid, const json& msg) {
+    // sid = "plugin:<plugin>/<aparato>"
+    if (sid.rfind("plugin:", 0) != 0) return;
+    const std::string resto = sid.substr(7);
+    const auto barra = resto.find('/');
+    if (barra == std::string::npos) return;
+    const std::string id = resto.substr(0, barra);
+    auto it = procesos_.find(id);
+    if (it == procesos_.end() || !it->second->p || !it->second->listo) return;
+    enviar(id, {{"t", "superficie_estado"}, {"id", resto.substr(barra + 1)}, {"msg", msg}});
+}
+
+void Plugins::eventoApp(const std::string& tema, const json& datos) {
+    for (const auto& [id, pr] : procesos_) {
+        if (!pr->p || !pr->listo) continue;
+        for (const auto& patron : pr->escucha)
+            if (control::BusEventos::coincide(patron, tema)) {
+                enviar(id, {{"t", "evento"}, {"de", "app"}, {"canal", tema}, {"datos", datos}});
+                break;
+            }
+    }
 }
 
 json Plugins::eventos(const std::string& id, const std::string& canal, int cuantos) const {

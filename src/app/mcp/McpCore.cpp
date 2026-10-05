@@ -786,7 +786,7 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                   (ctx.origen == "voz" || ctx.origen == "disparador") && !reversibleEnVivo(name);
     const bool needApproval =
         deAire || automaticoEnVivo ||
-        (mutating(*tool) &&
+        (mutating(*tool) && !ctx.humano && // una persona apretando no es el asistente
          (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
          !intakeAllows(*tool, args));
     if (!needApproval) {

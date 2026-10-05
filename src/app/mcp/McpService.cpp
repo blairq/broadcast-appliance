@@ -35,6 +35,7 @@
 #include "AppRuntime.hpp"
 #include "AppSettings.hpp"
 #include "InputSpecs.hpp"
+#include "mcp/McpBotoneraTools.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
@@ -723,6 +724,8 @@ void McpService::registerTools() {
     core_.addCategory("salidas", "Salidas", "Transmision (RTMP) y grabacion.");
     core_.addCategory("config", "Configuracion",
                       "Todos los ajustes del appliance (video, codificacion, sala, red...).");
+    // La botonera y el bus de eventos (ver McpBotoneraTools.cpp).
+    registerBotoneraTools(core_, vm_);
     // El guion del evento: su propio bloque (ver McpEventoTools.cpp).
     if (auto* ev = static_cast<EventoViewModel*>(vm_.evento())) {
         registerEventoTools(core_, *ev, vm_, [this](const std::string& id) {

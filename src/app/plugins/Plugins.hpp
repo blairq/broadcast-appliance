@@ -82,6 +82,25 @@ class Plugins : public QObject {
     ~Plugins() override;
 
     void setLlamador(Llamador l) { llamador_ = std::move(l); }
+    /// Lo que publican los plugins va también al bus de la app (plugin/<id>/<canal>).
+    void setAlPublicar(std::function<void(const std::string& tema, const json& datos)> fn) { alPublicar_ = std::move(fn); }
+    /// Un evento de la app (bus): a los plugins que escuchan ese tema
+    /// (@plugin.escuchar("aire/tally"), "audio/nivel/+", "alarma/#").
+    void eventoApp(const std::string& tema, const json& datos);
+    // --- Superficies de hardware (Stream Deck, MIDI, X-keys…) ---------------------
+    // Un plugin registra un aparato como una botonera más (control/Botonera):
+    // el operador le asigna perfil y página, el plugin recibe el estado de cada
+    // celda para dibujarlo y avisa qué tecla apretaron.
+    using AltaSuperficie = std::function<void(const std::string& id, const std::string& nombre, const json& capacidades)>;
+    using BajaSuperficie = std::function<void(const std::string& id)>;
+    using EntradaSuperficie = std::function<void(const std::string& id, const json& msg)>;
+    void setSuperficies(AltaSuperficie alta, BajaSuperficie baja, EntradaSuperficie entrada) {
+        altaSup_ = std::move(alta);
+        bajaSup_ = std::move(baja);
+        entradaSup_ = std::move(entrada);
+    }
+    /// El estado renderizado para el aparato `id` ("plugin:<plugin>/<aparato>").
+    void superficieEstado(const std::string& id, const json& msg);
     /// Arranca los que estaban prendidos (al iniciar la app, cuando ya hay video).
     void arrancarGuardados();
 
@@ -220,6 +239,11 @@ class Plugins : public QObject {
     QPointer<ptz::ControlCamaras> camaras_;
     QPointer<OperatorMessages> mensajes_;
     Llamador llamador_;
+    std::function<void(const std::string&, const json&)> alPublicar_;
+    AltaSuperficie altaSup_;
+    BajaSuperficie bajaSup_;
+    EntradaSuperficie entradaSup_;
+    std::map<std::string, std::set<std::string>> superficiesDe_; ///< plugin -> ids de aparatos
     std::filesystem::path carpeta_, logs_, config_;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Proceso>> procesos_;

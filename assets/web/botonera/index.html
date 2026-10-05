@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0d1014" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Botonera</title>
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/comun/icono-180.png" />
+  <link rel="stylesheet" href="botonera.css" />
+</head>
+<body>
+  <!--
+    La botonera (superficie de control) de la tablet: /botonera/.
+
+    La primera vez se abre desde el QR que muestra la app (/botonera/#p=<código>).
+    El código va en el FRAGMENTO: no viaja en la petición ni queda en registros.
+    Una persona aprueba el emparejamiento en la app y la tablet recibe su token,
+    que se guarda acá y se manda en el primer mensaje del WebSocket (nunca en
+    la URL).
+
+    Esta página no sabe de herramientas: dice «apretaron la celda (x, y)» y la
+    app decide qué hacer según el perfil del aparato. Lo que muestra (textos,
+    colores, tally) se lo manda la app.
+  -->
+  <header class="barra">
+    <span id="perfil" class="perfil">Botonera</span>
+    <span id="pagina" class="pagina"></span>
+    <span class="espacio"></span>
+    <span id="conexion" class="conexion apagada" title="Conexión">●</span>
+    <button id="pantallaCompleta" class="icono" title="Pantalla completa" type="button">⛶</button>
+  </header>
+
+  <main id="grilla" class="grilla"></main>
+
+  <nav id="paginas" class="paginas"></nav>
+
+  <section id="emparejar" class="panel oculto">
+    <h1>Emparejar esta tablet</h1>
+    <p id="emparejarTexto">Poné un nombre para reconocerla y pedí el emparejamiento.</p>
+    <input id="nombre" type="text" maxlength="60" placeholder="Ej.: iPad Dirección" />
+    <button id="pedir" type="button" class="grande">Pedir emparejamiento</button>
+  </section>
+
+  <section id="mensaje" class="panel oculto">
+    <h1 id="mensajeTitulo"></h1>
+    <p id="mensajeTexto"></p>
+    <button id="olvidar" type="button" class="oculto">Olvidar esta tablet</button>
+  </section>
+
+  <section id="confirmar" class="confirmar oculto">
+    <div class="caja">
+      <h2 id="confirmarTexto">Cambia el aire</h2>
+      <button id="confirmarSi" type="button" class="si">Mantené apretado para confirmar</button>
+      <div id="confirmarBarra" class="barra-progreso"><div></div></div>
+      <button id="confirmarNo" type="button" class="no">Cancelar</button>
+    </div>
+  </section>
+
+  <div id="aviso" class="aviso oculto"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

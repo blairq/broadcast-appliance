@@ -22,7 +22,10 @@ sistema cualquiera de estas cosas:
   (``@plugin.control("modo")``).
 - EVENTOS (canales de datos): ``plugin.evento("hablando", {...})`` publica;
   ``@plugin.escuchar("otro-plugin/hablando")`` recibe. Con eso un plugin
-  "director" junta lo de varios equipos.
+  "director" junta lo de varios equipos. Los eventos DE LA APP (bus de
+  eventos) se escuchan por tema: ``"aire/tally"``, ``"salida/#"``,
+  ``"audio/nivel/+"``, ``"alarma/#"``, ``"oradores/al_aire"`` (``de`` es
+  ``"app"``); la lista completa la da la herramienta ``eventos_temas``.
 - PANEL: su propia interfaz para el operador, DESCRIPTA (la dibuja la app con
   sus controles: si el plugin se cae, la app sigue). ``plugin.panel([...])``
   con ``ba.deslizador``, ``ba.interruptor``, ``ba.opcion``, ``ba.texto``,
@@ -66,6 +69,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from . import medios as _medios
+from . import superficie as _superficie
 from .medios import Cuadro, Bloque  # noqa: F401  (para los que lo importan de acá)
 
 __all__ = ["Plugin", "Cuadro", "Bloque", "Entrada", "necesita", "SDK_VERSION"]
@@ -263,6 +267,8 @@ class Plugin:
         self._declarado = False
         self._decl: dict[tuple, dict] = {}
         self._ultimo_estado: dict | None = None
+        #: Superficies de hardware (Stream Deck, MIDI…) como botoneras: ver ``superficie.py``.
+        self.superficie = _superficie.Superficies(self)
         Plugin._actual = self
 
     # --- Declarar -----------------------------------------------------------------
@@ -331,7 +337,8 @@ class Plugin:
 
     def escuchar(self, canal: str):
         """Decorador: ``def f(datos, de)`` para los eventos de `canal` (``"otro-plugin/hablando"``,
-        ``"*/hablando"`` o ``"otro-plugin/*"``)."""
+        ``"*/hablando"`` o ``"otro-plugin/*"``) o un tema de la app (``"aire/tally"``,
+        ``"audio/nivel/+"``, ``"alarma/#"``; ``de`` llega como ``"app"``)."""
         def deco(fn):
             self._escuchas.setdefault(canal, []).append(fn)
             self._redeclarar({"t": "escuchar", "canal": canal})
@@ -545,7 +552,7 @@ class Plugin:
         elif t == "evento":
             canal, de = m.get("canal", ""), m.get("de", "")
             for patron, fns in self._escuchas.items():
-                if _coincide(patron, f"{de}/{canal}"):
+                if (_coincide_tema(patron, canal) if de == "app" else _coincide(patron, f"{de}/{canal}")):
                     for fn in fns:
                         self._pool.submit(self._protegido, fn, m.get("datos"), de)
         elif t == "valor":
@@ -553,6 +560,8 @@ class Plugin:
         elif t == "valores":
             for k, v in (m.get("valores") or {}).items():
                 self._valor_de_la_app(k, v)
+        elif t == "superficie_estado":
+            self.superficie._recibir(m)
         elif t == "config":
             self.config.update(m.get("config", {}))
             for fn in self._al_config:
@@ -624,6 +633,19 @@ class Plugin:
 def _coincide(patron: str, nombre: str) -> bool:
     pp, nn = patron.split("/", 1) if "/" in patron else ("*", patron), nombre.split("/", 1)
     return all(a == "*" or a == b for a, b in zip(pp, nn))
+
+
+def _coincide_tema(patron: str, tema: str) -> bool:
+    """Temas de la app (bus de eventos): «+» o «*» un nivel, «#» (o «*» al final) el resto."""
+    if patron in ("", "#", "*"):
+        return True
+    p, t = patron.split("/"), tema.split("/")
+    for i, a in enumerate(p):
+        if a == "#" or (a == "*" and i == len(p) - 1):
+            return True
+        if i >= len(t) or (a not in ("+", "*") and a != t[i]):
+            return False
+    return len(p) == len(t)
 
 
 def _salida_stdio():

@@ -23,6 +23,7 @@
 #include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QPointer>
 #include <QJsonObject>
 #include <QNetworkInterface>
 #include <QStorageInfo>
@@ -38,6 +39,9 @@
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
+#include "control/Botonera.hpp"
+#include "control/BusEventos.hpp"
+#include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/Cuerpo.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
@@ -366,12 +370,23 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
         cuerpo_ = std::make_unique<legislatura::CuerpoViewModel>(rt.dataRoot());
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
+        bus_ = std::make_unique<control::BusEventos>();
         {
             std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
             const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
             if (j.is_object()) corteDirectoEditor_ = j.value("corte_directo_editor", false);
         }
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
+            {
+                const nlohmann::json& rid = ev["ruleId"];
+                bus_->publicar("alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump()),
+                               {{"nombre", ev.value("ruleName", std::string())},
+                                {"tipo", ev.value("type", std::string())},
+                                {"texto", ev.value("llmText", std::string())},
+                                {"reconocer", ev.value("reconocer", false)},
+                                {"id", ev.value("id", 0ULL)}},
+                               true);
+            }
             for (const auto& n : ev.value("notify", nlohmann::json::array()))
                 if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
             alarma_->sonar(QString::fromStdString(ev.value("sonido", std::string("ninguno"))));
@@ -562,6 +577,76 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("red");
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
     plugins_ = std::make_unique<plugins::Plugins>(rt, video_.get(), camaras_.get(), messages_.get());
+    // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
+    // y los temas de la app les llegan a los que escuchan.
+    plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
+    bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
+        if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
+    });
+    // La botonera: el modelo, los permisos y la ejecución viven acá; el gateway
+    // es solo el borde de red (TLS, tokens, WebSocket de las tablets).
+    {
+        control::Botonera::Ganchos g;
+        g.escenas = [this]() { return rt_.engine().sceneNames(); };
+        g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
+        g.bancas = [this]() {
+            std::vector<std::pair<std::string, std::string>> out;
+            for (const auto& i : cuerpo_->cuerpo().integrantes())
+                if (!i.value("banca", std::string()).empty())
+                    out.emplace_back(i.value("banca", std::string()), i.value("nombre", std::string()));
+            return out;
+        };
+        botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
+        auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
+        const auto aQt = [](const nlohmann::json& j) {
+            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
+        };
+        connect(cli, &ConferenceClient::botoneraEvento, this, [this, cli, aQt](const QJsonObject& o) {
+            const nlohmann::json ev = nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(),
+                                                            nullptr, false);
+            if (!ev.is_object()) return;
+            const std::string tipo = ev.value("tipo", std::string());
+            if (tipo == "solicitud") {
+                const std::string e = botonera_->solicitud(ev.value("solicitud", std::string()), ev.value("codigo", std::string()),
+                                                           ev.value("nombre", std::string()), ev.value("ip", std::string()));
+                if (!e.empty())
+                    cli->post("/api/v1/botonera/resolver",
+                              aQt({{"solicitud", ev.value("solicitud", std::string())}, {"estado", "invalido"}, {"error", e}}),
+                              [](bool, const QJsonObject&) {});
+            } else if (tipo == "entrada") {
+                botonera_->entrada(ev.value("dispositivo", std::string()), ev.value("msg", nlohmann::json::object()));
+            } else if (tipo == "conexion") {
+                botonera_->marcarConexion(ev.value("dispositivo", std::string()), ev.value("conectado", false),
+                                          ev.value("ip", std::string()));
+            }
+        });
+        connect(botonera_.get(), &control::Botonera::mensaje, this,
+                [this, cli, aQt](const QString& dev, const nlohmann::json& msg) {
+                    const std::string origen = botonera_->origenDe(dev.toStdString());
+                    if (origen == "tablet")
+                        cli->post("/api/v1/botonera/enviar", aQt({{"dispositivo", dev.toStdString()}, {"msg", msg}}),
+                                  [](bool, const QJsonObject&) {});
+                    else if (origen == "plugin" && plugins_)
+                        plugins_->superficieEstado(dev.toStdString(), msg);
+                });
+        connect(botonera_.get(), &control::Botonera::credencialesCambio, this, [this]() { sincronizarBotonera(); });
+        connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
+            if (on) sincronizarBotonera();
+        });
+        connect(botonera_.get(), &control::Botonera::solicitudNueva, this,
+                [this](const QString&, const QString& nombre, const QString& perfil, const QString& ip) {
+                    emit notify("«" + nombre + "» (" + ip + ") pide emparejarse como botonera con el perfil «" + perfil +
+                                    "»: aprobalo en la página Botonera.",
+                                "warn");
+                });
+        // Los aparatos de hardware de los plugins (Stream Deck, MIDI…) son botoneras más.
+        plugins_->setSuperficies(
+            [this](const std::string& id, const std::string& nombre, const nlohmann::json& cap) {
+                botonera_->registrarLocal(id, nombre, "plugin", cap);
+            },
+            [this](const std::string& id) { botonera_->quitarLocal(id); },
+            [this](const std::string& id, const nlohmann::json& msg) { botonera_->entrada(id, msg); });
+    }
     marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
@@ -743,6 +828,7 @@ void StudioViewModel::onTick() {
     peakR_ = std::max<double>(r, peakR_ - 1.5);
     mixer_->refreshLevels();
     emit statusChanged();
+    publicarEventos();
 }
 
 QString StudioViewModel::recordTime() const { return recording_ ? hms(recSince_) : QString("00:00:00"); }
@@ -1627,6 +1713,177 @@ int StudioViewModel::vocabularioDelCuerpoUi() {
     nombres.erase(std::unique(nombres.begin(), nombres.end()), nombres.end());
     vocabulario_->ponerGrupo("cuerpo", nombres);
     return static_cast<int>(nombres.size());
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+QObject* StudioViewModel::busQml() const { return bus_.get(); }
+
+void StudioViewModel::publicarEventos() {
+    if (!bus_) return;
+    ++busTicks_;
+    const QString aire = qs(rt_.engine().currentScene());
+    const QString armada = scenes_->armada();
+    const auto fuentesDe = [this](const QString& escena) {
+        nlohmann::json out = nlohmann::json::array();
+        if (!escena.isEmpty())
+            for (const std::string& f : rt_.engine().sceneSources(escena.toStdString())) out.push_back(f);
+        return out;
+    };
+    bus_->publicar("aire/escena", {{"escena", aire.toStdString()}});
+    bus_->publicar("aire/armada", {{"escena", armada.toStdString()}});
+    bus_->publicar("aire/tally", {{"programa", aire.toStdString()},
+                                  {"preview", armada.toStdString()},
+                                  {"fuentes_programa", fuentesDe(aire)},
+                                  {"fuentes_preview", fuentesDe(armada)},
+                                  {"transmitiendo", streaming_},
+                                  {"grabando", recording_}});
+    // Los tiempos cambian cada segundo: se publican una vez por segundo.
+    const bool segundo = busTicks_ % 10 == 0;
+    nlohmann::json stream{{"activo", streaming_},
+                          {"reconectando", reconnecting_},
+                          {"problema", outputProblem_.toStdString()}};
+    nlohmann::json grab{{"activo", recording_}};
+    if (segundo || !streaming_) {
+        stream["kbps"] = kbps_;
+        stream["tiempo"] = streamTime().toStdString();
+        stream["descartados"] = dropped_;
+    } else if (const auto u = bus_->ultimo("salida/stream"); u.is_object()) {
+        for (const char* k : {"kbps", "tiempo", "descartados"})
+            if (u["valor"].contains(k)) stream[k] = u["valor"][k];
+    }
+    if (segundo || !recording_) grab["tiempo"] = recordTime().toStdString();
+    else if (const auto u = bus_->ultimo("salida/grabacion"); u.is_object() && u["valor"].contains("tiempo"))
+        grab["tiempo"] = u["valor"]["tiempo"];
+    bus_->publicar("salida/stream", stream);
+    bus_->publicar("salida/grabacion", grab);
+    // Niveles: solo si se movieron 1 dB o más (o cambió el volumen o el mudo).
+    for (int i = 0; i < mixer_->rowCount(); ++i) {
+        const QModelIndex ix = mixer_->index(i);
+        const std::string nombre = mixer_->data(ix, MixerModel::NameRole).toString().toStdString();
+        const double pico = std::round(mixer_->data(ix, MixerModel::PeakDbRole).toDouble());
+        const double vol = std::round(mixer_->data(ix, MixerModel::VolumeDbRole).toDouble() * 10) / 10;
+        bus_->publicar("audio/nivel/" + nombre,
+                       {{"pico_db", std::max(-60.0, pico)},
+                        {"volumen_db", vol},
+                        {"mudo", mixer_->data(ix, MixerModel::MutedRole).toBool()}});
+    }
+    if (segundo) {
+        bus_->publicar("audio/loudness", rt_.engine().loudness().json());
+        nlohmann::json sin = nlohmann::json::array();
+        for (const QString& e : sinSenal_) sin.push_back(e.toStdString());
+        bus_->publicar("entrada/senal", {{"sin_senal", sin}});
+        if (bancas_) bus_->publicar("oradores/al_aire", bancas_->oradorParaZocalo());
+        if (conference_) {
+            nlohmann::json gente = nlohmann::json::array();
+            const QJsonObject snap = static_cast<ConferenceViewModel*>(conference_.get())->client().snapshot();
+            for (const QJsonValue& v : snap.value("participants").toArray()) {
+                const QJsonObject o = v.toObject();
+                gente.push_back({{"id", o.value("id").toString().toStdString()},
+                                 {"nombre", o.value("name").toString().toStdString()},
+                                 {"estado", o.value("state").toString().toStdString()},
+                                 {"mic", o.value("mic").toBool()},
+                                 {"cam", o.value("cam").toBool()},
+                                 {"mano", o.value("hand").toBool()}});
+            }
+            bus_->publicar("sala/participantes", gente);
+        }
+    }
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
+
+void StudioViewModel::sincronizarBotonera() {
+    if (!conference_ || !botonera_) return;
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    if (!cli.online()) return;
+    const nlohmann::json body{{"dispositivos", botonera_->credencialesParaGateway()}};
+    cli.post("/api/v1/botonera/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+             [](bool, const QJsonObject&) {});
+}
+
+void StudioViewModel::emparejarTablet(const QString& perfil, const QString& nombre, int venceDias,
+                                      std::function<void(const QVariantMap&)> listo) {
+    const nlohmann::json c = botonera_->nuevoCodigo(perfil.toStdString(), nombre.toStdString(), venceDias);
+    if (c.contains("error")) {
+        listo({{"error", QString::fromStdString(c.value("error", std::string()))}});
+        return;
+    }
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    if (!cli.online()) {
+        listo({{"error", "El gateway no está andando: la tablet no tendría a quién conectarse."}});
+        return;
+    }
+    const QString codigo = QString::fromStdString(c.value("codigo", std::string()));
+    const qint64 vence = c.value("vence_ms", 0LL);
+    cli.get("/api/v1/network", [codigo, vence, listo](bool ok, const QJsonObject& r) {
+        if (!ok) {
+            listo({{"error", "No pude preguntarle al gateway la dirección de la red local."}});
+            return;
+        }
+        // Una URL de la red local (no la del túnel), HTTPS si está.
+        QStringList lan;
+        for (const QJsonValue& v : r.value("lan").toArray()) lan << v.toString();
+        QString base;
+        for (const QJsonValue& v : r.value("urls").toArray()) {
+            const QString u = v.toString();
+            const bool deLan = std::any_of(lan.begin(), lan.end(), [&](const QString& ip) { return u.contains("//" + ip + ":") || u.contains("//" + ip + "/"); });
+            if (!deLan) continue;
+            if (base.isEmpty() || (u.startsWith("https") && !base.startsWith("https"))) base = u;
+        }
+        QVariantMap out{{"codigo", codigo}, {"vence_ms", vence}};
+        const QJsonObject https = r.value("https").toObject();
+        if (https.value("enabled").toBool()) out["huella"] = https.value("fingerprint").toString();
+        if (r.value("bindAddress").toString() == "127.0.0.1")
+            out["aviso"] = "El gateway escucha solo en esta máquina (127.0.0.1): una tablet no llega. Cambiá la "
+                           "dirección de la sala a la red local en Configuración → Red (cualquiera en la red podría "
+                           "ver las páginas públicas; la botonera igual pide su token).";
+        if (base.isEmpty()) {
+            out["error"] = "No encontré una dirección de la red local para la tablet.";
+            listo(out);
+            return;
+        }
+        if (!base.endsWith('/')) base += '/';
+        const QString url = base + "botonera/#p=" + codigo;
+        out["url"] = url;
+        ba::qr::Estilo e;
+        e.correccion = ba::qr::Correccion::Media;
+        const std::string svg = ba::qr::svg(url.toStdString(), e);
+        out["qr"] = "data:image/svg+xml;base64," + QString::fromLatin1(QByteArray::fromStdString(svg).toBase64());
+        listo(out);
+    });
+}
+
+void StudioViewModel::emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias) {
+    QPointer<StudioViewModel> yo(this);
+    emparejarTablet(perfil, nombre, venceDias, [yo](const QVariantMap& r) {
+        if (yo) emit yo->emparejamientoListo(r);
+    });
+}
+
+void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
+    const nlohmann::json r = botonera_->resolverSolicitud(solicitud.toStdString(), aprobar);
+    if (r.contains("error")) {
+        emit notify(QString::fromStdString(r.value("error", std::string())), "error");
+        return;
+    }
+    nlohmann::json body{{"solicitud", solicitud.toStdString()}, {"estado", aprobar ? "aprobada" : "rechazada"}};
+    if (aprobar) {
+        body["dispositivo"] = r.value("dispositivo", std::string());
+        body["token"] = r.value("token", std::string());
+    }
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    // Primero las credenciales (para que el token ya valga) y después el token a la tablet.
+    sincronizarBotonera();
+    cli.post("/api/v1/botonera/resolver", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+             [](bool, const QJsonObject&) {});
+    emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
 }
 
 } // namespace ba::app

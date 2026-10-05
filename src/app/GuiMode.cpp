@@ -33,6 +33,7 @@
 #include "agent/ModelosLocales.hpp"
 #include "AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include "control/Botonera.hpp"
 #include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
@@ -172,6 +173,38 @@ int runGui(int argc, char** argv) {
                                            mcp::CallContext{"plugin", "", "plugin"});
             });
             QTimer::singleShot(3000, pl, [pl]() { pl->arrancarGuardados(); });
+        }
+        // La botonera ejecuta por el MISMO camino que el asistente (validación,
+        // registro, sincronizar la vista), como «botonera:<aparato>». Es una
+        // persona apretando: la guarda de aire no la frena, porque la botonera
+        // ya pidió la confirmación en el propio aparato.
+        {
+            auto& g = vm.botonera().ganchos();
+            g.ejecutar = [&mcpService](const std::string& h, const nlohmann::json& args, const std::string& dev,
+                                       const std::string& perfil, control::Botonera::Listo listo) {
+                // El aparato «asistente» (botonera_presionar) no es una persona.
+                mcp::CallContext ctx{"botonera:" + dev, "", "botonera:" + perfil, dev != "asistente", {}};
+                mcpService.core().callTool({{"name", h}, {"arguments", args}},
+                                           [listo](nlohmann::json r) {
+                                               std::string texto;
+                                               for (const auto& c : r.value("content", nlohmann::json::array()))
+                                                   if (c.value("type", "") == "text") {
+                                                       texto = c.value("text", std::string());
+                                                       break;
+                                                   }
+                                               if (texto.size() > 160) texto = texto.substr(0, 157) + "...";
+                                               listo(!r.value("isError", false), texto);
+                                           },
+                                           ctx);
+            };
+            g.deAireAhora = [&mcpService](const std::string& h, const nlohmann::json& args) {
+                return mcpService.core().hayAire() && mcpService.core().aire().esDeAire(h, args);
+            };
+            g.herramientas = [&mcpService]() {
+                std::set<std::string> out;
+                for (const auto& t : mcpService.core().tools()) out.insert(t.name);
+                return out;
+            };
         }
         if (rt.config().mcpEnabled) {
             if (mcpService.start(static_cast<quint16>(rt.config().mcpPort))) {

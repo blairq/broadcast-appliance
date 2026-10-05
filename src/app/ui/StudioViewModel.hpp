@@ -63,6 +63,10 @@ namespace ba::app::dispositivos {
 class Dispositivos;
 } // namespace ba::app::dispositivos
 
+namespace ba::app::control {
+class BusEventos;
+class Botonera;
+}
 namespace ba::app {
 namespace legislatura {
 class CuerpoViewModel;
@@ -118,6 +122,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
     /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
+    /// El bus de eventos de la app (control/BusEventos): superficies, plugins, MCP.
+    Q_PROPERTY(QObject* bus READ busQml CONSTANT)
+    /// La botonera (superficie de control de tablets y hardware): control/Botonera.
+    Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -284,6 +292,20 @@ class StudioViewModel : public QObject {
     /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo». Devuelve cuántos.
     Q_INVOKABLE int vocabularioDelCuerpoUi();
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
+    control::BusEventos& bus() { return *bus_; }
+    control::Botonera& botonera() { return *botonera_; }
+    QObject* botoneraQml() const;
+    /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
+    /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
+    Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
+    /// Una persona aprueba (o no) la tablet que pidió emparejarse.
+    Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar);
+    /// Lo mismo para el MCP: arma el código y llama a `listo` con lo de arriba.
+    void emparejarTablet(const QString& perfil, const QString& nombre, int venceDias,
+                         std::function<void(const QVariantMap&)> listo);
+    /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
+    void sincronizarBotonera();
+    QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
     Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
@@ -512,6 +534,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void emparejamientoListo(const QVariantMap& r);
     void statusChanged();
     void sceneChanged();
     /// La LISTA de escenas cambió (se agregó, borró, renombró o cambió de
@@ -593,6 +616,11 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<legislatura::CuerpoViewModel> cuerpo_;
     std::unique_ptr<agent::Vocabulario> vocabulario_;
+    std::unique_ptr<control::BusEventos> bus_;
+    std::unique_ptr<control::Botonera> botonera_;
+    /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
+    void publicarEventos();
+    int busTicks_ = 0;
     std::unique_ptr<legislatura::Bancas> bancas_;
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
