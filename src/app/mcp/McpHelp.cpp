@@ -257,7 +257,10 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 3. `sesion_estado`: quién está conectado, desde dónde (sala/afuera), quién lo habilitó. `sesion_expulsar` lo saca.
 4. `sesion_registro {"texto": true}`: lo que va al acta (entradas, habilitaciones, intentos fallidos, bloqueos).
 - Seguridad: 5 PIN errados bloquean ese acceso 15 minutos; un integrante, una conexión.
-- La palabra, el audio y el voto por la banca virtual llegan en las fases siguientes.)md"},
+- **La palabra:** el celular pide la palabra y entra en la misma fila (`banca_cola`); `banca_al_aire` le da la palabra con su cuenta regresiva en el celular; `banca_tiempo` suma o resta tiempo.
+- **Votar:** si la central abre una votación, a los habilitados les aparece el cartel rojo en el celular; sin la central, `sesion_votacion {"accion": "abrir", "tema", "menu", "segundos"}`. A Quórum va un voto por integrante.
+- **Consola de la presidencia:** `sesion_consola {"accion": "crear"}` da el link y el PIN de …/presidencia/ (recinto con caras, fila con «apretar para hablar», votación, programa en vivo).
+- El audio de los remotos hacia la sala y la transmisión todavía no está (fase R3).)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
 

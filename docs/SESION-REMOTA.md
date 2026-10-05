@@ -166,12 +166,40 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
 ## 10. Estado
 
 - **R1 hecha (2026-10-05):**
-  - gateway: `src/gateway/Sesion.{hpp,cpp}`, con prueba `test_sesion_borde`;
+  - credenciales por integrante (link + PIN, o usuario y contraseña);
+  - borde propio en el gateway (`src/gateway/Sesion.{hpp,cpp}`, prueba `test_sesion_borde`);
   - página `assets/web/sesion/`;
-  - app: `legislatura/SesionRemota` (prueba `test_sesion_remota`), pestaña Legislatura → Banca
-    virtual, herramientas `sesion_*` (estado, credencial, revocar, habilitar, expulsar, registro);
+  - `legislatura/SesionRemota` (prueba `test_sesion_remota`);
+  - habilitar viendo la cámara;
   - presentes sumados a Quórum sin contar dos veces;
   - registro anexado al acta.
-  - Probada de punta a punta con un cliente simulado. Falta probarla con un celular real por HTTPS.
-- **Siguiente:** R2 (fila única y palabra) y R4 (temas, cartel rojo, cuenta regresiva, boleta).
-
+- **Recinto:**
+  - hemiciclo, grilla o lista;
+  - la cara en vivo de los conectados (o la foto del Cuerpo);
+  - habilitar desde la banca.
+- **Conexiones remotas:** usuario, link y PIN, contraseña, datos de contacto y accesos de la consola.
+- **R2 hecha:**
+  - fila única (`Bancas`): el celular pide la palabra;
+  - al remoto se le da la palabra sin mover cámaras;
+  - tiempo configurable con avisos al operador, al celular y a la unidad de la central.
+- **R4 hecha:**
+  - cartel rojo con tema, opciones y cuenta regresiva;
+  - sigue a la votación de la central o se abre sin ella;
+  - a Quórum va un voto por integrante, con su origen y la observación del doble voto;
+  - los próximos temas aparecen en el celular.
+- **Consola de la presidencia hecha** (`assets/web/presidencia/`, §8):
+  - recinto con caras, habilitar, fila con 🎙 «apretar para hablar», el que habla con su anillo de
+    tiempo, votación con barras;
+  - el programa en vivo (la misma página de `/cast/`).
+  - El video y la charla van por WebRTC directo entre la consola y el navegador del legislador; el
+    gateway solo pasa la señalización.
+  - Probado con Chrome sin ventana: la conexión llega a «connected». El video real no se pudo probar
+    ahí, porque ese Chrome no da cámara.
+- **Falta:**
+  - **R3:** el audio y el video de los remotos como entradas agrupadas de la app (con filtros), la
+    salida «A la sala» y la vuelta de la sala. Es lo que hace que el celular sea **micrófono** en el
+    recinto si se cae la central. Hoy la presidencia los escucha por la consola, pero la sala y la
+    transmisión todavía no.
+  - **R5:** escala hasta 4096, regulador de video y TURN. Sin TURN, el video directo y el WebRTC
+    andan en la red de la sala, pero no siempre desde afuera.
+  - **R6:** prueba real con celulares por HTTPS.
