@@ -485,6 +485,10 @@ class BroadcastEngine {
     /// si el archivo es el mismo que ya habia, libobs no tiene motivo para
     /// volver a empezar, y el cue del guion no mostraria nada.
     bool restartMedia(const std::string& name);
+    /// Lleva un medio a `ms` (el «in» de un ítem de playlist). false si no existe.
+    bool seekMedia(const std::string& name, std::int64_t ms);
+    /// Para un medio sin sacarlo (el de una escena). false si no existe.
+    bool pararMedia(const std::string& name);
 
     // --- Descubrir dispositivos y capacidades (sin crear fuentes) ------------------
     struct ListItem {

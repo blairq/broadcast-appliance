@@ -1073,6 +1073,20 @@ bool BroadcastEngine::restartMedia(const std::string& name) {
     return true;
 }
 
+bool BroadcastEngine::seekMedia(const std::string& name, std::int64_t ms) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) return false;
+    obs_source_media_set_time(src, std::max<std::int64_t>(0, ms));
+    return true;
+}
+
+bool BroadcastEngine::pararMedia(const std::string& name) {
+    auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
+    if (src == nullptr) return false;
+    obs_source_media_stop(src);
+    return true;
+}
+
 bool BroadcastEngine::stopMedia(const std::string& name) {
     auto* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
     if (src == nullptr) return false;

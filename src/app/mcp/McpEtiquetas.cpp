@@ -110,6 +110,8 @@ const Fila kPropias[] = {
     {"proxy_estado", "proxy dominio dns certificado https lets encrypt vence traefik nombres servicios"},
     {"proxy_renovar", "renovar certificado lets encrypt acme proxy"},
     {"proxy_configurar", "configurar proxy dominio dns certificados automaticos lets encrypt traefik 443"},
+    {"playlist_crear", "playlist lista de videos clips armar playlist in out encadenar"},
+    {"playlist_control", "playlist play siguiente anterior parar auto next loop reproducir lista"},
     {"salida_limpia", "senal limpia clean feed sin graficos sin zocalos sin dsk sin logo programa limpio canal"},
     {"salidas_profesionales", "srt rist ndi decklink sdi contribucion salidas profesionales"},
     {"stream_destino_editar", "editar destino transmision"},

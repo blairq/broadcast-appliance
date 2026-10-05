@@ -77,6 +77,9 @@ class Dsk;
 class Acciones;
 }
 namespace ba::app {
+namespace medios {
+class Playlist;
+}
 namespace legislatura {
 class CuerpoViewModel;
 class Bancas;
@@ -228,6 +231,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* publico READ publico CONSTANT)
     /// Los archivos del operador: musica, videos, imagenes, presentaciones.
     Q_PROPERTY(QObject* medios READ medios CONSTANT)
+    /// La playlist de medios (T46).
+    Q_PROPERTY(QObject* playlist READ playlistQml CONSTANT)
     /// La biblioteca de carruseles: se arman en Medios y se aplican en las
     /// escenas (ver ui/CarruselViewModel.hpp).
     Q_PROPERTY(QObject* carruseles READ carruseles CONSTANT)
@@ -412,6 +417,8 @@ class StudioViewModel : public QObject {
     /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
     /// y la repetición {replay: {activa, segundos, ultimo}}.
     Q_INVOKABLE QVariantMap grabacionUi() const;
+    QObject* playlistQml() const;
+    medios::Playlist& playlist() { return *playlist_; }
     /// El cupo de invitados sin reiniciar la sala (hasta los reservados). "" o el error
     /// inmediato; el resultado de la sala llega a `listo` ("" = aplicado).
     QString cupo(int n, std::function<void(const QString&)> listo);
@@ -760,6 +767,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PersonasViewModel> personas_;
     std::unique_ptr<PublicoViewModel> publico_;
     std::unique_ptr<MediosViewModel> medios_;
+    std::unique_ptr<medios::Playlist> playlist_;
     std::unique_ptr<CarruselViewModel> carruseles_;
     std::unique_ptr<graficos::Vinculos> vinculos_;
     std::unique_ptr<RegistroViewModel> registro_;

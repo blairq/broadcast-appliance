@@ -108,6 +108,7 @@
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 #include "video/SuperRes.hpp"
+#include "medios/Playlist.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
 #include <QCoreApplication>
@@ -224,6 +225,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("publico");
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
+    playlist_ = std::make_unique<medios::Playlist>(rt, this);
+    playlist_->setArmar([this](const QString& escena) {
+        scenes_->reload();
+        emit escenasCambiaron();
+        armarEscena(escena);
+    });
+    connect(playlist_.get(), &medios::Playlist::notify, this, &StudioViewModel::notify);
     marca("medios");
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
     carruseles_ = std::make_unique<CarruselViewModel>(rt, this);
@@ -2868,6 +2876,8 @@ QString StudioViewModel::cupoUi(int n) {
         else emit notify(QString("Cupo de invitados: %1 → %2, sin reiniciar la sala.").arg(antes).arg(n), "ok");
     });
 }
+
+QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
 
 QVariantMap StudioViewModel::grabacionUi() const {
     nlohmann::json j = rt_.engine().grabacionEstado();

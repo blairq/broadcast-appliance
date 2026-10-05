@@ -64,6 +64,11 @@ Rectangle {
                 active: page.solapa === 1
                 onClicked: page.solapa = 1
             }
+            GlassButton {
+                text: "Playlist"
+                active: page.solapa === 2
+                onClicked: page.solapa = 2
+            }
             Item { Layout.fillWidth: true }
 
             // La barra de trabajo. Desarmar cincuenta láminas tarda; sin esto
@@ -104,6 +109,10 @@ Rectangle {
             PanelCarruseles {
                 anchors.fill: parent
                 visible: page.solapa === 1
+            }
+            PanelPlaylist {
+                anchors.fill: parent
+                visible: page.solapa === 2
             }
         }
     }
@@ -161,6 +170,18 @@ Rectangle {
                 ToolTip.visible: hovered
                 ToolTip.delay: 400
                 ToolTip.text: "Convertir cada página en una lámina de un carrusel"
+            }
+            GlassButton {
+                text: "Sumar a la playlist"
+                onClicked: {
+                    const s = page.m.seleccion
+                    for (let i = 0; i < s.length; i++) {
+                        const e = Studio.playlist.agregarUi(page.m.rutaAbsoluta(s[i]))
+                        if (e !== "") { Studio.notify(e, "error"); break }
+                    }
+                    page.m.noElegirNada()
+                    page.solapa = 2
+                }
             }
             GlassButton {
                 visible: page.cc.actual !== ""

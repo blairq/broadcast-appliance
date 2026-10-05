@@ -69,7 +69,7 @@
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (6 plantillas «Legislatura», orígenes votacion/quorum/hora para vínculos, «Armar en PVW» en Rótulos y `grafico_mostrar {armar}`; faltan campos vivos cuadro a cuadro y HTML) |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
-| T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho en parte (contador del medio, back-timing; falta la playlist) |
+| T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho (contador del medio, back-timing y playlist con in/out, auto-next, loop y PVW) |
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | hecho en parte (token MCP rotado, PIN por sesión; passphrase = decisión pendiente; los enlaces vencen con el PIN) |
 | T48 | Modo en vivo que protege la interfaz | P1 | hecho (páginas con CONFIRMAR, ajustes que cortan bloqueados, extensiones asíncronas con 5 s máximo y sin nuevas en vivo, solo plugins aprobados) |
 | T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | hecho (globales en Mac y Windows; Linux solo locales; la pestaña está en Botonera) |
@@ -984,7 +984,18 @@
 - **Depende de:** T25 y T37.
 
 ### T46 · Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing — P1
-- **Estado: parcial.**
+- **Estado: hecho** (2026-10-05).
+  - **Playlist** (`src/app/medios/Playlist.{hpp,cpp}`):
+    - ítems con in/out en segundos, auto-next, loop; se guarda en `Config/playlist.json`;
+    - una sola fuente «Playlist (medio)» en la escena «Playlist»: cambia el archivo, no la escena;
+    - mira el medio cada 250 ms para el out, el fin y el in (insiste hasta que el salto vale, porque justo después del restart se pierde);
+    - libobs solo hace correr un medio que se ve: «play» arma la escena en PVW si no está al aire.
+  - **Motor:** `seekMedia` y `pararMedia`.
+  - **MCP:** `playlist_crear {items, auto_next, loop}`, `playlist_control {accion: play|next|prev|stop|armar|ir}` (con estado del medio y tiempo).
+  - **GUI:** Medios → solapa «Playlist» (el que suena con su cuenta regresiva en rojo los últimos 10 s; play, siguiente, parar, «Armar en PVW», mover y quitar) y «Sumar a la playlist» en la barra de lo elegido.
+  - **Probado en la app:** con out 2 s pasa solo al siguiente, el in de 10 s arranca en 10, y el salto («ir») anda.
+  - Ojo: un archivo con keyframes muy espaciados salta al keyframe anterior (en un clip con un solo keyframe, al principio).
+  - Antes:
   - La duración y la posición del medio se leen (`src/app/BroadcastEngineScenes.cpp:994-995`), pero solo alimentan `media_end`.
   - La cuenta regresiva de Dirección es la del cue (`DireccionContent.qml:128`, `EventoViewModel.cpp:955`).
   - No hay playlist (`src/app/medios/Medios.hpp` es un explorador).
