@@ -49,6 +49,23 @@ bool tieneTexto(const json& datos, const char* clave) {
 
 } // namespace
 
+bool ejecutable(Tipo t) {
+    switch (t) {
+        case Tipo::Escena:
+        case Tipo::Musica:
+        case Tipo::Video:
+        case Tipo::Teleprompter:
+        case Tipo::Orador:
+        case Tipo::Grafico:
+        case Tipo::Pantalla:
+        case Tipo::Audio:
+        case Tipo::Pausa:
+        case Tipo::Espera:
+        case Tipo::Nota: return true;
+    }
+    return false;
+}
+
 const char* nombreDeTipo(Tipo t) {
     for (const NombreTipo& n : kTipos)
         if (n.tipo == t) return n.nombre;

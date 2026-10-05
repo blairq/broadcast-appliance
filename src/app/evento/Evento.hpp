@@ -59,6 +59,9 @@ enum class Tipo {
 };
 
 const char* nombreDeTipo(Tipo t);
+/// ¿El programa sabe ejecutar este tipo de cue? Una sola lista para el ensayo,
+/// la revisión y la ejecución (antes estaban copiadas y no coincidían).
+bool ejecutable(Tipo t);
 /// Devuelve false si el texto no nombra ningún tipo conocido.
 bool tipoDeNombre(const std::string& s, Tipo& out);
 

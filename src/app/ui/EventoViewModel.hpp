@@ -22,6 +22,8 @@
 #include <QTimer>
 
 #include <functional>
+
+#include <nlohmann/json.hpp>
 #include <QJsonArray>
 #include <QVariantList>
 #include <QVariantMap>
@@ -95,6 +97,19 @@ class EventoViewModel : public QObject {
 
     // --- La lista -------------------------------------------------------------
     Q_INVOKABLE void refrescar();
+    /// Cómo el guion llama una herramienta del servidor (p. ej. pantalla_mostrar).
+    void setHerramienta(std::function<void(const std::string&, const nlohmann::json&,
+                                           std::function<void(bool, const std::string&)>)> fn) {
+        herramienta_ = std::move(fn);
+    }
+    /// Lo que la revisión mira del aparato (disco, destino, entradas, pantallas):
+    /// [{grave, texto}]. Lo pone la app.
+    void setChequeosAparato(std::function<QVariantList()> fn) { chequeosAparato_ = std::move(fn); }
+    /// La lista de chequeo manual del evento abierto (Eventos/<id>/chequeo.json):
+    /// [{item, texto, hecho, nota, cuando}].
+    Q_INVOKABLE QVariantList chequeo() const;
+    /// Marca un ítem (o lo agrega si no existe). false si no hay evento abierto.
+    Q_INVOKABLE bool marcarChequeo(const QString& item, bool hecho, const QString& nota);
     Q_INVOKABLE QString crear(const QString& nombre);
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();
@@ -263,6 +278,7 @@ class EventoViewModel : public QObject {
     void relojChanged();
     void bitacoraChanged();
     void reparosChanged();
+    void chequeoChanged();
     void padronChanged();
     void notify(const QString& texto, const QString& tipo);
 
@@ -279,6 +295,9 @@ class EventoViewModel : public QObject {
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
     void anotar(const QString& texto, const QString& tipo);
+    std::function<void(const std::string&, const nlohmann::json&, std::function<void(bool, const std::string&)>)>
+        herramienta_;
+    std::function<QVariantList()> chequeosAparato_;
     void marcarSucio();
     evento::Cue* cuePtr(int bloque, int cue);
     const evento::Cue* cuePtrConst(int bloque, int cue) const;

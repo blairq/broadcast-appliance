@@ -752,7 +752,19 @@ Rectangle {
                                 text: page.ev.estado === "parado" ? "Arrancar" : "Siguiente"
                                 active: page.ev.estado !== "parado"
                                 Layout.fillWidth: true
-                                onClicked: page.ev.estado === "parado" ? page.ev.arrancar() : page.ev.avanzar()
+                                onClicked: {
+                                    if (page.ev.estado !== "parado") { page.ev.avanzar(); return }
+                                    // Antes de arrancar: si la revisión encontró algo grave, se pregunta.
+                                    page.ev.revisar()
+                                    const graves = page.ev.reparos.filter(r => r.grave).length
+                                    if (graves === 0) { page.ev.arrancar(); return }
+                                    ApplicationWindow.window.confirm({
+                                        title: "¿Correr el guion igual?",
+                                        text: "La revisión encontró " + graves + " problema(s) grave(s). Mirá «Revisión» antes de salir.",
+                                        accept: "Correr igual", reject: "Revisar",
+                                        action: function() { page.ev.arrancar() }
+                                    })
+                                }
                             }
                             GlassButton {
                                 icon: "◀"; compact: true
@@ -792,6 +804,40 @@ Rectangle {
                                                      : "Ensayo apagado: los cues salen al aire de verdad"
                                 color: page.ev.ensayo ? Theme.amber : Theme.textDim
                                 font.pixelSize: 11
+                            }
+                        }
+                    }
+                }
+
+                // Antes de salir: la lista de chequeo manual (lo que no se mide solo).
+                Panel {
+                    id: chequeoPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
+                    title: "Antes de salir · " + lista.filter(x => x.hecho).length + "/" + lista.length
+                    property var lista: page.ev.chequeo()
+                    Connections {
+                        target: page.ev
+                        function onChequeoChanged() { chequeoPanel.lista = page.ev.chequeo() }
+                    }
+                    ListView {
+                        anchors.fill: parent
+                        clip: true
+                        spacing: 2
+                        model: chequeoPanel.lista
+                        delegate: RowLayout {
+                            required property var modelData
+                            width: ListView.view.width
+                            spacing: 6
+                            CheckBox {
+                                checked: modelData.hecho
+                                onToggled: page.ev.marcarChequeo(modelData.item, checked, modelData.nota)
+                            }
+                            Text {
+                                Layout.fillWidth: true; elide: Text.ElideRight
+                                text: modelData.texto + (modelData.cuando ? "  · " + modelData.cuando : "")
+                                color: modelData.hecho ? Theme.textFaint : Theme.text
+                                font { pixelSize: 11; strikeout: modelData.hecho }
                             }
                         }
                     }

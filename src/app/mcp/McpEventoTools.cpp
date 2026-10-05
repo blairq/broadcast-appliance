@@ -353,8 +353,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Revisa tambien los archivos que el guion nombra: que la musica y los videos esten en "
             "Medios/, que los discursos esten en Discursos/, que no esten vacios y que ninguno apunte "
             "fuera de la carpeta del evento.\n\n"
-            "Todavia no revisa: que los dispositivos esten conectados, el espacio en disco, ni que los "
-            "invitados citados esten en la sala.";
+            "Revisa tambien el aparato: horas de disco al bitrate configurado, destino de la transmision, "
+            "entradas sin señal (reparos sin bloque). Y devuelve la lista de chequeo manual (`chequeo`: lo "
+            "que solo se confirma a mano, como probar el PTZ o el casteo; evento_chequeo la marca).";
         t.run = [&ev](const json&, Done done) {
             ev.revisar();
             json out = json::array();
@@ -367,8 +368,63 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                    {"grave", m["grave"].toBool()},
                                    {"texto", m["texto"].toString().toStdString()}});
             }
-            done(ToolResult().data(
-                json{{"reparos", out}, {"graves", graves}, {"sePuedeCorrer", graves == 0}}));
+            json chequeo = json::array();
+            int pendientes = 0;
+            for (const QVariant& v : ev.chequeo()) {
+                const QVariantMap m = v.toMap();
+                if (!m["hecho"].toBool()) ++pendientes;
+                chequeo.push_back(json{{"item", m["item"].toString().toStdString()},
+                                       {"texto", m["texto"].toString().toStdString()},
+                                       {"hecho", m["hecho"].toBool()},
+                                       {"nota", m["nota"].toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"reparos", out},
+                                        {"graves", graves},
+                                        {"sePuedeCorrer", graves == 0},
+                                        {"chequeo", chequeo},
+                                        {"chequeo_pendientes", pendientes}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_chequeo";
+        t.title = "Marcar la lista de chequeo del evento";
+        t.category = "evento";
+        t.description =
+            "Marca un ítem de la lista de chequeo manual del evento abierto (`item`: ptz, casteo, caida, "
+            "glosario, respaldo, auriculares, sonido, o uno nuevo con ese nombre), `hecho` y una `nota`. Es lo "
+            "que no se puede medir solo: confirmalo con el operador antes de marcarlo.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"item", "hecho"}},
+                         {"properties",
+                          {{"item", {{"type", "string"}}}, {"hecho", {{"type", "boolean"}}}, {"nota", {{"type", "string"}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            if (!ev.marcarChequeo(QString::fromStdString(a.value("item", std::string())), a.value("hecho", false),
+                                  QString::fromStdString(a.value("nota", std::string()))))
+                return done(ToolResult::error("No hay un evento abierto (evento_abrir)."));
+            done(ToolResult().text("Anotado."));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_chequeo_ver";
+        t.title = "Ver la lista de chequeo del evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "La lista de chequeo manual del evento abierto: cada ítem con si está hecho, la nota y cuándo.";
+        t.run = [&ev](const json&, Done done) {
+            json out = json::array();
+            for (const QVariant& v : ev.chequeo()) {
+                const QVariantMap m = v.toMap();
+                out.push_back(json{{"item", m["item"].toString().toStdString()},
+                                   {"texto", m["texto"].toString().toStdString()},
+                                   {"hecho", m["hecho"].toBool()},
+                                   {"nota", m["nota"].toString().toStdString()},
+                                   {"cuando", m["cuando"].toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"chequeo", out}}));
         };
         core.addTool(std::move(t));
     }

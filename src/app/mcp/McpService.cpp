@@ -630,6 +630,19 @@ void McpService::applySecurity() {
         const auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
         return std::find(ss.begin(), ss.end(), e) != ss.end();
     });
+    // El guion del evento llama herramientas (p. ej. el cue Pantalla): lo corre
+    // el operador, así que cuenta como una persona.
+    if (auto* ev = static_cast<EventoViewModel*>(vm_.evento()))
+        ev->setHerramienta([this](const std::string& h, const json& args, std::function<void(bool, const std::string&)> fin) {
+            core_.callTool({{"name", h}, {"arguments", args}},
+                           [fin](const json& r) {
+                               std::string texto;
+                               for (const auto& c : r.value("content", json::array()))
+                                   if (c.value("type", "") == "text") texto += c.value("text", "");
+                               fin(!r.value("isError", false), texto);
+                           },
+                           CallContext{"evento", "", "evento", true});
+        });
     if (auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent())) {
         ag->setHayAire(hayAire);
         ag->setAireInfo([this]() {

@@ -3,11 +3,14 @@
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
 
+#include <set>
+#include <fstream>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 
 #include <QDateTime>
+#include <QPointer>
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
@@ -521,10 +524,7 @@ void EventoViewModel::ensayoAcelerado() {
                 continue;
             }
         }
-        if (c.tipo != evento::Tipo::Escena && c.tipo != evento::Tipo::Orador &&
-            c.tipo != evento::Tipo::Nota && c.tipo != evento::Tipo::Espera &&
-            c.tipo != evento::Tipo::Grafico && c.tipo != evento::Tipo::Video &&
-            c.tipo != evento::Tipo::Pausa) {
+        if (!evento::ejecutable(c.tipo)) {
             ++sinEjecutar;
             anotar(donde + " " + que + " — el guion lo tiene, pero todavía no sé ejecutarlo", "info");
             continue;
@@ -885,6 +885,19 @@ void EventoViewModel::revisar() {
         for (const evento::Reparo& r : evento::revisarArchivos(e_, store_.carpetaDe(abierto_.toStdString())))
             reparos_.push_back(r);
     }
+    // Lo del aparato: disco, destino de la transmisión, entradas con señal,
+    // pantallas vivas (sin bloque: es de todo el evento).
+    if (chequeosAparato_)
+        for (const QVariant& v : chequeosAparato_()) {
+            const QVariantMap m = v.toMap();
+            reparos_.push_back({-1, -1, m.value("grave").toBool(), m.value("texto").toString().toStdString()});
+        }
+    // Los cues de un tipo que el programa no ejecuta (la misma lista que el ensayo).
+    for (std::size_t bi = 0; bi < e_.bloques.size(); ++bi)
+        for (std::size_t ci = 0; ci < e_.bloques[bi].cues.size(); ++ci)
+            if (!evento::ejecutable(e_.bloques[bi].cues[ci].tipo))
+                reparos_.push_back({static_cast<int>(bi), static_cast<int>(ci), false,
+                                    "el programa todavía no sabe ejecutar este tipo de cue"});
     emit reparosChanged();
 
     int graves = 0;
@@ -1350,6 +1363,37 @@ void EventoViewModel::ejecutarActual() {
             anotar("Video: " + rel + (repetir ? " (en bucle)" : ""), "ok");
             return;
         }
+        case evento::Tipo::Pantalla: {
+            // Lo mismo que pantalla_mostrar: `contenido` es el texto de un
+            // cartel, una dirección (url) o el nombre de una vista (programa,
+            // reloj, prompter, tally, votacion).
+            const std::string pantalla = c->datos.value("pantalla", std::string());
+            const std::string contenido = c->datos.value("contenido", std::string());
+            std::string tipo = c->datos.value("tipo", std::string());
+            if (tipo.empty())
+                tipo = contenido.rfind("http", 0) == 0 ? "url"
+                       : (contenido == "programa" || contenido == "reloj" || contenido == "prompter" ||
+                          contenido == "tally" || contenido == "votacion")
+                           ? contenido
+                           : "mensaje";
+            json args{{"pantalla", pantalla}, {"tipo", tipo}};
+            if (tipo == "url") args["url"] = contenido;
+            if (tipo == "mensaje" || tipo == "qr") args["texto"] = contenido;
+            if (c->datos.contains("pie")) args["pie"] = c->datos["pie"];
+            if (!herramienta_) {
+                anotar("No se puede mandar a la pantalla: el servidor de herramientas no está", "error");
+                return;
+            }
+            QPointer<EventoViewModel> yo(this);
+            herramienta_("pantalla_mostrar", args, [yo, titulo, pantalla](bool ok, const std::string& texto) {
+                if (!yo) return;
+                yo->anotar((ok ? "Pantalla «" + QString::fromStdString(pantalla) + "»: " + titulo
+                               : "No se pudo mandar a «" + QString::fromStdString(pantalla) + "»: " +
+                                     QString::fromStdString(texto)),
+                           ok ? "ok" : "error");
+            });
+            return;
+        }
         default:
             // Honestidad: el tipo existe en el guion pero todavia no se
             // ejecuta. Se anota y el guion sigue, en vez de hacer como que
@@ -1579,6 +1623,72 @@ QString EventoViewModel::buscarEnPadron(const QString& personaId, const QString&
     const evento::Asistente* a = padron_.porPersona(personaId.toStdString());
     if (a == nullptr) a = padron_.porNombre(nombre.toStdString());
     return a == nullptr ? QString() : QString::fromStdString(a->id);
+}
+
+namespace {
+/// Lo que conviene confirmar a mano antes de una sesión (no hay cómo medirlo solo).
+const std::vector<std::pair<const char*, const char*>>& itemsDeChequeo() {
+    static const std::vector<std::pair<const char*, const char*>> v{
+        {"ptz", "PTZ probado con las cámaras reales (presets, que no se muevan al aire)"},
+        {"casteo", "Casteo probado en los televisores del recinto"},
+        {"caida", "Ensayo de caída: cerrar la app al aire y cronometrar cuánto tarda en volver"},
+        {"glosario", "Glosario y nombres revisados (legisladores, localidades)"},
+        {"respaldo", "Máquina de respaldo lista con la escena básica"},
+        {"auriculares", "Los invitados remotos con auriculares (o mix-minus probado)"},
+        {"sonido", "Prueba de sonido con cada micrófono de la sala"},
+    };
+    return v;
+}
+} // namespace
+
+QVariantList EventoViewModel::chequeo() const {
+    QVariantList out;
+    json guardado = json::object();
+    if (!abierto_.isEmpty()) {
+        std::ifstream f(store_.carpetaDe(abierto_.toStdString()) / "chequeo.json");
+        const json j = json::parse(f, nullptr, false);
+        if (j.is_object()) guardado = j;
+    }
+    std::set<std::string> vistos;
+    const auto uno = [&](const std::string& id, const std::string& texto) {
+        const json g = guardado.value(id, json::object());
+        out << QVariantMap{{"item", QString::fromStdString(id)},
+                           {"texto", QString::fromStdString(g.value("texto", texto))},
+                           {"hecho", g.value("hecho", false)},
+                           {"nota", QString::fromStdString(g.value("nota", std::string()))},
+                           {"cuando", QString::fromStdString(g.value("cuando", std::string()))}};
+        vistos.insert(id);
+    };
+    for (const auto& [id, texto] : itemsDeChequeo()) uno(id, texto);
+    for (const auto& [id, g] : guardado.items())
+        if (!vistos.count(id)) uno(id, g.value("texto", id));
+    return out;
+}
+
+bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QString& nota) {
+    if (abierto_.isEmpty() || item.trimmed().isEmpty()) return false;
+    const auto ruta = store_.carpetaDe(abierto_.toStdString()) / "chequeo.json";
+    json j = json::object();
+    {
+        std::ifstream f(ruta);
+        const json x = json::parse(f, nullptr, false);
+        if (x.is_object()) j = x;
+    }
+    const std::string id = item.trimmed().toStdString();
+    json& g = j[id];
+    if (!g.is_object()) g = json::object();
+    bool conocido = false;
+    for (const auto& [k, t] : itemsDeChequeo())
+        if (id == k) conocido = true;
+    if (!conocido && !g.contains("texto")) g["texto"] = id;
+    g["hecho"] = hecho;
+    g["nota"] = nota.toStdString();
+    g["cuando"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm").toStdString();
+    std::ofstream o(ruta);
+    o << j.dump(1);
+    if (!o) return false;
+    emit chequeoChanged();
+    return true;
 }
 
 } // namespace ba::app

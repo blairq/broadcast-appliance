@@ -484,6 +484,30 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
+    // Lo que la revisión previa del evento mira del aparato.
+    evento_->setChequeosAparato([this]() {
+        QVariantList out;
+        const auto agregar = [&out](bool grave, const QString& t) { out << QVariantMap{{"grave", grave}, {"texto", t}}; };
+        const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));
+        const double gb = si.isValid() ? static_cast<double>(si.bytesAvailable()) / 1e9 : -1;
+        const int kbps = rt_.config().encoder.videoBitrateKbps;
+        if (gb >= 0 && kbps > 0) {
+            const double horas = gb / (kbps * 1.1 * 3600.0 / 8.0 / 1e6);
+            if (horas < 1)
+                agregar(true, QString("Disco: quedan %1 GB, menos de una hora de grabación").arg(gb, 0, 'f', 1));
+            else if (horas < 3)
+                agregar(false, QString("Disco: alcanza para ~%1 h de grabación").arg(horas, 0, 'f', 1));
+        }
+        if (!streamKeyAvailable()) agregar(false, "No hay destino de transmisión configurado (servidor y clave)");
+        if (video_)
+            for (const QString& e : video_->entradas()) {
+                const nlohmann::json st = video_->estadoEntrada(e.toStdString());
+                if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
+                if (st.value("ancho", 0) <= 0)
+                    agregar(false, "La entrada «" + e + "» no tiene señal ahora");
+            }
+        return out;
+    });
     // La superresolución de las entradas de red (motores, modelos, laboratorio).
     superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), video_.get());
     marca("video");
