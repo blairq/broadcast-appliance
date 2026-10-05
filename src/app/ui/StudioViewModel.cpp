@@ -1981,6 +1981,7 @@ void StudioViewModel::publicarEventos() {
                         {"mudo", mixer_->data(ix, MixerModel::MutedRole).toBool()}});
     }
     if (segundo) {
+        muestrearSalud();
         bus_->publicar("audio/loudness", rt_.engine().loudness().json());
         nlohmann::json sin = nlohmann::json::array();
         for (const QString& e : sinSenal_) sin.push_back(e.toStdString());
@@ -2411,6 +2412,80 @@ void StudioViewModel::tbar(double t, bool soltar) {
         publicarTally();
         rt_.save();
     }
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+void StudioViewModel::muestrearSalud() {
+    const nlohmann::json h = rt_.engine().saludSalidas();
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    const std::uint64_t saltados = h.value("saltados_encoder", 0ULL);
+    const int saltadosNuevos = static_cast<int>(saltados >= saltadosAntes_ ? saltados - saltadosAntes_ : 0);
+    saltadosAntes_ = saltados;
+    nlohmann::json actual = nlohmann::json::array();
+    const auto uno = [&](const std::string& id, const nlohmann::json& o) {
+        Salud& s = salud_[id];
+        const bool activo = o.value("activo", false);
+        const std::uint64_t bytes = o.value("bytes", 0ULL);
+        const int perdidos = o.value("perdidos", 0);
+        const int kbps = activo && bytes >= s.bytesAntes ? static_cast<int>((bytes - s.bytesAntes) * 8 / 1000) : 0;
+        const int perdidosNuevos = perdidos >= s.perdidosAntes ? perdidos - s.perdidosAntes : 0;
+        s.bytesAntes = bytes;
+        s.perdidosAntes = perdidos;
+        const bool rec = o.value("reconectando", false);
+        if (rec && !s.reconectando) {
+            ++s.reconexiones;
+            s.reconectandoDesde = ahora;
+        }
+        if (!rec && s.reconectando && s.reconectandoDesde > 0) s.reconexionMs = ahora - s.reconectandoDesde;
+        s.reconectando = rec;
+        const nlohmann::json punto{{"ms", ahora}, {"kbps", kbps}, {"perdidos_red", perdidosNuevos},
+                                   {"perdidos_enc", saltadosNuevos}, {"congestion", o.value("congestion", 0.0)}};
+        if (activo) {
+            s.serie.push_back(punto);
+            while (s.serie.size() > 600) s.serie.pop_front();
+        }
+        nlohmann::json hist = nlohmann::json::array();
+        const std::size_t desde = s.serie.size() > 60 ? s.serie.size() - 60 : 0;
+        for (std::size_t i = desde; i < s.serie.size(); ++i) hist.push_back(s.serie[i].value("kbps", 0));
+        actual.push_back({{"id", id},
+                          {"activo", activo},
+                          {"kbps", kbps},
+                          {"perdidos_red", perdidos},
+                          {"perdidos_enc", saltados},
+                          {"congestion", std::round(o.value("congestion", 0.0) * 100) / 100},
+                          {"reconectando", rec},
+                          {"reconexiones", s.reconexiones},
+                          {"ultima_reconexion_ms", s.reconexionMs},
+                          {"kbps_historial", hist}});
+    };
+    uno("principal", h.value("principal", nlohmann::json::object()));
+    for (const auto& [id, o] : h.value("extras", nlohmann::json::object()).items()) uno(id, o);
+    if (actual != saludActual_) {
+        saludActual_ = actual;
+        emit saludChanged();
+    }
+    bus_->publicar("salida/salud", saludActual_);
+}
+
+QVariantList StudioViewModel::saludSalidasUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", saludActual_}}.dump()))
+        .object()
+        .value("v")
+        .toArray()
+        .toVariantList();
+}
+
+nlohmann::json StudioViewModel::saludSerie(const std::string& destino, int minutos) const {
+    auto it = salud_.find(destino);
+    if (it == salud_.end()) return nlohmann::json::array();
+    const std::size_t n = static_cast<std::size_t>(std::clamp(minutos, 1, 10) * 60);
+    nlohmann::json out = nlohmann::json::array();
+    const auto& serie = it->second.serie;
+    for (std::size_t i = serie.size() > n ? serie.size() - n : 0; i < serie.size(); ++i) out.push_back(serie[i]);
+    return out;
 }
 
 } // namespace ba::app

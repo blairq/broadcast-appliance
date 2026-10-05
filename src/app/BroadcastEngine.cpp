@@ -1217,6 +1217,24 @@ nlohmann::json BroadcastEngine::extrasEstado() const {
     return out;
 }
 
+nlohmann::json BroadcastEngine::saludSalidas() const {
+    const auto de = [](obs_output_t* o) {
+        return nlohmann::json{{"activo", o != nullptr && obs_output_active(o)},
+                              {"reconectando", o != nullptr && obs_output_reconnecting(o)},
+                              {"bytes", o != nullptr ? static_cast<std::uint64_t>(obs_output_get_total_bytes(o)) : 0},
+                              {"perdidos", o != nullptr ? obs_output_get_frames_dropped(o) : 0},
+                              {"cuadros", o != nullptr ? obs_output_get_total_frames(o) : 0},
+                              {"congestion", o != nullptr ? obs_output_get_congestion(o) : 0.0f}};
+    };
+    nlohmann::json ex = nlohmann::json::object();
+    for (const auto& [id, x] : extras_) ex[id] = de(reinterpret_cast<obs_output_t*>(x.output));
+    video_t* v = obs_get_video();
+    return {{"principal", de(reinterpret_cast<obs_output_t*>(streamOutput_))},
+            {"extras", ex},
+            {"saltados_encoder", v != nullptr ? video_output_get_skipped_frames(v) : 0},
+            {"lag_render", obs_get_lagged_frames()}};
+}
+
 void BroadcastEngine::stopStreaming() {
     if (streamOutput_ == nullptr) {
         return;

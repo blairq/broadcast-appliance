@@ -832,6 +832,25 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         core.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "stream_salud";
+        t.title = "Salud de la transmision";
+        t.category = "salidas";
+        t.readOnly = true;
+        t.description = "Por destino (principal y los adicionales): kbps reales, cuadros perdidos por la red y por el "
+                        "codificador, congestion (0 a 1), si esta reconectando, cuantas reconexiones hubo y cuanto tardo la "
+                        "ultima. Con `destino` y `minutos` (hasta 10), la serie de a un punto por segundo.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"destino", {{"type", "string"}}}, {"minutos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 10}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            json d{{"destinos", vm.saludActual()}};
+            if (a.contains("destino")) d["serie"] = vm.saludSerie(a.value("destino", std::string()), a.value("minutos", 5));
+            done(ToolResult().data(d));
+        };
+        core.addTool(std::move(t));
+    }
+
     // --- Companion Satellite ---------------------------------------------------------------
     {
         Tool t;

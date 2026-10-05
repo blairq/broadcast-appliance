@@ -50,7 +50,7 @@
 | T24 | Recuperación visible: cartel de causa, configuración con dos generaciones, volcados | P1 | hecho en parte (cartel con causa y tiempo, dos generaciones de Config/; faltan volcados con Crashpad en Mac y Linux) |
 | T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | hecho (sin componer en el preview ni miniaturas) |
 | T26 | Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV | P1 | hecho en parte (falta el stinger) |
-| T27 | Panel de salud de la salida | P1 | parcial |
+| T27 | Panel de salud de la salida | P1 | hecho en parte (por destino con 10 min de historial; falta la salud de ingesta de YouTube/Twitch cada 30 s) |
 | T28 | Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink | P1 | falta |
 | T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | falta |
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |

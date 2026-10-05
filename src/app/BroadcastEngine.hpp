@@ -551,6 +551,10 @@ class BroadcastEngine {
     void stopExtras();
     /// {id: {activo, kbps, perdidos, destino}}.
     nlohmann::json extrasEstado() const;
+    /// La salud de cada salida de transmisión: {principal: {...}, extras: {id: {...}},
+    /// saltados_encoder, lag_render} con activo, reconectando, bytes, perdidos (por red),
+    /// cuadros y congestión (0..1). Lo muestrea la app cada segundo (T27).
+    nlohmann::json saludSalidas() const;
 
     /// Detiene la transmision (no toca la grabacion).
     void stopStreaming();

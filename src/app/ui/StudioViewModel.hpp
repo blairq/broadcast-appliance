@@ -24,6 +24,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <deque>
 #include <memory>
 
 namespace ba::app::agent {
@@ -158,6 +159,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyChanged)
     /// Los medios que suenan/se ven al aire: [{fuente, restante_s, duracion_s}] (T46).
     Q_PROPERTY(QVariantList mediosAlAire READ mediosAlAire NOTIFY mediosChanged)
+    /// Salud de cada destino de transmisión (T27): [{id, activo, kbps, perdidos_red, perdidos_enc, congestion, reconexiones, kbps_historial[]}].
+    Q_PROPERTY(QVariantList saludSalidas READ saludSalidasUi NOTIFY saludChanged)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -349,6 +352,10 @@ class StudioViewModel : public QObject {
     QVariantMap caidaReciente() const { return caida_; }
     QVariantMap tally() const { return tally_; }
     QVariantList mediosAlAire() const { return mediosAlAire_; }
+    QVariantList saludSalidasUi() const;
+    /// La serie de un destino en los últimos `minutos` (de a un punto por segundo).
+    nlohmann::json saludSerie(const std::string& destino, int minutos) const;
+    nlohmann::json saludActual() const { return saludActual_; }
     /// El pico de audio de una fuente (para el vúmetro de cada celda del multiview).
     Q_INVOKABLE double picoDe(const QString& fuente) const;
     Q_INVOKABLE void cerrarCartelCaida() { caida_.clear(); emit caidaChanged(); }
@@ -627,6 +634,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void saludChanged();
     void tallyChanged();
     void mediosChanged();
     void caidaChanged();
@@ -726,6 +734,19 @@ class StudioViewModel : public QObject {
     QVariantMap caida_;
     QVariantMap tally_;
     QVariantList mediosAlAire_;
+    struct Salud {
+        std::uint64_t bytesAntes = 0;
+        int perdidosAntes = 0;
+        int reconexiones = 0;
+        bool reconectando = false;
+        qint64 reconectandoDesde = 0;
+        qint64 reconexionMs = 0; ///< lo que tardó la última reconexión
+        std::deque<nlohmann::json> serie; ///< 600 puntos (10 min)
+    };
+    std::map<std::string, Salud> salud_;
+    nlohmann::json saludActual_ = nlohmann::json::array();
+    std::uint64_t saltadosAntes_ = 0;
+    void muestrearSalud();
     nlohmann::json transicionesEntrada_ = nlohmann::json::object();
     QSet<QString> afv_;
     QHash<QString, float> afvVolumen_;

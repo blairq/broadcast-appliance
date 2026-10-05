@@ -124,6 +124,47 @@ Item {
                 }
             }
         }
+        // Salud de cada destino que transmite: kbps (con su gráfica del último minuto),
+        // cuadros perdidos, congestión y reconexiones.
+        Repeater {
+            model: Studio.saludSalidas.filter(d => d.activo)
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 6
+                Text { text: modelData.id; color: Theme.textDim; font.pixelSize: 10; Layout.preferredWidth: 64; elide: Text.ElideRight }
+                Canvas {
+                    id: grafica
+                    Layout.preferredWidth: 90
+                    Layout.preferredHeight: 18
+                    property var datos: modelData.kbps_historial || []
+                    onDatosChanged: requestPaint()
+                    onPaint: {
+                        const ctx = getContext("2d")
+                        ctx.reset()
+                        if (datos.length < 2) return
+                        const max = Math.max(1, ...datos)
+                        ctx.strokeStyle = modelData.congestion > 0.3 ? "#ffb300" : "#2ecc71"
+                        ctx.lineWidth = 1.5
+                        ctx.beginPath()
+                        for (let i = 0; i < datos.length; ++i) {
+                            const x = i * width / (datos.length - 1), y = height - datos[i] / max * (height - 2) - 1
+                            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+                        }
+                        ctx.stroke()
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true; elide: Text.ElideRight
+                    text: modelData.kbps + " kbps · perdidos " + modelData.perdidos_red + " red / " + modelData.perdidos_enc + " cod" +
+                          (modelData.congestion > 0 ? " · congestión " + Math.round(modelData.congestion * 100) + "%" : "") +
+                          (modelData.reconexiones > 0 ? " · " + modelData.reconexiones + " reconexiones" : "") +
+                          (modelData.reconectando ? " · RECONECTANDO" : "")
+                    color: modelData.reconectando ? Theme.live : modelData.congestion > 0.3 || modelData.perdidos_red > 0 ? Theme.amber : Theme.textFaint
+                    font.pixelSize: 10
+                }
+            }
+        }
         // ISO: las entradas que se graban aparte.
         RowLayout {
             id: isos
