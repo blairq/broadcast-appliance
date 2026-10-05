@@ -35,6 +35,9 @@ struct Instance {
     int bgOpacity = 55; ///< 0..100, fondo de cada mensaje
     bool showNames = true;
     int fadeSec = 0; ///< 0 = no desaparecen
+    /// Solo los mensajes que el operador DESTACÓ (de fábrica): lo que escribe el
+    /// público no sale al aire sin que una persona lo elija.
+    bool soloDestacados = true;
     std::uint64_t settingsVersion = 0;
 };
 

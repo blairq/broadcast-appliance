@@ -332,10 +332,25 @@ Rectangle {
                             id: fmsg
                             required property string author
                             required property string text
+                            required property var model
                             width: ListView.view.width
-                            height: fmsgText.implicitHeight
-                            Text { id: fmsgText; width: parent.width; wrapMode: Text.WordWrap; textFormat: Text.PlainText
+                            height: Math.max(fmsgText.implicitHeight, 26)
+                            Text { id: fmsgText; width: parent.width - 34; wrapMode: Text.WordWrap; textFormat: Text.PlainText
                                    color: Theme.text; font.pixelSize: 13; text: fmsg.author + ": " + fmsg.text }
+                            // Destacar para el aire: los overlays de chat muestran solo lo destacado.
+                            GlassButton {
+                                anchors { right: parent.right; top: parent.top }
+                                compact: true
+                                property bool dest: false
+                                text: dest ? "★" : "☆"
+                                active: dest
+                                onClicked: {
+                                    const k = "fb:" + fmsg.model.id
+                                    if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
+                                    else dest = Studio.destacarChatUi(k)
+                                }
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Destacar para el chat en pantalla"
+                            }
                         }
                     }
                     RowLayout {

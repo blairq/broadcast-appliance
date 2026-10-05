@@ -2031,6 +2031,25 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "invitado_info_aprobar";
+        t.title = "Aprobar el cargo que escribio un invitado";
+        t.category = "sala";
+        t.description = "Lo que un invitado escribe de si mismo al entrar (`info`) NO sale en el zocalo hasta que una "
+                        "persona lo aprueba: con esto, `participant` (id o nombre) y un `texto` corregido opcional. Si "
+                        "esta en el cuerpo (cuerpo_listar), sale de ahi y no hace falta. Confirmalo con el operador.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"participant"}},
+                         {"properties", {{"participant", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
+                                                      QString::fromStdString(a.value("texto", std::string())));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Aprobado: el zocalo ya lo usa."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "cuerpo_listar";
         t.title = "Integrantes del cuerpo (legisladores)";
         t.category = "evento";

@@ -20,7 +20,8 @@
     if (!hay) { document.title = "Votación"; return; }
 
     $("estado").textContent = (v.modo === "formal" ? "Votación" : "Encuesta") +
-                              (v.abierta ? " · abierta" : " · cerrada");
+                              (v.abierta ? " · abierta" : " · cerrada") +
+                              (v.vinculante ? "" : " · consulta, no vinculante");
     $("estado").className = "estado" + (v.abierta ? " abierta" : "");
     // textContent y nunca innerHTML: la pregunta la escribió una persona.
     $("pregunta").textContent = v.pregunta || "";

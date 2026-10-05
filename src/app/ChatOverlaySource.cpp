@@ -46,6 +46,7 @@ void readSettings(Instance& in, obs_data_t* s) {
     in.bgOpacity = std::clamp(static_cast<int>(obs_data_get_int(s, "bg_opacity")), 0, 100);
     in.showNames = obs_data_get_bool(s, "show_names");
     in.fadeSec = std::clamp(static_cast<int>(obs_data_get_int(s, "fade_sec")), 0, 3600);
+    in.soloDestacados = obs_data_get_bool(s, "solo_destacados");
     ++in.settingsVersion;
 }
 
@@ -85,6 +86,7 @@ void defaults(obs_data_t* s) {
     obs_data_set_default_int(s, "font_size", 28);
     obs_data_set_default_int(s, "max_messages", 8);
     obs_data_set_default_string(s, "channel", "all");
+    obs_data_set_default_bool(s, "solo_destacados", true);
     obs_data_set_default_bool(s, "show_youtube", true);
     obs_data_set_default_bool(s, "show_twitch", true);
     obs_data_set_default_bool(s, "show_facebook", true);
@@ -103,6 +105,7 @@ obs_properties_t* properties(void*) {
     obs_property_list_add_string(ch, "Solo Twitch", "twitch");
     obs_property_list_add_string(ch, "Solo Facebook", "facebook");
     obs_property_list_add_string(ch, "Solo la sala (invitados)", "room");
+    obs_properties_add_bool(p, "solo_destacados", "Solo los mensajes destacados por el operador");
     obs_properties_add_bool(p, "show_youtube", "YouTube");
     obs_properties_add_bool(p, "show_twitch", "Twitch");
     obs_properties_add_bool(p, "show_facebook", "Facebook");

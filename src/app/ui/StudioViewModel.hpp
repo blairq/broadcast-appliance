@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -246,6 +247,13 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
+    /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
+    /// como el cargo de su zócalo. "" o el error.
+    Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
+    /// Chat: los recientes con {key, source, author, text, destacado}; destacar y sacar.
+    Q_INVOKABLE QVariantList chatRecientesUi() const;
+    Q_INVOKABLE bool destacarChatUi(const QString& key);
+    Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
     legislatura::CuerpoViewModel& cuerpo() { return *cuerpo_; }
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
@@ -554,6 +562,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<legislatura::CuerpoViewModel> cuerpo_;
     bool corteDirectoEditor_ = false;
+    QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;

@@ -293,16 +293,31 @@ Rectangle {
                             required property string author
                             required property string color
                             required property string text
+                            required property var model
                             width: ListView.view.width
-                            height: tmsgText.implicitHeight
+                            height: Math.max(tmsgText.implicitHeight, 26)
                             Text {
                                 id: tmsgText
-                                width: parent.width
+                                width: parent.width - 34
                                 wrapMode: Text.WordWrap
                                 textFormat: Text.PlainText
                                 color: Theme.text
                                 font.pixelSize: 13
                                 text: tmsg.author + ": " + tmsg.text
+                            }
+                            // Destacar para el aire: los overlays de chat muestran solo lo destacado.
+                            GlassButton {
+                                anchors { right: parent.right; top: parent.top }
+                                compact: true
+                                property bool dest: false
+                                text: dest ? "★" : "☆"
+                                active: dest
+                                onClicked: {
+                                    const k = "tw:" + tmsg.model.id
+                                    if (dest) { Studio.quitarDestacadoChatUi(k); dest = false }
+                                    else dest = Studio.destacarChatUi(k)
+                                }
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Destacar para el chat en pantalla"
                             }
                         }
                     }

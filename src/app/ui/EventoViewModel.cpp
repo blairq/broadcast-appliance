@@ -725,6 +725,8 @@ QString EventoViewModel::acta(const QJsonArray& votaciones) const {
             // Se dice CUAL fue: una encuesta leida como decision es el error
             // que esta separacion existe para evitar.
             t += formal ? QString("*Votación formal") : QString("*Encuesta (resultado indicativo)");
+            // Lo que vota el público es una consulta: no reemplaza la votación del cuerpo.
+            if (!v.value("vinculante").toBool()) t += " — consulta, no vinculante";
             if (v.value("secreta").toBool()) t += ", secreta";
             t += "*\n\n";
             const int votaron = v.value("votaron").toInt();

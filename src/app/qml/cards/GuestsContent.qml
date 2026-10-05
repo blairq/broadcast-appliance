@@ -57,10 +57,10 @@ Item {
                         property var p: Studio.conference.participanteEnSlot(index + 1)
                         Timer { interval: 2000; running: true; repeat: true; onTriggered: semaforo.p = Studio.conference.participanteEnSlot(index + 1) }
                         readonly property var red: (p && p.red) || ({})
-                        visible: !!(p && p.id) && !!red.semaforo
+                        visible: !!(p && p.id)
                         anchors { right: parent.right; top: parent.top; margins: 6 }
                         width: 14; height: 14; radius: 7
-                        color: red.semaforo === "rojo" ? Theme.live : red.semaforo === "ambar" ? Theme.amber : Theme.ok
+                        color: red.semaforo === "rojo" ? Theme.live : red.semaforo === "ambar" ? Theme.amber : red.semaforo === "verde" ? Theme.ok : Theme.textFaint
                         border.color: "white"; border.width: 1
                         ToolTip.visible: semHov.hovered
                         ToolTip.text: "Red: " + (red.kbps_in || 0) + " kbps · pérdida " + (red.perdida_pct || 0) + " % · jitter " +
@@ -72,6 +72,12 @@ Item {
                             MenuItem { text: "Bajar a 720p"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-720p") }
                             MenuItem { text: "Bajar a 360p"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-360p") }
                             MenuItem { text: "Calidad completa"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-max") }
+                            MenuSeparator {}
+                            MenuItem {
+                                text: "Aprobar su cargo para el zócalo: «" + ((semaforo.p && semaforo.p.info) || "—") + "»"
+                                enabled: !!(semaforo.p && semaforo.p.info)
+                                onTriggered: { const e = Studio.aprobarInfoInvitado(semaforo.p.id, ""); Studio.notify(e !== "" ? e : "Cargo aprobado para el zócalo", e !== "" ? "error" : "info") }
+                            }
                         }
                     }
                     // Lo que oye este invitado: el programa sin su voz (de fábrica) o el programa entero.

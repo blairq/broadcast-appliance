@@ -892,11 +892,28 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
     for (const QJsonValue& v : sala.value("participants").toArray())
         porId.insert(v.toObject().value("id").toString(), v.toObject());
 
-    const auto deParticipante = [](const QJsonObject& p) {
-        return QJsonObject{{"nombre", p.value("name").toString()},
-                           // `info` es lo que el invitado puso de sí mismo al
-                           // entrar: es el cargo o la procedencia.
-                           {"cargo", p.value("info").toString()},
+    // Lo que sale en un zócalo tiene que estar VALIDADO: si el invitado está en
+    // el Cuerpo (por nombre), salen el nombre y el cargo de ahí; si no, el
+    // `info` que él escribió al entrar solo sale si el operador lo aprobó
+    // (invitado_info_aprobar). Sin eso, el cargo va vacío.
+    const auto deParticipante = [this](const QJsonObject& p) {
+        const QString nombre = p.value("name").toString();
+        const nlohmann::json enCuerpo = cuerpo_ ? cuerpo_->cuerpo().buscar(nombre.toStdString()) : nlohmann::json::object();
+        QString cargo, bloque;
+        bool validado = false;
+        if (!enCuerpo.empty()) {
+            cargo = QString::fromStdString(enCuerpo.value("cargo_oficial", std::string()));
+            bloque = QString::fromStdString(enCuerpo.value("bloque", std::string()));
+            validado = enCuerpo.contains("validado_por");
+        } else if (const auto it = infoAprobada_.constFind(p.value("id").toString()); it != infoAprobada_.constEnd()) {
+            cargo = *it;
+            validado = true;
+        }
+        return QJsonObject{{"nombre", enCuerpo.empty() ? nombre : QString::fromStdString(enCuerpo.value("nombre", nombre.toStdString()))},
+                           {"cargo", cargo},
+                           {"bloque", bloque},
+                           {"validado", validado},
+                           {"sugerencia", p.value("info").toString()},
                            {"contacto", p.value("contact").toString()}};
     };
 
@@ -1414,5 +1431,33 @@ void StudioViewModel::restaurarPlaca() {
 }
 
 QObject* StudioViewModel::cuerpoQml() const { return cuerpo_.get(); }
+
+QString StudioViewModel::aprobarInfoInvitado(const QString& participante, const QString& texto) {
+    const QJsonObject sala = conference_ != nullptr ? conference_->client().snapshot() : QJsonObject{};
+    for (const QJsonValue& v : sala.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (p.value("id").toString() == participante || p.value("name").toString() == participante) {
+            infoAprobada_[p.value("id").toString()] = texto.isEmpty() ? p.value("info").toString() : texto;
+            return {};
+        }
+    }
+    return "no hay un invitado «" + participante + "» en la sala";
+}
+
+QVariantList StudioViewModel::chatRecientesUi() const {
+    QVariantList out;
+    if (!chatOverlay_) return out;
+    const QStringList dest = chatOverlay_->destacados();
+    for (const auto& m : chatOverlay_->collect())
+        out << QVariantMap{{"key", m.key}, {"source", m.source}, {"author", m.author}, {"text", m.text},
+                           {"destacado", dest.contains(m.key)}};
+    return out;
+}
+
+bool StudioViewModel::destacarChatUi(const QString& key) { return chatOverlay_ && chatOverlay_->destacar(key); }
+
+void StudioViewModel::quitarDestacadoChatUi(const QString& key) {
+    if (chatOverlay_) chatOverlay_->quitarDestacado(key);
+}
 
 } // namespace ba::app
