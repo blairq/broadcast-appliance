@@ -215,6 +215,10 @@ class StudioViewModel : public QObject {
     /// Cuando arranco la grabacion, en ms desde la epoca. 0 = no esta grabando
     /// (o arranco antes de que la app supiera mirarlo).
     Q_INVOKABLE qint64 recordStartMs() const { return recording_ ? recSinceMs_ : 0; }
+    /// El latido del supervisor: {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}.
+    Q_INVOKABLE QVariantMap latidoUi() const;
+    /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}). "" o el error.
+    Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
     bool streaming() const { return streaming_; }
     bool reconnecting() const { return reconnecting_; }
     QString outputProblem() const { return outputProblem_; }

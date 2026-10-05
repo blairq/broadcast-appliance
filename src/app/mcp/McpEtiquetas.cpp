@@ -86,6 +86,7 @@ const Fila kPropias[] = {
     {"help", "indice catalogo guia empezar"},
     {"help_search", "buscar herramienta encontrar funcion que hay para"},
     {"status", "estado general resumen como esta todo panorama salud"},
+    {"supervisor_politica", "supervisor latido interfaz trabada colgada relanzar reiniciar watchdog aire"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},
     {"system_hardware", "llenando llena disco almacenamiento espacio queda lugar se esta llenando el disco "

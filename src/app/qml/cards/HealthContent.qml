@@ -57,6 +57,29 @@ Item {
             Text { text: Studio.canvasLabel; color: Theme.text; font.pixelSize: 12 }
             Text { text: "Gateway"; color: Theme.textFaint; font.pixelSize: 11 }
             Text { text: Studio.gatewayAlive ? "en linea" : "sin respuesta"; color: Studio.gatewayAlive ? Theme.ok : Theme.live; font.pixelSize: 12 }
+            // El latido del supervisor: si la interfaz se traba, el motor sigue y el aire no se corta.
+            Text { text: "Interfaz"; color: Theme.textFaint; font.pixelSize: 11 }
+            Text {
+                property var l: ({})
+                Timer { interval: 1000; running: true; repeat: true; triggeredOnStart: true; onTriggered: parent.l = Studio.latidoUi() }
+                text: l.ui_viva === false ? "trabada " + Math.round((l.ui_trabada_ms || 0) / 1000) + " s (el aire sigue)"
+                      : "viva" + (l.motor_vivo === false ? " · motor sin cuadros" : "") +
+                        ((l.ultima_traba_ms || 0) > 0 ? " · última traba " + ((l.ultima_traba_ms || 0) / 1000).toFixed(1) + " s" : "")
+                color: l.ui_viva === false || l.motor_vivo === false ? Theme.warn : Theme.ok
+                font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true
+            }
+            Text { text: "Espera UI"; color: Theme.textFaint; font.pixelSize: 11 }
+            RowLayout {
+                spacing: 6
+                SpinBox {
+                    from: 10; to: 3600; stepSize: 10; editable: true
+                    value: { const p = (Studio.latidoUi().politica || {}); return p.espera_ui_s || 60 }
+                    onValueModified: { const e = Studio.latidoPoliticaUi({ espera_ui_s: value }); if (e !== "") Studio.notify(e, "error") }
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Con la interfaz trabada y el motor andando, cuánto esperar antes de relanzar la app (solo si no hay transmisión ni grabación)"
+                }
+                Text { text: "s sin aire"; color: Theme.textFaint; font.pixelSize: 11 }
+            }
         }
     }
 }

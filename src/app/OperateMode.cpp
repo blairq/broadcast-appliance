@@ -4,6 +4,8 @@
 
 #include "OperateMode.hpp"
 
+#include <obs.h>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -310,6 +312,18 @@ int AppRuntime::start() {
     }
     health_.beat(kHealthSlot);
     started_ = true;
+    // El latido que mira los cuadros del motor (hilo propio): una traba de la
+    // interfaz ya no hace que el supervisor corte el aire.
+    if (health_.valid())
+        latido_.iniciar(
+            root_,
+            [this] {
+                std::lock_guard<std::mutex> l(healthMu_);
+                health_.beat(kHealthSlot);
+            },
+            []() -> std::uint64_t {
+                return obs_get_video() != nullptr ? video_output_get_total_frames(obs_get_video()) : 0;
+            });
 
     addGuests();
     addAudioInputs();
@@ -373,7 +387,12 @@ void AppRuntime::tick() {
         }
     });
     if (health_.valid()) {
+        std::lock_guard<std::mutex> l(healthMu_);
         health_.beat(kHealthSlot);
+    }
+    if (started_) {
+        const EngineStatus st = engine_.status();
+        latido_.uiTick(st.streaming || st.recording);
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
@@ -402,6 +421,7 @@ void AppRuntime::stop() {
     // de render y su archivo abierto, y si el cierre las deja vivas el archivo
     // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
     engine_.stopAllSourceRecordings();
+    latido_.detener(); // antes de apagar libobs (lee sus cuadros)
     std::printf("ba-app: cerrando (salidas, escena, libobs)\n");
     control_.stop();
     operator_.shutdown(); // antes de apagar libobs: suelta vista y fuentes

@@ -775,7 +775,32 @@ void McpService::registerTools() {
                      {"canvas", vm.canvasLabel().toStdString()},
                      {"gatewayAlive", vm.gatewayAlive()},
                      {"lastError", st.lastError},
+                     {"latido", rt.latido().estado()},
                      {"room", room}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "supervisor_politica";
+        t.title = "Política del supervisor (interfaz trabada)";
+        t.category = "estado";
+        t.description =
+            "El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira "
+            "los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la "
+            "interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` "
+            "(de fábrica true), se relanza solo si no hay transmisión ni grabación. Sin argumentos, la muestra "
+            "(con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"espera_ui_s", {{"type", "integer"}, {"minimum", 10}, {"maximum", 3600}}},
+                           {"matar_si_ui_trabada_sin_aire", {{"type", "boolean"}}}}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (a.contains("espera_ui_s") || a.contains("matar_si_ui_trabada_sin_aire")) {
+                const std::string e = rt.latido().ponerPolitica(a);
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(rt.latido().estado()));
         };
         core_.addTool(std::move(t));
     }

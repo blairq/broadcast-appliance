@@ -560,6 +560,9 @@ void StudioViewModel::onTick() {
         emit quitRequested();
         return;
     }
+    // La interfaz volvió de una traba: cuánto duró (el aire no se cortó).
+    if (const std::uint64_t ms = rt_.latido().tomarTrabaTerminada(); ms > 0)
+        emit notify(QString("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
     const EngineStatus st = rt_.engine().status();
     if (st.recording && !recording_) {
         recSince_ = std::chrono::steady_clock::now();
@@ -1152,6 +1155,16 @@ void StudioViewModel::refreshModels() {
 void StudioViewModel::setScenePreview(const QString& name) {
     // 960 px de ancho alcanza para el lienzo del editor y no castiga la GPU.
     rt_.engine().enableScenePreview(name.toStdString(), 960);
+}
+
+QVariantMap StudioViewModel::latidoUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.latido().estado().dump())).object().toVariantMap();
+}
+
+QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
+    const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(),
+                                         nullptr, false);
+    return QString::fromStdString(rt_.latido().ponerPolitica(j));
 }
 
 } // namespace ba::app

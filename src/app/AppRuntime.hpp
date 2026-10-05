@@ -25,10 +25,12 @@
 #include <atomic>
 #include <cstdint>
 #include <filesystem>
+#include <mutex>
 #include <string>
 #include <vector>
 
 #include "AppSettings.hpp"
+#include "LatidoAire.hpp"
 #include "BroadcastEngine.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -115,6 +117,8 @@ class AppRuntime {
     GatewaySettings& gateway() { return gateway_; }
     LauncherSettings& launcher() { return launcher_; }
     BroadcastEngine& engine() { return engine_; }
+    /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
+    LatidoAire& latido() { return latido_; }
     const std::string& lastError() const { return lastError_; }
     /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien
     /// (operador, plataforma, MCP). Si la salida se detiene con esto en false,
@@ -161,6 +165,8 @@ class AppRuntime {
     std::filesystem::path bin_;  // binarios
     BroadcastEngine engine_;
     ba::ipc::HealthBlock health_;
+    std::mutex healthMu_; ///< latidos desde la UI y desde LatidoAire
+    LatidoAire latido_;
     ba::ipc::ControlService control_;
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
     std::string lastError_;
