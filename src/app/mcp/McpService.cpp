@@ -821,6 +821,20 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "escenas_ajustes";
+        t.title = "Ajustes del editor de escenas";
+        t.category = "escenas";
+        t.description = "`corte_directo_editor`: el botón de cada escena en el editor corta directo (true) o la arma "
+                        "en el preview para salir con TAKE (false, de fábrica). Sin argumentos, los muestra.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"corte_directo_editor", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("corte_directo_editor")) vm.setCorteDirectoEditor(a.value("corte_directo_editor", false));
+            done(ToolResult().data(json{{"corte_directo_editor", vm.corteDirectoEditor()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "mcp_aire_lista";
         t.title = "Herramientas de aire";
         t.category = "estado";

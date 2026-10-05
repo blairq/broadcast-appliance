@@ -27,7 +27,7 @@ Item {
     focus: true
     Keys.onPressed: (e) => {
         if ((e.key === Qt.Key_T || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) &&
-            Studio.escenaArmada !== "") {
+            Studio.escenaArmada !== "" && !Studio.focoEnTexto()) {
             Studio.take()
             e.accepted = true
         }

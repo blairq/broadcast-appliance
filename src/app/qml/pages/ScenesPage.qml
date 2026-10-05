@@ -73,6 +73,13 @@ Rectangle {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
+                CheckBox {
+                    text: "Corte directo (sin preview)"
+                    checked: Studio.corteDirectoEditor
+                    onToggled: Studio.corteDirectoEditor = checked
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Apagado (recomendado): el botón de cada escena la ARMA en el preview y sale con TAKE. Prendido: corta directo (al aire pide confirmación)."
+                }
                 ListView {
                     id: sceneList
                     Layout.fillWidth: true
@@ -147,7 +154,27 @@ Rectangle {
                                 anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
                                 Rectangle { width: 8; height: 8; radius: 4; color: parent.parent.live ? Theme.live : Theme.textFaint }
                                 Text { text: parent.parent.name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
-                                GlassButton { visible: !parent.parent.live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(parent.parent.name) }
+                                // Arma la escena en el preview (el corte va con TAKE). Con el
+                                // corte directo prendido corta, y al aire pide confirmación.
+                                GlassButton {
+                                    readonly property string esc: parent.parent.name
+                                    visible: !parent.parent.live
+                                    compact: true
+                                    text: Studio.corteDirectoEditor ? "Al aire" : (Studio.escenaArmada === esc ? "Armada" : "Armar")
+                                    active: !Studio.corteDirectoEditor
+                                    activeColor: "#16a34a"
+                                    onClicked: {
+                                        if (!Studio.corteDirectoEditor) { Studio.armarEscena(esc); return }
+                                        if (!Studio.alAire()) { Studio.takeScene(esc); return }
+                                        const n = esc
+                                        ApplicationWindow.window.confirm({
+                                            title: "¿Cortar a «" + n + "» al aire?",
+                                            text: "Es un corte directo, sin pasar por el preview.",
+                                            accept: "Cortar", reject: "Cancelar",
+                                            action: function() { Studio.takeScene(n) }
+                                        })
+                                    }
+                                }
                             }
                             // Lo que se ve mientras se lleva la escena a una carpeta.
                             // `Drag.active` va ATADO al arrastre del MouseArea y el

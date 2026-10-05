@@ -4,6 +4,7 @@
 
 #include "ui/StudioViewModel.hpp"
 #include "platform/Paths.hpp"
+#include <fstream>
 #include <QClipboard>
 #include <QDateTime>
 #include <QElapsedTimer>
@@ -357,6 +358,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
         alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
+        {
+            std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
+            const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+            if (j.is_object()) corteDirectoEditor_ = j.value("corte_directo_editor", false);
+        }
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
             for (const auto& n : ev.value("notify", nlohmann::json::array()))
                 if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
@@ -1233,5 +1239,18 @@ bool StudioViewModel::alarmaCritica() const {
 }
 
 QObject* StudioViewModel::alarmaSonora() const { return alarma_.get(); }
+
+bool StudioViewModel::focoEnTexto() const {
+    QObject* f = QGuiApplication::focusObject();
+    return f != nullptr && (f->inherits("QQuickTextInput") || f->inherits("QQuickTextEdit"));
+}
+
+void StudioViewModel::setCorteDirectoEditor(bool si) {
+    if (si == corteDirectoEditor_) return;
+    corteDirectoEditor_ = si;
+    std::ofstream o(rt_.dataRoot() / "Config" / "escenas.json");
+    o << nlohmann::json{{"corte_directo_editor", si}}.dump(1);
+    emit escenasAjustesChanged();
+}
 
 } // namespace ba::app

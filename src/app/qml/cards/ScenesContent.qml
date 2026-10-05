@@ -70,6 +70,7 @@ Item {
                 e.accepted = true
                 break
             case Qt.Key_T:
+                if (Studio.focoEnTexto()) break // escribiendo: no es TAKE
                 if (Studio.escenaArmada !== "") Studio.take()
                 e.accepted = true
                 break

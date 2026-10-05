@@ -102,6 +102,8 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// El botón de cada escena del editor corta directo (si no, la arma en preview).
+    Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
     Q_PROPERTY(bool reconnecting READ reconnecting NOTIFY statusChanged)
     /// Por que se corto, en castellano. Vacio si no hubo problema.
@@ -222,6 +224,12 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
     /// Las alarmas de los disparadores que esperan que alguien las reconozca.
     Q_INVOKABLE QVariantList alarmasActivasUi() const;
+    /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
+    Q_INVOKABLE bool focoEnTexto() const;
+    /// Hay aire: transmitiendo o grabando.
+    Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
+    bool corteDirectoEditor() const { return corteDirectoEditor_; }
+    void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
     Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
     /// Hay una alarma crítica sin reconocer (la franja roja de arriba).
@@ -444,6 +452,7 @@ class StudioViewModel : public QObject {
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
     void alarmasCambio();
+    void escenasAjustesChanged();
 
    private slots:
     void onTick();
@@ -498,6 +507,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
+    bool corteDirectoEditor_ = false;
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;
