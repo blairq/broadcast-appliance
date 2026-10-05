@@ -211,6 +211,11 @@ class McpCore {
     /// vistas, y una superficie nueva la hereda sin hacer nada.
     void setSincronizador(std::function<void()> fn) { sincronizar_ = std::move(fn); }
     void setApprovalPolicy(ApprovalPolicy p) { policy_ = p; }
+    /// Modo prueba (`ba-app --test` / `--debug`): NADA espera aprobación de una persona
+    /// (ni la de contenido no confiable ni la guarda de aire). Cada acción que la
+    /// habría pedido queda en el registro. Solo por línea de comandos; no se guarda.
+    void setSinAprobaciones(bool on) { sinAprobaciones_ = on; }
+    bool sinAprobaciones() const { return sinAprobaciones_; }
     ApprovalPolicy approvalPolicy() const { return policy_; }
     /// Marca la sesion como contaminada (p. ej. al leer un recurso de la sala).
     void taint(const std::string& session, const std::string& source);
@@ -337,6 +342,7 @@ class McpCore {
     McpAire aire_;
     std::function<void()> sincronizar_;
     ApprovalPolicy policy_ = ApprovalPolicy::Untrusted;
+    bool sinAprobaciones_ = false;
     struct Taint {
         std::string source;
         std::int64_t atMs = 0;

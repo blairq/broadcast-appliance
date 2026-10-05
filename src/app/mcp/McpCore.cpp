@@ -793,6 +793,13 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
         execute();
         return;
     }
+    if (sinAprobaciones_) {
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "MODO PRUEBA: " + name + " se ejecuta sin aprobación" +
+                                       (deAire || automaticoEnVivo ? " (acción de aire)" : ""));
+        execute();
+        return;
+    }
     const std::string quienPide = ctx.origen.empty() ? "el asistente" : ctx.origen;
     if (!approver_) {
         ToolResult r = ToolResult::error(

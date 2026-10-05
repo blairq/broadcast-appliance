@@ -388,7 +388,11 @@ void McpService::registerGraficoTools() {
             "dejarlo escrito y probarlo antes de un evento.\n"
             "  * Mandar el mismo `id` reemplaza el vinculo entero, que es como se corrige uno.\n\n"
             "No se redispara si lo que resuelve no cambio: si no, la animacion parpadearia una vez "
-            "por segundo.";
+            "por segundo.\n\n"
+            "CAMPOS VIVOS: con `vivo: true`, cuando cambia lo que resuelve y el grafico ya esta al "
+            "aire en esa fuente, se vuelve a dibujar SOLO su cuadro estable (sin la entrada): para "
+            "un reloj con segundos ({hora_s}) o el cronometro del orador ({orador.cronometro}, "
+            "{orador.restante}: lo que le queda, o «+m:ss» pasado).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -399,6 +403,10 @@ void McpService::registerGraficoTools() {
                {{"type", "object"}, {"description", "clave del parametro -> texto con {origenes}."}}},
               {"dispara", {{"type", "boolean"}, {"description", "Si sale al aire solo. Por defecto si."}}},
               {"repetir", {{"type", "boolean"}, {"description", "En bucle (para un ticker)."}}},
+              {"vivo",
+               {{"type", "boolean"},
+                {"description", "Campos que cambian cada segundo ({hora_s}, {orador.cronometro}, {orador.restante}): "
+                                "con el gráfico al aire se actualiza sin volver a entrar."}}},
               {"id", {{"type", "string"}, {"description", "Para reemplazar uno que ya existe."}}}}},
             {"required", {"fuente", "grafico", "valores"}}};
         t.run = [vin, aQJson](const json& a, Done done) {

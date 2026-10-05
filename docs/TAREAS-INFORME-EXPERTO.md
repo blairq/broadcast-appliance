@@ -66,7 +66,7 @@
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | hecho |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho (plugins VISCA serie, joystick HID y cámara virtual VISCA-IP; sin probar con equipos) |
-| T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (6 plantillas «Legislatura», orígenes votacion/quorum/hora para vínculos, «Armar en PVW» en Rótulos y `grafico_mostrar {armar}`; faltan campos vivos cuadro a cuadro y HTML) |
+| T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (plantillas, vínculos, PVW y campos vivos por segundo —{hora_s}, {orador.cronometro}, {orador.restante} con `vivo`—, sin probar de punta a punta; falta HTML) |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app, por MCP y en el puesto web /correccion/; faltan los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho (contador del medio, back-timing y playlist con in/out, auto-next, loop y PVW) |

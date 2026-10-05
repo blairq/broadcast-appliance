@@ -73,6 +73,10 @@ class Emisor : public QObject {
                        std::uint64_t fuente, int duracionMs, bool repetir);
 
     QString ocultar(std::uint64_t fuente);
+    /// Campos vivos (T43): con el gráfico ya al aire en `fuente`, lo vuelve a dibujar
+    /// con `valores` SOLO en su cuadro estable (sin la animación de entrada): un
+    /// reloj con segundos o un cronómetro que cambia cada segundo sin «volver a entrar».
+    QString actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente);
 
     /// Con qué valores se disparó esa fuente por última vez (vacío si nunca).
     QJsonObject ultimosValores(std::uint64_t fuente) const;

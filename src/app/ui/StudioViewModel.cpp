@@ -1533,6 +1533,20 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         }
     }
     ctx["hora"] = QTime::currentTime().toString("HH:mm");
+    // Campos vivos (T43): cambian cada segundo; en un vínculo «vivo» el gráfico se
+    // actualiza sin volver a entrar.
+    ctx["hora_s"] = QTime::currentTime().toString("HH:mm:ss");
+    if (bancas_) {
+        const nlohmann::json b = bancas_->estadoJson();
+        if (!b.value("al_aire", nlohmann::json()).is_null()) {
+            const long long usado = b.value("usado_s", 0LL), asignado = b.value("asignado_s", 0LL);
+            const auto mmss = [](long long s) { return QString("%1:%2").arg(s / 60).arg(s % 60, 2, 10, QChar('0')); };
+            QJsonObject o = ctx.value("orador").toObject();
+            o["cronometro"] = mmss(usado);
+            o["restante"] = asignado > 0 ? (usado > asignado ? "+" + mmss(usado - asignado) : mmss(asignado - usado)) : QString();
+            ctx["orador"] = o;
+        }
+    }
     return ctx;
 }
 

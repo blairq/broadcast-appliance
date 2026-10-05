@@ -202,6 +202,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString joinUrl READ joinUrl NOTIFY statusChanged)
     Q_PROPERTY(int guests READ guests NOTIFY statusChanged)
     Q_PROPERTY(QString theme READ theme NOTIFY themeChanged)
+    /// Arrancó con --test: el MCP no pide aprobaciones (la interfaz lo avisa siempre).
+    Q_PROPERTY(bool modoTest READ modoTest CONSTANT)
     /// Balística de los medidores (T31): "pico", "ppm" (EBU tipo IIb) o "vu".
     Q_PROPERTY(QString balistica READ balistica WRITE setBalistica NOTIFY balisticaChanged)
     /// La fuente que se escucha por el monitor (PFL), "" si ninguna.
@@ -428,6 +430,8 @@ class StudioViewModel : public QObject {
     QString cupo(int n, std::function<void(const QString&)> listo);
     Q_INVOKABLE QString cupoUi(int n);
     QString balistica() const;
+    bool modoTest() const { return modoTest_; }
+    void setModoTest(bool on) { modoTest_ = on; }
     void setBalistica(const QString& b);
     QString pfl() const;
     /// PFL exclusivo: escucha `fuente` por el monitor (o la apaga si ya era esa). "" o el error.
@@ -789,6 +793,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<dispositivos::Dispositivos> dispositivos_;
     std::unique_ptr<agent::FlujosTexto> flujos_;
     std::unique_ptr<PuestoCorreccion> puestoCorreccion_;
+    bool modoTest_ = false;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<agent::Traductor> traductor_;
     std::unique_ptr<agent::Subtitulos> subtitulos_;

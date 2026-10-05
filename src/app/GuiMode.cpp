@@ -148,6 +148,16 @@ int runGui(int argc, char** argv) {
         relojGui.restart();
         mcp::McpService mcpService(rt, vm);
         ba::diag::registro().info("arranque: el servidor MCP, " + std::to_string(relojGui.restart()) + " ms");
+        // Modo prueba: el MCP ejecuta todo sin esperar la aprobación de una persona.
+        bool modoTest = false;
+        for (int i = 1; i < argc; ++i)
+            modoTest = modoTest || std::string(argv[i]) == "--test" || std::string(argv[i]) == "--debug";
+        if (modoTest) {
+            mcpService.core().setSinAprobaciones(true);
+            vm.setModoTest(true);
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                       "MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire");
+        }
         mcpService.setMainWindow([&engine]() -> QQuickWindow* {
             return engine.rootObjects().isEmpty() ? nullptr
                                                   : qobject_cast<QQuickWindow*>(engine.rootObjects().first());

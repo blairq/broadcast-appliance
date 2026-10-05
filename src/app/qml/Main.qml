@@ -10,6 +10,16 @@ import "pages"
 
 ApplicationWindow {
     id: win
+    // Modo prueba (--test): el MCP no pide aprobaciones. Siempre a la vista.
+    Rectangle {
+        visible: Studio.modoTest
+        z: 100000
+        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 4 }
+        width: avisoTest.implicitWidth + 24; height: 20; radius: 4
+        color: "#c62828"
+        Text { id: avisoTest; anchors.centerIn: parent; color: "white"; font.pixelSize: 11; font.bold: true
+               text: "MODO PRUEBA (--test): el asistente actúa SIN pedir aprobación, ni siquiera en el aire" }
+    }
     objectName: "ba:principal" // ver PageWindow.qml
     visible: true
     width: 1600

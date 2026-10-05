@@ -160,6 +160,31 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
     return {};
 }
 
+QString Emisor::actualizar(const QString& grafico, const QJsonObject& valores, std::uint64_t fuente) {
+    if (!d_->proc.disponible()) return "el renderizador de gráficos no está en este bundle";
+    QString err;
+    QJsonObject p = pedido(grafico, valores, &err);
+    if (!err.isEmpty()) return err;
+    bool existe = false;
+    for (const auto& i : instancias())
+        if (i.id == fuente) {
+            p["ancho"] = i.ancho;
+            p["alto"] = i.alto;
+            existe = true;
+        }
+    if (!existe) return "esa fuente de gráfico ya no está en ninguna escena";
+    // El cuadro estable: pasada la animación de entrada (la duración de la ficha,
+    // o 2 s), antes de cualquier salida automática.
+    const int ms = std::clamp(ficha(grafico).value("duracionMs").toInt(2000) - 1000 / kFps, 0, kMaxSegundos * 1000);
+    const auto cuadro = d_->proc.tira(p, QVector<int>{ms}, &err);
+    if (!err.isEmpty()) return err;
+    if (cuadro.empty()) return "el renderizador no devolvió el cuadro";
+    std::vector<QImage> uno{cuadro.front().imagen};
+    if (!graficos::reproducir(fuente, std::move(uno), kFps, false)) return "no se pudo actualizar esa fuente";
+    d_->ultimos[fuente] = {grafico, valores};
+    return {};
+}
+
 QString Emisor::ocultar(std::uint64_t fuente) {
     if (!graficos::ocultar(fuente)) return "esa fuente de gráfico ya no está";
     emit cambio();

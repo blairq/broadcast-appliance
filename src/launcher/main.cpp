@@ -142,6 +142,9 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.shadowCopy = false; // ya es el default; se acepta por compatibilidad
         } else if (a == "--no-recovery-ui") {
             cfg.recoveryUi = false;
+        } else if (a == "--test" || a == "--debug") {
+            // Modo prueba: el MCP no pide aprobaciones (ver McpCore::setSinAprobaciones).
+            cfg.appArgs.emplace_back("--test");
         } else if (a.rfind("--app-arg=", 0) == 0) {
             cfg.appArgs.push_back(a.substr(10));
         } else if (a.rfind("--gw-arg=", 0) == 0) {
