@@ -1224,6 +1224,33 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         ctx["guion"] = guion;
         ctx["evento"] = QJsonObject{{"nombre", evento_->property("nombre").toString()}};
     }
+    // El quórum de ahora y la última votación oficial (legislatura/Quorum), para
+    // las placas legislativas: {quorum.texto}, {votacion.resultado}…
+    if (quorum_) {
+        const nlohmann::json q = quorum_->estado();
+        if (q.value("configurado", false))
+            ctx["quorum"] = QJsonObject{
+                {"presentes", q.value("presentes", 0)},
+                {"necesarios", q.value("necesarios", 0)},
+                {"miembros", q.value("miembros", 0)},
+                {"hay", q.value("hay_quorum", false)},
+                {"estado", q.value("hay_quorum", false) ? "CON QUÓRUM" : "SIN QUÓRUM"},
+                {"texto", QString("%1 presentes de %2").arg(q.value("presentes", 0)).arg(q.value("miembros", 0))}};
+        const nlohmann::json of = quorum_->oficiales();
+        if (!of.empty()) {
+            const nlohmann::json& v = of.back();
+            ctx["votacion"] = QJsonObject{
+                {"asunto", QString::fromStdString(v.value("asunto", std::string()))},
+                {"afirmativos", v.value("afirmativos", 0)},
+                {"negativos", v.value("negativos", 0)},
+                {"abstenciones", v.value("abstenciones", 0)},
+                {"presentes", v.value("presentes", 0)},
+                {"necesarios", v.value("necesarios", 0)},
+                {"resultado", v.value("aprobado", false) ? "APROBADO" : "RECHAZADO"},
+                {"color", v.value("aprobado", false) ? "#2e7d32" : "#c62828"}};
+        }
+    }
+    ctx["hora"] = QTime::currentTime().toString("HH:mm");
     return ctx;
 }
 

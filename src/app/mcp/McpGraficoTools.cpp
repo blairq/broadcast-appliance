@@ -62,7 +62,15 @@ QJsonObject ficha(const QString& carpeta) {
 /// archivo.
 QJsonObject pedidoDe(const QString& carpeta, const QJsonObject& parametros, QString* err) {
     const QJsonObject f = ficha(carpeta);
-    QJsonObject p{{"parametros", parametros}};
+    // Lo que no venga sale del porDefecto de la ficha, como cuando se saca al
+    // aire (Emisor): si no, probar sin un color deja «{acento}» en el QML.
+    QJsonObject valores;
+    for (const QJsonValue& v : f.value("parametros").toArray()) {
+        const QJsonObject par = v.toObject();
+        if (par.contains("porDefecto")) valores[par.value("clave").toString()] = par.value("porDefecto");
+    }
+    for (auto it = parametros.begin(); it != parametros.end(); ++it) valores[it.key()] = it.value();
+    QJsonObject p{{"parametros", valores}};
     if (f.contains("declarativo")) {
         p["declarativo"] = f.value("declarativo");
         return p;
@@ -118,6 +126,7 @@ void McpService::registerGraficoTools() {
                     json g{{"nombre", d.toStdString()},
                            {"titulo", f.value("nombre").toString(d).toStdString()},
                            {"descripcion", f.value("descripcion").toString().toStdString()},
+                           {"categoria", f.value("categoria").toString("General").toStdString()},
                            {"declarativo", f.contains("declarativo")}};
                     json params = json::array();
                     for (const QJsonValue& v : f.value("parametros").toArray()) {
@@ -232,12 +241,37 @@ void McpService::registerGraficoTools() {
                 {"default", 1500},
                 {"description", "Cuánta animación dibujar."}}},
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
-              {"repetir", {{"type", "boolean"}, {"default", false}}}}},
+              {"repetir", {{"type", "boolean"}, {"default", false}}},
+              {"armar",
+               {{"type", "boolean"},
+                {"default", false},
+                {"description", "Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al "
+                                "aire y la deja armada; sale con TAKE (scene_take)."}}}}},
             {"required", {"fuente", "nombre"}}};
-        t.run = [em](const json& a, Done done) {
+        t.run = [em, &rt, this](const json& a, Done done) {
             if (em == nullptr || !em->disponible())
                 return done(ToolResult::error("El renderizador de gráficos no está en este bundle."));
             const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
+            // Armar: la escena que tiene esa fuente y NO está al aire.
+            std::string escenaArmar;
+            if (a.value("armar", false)) {
+                std::string nombreFuente;
+                for (const auto& i : graficos::instancias())
+                    if (i.id == id) nombreFuente = i.nombre;
+                if (nombreFuente.empty()) return done(ToolResult::error("No hay una fuente de gráfico con ese id (grafico_en_escena)."));
+                bool alAire = false;
+                for (const std::string& sc : rt.engine().sceneNames()) {
+                    const auto ss = rt.engine().sceneSources(sc);
+                    if (std::find(ss.begin(), ss.end(), nombreFuente) == ss.end()) continue;
+                    if (sc == rt.engine().currentScene()) alAire = true;
+                    else if (escenaArmar.empty()) escenaArmar = sc;
+                }
+                if (alAire)
+                    return done(ToolResult::error("«" + nombreFuente + "» está en la escena al aire: armarlo se vería. Usá una "
+                                                  "fuente de gráfico de otra escena, o mostralo sin armar."));
+                if (escenaArmar.empty())
+                    return done(ToolResult::error("«" + nombreFuente + "» no está en ninguna escena."));
+            }
             QJsonObject par;
             if (a.contains("parametros"))
                 par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
@@ -247,6 +281,11 @@ void McpService::registerGraficoTools() {
             const QString err = em->mostrar(QString::fromStdString(a["nombre"].get<std::string>()), par, id,
                                             a.value("duracionMs", 0), a.value("repetir", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            if (!escenaArmar.empty()) {
+                vm_.armarEscena(QString::fromStdString(escenaArmar));
+                return done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» armado en el preview («" + escenaArmar +
+                                           "»): sale con TAKE."));
+            }
             done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» al aire."));
         };
         core_.addTool(std::move(t));

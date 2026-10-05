@@ -1,0 +1,96 @@
+{
+  "nombre": "Quórum",
+  "categoria": "Legislatura",
+  "descripcion": "Una etiqueta chica arriba a la derecha: con o sin quórum y cuántos presentes.",
+  "ancho": 640,
+  "alto": 140,
+  "parametros": [
+    {
+      "clave": "estado",
+      "titulo": "Estado",
+      "tipo": "texto",
+      "porDefecto": "CON QUÓRUM",
+      "ayuda": "CON QUÓRUM o SIN QUÓRUM."
+    },
+    {
+      "clave": "texto",
+      "titulo": "Detalle",
+      "tipo": "texto",
+      "porDefecto": "0 presentes de 0",
+      "ayuda": "Presentes de miembros."
+    },
+    {
+      "clave": "acento",
+      "titulo": "Color de acento",
+      "tipo": "color",
+      "porDefecto": "#1f6fb2",
+      "ayuda": "El color del cuerpo o del bloque."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 6000,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "Se mira y se va: 5 a 8 segundos."
+    }
+  ],
+  "declarativo": {
+    "ancho": 640,
+    "alto": 140,
+    "entrada": {
+      "efecto": "desliza-derecha",
+      "duracion": 400
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 300
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "derecha": 0,
+        "arriba": 20,
+        "ancho": 600,
+        "alto": 100,
+        "color": "#10141a",
+        "opacidad": 0.92
+      },
+      {
+        "tipo": "barra",
+        "derecha": 600,
+        "arriba": 20,
+        "ancho": 8,
+        "alto": 100,
+        "color": "{acento}"
+      },
+      {
+        "tipo": "texto",
+        "id": "estado",
+        "valor": "{estado}",
+        "tamano": 32,
+        "peso": "negrita",
+        "derecha": 30,
+        "arriba": 30
+      },
+      {
+        "tipo": "texto",
+        "id": "texto",
+        "valor": "{texto}",
+        "tamano": 22,
+        "color": "#c3cad3",
+        "derecha": 30,
+        "arriba": 78,
+        "aparece": 200
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "#",
+      "titulo": "El de ahora",
+      "prompt": "Llená esta etiqueta con el quórum de ahora ({quorum.estado}, {quorum.texto}) y sacala 6 segundos."
+    }
+  ]
+}

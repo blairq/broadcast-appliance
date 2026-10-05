@@ -66,7 +66,7 @@
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | parcial |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
-| T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | parcial |
+| T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (6 plantillas «Legislatura», orígenes votacion/quorum/hora para vínculos, «Armar en PVW» en Rótulos y `grafico_mostrar {armar}`; faltan campos vivos cuadro a cuadro y HTML) |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho en parte (contador del medio, back-timing; falta la playlist) |
@@ -862,7 +862,8 @@
 ## Gráficos y accesibilidad
 
 ### T43 · Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML — P1
-- **Estado: parcial.**
+- **Estado: hecho en parte.** Plantillas zocalo-legislador, punto-orden-del-dia, votacion, cuarto-intermedio, minuto-silencio y quorum (categoría «Legislatura» en la galería). Los datos vivos van por vínculos (`{orador.*}`, `{punto.*}`, `{votacion.*}`, `{quorum.*}`, `{hora}`), que vuelven a disparar cuando cambia lo que resuelven. «Armar en PVW» en Rótulos y `grafico_mostrar {armar: true}`. Falta: campos que cambian cuadro a cuadro (reloj con segundos, cronómetro) y HTML; decisión sobre obs-browser pendiente (pesa mucho para el bundle). Ver docs/GRAFICOS.md. Lo de abajo es el pedido original.
+- **Estado original: parcial.**
   - Las plantillas son placa-titulo, pregunta, proximo-orador, ticker y zocalo (`assets/graficos/`). Ninguna es legislativa.
   - El preview existe solo en el editor (`src/app/qml/pages/GraficosPage.qml:194-242`).
   - El render es PNG previo en base64 (`src/grafico/main.cpp:13-19`). No hay obs-browser.

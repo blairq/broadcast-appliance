@@ -157,6 +157,25 @@ mejor que empezar de cero.
 
 ---
 
+## Las legislativas (categoría «Legislatura»)
+
+Vienen de fábrica seis, todas declarativas, con `"categoria": "Legislatura"` en su `grafico.json` (la galería las agrupa por ese campo; sin él, «General»):
+
+| Gráfico | Para qué | Vínculo típico |
+|---|---|---|
+| `zocalo-legislador` | Nombre, cargo y bloque de quien habla desde su banca | `{orador.nombre}`, `{orador.cargo}`, `{orador.bloque}` |
+| `punto-orden-del-dia` | «PUNTO N» y el asunto | `{punto.n}`, `{punto.titulo}` |
+| `votacion` | Resultado OFICIAL de una votación, pantalla completa | `{votacion.asunto}`, `{votacion.afirmativos}`, `{votacion.negativos}`, `{votacion.abstenciones}`, `{votacion.resultado}`, `{votacion.color}` |
+| `cuarto-intermedio` | Pausa de la sesión, con la vuelta | a mano, o «Volvemos a las …» con `{hora}` |
+| `minuto-silencio` | Placa sobria, sin color | a mano |
+| `quorum` | Etiqueta chica: con o sin quórum | `{quorum.estado}`, `{quorum.texto}` |
+
+Los orígenes salen de lo ya validado: el orador del Cuerpo (nombre y cargo validados), el punto en tratamiento del Orden del día y la última votación cargada como oficial en Quórum (nunca un conteo estimado). `rotulo_vinculos` los lista con su valor de ahora.
+
+**Armar en el preview.** Un gráfico que no está en la escena al aire se prepara ahí: en Rótulos, las fuentes de las otras escenas tienen «Armar en PVW» (lo dibuja y deja esa escena armada; sale con TAKE). Por MCP, `grafico_mostrar {…, "armar": true}`; si la fuente está en la escena al aire, se niega (armarlo se vería).
+
+**Lo que todavía no hay.** Campos que cambian solos cuadro a cuadro (un reloj o el cronómetro del orador dibujados encima del gráfico) y HTML: el render sigue siendo de cuadros dibujados de antemano. Un vínculo se vuelve a disparar cuando cambia lo que resuelve, que alcanza para todo lo de arriba menos un reloj con segundos.
+
 ## Cómo verificarlo
 
 1. **Validar**: carga el QML y devuelve los errores. Un gráfico que no compila
