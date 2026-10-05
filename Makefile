@@ -44,7 +44,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
         deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -74,6 +74,7 @@ help:
 	@echo "  make dist-linux dist/BroadcastAppliance-<ver>-linux-x64.tar.gz"
 	@echo "  make deps-macos     Todo lo del build de macOS (en una Mac Apple Silicon)"
 	@echo "  make macos          macOS: compila y corre los tests"
+	@echo "  make app-macos-rapida  la .app sin rehacer todo (para probar: ~25 s)"
 	@echo "  make dmg-macos      dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app)"
 	@echo "  make publicar       TODO: Linux y Windows (Docker) + .dmg (en Mac) y los sube a GitHub"
 	@echo "  make dist-linux-docker / dist-win-docker  Un bundle en Docker (con su .sha256)"
@@ -378,6 +379,8 @@ release-macos:
 	@# $(BUILD_DIR), y los cambios de la app no llegaban a la .app.
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
+	@# De cero: también la cache de firmas (tools/deps/firmar-macos.sh).
+	rm -f $(BUILD_DIR)/firmas-*.txt $(BUILD_DIR)/firmados-*.txt
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	tools/deps/check-portable-macos.sh release
 	@# El manifest, como en Linux y Windows: sin el, el launcher verifica cero
@@ -389,6 +392,17 @@ release-macos:
 app-macos: release-macos
 	@mkdir -p dist
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app
+
+# Para probar mientras se programa: lo mismo que app-macos, pero sin borrar
+# release/ ni la .app. Solo se copia, firma, revisa y hashea lo que cambió
+# (tools/deps/firmar-macos.sh, BA_CHECK_SOLO, BA_MANIFEST_CACHE). Si algo raro
+# pasa, `make app-macos` lo arma de cero.
+app-macos-rapida:
+	cmake --build $(BUILD_DIR) -j$(JOBS)
+	cmake --install $(BUILD_DIR) --prefix release --component bundle
+	BA_CHECK_SOLO="$$(ls -t $(BUILD_DIR)/firmados-*.txt | head -1)" tools/deps/check-portable-macos.sh release
+	@mkdir -p dist
+	BA_FIRMADOS="$$(ls -t $(BUILD_DIR)/firmados-*.txt | head -1)" tools/deps/app-macos.sh --rapida release dist/BroadcastAppliance.app
 
 dmg-macos: release-macos
 	@mkdir -p dist

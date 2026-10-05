@@ -84,16 +84,6 @@ usage() {
   sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'
 }
 
-# sha256 de un archivo → solo el hex (64 chars).
-# macOS < 15 no trae sha256sum: `shasum -a 256` da la misma salida.
-sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  else
-    shasum -a 256 "$1" | awk '{print $1}'
-  fi
-}
-
 # --- Parseo de argumentos ---------------------------------------------------
 STRICT=0
 ONLY_MANIFEST=0
@@ -313,13 +303,54 @@ GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Orden estable (byte-wise) independiente del locale del host.
 export LC_ALL=C
 
-# Escapa un string para JSON: comillas y backslash.
-json_escape() {
-  local s="$1"
-  s="${s//\\/\\\\}"
-  s="${s//\"/\\\"}"
-  printf '%s' "$s"
-}
+# Los archivos que entran, en orden. Solo lo que NO cambia al usar el programa:
+# si entraran la configuración, los registros o las grabaciones, el launcher
+# avisaría de "integridad rota" en cada arranque después del primero, que es la
+# mejor manera de que el operador aprenda a ignorar el aviso. Extensiones/: las
+# escribe el operador (o el asistente). Modelos, agentes, caches, respaldos,
+# compartidos, exportados, medios y gráficos también son del usuario (en macOS
+# ni siquiera están en el bundle, van al lado de la .app; en Windows y Linux sí).
+MTMP="$(mktemp -d)"
+( cd "$BUNDLE_DIR" && find . -type f -print0 ) | sort -z | while IFS= read -r -d '' rel; do
+  rel="${rel#./}"
+  # Nunca se incluye a sí mismo.
+  [ "$rel" = "manifest.json" ] && continue
+  case "$rel" in
+    Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*|Extensiones/*) continue ;;
+    Modelos/*|Agentes/*|Cache/*|Respaldos/*|Shares/*|Exportado/*|Media/*|Graficos/*) continue ;;
+  esac
+  printf '%s\0' "$rel"
+done > "$MTMP/lista"
+
+# Los hashes, por tandas y en paralelo (antes era un proceso por archivo: 20.000
+# en macOS). Con BA_MANIFEST_CACHE (un archivo «ctime|tamaño|ruta|sha256») solo
+# se calculan los nuevos o cambiados: el ctime cambia con cualquier escritura.
+JOBS="$( (sysctl -n hw.ncpu || nproc) 2>/dev/null || echo 4)"
+if command -v sha256sum >/dev/null 2>&1; then SHA=(sha256sum); else SHA=(shasum -a 256); fi
+if [ -n "${BA_MANIFEST_CACHE:-}" ]; then
+  if stat --version >/dev/null 2>&1; then STATF=(stat -c '%Z|%s|%n'); else STATF=(stat -f '%c|%z|%N'); fi
+  ( cd "$BUNDLE_DIR" && xargs -0 "${STATF[@]}" < "$MTMP/lista" ) > "$MTMP/ahora"
+  [ -f "$BA_MANIFEST_CACHE" ] || : > "$BA_MANIFEST_CACHE"
+  # Del cache, los que siguen iguales (ruta\thash); los otros, a calcular.
+  awk -F'|' -v sabidos="$MTMP/sabidos" -v faltan="$MTMP/faltan" '
+    FILENAME == ARGV[1] { h = $NF; k = $0; sub(/\|[^|]*$/, "", k); cache[k] = h; next }
+    { if ($0 in cache) { p = $0; sub(/^[^|]*\|[^|]*\|/, "", p); print p "\t" cache[$0] > sabidos }
+      else { p = $0; sub(/^[^|]*\|[^|]*\|/, "", p); printf "%s%c", p, 0 > faltan } }
+  ' "$BA_MANIFEST_CACHE" "$MTMP/ahora"
+  touch "$MTMP/sabidos" "$MTMP/faltan"
+else
+  cp "$MTMP/lista" "$MTMP/faltan"
+  : > "$MTMP/sabidos"
+fi
+# «hash  ruta» → «ruta\thash».
+( cd "$BUNDLE_DIR" && xargs -0 -n 64 -P "$JOBS" "${SHA[@]}" < "$MTMP/faltan" ) |
+  awk '{ h = substr($0, 1, 64); p = substr($0, 67); sub(/^\*/, "", p); print p "\t" h }' > "$MTMP/nuevos"
+cat "$MTMP/sabidos" "$MTMP/nuevos" > "$MTMP/hashes"
+if [ -n "${BA_MANIFEST_CACHE:-}" ]; then
+  awk -F'\t' 'FILENAME == ARGV[1] { h[$1] = $2; next }
+              { p = $0; sub(/^[^|]*\|[^|]*\|/, "", p); if (p in h) print $0 "|" h[p] }' \
+    "$MTMP/hashes" "$MTMP/ahora" > "$BA_MANIFEST_CACHE"
+fi
 
 {
   printf '{\n'
@@ -331,49 +362,18 @@ json_escape() {
   # ruta->hash el parser no encontraba ninguna entrada y la verificacion
   # pasaba siempre, con cero archivos revisados.
   printf '  "files": [\n'
-
-  first=1
-  # Recorre el árbol (sin seguir symlink a directorios), ordena por ruta
-  # relativa y emite una entrada por archivo. Las rutas van separadas por NUL
-  # (-d '') para soportar nombres con espacios o caracteres raros.
-  while IFS= read -r -d '' rel; do
-    rel="${rel#./}"
-    abs="$BUNDLE_DIR/$rel"
-    [ -f "$abs" ] || continue
-    # Nunca se incluye a sí mismo.
-    [ "$rel" = "manifest.json" ] && continue
-    # Solo lo que NO cambia al usar el programa. Si entraran la configuración,
-    # los registros o las grabaciones, el launcher avisaría de "integridad
-    # rota" en cada arranque después del primero, que es la mejor manera de
-    # que el operador aprenda a ignorar el aviso.
-    case "$rel" in
-      # Extensiones/: las escribe el operador (o el asistente) y cambian sin
-      # que cambie la version. Verificarlas haria que cada tarjeta nueva
-      # rompiera la comprobacion de integridad.
-      # Los demas de abajo tambien son del usuario: modelos bajados (GB),
-      # agentes, caches, respaldos, compartidos, exportados, medios y los
-      # graficos que se editan. En macOS ni siquiera estan en el bundle (van al
-      # lado de la .app), pero en Windows y Linux si.
-      Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*|Extensiones/*) continue ;;
-      Modelos/*|Agentes/*|Cache/*|Respaldos/*|Shares/*|Exportado/*|Media/*|Graficos/*) continue ;;
-    esac
-    hash="$(sha256_of "$abs")"
-    if [ "$first" -eq 1 ]; then
-      first=0
-    else
-      printf ',\n'
-    fi
-    printf '    {"path": "%s", "sha256": "%s"}' "$(json_escape "$rel")" "$hash"
-  done < <(
-    # El "./" inicial se saca en el bucle: `sed -z` no existe en macOS. Como
-    # todas las rutas lo comparten, ordenar con o sin el da el mismo orden.
-    ( cd "$BUNDLE_DIR" && find . -type f -print0 ) \
-      | sort -z
-  )
-
-  printf '\n  ]\n'
+  # En el orden de la lista (byte a byte); comillas y barras escapadas para JSON.
+  tr '\0' '\n' < "$MTMP/lista" | awk -F'\t' '
+    FILENAME == ARGV[1] { h[$1] = $2; next }
+    { p = $0; gsub(/\\/, "\\\\", p); gsub(/"/, "\\\"", p)
+      if (!($0 in h)) { print "falta el hash de " $0 > "/dev/stderr"; exit 1 }
+      printf "%s    {\"path\": \"%s\", \"sha256\": \"%s\"}", (n++ ? ",\n" : ""), p, h[$0] }
+    END { printf "\n" }
+  ' "$MTMP/hashes" - || { rm -rf "$MTMP"; warn "no se pudo armar el manifest"; exit 1; }
+  printf '  ]\n'
   printf '}\n'
 } > "$MANIFEST"
+rm -rf "$MTMP"
 
 log "manifest.json escrito en $MANIFEST"
 

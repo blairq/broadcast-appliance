@@ -78,6 +78,22 @@ macOS o de lo que viaja adentro, cada ejecutable tiene que resolver sus
 `@rpath` con sus propios rpath, y todos tienen que estar firmados (ad-hoc).
 Al final escribe `manifest.json` (la verificación de integridad del launcher).
 
+### Para probar mientras se programa: `make app-macos-rapida`
+
+`make app-macos` arma todo de cero (borra `release/` y la .app): unos 2,5
+minutos. Para probar un cambio, `make app-macos-rapida` hace lo mismo sin
+borrar nada y tarda unos 25 segundos:
+
+- firma solo los binarios nuevos o cambiados, en paralelo
+  (`tools/deps/firmar-macos.sh`, con su cache en `build/firmas-*.txt`);
+- les devuelve su fecha de modificación después de firmarlos, así la
+  instalación siguiente no los vuelve a copiar;
+- revisa con `check-portable-macos.sh` solo lo que se acaba de firmar;
+- copia a la .app solo lo que cambió (rsync);
+- el manifest reusa los hashes de lo que no cambió (`build/manifest-app-macos.txt`).
+
+Si algo se ve raro, `make app-macos` lo rehace de cero.
+
 ## 6. Probarlo
 
 Primero el motor solo, sin interfaz (arranca libobs, codifica y graba 4 s):
