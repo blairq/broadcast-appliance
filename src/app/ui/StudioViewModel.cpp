@@ -1896,6 +1896,24 @@ void StudioViewModel::publicarEventos() {
         caida_["aire_vuelta_s"] = (QDateTime::currentMSecsSinceEpoch() - caidaMs_) / 1000.0;
         emit caidaChanged();
     }
+    // T47: al arrancar una sesión en vivo (el guion corre), la sala cambia de PIN
+    // (los enlaces de sesiones anteriores dejan de servir).
+    {
+        const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
+        if (ev && !eventoEnVivo_ && conference_) {
+            bool pinPorSesion = true;
+            std::ifstream f(rt_.dataRoot() / "Config" / "seguridad.json");
+            const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+            if (j.is_object()) pinPorSesion = j.value("pin_por_sesion", true);
+            if (pinPorSesion)
+                static_cast<ConferenceViewModel*>(conference_.get())
+                    ->client()
+                    .post("/api/v1/pin", QJsonObject{}, [this](bool ok, const QJsonObject& r) {
+                        if (ok) emit notify("Sesión nueva: la sala tiene PIN nuevo (" + r.value("pin").toString() + ")", "info");
+                    });
+        }
+        eventoEnVivo_ = ev;
+    }
     // Al terminar el vivo, lo desbloqueado vuelve a quedar protegido para la próxima.
     if (const bool vivo = modoVivo(); vivo != estabaEnVivo_) {
         estabaEnVivo_ = vivo;

@@ -210,12 +210,15 @@ aprobación; políticas siempre/nunca; sin nadie a quien preguntar, bloqueado.
 
 - Solo `127.0.0.1`; token obligatorio (comparación en tiempo constante);
   se rechaza un `Origin` que no sea localhost (defensa contra DNS rebinding).
-- Quien tenga el token maneja **todo** sin confirmación (salir al aire,
-  expulsar, cambiar el PIN, cerrar la app): cuidar la carpeta `Credenciales/`.
-  Para revocarlo, borrar `Credenciales/mcp-token.cred` y reiniciar la app (se
-  genera otro).
-- La clave de transmisión nunca se escribe a disco (tampoco la que se toma de
-  YouTube, Twitch o Facebook: va solo a memoria).
+- Quien tenga el token maneja casi todo (con las guardas de aire: lo que
+  cambia el aire, al aire, lo confirma una persona): cuidar la carpeta
+  `Credenciales/`. De fábrica el token se **rota en cada arranque** (el puente
+  `ba-mcp` lo relee en cada pedido; un cliente HTTP directo lo vuelve a pedir
+  con `ba-mcp --token`); se rota en caliente con `mcp_token_rotar`
+  (`Config/seguridad.json`: `rotar_token_mcp`).
+- La última clave de transmisión usada se guarda **cifrada** en
+  `Credenciales/` (`stream-last`) para poder retomar la transmisión después de
+  una caída; las que se toman de YouTube, Twitch o Facebook van solo a memoria.
 - Credenciales y tokens de las plataformas en `Config/` dentro de la carpeta
   portable, solo-dueño. El login lo hace siempre la persona en el navegador.
 

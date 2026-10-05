@@ -35,3 +35,18 @@ OBS. Opciones:
 
 **Recomendación:** A, como parte de una tarea más grande: «el audio de entrada en GStreamer» (micrófonos
 y racks). Mientras tanto, T34 ya funciona sobre los niveles.
+
+## T47 · Passphrase para las credenciales
+
+Hoy `Credenciales/` se cifra con una clave del dispositivo: alguien con la carpeta y la máquina puede
+leerla. `SecretsStore` (Argon2id) ya existe para envolver esa clave con una passphrase.
+
+| Opción | Qué cambia | Costo |
+|---|---|---|
+| A. Passphrase al arrancar | El launcher (o la app) la pide antes de abrir `Credenciales/` | Nadie puede arrancar la transmisión desatendida (p. ej. tras un corte de luz, con la app en inicio automático) |
+| B. Llavero del sistema | Keychain (Mac) / DPAPI (Windows) / Secret Service (Linux) guarda la clave | Rompe la portabilidad: la carpeta deja de andar en otra máquina sin volver a cargar todo |
+| C. Como está | Clave del dispositivo | Proteger el disco (FileVault/BitLocker) y la cuenta del sistema |
+
+**Recomendación:** C con disco cifrado para el equipo de la sala, y A como opción para quien la
+necesite (apagada de fábrica). La decisión depende de si el aparato tiene que volver solo al aire
+después de un corte.

@@ -32,6 +32,8 @@
 
 #include <obs.h>
 
+#include <fstream>
+
 #include "AppRuntime.hpp"
 #include "AppSettings.hpp"
 #include "InputSpecs.hpp"
@@ -687,8 +689,16 @@ bool McpService::start(quint16 port) {
     // La traza completa arranca con el servidor: lo que pase antes no existe
     // todavia para nadie de afuera.
     Traza::la().abrir(rt_.dataRoot() / "Logs");
-    const QString token =
-        loadOrCreateToken(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()));
+    // T47: de fábrica, un token nuevo en cada arranque (el puente ba-mcp lo lee de
+    // Credenciales/ en cada pedido; un cliente HTTP directo lo vuelve a pedir con `ba-mcp --token`).
+    const QString cred = QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring());
+    bool rotar = true;
+    {
+        std::ifstream f(rt_.dataRoot() / "Config" / "seguridad.json");
+        const json j = json::parse(f, nullptr, false);
+        if (j.is_object()) rotar = j.value("rotar_token_mcp", true);
+    }
+    const QString token = rotar ? rotarToken(cred) : loadOrCreateToken(cred);
     if (token.isEmpty()) return false;
     http_ = std::make_unique<McpHttp>(core_, token);
     if (!http_->listen(port)) {
@@ -2129,6 +2139,53 @@ void McpService::registerTools() {
                                                       QString::fromStdString(a.value("texto", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok("Aprobado: el zocalo ya lo usa."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "mcp_token_rotar";
+        t.title = "Rotar el token del MCP";
+        t.category = "config";
+        t.description = "Cambia ya el token del servidor MCP (el viejo deja de valer). El puente ba-mcp lo relee solo; un "
+                        "cliente HTTP directo lo vuelve a pedir con `ba-mcp --token`.";
+        t.run = [this](const json&, Done done) {
+            const QString nuevo = rotarToken(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()));
+            if (nuevo.isEmpty() || !http_) return done(ToolResult::error("no se pudo guardar el token nuevo"));
+            http_->setToken(nuevo);
+            done(ToolResult::ok("Token rotado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "seguridad_estado";
+        t.title = "Seguridad: estado y ajustes";
+        t.category = "config";
+        t.description = "Lo que protege los accesos: si el token del MCP se rota en cada arranque, si la sala cambia de "
+                        "PIN al empezar cada sesion en vivo, y el modo en vivo. Con `rotar_token_mcp` o `pin_por_sesion` "
+                        "los cambia (fuera de vivo).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"rotar_token_mcp", {{"type", "boolean"}}}, {"pin_por_sesion", {{"type", "boolean"}}}}}};
+        t.run = [this](const json& a, Done done) {
+            const auto ruta = rt_.dataRoot() / "Config" / "seguridad.json";
+            json j = json::object();
+            {
+                std::ifstream f(ruta);
+                const json x = json::parse(f, nullptr, false);
+                if (x.is_object()) j = x;
+            }
+            if (a.contains("rotar_token_mcp") || a.contains("pin_por_sesion")) {
+                if (vm_.modoVivo()) return done(ToolResult::error("no se cambia en vivo"));
+                for (const char* k : {"rotar_token_mcp", "pin_por_sesion"})
+                    if (a.contains(k)) j[k] = a.value(k, true);
+                std::ofstream o(ruta);
+                o << j.dump(1);
+            }
+            done(ToolResult().data({{"rotar_token_mcp", j.value("rotar_token_mcp", true)},
+                                    {"pin_por_sesion", j.value("pin_por_sesion", true)},
+                                    {"modo_vivo", vm_.modoVivoEstado()},
+                                    {"passphrase", "todavia no (ver docs/DECISIONES-PENDIENTES.md)"}}));
         };
         core_.addTool(std::move(t));
     }

@@ -731,6 +731,7 @@ class StudioViewModel : public QObject {
     QStringList paginasProtegidas_{"configuracion", "plugins", "agentes"};
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
+    bool eventoEnVivo_ = false;
     QVariantMap caida_;
     QVariantMap tally_;
     QVariantList mediosAlAire_;

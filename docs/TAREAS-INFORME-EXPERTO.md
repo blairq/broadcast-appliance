@@ -70,7 +70,7 @@
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho en parte (contador del medio, back-timing; falta la playlist) |
-| T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | parcial |
+| T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | hecho en parte (token MCP rotado, PIN por sesión; passphrase = decisión pendiente; los enlaces vencen con el PIN) |
 | T48 | Modo en vivo que protege la interfaz | P1 | hecho en parte (páginas con CONFIRMAR y ajustes que cortan bloqueados; falta el Loader con tiempo máximo para extensiones y los plugins aprobados de T60) |
 | T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | hecho (globales en Mac y Windows; Linux solo locales; la pestaña está en Botonera) |
 | T50 | Bus de eventos de la app (para superficies, plugins y web) | P1 | hecho (bus, MCP, plugins; la pestaña Eventos está en la página Botonera) |

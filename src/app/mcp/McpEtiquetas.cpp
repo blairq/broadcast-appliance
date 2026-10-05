@@ -155,6 +155,8 @@ const Fila kPropias[] = {
     {"botonera_emparejar", "emparejar tablet qr botonera codigo"},
     {"botonera_revocar", "revocar tablet token botonera"},
     {"botonera_auditoria", "auditoria registro botonera acciones"},
+    {"mcp_token_rotar", "rotar token mcp seguridad"},
+    {"seguridad_estado", "seguridad token pin sesion accesos"},
     {"stream_salud", "salud transmision kbps perdidos congestion reconexiones"},
     {"scene_cut", "cut corte seco escena armada"},
     {"transicion_manual", "t-bar palanca transicion manual"},

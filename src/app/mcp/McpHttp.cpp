@@ -75,6 +75,12 @@ QString loadOrCreateToken(const QString& credentialsDir) {
     return t;
 }
 
+QString rotarToken(const QString& credentialsDir) {
+    const QString t = randomHex(32);
+    if (!cred::write(credentialsDir, "mcp-token", t.toUtf8())) return {};
+    return t;
+}
+
 bool writePrivateJson(const QString& path, const QByteArray& data) {
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly)) return false;
