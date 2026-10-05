@@ -720,6 +720,38 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         core.addTool(std::move(t));
     }
 
+    // --- Modo en vivo (protege la interfaz) -------------------------------------------------
+    {
+        Tool t;
+        t.name = "modo_vivo_estado";
+        t.title = "Modo en vivo";
+        t.category = "botonera";
+        t.readOnly = true;
+        t.description = "Si el modo en vivo esta activo (transmitiendo o con el evento en vivo; opcionalmente grabando), "
+                        "que paginas protege (piden escribir CONFIRMAR con un motivo) y cuales se desbloquearon.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.modoVivoEstado())); };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "modo_vivo_ajustes";
+        t.title = "Ajustes del modo en vivo";
+        t.category = "botonera";
+        t.description = "Fuera del vivo: `activo`, `incluir_grabando` y `paginas` protegidas (ids del riel: configuracion, "
+                        "plugins, agentes, asistente…).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"incluir_grabando", {{"type", "boolean"}}},
+                           {"paginas", {{"type", "array"}, {"items", {{"type", "string"}}}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const std::string e = vm.setModoVivoAjustes(a);
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(vm.modoVivoEstado()));
+        };
+        core.addTool(std::move(t));
+    }
+
     // --- Companion Satellite ---------------------------------------------------------------
     {
         Tool t;

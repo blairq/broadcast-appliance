@@ -41,6 +41,53 @@ ApplicationWindow {
     }
 
     property int page: 0
+    // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
+    property int paginaPermitida: 0
+    onPageChanged: {
+        const id = Studio.riel.idDePagina(page)
+        if (Studio.paginaBloqueada(id)) {
+            desbloqueo.pagina = page
+            desbloqueo.idPagina = id
+            page = paginaPermitida
+            desbloqueo.open()
+        } else {
+            paginaPermitida = page
+        }
+    }
+    Dialog {
+        id: desbloqueo
+        property int pagina: 0
+        property string idPagina: ""
+        anchors.centerIn: parent
+        width: 440
+        modal: true
+        title: "Estamos en vivo"
+        onOpened: { confirmarF.text = ""; motivoF.text = ""; confirmarF.forceActiveFocus() }
+        contentItem: ColumnLayout {
+            spacing: 8
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: "«" + Studio.riel.tituloDePagina(desbloqueo.pagina) + "» tiene cosas que pueden cortar el aire. " +
+                      "Para entrar escribí CONFIRMAR y por qué (queda en el registro)."
+                color: Theme.text; font.pixelSize: 13
+            }
+            TextField { id: confirmarF; Layout.fillWidth: true; placeholderText: "CONFIRMAR"; color: Theme.text }
+            TextField { id: motivoF; Layout.fillWidth: true; placeholderText: "Motivo (p. ej. cambiar la sala de los invitados)"; color: Theme.text }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: desbloqueo.close() }
+                GlassButton {
+                    compact: true; text: "Entrar"; active: true
+                    enabled: confirmarF.text.trim().toUpperCase() === "CONFIRMAR" && motivoF.text.trim().length >= 3
+                    onClicked: {
+                        Studio.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
+                        desbloqueo.close()
+                        win.page = desbloqueo.pagina
+                    }
+                }
+            }
+        }
+    }
 
     // Cerrar la ventana principal cierra la aplicacion aunque haya ventanas de
     // salida abiertas (esas se recuerdan y vuelven al proximo arranque).

@@ -381,6 +381,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         bus_ = std::make_unique<control::BusEventos>();
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
         {
+            std::ifstream f(rt.dataRoot() / "Config" / "modo-vivo.json");
+            const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+            if (j.is_object()) {
+                modoVivoActivo_ = j.value("activo", true);
+                modoVivoGrabando_ = j.value("incluir_grabando", false);
+                if (j.contains("paginas") && j["paginas"].is_array()) {
+                    paginasProtegidas_.clear();
+                    for (const auto& p : j["paginas"])
+                        if (p.is_string()) paginasProtegidas_ << QString::fromStdString(p.get<std::string>());
+                }
+            }
+        }
+        settings_->setEnVivo([this]() { return modoVivo(); });
+        {
             std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
             const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
             if (j.is_object()) corteDirectoEditor_ = j.value("corte_directo_editor", false);
@@ -1838,6 +1852,12 @@ QObject* StudioViewModel::busQml() const { return bus_.get(); }
 
 void StudioViewModel::publicarEventos() {
     if (!bus_) return;
+    // Al terminar el vivo, lo desbloqueado vuelve a quedar protegido para la próxima.
+    if (const bool vivo = modoVivo(); vivo != estabaEnVivo_) {
+        estabaEnVivo_ = vivo;
+        if (!vivo) desbloqueadas_.clear();
+        bus_->publicar("aire/modo_vivo", {{"activo", vivo}});
+    }
     ++busTicks_;
     const QString aire = qs(rt_.engine().currentScene());
     const QString armada = scenes_->armada();
@@ -2162,6 +2182,53 @@ void StudioViewModel::setRotuloTraduccion(bool activo) {
 
 nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
     return {{"activo", rotuloTraduccion_}, {"capa", rotuloCapa_}, {"arriba", rotuloApagar_.isActive()}};
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+bool StudioViewModel::modoVivo() const {
+    if (!modoVivoActivo_) return false;
+    const bool evento = evento_ != nullptr && evento_->property("enVivo").toBool();
+    return streaming_ || evento || (modoVivoGrabando_ && recording_);
+}
+
+bool StudioViewModel::paginaBloqueada(const QString& id) const {
+    return modoVivo() && paginasProtegidas_.contains(id) && !desbloqueadas_.contains(id);
+}
+
+void StudioViewModel::desbloquearPagina(const QString& id, const QString& motivo) {
+    desbloqueadas_.insert(id);
+    ba::diag::registro().info("modo en vivo: se desbloqueó «" + id.toStdString() + "» — motivo: " + motivo.toStdString());
+    emit statusChanged();
+}
+
+nlohmann::json StudioViewModel::modoVivoEstado() const {
+    nlohmann::json p = nlohmann::json::array();
+    for (const QString& x : paginasProtegidas_) p.push_back(x.toStdString());
+    nlohmann::json d = nlohmann::json::array();
+    for (const QString& x : desbloqueadas_) d.push_back(x.toStdString());
+    return {{"en_vivo", modoVivo()}, {"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_},
+            {"paginas_protegidas", p}, {"desbloqueadas", d},
+            {"que_protege", "las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican"}};
+}
+
+std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {
+    if (modoVivo()) return "no se cambia en vivo";
+    if (a.contains("activo")) modoVivoActivo_ = a.value("activo", true);
+    if (a.contains("incluir_grabando")) modoVivoGrabando_ = a.value("incluir_grabando", false);
+    if (a.contains("paginas") && a["paginas"].is_array()) {
+        paginasProtegidas_.clear();
+        for (const auto& p : a["paginas"])
+            if (p.is_string()) paginasProtegidas_ << QString::fromStdString(p.get<std::string>());
+    }
+    nlohmann::json p = nlohmann::json::array();
+    for (const QString& x : paginasProtegidas_) p.push_back(x.toStdString());
+    std::ofstream o(rt_.dataRoot() / "Config" / "modo-vivo.json");
+    o << nlohmann::json{{"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_}, {"paginas", p}}.dump(1);
+    emit statusChanged();
+    return {};
 }
 
 } // namespace ba::app

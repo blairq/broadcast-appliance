@@ -274,6 +274,16 @@ void SettingsModel::resetSection(const QString& section) {
 }
 
 QString SettingsModel::apply() {
+    // En vivo, lo que reinicia el gateway (corta a los invitados) o el programa no se aplica.
+    if (enVivo_ && enVivo_()) {
+        QStringList cortan;
+        for (const Field& f : fields_)
+            if ((f.scope == "gateway" || f.scope == "restart") && draft_.value(f.key) != saved_.value(f.key)) cortan << f.label;
+        if (!cortan.isEmpty())
+            return "EN VIVO: no se aplica «" + cortan.join("», «") +
+                   "»: reinicia el gateway o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o "
+                   "esperá a terminar la transmisión.";
+    }
     const auto changed = [&](const QString& prefix) {
         for (auto it = draft_.cbegin(); it != draft_.cend(); ++it) {
             if (it.key().startsWith(prefix) && it.value() != saved_.value(it.key())) {

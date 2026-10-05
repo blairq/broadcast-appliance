@@ -20,6 +20,7 @@
 #include <QStringList>
 #include <QVariantMap>
 
+#include <functional>
 #include <vector>
 
 namespace ba::app {
@@ -61,6 +62,9 @@ class SettingsModel : public QAbstractListModel {
     Q_INVOKABLE void revert() override;
     /// Vuelve a los valores por defecto la seccion (en el borrador).
     Q_INVOKABLE void resetSection(const QString& section);
+    /// Modo en vivo (T48): mientras devuelva true, lo que reinicia el gateway o el
+    /// programa no se aplica (corta a los invitados o el aire).
+    void setEnVivo(std::function<bool()> fn) { enVivo_ = std::move(fn); }
 
    signals:
     void dirtyChanged();
@@ -85,6 +89,7 @@ class SettingsModel : public QAbstractListModel {
     int rowOfKey(const QString& key) const;
 
     AppRuntime& rt_;
+    std::function<bool()> enVivo_;
     std::vector<Field> fields_;
     QVariantMap saved_; // valores aplicados
     QVariantMap draft_; // valores en edicion

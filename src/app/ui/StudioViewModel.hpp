@@ -149,6 +149,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* acciones READ accionesQml CONSTANT)
     /// Avisos fuera del programa (webhook, Telegram, mail) para los disparadores.
     Q_PROPERTY(QObject* notificador READ notificadorQml CONSTANT)
+    /// Modo en vivo (T48): transmitiendo o con el evento en vivo; protege páginas y ajustes que cortan.
+    Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY statusChanged)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -336,6 +338,13 @@ class StudioViewModel : public QObject {
     control::Acciones& acciones() { return *acciones_; }
     QObject* notificadorQml() const;
     agent::Notificador& notificador() { return *notificador_; }
+    bool modoVivo() const;
+    /// ¿Hay que desbloquear la página `id` (del riel) para entrar? (en vivo y en la lista)
+    Q_INVOKABLE bool paginaBloqueada(const QString& id) const;
+    /// La desbloquea hasta que termine el vivo; el motivo queda en el registro.
+    Q_INVOKABLE void desbloquearPagina(const QString& id, const QString& motivo);
+    nlohmann::json modoVivoEstado() const;
+    std::string setModoVivoAjustes(const nlohmann::json& a);
     /// Los oradores remotos con el tiempo que hablaron (de la sala): [{nombre, segundos}].
     nlohmann::json remotosPalabra() const;
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
@@ -679,6 +688,11 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
     std::unique_ptr<agent::Notificador> notificador_;
+    bool modoVivoActivo_ = true;
+    bool modoVivoGrabando_ = false;
+    QStringList paginasProtegidas_{"configuracion", "plugins", "agentes"};
+    QSet<QString> desbloqueadas_;
+    bool estabaEnVivo_ = false;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
     std::unique_ptr<legislatura::Quorum> quorum_;
