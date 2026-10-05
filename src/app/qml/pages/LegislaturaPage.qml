@@ -55,7 +55,7 @@ Rectangle {
         }
     }
 
-    // ui_show_page {page: "legislatura", seccion: "conferencia[/sala|unidades|votacion|conexion]" | "recinto" | "orden" | "votacion"}
+    // ui_show_page {page: "legislatura", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
@@ -64,7 +64,7 @@ Rectangle {
             const i = ["conferencia", "recinto", "orden", "votacion"].indexOf(partes[0])
             if (i >= 0) tabs.currentIndex = i
             if (i === 0 && partes.length > 1) {
-                const j = ["sala", "unidades", "votacion", "conexion"].indexOf(partes[1])
+                const j = ["sala", "unidades", "votacion", "conexion", "avanzado"].indexOf(partes[1])
                 if (j >= 0) conferencia.pestana = j
             }
         }

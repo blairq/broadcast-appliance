@@ -22,6 +22,7 @@ from collections import deque
 from concurrent.futures import Future
 from typing import Callable
 
+from . import extra as x
 from . import mensajes as m
 
 
@@ -110,6 +111,19 @@ class Estado:
         self.asistencia_total: dict = {}                   # {presentes, ausentes} según la central
         self.delegado_unidad: dict[int, int] = {}          # delegado -> unidad (de la asistencia y de los pedidos)
         self.fase2_errores: dict[str, str] = {}            # "votacion"/"asistencia" -> por qué no arrancó
+        # Funciones sin documentar (dcn/extra.py).
+        self.proximo: dict = {}                            # {unidad, delegado}: MM_C_NEXT_TO_SPEAK_ON_PC
+        self.nominal_turno: dict = {}                      # {delegado, segundos_restantes}: VT_C_NEXT_ROLL_CALLER
+        self.avisos_extra: deque = deque(maxlen=50)        # los últimos avisos sin documentar, leídos
+
+    def poner_unidad(self, u: int, tipo: int, conectada: bool) -> None:
+        """Una unidad de la CCU. Si es doble (DDI en modo doble), también su mitad derecha (u + 256)."""
+        with self.lock:
+            self.unidades[u] = {"tipo": tipo, "conectada": conectada}
+            if tipo in x.TIPOS_DOBLES and u < x.DESPLAZAMIENTO_DERECHA:
+                self.unidades[u]["mitad"] = "izquierda"
+                self.unidades[u + x.DESPLAZAMIENTO_DERECHA] = {"tipo": tipo, "conectada": conectada,
+                                                               "mitad": "derecha", "base": u}
 
     def unidad_de_delegado(self, d: int) -> int:
         """[A VERIFICAR] sin base de delegados, el delegado de una unidad es esa unidad."""
@@ -266,9 +280,8 @@ class Ccu:
         def config(indice: int):
             def leer(d: bytes):
                 _conectadas, lista = m.leer_config(d)
-                with e.lock:
-                    for u, tipo in lista:
-                        e.unidades[u] = {"tipo": tipo, "conectada": True}
+                for u, tipo in lista:
+                    e.poner_unidad(u, tipo, True)
                 if len(lista) >= 1500:  # hay otro grupo de unidades
                     return luego(self.pedir(m.SC_C_GET_CCU_CONFIG_PROPERTY, m.palabra(indice + 1), cambia=False),
                                  config(indice + 1))
@@ -493,6 +506,20 @@ class Ccu:
         # Se leen los ajustes de la CCU primero: no pisar lo que cambió otro controlador.
         return luego(self.pedir(m.MM_C_GET_SETTINGS, cambia=False), poner)
 
+    # --- funciones sin documentar (dcn/extra.py) ---
+    def funcion(self, nombre: str, args: dict | None = None) -> Future:
+        """Una función del catálogo: arma los datos, la pide y devuelve la respuesta leída (dict)."""
+        nombre = x.buscar(nombre)
+        if x.FUNCIONES[nombre][2] != "pedido":
+            return _fallado(ErrorCcu(0, f"«{nombre}» es un aviso de la CCU: no se pide, llega solo"))
+        try:
+            datos = x.armar(nombre, args or {})
+        except (ValueError, TypeError) as e:
+            return _fallado(ErrorCcu(0, str(e)))
+        _cod, _b, _c, params, resp = x.FUNCIONES[nombre][:5]
+        solo_lee = not params and bool(resp)  # las de solo lectura andan también en «solo escuchar»
+        return luego(self.pedir(x.FUNCIONES[nombre][0], datos, cambia=not solo_lee), lambda d: x.leer(nombre, d))
+
     def aviso_tiempo(self, u: int, terminado: bool) -> Future:
         return self.pedir(m.MM_C_TIME_FINISHED_WARNING if terminado else m.MM_C_LAST_MINUTE_WARNING, m.unidad(u))
 
@@ -573,8 +600,7 @@ class Ccu:
             cambio("modo", {})
         elif f in (m.SC_C_CONNECT_UNIT, m.SC_C_DISCONNECT_UNIT):
             u, tipo = m.leer_unidad_sc(d)
-            with e.lock:
-                e.unidades[u] = {"tipo": tipo, "conectada": f == m.SC_C_CONNECT_UNIT}
+            e.poner_unidad(u, tipo, f == m.SC_C_CONNECT_UNIT)
             cambio("unidades", {"unidad": u, "conectada": f == m.SC_C_CONNECT_UNIT})
         elif f == m.SC_C_CCU_REBOOT:
             e.sincronizado = False
@@ -588,3 +614,23 @@ class Ccu:
             pres, aus = m.leer_asistencia_total(d)
             e.asistencia_total = {"presentes": pres, "ausentes": aus}
             cambio("asistencia", {})
+        elif f in x.AVISOS:
+            self._aviso_extra(x.AVISOS[f], x.leer(x.AVISOS[f], d))
+
+    # Votación manejada por el presidente desde su unidad: el estado que ve la app la sigue.
+    _VT_PRESIDENTE = {"votacion_pedido_iniciar": "abierta", "votacion_pedido_cerrar": "cerrada",
+                      "votacion_pedido_pausar": "pausada", "votacion_pedido_reanudar": "abierta"}
+
+    def _aviso_extra(self, nombre: str, datos: dict) -> None:
+        e = self.estado
+        e.avisos_extra.append({"aviso": nombre, "datos": datos, "hora": time.time()})
+        if nombre == "proximo_en_hablar":
+            e.proximo = datos
+        elif nombre == "llamado_nominal_turno":
+            e.nominal_turno = datos
+        elif nombre in self._VT_PRESIDENTE:
+            e.votacion["estado"] = self._VT_PRESIDENTE[nombre]
+            e.votacion["desde_presidente"] = True
+            if datos.get("numero"):
+                e.votacion["numero"] = datos["numero"]
+        self.al_cambio("aviso", {"aviso": nombre, **datos})

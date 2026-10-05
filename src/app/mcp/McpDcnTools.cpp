@@ -109,8 +109,9 @@ void McpService::registerDcnTools() {
          "Solo con el simulador: la banca se registra presente o ausente.",
          {{"banca", banca}, {"presente", {{"type", "boolean"}}}}, false, false},
         {"dcn_unidades", "unidades", "Unidades y bancas",
-         "Las unidades de la central con su tipo (delegado, presidente) y la banca asignada; bancas sin unidad y "
-         "unidades sin banca.",
+         "Las unidades de la central con su tipo (delegado, presidente; `tipo_nombre` dice qué equipo es) y la banca "
+         "asignada; bancas sin unidad y unidades sin banca. Una DCN-DDI en modo doble son DOS micrófonos: la mitad "
+         "izquierda es la unidad y la derecha la unidad + 256 (`mitad`, `ddi`); cada una va en su banca.",
          json::object(), true, false},
         {"dcn_unidad_asignar", "unidad_asignar", "Asignar la unidad de una banca",
          "`{banca, unidad}` la asigna (queda en el Cuerpo como dcn_unidad). `{aprender: banca}` espera el próximo "
@@ -126,6 +127,34 @@ void McpService::registerDcnTools() {
          "Para diagnóstico: `{activa: true}` registra las tramas en hexadecimal; `{ultimas: n}` las devuelve con los "
          "contadores de reenvíos, NAK y checksum mal.",
          {{"activa", {{"type", "boolean"}}}, {"ultimas", {{"type", "integer"}}}}, false, false},
+        {"dcn_funciones", "funciones", "Funciones sin documentar de la central",
+         "Las 56 funciones del Open Interface que no están en los manuales (salen del software de Bosch del DVD; "
+         "las 10 de descarga de firmware a la CCU no se ofrecen): nombre, código, parámetros, respuesta, si el "
+         "formato está verificado y si es peligrosa. Filtros: `texto`, `clase` (pedido | aviso). Ninguna está "
+         "probada contra una CCU real.",
+         {{"texto", {{"type", "string"}}}, {"clase", {{"type", "string"}, {"enum", {"pedido", "aviso"}}}}}, true, false},
+        {"dcn_funcion", "funcion", "Llamar una función sin documentar",
+         "`nombre` (de dcn_funciones, el nombre de Bosch o el código) y `args` con sus parámetros. Las peligrosas "
+         "(licencias, visor de las unidades) piden `confirmar: true`. `args.hex` manda los bytes tal cual. Si la "
+         "central no la conoce, contesta un error y se dice.",
+         {{"nombre", {{"type", "string"}}}, {"args", {{"type", "object"}}}, {"confirmar", {{"type", "boolean"}}}},
+         false, false},
+        {"dcn_proximo", "proximo", "Próximo en hablar",
+         "Quién es el próximo en hablar según la central y, en una votación por llamado nominal, a quién le toca "
+         "votar.",
+         json::object(), true, false},
+        {"dcn_cerrar_tras_siguiente", "cerrar_tras_siguiente", "Cerrar micrófonos al pasar al siguiente",
+         "Con `activo: true`, cada «siguiente» cierra los micrófonos de los que estaban hablando (lo hace la central).",
+         {{"activo", {{"type", "boolean"}}}}, false, false},
+        {"dcn_llamado_nominal", "llamado_nominal", "Orden del llamado nominal",
+         "El orden en que votan las bancas en una votación por llamado nominal (`bancas`, o `delegados` de la central).",
+         {{"bancas", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+          {"delegados", {{"type", "array"}, {"items", {{"type", "integer"}}}}}},
+         false, false},
+        {"dcn_simular_aviso", "simular_aviso", "Simular un aviso de la central",
+         "Solo con el simulador: la central manda un aviso sin documentar (por ejemplo votacion_pedido_iniciar "
+         "{numero}, como si el presidente abriera la votación desde su unidad).",
+         {{"nombre", {{"type", "string"}}}, {"datos", {{"type", "object"}}}}, false, false},
         {"dcn_simular_boton", "simular_boton", "Simular un botón de la sala",
          "Solo con el simulador (transporte simulador): aprieta el botón de micrófono de una banca (o unidad), como "
          "si un delegado pidiera la palabra.",

@@ -7,11 +7,14 @@ Todo lo del sistema de conferencia Bosch DCN NG del recinto, en un solo lugar.
 | Documento | De qué trata |
 |---|---|
 | [open-interface.md](open-interface.md) | Cómo la app controla la CCU por el Open Interface. Cubre el transporte serie Full/Simple y TCP, los mensajes y el catálogo de funciones, más el plugin `bosch-dcn`, las herramientas `dcn_*`, la interfaz y la botonera. Al final, un apéndice con las funciones sin documentar |
+| [desensamblado.md](desensamblado.md) | Lo que salió del software de PC de Bosch: el transporte serie (`SCS.DLL`), TCP (`CCU_DDTK.exe`), los formatos de las 66 funciones sin documentar, los tipos de unidad y la numeración de las DDI dobles (N y N + 256) |
 | [dcn-ddi.md](dcn-ddi.md) | La DCN-DDI (interfaz de los micrófonos de banca): modos, direccionamiento, paneles, cómo se ve en la app, planilla para relevar la sala y cómo reemplazar una |
 
 El código está en `assets/plugins/bosch-dcn/` (protocolo, simulador y pruebas),
 `src/app/legislatura/ConferenciaDcn.*`, `src/app/mcp/McpDcnTools.cpp` y
 `src/app/qml/controls/PanelConferencia.qml`.
+
+`desassembly/` (fuera de git, como `dvd/`): listados y notas del firmware de los equipos.
 
 ## Lo que vino en el DVD de Bosch (`dvd/`, fuera de git)
 

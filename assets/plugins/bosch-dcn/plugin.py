@@ -25,6 +25,7 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 
 import ba_plugin as ba
+from dcn import extra as x
 from dcn import mensajes as m
 from dcn.ccu import Ccu, ErrorCcu
 from dcn.simulador import Simulador
@@ -124,8 +125,7 @@ def foto() -> dict:
             "modo": m.MODO_NOMBRE.get(modo, str(modo) if modo is not None else ""),
             "modo_operador": modo in m.MODOS_OPERADOR,
             "max_abiertos": aj.get("max_abiertos"), "max_pedidos": aj.get("max_pedidos"),
-            "unidades": [{"unidad": u, "tipo": "presidente" if (x["tipo"] & 0xF0) == m.TIPO_PRESIDENTE else "delegado",
-                          "conectada": x["conectada"], "banca": banca_de(u)} for u, x in sorted(unidades.items())],
+            "unidades": [foto_unidad(u, d) for u, d in sorted(unidades.items())],
             "abiertos": [banca_de(u) or f"u{u}" for u, on in oradores if on],
             "abiertos_unidades": [u for u, on in oradores if on],
             "hablando": [con_banca(u, {"microfono": bool(on)}) for u, on in oradores],
@@ -137,8 +137,31 @@ def foto() -> dict:
             "votacion": foto_votacion(e),
             "asistencia": foto_asistencia(e),
             "fase2_errores": dict(e.fase2_errores),
+            "proximo": con_banca(e.proximo["unidad"], {"delegado": e.proximo.get("delegado")}) if e.proximo.get("unidad") else {},
+            "nominal_turno": nominal_turno(e),
+            "cerrar_tras_siguiente": c.get("cerrar_tras_siguiente"),
         })
         return out
+
+
+def foto_unidad(u: int, d: dict) -> dict:
+    out = {"unidad": u, "tipo": "presidente" if (d["tipo"] & 0xF0) == m.TIPO_PRESIDENTE else "delegado",
+           "tipo_codigo": d["tipo"], "tipo_nombre": x.nombre_tipo(d["tipo"]),
+           "conectada": d["conectada"], "banca": banca_de(u)}
+    if d.get("mitad"):  # DDI en modo doble: dos micrófonos, la derecha es la unidad + 256
+        out["mitad"] = d["mitad"]
+        out["ddi"] = d.get("base", u)
+    if d["tipo"] in (0x30, 0x40, 0x50):  # entrada, salida, ambiente: no van en una banca
+        out["sin_banca"] = True
+    return out
+
+
+def nominal_turno(e) -> dict:
+    t = dict(e.nominal_turno)
+    if t.get("delegado"):
+        u = e.unidad_de_delegado(t["delegado"])
+        t.update(con_banca(u))
+    return t
 
 
 def foto_votacion(e) -> dict:
@@ -205,12 +228,44 @@ def al_cambio(que: str, d: dict) -> None:
         plugin.evento("votacion/resultado" if d.get("final") else "votacion/parcial", foto_votacion(ccu.estado))
     elif que == "asistencia" and ccu is not None:
         plugin.evento("asistencia/cambio", foto_asistencia(ccu.estado))
+    elif que == "aviso":
+        aviso_extra(d)
     elif que == "todo":
         publicado.clear()
         publicado.update({u: True for u in ccu.estado.abiertos()} if ccu else {})
     elif que == "reinicio":
         registrar("la CCU se reinició: se resincroniza")
         trabajos.submit(sincronizar, generacion[0])
+    publicar_estado()
+
+
+def aviso_extra(d: dict) -> None:
+    """Los avisos sin documentar (dcn/extra.py) como eventos del bus."""
+    nombre = d.get("aviso", "")
+    plugin.evento("dcn/aviso", d)
+    if nombre == "proximo_en_hablar" and d.get("unidad"):
+        plugin.evento("conferencia/proximo", con_banca(d["unidad"], {"delegado": d.get("delegado")}))
+    elif nombre == "llamado_nominal_turno" and ccu is not None:
+        plugin.evento("votacion/nominal_turno", nominal_turno(ccu.estado))
+    elif nombre.startswith("votacion_pedido_"):
+        accion = nombre.removeprefix("votacion_pedido_")
+        registrar(f"votación: {accion} desde la unidad del presidente")
+        plugin.evento("votacion/presidente", {"accion": accion, "numero": d.get("numero")})
+        if accion == "cerrar" and ccu is not None:
+            # El presidente la cerró: se piden los resultados finales (en otro hilo; este es el de E/S).
+            trabajos.submit(resultados_finales)
+
+
+def resultados_finales() -> None:
+    k = ccu
+    if k is None:
+        return
+    try:
+        esperar(k.votacion_resultados())
+    except RuntimeError as e:
+        registrar(f"no se pudieron leer los resultados: {e}")
+        return
+    plugin.evento("votacion/resultado", foto_votacion(k.estado))
     publicar_estado()
 
 
@@ -232,7 +287,8 @@ def abrir():
         a, b = socket.socketpair()
         lado_ccu = SerieSimple(FlujoSocket(b)) if simple else SerieFull(FlujoSocket(b), escape=esc, latido_s=latido)
         sim = Simulador(lado_ccu, unidades=int(c.get("simulador_unidades", 12)),
-                        actividad_s=float(c.get("simulador_actividad_s", 0)))
+                        actividad_s=float(c.get("simulador_actividad_s", 0)),
+                        dobles=c.get("simulador_dobles", [12]))  # una DDI doble para ver las dos mitades
         sim.arrancar()
         if simple:
             return SerieSimple(FlujoSocket(a), traza=al_traza), "simulador (Simple)"
@@ -661,6 +717,86 @@ def _traza(a):
     n = int(a.get("ultimas", 50))
     return {"activa": bool(c.get("traza")), "tramas": list(traza)[-n:],
             "contadores": dict(transporte.contadores) if transporte else {}}
+
+
+# --- Funciones sin documentar (dcn/extra.py; docs/bosch/open-interface.md, apéndice) --------------
+
+@control("funciones", "Las funciones del Open Interface que no están en los manuales (salen del software de "
+         "Bosch): código, parámetros, respuesta, si el formato está verificado y el riesgo. Filtros: texto, clase.",
+         {"texto": {"type": "string"}, "clase": {"type": "string", "enum": ["pedido", "aviso"]}})
+def _funciones(a):
+    t = str(a.get("texto", "")).lower()
+    lista = [x.info(n) for n in x.FUNCIONES]
+    if a.get("clase"):
+        lista = [i for i in lista if i["clase"] == a["clase"]]
+    if t:
+        lista = [i for i in lista if t in (i["nombre"] + i["bosch"] + i["para"] + i["codigo"]).lower()]
+    return {"funciones": lista, "firmware_comentadas": x.FIRMWARE_COMENTADAS,
+            "nota": "Sin probar contra una CCU real; las de descarga de firmware no están disponibles."}
+
+
+@control("funcion", "Llama una función sin documentar por nombre o código: {nombre, args}. Las peligrosas "
+         "(licencias, visor) piden confirmar=true. args.hex manda los bytes tal cual (para probar).",
+         {"nombre": {"type": "string"}, "args": {"type": "object"}, "confirmar": {"type": "boolean"}})
+def _funcion(a):
+    nombre = x.buscar(a.get("nombre", ""))
+    if x.FUNCIONES[nombre][6] == "peligrosa" and not a.get("confirmar"):
+        raise RuntimeError(f"«{nombre}» toca licencias o el visor de las unidades: confirmá (confirmar=true)")
+    k = requiere_ccu()
+    args = a.get("args") or {}
+    if isinstance(args, str):
+        args = json.loads(args or "{}")
+    r = esperar(k.funcion(nombre, args))
+    registrar(f"función {nombre} ({x.FUNCIONES[nombre][1]}) por {a.get('quien', 'app')}: {r}")
+    publicar_estado()
+    return {"funcion": nombre, "resultado": r}
+
+
+@control("proximo", "Quién es el próximo en hablar según la central (aviso MM_C_NEXT_TO_SPEAK_ON_PC) y el "
+         "turno del llamado nominal.")
+def _proximo(_a):
+    f = foto()
+    return {"proximo": f.get("proximo", {}), "nominal_turno": f.get("nominal_turno", {})}
+
+
+@control("cerrar_tras_siguiente", "Con «siguiente», la central cierra los micrófonos de los que estaban hablando "
+         "(MM_C_MICSOFF_AFTER_SHIFT).", {"activo": {"type": "boolean"}})
+def _cerrar_tras_siguiente(a):
+    k = requiere_ccu()
+    activo = bool(a.get("activo", True))
+    esperar(k.funcion("cerrar_tras_siguiente", {"activo": activo}))
+    c["cerrar_tras_siguiente"] = activo
+    guardar_config()
+    publicar_estado()
+    return {"activo": activo}
+
+
+@control("llamado_nominal", "Orden de la votación por llamado nominal (VT_C_SET_ROLL_CALL): bancas o delegados, "
+         "en el orden en que votan.", {"bancas": {"type": "array", "items": {"type": "string"}},
+                                       "delegados": {"type": "array", "items": {"type": "integer"}}})
+def _llamado_nominal(a):
+    k = requiere_ccu()
+    if a.get("delegados"):
+        dl = [int(d) for d in a["delegados"]]
+    else:
+        # Sin base de delegados el delegado de una unidad es esa unidad (igual que en la votación).
+        dl = [unidad_de({"banca": b}) for b in a.get("bancas", [])]
+    if not dl:
+        raise ValueError("faltan las bancas (o los delegados)")
+    esperar(k.funcion("llamado_nominal_orden", {"delegados": dl}))
+    return {"delegados": dl}
+
+
+@control("simular_aviso", "Solo con el simulador: la CCU manda un aviso sin documentar (nombre, datos).",
+         {"nombre": {"type": "string"}, "datos": {"type": "object"}})
+def _simular_aviso(a):
+    if sim is None:
+        raise RuntimeError("no está el simulador (transporte: simulador)")
+    nombre = x.buscar(a.get("nombre", ""))
+    if x.FUNCIONES[nombre][2] != "aviso":
+        raise ValueError(f"«{nombre}» no es un aviso")
+    sim.aviso(nombre, a.get("datos") or {})
+    return {}
 
 
 @control("simular_boton", "Solo con el simulador: aprieta el botón de micrófono de una unidad (o banca) en la sala.",

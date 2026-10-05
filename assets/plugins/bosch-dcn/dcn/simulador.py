@@ -17,11 +17,13 @@ import random
 import threading
 import time
 
+from . import extra as x
 from . import mensajes as m
 
 
 class Simulador:
-    def __init__(self, transporte, unidades: int = 12, presidente: int = 1, actividad_s: float = 0) -> None:
+    def __init__(self, transporte, unidades: int = 12, presidente: int = 1, actividad_s: float = 0,
+                 dobles: tuple | list = ()) -> None:
         self.t = transporte
         self.t.al_recibir = self._recibir
         self.unidades = {u: {"tipo": m.TIPO_PRESIDENTE if u == presidente else m.TIPO_DELEGADO, "conectada": True}
@@ -44,6 +46,14 @@ class Simulador:
         self.at_app = False
         self.presentes = {u: True for u in self.unidades}
         self.tiempo = {"minutos": 0, "reloj": False}
+        # DDI en modo doble: la CCU le da UNA dirección; la mitad derecha es esa dirección + 256.
+        for u in dobles:
+            if u in self.unidades:
+                self.unidades[u]["tipo"] = 0x02
+                self.unidades[u + x.DESPLAZAMIENTO_DERECHA] = {"tipo": 0x02, "conectada": True, "mitad_derecha": True}
+                self.presentes[u + x.DESPLAZAMIENTO_DERECHA] = True
+        self.cerrar_tras_siguiente = False
+        self.extra: dict[str, dict] = {}  # lo último que se pidió de cada función sin documentar
 
     def arrancar(self) -> None:
         self.t.arrancar()
@@ -185,7 +195,8 @@ class Simulador:
             self._rsp(f, m.palabra(0))
         elif f == m.SC_C_GET_CCU_CONFIG_PROPERTY:
             indice = m.leer_palabra(d) if len(d) >= 2 else 0
-            lista = [(u, x["tipo"]) for u, x in self.unidades.items() if x["conectada"]] if indice == 0 else []
+            lista = ([(u, d["tipo"]) for u, d in self.unidades.items() if d["conectada"] and not d.get("mitad_derecha")]
+                     if indice == 0 else [])
             self._rsp(f, m.config(lista))
         elif f in (m.MM_C_START_MM, m.MM_C_START_MON_MM):
             self.mm_arrancado = True
@@ -218,7 +229,11 @@ class Simulador:
             if not self.rts:
                 return self._rsp(f, error=26)
             u, _d = self.rts.pop(0)
-            delegados = [x for x in self.spk if x[1] and not self._es_presidente(x[0])]
+            if self.cerrar_tras_siguiente:  # MM_C_MICSOFF_AFTER_SHIFT: se cierran los que hablaban
+                for o in [o for o in self.spk if o[1] and not self._es_presidente(o[0])]:
+                    self.spk = [y for y in self.spk if y[0] != o[0]]
+                    self._ntf(m.MM_C_SPK_REMOVE_ON_PC, m.unidad(o[0]))
+            delegados = [o for o in self.spk if o[1] and not self._es_presidente(o[0])]
             if len(delegados) >= self.ajustes["max_abiertos"]:
                 viejo = delegados[0][0]
                 self.spk = [x for x in self.spk if x[0] != viejo]
@@ -228,6 +243,7 @@ class Simulador:
             self._micro(u, True)
             if self.rts:
                 self._ntf(m.MM_C_RTS_FIRST_ON_PC, m.rts(*self.rts[0]))
+                self.aviso("proximo_en_hablar", {"unidad": self.rts[0][0], "delegado": self.rts[0][1]})
         elif f == m.MM_C_SPK_GET:
             self._rsp(f, m.lista_spk([(u, on) for u, on in self.spk]))
         elif f == m.MM_C_SPK_REMOVE:
@@ -338,5 +354,43 @@ class Simulador:
                 return self._rsp(f, error=2305)
             items = [(u, u, 1 if p else 2) for u, p in self.presentes.items()] if m.leer_palabra(d) == 0 else []
             self._rsp(f, m.asistencia(items))
+        elif f in x.POR_CODIGO:
+            self._extra(x.POR_CODIGO[f], d)
         else:
             self._rsp(f, error=1)
+
+    # --- funciones sin documentar (dcn/extra.py) ---
+    _RESPUESTAS = {"version_fpga": {"mayor": 3, "menor": 1}, "version_mmp": {"firmware": 2, "build": 41, "serie": "01 02 03 04"},
+                   "ccu_esclavas": {"ids": []}, "votacion_reloj": {"segundos": 0}, "contenido_id": {"id": 1},
+                   "acceso_cambio_permitido": {"permitido": True}, "canales": {"canales": [[0, 2], [1, 1]]},
+                   "codigo_autorizacion": {"version": 4, "banderas": 0x0001, "aplicaciones_pc": 0, "aplicaciones_oi": 1,
+                                           "tipo_licencia": 0},
+                   "votacion_por_respuesta": {"delegados": []}, "acceso_estado_unidades": {"cantidad": 0, "items": ""},
+                   "ccu_idiomas": {"datos": "00"}, "canales_individuales": {"datos": ""}}
+
+    def _extra(self, nombre: str, d: bytes) -> None:
+        cod, _b, clase, params, resp = x.FUNCIONES[nombre][:5]
+        if clase != "pedido":
+            return self._rsp(cod, error=1)
+        self.extra[nombre] = x.decodificar(params, d)
+        if nombre == "cerrar_tras_siguiente":
+            self.cerrar_tras_siguiente = bool(self.extra[nombre].get("activo"))
+        elif nombre == "pedidos_max":
+            self.ajustes["max_pedidos"] = int(self.extra[nombre].get("largo", 50))
+        elif nombre == "votacion_por_respuesta":
+            r = self.extra[nombre].get("respuesta", 0)
+            return self._rsp(cod, x.codificar(resp, {"delegados": [u for u, o in self.votos.items() if o == r]}))
+        self._rsp(cod, x.codificar(resp, self._RESPUESTAS.get(nombre, {})) if resp else b"")
+
+    def aviso(self, nombre: str, datos: dict) -> None:
+        """La CCU manda un aviso sin documentar (lo que haría la unidad del presidente, por ejemplo)."""
+        cod, _b, _c, _p, resp = x.FUNCIONES[nombre][:5]
+        with self.lock:
+            if nombre in ("votacion_pedido_iniciar", "votacion_pedido_reanudar"):
+                self.vt_estado = "abierta"
+            elif nombre == "votacion_pedido_cerrar":
+                self.vt_estado = "cerrada"
+            elif nombre == "votacion_pedido_pausar":
+                self.vt_estado = "pausada"
+            completos = {r[0]: datos.get(r[0], 0) for r in resp}
+            self.t.enviar(m.Mensaje(m.NTF, cod, x.codificar(resp, completos)))

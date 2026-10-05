@@ -116,22 +116,32 @@ botonera sin confirmación (ver [open-interface.md §8](open-interface.md)).
   deshabilita el anillo verde del micrófono (sección 7.13). Si no, el anillo muestra mal el estado:
   por ejemplo, queda verde (pedido) mientras el micrófono está abierto en rojo.
 
-> **[A VERIFICAR EN LA SALA] Cómo numera la CCU las dos mitades de una DDI doble.** El manual dice
-> que «el sistema ve a la DDI como dos dispositivos separados, pero le da una sola dirección». El
-> Open Interface no explica cómo se distinguen las dos mitades en `MM_C_MICRO_ON_OFF` y en los
-> pedidos. Hay dos posibilidades:
->
-> - **Dos `wUnitId` distintos** (uno por mitad). Es lo que esperamos, porque el OI trata a
->   `DCNC_UNIT_DUAL_MIC` como «unidad instalable» de un asiento. La app ya funciona así: cada
->   número va a una banca.
-> - **Un `wUnitId` para las dos.** Entonces las dos bancas de esa DDI compartirían micrófono en la
->   app.
->
-> **Prueba:**
-> 1. En una DDI en modo 0, «Aprender» la banca izquierda y apretar su botón.
-> 2. «Aprender» la banca derecha y apretar el otro botón.
-> 3. Si `dcn_unidades` muestra dos números, está todo bien.
-> 4. Con `dcn_traza {"activa": true}` se ven las tramas: guardarlas y anotarlas en esta guía.
+### Un micrófono o dos: cómo los numera la CCU
+
+**Es el selector de modo**, no un interruptor aparte: en **0** (o 2 o 3) la DDI es doble, con dos
+micrófonos y dos delegados; en **4** es simple, con un micrófono. El manual no dice si hace falta
+desinicializarla después de cambiarlo: por las dudas, apretar el de-init y volver a darle dirección
+(§2).
+
+En modo doble la CCU le da a la DDI **una sola** dirección N, pero los dos micrófonos son dos
+unidades para el Open Interface:
+
+- **izquierda (entrada 1): N**;
+- **derecha (entrada 2): N + 256**.
+
+Con esos números llegan los avisos de micrófono y los pedidos de palabra, y con esos números se abre
+o cierra cada micrófono. Sale del software sinóptico de Bosch (`Area.UnitConnected` de
+`bosch.dcn.bcpc.logic`: «DualStationLeft» / «DualStationRight», con `UniqueId & 511 > 256`; ver
+[desensamblado.md §3.6](desensamblado.md)). Vale igual para las unidades de discusión dobles (0x04)
+y las inalámbricas dobles (0x07).
+
+El plugin lo hace solo: cuando la CCU informa una unidad de tipo doble, agrega la mitad derecha a la
+lista. En Legislatura → Conferencia → Unidades aparecen como «DDI N · micrófono izquierda» y «DDI N ·
+micrófono derecha», y cada una va en su banca.
+
+> **Para confirmar en la sala** (el software de Bosch lo hace así; la central no la probamos todavía):
+> con una DDI en modo 0, «Aprender todas» y apretar los dos botones. Tiene que aparecer N para uno y
+> N + 256 para el otro. `dcn_traza {"activa": true}` muestra las tramas si algo no coincide.
 
 ## 4. Controles internos (con la tapa sacada)
 
@@ -159,7 +169,8 @@ Los controles 2 a 5 están repetidos para cada una de las dos entradas.
 ## 6. Cómo queda en la app
 
 - **Cada mitad de una DDI doble es una banca.** En Legislatura → Conferencia → Unidades se asigna
-  como cualquier unidad, con «Aprender» o a mano (`dcn_unidad_asignar`). Ver el aviso del §3.
+  como cualquier unidad, con «Aprender» o a mano (`dcn_unidad_asignar`). La derecha es la unidad
+  + 256 (§3).
 - **Presidente (modo 1):** aparece como unidad de presidente. La botonera la protege y `dcn_cerrar_todos`
   la deja abierta salvo que se le pase `incluir_presidente`.
 - **Entrada/salida (modos 5 y 6):** no tienen micrófono, así que no se asignan a bancas. Alimentan

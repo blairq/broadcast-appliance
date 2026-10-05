@@ -247,6 +247,8 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - **Votación:** `dcn_votacion {"accion": "preparar", "tema": ..., "menu": "si_no_abstencion"}`, después `abrir` y `cerrar`; `dcn_votacion_resultado` (parciales y nominal por banca); el oficial va a Quórum con `dcn_votacion_a_quorum` (nunca lo cargues sin que una persona lo pida).
 - **Asistencia:** `dcn_asistencia`; `dcn_presentes_quorum {"activo": true}` hace que Quórum cuente esos presentes.
 - **Tiempos:** con un orador presencial al aire con tiempo asignado, el reloj de su unidad se configura solo y avisa a un minuto y al terminar (`dcn_tiempo` para hacerlo a mano).
+- **DDI doble:** una DCN-DDI en modo doble son dos micrófonos: la mitad izquierda es la unidad N y la derecha N+256; cada una se asigna a su banca (docs/bosch/dcn-ddi.md).
+- **Funciones sin documentar** (del software de Bosch, sin probar contra una CCU real): `dcn_funciones` las lista y `dcn_funcion {"nombre", "args"}` las llama; las peligrosas piden `confirmar`. Con nombre propio: `dcn_proximo` (próximo en hablar, turno del llamado nominal), `dcn_cerrar_tras_siguiente {"activo": true}`, `dcn_llamado_nominal {"bancas": [...]}`. Si el presidente maneja la votación desde su unidad, el estado de `dcn_votacion_resultado` lo sigue solo.
 - Problemas: `dcn_traza {"activa": true}` y `dcn_traza {"ultimas": 50}` (tramas en hexadecimal y contadores de reenvíos). Guía completa: docs/bosch/open-interface.md.)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.

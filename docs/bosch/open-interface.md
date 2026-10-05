@@ -818,11 +818,24 @@ fábrica y control de flujo, y el `byData` por red. Todos los códigos de funci�
 
 ## Apéndice: funciones sin documentar (del software de Bosch)
 
-Salen de los enums del ensamblado .NET `Bosch.Dcn.OpenInterface.Logic` (DCN-SWSMV 3.1x, en el DVD del
-usuario), cruzados por CÓDIGO con `FNID.DEF` y los tres manuales: no aparecen en ninguno. Muchas están
-en las clases `…Cpc…` (las que usa el software de control de Bosch), así que puede que la CCU solo las
-acepte del controlador principal o con otra licencia: **hay que probarlas en la sala** antes de usarlas.
-Los parámetros de cada una no están: habría que sacarlos de su `…Marshaler` en el mismo ensamblado.
+Salen de los enums del ensamblado .NET `Bosch.Dcn.OpenInterface.Logic` (DCN-SWSMV 3.1x, en el DVD),
+cruzados por CÓDIGO con `FNID.DEF` y los manuales: no aparecen en ninguno. Los parámetros salen del
+`…Marshaler` de cada una y sus nombres, del ensamblado de interfaces (cómo, en
+[desensamblado.md](desensamblado.md)).
+
+**Están en el plugin** (`assets/plugins/bosch-dcn/dcn/extra.py`): las 56 usables con su formato, y las
+10 de descarga de firmware (DL) comentadas. Se usan con `dcn_funciones` / `dcn_funcion {nombre, args}`
+o en Legislatura → Conferencia → Avanzado. Las más útiles tienen control propio:
+
+- `dcn_proximo`: próximo en hablar (aviso 0x0047) y turno del llamado nominal (0x0116);
+- `dcn_cerrar_tras_siguiente`: 0x003F;
+- `dcn_llamado_nominal`: 0x0108;
+- la votación que el presidente maneja desde su unidad (avisos 0x0110–0x0115) actualiza sola el
+  estado de la votación y, al cerrarla, se piden los resultados.
+
+Muchas están en las clases `…Cpc…` (las que usa el software de control de Bosch), así que puede que la
+CCU solo las acepte del controlador principal o con otra licencia: **hay que probarlas en la sala**.
+Las de licencias y visor piden `confirmar`.
 
 | App | Código | Nombre | Tipo | Para qué serviría |
 |---|---|---|---|---|

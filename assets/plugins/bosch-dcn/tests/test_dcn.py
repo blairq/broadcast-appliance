@@ -8,6 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from dcn import extra as x  # noqa: E402
 from dcn import mensajes as m  # noqa: E402
 from dcn.ccu import Ccu, ErrorCcu  # noqa: E402
 from dcn.simulador import Simulador  # noqa: E402
@@ -373,6 +374,98 @@ class PorTcp(unittest.TestCase):
         self.assertTrue(cayo.wait(2))
         with self.assertRaises(Exception):
             f.result(timeout=1)
+
+
+class FuncionesSinDocumentar(unittest.TestCase):
+    """dcn/extra.py: las 66 del software de Bosch (56 usables + 10 de firmware comentadas)."""
+
+    def test_catalogo(self):
+        self.assertEqual(len(x.FUNCIONES) + x.FIRMWARE_COMENTADAS, 66)
+        codigos = [v[0] for v in x.FUNCIONES.values()]
+        self.assertEqual(len(codigos), len(set(codigos)))
+        self.assertFalse(any(0x1201 <= c <= 0x120C for c in codigos))  # nada de firmware
+        with self.assertRaises(ValueError):
+            x.buscar("0x1203")
+        self.assertEqual(x.buscar("MM_C_NEXT_TO_SPEAK_ON_PC"), "proximo_en_hablar")
+        self.assertEqual(x.buscar("0x003F"), "cerrar_tras_siguiente")
+
+    def test_formatos_como_los_arma_bosch(self):
+        # SetMicrophonesOffAfterShift: UInt16(0) + UInt16(activo ? 0x100 : 0), BinaryWriter (little-endian).
+        self.assertEqual(x.armar("cerrar_tras_siguiente", {"activo": True}), b"\x00\x00\x00\x01")
+        self.assertEqual(x.armar("cerrar_tras_siguiente", {"activo": False}), b"\x00\x00\x00\x00")
+        # SetAttentionTone: UInt16(0) + UInt16(tono << 8).
+        self.assertEqual(x.armar("tono_atencion", {"tono": 3}), b"\x00\x00\x00\x03")
+        # SetMicrophoneSettings: dos BOOLEAN de un byte.
+        self.assertEqual(x.armar("ajustes_microfono", {"cancelar_pedido": True, "apagar_micro": False}), b"\x01\x00")
+        self.assertEqual(x.armar("orador_insertar", {"unidad_actual": 5, "unidad_nueva": 0x0102}), b"\x05\x00\x02\x01")
+        self.assertEqual(x.armar("llamado_nominal_orden", {"delegados": [3, 1]}), b"\x02\x00\x03\x00\x01\x00")
+        self.assertEqual(x.leer("llamado_nominal_turno", b"\x07\x00\x1e\x00"), {"delegado": 7, "segundos_restantes": 30})
+        self.assertEqual(x.leer("version_mmp", b"\x02\x00\x29\x00\x01\x02\x03\x04")["serie"], "01 02 03 04")
+        with self.assertRaises(ValueError):
+            x.armar("pedidos_max", {})
+
+    def test_mitades_de_ddi(self):
+        self.assertEqual(x.mitad(5 + 256), (5, "derecha"))
+        self.assertEqual(x.mitad(5, 0x02), (5, "izquierda"))
+        self.assertIsNone(x.mitad(5, 0x01))
+
+    def _ccu(self, solo_escuchar=False):
+        a, b = socket.socketpair()
+        sim = Simulador(SerieFull(FlujoSocket(b)), unidades=6, dobles=[6])
+        sim.arrancar()
+        t = SerieFull(FlujoSocket(a))
+        ccu = Ccu(t, solo_escuchar=solo_escuchar)
+        avisos = []
+        ccu.al_cambio = lambda que, d: avisos.append((que, d))
+        t.arrancar()
+        self.addCleanup(t.parar)
+        self.addCleanup(sim.parar)
+        ccu.sincronizar().result(timeout=3)
+        return ccu, sim, avisos
+
+    def test_ddi_doble_son_dos_microfonos(self):
+        ccu, sim, _ = self._ccu()
+        self.assertEqual(ccu.estado.unidades[6]["mitad"], "izquierda")
+        self.assertEqual(ccu.estado.unidades[262]["mitad"], "derecha")
+        sim.apretar(262)  # el botón de la mitad derecha (modo operador: pide la palabra)
+        self.assertTrue(esperar(lambda: [p[0] for p in ccu.estado.pedidos] == [262]))
+        ccu.microfono(6, True).result(timeout=2)  # y la izquierda es otro micrófono
+        self.assertTrue(esperar(lambda: ccu.estado.abiertos() == [6]))
+
+    def test_pedir_y_leer(self):
+        ccu, sim, _ = self._ccu()
+        self.assertEqual(ccu.funcion("version_fpga").result(timeout=2), {"mayor": 3, "menor": 1})
+        ccu.funcion("cerrar_tras_siguiente", {"activo": True}).result(timeout=2)
+        self.assertTrue(sim.cerrar_tras_siguiente)
+        with self.assertRaises(ErrorCcu):
+            ccu.funcion("proximo_en_hablar").result(timeout=2)  # es un aviso
+
+    def test_solo_lectura_anda_en_solo_escuchar(self):
+        ccu, _sim, _ = self._ccu(solo_escuchar=True)
+        self.assertEqual(ccu.funcion("version_fpga").result(timeout=2)["mayor"], 3)
+        with self.assertRaises(ErrorCcu):
+            ccu.funcion("pedidos_max", {"largo": 10}).result(timeout=2)
+
+    def test_siguiente_cierra_y_avisa_el_proximo(self):
+        ccu, sim, avisos = self._ccu()
+        ccu.funcion("cerrar_tras_siguiente", {"activo": True}).result(timeout=2)
+        for u in (2, 3, 4):
+            sim.apretar(u)
+        self.assertTrue(esperar(lambda: len(ccu.estado.pedidos) == 3))
+        ccu.siguiente().result(timeout=2)
+        self.assertTrue(esperar(lambda: ccu.estado.proximo.get("unidad") == 3))
+        ccu.siguiente().result(timeout=2)
+        self.assertTrue(esperar(lambda: ccu.estado.abiertos() == [3]))  # el 2 se cerró solo
+
+    def test_votacion_desde_el_presidente(self):
+        ccu, sim, avisos = self._ccu()
+        sim.vt_app = True
+        sim.aviso("votacion_pedido_iniciar", {"numero": 4})
+        self.assertTrue(esperar(lambda: ccu.estado.votacion.get("estado") == "abierta"))
+        self.assertEqual(ccu.estado.votacion["numero"], 4)
+        sim.aviso("llamado_nominal_turno", {"delegado": 2, "segundos_restantes": 20})
+        self.assertTrue(esperar(lambda: ccu.estado.nominal_turno.get("delegado") == 2))
+        self.assertTrue(any(q == "aviso" and d["aviso"] == "llamado_nominal_turno" for q, d in avisos))
 
 
 if __name__ == "__main__":

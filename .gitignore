@@ -64,3 +64,4 @@ adapter_model.*
 checkpoint-*/
 imatrix.dat
 docs/bosch/dvd/
+docs/bosch/desassembly/
