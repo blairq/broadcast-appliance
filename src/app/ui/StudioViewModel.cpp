@@ -45,6 +45,7 @@
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
+#include "legislatura/SeguirMicrofono.hpp"
 #include "legislatura/Cuerpo.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
@@ -538,6 +539,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.cortar = [this](const std::string& e) { takeScene(QString::fromStdString(e)); };
         g.microfono = [this](const std::string& f, bool abierto) { rt_.engine().setSourceMuted(f, !abierto); };
         bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
+        seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
     }
     marca("camaras");
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
@@ -1820,6 +1822,7 @@ namespace ba::app {
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
+QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 
 QStringList StudioViewModel::nombresParaDsk() const {
     QStringList out;

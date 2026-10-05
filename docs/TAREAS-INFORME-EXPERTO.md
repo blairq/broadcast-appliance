@@ -55,9 +55,9 @@
 | T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | falta |
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
 | T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | parcial |
-| T32 | Automixer para las bancas | P1 | falta (escrito, sin usar) |
+| T32 | Automixer para las bancas | P1 | decisión pendiente (docs/DECISIONES-PENDIENTES.md: los micrófonos tienen que pasar a GStreamer) |
 | T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | parcial |
-| T34 | Seguir al micrófono abierto | P1 | falta |
+| T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
 | T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | falta |
 | T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | falta |
 | T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | parcial |

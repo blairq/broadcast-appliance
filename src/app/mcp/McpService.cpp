@@ -46,6 +46,7 @@
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
 #include "legislatura/Bancas.hpp"
+#include "legislatura/SeguirMicrofono.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
@@ -2279,6 +2280,48 @@ void McpService::registerTools() {
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             json r = vm.bancas().estadoJson();
             done(ToolResult().text(r.value("aviso", std::string()).empty() ? "Listo." : "Listo, con un aviso: " + r.value("aviso", std::string())).data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "seguir_microfono_estado";
+        t.title = "Seguir al microfono: estado";
+        t.category = "oradores";
+        t.readOnly = true;
+        t.description = "Si esta prendido, el modo (proponer o automatico), el umbral y los tiempos, los microfonos de "
+                        "banca abiertos ahora y la propuesta («Banca 12 – Perez pidio la palabra»), si hay.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.seguirMicrofono().estado())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "seguir_microfono";
+        t.title = "Seguir al microfono abierto";
+        t.category = "oradores";
+        t.description = "Cuando un microfono de banca (cuerpo: microfono.fuente) pasa `umbral_db` durante `sostener_ms`, "
+                        "propone poner esa banca al aire. `modo` proponer (de fabrica: el operador acepta) o automatico "
+                        "(la arma sola en el preview; nunca corta, y no mueve una camara al aire). `accion` aceptar "
+                        "(arma la propuesta) o descartar.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"modo", {{"type", "string"}, {"enum", {"proponer", "automatico"}}}},
+                           {"umbral_db", {{"type", "number"}, {"minimum", -60}, {"maximum", 0}}},
+                           {"sostener_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
+                           {"soltar_ms", {{"type", "integer"}, {"minimum", 200}, {"maximum", 30000}}},
+                           {"accion", {{"type", "string"}, {"enum", {"aceptar", "descartar"}}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto& s = vm.seguirMicrofono();
+            json c = a;
+            c.erase("accion");
+            if (!c.empty())
+                if (const std::string e = s.configurar(c); !e.empty()) return done(ToolResult::error(e));
+            const std::string acc = a.value("accion", std::string());
+            if (acc == "aceptar")
+                if (const std::string e = s.aceptar(); !e.empty()) return done(ToolResult::error(e));
+            if (acc == "descartar") s.descartar();
+            done(ToolResult().data(s.estado()));
         };
         core_.addTool(std::move(t));
     }

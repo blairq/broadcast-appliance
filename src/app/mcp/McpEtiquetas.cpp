@@ -155,6 +155,8 @@ const Fila kPropias[] = {
     {"botonera_emparejar", "emparejar tablet qr botonera codigo"},
     {"botonera_revocar", "revocar tablet token botonera"},
     {"botonera_auditoria", "auditoria registro botonera acciones"},
+    {"seguir_microfono", "seguir microfono abierto banca pidio la palabra automatico"},
+    {"seguir_microfono_estado", "seguir microfono estado propuesta banca"},
     {"dsk_listar", "capas dsk logo mosca interprete lsa encima programa"},
     {"dsk_definir", "definir capa dsk logo interprete lsa lengua de senas recuadro"},
     {"dsk_mostrar", "subir bajar capa dsk logo interprete lsa"},

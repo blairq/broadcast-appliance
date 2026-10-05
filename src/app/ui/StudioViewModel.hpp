@@ -73,6 +73,7 @@ namespace ba::app {
 namespace legislatura {
 class CuerpoViewModel;
 class Bancas;
+class SeguirMicrofono;
 }
 
 class AppRuntime;
@@ -132,6 +133,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
     /// Las capas DSK encima del programa (control/Dsk): logo, intérprete LSA, zócalo fijo.
     Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
+    /// Seguir al micrófono abierto: propone (o arma) la banca que pidió la palabra.
+    Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -303,6 +306,8 @@ class StudioViewModel : public QObject {
     QObject* botoneraQml() const;
     QObject* satelliteQml() const;
     QObject* dskQml() const;
+    QObject* seguirMicrofonoQml() const;
+    legislatura::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
     control::Dsk& dsk() { return *dsk_; }
     /// Lo que se puede poner en una capa DSK: escenas y fuentes, por nombre.
     Q_INVOKABLE QStringList nombresParaDsk() const;
@@ -640,6 +645,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
+    std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

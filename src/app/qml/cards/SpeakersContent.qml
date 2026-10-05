@@ -73,6 +73,55 @@ Item {
                 GlassButton { text: "Siguiente ▶ (armar)"; compact: true
                               onClicked: { const e = root.ba.siguiente("armar"); if (e !== "") Studio.notify(e, "error") } }
             }
+            // Seguir al micrófono: cuando se abre el de una banca, se propone (o se arma sola).
+            RowLayout {
+                id: seguir
+                Layout.fillWidth: true
+                spacing: 6
+                property var e: Studio.seguirMicrofono.estado
+                CheckBox {
+                    text: "Seguir al micrófono"
+                    checked: !!seguir.e.activo
+                    onToggled: Studio.seguirMicrofono.configurarUi({ activo: checked })
+                }
+                ComboBox {
+                    implicitWidth: 130
+                    enabled: !!seguir.e.activo
+                    model: [ { t: "Proponer", v: "proponer" }, { t: "Armar solo", v: "automatico" } ]
+                    textRole: "t"
+                    currentIndex: seguir.e.modo === "automatico" ? 1 : 0
+                    onActivated: (i) => Studio.seguirMicrofono.configurarUi({ modo: model[i].v })
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Armar solo: la banca queda en el preview; el TAKE sigue siendo tuyo."
+                }
+                Item { Layout.fillWidth: true }
+            }
+            Rectangle {
+                visible: !!(Studio.seguirMicrofono.estado.propuesta && Studio.seguirMicrofono.estado.propuesta.banca)
+                Layout.fillWidth: true
+                implicitHeight: 44
+                radius: 10
+                color: Qt.rgba(0.96, 0.72, 0.24, 0.16)
+                border.color: Theme.amber
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: 8
+                    spacing: 6
+                    readonly property var p: Studio.seguirMicrofono.estado.propuesta || ({})
+                    Text {
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                        text: "Banca " + (parent.p.banca || "") + " – " + (parent.p.nombre || "") + " pidió la palabra"
+                        color: Theme.text
+                        font.pixelSize: 13
+                    }
+                    GlassButton {
+                        compact: true; text: "Armar"; active: true
+                        onClicked: { const e = Studio.seguirMicrofono.aceptarUi(); if (e !== "") Studio.notify(e, "error") }
+                    }
+                    GlassButton { compact: true; text: "✕"; onClicked: Studio.seguirMicrofono.descartarUi() }
+                }
+            }
             Text { visible: (root.bst.bancas || []).length === 0; text: "Sin bancas: cargá el cuerpo en Personas → Cuerpo."
                    color: Theme.textFaint; font.pixelSize: 12 }
             GridView {
