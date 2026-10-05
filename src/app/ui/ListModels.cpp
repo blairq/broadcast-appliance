@@ -309,6 +309,12 @@ void MixerModel::refreshLevels() {
     }
 }
 
+double MixerModel::picoDe(const std::string& nombre) const {
+    for (std::size_t i = 0; i < names_.size(); ++i)
+        if (names_[i] == nombre) return peaks_[i];
+    return -100.0;
+}
+
 QVariantMap MixerModel::canal(int fila) const {
     if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
     const QModelIndex i = index(fila, 0);

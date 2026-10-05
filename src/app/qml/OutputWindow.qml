@@ -47,6 +47,9 @@ Window {
         keys: w.keys
         layout: w.layout
         fillMode: VideoItem.Fit
+        // Una ventana con UNA sola fuente suele ir a un proyector o un televisor
+        // de la sala: sin marcas de operador. Con varias es un multiview de control.
+        operador: w.keys.length > 1
     }
 
     // --- Controles que aparecen con el mouse --------------------------------

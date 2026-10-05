@@ -1905,6 +1905,34 @@ void StudioViewModel::publicarEventos() {
     nlohmann::json fuentesAire = fuentesDe(aire);
     for (const std::string& f : rt_.engine().fuentesDsk())
         if (std::find(fuentesAire.begin(), fuentesAire.end(), f) == fuentesAire.end()) fuentesAire.push_back(f);
+    {
+        // Para el multiview (tally rojo y verde por celda).
+        QStringList aireQ, armadaQ;
+        for (const auto& f : fuentesAire) aireQ << QString::fromStdString(f.get<std::string>());
+        for (const auto& f : fuentesDe(armada)) armadaQ << QString::fromStdString(f.get<std::string>());
+        const QVariantMap t{{"aire", aireQ}, {"armada", armadaQ}};
+        if (t != tally_) {
+            tally_ = t;
+            emit tallyChanged();
+        }
+    }
+    {
+        // Lo que se reproduce al aire y cuánto le queda (al segundo).
+        QVariantList medios;
+        nlohmann::json mediosJ = nlohmann::json::array();
+        for (const auto& m : rt_.engine().mediaSources()) {
+            if (m.state != "playing" || m.durationMs <= 0) continue;
+            if (std::find(fuentesAire.begin(), fuentesAire.end(), m.name) == fuentesAire.end()) continue;
+            const int resta = static_cast<int>((m.durationMs - m.timeMs + 999) / 1000);
+            medios.append(QVariantMap{{"fuente", qs(m.name)}, {"restante_s", resta}, {"duracion_s", static_cast<int>(m.durationMs / 1000)}});
+            mediosJ.push_back({{"fuente", m.name}, {"restante_s", resta}});
+        }
+        if (medios != mediosAlAire_) {
+            mediosAlAire_ = medios;
+            emit mediosChanged();
+            bus_->publicar("aire/medios", mediosJ);
+        }
+    }
     bus_->publicar("aire/tally", {{"programa", aire.toStdString()},
                                   {"preview", armada.toStdString()},
                                   {"fuentes_programa", fuentesAire},
@@ -1972,6 +2000,7 @@ QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
 QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
+double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }

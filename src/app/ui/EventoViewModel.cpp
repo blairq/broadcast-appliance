@@ -978,11 +978,42 @@ QVariantMap EventoViewModel::reloj() const {
             b == p.bloque ? p.cue + 1 : static_cast<int>(e_.bloques[static_cast<std::size_t>(b)].cues.size());
         nro += hasta;
     }
-    return QVariantMap{{"desvioSeg", guionCorriendo_->desvioSeg(t)},
-                       {"enCueSeg", guionCorriendo_->enCueSeg(t)},
-                       {"restanteSeg", guionCorriendo_->restanteSeg(t)},
-                       {"cueNro", p.valida() ? nro : 0},
-                       {"cuesTotal", static_cast<int>(e_.cantidadDeCues())}};
+    // Back-timing (T46): lo que falta del guion si se sigue lo previsto desde
+    // acá, lo que falta del bloque, a qué hora terminaría y, si el guion tiene
+    // hora de inicio, contra qué hora de fin planeada se compara.
+    int restanteGuion = 0, restanteBloque = 0, totalPrevisto = 0;
+    const int enCue = guionCorriendo_->enCueSeg(t);
+    for (int b = 0; b < static_cast<int>(e_.bloques.size()); ++b) {
+        const auto& cues = e_.bloques[static_cast<std::size_t>(b)].cues;
+        for (int c = 0; c < static_cast<int>(cues.size()); ++c) {
+            const int d = cues[static_cast<std::size_t>(c)].duracionSeg;
+            totalPrevisto += d;
+            if (!p.valida()) continue;
+            int falta = 0;
+            if (b > p.bloque || (b == p.bloque && c > p.cue)) falta = d;
+            else if (b == p.bloque && c == p.cue) falta = std::max(0, d - enCue);
+            restanteGuion += falta;
+            if (b == p.bloque) restanteBloque += falta;
+        }
+    }
+    QVariantMap m{{"desvioSeg", guionCorriendo_->desvioSeg(t)},
+                  {"enCueSeg", enCue},
+                  {"restanteSeg", guionCorriendo_->restanteSeg(t)},
+                  {"cueNro", p.valida() ? nro : 0},
+                  {"cuesTotal", static_cast<int>(e_.cantidadDeCues())},
+                  {"restanteBloqueSeg", restanteBloque},
+                  {"restanteGuionSeg", restanteGuion},
+                  {"horaFinPrevista", QDateTime::fromMSecsSinceEpoch(t + restanteGuion * 1000LL).toString("HH:mm")}};
+    if (!e_.inicio.empty()) {
+        const QTime ini = QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm");
+        if (ini.isValid()) {
+            const QDateTime finPlan(QDate::currentDate(), ini.addSecs(totalPrevisto));
+            m["horaFinPlaneada"] = finPlan.toString("HH:mm");
+            // Positivo: sobra tiempo; negativo: hay que recortar.
+            m["backTimingSeg"] = static_cast<int>((finPlan.toMSecsSinceEpoch() - (t + restanteGuion * 1000LL)) / 1000);
+        }
+    }
+    return m;
 }
 
 void EventoViewModel::setEnsayo(bool on) {

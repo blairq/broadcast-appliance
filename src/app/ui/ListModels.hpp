@@ -137,6 +137,8 @@ class MixerModel : public QAbstractListModel {
     /// los escribe a mano se rompe en silencio (pasa: se pidio el pico
     /// creyendo pedir el volumen).
     Q_INVOKABLE QVariantMap canal(int fila) const;
+    /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
+    double picoDe(const std::string& nombre) const;
 
    private:
     AppRuntime& rt_;

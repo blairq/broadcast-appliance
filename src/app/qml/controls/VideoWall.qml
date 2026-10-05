@@ -16,6 +16,21 @@ Item {
     property int fillMode: VideoItem.Cover
     property bool labels: false
     property real gap: 0
+    /// Tally (rojo al aire, verde armada), vúmetro y cuenta regresiva de medios por celda (T38).
+    /// Las marcas de operador (sin señal, tally, vúmetro, cuenta regresiva). Apagadas en lo que ve el público.
+    property bool operador: true
+    property bool tally: operador
+    property bool vumetros: operador
+    // Los vúmetros se leen a 10 Hz (un solo reloj para todas las celdas).
+    property int pulso: 0
+    Timer { interval: 100; repeat: true; running: wall.vumetros && wall.visible; onTriggered: wall.pulso++ }
+
+    /// La fuente del programa que muestra la celda (para el tally y el nivel).
+    function fuenteDe(key) {
+        if (key.startsWith("entrada:")) return key.slice(8)
+        if (key.startsWith("guest:")) return "Invitado " + key.slice(6)
+        return ""
+    }
 
     readonly property int n: keys ? keys.length : 0
 
@@ -64,12 +79,53 @@ Item {
             // Sin señal: borde rojo titilante y el cartel (solo acá, nunca al aire).
             Rectangle {
                 readonly property bool sin: modelData.startsWith("entrada:") && Studio.sinSenal.indexOf(modelData.slice(8)) >= 0
-                visible: sin
+                visible: sin && wall.operador
                 anchors.fill: parent; color: "transparent"
                 border { color: Theme.live; width: 3 }
                 SequentialAnimation on opacity { running: parent.visible; loops: Animation.Infinite
                     NumberAnimation { to: 0.35; duration: 450 } NumberAnimation { to: 1; duration: 450 } }
                 Text { anchors.centerIn: parent; text: "SIN SEÑAL"; color: Theme.live; font { pixelSize: 18; weight: Font.Black } }
+            }
+            // Tally: rojo si está al aire (o es el programa), verde si está armada.
+            Rectangle {
+                readonly property string f: wall.fuenteDe(modelData)
+                readonly property bool alAire: modelData === "program" || (f !== "" && (Studio.tally.aire || []).indexOf(f) >= 0)
+                readonly property bool armada: modelData === "armada" || (f !== "" && !alAire && (Studio.tally.armada || []).indexOf(f) >= 0)
+                visible: wall.tally && (alAire || armada)
+                anchors.fill: parent; color: "transparent"; z: 2
+                border { color: alAire ? "#e53935" : "#2ecc71"; width: Math.max(3, Math.min(parent.width, parent.height) / 90) }
+            }
+            // Vúmetro de la fuente (si tiene audio).
+            Rectangle {
+                id: vum
+                readonly property string f: wall.fuenteDe(modelData)
+                readonly property real db: (wall.pulso, f !== "" ? Studio.picoDe(f) : -100)
+                visible: wall.vumetros && f !== "" && db > -90
+                anchors { right: parent.right; top: parent.top; bottom: parent.bottom; margins: 6 }
+                width: 6; radius: 3; z: 3
+                color: Qt.rgba(0, 0, 0, 0.5)
+                Rectangle {
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                    height: parent.height * Math.max(0, Math.min(1, (vum.db + 60) / 60))
+                    radius: 3
+                    color: vum.db > -3 ? "#e53935" : vum.db > -12 ? "#ffb300" : "#2ecc71"
+                }
+            }
+            // Cuenta regresiva del medio que está al aire (roja en los últimos 10 s).
+            Rectangle {
+                readonly property var m: (Studio.mediosAlAire || []).find(x => x.fuente === wall.fuenteDe(modelData) ||
+                                                                          (modelData === "program" && (Studio.mediosAlAire || []).length > 0))
+                visible: !!m && wall.operador
+                anchors { right: parent.right; top: parent.top; margins: 8 }
+                radius: 8; height: 30; width: cuenta.implicitWidth + 16; z: 3
+                color: m && m.restante_s <= 10 ? "#c62828" : Qt.rgba(0, 0, 0, 0.6)
+                Text {
+                    id: cuenta
+                    anchors.centerIn: parent
+                    readonly property int r: parent.m ? parent.m.restante_s : 0
+                    text: "−" + Math.floor(r / 60) + ":" + String(r % 60).padStart(2, "0")
+                    color: "white"; font.pixelSize: 16; font.weight: Font.DemiBold; font.family: Theme.mono
+                }
             }
             Rectangle {
                 visible: wall.layout === "pip" && index > 0

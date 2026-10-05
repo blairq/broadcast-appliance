@@ -154,6 +154,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY statusChanged)
     /// La caída de la que se acaba de volver (T24): {causa, componente, hace_s, aire_vuelta_s?} o vacío.
     Q_PROPERTY(QVariantMap caidaReciente READ caidaReciente NOTIFY caidaChanged)
+    /// El tally para el multiview: {aire: [fuentes en el programa (con las capas DSK)], armada: [las del preview]}.
+    Q_PROPERTY(QVariantMap tally READ tally NOTIFY tallyChanged)
+    /// Los medios que suenan/se ven al aire: [{fuente, restante_s, duracion_s}] (T46).
+    Q_PROPERTY(QVariantList mediosAlAire READ mediosAlAire NOTIFY mediosChanged)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -343,6 +347,10 @@ class StudioViewModel : public QObject {
     agent::Notificador& notificador() { return *notificador_; }
     bool modoVivo() const;
     QVariantMap caidaReciente() const { return caida_; }
+    QVariantMap tally() const { return tally_; }
+    QVariantList mediosAlAire() const { return mediosAlAire_; }
+    /// El pico de audio de una fuente (para el vúmetro de cada celda del multiview).
+    Q_INVOKABLE double picoDe(const QString& fuente) const;
     Q_INVOKABLE void cerrarCartelCaida() { caida_.clear(); emit caidaChanged(); }
     /// Las últimas `n` caídas que anotó el supervisor (Runtime/caidas.jsonl).
     nlohmann::json caidas(int n) const;
@@ -608,6 +616,8 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void tallyChanged();
+    void mediosChanged();
     void caidaChanged();
     void emparejamientoListo(const QVariantMap& r);
     void statusChanged();
@@ -703,6 +713,8 @@ class StudioViewModel : public QObject {
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
     QVariantMap caida_;
+    QVariantMap tally_;
+    QVariantList mediosAlAire_;
     qint64 caidaMs_ = 0;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;

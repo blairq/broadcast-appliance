@@ -61,7 +61,7 @@
 | T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | falta |
 | T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | hecho |
 | T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | hecho (sin plantilla nominal en pantalla: T43; el hash cubre el acta, no la grabación) |
-| T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | parcial |
+| T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | hecho en parte (tally, vúmetro y cuenta regresiva por celda; falta el costo por nodo en el Patchbay) |
 | T39 | Scopes y legalizador broadcast-safe | P1 | falta |
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | parcial |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | parcial |
@@ -69,7 +69,7 @@
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | parcial |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
-| T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | parcial |
+| T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho en parte (contador del medio, back-timing; falta la playlist) |
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | parcial |
 | T48 | Modo en vivo que protege la interfaz | P1 | hecho en parte (páginas con CONFIRMAR y ajustes que cortan bloqueados; falta el Loader con tiempo máximo para extensiones y los plugins aprobados de T60) |
 | T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | hecho (globales en Mac y Windows; Linux solo locales; la pestaña está en Botonera) |

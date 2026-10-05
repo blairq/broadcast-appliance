@@ -811,6 +811,27 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         core.addTool(std::move(t));
     }
 
+    {
+        Tool t;
+        t.name = "media_restante";
+        t.title = "Cuanto le queda al medio al aire";
+        t.category = "botonera";
+        t.readOnly = true;
+        t.description = "Los videos o audios que se estan reproduciendo al aire y cuantos segundos les quedan (tambien en "
+                        "el bus: aire/medios). Para avisar antes de que termine y armar lo que sigue.";
+        t.run = [&vm](const json&, Done done) {
+            json out = json::array();
+            for (const QVariant& v : vm.mediosAlAire()) {
+                const QVariantMap m = v.toMap();
+                out.push_back({{"fuente", m.value("fuente").toString().toStdString()},
+                               {"restante_s", m.value("restante_s").toInt()},
+                               {"duracion_s", m.value("duracion_s").toInt()}});
+            }
+            done(ToolResult().data({{"medios", out}}));
+        };
+        core.addTool(std::move(t));
+    }
+
     // --- Companion Satellite ---------------------------------------------------------------
     {
         Tool t;
