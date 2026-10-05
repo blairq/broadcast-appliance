@@ -109,6 +109,9 @@ struct CallContext {
     /// Una persona apretó algo (p. ej. un botón de la botonera): no pasa por la
     /// guarda de aire (ya decidió un humano).
     bool humano = false;
+    /// Herramientas que este pedido puede usar aunque su rol no las tenga (un
+    /// disparador con `permitir_aire`).
+    std::set<std::string> permitidas;
 };
 
 /// Politica de aprobacion de acciones que modifican algo.

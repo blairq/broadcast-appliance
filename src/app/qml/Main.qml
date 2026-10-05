@@ -435,6 +435,43 @@ ApplicationWindow {
         z: 60
     }
 
+    // --- Alarma crítica: franja roja que titila arriba hasta que se reconoce --------
+    Rectangle {
+        id: franjaAlarma
+        property var activas: []
+        property bool critica: false
+        function refrescar() { activas = Studio.alarmasActivasUi(); critica = Studio.alarmaCritica() }
+        Connections { target: Studio; function onAlarmasCambio() { franjaAlarma.refrescar() } }
+        Component.onCompleted: refrescar()
+        visible: critica
+        z: 70
+        anchors { left: parent.left; right: parent.right; top: parent.top
+                  leftMargin: win.libreIzq; rightMargin: win.libreDer; topMargin: win.libreArr }
+        height: 34
+        color: "#dc2626"
+        SequentialAnimation on opacity {
+            running: franjaAlarma.visible; loops: Animation.Infinite
+            NumberAnimation { to: 0.55; duration: 450 }
+            NumberAnimation { to: 1.0; duration: 450 }
+        }
+        RowLayout {
+            anchors { fill: parent; leftMargin: 16; rightMargin: 10 }
+            spacing: 10
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: "⚠ ALARMA: " + (franjaAlarma.activas.length > 0 ? franjaAlarma.activas[franjaAlarma.activas.length - 1].text : "") +
+                      (franjaAlarma.activas.length > 1 ? "  (+" + (franjaAlarma.activas.length - 1) + ")" : "")
+                color: "white"; font { pixelSize: 14; weight: Font.Bold }
+            }
+            GlassButton { compact: true; text: "Reconocer (R)"; onClicked: Studio.reconocerAlarmaUi(0) }
+        }
+    }
+    Shortcut {
+        sequence: "R"
+        enabled: franjaAlarma.critica
+        onActivated: Studio.reconocerAlarmaUi(0)
+    }
+
     // --- Avisos (toasts) ------------------------------------------------------------
     Column {
         id: toasts

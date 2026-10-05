@@ -23,6 +23,7 @@
 
 namespace ba::app::agent {
 class AlertEngine;
+class AlarmaSonora;
 class AgentViewModel;
 class Despachador;
 class ModelosLocales;
@@ -219,6 +220,14 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap latidoUi() const;
     /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}). "" o el error.
     Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
+    /// Las alarmas de los disparadores que esperan que alguien las reconozca.
+    Q_INVOKABLE QVariantList alarmasActivasUi() const;
+    /// Reconoce una (id del evento) o todas (0).
+    Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
+    /// Hay una alarma crítica sin reconocer (la franja roja de arriba).
+    Q_INVOKABLE bool alarmaCritica() const;
+    /// El sonido de las alarmas (volumen, dispositivo, probar).
+    Q_INVOKABLE QObject* alarmaSonora() const;
     bool streaming() const { return streaming_; }
     bool reconnecting() const { return reconnecting_; }
     QString outputProblem() const { return outputProblem_; }
@@ -434,6 +443,7 @@ class StudioViewModel : public QObject {
     void notify(const QString& message, const QString& level);
     /// El launcher (o una señal) pidio cerrar.
     void quitRequested();
+    void alarmasCambio();
 
    private slots:
     void onTick();
@@ -487,6 +497,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FacebookViewModel> facebook_;
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<agent::AlertEngine> alerts_;
+    std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;

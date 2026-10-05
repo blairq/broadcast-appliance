@@ -20,6 +20,7 @@
 
 #include <QFile>
 #include <QHostAddress>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QNetworkInterface>
@@ -33,6 +34,7 @@
 
 #include "AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
+#include "agent/AlarmaSonora.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
@@ -280,6 +282,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             std::vector<agent::AlertInputs::Audio> out;
             for (const std::string& n : rt_.engine().audioSources())
                 out.push_back({n, rt_.engine().sourcePeakDb(n), rt_.engine().sourceMuted(n)});
+            // La mezcla del programa (lo que sale): para el silencio y la saturación de fábrica.
+            out.push_back({"Programa", std::max(peakL_, peakR_), false});
             return out;
         };
         in.media = [this]() {
@@ -324,18 +328,43 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         in.status = [this]() {
             const EngineStatus s = rt_.engine().status();
             return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames,
-                                              s.reconnecting};
+                                              s.reconnecting, rt_.config().encoder.videoBitrateKbps};
         };
         in.diskFreeGb = [this]() {
             const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));
             return si.isValid() ? static_cast<double>(si.bytesAvailable()) / 1e9 : -1.0;
         };
+        // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
+        // consulta como mucho una vez por segundo.
+        in.senales = [this, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>()]() {
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            if (video_ && ahora - cache->first > 1000) {
+                cache->first = ahora;
+                cache->second.clear();
+                for (const QString& e : video_->entradas()) {
+                    const nlohmann::json st = video_->estadoEntrada(e.toStdString());
+                    if (!st.contains("gstreamer")) continue; // las de libobs: sin dato de cuadros
+                    const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
+                    if (!g.is_object()) continue;
+                    const bool activa = st.value("activa", true);
+                    const bool con = !activa || (st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5);
+                    cache->second.emplace_back(e.toStdString(), con);
+                }
+            }
+            return cache->second;
+        };
         alerts_ = std::make_unique<agent::AlertEngine>(std::move(in),
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
+        alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
             for (const auto& n : ev.value("notify", nlohmann::json::array()))
                 if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
+            alarma_->sonar(QString::fromStdString(ev.value("sonido", std::string("ninguno"))));
+        });
+        connect(alerts_.get(), &agent::AlertEngine::alarmasCambio, this, [this]() {
+            alarma_->criticaActiva(alarmaCritica());
+            emit alarmasCambio();
         });
         alerts_->start(250);
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
@@ -1166,5 +1195,19 @@ QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
                                          nullptr, false);
     return QString::fromStdString(rt_.latido().ponerPolitica(j));
 }
+
+QVariantList StudioViewModel::alarmasActivasUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(alerts_->activas().dump())).array().toVariantList();
+}
+
+int StudioViewModel::reconocerAlarmaUi(qint64 id) { return alerts_->reconocer(static_cast<std::uint64_t>(id)); }
+
+bool StudioViewModel::alarmaCritica() const {
+    for (const auto& e : alerts_->activas())
+        if (e.value("sonido", std::string()) == "critico") return true;
+    return false;
+}
+
+QObject* StudioViewModel::alarmaSonora() const { return alarma_.get(); }
 
 } // namespace ba::app

@@ -654,9 +654,22 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                  " `help` lista todas."));
         return;
     }
-    // Fuera del juego del rol: se niega ANTES de validar, explicando de quien
-    // es. La herramienta existe, pero no para este cliente.
-    if (!permitida(*tool, ctx.rol)) {
+    // El rol de los disparadores: todo menos lo que corta o desarma (salvo lo
+    // que la regla permita con `permitir_aire`; y en vivo igual pasa por la
+    // guarda de aire).
+    if (ctx.rol == "disparador") {
+        static const std::set<std::string> kNo{"stream_stop",      "record_stop",  "app_quit",
+                                               "gateway_restart",  "participant_kick", "settings_set",
+                                               "agente_configurar", "mcp_aire_ajustar"};
+        const bool negada = kNo.count(name) != 0 || name.rfind("plugin_", 0) == 0;
+        if (negada && ctx.permitidas.count(name) == 0) {
+            ToolResult r = ToolResult::error("El rol `disparador` no puede usar '" + name +
+                                             "'. Si la regla lo necesita, agregalo en `permitir_aire` (fuera del aire).");
+            r.structured = json{{"bloqueada_por_rol", true}};
+            finish(r);
+            return;
+        }
+    } else if (!permitida(*tool, ctx.rol)) {
         finish(
             ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
                               "`) no esta en el juego del rol `" + ctx.rol +

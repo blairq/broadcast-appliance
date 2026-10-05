@@ -8,6 +8,7 @@
 // de un disparador (herramientas MCP) se ejecutan aca, en el acto.
 // ============================================================================
 
+#include <QPointer>
 #include "agent/AlertEngine.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -25,16 +26,29 @@ void McpService::registerAlertTools() {
     agent::AlertEngine& eng = vm_.alerts();
 
     // Acciones de los disparadores: se ejecutan como llamadas MCP normales.
-    connect(&eng, &agent::AlertEngine::fired, this, [this](const json& ev) {
+    // Con el rol `disparador` (sin parar la transmisión ni la grabación, sin
+    // sacar gente, sin ajustes ni plugins, salvo lo que la regla permita en
+    // `permitir_aire`), y lo que hicieron queda en alert_events.
+    connect(&eng, &agent::AlertEngine::fired, this, [this, &eng](const json& ev) {
+        const std::uint64_t id = ev.value("id", std::uint64_t{0});
+        CallContext ctx{"disparador-" + std::to_string(id), "disparador", "disparador"};
+        for (const auto& p : ev.value("permitir_aire", json::array()))
+            if (p.is_string()) ctx.permitidas.insert(p.get<std::string>());
         for (const auto& a : ev.value("actions", json::array())) {
             if (!a.is_object() || !a.contains("tool")) continue;
-            const json call{
-                {"jsonrpc", "2.0"},
-                {"id", "alerta-" + std::to_string(ev.value("id", 0))},
-                {"method", "tools/call"},
-                {"params", {{"name", a["tool"]}, {"arguments", a.value("arguments", json::object())}}}};
-            core_.handle(call, [](const json&) {},
-                         CallContext{"disparador-" + std::to_string(ev.value("id", 0)), "", "disparador"});
+            const std::string tool = a.value("tool", std::string());
+            QPointer<QObject> vivo(this);
+            core_.callTool({{"name", tool}, {"arguments", a.value("arguments", json::object())}},
+                           [vivo, &eng, id, tool](const json& r) {
+                               if (!vivo) return;
+                               std::string texto;
+                               for (const auto& c : r.value("content", json::array()))
+                                   if (c.value("type", "") == "text") texto += c.value("text", "");
+                               const json sc = r.value("structuredContent", json::object());
+                               eng.anotarResultado(id, tool, !r.value("isError", false), texto,
+                                                   sc.is_object() && sc.value("bloqueada_por_rol", false));
+                           },
+                           ctx);
         }
     });
 
@@ -87,6 +101,14 @@ void McpService::registerAlertTools() {
                   {"properties", {{"tool", {{"type", "string"}}}, {"arguments", {{"type", "object"}}}}},
                   {"required", {"tool"}}}}}},
               {"once", {{"type", "boolean"}}},
+              {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}},
+                          {"description", "suena para el operador (crítico: hasta que se reconoce)"}}},
+              {"reconocer", {{"type", "boolean"}, {"description", "queda como alarma hasta que alguien la reconoce"}}},
+              {"permitir_aire",
+               {{"type", "array"}, {"items", {{"type", "string"}}},
+                {"description", "herramientas que el disparador puede usar aunque el rol `disparador` no las tenga "
+                                "(stream_stop, record_stop, settings_set…); solo fuera del aire, y en vivo igual "
+                                "piden confirmación"}}},
               {"cooldownSec", {{"type", "number"}, {"minimum", 0}}}}},
             {"required", {"type"}}};
         t.examples = {
@@ -95,10 +117,49 @@ void McpService::registerAlertTools() {
             R"({"type": "speaker_time", "params": {"remainingSec": 30}})",
             R"({"type": "timer", "name": "Pausa", "params": {"in": 600}, "message": "Pasaron 10 minutos: toca la pausa."})"};
         t.run = [&eng, this](const json& a, Done done) {
+            if (!a.value("permitir_aire", json::array()).empty() && core_.hayAire())
+                return done(ToolResult::error("`permitir_aire` no se cambia al aire: hacelo fuera de la emisión."));
             const json r = eng.create(a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
             QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
             done(ToolResult().text("Disparador " + r["id"].get<std::string>() + " activo.").data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "alert_reconocer";
+        t.title = "Reconocer alarmas";
+        t.category = "alertas";
+        t.description = "Reconoce una alarma (`id` del evento, de alert_events o alert_list) o todas (`todas`: true): "
+                        "deja de sonar la crítica y sale de la lista de la tarjeta Sistema. Sin argumentos, lista "
+                        "las que esperan.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"id", {{"type", "integer"}}}, {"todas", {{"type", "boolean"}}}}}};
+        t.run = [&eng](const json& a, Done done) {
+            if (a.value("todas", false) || a.contains("id")) {
+                const int n = eng.reconocer(a.value("todas", false) ? 0 : a.value("id", std::uint64_t{0}));
+                return done(ToolResult().data(json{{"reconocidas", n}, {"quedan", eng.activas()}}));
+            }
+            done(ToolResult().data(json{{"activas", eng.activas()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "alert_fabrica";
+        t.title = "Disparadores de fábrica";
+        t.category = "alertas";
+        t.description =
+            "Los disparadores que vienen prendidos: silencio al aire del programa (crítico), saturación del "
+            "programa, la transmisión pierde cuadros o se cae (crítico), poco disco (menos de 30 min, también sin "
+            "grabar), entrada sin señal (crítico) e invitado caído. `restablecer`: true los vuelve a poner como "
+            "vinieron (los propios no se tocan).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"restablecer", {{"type", "boolean"}}}}}};
+        t.run = [&eng, this](const json& a, Done done) {
+            const json r = eng.fabrica(a.value("restablecer", false));
+            if (a.value("restablecer", false)) QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
+            done(ToolResult().data(json{{"fabrica", r}}));
         };
         core_.addTool(std::move(t));
     }
@@ -141,9 +202,14 @@ void McpService::registerAlertTools() {
                            {"notify", {{"type", "array"}}},
                            {"actions", {{"type", "array"}}},
                            {"once", {{"type", "boolean"}}},
+                           {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}}}},
+                           {"reconocer", {{"type", "boolean"}}},
+                           {"permitir_aire", {{"type", "array"}, {"items", {{"type", "string"}}}}},
                            {"cooldownSec", {{"type", "number"}}}}},
                          {"required", {"id"}}};
         t.run = [&eng, this](const json& a, Done done) {
+            if (a.contains("permitir_aire") && core_.hayAire())
+                return done(ToolResult::error("`permitir_aire` no se cambia al aire: hacelo fuera de la emisión."));
             const json r = eng.update(a["id"].get<std::string>(), a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
             QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");

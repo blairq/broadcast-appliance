@@ -68,6 +68,39 @@ Item {
                 color: l.ui_viva === false || l.motor_vivo === false ? Theme.warn : Theme.ok
                 font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true
             }
+            // Alarmas de los disparadores que esperan que alguien las reconozca.
+            Text { text: "Alarmas"; color: Theme.textFaint; font.pixelSize: 11; Layout.alignment: Qt.AlignTop }
+            ColumnLayout {
+                id: alarmas
+                Layout.fillWidth: true
+                spacing: 4
+                property var lista: Studio.alarmasActivasUi()
+                Connections { target: Studio; function onAlarmasCambio() { alarmas.lista = Studio.alarmasActivasUi() } }
+                Text { visible: alarmas.lista.length === 0; text: "ninguna"; color: Theme.ok; font.pixelSize: 12 }
+                Repeater {
+                    model: alarmas.lista
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 6
+                        Rectangle { width: 8; height: 8; radius: 4; color: modelData.sonido === "critico" ? Theme.live : Theme.warn }
+                        Text { Layout.fillWidth: true; text: modelData.text; color: Theme.text; font.pixelSize: 11; elide: Text.ElideRight }
+                        GlassButton { compact: true; text: "Reconocer"; onClicked: Studio.reconocerAlarmaUi(modelData.id) }
+                    }
+                }
+                RowLayout {
+                    spacing: 6
+                    readonly property var al: Studio.alarmaSonora()
+                    Text { text: "Volumen"; color: Theme.textFaint; font.pixelSize: 11 }
+                    Slider {
+                        Layout.preferredWidth: 110
+                        from: 0; to: 1
+                        value: parent.al ? parent.al.ajustesUi().volumen : 0.8
+                        onPressedChanged: if (!pressed && parent.al) parent.al.ponerAjustesUi({ volumen: value })
+                    }
+                    GlassButton { compact: true; text: "Probar"; onClicked: if (parent.al) parent.al.probar("aviso") }
+                }
+            }
             Text { text: "Espera UI"; color: Theme.textFaint; font.pixelSize: 11 }
             RowLayout {
                 spacing: 6

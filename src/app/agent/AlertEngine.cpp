@@ -124,9 +124,18 @@ json AlertEngine::types() {
          {"params", {{"forSec", "segundos reintentando antes de avisar (por defecto 20)"}}},
          {"cooldownSec", 60}},
         {{"type", "disk"},
-         {"summary", "Queda poco disco mientras se graba."},
-         {"params", {{"minGb", "GB libres minimos (por defecto 5)"}}},
+         {"summary", "Queda poco disco (mientras se graba, o siempre con `siempre`)."},
+         {"params",
+          {{"minGb", "GB libres minimos (por defecto 5)"},
+           {"minMinutos", "o: minutos de grabacion que quedan al bitrate configurado (p. ej. 30)"},
+           {"siempre", "avisar aunque no se este grabando (por defecto false)"}}},
          {"cooldownSec", 600}},
+        {{"type", "input_signal"},
+         {"summary", "Una entrada de video se queda sin señal (no llegan cuadros) un rato."},
+         {"params",
+          {{"entrada", "\"*\" (todas, por defecto) o el nombre de la entrada"},
+           {"forSec", "segundos sin señal (por defecto 3)"}}},
+         {"cooldownSec", 30}},
         {{"type", "timer"},
          {"summary", "Temporizador del servidor: en N segundos, a una hora, o cada N segundos."},
          {"params",
@@ -187,6 +196,10 @@ json AlertEngine::create(const json& spec) {
               {"message", spec.value("message", "")},
               {"notify", spec.value("notify", json::array({"llm", "ui"}))},
               {"actions", spec.value("actions", json::array())},
+              {"sonido", spec.value("sonido", std::string("ninguno"))},
+              {"reconocer", spec.value("reconocer", false)},
+              {"permitir_aire", spec.value("permitir_aire", json::array())},
+              {"fabrica", spec.value("fabrica", false)},
               {"once", spec.value("once", defaultOnce)},
               {"cooldownSec", spec.value("cooldownSec", typeInfo.value("cooldownSec", 0))},
               {"enabled", spec.value("enabled", true)},
@@ -201,7 +214,8 @@ json AlertEngine::create(const json& spec) {
 json AlertEngine::update(const std::string& id, const json& changes) {
     for (auto& r : rules_) {
         if (r["id"] != id) continue;
-        for (const char* k : {"name", "message", "notify", "actions", "once", "cooldownSec", "enabled"})
+        for (const char* k : {"name", "message", "notify", "actions", "once", "cooldownSec", "enabled", "sonido",
+                              "reconocer", "permitir_aire"})
             if (changes.contains(k)) r[k] = changes[k];
         if (changes.contains("params") && changes["params"].is_object())
             for (auto it = changes["params"].begin(); it != changes["params"].end(); ++it)
@@ -544,12 +558,40 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
                  json::object(), now);
         }
     } else if (type == "disk" && in_.diskFreeGb && in_.status) {
-        if (!in_.status().recording) return;
+        const auto s = in_.status();
+        if (!s.recording && !p.value("siempre", false)) return;
         const double free = in_.diskFreeGb();
-        if (free >= 0 && free < p.value("minGb", 5.0) && cooled("disk")) {
+        // GB por minuto al bitrate configurado (video + ~10 % de audio y contenedor).
+        const double gbMin = s.kbps > 0 ? s.kbps * 1.1 * 60.0 / 8.0 / 1e6 : 0.0;
+        const double minutos = gbMin > 0 && free >= 0 ? free / gbMin : -1;
+        const bool pocoGb = p.contains("minGb") || !p.contains("minMinutos") ? free < p.value("minGb", 5.0) : false;
+        const bool pocosMin = p.contains("minMinutos") && minutos >= 0 && minutos < p.value("minMinutos", 30.0);
+        if (free >= 0 && (pocoGb || pocosMin) && cooled("disk")) {
             mark("disk");
-            fire(rule, st, "Queda poco disco para la grabacion: " + fmt1(free) + " GB libres.",
-                 {{"freeGb", free}}, now);
+            fire(rule, st,
+                 "Queda poco disco" + std::string(s.recording ? " para la grabacion" : "") + ": " + fmt1(free) +
+                     " GB libres" + (minutos >= 0 ? " (~" + std::to_string(static_cast<int>(minutos)) + " min al bitrate actual)" : "") + ".",
+                 {{"freeGb", free}, {"minutos", minutos}}, now);
+        }
+    } else if (type == "input_signal" && in_.senales) {
+        const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 3.0) * 1000);
+        for (const auto& [nombre, conSenal] : in_.senales()) {
+            if (!matchName(p.value("entrada", "*"), nombre)) continue;
+            const std::string k = "sin:" + nombre;
+            if (!conSenal) {
+                if (!st.since.count(k)) st.since[k] = now;
+                if (now - st.since[k] >= forMs && st.seen[k] != "1" && cooled(nombre)) {
+                    st.seen[k] = "1";
+                    mark(nombre);
+                    fire(rule, st,
+                         "La entrada '" + nombre + "' no tiene señal hace " +
+                             std::to_string((now - st.since[k]) / 1000) + " s.",
+                         {{"entrada", nombre}}, now);
+                }
+            } else {
+                st.since.erase(k);
+                st.seen.erase(k);
+            }
         }
     } else if (type == "timer") {
         const std::int64_t due = p.value("dueMs", std::int64_t{0});
@@ -626,8 +668,16 @@ void AlertEngine::fire(json& rule, State& st, const std::string& text, const jso
             {"at", isoNow(now)},
             {"atMs", now},
             {"notify", rule.value("notify", json::array())},
-            {"actions", rule.value("actions", json::array())}};
+            {"actions", rule.value("actions", json::array())},
+            {"sonido", rule.value("sonido", std::string("ninguno"))},
+            {"reconocer", rule.value("reconocer", false)},
+            {"permitir_aire", rule.value("permitir_aire", json::array())},
+            {"resultados", json::array()}};
     events_.push_back(ev);
+    if (ev.value("reconocer", false)) {
+        activas_.push_back(ev);
+        emit alarmasCambio();
+    }
     while (events_.size() > 300)
         events_.pop_front();
     rule["fired"] = rule.value("fired", 0) + 1;
@@ -663,10 +713,75 @@ void AlertEngine::save() const {
     std::filesystem::rename(tmp, storePath_, ec);
 }
 
+json AlertEngine::activas() const { return json(activas_); }
+
+int AlertEngine::reconocer(std::uint64_t id) {
+    const auto antes = activas_.size();
+    activas_.erase(std::remove_if(activas_.begin(), activas_.end(),
+                                  [id](const json& e) { return id == 0 || e.value("id", std::uint64_t{0}) == id; }),
+                   activas_.end());
+    const int n = static_cast<int>(antes - activas_.size());
+    if (n > 0) emit alarmasCambio();
+    return n;
+}
+
+void AlertEngine::anotarResultado(std::uint64_t id, const std::string& herramienta, bool ok, const std::string& texto,
+                                  bool bloqueada) {
+    for (auto& e : events_)
+        if (e.value("id", std::uint64_t{0}) == id) {
+            e["resultados"].push_back({{"tool", herramienta},
+                                       {"ok", ok},
+                                       {"texto", texto.substr(0, 300)},
+                                       {"bloqueada_por_rol", bloqueada}});
+            return;
+        }
+}
+
+void AlertEngine::sembrar() {
+    const json reglas = json::array({
+        {{"type", "audio_silence"}, {"name", "Silencio al aire (programa)"},
+         {"params", {{"source", "Programa"}, {"belowDb", -50}, {"forSec", 8}, {"onlyWhenLive", true}}},
+         {"sonido", "critico"}, {"reconocer", true}},
+        {{"type", "audio_peak"}, {"name", "Saturación del programa"},
+         {"params", {{"source", "Programa"}, {"thresholdDb", -1}, {"holdMs", 500}}}, {"sonido", "aviso"}},
+        {{"type", "stream_health"}, {"name", "La transmisión pierde cuadros"},
+         {"params", {{"droppedPct", 2}, {"windowSec", 30}}}, {"sonido", "aviso"}},
+        {{"type", "stream_down"}, {"name", "La transmisión se cayó"}, {"params", {{"forSec", 10}}},
+         {"sonido", "critico"}, {"reconocer", true}},
+        {{"type", "disk"}, {"name", "Poco disco (menos de 30 min)"},
+         {"params", {{"minMinutos", 30}, {"minGb", 5}, {"siempre", true}}}, {"sonido", "aviso"}},
+        {{"type", "input_signal"}, {"name", "Entrada sin señal"}, {"params", {{"entrada", "*"}, {"forSec", 3}}},
+         {"sonido", "critico"}, {"reconocer", true}},
+        {{"type", "guest_drop"}, {"name", "Un invitado se cayó"}, {"params", json::object()}, {"sonido", "aviso"}},
+    });
+    for (json r : reglas) {
+        r["fabrica"] = true;
+        r["notify"] = json::array({"ui", "llm"});
+        create(r);
+    }
+}
+
+json AlertEngine::fabrica(bool restablecer) {
+    if (restablecer) {
+        rules_.erase(std::remove_if(rules_.begin(), rules_.end(), [](const json& r) { return r.value("fabrica", false); }),
+                     rules_.end());
+        sembrar();
+        save();
+    }
+    json out = json::array();
+    for (const auto& r : rules_)
+        if (r.value("fabrica", false)) out.push_back(r);
+    return out;
+}
+
 void AlertEngine::load() {
     if (storePath_.empty()) return;
     std::ifstream in(storePath_, std::ios::binary);
-    if (!in) return;
+    if (!in) {
+        // Primer arranque: los de fábrica, prendidos.
+        sembrar();
+        return;
+    }
     const json j = json::parse(in, nullptr, false);
     if (!j.is_object()) return;
     ruleSeq_ = j.value("ruleSeq", 0);

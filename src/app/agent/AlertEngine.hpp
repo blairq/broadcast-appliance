@@ -69,6 +69,7 @@ struct AlertInputs {
         /// por su cuenta; lo que no hace es avisar cuando lleva un rato sin
         /// lograrlo, que es justo el momento en el que hay que hacer algo.
         bool reconnecting = false;
+        int kbps = 0; ///< bitrate de video configurado (para los minutos de disco)
     };
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;
@@ -78,6 +79,8 @@ struct AlertInputs {
     std::function<std::vector<json>()> textos; ///< salidas de texto: {key, flujo, texto, origen}
     std::function<Status()> status;
     std::function<double()> diskFreeGb;  ///< -1 = desconocido
+    /// Las entradas de video y si tienen señal ({nombre, con_senal}).
+    std::function<std::vector<std::pair<std::string, bool>>()> senales;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 
@@ -94,6 +97,17 @@ class AlertEngine : public QObject {
     json update(const std::string& id, const json& changes);
     bool remove(const std::string& id);
     void clear();
+    /// Los disparadores de fábrica (silencio y saturación del programa, la
+    /// transmisión, el disco, entradas sin señal, invitados caídos): se siembran
+    /// en el primer arranque; `restablecer` vuelve a ponerlos como vinieron.
+    json fabrica(bool restablecer);
+    /// Las alarmas que esperan que alguien las reconozca (las de `reconocer`).
+    json activas() const;
+    /// Reconoce una (por id de evento) o todas (0). Devuelve cuántas.
+    int reconocer(std::uint64_t eventoId);
+    /// El resultado de lo que hizo un disparo (lo anota quien ejecuta las acciones).
+    void anotarResultado(std::uint64_t eventoId, const std::string& herramienta, bool ok, const std::string& texto,
+                         bool bloqueadaPorRol);
     json list() const;
     /// Eventos con id > sinceId (los ultimos `limit`).
     json events(std::uint64_t sinceId, int limit) const;
@@ -108,8 +122,12 @@ class AlertEngine : public QObject {
    signals:
     /// Un disparo: {id, ruleId, ruleName, type, text, at, notify[], actions[]}.
     void fired(const nlohmann::json& event);
+    /// Cambiaron las alarmas por reconocer.
+    void alarmasCambio();
 
    private:
+    std::vector<json> activas_; ///< eventos con `reconocer` todavía sin reconocer
+    void sembrar();
     struct State {
         std::int64_t overSinceMs = -1;
         std::int64_t lastFiredMs = -1;
