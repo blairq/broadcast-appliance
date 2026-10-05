@@ -94,6 +94,16 @@ Item {
                     ToolTip.visible: hovered; ToolTip.delay: 400
                     ToolTip.text: "Armar solo: la banca queda en el preview; el TAKE sigue siendo tuyo."
                 }
+                ComboBox {
+                    implicitWidth: 150
+                    enabled: !!seguir.e.activo
+                    model: [ { t: "Por nivel", v: "niveles" }, { t: "Sistema de conferencia", v: "conferencia" } ]
+                    textRole: "t"
+                    currentIndex: seguir.e.fuente === "conferencia" ? 1 : 0
+                    onActivated: (i) => Studio.seguirMicrofono.configurarUi({ fuente: model[i].v })
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "De dónde sale «micrófono abierto»: el nivel de cada micrófono o el sistema de conferencia del recinto (plugin)"
+                }
                 Item { Layout.fillWidth: true }
             }
             Rectangle {

@@ -58,14 +58,14 @@
 | T32 | Automixer para las bancas | P1 | decisión pendiente (docs/DECISIONES-PENDIENTES.md: los micrófonos tienen que pasar a GStreamer) |
 | T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | parcial |
 | T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
-| T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | falta |
+| T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | hecho en parte (plugin con simulador y TCP genérico; falta adaptarlo y probarlo con el equipo real del recinto) |
 | T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | hecho |
 | T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | hecho (sin plantilla nominal en pantalla: T43; el hash cubre el acta, no la grabación) |
 | T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | hecho en parte (tally, vúmetro y cuenta regresiva por celda; falta el costo por nodo en el Patchbay) |
 | T39 | Scopes y legalizador broadcast-safe | P1 | falta |
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | parcial |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | parcial |
-| T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | parcial |
+| T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | parcial |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |

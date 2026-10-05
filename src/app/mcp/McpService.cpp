@@ -2384,6 +2384,8 @@ void McpService::registerTools() {
                          {"properties",
                           {{"activo", {{"type", "boolean"}}},
                            {"modo", {{"type", "string"}, {"enum", {"proponer", "automatico"}}}},
+                           {"fuente", {{"type", "string"}, {"enum", {"niveles", "conferencia"}},
+                                       {"description", "niveles de los microfonos (de fabrica) o el sistema de conferencia del recinto (plugin conferencia-recinto)"}}},
                            {"umbral_db", {{"type", "number"}, {"minimum", -60}, {"maximum", 0}}},
                            {"sostener_ms", {{"type", "integer"}, {"minimum", 100}, {"maximum", 10000}}},
                            {"soltar_ms", {{"type", "integer"}, {"minimum", 200}, {"maximum", 30000}}},

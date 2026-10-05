@@ -77,12 +77,13 @@ def al_aviso(sid, texto, error):
 
 @plugin.al_iniciar
 def buscar():
-    from StreamDeck.DeviceManager import DeviceManager
+    from ba_plugin.dispositivos import streamdeck_gestor
 
+    gestor = streamdeck_gestor()  # por el hidapi del programa, no el del sistema
     while plugin.andando:
         try:
             vistos = set()
-            for deck in DeviceManager().enumerate():
+            for deck in gestor.enumerate():
                 sid = id_de(deck)
                 vistos.add(sid)
                 if sid not in abiertos:

@@ -38,7 +38,9 @@ class SeguirMicrofono : public QObject {
 
     /// {activo, modo, umbral_db, sostener_ms, soltar_ms, propuesta?, abiertos[]}.
     json estado() const;
-    /// Cambia lo que venga: activo, modo (proponer|automatico), umbral_db, sostener_ms, soltar_ms. "" o el error.
+    ~SeguirMicrofono() override;
+    /// Cambia lo que venga: activo, modo (proponer|automatico), fuente (niveles|conferencia), umbral_db,
+    /// sostener_ms, soltar_ms. "" o el error.
     std::string configurar(const json& c);
     /// Arma la banca propuesta (en el preview). "" o el error.
     std::string aceptar();
@@ -62,6 +64,9 @@ class SeguirMicrofono : public QObject {
     QTimer reloj_;
     bool activo_ = false;
     std::string modo_ = "proponer";
+    std::string fuente_ = "niveles"; ///< niveles (audio/nivel/<fuente>) o conferencia (evento conferencia/microfono)
+    std::map<std::string, std::pair<bool, std::int64_t>> conferencia_; ///< banca -> (abierto, desde)
+    int sub_ = 0;
     double umbralDb_ = -30;
     int sostenerMs_ = 800;
     int soltarMs_ = 2500;

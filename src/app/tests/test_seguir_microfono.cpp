@@ -85,6 +85,18 @@ int main(int argc, char** argv) {
     esperar(700);
     CHECK(bancas.oradorParaZocalo().value("banca", std::string()) == "7", "automático: la arma sola");
 
+    // El sistema de conferencia del recinto como fuente.
+    bancas.terminar();
+    seg.configurar({{"modo", "proponer"}, {"fuente", "conferencia"}});
+    bus.publicar("plugin/conferencia-recinto/conferencia/microfono", {{"banca", "3"}, {"abierto", true}}, true);
+    esperar(300);
+    CHECK(seg.estado()["propuesta"].value("banca", std::string()) == "3" &&
+              seg.estado()["propuesta"].value("nombre", std::string()) == "Ana Pérez",
+          "conferencia: propone la banca que abrió su micrófono");
+    bus.publicar("plugin/conferencia-recinto/conferencia/microfono", {{"banca", "3"}, {"abierto", false}}, true);
+    esperar(300);
+    CHECK(seg.estado()["propuesta"].is_null(), "conferencia: al cerrar se va la propuesta");
+    CHECK(!seg.configurar({{"fuente", "otra"}}).empty(), "fuente inválida");
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;
 }
