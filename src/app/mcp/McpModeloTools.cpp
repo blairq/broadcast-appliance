@@ -470,7 +470,69 @@ void McpService::registerModeloTools() {
                                  {"frases", m.value("cantidad").toInt()},
                                  {"ultima", m.value("ultima").toString().toStdString()}});
             }
-            done(ToolResult().data(json{{"flujos", lista}, {"carpeta", fl->carpeta().toStdString()}}));
+            json archivos = json::array();
+            for (const QString& f : fl->archivosDeSesion()) archivos.push_back(f.toStdString());
+            done(ToolResult().data(json{{"flujos", lista},
+                                        {"carpeta", fl->carpeta().toStdString()},
+                                        {"archivos", archivos}, // .txt, .srt y .vtt (WebVTT) de esta sesión
+                                        {"correccion", {{"activa", fl->correccionActiva()}, {"demora_ms", fl->demoraMs()}}}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_correccion";
+        t.title = "Corrección humana de los subtitulos";
+        t.category = "agentes";
+        t.description = "Con `activa`, cada frase que transcribe la voz espera `demora_s` segundos (0 a 30) antes de "
+                        "salir a los subtitulos, el CC, la traduccion y los archivos: en ese tiempo un corrector la "
+                        "aprueba, la corrige o la descarta (subtitulos_pendientes, subtitulos_corregir). Apagarla suelta "
+                        "lo que esperaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activa", {{"type", "boolean"}}}, {"demora_s", {{"type", "number"}, {"minimum", 0}, {"maximum", 30}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            fl->setCorreccion(a.value("activa", fl->correccionActiva()),
+                              a.contains("demora_s") ? static_cast<int>(a.value("demora_s", 4.0) * 1000) : fl->demoraMs());
+            done(ToolResult().data({{"activa", fl->correccionActiva()}, {"demora_ms", fl->demoraMs()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_pendientes";
+        t.title = "Frases esperando correccion";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.untrustedOutput = true;
+        t.description = "Las frases que esperan al corrector: id, salida, texto y cuanto les falta para salir solas.";
+        t.run = [vmp = &vm_](const json&, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            done(ToolResult().data({{"pendientes", fl->pendientes()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_corregir";
+        t.title = "Corregir una frase antes del aire";
+        t.category = "agentes";
+        t.description = "La frase `id` sale ya con `texto` (si no se da, sale como estaba: aprobada) o se tira con "
+                        "`descartar`: true.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties",
+                          {{"id", {{"type", "integer"}}}, {"texto", {{"type", "string"}}}, {"descartar", {{"type", "boolean"}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            const std::string e = fl->corregir(a.value("id", 0ULL), QString::fromStdString(a.value("texto", std::string())),
+                                               a.value("descartar", false));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok(a.value("descartar", false) ? "Descartada." : "Salió."));
         };
         core_.addTool(std::move(t));
     }

@@ -15,6 +15,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <sstream>
 #include <fstream>
 
 namespace fs = std::filesystem;
@@ -638,6 +639,73 @@ json Traductor::glosario() const {
     return out;
 }
 
+std::string Traductor::glosarioCsv() const {
+    const auto campo = [](std::string v) {
+        for (auto& c : v)
+            if (c == ';' || c == '\n' || c == '\r') c = ' ';
+        return v;
+    };
+    std::string out = "es;en;pt;fr;de;ru;zh;grupo;revisado_por\n";
+    for (const auto& e : glosario()) {
+        std::string es;
+        for (const auto& f : variantes(e)) es += (es.empty() ? "" : "|") + f;
+        out += campo(es);
+        for (const char* k : {"en", "pt", "fr", "de", "ru", "zh"}) out += ";" + campo(e.value(k, std::string()));
+        out += ";" + campo(e.value("grupo", std::string())) + ";" + campo(e.value("revisado_por", std::string())) + "\n";
+    }
+    return out;
+}
+
+std::string Traductor::glosarioImportarCsv(const std::string& csv, const std::string& revisadoPor, int* cuantos) {
+    if (revisadoPor.empty()) return "falta `revisado_por`: quién revisó el glosario";
+    std::istringstream is(csv);
+    std::string l;
+    int n = 0;
+    std::vector<std::string> errores;
+    while (std::getline(is, l)) {
+        if (!l.empty() && l.back() == '\r') l.pop_back();
+        if (l.empty() || l.rfind("es;", 0) == 0) continue; // encabezado
+        std::vector<std::string> c;
+        std::string x;
+        std::istringstream cs(l);
+        while (std::getline(cs, x, ';')) c.push_back(x);
+        while (c.size() < 9) c.emplace_back();
+        json e = json::object();
+        json formas = json::array();
+        std::istringstream fs(c[0]);
+        while (std::getline(fs, x, '|'))
+            if (!x.empty()) formas.push_back(x);
+        e["es"] = formas;
+        const char* idiomas[] = {"en", "pt", "fr", "de", "ru", "zh"};
+        for (int i = 0; i < 6; ++i)
+            if (!c[static_cast<std::size_t>(i + 1)].empty()) e[idiomas[i]] = c[static_cast<std::size_t>(i + 1)];
+        if (!c[7].empty()) e["grupo"] = c[7];
+        e["revisado_por"] = revisadoPor;
+        if (const std::string err = glosarioAgregar(e); !err.empty()) errores.push_back(c[0] + ": " + err);
+        else ++n;
+    }
+    if (cuantos != nullptr) *cuantos = n;
+    if (n == 0) return errores.empty() ? "el CSV no tiene términos" : errores.front();
+    return {};
+}
+
+QString Traductor::glosarioExportarUi() {
+    const fs::path ruta = archivoGlosario().parent_path() / "glosario-para-revision.csv";
+    std::ofstream o(ruta);
+    if (!o) return {};
+    o << glosarioCsv();
+    return QString::fromStdString(ruta.string());
+}
+
+QString Traductor::glosarioImportarUi(const QUrl& url, const QString& revisadoPor) {
+    std::ifstream f(url.toLocalFile().toStdString());
+    if (!f) return "no pude leer el archivo";
+    const std::string csv((std::istreambuf_iterator<char>(f)), {});
+    int n = 0;
+    const std::string e = glosarioImportarCsv(csv, revisadoPor.trimmed().toStdString(), &n);
+    return QString::fromStdString(e);
+}
+
 json Traductor::glosarioActivo() const {
     json out = json::array();
     for (const auto& e : glosario())
@@ -665,6 +733,8 @@ std::string Traductor::glosarioAgregar(const json& entrada) {
     for (const char* k : kIdiomas)
         if (e.contains(k)) limpio[k] = e[k];
     if (e.contains("grupo") && e["grupo"].is_string()) limpio["grupo"] = e["grupo"];
+    if (e.contains("revisado_por") && e["revisado_por"].is_string() && !e["revisado_por"].get<std::string>().empty())
+        limpio["revisado_por"] = e["revisado_por"];
     auto& t = operador_["terminos"];
     const std::string c = clave(limpio);
     t.erase(std::remove_if(t.begin(), t.end(), [&](const json& x) { return clave(x) == c; }), t.end());

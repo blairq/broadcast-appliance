@@ -67,8 +67,8 @@
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | parcial |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | parcial |
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | parcial |
-| T44 | Subtítulos con corrección humana y parciales | P1 | falta |
-| T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | falta |
+| T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app y por MCP; falta el puesto web /correccion/ y los parciales en streaming) |
+| T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | parcial |
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | parcial |
 | T48 | Modo en vivo que protege la interfaz | P1 | parcial |

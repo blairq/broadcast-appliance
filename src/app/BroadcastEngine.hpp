@@ -279,6 +279,9 @@ class BroadcastEngine {
     nlohmann::json dskEstado() const;
     /// Las fuentes que muestran las capas que están arriba (para el tally y el interlock de PTZ).
     std::vector<std::string> fuentesDsk() const;
+    /// Un rótulo de texto con nombre (fuera de las escenas, para una capa DSK):
+    /// lo crea si no existe y le pone `texto`.
+    bool textoGlobal(const std::string& nombre, const std::string& texto);
     /// {ftb, ftb_audio, placa, placa_texto, placa_imagen} (lo que se ve ahora o va hacia eso).
     nlohmann::json estadoPlaca() const;
 
@@ -754,6 +757,7 @@ class BroadcastEngine {
     };
     Velo veloFtb_, veloPlaca_;
     Velo dsk_[4];
+    std::vector<void*> rotulosGlobales_; ///< obs_source_t* de textoGlobal (se sueltan al apagar)
     std::vector<std::string> dskContenido_[4];
     void asegurarDsk(int i);
     bool ftbAudio_ = false;

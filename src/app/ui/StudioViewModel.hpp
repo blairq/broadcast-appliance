@@ -299,6 +299,10 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
     /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
     Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
+    /// «Traducción automática»: mientras salga una traducción en pantalla o en CC, una capa DSK lo rotula.
+    Q_INVOKABLE bool rotuloTraduccionActivo() const { return rotuloTraduccion_; }
+    Q_INVOKABLE void setRotuloTraduccion(bool activo);
+    nlohmann::json rotuloTraduccionEstado() const;
     legislatura::CuerpoViewModel& cuerpo() { return *cuerpo_; }
     /// Vocabulario del reconocedor de voz (agent/Vocabulario): grupos, términos,
     /// probar una frase y traer los nombres del Cuerpo.
@@ -666,6 +670,10 @@ class StudioViewModel : public QObject {
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
     std::unique_ptr<legislatura::Quorum> quorum_;
+    bool rotuloTraduccion_ = true;
+    int rotuloCapa_ = 4;
+    QTimer rotuloApagar_;
+    void rotularTraduccion(const QString& flujo, const QString& origen);
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

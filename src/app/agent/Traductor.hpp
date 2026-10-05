@@ -35,6 +35,7 @@
 #pragma once
 
 #include <QObject>
+#include <QUrl>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -127,6 +128,11 @@ class Traductor : public QObject {
     std::string glosarioQuitar(const std::string& es);
     std::string glosarioGrupo(const std::string& grupo, bool activo);
     std::filesystem::path archivoGlosario() const;
+    /// El glosario en CSV para que lo revise la institución:
+    /// «es;en;pt;fr;de;ru;zh;grupo;revisado_por» (las formas de `es` separadas por «|»).
+    std::string glosarioCsv() const;
+    /// Vuelve el CSV revisado: cada fila suma o pisa un término con la marca `revisado_por`. Devuelve cuántos o el error.
+    std::string glosarioImportarCsv(const std::string& csv, const std::string& revisadoPor, int* cuantos);
 
     // --- Para la interfaz -----------------------------------------------------------------
     QVariantList traduccionesQml() const;
@@ -146,6 +152,10 @@ class Traductor : public QObject {
     Q_INVOKABLE QString glosarioAgregarUi(const QVariantMap& entrada);
     Q_INVOKABLE QString glosarioQuitarUi(const QString& es);
     Q_INVOKABLE QString glosarioGrupoUi(const QString& grupo, bool activo);
+    /// Escribe el CSV para revisión en Datos/Config/glosario-para-revision.csv y devuelve la ruta.
+    Q_INVOKABLE QString glosarioExportarUi();
+    /// Importa el CSV revisado (`url` de un FileDialog). "" o el error.
+    Q_INVOKABLE QString glosarioImportarUi(const QUrl& url, const QString& revisadoPor);
 
    signals:
     void cambio();

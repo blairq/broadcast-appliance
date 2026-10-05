@@ -403,6 +403,8 @@ void BroadcastEngine::shutdown() {
     stopExtras();
     stopRecording();
     soltarVelos(); // FTB y placa
+    for (void* r : rotulosGlobales_) obs_source_release(reinterpret_cast<obs_source_t*>(r));
+    rotulosGlobales_.clear();
     stopReturnFeeds();
     disablePreview();
 

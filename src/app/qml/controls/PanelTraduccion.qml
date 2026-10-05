@@ -3,6 +3,7 @@
 // Configuración → Traducción y el botón «Traducción…» de la página Audio.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import BA
 
@@ -228,9 +229,99 @@ ColumnLayout {
         color: Theme.textFaint; font.pixelSize: 11
     }
 
+    // --- Corrección humana antes del aire -----------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    ColumnLayout {
+        id: corr
+        Layout.fillWidth: true
+        spacing: 6
+        readonly property var fl: Studio.flujos
+        property var pend: fl ? fl.pendientesUi() : []
+        property bool activa: fl ? fl.correccionActivaUi() : false
+        Connections {
+            target: Studio.flujos
+            function onPendientesCambio() { corr.pend = Studio.flujos.pendientesUi(); corr.activa = Studio.flujos.correccionActivaUi() }
+        }
+        Timer { interval: 1000; repeat: true; running: corr.activa && corr.pend.length > 0; onTriggered: corr.pend = Studio.flujos.pendientesUi() }
+        RowLayout {
+            Text {
+                text: "Corrección antes del aire"
+                color: Theme.text
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+            Text { text: "Demora (s)"; color: Theme.textDim; font.pixelSize: 11 }
+            SpinBox {
+                id: demora; from: 1; to: 30; editable: true; Layout.preferredWidth: 96
+                value: corr.fl ? Math.max(1, Math.round(corr.fl.demoraMsUi() / 1000)) : 4
+                onValueModified: if (corr.activa) corr.fl.setCorreccionUi(true, value * 1000)
+            }
+            CheckBox {
+                text: "Prendida"
+                checked: corr.activa
+                onToggled: corr.fl.setCorreccionUi(checked, demora.value * 1000)
+            }
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 11
+            text: "Cada frase de la transcripción espera antes de ir a los subtítulos, el CC, la traducción y los archivos. " +
+                  "Editala y Enter para mandarla corregida, ✓ para aprobarla como está, ✕ para tirarla; si nadie la toca, sale sola."
+        }
+        Repeater {
+            model: corr.pend
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 6
+                Text { text: modelData.resta + " s"; color: modelData.resta <= 1 ? Theme.live : Theme.amber; font.pixelSize: 12; Layout.preferredWidth: 34 }
+                TextField {
+                    Layout.fillWidth: true
+                    text: modelData.texto
+                    color: Theme.text
+                    onAccepted: corr.fl.corregirUi(modelData.id, text, false)
+                }
+                GlassButton { compact: true; text: "✓"; onClicked: corr.fl.corregirUi(modelData.id, "", false) }
+                GlassButton { compact: true; text: "✕"; onClicked: corr.fl.corregirUi(modelData.id, "", true) }
+            }
+        }
+        CheckBox {
+            text: "Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)"
+            checked: Studio.rotuloTraduccionActivo()
+            onToggled: Studio.setRotuloTraduccion(checked)
+        }
+    }
+
     // --- Glosario --------------------------------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-    Text { text: "Glosario"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    RowLayout {
+        Layout.fillWidth: true
+        Text { text: "Glosario"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+        GlassButton {
+            compact: true; text: "Exportar para revisión"
+            onClicked: {
+                const r = panel.tr.glosarioExportarUi()
+                if (r === "") Studio.notify("No pude escribir el CSV", "error")
+                else { Studio.notify("Glosario para revisar: " + r, "info"); Qt.openUrlExternally("file://" + r.substring(0, r.lastIndexOf("/"))) }
+            }
+        }
+        TextField { id: revisor; Layout.preferredWidth: 150; placeholderText: "Revisado por"; color: Theme.text }
+        GlassButton {
+            compact: true; text: "Importar revisado…"
+            enabled: revisor.text.trim() !== ""
+            onClicked: dlgGlosario.open()
+        }
+    }
+    FileDialog {
+        id: dlgGlosario
+        title: "Glosario revisado (CSV)"
+        nameFilters: ["CSV (*.csv *.txt)"]
+        onAccepted: {
+            const e = panel.tr.glosarioImportarUi(selectedFile, revisor.text)
+            Studio.notify(e === "" ? "Glosario revisado importado" : e, e === "" ? "ok" : "error")
+        }
+    }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 11

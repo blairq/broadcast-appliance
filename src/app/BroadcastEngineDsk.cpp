@@ -155,4 +155,41 @@ std::vector<std::string> BroadcastEngine::fuentesDsk() const {
     return out;
 }
 
+bool BroadcastEngine::textoGlobal(const std::string& nombre, const std::string& texto) {
+    if (!started_) {
+        lastError_ = "el motor no está andando";
+        return false;
+    }
+    obs_video_info ovi = {};
+    obs_get_video_info(&ovi);
+    const int h = ovi.base_height > 0 ? static_cast<int>(ovi.base_height) : 1080;
+    obs_data_t* d = obs_data_create();
+    obs_data_set_string(d, "text", texto.c_str());
+    obs_data_t* fuente = obs_data_create();
+    obs_data_set_string(fuente, "face", "Helvetica");
+    obs_data_set_int(fuente, "size", h / 24);
+    obs_data_set_obj(d, "font", fuente);
+    obs_data_release(fuente);
+    obs_data_set_int(d, "color1", 0xFFFFFFFF);
+    obs_data_set_int(d, "color2", 0xFFFFFFFF);
+    obs_data_set_bool(d, "outline", true);
+    obs_data_set_bool(d, "drop_shadow", true);
+    obs_source_t* s = obs_get_source_by_name(nombre.c_str());
+    if (s != nullptr) {
+        obs_source_update(s, d);
+        obs_source_release(s);
+    } else {
+        s = obs_source_create("text_ft2_source_v2", nombre.c_str(), d, nullptr);
+        if (s == nullptr) {
+            obs_data_release(d);
+            lastError_ = "no se pudo crear el rótulo";
+            return false;
+        }
+        // Queda vivo mientras viva el motor (una capa DSK lo busca por nombre).
+        rotulosGlobales_.push_back(s);
+    }
+    obs_data_release(d);
+    return true;
+}
+
 } // namespace ba::app

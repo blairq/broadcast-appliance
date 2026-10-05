@@ -22,6 +22,7 @@
 #include <QFile>
 #include <QHostAddress>
 #include <QJsonArray>
+#include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QPointer>
 #include <QJsonObject>
@@ -502,6 +503,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     cc_ = std::make_unique<agent::SubtitulosCC>(*flujos_, rt.dataRoot(), [this](const QString& t, double s) {
         return rt_.engine().enviarCaption(t.toStdString(), s);
     });
+    // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
+    {
+        std::ifstream f(rt.dataRoot() / "Config" / "rotulo-traduccion.json");
+        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+        if (j.is_object()) {
+            rotuloTraduccion_ = j.value("activo", true);
+            rotuloCapa_ = std::clamp(j.value("capa", 4), 1, 4);
+        }
+    }
+    rotuloApagar_.setSingleShot(true);
+    connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
+        if (dsk_) dsk_->mostrar(rotuloCapa_, false, true);
+    });
+    connect(flujos_.get(), &agent::FlujosTexto::fraseConOrigen, this,
+            [this](const QString& flujo, const QString&, const QString& origen) { rotularTraduccion(flujo, origen); });
     if (voz_) voz_->setFlujos(flujos_.get());
     // Las tarjetas «Texto a voz»: dicen lo que llega por una salida de texto.
     if (modelos_) {
@@ -552,7 +568,24 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         });
         if (auto* ev = static_cast<EventoViewModel*>(evento())) {
             ev->setAnexoActa([this]() {
-                return QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
+                QString t = QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
+                // La transcripción de la sesión, con la huella de cada archivo (se puede verificar después).
+                const QStringList archivos = flujos_ ? flujos_->archivosDeSesion() : QStringList{};
+                if (!archivos.isEmpty()) {
+                    t += "## Transcripción\n\n| Archivo | SHA-256 |\n|---|---|\n";
+                    for (const QString& a : archivos) {
+                        QFile f(a);
+                        QString h = "—";
+                        if (f.open(QIODevice::ReadOnly)) {
+                            QCryptographicHash c(QCryptographicHash::Sha256);
+                            c.addData(&f);
+                            h = QString::fromLatin1(c.result().toHex());
+                        }
+                        t += "| " + a + " | " + h + " |\n";
+                    }
+                    t += "\n_La transcripción es automática: puede tener errores; la versión taquigráfica es la oficial._\n\n";
+                }
+                return t;
             });
         }
     }
@@ -2062,6 +2095,49 @@ QString StudioViewModel::isoTodasUi(bool grabar) {
         if (!e.isEmpty()) errores << qs(f) + ": " + e;
     }
     return errores.join("; ");
+}
+
+} // namespace ba::app
+
+namespace ba::app {
+
+void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& origen) {
+    if (!rotuloTraduccion_ || !dsk_ || !origen.startsWith("Traducción")) return;
+    // ¿Se está mostrando? En un cuadro «Subtítulos» o en los subtítulos ocultos.
+    const bool enPantalla = subtitulos_ && subtitulos_->cuadrosDe(flujo) > 0;
+    const QVariantMap cc = cc_ ? cc_->estado() : QVariantMap{};
+    const bool enCc = cc.value("activo").toBool() && cc.value("flujo").toString() == flujo;
+    if (!enPantalla && !enCc) return;
+    const std::string nombre = "Traducción automática (rótulo)";
+    if (!rt_.engine().textoGlobal(nombre, "Traducción automática")) return;
+    // La capa se arma una vez con el rótulo arriba a la izquierda.
+    const nlohmann::json capas = dsk_->capas();
+    bool armada = false;
+    for (const auto& c : capas)
+        if (c.value("capa", 0) == rotuloCapa_) {
+            const auto cont = c.value("contenido", nlohmann::json::array());
+            armada = cont.size() == 1 && cont[0] == nombre;
+        }
+    if (!armada)
+        dsk_->definir(rotuloCapa_, {{"nombre", "Traducción automática"},
+                                    {"contenido", nlohmann::json::array({nombre})},
+                                    {"recuadro", {{"posicion", "arriba_izquierda"}, {"tamano", 0.22}, {"margen", 0.03}}},
+                                    {"fijo", false},
+                                    {"transicion_ms", 300}});
+    for (const auto& c : dsk_->capas())
+        if (c.value("capa", 0) == rotuloCapa_ && !c.value("visible", false)) dsk_->mostrar(rotuloCapa_, true, false);
+    rotuloApagar_.start(15000); // se va 15 s después de la última frase traducida
+}
+
+void StudioViewModel::setRotuloTraduccion(bool activo) {
+    rotuloTraduccion_ = activo;
+    std::ofstream o(rt_.dataRoot() / "Config" / "rotulo-traduccion.json");
+    o << nlohmann::json{{"activo", activo}, {"capa", rotuloCapa_}}.dump(1);
+    if (!activo && dsk_) dsk_->mostrar(rotuloCapa_, false, true);
+}
+
+nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
+    return {{"activo", rotuloTraduccion_}, {"capa", rotuloCapa_}, {"arriba", rotuloApagar_.isActive()}};
 }
 
 } // namespace ba::app
