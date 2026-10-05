@@ -473,6 +473,35 @@ void ConferenceViewModel::pruebaTecnica(const QString& id) {
         15000);
 }
 
+void ConferenceViewModel::refrescarProxy() {
+    client_->get("/api/v1/proxy", [this](bool ok, const QJsonObject& r) {
+        QVariantMap m = ok ? r.toVariantMap() : QVariantMap{{"activo", false}};
+        m["configuracion"] = QJsonDocument::fromJson(QByteArray::fromStdString(rt_.gateway().proxy.dump())).object().toVariantMap();
+        proxy_ = m;
+        emit proxyChanged();
+    });
+}
+
+void ConferenceViewModel::renovarProxy(const QString& host) {
+    client_->post("/api/v1/proxy/renovar", QJsonObject{{"host", host}});
+}
+
+QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
+    nlohmann::json& p = rt_.gateway().proxy;
+    const nlohmann::json c = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
+    if (!c.is_object()) return "cambios inválidos";
+    for (const auto& [k, v] : c.items()) {
+        if (k == "acme" && v.is_object())
+            for (const auto& [ka, va] : v.items()) p["acme"][ka] = va;
+        else
+            p[k] = v;
+    }
+    if (p.value("activo", false) && p.value("dominio", std::string()).empty()) return "falta el dominio";
+    if (!rt_.save()) return QString::fromStdString(rt_.lastError());
+    rt_.restartGateway();
+    return {};
+}
+
 QString ConferenceViewModel::recomendacionPrueba(const QJsonObject& r) {
     if (r.contains("error")) return r.value("error").toString();
     QStringList out;

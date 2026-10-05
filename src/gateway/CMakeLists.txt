@@ -51,6 +51,10 @@ else()
 endif()
 
 target_link_libraries(ba-gateway PRIVATE ba_core mbedcrypto)
+# El cliente HTTPS propio (mbedtls, sin Qt) de la app: lo usa el cliente ACME del proxy (T61).
+set(BA_GW_HTTPS "${CMAKE_SOURCE_DIR}/src/app/net/HttpsClient.cpp")
+target_sources(ba-gateway PRIVATE "${BA_GW_HTTPS}")
+set_source_files_properties("${BA_GW_HTTPS}" PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src/app")
 target_include_directories(ba-gateway PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 # QR de ingreso (Nayuki, MIT) en third_party/: codigo ajeno, fuera del lint.
 set(BA_QRCODEGEN_DIR "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
@@ -250,9 +254,11 @@ list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_webrtc_[^/]*\\.cpp$")
 file(GLOB BA_GATEWAY_LIB_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/proxy/*.cpp"
 )
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+list(APPEND BA_GATEWAY_LIB_SOURCES "${BA_GW_HTTPS}")
 if(NOT BA_HAVE_LWIP)
     list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/net/IpStack\\.cpp$")
     list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_ipstack\\.cpp$")

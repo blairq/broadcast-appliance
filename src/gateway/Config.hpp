@@ -94,6 +94,7 @@ struct Config {
     uint16_t rtcPortMax = 40099;
     // WireGuard hacia un servidor con IP publica (tunel en espacio de usuario).
     bool wgEnabled = false;
+    nlohmann::json proxy = nlohmann::json::object(); // T61: el proxy por nombre (ver proxy/GestorProxy.hpp)
     std::string wgEndpoint;                 // host:puerto del servidor WireGuard
     std::string wgServerPublicKey;          // base64
     std::string wgAddress = "10.99.0.2/24"; // nuestra IP en el tunel
@@ -128,6 +129,7 @@ struct Config {
         if (!j.is_object()) return;
         guests = j.value("guests", guests);
         guestsReserve = j.value("guestsReserva", guestsReserve);
+        if (j.contains("proxy") && j["proxy"].is_object()) proxy = j["proxy"];
         port = j.value("port", port);
         bindAddress = j.value("bindAddress", bindAddress);
         room = j.value("room", room);

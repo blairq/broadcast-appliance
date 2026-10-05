@@ -84,7 +84,7 @@
 | T58 | Superficie de control: superficies de hardware vía plugin | P1 | hecho (probado con un aparato falso, sin hardware real) |
 | T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | hecho (Satellite API 1.7 y API remota HTTP; sin módulo propio de Companion ni protocolo TCP/UDP remoto) |
 | T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | parcial (aprobados hecho; falta llama.cpp en Windows/Linux) |
-| T61 | Proxy propio con un nombre (DNS) por servicio y certificados automáticos | P2 | falta |
+| T61 | Proxy propio con un nombre (DNS) por servicio y certificados automáticos | P2 | hecho (sin HTTP/2 ni DNS-01; ACME sin probar contra Let's Encrypt real) |
 
 **Ya hecho (no genera tarea)**
 - **fps fraccionarios**: `src/app/ui/SettingsModel.cpp:44` ofrece 24000/1001, 30000/1001 y 60000/1001; se guardan en `src/app/AppSettings.cpp:166-171` y `:283`.
@@ -1374,6 +1374,36 @@
 ### T61 · Proxy propio con un nombre (DNS) por servicio y certificados automáticos — P2
 
 Pedido del 2026-10-05: «una especie de Traefik propio», muy rápido.
+
+- **Estado: hecho** (2026-10-05), dentro del gateway (`src/gateway/proxy/`).
+  - **`ProxyNombres`:**
+    - un solo hilo con `poll()` para todas las conexiones, sockets no bloqueantes, TLS 1.2 de mbedtls no bloqueante y buffers de 256 KB por dirección con contrapresión;
+    - el SNI elige el certificado del nombre (el de Let's Encrypt o el de la casa);
+    - los bytes pasan tal cual a 127.0.0.1:<puerto> con cabecera PROXY v1 (la IP real), así que HTTP/1.1 y WebSocket andan sin tocarse;
+    - «solo red local» por servicio (403 de afuera);
+    - el primer `GET /` de un servicio con ruta se redirige (sesion.<dominio> → /sesion/);
+    - el 80 contesta los desafíos HTTP-01 y manda lo demás a https;
+    - los certificados se cambian en caliente.
+  - **`ClienteAcme`** (RFC 8555, HTTP-01) con el cliente HTTPS propio (mbedtls):
+    - cuenta ECDSA P-256 guardada;
+    - JWS ES256 (firma r‖s), «jwk» y después «kid»;
+    - orden, autorizaciones, desafío, finalización con CSR (clave nueva por certificado) y descarga;
+    - reintento con badNonce.
+  - **`GestorProxy`:**
+    - lee la sección `proxy` de `gateway.json`; sin `servicios` arma los de siempre: sala, sesion, presidencia, botonera, prompter y tablero, con «solo red local» en los tres últimos;
+    - el certificado de la casa (autofirmado con todos los nombres y las IP de la red) y los de cada nombre van cifrados en Credenciales/;
+    - el hilo de ACME pide y renueva al arrancar, cada 12 h y a pedido (cuando falta o quedan menos de 30 días).
+  - **API de admin:** `GET /api/v1/proxy`, `POST /api/v1/proxy/renovar`.
+  - **MCP:** `proxy_estado`, `proxy_renovar` y `proxy_configurar` (reinicia la sala: guarda de aire).
+  - **GUI:** página Sala → «Proxy por nombre», con activo, dominio, Let's Encrypt (email, de prueba), «Guardar y reiniciar la sala», y cada servicio con su certificado, vencimiento y «Renovar».
+  - **Probado:**
+    - `test_proxy_nombres`: SNI y certificado por nombre, cabecera PROXY, redirección de «/», sin SNI → servicio por defecto, 80 (desafío y 301), firma ES256 verificada con la clave pública y autorización del desafío;
+    - en la app, con 18443/18080 y `prueba.local`: las páginas de la sala pasan, `sesion.` / → /sesion/ y el 80 → https. Después se volvió a como estaba.
+  - **Falta / sin probar:**
+    - contra Let's Encrypt real (hace falta un dominio que apunte acá y el 80 abierto); conviene probar primero con «de prueba» (staging);
+    - DNS-01 (para una red sin puerto abierto) y HTTP/2;
+    - kqueue/epoll en vez de `poll()` cuando haga falta escalar (R5).
+
 
 - **Qué:** un proxy inverso dentro del gateway que atiende el 443 (y el 80 para redirigir y para el
   desafío ACME) y reparte por nombre (SNI / Host) a cada servicio: `sesion.<dominio>`,

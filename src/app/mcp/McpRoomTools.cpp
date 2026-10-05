@@ -353,6 +353,74 @@ void McpService::registerRoomTools() {
         };
         core_.addTool(std::move(t));
     }
+    // --- El proxy por nombre (T61) ------------------------------------------------
+    {
+        Tool t;
+        t.name = "proxy_estado";
+        t.title = "Proxy por nombre: servicios y certificados";
+        t.category = "sala";
+        t.readOnly = true;
+        t.description = "El proxy propio (443/80): cada servicio con su nombre (sesion.<dominio>, botonera.<dominio>…), "
+                        "a qué va, si es solo de la red local, y su certificado (acme = Let's Encrypt, casa = "
+                        "autofirmado) con la fecha en que vence (segundos desde 1970). Más el estado de ACME: último "
+                        "error y si está pidiendo ahora.";
+        t.run = [client, &rt](const json&, Done done) {
+            client->get("/api/v1/proxy", [done, &rt](bool ok, const QJsonObject& r) {
+                json out = fromQt(r);
+                out["configuracion"] = rt.gateway().proxy;
+                if (!ok) return done(ToolResult::error("la sala no contestó"));
+                done(ToolResult().data(out));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "proxy_renovar";
+        t.title = "Proxy: pedir los certificados ya";
+        t.category = "sala";
+        t.description = "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
+                        "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"host", {{"type", "string"}}}}}};
+        t.run = [post](const json& a, Done done) {
+            post("/api/v1/proxy/renovar", json{{"host", a.value("host", std::string())}}, "Pedido: mirá proxy_estado en un rato.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "proxy_configurar";
+        t.title = "Proxy: dominio, puertos, servicios y ACME";
+        t.category = "sala";
+        t.description =
+            "Configura el proxy por nombre y REINICIA la sala (corta a los invitados): `activo`, `dominio` (los "
+            "servicios quedan en <nombre>.<dominio>: hay que apuntar esos nombres a esta máquina en el DNS), "
+            "`puertoTls` (443) y `puertoHttp` (80; en Linux los de menos de 1024 piden permiso), `servicios` "
+            "([{nombre, destino, ruta, soloLan}]; sin esto, los de siempre: sala, sesion, presidencia, botonera, "
+            "prompter, tablero) y `acme` ({activo, email, pruebas}: Let's Encrypt; `pruebas` usa su entorno de "
+            "prueba, sin límites). Lo que no se pasa queda como estaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"dominio", {{"type", "string"}}},
+                           {"puertoTls", {{"type", "integer"}}},
+                           {"puertoHttp", {{"type", "integer"}}},
+                           {"servicios", {{"type", "array"}}},
+                           {"acme", {{"type", "object"}}}}}};
+        t.run = [&rt](const json& a, Done done) {
+            json& p = rt.gateway().proxy;
+            for (const char* k : {"activo", "dominio", "puertoTls", "puertoHttp", "servicios"})
+                if (a.contains(k)) p[k] = a[k];
+            if (a.contains("acme") && a["acme"].is_object())
+                for (const auto& [k, v] : a["acme"].items()) p["acme"][k] = v;
+            if (p.value("activo", false) && p.value("dominio", std::string()).empty())
+                return done(ToolResult::error("falta `dominio`"));
+            if (!rt.save()) return done(ToolResult::error(rt.lastError()));
+            const bool ok = rt.restartGateway();
+            done(ToolResult().data(json{{"proxy", p}, {"sala_reiniciada", ok}}));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "invitado_prueba";

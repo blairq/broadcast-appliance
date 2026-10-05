@@ -63,6 +63,8 @@ class JsonListModel : public QAbstractListModel {
 class ConferenceViewModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
+    /// El proxy por nombre (T61): lo último que dijo la sala (GET /api/v1/proxy) más la configuración.
+    Q_PROPERTY(QVariantMap proxy READ proxy NOTIFY proxyChanged)
     Q_PROPERTY(QString room READ room NOTIFY roomChanged)
     Q_PROPERTY(QString pin READ pin NOTIFY roomChanged)
     Q_PROPERTY(QString guestUrl READ guestUrl NOTIFY roomChanged)
@@ -191,6 +193,11 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void talk(const QString& id, bool on);
     /// Prueba técnica (T33): eco por su micrófono y red. El resultado llega por pruebaLista.
     Q_INVOKABLE void pruebaTecnica(const QString& id);
+    QVariantMap proxy() const { return proxy_; }
+    Q_INVOKABLE void refrescarProxy();
+    Q_INVOKABLE void renovarProxy(const QString& host);
+    /// Cambia la configuración del proxy (activo, dominio, acme…) y reinicia la sala. "" o el error.
+    Q_INVOKABLE QString configurarProxy(const QVariantMap& cambios);
     /// Lo que hay que decirle al operador según el resultado de la prueba.
     static QString recomendacionPrueba(const QJsonObject& r);
     /// Elegir con que fuentes te ve/oye el lobby ("" = ninguna).
@@ -233,6 +240,7 @@ class ConferenceViewModel : public QObject {
                                            const QString& iface);
 
    signals:
+    void proxyChanged();
     void pruebaLista(const QString& id, const QVariantMap& resultado);
     void onlineChanged();
     void roomChanged();
@@ -255,6 +263,7 @@ class ConferenceViewModel : public QObject {
     void participantAction(const QString& id, const QString& action, const QJsonObject& body = {});
 
     AppRuntime& rt_;
+    QVariantMap proxy_;
 
     bool autoIntake_ = false;
     int chatRev_ = 0;

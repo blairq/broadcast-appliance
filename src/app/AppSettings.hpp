@@ -125,6 +125,9 @@ struct GatewaySettings {
     int guests = 2; ///< copia de AppConfig::guests (la fuente de verdad es A)
     /// Lugares reservados al arrancar la sala: el cupo cambia sin reiniciar hasta acá (T33).
     int guestsReserva = 4;
+    /// El proxy por nombre (T61): la sección "proxy" de gateway.json tal cual
+    /// (activo, dominio, puertos, servicios, acme). Ver src/gateway/proxy/GestorProxy.hpp.
+    nlohmann::json proxy = nlohmann::json::object();
     std::uint16_t port = 8787;
     std::string bindAddress = "127.0.0.1"; ///< "0.0.0.0" = accesible en la red local
     std::string room = "sala1";

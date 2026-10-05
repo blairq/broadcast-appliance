@@ -75,6 +75,7 @@
 #include <system_error>
 
 #include "HttpIo.hpp"
+#include "proxy/GestorProxy.hpp"
 #include "Log.hpp"
 #include "qrcodegen.hpp"
 #include "Room.hpp"
@@ -322,6 +323,19 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
+    }
+    if (path == "/api/v1/proxy") {
+        sendJson(fd, 200, proxy_ != nullptr ? proxy_->estado() : json{{"activo", false}, {"motivo", "apagado en la configuración"}});
+        return;
+    }
+    if (path == "/api/v1/proxy/renovar" && method == "POST") {
+        if (proxy_ == nullptr) {
+            sendJson(fd, 409, json{{"ok", false}, {"error", "el proxy está apagado"}});
+            return;
+        }
+        proxy_->renovar(req.value("host", std::string()));
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
     }
     if (path == "/api/v1/network/server-config" && method == "POST") {
         if (!serverConfig_) {

@@ -884,6 +884,78 @@ Rectangle {
                     }
                 }
 
+                // --- Proxy por nombre (T61): un DNS y un certificado por servicio ---------
+                Panel {
+                    id: proxyPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: proxyCol.implicitHeight + 56
+                    title: "Proxy por nombre (un DNS por servicio)"
+                    readonly property var px: conf.proxy || ({})
+                    readonly property var cfgp: px.configuracion || ({})
+                    readonly property var acme: px.acme || ({})
+                    Timer { interval: 5000; repeat: true; running: proxyPanel.visible && conf.online; triggeredOnStart: true; onTriggered: conf.refrescarProxy() }
+                    function fecha(s) { return s > 0 ? new Date(s * 1000).toLocaleDateString(Qt.locale("es_AR"), "d/M/yyyy") : "—" }
+                    ColumnLayout {
+                        id: proxyCol
+                        anchors.fill: parent
+                        spacing: 8
+                        RowLayout {
+                            spacing: 8
+                            StatusPill { text: proxyPanel.px.activo ? "andando en " + proxyPanel.px.puertoTls + (proxyPanel.px.puertoHttp ? "/" + proxyPanel.px.puertoHttp : "") : "apagado"
+                                         dot: proxyPanel.px.activo ? Theme.ok : Theme.textFaint }
+                            StatusPill { visible: !!proxyPanel.acme.activo
+                                         text: proxyPanel.acme.andando ? "pidiendo certificados…" : (proxyPanel.acme.ultimo_error ? "ACME: error" : "ACME al día")
+                                         dot: proxyPanel.acme.ultimo_error ? Theme.amber : Theme.ok; pulse: !!proxyPanel.acme.andando }
+                            Text { visible: proxyPanel.px.activo; text: (proxyPanel.px.conexiones || 0) + " conexiones"; color: Theme.textFaint; font.pixelSize: 11 }
+                        }
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                               text: "Cada servicio en su nombre: sala.<dominio>, sesion.<dominio>, botonera.<dominio>… Apuntá esos nombres a esta máquina en el DNS. Con ACME, Let's Encrypt firma cada uno (hace falta que el 80 llegue desde internet); si no, el certificado de la casa." }
+                        Text { visible: !!proxyPanel.acme.ultimo_error; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 11; text: proxyPanel.acme.ultimo_error || "" }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            CheckBox { id: pxActivo; text: "Activo"; checked: !!proxyPanel.cfgp.activo }
+                            TextField { id: pxDominio; Layout.fillWidth: true; placeholderText: "dominio (p. ej. legislatura.gob.ar)"; text: proxyPanel.cfgp.dominio || "" }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            CheckBox { id: pxAcme; text: "Certificados de Let's Encrypt"; checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.activo) }
+                            TextField { id: pxEmail; Layout.fillWidth: true; placeholderText: "email para avisos de la CA"; text: proxyPanel.cfgp.acme ? (proxyPanel.cfgp.acme.email || "") : "" }
+                            CheckBox { id: pxPruebas; text: "de prueba"; checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.pruebas) }
+                        }
+                        RowLayout {
+                            Item { Layout.fillWidth: true }
+                            GlassButton {
+                                compact: true; text: "Guardar y reiniciar la sala"
+                                onClicked: ApplicationWindow.window.confirm({
+                                    title: "¿Reiniciar la sala con el proxy nuevo?",
+                                    text: "Los invitados conectados se cortan y vuelven a entrar.",
+                                    accept: "Reiniciar", reject: "Cancelar",
+                                    action: function() {
+                                        const e = conf.configurarProxy({ activo: pxActivo.checked, dominio: pxDominio.text.trim(),
+                                                                         acme: { activo: pxAcme.checked, email: pxEmail.text.trim(), pruebas: pxPruebas.checked } })
+                                        Studio.notify(e === "" ? "Proxy guardado: la sala se reinicia." : e, e === "" ? "ok" : "error")
+                                    }
+                                })
+                            }
+                        }
+                        Repeater {
+                            model: proxyPanel.px.servicios || []
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Text { text: modelData.host; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 240; elide: Text.ElideRight }
+                                Text { text: "→ :" + modelData.destino + modelData.ruta + (modelData.soloLan ? " · solo red local" : ""); color: Theme.textFaint; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                                StatusPill { text: (modelData.certificado.origen === "acme" ? "Let's Encrypt" : "de la casa") + " · vence " + proxyPanel.fecha(modelData.certificado.vence)
+                                             dot: modelData.certificado.origen === "acme" ? Theme.ok : Theme.amber }
+                                GlassButton { compact: true; text: "Renovar"; visible: !!proxyPanel.acme.activo; onClicked: { conf.renovarProxy(modelData.host); Studio.notify("Pidiendo el certificado de " + modelData.host + "…", "info") } }
+                            }
+                        }
+                    }
+                }
+
                 // --- Acceso directo: HTTPS propio + tunel WireGuard -------------------
                 Panel {
                     id: direct

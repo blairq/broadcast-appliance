@@ -408,6 +408,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.wgAddress = get<std::string>(w, "address", s.wgAddress);
     s.wgPublicAddress = get<std::string>(w, "publicAddress", s.wgPublicAddress);
     s.wgKeepalive = get(w, "keepalive", s.wgKeepalive);
+    if (j.contains("proxy") && j["proxy"].is_object()) s.proxy = j["proxy"];
     return s;
 }
 
@@ -442,7 +443,8 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                             {"serverPublicKey", s.wgServerPublicKey},
                             {"address", s.wgAddress},
                             {"publicAddress", s.wgPublicAddress},
-                            {"keepalive", s.wgKeepalive}}}},
+                            {"keepalive", s.wgKeepalive}}},
+                          {"proxy", s.proxy}},
                      err);
 }
 

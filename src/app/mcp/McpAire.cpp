@@ -21,6 +21,7 @@ const std::map<std::string, std::string>& fijas() {
         {"record_stop", "corta la grabación"},
         {"participant_kick", "saca a un invitado de la sala"},
         {"gateway_restart", "reinicia el gateway (corta a los invitados)"},
+        {"proxy_configurar", "reinicia la sala (corta a los invitados) con el proxy nuevo"},
         {"app_quit", "cierra el programa"},
         {"transition_set", "cambia la transición"},
         {"speaker_on_air", "pone o saca oradores del aire"},

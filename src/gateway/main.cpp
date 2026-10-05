@@ -79,6 +79,7 @@
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
 #include "net/TlsTerminator.hpp"
+#include "proxy/GestorProxy.hpp"
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
 #if BA_HAVE_LWIP
@@ -666,6 +667,18 @@ int main(int argc, char** argv) {
             tls.reset();
         }
     }
+
+    // El proxy por nombre (T61): un DNS y un certificado por servicio, en el 443/80.
+    std::unique_ptr<proxy::GestorProxy> gestorProxy;
+    if (cfg.proxy.value("activo", false)) {
+        gestorProxy = std::make_unique<proxy::GestorProxy>(cfg.proxy, cfg.port, ba::platform::credentialsDir().string(),
+                                                           lanIps, logLine);
+        if (!gestorProxy->start()) {
+            log.warn("proxy: no arrancó (ver el motivo arriba)", -1);
+            gestorProxy.reset();
+        }
+    }
+    server.setProxy(gestorProxy.get());
 
     std::unique_ptr<net::WgDevice> wg;
 #if BA_HAVE_LWIP

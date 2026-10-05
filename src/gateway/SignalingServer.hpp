@@ -91,6 +91,9 @@ namespace ba::gateway {
 
 class Log;
 class MediaPump;
+namespace proxy {
+class GestorProxy;
+}
 class Room;
 class ShareStore;
 
@@ -141,6 +144,8 @@ class SignalingServer {
 
     /// Motor de medios para publicar el uplink del invitado (B->A). Antes de start().
     void setPump(MediaPump* pump) { pump_ = pump; }
+    /// El proxy por nombre (T61), si está prendido: GET /api/v1/proxy, POST /api/v1/proxy/renovar.
+    void setProxy(proxy::GestorProxy* p) { proxy_ = p; }
 
     /// Abre los sockets de escucha y arranca los threads de accept.
     /// :returns: true si la superficie de invitados quedo escuchando (la de
@@ -381,6 +386,7 @@ class SignalingServer {
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;
+    proxy::GestorProxy* proxy_ = nullptr;
     std::string publicAddress_;
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
