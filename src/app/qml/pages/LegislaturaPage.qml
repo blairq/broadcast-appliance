@@ -41,7 +41,7 @@ Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             currentIndex: tabs.currentIndex
-            Panel { PanelConferencia { anchors.fill: parent } }
+            Panel { PanelConferencia { id: conferencia; anchors.fill: parent } }
             Panel {
                 ScrollView {
                     anchors.fill: parent
@@ -55,13 +55,18 @@ Rectangle {
         }
     }
 
-    // ui_show_page {page: "legislatura", seccion: "conferencia" | "recinto" | "orden" | "votacion"}
+    // ui_show_page {page: "legislatura", seccion: "conferencia[/sala|unidades|votacion|conexion]" | "recinto" | "orden" | "votacion"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
             if (pagina !== "legislatura") return
-            const i = ["conferencia", "recinto", "orden", "votacion"].indexOf(seccion.toLowerCase())
+            const partes = seccion.toLowerCase().split("/")
+            const i = ["conferencia", "recinto", "orden", "votacion"].indexOf(partes[0])
             if (i >= 0) tabs.currentIndex = i
+            if (i === 0 && partes.length > 1) {
+                const j = ["sala", "unidades", "votacion", "conexion"].indexOf(partes[1])
+                if (j >= 0) conferencia.pestana = j
+            }
         }
     }
 

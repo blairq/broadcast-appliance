@@ -28,8 +28,12 @@ Todo esto se integra con lo que la app ya tiene:
 > Conferencia** (grilla con el estado de cada banca, pedidos, oradores, unidades con «Aprender», conexión
 > y tramas) y Bancas «al aire» / «terminar» por la central; botonera «Micrófonos de bancas» con caras
 > (la foto de cada integrante, subida a mano o capturada con la cámara de su banca), borde que titila,
-> insignia de turno y atenuado, en la tablet, el Satellite y el Stream Deck. Falta: fase 2 y 3. Nada se
-> probó con una CCU real.
+> insignia de turno y atenuado, en la tablet, el Satellite y el Stream Deck. **Fase 2 hecha:** votación
+> (preparar, abrir, pausar, cerrar, parciales, nominal por banca, «Pasar a Quórum»), asistencia (con la
+> opción de que Quórum cuente esos presentes) y tiempos de palabra en las unidades (reloj y avisos a un
+> minuto y al terminar, solos desde la fila de oradores). Falta: fase 3. Nada se probó con una CCU real.
+> [A VERIFICAR] el voto nominal llega por número de DELEGADO: sin base de delegados se toma el delegado
+> de cada unidad de la asistencia o de los pedidos, y si no hay dato, delegado = unidad.
 > Lo marcado **[A VERIFICAR]** sale de lecturas parciales del manual y hay que confirmarlo con el
 > equipo o con el PDF completo de la versión 2.x.
 
@@ -60,11 +64,14 @@ Lo que cambia es el **transporte** (serie o TCP). Por eso el plugin separa:
 ## 2. Conexión física
 
 - **Puerto:** el RS-232 de la CCU, que va a un adaptador USB-serie en la PC.
-  - Cable **null-modem** (TX↔RX cruzados, GND común) **[A VERIFICAR el pinout y si usa RTS/CTS]**.
+  - Cable **1 a 1** (macho del lado de la CCU, hasta unos 2 m), con **control de flujo por hardware
+    RTS/CTS**; las demás señales están puenteadas adentro de la CCU (Open Interface 2.0 §2.2).
 - **Configuración en la CCU:** el puerto RS-232 se pone en el modo del Open Interface (modo «Full»; el
   otro modo, «Camera control», es para conmutadores de video).
-  - Velocidades que se pueden elegir: **9600, 19200, 57600 o 115200**; 8N1.
-  - La app usa la misma que se eligió en la CCU, con 19200 de fábrica **[A VERIFICAR]**.
+  - Velocidades que se pueden elegir: **9600, 19200, 57600 o 115200**; 8N1. Se eligen con las llaves
+    S500 de la placa.
+  - **De fábrica, el puerto 1 de la CCU es Full a 115200** (manual de instalación DCN NG, tabla S500;
+    presentación de Bosch: «Port 1, 115200, Full»). El puerto 2 viene en 19200 para control de cámaras.
 - **Controladores en simultáneo:** puede haber una PC de control de Bosch (DCN-SW) conectada por
   Ethernet. Para la CCU, esa es el controlador **primario** y la app el **secundario**.
   - Pueden convivir y manejar partes distintas.
@@ -82,9 +89,9 @@ Lo que cambia es el **transporte** (serie o TCP). Por eso el plugin separa:
  encabezado (3 bytes)                                           checksum (2 bytes)
 ```
 
-- **ESC**: byte de escape. Va siempre seguido de un byte que dice qué es.
-  - La lectura parcial del 2.0 dice **0xC8**; los manuales 4.x definen ESC = 0x1B. **[A VERIFICAR]**:
-    el plugin lo deja configurable (`escape`, de fábrica 0xC8) y el simulador prueba los dos.
+- **ESC**: byte de escape, **0xC8** en el protocolo Full (Open Interface 2.0 §4.2.1: «The escape byte
+  holds the value 0xC8»; confirmado en el `CCU_DDTK.exe` del DVD de Bosch). El 0x1B (ESC ASCII) de los
+  manuales 4.x es el del protocolo **Simple**.
 - **TIPO** (ASCII):
 
 | Byte | Paquete | Con mensaje |
@@ -102,10 +109,19 @@ Lo que cambia es el **transporte** (serie o TCP). Por eso el plugin separa:
   - Se calcula con CORR = 0x00.
   - Si el resultado da igual a ESC, se pone CORR = 0x13 y se recalcula (sumar 0x13 y volver a
     invertir). Así **el checksum nunca vale ESC**.
-- **ESC dentro de los datos:** **[A VERIFICAR]** cómo se transmite un byte de valor ESC dentro del
-  mensaje. Lo más probable es que se duplique (relleno de bytes); hay que confirmarlo en el 2.0.
-  - El decodificador tiene que aceptar las dos variantes mientras se verifica: ESC ESC = un dato ESC;
-    ESC seguido de un tipo válido = inicio de paquete.
+- **ESC dentro de los datos:** un 0xC8 del largo o de los datos viaja **duplicado** (0xC8 0xC8).
+  **El checksum suma los bytes tal como viajan, con los dos 0xC8.** El manual 2.0 §4.2.3 dice que el
+  duplicado no entra en la suma, pero el código de Bosch hace lo contrario. Lo verifiqué desensamblando
+  `SCS.DLL` (Serial Communication Services) del software de PC DCN-PC 3.1x (el que habla con la CCU por
+  serie, dentro del MSI del DVD):
+  - emisor (segmento 4, 0x0345–0x048b): la suma arranca en ESC+'$'+SEC (`sec + 0xEC`), cada 0xC8 se
+    escribe dos veces y se suma dos veces; si la suma da 0x37 va CORR = 0x13; CHK = ~suma;
+  - receptor (0x0856–0x0975): el primer 0xC8 queda pendiente sin sumar; el segundo suma 0xC8 y después
+    el byte se procesa y vuelve a sumar.
+  El plugin hace lo mismo (prueba `test_full_igual_que_scs_dll` con una referencia escrita desde el
+  desensamblado, unidad 200 = 0xC8 incluida). El checksum nunca necesita escape (por eso existe CORR).
+- **Antes de los datos, un latido:** la CCU no acepta datos hasta recibir un latido; el plugin lo manda
+  apenas abre el puerto. Corte por falta de latido: 10 s. Mensaje de 5000 bytes como máximo.
 
 ### 3.2 Reglas de envío
 
@@ -125,8 +141,10 @@ Lo que cambia es el **transporte** (serie o TCP). Por eso el plugin separa:
 
 ### 3.3 Transporte serie «Simple»
 
-Sin ACK, sin reenvíos y sin latido; solo checksum. Es para enlaces cortos y equipos chicos. El
-formato exacto queda **[A VERIFICAR]**. Se implementa después de Full, como opción `protocolo: simple`.
+`1B 24 0D` + mensaje + 1 byte de checksum (suma de encabezado y mensaje, módulo 256, invertida). Sin
+secuencia, sin ACK, sin latido y sin escape. Si la CCU recibe un checksum mal contesta MDSC_NAK de largo 0.
+El enlace se vigila con `SC_C_CHECK_LINK` cada 5 s. Ejemplo real de Bosch (MM_C_SPK_APPEND de la unidad
+0x1C): `1b 24 0d 03 04 00 30 00 1c 00 60`, que es lo que arma el plugin (hay prueba).
 
 ### 3.4 Alternativa por red (CCU2 con Open Interface 4.x)
 
@@ -140,7 +158,9 @@ Para cuando se cambie la central:
   - `MESSAGETYPE_OIP_ResponseProtocolError` = 0x00447020;
   - `MESSAGETYPE_OIP_Dcn`, que lleva adentro el mensaje DCN de la sección 4.
 
-El plugin lo trae como `transporte: tcp`, con la misma capa de mensajes.
+El `byData` lleva el mensaje DCN **entero, con el wFnId adelante** (y el wError en las respuestas): así lo
+arma el `CCU_DDTK.exe` del DVD (largo = datos + 16, copia desde el wFnId). La CCU corta si no recibe nada
+en 15 s. El plugin lo trae como `transporte: tcp`, con la misma capa de mensajes.
 
 ---
 
@@ -366,7 +386,9 @@ cada banca), por si la sala se usa algún día sin la app.
 
 1. **Abrir el puerto** (velocidad, 8N1) y mandar latidos `'?'` hasta que la CCU conteste: enlace
    arriba.
-2. Mandar `MDSC_COMMUNICATION_PARAMS` (latido de 5 s, 2 reintentos) **[A VERIFICAR el formato]**.
+2. Mandar `MDSC_COMMUNICATION_PARAMS` (tipo 15, solo serie): `{wFnId = 0x0001; wHeartbeatTime;
+   wNrRetries; wRetryTime}` con 5 s, 2 y 2 s; la CCU contesta el mismo tipo con wFnId 0x0002 y los
+   valores que quedaron (2.0 §3.2.4).
 3. `SC_C_GET_CCU_VERSIONINFO` y `SC_C_START_APP`. Después `SC_C_GET_CCU_CONFIG`, que da el mapa de
    unidades conectadas y su tipo.
 4. Micrófonos: `MM_C_START_MM` (o `MM_C_START_MON_MM` en modo «solo escuchar») y después
@@ -769,17 +791,21 @@ cuando ve que la sala responde bien.
 
 ## 15. Lo que hay que verificar o decidir
 
-1. **El byte de escape** (0xC8 o 0x1B) y **cómo va un ESC dentro de los datos**: con el PDF 2.x
-   completo o con la traza del equipo (prueba 4.2).
-2. El formato exacto de **`MDSC_COMMUNICATION_PARAMS`** y del **protocolo Simple**.
-3. **Pinout y control de flujo** del cable RS-232 de la CCU.
-4. **Versión de firmware** de la CCU de la sala: los códigos de esta guía salen de 4.x; si la CCU
-   tiene 2.x, cotejar el Apéndice B del 2.0 (las funciones agregadas después de 2.68 pueden no
-   existir).
-5. **¿En qué modo de micrófonos trabaja la sala?** Para que la botonera decida, tiene que ser modo
-   operador (0 o 4). Si el presidente y los técnicos prefieren otro modo, la botonera solo abre y
-   cierra lo que la CCU permita.
-6. **¿Votación y asistencia van por la CCU o por la app?** Hay que definir cuál es la fuente oficial
-   para el acta.
-7. Si hay operador de Bosch con su PC al mismo tiempo, **quién manda los micrófonos** durante la
-   sesión.
+**Resuelto** con el manual Open Interface 2.0 completo, el manual de instalación DCN NG y el DVD de
+Bosch del usuario (`Customer DVD`: DDTK con `CCU_DDTK.exe`, `FNID.DEF` y `OIQRC.pdf`; `docs/OI_en.pdf`
+4.0): byte de escape, ESC en los datos, `MDSC_COMMUNICATION_PARAMS`, protocolo Simple, velocidad de
+fábrica y control de flujo, y el `byData` por red. Todos los códigos de función del plugin coinciden con
+`FNID.DEF` (cero diferencias).
+
+**Quedan:**
+1. ~~El largo del arreglo de totales~~: son **25** (`VotingResultMarshaler.Unmarshal` del ensamblado
+   `Bosch.Dcn.OpenInterface.Logic` de DCN-SWSMV 3.1x crea y lee 25 Int32; `FNID.DEF` está mal). En el
+   formato comprimido, el nibble bajo es el delegado impar y el alto el par; 14 = no votó, 15 = sin
+   asignar. El plugin igual acepta 24 si el largo del mensaje lo indica.
+2. El voto nominal llega por número de **delegado**: sin base de delegados se toma de la asistencia o de
+   los pedidos de palabra, y si no, delegado = unidad. Verificarlo en la sala.
+3. **Versión de firmware** de la CCU de la sala.
+4. **¿En qué modo de micrófonos trabaja la sala?** Para que la botonera decida, tiene que ser modo
+   operador (0 o 4).
+5. **¿Votación y asistencia van por la CCU o por la app?** Definir cuál es la fuente oficial para el acta.
+6. Si hay operador de Bosch con su PC al mismo tiempo, **quién manda los micrófonos**.

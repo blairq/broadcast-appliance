@@ -31,8 +31,14 @@ std::string limpio(std::string e) {
 }
 } // namespace
 
-ConferenciaDcn::ConferenciaDcn(std::function<plugins::Plugins*()> plugins, control::BusEventos& bus, QObject* parent)
-    : QObject(parent), plugins_(std::move(plugins)), bus_(bus) {
+ConferenciaDcn::ConferenciaDcn(std::function<plugins::Plugins*()> plugins, control::BusEventos& bus,
+                               std::filesystem::path datos, QObject* parent)
+    : QObject(parent), plugins_(std::move(plugins)), bus_(bus), archivo_(datos / "Config" / "conferencia.json") {
+    {
+        std::ifstream f(archivo_);
+        const json j = json::parse(f, nullptr, false);
+        if (j.is_object()) presentesCentral_ = j.value("presentes_de_la_central", false);
+    }
     bus_.suscribir(std::string("plugin/") + kPlugin + "/dcn/estado", [this](const std::string&, const json& v) {
         estado_ = v.is_object() ? v : json::object();
         emit cambio();
@@ -65,6 +71,51 @@ QString ConferenciaDcn::pluginUi() const {
 }
 
 QVariantMap ConferenciaDcn::estadoUi() const { return aQv(estado_).toMap(); }
+
+void ConferenciaDcn::setPresentesDeLaCentral(bool si) {
+    if (si == presentesCentral_) return;
+    presentesCentral_ = si;
+    std::error_code ec;
+    std::filesystem::create_directories(archivo_.parent_path(), ec);
+    std::ofstream(archivo_) << json{{"presentes_de_la_central", si}}.dump(1);
+    emit cambio();
+}
+
+int ConferenciaDcn::presentesCentral() const {
+    if (!conectada()) return -1;
+    const json a = estado_.value("asistencia", json::object());
+    return a.contains("presentes") ? a.value("presentes", -1) : -1;
+}
+
+json ConferenciaDcn::pasarAQuorum(const std::string& asunto) {
+    if (!aQuorum_) return {{"error", "Quórum no está disponible"}};
+    const json v = estado_.value("votacion", json::object());
+    if (v.value("estado", std::string()) != "cerrada" || !v.contains("totales"))
+        return {{"error", "no hay una votación cerrada en la central (cerrala primero)"}};
+    const json t = v["totales"];
+    json nominal = json::array();
+    for (const auto& n : v.value("nominal", json::array())) {
+        std::string quien = n.value("nombre", std::string());
+        if (quien.empty()) quien = n.value("banca", std::string()).empty() ? "unidad " + std::to_string(n.value("unidad", 0))
+                                                                              : "Banca " + n.value("banca", std::string());
+        nominal.push_back({{"nombre", quien}, {"banca", n.value("banca", std::string())}, {"voto", n.value("voto", std::string())}});
+    }
+    json r{{"asunto", asunto.empty() ? v.value("tema", std::string()) : asunto},
+           {"afirmativos", t.value("afirmativo", 0)},
+           {"negativos", t.value("negativo", 0)},
+           {"abstenciones", t.value("abstencion", 0)},
+           {"presentes", v.value("presentes", 0)},
+           {"nominal", nominal},
+           {"origen", "central Bosch DCN"}};
+    const json res = aQuorum_(r);
+    if (res.contains("error")) return res;
+    return {{"resultado", res}};
+}
+
+QString ConferenciaDcn::pasarAQuorumUi() {
+    const json r = pasarAQuorum();
+    return QString::fromStdString(r.value("error", std::string()));
+}
 QVariantMap ConferenciaDcn::configUi() const { return aQv(config_).toMap(); }
 
 void ConferenciaDcn::control(const std::string& nombre, const json& args, Listo listo, int timeoutMs) {
@@ -73,8 +124,14 @@ void ConferenciaDcn::control(const std::string& nombre, const json& args, Listo 
     if (p->estado(kPlugin).value("estado", std::string()) != "corriendo")
         return listo(false, {}, "el control de la central (plugin bosch-dcn) no está corriendo: conectalo en "
                                 "Legislatura → Conferencia (o dcn_conectar)");
-    p->pedir(kPlugin, "control", {{"nombre", nombre}, {"args", args}}, [listo](json r) {
+    QPointer<ConferenciaDcn> yo(this);
+    p->pedir(kPlugin, "control", {{"nombre", nombre}, {"args", args}}, [listo, nombre, yo](json r) {
         if (!r.value("ok", false)) return listo(false, {}, limpio(r.value("error", std::string("falló"))));
+        // La votación que contestó la orden ya es la de ahora (el estado del bus llega después).
+        if (yo && (nombre == "votacion" || nombre == "votacion_resultado") && r.value("resultado", json()).is_object()) {
+            yo->estado_["votacion"] = r["resultado"];
+            emit yo->cambio();
+        }
         listo(true, r.value("resultado", json::object()), "");
     }, timeoutMs);
 }

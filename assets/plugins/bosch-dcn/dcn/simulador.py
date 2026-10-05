@@ -34,9 +34,18 @@ class Simulador:
         self.sc_arrancado = False
         self.actividad_s = actividad_s
         self.lock = threading.RLock()
+        # Fase 2: votación, asistencia y tiempo de palabra.
+        self.vt_app = False
+        self.vt_params = {"menu": 2, "opciones": 3, "abierta": True}
+        self.vt_tema = (0, "")
+        self.vt_estado = "cerrada"
+        self.votos: dict[int, int] = {}   # delegado (= unidad acá) -> opción
+        self.votar_solos = True           # al abrir, los delegados votan solos en unos segundos
+        self.at_app = False
+        self.presentes = {u: True for u in self.unidades}
+        self.tiempo = {"minutos": 0, "reloj": False}
 
     def arrancar(self) -> None:
-        self.t.latido_s = self.t.latido_s or 5.0
         self.t.arrancar()
         if self.actividad_s > 0:
             threading.Thread(target=self._actividad, daemon=True, name="dcn-sim").start()
@@ -63,6 +72,38 @@ class Simulador:
                 prendido = any(o[0] == u and o[1] for o in self.spk)
                 self._micro(u, not prendido, desde_sala=True)
 
+    # --- votación y asistencia en la sala ---
+    def votar(self, u: int, opcion: int) -> None:
+        with self.lock:
+            if self.vt_estado != "abierta" or not self.presentes.get(u) or not self.unidades.get(u, {}).get("conectada"):
+                return
+            if 0 <= opcion < self.vt_params["opciones"]:
+                self.votos[u] = opcion
+                self._ntf(m.VT_C_RESULTSNOTIFY, self._resultado())
+
+    def presente(self, u: int, si: bool) -> None:
+        with self.lock:
+            self.presentes[u] = si
+            self._ntf(m.AT_C_SEND_INDIV_REGISTRATION, m.asistencia([(u, u, 1 if si else 2)]))
+            pres = sum(1 for x in self.presentes.values() if x)
+            self._ntf(m.AT_C_SEND_TOTAL_REGISTRATION, m.palabra(pres) + m.palabra(len(self.presentes) - pres))
+
+    def _resultado(self) -> bytes:
+        presentes = [u for u, p in self.presentes.items() if p and self.unidades[u]["conectada"]]
+        votos = [0] * 25
+        for _u, o in self.votos.items():
+            votos[o] += 1
+        return m.resultado(self.vt_tema[0], len(presentes), len(presentes) - len(self.votos), votos, dict(self.votos))
+
+    def _votan_solos(self) -> None:
+        delegados = [u for u, x in self.unidades.items() if x["conectada"] and self.presentes.get(u)]
+        random.shuffle(delegados)
+        for u in delegados:
+            time.sleep(random.uniform(0.05, 0.25))
+            if self.vt_estado != "abierta":
+                return
+            self.votar(u, random.choices(range(self.vt_params["opciones"]), weights=[6, 3, 1, 1][: self.vt_params["opciones"]])[0])
+
     def desconectar(self, u: int, conectada: bool = False) -> None:
         with self.lock:
             self.unidades[u]["conectada"] = conectada
@@ -84,6 +125,10 @@ class Simulador:
         if (f >> 8) == m.APP_MM and not self.mm_arrancado:
             return
         if (f >> 8) == m.APP_SC and not self.sc_arrancado:
+            return
+        if (f >> 8) == m.APP_VT and not self.vt_app:
+            return
+        if (f >> 8) == 0x09 and not self.at_app:
             return
         self.t.enviar(m.Mensaje(m.NTF, f, datos))
 
@@ -118,13 +163,19 @@ class Simulador:
         return 0
 
     def _recibir(self, msg: m.Mensaje) -> None:
+        if msg.tipo == m.COMM_PARAMS and msg.fn == m.RSMC_SET_COMMUNICATION_PARAMS:
+            self.enlace = m.leer_parametros_enlace(msg.datos)
+            self.t.enviar(m.Mensaje(m.COMM_PARAMS, m.RSMC_RSP_COMMUNICATION_PARAMS, msg.datos))
+            return
         if msg.tipo != m.REQ:
             return
         with self.lock:
             self._atender(msg.fn, msg.datos)
 
     def _atender(self, f: int, d: bytes) -> None:
-        if f == m.SC_C_GET_CCU_VERSIONINFO:
+        if f == m.SC_C_CHECK_LINK:
+            self._rsp(f)
+        elif f == m.SC_C_GET_CCU_VERSIONINFO:
             self._rsp(f, b"SIM DCN-CCU 2.9\x00")
         elif f == m.SC_C_START_APP:
             self.sc_arrancado = True
@@ -222,5 +273,70 @@ class Simulador:
             self._ntf(m.MM_C_RTS_INSERT_ON_PC, m.rts_insertar((m.EMPTY_UNIT, m.EMPTY_DELEGATE), (u, u)))
         elif f in (m.MM_C_LAST_MINUTE_WARNING, m.MM_C_TIME_FINISHED_WARNING):
             self._rsp(f)
+        elif f == m.MM_C_SET_SPEECHTIME_SETTINGS:
+            self.tiempo = {"minutos": m.leer_palabra(d), "reloj": bool(d[2])}
+            self._rsp(f)
+        # --- votación ---
+        elif f == m.VT_C_START_APP:
+            self.vt_app = True
+            self._rsp(f)
+        elif f == m.VT_C_STOP_APP:
+            self.vt_app = False
+            self._rsp(f)
+        elif not self.vt_app and (f >> 8) == m.APP_VT:
+            self._rsp(f, error=286)
+        elif f == m.VT_C_DOWNLOAD_SUBJECT:
+            if self.vt_estado != "cerrada":
+                return self._rsp(f, error=276)
+            self.vt_tema = m.leer_tema(d)
+            self._rsp(f)
+        elif f == m.VT_C_SET_VOTINGPARAMS:
+            if self.vt_estado != "cerrada":
+                return self._rsp(f, error=276)
+            self.vt_params = m.leer_params_voto(d)
+            self._rsp(f)
+        elif f == m.VT_C_SET_GLOBAL_SETTINGS:
+            self._rsp(f)
+        elif f == m.VT_C_START_VOTING:
+            if self.vt_estado != "cerrada":
+                return self._rsp(f, error=276)
+            self.vt_estado = "abierta"
+            self.votos = {}
+            self._rsp(f)
+            self._ntf(m.VT_C_RESULTSNOTIFY, self._resultado())
+            if self.votar_solos:
+                threading.Thread(target=self._votan_solos, daemon=True).start()
+        elif f == m.VT_C_HOLD_VOTING:
+            if self.vt_estado != "abierta":
+                return self._rsp(f, error=277)
+            self.vt_estado = "pausada"
+            self._rsp(f)
+        elif f == m.VT_C_RESTART_VOTING:
+            if self.vt_estado != "pausada":
+                return self._rsp(f, error=278)
+            self.vt_estado = "abierta"
+            self._rsp(f)
+        elif f == m.VT_C_STOP_VOTING:
+            if self.vt_estado == "cerrada":
+                return self._rsp(f, error=277)
+            self.vt_estado = "cerrada"
+            self._rsp(f)
+            self._ntf(m.VT_C_RESULTSNOTIFY, self._resultado())
+        elif f == m.VT_C_GET_RESULTS:
+            self._rsp(f, self._resultado())
+        # --- asistencia ---
+        elif f == m.AT_C_START_AT_APP:
+            self.at_app = True
+            self._rsp(f)
+        elif f == m.AT_C_STOP_AT_APP:
+            self.at_app = False
+            self._rsp(f)
+        elif f == m.AT_C_ACTIVATE:
+            self._rsp(f)
+        elif f == m.AT_C_GET_INDIV_REGISTRATION:
+            if not self.at_app:
+                return self._rsp(f, error=2305)
+            items = [(u, u, 1 if p else 2) for u, p in self.presentes.items()] if m.leer_palabra(d) == 0 else []
+            self._rsp(f, m.asistencia(items))
         else:
             self._rsp(f, error=1)

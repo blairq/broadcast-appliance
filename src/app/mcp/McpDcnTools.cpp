@@ -77,9 +77,37 @@ void McpService::registerDcnTools() {
           {"max_abiertos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}},
           {"max_pedidos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}},
          false, false},
-        {"dcn_tiempo", "tiempo", "Aviso de tiempo en la unidad",
-         "Muestra en la unidad de la banca «queda un minuto» (ultimo_minuto) o «se terminó el tiempo» (terminado).",
-         {{"banca", banca}, {"aviso", {{"type", "string"}, {"enum", {"ultimo_minuto", "terminado"}}}}}, false, false},
+        {"dcn_tiempo", "tiempo", "Tiempo de uso de la palabra",
+         "`{limite_min, reloj}` configura el reloj de las unidades (cuenta para atrás); `{banca, aviso}` muestra en la "
+         "unidad de esa banca «queda un minuto» (ultimo_minuto) o «se terminó el tiempo» (terminado). La fila de "
+         "oradores lo hace sola con el tiempo asignado al orador.",
+         {{"banca", banca},
+          {"aviso", {{"type", "string"}, {"enum", {"ultimo_minuto", "terminado"}}}},
+          {"limite_min", {{"type", "integer"}, {"minimum", 0}, {"maximum", 120}}},
+          {"reloj", {{"type", "boolean"}}}},
+         false, false},
+        {"dcn_votacion", "votacion", "Votación en la central",
+         "`accion`: preparar (`tema`, `numero`, `menu` si_no_abstencion de fábrica, `abierta` para el voto nominal), "
+         "abrir, pausar, reanudar o cerrar (devuelve el resultado final). Los delegados votan en sus unidades; los "
+         "parciales salen en dcn_votacion_resultado. El resultado OFICIAL se lleva a Quórum con dcn_votacion_a_quorum.",
+         {{"accion", {{"type", "string"}, {"enum", {"preparar", "abrir", "pausar", "reanudar", "cerrar"}}}},
+          {"tema", {{"type", "string"}}},
+          {"numero", {{"type", "integer"}}},
+          {"menu", {{"type", "string"}, {"enum", {"si_no", "si_no_abstencion", "a_favor_en_contra", "si_no_abstencion_nppv"}}}},
+          {"abierta", {{"type", "boolean"}}},
+          {"mostrar", {{"type", "boolean"}}}},
+         false, false},
+        {"dcn_votacion_resultado", "votacion_resultado", "Resultado de la votación de la central",
+         "Totales por opción, presentes, los que no votaron y el voto de cada banca (parcial si sigue abierta).",
+         json::object(), true, false},
+        {"dcn_asistencia", "asistencia", "Presentes según la central",
+         "Presentes y ausentes según la asistencia de la central, por banca.", json::object(), true, false},
+        {"dcn_simular_voto", "simular_voto", "Simular un voto",
+         "Solo con el simulador: la banca vota (0 afirmativo, 1 negativo, 2 abstención).",
+         {{"banca", banca}, {"voto", {{"type", "integer"}}}}, false, false},
+        {"dcn_simular_presencia", "simular_presencia", "Simular presencia",
+         "Solo con el simulador: la banca se registra presente o ausente.",
+         {{"banca", banca}, {"presente", {{"type", "boolean"}}}}, false, false},
         {"dcn_unidades", "unidades", "Unidades y bancas",
          "Las unidades de la central con su tipo (delegado, presidente) y la banca asignada; bancas sin unidad y "
          "unidades sin banca.",
@@ -125,13 +153,45 @@ void McpService::registerDcnTools() {
     }
     {
         Tool t;
+        t.name = "dcn_votacion_a_quorum";
+        t.title = "Llevar la votación de la central a Quórum";
+        t.category = "conferencia";
+        t.description = "Carga la última votación CERRADA de la central como resultado oficial en Quórum (totales, "
+                        "presentes y el voto de cada integrante), para el acta, el CSV nominal y el gráfico de votación. "
+                        "`asunto` reemplaza el tema que tenía en la central.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"asunto", {{"type", "string"}}}}}};
+        t.run = [&dcn](const json& a, Done done) {
+            const json r = dcn.pasarAQuorum(a.value("asunto", std::string()));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "dcn_presentes_quorum";
+        t.title = "Presentes de Quórum desde la central";
+        t.category = "conferencia";
+        t.description = "Con `activo: true`, Quórum cuenta los presentes que dice la asistencia de la central (en vez "
+                        "del padrón del evento). Sin argumentos, dice cómo está y los dos números.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
+        t.run = [&dcn](const json& a, Done done) {
+            if (a.contains("activo")) dcn.setPresentesDeLaCentral(a.value("activo", false));
+            done(ToolResult().data({{"activo", dcn.presentesDeLaCentral()}, {"presentes_central", dcn.presentesCentral()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "dcn_conectar";
         t.title = "Conectar la central de conferencia";
         t.category = "conferencia";
         t.description =
             "Conecta con la central Bosch DCN (instala y prende el plugin bosch-dcn si hace falta). Lo que se pasa "
-            "queda guardado: `transporte` serie (RS-232 por adaptador USB; `puerto` de dcn_puertos, `velocidad` la "
-            "que tiene la central), tcp (CCU2: `host`, `puerto_tcp` 9451) o simulador (para probar sin el equipo). "
+            "queda guardado: `transporte` serie (RS-232 por adaptador USB; `puerto` de dcn_puertos; de fábrica el "
+            "puerto 1 de la CCU es `protocolo` full a `velocidad` 115200 con `rtscts`; «simple» es el otro protocolo "
+            "serie), tcp (CCU2: `host`, `puerto_tcp` 9451) o simulador (para probar sin el equipo). `votacion` y "
+            "`asistencia` (de fábrica sí) enganchan esas aplicaciones de la central. "
             "`solo_escuchar` (de fábrica true) recibe todo pero no le manda órdenes: apagarlo cuando la sala responde "
             "bien. Requiere la licencia del Open Interface habilitada en la central.";
         t.inputSchema = {{"type", "object"},
@@ -139,6 +199,10 @@ void McpService::registerDcnTools() {
                           {{"transporte", {{"type", "string"}, {"enum", {"serie", "tcp", "simulador"}}}},
                            {"puerto", {{"type", "string"}}},
                            {"velocidad", {{"type", "integer"}, {"enum", {9600, 19200, 57600, 115200}}}},
+                           {"protocolo", {{"type", "string"}, {"enum", {"full", "simple"}}}},
+                           {"rtscts", {{"type", "boolean"}}},
+                           {"votacion", {{"type", "boolean"}}},
+                           {"asistencia", {{"type", "boolean"}}},
                            {"host", {{"type", "string"}}},
                            {"puerto_tcp", {{"type", "integer"}}},
                            {"solo_escuchar", {{"type", "boolean"}}},
@@ -146,7 +210,8 @@ void McpService::registerDcnTools() {
                            {"traza", {{"type", "boolean"}}},
                            {"simulador_actividad_s", {{"type", "number"}}}}}};
         t.examples = {R"({"transporte": "simulador", "solo_escuchar": false})",
-                      R"({"transporte": "serie", "puerto": "/dev/cu.usbserial-1410", "velocidad": 19200})"};
+                      R"({"transporte": "serie", "puerto": "/dev/cu.usbserial-1410", "velocidad": 115200, "protocolo": "full"})",
+                      R"({"transporte": "tcp", "host": "192.168.0.20"})"};
         t.run = [&dcn](const json& a, Done done) {
             dcn.conectar(a.is_object() ? a : json::object(), [done](bool ok, const json& r, const std::string& e) {
                 if (!ok) return done(ToolResult::error(e));

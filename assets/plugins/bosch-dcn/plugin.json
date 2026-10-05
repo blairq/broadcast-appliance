@@ -1,23 +1,28 @@
 {
   "id": "bosch-dcn",
   "nombre": "Bosch DCN Next Generation (central de conferencia)",
-  "descripcion": "Controla la central (CCU) de un sistema de conferencia Bosch DCN Next Generation por el Open Interface: abrir y cerrar micrófonos de banca, lista de pedidos de palabra, «siguiente», oradores, modo de operación y avisos de tiempo. Por puerto serie RS-232 (protocolo Full, con adaptador USB) o por red (TCP 9451, CCU2). Publica «conferencia/microfono» {banca, abierto} (lo usan Seguir al micrófono, la fila de oradores y el Recinto) y el estado completo en «dcn/estado». La unidad de cada banca se asigna en el Cuerpo (dcn_unidad) o se aprende apretando el botón en la sala. Viene en «solo escuchar»: no manda órdenes hasta que se apague. Con transporte «simulador» se prueba sin el equipo. Requiere la licencia del Open Interface (LBB4187/00) habilitada en la CCU. Ver docs/bosch-dcn-ng-open-interface.md.",
+  "descripcion": "Controla la central (CCU) de un sistema de conferencia Bosch DCN Next Generation por el Open Interface: abrir y cerrar micrófonos de banca, lista de pedidos de palabra, «siguiente», oradores, modo de operación y avisos de tiempo. Por puerto serie RS-232 (protocolos Full y Simple; de fábrica el puerto 1 de la CCU es Full a 115200 con RTS/CTS) o por red (TCP 9451, CCU2). Publica «conferencia/microfono» {banca, abierto} (lo usan Seguir al micrófono, la fila de oradores y el Recinto) y el estado completo en «dcn/estado». La unidad de cada banca se asigna en el Cuerpo (dcn_unidad) o se aprende apretando el botón en la sala. Viene en «solo escuchar»: no manda órdenes hasta que se apague. Con transporte «simulador» se prueba sin el equipo. Requiere la licencia del Open Interface (LBB4187/00) habilitada en la CCU. Ver docs/bosch-dcn-ng-open-interface.md.",
   "version": "1.0",
   "principal": "plugin.py",
-  "dependencias": ["pyserial"],
+  "dependencias": [
+    "pyserial"
+  ],
   "config": {
     "transporte": "serie",
     "puerto": "",
-    "velocidad": 19200,
+    "velocidad": 115200,
+    "rtscts": true,
     "protocolo": "full",
     "escape": "0xC8",
     "duplicar_escape": true,
     "host": "",
     "puerto_tcp": 9451,
-    "tcp_fn_en_datos": false,
+    "tcp_fn_en_datos": true,
     "latido_s": 5,
     "reintentos": 2,
     "solo_escuchar": true,
+    "votacion": true,
+    "asistencia": true,
     "traza": false,
     "simulador_unidades": 12,
     "simulador_actividad_s": 0

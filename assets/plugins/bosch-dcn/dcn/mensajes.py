@@ -18,6 +18,20 @@ COMM_PARAMS = 15
 APP_MM, APP_VT, APP_SC, APP_MD = 0, 1, 16, 10
 
 
+# MDSC_COMMUNICATION_PARAMS (tipo 15, solo por serie): RSMT_COMMUNICATION_PARAMS
+# {wFnId; wHeartbeatTime; wNrRetries; wRetryTime}; la CCU contesta con el mismo tipo y wFnId RSP.
+RSMC_SET_COMMUNICATION_PARAMS, RSMC_RSP_COMMUNICATION_PARAMS = 0x0001, 0x0002
+
+
+def parametros_enlace(latido_s: int = 5, reintentos: int = 2, reintento_s: int = 2) -> bytes:
+    return struct.pack("<HHH", max(0, min(1000, latido_s)), max(0, min(10, reintentos)), max(1, min(100, reintento_s)))
+
+
+def leer_parametros_enlace(d: bytes) -> dict:
+    hb, rt, rts = struct.unpack_from("<HHH", d, 0)
+    return {"latido_s": hb, "reintentos": rt, "reintento_s": rts}
+
+
 def fn(n: int, app: int) -> int:
     """``MKWORD(n, APP)``: en el cable va primero `n` y después `APP`."""
     return (app << 8) | n
@@ -170,6 +184,8 @@ def desempaquetar(b: bytes) -> Mensaje:
         raise ValueError("mensaje corto")
     tipo, largo = struct.unpack_from("<BH", b, 0)
     cuerpo = b[3:3 + largo]
+    if tipo == NAK and largo == 0:  # protocolo Simple: la CCU recibió algo con checksum mal
+        return Mensaje(NAK, 0)
     if len(cuerpo) != largo or largo < 2:
         raise ValueError("largo del mensaje no coincide")
     f = struct.unpack_from("<H", cuerpo, 0)[0]
@@ -273,3 +289,164 @@ def leer_unidad_sc(d: bytes) -> tuple[int, int]:
 
 def unidad_sc(u: int, tipo: int) -> bytes:
     return struct.pack("<HB", u, tipo)
+
+
+# --- Votación (VT, APP 1) — fase 2 -------------------------------------------------------
+VT_C_START_APP = fn(1, APP_VT)
+VT_C_STOP_APP = fn(2, APP_VT)
+VT_C_START_VOTING = fn(3, APP_VT)
+VT_C_STOP_VOTING = fn(4, APP_VT)
+VT_C_HOLD_VOTING = fn(5, APP_VT)
+VT_C_RESTART_VOTING = fn(6, APP_VT)
+VT_C_DOWNLOAD_SUBJECT = fn(7, APP_VT)
+VT_C_SET_GLOBAL_SETTINGS = fn(9, APP_VT)
+VT_C_SET_VOTINGPARAMS = fn(10, APP_VT)
+VT_C_GET_RESULTS = fn(12, APP_VT)
+VT_C_RESULTSNOTIFY = fn(23, APP_VT)
+
+VT_MAX_SUBJECT, VT_MAX_LEGEND, VT_MAX_OPCIONES = 142, 11, 25
+VT_NO_VOTO, VT_SIN_ASIGNAR = 0xFE, 0xFF
+VT_INT_RES_INDIV = 2
+# Menús de votación: nombre en la app -> (wVotingMenu, cantidad de opciones, nombres de las opciones)
+MENUS = {
+    "si_no": (1, 2, ["afirmativo", "negativo"]),
+    "si_no_abstencion": (2, 3, ["afirmativo", "negativo", "abstencion"]),
+    "a_favor_en_contra": (3, 2, ["afirmativo", "negativo"]),
+    "si_no_abstencion_nppv": (8, 4, ["afirmativo", "negativo", "abstencion", "no_participa"]),
+}
+MENU_NOMBRE = {v[0]: k for k, v in MENUS.items()}
+
+ERRORES.update({
+    276: "ya hay una votación abierta en la central",
+    277: "no hay una votación abierta",
+    278: "la votación no está en pausa",
+    286: "la votación de la central no está arrancada (¿licencia o «votación» apagada en la conexión?)",
+    287: "parámetro de votación equivocado",
+    288: "otro controlador maneja la votación",
+    290: "no tenés el control de la votación",
+    291: "la central todavía no tiene resultados",
+    2305: "la asistencia de la central no está arrancada",
+    2316: "otro controlador maneja la asistencia",
+    2322: "la central no deja activar la asistencia ahora",
+})
+
+
+def comcontrol(notificar: bool = True, segundos_despues: int = 0) -> bytes:  # VT_T_COMCONTROL
+    return struct.pack("<BBH", 1 if notificar else 0, 0, segundos_despues)
+
+
+def _texto_fijo(t: str, largo: int) -> bytes:
+    b = (t or "").encode("cp1252", "replace")[: largo - 1]
+    return b + b"\x00" * (largo - len(b))
+
+
+def tema(numero: int, texto: str, leyenda: str = "") -> bytes:  # VT_T_SUBJECT_REC
+    return struct.pack("<H", numero) + _texto_fijo(texto, VT_MAX_SUBJECT) + _texto_fijo(leyenda, VT_MAX_LEGEND)
+
+
+def leer_tema(d: bytes) -> tuple[int, str]:
+    n = struct.unpack_from("<H", d, 0)[0]
+    return n, d[2:2 + VT_MAX_SUBJECT].split(b"\x00")[0].decode("cp1252", "replace")
+
+
+PARAMS_VOTO = struct.Struct("<HHBHB")  # VT_T_VOTINGPARAMS
+
+
+def params_voto(menu: int, opciones: int, abierta: bool, parciales: int = VT_INT_RES_INDIV, comprimido: bool = False) -> bytes:
+    return PARAMS_VOTO.pack(menu, opciones, 1 if abierta else 0, parciales, 1 if comprimido else 0)
+
+
+def leer_params_voto(d: bytes) -> dict:
+    v = PARAMS_VOTO.unpack_from(d, 0)
+    return {"menu": v[0], "opciones": v[1], "abierta": bool(v[2]), "parciales": v[3], "comprimido": bool(v[4])}
+
+
+def mostrar_resultados(si: bool = True) -> bytes:  # VT_T_SHOW_RESULTS
+    return struct.pack("<B", 1 if si else 0)
+
+
+RESULTADO_CAB = struct.Struct("<HII25IHB")  # VT_T_RESULT_REC hasta bCompressed
+
+
+def leer_resultado(d: bytes) -> dict:
+    """VT_T_RESULT_REC: totales por opción y voto por delegado (índice = DelegateId - 1).
+
+    Los manuales dicen 25 totales (VT_C_MAX_ANSWER_OPTIONS); el FNID.DEF del DDTK dice 24. Se usa
+    el que haga cuadrar el largo del mensaje (wFillLevel = los bytes de votos que vienen)."""
+    n_op = 25
+    for n in (25, 24):
+        cab = 2 + 4 * (2 + n) + 3
+        if len(d) >= cab and len(d) == cab + struct.unpack_from("<H", d, cab - 3)[0]:
+            n_op = n
+            break
+    cab = struct.Struct(f"<HII{n_op}IHB")
+    v = cab.unpack_from(d, 0)
+    numero, presentes, no_votaron = v[0], v[1], v[2]
+    votos = list(v[3:3 + n_op]) + [0] * (25 - n_op)
+    lleno, comprimido = v[3 + n_op], bool(v[4 + n_op])
+    crudo = d[cab.size:cab.size + lleno]
+    por_delegado = {}
+    if comprimido:
+        for i, b in enumerate(crudo):
+            for delegado, nib in ((2 * i + 1, b & 0x0F), (2 * i + 2, b >> 4)):
+                if nib not in (0x0E, 0x0F):
+                    por_delegado[delegado] = nib
+    else:
+        for i, b in enumerate(crudo):
+            if b not in (VT_NO_VOTO, VT_SIN_ASIGNAR):
+                por_delegado[i + 1] = b
+    return {"numero": numero, "presentes": presentes, "no_votaron": no_votaron, "votos": votos,
+            "por_delegado": por_delegado}
+
+
+def resultado(numero: int, presentes: int, no_votaron: int, votos: list[int], por_delegado: dict[int, int]) -> bytes:
+    lleno = max(por_delegado) if por_delegado else 0
+    crudo = bytearray([VT_SIN_ASIGNAR] * lleno)
+    for dlg, voto in por_delegado.items():
+        crudo[dlg - 1] = voto
+    v = (list(votos) + [0] * 25)[:25]
+    return RESULTADO_CAB.pack(numero, presentes, no_votaron, *v, lleno, 0) + bytes(crudo)
+
+
+# --- Asistencia (AT, 0x09xx) — fase 2 -----------------------------------------------------
+AT_C_START_AT_APP = 0x0901
+AT_C_STOP_AT_APP = 0x0902
+AT_C_ACTIVATE = 0x0904
+AT_C_GET_INDIV_REGISTRATION = 0x0906
+AT_C_SEND_INDIV_REGISTRATION = 0x090A
+AT_C_SEND_TOTAL_REGISTRATION = 0x090B
+AT_CONTROL, AT_MONITOR = 1, 2
+AT_PRESENTE = {1, 3}  # AT_C_ATTEND, AT_C_ATTEND_NOCHANGE
+AT_MAX = 250
+
+
+def at_control(tipo: int = AT_MONITOR) -> bytes:  # AT_T_APPCONTROL
+    return struct.pack("<B", tipo)
+
+
+def at_activar(asistencia: bool = True, acceso: bool = False) -> bytes:  # AT_T_ACTIVATE
+    return struct.pack("<BB", 1 if asistencia else 0, 1 if acceso else 0)
+
+
+def leer_asistencia(d: bytes) -> list[tuple[int, int, int]]:  # AT_T_REGISTER_INDIV: [(unidad, delegado, estado)]
+    n = struct.unpack_from("<H", d, 0)[0]
+    return [struct.unpack_from("<HHB", d, 2 + 5 * i) for i in range(min(n, (len(d) - 2) // 5))]
+
+
+def asistencia(items: list[tuple[int, int, int]]) -> bytes:
+    return struct.pack("<H", len(items)) + b"".join(struct.pack("<HHB", u, dl, e) for u, dl, e in items)
+
+
+def leer_asistencia_total(d: bytes) -> tuple[int, int]:  # AT_T_REGISTER_TOTAL {wAttend; wLeave}
+    return struct.unpack_from("<HH", d, 0)
+
+
+# --- Tiempo de uso de la palabra (MM) — fase 2 --------------------------------------------
+
+def tiempo_palabra(minutos: int, reloj: bool = True, pausa_prioridad: bool = True, cuenta_regresiva: bool = True,
+                   anillo_sigue: bool = True) -> bytes:  # MM_T_SET_SPEECHTIME_SETTINGS
+    return struct.pack("<HBBBB", max(0, int(minutos)), int(reloj), int(pausa_prioridad), int(cuenta_regresiva),
+                       int(anillo_sigue))
+
+
+_NOMBRES.update({v: k for k, v in globals().items() if k.startswith(("VT_C_", "AT_C_")) and isinstance(v, int)})

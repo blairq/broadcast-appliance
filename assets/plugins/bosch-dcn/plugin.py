@@ -12,6 +12,8 @@ Eventos (el bus los publica como ``plugin/bosch-dcn/<canal>``):
   conferencia/siguiente {banca, unidad}                     el primero de la lista de pedidos cambió
   dcn/estado {...}                                          el estado completo (guía §7.2)
   dcn/enlace {enlace, motivo}
+  votacion/parcial, votacion/resultado {numero, tema, totales, nominal}   (fase 2)
+  asistencia/cambio {presentes, ausentes}                                 (fase 2)
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ import ba_plugin as ba
 from dcn import mensajes as m
 from dcn.ccu import Ccu, ErrorCcu
 from dcn.simulador import Simulador
-from dcn.transporte import FlujoSerie, FlujoSocket, SerieFull, Tcp
+from dcn.transporte import FlujoSerie, FlujoSocket, SerieFull, SerieSimple, Tcp
 
 plugin = ba.Plugin()
 c = plugin.config
@@ -132,8 +134,35 @@ def foto() -> dict:
             "bancas_sin_unidad": sorted(set(nombres) - set(mapa_u2b.values())),
             "unidades_sin_banca": [u for u in sorted(unidades) if u not in mapa_u2b],
             "contadores": dict(transporte.contadores) if transporte else {},
+            "votacion": foto_votacion(e),
+            "asistencia": foto_asistencia(e),
+            "fase2_errores": dict(e.fase2_errores),
         })
         return out
+
+
+def foto_votacion(e) -> dict:
+    v = dict(e.votacion)
+    ult = v.pop("ultimo", None) or {}
+    nombres_op = m.MENUS.get(v.get("menu", ""), (0, 0, []))[2] or ["opcion_" + str(i) for i in range(4)]
+    if ult:
+        v["totales"] = {n: ult["votos"][i] for i, n in enumerate(nombres_op)}
+        v["presentes"] = ult["presentes"]
+        v["no_votaron"] = ult["no_votaron"]
+        nominal = []
+        for dlg, voto in sorted(ult["por_delegado"].items()):
+            u = e.unidad_de_delegado(dlg)
+            b = banca_de(u)
+            nominal.append({"delegado": dlg, "unidad": u, "banca": b, "nombre": nombres.get(b, ""),
+                            "voto": nombres_op[voto] if voto < len(nombres_op) else str(voto)})
+        v["nominal"] = nominal
+    return v
+
+
+def foto_asistencia(e) -> dict:
+    with e.lock:
+        por_banca = {banca_de(x["unidad"]) or f"u{x['unidad']}": x["presente"] for x in e.asistencia.values()}
+        return {**e.asistencia_total, "por_banca": por_banca}
 
 
 def publicar_estado() -> None:
@@ -172,6 +201,10 @@ def al_cambio(que: str, d: dict) -> None:
             plugin.evento("conferencia/siguiente", con_banca(d["primero"]))
     elif que == "modo":
         plugin.evento("conferencia/modo", foto().get("modo"))
+    elif que == "votacion" and ccu is not None:
+        plugin.evento("votacion/resultado" if d.get("final") else "votacion/parcial", foto_votacion(ccu.estado))
+    elif que == "asistencia" and ccu is not None:
+        plugin.evento("asistencia/cambio", foto_asistencia(ccu.estado))
     elif que == "todo":
         publicado.clear()
         publicado.update({u: True for u in ccu.estado.abiertos()} if ccu else {})
@@ -194,26 +227,29 @@ def abrir():
     t = c.get("transporte", "serie")
     latido = float(c.get("latido_s", 5))
     esc = int(str(c.get("escape", "0xC8")), 0)
+    simple = c.get("protocolo", "full") == "simple"
     if t == "simulador":
         a, b = socket.socketpair()
-        sim = Simulador(SerieFull(FlujoSocket(b), escape=esc, latido_s=latido),
-                        unidades=int(c.get("simulador_unidades", 12)),
+        lado_ccu = SerieSimple(FlujoSocket(b)) if simple else SerieFull(FlujoSocket(b), escape=esc, latido_s=latido)
+        sim = Simulador(lado_ccu, unidades=int(c.get("simulador_unidades", 12)),
                         actividad_s=float(c.get("simulador_actividad_s", 0)))
         sim.arrancar()
-        return SerieFull(FlujoSocket(a), escape=esc, latido_s=latido, traza=al_traza), "simulador"
+        if simple:
+            return SerieSimple(FlujoSocket(a), traza=al_traza), "simulador (Simple)"
+        return SerieFull(FlujoSocket(a), escape=esc, latido_s=latido, traza=al_traza), "simulador (Full)"
     sim = None
     if t == "tcp":
         s = socket.create_connection((c["host"], int(c.get("puerto_tcp", 9451))), timeout=5)
-        return Tcp(FlujoSocket(s), latido_s=latido, fn_en_datos=bool(c.get("tcp_fn_en_datos", False)),
+        return Tcp(FlujoSocket(s), latido_s=latido, fn_en_datos=bool(c.get("tcp_fn_en_datos", True)),
                    traza=al_traza), f"{c['host']}:{c.get('puerto_tcp', 9451)}"
     puerto = c.get("puerto", "")
     if not puerto:
         raise RuntimeError("falta elegir el puerto serie (Conferencia → Conexión)")
-    if c.get("protocolo", "full") != "full":
-        raise RuntimeError("el protocolo «simple» todavía no está (guía §3.3): usá «full»")
-    f = FlujoSerie(puerto, int(c.get("velocidad", 19200)))
+    f = FlujoSerie(puerto, int(c.get("velocidad", 115200)), rtscts=bool(c.get("rtscts", True)))
+    if simple:
+        return SerieSimple(f, traza=al_traza), f"{puerto} (Simple)"
     return SerieFull(f, escape=esc, latido_s=latido, reintentos=int(c.get("reintentos", 2)),
-                     duplicar_escape=bool(c.get("duplicar_escape", True)), traza=al_traza), puerto
+                     duplicar_escape=bool(c.get("duplicar_escape", True)), traza=al_traza), f"{puerto} (Full)"
 
 
 def sincronizar(gen: int) -> None:
@@ -253,7 +289,8 @@ def conectar() -> None:
         plugin.estado(f"sin CCU: {e}", ok=False)
         publicar_estado()
         return
-    nuevo = Ccu(t, solo_escuchar=bool(c.get("solo_escuchar", True)), registro=registrar)
+    nuevo = Ccu(t, solo_escuchar=bool(c.get("solo_escuchar", True)), registro=registrar,
+                votacion=bool(c.get("votacion", True)), asistencia=bool(c.get("asistencia", True)))
     nuevo.al_cambio = al_cambio
 
     def cayo(motivo: str) -> None:
@@ -294,6 +331,14 @@ def desconectar(motivo: str = "desconectada", avisar: bool = True) -> None:
 def _vigia():
     if c.get("activo", True) and estado["enlace"] == "caido" and estado.get("motivo") != "desconectada":
         conectar()
+    elif estado["enlace"] == "ok" and isinstance(transporte, SerieSimple) and ccu is not None:
+        # El Simple no tiene latido: se pregunta si el enlace anda; si no contesta, se da por caído.
+        k, t = ccu, transporte
+        f = k.pedir(m.SC_C_CHECK_LINK, cambia=False)
+        # Cualquier respuesta (aunque sea un error) dice que el enlace anda: solo el silencio lo da por caído.
+        f.add_done_callback(lambda r: t._caer("la CCU no contesta (SC_C_CHECK_LINK)")
+                            if r.exception() is not None and getattr(r.exception(), "codigo", 0) == 0
+                            and t is transporte else None)
 
 
 @plugin.cada(60)
@@ -384,12 +429,14 @@ def _estado(_a):
 
 @control("conectar", "Conecta (o reconecta) con la configuración dada; lo que venga se guarda.",
          {"transporte": {"type": "string", "enum": ["serie", "tcp", "simulador"]}, "puerto": {"type": "string"},
-          "velocidad": {"type": "integer"}, "protocolo": {"type": "string"}, "host": {"type": "string"},
+          "velocidad": {"type": "integer"}, "protocolo": {"type": "string", "enum": ["full", "simple"]},
+          "rtscts": {"type": "boolean"}, "votacion": {"type": "boolean"}, "asistencia": {"type": "boolean"},
+          "host": {"type": "string"},
           "puerto_tcp": {"type": "integer"}, "solo_escuchar": {"type": "boolean"}, "escape": {"type": "string"},
           "traza": {"type": "boolean"}})
 def _conectar(a):
     claves = ("transporte", "puerto", "velocidad", "protocolo", "host", "puerto_tcp", "solo_escuchar", "escape", "traza",
-              "simulador_actividad_s", "simulador_unidades")
+              "simulador_actividad_s", "simulador_unidades", "rtscts", "tcp_fn_en_datos", "votacion", "asistencia")
     cambios = {k: a[k] for k in claves if k in a}
     if cambios:
         c.update(cambios)
@@ -517,12 +564,66 @@ def _modo(a):
     return {"modo": f.get("modo"), "max_abiertos": f.get("max_abiertos"), "max_pedidos": f.get("max_pedidos")}
 
 
-@control("tiempo", "Aviso en la unidad de la banca: ultimo_minuto o terminado.",
-         {"banca": {"type": "string"}, "aviso": {"type": "string", "enum": ["ultimo_minuto", "terminado"]}})
+@control("tiempo", "Tiempo de uso de la palabra en las unidades: {limite_min, reloj} lo configura (el reloj de "
+         "la unidad cuenta para atrás); {banca, aviso: ultimo_minuto|terminado} avisa en la unidad de esa banca.",
+         {"banca": {"type": "string"}, "aviso": {"type": "string", "enum": ["ultimo_minuto", "terminado"]},
+          "limite_min": {"type": "integer"}, "reloj": {"type": "boolean"}})
 def _tiempo(a):
     k = requiere_ccu()
-    esperar(k.aviso_tiempo(unidad_de(a), a.get("aviso") == "terminado"))
+    if "limite_min" in a or "reloj" in a:
+        esperar(k.tiempo_palabra(int(a.get("limite_min", 0)), bool(a.get("reloj", True))))
+    if a.get("aviso"):
+        esperar(k.aviso_tiempo(unidad_de(a), a.get("aviso") == "terminado"))
     return {}
+
+
+@control("votacion", "Votación en la central: accion preparar {tema, numero, menu, abierta} | abrir | pausar | "
+         "reanudar | cerrar {mostrar} (devuelve el resultado final).",
+         {"accion": {"type": "string", "enum": ["preparar", "abrir", "pausar", "reanudar", "cerrar"]},
+          "tema": {"type": "string"}, "numero": {"type": "integer"},
+          "menu": {"type": "string", "enum": list(m.MENUS)}, "abierta": {"type": "boolean"},
+          "mostrar": {"type": "boolean"}})
+def _votacion(a):
+    k = requiere_ccu()
+    if "votacion" in k.estado.fase2_errores:
+        raise RuntimeError("la votación de la central no arrancó: " + k.estado.fase2_errores["votacion"])
+    acc = a.get("accion", "")
+    if acc == "preparar":
+        if not a.get("tema"):
+            raise ValueError("falta el tema")
+        esperar(k.votacion_preparar(int(a.get("numero", 0)), str(a["tema"]), a.get("menu", "si_no_abstencion"),
+                                    bool(a.get("abierta", True))))
+    elif acc == "abrir":
+        esperar(k.votacion_abrir())
+    elif acc == "pausar":
+        esperar(k.votacion_pausar())
+    elif acc == "reanudar":
+        esperar(k.votacion_reanudar())
+    elif acc == "cerrar":
+        esperar(k.votacion_cerrar(bool(a.get("mostrar", True))), 10)
+    else:
+        raise ValueError("accion: preparar, abrir, pausar, reanudar o cerrar")
+    registrar(f"votación: {acc} por {a.get('quien', 'app')}")
+    return foto_votacion(k.estado)
+
+
+@control("votacion_resultado", "El resultado de la votación (parcial si está abierta): totales y voto por banca.")
+def _votacion_resultado(_a):
+    k = requiere_ccu()
+    if k.estado.votacion.get("estado") in ("abierta", "pausada", "cerrada"):
+        try:
+            esperar(k.votacion_resultados())
+        except RuntimeError:
+            pass
+    return foto_votacion(k.estado)
+
+
+@control("asistencia", "Presentes y ausentes según la central (por banca).")
+def _asistencia(_a):
+    k = requiere_ccu()
+    if "asistencia" in k.estado.fase2_errores:
+        raise RuntimeError("la asistencia de la central no arrancó: " + k.estado.fase2_errores["asistencia"])
+    return foto_asistencia(k.estado)
 
 
 @control("unidades", "Unidades de la CCU con su tipo y banca; bancas sin unidad y unidades sin banca.")
@@ -573,6 +674,24 @@ def _simular_boton(a):
         u = int(a.get("unidad") or a.get("banca"))
     sim.apretar(u)
     return {"unidad": u}
+
+
+@control("simular_voto", "Solo con el simulador: la banca vota (voto 0 = afirmativo, 1 = negativo, 2 = abstención).",
+         {"banca": {"type": "string"}, "unidad": {"type": "integer"}, "voto": {"type": "integer"}})
+def _simular_voto(a):
+    if sim is None:
+        raise RuntimeError("no está el simulador (transporte: simulador)")
+    sim.votar(unidad_de(a), int(a.get("voto", 0)))
+    return {}
+
+
+@control("simular_presencia", "Solo con el simulador: la banca se registra presente o ausente.",
+         {"banca": {"type": "string"}, "unidad": {"type": "integer"}, "presente": {"type": "boolean"}})
+def _simular_presencia(a):
+    if sim is None:
+        raise RuntimeError("no está el simulador (transporte: simulador)")
+    sim.presente(unidad_de(a), bool(a.get("presente", True)))
+    return {}
 
 
 @plugin.al_cambiar_config

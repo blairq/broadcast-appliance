@@ -104,6 +104,21 @@ class Estado:
         self.ajustes: dict = {}
         self.version = ""
         self.sincronizado = False
+        # Fase 2.
+        self.votacion: dict = {"estado": "sin_preparar"}   # estado, numero, tema, menu, abierta, ultimo (resultado)
+        self.asistencia: dict[int, dict] = {}              # delegado -> {unidad, presente}
+        self.asistencia_total: dict = {}                   # {presentes, ausentes} según la central
+        self.delegado_unidad: dict[int, int] = {}          # delegado -> unidad (de la asistencia y de los pedidos)
+        self.fase2_errores: dict[str, str] = {}            # "votacion"/"asistencia" -> por qué no arrancó
+
+    def unidad_de_delegado(self, d: int) -> int:
+        """[A VERIFICAR] sin base de delegados, el delegado de una unidad es esa unidad."""
+        return self.delegado_unidad.get(d, d)
+
+    def anotar_delegados(self, pares) -> None:
+        for u, d in pares:
+            if u != m.EMPTY_UNIT and d != m.EMPTY_DELEGATE:
+                self.delegado_unidad[d] = u
 
     def abiertos(self) -> list[int]:
         with self.lock:
@@ -142,27 +157,35 @@ class Estado:
 
 class Ccu:
     def __init__(self, transporte, solo_escuchar: bool = True, espera_rsp_s: float = 10.0,
-                 registro: Callable[[str], None] | None = None) -> None:
+                 registro: Callable[[str], None] | None = None, votacion: bool = False,
+                 asistencia: bool = False) -> None:
         self.t = transporte
         self.solo_escuchar = solo_escuchar
+        self.con_votacion = votacion
+        self.con_asistencia = asistencia
         self.espera_rsp_s = espera_rsp_s
         self.estado = Estado()
         self.al_cambio: Callable[[str, dict], None] = lambda _que, _datos: None
         self.registro = registro or (lambda _texto: None)
-        self._cola: deque[tuple[int, bytes, Future]] = deque()
+        self._cola: deque[tuple[int, bytes, Future, int]] = deque()
         self._lock = threading.Lock()  # solo la cola (pedir() viene de cualquier hilo)
         self._actual: list | None = None  # [fn, datos, Future, vence, t0]: lo toca solo el hilo de E/S
         self.t.al_recibir = self._recibir
         self.t.al_tic = self._tic
 
     # --- pedir (no bloquea) ---
-    def pedir(self, f: int, datos: bytes = b"", cambia: bool = True) -> Future:
+    def pedir(self, f: int, datos: bytes = b"", cambia: bool = True, tipo: int = m.REQ) -> Future:
         if cambia and self.solo_escuchar:
             return _fallado(ErrorCcu(0, "la CCU está en «solo escuchar»: apagalo en Conferencia → Conexión para mandarle órdenes"))
         fut: Future = Future()
         with self._lock:
-            self._cola.append((f, datos, fut))
+            self._cola.append((f, datos, fut, tipo))
         return fut
+
+    def parametros_enlace(self, latido_s: int = 5, reintentos: int = 2, reintento_s: int = 2) -> Future:
+        """MDSC_COMMUNICATION_PARAMS (solo serie Full): la CCU contesta con lo que quedó puesto."""
+        return luego(self.pedir(m.RSMC_SET_COMMUNICATION_PARAMS, m.parametros_enlace(latido_s, reintentos, reintento_s),
+                                cambia=False, tipo=m.COMM_PARAMS), m.leer_parametros_enlace)
 
     def fallar_todo(self, motivo: str) -> None:
         """El enlace se cayó: todo lo pendiente falla (lo llama el plugin desde ``al_caer``)."""
@@ -170,8 +193,8 @@ class Ccu:
             pendientes, self._cola = list(self._cola), deque()
         actual, self._actual = self._actual, None
         if actual is not None:
-            pendientes.append((actual[0], actual[1], actual[2]))
-        for _f, _d, fut in pendientes:
+            pendientes.append((actual[0], actual[1], actual[2], m.REQ))
+        for _f, _d, fut, *_t in pendientes:
             if not fut.done():
                 fut.set_exception(ErrorCcu(0, motivo))
 
@@ -187,11 +210,11 @@ class Ccu:
             sig = self._cola.popleft() if self._cola else None
         if sig is None:
             return
-        f, datos, fut = sig
+        f, datos, fut, tipo = sig
         if not fut.set_running_or_notify_cancel():
             return
-        self._actual = [f, datos, fut, ahora + self.espera_rsp_s, ahora]
-        envio = self.t.enviar(m.Mensaje(m.REQ, f, datos))
+        self._actual = [f, datos, fut, ahora + self.espera_rsp_s, ahora, tipo]
+        envio = self.t.enviar(m.Mensaje(tipo, f, datos))
 
         def no_salio(e: Future) -> None:
             if e.exception() is not None and self._actual is not None and self._actual[2] is fut:
@@ -202,6 +225,12 @@ class Ccu:
         envio.add_done_callback(no_salio)
 
     def _recibir(self, msg: m.Mensaje) -> None:
+        if msg.tipo == m.COMM_PARAMS:
+            a = self._actual
+            if a is not None and a[5] == m.COMM_PARAMS and msg.fn == m.RSMC_RSP_COMMUNICATION_PARAMS:
+                self._actual = None
+                a[2].set_result(msg.datos)
+            return
         if msg.tipo in (m.RSP, m.NAK):
             a = self._actual
             if a is None or (msg.tipo == m.RSP and msg.fn != a[0]):
@@ -209,7 +238,9 @@ class Ccu:
             self._actual = None
             ms = (time.monotonic() - a[4]) * 1000
             if msg.tipo == m.NAK:
-                a[2].set_exception(ErrorCcu(msg.error, f"la CCU rechazó el mensaje (error de protocolo {msg.error})"))
+                texto = (f"la CCU rechazó el mensaje (error de protocolo {msg.error})" if msg.error
+                         else "la CCU recibió el mensaje con el checksum mal (ruido en el cable o velocidad distinta)")
+                a[2].set_exception(ErrorCcu(msg.error, texto))
                 return
             self.registro(f"{m.nombre_fn(a[0])} [{a[1].hex(' ')}] → "
                           f"{'OK' if msg.error == 0 else 'error ' + str(msg.error)} {ms:.0f} ms")
@@ -257,6 +288,12 @@ class Ccu:
 
         with e.lock:
             e.unidades = {}
+        # Serie Full: primero los parámetros del enlace (latido 5 s, 2 reintentos, 2 s). Si la CCU no los
+        # acepta, sigue con los de fábrica (que son esos mismos).
+        if getattr(self.t, "es_serie_full", False):
+            pf = self.parametros_enlace(int(self.t.latido_s or 5), getattr(self.t, "reintentos", 2), 2)
+            pf.add_done_callback(lambda f: self.registro(
+                f"parámetros del enlace: {f.result() if f.exception() is None else f.exception()}"))
         fv = self.pedir(m.SC_C_GET_CCU_VERSIONINFO, cambia=False)
         fv.add_done_callback(lambda f: version(f.result()) if f.exception() is None
                              else setattr(e, "version", f"(sin versión: {f.exception()})"))
@@ -269,11 +306,93 @@ class Ccu:
             luego(self.pedir(m.MM_C_RTS_GET, cambia=False), pedidos),
         ]
 
+        # Fase 2: si la central no las tiene (licencia, modelo), el resto anda igual.
+        e.fase2_errores = {}
+
+        def opcional(nombre: str, f: Future) -> Future:
+            out: Future = Future()
+
+            def cb(g: Future) -> None:
+                if g.exception() is not None:
+                    e.fase2_errores[nombre] = str(g.exception())
+                out.set_result(None)
+            f.add_done_callback(cb)
+            return out
+
+        if self.con_votacion:
+            pasos.append(opcional("votacion", self.pedir(m.VT_C_START_APP, m.comcontrol(True), cambia=False)))
+        if self.con_asistencia:
+            def leer_asist(d: bytes) -> None:
+                self._asistencia(m.leer_asistencia(d), completa=True)
+            f_at = self.pedir(m.AT_C_START_AT_APP, m.at_control(m.AT_MONITOR), cambia=False)
+            pasos.append(opcional("asistencia", luego(f_at, lambda _d: luego(
+                self.pedir(m.AT_C_GET_INDIV_REGISTRATION, m.palabra(0), cambia=False), leer_asist))))
+
         def listo(_r) -> None:
             e.sincronizado = True
             self.al_cambio("todo", {})
 
         return luego(todos(pasos), listo)
+
+    # --- votación (fase 2) ---
+    def votacion_preparar(self, numero: int, texto: str, menu: str = "si_no_abstencion", abierta: bool = True) -> Future:
+        if menu not in m.MENUS:
+            return _fallado(ErrorCcu(0, "menú: " + ", ".join(m.MENUS)))
+        codigo, opciones, _nombres = m.MENUS[menu]
+
+        def hecho(_r) -> None:
+            self.estado.votacion = {"estado": "preparada", "numero": numero, "tema": texto, "menu": menu,
+                                    "abierta": abierta, "ultimo": None}
+            self.al_cambio("votacion", {})
+        return luego(todos([self.pedir(m.VT_C_DOWNLOAD_SUBJECT, m.tema(numero, texto)),
+                            self.pedir(m.VT_C_SET_VOTINGPARAMS, m.params_voto(codigo, opciones, abierta))]), hecho)
+
+    def _votacion_estado(self, f: int, nuevo: str, datos: bytes = b"") -> Future:
+        def hecho(_d) -> None:
+            self.estado.votacion["estado"] = nuevo
+            self.al_cambio("votacion", {})
+        return luego(self.pedir(f, datos), hecho)
+
+    def votacion_abrir(self) -> Future:
+        return self._votacion_estado(m.VT_C_START_VOTING, "abierta")
+
+    def votacion_pausar(self) -> Future:
+        return self._votacion_estado(m.VT_C_HOLD_VOTING, "pausada")
+
+    def votacion_reanudar(self) -> Future:
+        return self._votacion_estado(m.VT_C_RESTART_VOTING, "abierta")
+
+    def votacion_cerrar(self, mostrar: bool = True) -> Future:
+        """Cierra y trae el resultado final (lo que se lleva a Quórum)."""
+        f = self._votacion_estado(m.VT_C_STOP_VOTING, "cerrada", m.mostrar_resultados(mostrar))
+        return luego(todos([f, self.votacion_resultados()]), lambda r: r[1])
+
+    def votacion_resultados(self) -> Future:
+        def leer(d: bytes) -> dict:
+            r = m.leer_resultado(d)
+            self.estado.votacion["ultimo"] = r
+            self.al_cambio("votacion", {"final": self.estado.votacion.get("estado") == "cerrada"})
+            return r
+        return luego(self.pedir(m.VT_C_GET_RESULTS, cambia=False), leer)
+
+    # --- asistencia (fase 2) ---
+    def _asistencia(self, items, completa: bool = False) -> None:
+        e = self.estado
+        with e.lock:
+            if completa:
+                e.asistencia = {}
+            for u, d, est in items:
+                e.asistencia[d] = {"unidad": u, "presente": est in m.AT_PRESENTE}
+                if u != m.EMPTY_UNIT:
+                    e.delegado_unidad[d] = u
+            if completa or not e.asistencia_total:
+                pres = sum(1 for x in e.asistencia.values() if x["presente"])
+                e.asistencia_total = {"presentes": pres, "ausentes": len(e.asistencia) - pres}
+        self.al_cambio("asistencia", {})
+
+    # --- tiempo de uso de la palabra (fase 2) ---
+    def tiempo_palabra(self, minutos: int, reloj: bool = True) -> Future:
+        return self.pedir(m.MM_C_SET_SPEECHTIME_SETTINGS, m.tiempo_palabra(minutos, reloj))
 
     # --- órdenes (§5.2): todas devuelven un Future ---
     def microfono(self, u: int, on: bool) -> Future:
@@ -422,6 +541,7 @@ class Ccu:
         elif f == m.MM_C_RTS_SET_ON_PC:
             with e.lock:
                 e.pedidos = m.leer_lista_rts(d)
+                e.anotar_delegados(e.pedidos)
             cambio("pedidos", {})
         elif f == m.MM_C_RTS_CLEAR_ON_PC:
             with e.lock:
@@ -432,6 +552,7 @@ class Ccu:
             cambio("pedidos", {})
         elif f == m.MM_C_RTS_INSERT_ON_PC:
             nuevo = m.leer_rts(d, 4)
+            e.anotar_delegados([nuevo])
             e.insertar_pedido(m.leer_rts(d), nuevo)
             cambio("pedidos", {"alta": nuevo[0]})
         elif f == m.MM_C_RTS_REPLACE_ON_PC:
@@ -458,3 +579,12 @@ class Ccu:
         elif f == m.SC_C_CCU_REBOOT:
             e.sincronizado = False
             cambio("reinicio", {})
+        elif f == m.VT_C_RESULTSNOTIFY:
+            e.votacion["ultimo"] = m.leer_resultado(d)
+            cambio("votacion", {"parcial": True})
+        elif f == m.AT_C_SEND_INDIV_REGISTRATION:
+            self._asistencia(m.leer_asistencia(d))
+        elif f == m.AT_C_SEND_TOTAL_REGISTRATION:
+            pres, aus = m.leer_asistencia_total(d)
+            e.asistencia_total = {"presentes": pres, "ausentes": aus}
+            cambio("asistencia", {})

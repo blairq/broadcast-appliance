@@ -648,6 +648,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
         // Los presentes con voto salen del padrón del evento abierto.
         quorum_ = std::make_unique<legislatura::Quorum>(rt.dataRoot(), [this]() {
+            // Si se eligió, los presentes los dice la asistencia de la central de conferencia.
+            if (dcn_ && dcn_->presentesDeLaCentral())
+                if (const int p = dcn_->presentesCentral(); p >= 0) return p;
             auto* ev = static_cast<EventoViewModel*>(evento());
             if (ev == nullptr) return 0;
             const QVariantMap r = ev->property("resumenPadron").toMap();
@@ -720,7 +723,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
-    dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_);
+    dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
+    dcn_->setAQuorum([this](const nlohmann::json& r) { return quorum_ ? quorum_->cargarOficial(r) : nlohmann::json{{"error", "Quórum no está"}}; });
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
@@ -951,7 +955,39 @@ StudioViewModel::~StudioViewModel() {
     }
 }
 
+void StudioViewModel::tiemposCentral() {
+    // El tiempo del orador presencial en la unidad de su banca (central Bosch DCN):
+    // al salir al aire se configura el reloj; a un minuto y al terminar, aviso en la unidad.
+    if (++dcnTic_ % 10 != 0 || !dcn_ || !bancas_ || !dcn_->conectada()) return;  // una vez por segundo
+    const nlohmann::json j = bancas_->estadoJson();
+    const nlohmann::json al = j.value("al_aire", nlohmann::json());
+    if (!al.is_object()) {
+        dcnOrador_.clear();
+        return;
+    }
+    const std::string banca = al.value("banca", std::string());
+    const int asignado = j.value("asignado_s", 0), usado = static_cast<int>(j.value("usado_s", 0LL));
+    if (banca.empty() || asignado <= 0 || !dcn_->tieneUnidad(banca)) return;
+    const std::string clave = banca + "@" + std::to_string(j.value("desde_ms", 0LL));
+    const auto ignorar = [](bool, const nlohmann::json&, const std::string&) {};
+    if (clave != dcnOrador_) {
+        dcnOrador_ = clave;
+        dcnAvisos_ = 0;
+        dcn_->control("tiempo", {{"limite_min", (asignado + 59) / 60}, {"reloj", true}}, ignorar);
+    }
+    const int restante = asignado - usado;
+    if (restante <= 60 && restante > 0 && !(dcnAvisos_ & 1)) {
+        dcnAvisos_ |= 1;
+        dcn_->control("tiempo", {{"banca", banca}, {"aviso", "ultimo_minuto"}}, ignorar);
+    }
+    if (restante <= 0 && !(dcnAvisos_ & 2)) {
+        dcnAvisos_ |= 3;
+        dcn_->control("tiempo", {{"banca", banca}, {"aviso", "terminado"}}, ignorar);
+    }
+}
+
 void StudioViewModel::onTick() {
+    tiemposCentral();
     rt_.tick();
     if (AppRuntime::stopRequested()) {
         emit quitRequested();

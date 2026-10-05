@@ -14,10 +14,18 @@ UN SOLO HILO DE E/S por enlace y nada que espere adentro:
 Para arriba: ``al_recibir(mensaje)`` (RSP y NTF, desde el hilo de E/S: tiene que ser rápido),
 ``al_caer(motivo)`` y ``al_tic(ahora)`` (el cliente mira sus propios relojes en cada vuelta).
 
-SERIE FULL: ``ESC TIPO SEC [mensaje] CORR CHK``; un paquete de datos en vuelo; ACK en 2 s o se
-reenvía (2 veces); NAK = reenviar ya; latido ``'?'`` si no hay tráfico. Lo [A VERIFICAR] de la guía
-(el valor del escape y cómo va un ESC dentro de los datos) es configurable; de fábrica el ESC dentro
-de los datos va DUPLICADO y el decodificador acepta las dos formas.
+SERIE FULL (Open Interface 2.0 §4.2, verificado desensamblando el SCS.DLL del software de PC de Bosch
+—DCN-PC 3.1x, el que habla con la CCU por serie— y el CCU_DDTK.exe del DVD):
+``0xC8 TIPO SEC [mensaje] CORR CHK``; un 0xC8 dentro del paquete va DUPLICADO y el checksum es la suma
+de los bytes TAL COMO VIAJAN (con los dos 0xC8: el manual dice lo contrario, pero el emisor y el
+receptor de Bosch los cuentan a los dos); un paquete de datos en vuelo; ACK en 2 s o se reenvía (2 veces); NAK = reenviar ya;
+latido ``'?'`` apenas se abre el puerto (la CCU no acepta datos antes de un latido) y cada 5 s sin
+tráfico; sin nada de la CCU en 10 s, el enlace se da por caído; mensaje de 5000 bytes como máximo.
+
+SERIE SIMPLE (§4.3): ``1B 24 0D [mensaje] CHK``, sin secuencia, sin ACK, sin latido y sin escape; si
+la CCU recibe un checksum mal contesta un MDSC_NAK de largo 0. El enlace se vigila con SC_C_CHECK_LINK.
+
+RED (CCU2, 4.x): ver Tcp.
 """
 from __future__ import annotations
 
@@ -91,10 +99,12 @@ class FlujoSocket:
 class FlujoSerie:
     """Un puerto serie con pyserial (vendoreado), abierto sin esperas de lectura ni de escritura."""
 
-    def __init__(self, puerto: str, velocidad: int) -> None:
+    def __init__(self, puerto: str, velocidad: int, rtscts: bool = True) -> None:
+        # La CCU usa control de flujo por hardware (RTS/CTS), 8N1 (Open Interface 2.0 §2.2, A.1).
         import serial  # noqa: PLC0415
         self._serial = serial
-        self.p = serial.Serial(puerto, velocidad, bytesize=8, parity="N", stopbits=1, timeout=0, write_timeout=0)
+        self.p = serial.Serial(puerto, velocidad, bytesize=8, parity="N", stopbits=1, timeout=0, write_timeout=0,
+                               rtscts=rtscts)
         try:
             self.fd = self.p.fileno()  # POSIX: pyserial lo abre O_NONBLOCK; en Windows no hay
         except Exception:
@@ -145,6 +155,7 @@ class Transporte:
         self.contadores = {"enviados": 0, "recibidos": 0, "reenvios": 0, "nak": 0, "checksum_mal": 0}
         self.andando = False
         self.motivo_caida = ""
+        self.corte_s = 2 * latido_s  # sin nada de la CCU en este tiempo, el enlace está caído
         self.ultimo_rx = self.ultimo_tx = time.monotonic()
         self._salida = bytearray()
         self._cola: deque[tuple[m.Mensaje, Future]] = deque()
@@ -222,8 +233,9 @@ class Transporte:
             if self.latido_s > 0:
                 if ahora - self.ultimo_tx >= self.latido_s:
                     self._latido()
-                if ahora - self.ultimo_rx > 3 * self.latido_s:
-                    self._caer(f"la CCU no manda nada hace {3 * self.latido_s:.0f} s")
+                corte = self.corte_s or 2 * self.latido_s
+                if ahora - self.ultimo_rx > corte:
+                    self._caer(f"la CCU no manda nada hace {corte:.0f} s")
                     return
             try:
                 self.al_tic(ahora)
@@ -242,9 +254,10 @@ class Transporte:
 
 # --- Serie Full ---------------------------------------------------------------------------------
 
-def checksum(cuerpo: bytes, escape: int) -> tuple[int, int]:
-    """(CORR, CHK) para encabezado + mensaje: suma módulo 256 invertida; si da ESC, CORR = 0x13."""
-    s = sum(cuerpo)
+def checksum(cuerpo: bytes, escape: int, extra: int = 0) -> tuple[int, int]:
+    """(CORR, CHK) para encabezado + mensaje: suma módulo 256 invertida; si da ESC, CORR = 0x13.
+    `extra`: lo que suman los bytes de escape que no están en `cuerpo` (en el receptor)."""
+    s = sum(cuerpo) + extra
     chk = (~s) & 0xFF
     corr = 0
     if chk == escape:
@@ -254,9 +267,13 @@ def checksum(cuerpo: bytes, escape: int) -> tuple[int, int]:
 
 
 class SerieFull(Transporte):
+    es_serie_full = True
+    LARGO_MAX = 5000
+
     def __init__(self, flujo, escape: int = 0xC8, latido_s: float = 5.0, reintentos: int = 2,
                  espera_ack_s: float = 2.0, duplicar_escape: bool = True, traza=None) -> None:
         super().__init__(flujo, latido_s, traza)
+        self._latido_dado = False
         self.escape = escape
         self.reintentos = reintentos
         self.espera_ack_s = espera_ack_s
@@ -268,18 +285,21 @@ class SerieFull(Transporte):
         self._buf = bytearray()
         self._en_paquete = False
         self._esc_pend = False
+        self._extra = 0
         self._ultimo_byte = 0.0
 
     def armar(self, tipo: int, sec: int, msg: bytes = b"") -> bytes:
-        enc = bytes([self.escape, tipo, sec])
-        corr, chk = checksum(enc + msg + b"\x00", self.escape)
-        cola = bytes([sec]) + msg + bytes([corr])
+        # Como SCS.DLL: se escapa la secuencia, el largo y los datos, y la suma va sobre lo escapado.
+        cola = bytes([sec]) + msg
         if self.duplicar_escape:
             cola = cola.replace(bytes([self.escape]), bytes([self.escape, self.escape]))
-        return bytes([self.escape, tipo]) + cola + bytes([chk])
+        enc = bytes([self.escape, tipo])
+        corr, chk = checksum(enc + cola + b"\x00", self.escape)
+        return enc + cola + bytes([corr, chk])
 
     def _latido(self) -> None:
         self._poner(self.armar(LATIDO, self._sec_tx))
+        self._latido_dado = True
 
     def _caida_propia(self, motivo: str) -> None:
         if self._vuelo and not self._vuelo[2].done():
@@ -289,6 +309,8 @@ class SerieFull(Transporte):
     def _relojes(self, ahora: float) -> None:
         if self._en_paquete and ahora - self._ultimo_byte > 0.05:
             self._descartar()  # más de 50 ms entre bytes: el paquete está roto
+        if not self._latido_dado:
+            self._latido()  # primero un latido: la CCU no acepta datos antes
         v = self._vuelo
         if v is not None and ahora >= v[3]:
             self._reenviar(ahora)
@@ -316,6 +338,7 @@ class SerieFull(Transporte):
         self._buf.clear()
         self._en_paquete = False
         self._esc_pend = False
+        self._extra = 0  # los 0xC8 de escape, que también entran en la suma
 
     def _bytes(self, d: bytes, ahora: float) -> None:
         for b in d:
@@ -325,10 +348,12 @@ class SerieFull(Transporte):
             if self._esc_pend:
                 self._esc_pend = False
                 if b == self.escape and self._en_paquete:
+                    self._extra += self.escape
                     self._agregar(b)  # ESC ESC = un ESC de datos
                 elif b in _TIPOS:
                     self._buf = bytearray([self.escape, b])
                     self._en_paquete = True
+                    self._extra = 0
                 else:
                     self._descartar()
                 continue
@@ -351,15 +376,16 @@ class SerieFull(Transporte):
         if len(p) >= 6:
             largo = struct.unpack_from("<H", p, 4)[0]
             total = 3 + 3 + largo + 2
-            if largo > 8000 or len(p) > total:
+            if largo > self.LARGO_MAX or len(p) > total:
                 self._descartar()
             elif len(p) == total:
                 self._paquete(bytes(p))
 
     def _paquete(self, p: bytes) -> None:
+        extra = self._extra
         self._descartar()
         tipo, sec = p[1], p[2]
-        corr, chk = checksum(p[:-2] + b"\x00", self.escape)
+        corr, chk = checksum(p[:-2] + b"\x00", self.escape, extra)
         if p[-1] != chk or p[-2] != corr:
             self.contadores["checksum_mal"] += 1
             if tipo == DATOS:
@@ -390,6 +416,71 @@ class SerieFull(Transporte):
             self.al_recibir(msg)
 
 
+# --- Serie Simple -------------------------------------------------------------------------------
+
+class SerieSimple(Transporte):
+    """``1B 24 0D`` + mensaje + checksum (suma de encabezado y mensaje, módulo 256, invertida)."""
+
+    CABECERA = b"\x1b$\r"
+    LARGO_MAX = 5000
+
+    def __init__(self, flujo, traza=None) -> None:
+        super().__init__(flujo, latido_s=0, traza=traza)  # sin latido: lo vigila el cliente (CHECK_LINK)
+        self._buf = bytearray()
+        self._ultimo_byte = 0.0
+
+    @classmethod
+    def armar(cls, msg: m.Mensaje) -> bytes:
+        cuerpo = cls.CABECERA + m.empaquetar(msg)
+        return cuerpo + bytes([(~sum(cuerpo)) & 0xFF])
+
+    def _latido(self) -> None:
+        pass
+
+    def _relojes(self, ahora: float) -> None:
+        if self._buf and ahora - self._ultimo_byte > 0.05:
+            self._buf.clear()  # más de 50 ms entre bytes: el paquete está roto
+        while True:
+            sig = self._sacar()
+            if sig is None:
+                break
+            msg, f = sig
+            if f.set_running_or_notify_cancel():
+                self._poner(self.armar(msg))
+                self.contadores["enviados"] += 1
+                f.set_result(True)
+
+    def _bytes(self, d: bytes, ahora: float) -> None:
+        self._ultimo_byte = ahora
+        self._buf += d
+        while True:
+            i = self._buf.find(self.CABECERA)
+            if i < 0:
+                del self._buf[:-2]  # se guarda la punta por si la cabecera vino partida
+                return
+            del self._buf[:i]
+            if len(self._buf) < 6:
+                return
+            largo = struct.unpack_from("<H", self._buf, 4)[0]
+            if largo > self.LARGO_MAX:
+                del self._buf[:3]
+                continue
+            total = 3 + 3 + largo + 1
+            if len(self._buf) < total:
+                return
+            p = bytes(self._buf[:total])
+            if (~sum(p[:-1])) & 0xFF != p[-1]:
+                self.contadores["checksum_mal"] += 1
+                del self._buf[:3]  # cabecera falsa adentro de otro paquete o ruido: se busca la próxima
+                continue
+            del self._buf[:total]
+            self.contadores["recibidos"] += 1
+            try:
+                self.al_recibir(m.desempaquetar(p[3:-1]))
+            except ValueError:
+                pass
+
+
 # --- TCP (CCU2, Open Interface 4.x) -------------------------------------------------------------
 
 KEEPALIVE = 0x00447027
@@ -399,13 +490,16 @@ PROTOCOL_ERROR = 0x00447020
 class Tcp(Transporte):
     """Encabezado de 16 bytes: tipo (4) + largo total (4) + reservado (4) + reservado (4).
 
-    Un mensaje DCN lleva en el «tipo» los bytes ``byDcnMsgType, wFnId, 0x43``. Si el `byData` repite
-    el wFnId adelante es [A VERIFICAR]: ``fn_en_datos`` lo decide (de fábrica no). TCP no tiene ACK:
-    el Future se resuelve cuando el paquete salió entero.
+    Un mensaje DCN lleva en el «tipo» los bytes ``byDcnMsgType, wFnId, 0x43`` y en `byData` el
+    mensaje DCN ENTERO, con el wFnId adelante (y el wError en las respuestas): así lo arma el
+    CCU_DDTK.exe del DVD de Bosch (largo = datos + 16, copia de los datos desde el wFnId). La CCU corta
+    si no recibe nada en 15 s; se manda un latido cada 5 s. TCP no tiene ACK: el Future se resuelve
+    cuando el paquete salió entero.
     """
 
-    def __init__(self, flujo, latido_s: float = 5.0, fn_en_datos: bool = False, traza=None) -> None:
+    def __init__(self, flujo, latido_s: float = 5.0, fn_en_datos: bool = True, traza=None) -> None:
         super().__init__(flujo, latido_s, traza)
+        self.corte_s = 3 * latido_s
         self.fn_en_datos = fn_en_datos
         self._buf = bytearray()
 

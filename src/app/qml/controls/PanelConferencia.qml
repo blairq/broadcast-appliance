@@ -89,6 +89,7 @@ ColumnLayout {
         onCurrentIndexChanged: pc.pestana = currentIndex
         TabButton { text: "Sala" }
         TabButton { text: "Unidades" + ((pc.e.bancas_sin_unidad || []).length ? " (" + pc.e.bancas_sin_unidad.length + " sin unidad)" : "") }
+        TabButton { text: "Votación y asistencia" }
         TabButton { text: "Conexión" }
     }
 
@@ -205,6 +206,107 @@ ColumnLayout {
             }
         }
 
+        // --- Votación y asistencia (fase 2) ------------------------------------------------
+        ColumnLayout {
+            id: vot
+            spacing: 8
+            readonly property var v: pc.e.votacion || ({})
+            readonly property var asis: pc.e.asistencia || ({})
+            readonly property var err: pc.e.fase2_errores || ({})
+            readonly property string est: v.estado || "sin_preparar"
+            Text { visible: !!vot.err.votacion; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
+                   text: "La votación de la central no arrancó: " + (vot.err.votacion || "") }
+            RowLayout {
+                spacing: 8
+                Layout.fillWidth: true
+                TextField {
+                    id: temaVot
+                    Layout.fillWidth: true
+                    placeholderText: "Tema de la votación"
+                    text: Studio.ordenDelDia.actual && Studio.ordenDelDia.actual.titulo
+                          ? "Punto " + Studio.ordenDelDia.actual.n + ": " + Studio.ordenDelDia.actual.titulo : ""
+                }
+                ComboBox {
+                    id: menuVot
+                    implicitWidth: 200
+                    model: [ { t: "Sí / No / Abstención", v: "si_no_abstencion" }, { t: "Sí / No", v: "si_no" },
+                             { t: "A favor / En contra", v: "a_favor_en_contra" } ]
+                    textRole: "t"
+                }
+                CheckBox { id: nominalVot; text: "Nominal"; checked: true
+                           ToolTip.visible: hovered; ToolTip.text: "Voto abierto: se sabe qué votó cada banca" }
+            }
+            RowLayout {
+                spacing: 8
+                GlassButton { text: "Preparar"; enabled: pc.ok && vot.est !== "abierta" && vot.est !== "pausada" && temaVot.text.trim() !== ""
+                              onClicked: pc.pedir("votacion", "votacion", {accion: "preparar", tema: temaVot.text.trim(),
+                                                  numero: (vot.v.numero || 0) + 1, menu: menuVot.model[menuVot.currentIndex].v, abierta: nominalVot.checked}) }
+                GlassButton { text: "Abrir la votación"; active: true; enabled: pc.ok && vot.est === "preparada"
+                              onClicked: pc.pedir("votacion", "votacion", {accion: "abrir"}) }
+                GlassButton { text: vot.est === "pausada" ? "Reanudar" : "Pausar"; enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
+                              onClicked: pc.pedir("votacion", "votacion", {accion: vot.est === "pausada" ? "reanudar" : "pausar"}) }
+                GlassButton { text: "Cerrar"; enabled: pc.ok && (vot.est === "abierta" || vot.est === "pausada")
+                              onClicked: ApplicationWindow.window.confirm({ title: "¿Cerrar la votación?", text: vot.v.tema || "",
+                                  accept: "Cerrar", reject: "Seguir", action: function() { pc.pedir("votacion", "votacion", {accion: "cerrar"}) } }) }
+                Item { Layout.fillWidth: true }
+                GlassButton {
+                    text: "Pasar a Quórum (oficial)"; enabled: vot.est === "cerrada" && !!vot.v.totales
+                    onClicked: { const e = pc.dcn.pasarAQuorumUi(); Studio.notify(e !== "" ? e : "Resultado cargado en Quórum", e !== "" ? "error" : "info") }
+                    ToolTip.visible: hovered; ToolTip.text: "Carga el resultado como oficial en Quórum: acta, CSV nominal y gráfico de votación"
+                }
+            }
+            Text {
+                Layout.fillWidth: true; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
+                text: vot.est === "sin_preparar" ? "Sin votación" :
+                      (vot.v.tema || "") + " — " + ({preparada: "preparada", abierta: "ABIERTA", pausada: "en pausa", cerrada: "cerrada"}[vot.est] || vot.est)
+            }
+            RowLayout {
+                visible: !!vot.v.totales
+                spacing: 18
+                Repeater {
+                    model: vot.v.totales ? ["afirmativo", "negativo", "abstencion", "no_participa"].filter(k => vot.v.totales[k] !== undefined) : []
+                    delegate: ColumnLayout {
+                        required property string modelData
+                        spacing: 0
+                        Text { text: vot.v.totales[modelData]; color: Theme.text; font { pixelSize: 30; weight: Font.Black } }
+                        Text { text: modelData.replace("_", " "); color: Theme.textDim; font.pixelSize: 11 }
+                    }
+                }
+                ColumnLayout {
+                    spacing: 0
+                    Text { text: (vot.v.presentes || 0) + " presentes"; color: Theme.textDim; font.pixelSize: 12 }
+                    Text { text: (vot.v.no_votaron || 0) + " sin votar"; color: Theme.textDim; font.pixelSize: 12 }
+                }
+            }
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 2
+                model: vot.v.nominal || []
+                delegate: RowLayout {
+                    required property var modelData
+                    width: ListView.view.width
+                    Text { Layout.preferredWidth: 80; text: modelData.banca ? "Banca " + modelData.banca : "unidad " + modelData.unidad
+                           color: Theme.textDim; font.pixelSize: 12 }
+                    Text { Layout.fillWidth: true; text: modelData.nombre || ""; color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight }
+                    Text { text: modelData.voto; font { pixelSize: 12; weight: Font.DemiBold }
+                           color: modelData.voto === "afirmativo" ? Theme.ok : modelData.voto === "negativo" ? Theme.live : Theme.amber }
+                }
+            }
+            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.1) }
+            RowLayout {
+                spacing: 12
+                Text { color: Theme.text; font.pixelSize: 13
+                       text: vot.err.asistencia ? "Asistencia de la central: no arrancó (" + vot.err.asistencia + ")"
+                             : "Asistencia de la central: " + (vot.asis.presentes !== undefined ? vot.asis.presentes + " presentes, " + (vot.asis.ausentes || 0) + " ausentes" : "sin datos") }
+                Item { Layout.fillWidth: true }
+                Switch { id: presQ; checked: pc.dcn ? pc.dcn.presentesDeLaCentral : false
+                         onToggled: pc.dcn.presentesDeLaCentral = checked }
+                Text { text: "Quórum usa estos presentes"; color: Theme.textDim; font.pixelSize: 12 }
+            }
+        }
+
         // --- Conexión ----------------------------------------------------------------
         ColumnLayout {
             id: conexion
@@ -235,15 +337,28 @@ ColumnLayout {
                     GlassButton { compact: true; text: "Buscar"; onClicked: pc.pedir("puertos", "puertos") }
                 }
                 Text { visible: transp.currentIndex === 0; text: "Velocidad"; color: Theme.textDim; font.pixelSize: 12 }
-                ComboBox {
-                    id: velocidad
+                RowLayout {
                     visible: transp.currentIndex === 0
-                    model: [9600, 19200, 57600, 115200]
-                    currentIndex: Math.max(0, model.indexOf(conexion.cfg.velocidad || 19200))
+                    ComboBox {
+                        id: velocidad
+                        model: [9600, 19200, 57600, 115200]
+                        currentIndex: Math.max(0, model.indexOf(conexion.cfg.velocidad || 115200))
+                    }
+                    ComboBox {
+                        id: protocolo
+                        model: [ { t: "Full (de fábrica)", v: "full" }, { t: "Simple", v: "simple" } ]
+                        textRole: "t"
+                        currentIndex: conexion.cfg.protocolo === "simple" ? 1 : 0
+                    }
+                    CheckBox { id: rtscts; text: "RTS/CTS"; checked: conexion.cfg.rtscts !== false
+                               ToolTip.visible: hovered; ToolTip.text: "Control de flujo por hardware (la CCU lo usa; cable 1 a 1)" }
                 }
                 Text { visible: transp.currentIndex === 1; text: "Dirección"; color: Theme.textDim; font.pixelSize: 12 }
-                TextField { id: host; visible: transp.currentIndex === 1; implicitWidth: 260; placeholderText: "192.168.0.10"
-                            text: conexion.cfg.host || "" }
+                RowLayout {
+                    visible: transp.currentIndex === 1
+                    TextField { id: host; implicitWidth: 200; placeholderText: "192.168.0.10"; text: conexion.cfg.host || "" }
+                    TextField { id: puertoTcp; implicitWidth: 70; text: String(conexion.cfg.puerto_tcp || 9451) }
+                }
                 Text { text: "Solo escuchar"; color: Theme.textDim; font.pixelSize: 12 }
                 RowLayout {
                     Switch { id: soloEsc; checked: conexion.cfg.solo_escuchar !== false }
@@ -260,8 +375,10 @@ ColumnLayout {
                     onClicked: {
                         const v = transp.model[transp.currentIndex].v
                         const c = {transporte: v, solo_escuchar: soloEsc.checked, escape: campoEscape.text.trim() || "0xC8"}
-                        if (v === "serie") { c.puerto = puerto.editText.trim(); c.velocidad = velocidad.model[velocidad.currentIndex] }
-                        if (v === "tcp") c.host = host.text.trim()
+                        if (v === "serie") { c.puerto = puerto.editText.trim(); c.velocidad = velocidad.model[velocidad.currentIndex]
+                                             c.protocolo = protocolo.model[protocolo.currentIndex].v; c.rtscts = rtscts.checked }
+                        if (v === "simulador") c.protocolo = protocolo.model[protocolo.currentIndex].v
+                        if (v === "tcp") { c.host = host.text.trim(); c.puerto_tcp = parseInt(puertoTcp.text) || 9451 }
                         pc.dcn.conectarUi(c)
                     }
                 }
@@ -274,7 +391,7 @@ ColumnLayout {
             }
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                text: "La central tiene que tener habilitada la licencia del Open Interface (LBB4187/00) y su puerto RS-232 en modo Open Interface, a la misma velocidad que acá. El cable es null-modem."
+                text: "La central tiene que tener habilitada la licencia del Open Interface (LBB4187/00). Por serie: el puerto 1 de la CCU viene de fábrica en Full a 115200 (llaves S500); cable 1 a 1 con RTS/CTS, de hasta unos 2 m. Por red (CCU2): puerto 9451."
             }
             RowLayout {
                 spacing: 8

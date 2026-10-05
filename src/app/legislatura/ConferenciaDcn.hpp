@@ -24,6 +24,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <filesystem>
 #include <functional>
 #include <string>
 
@@ -46,13 +47,16 @@ class ConferenciaDcn : public QObject {
     Q_PROPERTY(bool conectada READ conectada NOTIFY cambio)
     /// La configuración guardada del plugin (transporte, puerto, velocidad…).
     Q_PROPERTY(QVariantMap config READ configUi NOTIFY cambio)
+    /// Quórum toma los presentes de la asistencia de la central (en vez del padrón).
+    Q_PROPERTY(bool presentesDeLaCentral READ presentesDeLaCentral WRITE setPresentesDeLaCentral NOTIFY cambio)
 
    public:
     using json = nlohmann::json;
     using Listo = std::function<void(bool ok, const json& resultado, const std::string& error)>;
     static constexpr const char* kPlugin = "bosch-dcn";
 
-    ConferenciaDcn(std::function<plugins::Plugins*()> plugins, control::BusEventos& bus, QObject* parent = nullptr);
+    ConferenciaDcn(std::function<plugins::Plugins*()> plugins, control::BusEventos& bus,
+                   std::filesystem::path datos, QObject* parent = nullptr);
 
     json estado() const { return estado_; }
     bool conectada() const { return estado_.value("enlace", std::string()) == "ok"; }
@@ -63,6 +67,18 @@ class ConferenciaDcn : public QObject {
     void control(const std::string& nombre, const json& args, Listo listo, int timeoutMs = 15000);
     /// Instala el plugin desde el ejemplo si falta, lo prende y conecta con `config` (se guarda).
     void conectar(const json& config, Listo listo);
+
+    // --- Fase 2: votación hacia Quórum y presentes ------------------------------
+    bool presentesDeLaCentral() const { return presentesCentral_; }
+    void setPresentesDeLaCentral(bool si);
+    /// Presentes según la asistencia de la central (-1 si no hay dato o no está conectada).
+    int presentesCentral() const;
+    /// Quién carga un resultado oficial en Quórum (legislatura/Quorum::cargarOficial).
+    void setAQuorum(std::function<json(const json&)> fn) { aQuorum_ = std::move(fn); }
+    /// La última votación CERRADA de la central, como resultado oficial de Quórum
+    /// (con el voto de cada banca). {resultado} o {error}.
+    json pasarAQuorum(const std::string& asunto = {});
+    Q_INVOKABLE QString pasarAQuorumUi();
 
     QVariantMap estadoUi() const;
     QString pluginUi() const;
@@ -83,6 +99,9 @@ class ConferenciaDcn : public QObject {
     control::BusEventos& bus_;
     json estado_ = json::object();
     json config_ = json::object();
+    std::filesystem::path archivo_;
+    bool presentesCentral_ = false;
+    std::function<json(const json&)> aQuorum_;
 };
 
 } // namespace ba::app::legislatura

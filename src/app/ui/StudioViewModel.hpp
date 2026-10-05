@@ -778,6 +778,11 @@ class StudioViewModel : public QObject {
     std::unique_ptr<legislatura::ConferenciaDcn> dcn_;
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
+    /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.
+    std::string dcnOrador_;
+    int dcnAvisos_ = 0;
+    int dcnTic_ = 0;
+    void tiemposCentral();
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
