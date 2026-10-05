@@ -98,6 +98,8 @@ const Fila kPropias[] = {
     {"aire_placas_listar", "placas textos ftb estado"},
     {"stream_destinos", "destinos transmision multidestino respaldo varias plataformas simultaneo"},
     {"stream_destino_agregar", "agregar destino transmision respaldo multidestino youtube facebook twitch rtmp srt rist passphrase latencia"},
+    {"replay_ajustes", "repeticion replay buffer ultimos segundos instant replay"},
+    {"replay_guardar", "repetir repeticion replay guardar clip ultimos segundos volver a pasar"},
     {"salida_limpia", "senal limpia clean feed sin graficos sin zocalos sin dsk sin logo programa limpio canal"},
     {"salidas_profesionales", "srt rist ndi decklink sdi contribucion salidas profesionales"},
     {"stream_destino_editar", "editar destino transmision"},

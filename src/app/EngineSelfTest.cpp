@@ -211,6 +211,40 @@ int runEngineSelfTest(int argc, char** argv) {
            biggestName + " (" + std::to_string(biggest) + " bytes)");
     }
 
+    // --- 6) Grabacion de archivo (T29): encoder propio, pista extra, copia y replay
+    {
+        RecordConfig fa = rec;
+        fa.calidad = "archivo";
+        fa.calidadCrf = 20;
+        fa.pistas = {2};
+        fa.copiaDir = recDir + "/copia";
+        const bool okFa = eng.startRecording(fa, enc);
+        ok("grabacion de archivo iniciada (encoder propio + pista 2 + copia)", okFa, eng.lastError());
+        const bool okReplay = eng.setReplay(5, recDir + "/repeticiones", enc);
+        ok("repeticion de 5 s andando", okReplay, eng.lastError());
+        if (okFa) {
+            std::this_thread::sleep_for(std::chrono::seconds(6));
+            const nlohmann::json g = eng.grabacionEstado();
+            std::printf("         %s\n", g.dump().c_str());
+            ok("la copia en otro disco esta activa", g.value("copia_activa", false));
+            ok("graba las pistas 1 y 2", g["pistas"].size() == 2);
+            if (okReplay) {
+                eng.guardarReplay();
+                for (int i = 0; i < 40 && eng.ultimoReplay().empty(); ++i)
+                    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+                ok("la repeticion se guardo", !eng.ultimoReplay().empty(), eng.ultimoReplay());
+                eng.setReplay(0, "", enc);
+            }
+            eng.stopRecording();
+            std::this_thread::sleep_for(std::chrono::seconds(2));
+            std::printf("         archivo: %s\n         copia: %s\n", g.value("archivo", "").c_str(),
+                        g.value("copia", "").c_str());
+            ok("el archivo y la copia tienen datos",
+               std::filesystem::file_size(g.value("archivo", ""), ec) > 10 * 1024 &&
+                   std::filesystem::file_size(g.value("copia", ""), ec) > 10 * 1024);
+        }
+    }
+
     eng.shutdown();
 
     if (g_failures == 0) {

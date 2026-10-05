@@ -61,6 +61,11 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"record.container", "Grabacion", "Formato", "choice", choices({{"mkv","MKV (sobrevive a un corte de energia)"},{"mp4","MP4"},{"mov","MOV"},{"flv","FLV"}}), 0, 0, "", "MP4 y MOV se graban en MKV (un corte no los arruina) y se pasan al formato al terminar.", "live", "mkv"},
         {"record.remux", "Grabacion", "Pasar a MP4/MOV al terminar", "bool", {}, 0, 0, "", "Con MP4 o MOV elegidos: al detener, el MKV se pasa al formato sin recodificar y se borra si salió bien.", "live", true},
         {"record.onStart", "Grabacion", "Grabar al arrancar", "bool", {}, 0, 0, "", "Respaldo local automatico.", "live", false},
+        {"record.calidad", "Grabacion", "Calidad del archivo", "choice", choices({{"como_stream","Como la transmisión (no cuesta otro encode)"},{"archivo","Calidad de archivo (para editar; un encode más)"}}), 0, 0, "", "«Calidad de archivo» usa su propio codificador a calidad constante: el archivo sale mejor que lo que se transmite.", "live", "como_stream"},
+        {"record.crf", "Grabacion", "Calidad constante (CRF)", "int", {}, 10, 35, "", "Con «Calidad de archivo»: 14 casi sin pérdida, 18 muy buena, 23 normal, 28 chico.", "live", 18},
+        {"record.pistas", "Grabacion", "Pistas de audio extra", "text", {}, 0, 0, "", "Números de pista de la Matriz (2 a 6) separados por coma: cada una se graba aparte con lo que le cruces en la Matriz. La 1 (el programa) va siempre.", "live", ""},
+        {"record.copiaDir", "Grabacion", "Copia en otro disco", "path", {}, 0, 0, "", "Una segunda grabación igual, en otra carpeta (otro disco). Vacío = sin copia.", "live", ""},
+        {"record.replay", "Grabacion", "Repetición: últimos segundos", "int", {}, 0, 600, "s", "Guarda en memoria los últimos N segundos del programa para el botón «Repetir». 0 = apagada.", "live", 0},
         // --- Transmision -----------------------------------------------------
         {"stream.server", "Transmision", "Servidor RTMP", "text", {}, 0, 0, "", "p. ej. rtmp://a.rtmp.youtube.com/live2", "live", ""},
         {"stream.keyEnv", "Transmision", "Variable con la clave", "text", {}, 0, 0, "", "La clave no se guarda en disco: se lee de esta variable de entorno o se escribe al transmitir.", "live", "BA_STREAM_KEY"},
@@ -141,6 +146,15 @@ QVariantMap SettingsModel::current() const {
         {"record.container", qs(c.rec.container)},
         {"record.remux", c.rec.remuxAlTerminar},
         {"record.onStart", c.record},
+        {"record.calidad", qs(c.rec.calidad)},
+        {"record.crf", c.rec.calidadCrf},
+        {"record.pistas", [&]() {
+             QStringList l;
+             for (int p : c.rec.pistas) l << QString::number(p);
+             return l.join(",");
+         }()},
+        {"record.copiaDir", qs(c.rec.copiaDir)},
+        {"record.replay", c.replaySegundos},
         {"stream.server", qs(c.streamCfg.server)},
         {"stream.keyEnv", qs(c.streamKeyEnv)},
         {"stream.onStart", c.stream},
@@ -344,6 +358,22 @@ QString SettingsModel::apply() {
     c.rec.container = s("record.container");
     c.rec.remuxAlTerminar = b("record.remux");
     c.record = b("record.onStart");
+    c.rec.calidad = s("record.calidad");
+    c.rec.calidadCrf = i("record.crf");
+    c.rec.pistas.clear();
+    for (const QString& p : QString::fromStdString(s("record.pistas")).split(',', Qt::SkipEmptyParts)) {
+        bool ok = false;
+        const int n = p.trimmed().toInt(&ok);
+        if (ok && n >= 2 && n <= 6) c.rec.pistas.push_back(n);
+    }
+    {
+        const std::filesystem::path copia = s("record.copiaDir");
+        c.rec.copiaDir = copia.empty() || copia.is_absolute() ? copia.string() : (rt_.dataRoot() / copia).string();
+    }
+    if (i("record.replay") != c.replaySegundos) {
+        c.replaySegundos = i("record.replay");
+        notes << QString::fromStdString(rt_.aplicarReplay());
+    }
     c.streamCfg.server = s("stream.server");
     c.streamKeyEnv = s("stream.keyEnv");
     c.stream = b("stream.onStart");

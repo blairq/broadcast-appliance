@@ -398,6 +398,16 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap limpiaUi() const;
     /// La arranca (a `destino`, id de un destino guardado, o a disco si vacío) o la corta. "" o el error.
     Q_INVOKABLE QString limpiaActivarUi(bool activar, const QString& destino);
+    /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
+    /// y la repetición {replay: {activa, segundos, ultimo}}.
+    Q_INVOKABLE QVariantMap grabacionUi() const;
+    /// «Repetir»: guarda los últimos segundos y, cuando el clip está escrito, lo arma
+    /// en la escena «Repetición» (lista para el take). "" o el error.
+    Q_INVOKABLE QString repetirUi();
+    /// Pone `archivo` en la escena «Repetición» (la crea si falta) y la deja armada.
+    QString armarRepeticion(const QString& archivo);
+    /// Espera (hasta `ms`) a que haya un clip nuevo distinto de `antes` y llama a `listo` con él ("" si no llegó).
+    void esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo);
     control::SatelliteServidor& satellite() { return *satellite_; }
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).

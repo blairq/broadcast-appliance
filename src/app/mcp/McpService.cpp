@@ -831,6 +831,7 @@ void McpService::registerTools() {
                      {"droppedFrames", st.droppedFrames},
                      {"totalFrames", st.totalFrames},
                      {"videoEncoder", st.videoEncoder},
+                     {"encoder_respaldo_activo", rt.engine().encoderRespaldoActivo()},
                      {"cpuPercent", vm.cpuPercent()},
                      {"programPeakDb", {vm.programPeakL(), vm.programPeakR()}},
                      {"canvas", vm.canvasLabel().toStdString()},
@@ -2849,17 +2850,43 @@ void McpService::registerTools() {
         t.title = "Ajustes de la grabacion";
         t.category = "salidas";
         t.description = "`contenedor`: mkv (de fabrica, sobrevive a un corte), mp4, mov o flv (mp4/mov se graban en MKV "
-                        "y se pasan al terminar); `remux_al_terminar`. Sin argumentos, los muestra.";
+                        "y se pasan al terminar); `remux_al_terminar`. `calidad`: como_stream (comparte el encode de "
+                        "la transmisión) o archivo (codificador propio a calidad constante `crf`, 14-28; un encode "
+                        "más). `pistas`: las pistas EXTRA de la Matriz (2-6) que se graban aparte, cada una con lo "
+                        "que se le cruce ahí (la 1, el programa, va siempre). `copia_dir`: segunda grabación igual en "
+                        "otra carpeta/disco (\"\" = sin copia). Rige en la próxima grabación. Sin argumentos, los "
+                        "muestra junto con la grabación en curso.";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"contenedor", {{"type", "string"}, {"enum", {"mkv", "mp4", "mov", "flv"}}}},
-                           {"remux_al_terminar", {{"type", "boolean"}}}}}};
+                           {"remux_al_terminar", {{"type", "boolean"}}},
+                           {"calidad", {{"type", "string"}, {"enum", {"como_stream", "archivo"}}}},
+                           {"crf", {{"type", "integer"}, {"minimum", 10}, {"maximum", 35}}},
+                           {"pistas", {{"type", "array"}, {"items", {{"type", "integer"}, {"minimum", 2}, {"maximum", 6}}}}},
+                           {"copia_dir", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
-            if (a.contains("contenedor")) rt.config().rec.container = a.value("contenedor", std::string("mkv"));
-            if (a.contains("remux_al_terminar")) rt.config().rec.remuxAlTerminar = a.value("remux_al_terminar", true);
-            if (a.contains("contenedor") || a.contains("remux_al_terminar")) rt.save();
-            done(ToolResult().data(json{{"contenedor", rt.config().rec.container},
-                                        {"remux_al_terminar", rt.config().rec.remuxAlTerminar}}));
+            RecordConfig& r = rt.config().rec;
+            if (a.contains("contenedor")) r.container = a.value("contenedor", std::string("mkv"));
+            if (a.contains("remux_al_terminar")) r.remuxAlTerminar = a.value("remux_al_terminar", true);
+            if (a.contains("calidad")) r.calidad = a.value("calidad", std::string("como_stream"));
+            if (a.contains("crf")) r.calidadCrf = std::clamp(a.value("crf", 18), 10, 35);
+            if (a.contains("pistas") && a["pistas"].is_array()) {
+                r.pistas.clear();
+                for (const json& p : a["pistas"])
+                    if (p.is_number_integer() && p.get<int>() >= 2 && p.get<int>() <= 6) r.pistas.push_back(p.get<int>());
+            }
+            if (a.contains("copia_dir")) {
+                const std::filesystem::path c = a.value("copia_dir", std::string());
+                r.copiaDir = c.empty() || c.is_absolute() ? c.string() : (rt.dataRoot() / c).string();
+            }
+            if (!a.empty()) rt.save();
+            done(ToolResult().data(json{{"contenedor", r.container},
+                                        {"remux_al_terminar", r.remuxAlTerminar},
+                                        {"calidad", r.calidad},
+                                        {"crf", r.calidadCrf},
+                                        {"pistas", r.pistas},
+                                        {"copia_dir", r.copiaDir},
+                                        {"en_curso", rt.engine().grabacionEstado()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -2941,6 +2968,53 @@ void McpService::registerTools() {
             if (!e.empty()) return done(ToolResult::error(e));
             emit vm.destinosChanged();
             done(ToolResult::ok("Borrado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "replay_ajustes";
+        t.title = "Repetición: cuántos segundos guardar";
+        t.category = "salidas";
+        t.description = "Guarda en memoria los últimos `segundos` del programa (5 a 600; 0 la apaga) para "
+                        "replay_guardar. Usa el mismo encode que la transmisión. Sin argumentos informa.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"segundos", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}}}}}};
+        t.run = [&rt](const json& a, Done done) {
+            if (a.contains("segundos")) {
+                rt.config().replaySegundos = std::clamp(a.value("segundos", 0), 0, 600);
+                rt.save();
+                const std::string nota = rt.aplicarReplay();
+                if (rt.config().replaySegundos > 0 && !rt.engine().replayEstado().value("activa", false))
+                    return done(ToolResult::error(nota));
+            }
+            done(ToolResult().data(rt.engine().replayEstado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "replay_guardar";
+        t.title = "Repetir: guardar los últimos segundos";
+        t.category = "salidas";
+        t.description = "Escribe a disco los últimos segundos de la repetición (Recordings/repeticiones/) y "
+                        "devuelve el archivo. Con `y_armar: true` lo pone en la escena «Repetición» y la deja "
+                        "armada para el take (no la saca al aire).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"y_armar", {{"type", "boolean"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            const std::string antes = rt.engine().ultimoReplay();
+            if (!rt.engine().guardarReplay()) return done(ToolResult::error(rt.engine().lastError()));
+            const bool armar = a.value("y_armar", false);
+            vm.esperarReplay(antes, 8000, [&vm, armar, done](const QString& f) {
+                if (f.isEmpty()) return done(ToolResult::error("el clip no llegó a escribirse en 8 s"));
+                json r{{"archivo", f.toStdString()}};
+                if (armar) {
+                    const QString e = vm.armarRepeticion(f);
+                    r["armada"] = e.isEmpty();
+                    if (!e.isEmpty()) r["error_al_armar"] = e.toStdString();
+                }
+                done(ToolResult().data(r));
+            });
         };
         core_.addTool(std::move(t));
     }

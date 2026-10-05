@@ -1272,6 +1272,56 @@ void BroadcastEngine::stopStreaming() {
     streamOutput_ = nullptr;
 }
 
+void BroadcastEngine::soltarEncodersGrabacion() {
+    if (recVideoEncoder_ != nullptr) obs_encoder_release(reinterpret_cast<obs_encoder_t*>(recVideoEncoder_));
+    recVideoEncoder_ = nullptr;
+    recVideoEncoderId_.clear();
+    for (obs_encoder* e : recAudioEncoders_)
+        if (e != nullptr) obs_encoder_release(reinterpret_cast<obs_encoder_t*>(e));
+    recAudioEncoders_.clear();
+    pistasGrabacionMask_ = 0;
+}
+
+// Calidad constante para un archivo que se va a editar: cada familia de
+// codificador lo llama distinto (CRF en x264 y VideoToolbox, CQP en NVENC,
+// AMF y QSV). Se prueban en el mismo orden que para transmitir, desde `desde`.
+bool BroadcastEngine::crearEncoderArchivo(const RecordConfig& rec, const EncoderConfig& enc, std::size_t desde) {
+    std::vector<std::string> cand = forzarX264Archivo_ ? std::vector<std::string>{"obs_x264"} : videoEncoderCandidates(enc);
+    const int crf = std::clamp(rec.calidadCrf, 10, 35);
+    for (std::size_t i = desde; i < cand.size(); ++i) {
+        const std::string& id = cand[i];
+        obs_data_t* vs = obs_data_create();
+        obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
+        if (id.find("x264") != std::string::npos) {
+            obs_data_set_string(vs, "rate_control", "CRF");
+            obs_data_set_int(vs, "crf", crf);
+            obs_data_set_string(vs, "preset", enc.preset.c_str());
+        } else if (id.find("videotoolbox") != std::string::npos) {
+            obs_data_set_string(vs, "rate_control", "CRF");
+            // quality 0..100: CRF 18 ≈ 70, cada punto de CRF ≈ 3 de calidad.
+            obs_data_set_int(vs, "quality", std::clamp(70 - (crf - 18) * 3, 20, 100));
+        } else if (id.find("nvenc") != std::string::npos || id.find("amf") != std::string::npos ||
+                   id.find("qsv") != std::string::npos) {
+            obs_data_set_string(vs, "rate_control", "CQP");
+            obs_data_set_int(vs, "cqp", crf);
+            obs_data_set_int(vs, "qpi", crf);
+            obs_data_set_int(vs, "qpp", crf);
+        } else {
+            obs_data_set_string(vs, "rate_control", "CBR");
+            obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps * 3);
+        }
+        obs_encoder_t* ve = obs_video_encoder_create(id.c_str(), "video-archivo", vs, nullptr);
+        obs_data_release(vs);
+        if (ve == nullptr) continue;
+        obs_encoder_set_video(ve, obs_get_video());
+        recVideoEncoder_ = reinterpret_cast<obs_encoder*>(ve);
+        recVideoEncoderId_ = id;
+        return true;
+    }
+    setError("no hay codificador de video para la grabación de archivo");
+    return false;
+}
+
 bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc) {
     if (!started_) {
         setError("startRecording sin startup");
@@ -1280,9 +1330,14 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     if (recordOutput_ != nullptr && obs_output_active(reinterpret_cast<obs_output_t*>(recordOutput_))) {
         return true;
     }
-    if (!ensureEncoders(enc)) {
+    const bool archivo = rec.calidad == "archivo";
+    if (!archivo && !ensureEncoders(enc)) {
         return false;
     }
+    lastRec_ = rec;
+    lastEnc_ = enc;
+    lastRecValido_ = true;
+    soltarEncodersGrabacion();
 
     // Nombre por marca de tiempo, dentro de Recordings/ (layout §5.1).
     const auto now = std::chrono::system_clock::now();
@@ -1291,31 +1346,137 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     // y se pasa al formato pedido al terminar, sin recodificar.
     const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
     const bool fragil = pedido == "mp4" || pedido == "mov";
-    const std::string path = rec.directory + "/ba-" + std::to_string(secs) + "." + (fragil ? std::string("mkv") : pedido);
+    const std::string nombre = "/ba-" + std::to_string(secs) + "." + (fragil ? std::string("mkv") : pedido);
+    const std::string path = rec.directory + nombre;
     remuxA_ = fragil ? pedido : std::string();
     remuxAlTerminar_ = rec.remuxAlTerminar;
     recordPath_ = path;
 
+    // El audio: la pista 1 (mezcla 0) siempre; las extra con su propio AAC.
+    recAudioEncoders_.assign(6, nullptr);
+    const auto crearAac = [&](int mezcla, int kbps) -> bool {
+        obs_data_t* as = obs_data_create();
+        obs_data_set_int(as, "bitrate", kbps);
+        const std::string n = "audio-pista-" + std::to_string(mezcla + 1);
+        obs_encoder_t* ae = obs_audio_encoder_create("ffmpeg_aac", n.c_str(), as, static_cast<size_t>(mezcla), nullptr);
+        obs_data_release(as);
+        if (ae == nullptr) return false;
+        obs_encoder_set_audio(ae, obs_get_audio());
+        recAudioEncoders_[static_cast<std::size_t>(mezcla)] = reinterpret_cast<obs_encoder*>(ae);
+        return true;
+    };
+    if (archivo && !crearAac(0, std::max(enc.audioBitrateKbps, 256))) {
+        setError("no se pudo crear el codificador de audio de la grabación");
+        return false;
+    }
+    std::vector<int> pistas;
+    for (int p : rec.pistas)
+        if (p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) pistas.push_back(p);
+    std::sort(pistas.begin(), pistas.end());
+    for (int p : pistas) {
+        if (!crearAac(p - 1, std::max(enc.audioBitrateKbps, 192))) {
+            setError("no se pudo crear el codificador de la pista " + std::to_string(p));
+            soltarEncodersGrabacion();
+            return false;
+        }
+        pistasGrabacionMask_ |= 1 << (p - 1);
+    }
+
     obs_data_t* os = obs_data_create();
     obs_data_set_string(os, "path", path.c_str());
-    // `ffmpeg_muxer` remuxa sin recodificar: comparte los mismos encoders que
-    // la transmision, de modo que grabar no cuesta un segundo encode.
+    // `ffmpeg_muxer` remuxa sin recodificar: con "como_stream" comparte los
+    // encoders de la transmision, de modo que grabar no cuesta un segundo encode.
     obs_output_t* out = obs_output_create("ffmpeg_muxer", "grabacion", os, nullptr);
     obs_data_release(os);
     if (out == nullptr) {
         setError("obs_output_create(ffmpeg_muxer) fallo");
+        soltarEncodersGrabacion();
         return false;
     }
-    if (!startOutputWithFallback(reinterpret_cast<obs_output*>(out), enc)) {
+    // Las pistas extra van en sus índices: el muxer escribe una pista por encoder.
+    // Se cargan en orden, sin huecos (el muxer cuenta las pistas hasta el primer vacío).
+    std::size_t idx = 1;
+    for (int p : pistas)
+        obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(recAudioEncoders_[static_cast<std::size_t>(p - 1)]), idx++);
+    watchOutput(reinterpret_cast<obs_output*>(out));
+
+    bool ok = false;
+    if (!archivo) {
+        ok = startOutputWithFallback(reinterpret_cast<obs_output*>(out), enc);
+    } else {
+        // Codificador propio: si el de hardware no arranca, el siguiente (x264 al final).
+        std::size_t desde = 0;
+        while (!ok && crearEncoderArchivo(rec, enc, desde)) {
+            obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(recVideoEncoder_));
+            obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(recAudioEncoders_[0]), 0);
+            ok = obs_output_start(out);
+            if (!ok) {
+                const char* e = obs_output_get_last_error(out);
+                setError(std::string("la grabación no arrancó con ") + recVideoEncoderId_ +
+                         (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
+                obs_encoder_release(reinterpret_cast<obs_encoder_t*>(recVideoEncoder_));
+                recVideoEncoder_ = nullptr;
+                const auto cand = forzarX264Archivo_ ? std::vector<std::string>{"obs_x264"} : videoEncoderCandidates(enc);
+                const auto it = std::find(cand.begin(), cand.end(), recVideoEncoderId_);
+                desde = it == cand.end() ? cand.size() : static_cast<std::size_t>(it - cand.begin()) + 1;
+            }
+        }
+    }
+    if (!ok) {
         setError("no se pudo iniciar la grabacion: " + lastError_);
         obs_output_release(out);
+        soltarEncodersGrabacion();
         return false;
     }
     if (recordOutput_ != nullptr) {
         obs_output_release(reinterpret_cast<obs_output_t*>(recordOutput_));
     }
     recordOutput_ = reinterpret_cast<obs_output*>(out);
+
+    // La copia en otro disco: los mismos encoders, otro archivo. Si no arranca
+    // (disco desconectado, sin permiso), la principal sigue y queda anotado.
+    recordCopyPath_.clear();
+    if (!rec.copiaDir.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(rec.copiaDir, ec);
+        recordCopyPath_ = rec.copiaDir + nombre;
+        obs_data_t* cs = obs_data_create();
+        obs_data_set_string(cs, "path", recordCopyPath_.c_str());
+        obs_output_t* copia = obs_output_create("ffmpeg_muxer", "grabacion-copia", cs, nullptr);
+        obs_data_release(cs);
+        if (copia != nullptr) {
+            obs_output_set_video_encoder(copia, obs_output_get_video_encoder(out));
+            for (std::size_t i = 0; i < 6; ++i) {
+                obs_encoder_t* ae = obs_output_get_audio_encoder(out, i);
+                if (ae == nullptr) break;
+                obs_output_set_audio_encoder(copia, ae, i);
+            }
+            if (obs_output_start(copia)) {
+                recordCopy_ = reinterpret_cast<obs_output*>(copia);
+            } else {
+                blog(LOG_WARNING, "ba-engine: la copia en %s no arrancó", rec.copiaDir.c_str());
+                obs_output_release(copia);
+                recordCopyPath_.clear();
+            }
+        }
+    }
     return true;
+}
+
+nlohmann::json BroadcastEngine::grabacionEstado() const {
+    auto* out = reinterpret_cast<obs_output_t*>(recordOutput_);
+    auto* copia = reinterpret_cast<obs_output_t*>(recordCopy_);
+    nlohmann::json pistas = nlohmann::json::array({1});
+    for (int i = 1; i < 6; ++i)
+        if (pistasGrabacionMask_ & (1 << i)) pistas.push_back(i + 1);
+    return {{"activa", out != nullptr && obs_output_active(out)},
+            {"archivo", recordPath_},
+            {"copia", recordCopyPath_},
+            {"copia_activa", copia != nullptr && obs_output_active(copia)},
+            {"calidad", lastRecValido_ ? lastRec_.calidad : std::string("como_stream")},
+            {"encoder", recVideoEncoder_ != nullptr ? recVideoEncoderId_ : videoEncoderId_},
+            {"pistas", pistas},
+            {"encoder_respaldo_activo", encoderRespaldo_}};
 }
 
 struct BroadcastEngine::EstadoRemux {
@@ -1348,6 +1509,126 @@ void BroadcastEngine::stopRecording() {
     }
     obs_output_release(out);
     recordOutput_ = nullptr;
+    if (recordCopy_ != nullptr) {
+        auto* copia = reinterpret_cast<obs_output_t*>(recordCopy_);
+        if (obs_output_active(copia)) obs_output_stop(copia);
+        obs_output_release(copia);
+        recordCopy_ = nullptr;
+    }
+    // Los encoders propios los suelta libobs cuando el muxer termina de usarlos
+    // (cada salida tiene su referencia); acá se suelta la nuestra.
+    soltarEncodersGrabacion();
+}
+
+// --- Repetición -----------------------------------------------------------------
+
+void BroadcastEngine::onReplaySaved(void* data, ::calldata* /*cd*/) {
+    auto* self = static_cast<BroadcastEngine*>(data);
+    auto* out = reinterpret_cast<obs_output_t*>(self->replay_);
+    if (out == nullptr) return;
+    calldata_t q = {};
+    proc_handler_call(obs_output_get_proc_handler(out), "get_last_replay", &q);
+    const char* path = calldata_string(&q, "path");
+    std::lock_guard<std::mutex> l(self->replayMu_);
+    self->ultimoReplay_ = path != nullptr ? path : "";
+    calldata_free(&q);
+}
+
+bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc) {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (replay_ != nullptr) {
+        auto* r = reinterpret_cast<obs_output_t*>(replay_);
+        if (obs_output_active(r)) obs_output_stop(r);
+        obs_output_release(r);
+        replay_ = nullptr;
+    }
+    replaySegundos_ = 0;
+    if (segundos <= 0) return true;
+    if (!ensureEncoders(enc)) return false;
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    obs_data_t* os = obs_data_create();
+    obs_data_set_string(os, "directory", dir.c_str());
+    obs_data_set_string(os, "format", "repeticion-%CCYY%MM%DD-%hh%mm%ss");
+    obs_data_set_string(os, "extension", "mkv");
+    obs_data_set_int(os, "max_time_sec", std::clamp(segundos, 5, 600));
+    obs_data_set_int(os, "max_size_mb", 4096);
+    obs_output_t* r = obs_output_create("replay_buffer", "repeticion", os, nullptr);
+    obs_data_release(os);
+    if (r == nullptr) {
+        setError("este libobs no trae replay_buffer");
+        return false;
+    }
+    signal_handler_connect(obs_output_get_signal_handler(r), "saved", &BroadcastEngine::onReplaySaved, this);
+    replay_ = reinterpret_cast<obs_output*>(r);
+    if (!startOutputWithFallback(replay_, enc)) {
+        obs_output_release(r);
+        replay_ = nullptr;
+        setError("no arrancó la repetición: " + lastError_);
+        return false;
+    }
+    replaySegundos_ = segundos;
+    return true;
+}
+
+bool BroadcastEngine::guardarReplay() {
+    auto* r = reinterpret_cast<obs_output_t*>(replay_);
+    if (r == nullptr || !obs_output_active(r)) {
+        setError("la repetición está apagada (replay_ajustes con segundos)");
+        return false;
+    }
+    calldata_t cd = {};
+    proc_handler_call(obs_output_get_proc_handler(r), "save", &cd);
+    calldata_free(&cd);
+    return true;
+}
+
+std::string BroadcastEngine::ultimoReplay() const {
+    std::lock_guard<std::mutex> l(replayMu_);
+    return ultimoReplay_;
+}
+
+nlohmann::json BroadcastEngine::replayEstado() const {
+    auto* r = reinterpret_cast<obs_output_t*>(replay_);
+    return {{"activa", r != nullptr && obs_output_active(r)}, {"segundos", replaySegundos_}, {"ultimo", ultimoReplay()}};
+}
+
+// --- Codificador caído en el aire ---------------------------------------------------
+
+void BroadcastEngine::atenderEncoderCaido(bool stream, bool record) {
+    if (!encoderCayo_.exchange(false)) return;
+    const bool soloArchivo = encoderCayoArchivo_.exchange(false);
+    blog(LOG_WARNING, "ba-engine: un codificador se cayó en el aire; se reemplaza");
+    encoderRespaldo_ = true;
+    if (soloArchivo) {
+        // El propio de la grabación de archivo: se rehace con x264, a un archivo nuevo.
+        forzarX264Archivo_ = true;
+        if (record && lastRecValido_) {
+            stopRecording();
+            startRecording(lastRec_, lastEnc_);
+        }
+        return;
+    }
+    releaseVideoEncoder();
+    if (encoderIndex_ + 1 < encoderCandidates_.size()) ++encoderIndex_;
+    if (!ensureEncoders(lastEnc_.videoBitrateKbps > 0 ? lastEnc_ : EncoderConfig{})) return;
+    const auto rearrancar = [this](obs_output* o) {
+        auto* out = reinterpret_cast<obs_output_t*>(o);
+        if (out == nullptr || obs_output_active(out)) return;
+        obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
+        obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
+        if (!obs_output_start(out)) blog(LOG_WARNING, "ba-engine: no rearrancó una salida con %s", videoEncoderId_.c_str());
+    };
+    if (stream) rearrancar(streamOutput_);
+    for (auto& [id, x] : extras_) rearrancar(static_cast<obs_output*>(x.output));
+    rearrancar(replay_);
+    if (record && lastRecValido_ && recVideoEncoder_ == nullptr) {
+        stopRecording();
+        startRecording(lastRec_, lastEnc_);
+    }
 }
 
 bool BroadcastEngine::remux(const std::string& archivo, const std::string& formato, bool borrarOrigen) {
@@ -1510,6 +1791,8 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
         bool usada[6] = {true, false, false, false, false, false}; // 0 = programa
         for (const auto& [n, r] : sourceRecs_)
             if (r->pista > 0 && r->pista < 6) usada[r->pista] = true;
+        for (int p = 1; p < 6; ++p)
+            if (pistasGrabacionMask_ & (1 << p)) usada[p] = true; // las usa la grabación del programa
         for (int p = 1; p < 6 && rec->pista < 0; ++p)
             if (!usada[p]) rec->pista = p;
 
@@ -1745,6 +2028,12 @@ void BroadcastEngine::onOutputReconnected(void* data, ::calldata* /*cd*/) {
 void BroadcastEngine::onOutputStopped(void* data, ::calldata* cd) {
     auto* self = static_cast<BroadcastEngine*>(data);
     const long long code = calldata_int(cd, "code");
+    if (code == -8) { // OBS_OUTPUT_ENCODE_ERROR: lo rearma atenderEncoderCaido
+        auto* out = static_cast<obs_output_t*>(calldata_ptr(cd, "output"));
+        if (out != nullptr && reinterpret_cast<obs_output*>(out) == self->recordOutput_ && self->recVideoEncoder_ != nullptr)
+            self->encoderCayoArchivo_ = true;
+        self->encoderCayo_ = true;
+    }
     std::lock_guard<std::mutex> lock(self->outputStateLock_);
     self->reconnecting_ = false;
     self->outputProblem_ = motivoDeCorte(static_cast<int>(code));

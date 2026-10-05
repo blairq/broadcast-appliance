@@ -52,7 +52,7 @@
 | T26 | Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV | P1 | hecho en parte (falta el stinger) |
 | T27 | Panel de salud de la salida | P1 | hecho en parte (por destino con 10 min de historial; falta la salud de ingesta de YouTube/Twitch cada 30 s) |
 | T28 | Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink | P1 | hecho (NDI/Decklink de salida: no se empaquetan) |
-| T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | falta |
+| T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | hecho (sin ProRes) |
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
 | T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | parcial |
 | T32 | Automixer para las bancas | P1 | decisión pendiente (docs/DECISIONES-PENDIENTES.md: los micrófonos tienen que pasar a GStreamer) |
@@ -633,11 +633,17 @@
 - **Depende de:** T09 y T25.
 
 ### T29 · Grabación independiente del stream: encoder propio, multipista, replay, segunda copia — P1
-- **Estado: falta.**
-  - La grabación comparte encoders con el stream (comentario en `src/app/BroadcastEngine.cpp:999-1000`, adjuntos en `:888-889`).
-  - Hay una sola pista de audio (`:889`).
-  - No hay `replay_buffer` ni segunda copia (`RecordConfig`, con un solo directorio, `BroadcastEngine.hpp:151-153`).
-  - El encoder de respaldo actúa solo al arrancar (`startOutputWithFallback`, `:885-910`).
+- **Estado: hecho** (2026-10-05), salvo ProRes.
+  - **Calidad de archivo:** `RecordConfig.calidad` = `como_stream` (comparte el encode, como antes) o `archivo`: codificador propio a calidad constante (`calidadCrf`; CRF en x264 y VideoToolbox, CQP en NVENC/AMF/QSV), probando los candidatos en orden y x264 al final. Audio AAC propio a 256 kbps.
+  - **Pistas:** `pistas` = las pistas 2..6 de la Matriz, cada una con su AAC en su índice del muxer. La grabación por entrada (ISO) ya no las toma, y la Matriz las rotula «grabación del programa».
+  - **Copia:** `copiaDir`: un segundo `ffmpeg_muxer` con los mismos encoders. Si no arranca, la principal sigue; la tarjeta Salidas avisa si la copia se cortó.
+  - **Repetición:** `replay_buffer` de libobs (`setReplay`, `guardarReplay`; los clips van a `Recordings/repeticiones/`). «Repetir» arma el clip en la escena «Repetición», lista para el take.
+  - **Encoder de respaldo en caliente:** `onOutputStopped` con código -8 marca la caída. `AppRuntime::tick` llama a `atenderEncoderCaido`, que pasa al siguiente candidato (x264 al final) y rearranca transmisión, destinos, replay y grabación (en un archivo nuevo). `status.encoder_respaldo_activo` lo muestra.
+  - **MCP:** `record_ajustes {calidad, crf, pistas, copia_dir}` (devuelve también `en_curso`), `replay_ajustes {segundos}`, `replay_guardar {y_armar}`.
+  - **GUI:** en Configuración → Grabación, «Calidad del archivo», CRF, pistas extra, copia en otro disco y segundos de repetición. En la tarjeta Salidas, la línea de la grabación y el botón «⟲ Repetir N s».
+  - **Probado** en el autotest del motor (`ba-app --engine-selftest`, paso 6): archivo con x264 CRF, pistas 1+2, copia activa y repetición guardada. `ffprobe` da H.264 + 2 AAC en el archivo y en la copia, y 4,2 s de clip. «Repetir» con la app: clip guardado y escena «Repetición» armada.
+  - **Sin probar:** la caída real de un encoder (no hay cómo provocarla a mano).
+  - **Falta:** ProRes por VideoToolbox (libobs no lo trae como encoder de salida).
 - **Qué hacer.**
   - `RecordConfig` suma `calidad: "como_stream"|"archivo"`. "archivo" usa un encoder propio: CRF o CQP alto, o ProRes con VideoToolbox en Mac.
   - Pistas: 1 = programa, 2..6 = buses o micrófonos elegidos en la Matriz. Se usa `obs_output_set_audio_encoder(out, enc, idx)` con un encoder AAC por pista.

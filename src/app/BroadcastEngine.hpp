@@ -159,6 +159,16 @@ struct RecordConfig {
     /// Con mp4/mov: se graba en MKV (sobrevive a un corte) y al terminar se
     /// pasa al formato pedido sin recodificar (el MKV se borra si salió bien).
     bool remuxAlTerminar = true;
+    /// "como_stream": comparte los codificadores de la transmisión (no cuesta otro
+    /// encode). "archivo": codificador propio a calidad constante (CRF/CQP), pensado
+    /// para editar después; es un encode más.
+    std::string calidad = "como_stream";
+    int calidadCrf = 18; ///< con "archivo": 14 (casi sin pérdida) a 28 (chico)
+    /// Pistas de audio EXTRA, numeradas como en la Matriz (2..6): cada una con lo que
+    /// la Matriz le cruce. La 1 (el programa) va siempre.
+    std::vector<int> pistas;
+    /// Segunda copia simultánea en otro disco ("" = sin copia). Mismos codificadores.
+    std::string copiaDir;
 };
 
 /// Rutas del layout portable que el motor necesita (spec §5.1/§5.3).
@@ -576,6 +586,27 @@ class BroadcastEngine {
 
     /// Detiene la grabacion (no toca la transmision).
     void stopRecording();
+    /// La grabación en curso: {activa, archivo, copia, copia_activa, calidad, encoder, pistas}.
+    nlohmann::json grabacionEstado() const;
+
+    // --- Repetición (replay buffer de libobs) ---------------------------------
+    /// Guarda en memoria los últimos `segundos` del programa (0 = apagar), con los
+    /// codificadores de la transmisión. `dir` es donde quedan los clips.
+    bool setReplay(int segundos, const std::string& dir, const EncoderConfig& enc);
+    /// Pide guardar el clip; llega por `ultimoReplay()` cuando termina de escribir.
+    bool guardarReplay();
+    std::string ultimoReplay() const;
+    nlohmann::json replayEstado() const;
+
+    /// Si un codificador se cayó en el aire (OBS_OUTPUT_ENCODE_ERROR), lo reemplaza
+    /// por el siguiente candidato (al final, x264) y rearranca lo que corría:
+    /// la transmisión, los destinos, la grabación (a un archivo nuevo) y el replay.
+    /// Lo llama la app en cada vuelta; no hace nada si no pasó nada.
+    void atenderEncoderCaido(bool stream, bool record);
+    bool encoderRespaldoActivo() const { return encoderRespaldo_; }
+    /// Las pistas (índice de libobs 1..5) que usa la grabación del programa: la
+    /// grabación por entrada no las toma.
+    int pistasGrabacionMask() const { return pistasGrabacionMask_; }
 
     // --- Grabacion POR ENTRADA ------------------------------------------------
     // Grabar cada camara a su propio archivo, ademas del programa. Es lo que
@@ -832,6 +863,27 @@ class BroadcastEngine {
     std::map<std::string, std::unique_ptr<SourceRec>> sourceRecs_;
     std::unique_ptr<SourceRec> clean_;
     std::string cleanDestino_;
+    // T29: grabación con codificador propio, pistas extra, copia y replay.
+    obs_encoder* recVideoEncoder_ = nullptr;
+    std::string recVideoEncoderId_;
+    std::vector<obs_encoder*> recAudioEncoders_; ///< por índice de mezcla (0..5); nullptr = no
+    obs_output* recordCopy_ = nullptr;
+    std::string recordCopyPath_;
+    RecordConfig lastRec_;
+    EncoderConfig lastEnc_;
+    bool lastRecValido_ = false;
+    bool forzarX264Archivo_ = false;
+    int pistasGrabacionMask_ = 0;
+    obs_output* replay_ = nullptr;
+    int replaySegundos_ = 0;
+    mutable std::mutex replayMu_;
+    std::string ultimoReplay_;
+    std::atomic<bool> encoderCayo_{false};
+    std::atomic<bool> encoderCayoArchivo_{false};
+    bool encoderRespaldo_ = false;
+    void soltarEncodersGrabacion();
+    bool crearEncoderArchivo(const RecordConfig& rec, const EncoderConfig& enc, std::size_t desde);
+    static void onReplaySaved(void* data, ::calldata* cd);
     obs_service* service_ = nullptr;
 
     // Candidatos de codificador de video (ver EncoderConfig::videoEncoder) y

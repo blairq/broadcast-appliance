@@ -373,6 +373,7 @@ int AppRuntime::start() {
     }
     std::printf("\n");
 
+    if (cfg_.replaySegundos > 0) aplicarReplay();
     if (cfg_.record) {
         startRecording();
     }
@@ -407,6 +408,8 @@ void AppRuntime::tick() {
     if (started_) {
         const EngineStatus st = engine_.status();
         latido_.uiTick(st.streaming || st.recording);
+        // Un codificador que se cayó en el aire se reemplaza y se rearranca lo que corría.
+        engine_.atenderEncoderCaido(!streamStopWanted_, !recordStopWanted_);
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
@@ -695,6 +698,13 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
     escribirDestinos(root_, lista);
     if (idOut != nullptr) *idOut = id;
     return {};
+}
+
+std::string AppRuntime::aplicarReplay() {
+    const int s = cfg_.replaySegundos;
+    if (!engine_.setReplay(s, cfg_.rec.directory + "/repeticiones", cfg_.encoder))
+        return "Repetición: " + engine_.lastError();
+    return s > 0 ? "Repetición: guarda los últimos " + std::to_string(s) + " s." : "Repetición apagada.";
 }
 
 std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {

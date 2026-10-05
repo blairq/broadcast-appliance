@@ -69,6 +69,8 @@ class AppRuntime {
     /// La señal limpia (sin DSK ni placa) a un destino guardado (`destino` = su id) o
     /// a Recordings/limpia/ si viene vacío. "" o el error.
     std::string iniciarSenalLimpia(const std::string& destino);
+    /// Prende o apaga la repetición con cfg_.replaySegundos. Devuelve la nota para el operador.
+    std::string aplicarReplay();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
     bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false);
     void stopStreaming();

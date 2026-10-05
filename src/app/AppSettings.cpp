@@ -228,6 +228,17 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.rec.directory = (recDir.is_absolute() ? recDir : dataRoot / recDir).string();
     c.rec.container = get<std::string>(rec, "container", "mkv");
     c.rec.remuxAlTerminar = get(rec, "remux", true);
+    c.rec.calidad = get<std::string>(rec, "calidad", "como_stream");
+    c.rec.calidadCrf = get(rec, "crf", 18);
+    c.rec.pistas.clear();
+    if (rec.contains("pistas") && rec["pistas"].is_array())
+        for (const auto& p : rec["pistas"])
+            if (p.is_number_integer()) c.rec.pistas.push_back(p.get<int>());
+    {
+        const std::string copia = get<std::string>(rec, "copiaDir", "");
+        c.rec.copiaDir = copia.empty() || fs::path(copia).is_absolute() ? copia : (dataRoot / copia).string();
+    }
+    c.replaySegundos = get(rec, "replaySegundos", 0);
 
     const json st = j.value("stream", json::object());
     c.stream = get(st, "enabled", false);
@@ -336,7 +347,12 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
          {{"enabled", c.record},
           {"dir", relativeToRoot(c.rec.directory, dataRoot)},
           {"container", c.rec.container},
-          {"remux", c.rec.remuxAlTerminar}}},
+          {"remux", c.rec.remuxAlTerminar},
+          {"calidad", c.rec.calidad},
+          {"crf", c.rec.calidadCrf},
+          {"pistas", c.rec.pistas},
+          {"copiaDir", c.rec.copiaDir.empty() ? std::string() : relativeToRoot(c.rec.copiaDir, dataRoot)},
+          {"replaySegundos", c.replaySegundos}}},
         {"stream", {{"enabled", c.stream}, {"server", c.streamCfg.server}, {"keyEnv", c.streamKeyEnv}}},
         {"guests",
          {{"count", c.guests},

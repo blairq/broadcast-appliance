@@ -1040,6 +1040,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("matriz");
     // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.
     matriz_->setUsadasPorOtros([r = racks_.get()]() { return r->fuentesDeEntradas(); });
+    // Las pistas que graba el programa (T29) quedan rotuladas en la Matriz.
+    connect(this, &StudioViewModel::statusChanged, this, [this]() {
+        const int mask = rt_.engine().pistasGrabacionMask();
+        for (int i = 1; i < audio::Matriz::kPistas; ++i)
+            matriz_->setUsoPista(i, (mask & (1 << i)) ? "grabación del programa" : "");
+    });
 #endif
     // Las etiquetas de video ("Invitado 2") pasan a ser el nombre real.
     connect(conference_.get(), &ConferenceViewModel::roomChanged, this,
@@ -2732,6 +2738,59 @@ QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
     const std::string e = rt_.iniciarSenalLimpia(destino.toStdString());
     emit statusChanged();
     return qs(e);
+}
+
+QVariantMap StudioViewModel::grabacionUi() const {
+    nlohmann::json j = rt_.engine().grabacionEstado();
+    j["replay"] = rt_.engine().replayEstado();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+}
+
+void StudioViewModel::esperarReplay(const std::string& antes, int ms, std::function<void(const QString&)> listo) {
+    const std::string ahora = rt_.engine().ultimoReplay();
+    if (!ahora.empty() && ahora != antes) return listo(qs(ahora));
+    if (ms <= 0) return listo(QString());
+    QTimer::singleShot(200, this, [this, antes, ms, listo = std::move(listo)]() mutable {
+        esperarReplay(antes, ms - 200, std::move(listo));
+    });
+}
+
+QString StudioViewModel::repetirUi() {
+    const std::string antes = rt_.engine().ultimoReplay();
+    if (!rt_.engine().guardarReplay()) return qs(rt_.engine().lastError());
+    esperarReplay(antes, 8000, [this](const QString& f) {
+        if (f.isEmpty()) return emit notify("La repetición no llegó a escribirse.", "error");
+        const QString e = armarRepeticion(f);
+        emit notify(e.isEmpty() ? "Repetición armada: dale TAKE." : e, e.isEmpty() ? "ok" : "error");
+    });
+    return {};
+}
+
+QString StudioViewModel::armarRepeticion(const QString& archivo) {
+    static const std::string kEscena = "Repetición", kFuente = "Repetición (clip)";
+    BroadcastEngine& e = rt_.engine();
+    const auto escenas = e.sceneNames();
+    if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt_.addScene(kEscena))
+        return qs(rt_.lastError());
+    const std::string ajustes =
+        nlohmann::json{{"is_local_file", true}, {"local_file", archivo.toStdString()}, {"looping", false},
+                       {"restart_on_activate", true}, {"close_when_inactive", true}}
+            .dump();
+    const auto fuentes = e.sceneSources(kEscena);
+    if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
+        SourceSpec spec;
+        spec.id = "ffmpeg_source";
+        spec.name = kFuente;
+        spec.settingsJson = ajustes;
+        if (!rt_.addSource(kEscena, spec)) return qs(rt_.lastError());
+    } else if (!rt_.updateSourceSettings(kFuente, ajustes)) {
+        return qs(rt_.lastError());
+    }
+    scenes_->reload();
+    emit escenasCambiaron();
+    rt_.save();
+    armarEscena(qs(kEscena));
+    return {};
 }
 
 QString StudioViewModel::isoTodasUi(bool grabar) {

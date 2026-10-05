@@ -223,6 +223,29 @@ Item {
                 }
             }
         }
+        // La grabación (T29): calidad, pistas, copia en otro disco, encoder de respaldo y «Repetir».
+        RowLayout {
+            id: grab
+            Layout.fillWidth: true
+            property var g: Studio.grabacionUi()
+            Timer { interval: 2000; running: true; repeat: true; onTriggered: grab.g = Studio.grabacionUi() }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: (grab.g.calidad === "archivo" ? "Calidad de archivo" : "Como la transmisión") +
+                      (grab.g.pistas && grab.g.pistas.length > 1 ? " · pistas " + grab.g.pistas.join("+") : "") +
+                      (grab.g.copia ? (grab.g.copia_activa ? " · copia doble ✓" : " · ¡la copia se cortó!") : "") +
+                      (grab.g.encoder_respaldo_activo ? " · codificador de respaldo" : "") +
+                      (grab.g.replay && grab.g.replay.activa ? " · repetición " + grab.g.replay.segundos + " s" : "")
+                color: (grab.g.copia && !grab.g.copia_activa && grab.g.activa) || grab.g.encoder_respaldo_activo ? Theme.amber : Theme.textFaint
+                font.pixelSize: 10
+            }
+            GlassButton {
+                compact: true
+                visible: grab.g.replay && grab.g.replay.activa
+                text: "⟲ Repetir " + (grab.g.replay ? grab.g.replay.segundos : 0) + " s"
+                onClicked: { const e = Studio.repetirUi(); if (e !== "") Studio.notify(e, "error") }
+            }
+        }
         // El disco a este bitrate y el pase a MP4 al terminar.
         Text {
             id: disco
