@@ -632,6 +632,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                           });
             return true;
         };
+        // La fila única: los que hablan desde el navegador (sesión remota) también.
+        g.esRemoto = [this](const std::string& id) {
+            if (!sesionRemota_) return false;
+            const auto v = sesionRemota_->presentesIds();
+            return std::find(v.begin(), v.end(), id) != v.end();
+        };
+        g.palabraRemota = [this](const std::string& id, bool palabra, int segundos) {
+            if (sesionRemota_) sesionRemota_->darPalabra(id, palabra, segundos);
+        };
+        g.filaCambio = [this](const std::vector<std::string>& cola, const std::string& alAire) {
+            if (sesionRemota_) sesionRemota_->fila(cola, alAire);
+        };
         bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
         // La foto de cada integrante, capturada con la cámara de su banca.
         {
@@ -903,6 +915,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                 if (ok && sesionRemota_) sesionRemota_->ponerFoto(id, b);
                             });
             });
+            connect(sesionRemota_.get(), &legislatura::SesionRemota::pedidoPalabra, this,
+                    [this](const QString& id, bool pedir) {
+                        if (!bancas_) return;
+                        if (pedir) bancas_->agregar(id);
+                        else bancas_->quitar(id);
+                    });
             connect(sesionRemota_.get(), &legislatura::SesionRemota::aviso, this,
                     [this](const QString& t, const QString& nivel) { emit notify(t, nivel); });
             connect(sesionRemota_.get(), &legislatura::SesionRemota::credencialesCambio, this, [this]() { sincronizarSesion(); });
@@ -911,6 +929,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             });
             connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
                 if (on) sincronizarSesion();
+            });
+            // El punto del orden del día en el celular de cada uno.
+            bus_->suscribir("sesion/punto", [this](const std::string&, const nlohmann::json& p) {
+                if (!sesionRemota_) return;
+                const std::string t = p.is_object() ? p.value("titulo", p.value("texto", std::string())) : std::string();
+                const int n = p.is_object() ? p.value("n", 0) : 0;
+                sesionRemota_->info({{"punto", t.empty() ? std::string() : (n > 0 ? std::to_string(n) + ". " : "") + t}});
             });
             sincronizarSesion();
         }
@@ -1008,33 +1033,44 @@ StudioViewModel::~StudioViewModel() {
 }
 
 void StudioViewModel::tiemposCentral() {
-    // El tiempo del orador presencial en la unidad de su banca (central Bosch DCN):
-    // al salir al aire se configura el reloj; a un minuto y al terminar, aviso en la unidad.
-    if (++dcnTic_ % 10 != 0 || !dcn_ || !bancas_ || !dcn_->conectada()) return;  // una vez por segundo
+    // El tiempo del que tiene la palabra (presencial o remoto), una vez por segundo:
+    // a un minuto y al terminar, aviso al operador, en el celular del remoto y en la
+    // unidad de su banca si está la central (Bosch DCN), que además lleva el reloj.
+    if (++dcnTic_ % 10 != 0 || !bancas_) return;
     const nlohmann::json j = bancas_->estadoJson();
     const nlohmann::json al = j.value("al_aire", nlohmann::json());
     if (!al.is_object()) {
         dcnOrador_.clear();
         return;
     }
-    const std::string banca = al.value("banca", std::string());
+    const std::string id = al.value("id", std::string()), banca = al.value("banca", std::string());
+    const std::string nombre = al.value("nombre", std::string());
     const int asignado = j.value("asignado_s", 0), usado = static_cast<int>(j.value("usado_s", 0LL));
-    if (banca.empty() || asignado <= 0 || !dcn_->tieneUnidad(banca)) return;
-    const std::string clave = banca + "@" + std::to_string(j.value("desde_ms", 0LL));
+    if (asignado <= 0) return;
+    const bool remoto = sesionRemota_ && sesionRemota_->conPalabra() == id;
+    const bool central = !remoto && dcn_ && dcn_->conectada() && !banca.empty() && dcn_->tieneUnidad(banca);
+    const std::string clave = id + "@" + std::to_string(j.value("desde_ms", 0LL));
     const auto ignorar = [](bool, const nlohmann::json&, const std::string&) {};
     if (clave != dcnOrador_) {
         dcnOrador_ = clave;
         dcnAvisos_ = 0;
-        dcn_->control("tiempo", {{"limite_min", (asignado + 59) / 60}, {"reloj", true}}, ignorar);
+        if (central) dcn_->control("tiempo", {{"limite_min", (asignado + 59) / 60}, {"reloj", true}}, ignorar);
     }
     const int restante = asignado - usado;
+    const QString quien = QString::fromStdString(nombre + (banca.empty() ? "" : " (banca " + banca + ")"));
     if (restante <= 60 && restante > 0 && !(dcnAvisos_ & 1)) {
         dcnAvisos_ |= 1;
-        dcn_->control("tiempo", {{"banca", banca}, {"aviso", "ultimo_minuto"}}, ignorar);
+        emit notify(quien + ": queda 1 minuto", "warn");
+        if (remoto) sesionRemota_->avisoTiempo(id, "ultimo_minuto");
+        if (central) dcn_->control("tiempo", {{"banca", banca}, {"aviso", "ultimo_minuto"}}, ignorar);
+        if (bus_) bus_->publicar("oradores/tiempo", {{"id", id}, {"banca", banca}, {"aviso", "ultimo_minuto"}});
     }
     if (restante <= 0 && !(dcnAvisos_ & 2)) {
         dcnAvisos_ |= 3;
-        dcn_->control("tiempo", {{"banca", banca}, {"aviso", "terminado"}}, ignorar);
+        emit notify(quien + ": se terminó su tiempo", "error");
+        if (remoto) sesionRemota_->avisoTiempo(id, "terminado");
+        if (central) dcn_->control("tiempo", {{"banca", banca}, {"aviso", "terminado"}}, ignorar);
+        if (bus_) bus_->publicar("oradores/tiempo", {{"id", id}, {"banca", banca}, {"aviso", "terminado"}});
     }
 }
 

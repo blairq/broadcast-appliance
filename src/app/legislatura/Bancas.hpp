@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Bancas: la fila de oradores PRESENCIALES (los que hablan desde su banca, sin
-// conexión WebRTC). Cada banca sale del Cuerpo (legislatura/Cuerpo): su preset
-// PTZ, su micrófono, su nombre y cargo validados.
+// Bancas: la fila de oradores del recinto. Cada banca sale del Cuerpo
+// (legislatura/Cuerpo): su preset PTZ, su micrófono, su nombre y cargo validados.
+// Es la FILA ÚNICA: también entran los que hablan desde el navegador (la sesión
+// remota, en la sala o afuera; docs/SESION-REMOTA.md). A esos no se les mueve
+// ninguna cámara: se les da la palabra por la sesión remota (`palabraRemota`).
 //
 // Poner una banca al aire es UNA acción:
 //   1. la PTZ va al preset de la banca, SOLO si esa cámara no está al aire
@@ -46,6 +48,12 @@ class Bancas : public QObject {
         /// está conectada y la banca tiene unidad. Devuelve si lo tomó. `terminar`:
         /// además la saca de la lista de oradores de la central.
         std::function<bool(const std::string& banca, bool abierto, bool terminar)> microfonoBanca;
+        /// El integrante habla desde el navegador (conectado y habilitado en la sesión remota).
+        std::function<bool(const std::string& id)> esRemoto;
+        /// Darle o quitarle la palabra por la sesión remota (abre su audio, le avisa al celular).
+        std::function<void(const std::string& id, bool palabra, int segundos)> palabraRemota;
+        /// La fila cambió (para avisarle a cada remoto su turno).
+        std::function<void(const std::vector<std::string>& cola, const std::string& alAire)> filaCambio;
     };
     Bancas(Cuerpo& cuerpo, Ganchos g, QObject* parent = nullptr);
 
@@ -58,7 +66,7 @@ class Bancas : public QObject {
     Q_INVOKABLE void quitar(const QString& clave);
     /// La pone al aire: `modo` "armar" (de fábrica) o "directo". Devuelve "" o el
     /// error; los avisos (cámara al aire, sin preset) van en `aviso`.
-    Q_INVOKABLE QString alAire(const QString& clave, const QString& modo = "armar");
+    Q_INVOKABLE QString alAire(const QString& clave, const QString& modo = "armar", int segundos = -1);
     /// Saca a la del aire (cierra su micrófono y para el reloj).
     Q_INVOKABLE void terminar();
     /// Solo la cámara: lleva la PTZ al preset de la banca (para tenerla lista),
@@ -67,7 +75,14 @@ class Bancas : public QObject {
     Q_INVOKABLE QString apuntar(const QString& clave);
     /// La primera de la fila al aire.
     Q_INVOKABLE QString siguiente(const QString& modo = "armar");
-    Q_INVOKABLE void setAsignado(int segundos) { asignadoS_ = segundos; emit cambio(); }
+    /// El tiempo de cada uno al darle la palabra (de fábrica, 3 minutos). Se guarda.
+    Q_INVOKABLE void setAsignado(int segundos);
+    /// Le suma (o resta) tiempo al que habla.
+    Q_INVOKABLE void sumarTiempo(int segundos);
+    int asignado() const { return asignadoTurnoS_; }
+    long long desdeMs() const { return desdeMs_; }
+    std::string alAireId() const { return alAire_; }
+    std::vector<std::string> cola() const { return cola_; }
     Q_INVOKABLE QString ultimoAviso() const { return QString::fromStdString(aviso_); }
 
     /// El orador presencial al aire para los zócalos ({nombre, cargo, bloque, validado}); {} si no hay.
@@ -82,7 +97,9 @@ class Bancas : public QObject {
     std::vector<std::string> cola_; ///< ids de integrantes
     std::string alAire_;           ///< id del que habla
     long long desdeMs_ = 0;
-    int asignadoS_ = 180;
+    int asignadoS_ = 180;     ///< el de fábrica de cada turno
+    int asignadoTurnoS_ = 180; ///< el de este turno (con lo que se le sumó)
+    void avisarFila();
     std::string aviso_;
 };
 

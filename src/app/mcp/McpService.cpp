@@ -2402,7 +2402,9 @@ void McpService::registerTools() {
                         "esta al aire), la escena de esa camara queda ARMADA en el preview (`modo` armar, de fabrica: "
                         "sale con TAKE) o se corta (directo), el zocalo toma su nombre y cargo del cuerpo ({orador}), "
                         "arranca su reloj y se abre su microfono (y se cierra el de la anterior). `banca`: banca, id o "
-                        "nombre. Sin `banca`: la primera de la fila.";
+                        "nombre. Sin `banca`: la primera de la fila. Si esa persona habla desde el navegador (sesion "
+                        "remota, en la sala o afuera), no se mueve ninguna camara: se le da la palabra en su celular "
+                        "con la cuenta regresiva. `asignado_s`: el tiempo de cada uno (queda guardado).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"banca", {{"type", "string"}}},
@@ -2416,6 +2418,23 @@ void McpService::registerTools() {
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             json r = vm.bancas().estadoJson();
             done(ToolResult().text(r.value("aviso", std::string()).empty() ? "Listo." : "Listo, con un aviso: " + r.value("aviso", std::string())).data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "banca_tiempo";
+        t.title = "Tiempo del que tiene la palabra";
+        t.category = "oradores";
+        t.description = "`sumar_s` le suma (o resta, negativo) tiempo al que habla ahora (presencial o remoto: su celular "
+                        "se actualiza); `asignado_s` cambia el tiempo de cada turno de aca en adelante. A un minuto y al "
+                        "terminar avisa al operador, en el celular del remoto y en la unidad de la central.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"sumar_s", {{"type", "integer"}}}, {"asignado_s", {{"type", "integer"}, {"minimum", 10}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("asignado_s")) vm.bancas().setAsignado(a.value("asignado_s", 180));
+            if (a.contains("sumar_s")) vm.bancas().sumarTiempo(a.value("sumar_s", 0));
+            done(ToolResult().data(vm.bancas().estadoJson()));
         };
         core_.addTool(std::move(t));
     }

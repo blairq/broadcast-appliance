@@ -118,6 +118,7 @@ const Fila kPropias[] = {
     {"legislador_ver", "legislador diputado buscar banca"},
     {"legislador_validar", "validar legislador nombre cargo zocalo revisado"},
     {"legislador_borrar", "borrar legislador"},
+    {"banca_tiempo", "sumar tiempo al orador dar mas tiempo cuanto tiempo tiene cada uno para hablar minutos"},
     {"sesion_estado", "banca virtual sesion remota legisladores conectados desde afuera celular quien esta conectado presentes en linea"},
     {"sesion_credencial", "link personal pin del legislador generar acceso a la sesion remota banca virtual"},
     {"sesion_clave", "usuario y contraseña del legislador entrar sin link tipeando sesion remota"},

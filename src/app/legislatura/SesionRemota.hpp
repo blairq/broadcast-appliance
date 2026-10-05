@@ -84,6 +84,18 @@ class SesionRemota : public QObject {
     /// Las bancas de los habilitados y conectados.
     std::vector<std::string> presentesBancas() const;
 
+    // --- La palabra (fase R2) ------------------------------------------------------------
+    /// Darle o quitarle la palabra (lo llama la fila de oradores, legislatura/Bancas):
+    /// le avisa al celular, con su tiempo; en la fase R3 también abre su audio.
+    void darPalabra(const std::string& integrante, bool palabra, int segundos);
+    /// La fila cambió: a cada remoto que está en la fila le dice su turno; a todos, quién habla.
+    void fila(const std::vector<std::string>& cola, const std::string& alAire);
+    /// «ultimo_minuto» | «terminado»: aviso en su celular.
+    void avisoTiempo(const std::string& integrante, const std::string& aviso);
+    std::string conPalabra() const { return conPalabra_; }
+    /// Mandarle algo a todos los conectados (el punto del orden del día, por ejemplo).
+    void info(const json& campos);
+
     // --- Registro (va al acta) ---------------------------------------------------------
     json registro() const { return registro_; }
     std::string anexoActa() const;
@@ -118,6 +130,8 @@ class SesionRemota : public QObject {
     void fotoLista(const QString& integrante);
     /// Algo para avisarle al operador (un bloqueo, alguien que espera).
     void aviso(const QString& texto, const QString& nivel);
+    /// Un remoto pidió la palabra (o canceló su pedido) desde el celular.
+    void pedidoPalabra(const QString& integrante, bool pedir);
 
    private:
     struct Estado {
@@ -143,6 +157,9 @@ class SesionRemota : public QObject {
     std::string origen_;
     int graciaS_ = 120;
     std::map<QString, QByteArray> fotos_;
+    std::string conPalabra_;
+    std::map<std::string, int> turnos_; // lo último que se le dijo a cada uno
+    json ultimaInfo_ = json::object();
 };
 
 } // namespace ba::app::legislatura

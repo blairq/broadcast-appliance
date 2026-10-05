@@ -42,6 +42,12 @@ QVariant aQv(const json& j) {
     return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
 }
 
+json conTipo(const char* tipo, const json& campos) {
+    json o = campos.is_object() ? campos : json::object();
+    o["type"] = tipo;
+    return o;
+}
+
 std::string hora(std::int64_t ms) {
     return QDateTime::fromMSecsSinceEpoch(ms).toString("HH:mm:ss").toStdString();
 }
@@ -259,7 +265,26 @@ void SesionRemota::evento(const json& ev) {
                                           " bloqueado 15 minutos por PIN errado varias veces"),
                    "warning");
     } else if (tipo == "entrada") {
-        // Palabra y voto: fases R2 y R4.
+        const json m = ev.value("msg", json::object());
+        const std::string t = m.value("type", std::string());
+        if (t == "hola") {
+            // Recién entró (o volvió): lo que tiene que saber.
+            mandarEstado(id);
+            if (!ultimaInfo_.empty()) emit enviar(QString::fromStdString(id), conTipo("info", ultimaInfo_));
+            auto tu = turnos_.find(id);
+            if (tu != turnos_.end()) emit enviar(QString::fromStdString(id), json{{"type", "fila"}, {"turno", tu->second}});
+            return;
+        }
+        if (t == "palabra" && e.habilitado && e.conectado) {
+            const bool pedir = m.value("accion", std::string()) != "cancelar";
+            anotar(pedir ? "pidio_palabra" : "cancelo_pedido", id);
+            emit pedidoPalabra(QString::fromStdString(id), pedir);
+            if (pedir) {
+                const json i = integrante(id);
+                emit aviso(QString::fromStdString(i.value("nombre", id) + " (remoto) pidió la palabra"), "info");
+            }
+        }
+        // El voto: fase R4.
         return;
     }
     emit cambio();
@@ -318,6 +343,9 @@ json SesionRemota::participantes() const {
             p["desde_ms"] = e.desdeMs;
             p["habilitado_por"] = e.habilitadoPor;
             p["bloqueado"] = e.bloqueadoHasta > ahora;
+            p["palabra"] = id == conPalabra_;
+            auto tu = turnos_.find(id);
+            p["turno"] = tu != turnos_.end() ? tu->second : 0;
         }
         out.push_back(p);
     }
@@ -348,6 +376,58 @@ std::vector<std::string> SesionRemota::presentesBancas() const {
     return out;
 }
 
+// --- La palabra ----------------------------------------------------------------------------
+
+void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos) {
+    if (palabra) {
+        conPalabra_ = id;
+        anotar("palabra", id, {{"segundos", segundos}});
+    } else if (conPalabra_ == id) {
+        conPalabra_.clear();
+        anotar("fin_palabra", id);
+    }
+    emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", palabra}, {"segundos", segundos},
+                                                 {"desde_ms", ahoraMs()}});
+    emit cambio();
+}
+
+void SesionRemota::fila(const std::vector<std::string>& cola, const std::string& alAire) {
+    // A cada remoto conectado, su turno (0 = no está en la fila); solo si cambió.
+    for (const auto& [id, e] : estado_) {
+        if (!e.conectado) continue;
+        int turno = 0;
+        for (std::size_t k = 0; k < cola.size(); ++k)
+            if (cola[k] == id) turno = static_cast<int>(k) + 1;
+        auto it = turnos_.find(id);
+        if (it != turnos_.end() && it->second == turno) continue;
+        turnos_[id] = turno;
+        emit enviar(QString::fromStdString(id), json{{"type", "fila"}, {"turno", turno}});
+    }
+    // A todos, quién habla.
+    std::string hablando;
+    if (!alAire.empty()) {
+        const json i = integrante(alAire);
+        if (i.is_object())
+            hablando = i.value("nombre", std::string()) +
+                       (i.value("banca", std::string()).empty() ? "" : " · Banca " + i.value("banca", std::string()));
+    }
+    info({{"hablando", hablando}});
+}
+
+void SesionRemota::avisoTiempo(const std::string& id, const std::string& aviso) {
+    emit enviar(QString::fromStdString(id), json{{"type", "tiempo"}, {"aviso", aviso}});
+}
+
+void SesionRemota::info(const json& campos) {
+    bool cambio = false;
+    for (auto it = campos.begin(); it != campos.end(); ++it)
+        if (!ultimaInfo_.contains(it.key()) || ultimaInfo_[it.key()] != it.value()) {
+            ultimaInfo_[it.key()] = it.value();
+            cambio = true;
+        }
+    if (cambio) emit enviar("*", conTipo("info", campos));
+}
+
 // --- Registro ---------------------------------------------------------------------------
 
 std::string SesionRemota::anexoActa() const {
@@ -357,7 +437,9 @@ std::string SesionRemota::anexoActa() const {
         {"entro", "entró"},           {"salio", "salió"},         {"habilitado", "habilitado"},
         {"deshabilitado", "deshabilitado"}, {"expulsado", "desconectado por la presidencia"},
         {"intento_fallido", "intento fallido"}, {"bloqueado", "bloqueado por PIN errado"},
-        {"credencial", "link generado"}, {"revocada", "link revocado"}, {"clave", "contraseña generada"}};
+        {"credencial", "link generado"}, {"revocada", "link revocado"}, {"clave", "contraseña generada"},
+        {"pidio_palabra", "pidió la palabra"}, {"cancelo_pedido", "canceló su pedido"},
+        {"palabra", "tuvo la palabra"}, {"fin_palabra", "terminó de hablar"}};
     for (const auto& e : registro_) {
         const std::string q = e.value("que", std::string());
         auto it = que.find(q);

@@ -17,6 +17,9 @@ let estado = "conectado";
 let reintento = 1000;
 let cortadoAProposito = false;
 let timerFoto = null;
+let pidio = false;
+let palabraHasta = 0;   // ms en que se le termina el tiempo (0 = no tiene la palabra)
+let timerReloj = null;
 let timerPing = null;
 
 function mostrar(id) {
@@ -41,6 +44,48 @@ function ponerEstado(nuevo, texto) {
     ? "La presidencia te habilitó. Dejá la cámara prendida durante la sesión."
     : "La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.");
   programarFotos();
+  $("pedir").disabled = !hab;
+}
+
+// --- La palabra ---------------------------------------------------------------------
+function ponerPedido(turno) {
+  pidio = turno > 0;
+  $("pedir").textContent = pidio ? "Cancelar mi pedido" : "Pedir la palabra";
+  $("pedir").classList.toggle("pedido", pidio);
+  $("turno").textContent = turno > 0 ? (turno === 1 ? "Sos el próximo" : "Tu turno: " + turno) : "";
+}
+
+function ponerPalabra(activa, segundos) {
+  clearInterval(timerReloj);
+  $("palabra").classList.toggle("oculto", !activa);
+  $("palabra").classList.remove("minuto", "terminado");
+  $("pedir").classList.toggle("oculto", activa);
+  if (!activa) { palabraHasta = 0; return; }
+  palabraHasta = Date.now() + segundos * 1000;
+  $("palabraTitulo").textContent = "Tenés la palabra";
+  $("palabraTexto").textContent = "";
+  const pintar = () => {
+    const s = Math.round((palabraHasta - Date.now()) / 1000);
+    const a = Math.abs(s);
+    $("reloj").textContent = (s < 0 ? "-" : "") + Math.floor(a / 60) + ":" + String(a % 60).padStart(2, "0");
+  };
+  pintar();
+  timerReloj = setInterval(pintar, 250);
+  if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+}
+
+function avisoTiempo(aviso) {
+  if (aviso === "ultimo_minuto") {
+    $("palabra").classList.add("minuto");
+    $("palabraTexto").textContent = "Queda 1 minuto";
+    if (navigator.vibrate) navigator.vibrate(300);
+  } else if (aviso === "terminado") {
+    $("palabra").classList.remove("minuto");
+    $("palabra").classList.add("terminado");
+    $("palabraTitulo").textContent = "Se terminó tu tiempo";
+    $("palabraTexto").textContent = "Redondeá, por favor";
+    if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+  }
 }
 
 // --- La cámara y las fotos ------------------------------------------------------
@@ -113,6 +158,15 @@ function recibir(m) {
     case "estado":
       ponerEstado(m.estado, m.texto);
       break;
+    case "fila":
+      ponerPedido(m.turno || 0);
+      break;
+    case "palabra":
+      ponerPalabra(!!m.activa, m.segundos || 0);
+      break;
+    case "tiempo":
+      avisoTiempo(m.aviso);
+      break;
     case "info":
       if ("punto" in m) $("punto").textContent = m.punto || "—";
       if ("hablando" in m) $("hablando").textContent = m.hablando || "—";
@@ -137,6 +191,13 @@ $("formPin").addEventListener("submit", (e) => {
   $("botonEntrar").disabled = true;
   cortadoAProposito = false;
   conectar();
+});
+$("pedir").addEventListener("click", () => {
+  if (!ws || ws.readyState !== 1) return;
+  ws.send(JSON.stringify({ type: "palabra", accion: pidio ? "cancelar" : "pedir" }));
+  // Se ve enseguida; la fila de verdad la confirma la app (mensaje «fila»).
+  ponerPedido(pidio ? 0 : 99);
+  if (pidio) $("turno").textContent = "Pedido enviado";
 });
 $("reintentar").addEventListener("click", () => {
   mostrar("entrar");
