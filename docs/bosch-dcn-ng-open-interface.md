@@ -809,3 +809,39 @@ fábrica y control de flujo, y el `byData` por red. Todos los códigos de funci�
    operador (0 o 4).
 5. **¿Votación y asistencia van por la CCU o por la app?** Definir cuál es la fuente oficial para el acta.
 6. Si hay operador de Bosch con su PC al mismo tiempo, **quién manda los micrófonos**.
+
+---
+
+## Apéndice: funciones sin documentar (del software de Bosch)
+
+Salen de los enums del ensamblado .NET `Bosch.Dcn.OpenInterface.Logic` (DCN-SWSMV 3.1x, en el DVD del
+usuario), cruzados por CÓDIGO con `FNID.DEF` y los tres manuales: no aparecen en ninguno. Muchas están
+en las clases `…Cpc…` (las que usa el software de control de Bosch), así que puede que la CCU solo las
+acepte del controlador principal o con otra licencia: **hay que probarlas en la sala** antes de usarlas.
+Los parámetros de cada una no están: habría que sacarlos de su `…Marshaler` en el mismo ensamblado.
+
+| App | Código | Nombre | Tipo | Para qué serviría |
+|---|---|---|---|---|
+| MM | 0x0047 | MM_C_NEXT_TO_SPEAK_ON_PC | aviso | quién es el próximo en hablar |
+| MM | 0x003F | MM_C_MICSOFF_AFTER_SHIFT | pedido | cerrar los micrófonos después de «siguiente» |
+| MM | 0x0036 | MM_C_SET_MAX_RTS_LEN | pedido | máximo de pedidos (sin tocar el resto de los ajustes) |
+| MM | 0x0037 | MM_C_SET_MIC_SETTINGS | pedido | ajustes de micrófono |
+| MM | 0x0038 | MM_C_SET_ATTENTION_TONE | pedido | tono de atención |
+| MM | 0x0039 | MM_C_SET_AMBIENT_CTRL | pedido | micrófono ambiente |
+| MM | 0x0029, 0x0032, 0x0033 | MM_C_RTS_REPLACE, MM_C_SPK_INSERT, MM_C_SPK_REPLACE | pedido | editar las listas de pedidos y oradores |
+| VT | 0x0110–0x0113 | VT_C_START_VOTING_REQ, VOTING_STOPPED, VOTING_ONHOLD, VOTING_RESTARTED | aviso | el presidente maneja la votación desde su unidad |
+| VT | 0x0114, 0x0115 | VT_C_PREV_VOTING_REQ, VT_C_NEXT_VOTING_REQ | aviso | el presidente pide la votación anterior o la siguiente |
+| VT | 0x0108, 0x0116 | VT_C_SET_ROLL_CALL, VT_C_NEXT_ROLL_CALLER | pedido/aviso | votación por llamado nominal (quién vota ahora) |
+| VT | 0x010B, 0x010D–0x010F | VT_C_SET_VOTINGPARAMS2, CHANGEHALLDISPLAY, GET_TIMER_VALUES, GET_RESULTS_ANSWER | pedido | parámetros extendidos, pantallas de sala, reloj, resultados por respuesta |
+| VT | 0x011B | VT_C_ATTENTION_TONE_NOTIFY | aviso | tono de atención de la votación |
+| AT | 0x0907–0x0909, 0x090C, 0x090D | STORE_APP_ACCESS, GET_SETT_ALLOWED, GET_UNIT_ACCESS_STATUS, SETTINGS_CHANGE_ALLOWED, ACCESS_STATUS_UPDATE | pedido/aviso | control de acceso por unidad |
+| SC | 0x1003, 0x1004, 0x1025 | SC_C_PC_CONNECT, SC_C_PC_DISCONNECT, SC_C_RECONNECT | pedido/aviso | sesión del PC con la CCU |
+| SC | 0x1021–0x1024, 0x1026 | START/STOP_ENTER_LICENSE, ENTER_LICENSE, SET/GET_AUTHORIZATION_CODE | pedido/aviso | licencias (no usar desde la app) |
+| SC | 0x101C, 0x101D, 0x1034, 0x1013 | FPGA_VERSION_INFO, GET_MMP_VERSION_INFO, GET_SLAVE_CCU_IDS, CCU_CHAN_ASSIGN_CHANGE | pedido/aviso | diagnóstico, CCU esclavas |
+| SC | 0x1017, 0x1019, 0x101A | SET_UPDATA_CONFIG, SET_LCD_CONV_TABLE, SET_LEAD_BYTE_DATA | pedido | configuración del visor de las unidades |
+| SI | 0x1102, 0x1106, 0x1108, 0x1123–0x1125 | SET_CHANNEL, DEF_LANGUAGE, UNIT_SORT_ORDER, GET/SET_INDIVIDUAL_CHANNELS, GET_CHANNEL | pedido | canales de idioma por unidad, idioma de fábrica, orden de unidades |
+| IN | 0x024B, 0x024C | IN_C_AUTH_DESK_FEATURES, IN_C_SET_MICRO_ON_OFF | pedido | pupitres de intérprete |
+| DB | 0x0308–0x030A | SET_SCREENLINECFG, GET_CCU_LANGUAGES, GET_CONTENT_ID | pedido | base de delegados, idiomas de la CCU |
+| IC | 0x0704, 0x070A | IC_CALL_REQUEST, IC_SET_IC_UNIT | pedido | intercomunicador |
+| CC | 0x150B | CC_C_STORE_CHARACTERSET | pedido | juego de caracteres del control de cámaras |
+| DL | 0x1201–0x120C | START_CCU_SW, START_DOWNLOAD, …, FONT_DOWNLOAD | pedido | **actualizar el firmware de la CCU: no tocar nunca desde la app** |
