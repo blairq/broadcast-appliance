@@ -43,6 +43,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "agent/SubtitulosCC.hpp"
+#include "agent/Vocabulario.hpp"
 #include "legislatura/Bancas.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
@@ -2109,6 +2110,85 @@ void McpService::registerTools() {
             const QString e = vm.cc().probar(QString::fromStdString(a.value("texto", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok("Mandado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_vocabulario";
+        t.title = "Vocabulario de la voz a texto";
+        t.category = "traduccion";
+        t.readOnly = true;
+        t.description = "Los terminos que la transcripcion escribe bien aunque el modelo no los conozca (nombres del "
+                        "cuerpo, localidades, terminos legislativos, los del operador), por grupo (activo o no), y los "
+                        "ultimos reemplazos hechos. La correccion es por sonido y solo con confianza alta.";
+        t.run = [&vm](const json&, Done done) {
+            json d = vm.vocabulario().todo();
+            d["reemplazos"] = vm.vocabulario().ultimosReemplazos();
+            done(ToolResult().data(d));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_vocabulario_agregar";
+        t.title = "Agregar un termino al vocabulario";
+        t.category = "traduccion";
+        t.description = "Agrega (o cambia) el `termino` bien escrito, con `variantes` (como lo escribe mal el modelo, "
+                        "opcional), en el `grupo` (operador de fabrica; cuerpo, localidades, legislativo u otro nuevo). "
+                        "Con `grupo` y `activo` y sin `termino`, prende o apaga el grupo. Con `del_cuerpo`: true, pone "
+                        "en el grupo cuerpo los nombres y apellidos de cuerpo_listar.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"termino", {{"type", "string"}}},
+                           {"variantes", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"grupo", {{"type", "string"}}},
+                           {"activo", {{"type", "boolean"}}},
+                           {"del_cuerpo", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.value("del_cuerpo", false))
+                return done(ToolResult::ok("Nombres del cuerpo: " + std::to_string(vm.vocabularioDelCuerpoUi()) + "."));
+            const std::string termino = a.value("termino", std::string()), grupo = a.value("grupo", std::string());
+            if (termino.empty() && !grupo.empty() && a.contains("activo")) {
+                vm.vocabulario().activarGrupo(grupo, a.value("activo", true));
+                return done(ToolResult::ok("Listo."));
+            }
+            std::vector<std::string> v;
+            for (const auto& x : a.value("variantes", json::array()))
+                if (x.is_string()) v.push_back(x.get<std::string>());
+            const std::string e = vm.vocabulario().agregar(termino, v, grupo);
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("Agregado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_vocabulario_quitar";
+        t.title = "Quitar un termino del vocabulario";
+        t.category = "traduccion";
+        t.description = "Saca el `termino` (de cualquier grupo).";
+        t.inputSchema = {{"type", "object"}, {"required", {"termino"}}, {"properties", {{"termino", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (!vm.vocabulario().quitar(a.value("termino", std::string())))
+                return done(ToolResult::error("no esta en el vocabulario"));
+            done(ToolResult::ok("Quitado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "voz_vocabulario_probar";
+        t.title = "Probar el vocabulario";
+        t.category = "traduccion";
+        t.readOnly = true;
+        t.description = "Pasa un `texto` (como lo escribiria el modelo) por la correccion y devuelve el resultado y los "
+                        "reemplazos.";
+        t.inputSchema = {{"type", "object"}, {"required", {"texto"}}, {"properties", {{"texto", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            json r = json::array();
+            const std::string t2 = vm.vocabulario().corregir(a.value("texto", std::string()), &r);
+            done(ToolResult().data({{"texto", t2}, {"reemplazos", r}}));
         };
         core_.addTool(std::move(t));
     }

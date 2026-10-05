@@ -37,7 +37,9 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
+#include "agent/Vocabulario.hpp"
 #include "legislatura/Bancas.hpp"
+#include "legislatura/Cuerpo.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
@@ -363,6 +365,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         marca("alerts");
         alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
         cuerpo_ = std::make_unique<legislatura::CuerpoViewModel>(rt.dataRoot());
+        vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         {
             std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
             const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
@@ -1572,5 +1575,58 @@ void StudioViewModel::revisarSenales() {
 }
 
 QObject* StudioViewModel::ccQml() const { return cc_.get(); }
+
+} // namespace ba::app
+
+namespace ba::app {
+
+namespace {
+QVariant vocabQv(const nlohmann::json& j) {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", j}}.dump()))
+        .object()
+        .value("v")
+        .toVariant();
+}
+} // namespace
+
+QVariantMap StudioViewModel::vocabularioUi() const {
+    QVariantMap m = vocabQv(vocabulario_->todo()).toMap();
+    m["reemplazos"] = vocabQv(vocabulario_->ultimosReemplazos());
+    return m;
+}
+
+QString StudioViewModel::vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo) {
+    std::vector<std::string> v;
+    for (const QString& x : variantes.split(',', Qt::SkipEmptyParts))
+        if (!x.trimmed().isEmpty()) v.push_back(x.trimmed().toStdString());
+    return QString::fromStdString(vocabulario_->agregar(termino.trimmed().toStdString(), v, grupo.toStdString()));
+}
+
+bool StudioViewModel::vocabularioQuitarUi(const QString& termino) { return vocabulario_->quitar(termino.toStdString()); }
+
+void StudioViewModel::vocabularioGrupoUi(const QString& grupo, bool activo) {
+    vocabulario_->activarGrupo(grupo.toStdString(), activo);
+}
+
+QVariantMap StudioViewModel::vocabularioProbarUi(const QString& texto) {
+    nlohmann::json r = nlohmann::json::array();
+    const std::string t = vocabulario_->corregir(texto.toStdString(), &r);
+    return {{"texto", QString::fromStdString(t)}, {"reemplazos", vocabQv(r)}};
+}
+
+int StudioViewModel::vocabularioDelCuerpoUi() {
+    std::vector<std::string> nombres;
+    for (const auto& i : cuerpo_->cuerpo().integrantes()) {
+        const std::string n = i.value("nombre", std::string());
+        if (n.empty()) continue;
+        nombres.push_back(n);
+        // El apellido solo también (se dice «el diputado Pérez»).
+        if (const auto sp = n.rfind(' '); sp != std::string::npos && n.size() - sp > 4) nombres.push_back(n.substr(sp + 1));
+    }
+    std::sort(nombres.begin(), nombres.end());
+    nombres.erase(std::unique(nombres.begin(), nombres.end()), nombres.end());
+    vocabulario_->ponerGrupo("cuerpo", nombres);
+    return static_cast<int>(nombres.size());
+}
 
 } // namespace ba::app

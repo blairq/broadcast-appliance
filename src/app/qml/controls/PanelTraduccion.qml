@@ -396,4 +396,98 @@ ColumnLayout {
             color: Theme.textFaint; font.pixelSize: 11
         }
     }
+
+    // --- Vocabulario de la voz a texto ---------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    ColumnLayout {
+        id: vocSec
+        Layout.fillWidth: true
+        spacing: 6
+        property var v: Studio.vocabularioUi()
+        property string grupo: "operador"
+        function refrescar() { v = Studio.vocabularioUi() }
+        readonly property var grupos: Object.keys((v && v.grupos) || {})
+        RowLayout {
+            Text {
+                text: "Vocabulario de la transcripción"
+                color: Theme.text
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+            GlassButton {
+                compact: true; text: "Importar del Cuerpo"
+                onClicked: { Studio.notify("Nombres del cuerpo: " + Studio.vocabularioDelCuerpoUi(), "info"); vocSec.refrescar() }
+            }
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 11
+            text: "Nombres, localidades y términos que la transcripción tiene que escribir bien. Se corrige por cómo suena " +
+                  "(b/v, s/z/c, ll/y…) y solo si es casi igual; cada reemplazo queda registrado."
+        }
+        Flow {
+            Layout.fillWidth: true; spacing: 6
+            Repeater {
+                model: vocSec.grupos
+                delegate: GlassButton {
+                    required property string modelData
+                    readonly property var g: vocSec.v.grupos[modelData]
+                    compact: true
+                    active: vocSec.grupo === modelData
+                    text: (g.activo ? "● " : "○ ") + modelData + " (" + (g.terminos || []).length + ")"
+                    onClicked: vocSec.grupo = modelData
+                }
+            }
+            GlassButton {
+                readonly property bool on: !!(((vocSec.v.grupos || {})[vocSec.grupo] || {}).activo)
+                compact: true
+                text: on ? "Apagar «" + vocSec.grupo + "»" : "Prender «" + vocSec.grupo + "»"
+                onClicked: { Studio.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
+            }
+        }
+        Flow {
+            Layout.fillWidth: true; spacing: 4
+            Repeater {
+                model: ((vocSec.v.grupos || {})[vocSec.grupo] || {}).terminos || []
+                delegate: GlassButton {
+                    required property var modelData
+                    compact: true
+                    text: modelData.termino + ((modelData.variantes || []).length ? " ←" + modelData.variantes.join(", ") : "") + "  ✕"
+                    onClicked: { Studio.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sacar este término"
+                }
+            }
+        }
+        RowLayout {
+            spacing: 6
+            TextField { id: vocTerm; Layout.preferredWidth: 170; placeholderText: "Término bien escrito" }
+            TextField { id: vocVar; Layout.fillWidth: true; placeholderText: "Cómo lo escribe mal (opcional, con comas)" }
+            GlassButton {
+                compact: true; text: "Agregar a " + vocSec.grupo
+                onClicked: {
+                    const r = Studio.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
+                    if (r !== "") Studio.notify(r, "error"); else { vocTerm.text = ""; vocVar.text = ""; vocSec.refrescar() }
+                }
+            }
+        }
+        RowLayout {
+            spacing: 6
+            TextField { id: vocPrueba; Layout.fillWidth: true; placeholderText: "Probar: «llegamos a comodoro ribadabia»" }
+            GlassButton {
+                compact: true; text: "Probar"
+                onClicked: {
+                    const r = Studio.vocabularioProbarUi(vocPrueba.text)
+                    vocRes.text = r.texto + ((r.reemplazos || []).length ? "   (" + r.reemplazos.map(x => x.original + " → " + x.reemplazo).join(", ") + ")" : "   (sin cambios)")
+                }
+            }
+        }
+        Text { id: vocRes; visible: text !== ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12 }
+        Text {
+            visible: (vocSec.v.reemplazos || []).length > 0
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: "Al aire: " + (vocSec.v.reemplazos || []).slice(-4).map(x => x.original + " → " + x.reemplazo).join(" · ")
+            color: Theme.textFaint; font.pixelSize: 11
+        }
+    }
 }

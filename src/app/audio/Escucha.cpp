@@ -2,6 +2,7 @@
 // src/app/audio/Escucha.cpp — ver Escucha.hpp
 // ============================================================================
 #include "audio/Escucha.hpp"
+#include "agent/Vocabulario.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -291,6 +292,8 @@ void Escucha::atenderCorrientes() {
             r.texto = motor_->reconocedor->GetResult(&s).text;
             const auto ini = r.texto.find_first_not_of(' ');
             r.texto = ini == std::string::npos ? std::string() : r.texto.substr(ini);
+            // Los nombres propios y términos del vocabulario, bien escritos.
+            if (auto* v = agent::Vocabulario::global(); v != nullptr && !r.texto.empty()) r.texto = v->corregir(r.texto);
             r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
             if (!r.texto.empty() && frase) frase(clave, r);
         }
@@ -346,6 +349,7 @@ Escucha::Resultado Escucha::transcribir(std::vector<float> audio, std::uint32_t 
     // El texto empieza con un espacio (es como tokeniza el modelo).
     const auto ini = r.texto.find_first_not_of(' ');
     r.texto = ini == std::string::npos ? std::string() : r.texto.substr(ini);
+    if (auto* v = agent::Vocabulario::global(); v != nullptr && !r.texto.empty()) r.texto = v->corregir(r.texto);
     r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     if (r.texto.empty()) r.error = "no se entendió nada";
     return r;

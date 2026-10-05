@@ -27,6 +27,7 @@ namespace ba::app::agent {
 class AlertEngine;
 class AlarmaSonora;
 class SubtitulosCC;
+class Vocabulario;
 class AgentViewModel;
 class Despachador;
 class ModelosLocales;
@@ -272,6 +273,17 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE bool destacarChatUi(const QString& key);
     Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
     legislatura::CuerpoViewModel& cuerpo() { return *cuerpo_; }
+    /// Vocabulario del reconocedor de voz (agent/Vocabulario): grupos, términos,
+    /// probar una frase y traer los nombres del Cuerpo.
+    Q_INVOKABLE QVariantMap vocabularioUi() const;
+    Q_INVOKABLE QString vocabularioAgregarUi(const QString& termino, const QString& variantes, const QString& grupo);
+    Q_INVOKABLE bool vocabularioQuitarUi(const QString& termino);
+    Q_INVOKABLE void vocabularioGrupoUi(const QString& grupo, bool activo);
+    /// {texto, reemplazos: [{original, reemplazo}]}.
+    Q_INVOKABLE QVariantMap vocabularioProbarUi(const QString& texto);
+    /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo». Devuelve cuántos.
+    Q_INVOKABLE int vocabularioDelCuerpoUi();
+    agent::Vocabulario& vocabulario() { return *vocabulario_; }
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
     Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
@@ -580,6 +592,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<legislatura::CuerpoViewModel> cuerpo_;
+    std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<legislatura::Bancas> bancas_;
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador

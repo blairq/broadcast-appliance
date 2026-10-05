@@ -24,28 +24,28 @@
 
 | ID | Título | Prioridad | Estado |
 |---|---|---|---|
-| T01 | Latido del supervisor fuera del hilo de la interfaz | P0 | falta |
-| T02 | Guardas de aire para todo lo automático (asistente, voz, recetas, plugins, Bash) | P0 | falta |
-| T03 | Disparadores con rol restringido | P0 | falta |
-| T04 | Disparadores de fábrica activos, alarma sonora y tipos nuevos | P0 | parcial |
-| T05 | Revisión previa que diga la verdad, cue Pantalla y lista de chequeo de sesión | P0 | parcial |
-| T06 | "Al aire" del editor arma en vez de cortar; tecla T segura | P0 | falta |
-| T07 | FTB / placa de seguridad a un toque | P0 | falta |
-| T08 | `stream_start` con otro destino estando al aire: error explícito | P0 | falta (devuelve ok) |
-| T09 | Multidestino (principal + respaldo) | P0 | falta |
-| T10 | Grabación oficial segura: MKV o remux y chequeo de disco | P0 | parcial |
-| T11 | Medidor de loudness del programa (M/S/I, true peak, LRA) | P0 | parcial |
-| T12 | Limitador de seguridad en el máster | P0 | falta |
-| T13 | Watchdog de tiempo para plugins CLAP y aislamiento por proceso | P0 | falta |
-| T14 | Mix-minus por invitado | P0 | falta |
-| T15 | Estadísticas de conexión por invitado y disparador `guest_quality` | P0 | falta |
-| T16 | Base de legisladores (fuente única) | P0 | falta |
-| T17 | Bancas presenciales en la fila de oradores | P0 | parcial |
-| T18 | Contenido de terceros al aire: zócalo validado, chat con aprobación, votación rotulada | P0 | falta |
-| T19 | Placa y alarma de pérdida de señal, con escena de respaldo | P0 | parcial |
-| T20 | Interlock de PTZ: no mover la cámara al aire | P0 | falta |
-| T21 | Closed captions (CEA-608 en el stream y API de subtítulos de YouTube) | P0 | falta |
-| T22 | Vocabulario propio para el STT (legisladores, localidades) | P0 | falta |
+| T01 | Latido del supervisor fuera del hilo de la interfaz | P0 | hecho |
+| T02 | Guardas de aire para todo lo automático (asistente, voz, recetas, plugins, Bash) | P0 | hecho |
+| T03 | Disparadores con rol restringido | P0 | hecho |
+| T04 | Disparadores de fábrica activos, alarma sonora y tipos nuevos | P0 | hecho |
+| T05 | Revisión previa que diga la verdad, cue Pantalla y lista de chequeo de sesión | P0 | hecho |
+| T06 | "Al aire" del editor arma en vez de cortar; tecla T segura | P0 | hecho |
+| T07 | FTB / placa de seguridad a un toque | P0 | hecho |
+| T08 | `stream_start` con otro destino estando al aire: error explícito | P0 | hecho |
+| T09 | Multidestino (principal + respaldo) | P0 | hecho (destinos RTMP extra sin probar contra un servidor) |
+| T10 | Grabación oficial segura: MKV o remux y chequeo de disco | P0 | hecho |
+| T11 | Medidor de loudness del programa (M/S/I, true peak, LRA) | P0 | hecho |
+| T12 | Limitador de seguridad en el máster | P0 | decisión pendiente (docs/DECISIONES-PENDIENTES.md) |
+| T13 | Watchdog de tiempo para plugins CLAP y aislamiento por proceso | P0 | hecho |
+| T14 | Mix-minus por invitado | P0 | hecho, sin probar con un invitado real |
+| T15 | Estadísticas de conexión por invitado y disparador `guest_quality` | P0 | hecho, sin probar con un invitado real |
+| T16 | Base de legisladores (fuente única) | P0 | hecho |
+| T17 | Bancas presenciales en la fila de oradores | P0 | hecho |
+| T18 | Contenido de terceros al aire: zócalo validado, chat con aprobación, votación rotulada | P0 | hecho |
+| T19 | Placa y alarma de pérdida de señal, con escena de respaldo | P0 | hecho |
+| T20 | Interlock de PTZ: no mover la cámara al aire | P0 | hecho |
+| T21 | Closed captions (CEA-608 en el stream y API de subtítulos de YouTube) | P0 | hecho, sin probar contra YouTube ni el 608 en un reproductor |
+| T22 | Vocabulario propio para el STT (legisladores, localidades) | P0 | hecho |
 | T23 | Interfaz para crear disparadores y notificación remota | P1 | falta |
 | T24 | Recuperación visible: cartel de causa, configuración con dos generaciones, volcados | P1 | parcial |
 | T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | falta |
