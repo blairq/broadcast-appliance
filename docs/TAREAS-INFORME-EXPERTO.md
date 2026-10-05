@@ -65,7 +65,7 @@
 | T39 | Scopes y legalizador broadcast-safe | P1 | hecho (sin celda de multiview) |
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | hecho |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
-| T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho en parte (plugins VISCA serie y joystick HID, sin probar con equipos; falta la «cámara virtual» VISCA-IP para controladores comerciales) |
+| T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho (plugins VISCA serie, joystick HID y cámara virtual VISCA-IP; sin probar con equipos) |
 | T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (6 plantillas «Legislatura», orígenes votacion/quorum/hora para vínculos, «Armar en PVW» en Rótulos y `grafico_mostrar {armar}`; faltan campos vivos cuadro a cuadro y HTML) |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app, por MCP y en el puesto web /correccion/; faltan los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
@@ -914,7 +914,17 @@
 - **Depende de:** T16.
 
 ### T42 · PTZ: VISCA por serie y joysticks vía plugin — P1
-- **Estado: parcial.** VISCA va solo por red (`src/app/ptz/PtzVisca.hpp:4-7,63-64`). No hay serie ni joystick.
+- **Estado: hecho** (2026-10-05), sin probar con equipos.
+  - Plugins `ptz-visca-serie` (pyserial) y `ptz-joystick-hid` (hidapi), con `ptz_mover {duracion_ms}`: cada tramo se para solo.
+  - **`ptz-visca-ip-escucha`, la cámara virtual VISCA-over-IP** (UDP, un puerto por cámara: 52381…):
+    - contesta como una Sony (ACK y completion con la misma secuencia, las consultas mínimas);
+    - pan/tilt con velocidad: como VISCA deja el movimiento enganchado hasta el stop, el plugin refresca tramos de 400 ms y se para solo a los 10 s sin stop;
+    - zoom con velocidad, presets (ir y guardar), y home (= `home_preset`);
+    - todo por el PTZ de la app, con el interlock;
+    - lista de herramientas: `ptz_mover`, `ptz_preset`, `ptz_parar`.
+  - **Probado** con paquetes UDP reales contra el plugin (sin la app): drive, stop, preset, zoom, consulta y home dan las respuestas y llamadas correctas.
+  - Antes:
+ VISCA va solo por red (`src/app/ptz/PtzVisca.hpp:4-7,63-64`). No hay serie ni joystick.
 - **Qué hacer.** **Sin drivers nativos.**
   - **VISCA serie** (RS-232/422 con adaptador USB): un plugin de ejemplo `assets/plugins/ptz-visca-serie/` con `pyserial` (vendoreado en T51). Registra la cámara con la API de PTZ de plugins (`plugin.ptz`, que ya existe en el SDK).
   - **Joystick:**
