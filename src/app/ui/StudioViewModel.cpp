@@ -36,6 +36,7 @@
 #include "AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
+#include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
@@ -359,6 +360,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
         alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
+        cuerpo_ = std::make_unique<legislatura::CuerpoViewModel>(rt.dataRoot());
         {
             std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
             const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
@@ -1410,5 +1412,7 @@ void StudioViewModel::restaurarPlaca() {
     if (j.value("placa", false) || j.value("ftb", false))
         emit notify("Se restauró lo que estaba al aire antes del corte (placa o negro)", "warn");
 }
+
+QObject* StudioViewModel::cuerpoQml() const { return cuerpo_.get(); }
 
 } // namespace ba::app

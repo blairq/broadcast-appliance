@@ -60,6 +60,9 @@ class Dispositivos;
 } // namespace ba::app::dispositivos
 
 namespace ba::app {
+namespace legislatura {
+class CuerpoViewModel;
+}
 
 class AppRuntime;
 class ConferenceViewModel;
@@ -102,6 +105,8 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// El cuerpo legislativo (integrantes, bancas, presets, micrófonos): legislatura/CuerpoViewModel.
+    Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -240,6 +245,8 @@ class StudioViewModel : public QObject {
     /// Hay aire: transmitiendo o grabando.
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
+    QObject* cuerpoQml() const;
+    legislatura::CuerpoViewModel& cuerpo() { return *cuerpo_; }
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
     Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
@@ -545,6 +552,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
+    std::unique_ptr<legislatura::CuerpoViewModel> cuerpo_;
     bool corteDirectoEditor_ = false;
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<agent::AgentViewModel> agent_;

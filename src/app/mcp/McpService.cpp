@@ -42,6 +42,7 @@
 #include "platform/Paths.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "legislatura/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -2025,6 +2026,136 @@ void McpService::registerTools() {
             const QString e = vm.objetivoLoudnessUi(m);
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().data(rt.engine().loudness().json()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cuerpo_listar";
+        t.title = "Integrantes del cuerpo (legisladores)";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "El cuerpo legislativo: nombre e integrantes con banca, cargo oficial, bloque, distrito, "
+                        "preset PTZ de su banca (camara/posicion), microfono y si estan VALIDADOS (validado_por). Es "
+                        "la fuente unica para los zocalos, las bancas de la fila de oradores y el PTZ por banca.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.cuerpo().cuerpo().todo())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cuerpo_crear";
+        t.title = "Nombrar el cuerpo";
+        t.category = "evento";
+        t.description = "Pone el nombre del cuerpo (p. ej. «Legislatura del Chubut 2025-2029»). No borra integrantes.";
+        t.inputSchema = {{"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            vm.cuerpo().setNombre(QString::fromStdString(a.value("nombre", std::string())));
+            done(ToolResult::ok("Listo."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cuerpo_importar";
+        t.title = "Importar la planilla de legisladores";
+        t.category = "evento";
+        t.description = "Importa una planilla CSV (coma o punto y coma, con encabezado: banca, nombre, cargo, bloque, "
+                        "distrito, camara, posicion, microfono). Los que ya estan (por banca o nombre) se actualizan. "
+                        "`reemplazar`: borra los de antes. cuerpo_plantilla escribe una de ejemplo.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"archivo"}},
+                         {"properties", {{"archivo", {{"type", "string"}}}, {"reemplazar", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const json r = vm.cuerpo().cuerpo().importarCsv(a.value("archivo", std::string()), a.value("reemplazar", false));
+            emit vm.cuerpo().cambio();
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "cuerpo_plantilla";
+        t.title = "Planilla de legisladores de ejemplo";
+        t.category = "evento";
+        t.description = "Escribe una planilla CSV de ejemplo (encabezado y dos filas) en Exportado/ y devuelve la ruta.";
+        t.run = [&vm](const json&, Done done) {
+            const QString r = vm.cuerpo().plantilla();
+            if (r.isEmpty()) return done(ToolResult::error("no se pudo escribir la planilla"));
+            done(ToolResult().data(json{{"archivo", r.toStdString()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "legislador_editar";
+        t.title = "Agregar o cambiar un integrante del cuerpo";
+        t.category = "evento";
+        t.description = "Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, "
+                        "bloque, distrito, banca (unica), camara + posicion (el preset PTZ de su banca), microfono (la "
+                        "fuente de audio de su banca), persona_id (la ficha de Personas). Si cambia el nombre o el cargo, "
+                        "deja de estar validado (legislador_validar).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"cargo_oficial", {{"type", "string"}}},
+                           {"bloque", {{"type", "string"}}},
+                           {"distrito", {{"type", "string"}}},
+                           {"banca", {{"type", "string"}}},
+                           {"camara", {{"type", "string"}}},
+                           {"posicion", {{"type", "string"}}},
+                           {"microfono", {{"type", "string"}}},
+                           {"persona_id", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump())).object().toVariantMap();
+            const QString e = vm.cuerpo().guardar(m);
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(vm.cuerpo().cuerpo().buscar(a.value("banca", a.value("nombre", a.value("id", std::string()))))));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "legislador_ver";
+        t.title = "Ver un integrante del cuerpo";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description = "Busca por id, banca o nombre.";
+        t.inputSchema = {{"type", "object"}, {"required", {"clave"}}, {"properties", {{"clave", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const json r = vm.cuerpo().cuerpo().buscar(a.value("clave", std::string()));
+            if (r.empty()) return done(ToolResult::error("no hay nadie con esa banca, id o nombre (cuerpo_listar)"));
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "legislador_validar";
+        t.title = "Validar los datos de un integrante";
+        t.category = "evento";
+        t.description = "Marca que una persona revisó el nombre y el cargo de un integrante (lo que sale en el zocalo). "
+                        "Confirmalo con el operador: es lo que hace que salga al aire sin aviso.";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (!vm.cuerpo().validar(QString::fromStdString(a.value("id", std::string()))))
+                return done(ToolResult::error("no existe ese id"));
+            done(ToolResult::ok("Validado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "legislador_borrar";
+        t.title = "Sacar a un integrante del cuerpo";
+        t.category = "evento";
+        t.destructive = true;
+        t.description = "Borra un integrante (`id`).";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (!vm.cuerpo().borrar(QString::fromStdString(a.value("id", std::string()))))
+                return done(ToolResult::error("no existe ese id"));
+            done(ToolResult::ok("Borrado."));
         };
         core_.addTool(std::move(t));
     }
