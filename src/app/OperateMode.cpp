@@ -20,6 +20,7 @@
 
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
+#include "InputSpecs.hpp"
 #include "diag/Registro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -271,9 +272,14 @@ void AppRuntime::addGuests() {
     // pantalla de un invitado: el operador lo muestra (o lo usa en otra escena).
     {
         SourceSpec a;
-        a.id = "ba_guest_audio";
         a.name = "Remoto con la palabra (audio)";
-        a.settingsJson = R"({"slot":1,"channel":"remoto"})";
+        if (engine_.sourceTypeExists(inputs::kMicType)) {
+            a.id = inputs::kMicType; // por GStreamer (baanillo): su rack corre en la cadena
+            a.settingsJson = inputs::ajustesAudioAnillo("remoto", 1);
+        } else {
+            a.id = "ba_guest_audio";
+            a.settingsJson = R"({"slot":1,"channel":"remoto"})";
+        }
         if (!engine_.addGlobalAudio(a))
             std::printf("ba-app: el audio del remoto con la palabra no entró: %s\n", engine_.lastError().c_str());
         bool hayVideo = false;

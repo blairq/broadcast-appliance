@@ -15,11 +15,12 @@ razonable.
 | Filtros de audio de cada entrada (plugins de Python, audiodynamic…) | `filtros_audio` de `ba_gst_fuente` |
 | **Micrófonos y líneas del equipo** (2026-10-05) | `ba_gst_fuente` + `pipeline_audio` (`audio/EntradasAudio.*`); los viejos se migran solos |
 | **Automixer de mesa redonda** (2026-10-05) | `baautomixer`, plugin `baaudio` |
+| **Audio de los invitados y del remoto con la palabra** (2026-10-05) | `ba_gst_fuente` + `baanillo canal=BA.Audio.Guest.<n>` (plugin `baipc`): lee el anillo que escribe el gateway. Para las plantillas y la interfaz siguen siendo «ba_guest_audio» (`inputs::tipoLogico`) |
 | **Racks de audio (LSP/CLAP) de las entradas de GStreamer** (2026-10-05) | `barack`, registrado por la app (`audio/GstRack.*`): el mismo `AudioRack` corre en la cadena de audio de `ba_gst_fuente` (ajuste `rack`). Los racks guardados se montan solos donde corresponda |
 
 ## Todavía en libobs (en orden propuesto)
 
-1. **Racks de las fuentes que siguen en libobs** (invitados, medios, voces, NDI): todavía como filtro de OBS
+1. **Racks de las fuentes que siguen en libobs** (medios, voces, NDI): todavía como filtro de OBS
    `ba_audio_rack`. Pasan solos a `barack` el día que su fuente pase a GStreamer (RackManager elige por el tipo
    de la fuente). La escucha del rack (la salida a los auriculares) sigue saliendo por el monitoreo de libobs
    hasta que se mude la mezcla (punto 5).
@@ -28,8 +29,9 @@ razonable.
    Así cámara y micrófono de la sala comparten reloj y latencia.
 3. **Medios locales y playlist.** `ffmpeg_source` → `uridecodebin3` (la playlist ya maneja in/out y auto-next
    por la API de medios; hay que darle a `ba_gst_fuente` play/pausa/seek/estado).
-4. **Audio del sistema** (`*_output_capture`), invitados (`ba_guest_*`), NDI (`ba_ndi_input`): entradas de
-   GStreamer (appsrc desde la memoria compartida, `ndisrc`).
+4. **Audio del sistema** (`*_output_capture`), el VIDEO de los invitados (`ba_guest_video`), la escucha del
+   lobby (`ba_guest_audio` privada, solo auriculares) y NDI (`ba_ndi_input`): entradas de GStreamer
+   (`baanillo` ya lee el audio; falta su par de video, y `ndisrc`).
 5. **La mezcla de audio** (mezclador de OBS, pistas, monitoreo) → `audiomixer` con buses, el limitador del
    máster (T12) y la matriz.
 6. **La composición de video** (escenas, transiciones, DSK, gráficos, multiview) → `compositor`/`glvideomixer`
@@ -40,6 +42,12 @@ razonable.
 Cuando estén 5–7, libobs queda sin uso y se saca del bundle.
 
 ## Trampas conocidas
+
+- Una entrada solo de audio tiene que llevar `"pipeline": ""`: si no, `ba_gst_fuente` arma su video de
+  prueba de fábrica (videotestsrc), gasta CPU y, como «recibe video», se suma a la compensación del estudio
+  y el audio sale ~¾ s tarde. Los micrófonos guardados sin eso se arreglan solos al cargar.
+- En modo `colchon` (el de fábrica) una entrada solo de audio NO toma la compensación del estudio (se mide
+  con los cuadros de video): sale con su propia demora. En modo `gstreamer` sí espera la del estudio.
 
 - Una entrada de GStreamer en modo estándar espera la **latencia del estudio** (la mayor de todas las
   cadenas): un micrófono sale atrasado lo mismo que las cámaras de red, para que todo quede en sincronía.

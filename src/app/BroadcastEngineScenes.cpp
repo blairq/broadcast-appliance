@@ -11,6 +11,7 @@
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+#include "InputSpecs.hpp"
 
 #include <graphics/vec4.h>
 #include <nlohmann/json.hpp>
@@ -832,13 +833,16 @@ bool BroadcastEngine::addGuestAudio(int slot) {
     const std::string name = "Invitado " + std::to_string(slot) + " (audio)";
     obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(name));
     if (src == nullptr) {
-        obs_data_t* settings = obs_data_create();
-        obs_data_set_int(settings, "slot", slot);
-        // `ba_guest_audio` lo registra ba-sources: lee BA.Audio.Guest.<slot>.
-        src = obs_source_create("ba_guest_audio", name.c_str(), settings, nullptr);
+        // Por GStreamer (`baanillo` lee BA.Audio.Guest.<slot>): su rack corre en
+        // la cadena de la entrada. Sin GStreamer, la fuente de libobs de antes.
+        const bool gst = sourceTypeExists(inputs::kMicType);
+        obs_data_t* settings = gst ? obs_data_create_from_json(inputs::ajustesAudioAnillo("guest", slot).c_str())
+                                   : obs_data_create();
+        if (!gst) obs_data_set_int(settings, "slot", slot);
+        src = obs_source_create(gst ? inputs::kMicType : "ba_guest_audio", name.c_str(), settings, nullptr);
         obs_data_release(settings);
         if (src == nullptr) {
-            setError("no se pudo crear ba_guest_audio (¿esta cargado ba-sources?)");
+            setError("no se pudo crear el audio del invitado (¿esta cargado ba-sources?)");
             return false;
         }
         sources_.emplace_back(name, reinterpret_cast<obs_source*>(src));

@@ -35,12 +35,15 @@ namespace fs = std::filesystem;
 
 namespace {
 /// ¿Es un micrófono del equipo? (por GStreamer: `ba_gst_fuente` con `microfono`).
-bool esMic(obs_source_t* s) {
+/// El tipo lógico (inputs::tipoLogico): un micrófono o un invitado por GStreamer
+/// se agrupan y usan las plantillas como los de libobs de antes.
+std::string tipoLogicoDe(obs_source_t* s) {
     obs_data_t* d = obs_source_get_settings(s);
-    if (d == nullptr) return false;
-    const bool si = inputs::esMicrofono(obs_source_get_id(s), nlohmann::json::parse(obs_data_get_json(d), nullptr, false));
-    obs_data_release(d);
-    return si;
+    const std::string t = inputs::tipoLogico(obs_source_get_id(s),
+                                             d != nullptr ? nlohmann::json::parse(obs_data_get_json(d), nullptr, false)
+                                                          : nlohmann::json());
+    if (d != nullptr) obs_data_release(d);
+    return t;
 }
 } // namespace
 using json = nlohmann::json;
@@ -538,7 +541,7 @@ json RackManager::audioSources() const {
             auto* c = static_cast<Ctx*>(p);
             if ((obs_source_get_output_flags(s) & OBS_SOURCE_AUDIO) == 0) return true;
             const std::string name = obs_source_get_name(s);
-            const std::string type = obs_source_get_id(s);
+            const std::string type = tipoLogicoDe(s);
             // Grupo para el arbol de la interfaz: por donde entra el audio.
             std::string group = "Otras fuentes";
             if (type == "ba_voz_asistente") {
@@ -547,7 +550,7 @@ json RackManager::audioSources() const {
                 group = "Entradas del equipo (placas)";
             } else if (type == "ba_guest_audio") {
                 group = "Invitados";
-            } else if (type.find("_input_capture") != std::string::npos || esMic(s)) {
+            } else if (type.find("_input_capture") != std::string::npos) {
                 group = "Micrófonos y líneas del equipo";
             } else if (type.find("_output_capture") != std::string::npos) {
                 group = "Audio del equipo (lo que suena)";
@@ -728,7 +731,7 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
         if (pending_.contains(source)) {
             r.load(pending_[source], &e);
         } else {
-            const std::string plantilla = plantillaDeTipo(obs_source_get_id(src));
+            const std::string plantilla = plantillaDeTipo(tipoLogicoDe(src));
             if (!plantilla.empty()) r.load(plantillas_[plantilla].value("rack", json::object()), &e);
         }
     };

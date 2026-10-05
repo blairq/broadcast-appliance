@@ -41,7 +41,11 @@ SourceSpec audioInputSpec(const std::string& device, const std::string& name) {
     spec.id = kMicType;
     spec.name = name;
     spec.settingsJson =
-        json{{"pipeline_audio", audio::pipelineDeMicrofono(device)}, {"audio", true}, {"microfono", device}}.dump();
+        json{{"pipeline", ""}, // sin esto, ba_gst_fuente arma su video de prueba de fábrica
+             {"pipeline_audio", audio::pipelineDeMicrofono(device)},
+             {"audio", true},
+             {"microfono", device}}
+            .dump();
     spec.rect = CanvasRect{0.0f, 0.0f, 0.0f, 0.0f}; // solo audio
     return spec;
 }
@@ -51,7 +55,31 @@ bool esMicrofono(const std::string& type, const json& settings) {
     return type == kMicType && settings.is_object() && settings.contains("microfono");
 }
 
+std::string ajustesAudioAnillo(const std::string& canal, int slot) {
+    const std::string c = canal == "remoto" ? "remoto" : "guest";
+    const std::string anillo = (c == "remoto" ? "BA.Audio.Remoto." : "BA.Audio.Guest.") + std::to_string(slot);
+    return json{{"pipeline", ""}, {"pipeline_audio", "baanillo canal=" + anillo}, {"audio", true}, {"anillo", c}, {"slot", slot}}
+        .dump();
+}
+
+std::string tipoLogico(const std::string& type, const json& settings) {
+    if (type == kMicType && settings.is_object()) {
+        if (settings.contains("anillo")) return "ba_guest_audio";
+        if (settings.contains("microfono")) return kAudioInLibobs;
+    }
+    return type;
+}
+
 bool migrarMicrofono(SourceSpec& spec) {
+    if (spec.id == kMicType) {
+        // Uno de GStreamer guardado sin `pipeline` (2026-10-05, antes de que se
+        // escribiera): ba_gst_fuente le armaba el video de prueba de fábrica.
+        json s = json::parse(spec.settingsJson, nullptr, false);
+        if (!s.is_object() || !s.contains("microfono") || s.contains("pipeline")) return false;
+        s["pipeline"] = "";
+        spec.settingsJson = s.dump();
+        return true;
+    }
     if (spec.id != kAudioInLibobs) return false;
     const json viejo = json::parse(spec.settingsJson, nullptr, false);
     const std::string dev =

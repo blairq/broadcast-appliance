@@ -8,6 +8,7 @@
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
 #   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal (las tarjetas de imagen y el legalizador).
 #   audio/     baaudio: baautomixer (mesa redonda por grupo).
+#   ipc/       baipc: baanillo (el audio de los invitados que deja el gateway en memoria compartida).
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -31,6 +32,24 @@ ba_plugin_gst(gstbafiltros)
 add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp")
 target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
 ba_plugin_gst(gstbaaudio)
+
+add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp")
+target_include_directories(gstbaipc PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+ba_plugin_gst(gstbaipc)
+if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
+    add_executable(test_baanillo tests/test_baanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
+        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp")
+    target_include_directories(test_baanillo PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+    target_link_libraries(test_baanillo PRIVATE ba::gstreamer)
+    if(DEFINED BA_GST_LIBDIR)
+        set_target_properties(test_baanillo PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
+    endif()
+    target_compile_definitions(test_baanillo PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+    add_dependencies(test_baanillo gstbaipc)
+    add_test(NAME test_baanillo COMMAND test_baanillo)
+    set_tests_properties(test_baanillo PROPERTIES SKIP_RETURN_CODE 77)
+endif()
 
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).
 set(_ba_ort "${BA_ORT_LIB}")

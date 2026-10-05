@@ -6,7 +6,10 @@
 //   escena de OBS, cerrando el camino de datos B -> A (spec §4.3/§8.5):
 //
 //     - `ba_guest_audio`: lee el ring `BA.Audio.Guest.<slot>` que publica el
-//       Proceso B y entrega las muestras a libobs.
+//       Proceso B y entrega las muestras a libobs. Desde 2026-10-05 el audio de
+//       los invitados y del remoto va por GStreamer (`baanillo` en un
+//       ba_gst_fuente, con su rack en la cadena); esta queda para la escucha del
+//       lobby (privada, solo auriculares) y para un build sin GStreamer.
 //     - `ba_guest_video`: lee el canal compartido `BA.Guest.<slot>` (Spout en
 //       Windows, memoria compartida en el resto) y entrega los frames BGRA.
 //
