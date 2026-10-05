@@ -136,14 +136,73 @@ bool BotoneraBorde::emparejarPermitido(std::uint32_t ip) {
     return true;
 }
 
-std::string BotoneraBorde::autenticar(const std::string& token) const {
+std::string BotoneraBorde::autenticar(const std::string& token, bool soloHttp) const {
     if (token.size() != 64) return {};
     std::lock_guard<std::mutex> l(mu_);
     std::string encontrado;
     // Se recorren todas (sin cortar) para no revelar cuál coincidió por el tiempo.
     for (const auto& [id, c] : credenciales_)
-        if (igualesTiempoConstante(sha256Hex(c.sal + token), c.hash)) encontrado = id;
+        if (igualesTiempoConstante(sha256Hex(c.sal + token), c.hash) && (!soloHttp || c.http)) encontrado = id;
     return encontrado;
+}
+
+// La API remota HTTP: una celda por URL, para que el «Generic HTTP» de Companion
+// (o cualquier cosa que haga un POST) la apriete sin código. El borde solo
+// autentica y reenvía; qué hace la celda y si ese perfil se puede usar lo decide la app.
+bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std::string& path,
+                              const std::string& headers, std::uint32_t clientIp) {
+    // /api/botonera/<perfil>/pagina/<pagina>/celda/<x>/<y>/<accion>
+    std::vector<std::string> partes;
+    for (std::size_t i = std::string("/api/botonera/").size(); i <= path.size();) {
+        const std::size_t j = std::min(path.find('/', i), path.size());
+        partes.push_back(http::urlDecode(path.substr(i, j - i)));
+        i = j + 1;
+    }
+    if (partes.size() != 7 || partes[1] != "pagina" || partes[3] != "celda") return false;
+    if (method != "POST" && method != "PUT") {
+        http::sendResponse(fd, 405, "application/json", json{{"error", "usá POST"}}.dump(), "Allow: POST\r\n");
+        return true;
+    }
+    const std::string accion = partes[6];
+    if (accion != "presionar" && accion != "soltar" && accion != "tocar") {
+        http::sendResponse(fd, 400, "application/json", json{{"error", "acción: presionar, soltar o tocar"}}.dump());
+        return true;
+    }
+    int x = -1, y = -1;
+    try {
+        x = std::stoi(partes[4]);
+        y = std::stoi(partes[5]);
+    } catch (...) {
+    }
+    if (x < 0 || y < 0 || x > 63 || y > 63) {
+        http::sendResponse(fd, 400, "application/json", json{{"error", "celda inválida"}}.dump());
+        return true;
+    }
+    std::string auth = http::getHeader(headers, "Authorization");
+    const std::string pre = "Bearer ";
+    const std::string token = auth.rfind(pre, 0) == 0 ? auth.substr(pre.size()) : std::string();
+    const std::string dispositivo = autenticar(token, true);
+    if (dispositivo.empty()) {
+        // Un token mal puesto cuenta como intento (5 cada 10 min por IP).
+        if (!emparejarPermitido(clientIp)) {
+            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump());
+            return true;
+        }
+        log_.warn("botonera: API remota sin token válido desde " + ipTexto(clientIp), -1);
+        http::sendResponse(fd, 401, "application/json", json{{"error", "token inválido o API remota apagada"}}.dump(),
+                           "WWW-Authenticate: Bearer\r\n");
+        return true;
+    }
+    alApp_({{"tipo", "remota"},
+            {"dispositivo", dispositivo},
+            {"perfil", partes[0]},
+            {"pagina", partes[2]},
+            {"x", x},
+            {"y", y},
+            {"accion", accion},
+            {"ip", ipTexto(clientIp)}});
+    http::sendResponse(fd, 202, "application/json", json{{"ok", true}}.dump());
+    return true;
 }
 
 bool BotoneraBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
@@ -151,10 +210,16 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     const bool ws = path == "/ws" && http::parseQuery(query).count("botonera") > 0;
     const bool pagina = path == "/botonera" || path.rfind("/botonera/", 0) == 0;
     const bool api = path == "/api/botonera/emparejar";
-    if (!ws && !pagina && !api) return false;
+    const bool remota = !api && path.rfind("/api/botonera/", 0) == 0;
+    if (!ws && !pagina && !api && !remota) return false;
     if (!ipLocal(clientIp) || !origenValido(headers)) {
         log_.warn("botonera: rechazado " + ipTexto(clientIp) + " " + path + " (fuera de la red local u origen ajeno)", -1);
         http::sendResponse(fd, 403, "text/plain", "solo desde la red local\n");
+        return true;
+    }
+    if (remota) {
+        if (!apiRemota(fd, method, path, headers, clientIp))
+            http::sendResponse(fd, 404, "application/json", json{{"error", "ruta desconocida"}}.dump());
         return true;
     }
     if (pagina) {
@@ -349,7 +414,8 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
             credenciales_.clear();
             for (const auto& d : r.value("dispositivos", json::array()))
                 if (d.is_object() && d.value("hash", std::string()).size() == 64)
-                    credenciales_[d.value("id", std::string())] = {d.value("hash", std::string()), d.value("sal", std::string())};
+                    credenciales_[d.value("id", std::string())] = {d.value("hash", std::string()), d.value("sal", std::string()),
+                                                                   d.value("http", false)};
             // Lo revocado se corta ya.
             for (const auto& c : conns_)
                 if (!credenciales_.count(c->dispositivo)) cortar.push_back(c);

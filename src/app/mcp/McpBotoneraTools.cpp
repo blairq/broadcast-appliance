@@ -889,6 +889,28 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         };
         core.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "botonera_api_remota";
+        t.title = "API remota HTTP de la botonera (Companion «Generic HTTP»)";
+        t.category = "botonera";
+        t.description =
+            "Prende o apaga (`activo`) la API remota: POST /api/botonera/<perfil>/pagina/<pagina>/celda/<x>/<y>/"
+            "<presionar|soltar|tocar> en el puerto de la sala, con «Authorization: Bearer <token>». Es lo que "
+            "llama el módulo «Generic HTTP» de Bitfocus Companion sin escribir código. Cada acceso tiene su "
+            "perfil y sus permisos, como una tablet. El TOKEN lo crea y lo ve una PERSONA en Botonera → "
+            "Integraciones («Nuevo acceso HTTP…»): acá no se entrega. Sin argumentos informa y lista los "
+            "accesos (se revocan con botonera_dispositivo_revocar).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto& b = vm.botonera();
+            if (a.contains("activo")) b.setApiRemotaActiva(a.value("activo", false));
+            done(ToolResult().data(json{{"activo", b.apiRemotaActiva()},
+                                        {"accesos", b.accesosHttp()},
+                                        {"url", vm.urlApiRemota().toStdString()}}));
+        };
+        core.addTool(std::move(t));
+    }
 }
 
 

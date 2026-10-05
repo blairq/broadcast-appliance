@@ -82,7 +82,7 @@
 | T56 | Superficie de control: editor en el escritorio | P1 | hecho (editor por formulario y JSON, sin arrastrar celdas) |
 | T57 | Superficie de control: herramientas MCP | P1 | hecho |
 | T58 | Superficie de control: superficies de hardware vía plugin | P1 | hecho (probado con un aparato falso, sin hardware real) |
-| T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | Satellite hecho (API 1.7, modo simple; probado con un cliente simulado); falta la API remota HTTP |
+| T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | hecho (Satellite API 1.7 y API remota HTTP; sin módulo propio de Companion ni protocolo TCP/UDP remoto) |
 | T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | falta |
 | T61 | Proxy propio con un nombre (DNS) por servicio y certificados automáticos | P2 | falta |
 
@@ -1266,7 +1266,19 @@
 # P2 — mejora
 
 ### T59 · Compatibilidad con Bitfocus Companion — P2
-- **Estado: falta.** No hay nada de Companion, OSC, TSL ni obs-websocket.
+- **Estado: hecho** (2026-10-05), salvo el módulo propio de Companion y el protocolo TCP/UDP remoto (opcionales).
+  - **Satellite API:** ver `src/app/control/SatelliteServidor.*` (API 1.7, probado con un cliente simulado).
+  - **API remota HTTP:**
+    - La ruta es `POST /api/botonera/<perfil>/pagina/<pagina>/celda/<x>/<y>/<presionar|soltar|tocar>`, en el puerto de la sala.
+    - Se autentica con «Authorization: Bearer <token>» de un **acceso HTTP**: un aparato más del perfil (origen tablet, `via: http`, no vence). La persona lo crea en Botonera → «Nuevo acceso HTTP…» y el token se muestra una sola vez; por MCP no se entrega.
+    - El gateway (`BotoneraBorde::apiRemota`) acepta solo los tokens con permiso `http`, que la app manda únicamente con la API prendida. Contesta 202 y reenvía el evento «remota». Si no, contesta 401 (cuenta como intento: 5 cada 10 min por IP).
+    - La red tiene que ser local y no se acepta nada que llegue por Cloudflare.
+    - La app (`Botonera::entradaRemota`) controla el perfil del acceso y la página, aprieta la celda con los permisos del perfil y deja todo en la auditoría.
+    - Para Companion: una acción «Generic HTTP → POST» con ese encabezado.
+  - **MCP:** `botonera_api_remota {activo}` (estado, accesos y URL base).
+  - **GUI:** Botonera → «API remota (HTTP)», con interruptor, «Nuevo acceso HTTP…» (token y URL de ejemplo para copiar) y la lista de accesos.
+  - **Probado** con `test_botonera_borde`: 202 con permiso; 401 con otro token o sin permiso; 405 para GET; 400 para una acción desconocida. También con `test_botonera` (crear, prender/apagar, perfil o página ajenos, revocar).
+  - **Sin probar:** contra un Companion real.
 - **Qué hacer.** Dos caminos complementarios.
   1. **Servidor "Satellite API".** Es el protocolo con el que la app oficial **Companion Satellite** (y otros clientes satélite) conecta superficies físicas a un servidor Companion.
      - Es TCP en el puerto **16622**, con un protocolo de texto por líneas: `BEGIN`, `ADD-DEVICE DEVICEID=… PRODUCT_NAME=… KEYS_TOTAL=… KEYS_PER_ROW=… BITMAPS=<px> COLORS=… TEXT=…`, `KEY-PRESS DEVICEID=… KEY=… PRESSED=…`, `KEY-ROTATE …`, y del servidor `KEY-STATE DEVICEID=… KEY=… BITMAP=<base64 RGB> COLOR=… TEXT=<base64>`, `BRIGHTNESS`, `KEYS-CLEAR`, `PING`/`PONG`. Las versiones recientes también lo ofrecen por WebSocket (16623).

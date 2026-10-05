@@ -879,6 +879,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                               [](bool, const QJsonObject&) {});
             } else if (tipo == "entrada") {
                 botonera_->entrada(ev.value("dispositivo", std::string()), ev.value("msg", nlohmann::json::object()));
+            } else if (tipo == "remota") {
+                const std::string e = botonera_->entradaRemota(
+                    ev.value("dispositivo", std::string()), ev.value("perfil", std::string()), ev.value("pagina", std::string()),
+                    ev.value("x", -1), ev.value("y", -1), ev.value("accion", std::string()), ev.value("ip", std::string()));
+                if (!e.empty()) emit notify("API remota de la botonera: " + qs(e), "aviso");
             } else if (tipo == "conexion") {
                 botonera_->marcarConexion(ev.value("dispositivo", std::string()), ev.value("conectado", false),
                                           ev.value("ip", std::string()));
@@ -2741,6 +2746,46 @@ QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
     const std::string e = rt_.iniciarSenalLimpia(destino.toStdString());
     emit statusChanged();
     return qs(e);
+}
+
+QString StudioViewModel::urlApiRemota() const {
+    for (const QNetworkInterface& ifc : QNetworkInterface::allInterfaces()) {
+        const auto f = ifc.flags();
+        if (!f.testFlag(QNetworkInterface::IsUp) || !f.testFlag(QNetworkInterface::IsRunning) ||
+            f.testFlag(QNetworkInterface::IsLoopBack))
+            continue;
+        for (const QNetworkAddressEntry& e : ifc.addressEntries()) {
+            const QHostAddress ip = e.ip();
+            if (ip.protocol() != QAbstractSocket::IPv4Protocol) continue;
+            const quint32 v = ip.toIPv4Address();
+            const bool privada = (v >> 24) == 10 || (v >> 20) == (172u << 4 | 1) || (v >> 16) == (192u << 8 | 168);
+            if (privada) return "http://" + ip.toString() + ":" + QString::number(rt_.gateway().port);
+        }
+    }
+    return {};
+}
+
+QVariantMap StudioViewModel::apiRemotaUi() const {
+    QVariantList accesos;
+    for (const auto& a : botonera_->accesosHttp())
+        accesos.append(QVariantMap{{"id", qs(a.value("id", std::string()))},
+                                   {"nombre", qs(a.value("nombre", std::string()))},
+                                   {"perfil", qs(a.value("perfil", std::string()))}});
+    QVariantMap out{{"activo", botonera_->apiRemotaActiva()}, {"accesos", accesos}, {"url", urlApiRemota()}};
+    if (rt_.gateway().bindAddress == "127.0.0.1")
+        out["aviso"] = "La sala escucha solo en esta máquina: Companion en otra no llega. Abrila a la red local en "
+                       "Configuración → Red.";
+    return out;
+}
+
+void StudioViewModel::setApiRemotaUi(bool activo) { botonera_->setApiRemotaActiva(activo); }
+
+QVariantMap StudioViewModel::crearAccesoHttpUi(const QString& perfil, const QString& nombre) {
+    const nlohmann::json r = botonera_->crearAccesoHttp(perfil.toStdString(), nombre.toStdString());
+    if (r.contains("error")) return {{"error", qs(r.value("error", std::string()))}};
+    return {{"dispositivo", qs(r.value("dispositivo", std::string()))},
+            {"token", qs(r.value("token", std::string()))},
+            {"url_ejemplo", urlApiRemota() + qs(r.value("ejemplo", std::string()))}};
 }
 
 QVariantMap StudioViewModel::grabacionUi() const {

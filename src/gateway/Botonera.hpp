@@ -12,6 +12,11 @@
 //   POST /api/botonera/emparejar        {codigo, nombre} -> {solicitud}
 //   GET  /api/botonera/emparejar?solicitud=  -> {estado, dispositivo?, token?}
 //                                       (el token se entrega UNA vez)
+//   POST /api/botonera/<perfil>/pagina/<pagina>/celda/<x>/<y>/<presionar|soltar|tocar>
+//                                       API remota HTTP (T59: el módulo «Generic HTTP» de
+//                                       Bitfocus Companion), con «Authorization: Bearer
+//                                       <token>» de un acceso HTTP que la app habilitó.
+//                                       Contesta 202 y la app ejecuta (o avisa por qué no).
 //   GET  /ws?botonera=1                 WebSocket de texto (JSON):
 //        primer mensaje {type:"auth", token} (nunca en la URL); después solo
 //        presionar, soltar, valor, girar, pagina, confirmar, cancelar, editar,
@@ -74,6 +79,7 @@ class BotoneraBorde {
     };
     struct Credencial {
         std::string hash, sal;
+        bool http = false; ///< puede usar la API remota HTTP
     };
     struct Solicitud {
         std::string estado = "pendiente"; // pendiente|aprobada|rechazada|invalido
@@ -84,7 +90,9 @@ class BotoneraBorde {
     void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     bool servir(long long fd, const std::string& rel);
     bool emparejarPermitido(std::uint32_t ip);
-    std::string autenticar(const std::string& token) const;
+    std::string autenticar(const std::string& token, bool soloHttp = false) const;
+    bool apiRemota(long long fd, const std::string& method, const std::string& path, const std::string& headers,
+                   std::uint32_t clientIp);
 
     std::string webroot_;
     Log& log_;

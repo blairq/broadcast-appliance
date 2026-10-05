@@ -1059,11 +1059,92 @@ void Botonera::quitarLocal(const std::string& id) {
 
 json Botonera::credencialesParaGateway() const {
     json out = json::array();
+    const bool api = apiRemotaActiva();
     for (const auto& d : disp_)
         if (d.value("origen", std::string("tablet")) == "tablet")
             out.push_back({{"id", d.value("id", std::string())}, {"hash", d.value("hash", std::string())},
-                           {"sal", d.value("sal", std::string())}});
+                           {"sal", d.value("sal", std::string())},
+                           {"http", api && d.value("via", std::string()) == "http"}});
     return out;
+}
+
+bool Botonera::apiRemotaActiva() const {
+    return datos_.contains("api_remota") && datos_["api_remota"].value("activo", false);
+}
+
+void Botonera::setApiRemotaActiva(bool on) {
+    if (on == apiRemotaActiva()) return;
+    datos_["api_remota"]["activo"] = on;
+    guardar();
+    auditar("escritorio", on ? "api_remota_prendida" : "api_remota_apagada", "");
+    emit credencialesCambio(); // el gateway acepta o deja de aceptar los tokens HTTP
+    emit dispositivosCambio();
+}
+
+json Botonera::crearAccesoHttp(const std::string& perfil, const std::string& nombre) {
+    std::string p = perfil;
+    if (p.empty() && !datos_["perfiles"].empty()) p = datos_["perfiles"][0].value("id", std::string());
+    if (buscarPerfil(p) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
+    if (static_cast<int>(disp_.size()) >= kMaxDispositivos) return {{"error", "ya hay " + std::to_string(kMaxDispositivos) + " aparatos"}};
+    const std::string id = idNuevo("http");
+    const std::string token = hexAleatorio(32); // 256 bits
+    const std::string sal = hexAleatorio(16);
+    const std::string n = nombre.empty() ? std::string("Companion (HTTP)") : nombre.substr(0, 60);
+    disp_.push_back({{"id", id},
+                     {"nombre", n},
+                     {"origen", "tablet"},
+                     {"via", "http"},
+                     {"perfil", p},
+                     {"pagina", ""},
+                     {"creado_ms", ahoraMs()},
+                     {"ultimo_uso_ms", ahoraMs()},
+                     {"vence_dias", 0}, // un equipo fijo: no vence por falta de uso
+                     {"hash", sha256(sal + token)},
+                     {"sal", sal}});
+    guardarDispositivos();
+    auditar(id, "acceso_http", n + " → " + p);
+    emit credencialesCambio();
+    emit dispositivosCambio();
+    const json* pf = buscarPerfil(p);
+    std::string pag = "1";
+    if (pf != nullptr && pf->contains("paginas") && !(*pf)["paginas"].empty()) pag = (*pf)["paginas"][0].value("id", pag);
+    return {{"dispositivo", id},
+            {"token", token},
+            {"perfil", p},
+            {"ejemplo", "/api/botonera/" + p + "/pagina/" + pag + "/celda/0/0/tocar"}};
+}
+
+json Botonera::accesosHttp() const {
+    json out = json::array();
+    for (const auto& d : disp_)
+        if (d.value("via", std::string()) == "http")
+            out.push_back({{"id", d.value("id", std::string())},
+                           {"nombre", d.value("nombre", std::string())},
+                           {"perfil", d.value("perfil", std::string())},
+                           {"ultimo_uso_ms", d.value("ultimo_uso_ms", 0LL)}});
+    return out;
+}
+
+std::string Botonera::entradaRemota(const std::string& dev, const std::string& perfil, const std::string& pagina, int x,
+                                    int y, const std::string& accion, const std::string& ip) {
+    const json* d = buscarDispositivo(dev);
+    std::string motivo;
+    if (d == nullptr || d->value("via", std::string()) != "http") motivo = "no es un acceso HTTP";
+    else if (!apiRemotaActiva()) motivo = "la API remota está apagada";
+    else if (d->value("perfil", std::string()) != perfil) motivo = "ese acceso es del perfil «" + d->value("perfil", std::string()) + "»";
+    else if (buscarPagina(perfil, pagina) == nullptr) motivo = "no hay una página «" + pagina + "» en «" + perfil + "»";
+    if (!motivo.empty()) {
+        auditar(dev, "api_remota_rechazada", motivo + " (" + ip + ")");
+        return motivo;
+    }
+    // La celda de ESA página, sin cambiar la que ve el aparato en otra parte.
+    const std::string antes = paginaDe_.count(dev) ? paginaDe_[dev] : std::string();
+    paginaDe_[dev] = pagina;
+    if (accion == "presionar" || accion == "tocar") entrada(dev, {{"type", "presionar"}, {"x", x}, {"y", y}});
+    if (accion == "soltar" || accion == "tocar") entrada(dev, {{"type", "soltar"}, {"x", x}, {"y", y}});
+    if (antes.empty()) paginaDe_.erase(dev);
+    else paginaDe_[dev] = antes;
+    return {};
 }
 
 void Botonera::marcarConexion(const std::string& dispositivo, bool conectado, const std::string& ip) {

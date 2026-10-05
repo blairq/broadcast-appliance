@@ -235,6 +235,29 @@ int main(int argc, char** argv) {
     for (const auto& d : bot.dispositivos()) CHECK(!d.contains("hash") && !d.contains("sal"), "la lista no muestra hashes");
     CHECK(bot.revocar(ap["dispositivo"]) == 1 && bot.credencialesParaGateway().empty(), "revocar");
 
+    // API remota HTTP (T59): el acceso es un aparato más; el gateway solo acepta su
+    // token con la API prendida, y la app rechaza otro perfil u otra página.
+    {
+        const json acc = bot.crearAccesoHttp(pid, "Companion");
+        CHECK(acc.contains("token") && acc["token"].get<std::string>().size() == 64, "acceso HTTP con token de 256 bits");
+        const auto http = [&]() {
+            for (const auto& c : bot.credencialesParaGateway())
+                if (c["id"] == acc["dispositivo"]) return c.value("http", false);
+            return false;
+        };
+        CHECK(!http(), "con la API apagada, el token no sirve para HTTP");
+        bot.setApiRemotaActiva(true);
+        CHECK(http(), "con la API prendida, sí");
+        CHECK(bot.accesosHttp().size() == 1, "aparece en la lista de accesos");
+        const std::string dev = acc["dispositivo"];
+        CHECK(!bot.entradaRemota(dev, "otro-perfil", pag, 0, 0, "tocar", "1.2.3.4").empty(), "otro perfil: no");
+        CHECK(!bot.entradaRemota(dev, pid, "no-existe", 0, 0, "tocar", "1.2.3.4").empty(), "otra página: no");
+        CHECK(bot.entradaRemota(dev, pid, pag, 3, 3, "tocar", "1.2.3.4").empty(), "su perfil y su página: sí");
+        bot.setApiRemotaActiva(false);
+        CHECK(!bot.entradaRemota(dev, pid, pag, 3, 3, "tocar", "1.2.3.4").empty(), "apagada: no");
+        CHECK(bot.revocar(dev) == 1 && bot.accesosHttp().empty(), "se revoca como cualquier aparato");
+    }
+
     // Persistencia del modelo.
     {
         Botonera otra(dir.path().toStdString(), bus, g);

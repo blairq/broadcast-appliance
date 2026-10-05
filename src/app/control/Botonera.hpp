@@ -142,6 +142,19 @@ class Botonera : public QObject {
     // --- Lo que llega de un aparato ----------------------------------------------------
     /// {type: presionar|soltar|valor|girar|pagina|confirmar|hola, x, y, v, delta, id}.
     void entrada(const std::string& dispositivo, const json& msg);
+
+    // --- API remota HTTP (T59: «Generic HTTP» de Bitfocus Companion) ------------
+    /// Prendida o apagada (apagada, el gateway rechaza los tokens HTTP con 401).
+    bool apiRemotaActiva() const;
+    void setApiRemotaActiva(bool on);
+    /// Un acceso HTTP para `perfil`: un aparato más (origen tablet, vía http) con su
+    /// token, que se devuelve UNA vez: {dispositivo, token, perfil, ejemplo} o {error}.
+    json crearAccesoHttp(const std::string& perfil, const std::string& nombre);
+    /// Los accesos HTTP: [{id, nombre, perfil, ultimo_uso_ms}].
+    json accesosHttp() const;
+    /// Una celda apretada por la API remota. "" o por qué no (queda en la auditoría).
+    std::string entradaRemota(const std::string& dispositivo, const std::string& perfil, const std::string& pagina,
+                              int x, int y, const std::string& accion, const std::string& ip);
     /// El asistente prueba una celda por el camino completo, como el aparato
     /// «asistente» (sus acciones de aire las aprueba una persona en el escritorio).
     std::string simular(const std::string& perfil, const std::string& pagina, const json& msg);

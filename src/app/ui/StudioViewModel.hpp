@@ -346,6 +346,13 @@ class StudioViewModel : public QObject {
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return *botonera_; }
+    /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
+    Q_INVOKABLE QVariantMap apiRemotaUi() const;
+    Q_INVOKABLE void setApiRemotaUi(bool activo);
+    /// Un acceso nuevo para `perfil`: {dispositivo, token, url_ejemplo} (el token se ve UNA vez) o {error}.
+    Q_INVOKABLE QVariantMap crearAccesoHttpUi(const QString& perfil, const QString& nombre);
+    /// http://<ip de la red local>:<puerto de la sala> (vacío si no hay red).
+    QString urlApiRemota() const;
     QObject* botoneraQml() const;
     QObject* satelliteQml() const;
     QObject* dskQml() const;

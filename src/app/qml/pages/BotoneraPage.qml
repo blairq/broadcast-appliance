@@ -675,6 +675,75 @@ Rectangle {
                     }
                 }
 
+                // API remota HTTP (T59): el «Generic HTTP» de Companion aprieta celdas por URL.
+                Panel {
+                    id: apiPanel
+                    Layout.fillWidth: true
+                    padding: 14
+                    implicitHeight: apiCol.implicitHeight + 2 * padding
+                    property var api: Studio.apiRemotaUi()
+                    property var nuevo: ({})
+                    function refrescar() { apiPanel.api = Studio.apiRemotaUi() }
+                    Connections { target: page.bot; function onDispositivosCambio() { apiPanel.refrescar() } }
+                    ColumnLayout {
+                        id: apiCol
+                        anchors.fill: parent
+                        spacing: 8
+                        RowLayout {
+                            spacing: 10
+                            Text { text: "API remota (HTTP)"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            StatusPill { text: apiPanel.api.activo ? "prendida" : "apagada"; dot: apiPanel.api.activo ? Theme.ok : Theme.textFaint }
+                            Item { Layout.fillWidth: true }
+                            ComboBox { id: apiPerfil; Layout.preferredWidth: 160; textRole: "nombre"; model: page.bot.perfiles }
+                            GlassButton {
+                                compact: true; text: "Nuevo acceso HTTP…"
+                                onClicked: {
+                                    const r = Studio.crearAccesoHttpUi(page.bot.perfiles[apiPerfil.currentIndex].id, "Companion (HTTP)")
+                                    if (r.error) Studio.notify(r.error, "error"); else apiPanel.nuevo = r
+                                    apiPanel.refrescar()
+                                }
+                            }
+                            GlassButton {
+                                compact: true; text: apiPanel.api.activo ? "Apagar" : "Prender"; active: !apiPanel.api.activo
+                                onClicked: { Studio.setApiRemotaUi(!apiPanel.api.activo); apiPanel.refrescar() }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                            text: "En Companion, una acción «Generic HTTP → POST» a la URL de la celda, con el encabezado " +
+                                  "Authorization: Bearer <token>. «tocar» aprieta y suelta; «presionar» y «soltar» por separado " +
+                                  "sirven para «mantener». Cada acceso usa los permisos de su perfil, como una tablet."
+                        }
+                        Text { visible: !!apiPanel.api.aviso; text: apiPanel.api.aviso || ""; color: Theme.amber; font.pixelSize: 11; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                        // El token recién creado: se ve una sola vez.
+                        ColumnLayout {
+                            visible: !!apiPanel.nuevo.token
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Text { text: "Copiá el token ahora: no se vuelve a mostrar."; color: Theme.amber; font.pixelSize: 12 }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                TextField { Layout.fillWidth: true; readOnly: true; text: apiPanel.nuevo.token || ""; font.family: "Menlo"; color: Theme.text }
+                                GlassButton { compact: true; text: "Copiar token"; onClicked: { Studio.copiar(apiPanel.nuevo.token); Studio.notify("Token copiado", "ok") } }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                TextField { Layout.fillWidth: true; readOnly: true; text: apiPanel.nuevo.url_ejemplo || ""; color: Theme.textDim }
+                                GlassButton { compact: true; text: "Copiar URL"; onClicked: { Studio.copiar(apiPanel.nuevo.url_ejemplo); Studio.notify("URL copiada", "ok") } }
+                                GlassButton { compact: true; text: "Listo"; onClicked: apiPanel.nuevo = ({}) }
+                            }
+                        }
+                        Repeater {
+                            model: apiPanel.api.accesos || []
+                            delegate: Text {
+                                required property var modelData
+                                text: "● " + modelData.nombre + " — perfil " + modelData.perfil + " (se revoca abajo, en Aparatos)"
+                                color: apiPanel.api.activo ? Theme.ok : Theme.textFaint; font.pixelSize: 12
+                            }
+                        }
+                    }
+                }
+
                 RowLayout {
                     Layout.fillWidth: true
                     Text { text: "Aparatos"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
