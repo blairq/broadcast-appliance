@@ -126,6 +126,7 @@ const Fila kPropias[] = {
     {"sesion_revocar", "revocar link sacar acceso del legislador a la sesion remota"},
     {"sesion_habilitar", "habilitar al legislador que entro por la banca virtual darle presente validar por camara"},
     {"sesion_expulsar", "sacar de la sesion remota desconectar al legislador de la banca virtual"},
+    {"sesion_votacion", "votar desde el celular votacion remota abrir votacion sin la central cartel rojo cuenta regresiva"},
     {"sesion_registro", "registro de la sesion remota quien entro intentos fallidos acta banca virtual"},
     {"dcn_estado", "central de conferencia bosch dcn microfonos de banca estado de la sala quien habla"},
     {"dcn_microfono", "dale la palabra a abri el microfono de cerra el microfono de la banca darle audio cortarle el audio"},

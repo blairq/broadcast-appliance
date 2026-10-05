@@ -66,6 +66,7 @@ void SesionRemota::cargar() {
     if (!j.is_object()) return;
     if (j.value("credenciales", json()).is_object()) credenciales_ = j["credenciales"];
     graciaS_ = std::clamp(j.value("gracia_s", 120), 0, 3600);
+    votoSegundos_ = std::clamp(j.value("voto_s", 60), 0, 3600);
 }
 
 void SesionRemota::guardar() const {
@@ -74,7 +75,7 @@ void SesionRemota::guardar() const {
     const auto tmp = archivo_.string() + ".tmp";
     {
         std::ofstream f(tmp);
-        f << json{{"credenciales", credenciales_}, {"gracia_s", graciaS_}}.dump(1);
+        f << json{{"credenciales", credenciales_}, {"gracia_s", graciaS_}, {"voto_s", votoSegundos_}}.dump(1);
     }
     std::filesystem::rename(tmp, archivo_, ec);
 }
@@ -273,6 +274,7 @@ void SesionRemota::evento(const json& ev) {
             if (!ultimaInfo_.empty()) emit enviar(QString::fromStdString(id), conTipo("info", ultimaInfo_));
             auto tu = turnos_.find(id);
             if (tu != turnos_.end()) emit enviar(QString::fromStdString(id), json{{"type", "fila"}, {"turno", tu->second}});
+            if (vot_.estado == "abierta" || vot_.estado == "pausada") emit enviar(QString::fromStdString(id), mensajeVotacion(id));
             return;
         }
         if (t == "palabra" && e.habilitado && e.conectado) {
@@ -284,7 +286,23 @@ void SesionRemota::evento(const json& ev) {
                 emit aviso(QString::fromStdString(i.value("nombre", id) + " (remoto) pidió la palabra"), "info");
             }
         }
-        // El voto: fase R4.
+        if (t == "voto" && e.habilitado && e.conectado) {
+            const std::string op = m.value("opcion", std::string());
+            bool valida = false;
+            for (const auto& o : vot_.opciones) valida = valida || o.value("id", std::string()) == op;
+            const bool vencida = vot_.hastaMs > 0 && ahoraMs() > vot_.hastaMs + 1500;
+            if (vot_.estado != "abierta" || !valida || vencida || m.value("votacion", 0) != vot_.numero) {
+                emit enviar(QString::fromStdString(id), json{{"type", "voto"}, {"ok", false},
+                                                             {"error", vot_.estado != "abierta" ? "La votación no está abierta."
+                                                                       : vencida ? "Se terminó el tiempo para votar."
+                                                                                 : "Opción inválida."}});
+                return;
+            }
+            vot_.votos[id] = {op, ahoraMs()};
+            anotar("voto", id, {{"votacion", vot_.numero}, {"opcion", op}});
+            emit enviar(QString::fromStdString(id), json{{"type", "voto"}, {"ok", true}, {"opcion", op}});
+            emit cambio();
+        }
         return;
     }
     emit cambio();
@@ -428,6 +446,142 @@ void SesionRemota::info(const json& campos) {
     if (cambio) emit enviar("*", conTipo("info", campos));
 }
 
+// --- La votación ------------------------------------------------------------------------------
+
+json SesionRemota::mensajeVotacion(const std::string& id) const {
+    json m{{"type", "votacion"}, {"estado", vot_.estado}, {"numero", vot_.numero}, {"tema", vot_.tema},
+           {"opciones", vot_.opciones}, {"hasta_ms", vot_.hastaMs}, {"ahora_ms", ahoraMs()}};
+    auto it = vot_.votos.find(id);
+    m["mi_voto"] = it != vot_.votos.end() ? it->second.first : std::string();
+    return m;
+}
+
+void SesionRemota::mandarVotacion() {
+    for (const auto& [id, e] : estado_)
+        if (e.conectado) emit enviar(QString::fromStdString(id), mensajeVotacion(id));
+}
+
+std::string SesionRemota::abrirVotacion(int numero, const std::string& tema, const json& opciones, int segundos,
+                                        const std::string& origen) {
+    if (!opciones.is_array() || opciones.size() < 2) return "hacen falta al menos dos opciones";
+    if (vot_.estado == "abierta" && vot_.numero == numero && vot_.origen == origen) return {}; // ya estaba
+    vot_ = Votacion{};
+    vot_.estado = "abierta";
+    vot_.numero = numero;
+    vot_.tema = tema;
+    vot_.origen = origen;
+    vot_.opciones = opciones;
+    vot_.abiertaMs = ahoraMs();
+    vot_.hastaMs = segundos > 0 ? vot_.abiertaMs + segundos * 1000LL : 0;
+    anotar("votacion_abierta", "", {{"votacion", numero}, {"tema", tema}, {"origen", origen}});
+    mandarVotacion();
+    emit cambio();
+    return {};
+}
+
+void SesionRemota::pausarVotacion(bool pausa) {
+    if (vot_.estado != "abierta" && vot_.estado != "pausada") return;
+    vot_.estado = pausa ? "pausada" : "abierta";
+    mandarVotacion();
+    emit cambio();
+}
+
+json SesionRemota::cerrarVotacion() {
+    if (vot_.estado == "abierta" || vot_.estado == "pausada") {
+        vot_.estado = "cerrada";
+        anotar("votacion_cerrada", "", {{"votacion", vot_.numero}, {"votos_remotos", vot_.votos.size()}});
+        mandarVotacion();
+        emit cambio();
+    }
+    return votacion().value("votos", json::array());
+}
+
+json SesionRemota::votacion() const {
+    json votos = json::array();
+    json totales = json::object();
+    for (const auto& o : vot_.opciones) totales[o.value("id", std::string())] = 0;
+    for (const auto& [id, v] : vot_.votos) {
+        const json i = integrante(id);
+        votos.push_back({{"id", id}, {"nombre", i.value("nombre", std::string())}, {"banca", i.value("banca", std::string())},
+                         {"opcion", v.first}, {"ms", v.second}});
+        totales[v.first] = totales.value(v.first, 0) + 1;
+    }
+    return {{"estado", vot_.estado}, {"numero", vot_.numero}, {"tema", vot_.tema}, {"opciones", vot_.opciones},
+            {"hasta_ms", vot_.hastaMs}, {"origen", vot_.origen}, {"votos", votos}, {"totales", totales}};
+}
+
+json SesionRemota::resultadoCombinado(const json& nominalCentral) const {
+    // Por banca: lo de la central primero, después lo remoto (que pisa si es del mismo integrante).
+    std::map<std::string, json> porBanca;
+    for (const auto& n : nominalCentral) {
+        const std::string b = n.value("banca", std::string());
+        if (b.empty()) continue;
+        json v = n;
+        v["origen"] = "central";
+        porBanca[b] = v;
+    }
+    json observaciones = json::array();
+    for (const auto& [id, v] : vot_.votos) {
+        const json i = integrante(id);
+        const std::string b = i.value("banca", std::string());
+        json nuevo{{"banca", b}, {"nombre", i.value("nombre", std::string())}, {"voto", v.first}, {"origen", "remoto"}};
+        auto it = porBanca.find(b);
+        if (it != porBanca.end() && it->second.value("voto", std::string()) != v.first)
+            observaciones.push_back("Banca " + b + ": votó «" + it->second.value("voto", std::string()) +
+                                    "» en la central y «" + v.first + "» por el celular; vale el del celular (el último)");
+        porBanca[b.empty() ? "id:" + id : b] = nuevo;
+    }
+    json nominal = json::array();
+    json totales = json::object();
+    for (const auto& o : vot_.opciones) totales[o.value("id", std::string())] = 0;
+    for (auto& [b, v] : porBanca) {
+        nominal.push_back(v);
+        const std::string op = v.value("voto", std::string());
+        totales[op] = totales.value(op, 0) + 1;
+    }
+    return {{"nominal", nominal}, {"totales", totales}, {"observaciones", observaciones}};
+}
+
+void SesionRemota::mostrarResultado(const json& totales) {
+    emit enviar("*", json{{"type", "resultado"}, {"numero", vot_.numero}, {"tema", vot_.tema}, {"totales", totales},
+                          {"opciones", vot_.opciones}});
+}
+
+void SesionRemota::setProximos(const json& lista) { info({{"proximos", lista}}); }
+
+void SesionRemota::setVotoSegundos(int s) {
+    s = std::clamp(s, 0, 3600);
+    if (s == votoSegundos_) return;
+    votoSegundos_ = s;
+    guardar();
+    emit cambio();
+}
+
+json SesionRemota::opcionesDeMenu(const std::string& menu) {
+    static const std::map<std::string, std::string> texto{
+        {"afirmativo", "Afirmativo"}, {"negativo", "Negativo"}, {"abstencion", "Abstención"}, {"no_participa", "No participa"}};
+    std::vector<std::string> ids{"afirmativo", "negativo"};
+    if (menu == "si_no_abstencion" || menu.empty()) ids.push_back("abstencion");
+    if (menu == "si_no_abstencion_nppv") ids = {"afirmativo", "negativo", "abstencion", "no_participa"};
+    json out = json::array();
+    for (const auto& id : ids) out.push_back({{"id", id}, {"texto", texto.at(id)}});
+    return out;
+}
+
+QVariantMap SesionRemota::votacionUi() const { return aQv(votacion()).toMap(); }
+
+QString SesionRemota::abrirVotacionUi(const QString& tema, const QString& menu, int segundos) {
+    if (tema.trimmed().isEmpty()) return "falta el tema";
+    const int n = vot_.origen == "app" ? vot_.numero + 1 : 1;
+    return QString::fromStdString(abrirVotacion(n, tema.trimmed().toStdString(), opcionesDeMenu(menu.toStdString()),
+                                                segundos, "app"));
+}
+
+void SesionRemota::cerrarVotacionUi() {
+    cerrarVotacion();
+    mostrarResultado(resultadoCombinado(json::array()).value("totales", json::object()));
+}
+
 // --- Registro ---------------------------------------------------------------------------
 
 std::string SesionRemota::anexoActa() const {
@@ -439,15 +593,24 @@ std::string SesionRemota::anexoActa() const {
         {"intento_fallido", "intento fallido"}, {"bloqueado", "bloqueado por PIN errado"},
         {"credencial", "link generado"}, {"revocada", "link revocado"}, {"clave", "contraseña generada"},
         {"pidio_palabra", "pidió la palabra"}, {"cancelo_pedido", "canceló su pedido"},
-        {"palabra", "tuvo la palabra"}, {"fin_palabra", "terminó de hablar"}};
+        {"palabra", "tuvo la palabra"}, {"fin_palabra", "terminó de hablar"}, {"voto", "votó"},
+        {"votacion_abierta", "se abrió la votación"}, {"votacion_cerrada", "se cerró la votación"}};
     for (const auto& e : registro_) {
         const std::string q = e.value("que", std::string());
+        if (q.rfind("votacion_", 0) == 0) {
+            s += "  " + hora(e.value("ms", std::int64_t(0))) + "  Votación " + std::to_string(e.value("votacion", 0)) +
+                 (e.value("tema", std::string()).empty() ? "" : " «" + e.value("tema", std::string()) + "»") +
+                 (q == "votacion_abierta" ? ": se abrió en los celulares" : ": se cerró (" +
+                  std::to_string(e.value("votos_remotos", 0)) + " votos remotos)") + "\n";
+            continue;
+        }
         auto it = que.find(q);
         s += "  " + hora(e.value("ms", std::int64_t(0))) + "  " + e.value("nombre", e.value("id", std::string()));
         if (!e.value("banca", std::string()).empty()) s += " (banca " + e.value("banca", std::string()) + ")";
         s += ": " + (it != que.end() ? it->second : q);
         if (!e.value("por", std::string()).empty()) s += " por " + e.value("por", std::string());
         if (q == "entro") s += std::string(" desde ") + (e.value("lugar", std::string()) == "sala" ? "la sala" : "afuera");
+        if (q == "voto") s += " «" + e.value("opcion", std::string()) + "» (votación " + std::to_string(e.value("votacion", 0)) + ")";
         s += "\n";
     }
     return s;

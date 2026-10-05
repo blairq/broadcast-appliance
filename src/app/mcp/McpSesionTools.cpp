@@ -8,6 +8,7 @@
 
 #include "legislatura/Cuerpo.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
+#include "legislatura/Quorum.hpp"
 #include "legislatura/SesionRemota.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
@@ -176,6 +177,57 @@ void McpService::registerSesionTools() {
             const std::string r = s->expulsar(id, a.value("quien", std::string("mcp")), a.value("motivo", std::string()));
             if (!r.empty()) return done(ToolResult::error(r));
             done(ToolResult().data({{"expulsado", id}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sesion_votacion";
+        t.title = "Votación en los celulares";
+        t.category = "sesion";
+        t.description = "Los legisladores habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
+                        "cuenta regresiva). Si la central abre una votación, los celulares la siguen solos; esto es para "
+                        "votar SIN la central (o ver cómo va): `accion` abrir {tema, menu: si_no | si_no_abstencion | "
+                        "si_no_abstencion_nppv, segundos} | pausar | reanudar | cerrar | estado | a_quorum (carga el "
+                        "resultado oficial en Quórum: un voto por integrante, con el origen de cada uno; nunca sin que "
+                        "una persona lo pida). `voto_s` cambia el tiempo para votar de fábrica.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"abrir", "pausar", "reanudar", "cerrar", "estado", "a_quorum"}}}},
+                           {"tema", {{"type", "string"}}},
+                           {"menu", {{"type", "string"}, {"enum", {"si_no", "si_no_abstencion", "si_no_abstencion_nppv"}}}},
+                           {"segundos", {{"type", "integer"}, {"minimum", 0}}},
+                           {"voto_s", {{"type", "integer"}, {"minimum", 0}}}}}};
+        auto& vmRef = vm_;
+        t.run = [s, &vmRef](const json& a, Done done) {
+            if (a.contains("voto_s")) s->setVotoSegundos(a.value("voto_s", 60));
+            const std::string acc = a.value("accion", std::string("estado"));
+            if (acc == "abrir") {
+                const QString e = s->abrirVotacionUi(QString::fromStdString(a.value("tema", std::string())),
+                                                     QString::fromStdString(a.value("menu", std::string("si_no_abstencion"))),
+                                                     a.value("segundos", s->votoSegundos()));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            } else if (acc == "pausar" || acc == "reanudar") {
+                s->pausarVotacion(acc == "pausar");
+            } else if (acc == "cerrar") {
+                s->cerrarVotacionUi();
+            } else if (acc == "a_quorum") {
+                const json v = s->votacion();
+                if (v.value("estado", std::string()) != "cerrada") return done(ToolResult::error("cerrala primero"));
+                const json c = s->resultadoCombinado(json::array());
+                const json t2 = c.value("totales", json::object());
+                json r{{"asunto", a.value("tema", v.value("tema", std::string()))},
+                       {"afirmativos", t2.value("afirmativo", 0)},
+                       {"negativos", t2.value("negativo", 0)},
+                       {"abstenciones", t2.value("abstencion", 0)},
+                       {"presentes", s->presentes()},
+                       {"nominal", c.value("nominal", json::array())},
+                       {"origen", "celulares"}};
+                const json res = vmRef.quorum().cargarOficial(r);
+                if (res.contains("error")) return done(ToolResult::error(res.value("error", std::string())));
+                return done(ToolResult().data({{"resultado", res}}));
+            }
+            done(ToolResult().data(s->votacion()));
         };
         core_.addTool(std::move(t));
     }

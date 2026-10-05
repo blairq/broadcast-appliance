@@ -406,6 +406,8 @@ class StudioViewModel : public QObject {
     /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
     void sincronizarBotonera();
     void sincronizarSesion();
+    void seguirVotacionCentral();
+    nlohmann::json votacionCombinada(const nlohmann::json& rCentral) const;
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).

@@ -238,6 +238,7 @@ ColumnLayout {
             readonly property var v: pc.e.votacion || ({})
             readonly property var asis: pc.e.asistencia || ({})
             readonly property var err: pc.e.fase2_errores || ({})
+            readonly property var vr: Studio.sesionRemota ? Studio.sesionRemota.votacionActual : ({})
             readonly property string est: v.estado || "sin_preparar"
             Text { visible: !!vot.err.votacion; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
                    text: "La votación de la central no arrancó: " + (vot.err.votacion || "") }
@@ -337,6 +338,55 @@ ColumnLayout {
                       + (pc.e.nominal_turno && pc.e.nominal_turno.delegado
                          ? "Llamado nominal: vota " + (pc.e.nominal_turno.banca ? "la banca " + pc.e.nominal_turno.banca : "el delegado " + pc.e.nominal_turno.delegado)
                            + (pc.e.nominal_turno.segundos_restantes ? " (" + pc.e.nominal_turno.segundos_restantes + " s)" : "") : "")
+            }
+            // --- Los celulares (sesión remota): votan igual, con o sin la central ---
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: celu.implicitHeight + 20
+                radius: 10
+                color: Qt.rgba(1, 1, 1, 0.04)
+                border.color: vot.vr.estado === "abierta" ? Theme.live : Qt.rgba(1, 1, 1, 0.08)
+                ColumnLayout {
+                    id: celu
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    spacing: 6
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold
+                               text: "Votación en los celulares" + (vot.vr.estado === "abierta" ? " · ABIERTA" : vot.vr.estado === "pausada" ? " · en pausa"
+                                     : vot.vr.estado === "cerrada" ? " · cerrada" : "") }
+                        Item { Layout.fillWidth: true }
+                        Text { color: Theme.textDim; font.pixelSize: 12; text: "Tiempo para votar (s)" }
+                        SpinBox { from: 0; to: 600; stepSize: 10; editable: true
+                                  value: Studio.sesionRemota ? Studio.sesionRemota.votoSegundos : 60
+                                  onValueModified: Studio.sesionRemota.votoSegundos = value }
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                        text: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada" || vot.vr.estado === "cerrada")
+                              ? "«" + (vot.vr.tema || "") + "» — votaron por el celular " + (vot.vr.votos || []).length + ": " +
+                                (vot.vr.opciones || []).map(o => o.texto + " " + ((vot.vr.totales || {})[o.id] || 0)).join(" · ")
+                              : "Cuando la central abre una votación, a los habilitados por el celular les aparece el cartel rojo con el tema, " +
+                                "las opciones y la cuenta regresiva. Sin la central, se abre desde acá. Al pasar a Quórum vale un voto por integrante."
+                    }
+                    RowLayout {
+                        visible: vot.vr.estado !== "abierta" && vot.vr.estado !== "pausada"
+                        TextField { id: temaCel; Layout.fillWidth: true; placeholderText: "Tema (votar sin la central)" }
+                        ComboBox { id: menuCel; implicitWidth: 170; textRole: "t"
+                                   model: [ { t: "Sí / No / Abst.", v: "si_no_abstencion" }, { t: "Sí / No", v: "si_no" },
+                                            { t: "Sí / No / Abst. / NP", v: "si_no_abstencion_nppv" } ] }
+                        GlassButton { text: "Abrir en los celulares"; enabled: temaCel.text.trim() !== ""
+                                      onClicked: { const e = Studio.sesionRemota.abrirVotacionUi(temaCel.text, menuCel.model[menuCel.currentIndex].v,
+                                                                                                Studio.sesionRemota.votoSegundos)
+                                                   if (e) Studio.notify(e, "error") } }
+                    }
+                    RowLayout {
+                        visible: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada") && vot.vr.origen === "app"
+                        GlassButton { text: vot.vr.estado === "pausada" ? "Reanudar" : "Pausar"
+                                      onClicked: Studio.sesionRemota.pausarVotacionUi(vot.vr.estado !== "pausada") }
+                        GlassButton { text: "Cerrar"; active: true; onClicked: Studio.sesionRemota.cerrarVotacionUi() }
+                    }
+                }
             }
         }
 

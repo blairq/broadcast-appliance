@@ -20,6 +20,9 @@ let timerFoto = null;
 let pidio = false;
 let palabraHasta = 0;   // ms en que se le termina el tiempo (0 = no tiene la palabra)
 let timerReloj = null;
+let vot = null;         // la votación abierta (o pausada)
+let timerVot = null;
+let desfase = 0;        // reloj del servidor - reloj de acá (para la cuenta regresiva)
 let timerPing = null;
 
 function mostrar(id) {
@@ -85,6 +88,76 @@ function avisoTiempo(aviso) {
     $("palabraTitulo").textContent = "Se terminó tu tiempo";
     $("palabraTexto").textContent = "Redondeá, por favor";
     if (navigator.vibrate) navigator.vibrate([300, 100, 300, 100, 300]);
+  }
+}
+
+// --- La votación --------------------------------------------------------------------
+function ponerVotacion(m) {
+  desfase = (m.ahora_ms || Date.now()) - Date.now();
+  if (m.estado === "abierta" || m.estado === "pausada") {
+    const nueva = !vot || vot.numero !== m.numero;
+    vot = m;
+    $("votacion").classList.remove("oculto");
+    $("resultado").classList.add("oculto");
+    if (nueva && navigator.vibrate) navigator.vibrate([400, 150, 400]);
+    pintarVotacion();
+    clearInterval(timerVot);
+    timerVot = setInterval(pintarReloj, 250);
+    pintarReloj();
+  } else {
+    vot = null;
+    clearInterval(timerVot);
+    $("votacion").classList.add("oculto");
+  }
+}
+
+function pintarVotacion() {
+  if (!vot) return;
+  $("votNumero").textContent = vot.numero ? "N.º " + vot.numero : "";
+  $("votTema").textContent = vot.tema || "Votación";
+  const pausada = vot.estado === "pausada";
+  $("votEstado").textContent = pausada ? "En pausa: esperá." : "Tocá tu voto. Lo podés cambiar mientras esté abierta.";
+  const caja = $("votOpciones");
+  caja.textContent = "";
+  for (const o of (vot.opciones || [])) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = o.texto;
+    b.disabled = pausada || vencida();
+    if (vot.mi_voto === o.id) b.classList.add("elegida");
+    b.addEventListener("click", () => {
+      if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "voto", votacion: vot.numero, opcion: o.id }));
+    });
+    caja.appendChild(b);
+  }
+  const elegida = (vot.opciones || []).find((o) => o.id === vot.mi_voto);
+  $("votMio").textContent = elegida ? "Tu voto: " + elegida.texto : "Todavía no votaste.";
+}
+
+function vencida() {
+  return vot && vot.hasta_ms > 0 && Date.now() + desfase > vot.hasta_ms;
+}
+
+function pintarReloj() {
+  if (!vot) return;
+  if (!vot.hasta_ms) { $("votReloj").textContent = ""; return; }
+  const s = Math.max(0, Math.ceil((vot.hasta_ms - (Date.now() + desfase)) / 1000));
+  $("votReloj").textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+  $("votReloj").classList.toggle("poco", s <= 10);
+  if (s === 0) pintarVotacion();
+}
+
+function mostrarResultado(m) {
+  $("votacion").classList.add("oculto");
+  $("resultado").classList.remove("oculto");
+  $("resTema").textContent = m.tema || "Votación";
+  const caja = $("resTotales");
+  caja.textContent = "";
+  for (const o of (m.opciones || [])) {
+    const d = document.createElement("div");
+    const a = document.createElement("span"); a.textContent = o.texto;
+    const b = document.createElement("strong"); b.textContent = String((m.totales || {})[o.id] || 0);
+    d.appendChild(a); d.appendChild(b); caja.appendChild(d);
   }
 }
 
@@ -167,9 +240,25 @@ function recibir(m) {
     case "tiempo":
       avisoTiempo(m.aviso);
       break;
+    case "votacion":
+      ponerVotacion(m);
+      break;
+    case "voto":
+      if (m.ok) { if (vot) vot.mi_voto = m.opcion; pintarVotacion(); if (navigator.vibrate) navigator.vibrate(120); }
+      else { $("votMio").textContent = m.error || "No se pudo votar."; }
+      break;
+    case "resultado":
+      mostrarResultado(m);
+      break;
     case "info":
       if ("punto" in m) $("punto").textContent = m.punto || "—";
       if ("hablando" in m) $("hablando").textContent = m.hablando || "—";
+      if ("proximos" in m) {
+        const ol = $("proximos");
+        ol.textContent = "";
+        for (const t of (m.proximos || [])) { const li = document.createElement("li"); li.textContent = t; ol.appendChild(li); }
+        if (!(m.proximos || []).length) { const li = document.createElement("li"); li.textContent = "—"; ol.appendChild(li); }
+      }
       break;
     case "cortado":
       cortadoAProposito = true;
@@ -199,6 +288,7 @@ $("pedir").addEventListener("click", () => {
   ponerPedido(pidio ? 0 : 99);
   if (pidio) $("turno").textContent = "Pedido enviado";
 });
+$("cerrarResultado").addEventListener("click", () => $("resultado").classList.add("oculto"));
 $("reintentar").addEventListener("click", () => {
   mostrar("entrar");
   $("botonEntrar").disabled = false;

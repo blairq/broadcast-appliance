@@ -88,6 +88,29 @@ int main(int argc, char** argv) {
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", true}});
     CHECK(s.presentes() == 0, "después de expulsado, vuelve esperando");
 
+    // Votación por el celular (R4): habilitado vota; el voto combinado con la central.
+    s.evento({{"tipo", "conexion"}, {"id", juan}, {"conectado", true}, {"lugar", "sala"}});
+    s.habilitar(juan, true, "presidencia");
+    CHECK(s.abrirVotacion(4, "Proyecto 12", legislatura::SesionRemota::opcionesDeMenu("si_no_abstencion"), 60, "central").empty(),
+          "abre la votación");
+    CHECK(enviados.back().value("type", std::string()) == "votacion" && enviados.back().value("estado", std::string()) == "abierta",
+          "le llega el cartel de votación");
+    s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "negativo"}}}});
+    CHECK(enviados.back().value("ok", false), "voto aceptado");
+    s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "inventada"}}}});
+    CHECK(!enviados.back().value("ok", true), "opción inválida: rechazado");
+    s.evento({{"tipo", "entrada"}, {"id", ana}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "afirmativo"}}}});
+    CHECK(s.votacion().value("votos", json::array()).size() == 1, "el que no está habilitado no vota");
+    // La central: banca 7 votó afirmativo en su unidad, banca 9 negativo; el celular de la 7 pisa.
+    const json comb = s.resultadoCombinado(json::array({{{"banca", "7"}, {"nombre", "Juan Gómez"}, {"voto", "afirmativo"}},
+                                                        {{"banca", "9"}, {"nombre", "Otro"}, {"voto", "negativo"}}}));
+    CHECK(comb["totales"].value("negativo", 0) == 2 && comb["totales"].value("afirmativo", 0) == 0,
+          "un voto por integrante: vale el del celular");
+    CHECK(comb.value("observaciones", json::array()).size() == 1, "queda la observación del doble voto");
+    s.cerrarVotacion();
+    s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "afirmativo"}}}});
+    CHECK(!enviados.back().value("ok", true), "cerrada: no se vota más");
+
     // Bloqueo e intentos van al registro y al acta.
     s.evento({{"tipo", "intento"}, {"id", juan}, {"ip", "1.2.3.4"}, {"motivo", "pin"}});
     s.evento({{"tipo", "bloqueo"}, {"id", juan}, {"minutos", 15}});

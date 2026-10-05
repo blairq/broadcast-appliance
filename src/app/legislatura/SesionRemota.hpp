@@ -48,6 +48,9 @@ class SesionRemota : public QObject {
     Q_PROPERTY(int conectados READ conectados NOTIFY cambio)
     /// El origen público para los links (lo da el gateway): "https://…".
     Q_PROPERTY(QString origen READ origenUi NOTIFY cambio)
+    /// La votación en los celulares (ver votacion()).
+    Q_PROPERTY(QVariantMap votacionActual READ votacionUi NOTIFY cambio)
+    Q_PROPERTY(int votoSegundos READ votoSegundos WRITE setVotoSegundos NOTIFY cambio)
 
    public:
     using json = nlohmann::json;
@@ -96,6 +99,33 @@ class SesionRemota : public QObject {
     /// Mandarle algo a todos los conectados (el punto del orden del día, por ejemplo).
     void info(const json& campos);
 
+    // --- La votación (fase R4) ------------------------------------------------------------
+    /// Abre la votación en los celulares de los habilitados: cartel rojo con el tema,
+    /// las opciones [{id, texto}] y la cuenta regresiva (`segundos` 0 = sin tiempo).
+    /// `origen`: "central" (la abrió la CCU) o "app" (sin central). "" o el error.
+    std::string abrirVotacion(int numero, const std::string& tema, const json& opciones, int segundos,
+                              const std::string& origen);
+    void pausarVotacion(bool pausa);
+    /// Cierra: nadie más vota. Devuelve los votos remotos.
+    json cerrarVotacion();
+    /// {estado: sin|abierta|pausada|cerrada, numero, tema, opciones, hasta_ms, origen,
+    ///  votos: [{id, nombre, banca, opcion, ms}], totales: {opcion: n}}.
+    json votacion() const;
+    /// El resultado de la sala: el voto nominal de la central (por banca, como lo da
+    /// ConferenciaDcn) más los votos remotos, UN voto por integrante (vale el
+    /// último; si la central no trae hora, el remoto pisa al de la central solo si
+    /// votó después de que la central lo mostró). Cada voto con su origen.
+    json resultadoCombinado(const json& nominalCentral) const;
+    /// Le avisa a los celulares el resultado (al cerrar).
+    void mostrarResultado(const json& totales);
+    /// Los próximos temas (del orden del día), para la pantalla del celular.
+    void setProximos(const json& lista);
+    /// El tiempo para votar en el celular (segundos; 0 = sin cuenta regresiva). Se guarda.
+    int votoSegundos() const { return votoSegundos_; }
+    void setVotoSegundos(int s);
+    /// Las opciones de un menú de votación de la central (si_no, si_no_abstencion…).
+    static json opcionesDeMenu(const std::string& menu);
+
     // --- Registro (va al acta) ---------------------------------------------------------
     json registro() const { return registro_; }
     std::string anexoActa() const;
@@ -116,6 +146,11 @@ class SesionRemota : public QObject {
     /// La foto de su cámara (la última que mandó): la pide la interfaz al gateway
     /// y, cuando llega (`fotoLista`), la toma con `fotoUrl` (data:image/jpeg…).
     Q_INVOKABLE void pedirFoto(const QString& integrante);
+    QVariantMap votacionUi() const;
+    /// Sin la central: abrir con un menú (si_no, si_no_abstencion…) o cerrar.
+    Q_INVOKABLE QString abrirVotacionUi(const QString& tema, const QString& menu, int segundos);
+    Q_INVOKABLE void pausarVotacionUi(bool pausa) { pausarVotacion(pausa); }
+    Q_INVOKABLE void cerrarVotacionUi();
     Q_INVOKABLE QString fotoUrl(const QString& integrante) const;
     void ponerFoto(const QString& integrante, const QByteArray& jpeg);
 
@@ -156,10 +191,21 @@ class SesionRemota : public QObject {
     json registro_ = json::array();
     std::string origen_;
     int graciaS_ = 120;
+    int votoSegundos_ = 60;
     std::map<QString, QByteArray> fotos_;
     std::string conPalabra_;
     std::map<std::string, int> turnos_; // lo último que se le dijo a cada uno
     json ultimaInfo_ = json::object();
+    struct Votacion {
+        std::string estado = "sin";  // sin | abierta | pausada | cerrada
+        int numero = 0;
+        std::string tema, origen;
+        json opciones = json::array();
+        std::int64_t hastaMs = 0, abiertaMs = 0;
+        std::map<std::string, std::pair<std::string, std::int64_t>> votos; // id -> (opcion, ms)
+    } vot_;
+    json mensajeVotacion(const std::string& id) const;
+    void mandarVotacion();
 };
 
 } // namespace ba::app::legislatura

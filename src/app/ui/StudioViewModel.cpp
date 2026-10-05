@@ -754,7 +754,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
-    dcn_->setAQuorum([this](const nlohmann::json& r) { return quorum_ ? quorum_->cargarOficial(r) : nlohmann::json{{"error", "Quórum no está"}}; });
+    dcn_->setAQuorum([this](const nlohmann::json& r) {
+        if (!quorum_) return nlohmann::json{{"error", "Quórum no está"}};
+        // Con votos por los celulares en la misma votación: un voto por integrante (vale el último).
+        if (sesionRemota_ && !sesionRemota_->votacion().value("votos", nlohmann::json::array()).empty())
+            return quorum_->cargarOficial(votacionCombinada(r));
+        return quorum_->cargarOficial(r);
+    });
+    // La votación de la central también en los celulares (abrir, pausar, cerrar).
+    connect(dcn_.get(), &legislatura::ConferenciaDcn::cambio, this, [this]() { seguirVotacionCentral(); });
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
@@ -936,6 +944,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 const std::string t = p.is_object() ? p.value("titulo", p.value("texto", std::string())) : std::string();
                 const int n = p.is_object() ? p.value("n", 0) : 0;
                 sesionRemota_->info({{"punto", t.empty() ? std::string() : (n > 0 ? std::to_string(n) + ". " : "") + t}});
+                // Y los que vienen (los temas a votar), hasta cinco.
+                if (ordenDia_) {
+                    nlohmann::json prox = nlohmann::json::array();
+                    for (const auto& x : ordenDia_->puntos())
+                        if (x.value("estado", std::string()) == "pendiente" && prox.size() < 5)
+                            prox.push_back(std::to_string(x.value("n", 0)) + ". " + x.value("titulo", std::string()));
+                    sesionRemota_->setProximos(prox);
+                }
             });
             sincronizarSesion();
         }
@@ -2294,6 +2310,42 @@ QStringList StudioViewModel::nombresParaDsk() const {
     for (const std::string& n : rt_.engine().sourceNames())
         if (!out.contains(qs(n))) out << qs(n);
     return out;
+}
+
+nlohmann::json StudioViewModel::votacionCombinada(const nlohmann::json& rCentral) const {
+    nlohmann::json r = rCentral;
+    const nlohmann::json c = sesionRemota_->resultadoCombinado(rCentral.value("nominal", nlohmann::json::array()));
+    const nlohmann::json t = c.value("totales", nlohmann::json::object());
+    r["nominal"] = c.value("nominal", nlohmann::json::array());
+    r["afirmativos"] = t.value("afirmativo", 0);
+    r["negativos"] = t.value("negativo", 0);
+    r["abstenciones"] = t.value("abstencion", 0);
+    r["origen"] = rCentral.value("origen", std::string("sala")) + " + celulares";
+    if (!c.value("observaciones", nlohmann::json::array()).empty()) r["observaciones"] = c["observaciones"];
+    return r;
+}
+
+void StudioViewModel::seguirVotacionCentral() {
+    if (!sesionRemota_ || !dcn_) return;
+    const nlohmann::json v = dcn_->estado().value("votacion", nlohmann::json::object());
+    const std::string est = v.value("estado", std::string());
+    const nlohmann::json actual = sesionRemota_->votacion();
+    const std::string remoto = actual.value("estado", std::string());
+    const bool deLaCentral = actual.value("origen", std::string()) == "central";
+    const int numero = v.value("numero", 0);
+    if (est == "abierta" && (remoto == "sin" || remoto == "cerrada" || !deLaCentral || actual.value("numero", -1) != numero)) {
+        sesionRemota_->abrirVotacion(numero, v.value("tema", std::string()),
+                                     legislatura::SesionRemota::opcionesDeMenu(v.value("menu", std::string())),
+                                     sesionRemota_->votoSegundos(), "central");
+    } else if (deLaCentral && est == "pausada" && remoto == "abierta") {
+        sesionRemota_->pausarVotacion(true);
+    } else if (deLaCentral && est == "abierta" && remoto == "pausada") {
+        sesionRemota_->pausarVotacion(false);
+    } else if (deLaCentral && est == "cerrada" && (remoto == "abierta" || remoto == "pausada")) {
+        sesionRemota_->cerrarVotacion();
+        const nlohmann::json c = sesionRemota_->resultadoCombinado(v.value("nominal", nlohmann::json::array()));
+        sesionRemota_->mostrarResultado(c.value("totales", nlohmann::json::object()));
+    }
 }
 
 void StudioViewModel::sincronizarSesion() {

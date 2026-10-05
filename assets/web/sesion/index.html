@@ -58,8 +58,29 @@
     <div class="info">
       <div><span class="tenue">Punto del orden del día</span><div id="punto">—</div></div>
       <div><span class="tenue">Tiene la palabra</span><div id="hablando">—</div></div>
+      <div class="ancho"><span class="tenue">Próximos temas</span><ol id="proximos" class="proximos"></ol></div>
     </div>
   </main>
+
+  <!-- La votación: el cartel rojo, a pantalla completa. -->
+  <section id="votacion" class="votacion oculto" aria-live="assertive">
+    <div class="vot-cabeza">
+      <span class="vot-etiqueta">VOTACIÓN</span>
+      <span id="votNumero" class="vot-numero"></span>
+      <span class="espacio"></span>
+      <span id="votReloj" class="vot-reloj"></span>
+    </div>
+    <h2 id="votTema" class="vot-tema"></h2>
+    <p id="votEstado" class="vot-estado"></p>
+    <div id="votOpciones" class="vot-opciones"></div>
+    <p id="votMio" class="vot-mio"></p>
+  </section>
+  <section id="resultado" class="resultado oculto">
+    <div class="vot-cabeza"><span class="vot-etiqueta">RESULTADO</span><span class="espacio"></span>
+      <button id="cerrarResultado" type="button">Cerrar</button></div>
+    <h2 id="resTema" class="vot-tema"></h2>
+    <div id="resTotales" class="res-totales"></div>
+  </section>
 
   <section id="cortado" class="panel oculto">
     <h1>Sesión cerrada</h1>
