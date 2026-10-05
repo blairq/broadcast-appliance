@@ -99,7 +99,8 @@ bool McpAire::esDeAire(const std::string& h, const json& args) const {
         case ClaseAire::Normal: return false;
         case ClaseAire::Aire: return true;
         case ClaseAire::AireSi:
-            if (h.rfind("ptz_", 0) == 0) return condicion_ ? condicion_(h, args) : true;
+            // PTZ: el interlock ya frena la cámara al aire; si se pide `forzar`, es de aire.
+            if (h.rfind("ptz_", 0) == 0) return args.value("forzar", false) && (condicion_ ? condicion_(h, args) : true);
             return condicionFija(h, args);
     }
     return false;

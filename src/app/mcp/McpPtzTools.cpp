@@ -44,6 +44,33 @@ void McpService::registerPtzTools() {
                       "zoom en la GPU) y, si la cámara es motorizada, su backend (VISCA, ONVIF, Panasonic). "
                       "Y «Mejorar imagen».");
     const QPointer<ptz::ControlCamaras> c = cc;
+    // Interlock: la cámara AL AIRE no se mueve por pedido de algo automático.
+    // Con `forzar` igual pasa por la confirmación de aire (McpAire). El
+    // `ptz_seguir` en modo suave puede seguir si el interlock lo permite.
+    const auto conInterlock = [c](Tool& t) {
+        if (t.inputSchema.contains("properties"))
+            t.inputSchema["properties"]["forzar"] = {
+                {"type", "boolean"},
+                {"description", "mover aunque la camara este al aire (igual pide confirmacion en vivo)"}};
+        auto run = t.run;
+        const std::string nombre = t.name;
+        t.run = [c, run, nombre](const json& a, Done done) {
+            if (c) {
+                const QString e = QString::fromStdString(a.value("entrada", std::string()));
+                const QVariantMap il = c->interlock();
+                const bool suave = nombre == "ptz_seguir" && a.value("modo", std::string()) == "suave" &&
+                                   il.value("seguir_suave_permitido").toBool();
+                if (!e.isEmpty() && il.value("activo").toBool() && c->alAire(e) && !a.value("forzar", false) && !suave) {
+                    ToolResult r = ToolResult::error("La camara «" + e.toStdString() +
+                                                     "» esta AL AIRE: moverla se ve. Usá otra camara, o `forzar`: true "
+                                                     "(pide confirmacion al operador).");
+                    r.structured = json{{"camara_al_aire", true}};
+                    return done(r);
+                }
+            }
+            run(a, done);
+        };
+    };
     AppRuntime& rt = rt_;
     const auto resultado = [](const QString& error, const std::string& ok) {
         return error.isEmpty() ? ToolResult::ok(ok) : ToolResult::error(error.toStdString());
@@ -65,7 +92,40 @@ void McpService::registerPtzTools() {
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             c->sincronizar();
-            done(ToolResult().data(aJson(c->estadoJson(qarg(a, "entrada")))));
+            json d = aJson(c->estadoJson(qarg(a, "entrada")));
+            // Cuáles están al aire (el interlock no las deja mover).
+            const auto marcar = [&c](json& cam) {
+                if (cam.is_object() && cam.contains("entrada"))
+                    cam["al_aire"] = c->alAire(QString::fromStdString(cam.value("entrada", std::string())));
+            };
+            if (d.is_array()) for (auto& cam : d) marcar(cam);
+            else if (d.is_object() && d.contains("camaras") && d["camaras"].is_array()) for (auto& cam : d["camaras"]) marcar(cam);
+            else marcar(d);
+            done(ToolResult().data(d));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_interlock";
+        t.title = "Interlock de PTZ (no mover la camara al aire)";
+        t.category = "camaras";
+        t.description = "Con `activo` (de fabrica true), lo automatico (asistente, plugins, disparadores) no mueve una "
+                        "camara que esta en la escena al aire: error camara_al_aire, salvo `forzar` (que pide "
+                        "confirmacion). `seguir_suave_permitido`: el seguimiento en modo suave sigue igual. Sin "
+                        "argumentos, muestra el ajuste.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}}, {"seguir_suave_permitido", {{"type", "boolean"}}}}}};
+        t.run = [c, this](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            if (a.contains("activo") && !a.value("activo", true) && core_.hayAire())
+                return done(ToolResult::error("Al aire no se apaga el interlock de PTZ."));
+            QVariantMap m;
+            if (a.contains("activo")) m["activo"] = a.value("activo", true);
+            if (a.contains("seguir_suave_permitido")) m["seguir_suave_permitido"] = a.value("seguir_suave_permitido", true);
+            if (!m.isEmpty()) c->setInterlock(m);
+            done(ToolResult().data(aJson(QJsonObject::fromVariantMap(c->interlock()))));
         };
         core_.addTool(std::move(t));
     }
@@ -114,6 +174,7 @@ void McpService::registerPtzTools() {
                 });
             });
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     if (auto* sg = vm_.seguidorPtz()) {
@@ -186,7 +247,8 @@ void McpService::registerPtzTools() {
                 done(ToolResult::ok("Siguiendo en «" + e.toStdString() +
                                     "». Para dejar: ptz_seguir {\"entrada\", \"parar\": true}."));
             };
-            core_.addTool(std::move(t));
+            conInterlock(t);
+        core_.addTool(std::move(t));
         }
     }
     {
@@ -228,6 +290,7 @@ void McpService::registerPtzTools() {
             done(resultado(guardar ? c->guardarPreset(e, n) : c->irPreset(e, n),
                            (guardar ? "preset guardado: " : "yendo al preset ") + std::to_string(n)));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {
@@ -256,6 +319,7 @@ void McpService::registerPtzTools() {
                                        a.value("zoom", 1.0), a.value("segundos", 1.0)),
                            "encuadre aplicado"));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {
@@ -285,6 +349,7 @@ void McpService::registerPtzTools() {
                                       a.value("ancho", 0.0), a.value("alto", 0.0)),
                            "apuntada"));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {
@@ -476,6 +541,7 @@ void McpService::registerPtzTools() {
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {

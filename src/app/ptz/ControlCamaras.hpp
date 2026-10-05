@@ -73,6 +73,12 @@ class ControlCamaras : public QObject {
 
     // --- Mover (lo del joystick) -------------------------------------------
     /// Velocidades -1..1 (pan + derecha, tilt + arriba, zoom + acercar).
+    // --- Interlock: no mover la cámara que está AL AIRE -----------------------
+    /// La cámara (su entrada) está en la escena al aire.
+    Q_INVOKABLE bool alAire(const QString& entrada) const;
+    /// {activo, seguir_suave_permitido} (Config/ptz-interlock.json).
+    Q_INVOKABLE QVariantMap interlock() const;
+    Q_INVOKABLE void setInterlock(const QVariantMap& cambios);
     Q_INVOKABLE QString mover(const QString& entrada, double pan, double tilt, double zoom);
     Q_INVOKABLE QString parar(const QString& entrada);
     Q_INVOKABLE QString enfocar(const QString& entrada, double velocidad);
@@ -158,6 +164,8 @@ class ControlCamaras : public QObject {
     /// `aviso` lo que no se pudo.
     QString registrar(Camara& c, Posicion& p, QString& aviso);
 
+    bool interlockActivo_ = true;
+    bool seguirSuavePermitido_ = true;
     AppRuntime& rt_;
     std::filesystem::path archivo_;
     QString credenciales_;

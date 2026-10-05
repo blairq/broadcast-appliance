@@ -12,6 +12,16 @@ import "../controls"
 
 Rectangle {
     id: page
+    // Interlock: la cámara AL AIRE no se mueve sin preguntar (se vería el movimiento).
+    function siNoAlAire(accion) {
+        if (!page.cc || !page.cc.alAire(page.sel) || !page.cc.interlock().activo) { accion(); return }
+        ApplicationWindow.window.confirm({
+            title: "La cámara «" + page.sel + "» está al aire",
+            text: "Moverla se ve en la transmisión. ¿Mover igual?",
+            accept: "Mover igual", reject: "Cancelar",
+            action: accion
+        })
+    }
     color: Theme.bg
     property real leftInset: 92
     readonly property var cc: Studio.camaras
@@ -424,7 +434,7 @@ Rectangle {
                                         anchors.fill: parent
                                         onClicked: {
                                             if (page.guardando) { page.avisar(page.cc.guardarPreset(page.sel, numero)); page.guardando = false }
-                                            else page.avisar(page.cc.irPreset(page.sel, numero))
+                                            else page.siNoAlAire(function() { page.avisar(page.cc.irPreset(page.sel, numero)) })
                                         }
                                     }
                                 }
@@ -484,8 +494,8 @@ Rectangle {
                                         TextField { id: edNombre; visible: filaPos.editando; Layout.preferredWidth: 180; text: filaPos.modelData.nombre }
                                         TextField { id: edComentario; visible: filaPos.editando; Layout.fillWidth: true; text: filaPos.modelData.comentario || "" }
                                         GlassButton { compact: true; text: "Ir"; active: true; visible: !filaPos.editando
-                                                      onClicked: { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, 1.0)
-                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) } }
+                                                      onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, 1.0)
+                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
                                         GlassButton { compact: true; text: "Regrabar"; visible: !filaPos.editando
                                                       onClicked: { const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id, {regrabar: true})
                                                                    page.avisar(r.ok ? (r.aviso || "") : r.error) } }

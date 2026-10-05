@@ -28,6 +28,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <cmath>
 
 namespace ba::app::ptz {
@@ -61,6 +62,14 @@ ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, Q
       busqueda_(std::make_unique<OnvifBusqueda>()) {
     connect(busqueda_.get(), &OnvifBusqueda::cambio, this, &ControlCamaras::busquedaCambio);
     leer();
+    {
+        std::ifstream f(dataRoot / "Config" / "ptz-interlock.json");
+        const auto j = nlohmann::json::parse(f, nullptr, false);
+        if (j.is_object()) {
+            interlockActivo_ = j.value("activo", true);
+            seguirSuavePermitido_ = j.value("seguir_suave_permitido", true);
+        }
+    }
     revision_.setInterval(1500);
     connect(&revision_, &QTimer::timeout, this, &ControlCamaras::sincronizar);
     revision_.start();
@@ -844,6 +853,22 @@ void ControlCamaras::guardar() {
     if (!f.open(QIODevice::WriteOnly)) return;
     f.write(QJsonDocument(QJsonObject{{"camaras", todas}}).toJson(QJsonDocument::Indented));
     f.commit();
+}
+
+bool ControlCamaras::alAire(const QString& entrada) const {
+    const auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
+    return std::find(ss.begin(), ss.end(), entrada.toStdString()) != ss.end();
+}
+
+QVariantMap ControlCamaras::interlock() const {
+    return {{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}};
+}
+
+void ControlCamaras::setInterlock(const QVariantMap& c) {
+    if (c.contains("activo")) interlockActivo_ = c.value("activo").toBool();
+    if (c.contains("seguir_suave_permitido")) seguirSuavePermitido_ = c.value("seguir_suave_permitido").toBool();
+    std::ofstream o(rt_.dataRoot() / "Config" / "ptz-interlock.json");
+    o << nlohmann::json{{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}}.dump(1);
 }
 
 } // namespace ba::app::ptz

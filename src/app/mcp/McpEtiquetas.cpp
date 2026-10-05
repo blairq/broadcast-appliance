@@ -122,6 +122,7 @@ const Fila kPropias[] = {
     {"chat_recientes", "chat mensajes recientes publico destacar"},
     {"chat_destacar", "destacar mensaje chat aire pantalla publico pregunta"},
     {"chat_quitar_destacado", "sacar destacado chat"},
+    {"ptz_interlock", "interlock ptz camara al aire no mover bloqueo seguridad"},
     {"supervisor_politica", "supervisor latido interfaz trabada colgada relanzar reiniciar watchdog aire"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},
