@@ -43,6 +43,8 @@
 #include <memory>
 #include <mutex>
 #include <string>
+
+#include <nlohmann/json.hpp>
 #include <utility>
 #include <vector>
 
@@ -252,6 +254,16 @@ class BroadcastEngine {
     /// Tipo ("cut", "fade", "swipe", "slide", "fade_to_color") y duracion de
     /// la transicion entre escenas.
     bool setTransition(const std::string& type, int durationMs);
+
+    // --- FTB y placa de seguridad (por encima de todo lo que sale) -------------
+    /// Fundido a negro de la salida (canal 31, encima del programa). `ms` de
+    /// fundido; con `bajarAudio`, el audio del programa baja con él.
+    bool ftb(bool activar, int ms, bool bajarAudio);
+    /// La placa ("Cuarto intermedio", "Volvemos enseguida"…): una escena interna
+    /// con fondo, texto e imagen opcional (canal 30), con fundido.
+    bool placa(bool activar, const std::string& texto, const std::string& imagen, int ms);
+    /// {ftb, ftb_audio, placa, placa_texto, placa_imagen} (lo que se ve ahora o va hacia eso).
+    nlohmann::json estadoPlaca() const;
 
     /// Compatibilidad: crea la escena "programa" y la pone al aire.
     bool buildScene();
@@ -669,6 +681,21 @@ class BroadcastEngine {
     // canal 0. Fuentes creadas por el motor (referencias propias).
     std::vector<std::pair<std::string, obs_scene*>> scenes_;
     std::string currentScene_;
+    // FTB y placa: la fuente (o escena), el filtro de opacidad y el fundido.
+    struct Velo {
+        void* fuente = nullptr;  ///< obs_source_t*
+        void* filtro = nullptr;  ///< color_filter_v2 (opacidad)
+        float actual = 0, objetivo = 0, porSeg = 1;
+        std::uint32_t canal = 0;
+    };
+    Velo veloFtb_, veloPlaca_;
+    bool ftbAudio_ = false;
+    std::string placaTexto_, placaImagen_;
+    float volumenAntesFtb_ = 1.0f;
+    bool tickVelo_ = false;
+    static void tickVelos(void* data, float segundos);
+    void asegurarVelos();
+    void soltarVelos();
     obs_source* transition_ = nullptr;
     std::string transitionType_ = "fade";
     int transitionMs_ = 300;

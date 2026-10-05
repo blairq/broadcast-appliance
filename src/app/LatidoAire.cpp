@@ -34,7 +34,7 @@ void LatidoAire::iniciar(const fs::path& datos, std::function<void()> latir, std
             pol_.matarSiUiTrabadaSinAire = j.value("matar_si_ui_trabada_sin_aire", pol_.matarSiUiTrabadaSinAire);
         }
     }
-    ultimoUiNs_ = ahoraNs();
+    ultimoUiNs_ = 0; // hasta el primer tick de la interfaz (carga del QML): sin "traba"
     corriendo_ = true;
     hilo_ = std::thread([this] { bucle(); });
 }
@@ -47,7 +47,8 @@ void LatidoAire::detener() {
 void LatidoAire::uiTick(bool hayAire) {
     const std::uint64_t ahora = ahoraNs(), antes = ultimoUiNs_.exchange(ahora);
     hayAire_ = hayAire;
-    // Volvió de una traba (más de 2 s sin tick): se avisa una vez.
+    // Volvió de una traba (más de 2 s sin tick): se avisa una vez. El primer
+    // tick (antes == 0) no cuenta: es la carga de la interfaz.
     if (antes != 0 && ahora - antes > 2'000'000'000ULL) {
         const std::uint64_t ms = (ahora - antes) / 1'000'000ULL;
         trabaTerminadaMs_ = ms;
@@ -77,7 +78,8 @@ void LatidoAire::bucle() {
         // Vivo: avanzó en el último segundo (un cuadro cada 1/fps; a 1 s sobra).
         const bool vivo = sinAvanceNs < 1'000'000'000ULL;
         motorVivo_ = vivo;
-        const std::uint64_t uiNs = ahora - ultimoUiNs_.load();
+        const std::uint64_t ui0 = ultimoUiNs_.load();
+        const std::uint64_t uiNs = ui0 == 0 ? 0 : ahora - ui0; // arrancando: la interfaz todavía carga
         const bool uiTrabada = uiNs > 2'000'000'000ULL;
         if (uiTrabada && !avisoTraba) {
             avisoTraba = true;
@@ -133,7 +135,8 @@ void LatidoAire::guardar() const {
 
 json LatidoAire::estado() const {
     const Politica p = politica();
-    const std::uint64_t uiNs = ahoraNs() - ultimoUiNs_.load();
+    const std::uint64_t ui0 = ultimoUiNs_.load();
+    const std::uint64_t uiNs = ui0 == 0 ? 0 : ahoraNs() - ui0;
     return {{"motor_vivo", motorVivo_.load()},
             {"ui_viva", uiNs < 2'000'000'000ULL},
             {"ui_trabada_ms", uiNs < 2'000'000'000ULL ? 0 : uiNs / 1'000'000ULL},

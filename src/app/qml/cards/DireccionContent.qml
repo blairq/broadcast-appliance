@@ -46,6 +46,9 @@ Item {
         anchors.fill: parent
         spacing: 8
 
+        // --- FTB y placa: tapar todo lo que sale a un toque ---------------------
+        BotonesSeguridad { Layout.fillWidth: true }
+
         // --- Los dos buses -----------------------------------------------------
         RowLayout {
             Layout.fillWidth: true

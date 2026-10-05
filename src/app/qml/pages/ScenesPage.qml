@@ -73,6 +73,12 @@ Rectangle {
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
+                // FTB y placa a un toque (encima de todo lo que sale).
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    BotonesSeguridad { Layout.fillWidth: true }
+                }
                 CheckBox {
                     text: "Corte directo (sin preview)"
                     checked: Studio.corteDirectoEditor

@@ -379,6 +379,7 @@ void BroadcastEngine::shutdown() {
     }
     stopStreaming();
     stopRecording();
+    soltarVelos(); // FTB y placa
     stopReturnFeeds();
     disablePreview();
 

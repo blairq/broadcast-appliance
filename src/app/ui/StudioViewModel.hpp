@@ -226,6 +226,17 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantList alarmasActivasUi() const;
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
+    // --- FTB y placa de seguridad (encima de todo lo que sale) ---------------
+    /// Fundido a negro; `audio`: "bajar" (de fábrica) o "mantener". "" o el error.
+    Q_INVOKABLE QString ftbUi(bool activar, int ms = 800, const QString& audio = "bajar");
+    /// La placa con `texto` (y una imagen opcional). "" o el error.
+    Q_INVOKABLE QString placaUi(bool activar, const QString& texto = {}, const QString& imagen = {}, int ms = 600);
+    /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
+    Q_INVOKABLE QVariantMap estadoPlacaUi() const;
+    /// Los textos de placa de siempre (y los que se usaron).
+    Q_INVOKABLE QStringList textosPlaca() const;
+    /// Vuelve a poner el FTB y la placa como estaban (Runtime/placa.json): tras una caída.
+    void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
@@ -453,6 +464,7 @@ class StudioViewModel : public QObject {
     void quitRequested();
     void alarmasCambio();
     void escenasAjustesChanged();
+    void placaChanged();
 
    private slots:
     void onTick();

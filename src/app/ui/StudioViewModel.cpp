@@ -605,6 +605,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
     frameTick_.start(16); // hasta 60 Hz; FrameService solo avisa si hay frame nuevo
+    // Tras una caída: la placa o el negro vuelven como estaban.
+    QTimer::singleShot(1500, this, [this]() { restaurarPlaca(); });
 }
 
 StudioViewModel::~StudioViewModel() {
@@ -1251,6 +1253,52 @@ void StudioViewModel::setCorteDirectoEditor(bool si) {
     std::ofstream o(rt_.dataRoot() / "Config" / "escenas.json");
     o << nlohmann::json{{"corte_directo_editor", si}}.dump(1);
     emit escenasAjustesChanged();
+}
+
+namespace {
+void guardarPlaca(const std::filesystem::path& datos, const nlohmann::json& estado) {
+    std::error_code ec;
+    std::filesystem::create_directories(datos / "Runtime", ec);
+    std::ofstream o(datos / "Runtime" / "placa.json");
+    o << estado.dump(1);
+}
+} // namespace
+
+QString StudioViewModel::ftbUi(bool activar, int ms, const QString& audio) {
+    if (!rt_.engine().ftb(activar, ms, audio != "mantener")) return qs(rt_.engine().lastError());
+    guardarPlaca(rt_.dataRoot(), rt_.engine().estadoPlaca());
+    emit placaChanged();
+    return {};
+}
+
+QString StudioViewModel::placaUi(bool activar, const QString& texto, const QString& imagen, int ms) {
+    if (!rt_.engine().placa(activar, texto.toStdString(), imagen.toStdString(), ms)) return qs(rt_.engine().lastError());
+    guardarPlaca(rt_.dataRoot(), rt_.engine().estadoPlaca());
+    emit placaChanged();
+    return {};
+}
+
+QVariantMap StudioViewModel::estadoPlacaUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().estadoPlaca().dump())).object().toVariantMap();
+}
+
+QStringList StudioViewModel::textosPlaca() const {
+    QStringList l{"Volvemos enseguida", "Cuarto intermedio", "Minuto de silencio", "Sesión suspendida",
+                  "Dificultades técnicas"};
+    const QString usado = QString::fromStdString(rt_.engine().estadoPlaca().value("placa_texto", std::string()));
+    if (!usado.isEmpty() && !l.contains(usado)) l.prepend(usado);
+    return l;
+}
+
+void StudioViewModel::restaurarPlaca() {
+    std::ifstream f(rt_.dataRoot() / "Runtime" / "placa.json");
+    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    if (!j.is_object()) return;
+    if (j.value("placa", false))
+        rt_.engine().placa(true, j.value("placa_texto", std::string()), j.value("placa_imagen", std::string()), 0);
+    if (j.value("ftb", false)) rt_.engine().ftb(true, 0, j.value("ftb_audio", false));
+    if (j.value("placa", false) || j.value("ftb", false))
+        emit notify("Se restauró lo que estaba al aire antes del corte (placa o negro)", "warn");
 }
 
 } // namespace ba::app

@@ -33,6 +33,8 @@ const std::map<std::string, std::string>& fijas() {
         {"ptz_encuadre", "reencuadra una cámara (si está al aire, se ve)"},
         {"ptz_seguir", "una cámara sigue a alguien (si está al aire, se ve)"},
         {"participant_talk", "abre o cierra el micrófono de un invitado"},
+        {"aire_ftb", "manda la salida a negro"},
+        {"aire_placa", "tapa la salida con una placa"},
     };
     return m;
 }
@@ -55,11 +57,13 @@ bool condicionFija(const std::string& h, const json& a) {
         return f.empty() || f == "master" || f == "máster" || f == "programa";
     }
     if (h == "speaker_on_air") return !a.value("on", a.value("al_aire", true)); // sacar a alguien
+    if (h == "aire_ftb" || h == "aire_placa") return a.value("activar", false); // sacarla no es de aire
     return true;
 }
 
 bool esAireSi(const std::string& h) {
-    return h == "settings_set" || h == "audio_set" || h == "speaker_on_air" || h.rfind("ptz_", 0) == 0;
+    return h == "settings_set" || h == "audio_set" || h == "speaker_on_air" || h == "aire_ftb" ||
+           h == "aire_placa" || h.rfind("ptz_", 0) == 0;
 }
 
 } // namespace

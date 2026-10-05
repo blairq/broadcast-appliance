@@ -821,6 +821,67 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "aire_ftb";
+        t.title = "Fundido a negro (FTB)";
+        t.category = "escenas";
+        t.description = "Fundido a negro de TODO lo que sale (encima del programa, sin tocar las escenas). `activar` "
+                        "true/false, `ms` de fundido (de fábrica 800), `audio`: bajar (de fábrica: el audio baja con "
+                        "el negro) o mantener. Activarlo al aire es una acción de aire (pide confirmación si lo pide "
+                        "algo automático); sacarlo, no.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"activar"}},
+                         {"properties",
+                          {{"activar", {{"type", "boolean"}}},
+                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}},
+                           {"audio", {{"type", "string"}, {"enum", {"bajar", "mantener"}}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.ftbUi(a.value("activar", false), a.value("ms", 800),
+                                       QString::fromStdString(a.value("audio", std::string("bajar"))));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(qvToJson(vm.estadoPlacaUi())));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "aire_placa";
+        t.title = "Placa de seguridad";
+        t.category = "escenas";
+        t.description = "Una placa encima de todo lo que sale (\"Cuarto intermedio\", \"Volvemos enseguida\", \"Minuto "
+                        "de silencio\"…), con `texto`, una `imagen` opcional (ruta) y `ms` de fundido (600). No depende "
+                        "de las escenas. Activarla al aire pide confirmación si la pide algo automático; sacarla, no. "
+                        "Sobrevive a una caída de la app.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"activar"}},
+                         {"properties",
+                          {{"activar", {{"type", "boolean"}}},
+                           {"texto", {{"type", "string"}}},
+                           {"imagen", {{"type", "string"}}},
+                           {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.placaUi(a.value("activar", false), QString::fromStdString(a.value("texto", std::string())),
+                                         QString::fromStdString(a.value("imagen", std::string())), a.value("ms", 600));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(qvToJson(vm.estadoPlacaUi())));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "aire_placas_listar";
+        t.title = "Textos de placa y estado";
+        t.category = "escenas";
+        t.readOnly = true;
+        t.description = "Los textos de placa de siempre y si ahora hay FTB o placa al aire.";
+        t.run = [&vm](const json&, Done done) {
+            json textos = json::array();
+            for (const QString& s : vm.textosPlaca()) textos.push_back(s.toStdString());
+            done(ToolResult().data(json{{"textos", textos}, {"estado", qvToJson(vm.estadoPlacaUi())}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "escenas_ajustes";
         t.title = "Ajustes del editor de escenas";
         t.category = "escenas";
