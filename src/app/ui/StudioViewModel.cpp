@@ -2719,6 +2719,21 @@ QString StudioViewModel::fuenteDeInvitado(const QString& participante) const {
     return {};
 }
 
+QVariantMap StudioViewModel::limpiaUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().cleanFeedEstado().dump())).object().toVariantMap();
+}
+
+QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
+    if (!activar) {
+        rt_.engine().stopCleanFeed();
+        emit statusChanged();
+        return {};
+    }
+    const std::string e = rt_.iniciarSenalLimpia(destino.toStdString());
+    emit statusChanged();
+    return qs(e);
+}
+
 QString StudioViewModel::isoTodasUi(bool grabar) {
     if (!grabar) {
         rt_.stopAllSourceRecordings();

@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <memory>
 #include <set>
 
@@ -2882,16 +2883,20 @@ void McpService::registerTools() {
         t.name = "stream_destino_agregar";
         t.title = "Agregar o cambiar un destino de transmision";
         t.category = "salidas";
-        t.description = "Un destino adicional: `nombre`, `url` (rtmp:// o rtmps://), `clave` (se guarda cifrada; "
-                        "mejor que la cargue el operador en Salidas > + Destino…, donde no la ves), `respaldo`. Con "
-                        "`id` de uno existente, lo cambia (stream_destino_editar es lo mismo).";
+        t.description = "Un destino adicional: `nombre`, `url` (rtmp://, rtmps://, srt:// o rist://), `clave` (se "
+                        "guarda cifrada; mejor que la cargue el operador en Salidas > + Destino…, donde no la ves; en "
+                        "SRT es la passphrase, en RTMP la stream key), `respaldo`. SRT: `modo` (caller, listener, "
+                        "rendezvous) y `latencia_ms` (120 en LAN, 4× el ping por internet). Con `id` de uno existente, "
+                        "lo cambia (stream_destino_editar es lo mismo).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
                            {"nombre", {{"type", "string"}}},
                            {"url", {{"type", "string"}}},
                            {"clave", {{"type", "string"}}},
-                           {"respaldo", {{"type", "boolean"}}}}}};
+                           {"respaldo", {{"type", "boolean"}}},
+                           {"modo", {{"type", "string"}, {"enum", {"caller", "listener", "rendezvous"}}}},
+                           {"latencia_ms", {{"type", "integer"}, {"minimum", 20}, {"maximum", 8000}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
             std::string id;
             const std::string e = rt.guardarDestino(a, &id);
@@ -2936,6 +2941,60 @@ void McpService::registerTools() {
             if (!e.empty()) return done(ToolResult::error(e));
             emit vm.destinosChanged();
             done(ToolResult::ok("Borrado."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "salida_limpia";
+        t.title = "Señal limpia (clean feed)";
+        t.category = "salidas";
+        t.description = "El programa SIN las capas globales (zócalos DSK, logo) ni la placa de seguridad: lo que "
+                        "piden un canal o una cadena que ponen su propia gráfica. Sin argumentos informa. "
+                        "`activar: true` la arranca: con `destino` (id de stream_destinos: rtmp/srt/rist, con su "
+                        "clave guardada) la manda ahí; sin destino la graba en Recordings/limpia/. `activar: false` "
+                        "la corta. Es un encode más (x264, en la CPU): mirá `status.cpu`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"activar", {{"type", "boolean"}}}, {"destino", {{"type", "string"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            if (a.contains("activar")) {
+                if (a.value("activar", false)) {
+                    const std::string e = rt.iniciarSenalLimpia(a.value("destino", std::string()));
+                    if (!e.empty()) return done(ToolResult::error(e));
+                } else {
+                    rt.engine().stopCleanFeed();
+                }
+                emit vm.statusChanged();
+            }
+            done(ToolResult().data(rt.engine().cleanFeedEstado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "salidas_profesionales";
+        t.title = "Qué salidas profesionales hay";
+        t.category = "salidas";
+        t.readOnly = true;
+        t.description = "Qué salidas de contribución trae este equipo y cuáles no, para no prometer lo que no hay.";
+        t.run = [&rt](const json&, Done done) {
+            const auto hay = [](const char* id) {
+                const char* tipo = nullptr;
+                for (std::size_t i = 0; obs_enum_output_types(i, &tipo); ++i)
+                    if (tipo != nullptr && std::strcmp(tipo, id) == 0) return true;
+                return false;
+            };
+            const bool ts = hay("ffmpeg_mpegts_muxer");
+            done(ToolResult().data(json{
+                {"rtmp", hay("rtmp_output")},
+                {"srt", ts},
+                {"rist", ts},
+                {"senal_limpia", true},
+                {"senal_limpia_estado", rt.engine().cleanFeedEstado()},
+                {"ndi_salida", false},
+                {"decklink_salida", false},
+                {"nota", "SRT y RIST salen por el muxer MPEG-TS (stream_destino_agregar con srt:// o rist://). "
+                         "NDI y DeckLink de salida no vienen en el paquete (sus SDK no se pueden redistribuir)."}}));
         };
         core_.addTool(std::move(t));
     }

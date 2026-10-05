@@ -1082,9 +1082,7 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
 
     // Servicio RTMP personalizado: servidor + clave los pone el operador (la
     // clave deberia salir de la boveda de secretos, nunca del codigo).
-    obs_data_t* ss = obs_data_create();
-    obs_data_set_string(ss, "server", stream.server.c_str());
-    obs_data_set_string(ss, "key", stream.key.c_str());
+    obs_data_t* ss = datosServicio(stream.server, stream.key);
     obs_service_t* svc = obs_service_create("rtmp_custom", "servicio", ss, nullptr);
     obs_data_release(ss);
     if (svc == nullptr) {
@@ -1096,9 +1094,9 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     }
     service_ = reinterpret_cast<obs_service*>(svc);
 
-    obs_output_t* out = obs_output_create("rtmp_output", "transmision", nullptr, nullptr);
+    obs_output_t* out = obs_output_create(tipoSalida(stream.server), "transmision", nullptr, nullptr);
     if (out == nullptr) {
-        setError("obs_output_create(rtmp_output) fallo");
+        setError(std::string("obs_output_create(") + tipoSalida(stream.server) + ") fallo");
         return false;
     }
     obs_output_set_service(out, svc);
@@ -1132,6 +1130,35 @@ int BroadcastEngine::enviarCaption(const std::string& texto, double segundos) {
     return n;
 }
 
+// --- Salidas de red: RTMP(S), SRT y RIST ------------------------------------------
+// RTMP va por `rtmp_output`; SRT y RIST por `ffmpeg_mpegts_muxer` (el FFmpeg del
+// bundle trae libsrt y librist). El servicio `rtmp_custom` reconoce el protocolo
+// por el comienzo de la dirección (obs-src/plugins/rtmp-services/rtmp-custom.c):
+// en SRT la «clave» es la passphrase (va como password con use_auth) y el streamid,
+// si hace falta, va en la dirección (srt://host:puerto?streamid=…&latency=…); en
+// RIST la clave es la passphrase tal cual.
+static bool esMpegts(const std::string& url) {
+    return url.rfind("srt://", 0) == 0 || url.rfind("rist://", 0) == 0;
+}
+
+const char* BroadcastEngine::tipoSalida(const std::string& url) {
+    return esMpegts(url) ? "ffmpeg_mpegts_muxer" : "rtmp_output";
+}
+
+obs_data* BroadcastEngine::datosServicio(const std::string& server, const std::string& key) {
+    obs_data_t* ss = obs_data_create();
+    obs_data_set_string(ss, "server", server.c_str());
+    if (server.rfind("srt://", 0) == 0) {
+        if (!key.empty()) {
+            obs_data_set_bool(ss, "use_auth", true);
+            obs_data_set_string(ss, "password", key.c_str());
+        }
+    } else {
+        obs_data_set_string(ss, "key", key.c_str());
+    }
+    return ss;
+}
+
 bool BroadcastEngine::algunExtraActivo(const void* menos) const {
     for (const auto& [id, x] : extras_)
         if (x.output != nullptr && x.output != menos && obs_output_active(reinterpret_cast<obs_output_t*>(x.output)))
@@ -1155,12 +1182,10 @@ bool BroadcastEngine::startExtra(const std::string& id, const std::string& serve
         return true;
     stopExtra(id);
     if (!ensureEncoders(enc)) return false;
-    obs_data_t* ss = obs_data_create();
-    obs_data_set_string(ss, "server", server.c_str());
-    obs_data_set_string(ss, "key", key.c_str());
+    obs_data_t* ss = datosServicio(server, key);
     obs_service_t* svc = obs_service_create_private("rtmp_custom", ("servicio-" + id).c_str(), ss);
     obs_data_release(ss);
-    obs_output_t* out = svc != nullptr ? obs_output_create("rtmp_output", ("destino-" + id).c_str(), nullptr, nullptr)
+    obs_output_t* out = svc != nullptr ? obs_output_create(tipoSalida(server), ("destino-" + id).c_str(), nullptr, nullptr)
                                        : nullptr;
     if (out == nullptr) {
         if (svc != nullptr) obs_service_release(svc);
@@ -1387,6 +1412,7 @@ struct BroadcastEngine::SourceRec {
     obs_encoder_t* venc = nullptr;
     obs_encoder_t* aenc = nullptr;
     obs_output_t* out = nullptr;
+    obs_service_t* svc = nullptr; ///< la señal limpia a un destino de red
     int pista = -1;                ///< pista de audio tomada (1..5), -1 = sin audio
     std::uint32_t mixersAntes = 0; ///< para devolverle a la fuente lo que tenia
 
@@ -1398,6 +1424,7 @@ struct BroadcastEngine::SourceRec {
             if (obs_output_active(out)) obs_output_stop(out);
             obs_output_release(out);
         }
+        if (svc != nullptr) obs_service_release(svc);
         if (venc != nullptr) obs_encoder_release(venc);
         if (aenc != nullptr) obs_encoder_release(aenc);
         if (view != nullptr) {
@@ -1551,6 +1578,111 @@ bool BroadcastEngine::stopSourceRecording(const std::string& source) {
     }
     sourceRecs_.erase(it); // el destructor para y libera, en orden
     return true;
+}
+
+bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::string& clave, const std::string& dir,
+                                    const EncoderConfig& enc) {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (clean_) return true;
+    if (transition_ == nullptr) {
+        setError("no hay programa todavía");
+        return false;
+    }
+    auto rec = std::make_unique<SourceRec>();
+    rec->source = "señal limpia";
+    // La vista mira SOLO el canal del programa (la transición): las capas DSK y la
+    // placa van en otros canales de salida y acá no entran.
+    rec->view = obs_view_create();
+    if (rec->view == nullptr) {
+        setError("no se pudo crear la vista de la señal limpia");
+        return false;
+    }
+    obs_view_set_source(rec->view, 0, reinterpret_cast<obs_source_t*>(transition_));
+    struct obs_video_info ovi;
+    if (!obs_get_video_info(&ovi)) {
+        setError("no se pudo leer la configuracion de video");
+        return false;
+    }
+    rec->video = obs_view_add2(rec->view, &ovi);
+    if (rec->video == nullptr) {
+        setError("no se pudo abrir el render de la señal limpia (GPU sin lugar)");
+        return false;
+    }
+    // Encoder propio en software: los de la GPU se los queda el programa.
+    obs_data_t* vs = obs_data_create();
+    obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
+    obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
+    obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
+    obs_data_set_string(vs, "preset", enc.preset.c_str());
+    rec->venc = obs_video_encoder_create("obs_x264", "venc-limpia", vs, nullptr);
+    obs_data_release(vs);
+    if (rec->venc == nullptr) {
+        setError("no se pudo crear el codificador de la señal limpia");
+        return false;
+    }
+    obs_encoder_set_video(rec->venc, rec->video);
+    obs_data_t* as = obs_data_create();
+    obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
+    rec->aenc = obs_audio_encoder_create("ffmpeg_aac", "aenc-limpia", as, 0, nullptr);
+    obs_data_release(as);
+    if (rec->aenc == nullptr) {
+        setError("no se pudo crear el codificador de audio de la señal limpia");
+        return false;
+    }
+    obs_encoder_set_audio(rec->aenc, obs_get_audio());
+    if (!destino.empty()) {
+        obs_data_t* ss = datosServicio(destino, clave);
+        rec->svc = obs_service_create_private("rtmp_custom", "servicio-limpia", ss);
+        obs_data_release(ss);
+        rec->out = rec->svc != nullptr ? obs_output_create(tipoSalida(destino), "salida-limpia", nullptr, nullptr) : nullptr;
+        if (rec->out == nullptr) {
+            setError("no se pudo crear la salida de la señal limpia");
+            return false;
+        }
+        obs_output_set_service(rec->out, rec->svc);
+        obs_output_set_reconnect_settings(rec->out, 20, 2);
+    } else {
+        const auto secs =
+            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+        rec->path = dir + "/senal-limpia-" + std::to_string(secs) + ".mkv";
+        obs_data_t* os = obs_data_create();
+        obs_data_set_string(os, "path", rec->path.c_str());
+        rec->out = obs_output_create("ffmpeg_muxer", "rec-limpia", os, nullptr);
+        obs_data_release(os);
+        if (rec->out == nullptr) {
+            setError("no se pudo crear la grabación de la señal limpia");
+            return false;
+        }
+    }
+    obs_output_set_video_encoder(rec->out, rec->venc);
+    obs_output_set_audio_encoder(rec->out, rec->aenc, 0);
+    if (!obs_output_start(rec->out)) {
+        const char* e = obs_output_get_last_error(rec->out);
+        setError(std::string("no arrancó la señal limpia") + (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
+        return false;
+    }
+    cleanDestino_ = destino.empty() ? rec->path : enmascarar(destino, clave);
+    clean_ = std::move(rec);
+    return true;
+}
+
+void BroadcastEngine::stopCleanFeed() {
+    clean_.reset(); // el destructor para y libera, en orden
+    cleanDestino_.clear();
+}
+
+nlohmann::json BroadcastEngine::cleanFeedEstado() const {
+    if (!clean_) return {{"activa", false}};
+    obs_output_t* o = clean_->out;
+    return {{"activa", o != nullptr && obs_output_active(o)},
+            {"reconectando", o != nullptr && obs_output_reconnecting(o)},
+            {"destino", cleanDestino_},
+            {"archivo", clean_->path},
+            {"cuadros", o != nullptr ? obs_output_get_total_frames(o) : 0},
+            {"perdidos", o != nullptr ? obs_output_get_frames_dropped(o) : 0}};
 }
 
 void BroadcastEngine::stopAllSourceRecordings() {

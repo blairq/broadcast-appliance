@@ -394,6 +394,10 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString fuenteDeInvitado(const QString& participante) const;
     /// Todas las de video de la escena al aire (true) o ninguna (false). Devuelve los errores.
     Q_INVOKABLE QString isoTodasUi(bool grabar);
+    /// La señal limpia: {activa, destino, archivo, cuadros, perdidos, reconectando}.
+    Q_INVOKABLE QVariantMap limpiaUi() const;
+    /// La arranca (a `destino`, id de un destino guardado, o a disco si vacío) o la corta. "" o el error.
+    Q_INVOKABLE QString limpiaActivarUi(bool activar, const QString& destino);
     control::SatelliteServidor& satellite() { return *satellite_; }
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).

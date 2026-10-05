@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
@@ -434,6 +435,7 @@ void AppRuntime::stop() {
     // de render y su archivo abierto, y si el cierre las deja vivas el archivo
     // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
     engine_.stopAllSourceRecordings();
+    engine_.stopCleanFeed();
     latido_.detener(); // antes de apagar libobs (lee sus cuadros)
     std::printf("ba-app: cerrando (salidas, escena, libobs)\n");
     control_.stop();
@@ -634,8 +636,9 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
     for (auto& x : lista)
         if (!id.empty() && x.value("id", std::string()) == id) existente = &x;
     if (existente == nullptr) {
-        if (url.rfind("rtmp://", 0) != 0 && url.rfind("rtmps://", 0) != 0)
-            return "`url`: rtmp:// o rtmps:// (SRT, más adelante)";
+        if (url.rfind("rtmp://", 0) != 0 && url.rfind("rtmps://", 0) != 0 && url.rfind("srt://", 0) != 0 &&
+            url.rfind("rist://", 0) != 0)
+            return "`url`: rtmp://, rtmps://, srt:// o rist://";
         if (id.empty()) {
             int n = 1;
             const auto usado = [&](const std::string& c) {
@@ -647,14 +650,68 @@ std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idO
             id = "destino-" + std::to_string(n);
         }
         lista.push_back({{"id", id}, {"nombre", d.value("nombre", id)}, {"url", url}, {"respaldo", d.value("respaldo", false)}});
+        existente = &lista.back();
     } else {
         for (const char* k : {"nombre", "url", "respaldo"})
             if (d.contains(k)) (*existente)[k] = d[k];
+    }
+    // SRT: el modo (caller/listener/rendezvous) y la latencia van en la URL, que es
+    // como los lee el muxer (ffmpeg: latency en microsegundos). La passphrase es la clave.
+    if (d.contains("modo") || d.contains("latencia_ms")) {
+        const std::string actual = (*existente).value("url", std::string());
+        if (actual.rfind("srt://", 0) != 0) return "`modo` y `latencia_ms` son solo para srt://";
+        const auto q = actual.find('?');
+        std::string u = actual.substr(0, q);
+        std::vector<std::pair<std::string, std::string>> params;
+        if (q != std::string::npos) {
+            std::stringstream ss(actual.substr(q + 1));
+            for (std::string kv; std::getline(ss, kv, '&');)
+                if (!kv.empty()) {
+                    const auto e = kv.find('=');
+                    params.emplace_back(kv.substr(0, e), e == std::string::npos ? "" : kv.substr(e + 1));
+                }
+        }
+        const auto poner = [&params](const std::string& k, const std::string& v) {
+            for (auto& [pk, pv] : params)
+                if (pk == k) return void(pv = v);
+            params.emplace_back(k, v);
+        };
+        if (d.contains("modo")) {
+            const std::string m = d.value("modo", std::string());
+            if (m != "caller" && m != "listener" && m != "rendezvous") return "`modo`: caller, listener o rendezvous";
+            poner("mode", m);
+        }
+        if (d.contains("latencia_ms")) {
+            const int ms = d.value("latencia_ms", 0);
+            if (ms < 20 || ms > 8000) return "`latencia_ms`: entre 20 y 8000";
+            poner("latency", std::to_string(ms * 1000));
+        }
+        for (std::size_t i = 0; i < params.size(); ++i)
+            u += (i == 0 ? "?" : "&") + params[i].first + (params[i].second.empty() ? "" : "=" + params[i].second);
+        (*existente)["url"] = u;
     }
     if (d.contains("clave") && d["clave"].is_string() && !d["clave"].get<std::string>().empty())
         ba::security::CredentialStore::bundle().write("stream-" + id, d["clave"].get<std::string>());
     escribirDestinos(root_, lista);
     if (idOut != nullptr) *idOut = id;
+    return {};
+}
+
+std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
+    std::string url, clave, dir;
+    if (!destino.empty()) {
+        for (const auto& d : leerDestinos(root_))
+            if (d.value("id", std::string()) == destino) url = d.value("url", std::string());
+        if (url.empty()) return "no hay un destino «" + destino + "» (stream_destinos los lista)";
+        ba::security::CredentialStore::bundle().read("stream-" + destino, clave);
+    } else {
+        std::error_code ec;
+        dir = cfg_.rec.directory + "/limpia";
+        fs::create_directories(dir, ec);
+    }
+    if (!engine_.startCleanFeed(url, clave, dir, cfg_.encoder)) return engine_.lastError();
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
+                               "señal limpia " + (destino.empty() ? std::string("grabando en ") + dir : "a " + destino));
     return {};
 }
 

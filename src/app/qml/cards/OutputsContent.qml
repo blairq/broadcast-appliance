@@ -102,14 +102,24 @@ Item {
             padding: 16
             width: 460
             background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-            onOpened: { dNombre.text = ""; dUrl.text = ""; dClave.text = ""; dResp.checked = false }
+            onOpened: { dNombre.text = ""; dUrl.text = ""; dClave.text = ""; dResp.checked = false; dModo.currentIndex = 0; dLat.value = 120 }
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
                 Text { text: "Destino adicional"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 TextField { id: dNombre; Layout.fillWidth: true; placeholderText: "Nombre (p. ej. YouTube respaldo)" }
-                TextField { id: dUrl; Layout.fillWidth: true; placeholderText: "rtmp://servidor/app" }
-                TextField { id: dClave; Layout.fillWidth: true; placeholderText: "Clave (se guarda cifrada; el asistente no la ve)"; echoMode: TextInput.Password }
+                TextField { id: dUrl; Layout.fillWidth: true; placeholderText: "rtmp://servidor/app · srt://servidor:9000 · rist://servidor:8000" }
+                readonly property bool esSrt: dUrl.text.startsWith("srt://")
+                TextField { id: dClave; Layout.fillWidth: true; echoMode: TextInput.Password
+                            placeholderText: parent.esSrt ? "Passphrase SRT (10 a 79 caracteres; se guarda cifrada)" : "Clave (se guarda cifrada; el asistente no la ve)" }
+                RowLayout {
+                    visible: parent.esSrt
+                    spacing: 8
+                    Text { text: "Modo"; color: Theme.textDim; font.pixelSize: 12 }
+                    ComboBox { id: dModo; model: ["caller", "listener", "rendezvous"]; Layout.preferredWidth: 130 }
+                    Text { text: "Latencia (ms)"; color: Theme.textDim; font.pixelSize: 12 }
+                    SpinBox { id: dLat; from: 20; to: 8000; stepSize: 20; value: 120; editable: true }
+                }
                 CheckBox { id: dResp; text: "Es de respaldo" }
                 RowLayout {
                     Item { Layout.fillWidth: true }
@@ -117,7 +127,9 @@ Item {
                     GlassButton {
                         compact: true; active: true; text: "Guardar"
                         onClicked: {
-                            const e = Studio.guardarDestinoUi({ nombre: dNombre.text, url: dUrl.text, clave: dClave.text, respaldo: dResp.checked })
+                            const d = { nombre: dNombre.text, url: dUrl.text, clave: dClave.text, respaldo: dResp.checked }
+                            if (dUrl.text.startsWith("srt://")) { d.modo = dModo.currentText; d.latencia_ms = dLat.value }
+                            const e = Studio.guardarDestinoUi(d)
                             if (e !== "") Studio.notify(e, "error"); else nuevoDestino.close()
                         }
                     }
@@ -180,6 +192,36 @@ Item {
             }
             GlassButton { compact: true; text: "Todas"; onClicked: { const e = Studio.isoTodasUi(true); if (e !== "") Studio.notify(e, "warn"); isos.lista = Studio.isosUi() } }
             GlassButton { compact: true; text: "Ninguna"; enabled: isos.lista.length > 0; onClicked: { Studio.isoTodasUi(false); isos.lista = Studio.isosUi() } }
+        }
+        // Señal limpia: el programa sin DSK ni placa, a un destino guardado o a disco.
+        RowLayout {
+            id: limpia
+            Layout.fillWidth: true
+            property var e: Studio.limpiaUi()
+            Timer { interval: 2000; running: true; repeat: true; onTriggered: limpia.e = Studio.limpiaUi() }
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: !limpia.e.activa ? "Señal limpia (sin zócalos ni placa): apagada"
+                      : "Señal limpia → " + limpia.e.destino + (limpia.e.reconectando ? " · RECONECTANDO" : "") +
+                        (limpia.e.perdidos > 0 ? " · " + limpia.e.perdidos + " perdidos" : "")
+                color: limpia.e.activa ? (limpia.e.reconectando ? Theme.amber : Theme.live) : Theme.textFaint
+                font.pixelSize: 10
+            }
+            ComboBox {
+                id: limpiaA
+                visible: !limpia.e.activa
+                Layout.preferredWidth: 150
+                textRole: "nombre"
+                model: [{ id: "", nombre: "A disco" }].concat(destinos.lista.map(d => ({ id: d.id, nombre: d.nombre })))
+            }
+            GlassButton {
+                compact: true; text: limpia.e.activa ? "Cortar" : "Arrancar"
+                onClicked: {
+                    const x = Studio.limpiaActivarUi(!limpia.e.activa, limpia.e.activa ? "" : limpiaA.model[limpiaA.currentIndex].id)
+                    if (x !== "") Studio.notify(x, "error")
+                    limpia.e = Studio.limpiaUi()
+                }
+            }
         }
         // El disco a este bitrate y el pase a MP4 al terminar.
         Text {

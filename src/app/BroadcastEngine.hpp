@@ -59,6 +59,7 @@
 struct obs_output;
 struct obs_encoder;
 struct obs_service;
+struct obs_data;
 struct obs_scene;
 struct obs_source;
 struct obs_scene_item;
@@ -546,6 +547,10 @@ class BroadcastEngine {
 
     // --- Destinos adicionales (respaldo, otras plataformas) --------------------
     // Cada uno es otra salida RTMP que comparte los codificadores del principal.
+    /// La salida de libobs para una dirección: rtmp_output o ffmpeg_mpegts_muxer (srt://, rist://).
+    static const char* tipoSalida(const std::string& url);
+    /// Los datos del servicio rtmp_custom (en SRT la clave va como passphrase).
+    static obs_data* datosServicio(const std::string& server, const std::string& key);
     bool startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc);
     void stopExtra(const std::string& id);
     void stopExtras();
@@ -610,6 +615,13 @@ class BroadcastEngine {
     /// :returns: false y `lastError()` explica (no existe, ya se graba, no hay
     ///           lugar, no se pudo crear el codificador).
     bool startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc);
+    /// La señal limpia (clean feed): el programa SIN las capas globales (DSK) ni la
+    /// placa de seguridad, con su propio encoder, a un destino de red (rtmp/srt/rist:
+    /// `destino` + `clave`) o a un archivo en `dir` si no hay destino. Una a la vez.
+    bool startCleanFeed(const std::string& destino, const std::string& clave, const std::string& dir,
+                        const EncoderConfig& enc);
+    void stopCleanFeed();
+    nlohmann::json cleanFeedEstado() const;
     /// La para y cierra su archivo. false si no se estaba grabando.
     bool stopSourceRecording(const std::string& source);
     /// Para todas.
@@ -818,6 +830,8 @@ class BroadcastEngine {
     /// liberar: si algo queda vivo, libobs no suelta ni la GPU ni el archivo.
     struct SourceRec;
     std::map<std::string, std::unique_ptr<SourceRec>> sourceRecs_;
+    std::unique_ptr<SourceRec> clean_;
+    std::string cleanDestino_;
     obs_service* service_ = nullptr;
 
     // Candidatos de codificador de video (ver EncoderConfig::videoEncoder) y

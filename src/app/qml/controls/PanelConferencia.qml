@@ -220,7 +220,8 @@ ColumnLayout {
                     Text { Layout.preferredWidth: 230; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 11
                            text: modelData.mitad ? "DDI " + modelData.ddi + " · micrófono " + modelData.mitad
                                  : (modelData.tipo_nombre || "")
-                           ToolTip.visible: hovered && !!modelData.mitad; ToolTip.delay: 400
+                           HoverHandler { id: sobreDdi }
+                           ToolTip.visible: sobreDdi.hovered && !!modelData.mitad; ToolTip.delay: 400
                            ToolTip.text: "Una DCN-DDI en modo doble son dos micrófonos: la izquierda es la unidad y la derecha la unidad + 256. Cada uno va en su banca." }
                     Text { text: modelData.conectada ? "conectada" : "desconectada"; color: modelData.conectada ? Theme.ok : Theme.live; font.pixelSize: 12; Layout.preferredWidth: 90 }
                     TextField { id: campoBanca; Layout.preferredWidth: 90; placeholderText: "banca"; text: modelData.banca || "" }

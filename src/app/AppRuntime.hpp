@@ -66,6 +66,9 @@ class AppRuntime {
     bool startSourceRecording(const std::string& source);
     bool stopSourceRecording(const std::string& source);
     void stopAllSourceRecordings();
+    /// La señal limpia (sin DSK ni placa) a un destino guardado (`destino` = su id) o
+    /// a Recordings/limpia/ si viene vacío. "" o el error.
+    std::string iniciarSenalLimpia(const std::string& destino);
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
     bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false);
     void stopStreaming();

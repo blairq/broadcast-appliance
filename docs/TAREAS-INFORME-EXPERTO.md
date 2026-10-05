@@ -51,7 +51,7 @@
 | T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | hecho (sin componer en el preview ni miniaturas) |
 | T26 | Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV | P1 | hecho en parte (falta el stinger) |
 | T27 | Panel de salud de la salida | P1 | hecho en parte (por destino con 10 min de historial; falta la salud de ingesta de YouTube/Twitch cada 30 s) |
-| T28 | Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink | P1 | falta |
+| T28 | Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink | P1 | hecho (NDI/Decklink de salida: no se empaquetan) |
 | T29 | Grabación independiente del stream: encoder propio, multipista, replay, segunda copia | P1 | falta |
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
 | T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | parcial |
@@ -614,11 +614,13 @@
 - **Depende de:** T09.
 
 ### T28 · Salidas profesionales: SRT, clean feed y evaluación NDI/Decklink — P1
-- **Estado: falta.**
-  - Solo existe `rtmp_output` (`src/app/BroadcastEngine.cpp:948`).
-  - SRT es solo de entrada (`src/app/InputSpecs.cpp:19`).
-  - NDI es solo de entrada (`src/app/NdiSource.cpp:242`).
-  - No hay clean feed.
+- **Estado: hecho** (2026-10-05).
+  - **SRT y RIST:** `BroadcastEngine::tipoSalida` elige `ffmpeg_mpegts_muxer` para `srt://` y `rist://` (el principal y los destinos adicionales). `datosServicio` pone la clave como passphrase SRT (`use_auth`). `modo` y `latencia_ms` se guardan en la URL del destino (`mode=`, `latency=` en µs). Probado: un destino `listener` recibido con `ffprobe srt://…?mode=caller` da H.264 + AAC.
+  - **Señal limpia:** `startCleanFeed` arma una `obs_view` con SOLO el canal del programa (la transición), sin los canales de DSK ni la placa, con x264 + AAC propios, a un destino guardado o a `Recordings/limpia/`. Probado con un DSK arriba: el programa lo muestra y la señal limpia no.
+  - **MCP:** `stream_destino_agregar` con `modo` y `latencia_ms`, `salida_limpia {activar, destino?}`, `salidas_profesionales`.
+  - **GUI:** en Salidas, el formulario de destino acepta srt/rist y muestra modo y latencia para SRT; la fila «Señal limpia» con destino (o a disco) y Arrancar/Cortar.
+  - **NDI y DeckLink de salida:** no se empaquetan (los SDK no se pueden redistribuir con el bundle portable); `salidas_profesionales` lo dice.
+  - Pendiente menor: excluir de la señal limpia las fuentes marcadas `grafico` DENTRO de una escena (hoy saca las capas globales, que es donde van los zócalos y el logo).
 - **Qué hacer.**
   - **SRT** como tipo de destino de T09, con `ffmpeg_mpegts_muxer` y `srt://host:port?mode=caller|listener&latency=…&passphrase=…`. La passphrase va en `CredentialStore`. Verificar que el FFmpeg del bundle trae libsrt; si no, vendorearla. Alternativa: `srtsink` de GStreamer, que ya está en el bundle.
   - **Clean feed:** una vista (`obs_view`) con el programa sin DSK (T25) y sin gráficos marcados `grafico`, con su encoder, como destino o grabación.
