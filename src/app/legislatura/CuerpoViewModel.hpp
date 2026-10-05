@@ -6,10 +6,12 @@
 
 #include "legislatura/Cuerpo.hpp"
 
+#include <QImage>
 #include <QObject>
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <functional>
 #include <memory>
 
 namespace ba::app::legislatura {
@@ -40,12 +42,33 @@ class CuerpoViewModel : public QObject {
     /// Ver Cuerpo::setRecinto. "" o el error.
     Q_INVOKABLE QString editarRecinto(const QVariantMap& cambios);
 
+    // --- La foto de cada integrante (la cara de su botón en la botonera) -----------
+    /// Sube una imagen (archivo o file:// URL): se recorta en cuadrado y se guarda en
+    /// Fotos/cuerpo/<id>.jpg. "" o el error.
+    Q_INVOKABLE QString subirFoto(const QString& id, const QString& archivo);
+    /// La captura con su cámara: lleva la PTZ al preset de la banca (si no está al
+    /// aire), espera a que llegue y toma lo que se ve. El resultado llega por `fotoLista`.
+    Q_INVOKABLE void capturarFoto(const QString& id);
+    Q_INVOKABLE bool borrarFoto(const QString& id);
+    /// La ruta del archivo de la foto ("" si no tiene).
+    QString rutaFoto(const QString& idOBanca) const;
+    /// Lo que necesita para capturar: llevar la cámara (devuelve "" o el error) y
+    /// tomar el cuadro de una entrada.
+    struct Ganchos {
+        std::function<QString(const QString& banca)> apuntar;
+        std::function<QImage(const QString& camara)> capturar;
+    };
+    void setGanchos(Ganchos g) { g_ = std::move(g); }
+
    signals:
     void cambio();
+    void fotoLista(const QString& id, bool ok, const QString& texto);
 
    private:
     std::filesystem::path datos_;
     std::unique_ptr<Cuerpo> c_;
+    Ganchos g_;
+    QString guardarFoto(const QString& id, const QImage& img);
 };
 
 } // namespace ba::app::legislatura

@@ -136,6 +136,7 @@ const Fila kPropias[] = {
     {"dcn_puertos", "puertos serie adaptador usb serie"},
     {"dcn_traza", "tramas de la central diagnostico protocolo"},
     {"dcn_simular_boton", "simular un pedido de palabra probar sin la central"},
+    {"legislador_foto", "foto del legislador cara del boton subir foto capturar foto con la camara"},
     {"recinto_ver", "grilla del recinto bancas plano de la sala donde se sienta cada uno"},
     {"recinto_editar", "armar la grilla del recinto acomodar bancas mover banca filas columnas"},
     {"recinto_apuntar", "apuntar la camara a la banca preparar el plano de un legislador"},

@@ -4,7 +4,14 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QDateTime>
+#include <QDir>
+#include <QFileInfo>
+#include <QPointer>
+#include <QTimer>
 #include <QUrl>
+
+#include <algorithm>
 
 namespace ba::app::legislatura {
 
@@ -20,7 +27,79 @@ CuerpoViewModel::CuerpoViewModel(std::filesystem::path datos, QObject* parent)
 QString CuerpoViewModel::nombre() const { return QString::fromStdString(c_->nombre()); }
 
 QVariantList CuerpoViewModel::integrantes() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(c_->integrantes().dump())).array().toVariantList();
+    QVariantList out = QJsonDocument::fromJson(QByteArray::fromStdString(c_->integrantes().dump())).array().toVariantList();
+    for (QVariant& v : out) {
+        QVariantMap m = v.toMap();
+        const QString ruta = rutaFoto(m.value("id").toString());
+        if (!ruta.isEmpty())
+            m["foto_url"] = QUrl::fromLocalFile(ruta).toString() + "?v=" +
+                            QString::number(QFileInfo(ruta).lastModified().toMSecsSinceEpoch());
+        v = m;
+    }
+    return out;
+}
+
+QString CuerpoViewModel::rutaFoto(const QString& idOBanca) const {
+    const nlohmann::json i = c_->buscar(idOBanca.toStdString());
+    const QString f = QString::fromStdString(i.value("foto", std::string()));
+    if (f.isEmpty()) return {};
+    const QString ruta = QDir::isAbsolutePath(f) ? f : QString::fromStdWString((datos_ / f.toStdWString()).wstring());
+    return QFileInfo::exists(ruta) ? ruta : QString();
+}
+
+QString CuerpoViewModel::guardarFoto(const QString& id, const QImage& img) {
+    if (img.isNull()) return "no hay imagen";
+    // Cuadrada: el centro, un poco hacia arriba (en una foto de busto la cara está arriba del centro).
+    const int lado = std::min(img.width(), img.height());
+    const int x = (img.width() - lado) / 2;
+    const int y = std::max(0, std::min(img.height() - lado, (img.height() - lado) / 3));
+    const QImage cuadrada = img.copy(x, y, lado, lado).scaled(256, 256, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+                                .convertToFormat(QImage::Format_RGB888);
+    const QString rel = "Fotos/cuerpo/" + id + ".jpg";
+    const QString ruta = QString::fromStdWString((datos_ / rel.toStdWString()).wstring());
+    QDir().mkpath(QFileInfo(ruta).absolutePath());
+    if (!cuadrada.save(ruta, "JPG", 88)) return "no se pudo guardar la foto en " + ruta;
+    std::string err;
+    nlohmann::json c{{"id", id.toStdString()}, {"foto", rel.toStdString()}};
+    if (c_->guardar(c, &err).empty()) return QString::fromStdString(err);
+    emit cambio();
+    return {};
+}
+
+QString CuerpoViewModel::subirFoto(const QString& id, const QString& archivo) {
+    if (c_->buscar(id.toStdString()).empty()) return "no hay un integrante con ese id";
+    const QString ruta = archivo.startsWith("file:") ? QUrl(archivo).toLocalFile() : archivo;
+    QImage img(ruta);
+    if (img.isNull()) return "no se pudo leer la imagen «" + ruta + "»";
+    return guardarFoto(id, img);
+}
+
+void CuerpoViewModel::capturarFoto(const QString& id) {
+    const nlohmann::json i = c_->buscar(id.toStdString());
+    if (i.empty()) return emit fotoLista(id, false, "no hay un integrante con ese id");
+    const QString camara = QString::fromStdString(i.value("preset_ptz", nlohmann::json::object()).value("camara", std::string()));
+    if (camara.isEmpty() || !g_.capturar)
+        return emit fotoLista(id, false, "su banca no tiene cámara (preset PTZ en el Cuerpo): subí la foto a mano");
+    // Primero la cámara a su banca; si no se puede mover (está al aire), se captura como está.
+    QString aviso;
+    const QString banca = QString::fromStdString(i.value("banca", std::string()));
+    if (g_.apuntar && !banca.isEmpty()) aviso = g_.apuntar(banca);
+    QPointer<CuerpoViewModel> yo(this);
+    QTimer::singleShot(aviso.isEmpty() ? 2500 : 200, this, [yo, id, camara, aviso]() {
+        if (!yo) return;
+        const QImage img = yo->g_.capturar(camara);
+        if (img.isNull()) return emit yo->fotoLista(id, false, "la cámara «" + camara + "» no da imagen ahora");
+        const QString e = yo->guardarFoto(id, img);
+        if (!e.isEmpty()) return emit yo->fotoLista(id, false, e);
+        emit yo->fotoLista(id, true, aviso.isEmpty() ? "foto capturada" : "capturada sin mover la cámara: " + aviso);
+    });
+}
+
+bool CuerpoViewModel::borrarFoto(const QString& id) {
+    std::string err;
+    if (c_->guardar({{"id", id.toStdString()}, {"foto", ""}}, &err).empty()) return false;
+    emit cambio();
+    return true;
 }
 
 void CuerpoViewModel::setNombre(const QString& n) {

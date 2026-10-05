@@ -24,6 +24,8 @@
 #include <QJsonArray>
 #include <QCryptographicHash>
 #include <QJsonDocument>
+#include <QBuffer>
+#include <QFileInfo>
 #include <QPointer>
 #include <QJsonObject>
 #include <QNetworkInterface>
@@ -630,6 +632,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return true;
         };
         bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
+        // La foto de cada integrante, capturada con la cámara de su banca.
+        {
+            legislatura::CuerpoViewModel::Ganchos gc;
+            gc.apuntar = [this](const QString& banca) { return bancas_->apuntar(banca); };
+            gc.capturar = [this](const QString& camara) {
+                std::vector<std::uint8_t> rgba;
+                int w = 0, h = 0;
+                if (!rt_.engine().captureSource(camara.toStdString(), 960, rgba, w, h) || w <= 0 || h <= 0) return QImage();
+                return QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+            };
+            cuerpo_->setGanchos(std::move(gc));
+        }
         seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
         ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
         // Los presentes con voto salen del padrón del evento abierto.
@@ -724,7 +738,57 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return out;
         };
         g.recinto = [this]() { return cuerpo_->cuerpo().recinto(); };
+        // La cara de un botón: la foto del integrante (subida o capturada con la
+        // cámara de su banca) o la foto de una posición PTZ, en 96 px.
+        g.imagen = [this](const std::string& ref) -> std::string {
+            QString ruta;
+            const QString r = QString::fromStdString(ref);
+            if (r.startsWith("cuerpo:")) {
+                ruta = cuerpo_->rutaFoto(r.mid(7));
+            } else if (r.startsWith("ptz:") && camaras_) {
+                const QString resto = r.mid(4);
+                const int barra = resto.lastIndexOf('/');
+                if (barra > 0)
+                    for (const QVariant& v : camaras_->posiciones(resto.left(barra))) {
+                        const QVariantMap m = v.toMap();
+                        if (m.value("id").toString() == resto.mid(barra + 1) ||
+                            m.value("nombre").toString().compare(resto.mid(barra + 1), Qt::CaseInsensitive) == 0)
+                            ruta = m.value("miniatura_ruta").toString();
+                    }
+            }
+            if (ruta.isEmpty()) return {};
+            const QFileInfo fi(ruta);
+            const QString clave = ruta + "|" + QString::number(fi.lastModified().toMSecsSinceEpoch());
+            auto it = imagenesBotonera_.find(clave);
+            if (it != imagenesBotonera_.end()) return it->second;
+            QImage img(ruta);
+            if (img.isNull()) return {};
+            const int lado = std::min(img.width(), img.height());
+            img = img.copy((img.width() - lado) / 2, (img.height() - lado) / 2, lado, lado)
+                      .scaled(96, 96, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            QByteArray jpg;
+            QBuffer buf(&jpg);
+            buf.open(QIODevice::WriteOnly);
+            img.convertToFormat(QImage::Format_RGB888).save(&buf, "JPG", 80);
+            const std::string url = "data:image/jpeg;base64," + jpg.toBase64().toStdString();
+            if (imagenesBotonera_.size() > 400) imagenesBotonera_.clear();
+            imagenesBotonera_[clave] = url;
+            return url;
+        };
+        g.presidentes = [this]() {
+            std::set<std::string> out;
+            if (dcn_)
+                for (const auto& u : dcn_->estado().value("unidades", nlohmann::json::array()))
+                    if (u.value("tipo", std::string()) == "presidente" && !u.value("banca", std::string()).empty())
+                        out.insert(u.value("banca", std::string()));
+            return out;
+        };
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
+        // El Cuerpo cambió (nombres, fotos, unidades de la central): al bus, así se
+        // redibuja la botonera y el plugin de la central relee su mapa.
+        connect(cuerpo_.get(), &legislatura::CuerpoViewModel::cambio, this, [this]() {
+            bus_->publicar("cuerpo/cambio", {{"ms", QDateTime::currentMSecsSinceEpoch()}}, true);
+        });
         satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
         dsk_ = std::make_unique<control::Dsk>(rt.dataRoot(), rt_.engine());
         acciones_ = std::make_unique<control::Acciones>(rt.dataRoot());

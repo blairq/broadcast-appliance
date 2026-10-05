@@ -108,7 +108,7 @@ def titilar():
     fase["on"] = not fase["on"]
     for sid in list(abiertos):
         e = sup.estado(sid)
-        if e.get("confirmar") or any(c.get("titilar") for c in e.get("celdas", [])):
+        if e.get("confirmar") or any(c.get("titilar") or c.get("borde_titilar") for c in e.get("celdas", [])):
             dibujar(sid, e)
 
 

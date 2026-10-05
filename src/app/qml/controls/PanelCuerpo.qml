@@ -17,6 +17,17 @@ Popup {
     padding: 18
     background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
 
+    // La foto de un integrante (la cara de su botón en la botonera).
+    property string fotoDe: ""
+    FileDialog {
+        id: abrirFoto
+        nameFilters: ["Imágenes (*.jpg *.jpeg *.png *.webp *.heic)"]
+        onAccepted: { const e = pop.cu.subirFoto(pop.fotoDe, selectedFile); Studio.notify(e !== "" ? e : "Foto cargada", e !== "" ? "error" : "info") }
+    }
+    Connections {
+        target: pop.cu
+        function onFotoLista(id, ok, texto) { Studio.notify(texto, ok ? "info" : "error") }
+    }
     FileDialog {
         id: abrirPlanilla
         nameFilters: ["Planillas (*.csv *.txt)"]
@@ -57,7 +68,7 @@ Popup {
             Layout.fillWidth: true
             spacing: 6
             Repeater {
-                model: [ { t: "Banca", w: 60 }, { t: "Nombre", w: 190 }, { t: "Cargo", w: 130 }, { t: "Bloque", w: 120 },
+                model: [ { t: "Foto", w: 36 }, { t: "Banca", w: 60 }, { t: "Nombre", w: 190 }, { t: "Cargo", w: 130 }, { t: "Bloque", w: 120 },
                          { t: "Distrito", w: 100 }, { t: "Cámara", w: 110 }, { t: "Posición", w: 100 }, { t: "Micrófono", w: 110 } ]
                 delegate: Text { required property var modelData; text: modelData.t; color: Theme.textFaint
                                  font { pixelSize: 10; weight: Font.Bold }
@@ -96,6 +107,25 @@ Popup {
                     placeholderText: fila.modelData.nuevo ? (campo === "nombre" ? "+ nuevo integrante" : "") : ""
                     onEditingFinished: if (text !== valor && (fila.modelData.id || (campo === "nombre" && text !== ""))) fila.poner(campo, text)
                 }
+                Rectangle {
+                    Layout.preferredWidth: 36; Layout.preferredHeight: 36; radius: 6; clip: true
+                    color: Qt.rgba(1, 1, 1, 0.06)
+                    visible: !fila.modelData.nuevo
+                    Image { anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true
+                            source: fila.modelData.foto_url || "" }
+                    Text { anchors.centerIn: parent; visible: !fila.modelData.foto_url; color: Theme.textFaint; font.pixelSize: 10
+                           text: (fila.modelData.nombre || "?").split(" ").map(p => p.charAt(0)).join("").slice(0, 2).toUpperCase() }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: menuFoto.popup() }
+                    Menu {
+                        id: menuFoto
+                        MenuItem { text: "Subir una imagen…"; onTriggered: { pop.fotoDe = fila.modelData.id; abrirFoto.open() } }
+                        MenuItem { text: "Capturar con la cámara de su banca"; enabled: !!fila.ptz.camara
+                                   onTriggered: { Studio.notify("Llevando la cámara a la banca " + (fila.modelData.banca || "") + "…", "info")
+                                                  pop.cu.capturarFoto(fila.modelData.id) } }
+                        MenuItem { text: "Quitar la foto"; enabled: !!fila.modelData.foto_url; onTriggered: pop.cu.borrarFoto(fila.modelData.id) }
+                    }
+                }
+                Item { visible: !!fila.modelData.nuevo; Layout.preferredWidth: 36 }
                 Celda { campo: "banca"; valor: fila.modelData.banca || ""; Layout.preferredWidth: 60 }
                 Celda { campo: "nombre"; valor: fila.modelData.nombre || ""; Layout.preferredWidth: 190 }
                 Celda { campo: "cargo_oficial"; valor: fila.modelData.cargo_oficial || ""; Layout.preferredWidth: 130 }

@@ -21,6 +21,7 @@
 #pragma once
 
 #include <QHash>
+#include <QImage>
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
@@ -102,6 +103,8 @@ class SatelliteServidor : public QObject {
     void enviar(Cliente& c, const std::string& l);
     void dibujar(Cliente& c, Aparato& a, bool forzar);
     QByteArray tecla(const json& celda, int lado, bool esperando, bool fase) const;
+    /// Las caras ya decodificadas (data: URL -> imagen), para no decodificar en cada titileo.
+    mutable std::map<std::string, QImage> caras_;
     std::string idApp(const Cliente& c, const std::string& deviceId) const { return "sat:" + c.ip + "/" + deviceId; }
     bool permitida(const std::string& ip) const;
 

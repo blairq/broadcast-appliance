@@ -296,8 +296,14 @@ def _vigia():
         conectar()
 
 
-@plugin.cada(15)
+@plugin.cada(60)
 def _mapa():
+    trabajos.submit(leer_mapa)
+
+
+@plugin.escuchar("cuerpo/cambio")
+def _cuerpo_cambio(_datos, _de):
+    # El Cuerpo cambió en la app (una unidad asignada, un nombre): el mapa se relee ya.
     trabajos.submit(leer_mapa)
 
 

@@ -58,15 +58,46 @@ json deQv(const QVariant& v) {
     return j.is_object() ? j["v"] : json();
 }
 
-/// El valor en `ruta` ("programa", "valor.x", "lista.0"); vacía = todo.
+std::string comoTexto(const json& v);
+
+/// El valor en `ruta` ("programa", "valor.x", "lista.0"); vacía = todo. Además:
+/// "lista[campo=valor]" es el primer elemento de la lista con ese campo (p. ej.
+/// "pedidos[banca=5].turno") y "lista.#" es cuántos elementos tiene.
 json resolver(const json& v, const std::string& ruta) {
     if (ruta.empty()) return v;
     const json* cur = &v;
     std::size_t a = 0;
     while (a <= ruta.size()) {
-        const auto b = ruta.find('.', a);
-        const std::string k = ruta.substr(a, b == std::string::npos ? std::string::npos : b - a);
-        if (cur->is_object() && cur->contains(k)) {
+        // Un filtro puede tener puntos adentro del valor: el segmento termina en el
+        // punto que sigue al «]».
+        std::size_t b = ruta.find('.', a);
+        const std::size_t corchete = ruta.find('[', a);
+        if (corchete != std::string::npos && (b == std::string::npos || corchete < b)) {
+            const std::size_t cierra = ruta.find(']', corchete);
+            if (cierra == std::string::npos) return nullptr;
+            b = ruta.find('.', cierra);
+        }
+        std::string k = ruta.substr(a, b == std::string::npos ? std::string::npos : b - a);
+        if (k == "#") {
+            if (!cur->is_array() && !cur->is_object()) return nullptr;
+            return static_cast<int>(cur->size());
+        }
+        if (const auto ab = k.find('['); ab != std::string::npos && k.back() == ']') {
+            const std::string lista = k.substr(0, ab), filtro = k.substr(ab + 1, k.size() - ab - 2);
+            const auto igual = filtro.find('=');
+            if (igual == std::string::npos) return nullptr;
+            const std::string campo = filtro.substr(0, igual), valor = filtro.substr(igual + 1);
+            const json* l = lista.empty() ? cur : (cur->is_object() && cur->contains(lista) ? &(*cur)[lista] : nullptr);
+            if (l == nullptr || !l->is_array()) return nullptr;
+            const json* hallado = nullptr;
+            for (const auto& x : *l)
+                if (x.is_object() && x.contains(campo) && comoTexto(x[campo]) == valor) {
+                    hallado = &x;
+                    break;
+                }
+            if (hallado == nullptr) return nullptr;
+            cur = hallado;
+        } else if (cur->is_object() && cur->contains(k)) {
             cur = &(*cur)[k];
         } else if (cur->is_array() && !k.empty() && std::all_of(k.begin(), k.end(), ::isdigit) &&
                    std::stoul(k) < cur->size()) {
@@ -164,7 +195,9 @@ json plantilla(const json& args, double valor, double delta, bool activo) {
 std::string claveCelda(int x, int y) { return std::to_string(x) + "," + std::to_string(y); }
 
 const std::set<std::string> kTipos{"boton", "fader", "perilla", "medidor", "texto", "reloj"};
-const std::set<std::string> kEfectos{"fondo", "color", "texto", "titilar", "valor", "icono", "activo", "nivel"};
+const std::set<std::string> kEfectos{"fondo",  "color",  "texto",         "titilar",  "valor",  "icono",
+                                     "activo", "nivel",  "imagen",        "borde",    "borde_titilar",
+                                     "insignia", "atenuar"};
 const std::set<std::string> kOps{"", "==", "!=", ">", "<", ">=", "<=", "en", "contiene", "existe"};
 
 } // namespace
@@ -522,7 +555,8 @@ std::string Botonera::validarCelda(const json& c) const {
             if (!l.is_object() || l.value("tema", std::string()).empty()) return "cada ligadura lleva `tema`";
             if (!kOps.count(l.value("op", std::string()))) return "op «" + l.value("op", std::string()) + "» desconocido";
             if (!kEfectos.count(l.value("efecto", std::string())))
-                return "efecto: fondo, color, texto, titilar, valor, icono, activo o nivel";
+                return "efecto: fondo, color, texto, titilar, valor, icono, activo, nivel, imagen, borde, borde_titilar, "
+                       "insignia o atenuar";
         }
     }
     return {};
@@ -618,6 +652,9 @@ json Botonera::plantillas() const {
                          {"descripcion", "Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE"}},
                         {{"id", "recinto"}, {"nombre", "Recinto"},
                          {"descripcion", "Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE"}},
+                        {{"id", "microfonos"}, {"nombre", "Micrófonos de bancas"},
+                         {"descripcion", "La central de conferencia: la cara de cada banca donde está en la sala; un toque le "
+                                         "da o le corta el audio, mantener la pone al aire; siguiente, cerrar todos"}},
                         {{"id", "prompter"}, {"nombre", "Prompter"},
                          {"descripcion", "Correr y parar, velocidad, avisos al orador"}}});
 }
@@ -736,6 +773,67 @@ json Botonera::armarPlantilla(const std::string& id) const {
                   {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
         usar(boton(columnas - 1, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+    } else if (id == "microfonos") {
+        // Guía bosch-dcn §11. Cada banca en su lugar del recinto (o en orden si no
+        // hay grilla), con su foto; el estado sale de plugin/bosch-dcn/dcn/estado.
+        nombre = "Micrófonos de bancas";
+        const std::string tema = "plugin/bosch-dcn/dcn/estado";
+        const json r = g_.recinto ? g_.recinto() : json::object();
+        const std::set<std::string> presis = g_.presidentes ? g_.presidentes() : std::set<std::string>{};
+        std::vector<std::tuple<std::string, std::string, int, int>> lugares;  // banca, nombre, x, y
+        if (r.value("columnas", 0) > 0 && !r.value("bancas", json::array()).empty()) {
+            columnas = std::clamp(r.value("columnas", 4), 4, 16);
+            filas = std::clamp(r.value("filas", 1) + 1, 2, 16);
+            for (const auto& b : r["bancas"]) {
+                const std::string nom = b.contains("integrante") ? b["integrante"].value("nombre", std::string()) : "";
+                lugares.emplace_back(b.value("banca", std::string()), nom, b.value("columna", 0), b.value("fila", 0));
+            }
+        } else {
+            const auto bs = g_.bancas ? g_.bancas() : std::vector<std::pair<std::string, std::string>>{};
+            columnas = 6;
+            filas = std::clamp(static_cast<int>((bs.size() + 5) / 6) + 1, 2, 8);
+            int i = 0;
+            for (const auto& [banca, nom] : bs) {
+                lugares.emplace_back(banca, nom, i % 6, i / 6);
+                ++i;
+            }
+        }
+        for (const auto& [banca, nom, x, y] : lugares) {
+            if (x >= columnas || y >= filas - 1) continue;
+            const auto esp = nom.rfind(' ');
+            const std::string apellido = esp == std::string::npos ? nom : nom.substr(esp + 1);
+            json accion = herr("dcn_microfono", {{"banca", banca}, {"abierto", "{{no_activo}}"}, {"confirmar", true}});
+            if (presis.count(banca)) accion["confirmar"] = true;  // el del presidente se confirma en el aparato
+            json c{{"x", x}, {"y", y}, {"tipo", "boton"},
+                   {"estilo", {{"texto", banca + (apellido.empty() ? "" : "\n" + apellido)}, {"fondo", "#20242d"},
+                               {"color", "#ffffff"}, {"imagen", "cuerpo:" + banca}, {"borde", presis.count(banca) ? "#d4af37" : ""}}},
+                   {"accion", accion},
+                   {"accion_mantener", herr("banca_al_aire", {{"banca", banca}})},
+                   {"estado",
+                    {lig(tema, "abiertos", "contiene", banca, "activo", true),
+                     lig(tema, "abiertos", "contiene", banca, "fondo", "#c62828"),
+                     lig(tema, "siguiente", "==", banca, "borde", "#ff1744"),
+                     lig(tema, "siguiente", "==", banca, "borde_titilar", true),
+                     lig(tema, "pedidos[banca=" + banca + "].turno", "existe", nullptr, "insignia", "{{v}}"),
+                     lig(tema, "unidades[banca=" + banca + "].conectada", "!=", true, "atenuar", true),
+                     lig(tema, "enlace", "!=", "ok", "atenuar", true)}}};
+            usar(c);
+        }
+        const int f = filas - 1;
+        usar(boton(0, f, "Siguiente ▶", herr("dcn_siguiente"), json::array(), "#1f5f8a"));
+        usar(boton(1, f, "Cerrar todos", herr("dcn_cerrar_todos"), json::array(), "#8e1b1b"));
+        // Con 4 columnas no entran los textos: Siguiente, Cerrar todos, Limpiar y TAKE.
+        if (columnas >= 5)
+            usar(json{{"x", 2}, {"y", f}, {"tipo", "texto"},
+                      {"estilo", {{"texto", "sin central"}, {"fondo", "#111"}, {"color", "#fff"}}},
+                      {"estado", {lig(tema, "abiertos.#", "existe", nullptr, "texto", "Abiertos {{v}}"),
+                                  lig(tema, "enlace", "!=", "ok", "texto", "sin central")}}});
+        if (columnas >= 6)
+            usar(json{{"x", 3}, {"y", f}, {"ancho", columnas - 5}, {"tipo", "texto"},
+                      {"estilo", {{"texto", "—"}, {"fondo", "#111"}, {"color", "#fff"}}},
+                      {"estado", {lig(tema, "hablando.0.nombre", "existe", nullptr, "texto", "{{v}}")}}});
+        usar(boton(columnas - 2, f, "Limpiar pedidos", herr("dcn_pedidos_limpiar")));
+        usar(boton(columnas - 1, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
     } else if (id == "prompter") {
         nombre = "Prompter";
         columnas = 4;
@@ -779,7 +877,12 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
            {"fondo", est.value("fondo", std::string("#2b2f3a"))},
            {"tamano_texto", est.value("tamano_texto", 0)},
            {"titilar", false},
-           {"activo", false}};
+           {"activo", false},
+           {"borde", est.value("borde", std::string())},
+           {"borde_titilar", false},
+           {"insignia", est.value("insignia", std::string())},
+           {"atenuar", false}};
+    std::string imagen = est.value("imagen", std::string());
     if (tipo == "fader" || tipo == "perilla" || tipo == "medidor") {
         const json v = c.value("valor", json::object());
         const double mn = numero(v.value("min", json(0)), 0), mx = numero(v.value("max", json(100)), 100);
@@ -797,11 +900,16 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
         if (!cumple(l.value("op", std::string()), val, l.value("valor", json()))) continue;
         const std::string ef = l.value("efecto", std::string());
         const json dato = l.value("dato", json());
-        if (ef == "texto") {
+        if (ef == "texto" || ef == "insignia" || ef == "imagen") {
             std::string t = dato.is_string() ? dato.get<std::string>() : "{{v}}";
             const std::string v = comoTexto(val);
             for (auto p = t.find("{{v}}"); p != std::string::npos; p = t.find("{{v}}", p + v.size())) t.replace(p, 5, v);
-            r["texto"] = t;
+            if (ef == "imagen")
+                imagen = t;
+            else
+                r[ef] = t;
+        } else if (ef == "borde_titilar" || ef == "atenuar") {
+            r[ef] = dato.is_null() ? true : dato.is_boolean() && dato.get<bool>();
         } else if (ef == "valor" || ef == "nivel") {
             r[ef == "valor" ? "valor" : "nivel"] = numero(dato.is_null() ? val : dato, 0);
         } else if (ef == "titilar" || ef == "activo") {
@@ -810,6 +918,9 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
             r[ef] = dato;
         }
     }
+    // La imagen es una referencia («cuerpo:5», «ptz:Cámara 1/Atril»): la app la
+    // convierte en una miniatura (data: URL) que viaja con la celda.
+    r["imagen"] = !imagen.empty() && g_.imagen ? g_.imagen(imagen) : std::string();
     return r;
 }
 
@@ -1261,7 +1372,8 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
         p["args"] = plantilla(p["args"], valor, delta, activo);
         if (g_.deAireAhora && g_.deAireAhora(h, p["args"])) deAire = true;
     }
-    if (deAire && !confirmado) {
+    // Una acción con «confirmar» (p. ej. el micrófono del presidente) también se confirma en el aparato.
+    if ((deAire || accion.value("confirmar", false)) && !confirmado) {
         pendientes_[dev] = {celda, accion, ahoraMs() + kConfirmarMs};
         auditar(dev, "confirmar", celda);
         emit mensaje(QString::fromStdString(dev),

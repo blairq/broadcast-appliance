@@ -90,6 +90,35 @@ int main(int argc, char** argv) {
         CHECK(e.empty() && pr["paginas"][0]["filas"] == 3 && enSuLugar, "plantilla Recinto: cada banca en su lugar de la grilla");
         bot.borrarPerfil(idRec);
     }
+    {
+        // Micrófonos de bancas: caras, borde que titila, insignia del turno, atenuado.
+        g.recinto = [] {
+            json b5{{"banca", "5"}, {"fila", 0}, {"columna", 1}, {"integrante", {{"nombre", "Ana Pérez"}}}};
+            return json{{"filas", 1}, {"columnas", 4}, {"bancas", json::array({b5})}};
+        };
+        Botonera bot2((dir.path() + "/b2").toStdString(), bus, g);
+        std::string idMic;
+        CHECK(bot2.crearPerfil({{"nombre", "Mics"}}, "microfonos", &idMic).empty(), "plantilla Micrófonos de bancas");
+        bus.publicar("plugin/bosch-dcn/dcn/estado",
+                     {{"enlace", "ok"}, {"abiertos", json::array()}, {"siguiente", "5"},
+                      {"pedidos", json::array({json{{"banca", "5"}, {"turno", 1}}})},
+                      {"unidades", json::array({json{{"banca", "5"}, {"conectada", true}}})}});
+        bot2.registrarLocal("hw2", "Deck", "plugin", json::object());
+        bot2.asignar("hw2", idMic, "p1");
+        json rr = bot2.render("hw2");
+        json c5;
+        for (const auto& c : rr["celdas"])
+            if (c.value("x", -1) == 1 && c.value("y", -1) == 0) c5 = c;
+        CHECK(c5.value("borde", std::string()) == "#ff1744" && c5.value("borde_titilar", false), "le toca: borde rojo que titila");
+        CHECK(c5.value("insignia", std::string()) == "1", "insignia con el turno (filtro pedidos[banca=5].turno)");
+        CHECK(!c5.value("atenuar", true), "con unidad conectada no se atenúa");
+        bus.publicar("plugin/bosch-dcn/dcn/estado", {{"enlace", "caido"}, {"abiertos", json::array({"5"})}});
+        rr = bot2.render("hw2");
+        for (const auto& c : rr["celdas"])
+            if (c.value("x", -1) == 1 && c.value("y", -1) == 0) c5 = c;
+        CHECK(c5.value("atenuar", false) && c5.value("fondo", std::string()) == "#c62828" && c5.value("activo", false),
+              "abierto: rojo y activo; sin central: atenuado");
+    }
     std::vector<json> mensajes;
     QObject::connect(&bot, &Botonera::mensaje, [&](const QString&, const json& m) { mensajes.push_back(m); });
 

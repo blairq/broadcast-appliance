@@ -109,6 +109,22 @@ Lo que muestra cada celda sale del **bus de eventos** de la app (pestaña **Even
 `alarma/<regla>`, `oradores/al_aire`. Los mismos temas los escuchan los plugins
 (`@plugin.escuchar("aire/tally")`) y el asistente (`eventos_temas`, `eventos_esperar`).
 
+## Caras, bordes e insignias (micrófonos de bancas)
+
+Además de `fondo`, `color`, `texto`, `titilar`, `valor`, `icono`, `activo` y `nivel`, una celda puede tener:
+
+| Efecto / estilo | Qué hace |
+|---|---|
+| `imagen` | Una referencia: `cuerpo:<banca>` (la foto del integrante, subida o capturada con la cámara de su banca) o `ptz:<cámara>/<posición>` (la foto de una posición PTZ). La app la manda como miniatura de 96 px dentro del estado de la celda: la tablet, el Satellite (Companion) y el Stream Deck la dibujan de fondo. |
+| `borde` | Un color de borde propio (le toca hablar, presidente). |
+| `borde_titilar` | Que titile solo el borde (1 Hz). |
+| `insignia` | Un texto chico arriba a la derecha (el turno, «P»); acepta `{{v}}`. |
+| `atenuar` | La celda se ve apagada (sin unidad de la central, sin central). |
+
+Las rutas de las ligaduras aceptan **filtros**: `pedidos[banca=5].turno` es el turno del pedido de la banca 5, y `abiertos.#` es cuántos elementos tiene la lista. Una acción con `"confirmar": true` se confirma en el aparato (como las de aire): la usa el micrófono del presidente.
+
+La plantilla **«Micrófonos de bancas»** arma una página con cada banca donde está en el recinto, con su foto: un toque le da o le corta el audio por la central (`dcn_microfono` con `{{no_activo}}`), mantener la pone al aire completa (`banca_al_aire`); abajo Siguiente, Cerrar todos, cuántos abiertos, quién habla, Limpiar pedidos y TAKE. Ver docs/bosch-dcn-ng-open-interface.md §11.
+
 ## Lo que falta
 
 - Probar con una tablet y con hardware reales (se probó con una tablet simulada y un aparato falso).

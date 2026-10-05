@@ -2669,6 +2669,40 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "legislador_foto";
+        t.title = "La foto de un integrante";
+        t.category = "evento";
+        t.description = "La foto de un integrante (`banca`, id o nombre), que es la cara de su botón en la botonera: "
+                        "`archivo` (una imagen: se recorta cuadrada) o `capturar: true` (lleva la cámara de su banca a "
+                        "su preset, si no está al aire, y toma lo que se ve; tarda unos segundos y el resultado llega "
+                        "como aviso). `quitar: true` la saca.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"banca"}},
+                         {"properties",
+                          {{"banca", {{"type", "string"}}},
+                           {"archivo", {{"type", "string"}}},
+                           {"capturar", {{"type", "boolean"}}},
+                           {"quitar", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const json i = vm.cuerpo().cuerpo().buscar(a.value("banca", std::string()));
+            if (i.empty()) return done(ToolResult::error("no hay nadie con esa banca, id o nombre en el cuerpo"));
+            const QString id = QString::fromStdString(i.value("id", std::string()));
+            if (a.value("quitar", false)) {
+                vm.cuerpo().borrarFoto(id);
+                return done(ToolResult::ok("Foto quitada."));
+            }
+            if (a.value("capturar", false)) {
+                vm.cuerpo().capturarFoto(id);
+                return done(ToolResult::ok("Capturando con la cámara de su banca (unos segundos)."));
+            }
+            const QString e = vm.cuerpo().subirFoto(id, QString::fromStdString(a.value("archivo", std::string())));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Foto cargada."));
+        };
+        core_.addTool(std::move(t));
+    }
     // --- El recinto: la grilla de bancas (legislatura/Cuerpo) ------------------------
     {
         Tool t;

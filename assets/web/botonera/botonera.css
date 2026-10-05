@@ -97,3 +97,14 @@ body { display: flex; flex-direction: column;
 
 .oculto { display: none !important; }
 @keyframes titilar { 50% { opacity: 0.35; } }
+
+/* Caras, bordes, insignias y atenuado (botonera «Micrófonos de bancas») */
+.celda > img.cara { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.55;
+                    pointer-events: none; z-index: 0; }
+.celda.con-cara > span { position: relative; z-index: 1; text-shadow: 0 1px 3px #000, 0 0 8px #000; }
+.celda.con-borde { box-shadow: inset 0 0 0 4px var(--borde); }
+.celda.borde-titila { animation: borde-titila 1s steps(2) infinite; }
+@keyframes borde-titila { 0% { box-shadow: inset 0 0 0 5px var(--borde); } 50% { box-shadow: inset 0 0 0 5px transparent; } }
+.celda .insignia { position: absolute; top: 4px; right: 6px; z-index: 2; min-width: 1.4em; padding: 1px 5px;
+                   border-radius: 9px; background: #ffb300; color: #000; font-weight: 800; font-size: 0.8em; text-align: center; }
+.celda.atenuada { filter: grayscale(1) brightness(0.45); }

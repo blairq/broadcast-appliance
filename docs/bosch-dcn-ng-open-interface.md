@@ -26,8 +26,10 @@ Todo esto se integra con lo que la app ya tiene:
 > eventos; pruebas en `assets/plugins/bosch-dcn/tests`), `dcn_unidad` en el Cuerpo (y en la planilla),
 > herramientas MCP `dcn_*` (las de micrófonos en las guardas de aire), página **Legislatura →
 > Conferencia** (grilla con el estado de cada banca, pedidos, oradores, unidades con «Aprender», conexión
-> y tramas) y Bancas «al aire» / «terminar» por la central. Falta: botonera con caras (D7–D8), fase 2 y
-> 3. Nada se probó con una CCU real.
+> y tramas) y Bancas «al aire» / «terminar» por la central; botonera «Micrófonos de bancas» con caras
+> (la foto de cada integrante, subida a mano o capturada con la cámara de su banca), borde que titila,
+> insignia de turno y atenuado, en la tablet, el Satellite y el Stream Deck. Falta: fase 2 y 3. Nada se
+> probó con una CCU real.
 > Lo marcado **[A VERIFICAR]** sale de lecturas parciales del manual y hay que confirmarlo con el
 > equipo o con el PDF completo de la versión 2.x.
 
@@ -600,13 +602,14 @@ En orden de prioridad: el primero que se cumple manda en el fondo; el borde y la
 
 **Siempre:** número de banca arriba a la izquierda y apellido abajo, con elipsis.
 
-**La cara**, en este orden:
+**La cara** es la `foto` del integrante en el Cuerpo (Fotos/cuerpo/<id>.jpg), que se carga de dos
+maneras (Legislatura → Cuerpo, o `legislador_foto`):
 
-1. `foto` del integrante en el Cuerpo, si está cargada;
-2. la **miniatura del preset PTZ** de su banca (T41), **recortada a la cara**: detector de caras local
-   sobre la miniatura, guardado en `Miniaturas/rostros/<banca>.jpg` y regenerado al regrabar el
-   preset;
-3. las iniciales sobre el color del bloque.
+1. **subida a mano** (una imagen: se recorta cuadrada);
+2. **capturada con la cámara de su banca**: la PTZ va al preset de la banca (si no está al aire) y se
+   toma lo que se ve.
+
+Sin foto, el botón muestra el número de banca y el apellido.
 
 ### 11.3 Lo que hay que agregar a la botonera (núcleo)
 

@@ -35,6 +35,18 @@ Rectangle {
         for (const p of page.bot.perfiles) if (p.id === page.perfilId) return p
         return null
     }
+    // ui_show_page {page: "botonera", seccion: <perfil (id o nombre)>}
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina !== "botonera") return
+            const l = page.bot.perfiles
+            for (let i = 0; i < l.length; ++i)
+                if (l[i].id === seccion || l[i].nombre.toLowerCase() === seccion.toLowerCase()) {
+                    page.perfilId = l[i].id; page.paginaId = ""; page.selX = -1; page.refrescar(); return
+                }
+        }
+    }
     function refrescar() {
         if (page.perfilId === "" && page.bot.perfiles.length > 0) page.perfilId = page.bot.perfiles[0].id
         const p = perfilActual()
@@ -308,9 +320,22 @@ Rectangle {
                             height: modelData.alto * lienzo.lado - lienzo.gap
                             radius: 10
                             color: modelData.fondo || "#2b2f3a"
-                            border.color: sel ? Theme.accent : (modelData.activo ? "white" : Qt.rgba(1, 1, 1, 0.12))
-                            border.width: sel || modelData.activo ? 3 : 1
-                            opacity: modelData.titilar && reloj.ahora % 1000 < 500 ? 0.45 : 1
+                            readonly property bool bordeVisible: !!modelData.borde && (!modelData.borde_titilar || reloj.ahora % 1000 >= 500)
+                            border.color: sel ? Theme.accent : bordeVisible ? modelData.borde : (modelData.activo ? "white" : Qt.rgba(1, 1, 1, 0.12))
+                            border.width: sel || modelData.activo || bordeVisible ? 3 : 1
+                            opacity: modelData.atenuar ? 0.4 : (modelData.titilar && reloj.ahora % 1000 < 500 ? 0.45 : 1)
+                            clip: true
+                            // La cara (data: URL de la celda), apagada para que se lea el texto.
+                            Image { anchors.fill: parent; anchors.margins: parent.border.width; source: modelData.imagen || ""
+                                    visible: !!modelData.imagen; fillMode: Image.PreserveAspectCrop; opacity: 0.55 }
+                            Rectangle {
+                                visible: !!modelData.insignia
+                                anchors { right: parent.right; top: parent.top; margins: 4 }
+                                z: 2; radius: height / 2; color: "#ffb300"
+                                implicitWidth: Math.max(18, insTxt.implicitWidth + 8); implicitHeight: 18
+                                Text { id: insTxt; anchors.centerIn: parent; text: modelData.insignia || ""; color: "black"
+                                       font { pixelSize: 11; weight: Font.Black } }
+                            }
                             Text {
                                 anchors.fill: parent
                                 anchors.margins: 6

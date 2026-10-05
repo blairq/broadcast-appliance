@@ -167,10 +167,18 @@ class Superficies:
         if celda.get("titilar") and fase_titilar is False:
             fondo = tuple(int(c * 0.35) for c in fondo)
         d.rounded_rectangle((0, 0, tamano - 1, tamano - 1), radius=max(4, tamano // 10), fill=fondo)
+        cara = _cara(celda.get("imagen"), tamano, Image)
+        if cara is not None:  # la cara apagada, para que se lea el texto encima
+            img = Image.blend(img, cara, 0.6)
+            d = ImageDraw.Draw(img)
         if celda.get("tipo") in ("fader", "perilla", "medidor") and celda.get("max", 0) != celda.get("min", 0):
             f = (float(celda.get("valor", 0)) - celda["min"]) / (celda["max"] - celda["min"])
             f = max(0.0, min(1.0, f))
             d.rectangle((tamano * 0.82, tamano * (1 - f), tamano - 3, tamano - 3), fill=(230, 230, 230))
+        borde = celda.get("borde")
+        if borde and not esperando and (not celda.get("borde_titilar") or fase_titilar is not False):
+            d.rounded_rectangle((2, 2, tamano - 3, tamano - 3), radius=max(4, tamano // 10),
+                                outline=_color(borde, (255, 255, 255)), width=max(4, tamano // 12))
         if esperando:
             d.rounded_rectangle((1, 1, tamano - 2, tamano - 2), radius=max(4, tamano // 10), outline=(255, 204, 0), width=max(3, tamano // 16))
         elif celda.get("activo"):
@@ -185,7 +193,37 @@ class Superficies:
                 w = d.textlength(l, font=fuente)
                 d.text(((tamano - w) / 2, y), l, font=fuente, fill=color)
                 y += _alto(d, l, fuente) + 2
+        ins = celda.get("insignia")
+        if ins:  # turno, «P»: arriba a la derecha
+            fuente, _ = _ajustar(str(ins), tamano // 3, ImageFont, d)
+            w = max(tamano // 5, d.textlength(str(ins), font=fuente) + 6)
+            h = _alto(d, str(ins), fuente) + 4
+            d.rounded_rectangle((tamano - w - 3, 3, tamano - 3, 3 + h), radius=h // 2, fill=(255, 179, 0))
+            d.text((tamano - w - 3 + (w - d.textlength(str(ins), font=fuente)) / 2, 4), str(ins), font=fuente, fill=(0, 0, 0))
+        if celda.get("atenuar"):  # sin unidad de la central, o sin central
+            img = Image.blend(img, Image.new("RGB", img.size, (0, 0, 0)), 0.6)
         return img
+
+
+_caras: dict = {}
+
+
+def _cara(url: Any, tamano: int, Image) -> Any:
+    """La cara de la celda (data: URL) del tamaño de la tecla, con caché."""
+    if not isinstance(url, str) or not url.startswith("data:") or "," not in url:
+        return None
+    clave = (hash(url), tamano)
+    if clave not in _caras:
+        import base64
+        import io
+        try:
+            im = Image.open(io.BytesIO(base64.b64decode(url.split(",", 1)[1]))).convert("RGB").resize((tamano, tamano))
+        except Exception:  # noqa: BLE001
+            im = None
+        if len(_caras) > 200:
+            _caras.clear()
+        _caras[clave] = im
+    return _caras[clave]
 
 
 def _color(c: Any, siNo: tuple) -> tuple:

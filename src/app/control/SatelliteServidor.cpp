@@ -376,12 +376,36 @@ QByteArray SatelliteServidor::tecla(const json& cel, int lado, bool esperando, b
     p.setBrush(fondo);
     p.setPen(Qt::NoPen);
     p.drawRoundedRect(QRectF(0, 0, lado, lado), lado / 10.0, lado / 10.0);
+    // La cara (data: URL de la celda), apagada para que se lea el texto encima.
+    if (const std::string im = cel.value("imagen", std::string()); im.rfind("data:", 0) == 0) {
+        auto it = caras_.find(im);
+        if (it == caras_.end()) {
+            const auto coma = im.find(',');
+            QImage cara;
+            if (coma != std::string::npos)
+                cara.loadFromData(QByteArray::fromBase64(QByteArray::fromStdString(im.substr(coma + 1))));
+            if (caras_.size() > 200) caras_.clear();
+            it = caras_.emplace(im, cara).first;
+        }
+        if (!it->second.isNull()) {
+            p.setOpacity(0.6);
+            p.drawImage(QRectF(0, 0, lado, lado), it->second);
+            p.setOpacity(1.0);
+        }
+    }
     const std::string tipo = cel.value("tipo", std::string());
     if ((tipo == "fader" || tipo == "perilla" || tipo == "medidor") && cel.value("max", 0.0) != cel.value("min", 0.0)) {
         const double f = std::clamp((cel.value("valor", 0.0) - cel.value("min", 0.0)) /
                                         (cel.value("max", 1.0) - cel.value("min", 0.0)), 0.0, 1.0);
         p.setBrush(QColor(230, 230, 230));
         p.drawRect(QRectF(lado * 0.82, lado * (1 - f), lado * 0.15, lado * f));
+    }
+    // El borde propio (le toca, presidente), que puede titilar solo.
+    if (const QColor borde = colorDe(cel.value("borde", json()), QColor());
+        borde.isValid() && !esperando && (!cel.value("borde_titilar", false) || fase)) {
+        p.setBrush(Qt::NoBrush);
+        p.setPen(QPen(borde, std::max(3, lado / 12)));
+        p.drawRoundedRect(QRectF(3, 3, lado - 6, lado - 6), lado / 10.0, lado / 10.0);
     }
     if (esperando || cel.value("activo", false)) {
         p.setBrush(Qt::NoBrush);
@@ -405,6 +429,23 @@ QByteArray SatelliteServidor::tecla(const json& cel, int lado, bool esperando, b
         p.setFont(f);
         p.drawText(caja, Qt::AlignCenter | Qt::TextWordWrap, texto);
     }
+    // La insignia (turno, «P») arriba a la derecha.
+    if (const QString ins = QString::fromStdString(cel.value("insignia", std::string())); !ins.isEmpty()) {
+        QFont f;
+        f.setBold(true);
+        f.setPixelSize(std::max(9, lado / 5));
+        const QFontMetrics fm(f);
+        const qreal w = std::max<qreal>(fm.height(), fm.horizontalAdvance(ins) + 8);
+        const QRectF r(lado - w - 3, 3, w, fm.height());
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(255, 179, 0));
+        p.drawRoundedRect(r, r.height() / 2, r.height() / 2);
+        p.setPen(Qt::black);
+        p.setFont(f);
+        p.drawText(r, Qt::AlignCenter, ins);
+    }
+    // Atenuada (sin unidad de la central, o sin central): todo más oscuro.
+    if (cel.value("atenuar", false)) p.fillRect(QRectF(0, 0, lado, lado), QColor(0, 0, 0, 150));
     p.end();
     // RGB crudo, fila por fila (sin el relleno de alineación de QImage).
     QByteArray out;
@@ -428,7 +469,7 @@ void SatelliteServidor::dibujar(Cliente& c, Aparato& a, bool forzar) {
             }
         }
         const bool esperando = !cel.is_null() && conf == std::to_string(cel.value("x", 0)) + "," + std::to_string(cel.value("y", 0));
-        const bool titila = esperando || (!cel.is_null() && cel.value("titilar", false));
+        const bool titila = esperando || (!cel.is_null() && (cel.value("titilar", false) || cel.value("borde_titilar", false)));
         const QString firma = QString::fromStdString(cel.dump()) + (esperando ? "E" : "") + (titila && !fase_ ? "0" : "1");
         if (!forzar && a.enviado.value(k) == firma) continue;
         a.enviado[k] = firma;

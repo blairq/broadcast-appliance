@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <functional>
 #include <deque>
+#include <map>
 #include <memory>
 
 namespace ba::app::agent {
@@ -775,6 +776,8 @@ class StudioViewModel : public QObject {
     int busTicks_ = 0;
     std::unique_ptr<legislatura::Bancas> bancas_;
     std::unique_ptr<legislatura::ConferenciaDcn> dcn_;
+    /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
+    std::map<QString, std::string> imagenesBotonera_;
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;

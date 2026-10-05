@@ -207,6 +207,36 @@
     el.style.color = c.color || "#fff";
     el.classList.toggle("titilar", !!c.titilar);
     el.classList.toggle("activo", !!c.activo);
+    // La cara (data: URL que viene con la celda), el borde que puede titilar solo,
+    // la insignia de la esquina (turno, «P») y el atenuado (sin unidad, sin central).
+    let cara = el.querySelector(":scope > img.cara");
+    if (c.imagen) {
+      if (!cara) {
+        cara = document.createElement("img");
+        cara.className = "cara";
+        cara.alt = "";
+        el.prepend(cara);
+      }
+      if (cara.getAttribute("src") !== c.imagen) cara.src = c.imagen;
+    } else if (cara) {
+      cara.remove();
+    }
+    el.classList.toggle("con-cara", !!c.imagen);
+    el.style.setProperty("--borde", c.borde || "transparent");
+    el.classList.toggle("con-borde", !!c.borde);
+    el.classList.toggle("borde-titila", !!c.borde_titilar);
+    el.classList.toggle("atenuada", !!c.atenuar);
+    let ins = el.querySelector(":scope > .insignia");
+    if (c.insignia) {
+      if (!ins) {
+        ins = document.createElement("span");
+        ins.className = "insignia";
+        el.appendChild(ins);
+      }
+      ins.textContent = c.insignia;
+    } else if (ins) {
+      ins.remove();
+    }
     if (c.tamano_texto) {
       el.dataset.tamanoFijo = "1";
       el.style.fontSize = c.tamano_texto + "px";
