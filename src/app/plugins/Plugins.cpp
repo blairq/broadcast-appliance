@@ -342,6 +342,8 @@ json Plugins::estado(const std::string& id) const {
     // Un plugin que automatiza algo («cuando pasa X, hacé Y») se declara
     // disparador: aparece también en la lista de Disparadores.
     if (man.value("disparador", false)) e["disparador"] = true;
+    // Qué herramientas puede llamar (T51): la lista del plugin.json, o todas si no la declara.
+    e["herramientas"] = man.contains("herramientas") && man["herramientas"].is_array() ? man["herramientas"] : json("todas");
     if (const json ap = leerAprobados(); ap.contains(id))
         e["aprobado"] = ap[id].value("hash", std::string()) == hashCodigo(id) ? "vigente" : "cambio";
     auto it = procesos_.find(id);
@@ -1028,8 +1030,21 @@ void Plugins::recibir(const std::string& id, const json& m) {
             return;
         }
         const std::string herramienta = m.value("herramienta", std::string());
+        // T51: si el plugin declara `herramientas` en su plugin.json, solo esas.
+        const json man = leerJson(carpetaDe(id) / "plugin.json");
+        if (man.contains("herramientas") && man["herramientas"].is_array()) {
+            bool permitida = false;
+            for (const auto& h : man["herramientas"]) permitida = permitida || (h.is_string() && h.get<std::string>() == herramienta);
+            if (!permitida) {
+                enviar(id, {{"t", "respuesta"},
+                            {"n", n},
+                            {"ok", false},
+                            {"error", "«" + herramienta + "» no está en las herramientas del plugin (plugin.json → herramientas)"}});
+                return;
+            }
+        }
         QPointer<Plugins> yo(this);
-        llamador_(herramienta, m.value("args", json::object()), [yo, id, n](json r) {
+        llamador_(id, herramienta, m.value("args", json::object()), [yo, id, n](json r) {
             if (!yo) return;
             // El resultado de una herramienta MCP: {content: [...], isError, structuredContent?}
             json out{{"t", "respuesta"}, {"n", n}};

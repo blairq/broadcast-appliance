@@ -229,6 +229,18 @@ Item {
                 Loader {
                     id: content
                     anchors.fill: parent
+                    // T48: las extensiones se arman de a poco (no traban la interfaz) y con tiempo
+                    // máximo: si en 5 s no terminaron, se cortan y quedan apagadas.
+                    asynchronous: esExt
+                    Timer {
+                        interval: 5000
+                        running: content.esExt && content.status === Loader.Loading
+                        onTriggered: {
+                            if (content.status !== Loader.Loading) return
+                            content.source = ""
+                            Studio.extensiones.tardo(content.extId, interval)
+                        }
+                    }
                     // UN LOADER ES UN AMBITO DE FOCO: sin esto, el foco se
                     // queda en el marco y las teclas de la tarjeta no llegan
                     // NUNCA a su contenido. No falla ni avisa: simplemente no
@@ -274,6 +286,8 @@ Item {
                         if (!content.esExt) return "Esta tarjeta no se pudo cargar."
                         const f = Studio.extensiones ? Studio.extensiones.ficha(content.extId) : null
                         if (!f || !f.id) return "La extensión «" + content.extId + "» ya no está."
+                        const vivo = Studio.extensiones.motivoNoCarga(content.extId)
+                        if (vivo !== "") return "«" + f.nombre + "»: " + vivo
                         if (f.apagada)
                             return "«" + f.nombre + "» está apagada: se llevó puesto el arranque.\n" +
                                    "Se prende desde el Registro."

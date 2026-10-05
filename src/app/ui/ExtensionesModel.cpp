@@ -144,6 +144,9 @@ QString ExtensionesModel::vista(const QString& id) const {
             // diario apagaría algo que igual se vuelve a cargar y el programa
             // vuelve a morir en el mismo lugar.
             if (ba::diag::diario().apagado((kPrefijo + id).toStdString())) return {};
+            // En vivo, nada nuevo: solo las que ya andaban en esta sesión.
+            if (enVivo_ && enVivo_() && !yaCargadas_.count(id)) return {};
+            yaCargadas_.insert(id);
             return e.vista;
         }
     return {};
@@ -181,6 +184,21 @@ void ExtensionesModel::cargada(const QString& id, bool bien, const QString& erro
                                "la tarjeta «" + id.toStdString() + "» no cargó: " + error.toStdString());
     emit const_cast<ExtensionesModel*>(this)->notify(
         "La tarjeta «" + id + "» tiene un error (mirá el Registro)", "error");
+}
+
+QString ExtensionesModel::motivoNoCarga(const QString& id) const {
+    if (enVivo_ && enVivo_() && !yaCargadas_.count(id))
+        return "En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.";
+    return {};
+}
+
+void ExtensionesModel::tardo(const QString& id, int ms) {
+    ba::diag::diario().termina((kPrefijo + id).toStdString());
+    ba::diag::diario().setApagado((kPrefijo + id).toStdString(), true);
+    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "extensiones", 0,
+                               "la tarjeta «" + id.toStdString() + "» tardó más de " + std::to_string(ms) +
+                                   " ms en cargar: se cortó y quedó apagada (se prende desde el Registro)");
+    emit notify("La tarjeta «" + id + "» tardaba demasiado en cargar: quedó apagada", "error");
 }
 
 void ExtensionesModel::prender(const QString& id) {

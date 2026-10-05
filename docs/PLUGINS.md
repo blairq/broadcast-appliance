@@ -129,6 +129,19 @@ veces por sesión: un plugin que «no arrancaba en 20 s», `dispositivos_listar`
 - **Exportar / importar**: un .zip con el código y plugin.json, sin `_libs` ni `datos`. Está en la página
   Plugins y en `plugin_exportar` / `plugin_importar`. Lo arma el `zipfile` del Python del programa.
 
+## Qué puede llamar y cuándo arranca en vivo
+
+- **Lista de herramientas** (`"herramientas": ["audio_set", "scene_switch"]` en plugin.json): con
+  la lista, `plugin.llamar` solo puede usar esas; las demás contestan error. Sin la lista puede llamar
+  todas (como el asistente). Cada llamada queda en el registro como `plugin:<id>`, y las acciones de
+  aire esperan a una persona cuando se transmite o se graba (guarda de aire, T02), igual que el
+  asistente.
+- **Aprobado para el aire**: en la página Plugins, «Aprobar para el aire» fija el SHA-256 del código
+  (todo menos `_libs`, `datos`, cachés y los valores del panel). Con el modo en vivo solo arrancan
+  (y se reinician) los aprobados y sin cambios desde la aprobación; si el código cambió, el plugin
+  queda «bloqueado en vivo» hasta que una persona lo vuelva a aprobar (y ve qué archivos cambiaron).
+  El asistente no puede aprobar (`plugin_aprobados` solo lista y quita).
+
 ## Herramientas MCP (categoría `plugins`)
 
 | Herramienta | Para qué |

@@ -74,7 +74,8 @@ class Plugins : public QObject {
    public:
     using json = nlohmann::json;
     /// Llamar una herramienta del servidor MCP (lo arma GuiMode, que tiene el servicio).
-    using Llamador = std::function<void(const std::string& herramienta, const json& args,
+    /// `plugin`: quién llama (para el registro y las guardas: origen «plugin:<id>»).
+    using Llamador = std::function<void(const std::string& plugin, const std::string& herramienta, const json& args,
                                         std::function<void(json resultado)> listo)>;
 
     Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras* camaras,

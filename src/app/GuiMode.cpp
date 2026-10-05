@@ -168,10 +168,12 @@ int runGui(int argc, char** argv) {
         // Los plugins de Python llaman herramientas del servidor (lo mismo que
         // puede el asistente) y arrancan los que estaban prendidos.
         if (auto* pl = vm.plugins()) {
-            pl->setLlamador([&mcpService](const std::string& h, const nlohmann::json& args,
+            pl->setLlamador([&mcpService](const std::string& plugin, const std::string& h, const nlohmann::json& args,
                                           std::function<void(nlohmann::json)> listo) {
+                // Origen «plugin:<id>»: queda en el registro con su nombre y la guarda de aire lo trata
+                // como lo que es (algo automático, no una persona).
                 mcpService.core().callTool({{"name", h}, {"arguments", args}}, std::move(listo),
-                                           mcp::CallContext{"plugin", "", "plugin"});
+                                           mcp::CallContext{"plugin:" + plugin, "", "plugin:" + plugin});
             });
             QTimer::singleShot(3000, pl, [pl]() { pl->arrancarGuardados(); });
         }

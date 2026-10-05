@@ -258,6 +258,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // llevara puesto el arranque, la proxima vez se saltea.
         ba::diag::Cargando c("extensiones");
         extensiones_ = std::make_unique<ExtensionesModel>(rt);
+        extensiones_->setEnVivo([this]() { return modoVivo(); });
         marca("extensiones");
         if (c.saltear()) extensiones_.reset();
     }
@@ -766,7 +767,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
     // En vivo (T48) solo arrancan los plugins aprobados para el aire (T60).
-    plugins_->setEnVivo([this]() { return evento_ != nullptr && evento_->property("enVivo").toBool(); });
+    plugins_->setEnVivo([this]() { return modoVivo(); });
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
     dcn_->setAQuorum([this](const nlohmann::json& r) {

@@ -71,10 +71,10 @@
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho en parte (contador del medio, back-timing; falta la playlist) |
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | hecho en parte (token MCP rotado, PIN por sesión; passphrase = decisión pendiente; los enlaces vencen con el PIN) |
-| T48 | Modo en vivo que protege la interfaz | P1 | hecho en parte (páginas con CONFIRMAR y ajustes que cortan bloqueados; falta el Loader con tiempo máximo para extensiones y los plugins aprobados de T60) |
+| T48 | Modo en vivo que protege la interfaz | P1 | hecho (páginas con CONFIRMAR, ajustes que cortan bloqueados, extensiones asíncronas con 5 s máximo y sin nuevas en vivo, solo plugins aprobados) |
 | T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | hecho (globales en Mac y Windows; Linux solo locales; la pestaña está en Botonera) |
 | T50 | Bus de eventos de la app (para superficies, plugins y web) | P1 | hecho (bus, MCP, plugins; la pestaña Eventos está en la página Botonera) |
-| T51 | SDK de dispositivos para plugins: vendorear HID, MIDI, serie, OSC, Stream Deck | P1 | hecho en parte (bibliotecas vendoreadas, ejemplos de superficies y tally; falta la allowlist de herramientas por plugin) |
+| T51 | SDK de dispositivos para plugins: vendorear HID, MIDI, serie, OSC, Stream Deck | P1 | hecho (bibliotecas vendoreadas, ejemplos de superficies y tally, lista de herramientas por plugin en plugin.json y origen plugin:<id>) |
 | T52 | Superficie de control: modelo de datos y motor de acciones y estado | P1 | hecho |
 | T53 | Superficie de control: servidor en el gateway y puente con la app | P1 | hecho |
 | T54 | Superficie de control: emparejamiento por QR y seguridad | P1 | hecho (sin rotación de token ni PIN local en la tablet) |

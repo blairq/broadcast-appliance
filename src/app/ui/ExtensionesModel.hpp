@@ -28,7 +28,9 @@
 // ============================================================================
 #pragma once
 
+#include <functional>
 #include <memory>
+#include <set>
 
 #include <QAbstractListModel>
 #include <QString>
@@ -85,6 +87,12 @@ class ExtensionesModel : public QAbstractListModel {
     Q_INVOKABLE void cargada(const QString& id, bool bien, const QString& error = {});
     /// Vuelve a prender una que el diario había apagado.
     Q_INVOKABLE void prender(const QString& id);
+    /// Modo en vivo (T48): mientras devuelva true, una extensión que no se cargó en
+    /// esta sesión no se carga (`vista` da "" y `motivoNoCarga` lo explica).
+    void setEnVivo(std::function<bool()> f) { enVivo_ = std::move(f); }
+    Q_INVOKABLE QString motivoNoCarga(const QString& id) const;
+    /// Se pasó del tiempo máximo cargando (el Loader asíncrono): se corta y se apaga.
+    Q_INVOKABLE void tardo(const QString& id, int ms);
 
     /// La carpeta donde viven, para mostrarla y para que el asistente escriba ahí.
     Q_INVOKABLE QString carpeta() const;
@@ -94,6 +102,8 @@ class ExtensionesModel : public QAbstractListModel {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    std::function<bool()> enVivo_;
+    mutable std::set<QString> yaCargadas_; ///< las que se cargaron en esta sesión
     struct Impl;
     std::unique_ptr<Impl> d_;
 };
