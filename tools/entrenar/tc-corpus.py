@@ -91,7 +91,7 @@ def ausente(h, a, rnd):
     dicho = rnd.choice(e[1])
     plantilla = a["plantilla"].replace(m[0].group(0), dicho, 1)
     frase, _ = tc.rellenar(plantilla, {}, formas, rnd)
-    if frase is None:
+    if frase is None or _ste().errores(frase, h, falta=True):  # tambien en STE-ES
         return None
     q = NO_ESTA[tipo].format(d=dicho)
     return fila(est, frase, tc.llamada(tc.FALTA, {"pregunta": q}), "falta", h, {"pregunta": q},
@@ -144,6 +144,12 @@ def fila(est, frase, completion, tipo, herramienta, args=None, con_estado=True, 
             "herramienta": herramienta, "args": args, "frase": frase, "plantilla": plantilla}
 
 
+def _ste():
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import ste_es
+    return ste_es
+
+
 def rendir(h, a, rnd, k, variar):
     """K ejemplos de una anotacion, cada uno con su estado."""
     out = []
@@ -159,6 +165,12 @@ def rendir(h, a, rnd, k, variar):
             continue
         if variar and rnd.random() < 0.5:
             frase = rnd.choice(corpus_viejo.variantes(frase, rnd, 3))
+        # la anotacion se valido con un relleno corto; con los nombres de verdad («el
+        # audio de la camara 1») o la superficie una frase puede salirse de STE-ES:
+        # entonces otro estado (otros nombres)
+        if _ste().errores(frase, h if h != tc.DERIVAR else None, falta="falta" in a) if h != tc.DERIVAR \
+                else _ste().errores_derivar(frase):
+            continue
         if "falta" in a:
             out.append(fila(est, frase, tc.llamada(tc.FALTA, {"pregunta": a["falta"]}), "falta", h,
                             {"pregunta": a["falta"]}, plantilla=a["plantilla"]))
@@ -202,7 +214,7 @@ def main():
     esq = tc.esquemas()
     descartadas = 0
     for h in list(anot):
-        buenas = [a for a in anot[h] if h in esq and not tca.validar(a, esq[h], h if h != tc.DERIVAR else None)]
+        buenas = [a for a in anot[h] if h in esq and not tca.validar(a, esq[h], h)]
         descartadas += len(anot[h]) - len(buenas)
         anot[h] = buenas
     print(f"anotaciones descartadas por no validar: {descartadas}")
@@ -244,6 +256,12 @@ def main():
         if p.exists():
             der += [json.loads(l)["frase"] for l in p.read_text().splitlines()
                     if l.strip() and json.loads(l)["herramienta"] == "derivar"]
+    # y los pedidos del aparato que hace el GRANDE (derivaciones-admin: cada uno con su
+    # herramienta real). Son los ajenos cerca del borde del catalogo, los que el modelo
+    # confundia con una propia parecida (Hammer, arXiv:2410.04587: «irrelevancia»
+    # cerca de las funciones); con el filtro STE-ES las viejas solas no llegaban al 10 %
+    der += [json.loads(l)["frase"] for l in (RAIZ / "datos/derivaciones-admin.jsonl").read_text().splitlines()
+            if l.strip()]
     # FUERA las que no son derivar para ESTE perfil (su herramienta real, registrada
     # en derivaciones-admin, ahora es propia: con la v4 eran 32, encuestas, prompter,
     # recetas...) y las del banco y el examen (se colaban 9: nunca se entrena con eso)

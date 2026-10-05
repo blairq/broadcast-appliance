@@ -122,8 +122,11 @@ def errores_derivar(frase):
     ws = palabras(frase)
     sin_mul = [w for w in ws if w not in _dic.muletillas]
     prob = []
-    if not 3 <= len(ws) <= 16:
-        prob.append(f"R8 largo: {len(ws)} palabras (3 a 16)")
+    # R8: el MAXIMO sobre el nucleo (las muletillas son superficie, regla 9: una frase
+    # de 16 + «che,» no se pasa); el MINIMO sobre todas («dale mas tiempo»: ese «dale»
+    # es verbo, y «siguiente orador, ya» es una orden corta valida)
+    if len(ws) < 3 or len(sin_mul) > 16:
+        prob.append(f"R8 largo: {len(ws)} palabras, {len(sin_mul)} sin muletillas (3 a 16)")
     if frase.strip().startswith("¿") or frase.strip().endswith("?") or (sin_mul and sin_mul[0] in PREGUNTA):
         return prob
     nuc = _dic.nucleo(sin_mul)
@@ -148,8 +151,11 @@ def verificar(frase, herramienta, falta=False):
     ws = palabras(frase)
     sin_mul = [w for w in ws if w not in _dic.muletillas]
     prob = []
-    if not 3 <= len(ws) <= 16:
-        prob.append(f"R8 largo: {len(ws)} palabras (3 a 16)")
+    # R8: el MAXIMO sobre el nucleo (las muletillas son superficie, regla 9: una frase
+    # de 16 + «che,» no se pasa); el MINIMO sobre todas («dale mas tiempo»: ese «dale»
+    # es verbo, y «siguiente orador, ya» es una orden corta valida)
+    if len(ws) < 3 or len(sin_mul) > 16:
+        prob.append(f"R8 largo: {len(ws)} palabras, {len(sin_mul)} sin muletillas (3 a 16)")
     consulta = (frase.strip().startswith("¿") or frase.strip().endswith("?")
                 or (sin_mul and sin_mul[0] in PREGUNTA))
     if consulta:  # R7: una consulta se reconoce por su forma; el resto de las reglas es de las ordenes

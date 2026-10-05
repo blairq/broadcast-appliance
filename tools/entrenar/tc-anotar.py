@@ -69,7 +69,13 @@ def validar(a, esq, herramienta=None):
                 for m in tc.RE_HUECO.finditer(str(v)):
                     if m.group(1) not in permitidas:
                         err.append(f"{herramienta} no recibe un {{{m.group(1)}}} (recibe {', '.join(sorted(permitidas))})")
-    if herramienta and a.get("plantilla"):
+    if herramienta == "derivar" and a.get("plantilla"):
+        # derivar tambien en STE-ES: las reglas que no dependen de la herramienta y
+        # ningun verbo que signifique una propia (ste_es.errores_derivar)
+        import ste_es
+        frase = tc.RE_HUECO.sub(lambda m: RELLENO.get(m.group(1), "eso"), a["plantilla"])
+        err += [f"STE-ES {e}" for e in ste_es.errores_derivar(frase)]
+    elif herramienta and a.get("plantilla"):
         import ste_es
         frase = tc.RE_HUECO.sub(lambda m: RELLENO.get(m.group(1), "eso"), a["plantilla"])
         err += [f"STE-ES {e}" for e in ste_es.errores(frase, herramienta, falta="falta" in a)]
@@ -155,7 +161,7 @@ def sumar(args, nombres, esquemas, funcs, hechas, guardar):
                 continue
             a.setdefault("frase", a["plantilla"])
             a.setdefault("args", {}) if "falta" not in a else None
-            if validar(a, esquemas[h], h if h != "derivar" else None):
+            if validar(a, esquemas[h], h):
                 rech += 1
                 continue
             a["nueva"] = True
