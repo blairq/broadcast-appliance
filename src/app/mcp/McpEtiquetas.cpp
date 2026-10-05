@@ -127,6 +127,7 @@ const Fila kPropias[] = {
     {"banca_cola", "fila banca agregar quitar orador presencial"},
     {"banca_al_aire", "banca al aire orador presencial preset camara microfono zocalo diputado habla"},
     {"banca_terminar", "terminar orador presencial banca"},
+    {"entrada_respaldo", "sin senal entrada caida respaldo escena cortar armar camara perdida"},
     {"supervisor_politica", "supervisor latido interfaz trabada colgada relanzar reiniciar watchdog aire"},
     {"security_status", "seguridad contaminacion sesion permisos aprobacion"},
     {"system_info", "version compilacion build acerca de datos del equipo"},

@@ -61,6 +61,16 @@ Item {
 
             Rectangle { anchors.fill: parent; color: "black" }
             VideoItem { anchors.fill: parent; source: modelData; fillMode: wall.fillMode }
+            // Sin señal: borde rojo titilante y el cartel (solo acá, nunca al aire).
+            Rectangle {
+                readonly property bool sin: modelData.startsWith("entrada:") && Studio.sinSenal.indexOf(modelData.slice(8)) >= 0
+                visible: sin
+                anchors.fill: parent; color: "transparent"
+                border { color: Theme.live; width: 3 }
+                SequentialAnimation on opacity { running: parent.visible; loops: Animation.Infinite
+                    NumberAnimation { to: 0.35; duration: 450 } NumberAnimation { to: 1; duration: 450 } }
+                Text { anchors.centerIn: parent; text: "SIN SEÑAL"; color: Theme.live; font { pixelSize: 18; weight: Font.Black } }
+            }
             Rectangle {
                 visible: wall.layout === "pip" && index > 0
                 anchors.fill: parent; color: "transparent"

@@ -2051,6 +2051,37 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "entrada_respaldo";
+        t.title = "Que hacer si una entrada se cae al aire";
+        t.category = "video";
+        t.description = "Si la entrada `entrada` se queda sin señal mas de `ms` (de fabrica 1000) estando en la escena al "
+                        "aire: `al_perder_aire` avisar (de fabrica), armar la `escena` de respaldo en el preview o cortar "
+                        "a ella. Sin `al_perder_aire`, muestra lo configurado y las entradas que ahora no tienen señal.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}}},
+                           {"escena", {{"type", "string"}}},
+                           {"al_perder_aire", {{"type", "string"}, {"enum", {"avisar", "armar", "cortar"}}}},
+                           {"ms", {{"type", "integer"}, {"minimum", 200}, {"maximum", 60000}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = QString::fromStdString(a.value("entrada", std::string()));
+            if (a.contains("al_perder_aire")) {
+                if (e.isEmpty()) return done(ToolResult::error("falta `entrada`"));
+                QVariantMap r{{"escena", QString::fromStdString(a.value("escena", std::string()))},
+                              {"al_perder_aire", QString::fromStdString(a.value("al_perder_aire", std::string()))},
+                              {"ms", a.value("ms", 1000)}};
+                const QString err = vm.setRespaldoEntrada(e, r);
+                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            }
+            json sin = json::array();
+            for (const QString& s : vm.sinSenal()) sin.push_back(s.toStdString());
+            done(ToolResult().data(json{{"sin_senal", sin},
+                                        {"respaldo", e.isEmpty() ? json() : qvToJson(vm.respaldoEntrada(e))}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "bancas_listar";
         t.title = "Bancas y fila de oradores presenciales";
         t.category = "oradores";

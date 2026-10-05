@@ -649,6 +649,8 @@ void StudioViewModel::onTick() {
         emit quitRequested();
         return;
     }
+    // Señal de las entradas (multiview, escena de respaldo): una vez por segundo.
+    if (vigiaTicks_ % 10 == 5) revisarSenales();
     // El vigía de los módulos de audio: lo que saltó por lento o colgado.
     if (++vigiaTicks_ % 10 == 0 && racks_ != nullptr)
         for (const auto& m : racks_->tomarSaltados())
@@ -1492,5 +1494,76 @@ void StudioViewModel::quitarDestacadoChatUi(const QString& key) {
 }
 
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
+
+namespace {
+nlohmann::json leerRespaldos(const std::filesystem::path& datos) {
+    std::ifstream f(datos / "Config" / "respaldo-entradas.json");
+    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    return j.is_object() ? j : nlohmann::json::object();
+}
+} // namespace
+
+QVariantMap StudioViewModel::respaldoEntrada(const QString& entrada) const {
+    const nlohmann::json r = leerRespaldos(rt_.dataRoot()).value(entrada.toStdString(), nlohmann::json::object());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap();
+}
+
+QString StudioViewModel::setRespaldoEntrada(const QString& entrada, const QVariantMap& r) {
+    const QString modo = r.value("al_perder_aire", "avisar").toString();
+    if (modo != "avisar" && modo != "armar" && modo != "cortar") return "al_perder_aire: avisar, armar o cortar";
+    nlohmann::json todos = leerRespaldos(rt_.dataRoot());
+    todos[entrada.toStdString()] = {{"escena", r.value("escena").toString().toStdString()},
+                                    {"al_perder_aire", modo.toStdString()},
+                                    {"ms", std::clamp(r.value("ms", 1000).toInt(), 200, 60000)}};
+    std::ofstream o(rt_.dataRoot() / "Config" / "respaldo-entradas.json");
+    o << todos.dump(1);
+    return {};
+}
+
+void StudioViewModel::revisarSenales() {
+    if (!video_) return;
+    QStringList sin;
+    for (const QString& e : video_->entradas()) {
+        const nlohmann::json st = video_->estadoEntrada(e.toStdString());
+        if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
+        const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
+        if (st.value("ancho", 0) <= 0 || !g.is_object() || g.value("fps_recibidos", 0.0) < 0.5) sin << e;
+    }
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    for (const QString& e : sin)
+        if (!sinSenalDesde_.contains(e)) sinSenalDesde_[e] = ahora;
+    for (auto it = sinSenalDesde_.begin(); it != sinSenalDesde_.end();)
+        if (!sin.contains(it.key())) {
+            respaldoHecho_.remove(it.key());
+            it = sinSenalDesde_.erase(it);
+        } else {
+            ++it;
+        }
+    if (sin != sinSenal_) {
+        sinSenal_ = sin;
+        emit senalChanged();
+    }
+    // Una entrada AL AIRE sin señal: lo que se configuró (avisar, armar o cortar al respaldo).
+    const nlohmann::json resp = leerRespaldos(rt_.dataRoot());
+    const auto alAire = rt_.engine().sceneSources(rt_.engine().currentScene());
+    for (const QString& e : sin) {
+        if (respaldoHecho_.contains(e)) continue;
+        if (std::find(alAire.begin(), alAire.end(), e.toStdString()) == alAire.end()) continue;
+        const nlohmann::json r = resp.value(e.toStdString(), nlohmann::json::object());
+        if (ahora - sinSenalDesde_.value(e) < r.value("ms", 1000)) continue;
+        respaldoHecho_.insert(e);
+        const QString escena = QString::fromStdString(r.value("escena", std::string()));
+        const std::string modo = r.value("al_perder_aire", std::string("avisar"));
+        if (modo == "cortar" && !escena.isEmpty()) {
+            takeScene(escena);
+            emit notify("«" + e + "» se quedó sin señal al aire: se cortó a «" + escena + "»", "error");
+        } else if (modo == "armar" && !escena.isEmpty()) {
+            armarEscena(escena);
+            emit notify("«" + e + "» se quedó sin señal al aire: «" + escena + "» quedó armada (TAKE)", "error");
+        } else {
+            emit notify("«" + e + "» se quedó sin señal AL AIRE", "error");
+        }
+    }
+}
 
 } // namespace ba::app

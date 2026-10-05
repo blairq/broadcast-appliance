@@ -13,6 +13,7 @@
 #pragma once
 
 #include <QHash>
+#include <QSet>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -107,6 +108,8 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// Las entradas de video que se quedaron sin señal (el multiview las marca).
+    Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
     /// El cuerpo legislativo (integrantes, bancas, presets, micrófonos): legislatura/CuerpoViewModel.
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
     /// La fila de oradores presenciales (bancas): legislatura/Bancas.
@@ -250,6 +253,10 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
+    QStringList sinSenal() const { return sinSenal_; }
+    /// Qué hacer si la entrada se cae estando al aire: {escena, al_perder_aire: avisar|armar|cortar, ms}.
+    Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
+    Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
     legislatura::Bancas& bancas() { return *bancas_; }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
@@ -506,6 +513,7 @@ class StudioViewModel : public QObject {
     void alarmasCambio();
     void escenasAjustesChanged();
     void placaChanged();
+    void senalChanged();
     /// Se pidió transmitir a otro destino estando al aire: que el operador confirme.
     void pedirCambioDestino(const QString& actual, const QString& nuevoServer, const QString& nuevoKey);
     void destinosChanged();
@@ -570,6 +578,10 @@ class StudioViewModel : public QObject {
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
+    QStringList sinSenal_;
+    QHash<QString, qint64> sinSenalDesde_; ///< entrada -> cuándo se perdió
+    QSet<QString> respaldoHecho_;          ///< entradas cuyo respaldo ya se aplicó en esta caída
+    void revisarSenales();
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;
     std::unique_ptr<agent::Despachador> despachador_;

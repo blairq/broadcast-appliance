@@ -364,6 +364,32 @@ Rectangle {
                     text: "Lo que ve la escena, con las tarjetas."
                     color: Theme.textFaint; font.pixelSize: 11
                 }
+                // Si se cae la señal estando al aire: avisar, armar o cortar a una escena de respaldo.
+                RowLayout {
+                    id: respaldo
+                    visible: !!page.vg && page.vg.entrada !== "" && !page.nodo
+                    Layout.fillWidth: true
+                    spacing: 4
+                    property var r: page.vg && page.vg.entrada !== "" ? Studio.respaldoEntrada(page.vg.entrada) : ({})
+                    Text { text: "Si se cae"; color: Theme.textDim; font.pixelSize: 11 }
+                    ComboBox {
+                        id: modoResp
+                        implicitWidth: 90
+                        model: [ { t: "Avisar", v: "avisar" }, { t: "Armar", v: "armar" }, { t: "Cortar", v: "cortar" } ]
+                        textRole: "t"
+                        currentIndex: Math.max(0, model.findIndex(o => o.v === (respaldo.r.al_perder_aire || "avisar")))
+                        onActivated: (i) => { const e = Studio.setRespaldoEntrada(page.vg.entrada, { escena: escResp.currentText, al_perder_aire: model[i].v, ms: 1000 })
+                                              if (e !== "") Studio.notify(e, "error") }
+                    }
+                    ComboBox {
+                        id: escResp
+                        Layout.fillWidth: true
+                        model: page.vg ? page.vg.escenasUi() : []
+                        currentIndex: Math.max(0, model.indexOf(respaldo.r.escena || ""))
+                        onActivated: (i) => Studio.setRespaldoEntrada(page.vg.entrada, { escena: model[i], al_perder_aire: modoResp.model[modoResp.currentIndex].v, ms: 1000 })
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La escena de respaldo si esta entrada se queda sin señal al aire"
+                    }
+                }
 
                 ScrollView {
                     id: ajustes
