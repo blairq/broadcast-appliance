@@ -164,7 +164,8 @@ void AudioViewModel::rebuildDetail() {
     if (r != nullptr && !selected_.isEmpty() && r->has(selected_.toStdString())) {
         const std::string id = selected_.toStdString();
         json j{{"nodo", id}, {"tipo", r->kindOf(id)}, {"medidores", r->meters(id)}};
-        for (const auto& n : r->describe()["nodos"])
+        const json descNodos = r->describe(); // en una variable: el temporal no vive durante el for
+        for (const auto& n : descNodos["nodos"])
             if (n["id"] == id) j["etiqueta"] = n.value("etiqueta", id);
         if (ClapInstance* c = r->plugin(id)) {
             j["modulo"] = c->desc().id;
@@ -180,7 +181,8 @@ void AudioViewModel::rebuildDetail() {
                     presets.push_back(it.key());
                 j["presets"] = presets;
             }
-            for (const auto& n : r->describe()["nodos"])
+            const json descNodos = r->describe(); // en una variable: el temporal no vive durante el for
+            for (const auto& n : descNodos["nodos"])
                 if (n["id"] == id) {
                     j["bypass"] = n.value("bypass", false);
                     for (const char* k : {"bypass_auto", "ms_ultimo", "ms_medio", "ms_max", "ms_bloque"})
@@ -197,7 +199,8 @@ void AudioViewModel::rebuildDetail() {
             j["analisis"] = rep;
         }
         if (r->kindOf(id) == "entrada") {
-            for (const auto& n : r->describe()["nodos"])
+            const json descNodos = r->describe(); // en una variable: el temporal no vive durante el for
+            for (const auto& n : descNodos["nodos"])
                 if (n["id"] == id) j["fuente"] = n.value("fuente", "");
             j["ayuda"] =
                 "Trae el audio de otra fuente (después de su propio rack) a este grafo. No se conecta "
