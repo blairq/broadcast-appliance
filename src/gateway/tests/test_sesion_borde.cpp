@@ -77,6 +77,22 @@ int main() {
     CHECK(!s.bloqueado("leg-1"), "con el link regenerado se desbloquea");
     CHECK(s.autenticar("leg-1", token, pin, pinMal).empty(), "el link viejo ya no anda");
 
+    // Usuario y contraseña (entrar tipeando, sin el link).
+    s.ponerCredenciales(nlohmann::json::array(
+        {{{"id", "leg-2"},
+          {"sal", sal},
+          {"hash_token", BotoneraBorde::sha256Hex(sal + token2)},
+          {"hash_pin", BotoneraBorde::sha256Hex(sal + ":" + pin + ":" + token2)},
+          {"usuario", "Banca7"},
+          {"hash_clave", BotoneraBorde::sha256Hex(sal + ":clave:" + "abcdefgh2345")}}}));
+    std::string idU;
+    bool claveMal = false;
+    CHECK(s.autenticarUsuario("banca7", "abcdefgh2345", idU, claveMal) == "leg-2", "usuario (sin mayúsculas) y contraseña");
+    CHECK(s.autenticarUsuario("banca7", "otra", idU, claveMal).empty() && claveMal && idU == "leg-2",
+          "contraseña errada: cuenta para el bloqueo de ese integrante");
+    CHECK(s.autenticarUsuario("nadie", "abcdefgh2345", idU, claveMal).empty() && !claveMal && idU.empty(),
+          "usuario inexistente: no bloquea a nadie");
+
     CHECK(SesionBorde::origenValido("Host: sesion.ejemplo.org\r\nOrigin: https://sesion.ejemplo.org\r\nCF-Ray: x"),
           "por el túnel, mismo origen: sí");
     CHECK(!SesionBorde::origenValido("Host: sesion.ejemplo.org\r\nOrigin: https://malo.example"), "origen ajeno: no");

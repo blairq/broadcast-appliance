@@ -86,7 +86,8 @@ void Cuerpo::guardarArchivo() const {
 json Cuerpo::recinto(bool completo) const {
     json r = datos_.value("recinto", json::object());
     if (!r.is_object()) r = json::object();
-    json out{{"filas", r.value("filas", 0)}, {"columnas", r.value("columnas", 0)}, {"bancas", json::array()}};
+    json out{{"filas", r.value("filas", 0)}, {"columnas", r.value("columnas", 0)}, {"bancas", json::array()},
+             {"distribucion", r.value("distribucion", std::string("grilla"))}};
     std::vector<std::string> ubicadas;
     for (const auto& b : r.value("bancas", json::array())) {
         json lugar{{"banca", b.value("banca", std::string())}, {"fila", b.value("fila", 0)}, {"columna", b.value("columna", 0)}};
@@ -117,6 +118,19 @@ std::string Cuerpo::setRecinto(const json& c) {
     json r = recinto(false);
     if (c.contains("filas")) r["filas"] = c.value("filas", 0);
     if (c.contains("columnas")) r["columnas"] = c.value("columnas", 0);
+    // Cómo se dibuja: la grilla de siempre, un hemiciclo (las filas son arcos y las
+    // columnas se reparten de izquierda a derecha) o una lista.
+    if (c.contains("distribucion")) {
+        const std::string d = c.value("distribucion", std::string());
+        if (d != "grilla" && d != "hemiciclo" && d != "lista") return "distribucion: grilla, hemiciclo o lista";
+        r["distribucion"] = d;
+        if (!c.contains("filas") && !c.contains("columnas") && !c.contains("bancas") && !c.contains("mover") &&
+            !c.value("auto", false)) {
+            datos_["recinto"] = r;
+            guardarArchivo();
+            return {};
+        }
+    }
     const int filas = r.value("filas", 0), columnas = r.value("columnas", 0);
     if (filas < 1 || filas > 40 || columnas < 1 || columnas > 60) return "filas entre 1 y 40 y columnas entre 1 y 60";
     if (c.contains("bancas")) {

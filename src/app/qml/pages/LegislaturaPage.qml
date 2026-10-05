@@ -5,7 +5,9 @@
 //   Recinto       la grilla de bancas (cámara, al aire, fila de oradores)
 //   Orden del día los puntos de la sesión y cuál se trata
 //   Votación      quórum y resultados oficiales
-//   Banca virtual los que entran desde el navegador (en la sala o afuera): links, habilitar
+//   Conexiones remotas  cómo entra cada conferencista desde el navegador (en la
+//                 sala o afuera): usuario, link y PIN, contraseña, datos. A los que
+//                 entran se los habilita en el Recinto (su banca muestra la cara).
 //
 // El Cuerpo (quién se sienta en cada banca) se edita con el botón de arriba.
 import QtQuick
@@ -37,7 +39,7 @@ Rectangle {
             TabButton { text: "Recinto" }
             TabButton { text: "Orden del día" }
             TabButton { text: "Votación" }
-            TabButton { text: "Banca virtual" + (Studio.sesionRemota && Studio.sesionRemota.presentes > 0 ? " (" + Studio.sesionRemota.presentes + ")" : "") }
+            TabButton { text: "Conexiones remotas" + (Studio.sesionRemota && Studio.sesionRemota.conectados > 0 ? " (" + Studio.sesionRemota.conectados + ")" : "") }
         }
         StackLayout {
             Layout.fillWidth: true
@@ -54,17 +56,17 @@ Rectangle {
             }
             Panel { PanelOrdenDelDia { anchors.fill: parent } }
             Panel { PanelVotacion { anchors.fill: parent } }
-            Panel { PanelBancaVirtual { anchors { fill: parent; margins: 12 } } }
+            Panel { PanelConexionesRemotas { anchors.fill: parent; anchors.margins: 12; onIrAlRecinto: tabs.currentIndex = 1 } }
         }
     }
 
-    // ui_show_page {page: "legislatura", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "banca_virtual"}
+    // ui_show_page {page: "legislatura", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "conexiones"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
             if (pagina !== "legislatura") return
             const partes = seccion.toLowerCase().split("/")
-            const i = ["conferencia", "recinto", "orden", "votacion", "banca_virtual"].indexOf(partes[0])
+            const i = ["conferencia", "recinto", "orden", "votacion", "conexiones"].indexOf(partes[0])
             if (i >= 0) tabs.currentIndex = i
             if (i === 0 && partes.length > 1) {
                 const j = ["sala", "unidades", "votacion", "conexion", "avanzado"].indexOf(partes[1])

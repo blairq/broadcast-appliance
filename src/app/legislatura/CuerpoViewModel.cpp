@@ -150,7 +150,14 @@ QString CuerpoViewModel::plantilla() {
 }
 
 QVariantMap CuerpoViewModel::recinto() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(c_->recinto().dump())).object().toVariantMap();
+    nlohmann::json r = c_->recinto();
+    // La foto de cada uno (la cara de su banca cuando no está conectado por la banca virtual).
+    for (auto& b : r["bancas"])
+        if (b.contains("integrante")) {
+            const QString f = rutaFoto(QString::fromStdString(b["integrante"].value("id", std::string())));
+            b["integrante"]["foto_url"] = f.isEmpty() ? std::string() : QUrl::fromLocalFile(f).toString().toStdString();
+        }
+    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap();
 }
 
 QString CuerpoViewModel::editarRecinto(const QVariantMap& cambios) {

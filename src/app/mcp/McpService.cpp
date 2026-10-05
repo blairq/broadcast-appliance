@@ -2726,10 +2726,13 @@ void McpService::registerTools() {
         t.description = "Cambia la grilla: `filas` y `columnas`; `auto: true` acomoda todas las bancas del cuerpo en "
                         "orden (de adelante para atrás, de izquierda a derecha); `mover: {banca, fila, columna}` una "
                         "sola (fila -1 la saca); `bancas: [{banca, fila, columna}]` reemplaza la lista entera. Si algo "
-                        "no cierra (fuera de la grilla, dos en un lugar), no cambia nada y dice por qué.";
+                        "no cierra (fuera de la grilla, dos en un lugar), no cambia nada y dice por qué. "
+                        "`distribucion`: cómo se dibuja (grilla, hemiciclo —cada fila un arco alrededor de la "
+                        "presidencia— o lista).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
-                          {{"filas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 40}}},
+                          {{"distribucion", {{"type", "string"}, {"enum", {"grilla", "hemiciclo", "lista"}}}},
+                           {"filas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 40}}},
                            {"columnas", {{"type", "integer"}, {"minimum", 1}, {"maximum", 60}}},
                            {"auto", {{"type", "boolean"}}},
                            {"mover",

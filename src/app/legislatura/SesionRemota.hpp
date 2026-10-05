@@ -58,6 +58,11 @@ class SesionRemota : public QObject {
     /// integrante. Devuelve {link, pin, id} UNA vez, o {error}.
     json generar(const std::string& integrante);
     bool revocar(const std::string& integrante);
+    /// Usuario y contraseña (para entrar sin el link, tipeando): la contraseña se
+    /// genera (12 caracteres fáciles de dictar) y se muestra UNA vez. {usuario, clave} o {error}.
+    json generarClave(const std::string& integrante, const std::string& usuario = {});
+    /// Los datos de la conexión: {usuario?, email?, telefono?, nota?}. "" o el error.
+    std::string setDatos(const std::string& integrante, const json& datos);
     bool tieneCredencial(const std::string& integrante) const;
     /// La lista que va al gateway: [{id, nombre, banca, sal, hash_token, hash_pin}].
     json paraGateway() const;
@@ -92,6 +97,8 @@ class SesionRemota : public QObject {
     QString origenUi() const { return QString::fromStdString(origen_); }
     Q_INVOKABLE QVariantMap generarUi(const QString& integrante);
     Q_INVOKABLE bool revocarUi(const QString& integrante);
+    Q_INVOKABLE QVariantMap generarClaveUi(const QString& integrante, const QString& usuario);
+    Q_INVOKABLE QString setDatosUi(const QString& integrante, const QVariantMap& datos);
     Q_INVOKABLE QString habilitarUi(const QString& integrante, bool si);
     Q_INVOKABLE QString expulsarUi(const QString& integrante, const QString& motivo);
     /// La foto de su cámara (la última que mandó): la pide la interfaz al gateway

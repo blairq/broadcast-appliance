@@ -17,7 +17,8 @@
 //   GET /sesion/...            la página (CSP estricta)
 //   GET /ws?sesion=1           WebSocket de texto (JSON). Primer mensaje
 //        {type:"auth", i, t, pin} (el link trae i y t en el fragmento, nunca
-//        llega al servidor por la URL); después solo hola, ping, foto {jpeg}
+//        llega al servidor por la URL) o {type:"auth", u, clave} (usuario y
+//        contraseña, para entrar tipeando); después solo hola, ping, foto {jpeg}
 //        y lo que la app habilite (palabra, voto: fases R2 y R4).
 //
 // App (API de control, loopback + Bearer):
@@ -69,6 +70,8 @@ class SesionBorde {
     /// "" si no coincide; el id del integrante si el token y el PIN son los suyos.
     /// `pinMal` queda en true si el token es de alguien pero el PIN no.
     std::string autenticar(const std::string& id, const std::string& token, const std::string& pin, bool& pinMal);
+    /// Con usuario y contraseña: el id, o "" (`claveMal` si el usuario existe; `id` queda con el suyo).
+    std::string autenticarUsuario(const std::string& usuario, const std::string& clave, std::string& id, bool& claveMal);
     void ponerCredenciales(const nlohmann::json& participantes);
     bool bloqueado(const std::string& id) const;
     void anotarPinMal(const std::string& id);
@@ -81,7 +84,7 @@ class SesionBorde {
         std::mutex sendLock;
     };
     struct Credencial {
-        std::string nombre, banca, sal, hashToken, hashPin;
+        std::string nombre, banca, sal, hashToken, hashPin, usuario, hashClave;
         int fallas = 0;
         std::int64_t bloqueadoHastaMs = 0;
     };

@@ -95,8 +95,29 @@ int main(int argc, char** argv) {
     CHECK(acta.find("Ana Pérez (banca 3): habilitado por presidencia") != std::string::npos, "el acta dice quién habilitó");
     CHECK(acta.find("bloqueado por PIN errado") != std::string::npos, "el acta registra el bloqueo");
 
+    // Usuario y contraseña.
+    CHECK(s.generarClave(juan).contains("error"), "sin link no hay contraseña");
+    const json k = s.generarClave(ana, "Ana.Perez");
+    CHECK(k.value("usuario", std::string()) == "ana.perez" && k.value("clave", std::string()).size() == 12,
+          "usuario en minúsculas y contraseña de 12");
+    const json g2 = s.paraGateway();
+    CHECK(g2[0].value("usuario", std::string()) == "ana.perez" &&
+              g2[0].value("hash_clave", std::string()) ==
+                  sha256(g2[0].value("sal", std::string()) + ":clave:" + k.value("clave", std::string())),
+          "hash de la contraseña como el gateway");
+    s.generar(juan);
+    CHECK(s.generarClave(juan, "ana.perez").contains("error"), "el usuario no se repite");
+    CHECK(s.setDatos(ana, {{"email", "ana@ejemplo.org"}, {"telefono", "11 5555-0000"}}).empty(), "datos de contacto");
+    const json c2 = s.generar(ana); // link nuevo: conserva usuario y datos, la contraseña no
+    const json g3 = s.paraGateway();
+    bool ok3 = false;
+    for (const auto& x : g3)
+        if (x.value("id", std::string()) == ana)
+            ok3 = x.value("usuario", std::string()) == "ana.perez" && x.value("hash_clave", std::string()).empty();
+    CHECK(ok3, "con link nuevo conserva el usuario y pide contraseña nueva");
+
     // Revocar: deja de ir al gateway.
-    CHECK(s.revocar(ana) && s.paraGateway().empty(), "revocado ya no va al gateway");
+    CHECK(s.revocar(ana) && s.revocar(juan) && s.paraGateway().empty(), "revocado ya no va al gateway");
 
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

@@ -79,6 +79,49 @@ void McpService::registerSesionTools() {
     }
     {
         Tool t;
+        t.name = "sesion_clave";
+        t.title = "Usuario y contraseña de un legislador";
+        t.category = "sesion";
+        t.destructive = true;
+        t.description = "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
+                        "(12 caracteres fáciles de dictar) reemplaza a la anterior y se muestra UNA sola vez. Necesita "
+                        "que ya tenga link (sesion_credencial). `usuario` opcional (de fábrica, banca<número>).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"banca", quien}, {"usuario", {{"type", "string"}}}}},
+                         {"required", {"banca"}}};
+        t.run = [s, idDe](const json& a, Done done) {
+            std::string e;
+            const std::string id = idDe(a, e);
+            if (id.empty()) return done(ToolResult::error(e));
+            const json r = s->generarClave(id, a.value("usuario", std::string()));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sesion_datos";
+        t.title = "Datos de contacto de un conferencista";
+        t.category = "sesion";
+        t.description = "Guarda su `email`, `telefono` y una `nota` (para la secretaría; no se publican).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"banca", quien}, {"email", {{"type", "string"}}}, {"telefono", {{"type", "string"}}},
+                           {"nota", {{"type", "string"}}}}},
+                         {"required", {"banca"}}};
+        t.run = [s, idDe](const json& a, Done done) {
+            std::string e;
+            const std::string id = idDe(a, e);
+            if (id.empty()) return done(ToolResult::error(e));
+            const std::string r = s->setDatos(id, a);
+            if (!r.empty()) return done(ToolResult::error(r));
+            done(ToolResult().data({{"id", id}, {"ok", true}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "sesion_revocar";
         t.title = "Revocar el link de un legislador";
         t.category = "sesion";

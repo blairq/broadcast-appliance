@@ -9,8 +9,10 @@ const frag = new URLSearchParams(location.hash.slice(1));
 const integrante = frag.get("i") || "";
 const token = frag.get("t") || "";
 
+const conLink = integrante !== "" && token.length === 64;
 let ws = null;
-let pin = "";          // solo en memoria, para reconectar sin volver a pedirlo
+let pin = "";          // el PIN o la contraseña: solo en memoria, para reconectar sin volver a pedirlo
+let usuario = "";
 let estado = "conectado";
 let reintento = 1000;
 let cortadoAProposito = false;
@@ -63,15 +65,17 @@ function mandarFoto() {
 
 function programarFotos() {
   clearInterval(timerFoto);
-  // Mientras espera, una por segundo (la presidencia lo está mirando); habilitado, cada 10 s.
-  timerFoto = setInterval(mandarFoto, estado === "habilitado" ? 10000 : 1000);
+  // Mientras espera, una por segundo (la presidencia lo está mirando); habilitado, cada 3 s
+  // (es su cara en la banca del recinto que ve el operador).
+  timerFoto = setInterval(mandarFoto, estado === "habilitado" ? 3000 : 1000);
 }
 
 // --- El WebSocket -----------------------------------------------------------------
 function conectar() {
   const proto = location.protocol === "https:" ? "wss:" : "ws:";
   ws = new WebSocket(proto + "//" + location.host + "/ws?sesion=1");
-  ws.onopen = () => ws.send(JSON.stringify({ type: "auth", i: integrante, t: token, pin }));
+  ws.onopen = () => ws.send(JSON.stringify(conLink ? { type: "auth", i: integrante, t: token, pin }
+                                                   : { type: "auth", u: usuario, clave: pin }));
   ws.onmessage = (ev) => {
     let m;
     try { m = JSON.parse(ev.data); } catch (e) { return; }
@@ -126,8 +130,9 @@ function recibir(m) {
 $("formPin").addEventListener("submit", (e) => {
   e.preventDefault();
   pin = $("pin").value.trim();
+  usuario = $("usuario").value.trim();
   $("pin").value = "";
-  if (!pin) return;
+  if (!pin || (!conLink && !usuario)) return;
   error("");
   $("botonEntrar").disabled = true;
   cortadoAProposito = false;
@@ -138,8 +143,16 @@ $("reintentar").addEventListener("click", () => {
   $("botonEntrar").disabled = false;
 });
 
-if (!integrante || token.length !== 64) {
-  $("entrarTexto").textContent = "Este link está incompleto. Abrí el link personal que te mandó la secretaría.";
-  $("formPin").classList.add("oculto");
+if (!conLink) {
+  // Sin link: usuario y contraseña.
+  $("entrarTexto").textContent = integrante || token
+    ? "Este link está incompleto. Abrí el link personal que te mandó la secretaría, o entrá con tu usuario y contraseña."
+    : "Entrá con el usuario y la contraseña que te dio la secretaría (o abrí tu link personal).";
+  $("usuario").classList.remove("oculto");
+  $("formPin").classList.add("dos");
+  $("pin").placeholder = "Contraseña";
+  $("pin").setAttribute("inputmode", "text");
+  $("pin").removeAttribute("pattern");
+  $("usuario").focus();
 }
 mostrar("entrar");

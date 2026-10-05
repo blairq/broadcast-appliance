@@ -104,10 +104,14 @@ json SesionRemota::generar(const std::string& id) {
     char pin[8];
     std::snprintf(pin, sizeof pin, "%06u", n);
     const std::string sal = hexAleatorio(16);
+    // El usuario y los datos se conservan; la contraseña no (iba con la sal vieja).
+    const json antes = credenciales_.value(id, json::object());
     credenciales_[id] = {{"sal", sal},
                          {"hash_token", sha256(sal + token)},
                          {"hash_pin", sha256(sal + ":" + std::string(pin) + ":" + token)},
                          {"creado_ms", ahoraMs()}};
+    if (antes.contains("usuario")) credenciales_[id]["usuario"] = antes["usuario"];
+    if (antes.contains("datos")) credenciales_[id]["datos"] = antes["datos"];
     guardar();
     anotar("credencial", id);
     emit credencialesCambio();
@@ -144,6 +148,49 @@ bool SesionRemota::revocar(const std::string& id) {
 
 bool SesionRemota::tieneCredencial(const std::string& id) const { return credenciales_.contains(id); }
 
+json SesionRemota::generarClave(const std::string& id, const std::string& usuarioPedido) {
+    const json i = integrante(id);
+    if (!i.is_object()) return {{"error", "no hay ningún integrante con ese id en el Cuerpo"}};
+    if (!credenciales_.contains(id)) return {{"error", "primero generá su link y PIN (la contraseña va con esa credencial)"}};
+    json& c = credenciales_[id];
+    std::string usuario = usuarioPedido.empty() ? c.value("usuario", std::string()) : usuarioPedido;
+    if (usuario.empty()) usuario = "banca" + i.value("banca", id);
+    for (auto& ch : usuario) ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
+    if (usuario.size() < 3 || usuario.size() > 40 ||
+        usuario.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789._-") != std::string::npos)
+        return {{"error", "el usuario va de 3 a 40 letras, números, punto, guion o guion bajo (sin espacios ni tildes)"}};
+    for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it)
+        if (it.key() != id && it.value().value("usuario", std::string()) == usuario)
+            return {{"error", "el usuario «" + usuario + "» ya lo tiene otro integrante"}};
+    // 12 caracteres sin los que se confunden al dictarlos (0/o, 1/l/i).
+    static const char* abc = "abcdefghjkmnpqrstuvwxyz23456789";
+    std::string clave;
+    for (int k = 0; k < 12; ++k) clave += abc[QRandomGenerator::system()->bounded(31u)];
+    c["usuario"] = usuario;
+    c["hash_clave"] = sha256(c.value("sal", std::string()) + ":clave:" + clave);
+    guardar();
+    anotar("clave", id, {{"usuario", usuario}});
+    emit credencialesCambio();
+    emit cambio();
+    return {{"usuario", usuario}, {"clave", clave}, {"id", id}, {"nombre", i.value("nombre", std::string())},
+            {"entrar", (origen_.empty() ? std::string() : origen_) + "/sesion/"}};
+}
+
+std::string SesionRemota::setDatos(const std::string& id, const json& datos) {
+    if (!integrante(id).is_object()) return "no hay ningún integrante con ese id en el Cuerpo";
+    if (!credenciales_.contains(id)) return "primero generá su link y PIN";
+    json& c = credenciales_[id];
+    for (const char* k : {"email", "telefono", "nota"})
+        if (datos.contains(k) && datos[k].is_string()) {
+            std::string v = datos[k].get<std::string>();
+            if (v.size() > 200) v.resize(200);
+            c["datos"][k] = v;
+        }
+    guardar();
+    emit cambio();
+    return {};
+}
+
 json SesionRemota::paraGateway() const {
     json out = json::array();
     for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) {
@@ -154,7 +201,9 @@ json SesionRemota::paraGateway() const {
                        {"banca", i.value("banca", std::string())},
                        {"sal", it.value().value("sal", std::string())},
                        {"hash_token", it.value().value("hash_token", std::string())},
-                       {"hash_pin", it.value().value("hash_pin", std::string())}});
+                       {"hash_pin", it.value().value("hash_pin", std::string())},
+                       {"usuario", it.value().value("usuario", std::string())},
+                       {"hash_clave", it.value().value("hash_clave", std::string())}});
     }
     return out;
 }
@@ -253,6 +302,13 @@ json SesionRemota::participantes() const {
                {"credencial", cred},
                {"conectado", false},
                {"estado", "sin_conectar"}};
+        if (cred) {
+            const json& c = credenciales_.at(id);
+            p["usuario"] = c.value("usuario", std::string());
+            p["con_clave"] = !c.value("hash_clave", std::string()).empty();
+            p["datos"] = c.value("datos", json::object());
+            p["creado_ms"] = c.value("creado_ms", std::int64_t(0));
+        }
         if (it != estado_.end()) {
             const Estado& e = it->second;
             p["conectado"] = e.conectado;
@@ -301,7 +357,7 @@ std::string SesionRemota::anexoActa() const {
         {"entro", "entró"},           {"salio", "salió"},         {"habilitado", "habilitado"},
         {"deshabilitado", "deshabilitado"}, {"expulsado", "desconectado por la presidencia"},
         {"intento_fallido", "intento fallido"}, {"bloqueado", "bloqueado por PIN errado"},
-        {"credencial", "link generado"}, {"revocada", "link revocado"}};
+        {"credencial", "link generado"}, {"revocada", "link revocado"}, {"clave", "contraseña generada"}};
     for (const auto& e : registro_) {
         const std::string q = e.value("que", std::string());
         auto it = que.find(q);
@@ -327,6 +383,16 @@ QVariantList SesionRemota::participantesUi() const { return aQv(participantes())
 QVariantMap SesionRemota::generarUi(const QString& id) { return aQv(generar(id.toStdString())).toMap(); }
 
 bool SesionRemota::revocarUi(const QString& id) { return revocar(id.toStdString()); }
+
+QVariantMap SesionRemota::generarClaveUi(const QString& id, const QString& usuario) {
+    return aQv(generarClave(id.toStdString(), usuario.toStdString())).toMap();
+}
+
+QString SesionRemota::setDatosUi(const QString& id, const QVariantMap& datos) {
+    const json d = json::parse(QJsonDocument(QJsonObject::fromVariantMap(datos)).toJson(QJsonDocument::Compact).toStdString(),
+                               nullptr, false);
+    return QString::fromStdString(setDatos(id.toStdString(), d.is_object() ? d : json::object()));
+}
 
 QString SesionRemota::habilitarUi(const QString& id, bool si) {
     return QString::fromStdString(habilitar(id.toStdString(), si, "operador"));

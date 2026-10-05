@@ -135,6 +135,8 @@ void SesionBorde::ponerCredenciales(const json& participantes) {
         c.sal = p.value("sal", std::string());
         c.hashToken = p.value("hash_token", std::string());
         c.hashPin = p.value("hash_pin", std::string());
+        c.usuario = minus(p.value("usuario", std::string()));
+        c.hashClave = p.value("hash_clave", std::string());
         // Las fallas y el bloqueo sobreviven a que la app reenvíe la lista.
         auto it = credenciales_.find(id);
         if (it != credenciales_.end() && it->second.hashToken == c.hashToken) {
@@ -186,6 +188,23 @@ std::string SesionBorde::autenticar(const std::string& id, const std::string& to
         return {};
     }
     return id;
+}
+
+std::string SesionBorde::autenticarUsuario(const std::string& usuario, const std::string& clave, std::string& id,
+                                           bool& claveMal) {
+    claveMal = false;
+    id.clear();
+    if (usuario.empty() || usuario.size() > 40 || clave.empty() || clave.size() > 64) return {};
+    const std::string u = minus(usuario);
+    std::lock_guard<std::mutex> l(mu_);
+    for (const auto& [cid, c] : credenciales_)
+        if (!c.usuario.empty() && c.usuario == u && c.hashClave.size() == 64) {
+            id = cid;
+            if (igualesTiempoConstante(BotoneraBorde::sha256Hex(c.sal + ":clave:" + clave), c.hashClave)) return cid;
+            claveMal = true;
+            return {};
+        }
+    return {};
 }
 
 bool SesionBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
@@ -250,19 +269,31 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             http::writeWsFrame(fd, 0x8, "");
         };
         if (!m.is_object() || m.value("type", std::string()) != "auth") return rechazar("Mensaje inválido.");
-        const std::string id = m.value("i", std::string());
+        const bool conUsuario = m.contains("u");
+        std::string id = m.value("i", std::string());
         if (!intentoPermitido(ip)) {
             log_.warn("sesion: demasiados intentos desde " + ip, -1);
             return rechazar("Demasiados intentos desde esta conexión. Esperá 10 minutos.");
         }
-        if (bloqueado(id)) return rechazar("Por PIN errado varias veces, tu acceso está bloqueado 15 minutos.");
         bool pinMal = false;
-        const std::string quien = autenticar(id, m.value("t", std::string()), m.value("pin", std::string()), pinMal);
+        std::string quien;
+        if (conUsuario) {
+            quien = autenticarUsuario(m.value("u", std::string()), m.value("clave", std::string()), id, pinMal);
+            if (!id.empty() && bloqueado(id))
+                return rechazar("Por contraseña errada varias veces, tu acceso está bloqueado 15 minutos.");
+            if (quien.empty() && !pinMal) {
+                alApp_({{"tipo", "intento"}, {"id", ""}, {"ip", ip}, {"motivo", "usuario"}});
+                return rechazar("Usuario o contraseña incorrectos.");
+            }
+        } else {
+            if (bloqueado(id)) return rechazar("Por PIN errado varias veces, tu acceso está bloqueado 15 minutos.");
+            quien = autenticar(id, m.value("t", std::string()), m.value("pin", std::string()), pinMal);
+        }
         if (quien.empty()) {
             if (pinMal) {
                 anotarPinMal(id);
                 alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "pin"}});
-                return rechazar("El PIN no es correcto.");
+                return rechazar(conUsuario ? "Usuario o contraseña incorrectos." : "El PIN no es correcto.");
             }
             alApp_({{"tipo", "intento"}, {"id", id}, {"ip", ip}, {"motivo", "link"}});
             return rechazar("Este link no es válido (o fue revocado). Pedile uno nuevo a la secretaría.");

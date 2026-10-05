@@ -14,7 +14,8 @@
     (docs/SESION-REMOTA.md). El link es personal: lo da la secretaría junto con
     un PIN. El id y el token van en el FRAGMENTO (no viajan en la petición ni
     quedan en registros) y se mandan, con el PIN, en el primer mensaje del
-    WebSocket. El PIN no se guarda en ningún lado.
+    WebSocket. El PIN no se guarda en ningún lado. Sin link, se entra con
+    usuario y contraseña (también los da la secretaría).
   -->
   <header class="barra">
     <span class="titulo">Sesión remota</span>
@@ -27,7 +28,9 @@
     <h1>Entrar a la sesión</h1>
     <p id="entrarTexto" class="tenue">Escribí el PIN que te dio la secretaría.</p>
     <form id="formPin" autocomplete="off">
-      <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="12"
+      <input id="usuario" class="oculto" type="text" autocapitalize="none" autocorrect="off" spellcheck="false"
+             maxlength="40" placeholder="Usuario" aria-label="Usuario" />
+      <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="64"
              placeholder="PIN" aria-label="PIN" autofocus />
       <button id="botonEntrar" type="submit">Entrar</button>
     </form>
