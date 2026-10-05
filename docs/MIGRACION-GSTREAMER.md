@@ -15,12 +15,14 @@ razonable.
 | Filtros de audio de cada entrada (plugins de Python, audiodynamic…) | `filtros_audio` de `ba_gst_fuente` |
 | **Micrófonos y líneas del equipo** (2026-10-05) | `ba_gst_fuente` + `pipeline_audio` (`audio/EntradasAudio.*`); los viejos se migran solos |
 | **Automixer de mesa redonda** (2026-10-05) | `baautomixer`, plugin `baaudio` |
+| **Racks de audio (LSP/CLAP) de las entradas de GStreamer** (2026-10-05) | `barack`, registrado por la app (`audio/GstRack.*`): el mismo `AudioRack` corre en la cadena de audio de `ba_gst_fuente` (ajuste `rack`). Los racks guardados se montan solos donde corresponda |
 
 ## Todavía en libobs (en orden propuesto)
 
-1. **Racks de audio (LSP/CLAP).** Hoy son el filtro de OBS `ba_audio_rack` (`audio/AudioRack`, `RackManager`).
-   Pasa a un elemento `barack` (anfitrión CLAP dentro de GStreamer) en `filtros_audio`. El grafo, el estado
-   y la escucha siguen en `RackManager`; cambia dónde corre el DSP. Lo más grande del audio.
+1. **Racks de las fuentes que siguen en libobs** (invitados, medios, voces, NDI): todavía como filtro de OBS
+   `ba_audio_rack`. Pasan solos a `barack` el día que su fuente pase a GStreamer (RackManager elige por el tipo
+   de la fuente). La escucha del rack (la salida a los auriculares) sigue saliendo por el monitoreo de libobs
+   hasta que se mude la mezcla (punto 5).
 2. **Cámaras locales.** `macos-avcapture` / `dshow_input` / `v4l2_input` → `avfvideosrc` / `mfvideosrc` /
    `v4l2src` en `ba_gst_fuente` (mismo esquema que los micrófonos: dispositivo + migración al cargar).
    Así cámara y micrófono de la sala comparten reloj y latencia.

@@ -1,9 +1,15 @@
 // ============================================================================
 // src/app/audio/RackManager.hpp — racks de audio de todas las fuentes
 //
-// Cada fuente con audio puede tener su rack (AudioRack) montado como un
-// filtro de audio de OBS ("ba_audio_rack"): OBS le pasa el audio de la
-// fuente en su hilo de audio y el rack lo devuelve procesado al mezclador.
+// Cada fuente con audio puede tener su rack (AudioRack). Dónde corre:
+//   - entradas de GStreamer (`ba_gst_fuente`: micrófonos, red, pipelines): en
+//     su cadena de audio, como el elemento `barack` (audio/GstRack.hpp). Es el
+//     camino de siempre de acá en adelante (libobs se va a sacar);
+//   - lo que sigue en libobs (invitados, medios, NDI, voces): como un filtro de
+//     audio de OBS ("ba_audio_rack"): OBS le pasa el audio de la fuente en su
+//     hilo de audio y el rack lo devuelve procesado al mezclador.
+// Para el resto del programa es lo mismo (mismo AudioRack, misma escucha,
+// grabación y voz a texto); los racks guardados se montan donde corresponda.
 //
 // El manager:
 //   - abre los plugins LSP del bundle (plugins/lsp/lsp-plugins.clap);
@@ -35,6 +41,8 @@
 #include <nlohmann/json.hpp>
 
 #include "audio/AudioRack.hpp"
+
+struct obs_source;
 
 namespace ba::app::audio {
 
@@ -199,6 +207,10 @@ class RackManager : public QObject {
     std::string libError_;
     bool libTried_ = false;
     std::map<std::string, Filter*> filters_; // por fuente
+    /// Los racks de las entradas de GStreamer (los procesa `barack`): son de acá.
+    std::map<std::string, std::shared_ptr<Filter>> gstFilters_;
+    void ponerRackEnFuente(obs_source* src, const std::string& rack);
+    void revisarRacksGst();
     /// Prende o apaga la escucha de cada rack segun el dispositivo elegido.
     void syncMonitors();
     void saveMonitor() const;

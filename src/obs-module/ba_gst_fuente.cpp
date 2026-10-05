@@ -55,6 +55,12 @@
 // se mide (lo viejo que llega cada cuadro) y el colchón la absorbe para audio y
 // video por igual: siguen sincronizados.
 //
+// EL RACK (`rack` = nombre de la fuente): el rack de audio de la app (módulos
+// LSP/CLAP, el grafo tipo JACK) corre ACÁ, como el elemento `barack` que
+// registra la app, primero en la cadena del audio (a 48 kHz estéreo), antes de
+// los filtros de audio. Si la app todavía no lo registró, la entrada arranca
+// sin él y se rearma sola cuando aparece.
+//
 // El proc `estado` da todo lo que hace falta para diagnosticar: si anda, el
 // error, el reloj y si está sincronizado, resolución, cuadros por segundo,
 // formato, colorimetría, el colchón y cuántos cuadros llegaron tarde.
@@ -184,6 +190,8 @@ struct Fuente {
     GstElement* pipeline = nullptr;
     GstClock* clock = nullptr;
     std::atomic<std::uint64_t> reintento{0}; ///< cuándo volver a armar (os_gettime_ns)
+    std::string rack;                ///< el rack de la app que corre en la cadena del audio ("" = ninguno)
+    std::uint64_t rackFaltaDesde = 0; ///< se armó sin `barack` (la app no lo registró aún): cuándo mirar de nuevo
     // El colchón (lo llenan los hilos de GStreamer, lo vacía el tic)
     std::mutex colaLock;
     std::deque<Pendiente> video, audio;
@@ -927,7 +935,22 @@ void armar(Fuente* f) {
                 capsVideo += ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
         }
     }
-    const std::string cadenaA = cadenaDe(f->filtrosA, "audioconvert", "ba_fa_", f->avisosFiltros);
+    std::string cadenaA = cadenaDe(f->filtrosA, "audioconvert", "ba_fa_", f->avisosFiltros);
+    f->rackFaltaDesde = 0;
+    if (!f->rack.empty()) {
+        if (hayFabrica("barack")) {
+            std::string nom;
+            for (char c : f->rack) {
+                if (c == '\\' || c == '"') nom += '\\';
+                nom += c;
+            }
+            cadenaA = "audioconvert ! audioresample ! audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! "
+                      "barack name=ba_rack fuente=\"" + nom + "\" ! " + cadenaA;
+        } else {
+            f->avisosFiltros.push_back("el rack de audio todavía no está (la app no registró barack): se agrega cuando esté");
+            f->rackFaltaDesde = os_gettime_ns();
+        }
+    }
     std::string completo;
     if (!f->uri.empty()) {
         completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\" ba_dec. ! queue name=ba_origen ! " +
@@ -1047,6 +1070,7 @@ void actualizar(void* data, obs_data_t* s) {
     const int puerto = static_cast<int>(obs_data_get_int(s, "reloj_puerto"));
     const int dominio = static_cast<int>(obs_data_get_int(s, "reloj_dominio"));
     const bool audio = obs_data_get_bool(s, "audio");
+    const std::string rack = obs_data_get_string(s, "rack");
     const bool normalizar = obs_data_get_bool(s, "normalizar");
     const bool superres = obs_data_get_bool(s, "superres");
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
@@ -1085,7 +1109,7 @@ void actualizar(void* data, obs_data_t* s) {
                          dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar ||
                          superres != f->superres || superresMotor != f->superresMotor ||
                          superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
-                         firma != f->firmaFiltros || sincronia != f->sincronia ||
+                         firma != f->firmaFiltros || sincronia != f->sincronia || rack != f->rack ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -1097,6 +1121,7 @@ void actualizar(void* data, obs_data_t* s) {
     f->relojPuerto = puerto;
     f->relojDominio = dominio;
     f->conAudio = audio;
+    f->rack = rack;
     f->normalizar = normalizar;
     f->superres = superres;
     f->superresMotor = superresMotor;
@@ -1379,6 +1404,15 @@ void tic(void* data, float) {
             armar(f);
         }
         return;
+    }
+    // Se armó sin el rack (la app no había registrado `barack`): cada segundo se
+    // mira si ya está, y entonces se rearma con él.
+    if (f->rackFaltaDesde != 0 && os_gettime_ns() - f->rackFaltaDesde > 1'000'000'000ULL) {
+        if (hayFabrica("barack")) {
+            armar(f);
+            return;
+        }
+        f->rackFaltaDesde = os_gettime_ns();
     }
     // La hora de la cámara (RTCP) muy corrida: cada cuadro llega con mucho más
     // adelanto que el colchón y la entrada sale con SEGUNDOS de atraso (pasa

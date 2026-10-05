@@ -263,6 +263,22 @@ Rectangle {
                             RowLayout {
                                 Text { text: parent.parent.parent.s.nombre || ""; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { visible: !!parent.parent.parent.s.rack; text: "🎚 " + (parent.parent.parent.s.modulos || 0); color: Theme.accent; font.pixelSize: 12 }
+                                // Dónde corre el rack: en la cadena de GStreamer de la entrada o en libobs.
+                                Text {
+                                    readonly property var s: parent.parent.parent.s
+                                    visible: !!s.rack && !!s.motor
+                                    text: s.motor === "gstreamer" ? (s.procesando ? "GST" : "GST…") : "OBS"
+                                    color: s.motor === "gstreamer" ? Theme.textDim : Theme.accentSoft
+                                    font.pixelSize: 10
+                                    MouseArea {
+                                        id: motorHover; anchors.fill: parent; hoverEnabled: true
+                                        ToolTip.visible: containsMouse; ToolTip.delay: 400
+                                        ToolTip.text: parent.s.motor === "gstreamer"
+                                                      ? (parent.s.procesando ? "El rack corre en la cadena de GStreamer de la entrada"
+                                                                             : "El rack va en GStreamer: esperando que la entrada pase audio")
+                                                      : "El rack corre como filtro de libobs (esta fuente todavía no pasó a GStreamer)"
+                                    }
+                                }
                             }
                             LevelMeter {
                                 Layout.fillWidth: true

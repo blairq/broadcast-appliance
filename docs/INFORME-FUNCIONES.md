@@ -276,7 +276,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
 ### 4.7 Audio: mezclador, racks LSP y medición
 
 **Qué hace.**
-- **Rack por fuente:** cada fuente con audio puede tener un rack, el filtro OBS `ba_audio_rack`. Es un grafo tipo JACK con nodos `in`/`out`, plugins CLAP (en la práctica los ~200 LSP), analizador, generador (seno, rosa, blanco, barrido), salida a un dispositivo (escucha sin tocar el aire), entrada desde otra fuente, y tarjetas de voz a texto, texto a voz y traducir. Tiene sidechain.
+- **Rack por fuente:** cada fuente con audio puede tener un rack. En las entradas de GStreamer (micrófonos, red) corre en su cadena de audio como el elemento `barack`; en lo que sigue en libobs, como el filtro OBS `ba_audio_rack`. Es un grafo tipo JACK con nodos `in`/`out`, plugins CLAP (en la práctica los ~200 LSP), analizador, generador (seno, rosa, blanco, barrido), salida a un dispositivo (escucha sin tocar el aire), entrada desde otra fuente, y tarjetas de voz a texto, texto a voz y traducir. Tiene sidechain.
 - **Cambios sin cortes:** cada edición arma un plan nuevo que se intercambia sin bloquear el audio.
 - **Nombres en castellano:** seis módulos con nombre propio y unidades reales (gate, compresor, de-esser, EQ de 8 bandas, multibanda, limitador), más un índice para buscar entre los ~200 plugins.
 - **Plantillas de rack**, con una predeterminada por tipo de fuente: por ejemplo, la de los invitados.
