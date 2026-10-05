@@ -1119,13 +1119,21 @@ void Red::activarPtz(const std::string& ip, const QString& entrada,
     QPointer<Red> yo(this);
     ficha(ip, [yo, ip, entrada, listo](json f) {
         if (!yo) return;
-        if (!f.value("onvif", false))
-            return listo(
-                false,
-                QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF"))) +
-                    ". Revisá el usuario y la clave (en una Axis: un usuario ONVIF, que se crea en la web de "
-                    "la "
-                    "cámara, Sistema → Usuarios → ONVIF) y que la cámara tenga la hora bien.");
+        if (!f.value("onvif", false)) {
+            // Lo que dice la ficha de SU marca sobre el usuario y la clave (si hay).
+            const json marca = f.value("marca", json::object());
+            const json fm = yo->biblioteca_.ficha(marca.value("id", std::string()));
+            std::string pista;
+            const json notas = fm.value("notas", json());
+            if (notas.is_string()) pista = notas.get<std::string>();
+            for (const auto& n : notas.is_array() ? notas : json::array())
+                if (n.is_string()) pista += (pista.empty() ? "" : "; ") + n.get<std::string>();
+            if (!pista.empty()) pista = " (" + pista + ")";
+            return listo(false,
+                         QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF")) +
+                                                ". Revisá el usuario y la clave" + pista +
+                                                " y que la cámara tenga la hora bien."));
+        }
         const json ptz = f.value("ptz", json::object());
         if (!ptz.value("tiene", false))
             return listo(false, "La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene "

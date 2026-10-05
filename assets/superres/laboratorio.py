@@ -204,9 +204,25 @@ def convertir(clave: str, salida: str, carpeta: str) -> None:
 
 # --- Plugins (recetas del catálogo) ---------------------------------------------------------
 
-# Los tamaños de cámara comunes (ancho, alto): CoreML los compila fijos (el Neural
-# Engine no acepta tamaños libres). Una red x4 trabaja con la entrada a la mitad.
-TAMANOS = [(768, 576), (704, 576), (720, 576), (720, 480), (640, 480), (960, 540), (1280, 720)]
+# Los tamaños de cámara (ancho, alto): CoreML los compila fijos (el Neural Engine
+# no acepta tamaños libres). Primero los de las cámaras del estudio (--tamanos,
+# los pasa la app), después los comunes. Una red x4 trabaja con la entrada a la mitad.
+TAMANOS = [(768, 576), (704, 576), (720, 576), (720, 480), (640, 480), (640, 360), (352, 288),
+           (800, 600), (1024, 576), (960, 540), (1280, 720)]
+
+
+def sumar_tamanos(texto: str) -> None:
+    """'1024x576,800x600' -> al principio de TAMANOS (pares: NV12)."""
+    global TAMANOS
+    propios = []
+    for t in (texto or "").split(","):
+        try:
+            a, b = (int(x) for x in t.lower().split("x"))
+        except ValueError:
+            continue
+        if 16 <= a <= 4096 and 16 <= b <= 4096:
+            propios.append((a - a % 2, b - b % 2))
+    TAMANOS = list(dict.fromkeys(propios + TAMANOS))
 COREMLTOOLS = "coremltools==9.0"
 
 
@@ -730,6 +746,7 @@ def main() -> None:
     ap.add_argument("--desde", default="", help="seguir entrenando esta red (.onnx: usa su .pt)")
     ap.add_argument("--nombre", default="")
     ap.add_argument("--cpu", action="store_true", help="entrenar en la CPU (no calienta la GPU; más lento)")
+    ap.add_argument("--tamanos", default="", help="instalar: tamaños de las cámaras (1024x576,800x600) para CoreML")
     ap.add_argument("--libs", default="", help="carpeta con PyTorch, spandrel y onnx (la baja la app una vez)")
     a = ap.parse_args()
     if a.libs:
@@ -739,6 +756,7 @@ def main() -> None:
         if a.comando == "chica":
             entrenar_chica(a)
         elif a.comando == "instalar":
+            sumar_tamanos(a.tamanos)
             instalar(a)
         elif a.comando == "destilar":
             destilar(a)

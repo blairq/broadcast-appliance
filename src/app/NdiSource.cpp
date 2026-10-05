@@ -133,9 +133,23 @@ int onPacket(noidea_packet_t* p, void* user) {
             f.height = static_cast<uint32_t>(c->frame->height);
             f.format = fmt;
             f.timestamp = ts;
-            f.full_range = false;
-            video_format_get_parameters_for_format(VIDEO_CS_709, range, fmt, f.color_matrix,
-                                                   f.color_range_min, f.color_range_max);
+            // El color que dice el cuadro; si no dice, el de NDI: 601 en SD, 709 en HD,
+            // rango limitado.
+            const AVColorSpace m = c->frame->colorspace;
+            const video_colorspace cs =
+                m == AVCOL_SPC_BT470BG || m == AVCOL_SPC_SMPTE170M ? VIDEO_CS_601
+                : m == AVCOL_SPC_BT709                             ? VIDEO_CS_709
+                : m == AVCOL_SPC_BT2020_NCL || m == AVCOL_SPC_BT2020_CL
+                    ? (c->frame->color_trc == AVCOL_TRC_ARIB_STD_B67 ? VIDEO_CS_2100_HLG : VIDEO_CS_2100_PQ)
+                : c->frame->height < 720 ? VIDEO_CS_601
+                                         : VIDEO_CS_709;
+            if (c->frame->color_range == AVCOL_RANGE_JPEG) range = VIDEO_RANGE_FULL;
+            f.full_range = range == VIDEO_RANGE_FULL;
+            f.trc = c->frame->color_trc == AVCOL_TRC_SMPTE2084      ? VIDEO_TRC_PQ
+                    : c->frame->color_trc == AVCOL_TRC_ARIB_STD_B67 ? VIDEO_TRC_HLG
+                                                                    : VIDEO_TRC_DEFAULT;
+            video_format_get_parameters_for_format(cs, range, fmt, f.color_matrix, f.color_range_min,
+                                                   f.color_range_max);
             obs_source_output_video(c->source, &f);
             ++c->frames;
             std::lock_guard<std::mutex> lk(c->lock);

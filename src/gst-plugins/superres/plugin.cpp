@@ -51,7 +51,7 @@ static GType tipoMotor() {
     if (g_once_init_enter(&t)) {
         static const GEnumValue v[] = {
             {0, "Elegir solo (red si hay modelo; Apple en macOS 26; si no, FSR)", "auto"},
-            {1, "Apple VideoToolbox (macOS 26, entrada hasta 960x960)", "apple"},
+            {1, "Apple VideoToolbox (macOS 26, el tamaño máximo lo dice el sistema)", "apple"},
             {2, "FSR 1 de AMD (OpenGL, cualquier GPU)", "fsr"},
             {3, "Una red ONNX (propiedad modelo)", "onnx"},
             {4, "Una red CoreML (.mlmodelc, Neural Engine/GPU de la Mac)", "coreml"},
@@ -169,10 +169,15 @@ static void armar(BaSuperRes* s) {
                           : m == "glsl"   ? "baglsl"
                                           : "identity";
     // El formato que pide el motor: CoreML toma NV12 o BGRA tal cual (si viene
-    // de vtdec, con su IOSurface: sin copias) y convierte en la GPU; los demás, NV12.
-    GstCaps* c = gst_caps_from_string(m == "coreml" ? "video/x-raw,format={NV12,BGRA}"
-                                      : m == "glsl" ? "video/x-raw"
-                                                    : "video/x-raw,format=NV12");
+    // de vtdec, con su IOSurface: sin copias) y convierte en la GPU; GLSL y FSR
+    // corren en OpenGL (convierten ellos, cualquier formato); Apple y las redes
+    // ONNX de NV12, NV12 de RANGO LIMITADO con su matriz (601, 709 o 2020: la
+    // red va y vuelve con la misma). Un rango completo (cámara JPEG) se lleva
+    // a limitado acá, en vez de recortarse adentro.
+    GstCaps* c = gst_caps_from_string(
+        m == "coreml"                ? "video/x-raw,format={NV12,BGRA}"
+        : m == "glsl" || m == "fsr" ? "video/x-raw"
+                                     : "video/x-raw,format=NV12,colorimetry={bt709,bt601,bt2020,smpte240m}");
     g_object_set(s->nv12, "caps", c, nullptr);
     gst_caps_unref(c);
     GstElement* e = nullptr;

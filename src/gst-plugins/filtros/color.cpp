@@ -28,6 +28,7 @@ struct _BaColor {
     bool cambio; ///< hay que rehacer las tablas
     std::array<std::uint8_t, 256>* tablaRgb;
     std::array<std::uint8_t, 256>* tablaY;
+    bool yCompleto; ///< la tabla de luma es de rango completo (0..255) y no limitado (16..235)
 };
 
 G_DEFINE_TYPE(BaColor, ba_color, GST_TYPE_VIDEO_FILTER)
@@ -54,10 +55,12 @@ static void rehacer(BaColor* c) {
     for (int i = 0; i < 256; ++i) {
         const float x = std::pow(i / 255.0f, g);
         (*c->tablaRgb)[i] = ba::filtros::a8((x - 0.5f) * k + 0.5f + b);
-        // La luma de video (rango limitado 16..235): lo mismo sobre su escala.
-        const float y = std::clamp((i - 16) / 219.0f, 0.0f, 1.0f);
+        // La luma de video: lo mismo sobre su escala (la que digan las caps:
+        // rango limitado 16..235 o completo 0..255, p. ej. una cámara JPEG).
+        const float piso = c->yCompleto ? 0.0f : 16.0f, escala = c->yCompleto ? 255.0f : 219.0f;
+        const float y = std::clamp((i - piso) / escala, 0.0f, 1.0f);
         const float yy = std::clamp((std::pow(y, g) - 0.5f) * k + 0.5f + b, 0.0f, 1.0f);
-        (*c->tablaY)[i] = static_cast<std::uint8_t>(16 + yy * 219.0f + 0.5f);
+        (*c->tablaY)[i] = static_cast<std::uint8_t>(piso + yy * escala + 0.5f);
     }
     c->cambio = false;
 }
@@ -76,8 +79,13 @@ static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {
     // Bajo el lock, solo copiar (y rehacer las tablas si cambió algo: 256
     // valores). Las tablas las toca solo este hilo; el cuadro va sin el lock.
     gdouble saturacion, contraste;
+    const bool completo = GST_VIDEO_INFO_COLORIMETRY(&fr->info).range == GST_VIDEO_COLOR_RANGE_0_255;
     {
         std::lock_guard<std::mutex> l(*c->mu);
+        if (completo != c->yCompleto) {
+            c->yCompleto = completo;
+            c->cambio = true;
+        }
         if (c->cambio) rehacer(c);
         saturacion = c->saturacion;
         contraste = c->contraste;
@@ -119,8 +127,9 @@ static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {
     }
     const int kc = static_cast<int>(sat * std::max(0.0, contraste) * 256.0);
     if (kc == 256) return GST_FLOW_OK;
-    const auto croma = [kc](std::uint8_t v) {
-        return static_cast<std::uint8_t>(std::clamp(128 + (((v - 128) * kc) >> 8), 16, 240));
+    const int cmin = completo ? 0 : 16, cmax = completo ? 255 : 240;
+    const auto croma = [kc, cmin, cmax](std::uint8_t v) {
+        return static_cast<std::uint8_t>(std::clamp(128 + (((v - 128) * kc) >> 8), cmin, cmax));
     };
     const int cw = GST_VIDEO_FRAME_COMP_WIDTH(fr, 1), ch = GST_VIDEO_FRAME_COMP_HEIGHT(fr, 1);
     if (f == GST_VIDEO_FORMAT_NV12) {
@@ -214,6 +223,7 @@ static void ba_color_init(BaColor* c) {
     c->mu = new std::mutex;
     c->tablaRgb = new std::array<std::uint8_t, 256>{};
     c->tablaY = new std::array<std::uint8_t, 256>{};
+    c->yCompleto = false;
     c->brillo = 0;
     c->contraste = c->saturacion = c->gamma = 1;
     c->cambio = true;

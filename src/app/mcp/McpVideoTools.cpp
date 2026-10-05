@@ -737,7 +737,7 @@ void McpService::registerVideoTools() {
                 {"description", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)"}}},
               {"ocultar_sueltas", {{"type", "boolean"}}}}}};
         t.examples = {
-            R"({"escena": "Exterior", "entradas": ["Axis Terreno", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})"};
+            R"({"escena": "Exterior", "entradas": ["Cámara 1", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             std::vector<std::string> es;
@@ -887,8 +887,8 @@ void McpService::registerVideoTools() {
               {"superres",
                {{"type", "boolean"},
                 {"description",
-                 "superresolución x2 (macOS 26, cámaras de hasta 960x960: una PAL de 768x576 sale "
-                 "en 1536x1152, ~3 ms por cuadro). Para cámaras viejas o de baja definición"}}},
+                 "superresolución x2 (macOS 26, cámaras chicas: hasta el tamaño máximo que acepte el sistema, "
+                 "hoy 960x960; sale al doble de lo que entra). Para cámaras viejas o de baja definición"}}},
               {"ntp_sync",
                {{"type", "boolean"},
                 {"description",
@@ -1080,7 +1080,7 @@ void McpService::registerVideoTools() {
                                {"modelo", {{"type", "string"}}},
                                {"unidades", {{"type", "string"}, {"enum", {"auto", "ane", "gpu", "cpu"}}}},
                                {"despues", {{"type", "string"}}}}}};
-            t.examples = {R"({"entrada": "Axis terreno", "plugin": "realesr-general-x4v3"})"};
+            t.examples = {R"({"entrada": "Cámara 1", "plugin": "realesr-general-x4v3"})"};
             t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
                 if (!srp || v == nullptr) return done(ToolResult::error("no disponible"));
                 const std::string entrada = a.value("entrada", std::string());
@@ -1272,9 +1272,9 @@ void McpService::registerVideoTools() {
                             "de Apple, la mejor en una Mac con "
                             "macOS 26), fsr (FSR 1, cualquier GPU), onnx (con `modelo`: el archivo de "
                             "superres_estado, p. ej. "
-                            "chica-Axis_terreno.onnx) o vacío para sacarla. Con un motor lento la entrada "
+                            "chica-Camara_1.onnx) o vacío para sacarla. Con un motor lento la entrada "
                             "pierde cuadros: mirá superres_ms "
-                            "en video_estado (tiene que quedar bastante debajo de 33 ms a 30 fps).";
+                            "en video_estado (tiene que quedar bastante debajo de lo que dura un cuadro del lienzo: 1000/fps ms, 33 ms a 30 fps, 16 ms a 60).";
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada", "motor"}},
                              {"properties",

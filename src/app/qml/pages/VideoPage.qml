@@ -83,7 +83,7 @@ Rectangle {
             const ks = Object.keys(pr)
             return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
         }
-        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho || 0) + "×" + (p.alto || 0) + (n.publicada ? " · en escena" : "")
+        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho > 0 ? p.ancho + "×" + p.alto : "lienzo del estudio") + (n.publicada ? " · en escena" : "")
         if (n.tipo === "color") return "brillo " + f2(p.brillo) + " · contraste " + f2(p.contraste) + " · saturación " + f2(p.saturacion)
         if (n.tipo === "croma") return "fondo " + hex(p.clave) + " · similitud " + f2(p.similitud)
         if (n.tipo === "recorte") {
@@ -521,7 +521,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     from: modelData.min; to: modelData.max
                                     stepSize: modelData.entero ? 1 : 0
-                                    value: page.nodo ? page.paramsEf[modelData.k] : 0
+                                    value: page.nodo && page.paramsEf && typeof page.paramsEf[modelData.k] === "number" ? page.paramsEf[modelData.k] : 0
                                     onMoved: page.ajustar(page.sel, modelData.k, modelData.entero ? Math.round(value) : value)
                                 }
                             }
@@ -819,13 +819,29 @@ Rectangle {
                                 spacing: 6
                                 Text { text: "Lienzo"; color: Theme.textDim; font.pixelSize: 12 }
                                 Repeater {
-                                    model: [ { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: "Vertical", w: 1080, h: 1920 } ]
+                                    model: [ { t: "Como el estudio", w: 0, h: 0 }, { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: "Vertical", w: 1080, h: 1920 } ]
                                     delegate: GlassButton {
                                         required property var modelData
                                         compact: true; text: modelData.t
-                                        active: !!page.nodo && page.nodo.params && page.nodo.params.ancho === modelData.w && page.nodo.params.alto === modelData.h
+                                        active: !!page.nodo && page.nodo.params && (page.nodo.params.ancho || 0) === modelData.w && (page.nodo.params.alto || 0) === modelData.h
                                         onClicked: page.avisar(page.vg.ajustar(page.sel, { ancho: modelData.w, alto: modelData.h }))
                                     }
+                                }
+                            }
+                            // Cualquier otro tamaño (0 = el del lienzo del estudio).
+                            RowLayout {
+                                spacing: 6
+                                Text { text: "Ancho"; color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
+                                }
+                                Text { text: "Alto"; color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { alto: value }))
                                 }
                             }
                             RowLayout {

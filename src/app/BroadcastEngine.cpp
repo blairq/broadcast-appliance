@@ -58,6 +58,72 @@
 
 namespace ba::app {
 
+bool fpsDeTexto(const std::string& t, int& num, int& den) {
+    if (t.empty()) return false;
+    const auto barra = t.find('/');
+    if (barra != std::string::npos) {
+        const int n = std::atoi(t.substr(0, barra).c_str());
+        const int d = std::atoi(t.substr(barra + 1).c_str());
+        if (n <= 0 || d <= 0) return false;
+        num = n;
+        den = d;
+        return true;
+    }
+    std::string c = t;
+    std::replace(c.begin(), c.end(), ',', '.');
+    const double f = std::atof(c.c_str());
+    if (f <= 0 || f > 1000) return false;
+    // Las cadencias NTSC (23,976 / 29,97 / 59,94 / 119,88): N*1000/1001.
+    const double ntsc = std::round(f * 1.001);
+    if (std::abs(f - std::floor(f)) > 1e-6 && std::abs(ntsc * 1000.0 / 1001.0 - f) < 0.01) {
+        num = static_cast<int>(ntsc) * 1000;
+        den = 1001;
+        return true;
+    }
+    num = static_cast<int>(std::lround(f * 1000));
+    den = 1000;
+    if (num % 1000 == 0) {
+        num /= 1000;
+        den = 1;
+    }
+    return true;
+}
+
+std::string textoDeFps(int num, int den) {
+    if (den <= 1) return std::to_string(num);
+    return std::to_string(num) + "/" + std::to_string(den);
+}
+
+std::string fpsLegible(int num, int den) {
+    if (den <= 1) return std::to_string(num);
+    char b[32];
+    std::snprintf(b, sizeof b, "%.3g", static_cast<double>(num) / den);
+    std::string s = b;
+    std::replace(s.begin(), s.end(), '.', ',');
+    return s;
+}
+
+/// El formato, el espacio de color y el rango de la salida (Ajustes > Video).
+/// HDR (2100 PQ/HLG) necesita 10 bits: con un formato de 8 bits se usa P010.
+void colorDeSalida(obs_video_info& ovi, const VideoConfig& v) {
+    const std::string& f = v.formato;
+    ovi.output_format = f == "i420"   ? VIDEO_FORMAT_I420
+                        : f == "i444" ? VIDEO_FORMAT_I444
+                        : f == "p010" ? VIDEO_FORMAT_P010
+                        : f == "i010" ? VIDEO_FORMAT_I010
+                                      : VIDEO_FORMAT_NV12;
+    const std::string& c = v.color;
+    ovi.colorspace = c == "601"       ? VIDEO_CS_601
+                     : c == "srgb"    ? VIDEO_CS_SRGB
+                     : c == "2100pq"  ? VIDEO_CS_2100_PQ
+                     : c == "2100hlg" ? VIDEO_CS_2100_HLG
+                                      : VIDEO_CS_709;
+    if ((ovi.colorspace == VIDEO_CS_2100_PQ || ovi.colorspace == VIDEO_CS_2100_HLG) &&
+        ovi.output_format != VIDEO_FORMAT_P010 && ovi.output_format != VIDEO_FORMAT_I010)
+        ovi.output_format = VIDEO_FORMAT_P010;
+    ovi.range = v.rango == "completo" ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL;
+}
+
 namespace {
 
 std::uint32_t currentPid() {
@@ -232,9 +298,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     ovi.base_height = static_cast<uint32_t>(video_.baseHeight);
     ovi.output_width = static_cast<uint32_t>(video_.outputWidth);
     ovi.output_height = static_cast<uint32_t>(video_.outputHeight);
-    ovi.output_format = VIDEO_FORMAT_NV12; // lo que esperan los encoders
-    ovi.colorspace = VIDEO_CS_709;         // Rec.709: el estandar de HD
-    ovi.range = VIDEO_RANGE_PARTIAL;       // limited range, como todo broadcast
+    colorDeSalida(ovi, video_); // de fábrica NV12, Rec.709, rango limitado (Ajustes > Video)
     ovi.adapter = 0;
     ovi.gpu_conversion = true;
     ovi.scale_type = OBS_SCALE_BICUBIC;

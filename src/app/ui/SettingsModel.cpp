@@ -41,7 +41,10 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"video.height", "Video", "Alto del lienzo", "int", {}, 240, 4320, "px", "", "live", 1080},
         {"video.outputWidth", "Video", "Ancho de salida", "int", {}, 320, 7680, "px", "Resolucion que se codifica (se escala desde el lienzo).", "live", 1920},
         {"video.outputHeight", "Video", "Alto de salida", "int", {}, 240, 4320, "px", "", "live", 1080},
-        {"video.fps", "Video", "Cuadros por segundo", "choice", choices({{"24","24"},{"25","25"},{"30","30"},{"50","50"},{"60","60"}}), 0, 0, "fps", "", "live", "30"},
+        {"video.fps", "Video", "Cuadros por segundo", "choice", choices({{"24000/1001","23,976"},{"24","24"},{"25","25"},{"30000/1001","29,97"},{"30","30"},{"50","50"},{"60000/1001","59,94"},{"60","60"}}), 0, 0, "fps", "29,97 / 59,94 / 23,976: las cadencias NTSC (America, Japón).", "live", "30"},
+        {"video.formato", "Video", "Formato de salida", "choice", choices({{"nv12","NV12 (8 bits 4:2:0, el de siempre)"},{"i420","I420 (8 bits 4:2:0)"},{"i444","I444 (8 bits 4:4:4)"},{"p010","P010 (10 bits 4:2:0, HDR)"},{"i010","I010 (10 bits 4:2:0)"}}), 0, 0, "", "Lo que reciben los codificadores. HDR necesita 10 bits (y un codificador que lo acepte: HEVC/AV1).", "live", "nv12"},
+        {"video.color", "Video", "Espacio de color", "choice", choices({{"709","Rec. 709 (HD)"},{"601","Rec. 601 (SD)"},{"srgb","sRGB"},{"2100pq","Rec. 2100 PQ (HDR)"},{"2100hlg","Rec. 2100 HLG (HDR)"}}), 0, 0, "", "Las entradas que se normalizan se llevan a este espacio de color.", "live", "709"},
+        {"video.rango", "Video", "Rango", "choice", choices({{"limitado","Limitado (16-235, broadcast)"},{"completo","Completo (0-255)"}}), 0, 0, "", "", "live", "limitado"},
         {"mejora.activa", "Video", "Mejorar imagen de las cámaras", "bool", {}, 0, 0, "", "Limpia el ruido, pega el color a los bordes (el LED del micrófono, la corbata) y afila, en la GPU y sin demora. Cada entrada puede seguir esto, forzarlo o apagarlo en Cámaras PTZ.", "live", false},
         {"mejora.ruido", "Video", "Mejorar imagen: ruido", "int", {}, 0, 100, "%", "Cuánto se mezcla con el cuadro anterior donde no hay movimiento.", "live", 60},
         {"mejora.color", "Video", "Mejorar imagen: color pegado al brillo", "int", {}, 0, 100, "%", "Saca el color corrido alrededor de los bordes.", "live", 70},
@@ -119,7 +122,10 @@ QVariantMap SettingsModel::current() const {
         {"video.height", c.video.baseHeight},
         {"video.outputWidth", c.video.outputWidth},
         {"video.outputHeight", c.video.outputHeight},
-        {"video.fps", QString::number(c.video.fpsNum)},
+        {"video.fps", qs(textoDeFps(c.video.fpsNum, c.video.fpsDen))},
+        {"video.formato", qs(c.video.formato)},
+        {"video.color", qs(c.video.color)},
+        {"video.rango", qs(c.video.rango)},
         {"mejora.activa", c.mejora.activa},
         {"mejora.ruido", c.mejora.ruido},
         {"mejora.color", c.mejora.color},
@@ -287,7 +293,10 @@ QString SettingsModel::apply() {
         v.baseHeight = i("video.height");
         v.outputWidth = i("video.outputWidth");
         v.outputHeight = i("video.outputHeight");
-        v.fpsNum = draft_.value("video.fps").toInt();
+        if (!fpsDeTexto(s("video.fps"), v.fpsNum, v.fpsDen)) v.fpsNum = 30, v.fpsDen = 1;
+        v.formato = s("video.formato");
+        v.color = s("video.color");
+        v.rango = s("video.rango");
         if (rt_.applyVideo(v)) {
             notes << "Video aplicado.";
         } else {

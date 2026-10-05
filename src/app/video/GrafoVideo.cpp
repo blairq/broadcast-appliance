@@ -68,8 +68,8 @@ json fabrica(const std::string& tipo) {
     // Por puerto: {"in_0": {x, y, ancho, alto, opacidad, orden}} (lo ejecuta el estudio).
     // `nombre`: la fuente con la que se pone en las escenas. Sin capas: mosaico.
     if (tipo == "compositor")
-        return {{"ancho", 1920},
-                {"alto", 1080},
+        return {{"ancho", 0}, // 0: el tamaño del lienzo del estudio
+                {"alto", 0},
                 {"fondo", 0xFF000000LL},
                 {"nombre", ""},
                 {"capas", json::object()}};
@@ -795,8 +795,8 @@ json GrafoVideo::configCompositor(const std::string& id) const {
                        {"opacidad", k.value("opacidad", 1.0)},
                        {"ajuste", k.value("ajuste", std::string("encajar"))}});
     }
-    return {{"ancho", p.value("ancho", 1920)},
-            {"alto", p.value("alto", 1080)},
+    return {{"ancho", p.value("ancho", 0)}, // 0: el del lienzo (lo resuelve el estudio)
+            {"alto", p.value("alto", 0)},
             {"fondo", p.value("fondo", 0xFF000000LL)},
             {"capas", out}};
 }

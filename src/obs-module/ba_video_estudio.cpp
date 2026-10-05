@@ -34,8 +34,20 @@ struct Capa {
     bool llenar = false; ///< estirar a la caja (si no, encaja respetando la proporción)
 };
 
+/// El tamaño del lienzo del estudio (lo que vale un compositor con ancho/alto 0).
+void tamanoLienzo(std::uint32_t& w, std::uint32_t& h) {
+    obs_video_info ovi = {};
+    if (obs_get_video_info(&ovi) && ovi.base_width > 0 && ovi.base_height > 0) {
+        w = ovi.base_width;
+        h = ovi.base_height;
+    } else {
+        w = 1920;
+        h = 1080;
+    }
+}
+
 struct Compositor {
-    std::uint32_t ancho = 1920, alto = 1080;
+    std::uint32_t ancho = 0, alto = 0; ///< 0: los del lienzo
     std::uint32_t fondo = 0xFF000000; ///< 0xAARRGGBB
     std::vector<Capa> capas;
     gs_texrender_t* tex = nullptr;
@@ -173,11 +185,12 @@ void configurarCompositor(const std::string& id, const char* config) {
     obs_data_t* d = obs_data_create_from_json(config != nullptr && *config != '\0' ? config : "{}");
     if (d == nullptr) return;
     Compositor nuevo;
-    obs_data_set_default_int(d, "ancho", 1920);
-    obs_data_set_default_int(d, "alto", 1080);
     obs_data_set_default_int(d, "fondo", 0xFF000000LL);
-    nuevo.ancho = static_cast<std::uint32_t>(std::clamp<long long>(obs_data_get_int(d, "ancho"), 16, 8192));
-    nuevo.alto = static_cast<std::uint32_t>(std::clamp<long long>(obs_data_get_int(d, "alto"), 16, 8192));
+    std::uint32_t lw = 0, lh = 0;
+    tamanoLienzo(lw, lh);
+    const long long pw = obs_data_get_int(d, "ancho"), ph = obs_data_get_int(d, "alto");
+    nuevo.ancho = static_cast<std::uint32_t>(std::clamp<long long>(pw > 0 ? pw : lw, 16, 8192));
+    nuevo.alto = static_cast<std::uint32_t>(std::clamp<long long>(ph > 0 ? ph : lh, 16, 8192));
     nuevo.fondo = static_cast<std::uint32_t>(obs_data_get_int(d, "fondo"));
     obs_data_array_t* a = obs_data_get_array(d, "capas");
     for (size_t i = 0; a != nullptr && i < obs_data_array_count(a); ++i) {
@@ -287,7 +300,7 @@ struct FuenteCompositor {
     obs_source_t* ctx = nullptr;
     std::mutex lock;
     std::string nodo;
-    std::uint32_t ancho = 1920, alto = 1080;
+    std::uint32_t ancho = 0, alto = 0; ///< 0: los del lienzo
     std::vector<std::string> entradas; ///< las que alimentan (para que den cuadros)
     bool mostrando = false;
 };
@@ -312,10 +325,11 @@ void compActualizar(void* data, obs_data_t* s) {
     configurarCompositor(nodo, config);
     std::vector<std::string> es;
     obs_data_t* d = obs_data_create_from_json(config != nullptr && *config != '\0' ? config : "{}");
-    std::uint32_t w = 1920, h = 1080;
+    std::uint32_t w = 0, h = 0;
+    tamanoLienzo(w, h);
     if (d != nullptr) {
-        if (obs_data_has_user_value(d, "ancho")) w = static_cast<std::uint32_t>(obs_data_get_int(d, "ancho"));
-        if (obs_data_has_user_value(d, "alto")) h = static_cast<std::uint32_t>(obs_data_get_int(d, "alto"));
+        if (obs_data_get_int(d, "ancho") > 0) w = static_cast<std::uint32_t>(obs_data_get_int(d, "ancho"));
+        if (obs_data_get_int(d, "alto") > 0) h = static_cast<std::uint32_t>(obs_data_get_int(d, "alto"));
         obs_data_array_t* a = obs_data_get_array(d, "capas");
         for (size_t i = 0; a != nullptr && i < obs_data_array_count(a); ++i) {
             obs_data_t* c = obs_data_array_item(a, i);

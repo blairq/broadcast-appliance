@@ -58,6 +58,7 @@ struct obs_service;
 struct obs_scene;
 struct obs_source;
 struct obs_scene_item;
+struct obs_video_info;
 struct video_data;
 struct audio_data;
 struct calldata;
@@ -71,8 +72,20 @@ struct VideoConfig {
     int outputWidth = 1920; ///< resolucion de salida (escalada desde el lienzo)
     int outputHeight = 1080;
     int fpsNum = 30;
-    int fpsDen = 1;
+    int fpsDen = 1;              ///< 1001 para 23,976 / 29,97 / 59,94
+    std::string formato = "nv12"; ///< lo que reciben los codificadores: nv12 | i420 | i444 | p010 | i010
+    std::string color = "709";    ///< espacio de color: 601 | 709 | srgb | 2100pq | 2100hlg (HDR: 10 bits)
+    std::string rango = "limitado"; ///< limitado (broadcast) | completo
 };
+
+/// "30", "29.97", "30000/1001" -> num/den. false si no se entiende.
+bool fpsDeTexto(const std::string& texto, int& num, int& den);
+/// num/den -> "30" o "30000/1001" (lo que se guarda y se muestra en Ajustes).
+std::string textoDeFps(int num, int den);
+/// num/den -> "29,97" para mostrar.
+std::string fpsLegible(int num, int den);
+/// Formato, espacio de color y rango de la salida en `ovi` (los de `v`).
+void colorDeSalida(::obs_video_info& ovi, const VideoConfig& v);
 
 /// Formato del pipeline de audio (spec §7.4: 48 kHz es el reloj del proyecto).
 struct AudioConfig {

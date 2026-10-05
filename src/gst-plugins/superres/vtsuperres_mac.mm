@@ -12,7 +12,8 @@
 //   Uno de los motores de `basuperres` (plugin.cpp); también se puede usar
 //   suelto: ... ! videoconvert ! video/x-raw,format=NV12 ! bavtsuperres ! ...
 //
-//   Limites de Apple: entrada entre 96x96 y 960x960, factor 2, NV12 de rango
+//   Limites de Apple: los pregunta al sistema (VTLowLatencySuperResolutionScaler-
+//   Configuration: en macOS 26, entre 96x96 y 960x960), factor 2, NV12 de rango
 //   limitado (420v). Lo que no entra (una cámara HD) pasa SIN TOCAR (modo
 //   passthrough), igual que si el sistema no lo soporta (macOS < 26).
 //
@@ -20,6 +21,8 @@
 //   `transform` corre en el hilo de streaming de GStreamer; el procesamiento
 //   es sincrónico (processWithParameters:error:), con una sesión por tamaño.
 // ============================================================================
+
+#include <algorithm>
 
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -194,7 +197,9 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
                                 static_cast<int>(CVPixelBufferGetBytesPerRowOfPlane(pi, p)), w, p == 0 ? h : h / 2);
                 CVPixelBufferUnlockBaseAddress(pi, 0);
                 const CMTime pts = GST_BUFFER_PTS_IS_VALID(inbuf) ? CMTimeMake(static_cast<int64_t>(GST_BUFFER_PTS(inbuf)), 1000000000)
-                                                                  : CMTimeMake(static_cast<int64_t>(s->cuadros), 30);
+                                                                  : CMTimeMake(static_cast<int64_t>(s->cuadros) *
+                                                                                   std::max(GST_VIDEO_INFO_FPS_D(&s->in), 1),
+                                                                               std::max(GST_VIDEO_INFO_FPS_N(&s->in), 1));
                 VTFrameProcessorFrame* a = [[VTFrameProcessorFrame alloc] initWithBuffer:pi presentationTimeStamp:pts];
                 VTFrameProcessorFrame* b = [[VTFrameProcessorFrame alloc] initWithBuffer:po presentationTimeStamp:pts];
                 VTLowLatencySuperResolutionScalerParameters* par =

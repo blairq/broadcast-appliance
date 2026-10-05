@@ -425,10 +425,22 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
     const fs::path dir = carpetaModelos() / id;
     const fs::path archivoReceta = carpetaModelos() / (".receta-" + id + ".json");
     std::ofstream(archivoReceta) << receta.dump(1);
-    const auto lanzar = [this, receta, dir, archivoReceta]() {
+    // Los tamaños de las cámaras del estudio (lo que llega de cada una, antes de
+    // los filtros): CoreML compila la red para tamaños fijos, y se suman estos
+    // a los comunes. Una cámara que se agregue después: volver a instalar.
+    std::string tamanos;
+    if (video_ != nullptr)
+        for (const QString& e : video_->entradas()) {
+            const json st = video_->estadoEntrada(e.toStdString());
+            const json o = st.value("gstreamer", json::object()).value("origen", json::object());
+            const int w = o.value("ancho", 0), h = o.value("alto", 0);
+            if (w > 0 && h > 0) tamanos += (tamanos.empty() ? "" : ",") + std::to_string(w) + "x" + std::to_string(h);
+        }
+    const auto lanzar = [this, receta, dir, archivoReceta, tamanos]() {
         const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
         return correr("Instalar «" + QString::fromStdString(receta.value("nombre", std::string())) + "»", {},
-                      {q8(lab), "instalar", "--receta", q8(archivoReceta), "--salida", q8(dir), "--libs", q8(libs())},
+                      {q8(lab), "instalar", "--receta", q8(archivoReceta), "--salida", q8(dir), "--libs", q8(libs()),
+                       "--tamanos", QString::fromStdString(tamanos)},
                       [this, archivoReceta](bool) {
                           std::error_code ec;
                           fs::remove(archivoReceta, ec);

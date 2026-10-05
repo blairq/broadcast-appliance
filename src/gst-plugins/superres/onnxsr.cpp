@@ -649,7 +649,8 @@ static gboolean tamanoSalida(GstBaseTransform*, GstPadDirection, GstCaps*, gsize
 static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcaps) {
     auto* s = BA_ONNXSR(bt);
     if (!gst_video_info_from_caps(&s->in, incaps) || !gst_video_info_from_caps(&s->out, outcaps)) return FALSE;
-    s->procesa = GST_VIDEO_INFO_WIDTH(&s->out) == 2 * GST_VIDEO_INFO_WIDTH(&s->in);
+    s->procesa = GST_VIDEO_INFO_WIDTH(&s->out) == 2 * GST_VIDEO_INFO_WIDTH(&s->in) &&
+                 GST_VIDEO_INFO_HEIGHT(&s->out) == 2 * GST_VIDEO_INFO_HEIGHT(&s->in);
     const GstCapsFeatures* fe = gst_caps_get_size(incaps) > 0 ? gst_caps_get_features(incaps, 0) : nullptr;
     s->entradaCuda = FALSE;
 #if defined(BA_HAVE_GST_CUDA)
@@ -780,6 +781,17 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
     auto* oUV = static_cast<guint8*>(GST_VIDEO_FRAME_PLANE_DATA(fo, 1));
     const int poY = GST_VIDEO_FRAME_PLANE_STRIDE(fo, 0), poUV = GST_VIDEO_FRAME_PLANE_STRIDE(fo, 1);
     const int C = r->canales, iw = r->iw, ih = r->ih;
+    // El color de la entrada (lo que digan las caps): matriz BT.601/709/2020 y
+    // rango limitado o completo. De ida y de vuelta con la misma, así sale igual.
+    const GstVideoColorimetry& col = GST_VIDEO_INFO_COLORIMETRY(&fi->info);
+    gdouble Kr = 0.2126, Kb = 0.0722;
+    if (!gst_video_color_matrix_get_Kr_Kb(col.matrix, &Kr, &Kb)) Kr = 0.2126, Kb = 0.0722;
+    const float kr = static_cast<float>(Kr), kb = static_cast<float>(Kb), kg = 1.0f - kr - kb;
+    const bool completo = col.range == GST_VIDEO_COLOR_RANGE_0_255;
+    const float y0 = completo ? 0.0f : 16.0f, yE = completo ? 255.0f : 219.0f, cE = completo ? 255.0f : 224.0f;
+    // YCbCr -> RGB: R = Y + 2(1-Kr)·Cr ; B = Y + 2(1-Kb)·Cb ; G = (Y - Kr·R - Kb·B) / Kg.
+    const float aR = 2.0f * (1.0f - kr), aB = 2.0f * (1.0f - kb);
+    const float gU = -aB * kb / kg, gV = -aR * kr / kg;
     std::vector<float>& in = r->in;
     in.resize(static_cast<size_t>(C) * iw * ih);
     const size_t planoI = static_cast<size_t>(iw) * ih;
@@ -793,7 +805,7 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
             } else {
                 yy = Y[static_cast<size_t>(y) * pY + x];
             }
-            yy = (yy - 16.0f) * (1.0f / 219.0f);
+            yy = (yy - y0) / yE;
             const size_t i = static_cast<size_t>(y) * iw + x;
             if (C == 1) {
                 in[i] = yy;
@@ -801,11 +813,11 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
             }
             // El color: a la mitad, el plano UV coincide justo con la imagen.
             const int cy = r->mitad ? y : y / 2, cx = r->mitad ? x : x / 2;
-            const float u = (UV[static_cast<size_t>(cy) * pUV + cx * 2] - 128.0f) * (1.0f / 224.0f);
-            const float v = (UV[static_cast<size_t>(cy) * pUV + cx * 2 + 1] - 128.0f) * (1.0f / 224.0f);
-            in[i] = std::clamp(yy + 1.5748f * v, 0.0f, 1.0f);
-            in[planoI + i] = std::clamp(yy - 0.1873f * u - 0.4681f * v, 0.0f, 1.0f);
-            in[2 * planoI + i] = std::clamp(yy + 1.8556f * u, 0.0f, 1.0f);
+            const float u = (UV[static_cast<size_t>(cy) * pUV + cx * 2] - 128.0f) / cE;
+            const float v = (UV[static_cast<size_t>(cy) * pUV + cx * 2 + 1] - 128.0f) / cE;
+            in[i] = std::clamp(yy + aR * v, 0.0f, 1.0f);
+            in[planoI + i] = std::clamp(yy + gU * u + gV * v, 0.0f, 1.0f);
+            in[2 * planoI + i] = std::clamp(yy + aB * u, 0.0f, 1.0f);
         }
     const std::array<int64_t, 4> dims{1, C, ih, iw};
     Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
@@ -828,13 +840,14 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
                         acc[c] += o[c * planoO + i];
                 }
             if (C == 1) {
-                oY[y * poY + x] = sat(16.0f + 219.0f * acc[0] * div);
+                oY[y * poY + x] = sat(y0 + yE * acc[0] * div);
             } else {
                 const float R = acc[0] * div, G = acc[1] * div, B = acc[2] * div;
-                oY[y * poY + x] = sat(16.0f + 219.0f * (0.2126f * R + 0.7152f * G + 0.0722f * B));
+                const float L = kr * R + kg * G + kb * B;
+                oY[y * poY + x] = sat(y0 + yE * L);
                 if ((x & 1) == 0 && (y & 1) == 0) {
-                    oUV[(y / 2) * poUV + x] = sat(128.0f + 224.0f * (-0.1146f * R - 0.3854f * G + 0.5f * B));
-                    oUV[(y / 2) * poUV + x + 1] = sat(128.0f + 224.0f * (0.5f * R - 0.4542f * G - 0.0458f * B));
+                    oUV[(y / 2) * poUV + x] = sat(128.0f + cE * (B - L) / aB);
+                    oUV[(y / 2) * poUV + x + 1] = sat(128.0f + cE * (R - L) / aR);
                 }
             }
         }

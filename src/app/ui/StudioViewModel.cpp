@@ -649,7 +649,7 @@ double StudioViewModel::canvasAspect() const {
 }
 QString StudioViewModel::canvasLabel() const {
     const VideoConfig& v = rt_.config().video;
-    return QString("%1x%2 · %3 fps").arg(v.outputWidth).arg(v.outputHeight).arg(v.fpsNum);
+    return QString("%1x%2 · %3 fps").arg(v.outputWidth).arg(v.outputHeight).arg(qs(fpsLegible(v.fpsNum, v.fpsDen)));
 }
 QString StudioViewModel::streamServer() const { return qs(rt_.config().streamCfg.server); }
 bool StudioViewModel::streamKeyAvailable() const {

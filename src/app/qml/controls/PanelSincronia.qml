@@ -198,14 +198,14 @@ Popup {
                                                   "GStreamer: appsink al reloj con la latencia del estudio" +
                                                   (fila.g.sincronia === "gstreamer" ? " (ahora " + (fila.g.latencia_estudio_ms || 0) + " ms)" : "")
                                 }
-                                // Superresolución x2 (macOS 26): para cámaras chicas (PAL, hasta 960x960).
+                                // Superresolución x2 (macOS 26): para cámaras chicas (el tope lo pone el sistema).
                                 Text { visible: pop.vg.haySuperres(); text: "Superres x2"; color: Theme.textDim; font.pixelSize: 11 }
                                 Toggle {
                                     visible: pop.vg.haySuperres()
                                     checked: fila.g.superres === true
                                     onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? "Superresolución prendida" : "Superresolución apagada")
                                     ToolTip.visible: hov.hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Duplica la resolución con la superresolución de Apple (para cámaras de hasta 960x960; las más grandes pasan sin tocar)" +
+                                    ToolTip.text: "Duplica la resolución con la superresolución de Apple (para cámaras chicas: hasta el tamaño máximo que acepte el sistema, hoy 960x960; las más grandes pasan sin tocar)" +
                                                   (fila.g.superres_ms > 0 ? ". Ahora: " + Number(fila.g.superres_ms).toFixed(1) + " ms por cuadro" : "")
                                     HoverHandler { id: hov }
                                 }

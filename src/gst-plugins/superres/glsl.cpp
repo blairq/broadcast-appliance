@@ -272,8 +272,9 @@ static int factorDe(const std::vector<Pasada>& ps, int w, int h) {
         if (!p.alto.empty()) oh = static_cast<int>(std::lround(evaluar(p.alto, tam, ok)));
         tam[p.guardar.empty() ? g : p.guardar] = {ow, oh};
     }
+    // Cuánto agranda con ESTE tamaño de entrada (x2, x4…: lo que diga el shader).
     const int f = std::max(tam["MAIN"].first, tam["LUMA"].first) / std::max(w, 1);
-    return f >= 2 ? 2 : 1;
+    return std::clamp(f, 1, 8);
 }
 
 static void cargarShader(BaGlsl* s) {
@@ -299,21 +300,39 @@ static void cargarShader(BaGlsl* s) {
         ponerError(s, e);
         return;
     }
-    s->factor = factorDe(*s->pasadas, 1920, 1080);
+    // Una estimación hasta que llegue el tamaño de verdad (las caps): con el
+    // lienzo del estudio, si se sabe. Al negociar se calcula con la entrada real.
+    s->factor = factorDe(*s->pasadas, 1280, 720);
     ponerError(s, "");
     GST_INFO_OBJECT(s, "%s: %zu pasadas, x%d", s->codigo ? "(código)" : s->archivo, s->pasadas->size(), s->factor);
 }
 
 // --- Caps ----------------------------------------------------------------------------
 
-static GstCaps* capsInternas(GstGLFilter* f, GstPadDirection dir, GstCaps* caps, GstCaps*) {
-    auto* s = BA_GLSL(f);
-    const bool agranda = s->activo && s->factor == 2;
-    return ba::sr::transformarCaps(dir, caps, nullptr, agranda, nullptr, 2);
+/// El factor con el tamaño de entrada de las caps (si viene fijo): los
+/// WHEN/WIDTH/HEIGHT de un shader de mpv dependen del tamaño real.
+static int factorCon(BaGlsl* s, GstPadDirection dir, GstCaps* caps) {
+    int w = 0, h = 0;
+    if (dir == GST_PAD_SINK && caps != nullptr && gst_caps_get_size(caps) > 0) {
+        const GstStructure* st = gst_caps_get_structure(caps, 0);
+        if (gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h) && w > 0 && h > 0) {
+            GST_OBJECT_LOCK(s);
+            const int f = s->pasadas->empty() ? 1 : factorDe(*s->pasadas, w, h);
+            GST_OBJECT_UNLOCK(s);
+            return f;
+        }
+    }
+    return s->factor;
 }
 
-static GstCaps* fijarCaps(GstBaseTransform*, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
-    return ba::sr::fijarCapsPor(dir, caps, otras, 2);
+static GstCaps* capsInternas(GstGLFilter* f, GstPadDirection dir, GstCaps* caps, GstCaps*) {
+    auto* s = BA_GLSL(f);
+    const int factor = factorCon(s, dir, caps);
+    return ba::sr::transformarCaps(dir, caps, nullptr, s->activo && factor > 1, nullptr, std::max(factor, 2));
+}
+
+static GstCaps* fijarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
+    return ba::sr::fijarCapsPor(dir, caps, otras, std::max(factorCon(BA_GLSL(bt), dir, caps), 1));
 }
 
 // --- GL ----------------------------------------------------------------------------------

@@ -236,6 +236,16 @@ static bool aceptaTamano(MLModel* m, int w, int h) {
     return false;
 }
 
+/// El tamaño que llega no está entre los que se compiló la red: avisa (y sale
+/// agrandado común) en vez de fallar callado.
+static void avisarTamano(BaCoreMlSr* s) {
+    s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, s->redW, s->redH);
+    if (!s->tamanoOk)
+        ponerError(s, "la red no está compilada para " + std::to_string(s->redW) + "x" + std::to_string(s->redH) +
+                          ": sale agrandado común. Volvé a instalar el plugin con esta cámara conectada (se compila "
+                          "también para el tamaño de cada cámara del estudio)");
+}
+
 /// El formato cambia (NV12/BGRA -> BGRA): la salida es BGRA al doble.
 static GstCaps* transformarCaps(GstBaseTransform* bt, GstPadDirection dir, GstCaps* caps, GstCaps* filtro) {
     auto* s = BA_COREMLSR(bt);
@@ -283,7 +293,7 @@ static gboolean ponerCaps(GstBaseTransform* bt, GstCaps* incaps, GstCaps* outcap
     s->tamanoOk = FALSE;
     if (s->procesa && s->red == nullptr && s->cargando == nullptr && s->modelo != nullptr && *s->modelo != '\0')
         s->cargando = g_thread_new("bacoremlsr-carga", cargar, s);
-    if (s->red != nullptr) s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, s->redW, s->redH);
+    if (s->red != nullptr) avisarTamano(s);
     GST_INFO_OBJECT(s, "CoreML red x%d %s (%dx%d -> red %dx%d)", s->escala, s->procesa ? "activo" : "apagado", w,
                     h, s->redW, s->redH);
     return TRUE;
@@ -486,10 +496,7 @@ static void quizasTomarRed(BaCoreMlSr* s) {
     void* p = s->listo->exchange(nullptr);
     if (p == nullptr) return;
     s->red = p;
-    s->tamanoOk = aceptaTamano((__bridge MLModel*)s->red, s->redW, s->redH);
-    if (!s->tamanoOk)
-        ponerError(s, "el modelo no acepta " + std::to_string(s->redW) + "x" + std::to_string(s->redH) +
-                          " (instalado para los tamaños de cámara comunes): sale agrandado común");
+    avisarTamano(s);
 }
 
 /// Espera el primero de la cola y lo convierte en el buffer que sale (nullptr si falló).

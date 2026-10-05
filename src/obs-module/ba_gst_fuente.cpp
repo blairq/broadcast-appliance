@@ -257,7 +257,7 @@ std::string describirOrigen(GstCaps* c) {
     return r;
 }
 
-constexpr size_t kMaxColchon = 300; ///< ~10 s a 30 fps: más es un error de reloj, no un colchón
+constexpr double kMaxColchonSeg = 10; ///< más de 10 s esperando es un error de reloj, no un colchón
 
 void vaciar(Fuente* f) {
     std::lock_guard<std::mutex> l(f->colaLock);
@@ -346,7 +346,9 @@ GstFlowReturn alVideo(GstAppSink* sink, gpointer datos) {
         f->ventanaNs = nv;
     }
     f->video.push_back({s, vence});
-    while (f->video.size() > kMaxColchon) {
+    // 10 s de cuadros a la cadencia que llega (60 fps: 600), nunca menos de 300.
+    const size_t maxColchon = static_cast<size_t>(std::max(300.0, kMaxColchonSeg * f->fpsMedido));
+    while (f->video.size() > maxColchon) {
         gst_sample_unref(f->video.front().muestra);
         f->video.pop_front();
         ++f->descartados;
@@ -382,7 +384,8 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
     std::lock_guard<std::mutex> l(f->colaLock);
     if (retraso >= 0) f->retrasoA = retraso > f->retrasoA ? retraso : f->retrasoA - (f->retrasoA - retraso) * 0.01;
     f->audio.push_back({s, vence});
-    while (f->audio.size() > kMaxColchon * 4) {
+    // Bloques de audio: 10 s de bloques chicos (~10 ms) como mucho.
+    while (f->audio.size() > static_cast<size_t>(kMaxColchonSeg * 120)) {
         gst_sample_unref(f->audio.front().muestra);
         f->audio.pop_front();
     }
@@ -399,8 +402,44 @@ video_format formatoObs(GstVideoFormat g) {
         case GST_VIDEO_FORMAT_BGRA: return VIDEO_FORMAT_BGRA;
         case GST_VIDEO_FORMAT_BGRx: return VIDEO_FORMAT_BGRX;
         case GST_VIDEO_FORMAT_RGBA: return VIDEO_FORMAT_RGBA;
+        case GST_VIDEO_FORMAT_YVYU: return VIDEO_FORMAT_YVYU;
+        case GST_VIDEO_FORMAT_GRAY8: return VIDEO_FORMAT_Y800;
+        case GST_VIDEO_FORMAT_BGR: return VIDEO_FORMAT_BGR3;
+        case GST_VIDEO_FORMAT_Y42B: return VIDEO_FORMAT_I422;
+        case GST_VIDEO_FORMAT_Y444: return VIDEO_FORMAT_I444;
+        case GST_VIDEO_FORMAT_A420: return VIDEO_FORMAT_I40A;
+        // 10 y 12 bits (cámaras HDR, 4:2:2 de producción): libobs los toma tal cual.
+        case GST_VIDEO_FORMAT_P010_10LE: return VIDEO_FORMAT_P010;
+        case GST_VIDEO_FORMAT_I420_10LE: return VIDEO_FORMAT_I010;
+        case GST_VIDEO_FORMAT_I422_10LE: return VIDEO_FORMAT_I210;
+        case GST_VIDEO_FORMAT_Y444_12LE: return VIDEO_FORMAT_I412;
+        case GST_VIDEO_FORMAT_v210: return VIDEO_FORMAT_V210;
         default: return VIDEO_FORMAT_NONE;
     }
+}
+
+/// Lo que libobs acepta sin conversión (las caps del appsink sin normalizar).
+constexpr const char* kFormatosObs =
+    "{NV12,I420,BGRA,BGRx,RGBA,UYVY,YUY2,YVYU,GRAY8,BGR,Y42B,Y444,A420,P010_10LE,I420_10LE,I422_10LE,Y444_12LE,v210}";
+
+/// Las caps de color a las que se normaliza: las del lienzo del estudio
+/// (Ajustes > Video: formato, espacio de color, rango). Salida de 10 bits o
+/// HDR -> P010; si no, NV12.
+std::string capsColorDelEstudio(const obs_video_info& ovi) {
+    const bool diez = ovi.output_format == VIDEO_FORMAT_P010 || ovi.output_format == VIDEO_FORMAT_I010 ||
+                      ovi.colorspace == VIDEO_CS_2100_PQ || ovi.colorspace == VIDEO_CS_2100_HLG;
+    GstVideoColorimetry c = {};
+    const char* base = ovi.colorspace == VIDEO_CS_601        ? "bt601"
+                       : ovi.colorspace == VIDEO_CS_2100_PQ  ? "bt2100-pq"
+                       : ovi.colorspace == VIDEO_CS_2100_HLG ? "bt2100-hlg"
+                                                             : "bt709";
+    gst_video_colorimetry_from_string(&c, base);
+    c.range = ovi.range == VIDEO_RANGE_FULL ? GST_VIDEO_COLOR_RANGE_0_255 : GST_VIDEO_COLOR_RANGE_16_235;
+    gchar* col = gst_video_colorimetry_to_string(&c);
+    std::string out = std::string("video/x-raw,format=") + (diez ? "P010_10LE" : "NV12") +
+                      ",colorimetry=" + (col != nullptr ? col : base);
+    g_free(col);
+    return out;
 }
 
 void presentarVideo(Fuente* f, GstSample* s) {
@@ -424,11 +463,18 @@ void presentarVideo(Fuente* f, GstSample* s) {
     const GstVideoColorimetry& c = GST_VIDEO_INFO_COLORIMETRY(&info);
     const bool rgb = GST_VIDEO_INFO_IS_RGB(&info);
     const bool completo = rgb || c.range == GST_VIDEO_COLOR_RANGE_0_255;
+    // El espacio de color que trae (la matriz) y su transferencia (PQ/HLG: HDR).
     video_colorspace cs = VIDEO_CS_709;
     if (rgb)
         cs = VIDEO_CS_SRGB;
-    else if (c.matrix == GST_VIDEO_COLOR_MATRIX_BT601)
+    else if (c.matrix == GST_VIDEO_COLOR_MATRIX_BT601 || c.matrix == GST_VIDEO_COLOR_MATRIX_SMPTE240M)
         cs = VIDEO_CS_601;
+    else if (c.matrix == GST_VIDEO_COLOR_MATRIX_BT2020)
+        cs = c.transfer == GST_VIDEO_TRANSFER_ARIB_STD_B67 ? VIDEO_CS_2100_HLG : VIDEO_CS_2100_PQ;
+    frame.trc = c.transfer == GST_VIDEO_TRANSFER_SMPTE2084      ? VIDEO_TRC_PQ
+                : c.transfer == GST_VIDEO_TRANSFER_ARIB_STD_B67 ? VIDEO_TRC_HLG
+                : rgb                                           ? VIDEO_TRC_SRGB
+                                                                : VIDEO_TRC_DEFAULT;
     frame.full_range = completo;
     video_format_get_parameters_for_format(cs, completo ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL, fmt,
                                            frame.color_matrix, frame.color_range_min, frame.color_range_max);
@@ -814,10 +860,12 @@ void armar(Fuente* f) {
     const char* sinkAudio = sinkAudioS.c_str();
     // NORMALIZAR (de fábrica): GStreamer deja todo igual antes de libobs
     // —desentrelaza solo si viene entrelazado (`deinterlace mode=auto`), lleva
-    // a los cuadros del lienzo (`videorate`) y al color del estudio: NV12,
-    // BT.709, rango limitado—. Así una cámara rara (JPEG de rango completo,
-    // 601 en HD, 25i) entra como las demás. Sin normalizar, pasa tal cual.
-    std::string capsVideo = "video/x-raw,format={NV12,I420,BGRA,BGRx,RGBA,UYVY,YUY2}";
+    // a los cuadros del lienzo (`videorate`) y al color del estudio (el que
+    // diga Ajustes > Video: formato, espacio de color y rango; de fábrica NV12,
+    // BT.709, limitado)—. Así una cámara rara (JPEG de rango completo, 601 en
+    // HD, 25i) entra como las demás. Sin normalizar, pasa tal cual (también
+    // 10 bits y 4:2:2).
+    std::string capsVideo = std::string("video/x-raw,format=") + kFormatosObs;
     std::string antesSink = "videoconvert ! ";
     if (f->normalizar) {
         obs_video_info ovi = {};
@@ -825,8 +873,8 @@ void armar(Fuente* f) {
         antesSink = "deinterlace mode=auto ! videorate ! videoconvertscale ! ";
         // pixel-aspect-ratio=1/1: libobs no sabe de píxeles no cuadrados (una
         // cámara PAL de 704x576 con píxel 12/11 se vería apretada): se escala.
-        capsVideo =
-            "video/x-raw,format=NV12,colorimetry=bt709,interlace-mode=progressive,pixel-aspect-ratio=1/1";
+        if (!hay) ovi = obs_video_info{};
+        capsVideo = capsColorDelEstudio(ovi) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1";
         if (hay) capsVideo += ",framerate=" + std::to_string(ovi.fps_num) + "/" + std::to_string(ovi.fps_den);
     }
     // LOS FILTROS: las tarjetas del grafo, como elementos de GStreamer. La
@@ -1563,7 +1611,7 @@ obs_properties_t* propiedades(void*) {
     obs_properties_add_bool(p, "normalizar",
                             obs_module_text("Normalizar (desentrelazar, cuadros y color del estudio)"));
     obs_properties_add_bool(p, "superres",
-                            obs_module_text("Superresolución x2 (macOS 26, cámaras de hasta 960x960)"));
+                            obs_module_text("Superresolución x2 (macOS 26, cámaras chicas)"));
     obs_property_t* sm =
         obs_properties_add_list(p, "superres_motor", obs_module_text("Motor de superresolución"),
                                 OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);

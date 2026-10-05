@@ -109,13 +109,14 @@ json diagnosticar(const json& e) {
                 normalizado ? "nada" : "normalizarla");
 
     // 5) Tamaño.
-    const int ancho = e.value("ancho", 0);
-    if (ancho > 0 && lienzo.value("ancho", 0) > 0 &&
-        std::fabs(static_cast<double>(ancho) / std::max(1, alto) -
+    // Lo que sale (después de los filtros): ancho y alto del mismo lado.
+    const int ancho = e.value("ancho", 0), altoSale = e.value("alto", 0);
+    if (ancho > 0 && altoSale > 0 && lienzo.value("ancho", 0) > 0 &&
+        std::fabs(static_cast<double>(ancho) / altoSale -
                   static_cast<double>(lienzo.value("ancho", 1)) / std::max(1, lienzo.value("alto", 1))) >
             0.05)
         agregar(out, "info", "tamaño",
-                "su proporción (" + std::to_string(ancho) + "x" + std::to_string(alto) +
+                "su proporción (" + std::to_string(ancho) + "x" + std::to_string(altoSale) +
                     ") no es la del lienzo: en la escena "
                     "quedan bandas o se estira",
                 "en un compositor la capa la encaja sola (ajuste «encajar»); en una escena, ajustar la "

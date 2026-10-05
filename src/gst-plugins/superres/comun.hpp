@@ -133,19 +133,10 @@ inline GstCaps* fijarCapsPor(GstPadDirection dir, GstCaps* caps, GstCaps* otras,
     return gst_caps_fixate(otras);
 }
 
-/// Al fijar el formato de salida: el doble exacto de la entrada si se puede.
+/// Al fijar el formato de salida: el doble exacto de la entrada si se puede
+/// (los elementos cuyo motor agranda x2; los que no, usan fijarCapsPor).
 inline GstCaps* fijarCaps(GstBaseTransform*, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
-    otras = gst_caps_make_writable(otras);
-    if (dir == GST_PAD_SINK && gst_caps_get_size(caps) > 0 && gst_caps_get_size(otras) > 0) {
-        const GstStructure* in = gst_caps_get_structure(caps, 0);
-        GstStructure* out = gst_caps_get_structure(otras, 0);
-        int w = 0, h = 0;
-        if (gst_structure_get_int(in, "width", &w) && gst_structure_get_int(in, "height", &h)) {
-            gst_structure_fixate_field_nearest_int(out, "width", w * 2);
-            gst_structure_fixate_field_nearest_int(out, "height", h * 2);
-        }
-    }
-    return gst_caps_fixate(otras);
+    return fijarCapsPor(dir, caps, otras, 2);
 }
 
 /// Copiar un metadato a la imagen agrandada: solo si no depende del tamaño ni de la orientación.

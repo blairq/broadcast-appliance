@@ -1203,9 +1203,7 @@ bool BroadcastEngine::resetVideo(const VideoConfig& video) {
     ovi.base_height = static_cast<uint32_t>(video.baseHeight);
     ovi.output_width = static_cast<uint32_t>(video.outputWidth);
     ovi.output_height = static_cast<uint32_t>(video.outputHeight);
-    ovi.output_format = VIDEO_FORMAT_NV12;
-    ovi.colorspace = VIDEO_CS_709;
-    ovi.range = VIDEO_RANGE_PARTIAL;
+    colorDeSalida(ovi, video);
     ovi.gpu_conversion = true;
     ovi.scale_type = OBS_SCALE_BICUBIC;
     const int rc = obs_reset_video(&ovi);

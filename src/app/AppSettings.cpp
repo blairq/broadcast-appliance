@@ -130,7 +130,8 @@ AppConfig defaultAppConfig(const fs::path& dataRoot) {
     SourceSpec bg;
     bg.id = "color_source_v3";
     bg.name = "Fondo";
-    bg.settingsJson = R"({"color":4280295456,"width":1920,"height":1080})";
+    bg.settingsJson = "{\"color\":4280295456,\"width\":" + std::to_string(c.video.baseWidth) +
+                      ",\"height\":" + std::to_string(c.video.baseHeight) + "}"; // del tamaño del lienzo
     main.sources.push_back(bg);
     SourceSpec title;
     title.id = "text_ft2_source_v2";
@@ -162,8 +163,16 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.video.baseHeight = get(video, "height", c.video.baseHeight);
     c.video.outputWidth = get(video, "outputWidth", c.video.baseWidth);
     c.video.outputHeight = get(video, "outputHeight", c.video.baseHeight);
-    c.video.fpsNum = get(video, "fps", 30);
-    c.video.fpsDen = 1;
+    // fps: un número (30) o "30000/1001" / "29.97" para las cadencias NTSC.
+    if (video.contains("fps") && video["fps"].is_string()) {
+        if (!fpsDeTexto(video["fps"].get<std::string>(), c.video.fpsNum, c.video.fpsDen)) c.video.fpsNum = 30, c.video.fpsDen = 1;
+    } else {
+        c.video.fpsNum = get(video, "fps", 30);
+        c.video.fpsDen = 1;
+    }
+    c.video.formato = get(video, "formato", c.video.formato);
+    c.video.color = get(video, "color", c.video.color);
+    c.video.rango = get(video, "rango", c.video.rango);
     const json mej = video.value("mejora", json::object());
     c.mejora.activa = get(mej, "activa", c.mejora.activa);
     c.mejora.ruido = get(mej, "ruido", c.mejora.ruido);
@@ -271,7 +280,10 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
           {"height", c.video.baseHeight},
           {"outputWidth", c.video.outputWidth},
           {"outputHeight", c.video.outputHeight},
-          {"fps", c.video.fpsNum},
+          {"fps", c.video.fpsDen <= 1 ? json(c.video.fpsNum) : json(textoDeFps(c.video.fpsNum, c.video.fpsDen))},
+          {"formato", c.video.formato},
+          {"color", c.video.color},
+          {"rango", c.video.rango},
           {"mejora",
            {{"activa", c.mejora.activa},
             {"ruido", c.mejora.ruido},

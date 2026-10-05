@@ -52,7 +52,7 @@ ColumnLayout {
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 12
-        text: "Duplica la resolución de una cámara de red (una PAL de 768x576 sale en 1536x1152) antes de que entre al estudio. " +
+        text: "Duplica la resolución de una cámara de red (sale al doble de lo que entra, sea cual sea su tamaño) antes de que entre al estudio. " +
               "El audio no pasa por acá: la sincronía se mantiene mientras lo que tarda entre en el colchón de la entrada."
     }
 

@@ -93,7 +93,7 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     }
     const std::string fps = argValue(argc, argv, "--fps", "");
     if (!fps.empty()) {
-        c.video.fpsNum = std::atoi(fps.c_str());
+        fpsDeTexto(fps, c.video.fpsNum, c.video.fpsDen);
     }
     if (hasFlag(argc, argv, "--record")) {
         c.record = true;
