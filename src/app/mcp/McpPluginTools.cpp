@@ -196,6 +196,27 @@ void McpService::registerPluginTools() {
     }
     {
         Tool t;
+        t.name = "plugin_aprobados";
+        t.title = "Plugins aprobados para el aire";
+        t.category = "plugins";
+        t.readOnly = true;
+        t.description =
+            "Los plugins aprobados para el aire: con el modo en vivo solo arrancan (y se reinician) esos, y solo "
+            "si su código no cambió desde la aprobación (`vigente`; si no, `cambiaron` dice qué archivos). "
+            "APROBAR lo hace una persona en Plugins → «Aprobar para el aire»: el asistente escribe plugins y no "
+            "puede aprobarse a sí mismo. Con `quitar: <id>` se le saca la aprobación.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"quitar", {{"type", "string"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            if (!p) return done(ToolResult::error("los plugins no están disponibles"));
+            if (a.contains("quitar"))
+                if (const std::string e = p->desaprobar(a.value("quitar", std::string())); !e.empty())
+                    return done(ToolResult::error(e));
+            done(ToolResult().data(p->aprobados()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "plugin_reiniciar";
         t.title = "Reiniciar un plugin";
         t.category = "plugins";

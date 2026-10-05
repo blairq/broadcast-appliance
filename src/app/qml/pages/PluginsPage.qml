@@ -34,7 +34,7 @@ Rectangle {
         switch (e) {
         case "corriendo": return Theme.ok
         case "arrancando": case "dependencias": case "reiniciando": return Theme.amber
-        case "caido": return Theme.live
+        case "caido": case "bloqueado": return Theme.live
         default: return Theme.textFaint
         }
     }
@@ -45,6 +45,7 @@ Rectangle {
         case "dependencias": return "bajando bibliotecas…"
         case "reiniciando": return "reiniciando…"
         case "caido": return "caído"
+        case "bloqueado": return "bloqueado en vivo"
         default: return "apagado"
         }
     }
@@ -260,6 +261,30 @@ Rectangle {
                                 dot: page.colorDeEstado(tarjeta.modelData.estado)
                                 pulse: tarjeta.modelData.estado === "arrancando" || tarjeta.modelData.estado === "dependencias"
                                 medidaDe: "bajando bibliotecas…"
+                            }
+                            // Aprobado para el aire (T60): con el modo en vivo, solo arrancan estos.
+                            StatusPill {
+                                visible: !!tarjeta.modelData.aprobado
+                                text: tarjeta.modelData.aprobado === "vigente" ? "aprobado para el aire" : "cambió desde que se aprobó"
+                                dot: tarjeta.modelData.aprobado === "vigente" ? Theme.ok : Theme.amber
+                            }
+                            GlassButton {
+                                compact: true
+                                text: tarjeta.modelData.aprobado === "vigente" ? "Quitar aprobación" : "Aprobar para el aire"
+                                ToolTip.visible: hovered
+                                ToolTip.text: "Fija el código de ahora: con el modo en vivo, solo arrancan los aprobados y sin cambios"
+                                onClicked: {
+                                    const id = tarjeta.modelData.id
+                                    if (tarjeta.modelData.aprobado === "vigente") { page.pl.desaprobarUi(id); return }
+                                    const a = page.pl.aprobacionUi(id)
+                                    const cambios = a && a.cambiaron && a.cambiaron.length ? "Cambiaron: " + a.cambiaron.join(", ") + ".\n\n" : ""
+                                    ApplicationWindow.window.confirm({
+                                        title: "¿Aprobar «" + tarjeta.modelData.nombre + "» para el aire?",
+                                        text: cambios + "Queda fijado el código de ahora. Si después cambia, en vivo no arranca hasta que lo vuelvas a aprobar.",
+                                        accept: "Aprobar", reject: "Cancelar",
+                                        action: function() { const e = page.pl.aprobarUi(id); if (e !== "") Studio.notify(e, "error") }
+                                    })
+                                }
                             }
                             GlassButton {
                                 compact: true; text: "Probar"; icon: "✓"

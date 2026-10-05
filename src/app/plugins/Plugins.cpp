@@ -31,6 +31,9 @@
 #include <cctype>
 #include <cmath>
 #include <cstdlib>
+#include <QCryptographicHash>
+#include <QFile>
+
 #include <fstream>
 #include <sstream>
 #include <thread>
@@ -217,6 +220,107 @@ void Plugins::guardarActivos() const {
     escribirTexto(config_, json{{"activos", activos}}.dump(1));
 }
 
+// --- Aprobados para el aire ----------------------------------------------------------------
+
+namespace {
+/// Lo que NO es código: dependencias bajadas, datos del plugin, cachés de Python y
+/// lo que escribe la app (los valores del panel).
+bool volatil(const std::string& rel) {
+    return rel.rfind("_libs", 0) == 0 || rel.rfind("datos", 0) == 0 || rel.find("__pycache__") != std::string::npos ||
+           rel == ".panel.json" || (rel.size() > 4 && rel.compare(rel.size() - 4, 4, ".pyc") == 0) ||
+           rel.find(".DS_Store") != std::string::npos || (rel.size() > 4 && rel.compare(rel.size() - 4, 4, ".log") == 0);
+}
+} // namespace
+
+std::string Plugins::hashCodigo(const std::string& id, std::vector<std::string>* archivos) const {
+    const fs::path dir = carpetaDe(id);
+    std::vector<std::string> rels;
+    std::error_code ec;
+    for (auto it = fs::recursive_directory_iterator(dir, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        const std::string r = fs::relative(it->path(), dir, ec).generic_string();
+        if (volatil(r)) {
+            if (it->is_directory()) it.disable_recursion_pending();
+            continue;
+        }
+        if (it->is_regular_file()) rels.push_back(r);
+    }
+    std::sort(rels.begin(), rels.end());
+    // Un hash por archivo (nombre + contenido) y el total sobre la lista: así se
+    // puede decir QUÉ archivo cambió.
+    QCryptographicHash total(QCryptographicHash::Sha256);
+    for (const std::string& r : rels) {
+        QFile f(q(dir / r));
+        QCryptographicHash h(QCryptographicHash::Sha256);
+        if (f.open(QIODevice::ReadOnly)) h.addData(&f);
+        const QByteArray uno = h.result().toHex();
+        total.addData(QByteArray::fromStdString(r));
+        total.addData(QByteArrayView("\0", 1));
+        total.addData(uno);
+        if (archivos) archivos->push_back(r + "=" + uno.toStdString());
+    }
+    return total.result().toHex().toStdString();
+}
+
+json Plugins::leerAprobados() const {
+    const json j = leerJson(rt_.dataRoot() / "Config" / "plugins-aprobados.json");
+    return j.is_object() ? j : json::object();
+}
+
+json Plugins::aprobar(const std::string& id, const std::string& quien) {
+    if (!idValido(id) || !fs::exists(carpetaDe(id) / "plugin.json")) return {{"error", "no existe el plugin «" + id + "»"}};
+    std::vector<std::string> archivos;
+    const std::string h = hashCodigo(id, &archivos);
+    json a = leerAprobados();
+    a[id] = {{"hash", h}, {"ms", QDateTime::currentMSecsSinceEpoch()}, {"quien", quien}, {"archivos", archivos}};
+    const fs::path f = rt_.dataRoot() / "Config" / "plugins-aprobados.json";
+    std::error_code ec;
+    fs::create_directories(f.parent_path(), ec);
+    std::ofstream(f) << a.dump(1);
+    emit cambio();
+    return {{"id", id}, {"hash", h}, {"archivos", archivos.size()}};
+}
+
+std::string Plugins::desaprobar(const std::string& id) {
+    json a = leerAprobados();
+    if (!a.contains(id)) return "«" + id + "» no estaba aprobado";
+    a.erase(id);
+    std::ofstream(rt_.dataRoot() / "Config" / "plugins-aprobados.json") << a.dump(1);
+    emit cambio();
+    return {};
+}
+
+bool Plugins::aprobadoVigente(const std::string& id) const {
+    const json a = leerAprobados();
+    return a.contains(id) && a[id].value("hash", std::string()) == hashCodigo(id);
+}
+
+json Plugins::aprobados() const {
+    json out = json::object();
+    for (const auto& [id, d] : leerAprobados().items()) {
+        std::vector<std::string> ahora;
+        const bool existe = fs::exists(carpetaDe(id) / "plugin.json");
+        const std::string h = existe ? hashCodigo(id, &ahora) : std::string();
+        json x{{"hash", d.value("hash", std::string())}, {"ms", d.value("ms", 0LL)}, {"quien", d.value("quien", std::string())},
+               {"vigente", existe && h == d.value("hash", std::string())}};
+        if (!x["vigente"].get<bool>() && existe) {
+            // Qué cambió: archivos nuevos, borrados o con otro contenido.
+            std::set<std::string> antes, despues;
+            for (const auto& s : d.value("archivos", json::array())) antes.insert(s.get<std::string>());
+            for (const auto& s : ahora) despues.insert(s);
+            json cambiaron = json::array();
+            for (const auto& s : despues) if (!antes.count(s)) cambiaron.push_back(s.substr(0, s.find('=')));
+            for (const auto& s : antes)
+                if (!despues.count(s)) {
+                    const std::string n = s.substr(0, s.find('='));
+                    if (std::find(cambiaron.begin(), cambiaron.end(), n) == cambiaron.end()) cambiaron.push_back(n);
+                }
+            x["cambiaron"] = cambiaron;
+        }
+        out[id] = x;
+    }
+    return out;
+}
+
 void Plugins::arrancarGuardados() {
     for (const auto& id : leerActivos())
         if (id.is_string() && fs::exists(carpetaDe(id.get<std::string>()) / "plugin.json"))
@@ -238,6 +342,8 @@ json Plugins::estado(const std::string& id) const {
     // Un plugin que automatiza algo («cuando pasa X, hacé Y») se declara
     // disparador: aparece también en la lista de Disparadores.
     if (man.value("disparador", false)) e["disparador"] = true;
+    if (const json ap = leerAprobados(); ap.contains(id))
+        e["aprobado"] = ap[id].value("hash", std::string()) == hashCodigo(id) ? "vigente" : "cambio";
     auto it = procesos_.find(id);
     if (it == procesos_.end()) return e;
     const Proceso& p = *it->second;
@@ -590,6 +696,19 @@ void Plugins::arrancar(const std::string& id) {
         p.reintento->stop();
         p.reintento->deleteLater();
         p.reintento = nullptr;
+    }
+    // En vivo, solo lo aprobado para el aire (y sin cambios desde que se aprobó).
+    if (enVivo_ && enVivo_() && !aprobadoVigente(id)) {
+        p.estado = "bloqueado";
+        p.error = leerAprobados().contains(id)
+                      ? "el código cambió desde que se aprobó para el aire: en vivo no arranca (revisalo y aprobalo de nuevo)"
+                      : "en vivo solo arrancan los plugins aprobados para el aire (Plugins → «Aprobar para el aire»)";
+        avisar("Plugin «" + id + "»: " + p.error, "aviso");
+        auto cbs = std::move(p.alListo);
+        for (auto& cb : cbs)
+            cb(estado(id));
+        emit cambio();
+        return;
     }
     if (!fs::exists(python())) {
         p.estado = "caido";
@@ -1343,6 +1462,19 @@ void Plugins::prender(const QString& id, bool activo) {
                    "warning");
         emit cambio();
     });
+}
+
+QString Plugins::aprobarUi(const QString& id) {
+    const json r = aprobar(id.toStdString(), "persona");
+    return r.contains("error") ? q(r.value("error", std::string())) : QString();
+}
+
+QString Plugins::desaprobarUi(const QString& id) { return q(desaprobar(id.toStdString())); }
+
+QVariantMap Plugins::aprobacionUi(const QString& id) const {
+    const json a = aprobados();
+    if (!a.contains(id.toStdString())) return {};
+    return qv(a[id.toStdString()]).toMap();
 }
 
 void Plugins::reiniciarUi(const QString& id) {

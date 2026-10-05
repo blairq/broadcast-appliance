@@ -83,7 +83,7 @@
 | T57 | Superficie de control: herramientas MCP | P1 | hecho |
 | T58 | Superficie de control: superficies de hardware vía plugin | P1 | hecho (probado con un aparato falso, sin hardware real) |
 | T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | hecho (Satellite API 1.7 y API remota HTTP; sin módulo propio de Companion ni protocolo TCP/UDP remoto) |
-| T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | falta |
+| T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | parcial (aprobados hecho; falta llama.cpp en Windows/Linux) |
 | T61 | Proxy propio con un nombre (DNS) por servicio y certificados automáticos | P2 | falta |
 
 **Ya hecho (no genera tarea)**
@@ -1302,8 +1302,17 @@
 - **Depende de:** T52, T54 y T58.
 
 ### T60 · Plugins aprobados para el aire y modelo local en Windows y Linux — P2
-- **Estado: falta.**
-  - La única "firma" es la marca de dependencias de pip (`src/app/plugins/Plugins.cpp:452-480`).
+- **Estado: parcial** (2026-10-05).
+  - **Hecho, aprobados para el aire:**
+    - `Plugins::hashCodigo` saca el SHA-256 por archivo y el total, sin `_libs`, `datos`, `__pycache__`, `.pyc`, `.panel.json` ni logs.
+    - «Aprobar» lo guarda en `Config/plugins-aprobados.json`, con quién y la lista de archivos.
+    - Con el modo en vivo (T48), `arrancar` (también los reinicios automáticos) deja el plugin en «bloqueado en vivo» si no está aprobado o si su código cambió, y avisa al operador.
+    - `aprobados()` dice qué archivos cambiaron.
+    - GUI: en Plugins, la insignia «aprobado para el aire» o «cambió desde que se aprobó», y el botón «Aprobar para el aire». La confirmación muestra qué cambió.
+    - MCP: `plugin_aprobados {quitar?}`. **No hay `plugin_aprobar` por MCP, a propósito:** el asistente escribe plugins (`plugin_escribir`) y no puede aprobarse a sí mismo. Aprueba una persona.
+  - **Falta:** el modelo local en Windows y Linux (vendorear llama.cpp para CPU, CUDA y Vulkan en el bundle). Es un build por plataforma con su toolchain y se prueba en las máquinas de prueba.
+  - Antes:
+  - La única "firma" era la marca de dependencias de pip (`src/app/plugins/Plugins.cpp:452-480`).
   - `hayMotor()` devuelve falso fuera de Apple: "llama.cpp: todavía no viaja en el bundle" (`src/app/agent/ModelosLocales.cpp:242-256`).
 - **Qué hacer.**
   - "Aprobar para el aire" fija un SHA-256 del directorio del plugin (sin `_libs` volátiles) en `Config/plugins-aprobados.json`. En modo en vivo (T48) solo arrancan los aprobados con el hash igual.

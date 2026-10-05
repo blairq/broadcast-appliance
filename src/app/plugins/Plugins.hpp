@@ -104,6 +104,21 @@ class Plugins : public QObject {
     /// Arranca los que estaban prendidos (al iniciar la app, cuando ya hay video).
     void arrancarGuardados();
 
+    // --- Aprobados para el aire (T60) ---------------------------------------------
+    // «Aprobar» fija el SHA-256 del código del plugin (todo menos _libs, datos,
+    // __pycache__ y lo que escribe la app) en Config/plugins-aprobados.json. Con el
+    // modo en vivo, solo arrancan (y se reinician) los aprobados con el mismo hash:
+    // un plugin que cambió después de probarlo no entra al aire sin que alguien lo mire.
+    void setEnVivo(std::function<bool()> f) { enVivo_ = std::move(f); }
+    /// El hash del código y la lista de archivos que lo forman.
+    std::string hashCodigo(const std::string& id, std::vector<std::string>* archivos = nullptr) const;
+    /// Lo aprueba con el hash de ahora. `quien` queda anotado ("persona", "asistente"…).
+    json aprobar(const std::string& id, const std::string& quien);
+    std::string desaprobar(const std::string& id);
+    /// {id: {hash, ms, quien, vigente (el código no cambió), cambiaron: [archivos]}}.
+    json aprobados() const;
+    bool aprobadoVigente(const std::string& id) const;
+
     std::filesystem::path carpeta() const { return carpeta_; }
     std::filesystem::path carpetaDe(const std::string& id) const { return carpeta_ / id; }
     std::filesystem::path python() const;
@@ -171,6 +186,11 @@ class Plugins : public QObject {
     bool hayPython() const;
     Q_INVOKABLE void prender(const QString& id, bool activo);
     Q_INVOKABLE void reiniciarUi(const QString& id);
+    /// Aprobar para el aire (lo hace una PERSONA desde la GUI; por MCP no se puede). "" o el error.
+    Q_INVOKABLE QString aprobarUi(const QString& id);
+    Q_INVOKABLE QString desaprobarUi(const QString& id);
+    /// {vigente, cambiaron: [archivos], ms} del plugin `id` ({} si no está aprobado).
+    Q_INVOKABLE QVariantMap aprobacionUi(const QString& id) const;
     Q_INVOKABLE void probarUi(const QString& id);
     Q_INVOKABLE QString registroUi(const QString& id) const;
     Q_INVOKABLE QString copiarEjemplo(const QString& ejemplo, const QString& id);
@@ -245,6 +265,8 @@ class Plugins : public QObject {
     EntradaSuperficie entradaSup_;
     std::map<std::string, std::set<std::string>> superficiesDe_; ///< plugin -> ids de aparatos
     std::filesystem::path carpeta_, logs_, config_;
+    std::function<bool()> enVivo_;
+    json leerAprobados() const;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Proceso>> procesos_;
     std::map<int, Pendiente> pendientes_;

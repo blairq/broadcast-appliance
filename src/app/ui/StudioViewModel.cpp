@@ -764,6 +764,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
+    // En vivo (T48) solo arrancan los plugins aprobados para el aire (T60).
+    plugins_->setEnVivo([this]() { return evento_ != nullptr && evento_->property("enVivo").toBool(); });
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
     dcn_->setAQuorum([this](const nlohmann::json& r) {
