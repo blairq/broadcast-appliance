@@ -42,6 +42,7 @@
 #include "platform/Paths.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "legislatura/Bancas.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
@@ -2045,6 +2046,74 @@ void McpService::registerTools() {
                                                       QString::fromStdString(a.value("texto", std::string())));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok("Aprobado: el zocalo ya lo usa."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "bancas_listar";
+        t.title = "Bancas y fila de oradores presenciales";
+        t.category = "oradores";
+        t.readOnly = true;
+        t.description = "Los oradores PRESENCIALES (desde su banca, sin conexion): todas las bancas del cuerpo, la fila, "
+                        "quien habla (al_aire) y hace cuanto (usado_s de asignado_s). speakers_status es la fila de los "
+                        "remotos (invitados conectados).";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.bancas().estadoJson())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "banca_cola";
+        t.title = "Sumar o sacar una banca de la fila";
+        t.category = "oradores";
+        t.description = "`agregar` o `quitar`: banca, id o nombre del cuerpo.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"agregar", {{"type", "string"}}}, {"quitar", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("agregar")) {
+                const QString e = vm.bancas().agregar(QString::fromStdString(a.value("agregar", std::string())));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
+            if (a.contains("quitar")) vm.bancas().quitar(QString::fromStdString(a.value("quitar", std::string())));
+            done(ToolResult().data(vm.bancas().estadoJson()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "banca_al_aire";
+        t.title = "Poner al aire a un orador presencial";
+        t.category = "oradores";
+        t.description = "Una banca al aire, en una sola accion: la PTZ va al preset de su banca (solo si esa camara no "
+                        "esta al aire), la escena de esa camara queda ARMADA en el preview (`modo` armar, de fabrica: "
+                        "sale con TAKE) o se corta (directo), el zocalo toma su nombre y cargo del cuerpo ({orador}), "
+                        "arranca su reloj y se abre su microfono (y se cierra el de la anterior). `banca`: banca, id o "
+                        "nombre. Sin `banca`: la primera de la fila.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"banca", {{"type", "string"}}},
+                           {"modo", {{"type", "string"}, {"enum", {"armar", "directo"}}}},
+                           {"asignado_s", {{"type", "integer"}, {"minimum", 0}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (a.contains("asignado_s")) vm.bancas().setAsignado(a.value("asignado_s", 180));
+            const QString modo = QString::fromStdString(a.value("modo", std::string("armar")));
+            const QString e = a.contains("banca") ? vm.bancas().alAire(QString::fromStdString(a.value("banca", std::string())), modo)
+                                                  : vm.bancas().siguiente(modo);
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            json r = vm.bancas().estadoJson();
+            done(ToolResult().text(r.value("aviso", std::string()).empty() ? "Listo." : "Listo, con un aviso: " + r.value("aviso", std::string())).data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "banca_terminar";
+        t.title = "Terminar al orador presencial";
+        t.category = "oradores";
+        t.description = "Saca del aire al orador presencial: cierra su microfono y para su reloj (la escena no cambia).";
+        t.run = [&vm](const json&, Done done) {
+            vm.bancas().terminar();
+            done(ToolResult().data(vm.bancas().estadoJson()));
         };
         core_.addTool(std::move(t));
     }

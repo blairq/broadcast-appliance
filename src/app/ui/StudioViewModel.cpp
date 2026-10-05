@@ -36,6 +36,7 @@
 #include "AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
+#include "legislatura/Bancas.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
@@ -489,6 +490,30 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
+    // Las bancas presenciales de la fila de oradores (legislatura/Bancas).
+    {
+        legislatura::Bancas::Ganchos g;
+        g.camaraAlAire = [this](const std::string& c) { return camaras_->alAire(QString::fromStdString(c)); };
+        g.irAPosicion = [this](const std::string& c, const std::string& p) {
+            const QVariantMap r = camaras_->irAPosicion(QString::fromStdString(c), QString::fromStdString(p), 1.0);
+            return r.value("ok").toBool() ? std::string() : r.value("error").toString().toStdString();
+        };
+        g.escenaDe = [this](const std::string& camara) {
+            // La primera escena que muestra esa cámara (que no sea la del aire si hay otra).
+            std::string otra;
+            for (const std::string& sc : rt_.engine().sceneNames()) {
+                const auto ss = rt_.engine().sceneSources(sc);
+                if (std::find(ss.begin(), ss.end(), camara) == ss.end()) continue;
+                if (sc != rt_.engine().currentScene()) return sc;
+                otra = sc;
+            }
+            return otra;
+        };
+        g.armar = [this](const std::string& e) { armarEscena(QString::fromStdString(e)); };
+        g.cortar = [this](const std::string& e) { takeScene(QString::fromStdString(e)); };
+        g.microfono = [this](const std::string& f, bool abierto) { rt_.engine().setSourceMuted(f, !abierto); };
+        bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
+    }
     marca("camaras");
     connect(inputs_.get(), &InputsViewModel::changed, camaras_.get(), &ptz::ControlCamaras::sincronizar);
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
@@ -934,6 +959,12 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         }
     }
     if (!primeroEnCola.isEmpty()) ctx["siguiente"] = primeroEnCola;
+    // Un orador presencial (banca) al aire manda sobre el de la sala.
+    if (bancas_) {
+        const nlohmann::json b = bancas_->oradorParaZocalo();
+        if (!b.empty())
+            ctx["orador"] = QJsonDocument::fromJson(QByteArray::fromStdString(b.dump())).object();
+    }
 
     // El guion: qué bloque va y qué dice el cue. Si el cue que corre es de
     // orador, ese es el orador según el guion, que puede no ser el mismo que
@@ -1459,5 +1490,7 @@ bool StudioViewModel::destacarChatUi(const QString& key) { return chatOverlay_ &
 void StudioViewModel::quitarDestacadoChatUi(const QString& key) {
     if (chatOverlay_) chatOverlay_->quitarDestacado(key);
 }
+
+QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
 
 } // namespace ba::app

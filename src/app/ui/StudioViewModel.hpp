@@ -63,6 +63,7 @@ class Dispositivos;
 namespace ba::app {
 namespace legislatura {
 class CuerpoViewModel;
+class Bancas;
 }
 
 class AppRuntime;
@@ -108,6 +109,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
     /// El cuerpo legislativo (integrantes, bancas, presets, micrófonos): legislatura/CuerpoViewModel.
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
+    /// La fila de oradores presenciales (bancas): legislatura/Bancas.
+    Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -247,6 +250,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
+    QObject* bancasQml() const;
+    legislatura::Bancas& bancas() { return *bancas_; }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
     /// como el cargo de su zócalo. "" o el error.
     Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
@@ -561,6 +566,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<legislatura::CuerpoViewModel> cuerpo_;
+    std::unique_ptr<legislatura::Bancas> bancas_;
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
