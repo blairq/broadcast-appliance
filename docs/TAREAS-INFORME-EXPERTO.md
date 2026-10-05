@@ -73,15 +73,15 @@
 | T47 | Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP | P1 | parcial |
 | T48 | Modo en vivo que protege la interfaz | P1 | parcial |
 | T49 | Atajos de teclado configurables y globales (con pedales de prompter) | P1 | falta |
-| T50 | Bus de eventos de la app (para superficies, plugins y web) | P1 | parcial |
-| T51 | SDK de dispositivos para plugins: vendorear HID, MIDI, serie, OSC, Stream Deck | P1 | parcial |
-| T52 | Superficie de control: modelo de datos y motor de acciones y estado | P1 | falta |
-| T53 | Superficie de control: servidor en el gateway y puente con la app | P1 | falta |
-| T54 | Superficie de control: emparejamiento por QR y seguridad | P1 | falta |
-| T55 | Superficie de control: cliente web para tablet | P1 | falta |
-| T56 | Superficie de control: editor en el escritorio | P1 | falta |
-| T57 | Superficie de control: herramientas MCP | P1 | falta |
-| T58 | Superficie de control: superficies de hardware vía plugin | P1 | falta |
+| T50 | Bus de eventos de la app (para superficies, plugins y web) | P1 | hecho (bus, MCP, plugins; la pestaña Eventos está en la página Botonera) |
+| T51 | SDK de dispositivos para plugins: vendorear HID, MIDI, serie, OSC, Stream Deck | P1 | hecho en parte (bibliotecas vendoreadas, ejemplos de superficies y tally; falta la allowlist de herramientas por plugin) |
+| T52 | Superficie de control: modelo de datos y motor de acciones y estado | P1 | hecho |
+| T53 | Superficie de control: servidor en el gateway y puente con la app | P1 | hecho |
+| T54 | Superficie de control: emparejamiento por QR y seguridad | P1 | hecho (sin rotación de token ni PIN local en la tablet) |
+| T55 | Superficie de control: cliente web para tablet | P1 | hecho (sin el modo edición en la tablet) |
+| T56 | Superficie de control: editor en el escritorio | P1 | hecho (editor por formulario y JSON, sin arrastrar celdas) |
+| T57 | Superficie de control: herramientas MCP | P1 | hecho |
+| T58 | Superficie de control: superficies de hardware vía plugin | P1 | hecho (probado con un aparato falso, sin hardware real) |
 | T59 | Compatibilidad con Bitfocus Companion (Satellite API y API remota) | P2 | falta |
 | T60 | Plugins aprobados para el aire y modelo local en Windows y Linux | P2 | falta |
 
