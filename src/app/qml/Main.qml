@@ -106,6 +106,15 @@ ApplicationWindow {
     Connections {
         target: Studio
         function onNotify(message, level) { toasts.show(message, level) }
+        // Ya al aire y se pidió otro destino: nunca se cambia sin preguntar.
+        function onPedirCambioDestino(actual, nuevoServer, nuevoKey) {
+            confirm({
+                title: "Ya estás transmitiendo",
+                text: "Sale a " + actual + ". ¿Cambiar a " + nuevoServer + "? La transmisión se corta un instante.",
+                accept: "Cambiar de destino", reject: "Seguir como está",
+                action: function() { Studio.cambiarDestinoStream(nuevoServer, nuevoKey) }
+            })
+        }
         // Cierre pedido por la app (launcher por el canal de control,
         // actualizacion, MCP): nunca se pregunta. Si la guardia llego a frenar
         // ese quit, se repite ya sin guardia.

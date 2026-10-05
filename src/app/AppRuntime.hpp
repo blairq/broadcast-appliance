@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include <nlohmann/json.hpp>
+
 #include "AppSettings.hpp"
 #include "LatidoAire.hpp"
 #include "BroadcastEngine.hpp"
@@ -65,8 +67,19 @@ class AppRuntime {
     bool stopSourceRecording(const std::string& source);
     void stopAllSourceRecordings();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
-    bool startStreaming(const std::string& server = {}, const std::string& key = {});
+    bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false);
     void stopStreaming();
+
+    // --- Destinos adicionales de la transmisión (Config/destinos.json; la
+    // clave de cada uno en el almacén cifrado como "stream-<id>") -------------
+    /// [{id, nombre, url, respaldo, tiene_clave, activo, reconectando, perdidos, destino}].
+    nlohmann::json destinos() const;
+    /// Agrega o cambia (`id` existente) un destino: {id?, nombre, url, clave?, respaldo?}. "" o el error.
+    std::string guardarDestino(const nlohmann::json& d, std::string* idOut = nullptr);
+    std::string borrarDestino(const std::string& id);
+    /// Arranca un destino ("todos": todos los guardados). "" o el error.
+    std::string iniciarDestino(const std::string& id);
+    void detenerDestino(const std::string& id); ///< "todos": todos
 
     // --- Escenas y fuentes (motor + configuracion) ----------------------------
     bool addScene(const std::string& name);

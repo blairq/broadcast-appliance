@@ -53,6 +53,77 @@ Item {
             action: Studio.streaming ? "Cortar" : "Salir al aire"
             onTriggered: Studio.streaming ? ApplicationWindow.window.confirmStopStream() : ApplicationWindow.window.openStreamDialog()
         }
+        // Destinos adicionales (respaldo, otras plataformas): mismos codificadores.
+        ColumnLayout {
+            id: destinos
+            Layout.fillWidth: true
+            spacing: 3
+            property var lista: Studio.destinosUi()
+            function refrescar() { lista = Studio.destinosUi() }
+            Connections { target: Studio; function onDestinosChanged() { destinos.refrescar() } }
+            Timer { interval: 2000; running: destinos.lista.some(d => d.activo); repeat: true; onTriggered: destinos.refrescar() }
+            Repeater {
+                model: destinos.lista
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Rectangle { width: 8; height: 8; radius: 4
+                                color: modelData.activo ? (modelData.reconectando ? Theme.amber : Theme.live) : Theme.textFaint }
+                    Text { text: modelData.nombre + (modelData.respaldo ? " · respaldo" : ""); color: Theme.text; font.pixelSize: 11
+                           Layout.fillWidth: true; elide: Text.ElideRight }
+                    Text { visible: modelData.activo; text: modelData.perdidos + " perdidos"; color: modelData.perdidos > 0 ? Theme.warn : Theme.textFaint; font.pixelSize: 10 }
+                    GlassButton {
+                        compact: true; text: modelData.activo ? "Cortar" : "Iniciar"
+                        active: modelData.activo; activeColor: Theme.live
+                        onClicked: {
+                            if (!modelData.activo) { const e = Studio.iniciarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error"); return }
+                            const id = modelData.id, n = modelData.nombre
+                            ApplicationWindow.window.confirm({ title: "¿Cortar «" + n + "»?", text: "Los demás destinos siguen.",
+                                                               accept: "Cortar", reject: "Cancelar", action: function() { Studio.detenerDestinoUi(id) } })
+                        }
+                    }
+                    GlassButton { compact: true; text: "✕"; visible: !modelData.activo
+                                  onClicked: { const e = Studio.borrarDestinoUi(modelData.id); if (e !== "") Studio.notify(e, "error") } }
+                }
+            }
+            RowLayout {
+                spacing: 6
+                GlassButton { compact: true; text: "+ Destino…"; onClicked: nuevoDestino.open() }
+                GlassButton { compact: true; visible: destinos.lista.length > 1; text: "Iniciar todos"
+                              onClicked: { const e = Studio.iniciarDestinoUi("todos"); if (e !== "") Studio.notify(e, "error") } }
+            }
+        }
+        Popup {
+            id: nuevoDestino
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            modal: true
+            padding: 16
+            width: 460
+            background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
+            onOpened: { dNombre.text = ""; dUrl.text = ""; dClave.text = ""; dResp.checked = false }
+            ColumnLayout {
+                anchors.fill: parent
+                spacing: 8
+                Text { text: "Destino adicional"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                TextField { id: dNombre; Layout.fillWidth: true; placeholderText: "Nombre (p. ej. YouTube respaldo)" }
+                TextField { id: dUrl; Layout.fillWidth: true; placeholderText: "rtmp://servidor/app" }
+                TextField { id: dClave; Layout.fillWidth: true; placeholderText: "Clave (se guarda cifrada; el asistente no la ve)"; echoMode: TextInput.Password }
+                CheckBox { id: dResp; text: "Es de respaldo" }
+                RowLayout {
+                    Item { Layout.fillWidth: true }
+                    GlassButton { compact: true; text: "Cancelar"; onClicked: nuevoDestino.close() }
+                    GlassButton {
+                        compact: true; active: true; text: "Guardar"
+                        onClicked: {
+                            const e = Studio.guardarDestinoUi({ nombre: dNombre.text, url: dUrl.text, clave: dClave.text, respaldo: dResp.checked })
+                            if (e !== "") Studio.notify(e, "error"); else nuevoDestino.close()
+                        }
+                    }
+                }
+            }
+        }
         OutputRow {
             label: Studio.recording ? "GRABANDO" : "GRABACION"
             time: Studio.recordTime

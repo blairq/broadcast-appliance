@@ -491,7 +491,22 @@ class BroadcastEngine {
     /// :param stream: servidor y clave.
     /// :param enc: parametros de codificacion.
     /// :returns: true si la salida arranco.
-    bool startStreaming(const StreamConfig& stream, const EncoderConfig& enc);
+    /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada
+    /// (ultimoInicio = YaIgual); a OTRO destino falla (YaOtroDestino), salvo
+    /// `cambiarEnCaliente`, que corta y arranca al nuevo.
+    bool startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente = false);
+    enum class Inicio { Iniciado, YaIgual, YaOtroDestino, Error };
+    Inicio ultimoInicio() const { return ultimoInicio_; }
+    /// El destino al aire, enmascarado (servidor y los últimos 4 de la clave).
+    std::string destinoActivo() const;
+
+    // --- Destinos adicionales (respaldo, otras plataformas) --------------------
+    // Cada uno es otra salida RTMP que comparte los codificadores del principal.
+    bool startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc);
+    void stopExtra(const std::string& id);
+    void stopExtras();
+    /// {id: {activo, kbps, perdidos, destino}}.
+    nlohmann::json extrasEstado() const;
 
     /// Detiene la transmision (no toca la grabacion).
     void stopStreaming();
@@ -681,6 +696,17 @@ class BroadcastEngine {
     // canal 0. Fuentes creadas por el motor (referencias propias).
     std::vector<std::pair<std::string, obs_scene*>> scenes_;
     std::string currentScene_;
+    std::string activeServer_, activeKey_;
+    Inicio ultimoInicio_ = Inicio::Iniciado;
+    struct Extra {
+        std::string server, key;
+        void* output = nullptr;  ///< obs_output_t*
+        void* service = nullptr; ///< obs_service_t*
+        std::uint64_t bytesAntes = 0;
+        std::int64_t msAntes = 0;
+    };
+    std::map<std::string, Extra> extras_;
+    bool algunExtraActivo(const void* menos = nullptr) const;
     // FTB y placa: la fuente (o escena), el filtro de opacidad y el fundido.
     struct Velo {
         void* fuente = nullptr;  ///< obs_source_t*

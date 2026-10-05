@@ -943,11 +943,53 @@ void StudioViewModel::toggleRecording() {
 
 void StudioViewModel::startStreaming(const QString& server, const QString& key) {
     if (rt_.startStreaming(server.toStdString(), key.toStdString())) {
-        emit notify("Al aire", "ok");
+        // Nunca un "Al aire" verde si no cambió nada.
+        if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
+            emit notify("Ya estabas transmitiendo a ese destino: no cambió nada", "info");
+        else
+            emit notify("Al aire", "ok");
+    } else if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
+        emit pedirCambioDestino(qs(rt_.engine().destinoActivo()), server, key);
     } else {
         emit notify("No se pudo transmitir: " + qs(rt_.lastError()), "error");
     }
     onTick();
+}
+
+void StudioViewModel::cambiarDestinoStream(const QString& server, const QString& key) {
+    if (rt_.startStreaming(server.toStdString(), key.toStdString(), true))
+        emit notify("Transmitiendo al destino nuevo", "ok");
+    else
+        emit notify("No se pudo cambiar de destino: " + qs(rt_.lastError()), "error");
+    onTick();
+}
+
+QVariantList StudioViewModel::destinosUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.destinos().dump())).array().toVariantList();
+}
+
+QString StudioViewModel::guardarDestinoUi(const QVariantMap& d) {
+    const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(d)).toJson().toStdString(), nullptr, false);
+    const std::string e = rt_.guardarDestino(j);
+    if (e.empty()) emit destinosChanged();
+    return qs(e);
+}
+
+QString StudioViewModel::borrarDestinoUi(const QString& id) {
+    const std::string e = rt_.borrarDestino(id.toStdString());
+    if (e.empty()) emit destinosChanged();
+    return qs(e);
+}
+
+QString StudioViewModel::iniciarDestinoUi(const QString& id) {
+    const std::string e = rt_.iniciarDestino(id.toStdString());
+    emit destinosChanged();
+    return qs(e);
+}
+
+void StudioViewModel::detenerDestinoUi(const QString& id) {
+    rt_.detenerDestino(id.toStdString());
+    emit destinosChanged();
 }
 
 void StudioViewModel::stopStreaming() {

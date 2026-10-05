@@ -1161,7 +1161,7 @@ bool BroadcastEngine::outputsActive() const {
     const auto active = [](obs_output* o) {
         return o != nullptr && obs_output_active(reinterpret_cast<obs_output_t*>(o));
     };
-    return active(streamOutput_) || active(recordOutput_);
+    return active(streamOutput_) || active(recordOutput_) || algunExtraActivo();
 }
 
 bool BroadcastEngine::resetEncoders() {

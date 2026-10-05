@@ -1918,18 +1918,40 @@ void McpService::registerTools() {
         t.description =
             "Empieza a transmitir por RTMP. Sin argumentos usa el servidor configurado y la clave de la "
             "variable de entorno. La clave NUNCA se guarda en disco.";
+        t.details = "Si YA esta transmitiendo: al mismo destino no hace nada (lo dice); a OTRO destino da error "
+                    "con `activo_en` (no cambia nada), salvo `cambiar_en_caliente`: true, que corta y arranca al "
+                    "nuevo. `destino`: el id de un destino adicional (stream_destinos) o \"todos\": arranca esos, "
+                    "ademas del principal.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
              {{"server", {{"type", "string"}, {"description", "rtmp://... (opcional)."}}},
-              {"key", {{"type", "string"}, {"description", "Clave de transmision (solo en memoria)."}}}}}};
+              {"key", {{"type", "string"}, {"description", "Clave de transmision (solo en memoria)."}}},
+              {"cambiar_en_caliente", {{"type", "boolean"}, {"description", "estando al aire, pasar a este destino"}}},
+              {"destino", {{"type", "string"}, {"description", "id de un destino adicional o \"todos\""}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
-            if (rt.engine().status().streaming) return done(ToolResult::ok("Ya esta transmitiendo."));
-            if (!rt.startStreaming(a.value("server", std::string()), a.value("key", std::string())))
+            if (a.contains("destino")) {
+                const std::string e = rt.iniciarDestino(a.value("destino", std::string()));
+                emit vm.destinosChanged();
+                if (!e.empty()) return done(ToolResult::error(e));
+                return done(ToolResult().text("Destino iniciado.").data(json{{"destinos", rt.destinos()}}));
+            }
+            if (!rt.startStreaming(a.value("server", std::string()), a.value("key", std::string()),
+                                   a.value("cambiar_en_caliente", false))) {
+                if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
+                    ToolResult r = ToolResult::error("Ya esta transmitiendo a " + rt.engine().destinoActivo() +
+                                                     ": NO se cambio nada. Para pasar a este destino: "
+                                                     "`cambiar_en_caliente`: true (corta un instante).");
+                    r.structured = json{{"activo_en", rt.engine().destinoActivo()}};
+                    return done(r);
+                }
                 return done(ToolResult::error("No arranco: " + rt.lastError() +
                                               ". Si falta la clave: pasala en `key` o en la variable " +
                                               rt.config().streamKeyEnv + "."));
+            }
             emit vm.statusChanged();
+            if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
+                return done(ToolResult::ok("Ya estaba transmitiendo a ese destino: no cambio nada."));
             done(ToolResult::ok("Transmitiendo."));
         };
         core_.addTool(std::move(t));
@@ -1941,11 +1963,95 @@ void McpService::registerTools() {
         t.category = "salidas";
         t.destructive = true;
         t.description =
-            "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo.";
-        t.run = [&rt, &vm](const json&, Done done) {
+            "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo. Con "
+            "`destino` (id o \"todos\"), corta solo ese destino adicional y el principal sigue.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"destino", {{"type", "string"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            if (a.contains("destino")) {
+                rt.detenerDestino(a.value("destino", std::string()));
+                emit vm.destinosChanged();
+                return done(ToolResult::ok("Destino cortado; el resto sigue."));
+            }
             rt.stopStreaming();
             emit vm.statusChanged();
             done(ToolResult::ok("Transmision detenida."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "stream_destinos";
+        t.title = "Destinos de la transmision";
+        t.category = "salidas";
+        t.readOnly = true;
+        t.description = "Los destinos adicionales (respaldo, otras plataformas), que comparten los codificadores del "
+                        "principal: cada uno con su estado (activo, reconectando, cuadros perdidos) y si tiene clave "
+                        "guardada. El principal es el de stream_start sin `destino`.";
+        t.run = [&rt](const json&, Done done) {
+            done(ToolResult().data(json{{"principal", rt.engine().status().streaming ? rt.engine().destinoActivo() : ""},
+                                        {"destinos", rt.destinos()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "stream_destino_agregar";
+        t.title = "Agregar o cambiar un destino de transmision";
+        t.category = "salidas";
+        t.description = "Un destino adicional: `nombre`, `url` (rtmp:// o rtmps://), `clave` (se guarda cifrada; "
+                        "mejor que la cargue el operador en Salidas > + Destino…, donde no la ves), `respaldo`. Con "
+                        "`id` de uno existente, lo cambia (stream_destino_editar es lo mismo).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"url", {{"type", "string"}}},
+                           {"clave", {{"type", "string"}}},
+                           {"respaldo", {{"type", "boolean"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            std::string id;
+            const std::string e = rt.guardarDestino(a, &id);
+            if (!e.empty()) return done(ToolResult::error(e));
+            emit vm.destinosChanged();
+            done(ToolResult().data(json{{"id", id}, {"destinos", rt.destinos()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "stream_destino_editar";
+        t.title = "Cambiar un destino de transmision";
+        t.category = "salidas";
+        t.description = "Cambia `nombre`, `url`, `clave` o `respaldo` del destino `id`.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"url", {{"type", "string"}}},
+                           {"clave", {{"type", "string"}}},
+                           {"respaldo", {{"type", "boolean"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            const std::string e = rt.guardarDestino(a);
+            if (!e.empty()) return done(ToolResult::error(e));
+            emit vm.destinosChanged();
+            done(ToolResult().data(json{{"destinos", rt.destinos()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "stream_destino_borrar";
+        t.title = "Borrar un destino de transmision";
+        t.category = "salidas";
+        t.destructive = true;
+        t.description = "Borra el destino `id` (si estaba transmitiendo, lo corta) y su clave guardada.";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            const std::string e = rt.borrarDestino(a.value("id", std::string()));
+            if (!e.empty()) return done(ToolResult::error(e));
+            emit vm.destinosChanged();
+            done(ToolResult::ok("Borrado."));
         };
         core_.addTool(std::move(t));
     }

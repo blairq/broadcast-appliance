@@ -354,6 +354,14 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void toggleRecording();
     Q_INVOKABLE void startStreaming(const QString& server, const QString& key);
     Q_INVOKABLE void stopStreaming();
+    /// Pasa la transmisión a otro destino estando al aire (lo confirmó el operador).
+    Q_INVOKABLE void cambiarDestinoStream(const QString& server, const QString& key);
+    // Destinos adicionales (respaldo, otras plataformas): comparten los codificadores.
+    Q_INVOKABLE QVariantList destinosUi() const;
+    Q_INVOKABLE QString guardarDestinoUi(const QVariantMap& d);
+    Q_INVOKABLE QString borrarDestinoUi(const QString& id);
+    Q_INVOKABLE QString iniciarDestinoUi(const QString& id);
+    Q_INVOKABLE void detenerDestinoUi(const QString& id);
     // --- Bus de preview y TAKE ------------------------------------------------
     // Una mesa de switcher tiene DOS buses: lo que esta al aire (programa) y lo
     // que va a salir (preview). El operador arma el proximo plano, lo MIRA, y
@@ -465,6 +473,9 @@ class StudioViewModel : public QObject {
     void alarmasCambio();
     void escenasAjustesChanged();
     void placaChanged();
+    /// Se pidió transmitir a otro destino estando al aire: que el operador confirme.
+    void pedirCambioDestino(const QString& actual, const QString& nuevoServer, const QString& nuevoKey);
+    void destinosChanged();
 
    private slots:
     void onTick();

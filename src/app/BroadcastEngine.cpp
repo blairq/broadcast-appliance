@@ -378,6 +378,7 @@ void BroadcastEngine::shutdown() {
         return;
     }
     stopStreaming();
+    stopExtras();
     stopRecording();
     soltarVelos(); // FTB y placa
     stopReturnFeeds();
@@ -899,7 +900,8 @@ bool BroadcastEngine::startOutputWithFallback(obs_output* outRaw, const EncoderC
         const bool otherActive = (streamOutput_ != nullptr && streamOutput_ != outRaw &&
                                   obs_output_active(reinterpret_cast<obs_output_t*>(streamOutput_))) ||
                                  (recordOutput_ != nullptr && recordOutput_ != outRaw &&
-                                  obs_output_active(reinterpret_cast<obs_output_t*>(recordOutput_)));
+                                  obs_output_active(reinterpret_cast<obs_output_t*>(recordOutput_))) ||
+                                 algunExtraActivo(outRaw);
         if (otherActive || encoderIndex_ + 1 >= encoderCandidates_.size()) {
             setError(why);
             return false;
@@ -914,14 +916,41 @@ bool BroadcastEngine::startOutputWithFallback(obs_output* outRaw, const EncoderC
     }
 }
 
-bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc) {
+namespace {
+std::string enmascarar(const std::string& server, const std::string& key) {
+    std::string s = server;
+    if (!key.empty()) s += " (clave …" + (key.size() > 4 ? key.substr(key.size() - 4) : key) + ")";
+    return s;
+}
+} // namespace
+
+std::string BroadcastEngine::destinoActivo() const { return enmascarar(activeServer_, activeKey_); }
+
+bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente) {
     if (!started_) {
         setError("startStreaming sin startup");
+        ultimoInicio_ = Inicio::Error;
         return false;
     }
     if (streamOutput_ != nullptr && obs_output_active(reinterpret_cast<obs_output_t*>(streamOutput_))) {
-        return true;
+        // Ya está al aire: si es el mismo destino, nada que hacer; si es otro,
+        // NO se dice que sí (antes devolvía éxito y el operador creía que salía
+        // por el nuevo).
+        const bool mismo = (stream.server.empty() || stream.server == activeServer_) &&
+                           (stream.key.empty() || stream.key == activeKey_);
+        if (mismo) {
+            ultimoInicio_ = Inicio::YaIgual;
+            return true;
+        }
+        if (!cambiarEnCaliente) {
+            ultimoInicio_ = Inicio::YaOtroDestino;
+            setError("ya está transmitiendo a " + destinoActivo() + "; para cambiar a " +
+                     enmascarar(stream.server, stream.key) + " hay que pedirlo explícitamente (cambiar en caliente)");
+            return false;
+        }
+        stopStreaming();
     }
+    ultimoInicio_ = Inicio::Error;
     if (stream.server.empty()) {
         setError("startStreaming sin servidor");
         return false;
@@ -962,7 +991,95 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     }
     streamOutput_ = reinterpret_cast<obs_output*>(out);
     watchOutput(streamOutput_);
+    activeServer_ = stream.server;
+    activeKey_ = stream.key;
+    ultimoInicio_ = Inicio::Iniciado;
     return true;
+}
+
+bool BroadcastEngine::algunExtraActivo(const void* menos) const {
+    for (const auto& [id, x] : extras_)
+        if (x.output != nullptr && x.output != menos && obs_output_active(reinterpret_cast<obs_output_t*>(x.output)))
+            return true;
+    return false;
+}
+
+bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key,
+                                 const EncoderConfig& enc) {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (server.empty()) {
+        setError("el destino no tiene servidor");
+        return false;
+    }
+    auto it = extras_.find(id);
+    if (it != extras_.end() && it->second.output != nullptr &&
+        obs_output_active(reinterpret_cast<obs_output_t*>(it->second.output)))
+        return true;
+    stopExtra(id);
+    if (!ensureEncoders(enc)) return false;
+    obs_data_t* ss = obs_data_create();
+    obs_data_set_string(ss, "server", server.c_str());
+    obs_data_set_string(ss, "key", key.c_str());
+    obs_service_t* svc = obs_service_create_private("rtmp_custom", ("servicio-" + id).c_str(), ss);
+    obs_data_release(ss);
+    obs_output_t* out = svc != nullptr ? obs_output_create("rtmp_output", ("destino-" + id).c_str(), nullptr, nullptr)
+                                       : nullptr;
+    if (out == nullptr) {
+        if (svc != nullptr) obs_service_release(svc);
+        setError("no se pudo crear la salida del destino");
+        return false;
+    }
+    obs_output_set_service(out, svc);
+    obs_output_set_reconnect_settings(out, 20, 2); // reintenta solo, como el principal
+    obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
+    obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
+    if (!obs_output_start(out)) {
+        const char* err = obs_output_get_last_error(out);
+        setError(std::string("el destino no arrancó: ") + (err != nullptr && *err ? err : "sin detalle"));
+        obs_output_release(out);
+        obs_service_release(svc);
+        return false;
+    }
+    Extra x;
+    x.server = server;
+    x.key = key;
+    x.output = out;
+    x.service = svc;
+    extras_[id] = x;
+    return true;
+}
+
+void BroadcastEngine::stopExtra(const std::string& id) {
+    auto it = extras_.find(id);
+    if (it == extras_.end()) return;
+    if (auto* o = reinterpret_cast<obs_output_t*>(it->second.output)) {
+        if (obs_output_active(o)) obs_output_stop(o);
+        obs_output_release(o);
+    }
+    if (auto* s = reinterpret_cast<obs_service_t*>(it->second.service)) obs_service_release(s);
+    extras_.erase(it);
+}
+
+void BroadcastEngine::stopExtras() {
+    while (!extras_.empty()) stopExtra(extras_.begin()->first);
+}
+
+nlohmann::json BroadcastEngine::extrasEstado() const {
+    nlohmann::json out = nlohmann::json::object();
+    for (const auto& [id, x] : extras_) {
+        auto* o = reinterpret_cast<obs_output_t*>(x.output);
+        const bool activo = o != nullptr && obs_output_active(o);
+        out[id] = {{"activo", activo},
+                   {"reconectando", o != nullptr && obs_output_reconnecting(o)},
+                   {"perdidos", o != nullptr ? obs_output_get_frames_dropped(o) : 0},
+                   {"cuadros", o != nullptr ? obs_output_get_total_frames(o) : 0},
+                   {"bytes", o != nullptr ? static_cast<std::uint64_t>(obs_output_get_total_bytes(o)) : 0},
+                   {"destino", enmascarar(x.server, x.key)}};
+    }
+    return out;
 }
 
 void BroadcastEngine::stopStreaming() {

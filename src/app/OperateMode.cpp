@@ -533,7 +533,7 @@ void AppRuntime::restoreOutputs() {
     }
 }
 
-bool AppRuntime::startStreaming(const std::string& server, const std::string& key) {
+bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
     StreamConfig sc = cfg_.streamCfg;
     if (!server.empty()) {
         sc.server = server;
@@ -555,7 +555,7 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
         lastError_ = "no hay servidor de transmision configurado";
         return false;
     }
-    if (!engine_.startStreaming(sc, cfg_.encoder)) {
+    if (!engine_.startStreaming(sc, cfg_.encoder, cambiarEnCaliente)) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: la transmision no arranco: %s\n", lastError_.c_str());
         return false;
@@ -575,6 +575,103 @@ void AppRuntime::stopStreaming() {
     streamStopWanted_ = true;
     writeOnAirState();
     engine_.stopStreaming();
+}
+
+namespace {
+nlohmann::json leerDestinos(const std::filesystem::path& root) {
+    std::ifstream f(root / "Config" / "destinos.json");
+    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
+    return j.is_array() ? j : nlohmann::json::array();
+}
+void escribirDestinos(const std::filesystem::path& root, const nlohmann::json& d) {
+    std::error_code ec;
+    std::filesystem::create_directories(root / "Config", ec);
+    std::ofstream o(root / "Config" / "destinos.json");
+    o << d.dump(1);
+}
+} // namespace
+
+nlohmann::json AppRuntime::destinos() const {
+    const nlohmann::json est = engine_.extrasEstado();
+    nlohmann::json out = nlohmann::json::array();
+    for (nlohmann::json d : leerDestinos(root_)) {
+        const std::string id = d.value("id", std::string());
+        d["tiene_clave"] = ba::security::CredentialStore::bundle().exists("stream-" + id);
+        const nlohmann::json e = est.value(id, nlohmann::json::object());
+        d["activo"] = e.value("activo", false);
+        d["reconectando"] = e.value("reconectando", false);
+        d["perdidos"] = e.value("perdidos", 0);
+        d["cuadros"] = e.value("cuadros", 0);
+        d["bytes"] = e.value("bytes", 0);
+        out.push_back(d);
+    }
+    return out;
+}
+
+std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idOut) {
+    const std::string url = d.value("url", std::string());
+    nlohmann::json lista = leerDestinos(root_);
+    std::string id = d.value("id", std::string());
+    nlohmann::json* existente = nullptr;
+    for (auto& x : lista)
+        if (!id.empty() && x.value("id", std::string()) == id) existente = &x;
+    if (existente == nullptr) {
+        if (url.rfind("rtmp://", 0) != 0 && url.rfind("rtmps://", 0) != 0)
+            return "`url`: rtmp:// o rtmps:// (SRT, más adelante)";
+        if (id.empty()) {
+            int n = 1;
+            const auto usado = [&](const std::string& c) {
+                for (const auto& x : lista)
+                    if (x.value("id", std::string()) == c) return true;
+                return false;
+            };
+            while (usado("destino-" + std::to_string(n))) ++n;
+            id = "destino-" + std::to_string(n);
+        }
+        lista.push_back({{"id", id}, {"nombre", d.value("nombre", id)}, {"url", url}, {"respaldo", d.value("respaldo", false)}});
+    } else {
+        for (const char* k : {"nombre", "url", "respaldo"})
+            if (d.contains(k)) (*existente)[k] = d[k];
+    }
+    if (d.contains("clave") && d["clave"].is_string() && !d["clave"].get<std::string>().empty())
+        ba::security::CredentialStore::bundle().write("stream-" + id, d["clave"].get<std::string>());
+    escribirDestinos(root_, lista);
+    if (idOut != nullptr) *idOut = id;
+    return {};
+}
+
+std::string AppRuntime::borrarDestino(const std::string& id) {
+    nlohmann::json lista = leerDestinos(root_), nueva = nlohmann::json::array();
+    for (const auto& x : lista)
+        if (x.value("id", std::string()) != id) nueva.push_back(x);
+    if (nueva.size() == lista.size()) return "no hay un destino «" + id + "»";
+    engine_.stopExtra(id);
+    ba::security::CredentialStore::bundle().remove("stream-" + id);
+    escribirDestinos(root_, nueva);
+    return {};
+}
+
+std::string AppRuntime::iniciarDestino(const std::string& id) {
+    std::string errores;
+    bool alguno = false;
+    for (const auto& d : leerDestinos(root_)) {
+        const std::string did = d.value("id", std::string());
+        if (id != "todos" && did != id) continue;
+        alguno = true;
+        std::string clave;
+        ba::security::CredentialStore::bundle().read("stream-" + did, clave);
+        if (!engine_.startExtra(did, d.value("url", std::string()), clave, cfg_.encoder))
+            errores += (errores.empty() ? "" : "; ") + did + ": " + engine_.lastError();
+    }
+    if (!alguno) return "no hay un destino «" + id + "» (stream_destinos los lista)";
+    return errores;
+}
+
+void AppRuntime::detenerDestino(const std::string& id) {
+    if (id == "todos")
+        engine_.stopExtras();
+    else
+        engine_.stopExtra(id);
 }
 
 // --- Escenas y fuentes ----------------------------------------------------------

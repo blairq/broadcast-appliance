@@ -34,6 +34,7 @@ const std::map<std::string, std::string>& fijas() {
         {"ptz_seguir", "una cámara sigue a alguien (si está al aire, se ve)"},
         {"participant_talk", "abre o cierra el micrófono de un invitado"},
         {"aire_ftb", "manda la salida a negro"},
+        {"stream_destino_borrar", "borra un destino (si transmite, lo corta)"},
         {"aire_placa", "tapa la salida con una placa"},
     };
     return m;
