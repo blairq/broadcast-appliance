@@ -175,6 +175,12 @@ class AppRuntime {
 
    private:
     void addGuests();
+   public:
+    /// El cupo de invitados cambió en caliente (T33): agrega el audio de los lugares
+    /// nuevos (los que sobran quedan, mudos hasta que alguien entre).
+    void ajustarInvitados(int n);
+
+   private:
     void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
     /// con --restore para retomar la emision tras una caida.

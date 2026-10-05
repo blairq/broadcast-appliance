@@ -54,6 +54,7 @@ inline constexpr int kMaxGuests = 16;
 struct Config {
     // --- CLI ---------------------------------------------------------------
     int guests = 2;                        // 1..kMaxGuests (default 2)
+    int guestsReserve = 0;                 // lugares reservados (cupo en caliente hasta acá); 0 = guests
     uint16_t port = 8787;                  // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
     std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
@@ -126,6 +127,7 @@ struct Config {
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
         if (!j.is_object()) return;
         guests = j.value("guests", guests);
+        guestsReserve = j.value("guestsReserva", guestsReserve);
         port = j.value("port", port);
         bindAddress = j.value("bindAddress", bindAddress);
         room = j.value("room", room);
@@ -174,6 +176,8 @@ struct Config {
             };
             if (arg == "--guests") {
                 guests = static_cast<int>(nextInt());
+            } else if (arg == "--guests-reserve") {
+                guestsReserve = static_cast<int>(nextInt());
             } else if (arg == "--port") {
                 port = static_cast<uint16_t>(nextInt());
             } else if (arg == "--metrics-port") {
@@ -214,6 +218,7 @@ struct Config {
         }
         if (guests < kMinGuests) guests = kMinGuests;
         if (guests > kMaxGuests) guests = kMaxGuests;
+        guestsReserve = std::clamp(std::max(guestsReserve, guests), guests, kMaxGuests);
         if (port == 0) port = 8787;
         if (metricsPort == 0) metricsPort = 9099;
         if (durationMs < 0) durationMs = 0;

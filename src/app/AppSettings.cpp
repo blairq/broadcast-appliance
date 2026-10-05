@@ -247,7 +247,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.streamKeyEnv = get<std::string>(st, "keyEnv", "BA_STREAM_KEY");
 
     const json g = j.value("guests", json::object());
-    c.guests = std::clamp(get(g, "count", 2), 0, 4);
+    c.guests = std::clamp(get(g, "count", 2), 0, 16);
     c.guestVideo = get(g, "video", true);
     c.guestAudio = get(g, "audio", true);
     c.guestAudioPreset = get<std::string>(g, "audioPreset", "podium");
@@ -379,6 +379,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     const json j = readJson(path, exists);
     GatewaySettings s;
     s.guests = get(j, "guests", s.guests);
+    s.guestsReserva = get(j, "guestsReserva", s.guestsReserva);
     s.port = get(j, "port", s.port);
     s.bindAddress = get<std::string>(j, "bindAddress", s.bindAddress);
     s.room = get<std::string>(j, "room", s.room);
@@ -413,6 +414,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
 bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::string* err) {
     return writeJson(path,
                      json{{"guests", s.guests},
+                          {"guestsReserva", std::max(s.guestsReserva, s.guests)},
                           {"port", s.port},
                           {"bindAddress", s.bindAddress},
                           {"room", s.room},

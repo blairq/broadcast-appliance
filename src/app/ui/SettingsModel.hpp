@@ -65,12 +65,15 @@ class SettingsModel : public QAbstractListModel {
     /// Modo en vivo (T48): mientras devuelva true, lo que reinicia el gateway o el
     /// programa no se aplica (corta a los invitados o el aire).
     void setEnVivo(std::function<bool()> fn) { enVivo_ = std::move(fn); }
+    /// Cambiar el cupo de invitados sin reiniciar la sala (T33). "" o el error.
+    void setCupoEnCaliente(std::function<std::string(int)> fn) { cupoEnCaliente_ = std::move(fn); }
 
    signals:
     void dirtyChanged();
     void applied(const QString& summary);
 
    private:
+    std::function<std::string(int)> cupoEnCaliente_;
     struct Field {
         QString key;
         QString section;

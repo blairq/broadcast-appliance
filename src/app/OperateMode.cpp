@@ -229,6 +229,17 @@ bool AppRuntime::removeAudioInput(const std::string& name) {
     return ok;
 }
 
+void AppRuntime::ajustarInvitados(int n) {
+    const int antes = cfg_.guests;
+    cfg_.guests = n;
+    gateway_.guests = n;
+    if (cfg_.guestAudio)
+        for (int slot = antes + 1; slot <= n; ++slot)
+            if (!engine_.addGuestAudio(slot))
+                std::printf("ba-app: invitado %d (audio) omitido: %s\n", slot, engine_.lastError().c_str());
+    save();
+}
+
 void AppRuntime::addGuests() {
     // Audio de invitados: global (canal propio), siempre en la mezcla.
     for (int slot = 1; slot <= cfg_.guests; ++slot) {

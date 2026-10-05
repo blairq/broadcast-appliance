@@ -514,7 +514,7 @@ int main(int argc, char** argv) {
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby
     // o en la fila de oradores, que ve el programa).
-    WebrtcHub hub(cfg.guests + cfg.lobbySlots + cfg.maxBackstage, cfg.guestVideoW, cfg.guestVideoH,
+    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
@@ -533,7 +533,7 @@ int main(int argc, char** argv) {
                     &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {
         v->emplace_back();
     }
-    for (int s = 1; s <= cfg.guests; ++s) {
+    for (int s = 1; s <= cfg.guestsReserve; ++s) { // los reservados: el cupo cambia en caliente
         pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
         pumpCfg.returnSlotNames.push_back(toWide("BA.Audio.Return." + std::to_string(s)));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
@@ -560,6 +560,7 @@ int main(int argc, char** argv) {
     Room::Cfg roomCfg;
     roomCfg.name = cfg.room;
     roomCfg.maxGuests = cfg.guests;
+    roomCfg.reserva = cfg.guestsReserve;
     roomCfg.lobby = cfg.lobby;
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;

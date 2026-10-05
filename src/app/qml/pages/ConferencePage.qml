@@ -13,6 +13,14 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var conf: Studio.conference
+    // El resultado de una «Prueba técnica» (eco y red).
+    Connections {
+        target: page.conf
+        function onPruebaLista(id, r) {
+            Studio.notify("Prueba técnica: " + r.recomendacion + (r.red && r.red.rtt_ms !== undefined ? " (rtt " + Math.round(r.red.rtt_ms) + " ms, pérdida " + (r.red.perdida_pct || 0) + " %)" : ""),
+                          r.eco || (r.red && r.red.semaforo === "rojo") || !r.ok ? "warn" : "ok")
+        }
+    }
 
     // Reloj para los "hace N min" (sin tocar el modelo).
     property double now: Date.now()
@@ -437,6 +445,7 @@ Rectangle {
                             required property string speaker
                             required property string info
                             required property string contact
+                            required property bool talk
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
@@ -498,6 +507,23 @@ Rectangle {
                                             compact: true
                                             text: cam ? "Apagar cámara" : "Encender cámara"
                                             onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
+                                        }
+                                        // IFB: mientras lo mantenés apretado le llega tu voz (mezclada con el
+                                        // retorno, el programa baja). No sale al aire.
+                                        GlassButton {
+                                            compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
+                                            active: talk; activeColor: Theme.ok
+                                            onPressed2: conf.talk(uid, true)
+                                            onReleased2: conf.talk(uid, false)
+                                            onCanceled2: conf.talk(uid, false)
+                                            ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
+                                            ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "Prueba técnica"
+                                            onClicked: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") }
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: "Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red"
                                         }
                                         GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
                                         GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }

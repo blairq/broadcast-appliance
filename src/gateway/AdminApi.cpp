@@ -38,7 +38,8 @@
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
-//   POST   /api/v1/participants/<id>/talk      {on}  (lobby: hablarle en privado)
+//   POST   /api/v1/participants/<id>/talk      {on}  (lobby: en privado; adentro: IFB)
+//   POST   /api/v1/participants/<id>/prueba    {ms}  prueba técnica: eco y red (bloquea ms)
 //   POST   /api/v1/participants/<id>/onair     {on}  modo oradores: al aire / fuera
 //   POST   /api/v1/participants/<id>/move      {index}  lugar en la fila (0 = primero)
 //   POST   /api/v1/participants/<id>/time      {sec}  tiempo propio para hablar
@@ -80,6 +81,7 @@
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
+#include "MediaPump.hpp"
 
 #include "diag/Registro.hpp"
 
@@ -308,6 +310,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 room_.setLocked(req["locked"].get<bool>());
             if (req.contains("intake") && req["intake"].is_boolean())
                 room_.setIntake(req["intake"].get<bool>());
+            if (req.contains("cupo") && req["cupo"].is_number_integer()) {
+                const int r = room_.setCupo(req["cupo"].get<int>());
+                if (r != Room::kOk) {
+                    sendJson(fd, 409, json{{"ok", false},
+                                           {"error", r == Room::kFull ? "hay invitados en lugares que se irían"
+                                                                      : "fuera de los lugares reservados (cambiar la reserva reinicia la sala)"}});
+                    return;
+                }
+            }
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
@@ -928,6 +939,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.kick(id));
         } else if (action == "talk") {
             sendRoomResult(fd, room_.setTalk(id, req.value("on", true)));
+        } else if (action == "prueba") {
+            // Prueba técnica (T33): eco por su micrófono y estado de la red. Tarda lo
+            // que dura (2 a 8 s): este pedido queda esperando, la sala sigue.
+            int sesion = 0;
+            {
+                std::lock_guard<std::mutex> l(sessLock_);
+                const auto it = sessionOf_.find(id);
+                if (it != sessionOf_.end()) sesion = it->second;
+            }
+            if (pump_ == nullptr || sesion == 0) {
+                sendJson(fd, 409, json{{"ok", false}, {"error", "ese participante no está mandando medios"}});
+            } else {
+                const json r = json::parse(pump_->pruebaTecnica(sesion, req.value("ms", 4000)), nullptr, false);
+                sendJson(fd, r.is_object() && !r.contains("error") ? 200 : 409, r);
+            }
         } else if (action == "request") {
             sendRoomResult(fd, room_.request(id, req.value("what", "")));
         } else if (action == "onair") {

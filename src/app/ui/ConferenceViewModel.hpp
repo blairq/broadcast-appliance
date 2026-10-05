@@ -189,6 +189,10 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void kick(const QString& id);
     /// Lobby: hablarle en privado (le llega tu voz y vos escuchas la suya).
     Q_INVOKABLE void talk(const QString& id, bool on);
+    /// Prueba técnica (T33): eco por su micrófono y red. El resultado llega por pruebaLista.
+    Q_INVOKABLE void pruebaTecnica(const QString& id);
+    /// Lo que hay que decirle al operador según el resultado de la prueba.
+    static QString recomendacionPrueba(const QJsonObject& r);
     /// Elegir con que fuentes te ve/oye el lobby ("" = ninguna).
     Q_INVOKABLE void setOperatorFeed(const QString& video, const QString& audio);
     /// Refresca las listas de fuentes (se agregaron o quitaron fuentes).
@@ -229,6 +233,7 @@ class ConferenceViewModel : public QObject {
                                            const QString& iface);
 
    signals:
+    void pruebaLista(const QString& id, const QVariantMap& resultado);
     void onlineChanged();
     void roomChanged();
     void autoIntakeChanged();

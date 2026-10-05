@@ -72,7 +72,8 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"stream.keyEnv", "Transmision", "Variable con la clave", "text", {}, 0, 0, "", "La clave no se guarda en disco: se lee de esta variable de entorno o se escribe al transmitir.", "live", "BA_STREAM_KEY"},
         {"stream.onStart", "Transmision", "Transmitir al arrancar", "bool", {}, 0, 0, "", "", "live", false},
         // --- Invitados -------------------------------------------------------
-        {"guests.count", "Invitados", "Cantidad de invitados", "int", {}, 0, 16, "", "Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la sala» antes de subirlo mucho. Cambiarla reinicia el gateway.", "gateway", 2},
+        {"guests.count", "Invitados", "Cantidad de invitados", "int", {}, 0, 16, "", "Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la sala» antes de subirlo mucho. Hasta los reservados cambia en caliente; más, reinicia el gateway.", "live", 2},
+        {"guests.reserva", "Invitados", "Lugares reservados", "int", {}, 1, 16, "", "Los que la sala prepara al arrancar: el cupo se puede cambiar sin cortar a nadie hasta este número. Cambiarlo reinicia el gateway.", "gateway", 4},
         {"guests.video", "Invitados", "Video de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audio", "Invitados", "Audio de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audioPreset", "Invitados", "Procesamiento de voz", "choice", choices({{"podium","Podio"},{"lavalier","Corbatero"},{"handheld","De mano"},{"","Sin procesar"}}), 0, 0, "", "Channel strip nativo: HPF, EQ, de-esser, gate, compresor y limitador.", "restart", "podium"},
@@ -161,6 +162,7 @@ QVariantMap SettingsModel::current() const {
         {"stream.keyEnv", qs(c.streamKeyEnv)},
         {"stream.onStart", c.stream},
         {"guests.count", c.guests},
+        {"guests.reserva", const_cast<AppRuntime&>(rt_).gateway().guestsReserva},
         {"guests.video", c.guestVideo},
         {"guests.audio", c.guestAudio},
         {"guests.audioPreset", qs(c.guestAudioPreset)},
@@ -392,8 +394,17 @@ QString SettingsModel::apply() {
     }
 
     bool restartB = false;
-    if (changed("gateway.") || changed("guests.count") || changed("room.") || changed("direct.") ||
-        changed("wg.")) {
+    // El cupo, sin reiniciar la sala, si entra en lo reservado y no cambió nada más de la sala.
+    const bool soloCupo = changed("guests.count") && !changed("gateway.") && !changed("room.") && !changed("direct.") &&
+                          !changed("wg.") && !changed("guests.reserva") && cupoEnCaliente_ &&
+                          i("guests.count") <= rt_.gateway().guestsReserva;
+    if (soloCupo) {
+        const std::string e = cupoEnCaliente_(i("guests.count"));
+        notes << (e.empty() ? QString("Cupo de invitados: %1 (sin reiniciar la sala).").arg(i("guests.count"))
+                            : "Cupo: " + QString::fromStdString(e));
+    }
+    if (!soloCupo && (changed("gateway.") || changed("guests.count") || changed("guests.reserva") || changed("room.") ||
+                      changed("direct.") || changed("wg."))) {
         GatewaySettings& g = rt_.gateway();
         g.room = s("gateway.room");
         g.port = static_cast<std::uint16_t>(i("gateway.port"));
@@ -421,6 +432,7 @@ QString SettingsModel::apply() {
         g.wgPublicAddress = s("wg.publicAddress");
         g.wgKeepalive = i("wg.keepalive");
         c.guests = i("guests.count");
+        g.guestsReserva = std::max(i("guests.reserva"), c.guests);
         restartB = true;
     }
     LauncherSettings& l = rt_.launcher();

@@ -89,7 +89,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
                                                           "mic", "cam", "screen", "hand", "admittedMs",
-                                                          "presenter", "speaker", "info", "contact"})),
+                                                          "presenter", "speaker", "info", "contact", "talk"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
@@ -458,6 +458,33 @@ void ConferenceViewModel::participantAction(const QString& id, const QString& ac
                                             const QJsonObject& body) {
     client_->post("/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/" + action,
                   body);
+}
+
+void ConferenceViewModel::pruebaTecnica(const QString& id) {
+    // Tarda ~5 s (tono por su retorno y lo que vuelve por su micrófono): timeout largo.
+    client_->post(
+        "/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/prueba", QJsonObject{{"ms", 4000}},
+        [this, id](bool ok, const QJsonObject& r) {
+            QVariantMap m = r.toVariantMap();
+            m["ok"] = ok;
+            m["recomendacion"] = recomendacionPrueba(r);
+            emit pruebaLista(id, m);
+        },
+        15000);
+}
+
+QString ConferenceViewModel::recomendacionPrueba(const QJsonObject& r) {
+    if (r.contains("error")) return r.value("error").toString();
+    QStringList out;
+    if (r.value("eco").toBool())
+        out << QString("Se escucha el retorno por su micrófono (%1 dB): que use auriculares o baje el parlante.")
+                   .arg(r.value("eco_db").toDouble(), 0, 'f', 1);
+    const QJsonObject red = r.value("red").toObject();
+    const QString sem = red.value("semaforo").toString();
+    if (sem == "rojo") out << "La red no alcanza: que se acerque al wifi o use cable (o bajarle la calidad).";
+    else if (sem == "ambar") out << "La red anda justa: puede haber cortes.";
+    if (r.contains("aviso")) out << r.value("aviso").toString();
+    return out.isEmpty() ? QString("Todo bien: sin eco y la red alcanza.") : out.join(" ");
 }
 
 void ConferenceViewModel::admit(const QString& id) { participantAction(id, "admit"); }

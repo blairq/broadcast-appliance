@@ -34,6 +34,7 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -106,6 +107,12 @@ class MediaPump {
     void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
 
+    /// Prueba técnica de un invitado admitido (T33): durante `ms` le suma al retorno un
+    /// tono de 1 kHz cortado (250 ms sí, 250 no) y mira cuánto de ese tono vuelve por su
+    /// micrófono (correlación con el patrón, a cualquier demora hasta 1 s). Bloquea `ms`.
+    /// {eco_db (cuánto más 1 kHz hay con el tono que sin), demora_ms, eco: bool, red: {…}}.
+    std::string pruebaTecnica(int session, int ms);
+
    private:
     /// Canal de video B->A con tamaño fijo (el frame se ajusta adentro).
     struct VideoOut {
@@ -160,6 +167,18 @@ class MediaPump {
     std::vector<std::unique_ptr<VideoOut>> backstageVideo_;
     std::vector<std::unique_ptr<AudioOut>> guestAudio_;
     std::vector<std::unique_ptr<AudioOut>> lobbyAudio_;
+
+    // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
+    // hilo del retorno la mezcla con el programa (una sola fuente por sesión).
+    std::mutex ifbLock_;
+    std::deque<float> ifb_;
+    // Prueba técnica: la sesión que se prueba, la fase del tono y la energía de 1 kHz
+    // que vuelve por su micrófono, en trozos de 20 ms desde que empezó.
+    std::atomic<int> pruebaSesion_{0};
+    std::atomic<std::int64_t> pruebaDesdeNs_{0};
+    double pruebaFase_ = 0;
+    std::mutex pruebaLock_;
+    std::vector<double> pruebaBins_;
 
     mutable std::mutex routesLock_;
     std::vector<MediaRoute> routes_; // por sesion, [0] reservado

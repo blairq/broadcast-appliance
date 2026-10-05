@@ -131,8 +131,8 @@ void ConferenceClient::setOnline(bool on) {
     emit onlineChanged(on);
 }
 
-void ConferenceClient::post(const QString& path, const QJsonObject& body, Done done) {
-    send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done));
+void ConferenceClient::post(const QString& path, const QJsonObject& body, Done done, int timeoutMs) {
+    send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), timeoutMs);
 }
 
 void ConferenceClient::del(const QString& path, Done done) { send("DELETE", path, {}, std::move(done)); }
@@ -155,7 +155,8 @@ void ConferenceClient::getRaw(const QString& path, std::function<void(bool, cons
     });
 }
 
-void ConferenceClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done) {
+void ConferenceClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done,
+                            int timeoutMs) {
     if (port_ <= 0 || token_.isEmpty()) {
         emit failed("offline");
         if (done) done(false, {});
@@ -164,7 +165,7 @@ void ConferenceClient::send(const QByteArray& verb, const QString& path, const Q
     QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1%2").arg(port_).arg(path)));
     req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setTransferTimeout(5000);
+    req.setTransferTimeout(timeoutMs);
     QNetworkReply* r = nam_.sendCustomRequest(req, verb, body);
     connect(r, &QNetworkReply::finished, this, [this, r, done]() {
         r->deleteLater();

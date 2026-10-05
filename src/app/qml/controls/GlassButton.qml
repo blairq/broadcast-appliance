@@ -11,7 +11,14 @@ Rectangle {
     property bool compact: false
     /// El mouse esta encima (para ToolTip.visible, como en los controles de Qt).
     readonly property bool hovered: ma.containsMouse
+    /// Apretado ahora (para «mantener para hablar»).
+    readonly property bool pressed: ma.pressed
     signal clicked()
+    /// Apretar / soltar / cancelado (el mouse salió o se perdió el foco): para los
+    /// botones de «mantener».
+    signal pressed2()
+    signal released2()
+    signal canceled2()
 
     implicitHeight: compact ? 30 : 38
     implicitWidth: row.implicitWidth + (compact ? 20 : 28)
@@ -41,5 +48,11 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; onClicked: btn.clicked(); cursorShape: Qt.PointingHandCursor }
+    MouseArea {
+        id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        onClicked: btn.clicked()
+        onPressed: btn.pressed2()
+        onReleased: btn.released2()
+        onCanceled: btn.canceled2()
+    }
 }

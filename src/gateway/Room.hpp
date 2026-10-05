@@ -130,6 +130,9 @@ class Room {
     struct Cfg {
         std::string name = "sala1";
         int maxGuests = 2;
+        /// Lugares reservados al arrancar (sesiones y canales hacia A): el cupo se puede
+        /// cambiar en caliente hasta acá (setCupo). 0 = igual a maxGuests.
+        int reserva = 0;
         bool lobby = true;      ///< true: el operador admite a cada uno
         int graceMs = 30000;    ///< cuanto se guarda el lugar de un desconectado
         int maxWaiting = 16;    ///< tope del lobby
@@ -199,6 +202,9 @@ class Room {
     /// `to`: "all" o el id de un participante.
     int chatFromHost(const std::string& to, const std::string& text, int64_t nowMs);
     void setLobby(bool on, int64_t nowMs);
+    /// El cupo del programa, sin reiniciar (1..reserva). kFull si un lugar que se
+    /// iría está ocupado; kBadState si está fuera de lo reservado.
+    int setCupo(int n);
     void setLocked(bool on);
     /// El asistente esta atendiendo el lobby: la app del invitado deja de
     /// pedirle los datos al entrar, porque se los va a preguntar el asistente

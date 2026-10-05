@@ -298,7 +298,10 @@ void testLobbyMedia() {
         sawC = sawC || (id == c.id && r.kind == K::Lobby);
     }
     CHECK(sawA && sawC, "las rutas nuevas se informan al servidor");
-    CHECK(room.setTalk(a.id, true) == Room::kBadState, "adentro no hay conversacion privada");
+    // Adentro, «hablar» es IFB (T33): la voz del operador mezclada con su retorno.
+    CHECK(room.setTalk(a.id, true) == Room::kOk, "adentro se le puede hablar (IFB)");
+    CHECK(room.routeOf(a.id).kind == K::Program && room.routeOf(a.id).talk, "sigue en el programa, con talk");
+    CHECK(room.setTalk(a.id, false) == Room::kOk && !room.routeOf(a.id).talk, "y se corta");
 
     routes.clear();
     room.kick(b.id);
@@ -308,6 +311,26 @@ void testLobbyMedia() {
     CHECK(none, "al irse, su ruta pasa a None (se cierra su sesion)");
     CHECK(findParticipant(room.snapshot(), c.id)["lobbySlot"] == 1,
           "el snapshot muestra el lugar de preview");
+}
+
+void testCupo() {
+    // T33: el cupo cambia en caliente dentro de lo reservado; bajarlo no saca a nadie.
+    Room::Cfg cfg;
+    cfg.maxGuests = 1;
+    cfg.reserva = 3;
+    cfg.lobby = false;
+    Room room(cfg);
+    const auto a = room.connect("A", "", 0);
+    const auto b = room.connect("B", "", 0);
+    CHECK(room.slotOf(a.id) == 1 && room.slotOf(b.id) == 0, "con cupo 1, B espera");
+    CHECK(room.setCupo(2) == Room::kOk, "subir el cupo a 2 sin reiniciar");
+    CHECK(room.slotOf(b.id) == 2, "sin lobby, B entra al lugar nuevo");
+    CHECK(room.snapshot()["maxGuests"] == 2 && room.snapshot()["reserva"] == 3, "el snapshot lo muestra");
+    CHECK(room.setCupo(4) == Room::kBadState, "más que lo reservado, no");
+    CHECK(room.setCupo(1) == Room::kFull, "bajar a 1 con el lugar 2 ocupado, no");
+    room.leave(b.id);
+    CHECK(room.setCupo(1) == Room::kOk, "con el lugar 2 libre, sí");
+    CHECK(room.setCupo(0) == Room::kBadState, "cupo 0, no");
 }
 
 void testSpeakers() {
@@ -559,6 +582,7 @@ int main() {
     testChat();
     testLockAndRequests();
     testLobbyMedia();
+    testCupo();
     testSpeakers();
     testSinksUnlocked();
     testShares();

@@ -56,7 +56,7 @@
 | T30 | Interfaz para la grabación ISO (entradas e invitados) | P1 | hecho |
 | T31 | Herramientas de audio del operador: PFL, retardo, SincroLabios, latencia CLAP, PPM | P1 | hecho (sin aviso de correlación ni loudness por fuente) |
 | T32 | Automixer para las bancas | P1 | decisión pendiente (docs/DECISIONES-PENDIENTES.md: los micrófonos tienen que pasar a GStreamer) |
-| T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | parcial |
+| T33 | Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red | P1 | hecho (IFB y prueba de eco sin probar con un invitado real) |
 | T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
 | T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | hecho en parte (plugin con simulador y TCP genérico; falta adaptarlo y probarlo con el equipo real del recinto) |
 | T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | hecho |
@@ -730,7 +730,26 @@
 ## Sala y Legislatura
 
 ### T33 · Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red — P1
-- **Estado: parcial.**
+- **Estado: hecho** (2026-10-05).
+  - **IFB:**
+    - `participant_talk` (y `Room::setTalk`) anda también con los de adentro (programa o fila de oradores);
+    - el `MediaPump` junta la voz del operador en una cola y el hilo del retorno la mezcla con el programa de esa sesión (el programa baja a 0,4), así no hay dos fuentes en el mismo track;
+    - en el lobby sigue siendo privado; al admitir se corta;
+    - GUI: «🎙 Hablarle» en la tarjeta del invitado, mientras se mantiene apretado (`GlassButton` ahora da pressed2/released2/canceled2).
+  - **Cupo en caliente:**
+    - el gateway reserva `guestsReserva` lugares al arrancar (sesiones y canales; de fábrica 4);
+    - el cupo es un límite lógico en `Room` (`setCupo`, `POST /api/v1/room {cupo}`): no saca a nadie y, sin lobby, hace entrar a los que esperaban;
+    - en la app: «Cantidad de invitados» cambia en caliente hasta los reservados, y «Lugares reservados» sí reinicia la sala;
+    - `room_set {cupo}` espera el resultado;
+    - la app agrega el audio de los lugares nuevos.
+    - Probado de punta a punta: cupo 3 sin reiniciar con reserva 4, y de vuelta a 2. También en `test_room`.
+  - **Prueba técnica** (`MediaPump::pruebaTecnica`, `POST /api/v1/participants/<id>/prueba`):
+    - durante 4 s le suma al retorno un tono de 1 kHz cortado (250/250 ms);
+    - mide con Goertzel cuánto 1 kHz vuelve por su micrófono, correlacionado con el patrón a cualquier demora hasta 1 s (`eco_db`, `demora_ms`);
+    - agrega las estadísticas de red de la sesión (T15) y una `recomendacion` en castellano;
+    - MCP: `invitado_prueba {participant}`; GUI: «Prueba técnica» en la tarjeta.
+    - **Sin probar con un invitado real:** el navegador sin pantalla no da micrófono.
+  - Antes:
   - `participant_talk` solo funciona en el lobby (`src/gateway/Room.cpp:321`, `MediaPump.cpp:478-482`).
   - El cupo se fija al arrancar el gateway (`src/gateway/main.cpp:561,592`; `SettingsModel.cpp:68` dice "reinicia el gateway").
   - `invitado_chequeo` mira cara, nivel y mute, pero no eco ni red (`src/app/mcp/McpPreguntaTools.cpp:311-340`).

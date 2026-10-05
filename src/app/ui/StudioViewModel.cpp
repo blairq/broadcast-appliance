@@ -401,6 +401,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
         }
         settings_->setEnVivo([this]() { return modoVivo(); });
+        settings_->setCupoEnCaliente([this](int n) { return cupoUi(n).toStdString(); });
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
         {
             const auto archivo = rt.dataRoot() / "Runtime" / "ultima-caida.json";
@@ -2839,6 +2840,31 @@ QString StudioViewModel::medirSincro(int segundos, std::function<void(const nloh
 QString StudioViewModel::medirSincroUi(int segundos) {
     return medirSincro(segundos, [this](const nlohmann::json& r) {
         emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap());
+    });
+}
+
+QString StudioViewModel::cupo(int n, std::function<void(const QString&)> listo) {
+    if (n < 1 || n > 16) return "el cupo va de 1 a 16";
+    auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
+    if (!cli->online()) return "la sala no está andando";
+    // Lo que reservó la sala AL ARRANCAR (la configuración puede haber cambiado después).
+    const int reserva = cli->snapshot().value("reserva").toInt(rt_.config().guests);
+    if (n > reserva)
+        return QString("la sala reservó %1 lugares: para más, subí «Lugares reservados» (reinicia la sala)").arg(reserva);
+    cli->post("/api/v1/room", QJsonObject{{"cupo", n}}, [this, n, listo](bool ok, const QJsonObject& r) {
+        if (!ok) return listo(r.value("error").toString("la sala no lo aceptó"));
+        rt_.ajustarInvitados(n);
+        frames_->setGuests(n);
+        listo({});
+    });
+    return {};
+}
+
+QString StudioViewModel::cupoUi(int n) {
+    const int antes = rt_.config().guests;
+    return cupo(n, [this, n, antes](const QString& e) {
+        if (!e.isEmpty()) emit notify("Cupo: " + e, "error");
+        else emit notify(QString("Cupo de invitados: %1 → %2, sin reiniciar la sala.").arg(antes).arg(n), "ok");
     });
 }
 

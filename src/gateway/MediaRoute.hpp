@@ -33,13 +33,13 @@ struct MediaRoute {
     enum class Kind : uint8_t { None, Program, Lobby, Backstage };
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
-    bool talk = false; ///< lobby: el operador le habla (le llega su voz)
+    bool talk = false; ///< el operador le habla (le llega su voz; adentro, mezclada con el retorno: IFB)
 
-    static MediaRoute program(int slot) { return {Kind::Program, slot, false}; }
+    static MediaRoute program(int slot, bool talk = false) { return {Kind::Program, slot, talk}; }
     static MediaRoute lobby(int slot, bool talk) { return {Kind::Lobby, slot, talk}; }
     /// `preview`: lugar de preview de la fila (1..backstageSlots) -> su camara
     /// sube a BA.Backstage.<k> (chica, solo para la vista del operador); 0 = no sube.
-    static MediaRoute backstage(int preview = 0) { return {Kind::Backstage, preview, false}; }
+    static MediaRoute backstage(int preview = 0, bool talk = false) { return {Kind::Backstage, preview, talk}; }
     bool operator==(const MediaRoute& o) const {
         return kind == o.kind && index == o.index && talk == o.talk;
     }

@@ -182,12 +182,29 @@ void McpService::registerRoomTools() {
         t.title = "Lobby / sala cerrada";
         t.category = "sala";
         t.description =
-            "Lobby de admision (true = cada invitado espera que lo hagas pasar) y sala cerrada (nadie "
-            "nuevo puede entrar).";
+            "Lobby de admision (true = cada invitado espera que lo hagas pasar), sala cerrada (nadie "
+            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa, SIN reiniciar la sala, hasta los "
+            "lugares reservados (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).";
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"lobby", {{"type", "boolean"}}}, {"locked", {{"type", "boolean"}}}}}};
-        t.run = [post](const json& a, Done done) {
+            {"properties",
+             {{"lobby", {{"type", "boolean"}}},
+              {"locked", {{"type", "boolean"}}},
+              {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
+        t.run = [post, &vm = vm_](const json& a, Done done) {
+            if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
+                const int n = a.value("cupo", 2);
+                const QString e = vm.cupo(n, [done, n](const QString& err) {
+                    if (!err.isEmpty()) done(ToolResult::error("La sala respondio: " + err.toStdString()));
+                    else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la sala."));
+                });
+                if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
+                return;
+            }
+            if (a.contains("cupo")) {
+                const QString e = vm.cupoUi(a.value("cupo", 2));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
             json b = json::object();
             if (a.contains("lobby")) b["lobby"] = a["lobby"];
             if (a.contains("locked")) b["locked"] = a["locked"];
@@ -319,11 +336,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_talk";
-        t.title = "Hablar en privado (lobby)";
+        t.title = "Hablarle a un invitado (lobby en privado, adentro IFB)";
         t.category = "sala";
         t.description =
-            "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas); "
-            "on=false corta.";
+            "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas). "
+            "Con alguien de ADENTRO (programa o fila de oradores) es IFB: le llega tu voz mezclada con su "
+            "retorno (el programa baja), sin salir al aire. on=false corta.";
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}, {"default", true}}}}},
@@ -332,6 +350,32 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             post(partPath(p, "talk"), json{{"on", a.value("on", true)}}, "Listo.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "invitado_prueba";
+        t.title = "Prueba técnica de un invitado: eco y red";
+        t.category = "sala";
+        t.description =
+            "Con alguien de ADENTRO (programa o fila de oradores): le manda un tono de 1 kHz cortado por su "
+            "retorno durante 4 s y mide cuánto vuelve por su micrófono (`eco_db`; más de 10 dB = se escucha el "
+            "parlante: auriculares), y lee su red (rtt, pérdida, jitter, semáforo). Mientras dura, el invitado "
+            "escucha el tono y el programa más bajo: avisale antes. Devuelve `recomendacion` en castellano.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.run = [withPerson, partPath, client](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            client->post(
+                partPath(p, "prueba"), QJsonObject{{"ms", 4000}},
+                [done](bool ok, const QJsonObject& reply) {
+                    json r = fromQt(reply);
+                    r["recomendacion"] = ConferenceViewModel::recomendacionPrueba(reply).toStdString();
+                    if (!ok) return done(ToolResult::error(r.value("error", std::string("la sala no pudo hacer la prueba"))));
+                    done(ToolResult().data(r));
+                },
+                15000);
         };
         core_.addTool(std::move(t));
     }

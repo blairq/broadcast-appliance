@@ -123,6 +123,8 @@ struct AppConfig {
 /// Configuracion de B (gateway.json).
 struct GatewaySettings {
     int guests = 2; ///< copia de AppConfig::guests (la fuente de verdad es A)
+    /// Lugares reservados al arrancar la sala: el cupo cambia sin reiniciar hasta acá (T33).
+    int guestsReserva = 4;
     std::uint16_t port = 8787;
     std::string bindAddress = "127.0.0.1"; ///< "0.0.0.0" = accesible en la red local
     std::string room = "sala1";

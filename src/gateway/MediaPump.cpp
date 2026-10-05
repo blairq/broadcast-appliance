@@ -10,7 +10,11 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <cmath>
+#include <thread>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include "ipc/HealthBlock.hpp"
 
@@ -353,6 +357,21 @@ void MediaPump::returnAudioThread() {
                 // Un hueco del mix-minus (silencio de relleno): mejor el programa entero.
                 if (slotReaders[s].pop(slotBlock[s].data(), b2) && !b2.isSilence) deSlot[s] = b2.samples;
             }
+            // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos.
+            std::vector<float> voz;
+            bool hayVoz = false;
+            {
+                std::lock_guard<std::mutex> l(ifbLock_);
+                if (!ifb_.empty()) {
+                    voz.assign(n, 0.0f);
+                    const size_t k = std::min(n, ifb_.size());
+                    std::copy(ifb_.begin(), ifb_.begin() + static_cast<long>(k), voz.begin());
+                    ifb_.erase(ifb_.begin(), ifb_.begin() + static_cast<long>(k));
+                    hayVoz = true;
+                }
+            }
+            const int prueba = pruebaSesion_.load();
+            std::vector<float> mezcla;
             for (int s : sessionsWhere([](const MediaRoute& r) {
                      return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
                  })) {
@@ -361,6 +380,27 @@ void MediaPump::returnAudioThread() {
                 if (r.kind == MediaRoute::Kind::Program && r.index > 0 && static_cast<size_t>(r.index) < nSlots &&
                     deSlot[static_cast<size_t>(r.index)] != nullptr)
                     fuente = deSlot[static_cast<size_t>(r.index)];
+                if ((r.talk && hayVoz) || s == prueba) {
+                    mezcla.assign(fuente, fuente + n);
+                    if (r.talk && hayVoz) // el programa baja (~-8 dB) para que la voz se entienda
+                        for (size_t i = 0; i < n; ++i) mezcla[i] = std::clamp(mezcla[i] * 0.4f + voz[i], -1.0f, 1.0f);
+                    if (s == prueba) {
+                        // Tono de 1 kHz a -12 dBFS, 250 ms sí y 250 no, desde que empezó la prueba.
+                        const std::int64_t desde = pruebaDesdeNs_.load();
+                        const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                                         std::chrono::steady_clock::now().time_since_epoch()).count();
+                        const bool on = ((ahoraNs - desde) / 250'000'000LL) % 2 == 0;
+                        const double paso = 2.0 * 3.14159265358979 * 1000.0 / cfg_.audioRate;
+                        for (size_t i = 0; i + 1 < n; i += 2) {
+                            const float t = on ? 0.25f * static_cast<float>(std::sin(pruebaFase_)) : 0.0f;
+                            pruebaFase_ += paso;
+                            mezcla[i] = std::clamp(mezcla[i] * 0.3f + t, -1.0f, 1.0f);
+                            mezcla[i + 1] = std::clamp(mezcla[i + 1] * 0.3f + t, -1.0f, 1.0f);
+                        }
+                        if (pruebaFase_ > 1e6) pruebaFase_ = std::fmod(pruebaFase_, 2.0 * 3.14159265358979);
+                    }
+                    fuente = mezcla.data();
+                }
                 if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
             }
         }
@@ -519,6 +559,14 @@ void MediaPump::operatorAudioThread() {
                 if (WebrtcSession* sess = hub_.session(s))
                     sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
             }
+            // Adentro (programa o fila) no se le empuja aparte: ya recibe el retorno
+            // y dos fuentes en el mismo track se pisan. Va a la cola del IFB.
+            if (!sessionsWhere([](const MediaRoute& r) { return r.kind != MediaRoute::Kind::Lobby && r.talk; }).empty()) {
+                std::lock_guard<std::mutex> l(ifbLock_);
+                ifb_.insert(ifb_.end(), blk.samples, blk.samples + n);
+                const size_t tope = static_cast<size_t>(cfg_.audioRate) * 2 * 3 / 10; // 300 ms estéreo
+                while (ifb_.size() > tope) ifb_.pop_front();
+            }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -589,6 +637,28 @@ void MediaPump::operatorVideoThread() {
 // --- Subida ------------------------------------------------------------------
 
 void MediaPump::forwardAudio(int session, const float* samples, size_t n, int rate) {
+    if (session == pruebaSesion_.load() && samples != nullptr && rate > 0) {
+        // Goertzel a 1 kHz sobre el canal izquierdo, en trozos de 20 ms ubicados por
+        // la hora de llegada desde que empezó la prueba.
+        const std::int64_t desde = pruebaDesdeNs_.load();
+        const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                         std::chrono::steady_clock::now().time_since_epoch()).count();
+        const size_t frames = n / 2;
+        const double k = 2.0 * std::cos(2.0 * 3.14159265358979 * 1000.0 / rate);
+        double s1 = 0, s2 = 0;
+        for (size_t i = 0; i < frames; ++i) {
+            const double s0 = samples[2 * i] + k * s1 - s2;
+            s2 = s1;
+            s1 = s0;
+        }
+        const double pot = (s1 * s1 + s2 * s2 - k * s1 * s2) / std::max<size_t>(frames * frames, 1);
+        const long bin = static_cast<long>((ahoraNs - desde) / 20'000'000LL);
+        std::lock_guard<std::mutex> l(pruebaLock_);
+        if (bin >= 0 && bin < 1000) {
+            if (pruebaBins_.size() <= static_cast<size_t>(bin)) pruebaBins_.resize(static_cast<size_t>(bin) + 1, -1.0);
+            pruebaBins_[static_cast<size_t>(bin)] = std::max(pruebaBins_[static_cast<size_t>(bin)], pot);
+        }
+    }
     const MediaRoute r = route(session);
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
         r.index < static_cast<int>(guestAudio_.size())) {
@@ -598,6 +668,55 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
         // El operador solo escucha a quien le esta hablando.
         publishAudio(*lobbyAudio_[static_cast<size_t>(r.index)], samples, n, rate);
     }
+}
+
+std::string MediaPump::pruebaTecnica(int session, int ms) {
+    const MediaRoute r = route(session);
+    if (r.kind != MediaRoute::Kind::Program && r.kind != MediaRoute::Kind::Backstage)
+        return R"({"error":"la prueba es para los de adentro (programa o fila): en el lobby no recibe el retorno"})";
+    int libre = 0;
+    if (!pruebaSesion_.compare_exchange_strong(libre, session)) return R"({"error":"ya hay una prueba andando"})";
+    {
+        std::lock_guard<std::mutex> l(pruebaLock_);
+        pruebaBins_.clear();
+    }
+    pruebaDesdeNs_ = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    const int dur = std::clamp(ms, 2000, 8000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(dur + 600)); // y lo que tarda en volver
+    pruebaSesion_ = 0;
+    std::vector<double> bins;
+    {
+        std::lock_guard<std::mutex> l(pruebaLock_);
+        bins = pruebaBins_;
+    }
+    // El patrón (1 = tono) en trozos de 20 ms: 250 ms sí, 250 no, durante `dur`.
+    const auto tono = [dur](long b) { return b >= 0 && b * 20 < dur && ((b * 20) / 250) % 2 == 0; };
+    double mejor = -1e9, ecoDb = 0;
+    int demora = 0;
+    for (int lag = 0; lag <= 50; ++lag) { // hasta 1 s de ida y vuelta
+        double on = 0, off = 0;
+        int non = 0, noff = 0;
+        for (size_t b = 0; b < bins.size(); ++b) {
+            if (bins[b] < 0) continue;
+            const long origen = static_cast<long>(b) - lag;
+            if (origen < 0 || origen * 20 >= dur) continue;
+            if (tono(origen)) on += bins[b], ++non;
+            else off += bins[b], ++noff;
+        }
+        if (non < 3 || noff < 3) continue;
+        const double db = 10.0 * std::log10((on / non + 1e-12) / (off / noff + 1e-12));
+        if (db > mejor) mejor = db, ecoDb = db, demora = lag * 20;
+    }
+    nlohmann::json out{{"eco_db", std::round(ecoDb * 10) / 10},
+                       {"demora_ms", demora},
+                       {"eco", ecoDb > 10.0},
+                       {"trozos", bins.size()}};
+    if (WebrtcSession* sess = hub_.session(session)) {
+        const nlohmann::json red = nlohmann::json::parse(sess->estadisticas(), nullptr, false);
+        if (red.is_object()) out["red"] = red;
+    }
+    if (bins.empty()) out["aviso"] = "no llegó audio de su micrófono durante la prueba (¿lo tiene silenciado?)";
+    return out.dump();
 }
 
 void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h) {

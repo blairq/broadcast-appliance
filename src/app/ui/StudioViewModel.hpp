@@ -412,6 +412,10 @@ class StudioViewModel : public QObject {
     /// La grabación (T29): {activa, archivo, copia, copia_activa, calidad, encoder, pistas, encoder_respaldo_activo}
     /// y la repetición {replay: {activa, segundos, ultimo}}.
     Q_INVOKABLE QVariantMap grabacionUi() const;
+    /// El cupo de invitados sin reiniciar la sala (hasta los reservados). "" o el error
+    /// inmediato; el resultado de la sala llega a `listo` ("" = aplicado).
+    QString cupo(int n, std::function<void(const QString&)> listo);
+    Q_INVOKABLE QString cupoUi(int n);
     QString balistica() const;
     void setBalistica(const QString& b);
     QString pfl() const;
