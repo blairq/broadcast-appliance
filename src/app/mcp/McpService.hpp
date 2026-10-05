@@ -85,6 +85,7 @@ class McpService : public QObject {
     void registerVideoTools();
     void registerRedTools();
     void registerPluginTools();
+    void registerDcnTools();
     void registerEquiposTools();
     void registerPrompterTools();
     void registerPantallaTools();

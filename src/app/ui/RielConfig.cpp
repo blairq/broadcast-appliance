@@ -51,6 +51,8 @@ const std::vector<Grupo>& catalogo() {
           {16, "pantallas", "⧉", "Pantallas externas: televisores de la sala y qué mostrar en cada uno"},
           {17, "qr", "⊞", "Códigos QR: la biblioteca y el estudio de diseño"},
           {18, "personas", "☻", "Personas: quién es quién, para que el sistema los reconozca"},
+          {26, "legislatura", "⚖",
+           "Legislatura: central de conferencia (micrófonos de banca), recinto, orden del día y votación"},
           {19, "publico", "☷", "Público: las preguntas de la gente y la urna, para moderar en vivo"},
           {20, "medios", "♫", "Medios: música, videos, imágenes y presentaciones, con vista previa"}}},
         {"Publicar",

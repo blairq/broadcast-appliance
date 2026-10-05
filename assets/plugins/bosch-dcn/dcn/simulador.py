@@ -102,7 +102,10 @@ class Simulador:
                 if not self._es_presidente(u) and len(delegados) >= self.ajustes["max_abiertos"]:
                     return 34
                 self.spk.append([u, True])
-                self.rts = [p for p in self.rts if p[0] != u]
+                pedido = next((p for p in self.rts if p[0] == u), None)
+                if pedido is not None:  # tenía pedida la palabra: sale de la lista
+                    self.rts = [p for p in self.rts if p[0] != u]
+                    self._ntf(m.MM_C_RTS_REMOVE_ON_PC, m.rts(*pedido))
                 self._ntf(m.MM_C_SPK_APPEND_ON_PC, m.unidad(u))
             else:
                 o[1] = True

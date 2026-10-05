@@ -9,6 +9,13 @@
 //
 // EDITAR: se toca una banca (o una de las que todavía no tienen lugar) y
 // después el lugar vacío donde va. «Acomodar solas» las pone en orden.
+//
+// CON LA CENTRAL DE CONFERENCIA (Studio.dcn conectada) cada banca muestra su
+// micrófono: abierto en rojo («● AIRE»), pidió la palabra en ámbar con su turno,
+// «le toca» (primera de la lista) con el borde rojo titilando, presidente con
+// borde dorado, sin unidad en gris. Con `tocarAbreMicrofono` (la página
+// Conferencia) un toque abre o cierra el micrófono; el menú sigue en el
+// toque largo.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -22,6 +29,25 @@ ColumnLayout {
     readonly property int filas: r.filas || 0
     readonly property int columnas: r.columnas || 0
     property bool editando: false
+    property bool tocarAbreMicrofono: false
+    readonly property var d: Studio.dcn ? Studio.dcn.estado : ({})
+    readonly property bool conCentral: !!(Studio.dcn && Studio.dcn.conectada)
+    // Titileo de 1 Hz para «le toca».
+    property bool fase: false
+    Timer { interval: 500; repeat: true; running: rec.conCentral; onTriggered: rec.fase = !rec.fase }
+    function unidadDe(banca) {
+        const l = rec.d.unidades || []
+        for (let i = 0; i < l.length; ++i) if (l[i].banca === banca) return l[i]
+        return null
+    }
+    function turnoCentral(banca) {
+        const l = rec.d.pedidos || []
+        for (let i = 0; i < l.length; ++i) if (l[i].banca === banca) return l[i].turno
+        return 0
+    }
+    function microfono(banca, abrir, confirmar) {
+        Studio.dcn.pedirUi("microfono", "microfono", {banca: banca, abierto: abrir, confirmar: !!confirmar})
+    }
     property string elegida: ""
     property string aviso: ""
 
@@ -134,12 +160,24 @@ ColumnLayout {
                 readonly property bool alAire: i !== null && rec.b.al_aire && rec.b.al_aire.id === i.id
                 readonly property int turno: i !== null ? rec.turno(i.id) : 0
                 readonly property string mini: i !== null ? rec.miniatura(i.preset_ptz) : ""
+                // La central de conferencia.
+                readonly property var uni: rec.conCentral && l !== null ? rec.unidadDe(l.banca) : null
+                readonly property bool micAbierto: rec.conCentral && l !== null && (rec.d.abiertos || []).indexOf(l.banca) >= 0
+                readonly property int turnoCcu: rec.conCentral && l !== null ? rec.turnoCentral(l.banca) : 0
+                readonly property bool leToca: rec.conCentral && l !== null && rec.d.siguiente === l.banca
+                readonly property bool presidente: uni !== null && uni.tipo === "presidente"
+                readonly property bool sinUnidad: rec.conCentral && l !== null && (uni === null || !uni.conectada)
                 Layout.fillWidth: true
                 Layout.preferredHeight: 74
                 radius: 8
-                color: l === null ? "transparent" : (alAire ? Qt.rgba(0.9, 0.15, 0.15, 0.35) : Qt.rgba(1, 1, 1, 0.06))
-                border.width: alAire || (l && rec.elegida === l.banca) ? 2 : 1
-                border.color: alAire ? Theme.live : (l && rec.elegida === l.banca) ? Theme.accent
+                color: l === null ? "transparent"
+                       : micAbierto ? Qt.rgba(0.78, 0.16, 0.16, 0.85)
+                       : (alAire ? Qt.rgba(0.9, 0.15, 0.15, 0.35) : turnoCcu > 0 ? Qt.rgba(1, 0.7, 0.1, 0.18) : Qt.rgba(1, 1, 1, 0.06))
+                opacity: sinUnidad ? 0.45 : 1
+                border.width: leToca || alAire || presidente || (l && rec.elegida === l.banca) ? 2 : 1
+                border.color: leToca ? (rec.fase ? Theme.live : "transparent")
+                              : alAire ? Theme.live : (l && rec.elegida === l.banca) ? Theme.accent
+                              : presidente ? "#d4af37" : turnoCcu > 0 ? Theme.amber
                               : l === null ? (rec.editando ? Qt.rgba(1, 1, 1, 0.15) : "transparent") : Qt.rgba(1, 1, 1, 0.1)
                 clip: true
                 // La foto del preset de fondo, apagada: se reconoce el plano de un vistazo.
@@ -155,6 +193,11 @@ ColumnLayout {
                         Layout.fillWidth: true
                         Text { text: celda.l ? celda.l.banca : ""; color: Theme.text; font { pixelSize: 15; weight: Font.Black } }
                         Item { Layout.fillWidth: true }
+                        Text { visible: celda.micAbierto; text: "● AIRE"; color: "white"; font { pixelSize: 10; weight: Font.Black } }
+                        Text { visible: celda.turnoCcu > 0 && !celda.micAbierto; text: "pidió " + celda.turnoCcu; color: Theme.amber; font { pixelSize: 10; weight: Font.DemiBold } }
+                        Text { visible: celda.sinUnidad; text: "⏻"; color: Theme.textFaint; font.pixelSize: 11
+                               ToolTip.visible: hvU.hovered; ToolTip.text: celda.uni === null ? "Sin unidad de la central (Legislatura → Conferencia → Unidades)" : "Unidad desconectada"
+                               HoverHandler { id: hvU } }
                         Text { visible: celda.turno > 0; text: "#" + celda.turno; color: Theme.amber; font { pixelSize: 11; weight: Font.DemiBold } }
                         Text { visible: celda.i !== null && !celda.i.validado; text: "⚠"; color: Theme.amber; font.pixelSize: 11
                                ToolTip.visible: hv.hovered; ToolTip.text: "Nombre sin validar (Personas → Cuerpo)"
@@ -170,8 +213,21 @@ ColumnLayout {
                 }
                 MouseArea {
                     anchors.fill: parent
+                    pressAndHoldInterval: 600
+                    onPressAndHold: if (!rec.editando && celda.l !== null) menu.abrir(celda.l, celda)
                     onClicked: {
                         rec.aviso = ""
+                        if (rec.tocarAbreMicrofono && !rec.editando && celda.l !== null && rec.conCentral) {
+                            if (celda.micAbierto && celda.presidente) {
+                                const b = celda.l.banca
+                                ApplicationWindow.window.confirm({ title: "¿Cerrar el micrófono del presidente?",
+                                    text: "Banca " + b, accept: "Cerrar", reject: "Cancelar",
+                                    action: function() { rec.microfono(b, false, true) } })
+                            } else {
+                                rec.microfono(celda.l.banca, !celda.micAbierto, false)
+                            }
+                            return
+                        }
                         if (rec.editando) {
                             if (celda.l !== null) rec.elegida = rec.elegida === celda.l.banca ? "" : celda.l.banca
                             else if (rec.elegida !== "") {
@@ -192,6 +248,10 @@ ColumnLayout {
         id: menu
         property var l: null
         function abrir(l, item) { menu.l = l; popup(item, 0, item.height) }
+        MenuItem { text: "Abrir el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0
+                   onTriggered: rec.microfono(menu.l.banca, true, false) }
+        MenuItem { text: "Cerrar el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0
+                   onTriggered: rec.microfono(menu.l.banca, false, true) }
         MenuItem { text: "Apuntar la cámara"; enabled: menu.l && menu.l.integrante
                    onTriggered: rec.aviso = Studio.bancas.apuntar(menu.l.banca) }
         MenuItem { text: "Al aire (arma su cámara)"; enabled: menu.l && menu.l.integrante

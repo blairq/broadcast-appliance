@@ -7,7 +7,8 @@
 //
 // Config/cuerpo.json: {nombre, integrantes: [{id, persona_id?, nombre,
 // cargo_oficial, bloque, distrito, banca, preset_ptz: {camara, posicion},
-// microfono: {fuente}, foto, validado_por, validado_en}],
+// microfono: {fuente}, foto, dcn_unidad (la unidad de la central Bosch DCN de
+// esa banca), validado_por, validado_en}],
 // recinto: {filas, columnas, bancas: [{banca, fila, columna}]}}.
 //
 // EL RECINTO es la grilla de bancas como se ven desde la cabina: tocar una

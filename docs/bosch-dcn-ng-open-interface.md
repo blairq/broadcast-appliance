@@ -23,7 +23,11 @@ Todo esto se integra con lo que la app ya tiene:
 
 > Estado: **fase 1 en curso**. Hecho: plugin `assets/plugins/bosch-dcn` (transporte serie Full y TCP
 > **no bloqueantes**, capa de mensajes, cliente de la CCU con cola de pedidos, simulador, estado y
-> eventos; pruebas en `assets/plugins/bosch-dcn/tests`). Nada se probó con una CCU real.
+> eventos; pruebas en `assets/plugins/bosch-dcn/tests`), `dcn_unidad` en el Cuerpo (y en la planilla),
+> herramientas MCP `dcn_*` (las de micrófonos en las guardas de aire), página **Legislatura →
+> Conferencia** (grilla con el estado de cada banca, pedidos, oradores, unidades con «Aprender», conexión
+> y tramas) y Bancas «al aire» / «terminar» por la central. Falta: botonera con caras (D7–D8), fase 2 y
+> 3. Nada se probó con una CCU real.
 > Lo marcado **[A VERIFICAR]** sale de lecturas parciales del manual y hay que confirmarlo con el
 > equipo o con el PDF completo de la versión 2.x.
 

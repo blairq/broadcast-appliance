@@ -61,11 +61,12 @@ QString Bancas::alAire(const QString& clave, const QString& modo) {
     if (i.empty()) return "no hay nadie con esa banca, id o nombre en el cuerpo";
     aviso_.clear();
     const std::string id = i.value("id", std::string());
-    // El micrófono de la anterior se cierra.
-    if (!alAire_.empty() && alAire_ != id && g_.microfono) {
+    // El micrófono de la anterior se cierra (en la central y en la mezcla).
+    if (!alAire_.empty() && alAire_ != id) {
         const json ant = cuerpo_.buscar(alAire_);
+        if (g_.microfonoBanca) g_.microfonoBanca(ant.value("banca", std::string()), false, true);
         const std::string mic = ant.value("microfono", json::object()).value("fuente", std::string());
-        if (!mic.empty()) g_.microfono(mic, false);
+        if (!mic.empty() && g_.microfono) g_.microfono(mic, false);
     }
     // 1. PTZ al preset de su banca, salvo que esa cámara esté al aire.
     const json ptz = i.value("preset_ptz", json::object());
@@ -94,6 +95,7 @@ QString Bancas::alAire(const QString& clave, const QString& modo) {
     cola_.erase(std::remove(cola_.begin(), cola_.end(), id), cola_.end());
     const std::string mic = i.value("microfono", json::object()).value("fuente", std::string());
     if (!mic.empty() && g_.microfono) g_.microfono(mic, true);
+    if (g_.microfonoBanca) g_.microfonoBanca(i.value("banca", std::string()), true, false);
     emit cambio();
     return {};
 }
@@ -115,6 +117,7 @@ void Bancas::terminar() {
     const json i = cuerpo_.buscar(alAire_);
     const std::string mic = i.value("microfono", json::object()).value("fuente", std::string());
     if (!mic.empty() && g_.microfono) g_.microfono(mic, false);
+    if (g_.microfonoBanca) g_.microfonoBanca(i.value("banca", std::string()), false, true);
     alAire_.clear();
     desdeMs_ = 0;
     emit cambio();

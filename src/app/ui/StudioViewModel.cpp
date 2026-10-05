@@ -49,6 +49,7 @@
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "legislatura/Bancas.hpp"
+#include "legislatura/ConferenciaDcn.hpp"
 #include "legislatura/SeguirMicrofono.hpp"
 #include "legislatura/OrdenDelDia.hpp"
 #include "legislatura/Quorum.hpp"
@@ -617,6 +618,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.armar = [this](const std::string& e) { armarEscena(QString::fromStdString(e)); };
         g.cortar = [this](const std::string& e) { takeScene(QString::fromStdString(e)); };
         g.microfono = [this](const std::string& f, bool abierto) { rt_.engine().setSourceMuted(f, !abierto); };
+        g.microfonoBanca = [this](const std::string& banca, bool abierto, bool terminar) {
+            // Por la central solo si está conectada y la banca tiene su unidad; si
+            // no, sigue valiendo la fuente de audio de la banca (la de arriba).
+            if (!dcn_ || !dcn_->conectada() || !dcn_->tieneUnidad(banca)) return false;
+            QPointer<StudioViewModel> yo(this);
+            dcn_->control("microfono", {{"banca", banca}, {"abierto", abierto}, {"quitar", terminar}, {"quien", "fila de oradores"}},
+                          [yo, banca](bool ok, const nlohmann::json&, const std::string& e) {
+                              if (!ok && yo) emit yo->notify(QString::fromStdString("Central DCN, banca " + banca + ": " + e), "error");
+                          });
+            return true;
+        };
         bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
         seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
         ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
@@ -693,6 +705,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Plugins <-> bus de eventos: lo que publican va al bus (plugin/<id>/<canal>)
     // y los temas de la app les llegan a los que escuchan.
     plugins_->setAlPublicar([this](const std::string& t, const nlohmann::json& d) { bus_->publicar(t, d, true); });
+    // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
+    dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_);
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
@@ -1783,6 +1797,7 @@ QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
 }
 
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
+QObject* StudioViewModel::dcnQml() const { return dcn_.get(); }
 
 namespace {
 nlohmann::json leerRespaldos(const std::filesystem::path& datos) {

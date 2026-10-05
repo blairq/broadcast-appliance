@@ -235,6 +235,16 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - El reloj **nunca saca a nadie** salvo carrusel `time` (pasado cero + margen, rota). Pasado el tiempo cuenta en negativo; el invitado lo ve.
 - `speakers_status`: la fila con lo que le queda al que esta al aire (`remainingSec` negativo = se paso).
 - Tablero para tablet: `room_link {"board": true}`.)md"},
+    {"conferencia", "Central de conferencia (Bosch DCN)", "Micrófonos de banca, pedidos de palabra, siguiente orador.",
+     R"md(La central del recinto (Bosch DCN Next Generation) la maneja el plugin `bosch-dcn`; estas herramientas hablan de **bancas** (las del Cuerpo), no de unidades.
+1. **Conectar:** `dcn_puertos` (los adaptadores USB-serie) y `dcn_conectar {"transporte": "serie", "puerto": ..., "velocidad": 19200}`; por red (CCU2) `{"transporte": "tcp", "host": ...}`; para probar sin el equipo `{"transporte": "simulador", "solo_escuchar": false}`. De fábrica queda en **solo escuchar** (recibe todo, no manda órdenes): se apaga con `dcn_conectar {"solo_escuchar": false}` cuando la sala responde bien.
+2. **Unidades:** cada banca necesita su unidad (`dcn_unidad` en el Cuerpo). `dcn_unidades` dice cuáles faltan; `dcn_unidad_asignar {"aprender_todas": true}` y alguien aprieta el botón de cada banca en la sala, en orden.
+3. **Operar:** `dcn_estado` (abiertos, pedidos en orden, `siguiente`), `dcn_microfono {"banca", "abierto"}`, `dcn_siguiente`, `dcn_pedido {"banca", "accion"}`, `dcn_cerrar_todos` (no toca al presidente), `dcn_modo {"modo": "operador", "max_abiertos": 4}`.
+- La app y la botonera dan la palabra solo en modo **operador**; en los otros modos la central decide y se ve igual lo que pasa.
+- `banca_al_aire` con la central conectada también abre el micrófono de esa banca (y cierra el del anterior); `banca_terminar` lo cierra.
+- Las que abren o cierran micrófonos son **de aire**: si las dispara algo automático con transmisión, piden confirmar.
+- Cada aviso de micrófono sale en el bus como `plugin/bosch-dcn/conferencia/microfono {banca, abierto}`: Seguir al micrófono (fuente «conferencia») lo usa.
+- Problemas: `dcn_traza {"activa": true}` y `dcn_traza {"ultimas": 50}` (tramas en hexadecimal y contadores de reenvíos). Guía completa: docs/bosch-dcn-ng-open-interface.md.)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
 

@@ -42,6 +42,10 @@ class Bancas : public QObject {
         std::function<void(const std::string& escena)> armar;
         std::function<void(const std::string& escena)> cortar;
         std::function<void(const std::string& fuente, bool abierto)> microfono;
+        /// El micrófono de la BANCA en la central de conferencia (Bosch DCN), si
+        /// está conectada y la banca tiene unidad. Devuelve si lo tomó. `terminar`:
+        /// además la saca de la lista de oradores de la central.
+        std::function<bool(const std::string& banca, bool abierto, bool terminar)> microfonoBanca;
     };
     Bancas(Cuerpo& cuerpo, Ganchos g, QObject* parent = nullptr);
 

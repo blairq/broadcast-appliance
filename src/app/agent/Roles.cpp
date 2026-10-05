@@ -341,7 +341,10 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // operador le pide botones y plugins de superficies al asistente.
         "botonera", "dsk",
         // La traducción en vivo y su glosario de términos del evento.
-        "traduccion"};
+        "traduccion",
+        // La central de conferencia del recinto (micrófonos de banca): las que
+        // abren o cierran micrófonos pasan por las guardas de aire.
+        "conferencia"};
     return c;
 }
 

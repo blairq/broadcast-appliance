@@ -1,0 +1,160 @@
+// ============================================================================
+// src/app/mcp/McpDcnTools.cpp — la central de conferencia Bosch DCN, por MCP
+//
+// Herramientas con nombre propio (dcn_*) sobre los controles del plugin
+// bosch-dcn (legislatura/ConferenciaDcn). Hablan de BANCAS, no de unidades de
+// la central: el mapa lo tiene el Cuerpo (dcn_unidad). Las que cambian lo que
+// se escucha (abrir/cerrar micrófonos, siguiente, cerrar todos, modo) están en
+// McpAire: si las dispara algo automático con aire, se piden confirmar.
+//
+// Guía: docs/bosch-dcn-ng-open-interface.md §9.
+// ============================================================================
+
+#include "legislatura/ConferenciaDcn.hpp"
+#include "mcp/McpService.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "ui/StudioViewModel.hpp"
+
+namespace ba::app::mcp {
+
+void McpService::registerDcnTools() {
+    auto& dcn = vm_.dcn();
+    core_.addCategory("conferencia", "Central de conferencia (micrófonos de banca)",
+                      "La central Bosch DCN del recinto: abrir y cerrar micrófonos de banca, pedidos de palabra, "
+                      "siguiente orador, modo de operación, unidades de cada banca.");
+
+    const json banca = {{"type", "string"}, {"description", "La banca (como en el Cuerpo)."}};
+    struct Def {
+        const char* nombre;
+        const char* control;
+        const char* titulo;
+        const char* descripcion;
+        json props;
+        bool soloLectura;
+        bool destructiva;
+    };
+    const std::vector<Def> defs = {
+        {"dcn_estado", "estado", "Estado de la central",
+         "Todo lo de la central: enlace, modo, máximo de abiertos, unidades con su banca, micrófonos abiertos, "
+         "pedidos de palabra en orden (`siguiente` = el primero), oradores, bancas sin unidad.",
+         json::object(), true, false},
+        {"dcn_puertos", "puertos", "Puertos serie del equipo",
+         "Los puertos serie (adaptadores USB-serie) para conectar la central.", json::object(), true, false},
+        {"dcn_desconectar", "desconectar", "Soltar la central",
+         "Deja de controlar la central. La sala sigue andando sola.", json::object(), false, true},
+        {"dcn_microfono", "microfono", "Abrir o cerrar el micrófono de una banca",
+         "Abre (abierto=true) o cierra el micrófono de la banca en la central. Si ya está el máximo de abiertos, "
+         "la central lo rechaza y se dice. El del presidente: cerrarlo pide `confirmar: true`.",
+         {{"banca", banca}, {"abierto", {{"type", "boolean"}}}, {"confirmar", {{"type", "boolean"}}}}, false, false},
+        {"dcn_siguiente", "siguiente", "Dar la palabra al siguiente",
+         "Le da la palabra al primero de la lista de pedidos (abre su micrófono; según el modo cierra el más viejo).",
+         json::object(), false, false},
+        {"dcn_cerrar_todos", "cerrar_todos", "Cerrar todos los micrófonos",
+         "Cierra todos los micrófonos abiertos de la sala, menos el del presidente (salvo `incluir_presidente`).",
+         {{"incluir_presidente", {{"type", "boolean"}}}}, false, true},
+        {"dcn_pedidos", "pedidos", "Quién pidió la palabra",
+         "La lista de pedidos de palabra en orden, con banca, nombre y turno.", json::object(), true, false},
+        {"dcn_pedido", "pedido", "Editar la lista de pedidos",
+         "`accion`: agregar (al final), quitar, primero (lo pasa adelante) o antes_de (`referencia`: otra banca).",
+         {{"banca", banca},
+          {"accion", {{"type", "string"}, {"enum", {"agregar", "quitar", "primero", "antes_de"}}}},
+          {"referencia", {{"type", "string"}}}},
+         false, false},
+        {"dcn_pedidos_limpiar", "pedidos_limpiar", "Vaciar la lista de pedidos",
+         "Borra todos los pedidos de palabra de la central.", json::object(), false, true},
+        {"dcn_oradores", "oradores", "Quién tiene la palabra",
+         "La lista de oradores de la central, con el micrófono prendido o no.", json::object(), true, false},
+        {"dcn_orador_quitar", "orador_quitar", "Sacar a un orador",
+         "Saca a la banca de la lista de oradores de la central (su micrófono se cierra).", {{"banca", banca}}, false,
+         false},
+        {"dcn_modo", "modo", "Modo de los micrófonos",
+         "Cambia el modo de operación de la central (operador = la app y la botonera dan la palabra; voz, "
+         "delegado_lista, reemplazo, pulsar…) y los máximos de micrófonos abiertos y de pedidos.",
+         {{"modo",
+           {{"type", "string"},
+            {"enum", {"operador", "delegado_lista", "reemplazo", "voz", "operador_replicas", "pulsar",
+                      "operador_sin_ac", "voz_sin_ac"}}}},
+          {"max_abiertos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}},
+          {"max_pedidos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}},
+         false, false},
+        {"dcn_tiempo", "tiempo", "Aviso de tiempo en la unidad",
+         "Muestra en la unidad de la banca «queda un minuto» (ultimo_minuto) o «se terminó el tiempo» (terminado).",
+         {{"banca", banca}, {"aviso", {{"type", "string"}, {"enum", {"ultimo_minuto", "terminado"}}}}}, false, false},
+        {"dcn_unidades", "unidades", "Unidades y bancas",
+         "Las unidades de la central con su tipo (delegado, presidente) y la banca asignada; bancas sin unidad y "
+         "unidades sin banca.",
+         json::object(), true, false},
+        {"dcn_unidad_asignar", "unidad_asignar", "Asignar la unidad de una banca",
+         "`{banca, unidad}` la asigna (queda en el Cuerpo como dcn_unidad). `{aprender: banca}` espera el próximo "
+         "botón de micrófono que se apriete en la sala; `{aprender_todas: true}` recorre las bancas sin unidad una "
+         "por una; `{cancelar: true}` deja de aprender.",
+         {{"banca", banca},
+          {"unidad", {{"type", "integer"}}},
+          {"aprender", {{"type", "string"}}},
+          {"aprender_todas", {{"type", "boolean"}}},
+          {"cancelar", {{"type", "boolean"}}}},
+         false, false},
+        {"dcn_traza", "traza", "Tramas crudas",
+         "Para diagnóstico: `{activa: true}` registra las tramas en hexadecimal; `{ultimas: n}` las devuelve con los "
+         "contadores de reenvíos, NAK y checksum mal.",
+         {{"activa", {{"type", "boolean"}}}, {"ultimas", {{"type", "integer"}}}}, false, false},
+        {"dcn_simular_boton", "simular_boton", "Simular un botón de la sala",
+         "Solo con el simulador (transporte simulador): aprieta el botón de micrófono de una banca (o unidad), como "
+         "si un delegado pidiera la palabra.",
+         {{"banca", banca}, {"unidad", {{"type", "integer"}}}}, false, false},
+    };
+    for (const Def& d : defs) {
+        Tool t;
+        t.name = d.nombre;
+        t.title = d.titulo;
+        t.category = "conferencia";
+        t.readOnly = d.soloLectura;
+        t.destructive = d.destructiva;
+        t.description = d.descripcion;
+        t.inputSchema = {{"type", "object"}, {"properties", d.props.is_object() ? d.props : json::object()}};
+        const std::string control = d.control;
+        t.run = [&dcn, control](const json& a, Done done) {
+            json args = a.is_object() ? a : json::object();
+            if (!args.contains("quien")) args["quien"] = "mcp";
+            dcn.control(control, args, [done](bool ok, const json& r, const std::string& e) {
+                if (!ok) return done(ToolResult::error(e));
+                done(ToolResult().data(r));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "dcn_conectar";
+        t.title = "Conectar la central de conferencia";
+        t.category = "conferencia";
+        t.description =
+            "Conecta con la central Bosch DCN (instala y prende el plugin bosch-dcn si hace falta). Lo que se pasa "
+            "queda guardado: `transporte` serie (RS-232 por adaptador USB; `puerto` de dcn_puertos, `velocidad` la "
+            "que tiene la central), tcp (CCU2: `host`, `puerto_tcp` 9451) o simulador (para probar sin el equipo). "
+            "`solo_escuchar` (de fábrica true) recibe todo pero no le manda órdenes: apagarlo cuando la sala responde "
+            "bien. Requiere la licencia del Open Interface habilitada en la central.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"transporte", {{"type", "string"}, {"enum", {"serie", "tcp", "simulador"}}}},
+                           {"puerto", {{"type", "string"}}},
+                           {"velocidad", {{"type", "integer"}, {"enum", {9600, 19200, 57600, 115200}}}},
+                           {"host", {{"type", "string"}}},
+                           {"puerto_tcp", {{"type", "integer"}}},
+                           {"solo_escuchar", {{"type", "boolean"}}},
+                           {"escape", {{"type", "string"}, {"description", "Avanzado: el byte de escape (0xC8 o 0x1B)."}}},
+                           {"traza", {{"type", "boolean"}}},
+                           {"simulador_actividad_s", {{"type", "number"}}}}}};
+        t.examples = {R"({"transporte": "simulador", "solo_escuchar": false})",
+                      R"({"transporte": "serie", "puerto": "/dev/cu.usbserial-1410", "velocidad": 19200})"};
+        t.run = [&dcn](const json& a, Done done) {
+            dcn.conectar(a.is_object() ? a : json::object(), [done](bool ok, const json& r, const std::string& e) {
+                if (!ok) return done(ToolResult::error(e));
+                done(ToolResult().data(r));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+}
+
+} // namespace ba::app::mcp

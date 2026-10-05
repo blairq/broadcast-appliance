@@ -61,7 +61,7 @@ std::vector<std::string> campos(const std::string& linea, char sep) {
 }
 
 const char* kCampos[] = {"persona_id", "nombre", "cargo_oficial", "bloque", "distrito",
-                         "banca",      "foto",   "preset_ptz",    "microfono"};
+                         "banca",      "foto",   "preset_ptz",    "microfono", "dcn_unidad"};
 
 } // namespace
 
@@ -272,6 +272,7 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
                        : p == "camara" || p == "cámara"     ? "camara"
                        : p == "posicion" || p == "preset"   ? "posicion"
                        : p == "microfono" || p == "mic"     ? "microfono"
+                       : p == "unidad dcn" || p == "unidad_dcn" || p == "dcn_unidad" || p == "unidad" ? "dcn_unidad"
                                                             : p);
     }
     if (std::find(cols.begin(), cols.end(), "nombre") == cols.end()) {
@@ -293,7 +294,7 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
             else if (cols[i] == "posicion") posicion = val;
             else if (cols[i] == "microfono") { if (!val.empty()) c["microfono"] = {{"fuente", val}}; }
             else if (cols[i] == "nombre" || cols[i] == "cargo_oficial" || cols[i] == "bloque" ||
-                     cols[i] == "distrito" || cols[i] == "banca" || cols[i] == "foto")
+                     cols[i] == "distrito" || cols[i] == "banca" || cols[i] == "foto" || cols[i] == "dcn_unidad")
                 c[cols[i]] = val;
         }
         if (!camara.empty()) c["preset_ptz"] = {{"camara", camara}, {"posicion", posicion}};

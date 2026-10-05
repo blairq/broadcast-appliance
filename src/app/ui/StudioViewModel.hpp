@@ -79,6 +79,7 @@ namespace ba::app {
 namespace legislatura {
 class CuerpoViewModel;
 class Bancas;
+class ConferenciaDcn;
 class SeguirMicrofono;
 class OrdenDelDia;
 class Quorum;
@@ -131,6 +132,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
     /// La fila de oradores presenciales (bancas): legislatura/Bancas.
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
+    /// La central de conferencia Bosch DCN (micrófonos de banca): legislatura/ConferenciaDcn.
+    Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
     /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
     /// El bus de eventos de la app (control/BusEventos): superficies, plugins, MCP.
@@ -305,9 +308,11 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
+    QObject* dcnQml() const;
     QObject* ccQml() const;
     agent::SubtitulosCC& cc() { return *cc_; }
     legislatura::Bancas& bancas() { return *bancas_; }
+    legislatura::ConferenciaDcn& dcn() { return *dcn_; }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
     /// como el cargo de su zócalo. "" o el error.
     Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
@@ -769,6 +774,7 @@ class StudioViewModel : public QObject {
     void publicarEventos();
     int busTicks_ = 0;
     std::unique_ptr<legislatura::Bancas> bancas_;
+    std::unique_ptr<legislatura::ConferenciaDcn> dcn_;
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;

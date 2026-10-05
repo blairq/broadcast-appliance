@@ -541,6 +541,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerVideoTools();
     registerRedTools();
     registerPluginTools();
+    registerDcnTools();
     registerEquiposTools();
     registerPrompterTools();
     registerPantallaTools();
@@ -2599,7 +2600,8 @@ void McpService::registerTools() {
         t.category = "evento";
         t.description = "Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, "
                         "bloque, distrito, banca (unica), camara + posicion (el preset PTZ de su banca), microfono (la "
-                        "fuente de audio de su banca), persona_id (la ficha de Personas). Si cambia el nombre o el cargo, "
+                        "fuente de audio de su banca), dcn_unidad (la unidad de la central Bosch DCN de su banca; vacío la "
+                        "saca), persona_id (la ficha de Personas). Si cambia el nombre o el cargo, "
                         "deja de estar validado (legislador_validar).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
@@ -2612,6 +2614,7 @@ void McpService::registerTools() {
                            {"camara", {{"type", "string"}}},
                            {"posicion", {{"type", "string"}}},
                            {"microfono", {{"type", "string"}}},
+                           {"dcn_unidad", {{"type", "string"}}},
                            {"persona_id", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump())).object().toVariantMap();

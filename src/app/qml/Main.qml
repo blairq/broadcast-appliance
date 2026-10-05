@@ -240,6 +240,7 @@ ApplicationWindow {
         PluginsPage { leftInset: win.insetPagina }
         EquiposPage { leftInset: win.insetPagina }
         BotoneraPage { leftInset: win.insetPagina }
+        LegislaturaPage { leftInset: win.insetPagina }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -272,12 +273,13 @@ ApplicationWindow {
     Component { id: cmpPlugins;    PluginsPage {} }
     Component { id: cmpEquipos;    EquiposPage {} }
     Component { id: cmpBotonera;   BotoneraPage {} }
+    Component { id: cmpLegislatura; LegislaturaPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera][i] || null
+                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpLegislatura][i] || null
     }
 
     ListModel { id: sueltas }

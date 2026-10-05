@@ -422,7 +422,7 @@ def _puertos(_a):
 
 @control("microfono", "Abre o cierra el micrófono de una banca (o unidad). El del presidente pide confirmar=true.",
          {"banca": {"type": "string"}, "unidad": {"type": "integer"}, "abierto": {"type": "boolean"},
-          "confirmar": {"type": "boolean"}})
+          "confirmar": {"type": "boolean"}, "quitar": {"type": "boolean"}})
 def _microfono(a):
     k = requiere_ccu()
     u = unidad_de(a)
@@ -431,6 +431,12 @@ def _microfono(a):
         raise RuntimeError("es el micrófono del presidente: confirmá (confirmar=true) para cerrarlo")
     registrar(f"microfono {'abre' if abierto else 'cierra'} banca {banca_de(u)} (unidad {u}) por {a.get('quien', 'app')}")
     esperar(k.microfono(u, abierto))
+    if not abierto and a.get("quitar"):
+        # «Terminar»: además sale de la lista de oradores (si ya no estaba, no importa).
+        try:
+            esperar(k.orador_quitar(u))
+        except RuntimeError:
+            pass
     return con_banca(u, {"abierto": abierto})
 
 
