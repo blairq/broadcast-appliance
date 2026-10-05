@@ -60,7 +60,7 @@
 | T34 | Seguir al micrófono abierto | P1 | hecho (sobre los niveles; sin automixer) |
 | T35 | Plugin oficial para el sistema de conferencia del recinto | P1 | falta |
 | T36 | Modo "orden del día" y tiempos de uso de la palabra en el acta | P1 | hecho |
-| T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | parcial |
+| T37 | Quórum y mayorías configurables, resultado oficial importado, acta con hash | P1 | hecho (sin plantilla nominal en pantalla: T43; el hash cubre el acta, no la grabación) |
 | T38 | Multiview profesional: tally, costo por tarjeta, cuenta regresiva | P1 | parcial |
 | T39 | Scopes y legalizador broadcast-safe | P1 | falta |
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | parcial |

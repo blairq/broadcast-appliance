@@ -77,6 +77,7 @@ class CuerpoViewModel;
 class Bancas;
 class SeguirMicrofono;
 class OrdenDelDia;
+class Quorum;
 }
 
 class AppRuntime;
@@ -140,6 +141,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
     /// El orden del día de la sesión y el uso de la palabra (legislatura/OrdenDelDia).
     Q_PROPERTY(QObject* ordenDelDia READ ordenDelDiaQml CONSTANT)
+    /// Quórum, mayorías y resultados oficiales de las votaciones (legislatura/Quorum).
+    Q_PROPERTY(QObject* quorum READ quorumQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -294,6 +297,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantList chatRecientesUi() const;
     Q_INVOKABLE bool destacarChatUi(const QString& key);
     Q_INVOKABLE void quitarDestacadoChatUi(const QString& key);
+    /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
+    Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
     legislatura::CuerpoViewModel& cuerpo() { return *cuerpo_; }
     /// Vocabulario del reconocedor de voz (agent/Vocabulario): grupos, términos,
     /// probar una frase y traer los nombres del Cuerpo.
@@ -315,6 +320,8 @@ class StudioViewModel : public QObject {
     legislatura::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
     QObject* ordenDelDiaQml() const;
     legislatura::OrdenDelDia& ordenDelDia() { return *ordenDia_; }
+    QObject* quorumQml() const;
+    legislatura::Quorum& quorum() { return *quorum_; }
     /// Los oradores remotos con el tiempo que hablaron (de la sala): [{nombre, segundos}].
     nlohmann::json remotosPalabra() const;
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
@@ -658,6 +665,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
+    std::unique_ptr<legislatura::Quorum> quorum_;
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;

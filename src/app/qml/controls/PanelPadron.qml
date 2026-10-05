@@ -25,6 +25,52 @@ Item {
         anchors.fill: parent
         spacing: 8
 
+        // Hay quórum (reglas del cuerpo: quorum_regla) — grande, se lee de lejos.
+        Rectangle {
+            readonly property var q: Studio.quorum.estado
+            visible: !!q.configurado
+            Layout.fillWidth: true
+            implicitHeight: 46
+            radius: 10
+            color: q.hay_quorum ? Qt.rgba(0.18, 0.8, 0.44, 0.18) : Qt.rgba(1, 0.23, 0.19, 0.18)
+            border.color: q.hay_quorum ? Theme.ok : Theme.live
+            Text {
+                anchors.centerIn: parent
+                text: (parent.q.hay_quorum ? "HAY QUÓRUM" : "SIN QUÓRUM") + " · " + parent.q.presentes + " de " +
+                      parent.q.necesarios + " necesarios (" + parent.q.miembros + " miembros)"
+                color: Theme.text
+                font.pixelSize: 17
+                font.weight: Font.Black
+            }
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            Text { text: "Miembros"; color: Theme.textDim; font.pixelSize: 11 }
+            SpinBox {
+                id: qMiembros; from: 0; to: 1000; editable: true; Layout.preferredWidth: 100
+                value: Studio.quorum.estado.miembros || 0
+            }
+            ComboBox {
+                id: qMayoria
+                implicitWidth: 200
+                model: [ { t: "Mayoría simple", v: "simple" }, { t: "Mayoría absoluta", v: "absoluta" },
+                         { t: "2/3 de presentes", v: "dos_tercios_presentes" }, { t: "2/3 de miembros", v: "dos_tercios_miembros" } ]
+                textRole: "t"
+                currentIndex: Math.max(0, model.findIndex(o => o.v === Studio.quorum.estado.mayoria))
+            }
+            GlassButton {
+                compact: true; text: "Guardar reglas"
+                onClicked: {
+                    const e = Studio.quorum.setReglaUi({ miembros: qMiembros.value, minimo: "mitad_mas_uno", mayoria: qMayoria.model[qMayoria.currentIndex].v })
+                    if (e !== "") Studio.notify(e, "error")
+                }
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "Quórum: la mitad más uno de los miembros. La mayoría es la de fábrica para el resultado oficial."
+            }
+            Item { Layout.fillWidth: true }
+        }
+
         // El quórum arriba y con sus dos números, que es como se lee.
         RowLayout {
             Layout.fillWidth: true

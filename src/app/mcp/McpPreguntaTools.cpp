@@ -28,6 +28,8 @@
 #include "ui/PersonasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "legislatura/OrdenDelDia.hpp"
+#include "legislatura/Quorum.hpp"
+#include "control/BusEventos.hpp"
 
 namespace ba::app::mcp {
 namespace {
@@ -178,6 +180,82 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                               {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
                               {"deDonde", QString::fromStdString(a.value("deDonde", std::string("sala")))}},
                   std::move(done), "Sumada a la cola.");
+        };
+        core.addTool(std::move(t));
+    }
+    // --- Quorum, mayorias y resultado oficial -----------------------------------------
+    {
+        Tool t;
+        t.name = "quorum_regla";
+        t.title = "Reglas de quorum y mayoria";
+        t.category = "preguntas";
+        t.description = "Las reglas del cuerpo: `miembros` (cuantos lo integran), `minimo` para sesionar "
+                        "(\"mitad_mas_uno\" o un numero) y la `mayoria` de fabrica para aprobar (simple, absoluta, "
+                        "dos_tercios_presentes, dos_tercios_miembros). Sin argumentos, las muestra.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"miembros", {{"type", "integer"}, {"minimum", 0}}},
+                           {"minimo", {{"description", "\"mitad_mas_uno\" o un numero"}}},
+                           {"mayoria", {{"type", "string"}, {"enum", {"simple", "absoluta", "dos_tercios_presentes", "dos_tercios_miembros"}}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            if (!a.empty())
+                if (const std::string e = vm.quorum().setRegla(a); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(vm.quorum().regla()));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "quorum_estado";
+        t.title = "Hay quorum?";
+        t.category = "preguntas";
+        t.readOnly = true;
+        t.description = "Si hay quorum ahora: presentes con voto (del padron del evento), necesarios y miembros.";
+        t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.quorum().estado())); };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "votacion_resultado_oficial";
+        t.title = "Cargar el resultado oficial de una votacion";
+        t.category = "preguntas";
+        t.description = "El resultado OFICIAL (el del tablero del recinto o el que lee Secretaria), que es el que va al "
+                        "acta: `asunto`, `afirmativos`, `negativos`, `abstenciones` (o `csv` nominal «nombre;voto» por "
+                        "linea), `mayoria` (si no, la de quorum_regla) y `punto` del orden del dia. Calcula si se aprobo "
+                        "y lo publica en el bus (sesion/votacion). La urna del publico es otra cosa (consulta).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"asunto"}},
+                         {"properties",
+                          {{"asunto", {{"type", "string"}}},
+                           {"afirmativos", {{"type", "integer"}, {"minimum", 0}}},
+                           {"negativos", {{"type", "integer"}, {"minimum", 0}}},
+                           {"abstenciones", {{"type", "integer"}, {"minimum", 0}}},
+                           {"presentes", {{"type", "integer"}, {"minimum", 0}}},
+                           {"csv", {{"type", "string"}}},
+                           {"mayoria", {{"type", "string"}, {"enum", {"simple", "absoluta", "dos_tercios_presentes", "dos_tercios_miembros"}}}},
+                           {"punto", {{"type", "integer"}, {"minimum", 1}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const json r = vm.quorum().cargarOficial(a);
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            vm.bus().publicar("sesion/votacion", r, true);
+            done(ToolResult().text(std::string(r.value("aprobado", false) ? "APROBADO" : "RECHAZADO") + ": " +
+                                   std::to_string(r.value("afirmativos", 0)) + " a " + std::to_string(r.value("negativos", 0)))
+                     .data(r));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pregunta_desde_chat";
+        t.title = "Sumar un mensaje del chat a las preguntas";
+        t.category = "preguntas";
+        t.description = "Suma a la cola de preguntas un mensaje del chat (YouTube, Twitch, Facebook o la sala) por su "
+                        "`mensaje_id` (la `key` de chat_recientes), con su autor y de donde vino.";
+        t.inputSchema = {{"type", "object"}, {"required", {"mensaje_id"}}, {"properties", {{"mensaje_id", {{"type", "string"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.preguntaDesdeChatUi(QString::fromStdString(a.value("mensaje_id", std::string())));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Mandada a la cola de preguntas."));
         };
         core.addTool(std::move(t));
     }
@@ -431,7 +509,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     if (!soloVer) archivo = ev->guardarActa(texto);
                     ToolResult res;
                     res.text(texto.toStdString());
-                    json out{{"acta", texto.toStdString()},
+                    json out{{"hash", EventoViewModel::hashActa(texto).toStdString()},
+                             {"acta", texto.toStdString()},
                              {"votaciones", votaciones.size()},
                              {"tiempos_palabra", vm.ordenDelDia().tiemposPalabra(vm.remotosPalabra())}};
                     if (!archivo.isEmpty()) out["archivo"] = archivo.toStdString();

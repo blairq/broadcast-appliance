@@ -12,6 +12,7 @@
 #include <QDateTime>
 #include <QPointer>
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -763,7 +764,18 @@ QString EventoViewModel::guardarActa(const QString& texto) const {
     QFile f(ruta);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return {};
     f.write(texto.toUtf8());
-    return f.error() == QFile::NoError ? ruta : QString();
+    if (f.error() != QFile::NoError) return {};
+    f.close();
+    // La huella del acta (SHA-256), al lado: cualquiera puede verificar que el
+    // texto no cambió (`shasum -a 256 -c acta-….md.sha256`).
+    QFile h(ruta + ".sha256");
+    if (h.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        h.write(hashActa(texto).toUtf8() + "  " + nombre.toUtf8() + "\n");
+    return ruta;
+}
+
+QString EventoViewModel::hashActa(const QString& texto) {
+    return QString::fromLatin1(QCryptographicHash::hash(texto.toUtf8(), QCryptographicHash::Sha256).toHex());
 }
 
 QVariantMap EventoViewModel::informe() const {

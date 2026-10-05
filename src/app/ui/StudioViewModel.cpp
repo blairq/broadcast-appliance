@@ -47,6 +47,7 @@
 #include "legislatura/Bancas.hpp"
 #include "legislatura/SeguirMicrofono.hpp"
 #include "legislatura/OrdenDelDia.hpp"
+#include "legislatura/Quorum.hpp"
 #include "legislatura/Cuerpo.hpp"
 #include "legislatura/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
@@ -542,8 +543,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
         seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
         ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
+        // Los presentes con voto salen del padrón del evento abierto.
+        quorum_ = std::make_unique<legislatura::Quorum>(rt.dataRoot(), [this]() {
+            auto* ev = static_cast<EventoViewModel*>(evento());
+            if (ev == nullptr) return 0;
+            const QVariantMap r = ev->property("resumenPadron").toMap();
+            return r.value("conVoto").toInt() > 0 ? r.value("votoPresente").toInt() : r.value("presentes").toInt();
+        });
         if (auto* ev = static_cast<EventoViewModel*>(evento())) {
-            ev->setAnexoActa([this]() { return QString::fromStdString(ordenDia_->anexoActa(remotosPalabra())); });
+            ev->setAnexoActa([this]() {
+                return QString::fromStdString(quorum_->anexoActa() + ordenDia_->anexoActa(remotosPalabra()));
+            });
         }
     }
     marca("camaras");
@@ -1619,6 +1629,23 @@ void StudioViewModel::quitarDestacadoChatUi(const QString& key) {
     if (chatOverlay_) chatOverlay_->quitarDestacado(key);
 }
 
+QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
+    if (!chatOverlay_ || !conference_) return "el chat no está disponible";
+    for (const auto& m : chatOverlay_->collect()) {
+        if (m.key != key) continue;
+        const QString deDonde = m.source == "room" ? "sala" : m.source;
+        static_cast<ConferenceViewModel*>(conference_.get())
+            ->client()
+            .post("/api/v1/preguntas",
+                  QJsonObject{{"accion", "preguntar"}, {"texto", m.text}, {"nombre", m.author}, {"deDonde", deDonde}},
+                  [this](bool ok, const QJsonObject&) {
+                      emit notify(ok ? "Sumada a la cola de preguntas" : "No se pudo sumar la pregunta", ok ? "ok" : "error");
+                  });
+        return {};
+    }
+    return "ese mensaje ya no está en el chat";
+}
+
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
 
 namespace {
@@ -1838,6 +1865,7 @@ QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }
+QObject* StudioViewModel::quorumQml() const { return quorum_.get(); }
 
 nlohmann::json StudioViewModel::remotosPalabra() const {
     nlohmann::json out = nlohmann::json::array();

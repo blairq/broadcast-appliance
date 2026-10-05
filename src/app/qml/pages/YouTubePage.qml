@@ -493,6 +493,14 @@ Rectangle {
                                 }
                                 ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Destacar para el chat en pantalla"
                             }
+                            // A la cola de preguntas (una sola cola para la sala y las plataformas).
+                            GlassButton {
+                                anchors { right: parent.right; top: parent.top; rightMargin: 40 }
+                                compact: true
+                                text: "?"
+                                onClicked: { const e = Studio.preguntaDesdeChatUi("yt:" + msg.model.id); if (e !== "") Studio.notify(e, "error") }
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sumar a la cola de preguntas"
+                            }
                         }
                     }
                     RowLayout {

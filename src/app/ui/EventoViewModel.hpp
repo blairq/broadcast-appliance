@@ -251,6 +251,8 @@ class EventoViewModel : public QObject {
     void setAnexoActa(std::function<QString()> fn) { anexoActa_ = std::move(fn); }
     /// La escribe en la carpeta del evento. Devuelve la ruta, o vacío.
     QString guardarActa(const QString& texto) const;
+    /// El SHA-256 del texto del acta (el que se guarda en acta-….md.sha256).
+    static QString hashActa(const QString& texto);
 
     /// La invitación de una persona del padrón: el texto, el enlace con su
     /// código adentro y los módulos del QR. Va al gateway a pedir el enlace,
