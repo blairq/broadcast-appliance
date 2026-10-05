@@ -11,6 +11,9 @@
 //   nada del grafo, salvo «Ordenar», que solo mueve tarjetas.
 // - Lo que se usa poco o es peligroso (restablecer, sacar todo) va en «⋯».
 //
+// Si no entra en un renglón, pasa a dos: arriba lo que se ve y cómo se mira,
+// abajo lo que se agrega y los paneles de la página.
+//
 // `lienzo` es el área del grafo: tiene que tener `escala`, `zoom`, `grilla`,
 // `acercar(f)` y `ordenar()` (Patchbay los tiene; AudioPage, en su lienzo).
 import QtQuick
@@ -35,15 +38,24 @@ Item {
     property var mas: []
     property var lienzo: null
 
-    implicitHeight: 30
+    /// No entra todo en un renglón: lo que se agrega y los paneles bajan al segundo.
+    readonly property bool dosRenglones: grupoVer.implicitWidth + grupoHacer.implicitWidth + grupoMirar.implicitWidth + 3 * 12 > width
+    implicitHeight: grilla.implicitHeight
 
     component Separador: Rectangle { width: 1; height: 20; color: Qt.rgba(1, 1, 1, 0.12); Layout.alignment: Qt.AlignVCenter }
 
-    RowLayout {
-        anchors.fill: parent
-        spacing: 6
+    GridLayout {
+        id: grilla
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        columns: 3
+        columnSpacing: 12
+        rowSpacing: 8
 
-        // --- Qué estoy viendo ------------------------------------------------------------
+    // --- Qué estoy viendo ------------------------------------------------------------
+    RowLayout {
+        id: grupoVer
+        Layout.row: 0; Layout.column: 0
+        spacing: 6
         Text {
             text: barra.titulo
             visible: text !== ""
@@ -65,9 +77,17 @@ Item {
                 }
             }
         }
-        Separador { visible: barra.titulo !== "" || barra.vistas.length > 1 }
+        // Con opacidad (no visible): que no cambie el ancho que decide los renglones.
+        Separador { visible: barra.titulo !== "" || barra.vistas.length > 1; opacity: barra.dosRenglones ? 0 : 1 }
+    }
 
-        // --- Qué le sumo / qué hago -------------------------------------------------------
+    // --- Qué le sumo / qué hago -------------------------------------------------------
+    RowLayout {
+        id: grupoHacer
+        Layout.row: barra.dosRenglones ? 1 : 0
+        Layout.column: barra.dosRenglones ? 0 : 1
+        Layout.columnSpan: barra.dosRenglones ? 3 : 1
+        spacing: 6
         GlassButton {
             id: botonAgregar
             visible: barra.agregar.length > 0
@@ -137,9 +157,15 @@ Item {
             }
         }
 
-        Item { Layout.fillWidth: true }
+    }
 
-        // --- Cómo lo miro (no cambia el grafo) --------------------------------------------
+    // --- Cómo lo miro (no cambia el grafo) --------------------------------------------
+    RowLayout {
+        id: grupoMirar
+        Layout.row: 0; Layout.column: 2
+        Layout.fillWidth: true
+        spacing: 6
+        Item { Layout.fillWidth: true }
         Row {
             visible: barra.lienzo !== null
             spacing: 2
@@ -205,5 +231,6 @@ Item {
                 }
             }
         }
+    }
     }
 }
