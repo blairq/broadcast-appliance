@@ -1534,7 +1534,9 @@ json VideoGrafos::avisosDe(const std::string& entrada) const {
 
 std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
                                          const std::string& escena, int audio, int normalizar, int ntpSync,
-                                         int superres) {
+                                         int superres, const std::string& sincronia) {
+    if (!sincronia.empty() && sincronia != "colchon" && sincronia != "gstreamer")
+        return "`sincronia`: colchon o gstreamer";
     if (nombre.empty()) return "falta el nombre";
     // Si ya existe (de GStreamer), se actualiza: otra URI, otro colchón.
     if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
@@ -1550,6 +1552,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
         if (normalizar >= 0) obs_data_set_bool(d, "normalizar", normalizar == 1);
         if (ntpSync >= 0) obs_data_set_bool(d, "ntp_sync", ntpSync == 1);
         if (superres >= 0) obs_data_set_bool(d, "superres", superres == 1);
+        if (!sincronia.empty()) obs_data_set_string(d, "sincronia", sincronia.c_str());
         actualizarFuente(src, d); // en vivo Y en la configuración guardada (si no, se perdía al reiniciar)
         obs_data_release(d);
         obs_source_release(src);
@@ -1567,6 +1570,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     ajustes["normalizar"] = normalizar != 0;
     if (ntpSync >= 0) ajustes["ntp_sync"] = ntpSync == 1;
     if (superres >= 0) ajustes["superres"] = superres == 1;
+    if (!sincronia.empty()) ajustes["sincronia"] = sincronia;
     ajustes["latencia"] = latenciaMs >= 0 ? latenciaMs : reloj_.value("latencia_ms", 200);
     ajustes["latencia_propia"] = latenciaMs >= 0;
     SourceSpec spec;
@@ -1686,6 +1690,10 @@ QString VideoGrafos::desfaseUi(const QString& entrada, double ms) {
 QString VideoGrafos::superresUi(const QString& entrada, bool activa) {
     if (activa && !haySuperres()) return "Este sistema no tiene superresolución (necesita macOS 26).";
     return q(crearEntradaRed(entrada.toStdString(), {}, -1, {}, -1, -1, -1, activa ? 1 : 0));
+}
+
+QString VideoGrafos::sincroniaUi(const QString& entrada, const QString& modo) {
+    return q(crearEntradaRed(entrada.toStdString(), {}, -1, {}, -1, -1, -1, -1, modo.toStdString()));
 }
 
 std::string VideoGrafos::superresMotor(const std::string& entrada, const std::string& motor,

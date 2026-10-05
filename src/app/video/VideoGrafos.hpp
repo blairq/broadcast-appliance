@@ -164,6 +164,8 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString desfaseUi(const QString& entrada, double ms);
     /// Superresolución x2 de una entrada de red (macOS 26: bavtsuperres). "" o el error.
     Q_INVOKABLE QString superresUi(const QString& entrada, bool activa);
+    /// Cómo sincroniza la entrada: "colchon" o "gstreamer" (latencia del estudio).
+    Q_INVOKABLE QString sincroniaUi(const QString& entrada, const QString& modo);
     /// Si este sistema tiene superresolución (el elemento de GStreamer está registrado).
     Q_INVOKABLE bool haySuperres() const;
     /// El motor de superresolución de una entrada de red: "" (ninguno), apple,
@@ -277,7 +279,7 @@ class VideoGrafos : public QObject {
     /// reloj del estudio. `latenciaMs` < 0: la del estudio. "" o el error.
     std::string crearEntradaRed(const std::string& nombre, const std::string& uri, int latenciaMs,
                                 const std::string& escena, int audio = -1, int normalizar = -1,
-                                int ntpSync = -1, int superres = -1);
+                                int ntpSync = -1, int superres = -1, const std::string& sincronia = {});
     // (audio, normalizar, ntpSync: 1 sí, 0 no, -1 sin decir: al crear, de
     // fábrica; al actualizar una que ya existe, no se toca.)
     /// Corre una entrada `ms` (o la lleva a `ms` si !relativo): una fuente de

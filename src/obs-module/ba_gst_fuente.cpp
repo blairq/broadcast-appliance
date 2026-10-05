@@ -9,7 +9,18 @@
 //   - `pipeline`: la parte de origen de un pipeline, como en gst-launch
 //     («videotestsrc pattern=smpte is-live=true»). Solo video.
 //
-// SINCRONÍA. Los cuadros NO se entregan a libobs al llegar: van a un colchón
+// SINCRONÍA ESTÁNDAR DE GSTREAMER (de fábrica, `sincronia` = gstreamer): los
+// appsink de video y de audio sincronizan con el reloj (sync=true), con una cola
+// de espera delante; TODAS las cadenas usan el mismo reloj, el mismo base_time
+// (el del estudio) y la misma latencia (gst_pipeline_set_latency con la mayor
+// del estudio: lo que pide cada cadena en la consulta LATENCY —jitter buffer de
+// RTSP/SRT, filtros que declaran lo que tardan— y el colchón configurado). Así
+// lo capturado a la vez se entrega a la vez, en todas las entradas, y el audio
+// de una entrada sale con su video (los dos sinks esperan la misma hora). El
+// desfase es el ts-offset de los sinks. Cada cuadro se le pasa a libobs cuando
+// el sink lo libera.
+//
+// SINCRONÍA VIEJA (`sincronia` = colchon, de respaldo). Los cuadros NO se entregan a libobs al llegar: van a un colchón
 // (el jitter buffer de esta fuente) y cada uno se presenta cuando le toca:
 //     hora de captura (en el reloj del pipeline) + `latencia` + `desfase`.
 // Si dos fuentes usan el mismo reloj y la misma latencia, lo que se capturó
@@ -189,6 +200,13 @@ struct Fuente {
     double retrasoV = 0, retrasoA = 0;
     std::int64_t compMs = 0;
     double declaradoMs = 0;            ///< la latencia que declara la cadena (LATENCY: filtros incluidos)
+    // Sincronía estándar (sync=true, base_time y latencia del estudio).
+    bool estandar = true;
+    std::string sincronia = "colchon";
+    std::int64_t latObjetivoNs = 0;    ///< la latencia puesta en la cadena (la del estudio)
+    std::deque<double>* edades = nullptr; ///< lo viejo que llegaron los últimos cuadros (ms, bajo colaLock)
+    std::uint64_t sobraDesdeNs = 0;    ///< desde cuándo sobra latencia (para bajarla sin apuro)
+    double edadP50 = 0, edadP90 = 0;
     std::uint64_t consultaNs = 0;      ///< cuándo se preguntó por última vez
     // El canal de control (evento «ba/control»): lo último pedido, para volver a
     // mandarlo si la cadena se rearma.
@@ -200,6 +218,9 @@ struct Fuente {
     double fpsDeclarado = 0;
     std::string origen; ///< lo que llega, ANTES de normalizar (JSON: formato, tamaño, fps, color…)
 };
+
+void presentarVideo(Fuente* f, GstSample* s);
+void presentarAudio(Fuente* f, GstSample* s);
 
 /// Las caps de lo que llega, en castellano y por campo (para el diagnóstico).
 std::string describirOrigen(GstCaps* c) {
@@ -274,6 +295,28 @@ GstFlowReturn alVideo(GstAppSink* sink, gpointer datos) {
     auto* f = static_cast<Fuente*>(datos);
     GstSample* s = gst_app_sink_pull_sample(sink);
     if (s == nullptr) return GST_FLOW_OK;
+    if (f->estandar) {
+        // El sink ya esperó su hora (reloj, base_time y latencia del estudio): a libobs ya.
+        presentarVideo(f, s);
+        gst_sample_unref(s);
+        std::lock_guard<std::mutex> l(f->colaLock);
+        const std::uint64_t n = os_gettime_ns();
+        if (f->primeroNs == 0) f->primeroNs = n;
+        ++f->cuentaFps;
+        if (n - f->primeroNs >= 2'000'000'000ULL) {
+            f->fpsMedido = static_cast<double>(f->cuentaFps) * 1e9 / static_cast<double>(n - f->primeroNs);
+            f->primeroNs = n;
+            f->cuentaFps = 0;
+        }
+        if (f->ventanaNs == 0) f->ventanaNs = n;
+        if (n - f->ventanaNs >= 10'000'000'000ULL) {
+            f->tarde10 = f->tardeVentana;
+            f->recibidos10 = f->recibidosVentana;
+            f->tardeVentana = f->recibidosVentana = 0;
+            f->ventanaNs = n;
+        }
+        return GST_FLOW_OK;
+    }
     if (f->clock == nullptr) {
         gst_sample_unref(s);
         return GST_FLOW_OK;
@@ -324,6 +367,12 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
     auto* f = static_cast<Fuente*>(datos);
     GstSample* s = gst_app_sink_pull_sample(sink);
     if (s == nullptr) return GST_FLOW_OK;
+    if (f->estandar) {
+        // Esperó la misma hora que su video: sale con él (sincronía de labios).
+        presentarAudio(f, s);
+        gst_sample_unref(s);
+        return GST_FLOW_OK;
+    }
     if (f->clock == nullptr) {
         gst_sample_unref(s);
         return GST_FLOW_OK;
@@ -385,8 +434,10 @@ void presentarVideo(Fuente* f, GstSample* s) {
                                            frame.color_matrix, frame.color_range_min, frame.color_range_max);
     obs_source_output_video(f->ctx, &frame);
     gst_video_frame_unmap(&vf);
-    // Lo que se informa (el tic ya tiene `lock`).
+    // Lo que se informa (bajo colaLock: con la sincronía estándar esto corre en el
+    // hilo del sink, que no puede tomar `lock`).
     gchar* col = gst_video_colorimetry_to_string(&c);
+    std::lock_guard<std::mutex> lc(f->colaLock);
     f->formato = gst_video_format_to_string(GST_VIDEO_INFO_FORMAT(&info));
     f->colorimetria =
         std::string(col != nullptr ? col : "") + (completo ? " (rango completo)" : " (rango limitado)");
@@ -478,6 +529,62 @@ std::int64_t compensacionEstudio(const Fuente* f, std::int64_t propia) {
 void olvidarCompensacion(const Fuente* f) {
     std::lock_guard<std::mutex> l(g_compLock);
     g_compPropia.erase(f);
+}
+
+
+/// La latencia del estudio (ns): la mayor que pidan las cadenas (estándar).
+std::mutex g_latLock;
+std::map<const Fuente*, std::int64_t> g_latPropia;
+
+std::int64_t latenciaDelEstudio(const Fuente* f, std::int64_t propia) {
+    std::lock_guard<std::mutex> l(g_latLock);
+    if (propia > 0) g_latPropia[f] = propia;
+    std::int64_t m = 0;
+    for (const auto& [x, v] : g_latPropia)
+        m = std::max(m, v);
+    return m;
+}
+
+void olvidarLatencia(const Fuente* f) {
+    std::lock_guard<std::mutex> l(g_latLock);
+    g_latPropia.erase(f);
+}
+
+/// Al llegar un cuadro (o un bloque de audio) a la cola de espera: cuán viejo
+/// llega (lo que tardó la cadena) y cuánto le falta para su hora.
+GstPadProbeReturn alLlegar(GstPad* pad, GstPadProbeInfo* info, gpointer d) {
+    auto* par = static_cast<std::pair<Fuente*, bool>*>(d);
+    Fuente* f = par->first;
+    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+    if (b == nullptr || !GST_BUFFER_PTS_IS_VALID(b) || f->clock == nullptr) return GST_PAD_PROBE_OK;
+    GstEvent* ev = gst_pad_get_sticky_event(pad, GST_EVENT_SEGMENT, 0);
+    if (ev == nullptr) return GST_PAD_PROBE_OK;
+    const GstSegment* seg = nullptr;
+    gst_event_parse_segment(ev, &seg);
+    const GstClockTime rt = gst_segment_to_running_time(seg, GST_FORMAT_TIME, GST_BUFFER_PTS(b));
+    gst_event_unref(ev);
+    if (!GST_CLOCK_TIME_IS_VALID(rt)) return GST_PAD_PROBE_OK;
+    const double ahora = static_cast<double>(gst_clock_get_time(f->clock));
+    const GstClockTime base = f->pipeline != nullptr ? gst_element_get_base_time(f->pipeline) : 0;
+    const double captura = static_cast<double>(base + rt);
+    const double retraso = (ahora - captura) / 1e6;
+    const double falta = (captura + static_cast<double>(f->latObjetivoNs + f->desfaseMs * static_cast<std::int64_t>(GST_MSECOND)) - ahora) / 1e6;
+    std::lock_guard<std::mutex> l(f->colaLock);
+    double& r = par->second ? f->retrasoV : f->retrasoA;
+    r = retraso > r ? retraso : r - (r - retraso) * 0.01;
+    if (par->second) {
+        if (f->edades == nullptr) f->edades = new std::deque<double>();
+        f->edades->push_back(retraso);
+        while (f->edades->size() > 300) f->edades->pop_front();
+        ++f->recibidos;
+        ++f->recibidosVentana;
+        if (falta < -40.0) {
+            ++f->tarde;
+            ++f->tardeVentana;
+        }
+        f->adelantoMs = f->recibidos == 1 ? falta : f->adelantoMs * 0.95 + falta * 0.05;
+    }
+    return GST_PAD_PROBE_OK;
 }
 
 // --- El canal de control ------------------------------------------------------------
@@ -687,12 +794,24 @@ void armar(Fuente* f) {
     if (f->uri.empty() && f->descripcion.empty() && f->descripcionAudio.empty()) return;
     f->clock = relojDe(f->reloj, f->relojServidor, f->relojPuerto, f->relojDominio, f->error);
     if (f->clock == nullptr) return;
-    // Los sinks NO esperan al reloj (sync=false): la hora la pone el colchón.
+    // Estándar: los sinks esperan al reloj (sync=true) con una cola de espera
+    // delante (los filtros trabajan al llegar el cuadro; la espera es acá).
+    // Colchón (respaldo): no esperan (sync=false) y la hora la pone el colchón.
     // async=false: una rama sin datos (un stream sin audio) no traba el arranque.
-    const char* sinkVideo =
-        "appsink name=ba_video sync=false async=false max-buffers=8 drop=false emit-signals=false";
-    const char* sinkAudio =
-        "appsink name=ba_audio sync=false async=false max-buffers=64 drop=false emit-signals=false";
+    f->estandar = f->sincronia == "gstreamer";
+    const std::string desf = std::to_string(f->desfaseMs * static_cast<std::int64_t>(GST_MSECOND));
+    const std::string sinkVideoS =
+        f->estandar ? "queue name=ba_espera_v max-size-buffers=0 max-size-bytes=0 max-size-time=5000000000 ! "
+                      "appsink name=ba_video sync=true async=false max-buffers=4 drop=false emit-signals=false ts-offset=" +
+                          desf
+                    : "appsink name=ba_video sync=false async=false max-buffers=8 drop=false emit-signals=false";
+    const std::string sinkAudioS =
+        f->estandar ? "queue name=ba_espera_a max-size-buffers=0 max-size-bytes=0 max-size-time=5000000000 ! "
+                      "appsink name=ba_audio sync=true async=false max-buffers=64 drop=false emit-signals=false ts-offset=" +
+                          desf
+                    : "appsink name=ba_audio sync=false async=false max-buffers=64 drop=false emit-signals=false";
+    const char* sinkVideo = sinkVideoS.c_str();
+    const char* sinkAudio = sinkAudioS.c_str();
     // NORMALIZAR (de fábrica): GStreamer deja todo igual antes de libobs
     // —desentrelaza solo si viene entrelazado (`deinterlace mode=auto`), lleva
     // a los cuadros del lienzo (`videorate`) y al color del estudio: NV12,
@@ -832,6 +951,25 @@ void armar(Fuente* f) {
     enganchar(f, p, "ba_video", alVideo);
     enganchar(f, p, "ba_audio", alAudio);
     gst_pipeline_use_clock(GST_PIPELINE(p), f->clock);
+    if (f->estandar) {
+        // La misma latencia que las demás cadenas del estudio (con el mismo reloj, la
+        // hora de cada cuadro de una fuente en vivo sale del reloj al capturar: el
+        // base_time de cada cadena se cancela y quedan alineadas).
+        f->latObjetivoNs = std::max<std::int64_t>(latenciaDelEstudio(f, 0), f->latenciaMs * static_cast<std::int64_t>(GST_MSECOND));
+        gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(f->latObjetivoNs));
+        // Lo que se mide al llegar a la cola de espera (antes de esperar al reloj):
+        // cuán viejo llega cada cuadro y cuánto le falta para su hora.
+        for (const char* q : {"ba_espera_v", "ba_espera_a"})
+            if (GstElement* e = gst_bin_get_by_name(GST_BIN(p), q)) {
+                if (GstPad* pad = gst_element_get_static_pad(e, "sink")) {
+                    gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, alLlegar,
+                                      new std::pair<Fuente*, bool>(f, std::string(q) == "ba_espera_v"),
+                                      [](gpointer d) { delete static_cast<std::pair<Fuente*, bool>*>(d); });
+                    gst_object_unref(pad);
+                }
+                gst_object_unref(e);
+            }
+    }
     f->pipeline = p;
     {
         std::lock_guard<std::mutex> l(f->colaLock);
@@ -840,6 +978,8 @@ void armar(Fuente* f) {
         f->adelantoMs = 0;
         f->retrasoV = f->retrasoA = 0;
         f->compMs = 0;
+        if (f->edades != nullptr) f->edades->clear();
+        f->edadP50 = f->edadP90 = 0;
     }
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         f->error = "el pipeline no arrancó";
@@ -864,6 +1004,7 @@ void actualizar(void* data, obs_data_t* s) {
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
     const std::string superresModelo = obs_data_get_string(s, "superres_modelo");
     const bool ntpSync = obs_data_get_bool(s, "ntp_sync");
+    const std::string sincronia = std::string(obs_data_get_string(s, "sincronia")) == "gstreamer" ? "gstreamer" : "colchon";
     // Los de audio también pueden venir aparte (`filtros_audio`: un arreglo):
     // los pone otra parte del programa que el grafo de video.
     const std::string filtrosJson =
@@ -896,7 +1037,7 @@ void actualizar(void* data, obs_data_t* s) {
                          dominio != f->relojDominio || audio != f->conAudio || normalizar != f->normalizar ||
                          superres != f->superres || superresMotor != f->superresMotor ||
                          superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
-                         firma != f->firmaFiltros ||
+                         firma != f->firmaFiltros || sincronia != f->sincronia ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -922,6 +1063,7 @@ void actualizar(void* data, obs_data_t* s) {
     f->ntpSync = ntpSync;
     f->latenciaMs = latencia;
     f->desfaseMs = desfase;
+    f->sincronia = sincronia;
     if (rearmar) {
         armar(f);
         return;
@@ -936,6 +1078,16 @@ void actualizar(void* data, obs_data_t* s) {
                     gst_object_unref(e);
                 }
             }
+    // Estándar: el desfase es el ts-offset de los sinks (en vivo); la latencia la
+    // ajusta el tic (la del estudio).
+    if (f->estandar && f->pipeline != nullptr) {
+        for (const char* n : {"ba_video", "ba_audio"})
+            if (GstElement* e = gst_bin_get_by_name(GST_BIN(f->pipeline), n)) {
+                g_object_set(e, "ts-offset", static_cast<gint64>(f->desfaseMs * static_cast<std::int64_t>(GST_MSECOND)), nullptr);
+                gst_object_unref(e);
+            }
+        return;
+    }
     // Lo que ya está en el colchón se corre lo mismo.
     std::lock_guard<std::mutex> lc(f->colaLock);
     for (auto* q : {&f->video, &f->audio})
@@ -1072,14 +1224,22 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
             obs_data_set_bool(o, "ntp_sync", x->ntpSync && !x->ntpApagadoSolo);
             obs_data_set_bool(o, "ntp_apagado_solo", x->ntpApagadoSolo);
             obs_data_set_int(o, "desfase_ms", x->desfaseMs);
-            obs_data_set_string(o, "formato", x->formato.c_str());
-            obs_data_set_string(o, "colorimetria", x->colorimetria.c_str());
-            obs_data_set_int(o, "ancho", x->ancho);
-            obs_data_set_int(o, "alto", x->alto);
-            obs_data_set_bool(o, "entrelazado", x->entrelazado);
-            obs_data_set_double(o, "fps_declarados", x->fpsDeclarado);
+            obs_data_set_string(o, "sincronia", x->estandar ? "gstreamer" : "colchon");
+            if (x->estandar) {
+                obs_data_set_int(o, "latencia_estudio_ms", x->latObjetivoNs / static_cast<std::int64_t>(GST_MSECOND));
+                obs_data_set_int(o, "latencia_declarada_ms", std::lround(x->declaradoMs));
+                std::lock_guard<std::mutex> lc(x->colaLock);
+                obs_data_set_int(o, "llegada_p50_ms", std::lround(x->edadP50));
+                obs_data_set_int(o, "llegada_p90_ms", std::lround(x->edadP90));
+            }
             {
                 std::lock_guard<std::mutex> lc(x->colaLock);
+                obs_data_set_string(o, "formato", x->formato.c_str());
+                obs_data_set_string(o, "colorimetria", x->colorimetria.c_str());
+                obs_data_set_int(o, "ancho", x->ancho);
+                obs_data_set_int(o, "alto", x->alto);
+                obs_data_set_bool(o, "entrelazado", x->entrelazado);
+                obs_data_set_double(o, "fps_declarados", x->fpsDeclarado);
                 obs_data_set_double(o, "fps_recibidos", x->fpsMedido);
                 obs_data_set_int(o, "recibidos", static_cast<long long>(x->recibidos));
                 obs_data_set_int(o, "llegaron_tarde", static_cast<long long>(x->tarde));
@@ -1149,11 +1309,13 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
 void destruir(void* data) {
     auto* f = static_cast<Fuente*>(data);
     olvidarCompensacion(f);
+    olvidarLatencia(f);
     {
         std::lock_guard<std::mutex> l(f->lock);
         desarmar(f);
         if (f->control != nullptr) gst_structure_free(f->control);
     }
+    delete f->edades;
     delete f;
 }
 
@@ -1183,7 +1345,13 @@ void tic(void* data, float) {
             recibidos = f->recibidos;
         }
         // (Lo que agregó el colchón por la demora de los filtros no es culpa del reloj.)
-        const double exceso = adelanto - static_cast<double>(f->latenciaMs + f->desfaseMs + f->compMs);
+        double exceso = adelanto - static_cast<double>(f->latenciaMs + f->desfaseMs + f->compMs);
+        if (f->estandar) {
+            // Con la sincronía estándar: la hora de la cámara corrida hace que los
+            // cuadros lleguen «del futuro» (lo viejo que llegan, negativo).
+            std::lock_guard<std::mutex> lc(f->colaLock);
+            exceso = f->edades != nullptr && f->edades->size() >= 30 ? -f->edadP50 : 0.0;
+        }
         const std::uint64_t ahoraNs = os_gettime_ns();
         if (recibidos > 60 && exceso > 400) {
             if (f->ntpMalDesde == 0)
@@ -1203,83 +1371,153 @@ void tic(void* data, float) {
             f->ntpMalDesde = 0;
         }
     }
-    // Los filtros demoran el video: el colchón crece lo que falta (para audio Y
-    // video: siguen juntos). Lo que falta sale de lo medido (lo viejo que llega
-    // cada cuadro) y, como piso, de la latencia que DECLARAN los elementos (una
-    // red en reposo llega rápido pero declara lo que tarda activa: prenderla no
-    // mueve el audio). Todas las entradas usan la mayor del estudio.
-    const bool hayFiltros = !f->filtrosV.empty() || !f->filtrosA.empty() || !f->superresMotor.empty() || f->superres;
-    const std::uint64_t ahoraNs = os_gettime_ns();
-    if (hayFiltros && ahoraNs - f->consultaNs > 1'000'000'000ULL) {
-        f->consultaNs = ahoraNs;
-        if (GstElement* sink = gst_bin_get_by_name(GST_BIN(f->pipeline), "ba_video")) {
-            if (GstPad* pad = gst_element_get_static_pad(sink, "sink")) {
-                GstQuery* q = gst_query_new_latency();
-                if (gst_pad_peer_query(pad, q)) {
-                    gboolean vivo = FALSE;
-                    GstClockTime min = 0, max = 0;
-                    gst_query_parse_latency(q, &vivo, &min, &max);
-                    f->declaradoMs = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
+    if (f->estandar) {
+        // Sincronía estándar: la latencia del estudio. Cada cadena pide la suya
+        // —la consulta LATENCY (jitter buffer de RTSP/SRT y lo que declaran sus
+        // filtros: una red en reposo declara lo que tarda activa, así prenderla
+        // no mueve nada), lo medido al llegar a la cola de espera (por si algún
+        // elemento no declara) y el colchón configurado— y todas usan la mayor
+        // (gst_pipeline_set_latency): salen alineadas y con su audio.
+        const std::uint64_t ahoraNs = os_gettime_ns();
+        if (ahoraNs - f->consultaNs > 1'000'000'000ULL) {
+            f->consultaNs = ahoraNs;
+            GstQuery* q = gst_query_new_latency();
+            if (gst_element_query(f->pipeline, q)) {
+                gboolean vivo = FALSE;
+                GstClockTime min = 0, max = 0;
+                gst_query_parse_latency(q, &vivo, &min, &max);
+                f->declaradoMs = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
+            }
+            gst_query_unref(q);
+        }
+        // Lo medido: el percentil 95 de lo viejo que llegaron los últimos ~10 s
+        // de cuadros a la cola de espera (no el pico: la llegada por red tiene
+        // ruido). Hace falta porque no todos los elementos declaran lo que
+        // demoran (vtdec, por ejemplo, guarda cuadros para reordenar y no lo
+        // dice): con la latencia declarada sola, entre un 15 y un 57 % de los
+        // cuadros llegaban tarde al appsink.
+        double p95 = 0;
+        std::uint64_t recibidos = 0;
+        {
+            std::lock_guard<std::mutex> lc(f->colaLock);
+            recibidos = f->recibidos;
+            if (f->edades != nullptr && f->edades->size() >= 30) {
+                std::vector<double> v(f->edades->begin(), f->edades->end());
+                std::sort(v.begin(), v.end());
+                f->edadP50 = v[v.size() / 2];
+                f->edadP90 = v[v.size() * 9 / 10];
+                p95 = std::clamp(v[v.size() * 95 / 100], 0.0, 2000.0);
+            }
+        }
+        const std::int64_t piso = f->latenciaMs * static_cast<std::int64_t>(GST_MSECOND);
+        // La latencia que pide esta cadena (y el estudio usa la mayor, con
+        // gst_pipeline_set_latency): lo que declaran sus elementos (consulta
+        // LATENCY) o lo medido, lo que sea más, con un margen; el colchón
+        // configurado es el piso.
+        const double necesitaMs = std::max(f->declaradoMs + 15.0, p95 + 10.0);
+        const std::int64_t propia = std::max<std::int64_t>(piso, static_cast<std::int64_t>(necesitaMs * 1e6));
+        const std::int64_t estudio = std::clamp<std::int64_t>(latenciaDelEstudio(f, recibidos > 30 ? propia : piso), piso,
+                                                              static_cast<std::int64_t>(5 * GST_SECOND));
+        // Sube enseguida (si no, los cuadros llegan tarde); baja solo si sobra
+        // bastante durante 10 s (cada cambio corre la imagen y el audio).
+        bool cambiar = false;
+        if (estudio > f->latObjetivoNs + static_cast<std::int64_t>(15 * GST_MSECOND)) {
+            cambiar = true;
+        } else if (estudio < f->latObjetivoNs - static_cast<std::int64_t>(60 * GST_MSECOND)) {
+            if (f->sobraDesdeNs == 0) f->sobraDesdeNs = ahoraNs;
+            cambiar = ahoraNs - f->sobraDesdeNs > 10'000'000'000ULL;
+        } else {
+            f->sobraDesdeNs = 0;
+        }
+        if (cambiar) {
+            f->sobraDesdeNs = 0;
+            f->latObjetivoNs = estudio;
+            gst_pipeline_set_latency(GST_PIPELINE(f->pipeline), static_cast<GstClockTime>(estudio));
+            gst_bin_recalculate_latency(GST_BIN(f->pipeline));
+        }
+        // Para el diagnóstico (y la revisión de la hora de la cámara): lo que la
+        // latencia del estudio agrega sobre el colchón configurado.
+        f->compMs = f->latObjetivoNs / static_cast<std::int64_t>(GST_MSECOND) - f->latenciaMs;
+        if (!f->controlEnviado && f->control != nullptr && recibidos > 0) f->controlEnviado = enviarControl(f);
+    } else {
+        // Los filtros demoran el video: el colchón crece lo que falta (para audio Y
+        // video: siguen juntos). Lo que falta sale de lo medido (lo viejo que llega
+        // cada cuadro) y, como piso, de la latencia que DECLARAN los elementos (una
+        // red en reposo llega rápido pero declara lo que tarda activa: prenderla no
+        // mueve el audio). Todas las entradas usan la mayor del estudio.
+        const bool hayFiltros = !f->filtrosV.empty() || !f->filtrosA.empty() || !f->superresMotor.empty() || f->superres;
+        const std::uint64_t ahoraNs = os_gettime_ns();
+        if (hayFiltros && ahoraNs - f->consultaNs > 1'000'000'000ULL) {
+            f->consultaNs = ahoraNs;
+            if (GstElement* sink = gst_bin_get_by_name(GST_BIN(f->pipeline), "ba_video")) {
+                if (GstPad* pad = gst_element_get_static_pad(sink, "sink")) {
+                    GstQuery* q = gst_query_new_latency();
+                    if (gst_pad_peer_query(pad, q)) {
+                        gboolean vivo = FALSE;
+                        GstClockTime min = 0, max = 0;
+                        gst_query_parse_latency(q, &vivo, &min, &max);
+                        f->declaradoMs = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
+                    }
+                    gst_query_unref(q);
+                    gst_object_unref(pad);
                 }
-                gst_query_unref(q);
-                gst_object_unref(pad);
+                gst_object_unref(sink);
             }
-            gst_object_unref(sink);
         }
-    }
-    {
-        std::lock_guard<std::mutex> lc(f->colaLock);
-        std::int64_t propia = 0;
-        if (hayFiltros) {
-            const double llega = std::max({f->retrasoV, f->retrasoA, f->declaradoMs});
-            propia = std::clamp<std::int64_t>(static_cast<std::int64_t>(std::lround(llega + 15.0)) - f->latenciaMs -
-                                                  f->desfaseMs,
-                                              0, 3000);
-        }
-        const std::int64_t deseado = compensacionEstudio(f, f->recibidos > 15 ? propia : 0);
-        if (f->recibidos > 15 && std::llabs(deseado - f->compMs) >= 8) {
-            const std::int64_t corr = (deseado - f->compMs) * static_cast<std::int64_t>(GST_MSECOND);
-            for (auto* q : {&f->video, &f->audio})
-                for (auto& pe : *q)
-                    pe.vence = static_cast<GstClockTime>(
-                        std::max<std::int64_t>(0, static_cast<std::int64_t>(pe.vence) + corr));
-            f->compMs = deseado;
-        }
-    }
-    // El control pendiente, apenas la cadena (nueva) pasa cuadros.
-    if (!f->controlEnviado && f->control != nullptr && f->recibidos > 0) f->controlEnviado = enviarControl(f);
-    // El colchón: el último cuadro vencido se muestra; los vencidos de antes
-    // se saltean (llegaron juntos, o la máquina se atrasó).
-    GstSample* video = nullptr;
-    std::deque<GstSample*> audios;
-    {
-        std::lock_guard<std::mutex> lc(f->colaLock);
-        const GstClockTime ahora = gst_clock_get_time(f->clock);
-        while (!f->video.empty() && f->video.front().vence <= ahora) {
-            if (video != nullptr) {
-                gst_sample_unref(video);
-                ++f->saltados;
+        {
+            std::lock_guard<std::mutex> lc(f->colaLock);
+            std::int64_t propia = 0;
+            if (hayFiltros) {
+                const double llega = std::max({f->retrasoV, f->retrasoA, f->declaradoMs});
+                propia = std::clamp<std::int64_t>(static_cast<std::int64_t>(std::lround(llega + 15.0)) - f->latenciaMs -
+                                                      f->desfaseMs,
+                                                  0, 3000);
             }
-            video = f->video.front().muestra;
-            f->video.pop_front();
+            const std::int64_t deseado = compensacionEstudio(f, f->recibidos > 15 ? propia : 0);
+            if (f->recibidos > 15 && std::llabs(deseado - f->compMs) >= 8) {
+                const std::int64_t corr = (deseado - f->compMs) * static_cast<std::int64_t>(GST_MSECOND);
+                for (auto* q : {&f->video, &f->audio})
+                    for (auto& pe : *q)
+                        pe.vence = static_cast<GstClockTime>(
+                            std::max<std::int64_t>(0, static_cast<std::int64_t>(pe.vence) + corr));
+                f->compMs = deseado;
+            }
         }
-        while (!f->audio.empty() && f->audio.front().vence <= ahora) {
-            audios.push_back(f->audio.front().muestra);
-            f->audio.pop_front();
+        // El control pendiente, apenas la cadena (nueva) pasa cuadros.
+        if (!f->controlEnviado && f->control != nullptr && f->recibidos > 0) f->controlEnviado = enviarControl(f);
+        // El colchón: el último cuadro vencido se muestra; los vencidos de antes
+        // se saltean (llegaron juntos, o la máquina se atrasó).
+        GstSample* video = nullptr;
+        std::deque<GstSample*> audios;
+        {
+            std::lock_guard<std::mutex> lc(f->colaLock);
+            const GstClockTime ahora = gst_clock_get_time(f->clock);
+            while (!f->video.empty() && f->video.front().vence <= ahora) {
+                if (video != nullptr) {
+                    gst_sample_unref(video);
+                    ++f->saltados;
+                }
+                video = f->video.front().muestra;
+                f->video.pop_front();
+            }
+            while (!f->audio.empty() && f->audio.front().vence <= ahora) {
+                audios.push_back(f->audio.front().muestra);
+                f->audio.pop_front();
+            }
+            f->colchonMs =
+                f->video.empty()
+                    ? 0
+                    : (static_cast<std::int64_t>(f->video.back().vence) - static_cast<std::int64_t>(ahora)) /
+                          static_cast<std::int64_t>(GST_MSECOND);
         }
-        f->colchonMs =
-            f->video.empty()
-                ? 0
-                : (static_cast<std::int64_t>(f->video.back().vence) - static_cast<std::int64_t>(ahora)) /
-                      static_cast<std::int64_t>(GST_MSECOND);
-    }
-    if (video != nullptr) {
-        presentarVideo(f, video);
-        gst_sample_unref(video);
-    }
-    for (GstSample* a : audios) {
-        presentarAudio(f, a);
-        gst_sample_unref(a);
+        if (video != nullptr) {
+            presentarVideo(f, video);
+            gst_sample_unref(video);
+        }
+        for (GstSample* a : audios) {
+            presentarAudio(f, a);
+            gst_sample_unref(a);
+        }
     }
     GstBus* bus = gst_element_get_bus(f->pipeline);
     if (bus == nullptr) return;
@@ -1333,6 +1571,10 @@ obs_properties_t* propiedades(void*) {
     obs_property_list_add_string(sm, "Apple (VideoToolbox, macOS 26)", "apple");
     obs_property_list_add_string(sm, "FSR 1 (AMD, cualquier GPU)", "fsr");
     obs_property_list_add_string(sm, "Red ONNX (el modelo de abajo)", "onnx");
+    obs_property_t* sy = obs_properties_add_list(p, "sincronia", obs_module_text("Sincronía"), OBS_COMBO_TYPE_LIST,
+                                                 OBS_COMBO_FORMAT_STRING);
+    obs_property_list_add_string(sy, "GStreamer (reloj, base y latencia del estudio)", "gstreamer");
+    obs_property_list_add_string(sy, "Colchón propio (de fábrica)", "colchon");
     obs_properties_add_text(p, "filtros", obs_module_text("Filtros (JSON: video, audio, alfa)"),
                             OBS_TEXT_MULTILINE);
     obs_properties_add_path(p, "superres_modelo", obs_module_text("Modelo ONNX"), OBS_PATH_FILE,
@@ -1347,6 +1589,7 @@ void porDefecto(obs_data_t* s) {
     obs_data_set_default_bool(s, "normalizar", true);
     obs_data_set_default_bool(s, "superres", false);
     obs_data_set_default_bool(s, "ntp_sync", true);
+    obs_data_set_default_string(s, "sincronia", "colchon");
 }
 
 } // namespace

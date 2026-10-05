@@ -894,6 +894,14 @@ void McpService::registerVideoTools() {
                 {"description",
                  "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
                  "está corrido (video_estado lo avisa), false"}}},
+              {"sincronia",
+               {{"type", "string"},
+                {"enum", {"colchon", "gstreamer"}},
+                {"description",
+                 "cómo sale a horario (de fábrica, colchon): colchon = cola propia con la hora de "
+                 "captura, el colchón y la compensación del estudio; gstreamer = appsink sincronizado "
+                 "al reloj con la latencia del estudio (gst_pipeline_set_latency: lo que declaran los "
+                 "elementos o lo medido al llegar, lo mayor). Audio y video siguen juntos en los dos"}}},
               {"esperar_seg",
                {{"type", "integer"},
                 {"description",
@@ -910,7 +918,8 @@ void McpService::registerVideoTools() {
                 a.value("escena", std::string()), a.contains("audio") ? (a.value("audio", true) ? 1 : 0) : -1,
                 a.contains("normalizar") ? (a.value("normalizar", true) ? 1 : 0) : -1,
                 a.contains("ntp_sync") ? (a.value("ntp_sync", true) ? 1 : 0) : -1,
-                a.contains("superres") ? (a.value("superres", false) ? 1 : 0) : -1);
+                a.contains("superres") ? (a.value("superres", false) ? 1 : 0) : -1,
+                a.value("sincronia", std::string()));
             if (!err.empty()) return done(ToolResult::error(err));
             esperarEntrada(v, n, a.value("esperar_seg", 4) * 1000,
                            [done](json st) { done(ToolResult().data(st)); });

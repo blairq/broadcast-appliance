@@ -185,6 +185,19 @@ Popup {
                                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Desfase (ms): positivo la atrasa"
                                 }
                                 GlassButton { compact: true; text: "Desfasar"; onClicked: pop.avisar(pop.vg.desfaseUi(fila.modelData.entrada, desf.value), "Desfase aplicado") }
+                                // Cómo sale a horario: el colchón propio o el appsink de GStreamer
+                                // sincronizado con la latencia del estudio (audio y video juntos en los dos).
+                                ComboBox {
+                                    implicitWidth: 130
+                                    model: [ { t: "Colchón", v: "colchon" }, { t: "GStreamer", v: "gstreamer" } ]
+                                    textRole: "t"
+                                    currentIndex: fila.g.sincronia === "gstreamer" ? 1 : 0
+                                    onActivated: (i) => pop.avisar(pop.vg.sincroniaUi(fila.modelData.entrada, model[i].v), "Sincronía: " + model[i].t)
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Colchón: cola propia con la hora de captura (menos latencia con cámaras de hora inestable). " +
+                                                  "GStreamer: appsink al reloj con la latencia del estudio" +
+                                                  (fila.g.sincronia === "gstreamer" ? " (ahora " + (fila.g.latencia_estudio_ms || 0) + " ms)" : "")
+                                }
                                 // Superresolución x2 (macOS 26): para cámaras chicas (PAL, hasta 960x960).
                                 Text { visible: pop.vg.haySuperres(); text: "Superres x2"; color: Theme.textDim; font.pixelSize: 11 }
                                 Toggle {
