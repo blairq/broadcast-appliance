@@ -40,6 +40,7 @@
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
+#include "agent/Notificador.hpp"
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
@@ -378,12 +379,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         cuerpo_ = std::make_unique<legislatura::CuerpoViewModel>(rt.dataRoot());
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
+        notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
         {
             std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
             const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
             if (j.is_object()) corteDirectoEditor_ = j.value("corte_directo_editor", false);
         }
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
+            // Avisos fuera del programa (Telegram, mail, webhook) para los que miran desde lejos.
+            for (const auto& n : ev.value("notificar", nlohmann::json::array()))
+                if (n.is_string())
+                    notificador_->enviar(n.get<std::string>(), "⚠ " + ev.value("ruleName", std::string("Disparador")),
+                                         ev.value("llmText", std::string()), [this, n](bool ok, const std::string& d) {
+                                             if (!ok) emit notify(QString::fromStdString("El aviso por «" + n.get<std::string>() + "» no salió: " + d), "warn");
+                                         });
             {
                 const nlohmann::json& rid = ev["ruleId"];
                 bus_->publicar("alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump()),
@@ -1910,6 +1919,7 @@ QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
 QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
+QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }
 QObject* StudioViewModel::quorumQml() const { return quorum_.get(); }

@@ -193,6 +193,10 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void send(const QString& text);
     Q_INVOKABLE void setAlertEnabled(const QString& id, bool on);
     Q_INVOKABLE void deleteAlert(const QString& id);
+    /// Los tipos de disparador con sus parámetros (para el editor).
+    Q_INVOKABLE QVariantList alertTypesUi() const;
+    /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.
+    Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
 
     /// Nota del sistema al agente (respuesta del operador, etc.): va a su chat.

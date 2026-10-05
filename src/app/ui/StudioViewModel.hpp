@@ -30,6 +30,7 @@ class AlertEngine;
 class AlarmaSonora;
 class SubtitulosCC;
 class Vocabulario;
+class Notificador;
 class AgentViewModel;
 class Despachador;
 class ModelosLocales;
@@ -146,6 +147,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* quorum READ quorumQml CONSTANT)
     /// El catálogo de acciones y los atajos de teclado (control/Acciones).
     Q_PROPERTY(QObject* acciones READ accionesQml CONSTANT)
+    /// Avisos fuera del programa (webhook, Telegram, mail) para los disparadores.
+    Q_PROPERTY(QObject* notificador READ notificadorQml CONSTANT)
     /// El botón de cada escena del editor corta directo (si no, la arma en preview).
     Q_PROPERTY(bool corteDirectoEditor READ corteDirectoEditor WRITE setCorteDirectoEditor NOTIFY escenasAjustesChanged)
     /// La transmision se corto y se esta reintentando.
@@ -331,6 +334,8 @@ class StudioViewModel : public QObject {
     legislatura::Quorum& quorum() { return *quorum_; }
     QObject* accionesQml() const;
     control::Acciones& acciones() { return *acciones_; }
+    QObject* notificadorQml() const;
+    agent::Notificador& notificador() { return *notificador_; }
     /// Los oradores remotos con el tiempo que hablaron (de la sala): [{nombre, segundos}].
     nlohmann::json remotosPalabra() const;
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
@@ -673,6 +678,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
+    std::unique_ptr<agent::Notificador> notificador_;
     std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
     std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
     std::unique_ptr<legislatura::Quorum> quorum_;

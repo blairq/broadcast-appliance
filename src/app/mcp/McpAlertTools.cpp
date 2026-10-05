@@ -14,6 +14,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "plugins/Plugins.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "agent/Notificador.hpp"
 
 namespace ba::app::mcp {
 
@@ -52,6 +53,74 @@ void McpService::registerAlertTools() {
         }
     });
 
+    {
+        Tool t;
+        t.name = "notificador_listar";
+        t.title = "Notificadores";
+        t.category = "alertas";
+        t.readOnly = true;
+        t.description = "Los avisos fuera del programa (webhook, Telegram, mail SMTP) que puede usar un disparador "
+                        "(`notificar` en alert_create): id, tipo, nombre y si ya tiene cargado su secreto.";
+        t.run = [this](const json&, Done done) { done(ToolResult().data({{"notificadores", vm_.notificador().lista()}})); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "notificador_agregar";
+        t.title = "Agregar un notificador";
+        t.category = "alertas";
+        t.description = "Crea (o cambia, con `id`) un notificador: `tipo` webhook, telegram (`chat_id`) o smtp "
+                        "(`servidor`, `puerto` 465 o 587, `usuario`, `de`, `para`). El SECRETO (URL del webhook, token del "
+                        "bot, contraseña del mail) NO va por aca: lo carga una persona en la pagina Asistente, seccion "
+                        "Notificaciones. No se lo pidas al operador por el chat.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"tipo"}},
+                         {"properties",
+                          {{"id", {{"type", "string"}}},
+                           {"tipo", {{"type", "string"}, {"enum", {"webhook", "telegram", "smtp"}}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"chat_id", {{"type", "string"}}},
+                           {"servidor", {{"type", "string"}}},
+                           {"puerto", {{"type", "integer"}}},
+                           {"usuario", {{"type", "string"}}},
+                           {"de", {{"type", "string"}}},
+                           {"para", {{"type", "string"}}}}}};
+        t.run = [this](const json& a, Done done) {
+            const json r = vm_.notificador().agregar(a, "");
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().text("Creado. Falta que una persona cargue el secreto en la interfaz.").data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "notificador_probar";
+        t.title = "Probar un notificador";
+        t.category = "alertas";
+        t.description = "Manda un aviso de prueba por el notificador `id` y dice si llego.";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [this](const json& a, Done done) {
+            vm_.notificador().enviar(a.value("id", std::string()), "Prueba de Broadcast Appliance",
+                                     "Si te llego esto, los avisos funcionan.", [done](bool ok, const std::string& d) {
+                                         if (!ok) return done(ToolResult::error(d));
+                                         done(ToolResult::ok("Llego."));
+                                     });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "notificador_borrar";
+        t.title = "Borrar un notificador";
+        t.category = "alertas";
+        t.description = "Borra el notificador `id` (y su secreto guardado).";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [this](const json& a, Done done) {
+            if (!vm_.notificador().borrar(a.value("id", std::string()))) return done(ToolResult::error("no hay ese notificador"));
+            done(ToolResult::ok("Borrado."));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "alert_types";
@@ -109,6 +178,9 @@ void McpService::registerAlertTools() {
                 {"description", "herramientas que el disparador puede usar aunque el rol `disparador` no las tenga "
                                 "(stream_stop, record_stop, settings_set…); solo fuera del aire, y en vivo igual "
                                 "piden confirmación"}}},
+              {"notificar",
+               {{"type", "array"}, {"items", {{"type", "string"}}},
+                {"description", "ids de notificadores (notificador_listar): aviso por Telegram, mail o webhook"}}},
               {"cooldownSec", {{"type", "number"}, {"minimum", 0}}}}},
             {"required", {"type"}}};
         t.examples = {
@@ -205,6 +277,7 @@ void McpService::registerAlertTools() {
                            {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}}}},
                            {"reconocer", {{"type", "boolean"}}},
                            {"permitir_aire", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"notificar", {{"type", "array"}, {"items", {{"type", "string"}}}}},
                            {"cooldownSec", {{"type", "number"}}}}},
                          {"required", {"id"}}};
         t.run = [&eng, this](const json& a, Done done) {

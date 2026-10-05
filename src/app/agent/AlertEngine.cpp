@@ -213,6 +213,7 @@ json AlertEngine::create(const json& spec) {
               {"sonido", spec.value("sonido", std::string("ninguno"))},
               {"reconocer", spec.value("reconocer", false)},
               {"permitir_aire", spec.value("permitir_aire", json::array())},
+              {"notificar", spec.value("notificar", json::array())},
               {"fabrica", spec.value("fabrica", false)},
               {"once", spec.value("once", defaultOnce)},
               {"cooldownSec", spec.value("cooldownSec", typeInfo.value("cooldownSec", 0))},
@@ -229,7 +230,7 @@ json AlertEngine::update(const std::string& id, const json& changes) {
     for (auto& r : rules_) {
         if (r["id"] != id) continue;
         for (const char* k : {"name", "message", "notify", "actions", "once", "cooldownSec", "enabled", "sonido",
-                              "reconocer", "permitir_aire"})
+                              "reconocer", "permitir_aire", "notificar"})
             if (changes.contains(k)) r[k] = changes[k];
         if (changes.contains("params") && changes["params"].is_object())
             for (auto it = changes["params"].begin(); it != changes["params"].end(); ++it)
@@ -744,6 +745,7 @@ void AlertEngine::fire(json& rule, State& st, const std::string& text, const jso
             {"sonido", rule.value("sonido", std::string("ninguno"))},
             {"reconocer", rule.value("reconocer", false)},
             {"permitir_aire", rule.value("permitir_aire", json::array())},
+            {"notificar", rule.value("notificar", json::array())},
             {"resultados", json::array()}};
     events_.push_back(ev);
     if (ev.value("reconocer", false)) {

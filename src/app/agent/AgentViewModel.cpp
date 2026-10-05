@@ -27,6 +27,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <QJsonDocument>
 #include <QMetaObject>
 #include <QProcess>
@@ -1339,6 +1340,23 @@ void AgentViewModel::setAlertEnabled(const QString& id, bool on) {
 void AgentViewModel::deleteAlert(const QString& id) {
     alerts_.remove(id.toStdString());
     emit alertsChanged();
+}
+
+QVariantList AgentViewModel::alertTypesUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", AlertEngine::types()}}.dump()))
+        .object()
+        .value("v")
+        .toArray()
+        .toVariantList();
+}
+
+QString AgentViewModel::createAlertUi(const QVariantMap& spec) {
+    const json j = json::parse(QJsonDocument(QJsonObject::fromVariantMap(spec)).toJson(QJsonDocument::Compact).toStdString(),
+                               nullptr, false);
+    if (!j.is_object()) return "no se entiende el disparador";
+    const json r = alerts_.create(j);
+    emit alertsChanged();
+    return QString::fromStdString(r.value("error", std::string()));
 }
 
 void AgentViewModel::onAlert(const json& ev) {

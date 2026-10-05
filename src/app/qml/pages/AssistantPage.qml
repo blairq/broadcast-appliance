@@ -381,8 +381,14 @@ Rectangle {
                         id: alertCol
                         anchors.fill: parent
                         spacing: 6
-                        Text { visible: ag.alerts.length === 0; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 12
-                               text: "Pedile al asistente que vigile algo (audio, oradores, fin de un tema, lobby, chat, cortes, temporizadores) y te avisa solo." }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { visible: ag.alerts.length === 0; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 12
+                                   text: "Pedile al asistente que vigile algo (audio, oradores, fin de un tema, lobby, chat, cortes, temporizadores) o armalo vos." }
+                            Item { visible: ag.alerts.length > 0; Layout.fillWidth: true }
+                            GlassButton { compact: true; text: "＋ Nuevo"; onClicked: editorDisparador.open() }
+                        }
+                        EditorDisparador { id: editorDisparador }
                         Repeater {
                             model: ag.alerts
                             delegate: RowLayout {
@@ -419,6 +425,8 @@ Rectangle {
                                 GlassButton { compact: true; text: "Plugins"; onClicked: ApplicationWindow.window.page = 23 }
                             }
                         }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder; Layout.topMargin: 4 }
+                        PanelNotificadores { Layout.fillWidth: true }
                         Text { visible: ag.events.length > 0; text: "Últimos avisos"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } Layout.topMargin: 6 }
                         Repeater {
                             model: ag.events.slice(0, 8)
