@@ -10,6 +10,7 @@
 // ============================================================================
 
 #include "mcp/EsperarEntrada.hpp"
+#include "Mapa.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -753,6 +754,50 @@ void McpService::registerVideoTools() {
             const QString e = vg->ordenar();
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().text("Tarjetas acomodadas."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "motor_mapa";
+        t.title = "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline";
+        t.category = "video";
+        t.readOnly = true;
+        t.description =
+            "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
+            "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
+            "CUDAMemory… o «sistema» = CPU), las TRANSICIONES (dónde se baja de la GPU a la CPU o se sube) y "
+            "el TRABAJO EN CPU (convertir, escalar, componer, filtrar video en memoria de sistema; "
+            "decodificar o codificar sin hardware). Sin `detalle`: por pipeline, qué lee y escribe, sus "
+            "trabajos en CPU y sus transiciones. Con `detalle`: también cada elemento y cada enlace.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"detalle", {{"type", "boolean"}, {"description", "cada elemento y cada enlace"}}},
+                           {"filtro", {{"type", "string"}, {"description", "solo los pipelines cuya etiqueta lo contiene"}}}}}};
+        t.run = [](const json& a, Done done) {
+            json m = motor::mapa();
+            const bool detalle = a.value("detalle", false);
+            const std::string filtro = a.value("filtro", std::string());
+            json ps = json::array();
+            for (auto& p : m["pipelines"]) {
+                if (!filtro.empty() && p.value("etiqueta", std::string()).find(filtro) == std::string::npos) continue;
+                if (!detalle) {
+                    // La cadena en una línea: fábrica[memoria] de lo que sale de cada elemento.
+                    std::string cadena;
+                    for (const auto& en : p["enlaces"]) {
+                        const std::string med = en.value("medio", std::string());
+                        if (med.rfind("video/x-raw", 0) != 0) continue;
+                        cadena += (cadena.empty() ? "" : " → ") + en.value("desde", std::string()) + "[" +
+                                  en.value("memoria", std::string()) + " " + en.value("formato", std::string()) + "]";
+                    }
+                    p.erase("elementos");
+                    p.erase("enlaces");
+                    if (!cadena.empty()) p["video"] = cadena;
+                }
+                ps.push_back(p);
+            }
+            m["pipelines"] = ps;
+            done(ToolResult().data(m));
         };
         core_.addTool(std::move(t));
     }

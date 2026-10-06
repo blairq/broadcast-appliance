@@ -120,6 +120,20 @@ tareas quedan repartidas acá.
 | M6.7 | `bamejora` en la GPU (hoy CPU: ~28 ms por cuadro 1080p en 8 hilos; viene apagado de fábrica) | menos de 5 ms por cuadro | ⬜ |
 | M6.8 | El PTZ digital vuelve al encuadre si la cadena de la entrada se rearma | rearmar no mueve el encuadre | ✅ 2026-10-06 (convención: la propiedad `estado` de un elemento sobrevive al rearmado; `test_motor_app`) |
 
+### M8 — El video en la GPU de punta a punta (docs/MAPA-GPU-CPU.md)
+
+Medido con `motor_mapa` (2026-10-06, Mac): 87 pipelines, 428 enlaces de video, **todos en memoria de sistema**; 101 trabajos de video en CPU.
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M8.0 | `motor_mapa`: el mapa vivo de todos los pipelines con la memoria de cada enlace, transiciones y trabajo en CPU | la herramienta lo dice | ✅ 2026-10-06 |
+| M8.1 | Cortar el desperdicio en CPU: placas «sin señal» dibujadas una vez; entradas estáticas (color, texto, imagen) sin normalización y congeladas | `motor_mapa`: sin textoverlay por cuadro en las placas | ⬜ |
+| M8.2 | Un contexto de GPU para todo el motor (GstGLDisplay/GstGLContext en Mac y Linux, GstD3D12Device en Windows), entregado a cada pipeline: que un buffer de GPU cruce los `inter` | un buffer GL pasa de la entrada a la composición sin bajar | ⬜ |
+| M8.3 | Mac: `vtdec`/cámara en GLMemory → filtros GL → `glvideomixer` sin bajar → vistas chicas → `vtenc` sin copia | `motor_mapa`: GLMemory de punta a punta | ⬜ |
+| M8.4 | Windows (Intel primero): D3D12 de punta a punta (`d3d12h264dec`/`qsvh264dec` → `d3d12compositor` → `qsvh264enc`/`d3d12h264enc`) | cero bajadas por cámara de red en una Intel | ⬜ |
+| M8.5 | Linux: VA (Intel/AMD) y CUDA (NVIDIA) de punta a punta | ídem | ⬜ |
+| M8.6 | Lo que solo existe en CPU (rótulos, tarjetas gst de CPU, plugins de Python, legalizador, bamejora): baja y sube solo en su entrada, visible como transición | `motor_mapa` lo marca | ⬜ |
+
 ### M7 — Después del cambio
 
 | ID | Tarea | Estado |
