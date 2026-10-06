@@ -2116,6 +2116,29 @@ const std::map<std::string, std::string> kAjustesMesa{{"umbral_db", "umbral-db"}
                                                       {"ataque_ms", "ataque-ms"},     {"liberacion_ms", "liberacion-ms"}};
 } // namespace
 
+json VideoGrafos::estudioLatencia(int tope) {
+    calldata_t cd = {};
+    calldata_set_int(&cd, "tope_ms", tope);
+    json out{{"latencia_ms", 0}, {"tope_ms", 0}, {"automatico", true}, {"tarde", json::array()}};
+    if (proc_handler_call(obs_get_proc_handler(), "ba_estudio_latencia", &cd)) {
+        out["latencia_ms"] = calldata_int(&cd, "latencia_ms");
+        out["tope_ms"] = calldata_int(&cd, "tope_actual_ms");
+        out["automatico"] = calldata_bool(&cd, "automatico");
+        const char* t = calldata_string(&cd, "tarde");
+        const json tj = json::parse(t != nullptr ? t : "[]", nullptr, false);
+        out["tarde"] = tj.is_array() ? tj : json::array();
+    }
+    calldata_free(&cd);
+    if (tope >= -1) {
+        rt_.config().estudioTopeMs = tope;
+        rt_.save();
+    }
+    return out;
+}
+
+QVariantMap VideoGrafos::estudioLatenciaUi() { return aVariant(estudioLatencia()).toMap(); }
+void VideoGrafos::ponerTopeEstudioUi(int tope) { estudioLatencia(tope); }
+
 std::string VideoGrafos::automixer(const std::string& entrada, const std::string& grupo) {
     if (rt_.engine().sourceTypeId(entrada) != kTipoVirtual)
         return "«" + entrada + "» no es una entrada de GStreamer (los micrófonos del equipo lo son)";

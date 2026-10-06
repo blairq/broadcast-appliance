@@ -1030,6 +1030,23 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
+        t.name = "estudio_latencia";
+        t.title = "Latencia del estudio (y su tope)";
+        t.category = "video";
+        t.description =
+            "Cuánto atrasa el estudio para alinear las entradas entre sí (la mayor compensación que piden, hasta el "
+            "tope), el tope y qué entradas LLEGAN TARDE (piden más que el tope, p. ej. una cámara con "
+            "superresolución pesada: van con su propia demora en vez de atrasar todo). Con `tope_ms` lo cambia "
+            "(-1 = automático: 250 ms, deja afuera solo lo pesado como la superresolución); se guarda.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}}}}};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            done(ToolResult().data(v->estudioLatencia(a.contains("tope_ms") ? a.value("tope_ms", -1) : -2)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "automixer";
         t.title = "Automixer de mesa redonda (micrófonos de las bancas)";
         t.category = "audio";

@@ -177,6 +177,13 @@ class VideoGrafos : public QObject {
     std::string filtrosAudio(const std::string& entrada, const nlohmann::json& filtros);
     nlohmann::json filtrosAudioDe(const std::string& entrada) const;
 
+    // --- La latencia del estudio (P0.6) ------------------------------------------------------
+    /// {latencia_ms, tope_ms, automatico, tarde: [{nombre, pide_ms}]}. `tope`: -2 no cambia,
+    /// -1 automático (250 ms), >= 0 ese (se guarda).
+    nlohmann::json estudioLatencia(int tope = -2);
+    Q_INVOKABLE QVariantMap estudioLatenciaUi();
+    Q_INVOKABLE void ponerTopeEstudioUi(int tope);
+
     // --- Automixer de mesa redonda (T32) ---------------------------------------------------
     /// Pone al micrófono (o a cualquier entrada de GStreamer con audio) en la mesa
     /// `grupo`: un `baautomixer` al final de sus filtros de audio. Los de la misma mesa

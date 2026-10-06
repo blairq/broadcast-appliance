@@ -69,6 +69,49 @@ Popup {
                 GlassButton { compact: true; text: "Cerrar"; onClicked: pop.close() }
             }
 
+            // --- Latencia del estudio (P0.6) ---------------------------------------------------
+            Panel {
+                id: latPanel
+                Layout.fillWidth: true
+                padding: 12
+                implicitHeight: latCol.implicitHeight + 2 * padding
+                property var lat: ({ latencia_ms: 0, tope_ms: 0, automatico: true, tarde: [] })
+                Timer { interval: 1500; repeat: true; running: pop.opened; triggeredOnStart: true
+                        onTriggered: latPanel.lat = pop.vg.estudioLatenciaUi() }
+                ColumnLayout {
+                    id: latCol
+                    anchors.fill: parent
+                    spacing: 6
+                    RowLayout {
+                        Text { text: "Latencia del estudio"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text {
+                            text: latPanel.lat.latencia_ms + " ms"
+                            color: (latPanel.lat.tarde || []).length > 0 ? Theme.live : "#22c55e"
+                            font { pixelSize: 14; weight: Font.DemiBold }
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text { text: "Tope"; color: Theme.textDim; font.pixelSize: 12 }
+                        SpinBox {
+                            from: 0; to: 2000; stepSize: 10; editable: true
+                            value: latPanel.lat.tope_ms || 0
+                            onValueModified: pop.vg.ponerTopeEstudioUi(value)
+                        }
+                        GlassButton { compact: true; text: "Automático"; active: latPanel.lat.automatico === true
+                                      onClicked: pop.vg.ponerTopeEstudioUi(-1)
+                                      ToolTip.visible: hovered; ToolTip.text: "250 ms: alcanza para el procesamiento normal de una cámara; deja afuera solo lo pesado (superresolución)" }
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                        text: "Lo que se atrasa todo para que las entradas salgan alineadas. Una entrada que necesita más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora."
+                    }
+                    Repeater {
+                        model: latPanel.lat.tarde || []
+                        delegate: Text { required property var modelData; color: Theme.live; font.pixelSize: 12
+                                         text: "⚠ «" + modelData.nombre + "» llega tarde (" + modelData.pide_ms + " ms)" }
+                    }
+                }
+            }
+
             // --- Reloj ------------------------------------------------------------------
             Panel {
                 Layout.fillWidth: true

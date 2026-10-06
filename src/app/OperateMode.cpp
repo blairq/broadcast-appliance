@@ -441,6 +441,13 @@ int AppRuntime::start() {
     writeOnAirState();
     // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
     inicio::revisar();
+    // El tope de la latencia del estudio guardado (P0.6).
+    if (cfg_.estudioTopeMs != -1) {
+        calldata_t cd = {};
+        calldata_set_int(&cd, "tope_ms", cfg_.estudioTopeMs);
+        proc_handler_call(obs_get_proc_handler(), "ba_estudio_latencia", &cd);
+        calldata_free(&cd);
+    }
     // Que no falte ningún elemento de GStreamer sin que se sepa (P0.3).
     video::revisarElementosGstAlArrancar();
 

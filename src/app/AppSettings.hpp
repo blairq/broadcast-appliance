@@ -83,6 +83,9 @@ struct AppConfig {
     /// Legalizador broadcast-safe en cada entrada (balegal): no | pal | ntsc | rango.
     std::string legalizar = "no";
     int replaySegundos = 0; ///< repetición: los últimos N s en memoria (0 = apagada)
+    /// Tope de la latencia del estudio (ms; -1 = automático: 250 ms). Una entrada
+    /// que pide más va con su propia demora y avisa (P0.6).
+    int estudioTopeMs = -1;
     bool stream = false; ///< transmitir al arrancar
     StreamConfig streamCfg;
     std::string streamKeyEnv = "BA_STREAM_KEY";

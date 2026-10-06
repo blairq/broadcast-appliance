@@ -241,6 +241,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         c.rec.copiaDir = copia.empty() || fs::path(copia).is_absolute() ? copia : (dataRoot / copia).string();
     }
     c.replaySegundos = get(rec, "replaySegundos", 0);
+    c.estudioTopeMs = get(j.value("estudio", json::object()), "topeMs", -1);
 
     const json st = j.value("stream", json::object());
     c.stream = get(st, "enabled", false);
@@ -374,6 +375,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
           {"copiaDir", c.rec.copiaDir.empty() ? std::string() : relativeToRoot(c.rec.copiaDir, dataRoot)},
           {"replaySegundos", c.replaySegundos}}},
         {"stream", {{"enabled", c.stream}, {"server", c.streamCfg.server}, {"keyEnv", c.streamKeyEnv}}},
+        {"estudio", {{"topeMs", c.estudioTopeMs}}},
         {"guests",
          {{"count", c.guests},
           {"video", c.guestVideo},

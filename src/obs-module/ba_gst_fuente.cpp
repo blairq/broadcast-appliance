@@ -199,6 +199,7 @@ struct Fuente {
     /// false: solo su propia demora (p. ej. el audio de un invitado, cuyo video
     /// todavía va por libobs sin esperar).
     bool estudio = true;
+    std::atomic<bool> llegaTarde{false}; ///< pide más que el tope del estudio: va con su propia demora
     // Sin señal (P0.4): el último cuadro unos segundos y después una placa con el
     // nombre de la entrada, en vez de negro o congelado.
     std::uint64_t ultimoCuadroNs = 0;  ///< cuándo llegó el último cuadro a libobs
@@ -662,12 +663,29 @@ void enganchar(Fuente* f, GstElement* p, const char* nombre, GstFlowReturn (*cb)
 std::mutex g_compLock;
 std::map<const Fuente*, std::int64_t> g_compPropia;
 
+// EL TOPE (P0.6): una entrada que pide más que el tope (p. ej. una cámara con
+// superresolución pesada: ~0,9 s) ya no arrastra a todo el estudio. Queda con su
+// propia demora y avisa «llega tarde»; las demás se alinean entre ellas.
+// -1 = automático: 250 ms. Cubre el procesamiento normal de una cámara (color,
+// un plugin de Python: ~200 ms) para que el micrófono siga alineado con ella, y deja
+// afuera solo lo pesado de verdad (superresolución: ~0,9 s). Con 3 cuadros
+// (~100 ms) quedaba afuera hasta una cámara común con su tarjeta, y su micrófono
+// se adelantaba.
+std::atomic<std::int64_t> g_topeMs{-1};
+constexpr std::int64_t kTopeAutomaticoMs = 250;
+
+std::int64_t topeEstudioMs() {
+    const std::int64_t t = g_topeMs.load();
+    return t >= 0 ? t : kTopeAutomaticoMs;
+}
+
 std::int64_t compensacionEstudio(const Fuente* f, std::int64_t propia) {
+    const std::int64_t tope = topeEstudioMs();
     std::lock_guard<std::mutex> l(g_compLock);
     g_compPropia[f] = propia;
     std::int64_t m = 0;
     for (const auto& [x, v] : g_compPropia)
-        m = std::max(m, v);
+        if (v <= tope) m = std::max(m, v); // las que pasan el tope no arrastran
     return m;
 }
 
@@ -682,11 +700,12 @@ std::mutex g_latLock;
 std::map<const Fuente*, std::int64_t> g_latPropia;
 
 std::int64_t latenciaDelEstudio(const Fuente* f, std::int64_t propia) {
+    const std::int64_t tope = topeEstudioMs() * static_cast<std::int64_t>(GST_MSECOND);
     std::lock_guard<std::mutex> l(g_latLock);
     if (propia > 0) g_latPropia[f] = propia;
     std::int64_t m = 0;
     for (const auto& [x, v] : g_latPropia)
-        m = std::max(m, v);
+        if (v <= tope) m = std::max(m, v);
     return m;
 }
 
@@ -1630,6 +1649,7 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
                 obs_data_set_string(o, "reloj_nombre", GST_OBJECT_NAME(x->clock));
             }
             obs_data_set_int(o, "latencia_ms", x->latenciaMs);
+            obs_data_set_bool(o, "llega_tarde", x->llegaTarde.load());
             obs_data_set_bool(o, "normalizado", x->normalizar);
             obs_data_set_bool(o, "superres", x->superres || !x->superresMotor.empty());
             obs_data_set_string(o, "superres_motor",
@@ -2096,9 +2116,12 @@ void tic(void* data, float) {
         // configurado es el piso.
         const double necesitaMs = std::max(f->declaradoMs + 15.0, p95 + 10.0);
         const std::int64_t propia = std::max<std::int64_t>(piso, static_cast<std::int64_t>(necesitaMs * 1e6));
-        const std::int64_t estudio = std::clamp<std::int64_t>(
-            f->estudio ? latenciaDelEstudio(f, recibidos > 30 ? propia : piso) : (recibidos > 30 ? propia : piso), piso,
-            static_cast<std::int64_t>(5 * GST_SECOND));
+        const std::int64_t pide = recibidos > 30 ? propia : piso;
+        const bool tarde = f->estudio && pide > topeEstudioMs() * static_cast<std::int64_t>(GST_MSECOND);
+        f->llegaTarde = tarde;
+        const std::int64_t delEstudio = f->estudio ? latenciaDelEstudio(f, pide) : pide;
+        const std::int64_t estudio = std::clamp<std::int64_t>(tarde ? pide : std::max(delEstudio, piso), piso,
+                                                              static_cast<std::int64_t>(5 * GST_SECOND));
         // Sube enseguida (si no, los cuadros llegan tarde); baja solo si sobra
         // bastante durante 10 s (cada cambio corre la imagen y el audio).
         bool cambiar = false;
@@ -2159,7 +2182,16 @@ void tic(void* data, float) {
             const bool anda = f->recibidos > 15 || (f->recibidos == 0 && f->bloquesA > 50);
             std::int64_t deseado = anda ? propia : 0;
             if (f->estudio) {
-                deseado = compensacionEstudio(f, deseado);
+                // Pasa el tope: con su propia demora (y avisa); si no, la del estudio.
+                const bool tarde = deseado > topeEstudioMs();
+                const std::int64_t estudioMs = compensacionEstudio(f, deseado);
+                if (tarde && !f->llegaTarde) {
+                    const char* n = obs_source_get_name(f->ctx);
+                    blog(LOG_WARNING, "[ba_gst_fuente] %s llega tarde (%lld ms, el tope del estudio es %lld ms): va con su propia demora",
+                         n != nullptr ? n : "", static_cast<long long>(deseado), static_cast<long long>(topeEstudioMs()));
+                }
+                f->llegaTarde = tarde;
+                deseado = tarde ? deseado : estudioMs;
             } else {
                 olvidarCompensacion(f);
             }
@@ -2522,6 +2554,46 @@ bool publicarReloj(int puerto, std::string& error) {
 
 int relojPublicado() { return g_puertoPublicado; }
 
+void ponerTopeEstudio(long long ms) { g_topeMs = ms < 0 ? -1 : ms; }
+long long topeEstudio() { return topeEstudioMs(); }
+bool topeAutomatico() { return g_topeMs.load() < 0; }
+
+/// La latencia que aplica el estudio ahora (ms): la mayor compensación dentro del
+/// tope (modo colchón) o la mayor latencia de las cadenas estándar, la que sea más.
+long long latenciaEstudioMs() {
+    const std::int64_t tope = topeEstudioMs();
+    std::int64_t m = 0;
+    {
+        std::lock_guard<std::mutex> l(g_compLock);
+        for (const auto& [x, v] : g_compPropia)
+            if (v <= tope) m = std::max(m, v);
+    }
+    {
+        std::lock_guard<std::mutex> l(g_latLock);
+        for (const auto& [x, v] : g_latPropia)
+            if (v <= tope * static_cast<std::int64_t>(GST_MSECOND)) m = std::max(m, v / static_cast<std::int64_t>(GST_MSECOND));
+    }
+    return m;
+}
+
+/// Las entradas que llegan tarde: [{nombre, pide_ms}].
+std::string tardeJson() {
+    const std::int64_t tope = topeEstudioMs();
+    std::string out = "[";
+    std::lock_guard<std::mutex> l(g_compLock);
+    for (const auto& [x, v] : g_compPropia) {
+        if (v <= tope || !x->llegaTarde) continue;
+        const char* n = obs_source_get_name(x->ctx);
+        std::string esc;
+        for (const char* c = n != nullptr ? n : ""; *c != '\0'; ++c) {
+            if (*c == '"' || *c == '\\') esc += '\\';
+            esc += *c;
+        }
+        out += std::string(out.size() > 1 ? "," : "") + "{\"nombre\":\"" + esc + "\",\"pide_ms\":" + std::to_string(v) + "}";
+    }
+    return out + "]";
+}
+
 } // namespace ba::gst
 
 extern "C" {
@@ -2578,6 +2650,20 @@ void ba_register_gst_fuente(void) {
             calldata_set_bool(cd, "ok", ok);
             calldata_set_string(cd, "error", e.c_str());
             calldata_set_int(cd, "puerto_publicado", ba::gst::relojPublicado());
+        },
+        nullptr);
+    // La latencia del estudio (P0.6): cuánto es, el tope y qué entradas llegan tarde.
+    // tope_ms: -2 = no cambiar, -1 = automático (3 cuadros), >= 0 = ese.
+    proc_handler_add(
+        obs_get_proc_handler(),
+        "void ba_estudio_latencia(in int tope_ms, out int latencia_ms, out int tope_actual_ms, out bool automatico, out string tarde)",
+        [](void*, calldata_t* cd) {
+            const long long pedido = calldata_int(cd, "tope_ms");
+            if (pedido >= -1) ba::gst::ponerTopeEstudio(pedido);
+            calldata_set_int(cd, "latencia_ms", ba::gst::latenciaEstudioMs());
+            calldata_set_int(cd, "tope_actual_ms", ba::gst::topeEstudio());
+            calldata_set_bool(cd, "automatico", ba::gst::topeAutomatico());
+            calldata_set_string(cd, "tarde", ba::gst::tardeJson().c_str());
         },
         nullptr);
     // El puerto de medios de un plugin de Python (lo anuncia al arrancar; 0 = se
