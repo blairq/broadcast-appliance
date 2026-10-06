@@ -131,6 +131,54 @@ Pendiente en la Mac: desentrelazado en GL, `baptz` en GL
 (`gltransformation`) para que una cámara con PTZ digital no baje, y confirmar
 `vtdec` → GLMemory con una cámara de red real.
 
+## Windows con D3D12 (2026-10-06, medido en una AMD Radeon RX 5700 XT)
+
+El motor elige el backend al arrancar (`gl` en la Mac, `d3d12` en Windows,
+`cpu` si la autoprueba falla; `BA_MOTOR_GPU=gl|d3d12|cpu` lo fuerza). La
+autoprueba arma un pipeline chico (subir, convertir, componer, bajar) y guarda
+el contexto del dispositivo D3D12 que publican los elementos: todos los
+pipelines usan el mismo, así un buffer D3D12 cruza los `inter` sin copiarse.
+Bajo Wine, o en una PC sin D3D12, queda en la CPU.
+
+- **Composición** en `d3d12compositor`. El recorte de cada capa (y la cortina)
+  es una **meta de recorte** que una sonda marca en cada cuadro y `d3d12convert`
+  aplica: el tamaño no cambia, nada se renegocia (con `videocrop` cambiando de
+  tamaño andando, la rama se caía).
+- **Entradas**: `d3d12h264dec` (DXVA, cualquier marca) entrega D3D12Memory y la
+  entrada la publica sin bajar; señal entrelazada → `d3d12deinterlace`.
+- **PTZ digital**: `baptzd3d12` (la misma cuenta que `baptz`, ventana como meta
+  de recorte, `d3d12convert` la amplía).
+- **Codificador**: con el video en D3D12 se prefieren los que reciben
+  D3D12Memory sin bajar: `d3d12h264enc` (AMD, Intel, NVIDIA) y `qsvh264enc`
+  (Intel); AMF pide D3D11 y queda después. Los que la marca no registra no
+  aparecen (GStreamer solo registra los codificadores de la placa que hay).
+- **Vistas**: `d3d12convert` escala y convierte en una pasada; baja chico.
+
+Medido con el estudio de prueba: 496 enlaces en D3D12Memory, 67 transiciones
+(eran 93 antes del PTZ en D3D12), app ~9 % de CPU a 30 fps sin cuadros
+perdidos. Siguen en CPU: `bacolor`, `barecorte` transparente y `videobalance`
+(con `d3d12convert` el color salía distinto: mejor CPU que un color mal al
+aire), FSR (corre en GL), los invitados (memoria compartida del gateway) y las
+3 bajadas del programa para lo que pide memoria de sistema.
+
+### Superresolución en Windows: DirectML y Vulkan
+
+`baonnxsr proveedor=vulkan` corre la red con **ncnn** (Vulkan: AMD, Intel,
+NVIDIA). La primera vez la pasa de ONNX a ncnn con `pnnx` (en el bundle) y
+queda en la caché al lado del modelo; sirve para cualquier tamaño. En la tarjeta
+se elige en «Corre con», por MCP con `proveedor`.
+
+| Red | Entrada | DirectML | Vulkan (ncnn 20231027) |
+|---|---|---|---|
+| SPAN x2 | 960×540 | 83 ms | 95 ms |
+| general-x4v3 (a la mitad) | 1920×1080 | 163 ms | 202 ms |
+
+ncnn está **fijado en 20231027**: en esta placa las releases de 2026 corren la
+misma red ~60 veces más lento (12 s contra 190 ms por cuadro). La conversión
+de color de las redes float (NV12 ↔ RGB) va en varios hilos (en uno solo
+tardaba más que la red). general-x4v3 en 1080p pide ~1,2 TFLOP por cuadro:
+en una RX 5700 XT no llega a tiempo real con ningún backend.
+
 ## Las otras arquitecturas (análisis)
 
 ### Intel en Windows (la que más duele)
