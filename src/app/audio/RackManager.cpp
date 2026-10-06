@@ -266,8 +266,10 @@ RackManager::~RackManager() {
     saveNow();
     revision_.stop();
     tomas_.clear(); // cada Toma suelta la del motor
-    for (auto& [name, f] : filters_)
-        detach(f);
+    // detach saca de filters_: se recorre una copia.
+    std::vector<Filter*> todos;
+    for (auto& [name, f] : filters_) todos.push_back(f);
+    for (Filter* f : todos) detach(f);
     filters_.clear();
     for (auto& [name, f] : gstFilters_)
         gstrack::retirar(name);
