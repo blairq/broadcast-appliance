@@ -304,6 +304,7 @@ struct EquipoAudio::Entrada {
         }
     }
     void crearFuentes() {
+        gstvoz::registrarElemento(); // bavoz, antes de armar las entradas
         for (int c = 0; c < canales; ++c) {
             const std::string n = canales == 1 ? nombre : nombre + " · Entrada " + std::to_string(c + 1);
             // Con ese nombre hay OTRA cosa (una entrada de audio de la app): no se la toma.

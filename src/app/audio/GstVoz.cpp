@@ -245,10 +245,11 @@ static void ba_voz_init(BaVoz* v) {
 namespace ba::app::audio::gstvoz {
 
 bool registrarElemento() {
-    static std::once_flag una;
-    std::call_once(una, []() {
-        if (gst_is_initialized() && gst_element_register(nullptr, "bavoz", GST_RANK_NONE, BA_TYPE_VOZ)) g_registrado = true;
-    });
+    // Reintentable: si GStreamer todavía no arrancó, la próxima vez.
+    static std::mutex mu;
+    std::lock_guard<std::mutex> l(mu);
+    if (!g_registrado && gst_is_initialized() && gst_element_register(nullptr, "bavoz", GST_RANK_NONE, BA_TYPE_VOZ))
+        g_registrado = true;
     return g_registrado.load();
 }
 

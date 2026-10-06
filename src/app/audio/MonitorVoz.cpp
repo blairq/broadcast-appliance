@@ -44,6 +44,8 @@ bool MonitorVoz::asegurar() {
                                 {"normalizar", false},
                                 {"estudio", false},
                                 {"voz", nombre}};
+        // bavoz, antes de que el motor arme la entrada (si no, avisa «no element» y reintenta).
+        gstvoz::registrarElemento();
         // De fábrica: en los auriculares del operador y en ninguna pista (no va
         // al aire). La Matriz le restaura el ruteo que el operador le haya dado.
         const bool ok = fuentes::crearGlobal(nombre, "ba_gst_fuente", aj, true, {});

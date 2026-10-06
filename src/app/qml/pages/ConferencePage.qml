@@ -906,7 +906,7 @@ Rectangle {
                             StatusPill { visible: !!proxyPanel.acme.activo
                                          text: proxyPanel.acme.andando ? "pidiendo certificados…" : (proxyPanel.acme.ultimo_error ? "ACME: error" : "ACME al día")
                                          dot: proxyPanel.acme.ultimo_error ? Theme.amber : Theme.ok; pulse: !!proxyPanel.acme.andando }
-                            Text { visible: proxyPanel.px.activo; text: (proxyPanel.px.conexiones || 0) + " conexiones"; color: Theme.textFaint; font.pixelSize: 11 }
+                            Text { visible: !!proxyPanel.px.activo; text: (proxyPanel.px.conexiones || 0) + " conexiones"; color: Theme.textFaint; font.pixelSize: 11 }
                         }
                         Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
                                text: "Cada servicio en su nombre: sala.<dominio>, sesion.<dominio>, botonera.<dominio>… Apuntá esos nombres a esta máquina en el DNS. Con ACME, Let's Encrypt firma cada uno (hace falta que el 80 llegue desde internet); si no, el certificado de la casa." }
