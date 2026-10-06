@@ -4,6 +4,9 @@
 
 #include "ui/SystemViewModel.hpp"
 #include "InicioConElSistema.hpp"
+#include "video/ElementosGst.hpp"
+
+#include <QJsonArray>
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -89,6 +92,13 @@ bool SystemViewModel::canRollback() const {
 
 QVariantMap SystemViewModel::inicioEstado() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump())).object().toVariantMap();
+}
+
+QVariantList SystemViewModel::elementosQueFaltan() const {
+    nlohmann::json faltan = nlohmann::json::array();
+    for (const auto& e : video::revisarElementosGst())
+        if (!e.value("esta", true)) faltan.push_back(e);
+    return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump())).array().toVariantList();
 }
 
 QString SystemViewModel::inicioPoner(bool activo) { return QString::fromStdString(inicio::poner(activo)); }

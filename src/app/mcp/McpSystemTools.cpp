@@ -25,6 +25,7 @@
 #include "AppRuntime.hpp"
 #include "InputSpecs.hpp"
 #include "InicioConElSistema.hpp"
+#include "video/ElementosGst.hpp"
 #include "audio/EntradasAudio.hpp"
 #include "video/Camaras.hpp"
 #include "mcp/McpService.hpp"
@@ -310,6 +311,25 @@ void McpService::registerSystemTools() {
             done(ToolResult().data(json{{"nombre", name},
                                         {"dispositivo", dev},
                                         {"nota", "Suena en todas las escenas (canal global)."}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "gst_elementos";
+        t.title = "Elementos de GStreamer que hacen falta";
+        t.category = "equipo";
+        t.readOnly = true;
+        t.description =
+            "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
+            "invitados, racks, voces, NDI…) y los del motor que viene (mezcla, composición, robustez, subtítulos). "
+            "Para diagnosticar silencio o negro en una plataforma: un plugin que falta aparece acá.";
+        t.run = [](const json&, Done done) {
+            const json l = video::revisarElementosGst();
+            json faltan = json::array();
+            for (const auto& e : l)
+                if (!e.value("esta", true)) faltan.push_back(e);
+            done(ToolResult().data({{"faltan", faltan}, {"todos", l}}));
         };
         core_.addTool(std::move(t));
     }

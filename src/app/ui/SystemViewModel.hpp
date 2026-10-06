@@ -37,6 +37,8 @@ class SystemViewModel : public QObject {
     Q_INVOKABLE QVariantMap inicioEstado() const;
     /// "" o el error.
     Q_INVOKABLE QString inicioPoner(bool activo);
+    /// Los elementos de GStreamer que faltan: [{elemento, para, imprescindible}].
+    Q_INVOKABLE QVariantList elementosQueFaltan() const;
     /// "" si `folder` (ruta o file://) es una version instalable; si no, por que no.
     Q_INVOKABLE QString checkUpdate(const QString& folder) const;
     /// Lanza la actualizacion y pide cerrar la app. Devuelve "" o el error.

@@ -22,6 +22,7 @@
 #include "BroadcastEngine.hpp"
 #include "InputSpecs.hpp"
 #include "InicioConElSistema.hpp"
+#include "video/ElementosGst.hpp"
 #include "diag/Registro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -440,6 +441,8 @@ int AppRuntime::start() {
     writeOnAirState();
     // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
     inicio::revisar();
+    // Que no falte ningún elemento de GStreamer sin que se sepa (P0.3).
+    video::revisarElementosGstAlArrancar();
 
     std::string err;
     if (!control_.start("control.app", &err)) {
