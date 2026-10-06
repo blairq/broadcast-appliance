@@ -27,6 +27,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <fstream>
@@ -186,9 +187,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmd
 
 #else
 
+#include <sys/resource.h>
+
 extern "C" void onStopSignal(int) { ba::launcher::Supervisor::requestStop(); }
 
 int main(int argc, char** argv) {
+    // Abierta desde el Finder, una app tiene un tope de 256 archivos abiertos, y
+    // cada pipeline del motor usa dos (el bus de GStreamer): con ~100 pipelines
+    // se pasaba y la app se caía al arrancar. Se sube el tope (los hijos lo heredan).
+    if (struct rlimit rl{}; getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur < 8192) {
+        rl.rlim_cur = rl.rlim_max == RLIM_INFINITY ? 8192 : std::min<rlim_t>(8192, rl.rlim_max);
+        setrlimit(RLIMIT_NOFILE, &rl);
+    }
     std::signal(SIGINT, onStopSignal);
     std::signal(SIGTERM, onStopSignal);
     std::signal(SIGHUP, onStopSignal);

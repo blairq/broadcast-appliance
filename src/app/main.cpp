@@ -21,6 +21,7 @@
 #include "Registrar.hpp"
 #include "security/CredentialStore.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -33,6 +34,8 @@
 #include <windows.h>
 // shellapi.h necesita windows.h antes (bloque aparte: clang-format no lo reordena).
 #include <shellapi.h>
+#else
+#include <sys/resource.h>
 #endif
 
 #if BA_HAVE_MOTOR
@@ -118,6 +121,14 @@ bool hasFlag(int argc, char** argv, const char* flag) {
 }
 
 int dispatch(int argc, char** argv) {
+#ifndef _WIN32
+    // El tope de archivos abiertos (lo sube el launcher; esto, si se lanza sola):
+    // cada pipeline del motor usa dos, y el de 256 de una app del Finder no alcanza.
+    if (struct rlimit rl{}; getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur < 8192) {
+        rl.rlim_cur = rl.rlim_max == RLIM_INFINITY ? 8192 : std::min<rlim_t>(8192, rl.rlim_max);
+        setrlimit(RLIMIT_NOFILE, &rl);
+    }
+#endif
     // El launcher manda stdout y stderr a Logs/app.log. Hacia un archivo el CRT
     // pasa stdout a buffer completo y en un crash se pierde justo lo ultimo que
     // se dijo: se vuelca por linea, y se fija aca, antes del primer printf de

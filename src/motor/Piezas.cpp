@@ -141,6 +141,26 @@ bool hayFabrica(const std::string& elemento) {
     return true;
 }
 
+namespace {
+/// ¿La fábrica tiene todas esas propiedades? (para cambiar un filtro por su par de GL)
+bool tieneLasPropiedades(const std::string& fabrica, const std::vector<std::pair<std::string, std::string>>& props) {
+    GstElementFactory* f = gst_element_factory_find(fabrica.c_str());
+    if (f == nullptr) return false;
+    GstPluginFeature* cargada = gst_plugin_feature_load(GST_PLUGIN_FEATURE(f));
+    gst_object_unref(f);
+    if (cargada == nullptr) return false;
+    const GType t = gst_element_factory_get_element_type(GST_ELEMENT_FACTORY(cargada));
+    gst_object_unref(cargada);
+    if (t == 0) return false;
+    auto* k = static_cast<GObjectClass*>(g_type_class_ref(t));
+    bool todas = true;
+    for (const auto& [n, v] : props)
+        if (g_object_class_find_property(k, n.c_str()) == nullptr) todas = false;
+    g_type_class_unref(k);
+    return todas;
+}
+} // namespace
+
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
                      std::vector<std::string>& avisos, bool desdeGl) {
     std::string r;
@@ -150,11 +170,18 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
             avisos.push_back("no está el elemento «" + f0.elemento + "» (filtro " + f0.id + "): pasa sin él");
             continue;
         }
-        // En la GPU, el par de GL del elemento si lo tiene (baptz → baptzgl).
+        // En la GPU, el par de GL del elemento si lo tiene (baptz → baptzgl, y los
+        // de GStreamer que tienen el suyo) y si entiende todas sus propiedades.
         Filtro f = f0;
-        if (desdeGl && f.memoria.empty() && hayFabrica(f.elemento + "gl")) {
-            f.elemento += "gl";
-            f.memoria = "GLMemory";
+        if (desdeGl && f.memoria.empty()) {
+            static const std::map<std::string, std::string> kPares{{"videobalance", "glcolorbalance"},
+                                                                   {"videoflip", "glvideoflip"}};
+            const auto par = kPares.find(f.elemento);
+            const std::string gl = par != kPares.end() ? par->second : f.elemento + "gl";
+            if (hayFabrica(gl) && tieneLasPropiedades(gl, f.props)) {
+                f.elemento = gl;
+                f.memoria = "GLMemory";
+            }
         }
         // Un elemento que trabaja en la placa: subir antes y bajar después (si ya
         // viene en esa memoria, la subida pasa de largo: sin copias).

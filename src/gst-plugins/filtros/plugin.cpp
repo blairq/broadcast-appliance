@@ -11,6 +11,7 @@
 //                 gama compuesta)
 //     baptz       PTZ digital: pan, tilt y zoom recortando   ptz.cpp
 //     bamejora    mejorar imagen: ruido, color y nitidez     mejora.cpp
+//     bacolorgl, barecortegl, baptzgl: lo mismo en la GPU     gl.cpp, ptz.cpp
 //
 //   Ejemplo:  gst-launch-1.0 videotestsrc ! videoconvert ! bacolor saturacion=0 !
 //             barecorte izquierda=0.1 modo=recortar ! videoconvert ! autovideosink
@@ -25,10 +26,11 @@ gboolean ba_registrar_recorte(GstPlugin* p);
 gboolean ba_registrar_legal(GstPlugin* p);
 gboolean ba_registrar_ptz(GstPlugin* p);
 gboolean ba_registrar_mejora(GstPlugin* p);
+gboolean ba_registrar_gl(GstPlugin* p);
 }
 
 static gboolean plugin_init(GstPlugin* p) {
-    return ba_registrar_color(p) && ba_registrar_croma(p) && ba_registrar_recorte(p) && ba_registrar_legal(p) && ba_registrar_ptz(p) && ba_registrar_mejora(p);
+    return ba_registrar_color(p) && ba_registrar_croma(p) && ba_registrar_recorte(p) && ba_registrar_legal(p) && ba_registrar_ptz(p) && ba_registrar_mejora(p) && ba_registrar_gl(p);
 }
 
 #define PACKAGE "bafiltros"

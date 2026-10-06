@@ -285,6 +285,25 @@ int main() {
               "tras rearmar, el mismo encuadre");
         m.quitarEntrada("cam");
     }
+    // Tarjetas de imagen (en la GPU, sus pares bacolorgl/barecortegl): un rojo sin
+    // saturación es gris (su luma) y la mitad izquierda recortada queda transparente
+    // (se ve la capa de abajo: la primera de la lista es la de arriba).
+    if (hayFabrica("bacolor") && hayFabrica("barecorte")) {
+        json f = json{{"video", json::array({{{"id", "color"}, {"elemento", "bacolor"}, {"propiedades", {{"saturacion", 0}}}},
+                                             {{"id", "rec"}, {"elemento", "barecorte"}, {"propiedades", {{"izquierda", 0.5}}}}})}};
+        json e = color("#FF0000");
+        e["filtros"] = f;
+        CHECK(m.agregarEntrada("gris", e).empty(), "una entrada con tarjetas de color y recorte");
+        m.definirEscena({{"nombre", "Gris"}, {"capas", {{{"entrada", "gris"}}, {{"entrada", "verde"}}}}});
+        CHECK(m.verPedir("escena:Gris", 320, 180).empty(), "ver la escena gris");
+        esperar(2000);
+        const Px der = mirar(m, "escena:Gris", 280, 90), izq = mirar(m, "escena:Gris", 40, 90);
+        std::printf("tarjetas: derecha %s, izquierda %s\n", txt(der).c_str(), txt(izq).c_str());
+        CHECK(igual(der, 54, 54, 54, 25), "el rojo sin saturación, gris");
+        CHECK(igual(izq, 0, 255, 0), "lo recortado deja ver la capa de abajo");
+        m.verSoltar("escena:Gris");
+        m.quitarEntrada("gris");
+    }
     m.verSoltar("programa");
     m.detener();
     std::printf("== test_motor_app: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
