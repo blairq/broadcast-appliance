@@ -422,6 +422,8 @@ class VideoGrafos : public QObject {
     std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
     std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
     std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
+    /// Entradas con vista de rostros pedida al motor -> la serie del último cuadro leído.
+    mutable std::map<std::string, std::uint64_t> vistasRostros_;
     std::string legalizar_ = "no";
 };
 

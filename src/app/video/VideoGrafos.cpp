@@ -15,6 +15,7 @@
 #include "InputSpecs.hpp"
 
 #include "FuentesApp.hpp"
+#include "Motor.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -37,6 +38,8 @@ namespace ba::app::video {
 using json = nlohmann::json;
 
 namespace {
+/// El id de la tarjeta `rostros` de una entrada ("" si no tiene).
+std::string tarjetaRostros(const GrafoVideo& g, const std::string& entrada);
 constexpr const char* kTipoSalida = "ba_video_salida";
 constexpr const char* kTipoVirtual = "ba_gst_fuente";
 constexpr const char* kTipoCompositor = "ba_video_compositor";
@@ -860,6 +863,15 @@ void VideoGrafos::sincronizar() {
     for (const QString& e : entradas_)
         aplicar(e.toStdString());
     actualizarEstudio();
+    // Las vistas de rostros de entradas que ya no tienen la tarjeta, se sueltan.
+    for (auto it = vistasRostros_.begin(); it != vistasRostros_.end();) {
+        if (!tarjetaRostros(grafo_, it->first).empty() && entradas_.contains(q(it->first))) {
+            ++it;
+            continue;
+        }
+        if (motor::Motor* m = rt_.engine().motor()) m->verSoltar("entrada:" + it->first + "@rostros");
+        it = vistasRostros_.erase(it);
+    }
     // Si cambió por qué alguna tarjeta no corre, la interfaz se entera.
     json errores = json::object();
     for (const QString& e : entradas_) {
@@ -985,9 +997,11 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
         const json p = it->value("params", json::object());
         json f = {{"id", id}};
         json pr = json::object();
-        if (tipo == "retardo") {
-            // No es un elemento: el motor corre la salida de video de la entrada (desfase_video).
-            if (p.value("activo", true))
+        if (tipo == "retardo" || tipo == "rostros") {
+            // No son elementos. Retardo: el motor corre la salida de video de la
+            // entrada (desfase_video). Rostros: la imagen pasa igual; Personas toma
+            // el cuadro de la entrada con una vista del motor (cuadroRostros).
+            if (tipo == "retardo" && p.value("activo", true))
                 retardoMs += p.value("ms", 0) > 0 ? static_cast<double>(p.value("ms", 0))
                                                   : p.value("cuadros", 0) * cuadroMsLienzo();
             movidas.insert(id);
@@ -1105,18 +1119,32 @@ std::string tarjetaRostros(const GrafoVideo& g, const std::string& entrada) {
 
 bool VideoGrafos::cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho,
                                 int& alto, std::uint64_t& serie) const {
-    // La tarjeta de rostros corría en el filtro de libobs; en el motor, todavía no.
-    (void)entrada;
-    (void)bgra;
-    (void)ancho;
-    (void)alto;
-    (void)serie;
-    return false;
+    // El cuadro de la entrada (después de sus tarjetas): una vista propia del motor.
+    if (tarjetaRostros(grafo_, entrada).empty()) return false;
+    motor::Motor* m = rt_.engine().motor();
+    if (m == nullptr) return false;
+    const std::string clave = "entrada:" + entrada + "@rostros";
+    if (!vistasRostros_.count(entrada)) {
+        if (!m->verPedir(clave, 960, 540).empty()) return false;
+        vistasRostros_[entrada] = 0;
+    }
+    motor::Cuadro c;
+    std::uint64_t& ultima = vistasRostros_[entrada];
+    if (!m->verUltimo(clave, c, ultima) || c.ancho <= 0 || c.alto <= 0) return false;
+    ancho = c.ancho;
+    alto = c.alto;
+    serie = ultima;
+    bgra.resize(static_cast<std::size_t>(ancho) * alto * 4);
+    for (int y = 0; y < alto; ++y)
+        std::memcpy(bgra.data() + static_cast<std::size_t>(y) * ancho * 4,
+                    c.bgra.data() + static_cast<std::size_t>(y) * c.stride, static_cast<std::size_t>(ancho) * 4);
+    return true;
 }
 
 void VideoGrafos::marcarCaras(const std::string& entrada, const json& cajas) const {
+    // Dibujar las caras sobre la imagen («marcar») todavía no está en el motor.
     (void)entrada;
-    (void)cajas; // ver cuadroRostros
+    (void)cajas;
 }
 
 std::string VideoGrafos::configurarRostros(const std::map<std::string, std::string>& quiero) {
