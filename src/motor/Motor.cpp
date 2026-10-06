@@ -37,6 +37,18 @@ std::string Motor::iniciar() {
         vPreview_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "preview", vop);
         if (!vPrograma_->anda()) registrar(Nivel::Error, "el video del PROGRAMA no arrancó: " + vPrograma_->error());
     }
+    vistas_ = std::make_unique<Vistas>(*reloj_, [this](const std::string& clave, std::int64_t* lat) -> std::string {
+        // (lo llaman pedir y tic, con mu_ del motor ya tomado o no: el recursive_mutex lo permite)
+        std::lock_guard<std::recursive_mutex> l(mu_);
+        if (clave == "programa" || clave == "preview") return productorDeVideo(clave, lat);
+        if (clave.rfind("entrada:", 0) == 0) {
+            auto it = canales_.find(clave.substr(8));
+            if (it == canales_.end() || !it->second.entrada->daVideo()) return {};
+            if (lat != nullptr) *lat = std::max<std::int64_t>(reloj_->latencia(), it->second.entrada->latenciaPropia());
+            return it->second.entrada->productorVideo();
+        }
+        return {};
+    });
     // El programa para el gateway (lo que oyen los invitados en modo «programa»).
     if (!cfg_.prefijoAnillos.empty() && hayFabrica("baanillosink")) {
         const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
@@ -65,6 +77,7 @@ void Motor::detener() {
     seguir_ = false;
     if (hilo_.joinable()) hilo_.join();
     std::lock_guard<std::recursive_mutex> l(mu_);
+    vistas_.reset();
     escucha_.reset();
     vPreview_.reset();
     vPrograma_.reset();
@@ -92,6 +105,7 @@ void Motor::bucle() {
                 if (r.bus) r.bus->tic();
             if (vPrograma_) vPrograma_->tic();
             if (vPreview_) vPreview_->tic();
+            if (vistas_) vistas_->tic();
             // Los que consumen el programa esperan lo que tarda en salir.
             if (puente_ != nullptr && programa_) {
                 const std::int64_t lat = programa_->latenciaSalidaNs() + kMargenMezclaNs;
@@ -317,6 +331,19 @@ std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenc
     return c->productor();
 }
 
+std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
+    if (!vistas_) return "el motor no está andando";
+    return vistas_->pedir(clave, ancho, alto);
+}
+
+void Motor::verSoltar(const std::string& clave) {
+    if (vistas_) vistas_->soltar(clave);
+}
+
+bool Motor::verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const {
+    return vistas_ && vistas_->ultimo(clave, out, serie);
+}
+
 std::string Motor::controlMedio(const std::string& id, const std::string& accion, std::int64_t ms) {
     std::lock_guard<std::recursive_mutex> l(mu_);
     auto it = canales_.find(id);
@@ -474,6 +501,7 @@ json Motor::estado() const {
             {"pistas", pistas},
             {"retornos", ret},
             {"escucha", esc},
+            {"vistas", vistas_ ? vistas_->estado() : json::object()},
             {"entradas", entradas}};
 }
 

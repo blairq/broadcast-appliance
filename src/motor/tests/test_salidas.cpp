@@ -107,6 +107,29 @@ int main() {
     CHECK(motor.alAire("S").empty(), "al aire");
     esperar(1500);
 
+    // Imágenes para la interfaz: el programa chico (160x90) y una entrada.
+    {
+        CHECK(motor.verPedir("programa", 160, 90).empty(), "pedir la vista del programa");
+        CHECK(motor.verPedir("entrada:cam", 320, 180).empty(), "pedir la vista de una entrada");
+        CHECK(!motor.verPedir("entrada:nadie", 160, 90).empty(), "una entrada que no existe avisa");
+        motor.verSoltar("entrada:nadie");
+        esperar(1000);
+        Cuadro c;
+        std::uint64_t serie = 0;
+        CHECK(motor.verUltimo("programa", c, serie), "hay cuadro del programa");
+        CHECK(c.ancho == 160 && c.alto == 90 && c.bgra.size() >= 160u * 90u * 4u, "del tamaño pedido, en BGRA");
+        const std::uint64_t antes = serie;
+        CHECK(!motor.verUltimo("programa", c, serie) || serie > antes, "solo si hay uno más nuevo");
+        esperar(200);
+        CHECK(motor.verUltimo("programa", c, serie) && serie > antes, "y llegan nuevos");
+        Cuadro e;
+        std::uint64_t se = 0;
+        CHECK(motor.verUltimo("entrada:cam", e, se) && e.ancho == 320, "la entrada a su tamaño");
+        motor.verSoltar("programa");
+        motor.verSoltar("entrada:cam");
+        CHECK(motor.estado()["vistas"].empty(), "soltadas, se desarman");
+    }
+
     const std::string dir = (std::filesystem::temp_directory_path() / ("ba_test_salidas_" + std::to_string(getpid()))).string();
     Fuentes f;
     f.video = motor.productorDeVideo("programa", &f.latVideoNs);

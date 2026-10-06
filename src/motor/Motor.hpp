@@ -40,6 +40,7 @@
 #include "Mezcla.hpp"
 #include "Piezas.hpp"
 #include "Reloj.hpp"
+#include "Vistas.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -125,6 +126,12 @@ class Motor {
     bool ponerLimitador(bool activo, double techoDb);
     void ponerTopeEstudio(std::int64_t ms);
 
+    // --- Imágenes para la interfaz ---
+    /// "programa", "preview" o "entrada:<id>" al tamaño pedido (cuenta pedidos).
+    std::string verPedir(const std::string& clave, int ancho, int alto);
+    void verSoltar(const std::string& clave);
+    bool verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
+
     nlohmann::json estado() const;
     Reloj& reloj() { return *reloj_; }
     const Lienzo& lienzo() const { return cfg_.lienzo; }
@@ -164,6 +171,7 @@ class Motor {
     std::map<int, Retorno> retornos_;
     std::unique_ptr<Escucha> escucha_;
     std::unique_ptr<Composicion> vPrograma_, vPreview_;
+    std::unique_ptr<Vistas> vistas_;
     std::map<std::string, Escena> escenas_;
     std::string alAire_, armada_;
     std::string escuchaModo_ = "apagado", escuchaId_;

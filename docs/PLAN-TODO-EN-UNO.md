@@ -88,7 +88,7 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M3.1 | `FrameService` lee del motor: `appsink` chico (escalado en la GPU) para programa, preview, multiview y cada entrada | las vistas de la GUI andan sin libobs | ⬜ |
+| M3.1 | `FrameService` lee del motor: `appsink` chico (escalado en la GPU) para programa, preview, multiview y cada entrada | las vistas de la GUI andan sin libobs | 🟡 (del lado del motor: `Vistas` por clave, BGRA chico, por pedido; falta que `FrameService` las lea, en M6) |
 | M3.2 | Modo «al aire» en la GUI (P1.2): al aire, cambiar algo riesgoso pide confirmación | prueba en la GUI | ⬜ |
 
 ### M4 — Salidas
@@ -222,3 +222,6 @@ tareas quedan repartidas acá.
   - **Cómo:** el texto es `textoverlay` sobre un fondo transparente BGRA; la imagen, `imagefreeze`.
   - **Probado en test_composicion:** un texto sobre el rojo deja ver el rojo donde no hay letras, y un verde con alfa 0x80 se mezcla.
   - **Para la migración (M6.2):** son lo que reemplaza a `color_source_v3`, `image_source` y `text_ft2_source_v2`.
+- 2026-10-06 · M3.1 (lado del motor): `motor::Vistas`.
+  - **Cómo:** «programa», «preview» o «entrada:<id>», al tamaño pedido, con la latencia de lo que mira. Se arma al pedirla y se desarma al soltarla; el último cuadro va por número de serie.
+  - **Probado en test_salidas.**
