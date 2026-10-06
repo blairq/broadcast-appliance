@@ -131,6 +131,18 @@ QString hms(std::chrono::steady_clock::time_point since) {
 
 } // namespace
 
+namespace {
+/// ¿Le llegan cuadros a la entrada? El motor publica cuánto hace del último dato
+/// (`sin_datos_s`: -1 si todavía no llegó nada); el de antes, `fps_recibidos`.
+bool tieneSenal(const nlohmann::json& st) {
+    const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
+    if (!g.is_object()) return false;
+    if (g.contains("fps_recibidos")) return st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5;
+    const double sin = g.value("sin_datos_s", -1.0);
+    return sin >= 0.0 && sin < 1.5;
+}
+} // namespace
+
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
     // El arranque, medido: cada etapa que tarde más de 150 ms queda en el registro
     // (la interfaz tardaba ~12 s en aparecer y no se sabía en qué).
@@ -384,8 +396,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         };
         // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
         // consulta como mucho una vez por segundo.
-        in.senales = [this, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>()]() {
+        in.senales = [this, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>(),
+                      desde = QDateTime::currentMSecsSinceEpoch()]() {
             const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            // Recién arrancada, las entradas todavía se están conectando (una cámara de red
+            // tarda unos segundos): no hay alarmas de «sin señal» los primeros 15 s.
+            if (ahora - desde < 15000) return std::vector<std::pair<std::string, bool>>{};
             if (video_ && ahora - cache->first > 1000) {
                 cache->first = ahora;
                 cache->second.clear();
@@ -394,8 +410,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     if (!st.contains("gstreamer")) continue; // las de libobs: sin dato de cuadros
                     const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
                     if (!g.is_object()) continue;
+                    // Las de los invitados y el remoto: sin nadie conectado no hay cuadros, y
+                    // no es una falla (para eso está «invitado caído»).
+                    const nlohmann::json aj = st.value("ajustes", nlohmann::json::object());
+                    if (aj.is_object() && (aj.value("video_invitado", false) ||
+                                           aj.value("pipeline", std::string()).rfind("bavideoanillo", 0) == 0))
+                        continue;
                     const bool activa = st.value("activa", true);
-                    const bool con = !activa || (st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5);
+                    const bool con = !activa || tieneSenal(st);
                     cache->second.emplace_back(e.toStdString(), con);
                 }
             }
@@ -2131,7 +2153,7 @@ void StudioViewModel::revisarSenales() {
         const nlohmann::json st = video_->estadoEntrada(e.toStdString());
         if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
         const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
-        if (st.value("ancho", 0) <= 0 || !g.is_object() || g.value("fps_recibidos", 0.0) < 0.5) sin << e;
+        if (!tieneSenal(st)) sin << e;
     }
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     for (const QString& e : sin)
