@@ -41,6 +41,38 @@ std::int64_t entero(const json& a, const char* k, std::int64_t def) {
 
 constexpr const char* kAudio = "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2";
 
+/// "#RRGGBB" / "#AARRGGBB" / número ARGB → 0xAARRGGBB (texto para gst).
+std::string argb(const json& v, const char* def) {
+    std::uint32_t c = 0;
+    if (v.is_number_integer()) {
+        c = static_cast<std::uint32_t>(v.get<std::int64_t>());
+    } else if (v.is_string() && !v.get<std::string>().empty()) {
+        std::string t = v.get<std::string>();
+        if (t[0] == '#') t = t.substr(1);
+        if (t.rfind("0x", 0) == 0) t = t.substr(2);
+        try {
+            c = static_cast<std::uint32_t>(std::stoul(t, nullptr, 16));
+            if (t.size() <= 6) c |= 0xFF000000u;
+        } catch (...) {
+            return def;
+        }
+    } else {
+        return def;
+    }
+    char b[16];
+    std::snprintf(b, sizeof b, "0x%08x", c);
+    return b;
+}
+
+std::string conComillas(const std::string& v) {
+    std::string r = "\"";
+    for (char c : v) {
+        if (c == '\\' || c == '"') r += '\\';
+        r += c;
+    }
+    return r + "\"";
+}
+
 } // namespace
 
 Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json& ajustes)
@@ -154,10 +186,53 @@ void Entrada::leer(const json& a) {
             }
         }
     }
+    // Los tipos: arman su propia cadena (lo que antes daba OBS).
+    const std::string tipo = a.value("tipo", std::string());
+    const int w = a.value("ancho", lienzo_.ancho), h = a.value("alto", lienzo_.alto);
+    const std::string tam = ",width=" + std::to_string(std::max(2, w)) + ",height=" + std::to_string(std::max(2, h));
+    bool alfaTipo = false;
+    if (tipo == "color") {
+        descripcion_ = "videotestsrc is-live=true pattern=solid-color foreground-color=" + argb(a.value("color", json()), "0xff000000") +
+                       " ! video/x-raw,format=BGRA" + tam;
+        alfaTipo = true;
+        conAudio_ = false;
+    } else if (tipo == "imagen") {
+        descripcion_ = "filesrc location=" + conComillas(a.value("archivo", std::string())) +
+                       " ! decodebin ! videoconvert ! video/x-raw,format=BGRA ! imagefreeze is-live=true";
+        alfaTipo = true;
+        conAudio_ = false;
+    } else if (tipo == "texto") {
+        const std::string fuente = a.value("fuente", std::string("Sans")) + (a.value("negrita", true) ? " Bold " : " ") +
+                                   std::to_string(a.value("tamano", 48));
+        const std::string ha = a.value("alineacion", std::string("centro"));
+        const std::string va = a.value("vertical", std::string("centro"));
+        descripcion_ = "videotestsrc is-live=true pattern=solid-color foreground-color=0x00000000 ! video/x-raw,format=BGRA" + tam +
+                       " ! textoverlay text=" + conComillas(a.value("texto", std::string())) + " font-desc=" + conComillas(fuente) +
+                       " color=" + argb(a.value("color", json()), "0xffffffff") +
+                       " draw-outline=" + (a.value("contorno", false) ? "true" : "false") +
+                       " outline-color=" + argb(a.value("color_contorno", json()), "0xff000000") +
+                       " draw-shadow=false halignment=" + (ha == "izquierda" ? "left" : ha == "derecha" ? "right" : "center") +
+                       " valignment=" + (va == "arriba" ? "top" : va == "abajo" ? "bottom" : "center") + " wrap-mode=word";
+        alfaTipo = true;
+        conAudio_ = false;
+    } else if (tipo == "pantalla") {
+        const int i = a.value("indice", 0);
+#if defined(__APPLE__)
+        descripcion_ = "avfvideosrc capture-screen=true capture-screen-cursor=" + std::string(a.value("cursor", true) ? "true" : "false") +
+                       " device-index=" + std::to_string(i);
+#elif defined(_WIN32)
+        descripcion_ = std::string(hayFabrica("d3d12screencapturesrc") ? "d3d12screencapturesrc" : "d3d11screencapturesrc") +
+                       " monitor-index=" + std::to_string(i) + " show-cursor=" + (a.value("cursor", true) ? "true" : "false");
+#else
+        descripcion_ = hayFabrica("pipewiresrc") ? "pipewiresrc" : "ximagesrc use-damage=false show-pointer=" +
+                                                                       std::string(a.value("cursor", true) ? "true" : "false");
+#endif
+        conAudio_ = false;
+    }
     const json fl = comoJson(a.value("filtros", json()));
     filtrosV_ = leerFiltros(fl.is_object() ? fl.value("video", json::array()) : json::array());
     filtrosA_ = leerFiltros(fl.is_object() ? fl.value("audio", json::array()) : json::array());
-    alfa_ = fl.is_object() && fl.value("alfa", false);
+    alfa_ = alfaTipo || (fl.is_object() && fl.value("alfa", false));
     for (auto& f : leerFiltros(comoJson(a.value("filtros_audio", json()))))
         filtrosA_.push_back(std::move(f));
 }

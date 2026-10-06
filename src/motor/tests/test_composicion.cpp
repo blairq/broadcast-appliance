@@ -219,6 +219,40 @@ int main() {
         CHECK(igual(p1, 0, 255, 0), "vuelve sola");
         CHECK(!verde.enPlaca(), "y deja la placa");
     }
+    // Fuentes con transparencia (lo que daba OBS): un texto y un color con alfa sobre el rojo.
+    {
+        Entrada texto(reloj, lz, "texto", json{{"tipo", "texto"}, {"texto", "HOLA"}, {"tamano", 60}, {"color", "#FFFFFF"},
+                                                {"ancho", 640}, {"alto", 360}});
+        Entrada velo(reloj, lz, "velo", json{{"tipo", "color"}, {"color", "#8000FF00"}, {"ancho", 320}, {"alto", 180}});
+        es.push_back(&texto);
+        es.push_back(&velo);
+        Escena t;
+        t.nombre = "T";
+        t.capas.push_back({"rojo", 0, 0, 0, 0});
+        Capa kt{"texto", 0, 0, 0, 0};
+        kt.orden = 2;
+        t.capas.push_back(kt);
+        Capa kv{"velo", 320, 180, 320, 180};
+        kv.orden = 1;
+        t.capas.push_back(kv);
+        prog.mostrar(t, "corte");
+        esperar(es, prog, 1500);
+        const Rgb fondo = v.en(20, 20), letra = v.en(320, 180), velado = v.en(600, 340);
+        std::printf("texto y velo: fondo %s, centro %s, velado %s\n", txt(fondo).c_str(), txt(letra).c_str(), txt(velado).c_str());
+        CHECK(igual(fondo, 255, 0, 0), "donde no hay letras se ve lo de abajo (fondo transparente)");
+        CHECK(igual(velado, 128, 128, 0, 45), "un color con alfa 0x80 se mezcla");
+        int blancos = 0;
+        for (int x = 200; x < 440; x += 4) {
+            const Rgb c = v.en(x, 180);
+            if (c.r > 200 && c.g > 200 && c.b > 200) ++blancos;
+            if (blancos > 0) break;
+        }
+        CHECK(blancos > 0, "las letras blancas se ven");
+        es.pop_back();
+        es.pop_back();
+        prog.mostrar(Escena{"vacia", {}}, "corte");
+        esperar(es, prog, 300);
+    }
     std::printf("composición: %s\n", prog.estado().dump().c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
     return fallos == 0 ? 0 : 1;

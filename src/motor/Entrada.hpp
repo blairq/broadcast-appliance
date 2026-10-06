@@ -20,6 +20,14 @@
 //   normalizar (true), audio (true), estudio (true), latencia, desfase (ms), ntp_sync (true)
 //   superres, superres_motor, superres_modelo   (la superresolución vieja: un filtro más)
 //   nombre           el que se muestra en la placa «sin señal» (de fábrica, el id)
+//
+// TIPOS (lo que antes daba OBS; arman la cadena solos, con transparencia):
+//   tipo=color     color (#RRGGBB o #AARRGGBB), ancho, alto (de fábrica, el lienzo)
+//   tipo=imagen    archivo (PNG, JPEG…; con su alfa)
+//   tipo=texto     texto, fuente («Sans»), tamano (pt, 48), negrita, color, contorno,
+//                  color_contorno, alineacion (izquierda|centro|derecha), vertical
+//                  (arriba|centro|abajo), ancho, alto. Fondo transparente.
+//   tipo=pantalla  indice (la pantalla), cursor (true)
 //   medio (false)    un archivo con controles (play/pausa/ir a/bucle): `local_file`,
 //                    `looping`, `clear_on_media_end`
 //

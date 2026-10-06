@@ -270,6 +270,29 @@ int main() {
     CHECK(!sv.value("llega_tarde", true), "y no queda «llega tarde»");
     banco.entradas.pop_back();
     v.reset();
+    // Una imagen (PNG): da cuadros (imagefreeze) con su alfa.
+    {
+        const std::string png = (std::filesystem::temp_directory_path() / "ba_test_motor.png").string();
+        GstElement* p = gst_parse_launch(("videotestsrc num-buffers=1 pattern=solid-color foreground-color=0x800000ff ! "
+                                          "video/x-raw,format=BGRA,width=64,height=64 ! videoconvert ! pngenc ! filesink location=\"" + png + "\"").c_str(), nullptr);
+        gst_element_set_state(p, GST_STATE_PLAYING);
+        GstBus* b = gst_element_get_bus(p);
+        if (GstMessage* m = gst_bus_timed_pop_filtered(b, 5 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR)))
+            gst_message_unref(m);
+        gst_object_unref(b);
+        gst_element_set_state(p, GST_STATE_NULL);
+        gst_object_unref(p);
+        auto img = std::make_unique<Entrada>(reloj, lienzo, "imagen", json{{"tipo", "imagen"}, {"archivo", png}});
+        banco.entradas.push_back(img.get());
+        banco.correr(1200);
+        const json si = img->estado();
+        std::printf("imagen: %d cuadros, sale %s\n", si.value("cuadros", 0), si["sale"].dump().c_str());
+        CHECK(si.value("cuadros", 0) > 15, "la imagen da cuadros");
+        CHECK(si["sale"].value("formato", "") == "BGRA", "con su alfa (BGRA)");
+        banco.entradas.pop_back();
+        img.reset();
+        std::filesystem::remove(png);
+    }
     programa->quitar("tono1");
     banco.entradas.clear();
     m.reset();

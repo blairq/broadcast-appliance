@@ -57,7 +57,7 @@ tareas quedan repartidas acá.
 | M0.2 | `motor::Entrada`: la capa de entrada de `ba_gst_fuente` llevada a una clase sin OBS. Arma el pipeline con los mismos ajustes JSON: pipeline, `camara`, `microfono`, rack, filtros, medios, invitados, NDI, voces. Mantiene vigía de dispositivos, placa «sin señal», vigía de datos, reintentos, compensación y bus completo. Termina en `intersink` `<id>:video` y `<id>:audio` (F32 48 kHz estéreo) | test con `audiotestsrc`/`videotestsrc` y `fakesink`; cada tipo arma | 🟡 (hecho y probado con fuentes de prueba; falta con cámaras, micrófonos y red reales) |
 | M0.3 | Medios con controles (play/pausa/ir a/bucle/fin) y la playlist encima de `motor::Entrada` (lo de `ba_gst_medio`) | test: fin de archivo, bucle sin corte, salto | 🟡 (controles y bucle hechos; falta la playlist encima) |
 | M0.4 | Un solo armador de ajustes por tipo (P1.6) y pruebas por tipo con `GstTestClock` (P1.7) | ctest | ⬜ |
-| M0.5 | Fuentes que hoy da OBS, en GStreamer: color (`videotestsrc pattern=solid-color`), imagen (`imagefreeze`), texto (render con Qt a BGRA → `appsrc`), captura de pantalla/ventana (`avfvideosrc capture-screen` / `d3d12screencapturesrc` / `pipewiresrc`), audio del sistema (elemento propio por sistema) | cada una da imagen/sonido en la prueba | ⬜ |
+| M0.5 | Fuentes que hoy da OBS, en GStreamer: color (`videotestsrc pattern=solid-color`), imagen (`imagefreeze`), texto (render con Qt a BGRA → `appsrc`), captura de pantalla/ventana (`avfvideosrc capture-screen` / `d3d12screencapturesrc` / `pipewiresrc`), audio del sistema (elemento propio por sistema) | cada una da imagen/sonido en la prueba | 🟡 (color, imagen y texto con alfa hechos y probados; pantalla armada sin probar (pide permiso); falta el audio del sistema) |
 | M0.6 | Estado del motor como JSON (entradas, latencias, señales, medidores) y comandos; el MCP y la GUI leen eso | `motor_estado` por MCP | 🟡 (`motor::Motor` con estado JSON y comandos; falta el MCP) |
 
 ### M1 — Mezcla de audio (`audiomixer`)
@@ -218,3 +218,7 @@ tareas quedan repartidas acá.
   - **Cómo:** el video en vivo de cada entrada pasa por un pipeline fijo (`intersrc <id>:crudo:video ! fallbackswitch ! intersink <id>:video`) con la placa de respaldo. Si la cadena se cae o se rearma, a los 3 s sale la placa; cuando vuelve, vuelve sola.
   - **Probado en test_composicion:** el programa muestra la placa (gris) y después la cámara otra vez, sin cuadro congelado ni negro.
   - **Trampa encontrada (horas y media de rastreo):** `videotestsrc`/`audiotestsrc` en vivo cuentan su tiempo desde 0. Con el base_time del estudio de hace segundos salen a ~90 cuadros por segundo para ponerse al día, y el consumidor se ahoga sin dar error. Arreglo: `timestamp-offset` = la hora del estudio al armar (`fuentesDePruebaEnHora`). Las fuentes de captura reales sellan con la hora del reloj y no tienen el problema.
+- 2026-10-06 · M0.5 (en parte): tipos de entrada `color`, `imagen`, `texto` (con transparencia) y `pantalla`.
+  - **Cómo:** el texto es `textoverlay` sobre un fondo transparente BGRA; la imagen, `imagefreeze`.
+  - **Probado en test_composicion:** un texto sobre el rojo deja ver el rojo donde no hay letras, y un verde con alfa 0x80 se mezcla.
+  - **Para la migración (M6.2):** son lo que reemplaza a `color_source_v3`, `image_source` y `text_ft2_source_v2`.
