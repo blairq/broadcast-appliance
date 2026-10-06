@@ -272,6 +272,7 @@ add_subdirectory(src/obs-module)
 # Plugins de GStreamer propios (superresolución): solo si hay GStreamer.
 if(BA_HAVE_GST)
     add_subdirectory(src/gst-plugins)
+    add_subdirectory(src/motor) # el motor de GStreamer (sin libobs)
 endif()
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
