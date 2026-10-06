@@ -43,13 +43,13 @@ class Reloj;
 
 struct Capa {
     std::string entrada;           ///< la entrada del motor (lee <entrada>:video); también el nombre de la capa
-    std::string productor;         ///< si no está vacío, lee este productor (p. ej. «video:programa» en el multiview)
     int x = 0, y = 0;
     int ancho = 0, alto = 0;       ///< 0 = el del lienzo
     double alfa = 1.0;
     int orden = 0;                 ///< más alto = más arriba
     int recIzq = 0, recArr = 0, recDer = 0, recAba = 0; ///< recorte en píxeles de la entrada
     bool visible = true;
+    std::string productor;         ///< si no está vacío, lee este productor (p. ej. «video:programa» en el multiview)
 };
 
 struct Escena {
@@ -63,6 +63,10 @@ class Composicion {
    public:
     struct Opciones {
         bool gpu = false; ///< glvideomixer (en la placa) en vez de compositor (CPU)
+        /// DSK y clean feed: la escena sale también limpia (`video:<nombre>:limpio`) y
+        /// un segundo compositor le pone encima las capas del DSK (zócalos, logo), que
+        /// no cambian con la escena.
+        bool dsk = false;
     };
     Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op);
     Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre)
@@ -82,6 +86,11 @@ class Composicion {
     /// ¿Hay una transición en curso?
     bool enTransicion() const;
 
+    /// Las capas del DSK (encima de cualquier escena): las nuevas entran con un
+    /// fundido de `ms`, las que no están más salen igual. false si este bus no tiene DSK.
+    bool ponerDsk(const std::vector<Capa>& capas, int ms = 0);
+    std::string productorLimpio() const { return "video:" + nombre_ + ":limpio"; }
+
     void tic();
     nlohmann::json estado() const;
     /// Cuánto después de su hora sale lo que entrega (ns).
@@ -99,10 +108,15 @@ class Composicion {
         std::atomic<bool> listo{false}; ///< ya pasó su primer cuadro (lo pone el hilo de datos)
         double alfaHacia = 1.0;
         int orden = 0;
+        GstElement* mx = nullptr;   ///< el compositor donde está (el de la escena o el del DSK)
+        // Fundido propio (las del DSK)
+        double alfaDesde = 0, alfa = 0;
+        std::int64_t fundeDesdeNs = 0, fundeNs = 0;
+        bool saliendo = false;
     };
     void aplicarLatencia();
     void ponerCapa(Rama& r, const Capa& c, double alfa);
-    Rama* crearRama(const Capa& c, int gen);
+    Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
     void soltar(Rama& r);
     void sacarGeneracion(int gen);
     static GstPadProbeReturn alPrimerCuadro(GstPad* pad, GstPadProbeInfo* info, gpointer d);
@@ -113,6 +127,8 @@ class Composicion {
     bool gpu_ = false;
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;
+    GstElement* dskMx_ = nullptr;          ///< el compositor del DSK (nullptr sin DSK)
+    std::map<std::string, Rama*> dsk_;     ///< las capas del DSK por nombre
     mutable std::mutex mu_;
     std::map<std::string, Rama*> ramas_; ///< clave: <generación>/<entrada>
     int generacion_ = 0;

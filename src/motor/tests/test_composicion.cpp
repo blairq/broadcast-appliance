@@ -253,6 +253,41 @@ int main() {
         prog.mostrar(Escena{"vacia", {}}, "corte");
         esperar(es, prog, 300);
     }
+    // DSK y clean feed: un programa con DSK; la capa del DSK (un recuadro azul) se ve en
+    // el programa pero no en el limpio, y sigue arriba aunque cambie la escena.
+    {
+        Composicion::Opciones op;
+        op.dsk = true;
+        Composicion pd(reloj, lz, "pd", op);
+        Escena r1;
+        r1.nombre = "R";
+        r1.capas.push_back({"rojo", 0, 0, 0, 0});
+        pd.mostrar(r1);
+        Capa logo{"azul", 520, 20, 100, 60};
+        CHECK(pd.ponerDsk({logo}, 0), "poner el DSK");
+        esperar(es, pd, 1500);
+        Visor vp(reloj, pd.productor(), pd.latenciaSalidaNs(), lz.ancho, lz.alto);
+        Visor vl(reloj, pd.productorLimpio(), pd.latenciaSalidaNs(), lz.ancho, lz.alto);
+        esperar(es, pd, 900);
+        Rgb conDsk = vp.en(570, 50), limpio = vl.en(570, 50), resto = vp.en(100, 100);
+        std::printf("DSK: programa %s, limpio %s, resto %s\n", txt(conDsk).c_str(), txt(limpio).c_str(), txt(resto).c_str());
+        CHECK(igual(conDsk, 0, 0, 255), "el DSK se ve en el programa");
+        CHECK(igual(limpio, 255, 0, 0), "y no en el limpio");
+        CHECK(igual(resto, 255, 0, 0), "la escena abajo");
+        Escena g;
+        g.nombre = "G";
+        g.capas.push_back({"verde", 0, 0, 0, 0});
+        pd.mostrar(g, "corte");
+        esperar(es, pd, 700);
+        conDsk = vp.en(570, 50);
+        resto = vp.en(100, 100);
+        std::printf("DSK tras cambiar de escena: %s, resto %s\n", txt(conDsk).c_str(), txt(resto).c_str());
+        CHECK(igual(conDsk, 0, 0, 255) && igual(resto, 0, 255, 0), "el DSK sigue arriba con la escena nueva");
+        CHECK(pd.ponerDsk({}, 400), "sacar el DSK con fundido");
+        esperar(es, pd, 900);
+        CHECK(igual(vp.en(570, 50), 0, 255, 0), "sin DSK, la escena");
+        CHECK(pd.estado()["dsk"].empty(), "y se soltó la capa");
+    }
     std::printf("composición: %s\n", prog.estado().dump().c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
     return fallos == 0 ? 0 : 1;

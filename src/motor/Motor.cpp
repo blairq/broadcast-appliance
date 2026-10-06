@@ -33,14 +33,17 @@ std::string Motor::iniciar() {
     if (cfg_.video) {
         Composicion::Opciones vop;
         vop.gpu = cfg_.videoGpu;
-        vPrograma_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa", vop);
+        Composicion::Opciones pop = vop;
+        pop.dsk = true; // el PROGRAMA con DSK y clean feed
+        vPrograma_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa", pop);
         vPreview_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "preview", vop);
         if (!vPrograma_->anda()) registrar(Nivel::Error, "el video del PROGRAMA no arrancó: " + vPrograma_->error());
     }
     vistas_ = std::make_unique<Vistas>(*reloj_, [this](const std::string& clave, std::int64_t* lat) -> std::string {
         // (lo llaman pedir y tic, con mu_ del motor ya tomado o no: el recursive_mutex lo permite)
         std::lock_guard<std::recursive_mutex> l(mu_);
-        if (clave == "programa" || clave == "preview" || clave == "multiview") return productorDeVideo(clave, lat);
+        if (clave == "programa" || clave == "preview" || clave == "multiview" || clave == "limpio")
+            return productorDeVideo(clave, lat);
         if (clave.rfind("entrada:", 0) == 0) {
             auto it = canales_.find(clave.substr(8));
             if (it == canales_.end() || !it->second.entrada->daVideo()) return {};
@@ -331,8 +334,21 @@ std::string Motor::take(const std::string& transicion, int ms) {
     return {};
 }
 
+std::string Motor::dsk(const json& capas, int fundidoMs) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (!vPrograma_) return "el motor está sin video";
+    std::vector<Capa> v = Escena::desdeJson(json{{"nombre", "dsk"}, {"capas", capas.is_array() ? capas : json::array()}}).capas;
+    for (const auto& c : v)
+        if (canales_.count(c.entrada) == 0) return "no hay una entrada «" + c.entrada + "»";
+    return vPrograma_->ponerDsk(v, fundidoMs) ? std::string() : "el PROGRAMA no tiene DSK";
+}
+
 std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenciaNs) {
     std::lock_guard<std::recursive_mutex> l(mu_);
+    if (bus == "limpio" && vPrograma_) {
+        if (latenciaNs != nullptr) *latenciaNs = vPrograma_->latenciaSalidaNs();
+        return vPrograma_->productorLimpio();
+    }
     Composicion* c = bus == "programa"    ? vPrograma_.get()
                      : bus == "preview"   ? vPreview_.get()
                      : bus == "multiview" ? vMulti_.get()

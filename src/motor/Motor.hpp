@@ -109,7 +109,11 @@ class Motor {
     std::string take(const std::string& transicion = "corte", int ms = 0);
     /// Una escena directo al PROGRAMA (sin pasar por el preview).
     std::string alAire(const std::string& nombre, const std::string& transicion = "corte", int ms = 0);
-    /// Lo que entregan los buses de video: "video:programa", "video:preview"; y cuánto tardan.
+    /// El DSK del PROGRAMA (capas encima de cualquier escena: zócalos, logo), con fundido.
+    /// [{entrada, x, y, ancho, alto, alfa, orden}]. Vacío = sin DSK.
+    std::string dsk(const nlohmann::json& capas, int fundidoMs = 0);
+    /// Lo que entregan los buses de video: "programa", "limpio" (el programa sin DSK),
+    /// "preview", "multiview"; y cuánto tardan.
     std::string productorDeVideo(const std::string& bus, std::int64_t* latenciaNs = nullptr);
 
     // --- Retornos ---

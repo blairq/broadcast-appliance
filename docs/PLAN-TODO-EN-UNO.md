@@ -79,7 +79,7 @@ tareas quedan repartidas acá.
 |---|---|---|---|
 | M2.1 | PROGRAMA y PREVIEW: `glvideomixer` en Mac (`compositor` de respaldo, d3d12/cuda en los otros sistemas). Escena = propiedades de pads (posición, tamaño, recorte, alfa, orden) tomadas de `app.json`; pads dinámicos con `queue` y latencia declarada | una escena de `app.json` se ve igual | 🟡 (PROGRAMA y PREVIEW con `compositor`; `glvideomixer` sin probar; las escenas de `app.json`, en M6) |
 | M2.2 | Take y transiciones: corte, mezcla, empuje, cortina (`GstController` + `glshader`), stinger (un medio con alfa encima); take frame-exacto | el cambio de escena no corta audio ni salida | 🟡 (corte sin negro y mezcla hechos; faltan empuje, cortina y stinger) |
-| M2.3 | DSK y gráficos arriba del programa; clean feed (sin DSK) por `tee`; zócalos y títulos con las fuentes de M0.5; subtítulos en pantalla (`ba_subtitulos`) | el clean feed sale sin gráficos | ⬜ |
+| M2.3 | DSK y gráficos arriba del programa; clean feed (sin DSK) por `tee`; zócalos y títulos con las fuentes de M0.5; subtítulos en pantalla (`ba_subtitulos`) | el clean feed sale sin gráficos | 🟡 (DSK con fundido y clean feed hechos; faltan los zócalos y títulos armados y los subtítulos en pantalla) |
 | M2.4 | MULTIVIEW estándar (P1.4): mosaico PGM/PVW/entradas con tally rojo/verde, nombre, medidores de audio, alarmas por recuadro y reloj | se ve el tally y los medidores | 🟡 (PVW/PGM + hasta 8 entradas con tally y nombre; faltan medidores de audio, alarmas por recuadro y reloj) |
 | M2.5 | Lo que hacían las fuentes propias de OBS: video grafo/compositor (`ba_video_grafo`, `ba_video_compositor`), PTZ digital, mejora de imagen, placa (`ba_placeholder`). Pasan a elementos en la cadena de la entrada o a pads del compositor | cada tarjeta del grafo anda en el motor | ⬜ |
 | M2.6 | `ba/control` con al aire / preview / tally (P1.3): las tarjetas caras descansan cuando su entrada no se ve | una entrada fuera del aire baja su CPU | ⬜ |
@@ -229,3 +229,6 @@ tareas quedan repartidas acá.
   - **Qué muestra:** PREVIEW y PROGRAMA arriba, las entradas con video abajo, cada una con su tally (rojo al aire, verde armada, gris) y su nombre.
   - **Cómo está hecho:** con las piezas que ya había (composición, entradas de color y de texto). Una capa ahora puede leer cualquier productor (`video:programa`).
   - **Probado en test_salidas:** los colores del tally, leídos de la vista.
+- 2026-10-06 · M2.3 (en parte): DSK y clean feed.
+  - **Cómo:** el PROGRAMA son dos etapas. La escena sale limpia por un `tee` (`video:programa:limpio`) y un segundo compositor le pone encima las capas del DSK, que entran y salen con fundido y no cambian con la escena (`Motor::dsk`).
+  - **Probado en test_composicion:** el DSK está en el programa y no en el limpio, y sigue al cambiar de escena.

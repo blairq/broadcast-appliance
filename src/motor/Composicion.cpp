@@ -82,11 +82,18 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                    capsColorDelLienzo(lienzo_) + "," + tam
              : "compositor name=mx " + comun + "! video/x-raw," + tam + " ! videoconvert ! " + capsColorDelLienzo(lienzo_) +
                    "," + tam;
+    std::string completo;
+    if (op.dsk) {
+        // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro compositor.
+        completo = desc + " ! tee name=t t. ! queue ! intersink name=limpio producer-name=" + entreComillas(productorLimpio()) +
+                   " sync=false t. ! queue ! dsk.sink_0 compositor name=dsk " + comun + "! video/x-raw," + tam +
+                   " ! videoconvert ! " + capsColorDelLienzo(lienzo_) + "," + tam + " ! intersink name=sale producer-name=" +
+                   entreComillas(productor()) + " sync=false";
+    } else {
+        completo = desc + " ! intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
+    }
     GError* e = nullptr;
-    pipeline_ = gst_parse_launch((desc + " ! intersink name=sale producer-name=" + entreComillas(productor()) +
-                                  " sync=false")
-                                     .c_str(),
-                                 &e);
+    pipeline_ = gst_parse_launch(completo.c_str(), &e);
     if (e != nullptr) {
         error_ = e->message;
         g_error_free(e);
@@ -96,6 +103,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
         return;
     }
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
+    dskMx_ = gst_bin_get_by_name(GST_BIN(pipeline_), "dsk");
     reloj_.adoptar(pipeline_);
     aplicarLatencia();
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
@@ -108,14 +116,17 @@ Composicion::~Composicion() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
     gst_element_set_state(pipeline_, GST_STATE_NULL);
-    for (auto& [k, r] : ramas_) {
-        if (r->pad != nullptr) {
-            gst_element_release_request_pad(mezclador_, r->pad);
-            gst_object_unref(r->pad);
+    for (auto* m : {&ramas_, &dsk_}) {
+        for (auto& [k, r] : *m) {
+            if (r->pad != nullptr) {
+                gst_element_release_request_pad(r->mx, r->pad);
+                gst_object_unref(r->pad);
+            }
+            delete r;
         }
-        delete r;
+        m->clear();
     }
-    ramas_.clear();
+    if (dskMx_ != nullptr) gst_object_unref(dskMx_);
     gst_object_unref(mezclador_);
     gst_object_unref(pipeline_);
 }
@@ -125,6 +136,7 @@ void Composicion::aplicarLatencia() {
     if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
     latenciaNs_ = l;
     g_object_set(mezclador_, "min-upstream-latency", static_cast<guint64>(l), nullptr);
+    if (dskMx_ != nullptr) g_object_set(dskMx_, "min-upstream-latency", static_cast<guint64>(l), nullptr);
     gst_bin_recalculate_latency(GST_BIN(pipeline_));
 }
 
@@ -134,7 +146,8 @@ GstPadProbeReturn Composicion::alPrimerCuadro(GstPad*, GstPadProbeInfo*, gpointe
     return GST_PAD_PROBE_REMOVE;
 }
 
-Composicion::Rama* Composicion::crearRama(const Capa& c, int gen) {
+Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx) {
+    if (mx == nullptr) mx = mezclador_;
     const std::string n = nombreSeguro(std::to_string(gen) + "_" + c.entrada);
     auto* r = new Rama();
     r->entrada = c.entrada;
@@ -162,14 +175,15 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen) {
         gst_element_link_many(r->src, r->cola, r->recorte, r->subir, nullptr);
     else
         gst_element_link_many(r->src, r->cola, r->recorte, nullptr);
-    r->pad = gst_element_request_pad_simple(mezclador_, "sink_%u");
+    r->mx = mx;
+    r->pad = gst_element_request_pad_simple(mx, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r->subir != nullptr ? r->subir : r->recorte, "src");
     gst_pad_link(sale, r->pad);
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
     gst_object_unref(sale);
     for (GstElement* e : {r->subir, r->recorte, r->cola, r->src})
         if (e != nullptr) gst_element_sync_state_with_parent(e);
-    ramas_[std::to_string(gen) + "/" + c.entrada] = r;
+    if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.entrada] = r;
     return r;
 }
 
@@ -191,7 +205,7 @@ void Composicion::soltar(Rama& r) {
     for (GstElement* e : {r.src, r.cola, r.recorte, r.subir})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
-        gst_element_release_request_pad(mezclador_, r.pad);
+        gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
         gst_object_unref(r.pad);
         r.pad = nullptr;
     }
@@ -261,6 +275,43 @@ bool Composicion::enTransicion() const {
     return genVieja_ >= 0;
 }
 
+bool Composicion::ponerDsk(const std::vector<Capa>& capas, int ms) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (dskMx_ == nullptr) return false;
+    const std::int64_t ahora = ahoraNs(), dur = static_cast<std::int64_t>(std::max(0, ms)) * 1000000;
+    std::map<std::string, const Capa*> nuevas;
+    for (const auto& c : capas) nuevas[c.entrada] = &c;
+    // Las que se van: salen con su fundido.
+    for (auto& [k, r] : dsk_)
+        if (nuevas.count(k) == 0 && !r->saliendo) {
+            r->saliendo = true;
+            r->alfaDesde = r->alfa;
+            r->alfaHacia = 0;
+            r->fundeDesdeNs = ahora;
+            r->fundeNs = dur;
+        }
+    for (const auto& [k, c] : nuevas) {
+        Rama* r = nullptr;
+        if (auto it = dsk_.find(k); it != dsk_.end()) {
+            r = it->second;
+        } else {
+            r = crearRama(*c, 0, dskMx_);
+            if (r == nullptr) continue;
+            dsk_[k] = r;
+            r->alfa = 0;
+        }
+        Capa arriba = *c;
+        arriba.orden = 100 + std::clamp(c->orden, 0, 899); // siempre encima de la escena (sink_0)
+        ponerCapa(*r, arriba, r->alfa);
+        r->saliendo = false;
+        r->alfaDesde = r->alfa;
+        r->alfaHacia = c->visible ? c->alfa : 0.0;
+        r->fundeDesdeNs = ahora;
+        r->fundeNs = dur;
+    }
+    return true;
+}
+
 void Composicion::tic() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
@@ -293,6 +344,21 @@ void Composicion::tic() {
             sacarGeneracion(genVieja_);
             genVieja_ = -1;
         }
+    }
+    // Los fundidos del DSK.
+    for (auto it = dsk_.begin(); it != dsk_.end();) {
+        Rama* r = it->second;
+        const double t = r->fundeNs <= 0 ? 1.0
+                                         : std::clamp(static_cast<double>(ahoraNs() - r->fundeDesdeNs) / static_cast<double>(r->fundeNs), 0.0, 1.0);
+        r->alfa = r->alfaDesde + (r->alfaHacia - r->alfaDesde) * t;
+        g_object_set(r->pad, "alpha", r->alfa, nullptr);
+        if (r->saliendo && t >= 1.0) {
+            soltar(*r);
+            delete r;
+            it = dsk_.erase(it);
+            continue;
+        }
+        ++it;
     }
     GstBus* bus = gst_element_get_bus(pipeline_);
     while (GstMessage* m = gst_bus_pop(bus)) {
@@ -328,6 +394,11 @@ json Composicion::estado() const {
             {"error", error_},
             {"escena", escena_.nombre},
             {"en_transicion", genVieja_ >= 0},
+            {"dsk", [&]() {
+                 json d = json::array();
+                 for (const auto& [k, r] : dsk_) d.push_back({{"capa", k}, {"alfa", r->alfa}, {"saliendo", r->saliendo}});
+                 return d;
+             }()},
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
             {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
             {"capas", capas}};
