@@ -1,5 +1,6 @@
 // Tarjeta "Sistema": medidor de CPU + fps, codificador, frames perdidos.
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Shapes
 import BA

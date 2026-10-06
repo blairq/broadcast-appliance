@@ -100,7 +100,7 @@ void esperar(std::vector<Entrada*>& es, Composicion& c, int ms) {
 
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
-    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, TRUE);
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif
     std::string err;
     if (!iniciarGStreamer(&err)) {

@@ -128,6 +128,7 @@ json describirPipeline(GstElement* p) {
         // Memoria de lo que entra y de lo que sale.
         std::set<std::string> entra, sale;
         std::string medio;
+        bool entraCrudo = false, saleCrudo = false; ///< video/audio sin comprimir (con formato)
         GstIterator* pit = gst_element_iterate_pads(e);
         GValue pv = G_VALUE_INIT;
         while (gst_iterator_next(pit, &pv) == GST_ITERATOR_OK) {
@@ -138,6 +139,7 @@ json describirPipeline(GstElement* p) {
                 const std::string m = d.value("memoria", std::string());
                 if (medio.empty()) medio = d.value("medio", std::string());
                 (GST_PAD_DIRECTION(pad) == GST_PAD_SRC ? sale : entra).insert(m);
+                if (!d.value("formato", std::string()).empty()) (GST_PAD_DIRECTION(pad) == GST_PAD_SRC ? saleCrudo : entraCrudo) = true;
                 if (GST_PAD_DIRECTION(pad) == GST_PAD_SRC && !GST_IS_GHOST_PAD(pad)) {
                     GstPad* peer = gst_pad_get_peer(pad);
                     GstElement* otro = dueñoReal(peer);
@@ -160,10 +162,13 @@ json describirPipeline(GstElement* p) {
         const bool gpuEntra = std::any_of(entra.begin(), entra.end(), esGpu);
         const bool gpuSale = std::any_of(sale.begin(), sale.end(), esGpu);
         const bool sisEntra = entra.count("sistema") > 0, sisSale = sale.count("sistema") > 0;
-        if (gpuEntra && sisSale && !gpuSale)
+        // Solo cuadros crudos que cruzan: un decodificador de la placa recibe el
+        // comprimido (no es una subida) y un bin repite lo de sus elementos.
+        const bool cruza = entraCrudo && saleCrudo && !GST_IS_BIN(e);
+        if (cruza && gpuEntra && sisSale && !gpuSale)
             transiciones.push_back({{"elemento", nombre}, {"fabrica", fabrica}, {"tipo", "bajada a la CPU"},
                                     {"de", *std::find_if(entra.begin(), entra.end(), esGpu)}});
-        if (sisEntra && gpuSale && !gpuEntra)
+        if (cruza && sisEntra && gpuSale && !gpuEntra)
             transiciones.push_back({{"elemento", nombre}, {"fabrica", fabrica}, {"tipo", "subida a la GPU"},
                                     {"a", *std::find_if(sale.begin(), sale.end(), esGpu)}});
         // Trabajo en CPU: procesa video crudo en memoria de sistema.

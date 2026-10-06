@@ -183,7 +183,8 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                 const auto i = kParesGl.find(f.elemento);
                 par = i != kParesGl.end() ? i->second : f.elemento + "gl";
             } else {
-                par = f.elemento + "d3d12";
+                // d3d12convert tiene las mismas propiedades que videobalance.
+                par = f.elemento == "videobalance" ? "d3d12convert" : f.elemento + "d3d12";
             }
             if (hayFabrica(par) && tieneLasPropiedades(par, f.props)) {
                 f.elemento = par;
@@ -699,6 +700,30 @@ std::string aSistema(const std::string& formato) {
     const std::string mem = gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
     return subirGpu() + " ! video/x-raw(memory:" + mem + "),format=" + formato + " ! " + bajarGpu() +
            " ! video/x-raw,format=" + formato;
+}
+
+bool aceptaMemoria(const std::string& fabrica, const std::string& memoria) {
+    GstElementFactory* f = gst_element_factory_find(fabrica.c_str());
+    if (f == nullptr) return false;
+    bool acepta = false;
+    for (const GList* l = gst_element_factory_get_static_pad_templates(f); l != nullptr && !acepta; l = l->next) {
+        auto* t = static_cast<GstStaticPadTemplate*>(l->data);
+        if (t->direction != GST_PAD_SINK) continue;
+        GstCaps* c = gst_static_caps_get(&t->static_caps);
+        for (guint i = 0; i < gst_caps_get_size(c) && !acepta; ++i) {
+            GstCapsFeatures* ft = gst_caps_get_features(c, i);
+            acepta = ft != nullptr && gst_caps_features_contains(ft, ("memory:" + memoria).c_str());
+        }
+        gst_caps_unref(c);
+    }
+    gst_object_unref(f);
+    return acepta;
+}
+
+std::string aCodificador(const std::string& codificador) {
+    if (gpu() == Gpu::D3D12 && aceptaMemoria(codificador, "D3D12Memory"))
+        return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=NV12";
+    return aSistema("NV12");
 }
 
 std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {

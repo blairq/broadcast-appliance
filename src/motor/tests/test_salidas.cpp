@@ -88,10 +88,10 @@ Info mirar(const std::string& ruta) {
 
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
-    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, TRUE);
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif
 #if defined(BA_TEST_GST_PLUGINS)
-    g_setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, TRUE);
+    g_setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, FALSE);
 #endif
     std::string err;
     if (!iniciarGStreamer(&err)) {

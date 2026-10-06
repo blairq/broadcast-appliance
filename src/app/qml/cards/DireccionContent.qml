@@ -9,6 +9,7 @@
 // chicos, se los mira de reojo. Atrasado es rojo, adelantado es ámbar, en hora
 // no se marca —lo que está bien no tiene que llamar la atención—.
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import BA
 import "../controls"

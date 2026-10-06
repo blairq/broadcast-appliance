@@ -36,6 +36,13 @@ constexpr int kMargenSalidaMs = 300;
 } // namespace
 
 std::string elegirCodificador(const std::vector<std::string>& preferidos) {
+    // Con el video en D3D12, primero los que reciben D3D12Memory (sin bajar cada
+    // cuadro): en AMD d3d12h264enc antes que AMF (que pide D3D11), en NVIDIA
+    // d3d12h264enc antes que NVENC por CUDA. Dentro de la lista pedida (si el
+    // usuario eligió uno solo, ese).
+    if (gpu() == Gpu::D3D12)
+        for (const auto& f : preferidos.empty() ? codificadoresDeLaPlaca() : preferidos)
+            if (hayFabrica(f) && aceptaMemoria(f, "D3D12Memory")) return f;
     for (const auto& f : preferidos.empty() ? codificadoresDeLaPlaca() : preferidos)
         if (hayFabrica(f)) return f;
     return hayFabrica("x264enc") ? "x264enc" : std::string();
@@ -314,7 +321,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
                     std::to_string(static_cast<guint64>(std::max(0, cfg_.tramoSeg)) * GST_SECOND) + " ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
-             " ! queue name=cv max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! " + aSistema("NV12") +
+             " ! queue name=cv max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! " + aCodificador(elegirCodificador(cfg_.codificadores)) +
              " ! identity name=antes_cod ";
     for (std::size_t i = 0; i < f.audios.size(); ++i)
         d += "intersrc producer-name=" + entreComillas(f.audios[i]) +
@@ -484,7 +491,7 @@ std::string Transmision::armar() {
                               entreComillas(cfg_.url) + " ";
     if (!fuentes_.video.empty())
         d += "intersrc producer-name=" + entreComillas(fuentes_.video) +
-             " ! queue name=cv leaky=downstream max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! " + aSistema("NV12") +
+             " ! queue name=cv leaky=downstream max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! " + aCodificador(elegirCodificador(cfg_.codificadores)) +
              " ! identity name=antes_cod ";
     if (!fuentes_.audios.empty())
         d += "intersrc producer-name=" + entreComillas(fuentes_.audios.front()) +

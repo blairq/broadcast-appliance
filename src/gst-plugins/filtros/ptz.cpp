@@ -30,6 +30,12 @@
 // a dibujar (si no, gltransformation deja una meta afín que el mezclador
 // aplica sin recortar a la caja de la capa). El motor lo usa en lugar de baptz
 // cuando el video de la entrada va en la GPU.
+//
+// baptzd3d12: lo mismo en D3D12 (Windows, D3D12Memory). Es un bin
+//   videocrop ! d3d12convert ! capsfilter(el tamaño de la entrada)
+// videocrop solo marca la ventana (meta de recorte, sin tocar la memoria) y
+// d3d12convert la amplía en la GPU al tamaño original. La ventana va en
+// píxeles enteros (en 1080p no se nota).
 // ============================================================================
 
 #include "comun.hpp"
@@ -443,7 +449,164 @@ static void ba_ptz_gl_class_init(BaPtzGlClass* k) {
     gst_caps_unref(caps);
 }
 
+// ---------------------------------------------------------------- baptzd3d12
+
+G_BEGIN_DECLS
+#define BA_TYPE_PTZ_D3D12 (ba_ptz_d3d12_get_type())
+G_DECLARE_FINAL_TYPE(BaPtzD3d12, ba_ptz_d3d12, BA, PTZ_D3D12, GstBin)
+G_END_DECLS
+
+struct _BaPtzD3d12 {
+    GstBin parent;
+    BaPtz* cuenta;      ///< el estado y las propiedades (no está en la cadena)
+    GstElement* crop;   ///< videocrop (marca la ventana)
+    GstElement* tam;    ///< capsfilter: sale del tamaño de la entrada
+    gint ancho, alto;   ///< el de la entrada (en el hilo del streaming)
+};
+
+G_DEFINE_TYPE(BaPtzD3d12, ba_ptz_d3d12, GST_TYPE_BIN)
+
+namespace {
+
+void d3dPoner(GObject* o, guint, const GValue* v, GParamSpec* ps) {
+    g_object_set_property(G_OBJECT(BA_PTZ_D3D12(o)->cuenta), ps->name, v);
+}
+
+void d3dLeer(GObject* o, guint, GValue* v, GParamSpec* ps) {
+    g_object_get_property(G_OBJECT(BA_PTZ_D3D12(o)->cuenta), ps->name, v);
+}
+
+/// La entrada: su tamaño (para que la salida sea igual) y, en cada cuadro, la ventana.
+GstPadProbeReturn alCuadroD3d(GstPad*, GstPadProbeInfo* info, gpointer d) {
+    auto* s = static_cast<BaPtzD3d12*>(d);
+    BaPtz* p = s->cuenta;
+    if ((info->type & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) != 0) {
+        GstEvent* e = GST_PAD_PROBE_INFO_EVENT(info);
+        if (GST_EVENT_TYPE(e) == GST_EVENT_CAPS) {
+            GstCaps* c = nullptr;
+            gst_event_parse_caps(e, &c);
+            gint w = 0, h = 0;
+            if (c != nullptr && gst_caps_get_size(c) > 0 && gst_structure_get_int(gst_caps_get_structure(c, 0), "width", &w) &&
+                gst_structure_get_int(gst_caps_get_structure(c, 0), "height", &h) && (w != s->ancho || h != s->alto)) {
+                s->ancho = w;
+                s->alto = h;
+                GstCaps* sale = gst_caps_copy(c);
+                gst_caps_set_simple(sale, "width", G_TYPE_INT, w, "height", G_TYPE_INT, h, nullptr);
+                g_object_set(s->tam, "caps", sale, nullptr);
+                gst_caps_unref(sale);
+            }
+        } else if (GST_EVENT_TYPE(e) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(e) == GST_EVENT_SEGMENT) {
+            GST_OBJECT_LOCK(p);
+            p->ultimo = GST_CLOCK_TIME_NONE;
+            GST_OBJECT_UNLOCK(p);
+        }
+        return GST_PAD_PROBE_OK;
+    }
+    const GstClockTime t = GST_BUFFER_PTS(GST_PAD_PROBE_INFO_BUFFER(info));
+    GST_OBJECT_LOCK(p);
+    double dt = 0;
+    if (GST_CLOCK_TIME_IS_VALID(t) && GST_CLOCK_TIME_IS_VALID(p->ultimo) && t > p->ultimo)
+        dt = std::min(0.1, static_cast<double>(t - p->ultimo) / 1e9);
+    p->ultimo = t;
+    avanzar(p, dt);
+    const double x = p->x, y = p->y, z = p->zoom;
+    GST_OBJECT_UNLOCK(p);
+    if (s->ancho <= 0 || s->alto <= 0) return GST_PAD_PROBE_OK;
+    // La ventana de centro (x, y) y lado 1/zoom, en píxeles (par: los formatos 4:2:0).
+    const int w = std::max(2, static_cast<int>(std::lround(s->ancho / z)) & ~1);
+    const int h = std::max(2, static_cast<int>(std::lround(s->alto / z)) & ~1);
+    const int izq = std::clamp(static_cast<int>(std::lround(x * s->ancho - w / 2.0)) & ~1, 0, s->ancho - w);
+    const int arr = std::clamp(static_cast<int>(std::lround(y * s->alto - h / 2.0)) & ~1, 0, s->alto - h);
+    gint li = 0, la = 0, ld = 0, lb = 0;
+    g_object_get(s->crop, "left", &li, "top", &la, "right", &ld, "bottom", &lb, nullptr);
+    const int der = s->ancho - izq - w, aba = s->alto - arr - h;
+    if (li != izq || la != arr || ld != der || lb != aba)
+        g_object_set(s->crop, "left", izq, "top", arr, "right", der, "bottom", aba, nullptr);
+    return GST_PAD_PROBE_OK;
+}
+
+} // namespace
+
+static void ba_ptz_d3d12_init(BaPtzD3d12* s) {
+    s->cuenta = BA_PTZ(g_object_ref_sink(g_object_new(BA_TYPE_PTZ, nullptr)));
+    s->ancho = s->alto = 0;
+    s->crop = gst_element_factory_make("videocrop", nullptr);
+    GstElement* conv = gst_element_factory_make("d3d12convert", nullptr);
+    s->tam = gst_element_factory_make("capsfilter", nullptr);
+    if (s->crop == nullptr || conv == nullptr || s->tam == nullptr) {
+        GST_ERROR_OBJECT(s, "faltan videocrop o d3d12convert");
+        for (GstElement* e : {s->crop, conv, s->tam})
+            if (e != nullptr) gst_object_unref(e);
+        s->crop = s->tam = nullptr;
+        return;
+    }
+    gst_bin_add_many(GST_BIN(s), s->crop, conv, s->tam, nullptr);
+    gst_element_link_many(s->crop, conv, s->tam, nullptr);
+    GstPad* in = gst_element_get_static_pad(s->crop, "sink");
+    GstPad* out = gst_element_get_static_pad(s->tam, "src");
+    gst_pad_add_probe(in, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
+                      alCuadroD3d, s, nullptr);
+    GstElementClass* ek = GST_ELEMENT_GET_CLASS(s);
+    gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("sink", in, gst_element_class_get_pad_template(ek, "sink")));
+    gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("src", out, gst_element_class_get_pad_template(ek, "src")));
+    gst_object_unref(in);
+    gst_object_unref(out);
+}
+
+static void ba_ptz_d3d12_finalize(GObject* o) {
+    gst_object_unref(BA_PTZ_D3D12(o)->cuenta);
+    G_OBJECT_CLASS(ba_ptz_d3d12_parent_class)->finalize(o);
+}
+
+/// Las propiedades de baptz copiadas en otra clase (un GParamSpec es de una sola clase).
+static void copiarPropiedadesPtz(GObjectClass* go) {
+    auto* kp = static_cast<GObjectClass*>(g_type_class_ref(BA_TYPE_PTZ));
+    guint n = 0;
+    GParamSpec** v = g_object_class_list_properties(kp, &n);
+    guint id = 1;
+    for (guint i = 0; i < n; ++i) {
+        GParamSpec* ps = v[i];
+        if (ps->owner_type != BA_TYPE_PTZ) continue;
+        const auto fl = static_cast<GParamFlags>(ps->flags & ~G_PARAM_STATIC_STRINGS);
+        GParamSpec* copia = nullptr;
+        if (G_IS_PARAM_SPEC_DOUBLE(ps)) {
+            auto* d = G_PARAM_SPEC_DOUBLE(ps);
+            copia = g_param_spec_double(ps->name, g_param_spec_get_nick(ps), g_param_spec_get_blurb(ps), d->minimum,
+                                        d->maximum, d->default_value, fl);
+        } else if (G_IS_PARAM_SPEC_STRING(ps)) {
+            copia = g_param_spec_string(ps->name, g_param_spec_get_nick(ps), g_param_spec_get_blurb(ps),
+                                        G_PARAM_SPEC_STRING(ps)->default_value, fl);
+        } else if (G_IS_PARAM_SPEC_BOOLEAN(ps)) {
+            copia = g_param_spec_boolean(ps->name, g_param_spec_get_nick(ps), g_param_spec_get_blurb(ps),
+                                         G_PARAM_SPEC_BOOLEAN(ps)->default_value, fl);
+        }
+        if (copia != nullptr) g_object_class_install_property(go, id++, copia);
+    }
+    g_free(v);
+    g_type_class_unref(kp);
+}
+
+static void ba_ptz_d3d12_class_init(BaPtzD3d12Class* k) {
+    auto* go = G_OBJECT_CLASS(k);
+    go->set_property = d3dPoner;
+    go->get_property = d3dLeer;
+    go->finalize = ba_ptz_d3d12_finalize;
+    copiarPropiedadesPtz(go);
+    gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(k), "PTZ digital (D3D12)", "Filter/Effect/Video",
+                                          "Pan, tilt y zoom recortando y ampliando la imagen en Direct3D 12",
+                                          "Broadcast Appliance");
+    GstCaps* caps = gst_caps_from_string("video/x-raw(memory:D3D12Memory)");
+    gst_element_class_add_pad_template(GST_ELEMENT_CLASS(k), gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps));
+    gst_element_class_add_pad_template(GST_ELEMENT_CLASS(k), gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, caps));
+    gst_caps_unref(caps);
+}
+
 extern "C" gboolean ba_registrar_ptz(GstPlugin* p) {
-    return gst_element_register(p, "baptz", GST_RANK_NONE, BA_TYPE_PTZ) &&
-           gst_element_register(p, "baptzgl", GST_RANK_NONE, BA_TYPE_PTZ_GL);
+    bool ok = gst_element_register(p, "baptz", GST_RANK_NONE, BA_TYPE_PTZ) &&
+              gst_element_register(p, "baptzgl", GST_RANK_NONE, BA_TYPE_PTZ_GL);
+#if defined(_WIN32)
+    // Solo en Windows (D3D12): el motor lo elige cuando su video va en D3D12.
+    ok = ok && gst_element_register(p, "baptzd3d12", GST_RANK_NONE, BA_TYPE_PTZ_D3D12);
+#endif
+    return ok;
 }

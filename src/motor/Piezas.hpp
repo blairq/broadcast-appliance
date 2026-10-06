@@ -78,6 +78,11 @@ std::string bajarGpu();
 /// display y el contexto GL, o el dispositivo D3D12): así un buffer de GPU
 /// cruza los `inter` y se usa del otro lado sin copiarlo.
 void darContextoGpu(GstElement* pipeline);
+/// ¿La entrada de la fábrica acepta esa memoria («D3D12Memory», «GLMemory»…)?
+bool aceptaMemoria(const std::string& fabrica, const std::string& memoria);
+/// Lo que va delante de un codificador para darle NV12: en la memoria del motor
+/// si el codificador la acepta (sin bajar: d3d12h264enc, qsvh264enc), si no en sistema.
+std::string aCodificador(const std::string& codificador);
 /// Lo que un consumidor pone para recibir video en memoria de sistema en
 /// `formato` (sirve llegue GL o sistema): en GPU convierte y baja en GL; si no,
 /// videoconvert. Termina con las caps «video/x-raw,format=<formato>».
