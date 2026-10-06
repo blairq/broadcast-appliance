@@ -75,16 +75,18 @@ nlohmann::json Escena::aJson() const {
 // --- Composición ---------------------------------------------------------------------
 
 Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op)
-    : reloj_(reloj), lienzo_(lienzo), nombre_(std::move(nombre)), gpu_((op.gpu && hayFabrica("glvideomixer")) || gpuVideo()) {
+    : reloj_(reloj), lienzo_(lienzo), nombre_(std::move(nombre)), gpu_((op.gpu && hayFabrica("glvideomixer")) || gpuVideo()),
+      gl_(gpu_ && gpu() != Gpu::D3D12) {
     const std::string tam = "width=" + std::to_string(lienzo_.ancho) + ",height=" + std::to_string(lienzo_.alto) +
                             ",framerate=" + std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
                             ",pixel-aspect-ratio=1/1";
     const std::string comun = "force-live=true start-time-selection=first background=black ";
-    // En GPU todo queda en GLMemory: lo que sale es una textura (el que consume
-    // la baja si hace falta, chica o en NV12: docs/MAPA-GPU-CPU.md).
-    const std::string salida = gpu_ ? "video/x-raw(memory:GLMemory),format=RGBA," + tam
-                                    : capsColorDelLienzo(lienzo_) + "," + tam;
-    const std::string mezclador = gpu_ ? "glvideomixer" : "compositor";
+    // En GPU todo queda en la GPU (GLMemory o D3D12Memory): lo que sale es una
+    // textura (el que consume la baja si hace falta, chica o en NV12: docs/MAPA-GPU-CPU.md).
+    const std::string salida = gl_    ? "video/x-raw(memory:GLMemory),format=RGBA," + tam
+                               : gpu_ ? "video/x-raw(memory:D3D12Memory),format=RGBA," + tam
+                                      : capsColorDelLienzo(lienzo_) + "," + tam;
+    const std::string mezclador = gl_ ? "glvideomixer" : gpu_ ? "d3d12compositor" : "compositor";
     const std::string desc = gpu_ ? mezclador + " name=mx " + comun + "! " + salida
                                   : "compositor name=mx " + comun + "! video/x-raw," + tam + " ! videoconvert ! " + salida;
     std::string completo;
@@ -160,8 +162,12 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     r->generacion = gen;
     r->src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r->cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
-    r->recorte = gst_element_factory_make(gpu_ ? "gltransformation" : "videocrop", ("rec_" + n).c_str());
-    if (gpu_) {
+    r->recorte = gst_element_factory_make(gl_ ? "gltransformation" : "videocrop", ("rec_" + n).c_str());
+    if (gpu_ && !gl_) {
+        // D3D12: videocrop solo marca el recorte (meta) y d3d12convert lo aplica en la GPU.
+        r->subir = gst_element_factory_make("d3d12upload", ("d3d_" + n).c_str());
+        r->fijar = gst_element_factory_make("d3d12convert", ("d3dc_" + n).c_str());
+    } else if (gpu_) {
         r->subir = gst_element_factory_make("glupload", ("gl_" + n).c_str());
         r->conv = gst_element_factory_make("glcolorconvert", ("glc_" + n).c_str());
         // Sin un elemento que dibuje detrás, gltransformation no dibuja: le pasa
@@ -170,21 +176,27 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         // shader de fábrica, copia la textura: una pasada barata en la GPU.
         r->fijar = gst_element_factory_make("glshader", ("gls_" + n).c_str());
     }
-    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || r->conv == nullptr || r->fijar == nullptr))) {
+    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || r->fijar == nullptr || (gl_ && r->conv == nullptr)))) {
         for (GstElement* e : {r->src, r->cola, r->recorte, r->subir, r->conv, r->fijar})
             if (e != nullptr) gst_object_unref(e);
         delete r;
-        error_ = gpu_ ? "falta intersrc, queue, glupload, glcolorconvert o gltransformation" : "falta intersrc, queue o videocrop";
+        error_ = gl_    ? "falta intersrc, queue, glupload, glcolorconvert o gltransformation"
+                 : gpu_ ? "falta intersrc, queue, d3d12upload, videocrop o d3d12convert"
+                        : "falta intersrc, queue o videocrop";
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
         return nullptr;
     }
-    if (gpu_) g_object_set(r->recorte, "ortho", TRUE, nullptr);
+    if (gl_) g_object_set(r->recorte, "ortho", TRUE, nullptr);
     g_object_set(r->src, "producer-name", r->productor.c_str(), nullptr);
     // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la latencia).
     g_object_set(r->cola, "max-size-buffers", 3u, "max-size-time", static_cast<guint64>(0), "max-size-bytes", 0u, "leaky", 2,
                  nullptr);
     gst_bin_add_many(GST_BIN(pipeline_), r->src, r->cola, r->recorte, nullptr);
-    if (gpu_) {
+    if (gpu_ && !gl_) {
+        // intersrc → cola → subir a D3D12 (si ya está, pasa) → marcar el recorte → aplicarlo.
+        gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->fijar, nullptr);
+        gst_element_link_many(r->src, r->cola, r->subir, r->recorte, r->fijar, nullptr);
+    } else if (gpu_) {
         // intersrc → cola → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
         gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, r->fijar, nullptr);
         gst_element_link_many(r->src, r->cola, r->subir, r->conv, r->recorte, r->fijar, nullptr);
@@ -212,7 +224,7 @@ void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
     g_object_set(r.pad, "xpos", c.x, "ypos", c.y, "width", w, "height", h, "alpha", c.visible ? alfa : 0.0, "zorder",
                  zorder, nullptr);
     gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", c.contener ? "keep-aspect-ratio" : "none");
-    if (gpu_)
+    if (gl_)
         recorteGl(r, c, 0, w, h);
     else
         g_object_set(r.recorte, "left", std::max(0, c.recIzq), "top", std::max(0, c.recArr), "right", std::max(0, c.recDer),
@@ -295,7 +307,7 @@ void Composicion::animar(double t) {
             }
             const int util = std::max(1, origen - c.recIzq - c.recDer);
             const int sacar = static_cast<int>(std::lround(util * (1.0 - static_cast<double>(vis) / w)));
-            if (gpu_)
+            if (gl_)
                 recorteGl(*r, c, sacar, w, c.alto > 0 ? c.alto : lienzo_.alto);
             else
                 g_object_set(r->recorte, "right", std::max(0, c.recDer) + sacar, nullptr);
@@ -541,7 +553,7 @@ json Composicion::estado() const {
                          {"llega", r->listo.load()}});
     return {{"bus", nombre_},
             {"anda", pipeline_ != nullptr},
-            {"gpu", gpu_},
+            {"gpu", gpu_ ? (gl_ ? "gl" : "d3d12") : "cpu"},
             {"error", error_},
             {"escena", escena_.nombre},
             {"en_transicion", genVieja_ >= 0},

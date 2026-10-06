@@ -54,12 +54,29 @@ bool ponerEnVivo(GstElement* pipeline, const std::vector<Filtro>& v, const char*
 bool hayFabrica(const std::string& elemento);
 
 // --- El video en la GPU (docs/MAPA-GPU-CPU.md) ---------------------------------------
-/// ¿El motor compone y lleva el video en la GPU? Hoy: macOS con GL (glvideomixer,
-/// gltransformation), salvo BA_MOTOR_CPU=1 o que el motor lo apague.
-bool gpuVideo();
+/// Con qué GPU lleva y compone el video el motor:
+///   Gl     macOS (glvideomixer, gltransformation; GLMemory)
+///   D3D12  Windows, cualquier marca (d3d12compositor, d3d12convert; D3D12Memory)
+///   Ninguna  todo en la CPU (BA_MOTOR_CPU=1, BA_MOTOR_GPU=cpu, o si la GPU no pasa la autoprueba)
+/// BA_MOTOR_GPU=gl|d3d12|cpu fuerza uno. Se decide una vez, con una autoprueba
+/// (un pipeline chico que tiene que entregar cuadros): bajo Wine, o en una PC
+/// sin D3D12, queda en la CPU.
+enum class Gpu { Ninguna, Gl, D3D12 };
+Gpu gpu();
+bool gpuVideo(); ///< gpu() != Ninguna
 void ponerGpuVideo(bool quiere);
-/// Le da al pipeline el display y el contexto GL del motor (los mismos para
-/// todos): así un buffer de GPU cruza los `inter` y se usa del otro lado.
+/// "gl", "d3d12" o "cpu" (para el estado y el mapa).
+const char* nombreGpu();
+/// Las caps de una textura del motor: «video/x-raw(memory:…),format=RGBA» + `extra`.
+std::string texturaGpu(const std::string& extra = "");
+/// Subir a la GPU y convertir (si ya está en la GPU, pasa): «glupload ! glcolorconvert» o
+/// «d3d12upload ! d3d12convert». Sin caps detrás.
+std::string subirGpu();
+/// Bajar a la CPU: «gldownload» o «d3d12download».
+std::string bajarGpu();
+/// Le da al pipeline el contexto de GPU del motor (el mismo para todos: el
+/// display y el contexto GL, o el dispositivo D3D12): así un buffer de GPU
+/// cruza los `inter` y se usa del otro lado sin copiarlo.
 void darContextoGpu(GstElement* pipeline);
 /// Lo que un consumidor pone para recibir video en memoria de sistema en
 /// `formato` (sirve llegue GL o sistema): en GPU convierte y baja en GL; si no,
@@ -68,11 +85,12 @@ std::string aSistema(const std::string& formato);
 /// Lo mismo, escalado a ancho×alto (en GPU escala en GL y baja CHICO).
 std::string aSistemaEscalado(const std::string& formato, int ancho, int alto);
 /// La cadena de un tipo de filtros para gst_parse_launch ("" si no hay ninguno).
-/// `desdeGl`: el video llega en GLMemory RGBA; los filtros de GL (o los que tienen
-/// su par «<elemento>gl», como baptz) trabajan ahí sin bajar, y solo se baja para
-/// los de CPU. Puede terminar en sistema: el que sigue sube (glupload deja pasar GL).
+/// `desdeGpu`: el video llega en la memoria del motor (GLMemory o D3D12Memory, RGBA);
+/// los filtros de esa memoria (o los que tienen su par «<elemento>gl» / «<elemento>d3d12»,
+/// como baptz) trabajan ahí sin bajar, y solo se baja para los de CPU. Puede
+/// terminar en sistema: el que sigue sube (la subida deja pasar lo que ya está en la GPU).
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos, bool desdeGl = false);
+                     std::vector<std::string>& avisos, bool desdeGpu = false);
 /// Entre comillas para gst_parse_launch (los id de Windows traen \\ y #).
 std::string entreComillas(const std::string& v);
 

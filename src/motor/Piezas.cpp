@@ -162,25 +162,32 @@ bool tieneLasPropiedades(const std::string& fabrica, const std::vector<std::pair
 } // namespace
 
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos, bool desdeGl) {
+                     std::vector<std::string>& avisos, bool desdeGpu) {
     std::string r;
-    bool enGl = desdeGl; // dónde está el video en este punto de la cadena
+    // La memoria del motor (GLMemory o D3D12Memory) y dónde está el video en este punto.
+    const std::string memMotor = !desdeGpu ? "" : gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
+    bool enGpu = desdeGpu;
     for (const auto& f0 : v) {
         if (!hayFabrica(f0.elemento)) {
             avisos.push_back("no está el elemento «" + f0.elemento + "» (filtro " + f0.id + "): pasa sin él");
             continue;
         }
-        // En la GPU, el par de GL del elemento si lo tiene (baptz → baptzgl, y los
-        // de GStreamer que tienen el suyo) y si entiende todas sus propiedades.
+        // En la GPU, el par del elemento para esa memoria si lo tiene (baptz → baptzgl,
+        // y los de GStreamer que tienen el suyo) y si entiende todas sus propiedades.
         Filtro f = f0;
-        if (desdeGl && f.memoria.empty()) {
-            static const std::map<std::string, std::string> kPares{{"videobalance", "glcolorbalance"},
-                                                                   {"videoflip", "glvideoflip"}};
-            const auto par = kPares.find(f.elemento);
-            const std::string gl = par != kPares.end() ? par->second : f.elemento + "gl";
-            if (hayFabrica(gl) && tieneLasPropiedades(gl, f.props)) {
-                f.elemento = gl;
-                f.memoria = "GLMemory";
+        if (desdeGpu && f.memoria.empty()) {
+            static const std::map<std::string, std::string> kParesGl{{"videobalance", "glcolorbalance"},
+                                                                     {"videoflip", "glvideoflip"}};
+            std::string par;
+            if (memMotor == "GLMemory") {
+                const auto i = kParesGl.find(f.elemento);
+                par = i != kParesGl.end() ? i->second : f.elemento + "gl";
+            } else {
+                par = f.elemento + "d3d12";
+            }
+            if (hayFabrica(par) && tieneLasPropiedades(par, f.props)) {
+                f.elemento = par;
+                f.memoria = memMotor;
             }
         }
         // Un elemento que trabaja en la placa: subir antes y bajar después (si ya
@@ -201,16 +208,17 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                                  "»: va en memoria de sistema");
         }
         const std::string elem = f.elemento + " name=" + prefijo + f.nombre + " ! ";
-        if (desdeGl) {
-            if (hayPuente && f.memoria == "GLMemory") {
-                r += (enGl ? std::string() : "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! ") + elem;
-                enGl = !f.saleEnSistema;
+        if (desdeGpu) {
+            if (hayPuente && f.memoria == memMotor) {
+                // En la memoria del motor: si ya está ahí, sin puente.
+                r += (enGpu ? std::string() : std::string(m->second.first) + " ! video/x-raw(memory:" + memMotor + "),format=RGBA ! ") + elem;
+                enGpu = !f.saleEnSistema;
             } else {
-                if (enGl) r += "gldownload ! ";
+                if (enGpu) r += std::string(memMotor == "D3D12Memory" ? "d3d12download" : "gldownload") + " ! ";
                 r += hayPuente ? std::string(m->second.first) + " ! " + elem +
                                      (f.saleEnSistema ? std::string() : std::string(m->second.second) + " ! ")
                                : std::string(conv) + " ! " + elem;
-                enGl = false;
+                enGpu = false;
             }
         } else if (hayPuente) {
             r += std::string(m->second.first) + " ! " + elem +
@@ -513,6 +521,7 @@ void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora) {
 
 // --- El video en la GPU ----------------------------------------------------------------
 
+#include <gst/app/gstappsink.h>
 #include <gst/gl/gl.h>
 
 #include <atomic>
@@ -522,10 +531,11 @@ void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora) {
 namespace ba::motor {
 
 namespace {
-std::atomic<int> gGpu{-1}; // -1 sin decidir
+std::atomic<int> gGpu{-1}; // -1 sin decidir; si no, un Gpu
 std::mutex gGlMu;
 GstGLDisplay* gDisplay = nullptr;
 GstGLContext* gContexto = nullptr;
+std::vector<GstContext*> gContextos; ///< D3D12: los que publicaron los elementos en la autoprueba
 
 bool glListo() {
     std::lock_guard<std::mutex> l(gGlMu);
@@ -542,27 +552,129 @@ bool glListo() {
     gst_gl_display_add_context(gDisplay, gContexto);
     return true;
 }
+
+/// La autoprueba de D3D12: subir, convertir, componer y bajar unos cuadros. Si
+/// entrega, guarda el contexto del dispositivo que publicaron los elementos
+/// (el mismo para todos los pipelines del motor).
+bool d3d12Listo() {
+    for (const char* f : {"d3d12upload", "d3d12download", "d3d12convert", "d3d12compositor"})
+        if (!hayFabrica(f)) return false;
+    GError* e = nullptr;
+    GstElement* p = gst_parse_launch(
+        "videotestsrc num-buffers=4 ! video/x-raw,format=RGBA,width=64,height=36 ! d3d12upload ! d3d12convert ! "
+        "d3d12compositor name=mx ! video/x-raw(memory:D3D12Memory),format=RGBA ! d3d12download ! appsink name=s sync=false",
+        &e);
+    if (e != nullptr) {
+        registrar(Nivel::Aviso, std::string("D3D12: la autoprueba no se arma: ") + e->message);
+        g_error_free(e);
+        if (p != nullptr) gst_object_unref(p);
+        return false;
+    }
+    GstBus* bus = gst_element_get_bus(p);
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    int cuadros = 0;
+    std::string error;
+    std::vector<GstContext*> contextos;
+    GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s");
+    const gint64 hasta = g_get_monotonic_time() + 5 * G_USEC_PER_SEC;
+    while (g_get_monotonic_time() < hasta) {
+        if (GstSample* m = gst_app_sink_try_pull_sample(GST_APP_SINK(s), 20 * GST_MSECOND)) {
+            ++cuadros;
+            gst_sample_unref(m);
+        }
+        while (GstMessage* m = gst_bus_pop(bus)) {
+            if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_HAVE_CONTEXT) {
+                GstContext* c = nullptr;
+                gst_message_parse_have_context(m, &c);
+                if (c != nullptr) contextos.push_back(c);
+            } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR && error.empty()) {
+                GError* ge = nullptr;
+                gst_message_parse_error(m, &ge, nullptr);
+                error = ge != nullptr ? ge->message : "error";
+                if (ge != nullptr) g_error_free(ge);
+            }
+            gst_message_unref(m);
+        }
+        if (cuadros >= 4 || !error.empty() || gst_app_sink_is_eos(GST_APP_SINK(s))) break;
+    }
+    gst_object_unref(s);
+    gst_element_set_state(p, GST_STATE_NULL);
+    gst_object_unref(bus);
+    gst_object_unref(p);
+    if (cuadros < 4) {
+        registrar(Nivel::Aviso, "D3D12: la autoprueba no entregó cuadros (" + std::to_string(cuadros) + ")" +
+                                    (error.empty() ? std::string() : ": " + error) + " (se compone en la CPU)");
+        for (GstContext* c : contextos) gst_context_unref(c);
+        return false;
+    }
+    std::string tipos;
+    for (GstContext* c : contextos) tipos += std::string(tipos.empty() ? "" : ", ") + gst_context_get_context_type(c);
+    registrar(Nivel::Info, "D3D12: la autoprueba entregó " + std::to_string(cuadros) + " cuadros; contextos: " +
+                               (tipos.empty() ? std::string("ninguno") : tipos));
+    std::lock_guard<std::mutex> l(gGlMu);
+    for (GstContext* c : gContextos) gst_context_unref(c);
+    gContextos = std::move(contextos);
+    return true;
+}
+
+Gpu pedida() {
+    const char* cpu = std::getenv("BA_MOTOR_CPU");
+    if (cpu != nullptr && *cpu != '\0' && *cpu != '0') return Gpu::Ninguna;
+    const char* g = std::getenv("BA_MOTOR_GPU");
+    const std::string v = g != nullptr ? g : "";
+    if (v == "cpu") return Gpu::Ninguna;
+    if (v == "gl") return Gpu::Gl;
+    if (v == "d3d12") return Gpu::D3D12;
+#if defined(__APPLE__)
+    return Gpu::Gl;
+#elif defined(_WIN32)
+    return Gpu::D3D12;
+#else
+    return Gpu::Ninguna;
+#endif
+}
 } // namespace
 
 void ponerGpuVideo(bool quiere) {
-    bool puede = false;
-#if defined(__APPLE__)
-    const char* cpu = std::getenv("BA_MOTOR_CPU");
-    puede = quiere && (cpu == nullptr || *cpu == '\0' || *cpu == '0') && hayFabrica("glvideomixer") &&
-            hayFabrica("gltransformation") && hayFabrica("glcolorconvert") && glListo();
-#else
-    (void)quiere;
-#endif
-    gGpu = puede ? 1 : 0;
+    Gpu g = quiere ? pedida() : Gpu::Ninguna;
+    if (g == Gpu::Gl && !(hayFabrica("glvideomixer") && hayFabrica("gltransformation") && hayFabrica("glcolorconvert") && glListo()))
+        g = Gpu::Ninguna;
+    if (g == Gpu::D3D12 && !d3d12Listo()) g = Gpu::Ninguna;
+    gGpu = static_cast<int>(g);
+    registrar(Nivel::Info, std::string("video del motor: ") + nombreGpu());
 }
 
-bool gpuVideo() {
+Gpu gpu() {
     if (gGpu.load() < 0) ponerGpuVideo(true);
-    return gGpu.load() == 1;
+    return static_cast<Gpu>(gGpu.load());
 }
+
+bool gpuVideo() { return gpu() != Gpu::Ninguna; }
+
+const char* nombreGpu() {
+    switch (static_cast<Gpu>(gGpu.load())) {
+        case Gpu::Gl: return "gl";
+        case Gpu::D3D12: return "d3d12";
+        default: return "cpu";
+    }
+}
+
+std::string texturaGpu(const std::string& extra) {
+    return std::string("video/x-raw(memory:") + (gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory") + "),format=RGBA" + extra;
+}
+
+std::string subirGpu() { return gpu() == Gpu::D3D12 ? "d3d12upload ! d3d12convert" : "glupload ! glcolorconvert"; }
+
+std::string bajarGpu() { return gpu() == Gpu::D3D12 ? "d3d12download" : "gldownload"; }
 
 void darContextoGpu(GstElement* pipeline) {
-    if (!gpuVideo()) return;
+    const Gpu g = gpu();
+    if (g == Gpu::D3D12) {
+        std::lock_guard<std::mutex> l(gGlMu);
+        for (GstContext* c : gContextos) gst_element_set_context(pipeline, c);
+        return;
+    }
+    if (g != Gpu::Gl) return;
     GstGLDisplay* d = nullptr;
     GstGLContext* c = nullptr;
     {
@@ -584,13 +696,18 @@ void darContextoGpu(GstElement* pipeline) {
 
 std::string aSistema(const std::string& formato) {
     if (!gpuVideo()) return "videoconvert ! video/x-raw,format=" + formato;
-    return "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=" + formato + " ! gldownload ! video/x-raw,format=" +
-           formato;
+    const std::string mem = gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
+    return subirGpu() + " ! video/x-raw(memory:" + mem + "),format=" + formato + " ! " + bajarGpu() +
+           " ! video/x-raw,format=" + formato;
 }
 
 std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {
     const std::string tam = ",width=" + std::to_string(ancho) + ",height=" + std::to_string(alto);
     if (!gpuVideo()) return "videoconvert ! videoscale ! video/x-raw,format=" + formato + tam + ",pixel-aspect-ratio=1/1";
+    if (gpu() == Gpu::D3D12)
+        // d3d12convert convierte y escala en una pasada; baja chico.
+        return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=" + formato + tam +
+               ",pixel-aspect-ratio=1/1 ! d3d12download ! video/x-raw,format=" + formato + tam + ",pixel-aspect-ratio=1/1";
     return "glupload ! glcolorconvert ! glcolorscale ! video/x-raw(memory:GLMemory)" + tam + " ! glcolorconvert ! "
            "video/x-raw(memory:GLMemory),format=" + formato + " ! gldownload ! video/x-raw,format=" + formato + tam +
            ",pixel-aspect-ratio=1/1";

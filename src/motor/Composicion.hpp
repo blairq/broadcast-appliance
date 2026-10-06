@@ -114,9 +114,9 @@ class Composicion {
         GstElement* src = nullptr;
         GstElement* cola = nullptr;
         GstElement* recorte = nullptr; ///< videocrop (CPU) o gltransformation (GPU)
-        GstElement* subir = nullptr;   ///< glupload (gpu)
-        GstElement* conv = nullptr;    ///< glcolorconvert (gpu)
-        GstElement* fijar = nullptr;   ///< glshader (gpu): obliga a gltransformation a dibujar (ver crearRama)
+        GstElement* subir = nullptr;   ///< glupload / d3d12upload (gpu)
+        GstElement* conv = nullptr;    ///< glcolorconvert (gl)
+        GstElement* fijar = nullptr;   ///< glshader (gl: obliga a gltransformation a dibujar, ver crearRama) / d3d12convert (d3d12: aplica el recorte)
         GstPad* pad = nullptr;
         int generacion = 0;
         std::atomic<bool> listo{false}; ///< ya pasó su primer cuadro (lo pone el hilo de datos)
@@ -146,7 +146,8 @@ class Composicion {
     Reloj& reloj_;
     Lienzo lienzo_;
     std::string nombre_, error_;
-    bool gpu_ = false;
+    bool gpu_ = false; ///< en la GPU (GL o D3D12)
+    bool gl_ = false;  ///< en GL (si no, D3D12)
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;
     GstElement* dskMx_ = nullptr;          ///< el compositor del DSK (nullptr sin DSK)
