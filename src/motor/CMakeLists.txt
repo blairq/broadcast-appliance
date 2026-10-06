@@ -6,7 +6,7 @@
 # y salidas. Ver docs/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp Reloj.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Motor.cpp)
+add_library(ba_motor STATIC Piezas.cpp Reloj.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Motor.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 
@@ -35,4 +35,13 @@ if(BUILD_TESTING OR TRUE)
     target_compile_definitions(test_composicion PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
     add_test(NAME test_composicion COMMAND test_composicion)
     set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_salidas tests/test_salidas.cpp)
+    target_link_libraries(test_salidas PRIVATE ba_motor)
+    ba_gst_rpath(test_salidas "")
+    target_compile_definitions(test_salidas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_salidas gstbaaudio gstbaipc)
+    add_test(NAME test_salidas COMMAND test_salidas)
+    set_tests_properties(test_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 endif()
