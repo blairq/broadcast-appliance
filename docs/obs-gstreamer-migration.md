@@ -5,15 +5,26 @@ sincronizados y aguanten fallas, y cómo se reemplaza libobs del todo. Junta lo 
 migraciones de octubre de 2026), lo charlado con el usuario y lo que se aprendió de otros proyectos.
 
 - El estado al día de cada pieza (qué ya pasó, qué falta) está en [MIGRACION-GSTREAMER.md](MIGRACION-GSTREAMER.md).
-- Acá van las **reglas de cableado**, el **pipeline de destino**, la **robustez**, las **mejoras** a lo que ya
-  anda, lo que pediría un **operador de broadcast**, cómo partirlo en **dos máquinas**, el **Congreso a
-  escala con videowall** (simulcast bajo y alto) y el **plan**.
+- Está en dos partes:
+  - **Parte I, todo en uno** (§1–§10): una sola máquina. Reglas de cableado, el pipeline de destino, la
+    robustez, las mejoras a lo que ya anda, lo que pediría un operador de broadcast y su plan. **Va
+    primero.**
+  - **Parte II, sistema avanzado** (§11–§14): dos máquinas por un cable de 10 GbE, el Congreso a escala con
+    videowall (simulcast bajo y alto), seguridad, archivo, monitoreo y su plan. Se arma después, encima del
+    todo en uno.
 
 **En una línea:** cada fuente es un pipeline propio que sella con la hora de captura y declara su latencia.
 Todas comparten un reloj y se juntan en buses (compositor y audiomixer) que esperan a la más lenta. De los
 buses salen ramas independientes a cada destino. Hoy las entradas ya son así; falta mudar la mezcla, la
 composición y las salidas, que siguen en libobs. Para el operador, lo primero no es sacar libobs sino que
-nada se caiga (§7) y lo de §9.1.
+nada se caiga (§7) y lo de §9.1, todo en una sola máquina.
+
+---
+
+# Parte I — Todo en uno (una sola máquina)
+
+El aparato completo en una máquina: entradas, procesamiento con GPU, mezcla, escenas y salidas. Primero se
+termina esto; el sistema avanzado (Parte II) se arma encima, sin cambiar el diseño.
 
 ---
 
@@ -226,7 +237,7 @@ libobs presenta cada cuadro apenas lo recibe.
 ## 5. El motor de destino (sin libobs)
 
 Es el diseño: nada de esta sección está escrito todavía. Los elementos que nombra se revisaron en el bundle
-de Mac (§12.1).
+de Mac (§10.1).
 
 ```
  RELOJ DEL ESTUDIO (sistema / NTP / PTP / red) + base_time común + latencia del estudio
@@ -297,7 +308,7 @@ de Mac (§12.1).
 
 ### 5.2 Tres cosas que hay que hacer bien desde el primer día
 
-Salen de proyectos que ya armaron esto (ver §13).
+Salen de proyectos que ya armaron esto (ver §15).
 
 1. **`min-upstream-latency` en los mezcladores.**
    - `compositor` y `audiomixer` fijan su latencia al arrancar. Una entrada más lenta que se enchufa después
@@ -395,7 +406,7 @@ Salen de proyectos que ya armaron esto (ver §13).
 - Elementos:
   - en gst-plugins-rs: `tttocea608`, `tttocea708`, `cea608tott`;
   - en -bad y en el núcleo: `ccconverter`, `cccombiner`, `h264ccinserter` (desde 1.24).
-  - En el bundle de Mac están todos (§12.1). Falta confirmarlo en Windows y Linux.
+  - En el bundle de Mac están todos (§10.1). Falta confirmarlo en Windows y Linux.
 - MCP y GUI: por salida, qué salidas de texto van y por qué canal (CC1, CC3, servicios 708), con un medidor
   que muestre qué sale y con cuánta demora.
 
@@ -631,7 +642,68 @@ Todo lo charlado mirado por alguien que tiene que sacar una sesión al aire sin 
 
 ---
 
-## 10. Dos máquinas: entradas con GPU por un lado, mezcla y salida por el otro
+## 10. Plan del todo en uno
+
+Todo en una sola máquina. Cada etapa deja el aire andando y se puede volver atrás. Las entradas (etapa 0)
+ya están hechas.
+
+**Antes de la primera sesión real** (con libobs todavía, porque no dependen del motor nuevo):
+- de §9.1, los puntos 1–5 y 8: tope a la latencia del estudio, las dos escuchas, limitador y loudness,
+  alarmas, robustez (§7) y la corrida de 8 horas;
+- de §8, los puntos 1 y 2 (`fallbackswitch`/`livesync` y la hora a libobs), y `provide-clock=false`.
+
+Después: lip-sync, modo «al aire», multiview estándar, tally real y transmisión de respaldo. Y las etapas
+del motor:
+
+| # | Etapa | Qué se hace | Cómo se sabe que anda |
+|---|---|---|---|
+| 0 | Entradas | Todo lo de §3 (hecho, ver MIGRACION-GSTREAMER.md) | Las pruebas de cada migración |
+| 1 | Mezcla de audio | `audiomixer` para PROGRAMA, pistas, mix-minus y escucha, con `min-upstream-latency` y el arreglo de §5.2. libobs recibe el programa ya mezclado como una sola fuente | Mismo nivel y loudness que hoy; un invitado no se oye en su retorno; ningún bus se cae al entrar el primer invitado |
+| 2 | Salidas | Codificadores, RTMP/SRT, grabación, replay y NDI desde GStreamer, alimentados por el programa que todavía compone libobs (`appsrc` del lienzo) | Transmisión de una hora sin cortes ni deriva A/V; grabación multipista igual a la de hoy |
+| 3 | Composición | PROGRAMA, PREVIEW, MULTIVIEW (con tally y medidores, §9.2), take, transiciones, DSK y gráficos en `compositor`/`glvideomixer`; la interfaz por `appsink` (o `qml6glsink`, §5.4); `intersink`/`intersrc` entre entradas y buses (fuente y proceso separados, §7.1) | Take frame-exacto; cambiar de escena no corta ni el audio ni la transmisión; una entrada caída muestra la placa y vuelve sola |
+| 4 | WebRTC en el proceso | `webrtcbin` en lugar de la memoria compartida para invitados y sesión remota, con su mix-minus (el Congreso a escala, con simulcast y SFU, es del sistema avanzado, §12) | Latencia de ida y vuelta igual o menor que hoy; la hora de captura por RTCP |
+| 5 | Subtítulos | §6 | YouTube muestra los subtítulos a tiempo |
+| 6 | Sacar libobs | El audio del sistema a GStreamer (las voces y NDI ya pasaron); se saca `libobs.framework` (y sus plugins) del bundle | La app arranca sin libobs; el bundle pesa menos |
+
+**Riesgos**
+- Las transiciones y los gráficos: hoy los resuelve OBS.
+- El temblor de los compositores de placa en cada sistema (D3D12 en Windows, GL/CUDA en Linux): hay que
+  medirlo con placas reales.
+- Los elementos de gst-plugins-rs tienen que estar en el bundle de Windows y Linux también (en Mac están,
+  ver §10.1).
+
+### 10.1 Qué hay en el bundle (Mac, GStreamer 1.28.7)
+
+Revisado con `gst-inspect-1.0` del bundle el 2026-10-05. Windows y Linux, sin revisar.
+
+| Para | Está | No está (y qué se usa) |
+|---|---|---|
+| Conectar pipelines | `intersink`, `intersrc` | `interpipesink` (no hace falta) |
+| Robustez | `fallbackswitch`, `fallbacksrc`, `livesync` | |
+| Video | `compositor`, `glvideomixer`, `glshader`, `glimagesink`, `glsinkbin` | `vtcompositor` (no existe: en Mac va `glvideomixer`) |
+| Interfaz | `gtk4paintablesink` (no sirve para Qt) | `qml6glsink`, `qmlglsink` (§5.4) |
+| Audio | `audiomixer`, `level`, `ebur128level`, `audioloudnorm` | `ebur128` (se usa `ebur128level`) |
+| Salidas | `rtmp2sink`, `flvmux`, `mpegtsmux`, `srtsink`, `splitmuxsink`, `hlssink3`, `ndisink`, `encodebin2`, `vtenc_h264`, `avenc_aac` | `fdkaacenc` (se usa `avenc_aac`) |
+| WebRTC | `webrtcbin`, `webrtcsink`, `whipclientsink`, `whepclientsrc`, `whipserversrc` | `whepsink` (se usa `webrtcsink` o `whipclientsink`) |
+| Subtítulos | `tttocea608`, `tttocea708`, `ccconverter`, `cccombiner`, `h264ccinserter`, `webvttenc` | |
+
+Para repetir la revisión:
+```sh
+F=dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/GStreamer.framework/Versions/1.0
+for e in intersink fallbackswitch glvideomixer qml6glsink ebur128level h264ccinserter; do
+  "$F/bin/gst-inspect-1.0" $e >/dev/null 2>&1 && echo "$e sí" || echo "$e NO"; done
+```
+
+---
+
+# Parte II — Sistema avanzado (servidor)
+
+Cuando una sola máquina no alcanza o la instalación lo pide: varias máquinas por un cable dedicado,
+cientos de remotos con videowall, archivo oficial, roles y monitoreo. Se arma sobre el todo en uno.
+
+---
+
+## 11. Dos máquinas: entradas con GPU por un lado, mezcla y salida por el otro
 
 Separar físicamente lo que procesa (entradas, análisis, mejora de audio y video, que necesita GPU) de lo que
 mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
@@ -648,7 +720,7 @@ mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
  RELOJ: A publica su reloj (PTP, o el «red» que ya tenemos) ─► B lo sigue: las horas de captura de A valen en B
 ```
 
-### 10.1 Por dónde va cada cosa en el cable
+### 11.1 Por dónde va cada cosa en el cable
 
 | Forma | Elementos | Por cada 1080p60 | Latencia | En el bundle de Mac |
 |---|---|---|---|---|
@@ -665,7 +737,7 @@ mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
 - Recomendación: RTP sin comprimir para las cámaras del programa que importan, NDI para lo demás, L24 para
   todo el audio.
 
-### 10.2 La sincronía entre las dos máquinas
+### 11.2 La sincronía entre las dos máquinas
 
 - Un solo reloj para las dos: A publica el suyo y B lo sigue.
   - El reloj «red» (`GstNetTimeProvider` / `GstNetClientClock`) ya lo soporta `ba_gst_fuente`.
@@ -675,9 +747,10 @@ mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
   llegó.
 - El mezclador de B declara la latencia de la red (`min-upstream-latency`) como la de cualquier entrada.
 
-### 10.3 Cómo encaja con el diseño
+### 11.3 Cómo encaja con el diseño
 
-- Es la misma separación «un pipeline por fuente + buses» de §5. En una máquina, la unión es
+- Es la misma separación «un pipeline por fuente + buses» de §5: el todo en uno ya queda armado así, y
+  partirlo en dos máquinas no cambia el diseño. En una máquina, la unión es
   `intersink`/`intersrc`; en dos, ese mismo punto pasa a ser un emisor/receptor RTP. El grafo es el mismo:
   el mismo programa corre en una o en dos máquinas según la instalación.
 - **Control:** la GUI de B le habla a A por la red. El MCP hoy es local: hace falta un canal por red con
@@ -689,7 +762,7 @@ mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
 - **Prueba:** 4 cámaras sin comprimir + NDI + audio durante una hora, mirando pérdida de paquetes, temblor y
   deriva entre las dos máquinas.
 
-### 10.4 Dónde van WebRTC (servidor y clientes)
+### 11.4 Dónde van WebRTC (servidor y clientes)
 
 En **B**, no en A. Solo el video de un invitado que necesite GPU hace ida y vuelta a A.
 
@@ -727,11 +800,11 @@ Por qué en B:
 | Mix-minus y retorno de programa a invitados | B |
 | Procesamiento con GPU del video de un invitado (opcional) | A, ida y vuelta por el cable |
 | Micrófonos de la sala y del DCN | A, a B como L24 |
-| Remotos que solo miran y escuchan | SFU (§11) |
+| Remotos que solo miran y escuchan | SFU (§12) |
 
 ---
 
-## 11. Congreso a escala y videowall con todos los rostros (simulcast)
+## 12. Congreso a escala y videowall con todos los rostros (simulcast)
 
 Con cientos de legisladores conectados (la Cámara de Diputados tiene 257 bancas), la mezcla no puede
 decodificar a todos en alta calidad. La solución es **simulcast con dos calidades**: cada remoto manda a la
@@ -761,7 +834,7 @@ vez un video **bajo** y uno **alto**.
         └── a todos: programa (una codificación) + audio de la sala, repartido por el SFU
 ```
 
-### 11.1 Por qué escala
+### 12.1 Por qué escala
 
 - **Dos calidades, nada más:** el navegador manda las dos a la vez (sube ~10–20 % más que con una sola). El
   SFU elige cuál va a cada lado sin transcodificar. Pasar a alguien del muro al aire es pedir la otra
@@ -774,7 +847,7 @@ vez un video **bajo** y uno **alto**.
 - **Sin un lienzo gigante:** un compositor por pantalla con su parte de los recuadros, cada uno a su salida.
   Un único lienzo de 8K partido después cuesta mucha más GPU.
 
-### 11.2 El muro (ejemplo: 257 en 4K, 4 pantallas)
+### 12.2 El muro (ejemplo: 257 en 4K, 4 pantallas)
 
 - Grilla de 16×16 con recuadros de 240×135: el video bajo alcanza.
 - **El que tiene la palabra**, agrandado en el medio (o en una pantalla propia) con el video alto.
@@ -784,7 +857,7 @@ vez un video **bajo** y uno **alto**.
 - **Si alguien se corta** (teléfono con mala red): el recuadro sostiene el último cuadro y después su foto,
   sin parpadear.
 
-### 11.3 Dónde va
+### 12.3 Dónde va
 
 - **No en B** (el programa): un muro con cientos de decodificaciones no tiene que competir con el aire.
 - **Al lado del SFU** (máquina C): ya tiene todos los videos bajos, sin saltos de más.
@@ -792,7 +865,7 @@ vez un video **bajo** y uno **alto**.
 - El mismo video bajo sirve para el multiview del operador y para la página de presidencia (ver quién está
   conectado de un vistazo).
 
-### 11.4 Qué hay que hacer (es R5 y R6 de la sesión remota)
+### 12.4 Qué hay que hacer (es R5 y R6 de la sesión remota)
 
 1. **Simulcast en la página de la sesión** (`assets/web/sesion/`): `sendEncodings` con dos `rid` (bajo y
    alto).
@@ -808,60 +881,69 @@ audios. No es lo usual: se oye solo al que tiene la palabra.
 
 ---
 
-## 12. Plan por etapas
+## 13. Más para el servidor avanzado
 
-Cada etapa deja el aire andando y se puede volver atrás. Las entradas (etapa 0) ya están hechas.
+Lo que hace falta cuando el aparato pasa de una consola a una instalación (varias máquinas, varios
+operadores, un archivo oficial).
 
-**Antes de la primera sesión real** (con libobs todavía, porque no dependen del motor nuevo):
-- de §9.1, los puntos 1–5 y 8: tope a la latencia del estudio, las dos escuchas, limitador y loudness,
-  alarmas, robustez (§7) y la corrida de 8 horas;
-- de §8, los puntos 1 y 2 (`fallbackswitch`/`livesync` y la hora a libobs), y `provide-clock=false`.
+### 13.1 Seguridad y acceso
+- Cable entre máquinas cifrado (SRTP o una VLAN dedicada) si alguna vez pasa por un switch compartido.
+- **Roles** en la GUI y el MCP: operador, audio, director, solo lectura. Hoy cualquiera en la consola puede
+  hacer todo.
+- **Registro de quién hizo qué al aire**: sirve también como parte del acta oficial.
 
-Después: lip-sync, modo «al aire», multiview estándar, tally real y transmisión de respaldo. Y las etapas
-del motor:
+### 13.2 Grabación y archivo
+- **Grabación ISO** (cada entrada por separado) en la máquina de entradas, para no cargar la del programa.
+- **Proxy**: una copia liviana para buscar y hacer clips durante la sesión, mientras sigue grabando la
+  calidad completa.
+- **Timecode de hora del día** embebido en cada archivo: las ISO y el programa se alinean en posproducción.
+- **Subida automática al archivo** al terminar, con los metadatos de la sesión (fecha, temas, quién habló y
+  cuándo, sacados del DCN).
 
-| # | Etapa | Qué se hace | Cómo se sabe que anda |
-|---|---|---|---|
-| 0 | Entradas | Todo lo de §3 (hecho, ver MIGRACION-GSTREAMER.md) | Las pruebas de cada migración |
-| 1 | Mezcla de audio | `audiomixer` para PROGRAMA, pistas, mix-minus y escucha, con `min-upstream-latency` y el arreglo de §5.2. libobs recibe el programa ya mezclado como una sola fuente | Mismo nivel y loudness que hoy; un invitado no se oye en su retorno; ningún bus se cae al entrar el primer invitado |
-| 2 | Salidas | Codificadores, RTMP/SRT, grabación, replay y NDI desde GStreamer, alimentados por el programa que todavía compone libobs (`appsrc` del lienzo) | Transmisión de una hora sin cortes ni deriva A/V; grabación multipista igual a la de hoy |
-| 3 | Composición | PROGRAMA, PREVIEW, MULTIVIEW (con tally y medidores, §9.2), take, transiciones, DSK y gráficos en `compositor`/`glvideomixer`; la interfaz por `appsink` (o `qml6glsink`, §5.4); `intersink`/`intersrc` entre entradas y buses (fuente y proceso separados, §7.1) | Take frame-exacto; cambiar de escena no corta ni el audio ni la transmisión; una entrada caída muestra la placa y vuelve sola |
-| 4 | WebRTC en el proceso | `webrtcbin` en lugar de la memoria compartida para invitados y sesión remota, con su mix-minus; simulcast bajo/alto y SFU para el Congreso a escala (§11) | Latencia de ida y vuelta igual o menor que hoy; la hora de captura por RTCP |
-| 5 | Subtítulos | §6 | YouTube muestra los subtítulos a tiempo |
-| 6 | Sacar libobs | El audio del sistema a GStreamer (las voces y NDI ya pasaron); se saca `libobs.framework` (y sus plugins) del bundle | La app arranca sin libobs; el bundle pesa menos |
+### 13.3 Monitoreo del propio sistema
+- **Tablero de salud**: CPU/GPU, temperatura, disco que queda para grabar, paquetes perdidos en el cable,
+  deriva entre máquinas, latencia de cada entrada, estado de cada salida.
+- **Alertas remotas** (teléfono, Telegram) si algo falla y nadie está mirando.
 
-**Riesgos**
-- Las transiciones y los gráficos: hoy los resuelve OBS.
-- El temblor de los compositores de placa en cada sistema (D3D12 en Windows, GL/CUDA en Linux): hay que
-  medirlo con placas reales.
-- Los elementos de gst-plugins-rs tienen que estar en el bundle de Windows y Linux también (en Mac están,
-  ver §12.1).
+### 13.4 Configuración y versiones
+- **Perfiles exportables**: toda la configuración de una «sesión» (escenas, racks, mesas, salidas, el muro),
+  que se lleva a otra máquina o se restaura en un clic.
+- **Nada de actualizaciones durante una transmisión**, y volver a la versión anterior rápido si una nueva
+  falla.
 
-### 12.1 Qué hay en el bundle (Mac, GStreamer 1.28.7)
+### 13.5 Accesibilidad y público
+- **Audiodescripción o segundo audio** (por ejemplo, sin música o con la voz del intérprete) como pista
+  aparte a YouTube o al HLS.
+- **Segunda pantalla para el público**: una página con el orden del día, quién habla y la votación en vivo,
+  con los mismos datos que los gráficos.
 
-Revisado con `gst-inspect-1.0` del bundle el 2026-10-05. Windows y Linux, sin revisar.
-
-| Para | Está | No está (y qué se usa) |
-|---|---|---|
-| Conectar pipelines | `intersink`, `intersrc` | `interpipesink` (no hace falta) |
-| Robustez | `fallbackswitch`, `fallbacksrc`, `livesync` | |
-| Video | `compositor`, `glvideomixer`, `glshader`, `glimagesink`, `glsinkbin` | `vtcompositor` (no existe: en Mac va `glvideomixer`) |
-| Interfaz | `gtk4paintablesink` (no sirve para Qt) | `qml6glsink`, `qmlglsink` (§5.4) |
-| Audio | `audiomixer`, `level`, `ebur128level`, `audioloudnorm` | `ebur128` (se usa `ebur128level`) |
-| Salidas | `rtmp2sink`, `flvmux`, `mpegtsmux`, `srtsink`, `splitmuxsink`, `hlssink3`, `ndisink`, `encodebin2`, `vtenc_h264`, `avenc_aac` | `fdkaacenc` (se usa `avenc_aac`) |
-| WebRTC | `webrtcbin`, `webrtcsink`, `whipclientsink`, `whepclientsrc`, `whipserversrc` | `whepsink` (se usa `webrtcsink` o `whipclientsink`) |
-| Subtítulos | `tttocea608`, `tttocea708`, `ccconverter`, `cccombiner`, `h264ccinserter`, `webvttenc` | |
-
-Para repetir la revisión:
-```sh
-F=dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/GStreamer.framework/Versions/1.0
-for e in intersink fallbackswitch glvideomixer qml6glsink ebur128level h264ccinserter; do
-  "$F/bin/gst-inspect-1.0" $e >/dev/null 2>&1 && echo "$e sí" || echo "$e NO"; done
-```
+### 13.6 Pruebas
+- **Simulador de sesión completa**: cámaras y micrófonos falsos, 257 remotos simulados, DCN en simulación (ya
+  existe) y transmisión a un canal de prueba. Es la única forma segura de probar todo el diseño antes de una
+  sesión real.
 
 ---
 
-## 13. Referencias
+## 14. Plan del sistema avanzado
+
+Recién cuando el todo en uno (§10) esté terminado y probado en sesiones reales.
+
+| # | Etapa | Qué se hace | Cómo se sabe que anda |
+|---|---|---|---|
+| A1 | Partir en dos máquinas | Emisor/receptor RTP (video sin comprimir, L24) y NDI en el punto donde hoy van `intersink`/`intersrc`; reloj compartido (red o PTP) con RFC 7273; canal de control por red con autenticación (§11) | Una hora con 4 cámaras sin comprimir + NDI + audio sin pérdidas ni deriva entre máquinas |
+| A2 | WebRTC en la máquina de mezcla | Gateway y `webrtcbin` en B; el video de un invitado a A solo si necesita GPU (§11.4) | La conversación con un invitado igual de rápida que con todo en una máquina |
+| A3 | Congreso a escala | Simulcast bajo/alto en la página de la sesión, SFU con TURN, compositor «MURO» por pantalla (§12) | Prueba de carga con 257 remotos simulados: muro completo, pase al aire inmediato |
+| A4 | Archivo y seguridad | Roles, registro de acciones, grabación ISO, proxy, timecode, subida al archivo (§13.1, §13.2) | Una sesión completa queda archivada con sus metadatos y el registro de quién hizo qué |
+| A5 | Operación de una instalación | Tablero de salud, alertas remotas, perfiles, control de versiones, simulador de sesión (§13.3, §13.4, §13.6) | Una sesión simulada completa corre sin intervención y avisa las fallas provocadas |
+| A6 | Público | Segundo audio y segunda pantalla (§13.5) | El público elige la pista de audio y sigue la sesión desde su teléfono |
+
+---
+
+# Apéndice
+
+---
+
+## 15. Referencias
 
 - [Eyevinn/strom](https://github.com/Eyevinn/strom): motor de pipelines de GStreamer con editor de nodos.
   - Bloques: mezclador de video PVW/PGM con shaders, consola de audio, WebRTC, RTMP, SRT, NDI, AES67,
