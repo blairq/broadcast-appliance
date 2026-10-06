@@ -7,7 +7,7 @@
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
 #   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal (las tarjetas de imagen y el legalizador).
-#   audio/     baaudio: baautomixer (mesa redonda por grupo).
+#   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida).
 # ============================================================================
 
@@ -29,7 +29,8 @@ add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/cro
 ba_plugin_gst(gstbafiltros)
 
 # El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).
-add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp")
+add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitador.cpp "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp")
 target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
 ba_plugin_gst(gstbaaudio)
 

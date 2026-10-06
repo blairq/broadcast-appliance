@@ -5,6 +5,7 @@
 // capa de entrada, no libobs):
 //
 //     baautomixer   automixer de mesa redonda (Dugan) compartido por grupo    automixer.cpp
+//     balimitador   limitador del máster con true peak (T12)                  limitador.cpp
 //
 //   Ejemplo (dos micrófonos, la misma mesa):
 //     gst-launch-1.0 osxaudiosrc device=73 ! audioconvert ! baautomixer grupo=bancas ! autoaudiosink \
@@ -15,10 +16,11 @@
 
 extern "C" {
 gboolean ba_registrar_automixer(GstPlugin* p);
+gboolean ba_registrar_limitador(GstPlugin* p);
 }
 
-static gboolean plugin_init(GstPlugin* p) { return ba_registrar_automixer(p); }
+static gboolean plugin_init(GstPlugin* p) { return ba_registrar_automixer(p) && ba_registrar_limitador(p); }
 
 #define PACKAGE "baaudio"
-GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, baaudio, "Audio de Broadcast Appliance: automixer de mesa redonda",
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, baaudio, "Audio de Broadcast Appliance: automixer de mesa redonda y limitador del máster",
                   plugin_init, "1.0", "GPL", "Broadcast Appliance", "Broadcast Appliance")
