@@ -202,6 +202,12 @@ struct Fuente {
     // Sin señal (P0.4): el último cuadro unos segundos y después una placa con el
     // nombre de la entrada, en vez de negro o congelado.
     std::uint64_t ultimoCuadroNs = 0;  ///< cuándo llegó el último cuadro a libobs
+    bool tuvoCuadro = false;           ///< dio video alguna vez desde que se armó
+    // Vigía de datos y reintentos (P0.5)
+    std::string errorAnotado;          ///< el último error que fue al registro
+    std::uint64_t errorAnotadoNs = 0;
+    std::atomic<int> reintentos{0};    ///< seguidos sin que lleguen datos: la espera crece (la tocan también los hilos de datos)
+    std::uint64_t bloquesVistos = 0, bloquesDesdeNs = 0; ///< el audio, para ver si se trabó
     std::uint64_t placaEnviadaNs = 0;
     bool enPlaca = false;
     std::vector<std::uint8_t>* placa = nullptr; ///< BGRA, hecha una vez con GStreamer
@@ -430,6 +436,7 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
         {
             std::lock_guard<std::mutex> l(f->colaLock);
             ++f->bloquesA;
+            f->reintentos = 0;
         }
         gst_sample_unref(s);
         return GST_FLOW_OK;
@@ -444,6 +451,7 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
     if (retraso >= 0) f->retrasoA = retraso > f->retrasoA ? retraso : f->retrasoA - (f->retrasoA - retraso) * 0.01;
     f->audio.push_back({s, vence});
     ++f->bloquesA;
+    f->reintentos = 0;
     // Bloques de audio: 10 s de bloques chicos (~10 ms) como mucho.
     while (f->audio.size() > static_cast<size_t>(kMaxColchonSeg * 120)) {
         gst_sample_unref(f->audio.front().muestra);
@@ -531,6 +539,8 @@ std::uint64_t horaParaObs(Fuente* f, GstSample* s) {
 
 void presentarVideo(Fuente* f, GstSample* s) {
     f->ultimoCuadroNs = os_gettime_ns();
+    f->tuvoCuadro = true;
+    f->reintentos = 0; // llegan datos: la próxima caída vuelve a probar enseguida
     f->enPlaca = false;
     GstCaps* caps = gst_sample_get_caps(s);
     GstVideoInfo info;
@@ -1825,6 +1835,43 @@ void destruir(void* data) {
 
 void irA(Fuente* f, std::int64_t ns);
 void procesarMensaje(Fuente* f, GstMessage* m);
+bool daVideo(const Fuente* f);
+
+/// Reintento con espera creciente: 0,2 s, 0,5 s, 1 s, 2 s y después cada 2 s (un
+/// cable que se movió vuelve enseguida; algo roto no se rearma en vano).
+void programarReintento(Fuente* f) {
+    static const std::uint64_t kEsperas[] = {200'000'000ULL, 500'000'000ULL, 1'000'000'000ULL, 2'000'000'000ULL};
+    f->reintento = os_gettime_ns() + kEsperas[std::min(f->reintentos.load(), 3)];
+    ++f->reintentos;
+}
+
+/// El vigía de datos: una entrada en vivo que daba datos y deja de darlos 10 s
+/// sin ningún error (un dispositivo colgado) se rearma igual.
+void vigilarDatos(Fuente* f) {
+    if (f->medio || f->pipeline == nullptr || f->esperaDispositivo) return;
+    const std::uint64_t ahora = os_gettime_ns();
+    constexpr std::uint64_t kQuieto = 10'000'000'000ULL;
+    bool colgada = false;
+    if (daVideo(f)) {
+        colgada = f->tuvoCuadro && ahora > f->ultimoCuadroNs && ahora - f->ultimoCuadroNs > kQuieto;
+    } else if (f->conAudio) {
+        if (f->bloquesA != f->bloquesVistos) {
+            f->bloquesVistos = f->bloquesA;
+            f->bloquesDesdeNs = ahora;
+        } else if (f->bloquesVistos > 0 && ahora - f->bloquesDesdeNs > kQuieto) {
+            colgada = true;
+        }
+    }
+    if (!colgada) return;
+    const char* n = obs_source_get_name(f->ctx);
+    blog(LOG_WARNING, "[ba_gst_fuente] %s: no llegan datos hace 10 s sin error: se rearma", n != nullptr ? n : "");
+    f->error = "no llegaban datos (se rearma)";
+    desarmar(f);
+    f->tuvoCuadro = false;
+    f->bloquesVistos = 0;
+    f->bloquesDesdeNs = ahora;
+    programarReintento(f);
+}
 
 /// ¿Esta entrada da video? (no: los micrófonos, las voces, el audio de un invitado; los
 /// archivos tienen su propio final).
@@ -1911,6 +1958,7 @@ void tic(void* data, float) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
     vigilarSenal(f);
+    vigilarDatos(f);
     const bool deDispositivo = !f->camara.empty() || (!f->microfono.empty() && f->microfono != "default");
     if (deDispositivo) vigia().revisar();
     if (f->pipeline == nullptr && f->esperaDispositivo) {
@@ -2223,17 +2271,28 @@ void procesarMensaje(Fuente* f, GstMessage* m) {
             }
             f->error = "terminó (EOS)";
             desarmar(f);
-            f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+            programarReintento(f);
             return;
         case GST_MESSAGE_ERROR: {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
             f->error = e != nullptr ? e->message : "error";
             if (e != nullptr) g_error_free(e);
-            blog(LOG_WARNING, "[ba-sources] fuente GStreamer: %s (reintento en 2 s)", f->error.c_str());
+            // Al registro: el error nuevo enseguida; el mismo que se repite, a lo sumo
+            // una vez por minuto (una cámara apagada no llena el registro).
+            {
+                const std::uint64_t ahora = os_gettime_ns();
+                if (f->error != f->errorAnotado || ahora - f->errorAnotadoNs > 60'000'000'000ULL) {
+                    const char* n = obs_source_get_name(f->ctx);
+                    blog(LOG_WARNING, "[ba-sources] %s: %s (se reintenta%s)", n != nullptr ? n : "fuente GStreamer",
+                         f->error.c_str(), f->error == f->errorAnotado ? "; sigue igual" : "");
+                    f->errorAnotado = f->error;
+                    f->errorAnotadoNs = ahora;
+                }
+            }
             if (f->medio) f->estadoMedio = OBS_MEDIA_STATE_ERROR;
             desarmar(f);
-            f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+            programarReintento(f);
             return;
         }
         default:
