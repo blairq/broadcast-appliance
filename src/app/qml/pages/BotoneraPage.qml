@@ -148,7 +148,9 @@ Rectangle {
 
             // --- Perfiles y páginas ---
             Panel {
-                Layout.preferredWidth: 250
+                // Con lugar para «Col. [−5+] Filas [−3+]» en un renglón (a 250 se salía del panel).
+                Layout.preferredWidth: 290
+                Layout.maximumWidth: 290
                 Layout.fillHeight: true
                 padding: 12
                 ColumnLayout {
@@ -208,9 +210,9 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 4
                         Text { text: "Col."; color: Theme.textDim; font.pixelSize: 11 }
-                        SpinBox { id: pagCols; from: 1; to: 16; value: 5; editable: true; Layout.preferredWidth: 96 }
+                        SpinBox { id: pagCols; from: 1; to: 16; value: 5; editable: true; Layout.fillWidth: true }
                         Text { text: "Filas"; color: Theme.textDim; font.pixelSize: 11 }
-                        SpinBox { id: pagFilas; from: 1; to: 16; value: 3; editable: true; Layout.preferredWidth: 96 }
+                        SpinBox { id: pagFilas; from: 1; to: 16; value: 3; editable: true; Layout.fillWidth: true }
                     }
                     RowLayout {
                         GlassButton {

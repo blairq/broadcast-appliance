@@ -203,6 +203,9 @@ ApplicationWindow {
     readonly property real libreDer: Studio.riel.posicion === "derecha" ? rielLugar : 0
     readonly property real libreArr: Studio.riel.posicion === "arriba" ? rielLugar : 0
     readonly property real libreAba: Studio.riel.posicion === "abajo" ? rielLugar : 0
+    /// Con una alarma crítica, la franja roja ocupa su lugar arriba: las páginas
+    /// se corren (si no, tapaba el título y la primera fila de botones de cada una).
+    readonly property real libreAlarma: franjaAlarma.visible ? franjaAlarma.height : 0
 
     /// Cuanto margen tiene que dejar cada pagina a la izquierda. Con el riel a
     /// la izquierda, el riel FLOTA sobre ese margen; en los otros lados el
@@ -218,7 +221,7 @@ ApplicationWindow {
         // A la izquierda el riel FLOTA sobre el margen que cada pagina ya deja
         // (su `leftInset`); en los otros tres lados hay que reservarle lugar de
         // verdad, porque ahi las paginas no dejan nada.
-        anchors.topMargin: win.libreArr
+        anchors.topMargin: win.libreArr + win.libreAlarma
         anchors.rightMargin: win.libreDer
         currentIndex: win.page
         DashboardPage { leftInset: win.insetPagina }
@@ -470,7 +473,7 @@ ApplicationWindow {
     Item {
         visible: win.page !== 0
         anchors { top: parent.top; horizontalCenter: parent.horizontalCenter
-                  topMargin: win.libreArr + 1 }
+                  topMargin: win.libreArr + win.libreAlarma + 1 }
         z: 50
         width: airState.width
         height: airState.height
@@ -499,7 +502,7 @@ ApplicationWindow {
     // Debajo de la franja del estado de emision, para no taparla.
     OnAirTimer {
         anchors { top: parent.top; horizontalCenter: parent.horizontalCenter
-                  topMargin: win.libreArr + 20 }
+                  topMargin: win.libreArr + win.libreAlarma + 20 }
         z: 50
         onClicked: win.page = 2
     }
@@ -626,9 +629,17 @@ ApplicationWindow {
         spacing: 8
         width: 380
         function show(message, level) {
-            // El mismo aviso que ya esta en pantalla no se repite (renueva su tiempo).
+            // El mismo aviso (o uno del mismo tipo: mismo comienzo, como «La interfaz
+            // estuvo trabada N s») no se apila: reemplaza al que está y renueva su tiempo.
+            const tipo = message.substring(0, 24)
             for (let i = 0; i < children.length; ++i)
-                if (children[i].message === message && children[i].opacity > 0) return children[i].renew()
+                if (children[i].opacity > 0 && children[i].message.substring(0, 24) === tipo) {
+                    children[i].message = message
+                    children[i].level = level || "info"
+                    return children[i].renew()
+                }
+            // Como mucho cuatro a la vista: el más viejo se va.
+            if (children.length >= 4) children[0].destroy()
             toastComp.createObject(toasts, { message: message, level: level || "info" })
         }
     }

@@ -24,6 +24,7 @@
 #include <atomic>
 #include <cstdint>
 #include <future>
+#include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -516,6 +517,15 @@ class BroadcastEngine {
     std::string retornoInvitado(int slot) const;
 
    private:
+    /// Las vistas de captura vivas (clave → tamaño y último uso): las miniaturas se
+    /// piden seguido y armar una vista por pedido congelaba la interfaz. Se sueltan
+    /// a los 10 s sin uso. Puede llamarse desde varios hilos (capturaMu_).
+    struct VistaCaptura {
+        int ancho = 0, alto = 0;
+        std::chrono::steady_clock::time_point uso;
+    };
+    std::mutex capturaMu_;
+    std::map<std::string, VistaCaptura> capturas_;
     // --- El modelo propio (lo que el motor no guarda) ---
     struct Fuente {
         SourceSpec spec;           ///< tipo lógico y ajustes tal como los pidieron

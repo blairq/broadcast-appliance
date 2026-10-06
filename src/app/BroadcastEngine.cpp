@@ -319,6 +319,12 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
 }
 
 void BroadcastEngine::shutdown() {
+    {
+        std::lock_guard<std::mutex> lc(capturaMu_);
+        if (motor_)
+            for (const auto& [clave, v] : capturas_) motor_->verSoltar(clave);
+        capturas_.clear();
+    }
     if (!started_) return;
     started_ = false;
     stopAllSourceRecordings();
@@ -548,26 +554,46 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
         w = maxWidth;
     }
     const std::string clave = base + "@captura";
-    if (!motor_->verPedir(clave, w & ~1, h & ~1).empty()) {
-        setError("captura: '" + name + "' no tiene imagen");
-        return false;
+    std::lock_guard<std::mutex> lc(capturaMu_);
+    const auto ahora = std::chrono::steady_clock::now();
+    // Las que nadie pidió en 10 s, afuera.
+    for (auto it = capturas_.begin(); it != capturas_.end();)
+        if (it->first != clave && ahora - it->second.uso > std::chrono::seconds(10)) {
+            motor_->verSoltar(it->first);
+            it = capturas_.erase(it);
+        } else {
+            ++it;
+        }
+    // La vista de esta fuente: si ya está con este tamaño, se reusa (sin armar nada).
+    auto viva = capturas_.find(clave);
+    const bool nueva = viva == capturas_.end() || viva->second.ancho != (w & ~1) || viva->second.alto != (h & ~1);
+    if (nueva) {
+        if (viva != capturas_.end()) motor_->verSoltar(clave);
+        if (!motor_->verPedir(clave, w & ~1, h & ~1).empty()) {
+            capturas_.erase(clave);
+            setError("captura: '" + name + "' no tiene imagen");
+            return false;
+        }
+        capturas_[clave] = {w & ~1, h & ~1, ahora};
     }
+    capturas_[clave].uso = ahora;
     motor::Cuadro c;
     std::uint64_t s = 0;
     bool ok = false;
     // Una escena que no está al aire se compone recién ahora: sus primeros cuadros
     // pueden salir sin las capas que todavía arrancan (en la GPU, compilar los
-    // shaders tarda): se toma un cuadro de después.
+    // shaders tarda): se toma un cuadro de después. Una vista ya viva, al toque.
     const auto desde = std::chrono::steady_clock::now();
-    const auto espera = base.rfind("escena:", 0) == 0 ? std::chrono::milliseconds(700) : std::chrono::milliseconds(0);
+    const auto espera = nueva && base.rfind("escena:", 0) == 0 ? std::chrono::milliseconds(700) : std::chrono::milliseconds(0);
     for (int i = 0; i < 60; ++i) {
         const bool hay = motor_->verUltimo(clave, c, s);
         ok = ok || hay;
         if (ok && std::chrono::steady_clock::now() - desde >= espera) break;
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    motor_->verSoltar(clave);
     if (!ok) {
+        motor_->verSoltar(clave);
+        capturas_.erase(clave);
         setError("captura: '" + name + "' no dio imagen (sin señal o apagada)");
         return false;
     }

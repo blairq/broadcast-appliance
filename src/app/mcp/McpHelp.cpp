@@ -151,7 +151,7 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
      R"md(- `stream_start {"server"?, "key"?}`: la clave NUNCA se guarda (sale de la variable BA_STREAM_KEY o se pasa en `key`, solo en memoria).
 - `stream_stop`, `record_start`, `record_stop`. `status` muestra tiempos, kbps, cuadros perdidos y codificador.
 - Antes de salir al aire: `status` (fps estable, droppedFrames bajo), `capture_program`, `mixer_list` (niveles).
-- Codificacion/resolucion: ajustes `encoder.*`, `video.*` (`settings_list {"section": "Codificacion"}`).)md"},
+- Codificacion/resolucion: ajustes `encoder.*`, `video.*` (`settings_list {"section": "Codificación"}`).)md"},
     {"sala", "Sala de videoconferencia",
      "Lobby, admitir, hablar en privado, pedidos, chat, archivos, enlaces.",
      R"md(## Personas
@@ -283,7 +283,7 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
      R"md(- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
 - `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.
 - Alcance: `live` (en el momento), `gateway` (reinicia la sala: los invitados se reconectan), `restart` (al proximo arranque).
-- Secciones: Video, Codificacion, Grabacion, Transmision, Invitados, Escena, Gateway, Sala, Acceso directo, Sistema, Asistente (MCP).)md"},
+- Secciones: Video, Codificación, Grabación, Transmisión, Invitados, Escena, Gateway, Sala, Acceso directo, Sistema, Asistente (MCP).)md"},
     {"interfaz", "Interfaz y ventanas", "Paginas, avisos, dashboard, ventanas de salida.",
      R"md(- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`, `ui_notify {"message"}`.
 - `dashboard_list`: tarjetas, fondo, ventanas de salida y monitores.

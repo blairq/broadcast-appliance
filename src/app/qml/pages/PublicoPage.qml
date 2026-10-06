@@ -30,7 +30,11 @@ Rectangle {
         // --- Encabezado: por dónde entra la gente ----------------------------
         Panel {
             Layout.fillWidth: true
+            // Panel no calcula su alto: sin esto quedaba en 0 y el encabezado
+            // se dibujaba encima del panel de Preguntas.
+            Layout.preferredHeight: 2 * padding + encabezado.implicitHeight
             RowLayout {
+                id: encabezado
                 anchors.fill: parent
                 spacing: 12
                 ColumnLayout {

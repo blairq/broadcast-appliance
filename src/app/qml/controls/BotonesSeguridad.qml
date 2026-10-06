@@ -8,8 +8,11 @@ import BA
 
 GridLayout {
     id: seg
-    // Angosta (la lista de escenas): en dos renglones.
-    columns: width < 420 ? 2 : 4
+    // Angosta (la lista de escenas): en dos renglones. `angosta` lo fija desde
+    // afuera: mirar el propio ancho no alcanza (con 4 columnas el ancho mínimo
+    // crece y empuja al panel, que entonces nunca queda angosto).
+    property bool angosta: false
+    columns: angosta || width < 420 ? 2 : 4
     columnSpacing: 6
     rowSpacing: 4
     property var estado: Studio.estadoPlacaUi()
@@ -37,8 +40,9 @@ GridLayout {
         text: seg.estado.ftb ? "SACAR NEGRO" : "FTB"
         active: !!seg.estado.ftb
         activeColor: "#000000"
-        Layout.fillWidth: seg.columns === 2
-        Layout.preferredWidth: 110
+        // Angosta, los botones no se estiran: el lugar es para el texto de la placa.
+        Layout.fillWidth: seg.columns === 2 && !seg.angosta
+        Layout.preferredWidth: seg.angosta ? 96 : 110
         onClicked: seg.poner("ftb", !seg.estado.ftb)
         ToolTip.visible: hovered; ToolTip.delay: 400
         ToolTip.text: "Fundido a negro de todo lo que sale"
@@ -53,8 +57,8 @@ GridLayout {
         text: seg.estado.placa ? "SACAR PLACA" : "PLACA"
         active: !!seg.estado.placa
         activeColor: Theme.amber
-        Layout.fillWidth: seg.columns === 2
-        Layout.preferredWidth: 120
+        Layout.fillWidth: seg.columns === 2 && !seg.angosta
+        Layout.preferredWidth: seg.angosta ? 96 : 120
         onClicked: seg.poner("placa", !seg.estado.placa)
         SequentialAnimation on opacity {
             running: !!seg.estado.placa; loops: Animation.Infinite
@@ -65,8 +69,14 @@ GridLayout {
     ComboBox {
         id: textoPlaca
         Layout.fillWidth: true
-        Layout.minimumWidth: 140
+        Layout.minimumWidth: seg.angosta ? 100 : 140
         editable: true
         model: Studio.textosPlaca()
+        // Editable, el campo queda con el cursor al final y en angosto se veía
+        // la cola del texto («…mos enseguida»): sin foco, que se vea el principio.
+        function alPrincipio() { if (!activeFocus && contentItem) contentItem.cursorPosition = 0 }
+        onActiveFocusChanged: alPrincipio()
+        onCurrentTextChanged: Qt.callLater(alPrincipio)
+        Component.onCompleted: Qt.callLater(alPrincipio)
     }
 }

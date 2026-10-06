@@ -57,7 +57,7 @@ ColumnLayout {
                text: "Abiertos " + (pc.e.abiertos || []).length + (pc.e.max_abiertos ? " de " + pc.e.max_abiertos : "") }
         ComboBox {
             visible: pc.ok
-            implicitWidth: 190
+            implicitWidth: 270  // que entre «Operador (la app da la palabra)» entero
             model: [ { t: "Operador (la app da la palabra)", v: "operador" }, { t: "Operador con réplicas", v: "operador_replicas" },
                      { t: "Delegado con lista", v: "delegado_lista" }, { t: "Delegado con reemplazo", v: "reemplazo" },
                      { t: "Por voz", v: "voz" }, { t: "Pulsar para hablar", v: "pulsar" } ]

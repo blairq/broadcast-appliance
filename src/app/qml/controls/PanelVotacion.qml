@@ -317,6 +317,9 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                 }
+                // Lo que sobra va abajo: sin esto el layout repartía el alto
+                // entre los campos y quedaban huecos enormes.
+                Item { Layout.fillHeight: true }
             }
         }
     }

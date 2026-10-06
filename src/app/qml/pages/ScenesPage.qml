@@ -67,7 +67,8 @@ Rectangle {
 
         // --- Escenas ----------------------------------------------------------
         Panel {
-            Layout.preferredWidth: 240
+            Layout.preferredWidth: 310
+            Layout.maximumWidth: 310
             Layout.fillHeight: true
             title: "Escenas"
             ColumnLayout {
@@ -77,7 +78,7 @@ Rectangle {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 4
-                    BotonesSeguridad { Layout.fillWidth: true }
+                    BotonesSeguridad { Layout.fillWidth: true; angosta: true }
                     FilaDsk { Layout.fillWidth: true }
                 }
                 CheckBox {
@@ -407,7 +408,9 @@ Rectangle {
             spacing: 12
             Panel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 280
+                // Media columna: con 280 fijos entraban tres fuentes y
+                // Propiedades, casi siempre vacía, se quedaba con el resto.
+                Layout.preferredHeight: Math.max(280, (parent.height - 12) / 2)
                 title: "Fuentes"
                 ColumnLayout {
                     anchors.fill: parent
@@ -560,7 +563,7 @@ Rectangle {
                     ColumnLayout {
                         width: parent.width
                         spacing: 10
-                        Text { visible: !page.selected; text: "Elegi una fuente para ver sus propiedades."; color: Theme.textFaint; font.pixelSize: 12 }
+                        Text { visible: !page.selected; text: "Elegí una fuente para ver sus propiedades."; color: Theme.textFaint; font.pixelSize: 12 }
                         Repeater {
                             model: Studio.properties
                             delegate: FormField {

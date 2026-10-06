@@ -812,7 +812,7 @@ Rectangle {
                             spacing: 6
                             GlassButton {
                                 Layout.fillWidth: true
-                                text: "Invitar con QR"; icon: "⬚"; active: true
+                                text: "Invitar con QR"; icon: "⊞"; active: true
                                 onClicked: qrDlg.show("local")
                                 ToolTip.visible: hovered; ToolTip.delay: 400
                                 ToolTip.text: "Muestra el código para escanear. Adentro se elige red local o internet, y si el PIN va incluido."

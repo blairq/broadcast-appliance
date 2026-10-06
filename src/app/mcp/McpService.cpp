@@ -7,6 +7,7 @@
 
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
+#include <QRegularExpression>
 #include <QDateTime>
 #include <QRandomGenerator>
 
@@ -3244,8 +3245,14 @@ void McpService::registerTools() {
             const std::string section = a.value("section", std::string());
             if (!section.empty()) {
                 json f = json::array();
+                // Sin acentos ni mayúsculas: «Codificacion» (como se llamaba
+                // antes) sigue encontrando «Codificación».
+                const auto plano = [](const std::string& x) {
+                    return QString::fromStdString(x).normalized(QString::NormalizationForm_D)
+                        .remove(QRegularExpression("\\p{Mn}")).toCaseFolded();
+                };
                 for (const auto& r : rows)
-                    if (r.value("section", "") == section) f.push_back(r);
+                    if (plano(r.value("section", "")) == plano(section)) f.push_back(r);
                 rows = f;
             }
             json sections = json::array();

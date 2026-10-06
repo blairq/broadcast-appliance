@@ -69,7 +69,7 @@ Rectangle {
         Panel {
             Layout.preferredWidth: 240
             Layout.fillHeight: true
-            title: "Configuracion"
+            title: "Configuración"
             ListView {
                 anchors.fill: parent
                 spacing: 4
@@ -1119,7 +1119,7 @@ Rectangle {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: "La app se cierra, se reemplaza el programa por el de\n" + updConfirm.folder.toString().replace("file://", "") +
-                      "\ny vuelve a abrir sola. Configuracion, credenciales, grabaciones y archivos NO se tocan (antes se respaldan). Si algo sale mal, podes volver a esta version."
+                      "\ny vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO se tocan (antes se respaldan). Si algo sale mal, podés volver a esta versión."
             }
         }
         // Al aire no alcanza con este OK. Se mira recien aca (y no al abrir) porque la
@@ -1179,7 +1179,7 @@ Rectangle {
                     rowSpacing: 8
                     Repeater {
                         model: [
-                            { n: "Config", d: "Configuracion (escenas, ajustes, tablero)" },
+                            { n: "Config", d: "Configuración (escenas, ajustes, tablero)" },
                             { n: "Credenciales", d: "Tokens y claves, cifrados (AES-256-GCM). Una actualizacion nunca los toca." },
                             { n: "Recordings", d: "Grabaciones" },
                             { n: "Shares", d: "Archivos que comparten los invitados" },
