@@ -19,7 +19,12 @@
 #include <cstdlib>
 #include <string>
 #include <thread>
+#if defined(_WIN32)
+#include <process.h>
+#define getpid _getpid
+#else
 #include <unistd.h>
+#endif
 
 using namespace ba::motor;
 using json = nlohmann::json;
@@ -77,10 +82,10 @@ json tono(int frec) {
 
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
-    setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1);
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, TRUE);
 #endif
 #if defined(BA_TEST_GST_PLUGINS)
-    setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, 1);
+    g_setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, TRUE);
 #endif
     std::string err;
     if (!iniciarGStreamer(&err)) {

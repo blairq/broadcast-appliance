@@ -20,6 +20,8 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#else
+#include <winsock2.h> // inet_addr
 #endif
 
 #include "proxy/Acme.hpp"
