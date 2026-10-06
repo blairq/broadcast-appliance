@@ -233,6 +233,7 @@ QVariantList VideoGrafos::entradasInfo() const {
         const std::string tipo = inputs::tipoLogico(rt_.engine().sourceTypeId(n),
                                                     json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false));
         const QString grupo = tipo == inputs::kVideoType ? QStringLiteral("Cámaras")
+                              : tipo == "ba_guest_video" ? QStringLiteral("Invitados")
                               : tipo == "ba_ndi_input"   ? QStringLiteral("NDI")
                               : tipo == kTipoVirtual     ? QStringLiteral("Virtuales")
                                                          : QStringLiteral("Red");

@@ -11,12 +11,15 @@
 //     mientras tanto no sale nada.
 //   - Los bloques de silencio por falta de datos (underrun) no se entregan: el
 //     invitado que no habla o no está no ocupa la cadena.
-//   - La hora de cada bloque: la del reloj del pipeline al leerlo, contada por
-//     muestras mientras la lectura sigue al día (sin el temblor del sondeo);
-//     si se corre más de 40 ms, se vuelve a tomar del reloj.
+//   - La hora de cada bloque: la que le puso el gateway al escribirlo, pasada
+//     al reloj del pipeline (hora.hpp; así queda alineado con el video del
+//     invitado, que va por otra cadena), contada por muestras mientras siga al
+//     día (sin el temblor de la escritura); si se corre más de 40 ms, se vuelve
+//     a tomar de la hora del gateway.
 //   - Declara 10 ms de latencia (un bloque).
 // ============================================================================
 
+#include "hora.hpp"
 #include "ipc/SharedAudioRing.hpp"
 
 #include <gst/audio/audio.h>
@@ -103,18 +106,13 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             if (!esperar(a, 2)) return GST_FLOW_FLUSHING;
             continue;
         }
-        // La hora: la del reloj al leer, contada por muestras mientras siga al día.
-        GstClockTime ahora = GST_CLOCK_TIME_NONE;
-        if (GstClock* reloj = gst_element_get_clock(GST_ELEMENT(a))) {
-            const GstClockTime t = gst_clock_get_time(reloj), base = gst_element_get_base_time(GST_ELEMENT(a));
-            if (t >= base) ahora = t - base;
-            gst_object_unref(reloj);
-        }
+        // La hora: la del gateway (al escribir el bloque, que empezó un bloque
+        // antes), contada por muestras mientras siga al día.
         const GstClockTime dur = gst_util_uint64_scale(ar::kBlockFrames, GST_SECOND, ar::kSampleRate);
+        const GstClockTime escrito = ba::ipc_gst::horaDeQpc(GST_ELEMENT(a), meta.qpc);
         GstClockTime pts = a->proxima;
-        if (GST_CLOCK_TIME_IS_VALID(ahora)) {
-            // El bloque se capturó hace ~un bloque.
-            const GstClockTime captura = ahora > dur ? ahora - dur : 0;
+        if (GST_CLOCK_TIME_IS_VALID(escrito)) {
+            const GstClockTime captura = escrito > dur ? escrito - dur : 0;
             if (!GST_CLOCK_TIME_IS_VALID(pts) || (pts > captura ? pts - captura : captura - pts) > 40 * GST_MSECOND)
                 pts = captura;
         }

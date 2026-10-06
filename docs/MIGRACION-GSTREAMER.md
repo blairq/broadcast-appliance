@@ -17,6 +17,7 @@ razonable.
 | **Automixer de mesa redonda** (2026-10-05) | `baautomixer`, plugin `baaudio` |
 | **Audio de los invitados y del remoto con la palabra** (2026-10-05) | `ba_gst_fuente` + `baanillo canal=BA.Audio.Guest.<n>` (plugin `baipc`): lee el anillo que escribe el gateway. Para las plantillas y la interfaz siguen siendo «ba_guest_audio» (`inputs::tipoLogico`) |
 | **Cámaras y capturadoras del equipo** (2026-10-05) | `ba_gst_fuente` con `camara` = id estable (avfvideosrc / mfvideosrc / v4l2src, resuelto al armar), `camara_modo` opcional (sin modo: el que mejor va con el lienzo). Lista y modos del monitor de dispositivos (`video/Camaras.*`); las guardadas se migran solas. Sus tarjetas del grafo corren en su cadena |
+| **Video de los invitados, sus pantallas y el remoto con la palabra** (2026-10-05) | `ba_gst_fuente` + `bavideoanillo canal=BA.Guest.<n>` (plugin `baipc`): lee el canal que escribe el gateway, BGRA sin normalizar. Audio y video del invitado van por la hora que les pone el gateway (`qpc` pasado al reloj del pipeline), fuera de la compensación del estudio. Aparecen en el grafo de video (grupo Invitados); para las plantillas siguen siendo «ba_guest_video» |
 | **Medios locales y playlist** (2026-10-05) | `ba_gst_medio` (mismo código que `ba_gst_fuente`): un archivo con los ajustes de ffmpeg_source y los controles de medios de libobs (play/pausa, reiniciar, parar, ir a, tiempo, duración, estado). Mira qué tiene el archivo (GstDiscoverer) y arma solo esas ramas; `looping` sin cortes con saltos por segmentos. Cualquier ffmpeg_source de un archivo local se crea como `ba_gst_medio` (motor y carga de la configuración); sus racks corren en barack |
 | **Racks de audio (LSP/CLAP) de las entradas de GStreamer** (2026-10-05) | `barack`, registrado por la app (`audio/GstRack.*`): el mismo `AudioRack` corre en la cadena de audio de `ba_gst_fuente` (ajuste `rack`). Los racks guardados se montan solos donde corresponda |
 
@@ -26,9 +27,8 @@ razonable.
    `ba_audio_rack`. Pasan solos a `barack` el día que su fuente pase a GStreamer (RackManager elige por el tipo
    de la fuente). La escucha del rack (la salida a los auriculares) sigue saliendo por el monitoreo de libobs
    hasta que se mude la mezcla (punto 5).
-4. **Audio del sistema** (`*_output_capture`), el VIDEO de los invitados (`ba_guest_video`), la escucha del
-   lobby (`ba_guest_audio` privada, solo auriculares) y NDI (`ba_ndi_input`): entradas de GStreamer
-   (`baanillo` ya lee el audio; falta su par de video, y `ndisrc`).
+4. **Audio del sistema** (`*_output_capture`), la escucha del lobby (`ba_guest_audio` privada, solo
+   auriculares) y NDI (`ba_ndi_input`): entradas de GStreamer (`ndisrc`).
 5. **La mezcla de audio** (mezclador de OBS, pistas, monitoreo) → `audiomixer` con buses, el limitador del
    máster (T12) y la matriz.
 6. **La composición de video** (escenas, transiciones, DSK, gráficos, multiview) → `compositor`/`glvideomixer`
@@ -43,9 +43,17 @@ Cuando estén 5–7, libobs queda sin uso y se saca del bundle.
 - `uridecodebin3` con un `ba_dec.` suelto puede enganchar el audio de un archivo solo de audio en la rama del
   video (y no termina nunca); una rama sin datos tampoco deja llegar el EOS. Por eso los medios miran antes qué
   tiene el archivo y nombran los pads (`video_0`, `audio_0`). Las entradas de red siguen como estaban.
-- Con los sinks en `async=false`, un salto con flush con la cadena en PAUSA no vuelve a arrancar (el pipeline no
-  recalcula el base_time): reiniciar, parar e ir a un tiempo con la cadena quieta rearman; con la cadena
-  andando, un salto común anda.
+- Eventos de GStreamer, no parches:
+  - Con los sinks en `async=false` (las entradas en vivo, para que una rama sin datos no trabe el arranque)
+    un salto con flush en PAUSA no vuelve a arrancar: el pipeline no recibe ASYNC_DONE y no recalcula el
+    base_time. Los medios usan `async=true` (preroll: solo arman las ramas que tienen), así los saltos en
+    cualquier estado, el reinicio y el bucle andan como manda GStreamer (RESET_TIME → ASYNC_DONE).
+  - Un archivo no lleva latencia forzada ni la adaptativa de las entradas en vivo (mide «lo viejo» que
+    llega cada cuadro, que tras un salto no tiene sentido: arrancaba ~1,5 s tarde).
+  - El bus se lee entero cada cuadro (antes uno por cuadro con `gst_bus_pop_filtered`, que además tira
+    los demás): LATENCY → `gst_bin_recalculate_latency`, CLOCK_LOST → pausa y play, avisos al registro.
+  - La hora de lo que llega de otro proceso: la que le puso el que lo escribió (`qpc`), pasada al reloj
+    del pipeline leyendo los dos relojes juntos; no la de cuando lo leímos.
 
 - Una entrada solo de audio tiene que llevar `"pipeline": ""`: si no, `ba_gst_fuente` arma su video de
   prueba de fábrica (videotestsrc), gasta CPU y, como «recibe video», se suma a la compensación del estudio

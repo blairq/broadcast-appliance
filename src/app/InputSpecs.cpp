@@ -91,10 +91,45 @@ std::string ajustesAudioAnillo(const std::string& canal, int slot) {
 std::string tipoLogico(const std::string& type, const json& settings) {
     if (type == kMicType && settings.is_object()) {
         if (settings.contains("camara")) return kVideoType;
+        if (settings.value("video_invitado", false)) return "ba_guest_video";
         if (settings.contains("anillo")) return "ba_guest_audio";
         if (settings.contains("microfono")) return kAudioInLibobs;
     }
     return type;
+}
+
+std::string ajustesVideoInvitado(int slot, const std::string& channel) {
+    const std::string c = (channel == "share" || channel == "remoto") ? channel : "guest";
+    const std::string canal = (c == "share" ? "BA.GuestShare." : c == "remoto" ? "BA.Remoto." : "BA.Guest.") + std::to_string(slot);
+    // Sin normalizar (llega BGRA a los cuadros que lleguen: sin videorate ni
+    // conversión) y fuera de la compensación del estudio, como su audio
+    // (baanillo): los dos van por la hora que les pone el gateway.
+    return json{{"pipeline", "bavideoanillo canal=" + canal},
+                {"pipeline_audio", ""},
+                {"audio", false},
+                {"normalizar", false},
+                {"estudio", false},
+                {"video_invitado", true},
+                {"slot", slot},
+                {"channel", c}}
+        .dump();
+}
+
+bool esVideoInvitado(const std::string& type, const std::string& settingsJson) {
+    if (type == "ba_guest_video") return true;
+    if (type != kMicType) return false;
+    const json s = json::parse(settingsJson.empty() ? "{}" : settingsJson, nullptr, false);
+    return s.is_object() && s.value("video_invitado", false);
+}
+
+bool migrarVideoInvitado(SourceSpec& spec) {
+    if (spec.id != "ba_guest_video") return false;
+    const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
+    const int slot = s.is_object() ? s.value("slot", 1) : 1;
+    const std::string ch = s.is_object() ? s.value("channel", std::string("guest")) : "guest";
+    spec.id = kMicType;
+    spec.settingsJson = ajustesVideoInvitado(slot, ch);
+    return true;
 }
 
 bool migrarMedio(SourceSpec& spec) {
@@ -169,7 +204,8 @@ bool isNetworkInput(const std::string& type, const json& settings) {
     // Los micrófonos, las cámaras del equipo y el audio de los invitados también
     // son ba_gst_fuente, pero no son «de red».
     if (type == "ba_gst_fuente" && settings.is_object() &&
-        (settings.contains("microfono") || settings.contains("camara") || settings.contains("anillo")))
+        (settings.contains("microfono") || settings.contains("camara") || settings.contains("anillo") ||
+         settings.contains("video_invitado")))
         return false;
     return type == "ba_ndi_input" || type == "ba_gst_fuente" ||
            (type == "ffmpeg_source" && !settings.value("is_local_file", true));

@@ -1,0 +1,222 @@
+// ============================================================================
+// src/gst-plugins/ipc/video.cpp — bavideoanillo: el video de un canal compartido
+//
+// Lee el canal de video (ba::ipc::SpoutReceiver: triple buffer en memoria
+// compartida; Spout en Windows el día que se use) que escribe el gateway por
+// cada invitado (`BA.Guest.<n>`), su pantalla compartida (`BA.GuestShare.<n>`)
+// o el remoto con la palabra (`BA.Remoto.1`), y lo entrega como una fuente EN
+// VIVO de GStreamer en BGRA.
+//
+//   - El tamaño sale del canal (lo fija el gateway); si el gateway lo rehace con
+//     otro, se renegocian las caps.
+//   - Si el canal todavía no existe o el gateway se reinició, se resuscribe
+//     solo; mientras tanto no sale nada.
+//   - Se mira muy seguido (cada 2 ms; ver ba_guest_video): sondear al ritmo del
+//     que publica hace batir las cadencias y perder cuadros.
+//   - La hora de cada cuadro: la que le puso el gateway al publicarlo, pasada
+//     al reloj del pipeline (hora.hpp); así el audio del invitado (baanillo,
+//     otra cadena) queda alineado por la misma hora. Cuadros por segundo
+//     variables (framerate=0/1), como llegan.
+//   - Declara 1 cuadro de latencia (a 30 cps).
+// ============================================================================
+
+#include "hora.hpp"
+#include "ipc/SpoutTransport.hpp"
+
+#include <gst/base/gstpushsrc.h>
+#include <gst/gst.h>
+#include <gst/video/video.h>
+
+#include <atomic>
+#include <chrono>
+#include <mutex>
+#include <string>
+#include <thread>
+
+G_BEGIN_DECLS
+#define BA_TYPE_VIDEO_ANILLO (ba_video_anillo_get_type())
+G_DECLARE_FINAL_TYPE(BaVideoAnillo, ba_video_anillo, BA, VIDEO_ANILLO, GstPushSrc)
+G_END_DECLS
+
+struct _BaVideoAnillo {
+    GstPushSrc parent;
+    std::mutex* mu;
+    std::string* canal;
+    std::atomic<bool> parar;
+    // Solo el hilo de streaming:
+    ba::ipc::SpoutReceiver* rx;
+    bool suscripto;
+    std::string* suscriptoCanal;
+    int ancho, alto; ///< el de las caps negociadas (0 = sin negociar)
+};
+
+G_DEFINE_TYPE(BaVideoAnillo, ba_video_anillo, GST_TYPE_PUSH_SRC)
+
+enum { PROP_0, PROP_CANAL };
+
+static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
+    "src", GST_PAD_SRC, GST_PAD_ALWAYS,
+    GST_STATIC_CAPS("video/x-raw, format=(string)BGRA, width=(int)[1, MAX], height=(int)[1, MAX], framerate=(fraction)0/1"));
+
+static bool esperar(BaVideoAnillo* v, int ms) {
+    for (int i = 0; i < ms; i += 2) {
+        if (v->parar.load()) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    return !v->parar.load();
+}
+
+static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
+    auto* v = BA_VIDEO_ANILLO(ps);
+    for (;;) {
+        if (v->parar.load()) return GST_FLOW_FLUSHING;
+        std::string canal;
+        {
+            std::lock_guard<std::mutex> l(*v->mu);
+            canal = *v->canal;
+        }
+        // Otro canal o el gateway lo rehízo: resuscribirse (si no, queda congelado).
+        if (v->suscripto && (canal != *v->suscriptoCanal || v->rx->stale())) {
+            *v->rx = ba::ipc::SpoutReceiver{};
+            v->suscripto = false;
+        }
+        if (!v->suscripto) {
+            const std::wstring w(canal.begin(), canal.end());
+            if (canal.empty() || !v->rx->subscribe(w.c_str())) {
+                *v->rx = ba::ipc::SpoutReceiver{};
+                if (!esperar(v, 250)) return GST_FLOW_FLUSHING;
+                continue;
+            }
+            v->suscripto = true;
+            *v->suscriptoCanal = canal;
+        }
+        if (!v->rx->hasData()) {
+            if (!esperar(v, 2)) return GST_FLOW_FLUSHING;
+            continue;
+        }
+        const int w = v->rx->width(), h = v->rx->height();
+        if (w <= 0 || h <= 0) {
+            if (!esperar(v, 2)) return GST_FLOW_FLUSHING;
+            continue;
+        }
+        if (w != v->ancho || h != v->alto) {
+            GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w,
+                                                "height", G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1, nullptr);
+            const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
+            gst_caps_unref(caps);
+            if (!ok) return GST_FLOW_NOT_NEGOTIATED;
+            v->ancho = w;
+            v->alto = h;
+        }
+        const gsize bytes = static_cast<gsize>(w) * static_cast<gsize>(h) * 4;
+        GstBuffer* b = gst_buffer_new_allocate(nullptr, bytes, nullptr);
+        GstMapInfo map;
+        gst_buffer_map(b, &map, GST_MAP_WRITE);
+        ba::ipc::FrameMeta meta{};
+        const bool hay = v->rx->receive(map.data, map.size, meta);
+        gst_buffer_unmap(b, &map);
+        if (!hay) {
+            gst_buffer_unref(b);
+            continue;
+        }
+        // La hora: la que le puso el gateway, en el reloj del pipeline.
+        GST_BUFFER_PTS(b) = ba::ipc_gst::horaDeQpc(GST_ELEMENT(v), meta.qpc);
+        GST_BUFFER_DURATION(b) = GST_CLOCK_TIME_NONE;
+        *out = b;
+        return GST_FLOW_OK;
+    }
+}
+
+static gboolean desbloquear(GstBaseSrc* bs) {
+    BA_VIDEO_ANILLO(bs)->parar = true;
+    return TRUE;
+}
+
+static gboolean desbloquearFin(GstBaseSrc* bs) {
+    BA_VIDEO_ANILLO(bs)->parar = false;
+    return TRUE;
+}
+
+static gboolean alParar(GstBaseSrc* bs) {
+    auto* v = BA_VIDEO_ANILLO(bs);
+    *v->rx = ba::ipc::SpoutReceiver{};
+    v->suscripto = false;
+    v->ancho = v->alto = 0;
+    return TRUE;
+}
+
+static gboolean consultar(GstBaseSrc* bs, GstQuery* q) {
+    if (GST_QUERY_TYPE(q) == GST_QUERY_LATENCY) {
+        gst_query_set_latency(q, TRUE, GST_SECOND / 30, GST_SECOND / 5);
+        return TRUE;
+    }
+    return GST_BASE_SRC_CLASS(ba_video_anillo_parent_class)->query(bs, q);
+}
+
+static void ponerPropiedad(GObject* o, guint id, const GValue* val, GParamSpec* ps) {
+    auto* v = BA_VIDEO_ANILLO(o);
+    if (id != PROP_CANAL) {
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+        return;
+    }
+    const gchar* x = g_value_get_string(val);
+    std::lock_guard<std::mutex> l(*v->mu);
+    *v->canal = x != nullptr ? x : "";
+}
+
+static void leerPropiedad(GObject* o, guint id, GValue* val, GParamSpec* ps) {
+    auto* v = BA_VIDEO_ANILLO(o);
+    if (id != PROP_CANAL) {
+        G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
+        return;
+    }
+    std::lock_guard<std::mutex> l(*v->mu);
+    g_value_set_string(val, v->canal->c_str());
+}
+
+static void finalizar(GObject* o) {
+    auto* v = BA_VIDEO_ANILLO(o);
+    delete v->rx;
+    delete v->suscriptoCanal;
+    delete v->canal;
+    delete v->mu;
+    G_OBJECT_CLASS(ba_video_anillo_parent_class)->finalize(o);
+}
+
+static void ba_video_anillo_class_init(BaVideoAnilloClass* k) {
+    auto* go = G_OBJECT_CLASS(k);
+    auto* ge = GST_ELEMENT_CLASS(k);
+    auto* bs = GST_BASE_SRC_CLASS(k);
+    go->set_property = ponerPropiedad;
+    go->get_property = leerPropiedad;
+    go->finalize = finalizar;
+    g_object_class_install_property(
+        go, PROP_CANAL,
+        g_param_spec_string("canal", "Canal", "El canal de video (BA.Guest.<n>, BA.GuestShare.<n>, BA.Remoto.1…)", "",
+                            static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING)));
+    gst_element_class_set_static_metadata(ge, "Canal de video", "Source/Video",
+                                          "El video que el gateway deja en memoria compartida (invitados, pantallas, remoto)",
+                                          "Broadcast Appliance");
+    gst_element_class_add_static_pad_template(ge, &srcTpl);
+    bs->unlock = desbloquear;
+    bs->unlock_stop = desbloquearFin;
+    bs->stop = alParar;
+    bs->query = consultar;
+    GST_PUSH_SRC_CLASS(k)->create = crear;
+}
+
+static void ba_video_anillo_init(BaVideoAnillo* v) {
+    v->mu = new std::mutex();
+    v->canal = new std::string();
+    v->parar.store(false);
+    v->rx = new ba::ipc::SpoutReceiver();
+    v->suscripto = false;
+    v->suscriptoCanal = new std::string();
+    v->ancho = v->alto = 0;
+    gst_base_src_set_live(GST_BASE_SRC(v), TRUE);
+    gst_base_src_set_format(GST_BASE_SRC(v), GST_FORMAT_TIME);
+}
+
+extern "C" gboolean ba_registrar_video_anillo(GstPlugin* p) {
+    return gst_element_register(p, "bavideoanillo", GST_RANK_NONE, BA_TYPE_VIDEO_ANILLO);
+}

@@ -255,7 +255,7 @@ void AppRuntime::addGuests() {
     bool any = false;
     for (const auto& sc : cfg_.scenes) {
         for (const auto& s : sc.sources) {
-            any = any || s.id == "ba_guest_video";
+            any = any || inputs::esVideoInvitado(s.id, s.settingsJson);
         }
     }
     if (!any && cfg_.guestVideo && !cfg_.scenes.empty()) {
@@ -287,7 +287,7 @@ void AppRuntime::addGuests() {
         bool hayVideo = false;
         for (const auto& sc : cfg_.scenes)
             for (const auto& s : sc.sources)
-                hayVideo = hayVideo || (s.id == "ba_guest_video" && s.settingsJson.find("remoto") != std::string::npos);
+                hayVideo = hayVideo || (inputs::esVideoInvitado(s.id, s.settingsJson) && s.settingsJson.find("remoto") != std::string::npos);
         if (!hayVideo && !cfg_.scenes.empty()) {
             SourceSpec v;
             v.id = "ba_guest_video";
@@ -304,7 +304,7 @@ void AppRuntime::addGuests() {
     for (const auto& sc : cfg_.scenes) {
         for (const auto& s : sc.sources) {
             anyShare =
-                anyShare || (s.id == "ba_guest_video" && s.settingsJson.find("share") != std::string::npos);
+                anyShare || (inputs::esVideoInvitado(s.id, s.settingsJson) && s.settingsJson.find("share") != std::string::npos);
         }
     }
     if (!anyShare && cfg_.guestVideo && !cfg_.scenes.empty()) {
@@ -998,6 +998,7 @@ bool AppRuntime::setTransition(const std::string& type, int durationMs) {
 bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
     SourceSpec spec = pedida; // se guarda como la creó el motor (un archivo: ba_gst_medio)
     if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
+    if (engine_.sourceTypeExists(inputs::kMicType)) inputs::migrarVideoInvitado(spec);
     if (!engine_.addSource(scene, spec)) {
         lastError_ = engine_.lastError();
         return false;

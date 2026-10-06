@@ -49,7 +49,9 @@ void gateway(const wchar_t* nombre, std::uint32_t generacion, int bloques) {
             fase += 2 * M_PI * 440.0 / ar::kSampleRate;
             b[2 * k] = b[2 * k + 1] = v;
         }
-        ring.push(b.data(), 0);
+        // Sellado como el gateway: su reloj monotónico al escribir.
+        ring.push(b.data(), static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                std::chrono::steady_clock::now().time_since_epoch()).count()));
         t += std::chrono::milliseconds(10);
         std::this_thread::sleep_until(t);
     }

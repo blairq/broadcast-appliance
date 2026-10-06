@@ -285,6 +285,8 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
                     std::printf("ba-app: cámara '%s' pasada a GStreamer\n", spec.name.c_str());
                 if (inputs::migrarMedio(spec))
                     std::printf("ba-app: medio '%s' pasado a GStreamer\n", spec.name.c_str());
+                if (inputs::migrarVideoInvitado(spec))
+                    std::printf("ba-app: video de invitado '%s' pasado a GStreamer\n", spec.name.c_str());
                 scene.sources.push_back(spec);
             }
             c.scenes.push_back(scene);

@@ -1036,14 +1036,19 @@ void armar(Fuente* f) {
     // async=false: una rama sin datos (un stream sin audio) no traba el arranque.
     f->estandar = f->sincronia == "gstreamer";
     const std::string desf = std::to_string(f->desfaseMs * static_cast<std::int64_t>(GST_MSECOND));
+    // Un archivo (ba_gst_medio) sí hace preroll (async=true): solo tiene las ramas
+    // de lo que trae, así que ninguna se queda esperando, y con preroll los saltos
+    // con flush (en pausa, al terminar, para repetir) funcionan como manda
+    // GStreamer: RESET_TIME, ASYNC_DONE y el pipeline recalcula su base_time.
+    const std::string preroll = f->medio ? "async=true" : "async=false";
     const std::string sinkVideoS =
         f->estandar ? "queue name=ba_espera_v max-size-buffers=0 max-size-bytes=0 max-size-time=5000000000 ! "
-                      "appsink name=ba_video sync=true async=false max-buffers=4 drop=false emit-signals=false ts-offset=" +
+                      "appsink name=ba_video sync=true " + preroll + " max-buffers=4 drop=false emit-signals=false ts-offset=" +
                           desf
                     : "appsink name=ba_video sync=false async=false max-buffers=8 drop=false emit-signals=false";
     const std::string sinkAudioS =
         f->estandar ? "queue name=ba_espera_a max-size-buffers=0 max-size-bytes=0 max-size-time=5000000000 ! "
-                      "appsink name=ba_audio sync=true async=false max-buffers=64 drop=false emit-signals=false ts-offset=" +
+                      "appsink name=ba_audio sync=true " + preroll + " max-buffers=64 drop=false emit-signals=false ts-offset=" +
                           desf
                     : "appsink name=ba_audio sync=false async=false max-buffers=64 drop=false emit-signals=false";
     const char* sinkVideo = sinkVideoS.c_str();
@@ -1224,7 +1229,9 @@ void armar(Fuente* f) {
         // base_time de cada cadena se cancela y quedan alineadas).
         f->latObjetivoNs = std::max<std::int64_t>(f->estudio ? latenciaDelEstudio(f, 0) : 0,
                                                   f->latenciaMs * static_cast<std::int64_t>(GST_MSECOND));
-        gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(f->latObjetivoNs));
+        // Un archivo no es en vivo: su latencia es la natural de GStreamer (sin
+        // esperar de más; con una forzada, cada salto arrancaba tarde).
+        if (!f->medio) gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(f->latObjetivoNs));
         // Lo que se mide al llegar a la cola de espera (antes de esperar al reloj):
         // cuán viejo llega cada cuadro y cuánto le falta para su hora.
         for (const char* q : {"ba_espera_v", "ba_espera_a"})
@@ -1625,6 +1632,7 @@ void destruir(void* data) {
 }
 
 void irA(Fuente* f, std::int64_t ns);
+void procesarMensaje(Fuente* f, GstMessage* m);
 
 /// Cada cuadro de libobs: presenta lo que ya venció, y revisa el bus (un
 /// error se anota y se reintenta a los 2 s).
@@ -1703,7 +1711,7 @@ void tic(void* data, float) {
             f->ntpMalDesde = 0;
         }
     }
-    if (f->estandar) {
+    if (f->estandar && !f->medio) {
         // Sincronía estándar: la latencia del estudio. Cada cadena pide la suya
         // —la consulta LATENCY (jitter buffer de RTSP/SRT y lo que declaran sus
         // filtros: una red en reposo declara lo que tarda activa, así prenderla
@@ -1860,46 +1868,85 @@ void tic(void* data, float) {
             gst_sample_unref(a);
         }
     }
+    // EL BUS: todos los mensajes que juntó, cada cuadro (antes se tomaba uno por
+    // cuadro con gst_bus_pop_filtered, que además TIRA los demás: se perdían
+    // LATENCY, CLOCK_LOST y los avisos).
     GstBus* bus = gst_element_get_bus(f->pipeline);
     if (bus == nullptr) return;
-    GstMessage* m =
-        gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS | GST_MESSAGE_SEGMENT_DONE));
-    gst_object_unref(bus);
-    if (m == nullptr) return;
-    if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_SEGMENT_DONE) {
-        // Otra vuelta, sin flush: sigue de corrido.
+    GstElement* esta = f->pipeline;
+    while (f->pipeline == esta) {
+        GstMessage* m = gst_bus_pop(bus);
+        if (m == nullptr) break;
+        procesarMensaje(f, m);
         gst_message_unref(m);
-        if (f->medio && f->bucle)
-            gst_element_seek(f->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_SEGMENT, GST_SEEK_TYPE_SET, 0,
-                             GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE);
-        return;
     }
-    if (f->medio && GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS) {
-        // Un archivo que terminó: otra vuelta, o quieto (en negro si se pidió).
-        gst_message_unref(m);
-        if (f->bucle) {
-            // No anduvo el salto por segmentos: se rearma (un corte chico).
-            armar(f);
+    gst_object_unref(bus);
+}
+
+/// Un mensaje del bus de la cadena (con f->lock tomado). Puede rearmar o
+/// desarmar la cadena: el que llama deja de leer si cambió f->pipeline.
+void procesarMensaje(Fuente* f, GstMessage* m) {
+    switch (GST_MESSAGE_TYPE(m)) {
+        case GST_MESSAGE_LATENCY:
+            // Un elemento cambió lo que tarda (un filtro que se prende, un jitter
+            // buffer que crece): se recalcula y se reparte. En modo estándar la
+            // latencia fija (la del estudio) sigue mandando.
+            gst_bin_recalculate_latency(GST_BIN(f->pipeline));
+            return;
+        case GST_MESSAGE_CLOCK_LOST:
+            // El reloj se fue (un elemento que lo daba salió): pausa y play para
+            // que el pipeline vuelva a poner el suyo.
+            gst_element_set_state(f->pipeline, GST_STATE_PAUSED);
+            gst_element_set_state(f->pipeline, GST_STATE_PLAYING);
+            return;
+        case GST_MESSAGE_WARNING: {
+            GError* e = nullptr;
+            gst_message_parse_warning(m, &e, nullptr);
+            if (e != nullptr) {
+                blog(LOG_INFO, "[ba-sources] fuente GStreamer (aviso de %s): %s", GST_OBJECT_NAME(GST_MESSAGE_SRC(m)),
+                     e->message);
+                g_error_free(e);
+            }
             return;
         }
-        f->estadoMedio = OBS_MEDIA_STATE_ENDED;
-        gst_element_set_state(f->pipeline, GST_STATE_PAUSED);
-        if (f->limpiarAlTerminar) obs_source_output_video(f->ctx, nullptr);
-        return;
+        case GST_MESSAGE_SEGMENT_DONE:
+            // `looping`: otra vuelta, sin flush: sigue de corrido.
+            if (f->medio && f->bucle)
+                gst_element_seek(f->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_SEGMENT, GST_SEEK_TYPE_SET, 0,
+                                 GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE);
+            return;
+        case GST_MESSAGE_EOS:
+            if (f->medio) {
+                // Un archivo que terminó: otra vuelta, o quieto (en negro si se pidió).
+                if (f->bucle) {
+                    // No anduvo el salto por segmentos: al principio con flush (un corte chico).
+                    irA(f, 0);
+                    f->segmentoListo = false;
+                    return;
+                }
+                f->estadoMedio = OBS_MEDIA_STATE_ENDED;
+                gst_element_set_state(f->pipeline, GST_STATE_PAUSED);
+                if (f->limpiarAlTerminar) obs_source_output_video(f->ctx, nullptr);
+                return;
+            }
+            f->error = "terminó (EOS)";
+            desarmar(f);
+            f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+            return;
+        case GST_MESSAGE_ERROR: {
+            GError* e = nullptr;
+            gst_message_parse_error(m, &e, nullptr);
+            f->error = e != nullptr ? e->message : "error";
+            if (e != nullptr) g_error_free(e);
+            blog(LOG_WARNING, "[ba-sources] fuente GStreamer: %s (reintento en 2 s)", f->error.c_str());
+            if (f->medio) f->estadoMedio = OBS_MEDIA_STATE_ERROR;
+            desarmar(f);
+            f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+            return;
+        }
+        default:
+            return;
     }
-    if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
-        GError* e = nullptr;
-        gst_message_parse_error(m, &e, nullptr);
-        f->error = e != nullptr ? e->message : "error";
-        if (e != nullptr) g_error_free(e);
-        blog(LOG_WARNING, "[ba-sources] fuente GStreamer: %s (reintento en 2 s)", f->error.c_str());
-        if (f->medio) f->estadoMedio = OBS_MEDIA_STATE_ERROR;
-    } else {
-        f->error = "terminó (EOS)";
-    }
-    gst_message_unref(m);
-    desarmar(f);
-    f->reintento = os_gettime_ns() + 2'000'000'000ULL;
 }
 
 // --- Medios (ba_gst_medio) ----------------------------------------------------------
@@ -1912,26 +1959,18 @@ void irA(Fuente* f, std::int64_t ns) {
                             std::max<std::int64_t>(0, ns));
 }
 
-// Reiniciar, parar e ir a un tiempo con la cadena quieta: se rearma (un salto
-// con la cadena en pausa no vuelve a arrancar: los sinks no hacen preroll y el
-// pipeline no recalcula su base_time). Con la cadena andando, un salto común.
-
-bool andando(Fuente* f) {
-    if (f->pipeline == nullptr) return false;
-    GstState st = GST_STATE_NULL;
-    gst_element_get_state(f->pipeline, &st, nullptr, 0);
-    return st == GST_STATE_PLAYING && f->estadoMedio == OBS_MEDIA_STATE_PLAYING;
-}
+// Con preroll (async=true), los saltos con flush andan en cualquier estado
+// (andando, en pausa, terminado): reiniciar es ir a 0 y play; parar es pausa,
+// ir a 0 y negro. Solo sin cadena (nunca armada, o se cayó) se arma.
 
 void medioReproducirPausar(void* data, bool pausar) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
-    if (!pausar && (f->pipeline == nullptr || f->estadoMedio == OBS_MEDIA_STATE_ENDED ||
-                    f->estadoMedio == OBS_MEDIA_STATE_STOPPED)) {
-        armar(f);
+    if (f->pipeline == nullptr) {
+        if (!pausar) armar(f);
         return;
     }
-    if (f->pipeline == nullptr) return;
+    if (!pausar && f->estadoMedio == OBS_MEDIA_STATE_ENDED) irA(f, 0);
     gst_element_set_state(f->pipeline, pausar ? GST_STATE_PAUSED : GST_STATE_PLAYING);
     f->estadoMedio = pausar ? OBS_MEDIA_STATE_PAUSED : OBS_MEDIA_STATE_PLAYING;
 }
@@ -1939,15 +1978,23 @@ void medioReproducirPausar(void* data, bool pausar) {
 void medioReiniciar(void* data) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
-    f->buscarNs = -1;
-    armar(f);
+    if (f->pipeline == nullptr) {
+        armar(f);
+        return;
+    }
+    irA(f, 0);
+    f->segmentoListo = false; // el salto con flush deshizo el segmento de `looping`
+    gst_element_set_state(f->pipeline, GST_STATE_PLAYING);
+    f->estadoMedio = OBS_MEDIA_STATE_PLAYING;
 }
 
 void medioParar(void* data) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
-    desarmar(f);
-    f->buscarNs = -1;
+    if (f->pipeline != nullptr) {
+        gst_element_set_state(f->pipeline, GST_STATE_PAUSED);
+        irA(f, 0);
+    }
     obs_source_output_video(f->ctx, nullptr);
     f->estadoMedio = OBS_MEDIA_STATE_STOPPED;
 }
@@ -1972,16 +2019,18 @@ int64_t medioDuracion(void* data) {
 void medioIrA(void* data, int64_t ms) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
-    const std::int64_t ns = std::max<std::int64_t>(0, ms) * static_cast<std::int64_t>(GST_MSECOND);
-    if (andando(f)) {
-        irA(f, ns);
+    if (f->pipeline == nullptr) {
+        armar(f);
+        f->buscarNs = std::max<std::int64_t>(0, ms) * static_cast<std::int64_t>(GST_MSECOND);
         return;
     }
-    // Quieta (en pausa, terminada o parada): se rearma y salta apenas pase datos.
-    const bool pausada = f->estadoMedio == OBS_MEDIA_STATE_PAUSED;
-    armar(f);
-    f->buscarNs = ns;
-    if (pausada && f->pipeline != nullptr) f->estadoMedio = OBS_MEDIA_STATE_PLAYING; // arranca: se pidió un lugar
+    irA(f, std::max<std::int64_t>(0, ms) * static_cast<std::int64_t>(GST_MSECOND));
+    f->segmentoListo = false;
+    // Terminado o parado: ir a un lugar es para verlo andar desde ahí.
+    if (f->estadoMedio == OBS_MEDIA_STATE_ENDED || f->estadoMedio == OBS_MEDIA_STATE_STOPPED) {
+        gst_element_set_state(f->pipeline, GST_STATE_PLAYING);
+        f->estadoMedio = OBS_MEDIA_STATE_PLAYING;
+    }
 }
 
 obs_media_state medioEstado(void* data) {

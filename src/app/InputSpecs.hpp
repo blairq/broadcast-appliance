@@ -69,6 +69,15 @@ bool migrarMicrofono(SourceSpec& spec);
 /// con los mismos ajustes que ffmpeg_source (local_file, looping…) y los
 /// controles de medios de libobs.
 constexpr const char* kMedioType = "ba_gst_medio";
+
+/// El video de un invitado (cámara o pantalla compartida) o del remoto con la
+/// palabra por GStreamer: `ba_gst_fuente` con `bavideoanillo` (lee el canal que
+/// escribe el gateway). Guarda `slot` y `channel` como el ba_guest_video de antes.
+std::string ajustesVideoInvitado(int slot, const std::string& channel);
+/// ¿Es el video de un invitado? (el de GStreamer o un ba_guest_video viejo).
+bool esVideoInvitado(const std::string& type, const std::string& settingsJson);
+/// Un ba_guest_video pasado a GStreamer (mismo nombre, lugar y recorte).
+bool migrarVideoInvitado(SourceSpec& spec);
 /// Un ffmpeg_source de un archivo local pasado a ba_gst_medio (los de red
 /// quedan). false si no era uno.
 bool migrarMedio(SourceSpec& spec);
