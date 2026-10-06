@@ -183,6 +183,9 @@ int main() {
         m.verAvisar("programa@gateway", [&](const Cuadro& c) {
             if (c.ancho == 320) ++n;
         });
+        // Desde que llega el primero (armar la vista tarda más con la máquina cargada).
+        for (int i = 0; i < 40 && n.load() == 0; ++i) esperar(50);
+        n = 0;
         esperar(1000);
         std::printf("avisos en 1 s: %d\n", n.load());
         CHECK(n > 20, "cada cuadro avisa");
@@ -236,6 +239,27 @@ int main() {
         }
         std::error_code ec;
         std::filesystem::remove_all(dir, ec);
+    }
+    // El PTZ digital conserva el encuadre cuando la cadena de la entrada se rearma (M6.8).
+    if (hayFabrica("baptz") && hayFabrica("bacolor")) {
+        const json ptz = json{{"video", json::array({{{"id", "ptz"}, {"elemento", "baptz"}}})}};
+        CHECK(m.agregarEntrada("cam", json{{"pipeline", "videotestsrc is-live=true pattern=smpte"}, {"filtros", ptz}}).empty(),
+              "una entrada con PTZ digital");
+        esperar(1500);
+        CHECK(m.propiedadEntrada("cam", "ba_f_ptz", "ir", "0.3,0.3,3,0").empty(), "ir a un encuadre");
+        esperar(300);
+        json p = m.propiedadesEntrada("cam", "ba_f_ptz");
+        CHECK(std::fabs(p.value("zoom", 1.0) - 3.0) < 0.01, "el zoom quedó en 3");
+        // Otra tarjeta antes: la cadena se rearma.
+        json dos = ptz;
+        dos["video"].insert(dos["video"].begin(), {{"id", "color"}, {"elemento", "bacolor"}});
+        CHECK(m.actualizarEntrada("cam", json{{"pipeline", "videotestsrc is-live=true pattern=smpte"}, {"filtros", dos}}).empty(),
+              "rearmar con otra tarjeta");
+        esperar(1500);
+        p = m.propiedadesEntrada("cam", "ba_f_ptz");
+        CHECK(std::fabs(p.value("zoom", 1.0) - 3.0) < 0.01 && std::fabs(p.value("x", 0.5) - 0.3) < 0.01,
+              "tras rearmar, el mismo encuadre");
+        m.quitarEntrada("cam");
     }
     m.verSoltar("programa");
     m.detener();

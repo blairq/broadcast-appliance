@@ -61,6 +61,7 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -116,6 +117,8 @@ class Entrada {
    private:
     void leer(const nlohmann::json& a);
     nlohmann::json estadoFiltros() const;
+    /// Guarda la propiedad `estado` de los elementos que la tienen (antes de desarmar).
+    void guardarEstados();
     bool enviarControl();
     void armar();
     void desarmar();
@@ -179,6 +182,7 @@ class Entrada {
     std::deque<double> edadesA_; ///< lo viejo que salen los bloques de audio (ms)
     std::uint64_t cuadros_ = 0, bloques_ = 0;
     nlohmann::json control_ = nlohmann::json::object(); ///< bajo mu_
+    std::map<std::string, std::string> estados_; ///< elemento → su `estado` (sobrevive al rearmado)
     bool controlEnviado_ = false;
     std::uint64_t ultimoDatoNs_ = 0;
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)

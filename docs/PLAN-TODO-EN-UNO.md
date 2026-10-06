@@ -118,7 +118,7 @@ tareas quedan repartidas acá.
 | M6.4 | Sacar libobs de la infraestructura: Makefile, `tools/deps`, cmake, CI, deploy, packaging; Linux y Windows armados en Docker | `make dist-*-docker` sin libobs | 🟡 |
 | M6.6 | Lo que corría en el filtro de grafo de libobs y todavía no corre en el motor: tarjetas salida, toma/traer, compositor, rostros, retardo, sincro (la medición de desfase), corrección de color de `normalizar`. El estado lo dice por tarjeta | cada tarjeta corre en el motor | ⬜ |
 | M6.7 | `bamejora` en la GPU (hoy CPU: ~28 ms por cuadro 1080p en 8 hilos; viene apagado de fábrica) | menos de 5 ms por cuadro | ⬜ |
-| M6.8 | El PTZ digital vuelve al encuadre si la cadena de la entrada se rearma (hoy vuelve al centro) | rearmar no mueve el encuadre | ⬜ |
+| M6.8 | El PTZ digital vuelve al encuadre si la cadena de la entrada se rearma | rearmar no mueve el encuadre | ✅ 2026-10-06 (convención: la propiedad `estado` de un elemento sobrevive al rearmado; `test_motor_app`) |
 
 ### M7 — Después del cambio
 

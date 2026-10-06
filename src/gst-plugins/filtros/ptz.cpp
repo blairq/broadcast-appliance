@@ -10,6 +10,8 @@
 //   ir           "x,y,zoom,segundos": a una posición (un preset), con una curva
 //                suave; 0 segundos = corte.
 //   x, y, zoom, moviendo (solo lectura): para guardar presets.
+//   estado       «x,y,zoom» (lectura y escritura): el motor lo conserva cuando
+//                la cadena de la entrada se rearma.
 // La posición es el centro de la ventana (0..1 del cuadro) y el zoom (1 = todo
 // el cuadro, hasta 8). La ventana nunca sale del cuadro. El tiempo de las
 // animaciones es el de los cuadros (PTS), así se mueve parejo aunque la app no.
@@ -24,6 +26,7 @@
 #include "comun.hpp"
 
 #include <cstring>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -58,7 +61,7 @@ struct _BaPtz {
 
 G_DEFINE_TYPE(BaPtz, ba_ptz, GST_TYPE_VIDEO_FILTER)
 
-enum { PROP_0, PROP_VX, PROP_VY, PROP_VZ, PROP_IR, PROP_X, PROP_Y, PROP_ZOOM, PROP_MOVIENDO };
+enum { PROP_0, PROP_VX, PROP_VY, PROP_VZ, PROP_IR, PROP_X, PROP_Y, PROP_ZOOM, PROP_MOVIENDO, PROP_ESTADO };
 
 namespace {
 
@@ -145,6 +148,11 @@ void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
         case PROP_VY: p->vy = std::clamp(g_value_get_double(v), -1.0, 1.0); break;
         case PROP_VZ: p->vz = std::clamp(g_value_get_double(v), -1.0, 1.0); break;
         case PROP_IR: ir(p, g_value_get_string(v)); break;
+        case PROP_ESTADO: { // «x,y,zoom»: ir sin animación
+            const gchar* t = g_value_get_string(v);
+            if (t != nullptr) ir(p, (std::string(t) + ",0").c_str());
+            break;
+        }
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps); break;
     }
     if (id <= PROP_VZ && (p->vx != 0 || p->vy != 0 || p->vz != 0)) p->yendo = false; // el joystick manda
@@ -165,6 +173,15 @@ void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_Y: g_value_set_double(v, p->y); break;
         case PROP_ZOOM: g_value_set_double(v, p->zoom); break;
         case PROP_MOVIENDO: g_value_set_boolean(v, moviendo(p)); break;
+        case PROP_ESTADO: {
+            // Con punto decimal siempre (lo vuelve a leer `ir`).
+            gchar bx[G_ASCII_DTOSTR_BUF_SIZE], by[G_ASCII_DTOSTR_BUF_SIZE], bz[G_ASCII_DTOSTR_BUF_SIZE];
+            const double x = p->yendo ? p->haciaX : p->x, y = p->yendo ? p->haciaY : p->y, z = p->yendo ? p->haciaZ : p->zoom;
+            gchar* t = g_strdup_printf("%s,%s,%s", g_ascii_dtostr(bx, sizeof bx, x), g_ascii_dtostr(by, sizeof by, y),
+                                       g_ascii_dtostr(bz, sizeof bz, z));
+            g_value_take_string(v, t);
+            break;
+        }
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps); break;
     }
     GST_OBJECT_UNLOCK(p);
@@ -273,6 +290,9 @@ static void ba_ptz_class_init(BaPtzClass* k) {
     g_object_class_install_property(go, PROP_X, g_param_spec_double("x", "X", "Centro de la ventana (0..1)", 0, 1, 0.5, ro));
     g_object_class_install_property(go, PROP_Y, g_param_spec_double("y", "Y", "Centro de la ventana (0..1)", 0, 1, 0.5, ro));
     g_object_class_install_property(go, PROP_ZOOM, g_param_spec_double("zoom", "Zoom", "Zoom actual (1..8)", 1, kZoomMax, 1, ro));
+    g_object_class_install_property(go, PROP_ESTADO,
+                                    g_param_spec_string("estado", "Estado", "«x,y,zoom»: la posición (el motor la conserva al rearmar)",
+                                                        "0.5,0.5,1", rw));
     g_object_class_install_property(go, PROP_MOVIENDO, g_param_spec_boolean("moviendo", "Moviendo", "Se está moviendo", FALSE, ro));
 
     auto* ek = GST_ELEMENT_CLASS(k);

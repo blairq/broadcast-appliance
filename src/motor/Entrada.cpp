@@ -277,6 +277,7 @@ void Entrada::actualizar(const json& ajustes) {
 
 void Entrada::desarmar() {
     if (pipeline_ != nullptr) {
+        guardarEstados();
         gst_element_set_state(pipeline_, GST_STATE_NULL);
         gst_object_unref(pipeline_);
         pipeline_ = nullptr;
@@ -285,6 +286,28 @@ void Entrada::desarmar() {
     appAncho_ = appAlto_ = 0;
     realineadoV_ = realineadoA_ = 0;
     medVAntes_ = medAAntes_ = 0;
+}
+
+void Entrada::guardarEstados() {
+    // Convención: un elemento de la cadena con propiedad `estado` (texto, de
+    // lectura y escritura) la conserva cuando la cadena se rearma.
+    GstIterator* it = gst_bin_iterate_elements(GST_BIN(pipeline_));
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        auto* e = GST_ELEMENT(g_value_get_object(&v));
+        GParamSpec* ps = g_object_class_find_property(G_OBJECT_GET_CLASS(e), "estado");
+        if (ps != nullptr && ps->value_type == G_TYPE_STRING && (ps->flags & G_PARAM_READWRITE) == G_PARAM_READWRITE) {
+            gchar* t = nullptr;
+            g_object_get(e, "estado", &t, nullptr);
+            gchar* nombre = gst_object_get_name(GST_OBJECT(e));
+            if (t != nullptr && nombre != nullptr) estados_[nombre] = t;
+            g_free(t);
+            g_free(nombre);
+        }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
 }
 
 void Entrada::programarReintento() {
@@ -476,6 +499,10 @@ void Entrada::armar() {
             const std::string n = (lista == &filtrosV ? "ba_f_" : "ba_fa_") + x.nombre;
             if (GstElement* e = gst_bin_get_by_name(GST_BIN(p), n.c_str())) {
                 ponerPropiedades(e, x, &avisos_);
+                // Lo que tenía antes de rearmar (el encuadre del PTZ digital…).
+                if (auto it = estados_.find(n);
+                    it != estados_.end() && g_object_class_find_property(G_OBJECT_GET_CLASS(e), "estado") != nullptr)
+                    g_object_set(e, "estado", it->second.c_str(), nullptr);
                 gst_object_unref(e);
             }
         }
