@@ -4,6 +4,8 @@
 
 #include "NdiSource.hpp"
 
+#include <cstdint> // los encabezados de libNoIDea usan uint16_t sin incluirlo
+
 extern "C" {
 #include <extensions/discovery.h>
 #include <noidea/noidea.h>
