@@ -632,10 +632,15 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
     // La versión NV12 (todo en la placa: color, mitad, vuelta a NV12) si está;
     // si no, la float (baonnxsr igual le da la mitad a una x4).
     for (const char* clave : {"onnx_nv12", "onnx"})
-        if (archivos.contains(clave) && motores().contains("onnx"))
-            return json{{"motor", "onnx"}, {"modelo", (dir / archivos[clave].get<std::string>()).string()},
-                        {"variantes", variantesPara(dir, clave)},
-                        {"escala_red", 2}};
+        if (archivos.contains(clave) && motores().contains("onnx")) {
+            json r{{"motor", "onnx"}, {"modelo", (dir / archivos[clave].get<std::string>()).string()},
+                   {"variantes", variantesPara(dir, clave)},
+                   {"escala_red", 2}};
+            // La float también: Vulkan (ncnn) no corre las NV12 del laboratorio.
+            if (std::string(clave) == "onnx_nv12" && archivos.contains("onnx"))
+                r["modelo_float"] = (dir / archivos["onnx"].get<std::string>()).string();
+            return r;
+        }
     return fallar("«" + id + "» no tiene un modelo que corra en esta máquina");
 }
 

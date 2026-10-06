@@ -87,7 +87,17 @@ fi
 
 # --- CRT + SDK de Microsoft ---------------------------------------------------
 STAMP="crt=${MSVC_CRT_VER} sdk=${WIN_SDK_VER}"
+# El OpenMP de MSVC (vcomp140.dll: lo pide ncnn.dll) viene en el mismo paquete
+# del CRT; un extern/msvc armado antes no lo tenía.
+openmp_msvc() {
+    if [ -d "$EXT/msvc/redist" ] && ! [ -f "$EXT/msvc/redist/vcomp140.dll" ]; then
+        fetch "$CRT_REDIST_URL" "$DL/crt-redist-x64-${MSVC_CRT_VER}.vsix" "$CRT_REDIST_SHA"
+        unzip -j -o -q "$DL/crt-redist-x64-${MSVC_CRT_VER}.vsix" '*/x64/Microsoft.VC143.OpenMP/*.dll' -d "$EXT/msvc/redist"
+        log "OpenMP de MSVC (vcomp140.dll) agregado a extern/msvc/redist"
+    fi
+}
 if [ "$(cat "$EXT/msvc/.version" 2>/dev/null)" = "$STAMP" ]; then
+    openmp_msvc
     log "CRT/SDK de MSVC: ya presentes ($STAMP)"
     exit 0
 fi
@@ -109,8 +119,9 @@ UM="$(ls -d "$EXT/msvc/Windows Kits/10/Include/"*/um | head -1)"
 [ -e "$UM/GL" ] || ln -s gl "$UM/GL"
 fetch "$CRT_REDIST_URL" "$DL/crt-redist-x64-${MSVC_CRT_VER}.vsix" "$CRT_REDIST_SHA"
 mkdir -p "$EXT/msvc/redist"
-unzip -j -o -q "$DL/crt-redist-x64-${MSVC_CRT_VER}.vsix" '*/x64/Microsoft.VC143.CRT/*.dll' -d "$EXT/msvc/redist"
+unzip -j -o -q "$DL/crt-redist-x64-${MSVC_CRT_VER}.vsix" '*/x64/Microsoft.VC143.CRT/*.dll' '*/x64/Microsoft.VC143.OpenMP/*.dll' -d "$EXT/msvc/redist"
 # El cache de xwin (paquetes desempaquetados, ~1 GB) ya no hace falta.
 rm -rf "$DL/xwin-cache/unpack"
 echo "$STAMP" >"$EXT/msvc/.version"
 log "CRT/SDK de MSVC listos en extern/msvc ($STAMP)"
+

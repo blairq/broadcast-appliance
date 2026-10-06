@@ -760,6 +760,24 @@ Rectangle {
                                     onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { unidades: model[i].v }))
                                 }
                             }
+                            // Una red ONNX (Windows/Linux): con qué la corre la placa. Vulkan pasa la red a ncnn la
+                            // primera vez (tarda unos segundos) y anda en AMD, Intel y NVIDIA.
+                            RowLayout {
+                                visible: srPanel.motores.indexOf("onnx") >= 0 && srPanel.motores.indexOf("coreml") < 0 &&
+                                         !!srPanel.actual && !!srPanel.actual.archivos && (!!srPanel.actual.archivos.onnx || !!srPanel.actual.archivos.onnx_nv12)
+                                spacing: 6
+                                Text { text: "Corre con"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.fillWidth: true
+                                    model: [ { t: "Elegir solo", v: "auto" }, { t: "DirectML (cualquier placa, Windows)", v: "dml" },
+                                             { t: "Vulkan (ncnn: AMD, Intel, NVIDIA)", v: "vulkan" }, { t: "TensorRT (NVIDIA, compila la red)", v: "tensorrt" },
+                                             { t: "CUDA (NVIDIA)", v: "cuda" }, { t: "OpenVINO (Intel)", v: "openvino" },
+                                             { t: "MIGraphX (AMD en Linux)", v: "migraphx" }, { t: "Procesador (lento)", v: "cpu" } ]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.proveedor) || "auto")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { proveedor: model[i].v }))
+                                }
+                            }
                             RowLayout {
                                 spacing: 6
                                 GlassButton { compact: true; text: srPanel.avanzado ? "Ocultar avanzado" : "Avanzado…"; onClicked: srPanel.avanzado = !srPanel.avanzado }

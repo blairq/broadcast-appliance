@@ -14,7 +14,7 @@
 //                     modelo=ruta.onnx|.mlmodelc   (motores onnx y coreml)
 //                     escala-red=2|4               (coreml: 4 = la red recibe la mitad)
 //                     nitidez=0.2                  (FSR: cuánto afila, en paradas)
-//                     proveedor=auto|cpu|coreml|dml (onnx: con qué acelerar)
+//                     proveedor=auto|cpu|coreml|dml|vulkan (onnx: con qué acelerar; vulkan = ncnn)
 //                   y para leer: motor-usado, ms-por-cuadro, error.
 //     bavtsuperres  Apple (VideoToolbox, macOS 26).   vtsuperres_mac.mm
 //     bafsr         FSR 1 de AMD (OpenGL).            fsr.cpp
@@ -73,6 +73,7 @@ static GType tipoProveedor() {
                                        {6, "MIGraphX (AMD en Linux: compila la red)", "migraphx"},
                                        {7, "ROCm (AMD en Linux)", "rocm"},
                                        {8, "OpenVINO (Intel)", "openvino"},
+                                       {9, "Vulkan (ncnn: AMD, Intel y NVIDIA; la red se pasa a ncnn la primera vez)", "vulkan"},
                                        {0, nullptr, nullptr}};
         g_once_init_leave(&t, g_enum_register_static("BaSuperResProveedor", v));
     }
@@ -80,8 +81,8 @@ static GType tipoProveedor() {
 }
 static const char* kMotores[] = {"auto", "apple", "fsr", "onnx", "coreml", "glsl"};
 constexpr int kNumMotores = 6;
-static const char* kProveedores[] = {"auto", "cpu", "coreml", "dml", "tensorrt", "cuda", "migraphx", "rocm", "openvino"};
-constexpr int kNumProveedores = 9;
+static const char* kProveedores[] = {"auto", "cpu", "coreml", "dml", "tensorrt", "cuda", "migraphx", "rocm", "openvino", "vulkan"};
+constexpr int kNumProveedores = 10;
 
 G_BEGIN_DECLS
 #define BA_TYPE_SUPERRES (ba_superres_get_type())

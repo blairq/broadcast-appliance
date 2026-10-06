@@ -78,6 +78,20 @@ if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
     target_link_libraries(gstbasuperres PRIVATE "${_ba_ort}")
     target_compile_definitions(gstbasuperres PRIVATE BA_HAVE_ORT=1)
 endif()
+# Vulkan (proveedor «vulkan» de baonnxsr): ncnn, su cargador de Vulkan y pnnx
+# (pasa la red de ONNX a ncnn), todo en bin/64bit (tools/deps/ncnn-win.sh). Del
+# sistema solo el driver de la placa.
+if(WIN32)
+    set(_ba_ncnn "${CMAKE_SOURCE_DIR}/extern/ncnn-win")
+    if(EXISTS "${_ba_ncnn}/include/ncnn/net.h" AND EXISTS "${_ba_ncnn}/lib/ncnn.lib")
+        target_include_directories(gstbasuperres PRIVATE "${_ba_ncnn}/include")
+        target_link_libraries(gstbasuperres PRIVATE "${_ba_ncnn}/lib/ncnn.lib")
+        target_compile_definitions(gstbasuperres PRIVATE BA_HAVE_NCNN=1)
+        install(FILES "${_ba_ncnn}/bin/ncnn.dll" "${_ba_ncnn}/bin/vulkan-1.dll" "${_ba_ncnn}/bin/vulkaninfo.exe"
+                      "${_ba_ncnn}/herramientas/pnnx.exe" DESTINATION bin/64bit COMPONENT bundle)
+        message(STATUS "ncnn + Vulkan: baonnxsr acepta proveedor=vulkan")
+    endif()
+endif()
 # NVIDIA sin bajar a la CPU (baonnxsr con memory:CUDAMemory): gst-cuda de
 # GStreamer y los encabezados stub de CUDA que trae GStreamer (no hace falta el
 # SDK de CUDA: gst-cuda carga el controlador al correr).

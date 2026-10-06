@@ -40,7 +40,7 @@ Popup {
         refrescar()
     }
     function nombreAcelerador(a) {
-        return ({ "neural-engine": "Neural Engine", gpu: "GPU", cpu: "Procesador", cuda: "NVIDIA (CUDA/TensorRT)", dml: "DirectML",
+        return ({ "neural-engine": "Neural Engine", gpu: "GPU", cpu: "Procesador", cuda: "NVIDIA (CUDA/TensorRT)", dml: "DirectML", vulkan: "Vulkan (ncnn)",
                   migraphx: "AMD (MIGraphX)", rocm: "AMD (ROCm)", openvino: "Intel (OpenVINO)", videotoolbox: "VideoToolbox" })[a] || a
     }
     Timer { interval: 1000; running: pop.opened; repeat: true; triggeredOnStart: true; onTriggered: pop.refrescar() }

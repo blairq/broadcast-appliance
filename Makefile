@@ -237,7 +237,7 @@ deps-webrtc-win:
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
           deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
-          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -906,7 +906,10 @@ deps-sherpa-onnx: deps-rostros
 
 # Windows: el ONNX Runtime oficial con DirectML (tools/deps/onnxruntime-win.sh)
 # y sherpa-onnx compilado con clang-cl contra él, cada uno en su carpeta.
-.PHONY: deps-onnxruntime-win deps-sherpa-onnx-win
+.PHONY: deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win
+# ncnn + Vulkan (superresolución en cualquier GPU: tools/deps/ncnn-win.sh).
+deps-ncnn-win:
+	tools/deps/ncnn-win.sh "$(DL_DIR)"
 deps-onnxruntime-win:
 	tools/deps/onnxruntime-win.sh "$(DL_DIR)"
 deps-sherpa-onnx-win: deps-onnxruntime-win deps-win-toolchain

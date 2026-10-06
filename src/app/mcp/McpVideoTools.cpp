@@ -1164,7 +1164,9 @@ void McpService::registerVideoTools() {
                 "Windows/Linux). Si la entrada ya tiene la tarjeta, le cambia el plugin. A mano (sin plugin): "
                 "`motor` apple | fsr | onnx | coreml con `modelo` (ruta). `despues`: tras qué tarjeta (vacío: al final). "
                 "`unidades` (redes CoreML en la Mac): auto (Neural Engine), ane, gpu o cpu: con dos redes a la vez, una en "
-                "la GPU reparte la carga (la GPU también compone la imagen, así que suele ser más lenta).";
+                "la GPU reparte la carga (la GPU también compone la imagen, así que suele ser más lenta). "
+                "`proveedor` (redes ONNX en Windows/Linux): auto, dml (DirectML), vulkan (ncnn: AMD, Intel y NVIDIA; "
+                "pasa la red a ncnn la primera vez), tensorrt, cuda, openvino, migraphx o cpu.";
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
@@ -1173,6 +1175,8 @@ void McpService::registerVideoTools() {
                                {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx", "coreml"}}}},
                                {"modelo", {{"type", "string"}}},
                                {"unidades", {{"type", "string"}, {"enum", {"auto", "ane", "gpu", "cpu"}}}},
+                               {"proveedor", {{"type", "string"},
+                                              {"enum", {"auto", "dml", "vulkan", "tensorrt", "cuda", "openvino", "migraphx", "cpu"}}}},
                                {"despues", {{"type", "string"}}}}}};
             t.examples = {R"({"entrada": "Cámara 1", "plugin": "realesr-general-x4v3"})"};
             t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
@@ -1181,6 +1185,7 @@ void McpService::registerVideoTools() {
                 if (a.contains("plugin")) {
                     json extra = json::object();
                     if (a.contains("unidades")) extra["unidades"] = a.value("unidades", std::string("auto"));
+                    if (a.contains("proveedor")) extra["proveedor"] = a.value("proveedor", std::string("auto"));
                     const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()), extra);
                     if (!e.empty()) return done(ToolResult::error(e));
                     return done(ToolResult().text("Tarjeta con el plugin «" + a.value("plugin", std::string()) +

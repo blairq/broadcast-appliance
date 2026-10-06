@@ -1048,6 +1048,11 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
                     for (const auto& [k, v] : r.items()) q[k] = v;
                 else
                     activo = false; // sin el plugin acá: pasa sin tocar
+                // Con Vulkan (ncnn), la red float: las NV12 del laboratorio no van en ncnn.
+                if (q.value("proveedor", std::string()) == "vulkan" && q.contains("modelo_float")) {
+                    q["modelo"] = q["modelo_float"];
+                    q["variantes"] = "";
+                }
             }
             // Un plugin que ES un elemento (contrato abierto): va directo, con
             // la memoria que pide (la cadena sube y baja de la placa alrededor).

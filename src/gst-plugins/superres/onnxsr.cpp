@@ -75,6 +75,10 @@
 #if defined(BA_HAVE_GST_CUDA)
 #include <gst/cuda/gstcuda.h>
 #endif
+#if defined(BA_HAVE_NCNN)
+#include <ncnn/gpu.h>
+#include <ncnn/net.h>
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -210,7 +214,21 @@ static const Runtime& runtime() {
     return r;
 }
 
+/// ncnn con Vulkan: ¿hay alguna GPU con Vulkan? (el cargador va en el bundle; el driver es de la placa).
+static bool hayVulkan() {
+#if defined(BA_HAVE_NCNN)
+    static const bool hay = [] {
+        ncnn::create_gpu_instance();
+        return ncnn::get_gpu_count() > 0;
+    }();
+    return hay;
+#else
+    return false;
+#endif
+}
+
 static bool trae(const std::string& proveedor) {
+    if (proveedor == "vulkan") return hayVulkan();
     static const std::pair<const char*, const char*> kNombres[] = {
         {"tensorrt", "TensorrtExecutionProvider"}, {"cuda", "CUDAExecutionProvider"},
         {"dml", "DmlExecutionProvider"},           {"migraphx", "MIGraphXExecutionProvider"},
@@ -228,9 +246,9 @@ static std::vector<std::string> ordenAuto() {
 #if defined(__APPLE__)
     return {"coreml", "cpu"};
 #elif defined(_WIN32)
-    return {"tensorrt", "cuda", "dml", "openvino", "cpu"};
+    return {"tensorrt", "cuda", "dml", "vulkan", "openvino", "cpu"};
 #else
-    return {"tensorrt", "cuda", "migraphx", "rocm", "openvino", "cpu"};
+    return {"tensorrt", "cuda", "migraphx", "rocm", "vulkan", "openvino", "cpu"};
 #endif
 }
 
@@ -341,6 +359,11 @@ struct Red {
     int iw = 0, ih = 0; ///< lo que recibe (float)
     std::string proveedor;
     std::vector<float> in; ///< el tensor de entrada (float), reusado
+#if defined(BA_HAVE_NCNN)
+    std::unique_ptr<ncnn::Net> net; ///< proveedor «vulkan»: la red en ncnn (la sesión de ORT queda sin usar)
+    std::string blobIn, blobOut;
+    std::vector<float> out;          ///< la salida de ncnn, contigua (CHW)
+#endif
     // Tensores en la placa (entrada CUDAMemory con CUDA/TensorRT).
     std::unique_ptr<Ort::MemoryInfo> memCuda;
     std::unique_ptr<Ort::Allocator> alCuda;
@@ -530,6 +553,119 @@ static std::unique_ptr<Ort::Session> sesionCon(BaOnnxSr* s, Ort::Env& env, const
 #endif
 }
 
+#if defined(BA_HAVE_NCNN)
+/// pnnx (convierte ONNX a ncnn): BA_PNNX, o al lado del programa.
+static std::string rutaPnnx() {
+    if (const char* e = std::getenv("BA_PNNX"); e != nullptr && *e != '\0') return e;
+#if defined(_WIN32)
+    wchar_t b[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, b, MAX_PATH);
+    const auto p = std::filesystem::path(b).parent_path() / "pnnx.exe";
+#else
+    const auto p = std::filesystem::path("/proc/self/exe").parent_path() / "pnnx";
+#endif
+    std::error_code ec;
+    return std::filesystem::exists(p, ec) ? p.string() : std::string();
+}
+
+/// «Compila» la red para Vulkan: ONNX -> ncnn (.param/.bin) con pnnx, para la
+/// forma de entrada 1×C×alto×ancho. Queda en la caché (la primera vez tarda).
+static bool compilarNcnn(const std::string& onnx, int C, int w, int h, const std::string& param, const std::string& bin,
+                         std::string& error) {
+    const std::string pnnx = rutaPnnx();
+    if (pnnx.empty()) {
+        error = "falta pnnx (para pasar la red de ONNX a ncnn)";
+        return false;
+    }
+    std::error_code ec;
+    const auto dir = std::filesystem::path(param).parent_path();
+    std::filesystem::create_directories(dir, ec);
+    const std::string tmp = (dir / "pnnx-tmp").string();
+    const std::string forma = "inputshape=[1," + std::to_string(C) + "," + std::to_string(h) + "," + std::to_string(w) + "]";
+    std::vector<std::string> args{pnnx, onnx, forma, "ncnnparam=" + param, "ncnnbin=" + bin, "pnnxparam=" + tmp + ".pnnx.param",
+                                  "pnnxbin=" + tmp + ".pnnx.bin", "pnnxpy=" + tmp + "_pnnx.py", "pnnxonnx=" + tmp + ".pnnx.onnx",
+                                  "ncnnpy=" + tmp + "_ncnn.py", "device=cpu"};
+    std::vector<gchar*> argv;
+    for (auto& a : args) argv.push_back(a.data());
+    argv.push_back(nullptr);
+    gchar* sale = nullptr;
+    gchar* err = nullptr;
+    gint estado = 0;
+    GError* ge = nullptr;
+    const gboolean ok = g_spawn_sync(dir.string().c_str(), argv.data(), nullptr, G_SPAWN_DEFAULT, nullptr, nullptr, &sale, &err,
+                                     &estado, &ge);
+    const std::string texto = std::string(sale != nullptr ? sale : "") + (err != nullptr ? err : "");
+    g_free(sale);
+    g_free(err);
+    for (const char* x : {".pnnx.param", ".pnnx.bin", "_pnnx.py", ".pnnx.onnx", "_ncnn.py"})
+        std::filesystem::remove(tmp + x, ec);
+    if (!ok) {
+        error = std::string("no pude correr pnnx: ") + (ge != nullptr ? ge->message : "?");
+        if (ge != nullptr) g_error_free(ge);
+        return false;
+    }
+    if (!std::filesystem::exists(param, ec) || !std::filesystem::exists(bin, ec)) {
+        error = "pnnx no pudo convertir la red: " + texto.substr(texto.size() > 400 ? texto.size() - 400 : 0);
+        return false;
+    }
+    return true;
+}
+
+/// La red en ncnn con Vulkan, para la forma ya sabida (r.canales, r.iw, r.ih, r.factor).
+static bool abrirNcnn(BaOnnxSr* s, Red& r, std::string& error) {
+    const std::string& modelo = *s->rutaRed;
+    std::string param, bin;
+    if (modelo.size() > 6 && modelo.compare(modelo.size() - 6, 6, ".param") == 0) {
+        // Ya convertida (el laboratorio): modelo.param + modelo.bin.
+        param = modelo;
+        bin = modelo.substr(0, modelo.size() - 6) + ".bin";
+    } else {
+        const std::string cache = s->cache != nullptr && *s->cache != '\0' ? s->cache : modelo + ".cache";
+        const auto base = std::filesystem::path(cache) / ("vulkan-" + std::to_string(r.canales) + "-" + std::to_string(r.iw) +
+                                                          "x" + std::to_string(r.ih));
+        param = base.string() + ".ncnn.param";
+        bin = base.string() + ".ncnn.bin";
+        std::error_code ec;
+        if (!std::filesystem::exists(param, ec) || !std::filesystem::exists(bin, ec)) {
+            GST_INFO_OBJECT(s, "pasando %s a ncnn (%dx%d)", modelo.c_str(), r.iw, r.ih);
+            if (!compilarNcnn(modelo, r.canales, r.iw, r.ih, param, bin, error)) return false;
+        }
+    }
+    auto net = std::make_unique<ncnn::Net>();
+    net->opt.use_vulkan_compute = true;
+    net->opt.use_fp16_packed = net->opt.use_fp16_storage = net->opt.use_fp16_arithmetic = s->fp16 != FALSE;
+    const int gpus = ncnn::get_gpu_count();
+    if (gpus <= 0) {
+        error = "no hay GPU con Vulkan";
+        return false;
+    }
+    net->set_vulkan_device(std::clamp(static_cast<int>(s->dispositivo), 0, gpus - 1));
+    if (net->load_param(param.c_str()) != 0 || net->load_model(bin.c_str()) != 0) {
+        error = "ncnn no pudo cargar " + param;
+        return false;
+    }
+    if (net->input_names().empty() || net->output_names().empty()) {
+        error = "la red de ncnn no dice su entrada y su salida";
+        return false;
+    }
+    r.blobIn = net->input_names()[0];
+    r.blobOut = net->output_names()[0];
+    // Una pasada de prueba: que agrande lo mismo que la de ONNX (y calienta Vulkan).
+    ncnn::Mat in(r.iw, r.ih, r.canales);
+    in.fill(0.5f);
+    ncnn::Extractor ex = net->create_extractor();
+    ex.input(r.blobIn.c_str(), in);
+    ncnn::Mat out;
+    if (ex.extract(r.blobOut.c_str(), out) != 0 || out.w != r.iw * r.factor || out.h != r.ih * r.factor || out.c != r.canales) {
+        error = "la red de ncnn no agranda como la de ONNX (" + std::to_string(out.w) + "x" + std::to_string(out.h) + "x" +
+                std::to_string(out.c) + ")";
+        return false;
+    }
+    r.net = std::move(net);
+    return true;
+}
+#endif
+
 /// Abre la red para este tamaño de cámara, con el mejor proveedor que ande.
 static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
     const auto& rt = ba::ort::runtime();
@@ -540,8 +676,18 @@ static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
     auto r = std::make_unique<Red>();
     r->env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_WARNING, "baonnxsr");
     // Primero, qué modelo es (con la CPU, que siempre abre): NV12 o float, y su forma.
+    // «vulkan» no es de ONNX Runtime: si viene antes del que abre, la red se pasa a
+    // ncnn al final (con la forma ya sabida).
+    bool quiereVulkan = false;
     for (int intento = 0; intento < 2; ++intento) {
         for (const auto& p : probar) {
+            if (p == "vulkan") {
+                if (ba::ort::trae(p))
+                    quiereVulkan = true;
+                else
+                    motivos += "vulkan: no hay GPU con Vulkan (o el programa no trae ncnn); ";
+                continue;
+            }
             if (!ba::ort::trae(p)) {
                 motivos += p + ": este ONNX Runtime no lo trae; ";
                 continue;
@@ -565,7 +711,10 @@ static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
         const Ort::TypeInfo tipo = r->sesion->GetInputTypeInfo(0); // vive mientras se lee su forma
         const auto info = tipo.GetTensorTypeAndShapeInfo();
         r->nv12 = r->entradas.size() == 2 && info.GetElementType() == ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8;
-        if (r->nv12) return r.release(); // el laboratorio ya dejó la red para x2 de lo que entra
+        if (r->nv12) {
+            if (quiereVulkan) motivos += "vulkan: las redes NV12 del laboratorio no van en ncnn; ";
+            return r.release(); // el laboratorio ya dejó la red para x2 de lo que entra
+        }
         const auto forma = info.GetShape();
         r->canales = forma.size() == 4 && forma[1] > 0 ? static_cast<int>(forma[1]) : 1;
         // Una variante fija para una x4 viene a la mitad de la cámara: ya se sabe.
@@ -593,6 +742,17 @@ static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
             r->sesion.reset();
             continue;
         }
+#if defined(BA_HAVE_NCNN)
+        if (quiereVulkan) {
+            std::string e;
+            if (abrirNcnn(s, *r, e)) {
+                r->proveedor = "vulkan";
+                r->sesion.reset();
+            } else {
+                motivos += "vulkan: " + e + "; ";
+            }
+        }
+#endif
         return r.release();
     }
     throw std::runtime_error("no se pudo abrir la red a la mitad");
@@ -778,6 +938,18 @@ static void correrNv12(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
     }
 }
 
+/// f(desde, hasta) sobre las filas [0, n), en franjas en varios hilos (filas distintas: sin cruces).
+template <class F>
+static void enFranjas(int n, F f) {
+    const int hilos = n >= 256 ? static_cast<int>(std::clamp(std::thread::hardware_concurrency() / 2, 1u, 8u)) : 1;
+    std::vector<std::thread> v;
+    for (int k = 1; k < hilos; ++k)
+        v.emplace_back(f, n * k / hilos, n * (k + 1) / hilos);
+    f(0, n / hilos);
+    for (auto& t : v)
+        t.join();
+}
+
 /// Modelo float: NV12 -> float (a la mitad si es x4) -> red -> NV12 al doble.
 static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
     const int w = GST_VIDEO_FRAME_WIDTH(fi), h = GST_VIDEO_FRAME_HEIGHT(fi);
@@ -802,7 +974,10 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
     std::vector<float>& in = r->in;
     in.resize(static_cast<size_t>(C) * iw * ih);
     const size_t planoI = static_cast<size_t>(iw) * ih;
-    for (int y = 0; y < ih; ++y)
+    // En franjas, en varios hilos: en 1080p son millones de píxeles por cuadro (en
+    // un solo hilo, la conversión tardaba más que la red en la GPU).
+    enFranjas(ih, [&](int fila0, int fila1) {
+    for (int y = fila0; y < fila1; ++y)
         for (int x = 0; x < iw; ++x) {
             // La luma: el píxel, o el promedio 2x2 si va a la mitad.
             float yy;
@@ -826,18 +1001,42 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
             in[planoI + i] = std::clamp(yy + gU * u + gV * v, 0.0f, 1.0f);
             in[2 * planoI + i] = std::clamp(yy + aB * u, 0.0f, 1.0f);
         }
-    const std::array<int64_t, 4> dims{1, C, ih, iw};
-    Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
-    Ort::Value t = Ort::Value::CreateTensor<float>(mem, in.data(), in.size(), dims.data(), dims.size());
-    const char* ins[] = {r->entradas[0].c_str()};
-    const char* outs[] = {r->salidas[0].c_str()};
-    auto res = r->sesion->Run(Ort::RunOptions{nullptr}, ins, &t, 1, outs, 1);
-    const float* o = res[0].GetTensorData<float>();
+    });
     const int W = iw * r->factor, H = ih * r->factor;
+    const float* o = nullptr;
+    std::vector<Ort::Value> res; // vive mientras se lee la salida (ONNX Runtime)
+#if defined(BA_HAVE_NCNN)
+    if (r->net) {
+        // ncnn (Vulkan): sube, corre en la GPU y baja; la salida, contigua.
+        ncnn::Mat mi(iw, ih, C);
+        for (int c = 0; c < C; ++c)
+            std::memcpy(mi.channel(c), in.data() + c * planoI, planoI * sizeof(float));
+        ncnn::Extractor ex = r->net->create_extractor();
+        ex.input(r->blobIn.c_str(), mi);
+        ncnn::Mat mo;
+        if (ex.extract(r->blobOut.c_str(), mo) != 0 || mo.w != W || mo.h != H)
+            throw std::runtime_error("ncnn no devolvió la imagen agrandada");
+        const size_t planoS = static_cast<size_t>(W) * H;
+        r->out.resize(static_cast<size_t>(C) * planoS);
+        for (int c = 0; c < C; ++c)
+            std::memcpy(r->out.data() + c * planoS, mo.channel(c), planoS * sizeof(float));
+        o = r->out.data();
+    } else
+#endif
+    {
+        const std::array<int64_t, 4> dims{1, C, ih, iw};
+        Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+        Ort::Value t = Ort::Value::CreateTensor<float>(mem, in.data(), in.size(), dims.data(), dims.size());
+        const char* ins[] = {r->entradas[0].c_str()};
+        const char* outs[] = {r->salidas[0].c_str()};
+        res = r->sesion->Run(Ort::RunOptions{nullptr}, ins, &t, 1, outs, 1);
+        o = res[0].GetTensorData<float>();
+    }
     const int k = std::max(1, W / (2 * w)); // 1, o 2 si una x4 entró entera (se promedia 2x2)
     const float div = 1.0f / static_cast<float>(k * k);
     const size_t planoO = static_cast<size_t>(W) * H;
-    for (int y = 0; y < h * 2; ++y)
+    enFranjas(h * 2, [&](int fila0, int fila1) {
+    for (int y = fila0; y < fila1; ++y)
         for (int x = 0; x < w * 2; ++x) {
             float acc[3] = {0, 0, 0};
             for (int dy = 0; dy < k; ++dy)
@@ -858,6 +1057,7 @@ static void correrFloat(Red* r, GstVideoFrame* fi, GstVideoFrame* fo) {
                 }
             }
         }
+    });
     if (C == 1) colorX2(UV, pUV, w / 2, h / 2, oUV, poUV);
 }
 #endif
