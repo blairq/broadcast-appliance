@@ -260,6 +260,16 @@ int main() {
         CHECK(m.agregarEntrada("cam", json{{"pipeline", "videotestsrc is-live=true pattern=smpte"}, {"filtros", ptz}}).empty(),
               "una entrada con PTZ digital");
         esperar(1500);
+        // El encuadre se ve (en la GPU lo hace baptzgl): x2 arriba a la izquierda de las
+        // barras, el borde derecho cae en la verde (sin zoom, sería la azul).
+        m.definirEscena({{"nombre", "Cam"}, {"capas", {{{"entrada", "cam"}}}}});
+        CHECK(m.verPedir("escena:Cam", 320, 180).empty(), "ver la escena de la cámara");
+        CHECK(m.propiedadEntrada("cam", "ba_f_ptz", "ir", "0.25,0.25,2,0").empty(), "zoom x2 arriba a la izquierda");
+        esperar(1500);
+        const Px der = mirar(m, "escena:Cam", 310, 40);
+        std::printf("PTZ x2, borde derecho: %s\n", txt(der).c_str());
+        CHECK(der.g > 120 && der.r < 80 && der.b < 80, "con el zoom, a la derecha la barra verde");
+        m.verSoltar("escena:Cam");
         CHECK(m.propiedadEntrada("cam", "ba_f_ptz", "ir", "0.3,0.3,3,0").empty(), "ir a un encuadre");
         esperar(300);
         json p = m.propiedadesEntrada("cam", "ba_f_ptz");

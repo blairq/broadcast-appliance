@@ -21,6 +21,15 @@
 //
 // Formatos: RGB de 4 bytes (con o sin alfa). El tamaño no cambia.
 // Concurrencia: propiedades y cuadro se cruzan bajo GST_OBJECT_LOCK.
+//
+// baptzgl: lo mismo en la GPU (GLMemory RGBA, docs/MAPA-GPU-CPU.md). Es un bin
+//   gltransformation ! glshader
+// con las mismas propiedades: las guarda un baptz que no está en la cadena
+// (solo lleva la cuenta del movimiento) y, en cada cuadro, la ventana pasa a
+// la escala y el corrimiento de gltransformation. El glshader de atrás obliga
+// a dibujar (si no, gltransformation deja una meta afín que el mezclador
+// aplica sin recortar a la caja de la capa). El motor lo usa en lugar de baptz
+// cuando el video de la entrada va en la GPU.
 // ============================================================================
 
 #include "comun.hpp"
@@ -309,6 +318,132 @@ static void ba_ptz_class_init(BaPtzClass* k) {
     GST_VIDEO_FILTER_CLASS(k)->transform_frame = transformar;
 }
 
+// ---------------------------------------------------------------- baptzgl
+
+G_BEGIN_DECLS
+#define BA_TYPE_PTZ_GL (ba_ptz_gl_get_type())
+G_DECLARE_FINAL_TYPE(BaPtzGl, ba_ptz_gl, BA, PTZ_GL, GstBin)
+G_END_DECLS
+
+struct _BaPtzGl {
+    GstBin parent;
+    BaPtz* cuenta;        ///< el estado y las propiedades (no está en la cadena)
+    GstElement* transf;   ///< gltransformation
+};
+
+G_DEFINE_TYPE(BaPtzGl, ba_ptz_gl, GST_TYPE_BIN)
+
+namespace {
+
+void glPoner(GObject* o, guint, const GValue* v, GParamSpec* ps) {
+    g_object_set_property(G_OBJECT(BA_PTZ_GL(o)->cuenta), ps->name, v);
+}
+
+void glLeer(GObject* o, guint, GValue* v, GParamSpec* ps) {
+    g_object_get_property(G_OBJECT(BA_PTZ_GL(o)->cuenta), ps->name, v);
+}
+
+/// Cada cuadro: avanza el movimiento con su hora y le pasa la ventana a gltransformation.
+GstPadProbeReturn alCuadroGl(GstPad*, GstPadProbeInfo* info, gpointer d) {
+    auto* s = static_cast<BaPtzGl*>(d);
+    BaPtz* p = s->cuenta;
+    if ((info->type & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) != 0) {
+        GstEvent* e = GST_PAD_PROBE_INFO_EVENT(info);
+        if (GST_EVENT_TYPE(e) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(e) == GST_EVENT_SEGMENT) {
+            GST_OBJECT_LOCK(p);
+            p->ultimo = GST_CLOCK_TIME_NONE;
+            GST_OBJECT_UNLOCK(p);
+        }
+        return GST_PAD_PROBE_OK;
+    }
+    const GstClockTime t = GST_BUFFER_PTS(GST_PAD_PROBE_INFO_BUFFER(info));
+    GST_OBJECT_LOCK(p);
+    double dt = 0;
+    if (GST_CLOCK_TIME_IS_VALID(t) && GST_CLOCK_TIME_IS_VALID(p->ultimo) && t > p->ultimo)
+        dt = std::min(0.1, static_cast<double>(t - p->ultimo) / 1e9);
+    p->ultimo = t;
+    avanzar(p, dt);
+    const double x = p->x, y = p->y, z = p->zoom;
+    GST_OBJECT_UNLOCK(p);
+    // Con ortho, la ventana de centro (x, y) y lado 1/zoom ocupa todo el cuadro:
+    // escala zoom y corrimiento (0,5 − centro) × zoom (igual que el recorte de la composición).
+    g_object_set(s->transf, "scale-x", static_cast<gfloat>(z), "scale-y", static_cast<gfloat>(z), "translation-x",
+                 static_cast<gfloat>((0.5 - x) * z), "translation-y", static_cast<gfloat>((0.5 - y) * z), nullptr);
+    return GST_PAD_PROBE_OK;
+}
+
+} // namespace
+
+static void ba_ptz_gl_init(BaPtzGl* s) {
+    s->cuenta = BA_PTZ(g_object_ref_sink(g_object_new(BA_TYPE_PTZ, nullptr)));
+    s->transf = gst_element_factory_make("gltransformation", nullptr);
+    GstElement* fijar = gst_element_factory_make("glshader", nullptr);
+    if (s->transf == nullptr || fijar == nullptr) {
+        GST_ERROR_OBJECT(s, "faltan los elementos de OpenGL de GStreamer");
+        if (s->transf != nullptr) gst_object_unref(s->transf);
+        if (fijar != nullptr) gst_object_unref(fijar);
+        s->transf = nullptr;
+        return;
+    }
+    g_object_set(s->transf, "ortho", TRUE, nullptr);
+    gst_bin_add_many(GST_BIN(s), s->transf, fijar, nullptr);
+    gst_element_link(s->transf, fijar);
+    GstPad* in = gst_element_get_static_pad(s->transf, "sink");
+    GstPad* out = gst_element_get_static_pad(fijar, "src");
+    gst_pad_add_probe(in, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
+                      alCuadroGl, s, nullptr);
+    GstElementClass* ek = GST_ELEMENT_GET_CLASS(s);
+    gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("sink", in, gst_element_class_get_pad_template(ek, "sink")));
+    gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("src", out, gst_element_class_get_pad_template(ek, "src")));
+    gst_object_unref(in);
+    gst_object_unref(out);
+}
+
+static void ba_ptz_gl_finalize(GObject* o) {
+    gst_object_unref(BA_PTZ_GL(o)->cuenta);
+    G_OBJECT_CLASS(ba_ptz_gl_parent_class)->finalize(o);
+}
+
+static void ba_ptz_gl_class_init(BaPtzGlClass* k) {
+    auto* go = G_OBJECT_CLASS(k);
+    go->set_property = glPoner;
+    go->get_property = glLeer;
+    go->finalize = ba_ptz_gl_finalize;
+    // Las mismas propiedades que baptz (copias: un GParamSpec es de una sola clase).
+    auto* kp = static_cast<GObjectClass*>(g_type_class_ref(BA_TYPE_PTZ));
+    guint n = 0;
+    GParamSpec** v = g_object_class_list_properties(kp, &n);
+    guint id = 1;
+    for (guint i = 0; i < n; ++i) {
+        GParamSpec* ps = v[i];
+        if (ps->owner_type != BA_TYPE_PTZ) continue;
+        const auto fl = static_cast<GParamFlags>(ps->flags & ~G_PARAM_STATIC_STRINGS);
+        GParamSpec* copia = nullptr;
+        if (G_IS_PARAM_SPEC_DOUBLE(ps)) {
+            auto* d = G_PARAM_SPEC_DOUBLE(ps);
+            copia = g_param_spec_double(ps->name, g_param_spec_get_nick(ps), g_param_spec_get_blurb(ps), d->minimum,
+                                        d->maximum, d->default_value, fl);
+        } else if (G_IS_PARAM_SPEC_STRING(ps)) {
+            copia = g_param_spec_string(ps->name, g_param_spec_get_nick(ps), g_param_spec_get_blurb(ps),
+                                        G_PARAM_SPEC_STRING(ps)->default_value, fl);
+        } else if (G_IS_PARAM_SPEC_BOOLEAN(ps)) {
+            copia = g_param_spec_boolean(ps->name, g_param_spec_get_nick(ps), g_param_spec_get_blurb(ps),
+                                         G_PARAM_SPEC_BOOLEAN(ps)->default_value, fl);
+        }
+        if (copia != nullptr) g_object_class_install_property(go, id++, copia);
+    }
+    g_free(v);
+    g_type_class_unref(kp);
+    gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(k), "PTZ digital (GPU)", "Filter/Effect/Video",
+                                          "Pan, tilt y zoom recortando y ampliando la imagen en OpenGL",
+                                          "Broadcast Appliance");
+    GstCaps* caps = gst_caps_from_string("video/x-raw(memory:GLMemory),format=RGBA");
+    gst_element_class_add_pad_template(GST_ELEMENT_CLASS(k), gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, caps));
+    gst_element_class_add_pad_template(GST_ELEMENT_CLASS(k), gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, caps));
+    gst_caps_unref(caps);
+}
+
 extern "C" gboolean ba_registrar_ptz(GstPlugin* p) {
-    return gst_element_register(p, "baptz", GST_RANK_NONE, BA_TYPE_PTZ);
+    return gst_element_register(p, "baptz", GST_RANK_NONE, BA_TYPE_PTZ) &&
+           gst_element_register(p, "baptzgl", GST_RANK_NONE, BA_TYPE_PTZ_GL);
 }

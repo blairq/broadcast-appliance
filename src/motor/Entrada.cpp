@@ -286,6 +286,7 @@ void Entrada::actualizar(const json& ajustes) {
         return;
     }
     firma_ = firma;
+    entrelazada_ = false; // otra señal: se vuelve a mirar
     desarmar();
     armarSalida(); // pudo pasar a tener (o dejar de tener) video, o ser un archivo
     armar();
@@ -387,13 +388,14 @@ void Entrada::armar() {
         }
         if (!sr.elemento.empty()) filtrosV.push_back(std::move(sr));
     }
-    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_);
-    if (!cadenaV.empty()) {
+    const bool gpu = gpuVideo();
+    const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, gpu);
+    const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
+    if (!cadenaV.empty() && !gpu) {
         // ANTES de `videorate` (no se procesa cada cuadro repetido), con una cola que
         // descarta lo viejo (si un filtro tarda, no se acumula demora). Si el primer
         // filtro trabaja en la placa, va pegado al decodificador.
         const bool placaPrimero = !filtrosV.front().memoria.empty();
-        const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
         if (placaPrimero) {
             antes = cola + cadenaV + "videoconvert ! " +
                     (normalizar_ ? "deinterlace mode=auto ! videorate skip-to-first=true ! videoconvertscale ! " : "");
@@ -409,18 +411,22 @@ void Entrada::armar() {
         capsVideo = "video/x-raw,format=BGRA";
         if (normalizar_) capsVideo += ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
     }
-    if (gpuVideo()) {
+    if (gpu) {
         // EN LA GPU (docs/MAPA-GPU-CPU.md): la cámara y el decodificador entregan
         // GLMemory directo a glupload (que la deja pasar) y la entrada publica una
         // textura RGBA. La normalización la hace la composición (escala cada capa);
-        // acá solo los cuadros del lienzo (videorate no toca píxeles). Con filtros
-        // de CPU, se baja solo para ellos y se sube una vez al final. Lo estático
-        // ya viene subido (leer).
-        // Pendiente: desentrelazar en GL (hoy una señal entrelazada pasa como viene).
-        if (cadenaV.empty()) antes = estatica_ ? "" : (normalizar_ ? "videorate skip-to-first=true ! " : "");
-        const std::string gl = "video/x-raw(memory:GLMemory),format=RGBA" +
-                               (normalizar_ && !estatica_ ? ",framerate=" + fps : std::string());
-        capsVideo = estatica_ ? gl : "glupload ! glcolorconvert ! " + gl;
+        // acá solo los cuadros del lienzo (videorate no toca píxeles). Los filtros
+        // de GL (y baptz → baptzgl) trabajan en la textura; para uno de CPU se baja
+        // ahí y se sube de nuevo al final. Lo estático ya viene subido (leer).
+        // Una señal entrelazada (la sonda del origen la descubre y rearma) se
+        // desentrelaza en GL; a una progresiva no se le pone nada.
+        const std::string textura = "video/x-raw(memory:GLMemory),format=RGBA";
+        const std::string gl = textura + (normalizar_ && !estatica_ ? ",framerate=" + fps : std::string());
+        const bool desentrelazar = normalizar_ && entrelazada_ && !estatica_ && hayFabrica("gldeinterlace");
+        antes = (estatica_ ? std::string() : "glupload ! glcolorconvert ! " + textura + " ! ") +
+                (desentrelazar ? "gldeinterlace method=greedyh ! " : "") + (cadenaV.empty() ? "" : cola + cadenaV) +
+                (normalizar_ && !estatica_ ? "videorate skip-to-first=true ! " : "");
+        capsVideo = (cadenaV.empty() && estatica_ ? std::string() : "glupload ! glcolorconvert ! ") + gl;
     }
     std::string cadenaA = cadenaDe(filtrosA_, "audioconvert", "ba_fa_", avisos_);
     rackFaltaDesde_ = 0;
@@ -512,6 +518,14 @@ void Entrada::armar() {
                         gst_event_parse_caps(ev, &c);
                         auto* e = static_cast<Entrada*>(d);
                         const json desc = describirCaps(c);
+                        // En la GPU no hay `deinterlace mode=auto`: si llega entrelazada, rearmar con gldeinterlace.
+                        if (gpuVideo() && !e->entrelazada_ && c != nullptr && gst_caps_get_size(c) > 0) {
+                            const char* im = gst_structure_get_string(gst_caps_get_structure(c, 0), "interlace-mode");
+                            if (im != nullptr && std::string(im) != "progressive") {
+                                e->entrelazada_ = true;
+                                e->rearmarEntrelazada_ = true;
+                            }
+                        }
                         std::lock_guard<std::mutex> l(e->medMu_);
                         e->origen_ = desc;
                     }
@@ -823,6 +837,11 @@ void Entrada::tic() {
     if (pipeline_ == nullptr) return;
     medirLatencia();
     if (pipeline_ == nullptr) return;
+    if (rearmarEntrelazada_.exchange(false)) {
+        registrar(Nivel::Info, id_ + ": la señal llega entrelazada: se desentrelaza en la GPU");
+        armar();
+        return;
+    }
     // Se armó sin el rack: cada segundo se mira si ya está.
     if (rackFaltaDesde_ != 0 && ahoraNs() - rackFaltaDesde_ > 1'000'000'000ULL) {
         if (hayFabrica("barack")) {

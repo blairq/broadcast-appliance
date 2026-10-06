@@ -142,12 +142,19 @@ bool hayFabrica(const std::string& elemento) {
 }
 
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos) {
+                     std::vector<std::string>& avisos, bool desdeGl) {
     std::string r;
-    for (const auto& f : v) {
-        if (!hayFabrica(f.elemento)) {
-            avisos.push_back("no está el elemento «" + f.elemento + "» (filtro " + f.id + "): pasa sin él");
+    bool enGl = desdeGl; // dónde está el video en este punto de la cadena
+    for (const auto& f0 : v) {
+        if (!hayFabrica(f0.elemento)) {
+            avisos.push_back("no está el elemento «" + f0.elemento + "» (filtro " + f0.id + "): pasa sin él");
             continue;
+        }
+        // En la GPU, el par de GL del elemento si lo tiene (baptz → baptzgl).
+        Filtro f = f0;
+        if (desdeGl && f.memoria.empty() && hayFabrica(f.elemento + "gl")) {
+            f.elemento += "gl";
+            f.memoria = "GLMemory";
         }
         // Un elemento que trabaja en la placa: subir antes y bajar después (si ya
         // viene en esa memoria, la subida pasa de largo: sin copias).
@@ -166,11 +173,24 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                 avisos.push_back("no hay " + primero + " para darle " + f.memoria + " a «" + f.elemento +
                                  "»: va en memoria de sistema");
         }
-        if (hayPuente)
-            r += std::string(m->second.first) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! " +
+        const std::string elem = f.elemento + " name=" + prefijo + f.nombre + " ! ";
+        if (desdeGl) {
+            if (hayPuente && f.memoria == "GLMemory") {
+                r += (enGl ? std::string() : "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! ") + elem;
+                enGl = !f.saleEnSistema;
+            } else {
+                if (enGl) r += "gldownload ! ";
+                r += hayPuente ? std::string(m->second.first) + " ! " + elem +
+                                     (f.saleEnSistema ? std::string() : std::string(m->second.second) + " ! ")
+                               : std::string(conv) + " ! " + elem;
+                enGl = false;
+            }
+        } else if (hayPuente) {
+            r += std::string(m->second.first) + " ! " + elem +
                  (f.saleEnSistema ? std::string() : std::string(m->second.second) + " ! ");
-        else
-            r += std::string(conv) + " ! " + f.elemento + " name=" + prefijo + f.nombre + " ! ";
+        } else {
+            r += std::string(conv) + " ! " + elem;
+        }
     }
     return r;
 }

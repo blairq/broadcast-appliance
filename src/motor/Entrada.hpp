@@ -165,6 +165,8 @@ class Entrada {
     std::uint64_t reintentoNs_ = 0;
     int reintentos_ = 0;
     std::uint64_t rackFaltaDesde_ = 0;
+    /// (GPU) La señal llegó entrelazada: se rearma con gldeinterlace (lo marca la sonda del origen).
+    std::atomic<bool> entrelazada_{false}, rearmarEntrelazada_{false};
     GstClockTime baseAplicada_ = GST_CLOCK_TIME_NONE; ///< (medios) el base_time con que se puso el offset
     /// Lo en vivo que trae sus propias horas (no las del estudio): la corrección, por rama
     /// (una cámara de prueba con horas desde 0 y un micrófono con las buenas).

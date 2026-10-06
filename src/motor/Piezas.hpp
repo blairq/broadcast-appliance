@@ -68,8 +68,11 @@ std::string aSistema(const std::string& formato);
 /// Lo mismo, escalado a ancho×alto (en GPU escala en GL y baja CHICO).
 std::string aSistemaEscalado(const std::string& formato, int ancho, int alto);
 /// La cadena de un tipo de filtros para gst_parse_launch ("" si no hay ninguno).
+/// `desdeGl`: el video llega en GLMemory RGBA; los filtros de GL (o los que tienen
+/// su par «<elemento>gl», como baptz) trabajan ahí sin bajar, y solo se baja para
+/// los de CPU. Puede terminar en sistema: el que sigue sube (glupload deja pasar GL).
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
-                     std::vector<std::string>& avisos);
+                     std::vector<std::string>& avisos, bool desdeGl = false);
 /// Entre comillas para gst_parse_launch (los id de Windows traen \\ y #).
 std::string entreComillas(const std::string& v);
 
