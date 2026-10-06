@@ -2027,7 +2027,7 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
     motor::Motor* mot = rt_.engine().motor();
     if (mot == nullptr) return listo({{"error", "el motor no está andando"}});
     // La huella de cada cuadro de lo que sale de cada entrada: una grilla de luma
-    // de 16x9 con su hora. Una vista chica del motor por entrada (con el reloj del
+    // de 16x9 (promedios de bloque) con su hora. Una vista chica del motor por entrada (con el reloj del
     // estudio: cada cuadro llega a su hora).
     struct Huellas {
         std::mutex mu;
@@ -2037,20 +2037,25 @@ void VideoGrafos::medirDesfase(const std::string& a, const std::string& b, int s
     auto h = std::make_shared<Huellas>();
     const std::string claves[2] = {"entrada:" + a + "@sincro", "entrada:" + b + "@sincro"};
     for (int k = 0; k < 2; ++k) {
-        if (!mot->verPedir(claves[k], 16, 16).empty()) {
+        if (!mot->verPedir(claves[k], 160, 90).empty()) {
             if (k == 1) mot->verSoltar(claves[0]);
             return listo({{"error", "no se puede mirar «" + (k == 0 ? a : b) + "»"}});
         }
         mot->verAvisar(claves[k], [h, k](const motor::Cuadro& c) {
             if (c.ancho < 16 || c.alto < 9) return;
+            // El promedio de luma de cada bloque (una pelota chica no se pierde).
             std::uint8_t grilla[16 * 9];
-            for (int y = 0; y < 9; ++y) {
-                const std::uint8_t* fila = c.bgra.data() + static_cast<std::size_t>(y * c.alto / 9) * c.stride;
-                for (int x = 0; x < 16; ++x) {
-                    const std::uint8_t* px = fila + static_cast<std::size_t>(x * c.ancho / 16) * 4;
-                    grilla[y * 16 + x] = static_cast<std::uint8_t>((54 * px[2] + 183 * px[1] + 19 * px[0]) >> 8);
+            for (int gy = 0; gy < 9; ++gy)
+                for (int gx = 0; gx < 16; ++gx) {
+                    const int x0 = gx * c.ancho / 16, x1 = (gx + 1) * c.ancho / 16;
+                    const int y0 = gy * c.alto / 9, y1 = (gy + 1) * c.alto / 9;
+                    std::uint32_t suma = 0, n = 0;
+                    for (int y = y0; y < y1; ++y) {
+                        const std::uint8_t* px = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x0) * 4;
+                        for (int x = x0; x < x1; ++x, px += 4, ++n) suma += (54u * px[2] + 183u * px[1] + 19u * px[0]) >> 8;
+                    }
+                    grilla[gy * 16 + gx] = static_cast<std::uint8_t>(n > 0 ? suma / n : 0);
                 }
-            }
             std::lock_guard<std::mutex> l(h->mu);
             h->t[k].push_back(ba::app::ahoraNs());
             h->g[k].insert(h->g[k].end(), grilla, grilla + 16 * 9);
