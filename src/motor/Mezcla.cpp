@@ -45,7 +45,7 @@ std::string nombreSeguro(const std::string& id) {
 } // namespace
 
 Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
-    : reloj_(reloj), nombre_(std::move(nombre)), medidores_(op.medidores) {
+    : reloj_(reloj), nombre_(std::move(nombre)), medidores_(op.medidores), latenciaFijaNs_(op.latenciaFijaNs) {
     std::string salida;
     if (op.limitador) {
         if (hayFabrica("balimitador"))
@@ -100,7 +100,7 @@ Mezcla::~Mezcla() {
 void Mezcla::aplicarLatencia() {
     // La del estudio más el margen; sube enseguida, baja solo de a mucho (cada
     // cambio corre el audio).
-    const std::int64_t l = reloj_.latencia() + kMargenMezclaNs;
+    const std::int64_t l = latenciaFijaNs_ >= 0 ? latenciaFijaNs_ : reloj_.latencia() + kMargenMezclaNs;
     if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
     latenciaNs_ = l;
     // Solo el piso del mezclador: el pipeline suma lo demás que declaran sus
@@ -209,6 +209,18 @@ void Mezcla::tic() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
     aplicarLatencia();
+    // La latencia con que sale (la del mezclador y lo que declaran los de atrás).
+    if (ahoraNs() - consultaNs_ > 1'000'000'000LL) {
+        consultaNs_ = ahoraNs();
+        GstQuery* q = gst_query_new_latency();
+        if (gst_element_query(pipeline_, q)) {
+            gboolean vivo = FALSE;
+            GstClockTime min = 0, max = 0;
+            gst_query_parse_latency(q, &vivo, &min, &max);
+            if (GST_CLOCK_TIME_IS_VALID(min)) salidaNs_ = static_cast<std::int64_t>(min);
+        }
+        gst_query_unref(q);
+    }
     // Los fundidos de escena (curva de igual potencia: sin bache en el medio).
     const std::int64_t ahora = ahoraNs();
     for (auto& [id, r] : ramas_) {
@@ -276,6 +288,11 @@ void Mezcla::tic() {
     gst_object_unref(bus);
 }
 
+std::int64_t Mezcla::latenciaSalidaNs() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return std::max(salidaNs_, latenciaNs_);
+}
+
 double Mezcla::picoDb() const {
     std::lock_guard<std::mutex> l(mu_);
     return picoDb_;
@@ -299,6 +316,7 @@ json Mezcla::estado() const {
             {"anda", pipeline_ != nullptr},
             {"error", error_},
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
+            {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
             {"pico_db", picoDb_},
             {"rms_db", rmsDb_},
             {"entradas", e}};

@@ -94,6 +94,7 @@ int main() {
         }
     Motor::Config cfg;
     cfg.prefijoAnillos = "BA.Audio.Prueba" + std::to_string(getpid()) + ".";
+    cfg.sinkEscucha = "fakesink sync=true"; // nada por los parlantes
     Motor motor(cfg);
     CHECK(motor.iniciar().empty(), "el motor arranca");
 
@@ -135,6 +136,33 @@ int main() {
     esperar(500);
     const double retEscena = leerAnillo(cfg.prefijoAnillos + "Return.1");
     CHECK(cerca(retEscena, -12.04, 1.0), "con la escena al aire, el retorno la oye");
+
+    // Las pistas: el micrófono también a la 2 (la grabación multipista).
+    CHECK(motor.ponerPistas("mic", {1, 2}).empty(), "el mic a las pistas 1 y 2");
+    esperar(800);
+    const json ps = motor.estado()["pistas"];
+    std::printf("pista 2: %.2f dBFS\n", ps.contains("2") ? ps["2"].value("rms_db", -120.0) : 99.0);
+    CHECK(ps.contains("2") && cerca(ps["2"].value("rms_db", -120.0), -15.05, 1.0), "la pista 2 lleva solo el micrófono");
+    CHECK(!motor.ponerPistas("mic", {7}).empty(), "pista 7 no existe");
+    std::int64_t latPista = 0;
+    CHECK(motor.productorDeBus("pista2", &latPista) == "bus:pista2", "el productor de la pista");
+
+    // La escucha (a un fakesink): programa, directo y PFL, con su medidor.
+    auto picoEscucha = [&]() { return motor.estado()["escucha"].value("pico_db", -120.0); };
+    CHECK(motor.escuchar("programa").empty(), "escuchar el programa");
+    esperar(1200);
+    std::printf("escucha programa: pico %.2f dBFS, %s\n", picoEscucha(), motor.estado()["escucha"].dump().c_str());
+    CHECK(picoEscucha() > -12, "la escucha del programa suena");
+    CHECK(motor.escuchar("pfl", "invitado1").empty(), "escuchar al invitado solo");
+    esperar(1000);
+    std::printf("escucha pfl: pico %.2f dBFS\n", picoEscucha());
+    CHECK(cerca(picoEscucha(), -12.04, 1.5), "PFL: solo el invitado (pico de un seno de 0,25)");
+    CHECK(motor.escuchar("directo").empty(), "escuchar directo");
+    esperar(1000);
+    std::printf("escucha directo: pico %.2f dBFS\n", picoEscucha());
+    CHECK(picoEscucha() > -12, "directo: las globales suenan");
+    CHECK(!motor.escuchar("pfl", "nadie").empty(), "PFL de una que no existe avisa");
+    CHECK(motor.escuchar("apagado").empty(), "apagar la escucha");
 
     const json st = motor.estado();
     CHECK(st["retornos"].contains("1"), "el retorno en el estado");

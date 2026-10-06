@@ -6,7 +6,7 @@
 # y salidas. Ver docs/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp Reloj.cpp Entrada.cpp Mezcla.cpp Motor.cpp)
+add_library(ba_motor STATIC Piezas.cpp Reloj.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Motor.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 

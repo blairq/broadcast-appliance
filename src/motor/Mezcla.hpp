@@ -48,6 +48,9 @@ class Mezcla {
         /// Si no está vacío, el bus sale a ese anillo del gateway (baanillosink) en vez
         /// de a un intersink (p. ej. BA.Audio.Return.1).
         std::string anillo;
+        /// ≥ 0: espera esto fijo y no la latencia del estudio (la escucha «directo»:
+        /// la sala sin demora; lo que llega más tarde, no entra).
+        std::int64_t latenciaFijaNs = -1;
     };
     Mezcla(Reloj& reloj, std::string nombre, Opciones op);
     Mezcla(Reloj& reloj, std::string nombre) : Mezcla(reloj, std::move(nombre), Opciones{}) {}
@@ -80,6 +83,10 @@ class Mezcla {
     nlohmann::json estado() const;
     /// El pico del bus (dBFS, el mayor de los canales; -120 sin señal).
     double picoDb() const;
+    /// Cuánto después de su hora sale lo que entrega el bus (ns): lo que tiene
+    /// que esperar quien lo consume (la escucha, la grabación, el gateway), o
+    /// todo le llega tarde.
+    std::int64_t latenciaSalidaNs() const;
 
    private:
     struct Rama {
@@ -106,8 +113,11 @@ class Mezcla {
     mutable std::mutex mu_;
     std::map<std::string, Rama> ramas_;
     std::int64_t latenciaNs_ = -1;
+    std::int64_t salidaNs_ = 0;
+    std::int64_t consultaNs_ = 0;
     double picoDb_ = -120, rmsDb_ = -120;
     bool medidores_ = true;
+    std::int64_t latenciaFijaNs_ = -1;
 };
 
 /// El margen sobre la latencia del estudio que esperan los mezcladores.
