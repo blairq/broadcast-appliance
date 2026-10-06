@@ -62,6 +62,17 @@
 // se mide (lo viejo que llega cada cuadro) y el colchón la absorbe para audio y
 // video por igual: siguen sincronizados.
 //
+// MEDIOS (`ba_gst_medio`, el mismo código con otro tipo de fuente): un archivo
+// (video o audio) como el ffmpeg_source de libobs, con sus mismos ajustes
+// (`local_file`, `looping`, `restart_on_activate`, `clear_on_media_end`,
+// `close_when_inactive`) y los controles de medios de libobs (reproducir y
+// pausar, reiniciar, parar, ir a un tiempo, tiempo, duración y estado): así la
+// playlist, el guion del evento y las herramientas de medios lo manejan igual.
+// Se reproduce en tiempo real con la sincronía estándar de GStreamer (los
+// sinks esperan al reloj) y sin la compensación del estudio (no hace falta
+// alinear un archivo con las cámaras). Termina: se queda quieto (o en negro con
+// `clear_on_media_end`), o vuelve a empezar con `looping`.
+//
 // EL RACK (`rack` = nombre de la fuente): el rack de audio de la app (módulos
 // LSP/CLAP, el grafo tipo JACK) corre ACÁ, como el elemento `barack` que
 // registra la app, primero en la cadena del audio (a 48 kHz estéreo), antes de
@@ -84,6 +95,7 @@
 #include <gst/audio/audio.h>
 #include <gst/gst.h>
 #include <gst/net/net.h>
+#include <gst/pbutils/pbutils.h>
 #include <gst/video/video.h>
 
 #include <algorithm>
@@ -179,6 +191,12 @@ struct Fuente {
     /// false: solo su propia demora (p. ej. el audio de un invitado, cuyo video
     /// todavía va por libobs sin esperar).
     bool estudio = true;
+    // Medios (ba_gst_medio)
+    bool medio = false;
+    bool bucle = false, limpiarAlTerminar = true, reiniciarAlActivar = true, cerrarInactiva = false;
+    std::atomic<int> estadoMedio{OBS_MEDIA_STATE_NONE};
+    std::int64_t buscarNs = -1; ///< ir a este tiempo apenas la cadena (rearmada) pase datos
+    bool segmentoListo = false; ///< `looping`: ya se pidió el salto por segmentos (vueltas sin cortes)
     int relojPuerto = 0, relojDominio = 0;
     std::int64_t latenciaMs = 0, desfaseMs = 0;
     bool conAudio = true;
@@ -393,6 +411,10 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
     if (f->estandar) {
         // Esperó la misma hora que su video: sale con él (sincronía de labios).
         presentarAudio(f, s);
+        {
+            std::lock_guard<std::mutex> l(f->colaLock);
+            ++f->bloquesA;
+        }
         gst_sample_unref(s);
         return GST_FLOW_OK;
     }
@@ -949,8 +971,40 @@ std::string origenDeCamara(const std::string& id, std::string modo) {
     return o;
 }
 
+/// Qué tiene un archivo (video, audio), con GstDiscoverer. false + error si no se puede leer.
+bool queTieneElArchivo(const std::string& uri, bool& video, bool& audio, std::string& error) {
+    video = audio = false;
+    GError* e = nullptr;
+    GstDiscoverer* d = gst_discoverer_new(5 * GST_SECOND, &e);
+    if (d == nullptr) {
+        error = e != nullptr ? e->message : "no se pudo mirar el archivo";
+        if (e != nullptr) g_error_free(e);
+        return false;
+    }
+    GstDiscovererInfo* info = gst_discoverer_discover_uri(d, uri.c_str(), &e);
+    bool ok = info != nullptr && gst_discoverer_info_get_result(info) == GST_DISCOVERER_OK;
+    if (ok) {
+        GList* v = gst_discoverer_info_get_video_streams(info);
+        GList* a = gst_discoverer_info_get_audio_streams(info);
+        // Una imagen sola cuenta como video (un cuadro).
+        video = v != nullptr;
+        audio = a != nullptr;
+        gst_discoverer_stream_info_list_free(v);
+        gst_discoverer_stream_info_list_free(a);
+        ok = video || audio;
+        if (!ok) error = "el archivo no tiene video ni audio";
+    } else {
+        error = e != nullptr ? e->message : "no se pudo leer el archivo";
+    }
+    if (e != nullptr) g_error_free(e);
+    if (info != nullptr) gst_discoverer_info_unref(info);
+    g_object_unref(d);
+    return ok;
+}
+
 void armar(Fuente* f) {
     desarmar(f);
+    f->segmentoListo = false;
     f->avisosFiltros.clear();
     f->controlEnviado = false; // la cadena nueva lo recibe apenas pasen cuadros
     f->error.clear();
@@ -1081,10 +1135,25 @@ void armar(Fuente* f) {
     }
     std::string completo;
     if (!f->uri.empty()) {
-        completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\" ba_dec. ! queue name=ba_origen ! " +
-                   antesSink + capsVideo + " ! " + sinkVideo;
-        if (f->conAudio)
-            completo += " ba_dec. ! queue ! " + cadenaA +
+        // Un archivo: solo las ramas de lo que tiene (una rama sin datos nunca
+        // termina y el archivo no avisaría que terminó), con los pads por nombre
+        // (si no, el audio de un mp3 se puede enganchar en la rama del video).
+        bool hayV = true, hayA = f->conAudio;
+        std::string padV = "ba_dec.", padA = "ba_dec.";
+        if (f->medio) {
+            if (!queTieneElArchivo(f->uri, hayV, hayA, f->error)) {
+                f->estadoMedio = OBS_MEDIA_STATE_ERROR;
+                blog(LOG_WARNING, "[ba_gst_medio] %s: %s", f->uri.c_str(), f->error.c_str());
+                return;
+            }
+            hayA = hayA && f->conAudio;
+            padV = "ba_dec.video_0";
+            padA = "ba_dec.audio_0";
+        }
+        completo = "uridecodebin3 name=ba_dec uri=\"" + f->uri + "\"";
+        if (hayV) completo += " " + padV + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
+        if (hayA)
+            completo += " " + padA + " ! queue ! " + cadenaA +
                         "audioconvert ! audioresample ! "
                         "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
                         sinkAudio;
@@ -1183,7 +1252,13 @@ void armar(Fuente* f) {
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         f->error = "el pipeline no arrancó";
         desarmar(f);
+        if (f->medio) {
+            f->estadoMedio = OBS_MEDIA_STATE_ERROR;
+            blog(LOG_WARNING, "[ba_gst_medio] %s: el pipeline no arrancó", f->uri.c_str());
+        }
+        return;
     }
+    if (f->medio) f->estadoMedio = OBS_MEDIA_STATE_PLAYING;
 }
 
 const char* nombre(void*) { return obs_module_text("Fuente GStreamer (BA)"); }
@@ -1191,8 +1266,27 @@ const char* nombre(void*) { return obs_module_text("Fuente GStreamer (BA)"); }
 void actualizar(void* data, obs_data_t* s) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
-    const std::string uri = obs_data_get_string(s, "uri"), d = obs_data_get_string(s, "pipeline"),
-                      da = obs_data_get_string(s, "pipeline_audio");
+    std::string uri = obs_data_get_string(s, "uri"), d = obs_data_get_string(s, "pipeline"),
+                da = obs_data_get_string(s, "pipeline_audio");
+    if (f->medio) {
+        // Un archivo, con los ajustes de ffmpeg_source.
+        uri.clear();
+        d.clear();
+        da.clear();
+        const char* lf = obs_data_get_string(s, "local_file");
+        if (lf != nullptr && *lf != '\0') {
+            GError* e = nullptr;
+            if (gchar* u = gst_filename_to_uri(lf, &e)) {
+                uri = u;
+                g_free(u);
+            }
+            if (e != nullptr) g_error_free(e);
+        }
+        f->bucle = obs_data_get_bool(s, "looping");
+        f->limpiarAlTerminar = obs_data_get_bool(s, "clear_on_media_end");
+        f->reiniciarAlActivar = obs_data_get_bool(s, "restart_on_activate");
+        f->cerrarInactiva = obs_data_get_bool(s, "close_when_inactive");
+    }
     const std::string reloj = obs_data_get_string(s, "reloj"),
                       servidor = obs_data_get_string(s, "reloj_servidor");
     const int puerto = static_cast<int>(obs_data_get_int(s, "reloj_puerto"));
@@ -1200,13 +1294,15 @@ void actualizar(void* data, obs_data_t* s) {
     const bool audio = obs_data_get_bool(s, "audio");
     const std::string rack = obs_data_get_string(s, "rack");
     const std::string camara = obs_data_get_string(s, "camara"), camaraModo = obs_data_get_string(s, "camara_modo");
-    const bool estudio = obs_data_get_bool(s, "estudio");
+    const bool estudio = f->medio ? false : obs_data_get_bool(s, "estudio");
     const bool normalizar = obs_data_get_bool(s, "normalizar");
     const bool superres = obs_data_get_bool(s, "superres");
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
     const std::string superresModelo = obs_data_get_string(s, "superres_modelo");
     const bool ntpSync = obs_data_get_bool(s, "ntp_sync");
-    const std::string sincronia = std::string(obs_data_get_string(s, "sincronia")) == "gstreamer" ? "gstreamer" : "colchon";
+    // Un archivo va con la sincronía estándar (los sinks esperan al reloj: tiempo real).
+    const std::string sincronia =
+        f->medio || std::string(obs_data_get_string(s, "sincronia")) == "gstreamer" ? "gstreamer" : "colchon";
     // Los de audio también pueden venir aparte (`filtros_audio`: un arreglo):
     // los pone otra parte del programa que el grafo de video.
     const std::string filtrosJson =
@@ -1307,6 +1403,8 @@ void* crear(obs_data_t* settings, obs_source_t* ctx) {
     auto* f = new (std::nothrow) Fuente();
     if (f == nullptr) return nullptr;
     f->ctx = ctx;
+    // ba_gst_medio: el mismo código, con un archivo y los controles de medios.
+    f->medio = std::string(obs_source_get_unversioned_id(ctx)) == "ba_gst_medio";
     // El colchón ya decide cuándo va cada cuadro: libobs lo muestra al llegar.
     obs_source_set_async_unbuffered(ctx, true);
     actualizar(f, settings);
@@ -1526,6 +1624,8 @@ void destruir(void* data) {
     delete f;
 }
 
+void irA(Fuente* f, std::int64_t ns);
+
 /// Cada cuadro de libobs: presenta lo que ya venció, y revisa el bus (un
 /// error se anota y se reintenta a los 2 s).
 void tic(void* data, float) {
@@ -1538,6 +1638,22 @@ void tic(void* data, float) {
             armar(f);
         }
         return;
+    }
+    // Un salto pedido con la cadena quieta: apenas la rearmada pasa datos.
+    if (f->medio && f->buscarNs >= 0 && (f->recibidos > 0 || f->bloquesA > 0)) {
+        irA(f, f->buscarNs);
+        f->buscarNs = -1;
+    }
+    // `looping`: vueltas sin cortes con saltos por segmentos. El primero (con
+    // flush, apenas pasan datos) arma el segmento; al terminar cada vuelta llega
+    // SEGMENT_DONE y se salta al principio SIN flush (no se corta nada).
+    if (f->medio && f->bucle && !f->segmentoListo && (f->recibidos > 0 || f->bloquesA > 0)) {
+        gint64 pos = 0;
+        gst_element_query_position(f->pipeline, GST_FORMAT_TIME, &pos);
+        f->segmentoListo = gst_element_seek(f->pipeline, 1.0, GST_FORMAT_TIME,
+                                            static_cast<GstSeekFlags>(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_SEGMENT |
+                                                                      GST_SEEK_FLAG_ACCURATE),
+                                            GST_SEEK_TYPE_SET, pos, GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE);
     }
     // Se armó sin el rack (la app no había registrado `barack`): cada segundo se
     // mira si ya está, y entonces se rearma con él.
@@ -1747,21 +1863,176 @@ void tic(void* data, float) {
     GstBus* bus = gst_element_get_bus(f->pipeline);
     if (bus == nullptr) return;
     GstMessage* m =
-        gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+        gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR | GST_MESSAGE_EOS | GST_MESSAGE_SEGMENT_DONE));
     gst_object_unref(bus);
     if (m == nullptr) return;
+    if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_SEGMENT_DONE) {
+        // Otra vuelta, sin flush: sigue de corrido.
+        gst_message_unref(m);
+        if (f->medio && f->bucle)
+            gst_element_seek(f->pipeline, 1.0, GST_FORMAT_TIME, GST_SEEK_FLAG_SEGMENT, GST_SEEK_TYPE_SET, 0,
+                             GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE);
+        return;
+    }
+    if (f->medio && GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS) {
+        // Un archivo que terminó: otra vuelta, o quieto (en negro si se pidió).
+        gst_message_unref(m);
+        if (f->bucle) {
+            // No anduvo el salto por segmentos: se rearma (un corte chico).
+            armar(f);
+            return;
+        }
+        f->estadoMedio = OBS_MEDIA_STATE_ENDED;
+        gst_element_set_state(f->pipeline, GST_STATE_PAUSED);
+        if (f->limpiarAlTerminar) obs_source_output_video(f->ctx, nullptr);
+        return;
+    }
     if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
         GError* e = nullptr;
         gst_message_parse_error(m, &e, nullptr);
         f->error = e != nullptr ? e->message : "error";
         if (e != nullptr) g_error_free(e);
         blog(LOG_WARNING, "[ba-sources] fuente GStreamer: %s (reintento en 2 s)", f->error.c_str());
+        if (f->medio) f->estadoMedio = OBS_MEDIA_STATE_ERROR;
     } else {
         f->error = "terminó (EOS)";
     }
     gst_message_unref(m);
     desarmar(f);
     f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+}
+
+// --- Medios (ba_gst_medio) ----------------------------------------------------------
+
+/// Ir a `ns` del archivo (sin pipeline: nada).
+void irA(Fuente* f, std::int64_t ns) {
+    if (f->pipeline == nullptr) return;
+    gst_element_seek_simple(f->pipeline, GST_FORMAT_TIME,
+                            static_cast<GstSeekFlags>(GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE),
+                            std::max<std::int64_t>(0, ns));
+}
+
+// Reiniciar, parar e ir a un tiempo con la cadena quieta: se rearma (un salto
+// con la cadena en pausa no vuelve a arrancar: los sinks no hacen preroll y el
+// pipeline no recalcula su base_time). Con la cadena andando, un salto común.
+
+bool andando(Fuente* f) {
+    if (f->pipeline == nullptr) return false;
+    GstState st = GST_STATE_NULL;
+    gst_element_get_state(f->pipeline, &st, nullptr, 0);
+    return st == GST_STATE_PLAYING && f->estadoMedio == OBS_MEDIA_STATE_PLAYING;
+}
+
+void medioReproducirPausar(void* data, bool pausar) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    if (!pausar && (f->pipeline == nullptr || f->estadoMedio == OBS_MEDIA_STATE_ENDED ||
+                    f->estadoMedio == OBS_MEDIA_STATE_STOPPED)) {
+        armar(f);
+        return;
+    }
+    if (f->pipeline == nullptr) return;
+    gst_element_set_state(f->pipeline, pausar ? GST_STATE_PAUSED : GST_STATE_PLAYING);
+    f->estadoMedio = pausar ? OBS_MEDIA_STATE_PAUSED : OBS_MEDIA_STATE_PLAYING;
+}
+
+void medioReiniciar(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    f->buscarNs = -1;
+    armar(f);
+}
+
+void medioParar(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    desarmar(f);
+    f->buscarNs = -1;
+    obs_source_output_video(f->ctx, nullptr);
+    f->estadoMedio = OBS_MEDIA_STATE_STOPPED;
+}
+
+int64_t medioTiempo(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    if (f->buscarNs >= 0) return f->buscarNs / static_cast<std::int64_t>(GST_MSECOND);
+    gint64 pos = 0;
+    if (f->pipeline == nullptr || !gst_element_query_position(f->pipeline, GST_FORMAT_TIME, &pos)) return 0;
+    return pos / static_cast<gint64>(GST_MSECOND);
+}
+
+int64_t medioDuracion(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    gint64 dur = 0;
+    if (f->pipeline == nullptr || !gst_element_query_duration(f->pipeline, GST_FORMAT_TIME, &dur)) return 0;
+    return dur / static_cast<gint64>(GST_MSECOND);
+}
+
+void medioIrA(void* data, int64_t ms) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    const std::int64_t ns = std::max<std::int64_t>(0, ms) * static_cast<std::int64_t>(GST_MSECOND);
+    if (andando(f)) {
+        irA(f, ns);
+        return;
+    }
+    // Quieta (en pausa, terminada o parada): se rearma y salta apenas pase datos.
+    const bool pausada = f->estadoMedio == OBS_MEDIA_STATE_PAUSED;
+    armar(f);
+    f->buscarNs = ns;
+    if (pausada && f->pipeline != nullptr) f->estadoMedio = OBS_MEDIA_STATE_PLAYING; // arranca: se pidió un lugar
+}
+
+obs_media_state medioEstado(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    std::lock_guard<std::mutex> l(f->lock);
+    if (f->pipeline == nullptr && !f->error.empty()) return OBS_MEDIA_STATE_ERROR;
+    if (f->pipeline == nullptr && f->estadoMedio != OBS_MEDIA_STATE_STOPPED) return OBS_MEDIA_STATE_NONE;
+    return static_cast<obs_media_state>(f->estadoMedio.load());
+}
+
+/// Se ve en algún lado (programa o preview).
+void medioActivar(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    bool reiniciar;
+    {
+        std::lock_guard<std::mutex> l(f->lock);
+        reiniciar = f->reiniciarAlActivar;
+    }
+    if (reiniciar) medioReiniciar(data);
+}
+
+void medioDesactivar(void* data) {
+    auto* f = static_cast<Fuente*>(data);
+    bool cerrar;
+    {
+        std::lock_guard<std::mutex> l(f->lock);
+        cerrar = f->cerrarInactiva;
+    }
+    if (cerrar) medioParar(data);
+}
+
+const char* nombreMedio(void*) { return obs_module_text("Medio por GStreamer (BA)"); }
+
+obs_properties_t* propiedadesMedio(void*) {
+    obs_properties_t* p = obs_properties_create();
+    obs_properties_add_path(p, "local_file", obs_module_text("Archivo"), OBS_PATH_FILE, nullptr, nullptr);
+    obs_properties_add_bool(p, "looping", obs_module_text("Repetir"));
+    obs_properties_add_bool(p, "restart_on_activate", obs_module_text("Empezar de nuevo al mostrarlo"));
+    obs_properties_add_bool(p, "clear_on_media_end", obs_module_text("Al terminar, negro (y no el último cuadro)"));
+    obs_properties_add_bool(p, "close_when_inactive", obs_module_text("Parar cuando no se ve"));
+    return p;
+}
+
+void porDefectoMedio(obs_data_t* s) {
+    obs_data_set_default_bool(s, "is_local_file", true);
+    obs_data_set_default_bool(s, "looping", false);
+    obs_data_set_default_bool(s, "restart_on_activate", true);
+    obs_data_set_default_bool(s, "clear_on_media_end", true);
+    obs_data_set_default_bool(s, "close_when_inactive", false);
+    obs_data_set_default_bool(s, "audio", true);
+    obs_data_set_default_bool(s, "normalizar", true);
 }
 
 obs_properties_t* propiedades(void*) {
@@ -1856,6 +2127,7 @@ int relojPublicado() { return g_puertoPublicado; }
 extern "C" {
 
 static struct obs_source_info ba_gst_fuente_info = {};
+static struct obs_source_info ba_gst_medio_info = {};
 
 void ba_register_gst_fuente(void) {
     // Que GStreamer empiece a iniciarse ya (en su hilo), no al primer cuadro.
@@ -1871,6 +2143,29 @@ void ba_register_gst_fuente(void) {
     ba_gst_fuente_info.get_properties = propiedades;
     ba_gst_fuente_info.get_defaults = porDefecto;
     obs_register_source(&ba_gst_fuente_info);
+    // Un archivo (video o audio) con los controles de medios de libobs.
+    ba_gst_medio_info.id = "ba_gst_medio";
+    ba_gst_medio_info.type = OBS_SOURCE_TYPE_INPUT;
+    ba_gst_medio_info.output_flags =
+        OBS_SOURCE_ASYNC_VIDEO | OBS_SOURCE_AUDIO | OBS_SOURCE_DO_NOT_DUPLICATE | OBS_SOURCE_CONTROLLABLE_MEDIA;
+    ba_gst_medio_info.get_name = nombreMedio;
+    ba_gst_medio_info.create = crear;
+    ba_gst_medio_info.destroy = destruir;
+    ba_gst_medio_info.update = actualizar;
+    ba_gst_medio_info.video_tick = tic;
+    ba_gst_medio_info.activate = medioActivar;
+    ba_gst_medio_info.deactivate = medioDesactivar;
+    ba_gst_medio_info.get_properties = propiedadesMedio;
+    ba_gst_medio_info.get_defaults = porDefectoMedio;
+    ba_gst_medio_info.media_play_pause = medioReproducirPausar;
+    ba_gst_medio_info.media_restart = medioReiniciar;
+    ba_gst_medio_info.media_stop = medioParar;
+    ba_gst_medio_info.media_get_time = medioTiempo;
+    ba_gst_medio_info.media_set_time = medioIrA;
+    ba_gst_medio_info.media_get_duration = medioDuracion;
+    ba_gst_medio_info.media_get_state = medioEstado;
+    ba_gst_medio_info.icon_type = OBS_ICON_TYPE_MEDIA;
+    obs_register_source(&ba_gst_medio_info);
     ba::gst::registrarFiltroAudioPlugin();
     // El reloj del estudio, para que otros aparatos se sincronicen con este:
     // proc global «ba_reloj_publicar» (puerto 0 = apagar).

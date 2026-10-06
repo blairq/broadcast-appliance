@@ -93,8 +93,12 @@ void McpService::registerMediaTools() {
             json items = json::array();
             for (const auto& it : a.value("items", json::array())) {
                 json x = it.is_string() ? json{{"path", it}} : it;
-                const QString abs = resolveInside(root, QString::fromStdString(x.value("path", std::string())));
-                if (abs.isEmpty()) return done(ToolResult::error("«" + x.value("path", std::string()) + "» no está en las carpetas de medios"));
+                // `archivo` también vale (es como lo devuelve la playlist).
+                const std::string ruta = x.value("path", x.value("archivo", std::string()));
+                if (ruta.empty()) return done(ToolResult::error("a un ítem le falta `path`"));
+                const QString abs = resolveInside(root, QString::fromStdString(ruta));
+                if (abs.isEmpty()) return done(ToolResult::error("«" + ruta + "» no está en las carpetas de medios"));
+                if (QFileInfo(abs).isDir()) return done(ToolResult::error("«" + ruta + "» es una carpeta, no un archivo"));
                 x["archivo"] = abs.toStdString();
                 items.push_back(x);
             }

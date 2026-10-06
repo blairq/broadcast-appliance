@@ -97,6 +97,14 @@ std::string tipoLogico(const std::string& type, const json& settings) {
     return type;
 }
 
+bool migrarMedio(SourceSpec& spec) {
+    if (spec.id != "ffmpeg_source") return false;
+    const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
+    if (s.is_object() && !s.value("is_local_file", true)) return false; // de red: queda
+    spec.id = kMedioType;
+    return true;
+}
+
 bool migrarMicrofono(SourceSpec& spec) {
     if (spec.id == kMicType) {
         // Uno de GStreamer guardado sin `pipeline` (2026-10-05, antes de que se

@@ -64,6 +64,14 @@ std::string tipoLogico(const std::string& type, const nlohmann::json& settings);
 /// Un micrófono viejo (fuente de libobs) pasado a GStreamer, con el mismo
 /// nombre, volumen y silencio. false si `spec` no era uno viejo.
 bool migrarMicrofono(SourceSpec& spec);
+
+/// Los archivos (video o audio) se reproducen por GStreamer: `ba_gst_medio`,
+/// con los mismos ajustes que ffmpeg_source (local_file, looping…) y los
+/// controles de medios de libobs.
+constexpr const char* kMedioType = "ba_gst_medio";
+/// Un ffmpeg_source de un archivo local pasado a ba_gst_medio (los de red
+/// quedan). false si no era uno.
+bool migrarMedio(SourceSpec& spec);
 bool migrarCamara(SourceSpec& spec);
 
 /// Esquema soportado de una URL de red ("" si no).

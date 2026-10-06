@@ -283,6 +283,8 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
                 // lugar y recorte: las tarjetas, el PTZ y los vínculos siguen).
                 if (inputs::migrarCamara(spec))
                     std::printf("ba-app: cámara '%s' pasada a GStreamer\n", spec.name.c_str());
+                if (inputs::migrarMedio(spec))
+                    std::printf("ba-app: medio '%s' pasado a GStreamer\n", spec.name.c_str());
                 scene.sources.push_back(spec);
             }
             c.scenes.push_back(scene);
@@ -305,6 +307,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
             // volumen y silencio: los racks y los vínculos siguen andando).
             if (inputs::migrarMicrofono(spec))
                 std::printf("ba-app: micrófono '%s' pasado a GStreamer\n", spec.name.c_str());
+            if (inputs::migrarMedio(spec)) std::printf("ba-app: medio '%s' pasado a GStreamer\n", spec.name.c_str());
             c.audioInputs.push_back(spec);
         }
     }

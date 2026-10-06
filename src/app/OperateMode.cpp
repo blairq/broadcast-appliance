@@ -208,7 +208,9 @@ void AppRuntime::addAudioInputs() {
     }
 }
 
-bool AppRuntime::addAudioInput(const SourceSpec& spec) {
+bool AppRuntime::addAudioInput(const SourceSpec& pedida) {
+    SourceSpec spec = pedida;
+    if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
     if (!engine_.addGlobalAudio(spec)) {
         lastError_ = engine_.lastError();
         return false;
@@ -993,7 +995,9 @@ bool AppRuntime::setTransition(const std::string& type, int durationMs) {
     return true;
 }
 
-bool AppRuntime::addSource(const std::string& scene, const SourceSpec& spec) {
+bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
+    SourceSpec spec = pedida; // se guarda como la creó el motor (un archivo: ba_gst_medio)
+    if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
     if (!engine_.addSource(scene, spec)) {
         lastError_ = engine_.lastError();
         return false;

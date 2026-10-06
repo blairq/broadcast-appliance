@@ -569,7 +569,10 @@ void BroadcastEngine::attachMeter(const std::string& name, obs_source* srcRaw) {
     meters_.emplace_back(name, std::move(meter));
 }
 
-bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& spec) {
+bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& pedida) {
+    // Un archivo local va por GStreamer (ba_gst_medio), lo pida quien lo pida.
+    SourceSpec spec = pedida;
+    if (sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
     obs_scene* sc = sceneByName(sceneName);
     if (sc == nullptr) {
         setError("addSource: no existe la escena '" + sceneName + "'");
@@ -864,7 +867,9 @@ namespace {
 constexpr auto kEsperaAudio = std::chrono::milliseconds(4000);
 } // namespace
 
-bool BroadcastEngine::addGlobalAudio(const SourceSpec& spec) {
+bool BroadcastEngine::addGlobalAudio(const SourceSpec& pedida) {
+    SourceSpec spec = pedida; // un archivo local va por GStreamer (ba_gst_medio)
+    if (sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
     const bool known = std::find(micInputs_.begin(), micInputs_.end(), spec.name) != micInputs_.end();
     if (!known && micInputs_.size() >= kMaxMicChannels) {
         setError("no entran mas entradas de audio (maximo " + std::to_string(kMaxMicChannels) + ")");

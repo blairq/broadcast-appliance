@@ -567,7 +567,7 @@ json RackManager::audioSources() const {
                 group = "Micrófonos y líneas del equipo";
             } else if (type.find("_output_capture") != std::string::npos) {
                 group = "Audio del equipo (lo que suena)";
-            } else if (type == "ffmpeg_source" || type == "vlc_source" || type == "ba_ndi_input") {
+            } else if (type == "ffmpeg_source" || type == "ba_gst_medio" || type == "vlc_source" || type == "ba_ndi_input") {
                 group = "Medios y red";
             }
             json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
@@ -595,6 +595,9 @@ json RackManager::audioSources() const {
 namespace {
 /// De dónde viene el audio, en palabras (para la tarjeta de origen).
 std::string describirOrigen(const std::string& tipo, const nlohmann::json& s) {
+    if (tipo == "ba_gst_medio")
+        return "Archivo · " + std::filesystem::path(s.is_object() ? s.value("local_file", std::string()) : "").filename().string() +
+               (s.is_object() && s.value("looping", false) ? " · repite" : "");
     if (tipo != kTipoGstAudio) return "libobs · " + tipo;
     if (!s.is_object()) return "GStreamer";
     if (s.contains("microfono")) return "Micrófono · " + s.value("pipeline_audio", std::string());
@@ -642,7 +645,7 @@ json RackManager::estudio() const {
         obs_source_release(src);
 
         const std::string p = nombre + "|";
-        const std::string motor = tipo == kTipoGstAudio ? "gstreamer" : "libobs";
+        const std::string motor = tipo == kTipoGstAudio || tipo == "ba_gst_medio" ? "gstreamer" : "libobs";
         const double y0 = y + kTitulo;
         double altoFranja = 0;
         const auto poner = [&](json n, double x, double dy) {
@@ -958,7 +961,8 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
         }
     };
     const char* tipo = obs_source_get_unversioned_id(src);
-    const bool deGst = tipo != nullptr && std::string(tipo) == kTipoGst;
+    // ba_gst_medio es el mismo código (un archivo): también lleva barack.
+    const bool deGst = tipo != nullptr && (std::string(tipo) == kTipoGst || std::string(tipo) == "ba_gst_medio");
     if ((obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) == 0) {
         if (error != nullptr) *error = "'" + source + "' no tiene audio";
     } else if (!create) {
