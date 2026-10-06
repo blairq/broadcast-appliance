@@ -231,8 +231,9 @@ int main() {
         Transmision t(motor.reloj(), tc);
         CHECK(t.iniciar(f).empty(), "la transmisión SRT arranca");
         const std::string rx = "srtsrc uri=srt://127.0.0.1:" + std::to_string(puerto) +
-                               "?mode=caller latency=120 ! tsdemux name=d d. ! queue ! h264parse ! fakesink name=v sync=false "
-                               "d. ! queue ! aacparse ! fakesink name=a sync=false";
+                               "?mode=caller latency=120 ! tsdemux name=d d. ! video/x-h264 ! queue ! h264parse ! fakesink name=v sync=false "
+                               "d. ! audio/mpeg ! queue ! aacparse ! fakesink name=a sync=false";
+        // (Con el tipo en cada rama: tsdemux puede dar primero el audio.)
         GstElement* r = gst_parse_launch(rx.c_str(), nullptr);
         std::atomic<int> nv{0}, na{0};
         for (auto [nom, cuenta] : {std::pair<const char*, std::atomic<int>*>{"v", &nv}, {"a", &na}}) {
@@ -247,13 +248,8 @@ int main() {
             gst_object_unref(pad);
             gst_object_unref(s);
         }
-        // El receptor (caller) no reintenta: que el que escucha ya esté armado.
-        for (int i = 0; i < 3; ++i) {
-            esperar(200);
-            t.tic();
-        }
         gst_element_set_state(r, GST_STATE_PLAYING);
-        for (int i = 0; i < 30; ++i) {
+        for (int i = 0; i < 20; ++i) {
             esperar(200);
             t.tic();
         }

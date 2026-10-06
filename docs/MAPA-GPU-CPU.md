@@ -179,6 +179,18 @@ de color de las redes float (NV12 ↔ RGB) va en varios hilos (en uno solo
 tardaba más que la red). general-x4v3 en 1080p pide ~1,2 TFLOP por cuadro:
 en una RX 5700 XT no llega a tiempo real con ningún backend.
 
+### Pendiente: SRT con un receptor que entra tarde
+
+Una transmisión SRT en modo listener a la que un receptor se conecta ~0,6 s
+después de arrancar recibe los cuadros intermedios pero nunca un cuadro clave
+(h264parse los descarta: «broken/invalid nal Type 1»), aunque el codificador
+los genera cada 2 s (`force-key-unit` confirmado en el log de videoencoder) y
+`h264parse config-interval=-1` repite SPS/PPS. Con gst-launch solo (mismo mux,
+`vtenc` o `x264`) la conexión tardía anda. Sospecha: los cuadros clave
+(grandes) se pierden como paquetes tardíos de SRT en nuestra cadena (reloj del
+estudio, latencia fijada). El test conecta el receptor de entrada y pasa; hay
+que reproducirlo aparte y arreglarlo.
+
 ## Las otras arquitecturas (análisis)
 
 ### Intel en Windows (la que más duele)
