@@ -52,6 +52,21 @@ void ponerPropiedades(GstElement* e, const Filtro& f, std::vector<std::string>* 
 /// Pone en vivo las propiedades que se pueden cambiar andando. true si todas.
 bool ponerEnVivo(GstElement* pipeline, const std::vector<Filtro>& v, const char* prefijo);
 bool hayFabrica(const std::string& elemento);
+
+// --- El video en la GPU (docs/MAPA-GPU-CPU.md) ---------------------------------------
+/// ¿El motor compone y lleva el video en la GPU? Hoy: macOS con GL (glvideomixer,
+/// gltransformation), salvo BA_MOTOR_CPU=1 o que el motor lo apague.
+bool gpuVideo();
+void ponerGpuVideo(bool quiere);
+/// Le da al pipeline el display y el contexto GL del motor (los mismos para
+/// todos): así un buffer de GPU cruza los `inter` y se usa del otro lado.
+void darContextoGpu(GstElement* pipeline);
+/// Lo que un consumidor pone para recibir video en memoria de sistema en
+/// `formato` (sirve llegue GL o sistema): en GPU convierte y baja en GL; si no,
+/// videoconvert. Termina con las caps «video/x-raw,format=<formato>».
+std::string aSistema(const std::string& formato);
+/// Lo mismo, escalado a ancho×alto (en GPU escala en GL y baja CHICO).
+std::string aSistemaEscalado(const std::string& formato, int ancho, int alto);
 /// La cadena de un tipo de filtros para gst_parse_launch ("" si no hay ninguno).
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
                      std::vector<std::string>& avisos);

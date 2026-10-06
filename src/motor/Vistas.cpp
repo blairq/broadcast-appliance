@@ -85,9 +85,8 @@ void Vistas::armar(const std::string& clave, Una& u) {
     u.productor = resolver_(base(clave), &u.latencia);
     if (u.productor.empty()) return;
     const std::string d = "intersrc producer-name=" + entreComillas(u.productor) +
-                          " ! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! videoconvert ! "
-                          "videoscale ! video/x-raw,format=BGRA,width=" + std::to_string(u.ancho) + ",height=" +
-                          std::to_string(u.alto) + ",pixel-aspect-ratio=1/1 ! appsink name=s max-buffers=1 drop=true sync=true";
+                          " ! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! " +
+                          aSistemaEscalado("BGRA", u.ancho, u.alto) + " ! appsink name=s max-buffers=1 drop=true sync=true";
     GstElement* p = gst_parse_launch(d.c_str(), nullptr);
     if (p == nullptr) return;
     GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s");

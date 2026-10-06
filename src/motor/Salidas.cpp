@@ -314,8 +314,8 @@ std::string Grabacion::iniciar(const Fuentes& f) {
                     std::to_string(static_cast<guint64>(std::max(0, cfg_.tramoSeg)) * GST_SECOND) + " ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
-             " ! queue name=cv max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! videoconvert ! "
-             "video/x-raw,format=NV12 ! identity name=antes_cod ";
+             " ! queue name=cv max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! " + aSistema("NV12") +
+             " ! identity name=antes_cod ";
     for (std::size_t i = 0; i < f.audios.size(); ++i)
         d += "intersrc producer-name=" + entreComillas(f.audios[i]) +
              " ! queue max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
@@ -484,8 +484,8 @@ std::string Transmision::armar() {
                               entreComillas(cfg_.url) + " ";
     if (!fuentes_.video.empty())
         d += "intersrc producer-name=" + entreComillas(fuentes_.video) +
-             " ! queue name=cv leaky=downstream max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! videoconvert ! "
-             "video/x-raw,format=NV12 ! identity name=antes_cod ";
+             " ! queue name=cv leaky=downstream max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! " + aSistema("NV12") +
+             " ! identity name=antes_cod ";
     if (!fuentes_.audios.empty())
         d += "intersrc producer-name=" + entreComillas(fuentes_.audios.front()) +
              " ! queue max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! avenc_aac bitrate=" +

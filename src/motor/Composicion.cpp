@@ -74,23 +74,25 @@ nlohmann::json Escena::aJson() const {
 // --- Composición ---------------------------------------------------------------------
 
 Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op)
-    : reloj_(reloj), lienzo_(lienzo), nombre_(std::move(nombre)), gpu_(op.gpu && hayFabrica("glvideomixer")) {
+    : reloj_(reloj), lienzo_(lienzo), nombre_(std::move(nombre)), gpu_((op.gpu && hayFabrica("glvideomixer")) || gpuVideo()) {
     const std::string tam = "width=" + std::to_string(lienzo_.ancho) + ",height=" + std::to_string(lienzo_.alto) +
                             ",framerate=" + std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
                             ",pixel-aspect-ratio=1/1";
     const std::string comun = "force-live=true start-time-selection=first background=black ";
-    const std::string desc =
-        gpu_ ? "glvideomixer name=mx " + comun + "! video/x-raw(memory:GLMemory)," + tam + " ! gldownload ! videoconvert ! " +
-                   capsColorDelLienzo(lienzo_) + "," + tam
-             : "compositor name=mx " + comun + "! video/x-raw," + tam + " ! videoconvert ! " + capsColorDelLienzo(lienzo_) +
-                   "," + tam;
+    // En GPU todo queda en GLMemory: lo que sale es una textura (el que consume
+    // la baja si hace falta, chica o en NV12: docs/MAPA-GPU-CPU.md).
+    const std::string salida = gpu_ ? "video/x-raw(memory:GLMemory),format=RGBA," + tam
+                                    : capsColorDelLienzo(lienzo_) + "," + tam;
+    const std::string mezclador = gpu_ ? "glvideomixer" : "compositor";
+    const std::string desc = gpu_ ? mezclador + " name=mx " + comun + "! " + salida
+                                  : "compositor name=mx " + comun + "! video/x-raw," + tam + " ! videoconvert ! " + salida;
     std::string completo;
     if (op.dsk) {
-        // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro compositor.
+        // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro mezclador.
         completo = desc + " ! tee name=t t. ! queue ! intersink name=limpio producer-name=" + entreComillas(productorLimpio()) +
-                   " sync=false t. ! queue ! dsk.sink_0 compositor name=dsk " + comun + "! video/x-raw," + tam +
-                   " ! videoconvert ! " + capsColorDelLienzo(lienzo_) + "," + tam + " ! intersink name=sale producer-name=" +
-                   entreComillas(productor()) + " sync=false";
+                   " sync=false t. ! queue ! dsk.sink_0 " + mezclador + " name=dsk " + comun + "! " +
+                   (gpu_ ? salida : "video/x-raw," + tam + " ! videoconvert ! " + salida) +
+                   " ! intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
     } else {
         completo = desc + " ! intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
     }
@@ -157,33 +159,44 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     r->generacion = gen;
     r->src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r->cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
-    r->recorte = gst_element_factory_make("videocrop", ("rec_" + n).c_str());
-    if (gpu_) r->subir = gst_element_factory_make("glupload", ("gl_" + n).c_str());
-    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && r->subir == nullptr)) {
-        for (GstElement* e : {r->src, r->cola, r->recorte, r->subir})
+    r->recorte = gst_element_factory_make(gpu_ ? "gltransformation" : "videocrop", ("rec_" + n).c_str());
+    if (gpu_) {
+        r->subir = gst_element_factory_make("glupload", ("gl_" + n).c_str());
+        r->conv = gst_element_factory_make("glcolorconvert", ("glc_" + n).c_str());
+        // Sin un elemento que dibuje detrás, gltransformation no dibuja: le pasa
+        // al mezclador una transformación afín que glvideomixer aplica SIN
+        // recortar a la caja de la capa (lo ampliado se sale). glshader, con su
+        // shader de fábrica, copia la textura: una pasada barata en la GPU.
+        r->fijar = gst_element_factory_make("glshader", ("gls_" + n).c_str());
+    }
+    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || r->conv == nullptr || r->fijar == nullptr))) {
+        for (GstElement* e : {r->src, r->cola, r->recorte, r->subir, r->conv, r->fijar})
             if (e != nullptr) gst_object_unref(e);
         delete r;
-        error_ = "falta intersrc, queue, videocrop o glupload";
+        error_ = gpu_ ? "falta intersrc, queue, glupload, glcolorconvert o gltransformation" : "falta intersrc, queue o videocrop";
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
         return nullptr;
     }
+    if (gpu_) g_object_set(r->recorte, "ortho", TRUE, nullptr);
     g_object_set(r->src, "producer-name", r->productor.c_str(), nullptr);
     // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la latencia).
     g_object_set(r->cola, "max-size-buffers", 3u, "max-size-time", static_cast<guint64>(0), "max-size-bytes", 0u, "leaky", 2,
                  nullptr);
     gst_bin_add_many(GST_BIN(pipeline_), r->src, r->cola, r->recorte, nullptr);
-    if (r->subir != nullptr) gst_bin_add(GST_BIN(pipeline_), r->subir);
-    if (r->subir != nullptr)
-        gst_element_link_many(r->src, r->cola, r->recorte, r->subir, nullptr);
-    else
+    if (gpu_) {
+        // intersrc → cola → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
+        gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, r->fijar, nullptr);
+        gst_element_link_many(r->src, r->cola, r->subir, r->conv, r->recorte, r->fijar, nullptr);
+    } else {
         gst_element_link_many(r->src, r->cola, r->recorte, nullptr);
+    }
     r->mx = mx;
     r->pad = gst_element_request_pad_simple(mx, "sink_%u");
-    GstPad* sale = gst_element_get_static_pad(r->subir != nullptr ? r->subir : r->recorte, "src");
+    GstPad* sale = gst_element_get_static_pad(r->fijar != nullptr ? r->fijar : r->recorte, "src");
     gst_pad_link(sale, r->pad);
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
     gst_object_unref(sale);
-    for (GstElement* e : {r->subir, r->recorte, r->cola, r->src})
+    for (GstElement* e : {r->fijar, r->recorte, r->conv, r->subir, r->cola, r->src})
         if (e != nullptr) gst_element_sync_state_with_parent(e);
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.entrada] = r;
     return r;
@@ -198,11 +211,51 @@ void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
     g_object_set(r.pad, "xpos", c.x, "ypos", c.y, "width", w, "height", h, "alpha", c.visible ? alfa : 0.0, "zorder",
                  zorder, nullptr);
     gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", c.contener ? "keep-aspect-ratio" : "none");
-    g_object_set(r.recorte, "left", std::max(0, c.recIzq), "top", std::max(0, c.recArr), "right", std::max(0, c.recDer),
-                 "bottom", std::max(0, c.recAba), nullptr);
+    if (gpu_)
+        recorteGl(r, c, 0, w, h);
+    else
+        g_object_set(r.recorte, "left", std::max(0, c.recIzq), "top", std::max(0, c.recArr), "right", std::max(0, c.recDer),
+                     "bottom", std::max(0, c.recAba), nullptr);
     r.alfaHacia = c.visible ? c.alfa : 0.0;
     r.orden = c.orden;
     r.capa = c;
+}
+
+void Composicion::recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int alto) {
+    // El tamaño de la fuente (lo que llega al recorte).
+    int sw = 0, sh = 0;
+    if (GstPad* p = gst_element_get_static_pad(r.recorte, "sink")) {
+        if (GstCaps* k = gst_pad_get_current_caps(p)) {
+            gst_structure_get_int(gst_caps_get_structure(k, 0), "width", &sw);
+            gst_structure_get_int(gst_caps_get_structure(k, 0), "height", &sh);
+            gst_caps_unref(k);
+        }
+        gst_object_unref(p);
+    }
+    const int izq = std::max(0, c.recIzq), arr = std::max(0, c.recArr), der = std::max(0, c.recDer) + std::max(0, extraDer),
+              aba = std::max(0, c.recAba);
+    if (sw <= 0 || sh <= 0 || izq + der + arr + aba == 0) {
+        g_object_set(r.recorte, "scale-x", 1.0f, "scale-y", 1.0f, "translation-x", 0.0f, "translation-y", 0.0f, nullptr);
+        return;
+    }
+    // La región visible, en fracciones de la fuente; gltransformation la estira a todo el cuadro.
+    const double u0 = std::clamp(static_cast<double>(izq) / sw, 0.0, 0.95), u1 = std::clamp(1.0 - static_cast<double>(der) / sw, u0 + 0.01, 1.0);
+    const double v0 = std::clamp(static_cast<double>(arr) / sh, 0.0, 0.95), v1 = std::clamp(1.0 - static_cast<double>(aba) / sh, v0 + 0.01, 1.0);
+    const double sx = 1.0 / (u1 - u0), sy = 1.0 / (v1 - v0);
+    g_object_set(r.recorte, "scale-x", static_cast<gfloat>(sx), "scale-y", static_cast<gfloat>(sy), "translation-x",
+                 static_cast<gfloat>((0.5 - (u0 + u1) / 2.0) * sx), "translation-y",
+                 static_cast<gfloat>((0.5 - (v0 + v1) / 2.0) * sy), nullptr);
+    // Con «contener»: la caja con la forma de lo recortado (el mezclador vería la de la fuente entera).
+    if (c.contener) {
+        const double aspecto = ((u1 - u0) * sw) / ((v1 - v0) * sh);
+        int w = ancho, h = static_cast<int>(std::lround(ancho / aspecto));
+        if (h > alto) {
+            h = alto;
+            w = static_cast<int>(std::lround(alto * aspecto));
+        }
+        gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", "none");
+        g_object_set(r.pad, "xpos", c.x + (ancho - w) / 2, "ypos", c.y + (alto - h) / 2, "width", w, "height", h, nullptr);
+    }
 }
 
 int Composicion::anchoDeOrigen(const Rama& r) {
@@ -241,14 +294,17 @@ void Composicion::animar(double t) {
             }
             const int util = std::max(1, origen - c.recIzq - c.recDer);
             const int sacar = static_cast<int>(std::lround(util * (1.0 - static_cast<double>(vis) / w)));
-            g_object_set(r->recorte, "right", std::max(0, c.recDer) + sacar, nullptr);
+            if (gpu_)
+                recorteGl(*r, c, sacar, w, c.alto > 0 ? c.alto : lienzo_.alto);
+            else
+                g_object_set(r->recorte, "right", std::max(0, c.recDer) + sacar, nullptr);
             g_object_set(r->pad, "width", vis, "alpha", r->alfaHacia, nullptr);
         }
     }
 }
 
 void Composicion::soltar(Rama& r) {
-    for (GstElement* e : {r.src, r.cola, r.recorte, r.subir})
+    for (GstElement* e : {r.src, r.cola, r.recorte, r.subir, r.conv, r.fijar})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
         gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
@@ -257,6 +313,8 @@ void Composicion::soltar(Rama& r) {
     }
     gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.cola, r.recorte, nullptr);
     if (r.subir != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.subir);
+    if (r.conv != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.conv);
+    if (r.fijar != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.fijar);
 }
 
 void Composicion::sacarGeneracion(int gen) {

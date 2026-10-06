@@ -2,6 +2,7 @@
 // src/motor/Piezas.cpp — ver Piezas.hpp
 // ============================================================================
 #include "Piezas.hpp"
+#include "Reloj.hpp"
 
 #include <gst/pbutils/pbutils.h>
 #include <gst/video/video.h>
@@ -459,6 +460,93 @@ void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora) {
     }
     g_value_unset(&v);
     gst_iterator_free(it);
+}
+
+} // namespace ba::motor
+
+// --- El video en la GPU ----------------------------------------------------------------
+
+#include <gst/gl/gl.h>
+
+#include <atomic>
+#include <cstdlib>
+#include <mutex>
+
+namespace ba::motor {
+
+namespace {
+std::atomic<int> gGpu{-1}; // -1 sin decidir
+std::mutex gGlMu;
+GstGLDisplay* gDisplay = nullptr;
+GstGLContext* gContexto = nullptr;
+
+bool glListo() {
+    std::lock_guard<std::mutex> l(gGlMu);
+    if (gContexto != nullptr) return true;
+    if (gDisplay == nullptr) gDisplay = gst_gl_display_new();
+    if (gDisplay == nullptr) return false;
+    GError* e = nullptr;
+    if (!gst_gl_display_create_context(gDisplay, nullptr, &gContexto, &e)) {
+        registrar(Nivel::Aviso, std::string("sin contexto GL para el video: ") + (e != nullptr ? e->message : "?") +
+                                    " (se compone en la CPU)");
+        if (e != nullptr) g_error_free(e);
+        return false;
+    }
+    gst_gl_display_add_context(gDisplay, gContexto);
+    return true;
+}
+} // namespace
+
+void ponerGpuVideo(bool quiere) {
+    bool puede = false;
+#if defined(__APPLE__)
+    const char* cpu = std::getenv("BA_MOTOR_CPU");
+    puede = quiere && (cpu == nullptr || *cpu == '\0' || *cpu == '0') && hayFabrica("glvideomixer") &&
+            hayFabrica("gltransformation") && hayFabrica("glcolorconvert") && glListo();
+#else
+    (void)quiere;
+#endif
+    gGpu = puede ? 1 : 0;
+}
+
+bool gpuVideo() {
+    if (gGpu.load() < 0) ponerGpuVideo(true);
+    return gGpu.load() == 1;
+}
+
+void darContextoGpu(GstElement* pipeline) {
+    if (!gpuVideo()) return;
+    GstGLDisplay* d = nullptr;
+    GstGLContext* c = nullptr;
+    {
+        std::lock_guard<std::mutex> l(gGlMu);
+        d = gDisplay;
+        c = gContexto;
+    }
+    if (d == nullptr || c == nullptr) return;
+    // En el bin: se los pasa a todos los elementos, también a los que se agreguen después.
+    GstContext* cd = gst_context_new(GST_GL_DISPLAY_CONTEXT_TYPE, TRUE);
+    gst_context_set_gl_display(cd, d);
+    gst_element_set_context(pipeline, cd);
+    gst_context_unref(cd);
+    GstContext* ca = gst_context_new("gst.gl.app_context", TRUE);
+    gst_structure_set(gst_context_writable_structure(ca), "context", GST_TYPE_GL_CONTEXT, c, nullptr);
+    gst_element_set_context(pipeline, ca);
+    gst_context_unref(ca);
+}
+
+std::string aSistema(const std::string& formato) {
+    if (!gpuVideo()) return "videoconvert ! video/x-raw,format=" + formato;
+    return "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=" + formato + " ! gldownload ! video/x-raw,format=" +
+           formato;
+}
+
+std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {
+    const std::string tam = ",width=" + std::to_string(ancho) + ",height=" + std::to_string(alto);
+    if (!gpuVideo()) return "videoconvert ! videoscale ! video/x-raw,format=" + formato + tam + ",pixel-aspect-ratio=1/1";
+    return "glupload ! glcolorconvert ! glcolorscale ! video/x-raw(memory:GLMemory)" + tam + " ! glcolorconvert ! "
+           "video/x-raw(memory:GLMemory),format=" + formato + " ! gldownload ! video/x-raw,format=" + formato + tam +
+           ",pixel-aspect-ratio=1/1";
 }
 
 } // namespace ba::motor

@@ -9,6 +9,7 @@
 //   - recorte y alfa de una capa.
 
 #include "Composicion.hpp"
+#include "Piezas.hpp"
 #include "Entrada.hpp"
 #include "Reloj.hpp"
 
@@ -47,8 +48,8 @@ struct Visor {
     int w = 0, h = 0;
     Visor(Reloj& reloj, const std::string& productor, std::int64_t latNs, int ancho, int alto) : w(ancho), h(alto) {
         const std::string d = "intersrc producer-name=\"" + productor +
-                              "\" ! queue ! videoconvert ! videoscale ! video/x-raw,format=RGB,width=" + std::to_string(ancho) +
-                              ",height=" + std::to_string(alto) + " ! appsink name=s max-buffers=1 drop=true sync=true";
+                              "\" ! queue ! " + aSistemaEscalado("RGBA", ancho, alto) +
+                              " ! appsink name=s max-buffers=1 drop=true sync=true"; // GL o CPU, lo que use el motor
         p = gst_parse_launch(d.c_str(), nullptr);
         sink = gst_bin_get_by_name(GST_BIN(p), "s");
         reloj.adoptar(p);
@@ -67,8 +68,8 @@ struct Visor {
         GstBuffer* b = gst_sample_get_buffer(s);
         GstMapInfo m;
         if (gst_buffer_map(b, &m, GST_MAP_READ)) {
-            const int stride = (w * 3 + 3) & ~3;
-            const std::size_t i = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 3;
+            const int stride = w * 4;
+            const std::size_t i = static_cast<std::size_t>(y) * stride + static_cast<std::size_t>(x) * 4;
             if (i + 2 < m.size) c = {m.data[i], m.data[i + 1], m.data[i + 2]};
             gst_buffer_unmap(b, &m);
         }

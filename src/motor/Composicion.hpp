@@ -68,7 +68,7 @@ struct Escena {
 class Composicion {
    public:
     struct Opciones {
-        bool gpu = false; ///< glvideomixer (en la placa) en vez de compositor (CPU)
+        bool gpu = false; ///< glvideomixer (en la placa) en vez de compositor (CPU); también si gpuVideo()
         /// DSK y clean feed: la escena sale también limpia (`video:<nombre>:limpio`) y
         /// un segundo compositor le pone encima las capas del DSK (zócalos, logo), que
         /// no cambian con la escena.
@@ -113,8 +113,10 @@ class Composicion {
         std::string entrada, productor;
         GstElement* src = nullptr;
         GstElement* cola = nullptr;
-        GstElement* recorte = nullptr;
-        GstElement* subir = nullptr; ///< glupload (gpu)
+        GstElement* recorte = nullptr; ///< videocrop (CPU) o gltransformation (GPU)
+        GstElement* subir = nullptr;   ///< glupload (gpu)
+        GstElement* conv = nullptr;    ///< glcolorconvert (gpu)
+        GstElement* fijar = nullptr;   ///< glshader (gpu): obliga a gltransformation a dibujar (ver crearRama)
         GstPad* pad = nullptr;
         int generacion = 0;
         std::atomic<bool> listo{false}; ///< ya pasó su primer cuadro (lo pone el hilo de datos)
@@ -129,6 +131,9 @@ class Composicion {
     };
     void aplicarLatencia();
     void ponerCapa(Rama& r, const Capa& c, double alfa);
+    /// GPU: el recorte (y lo que saca la cortina por la derecha) con gltransformation,
+    /// y la caja en el lienzo (con «contener» y recorte, la calcula a mano).
+    void recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int alto);
     Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
     void soltar(Rama& r);
     void sacarGeneracion(int gen);
