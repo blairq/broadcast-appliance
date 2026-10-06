@@ -247,8 +247,13 @@ int main() {
             gst_object_unref(pad);
             gst_object_unref(s);
         }
+        // El receptor (caller) no reintenta: que el que escucha ya esté armado.
+        for (int i = 0; i < 3; ++i) {
+            esperar(200);
+            t.tic();
+        }
         gst_element_set_state(r, GST_STATE_PLAYING);
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < 30; ++i) {
             esperar(200);
             t.tic();
         }
