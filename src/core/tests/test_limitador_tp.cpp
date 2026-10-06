@@ -12,6 +12,7 @@
 #include "dsp/LimitadorTP.hpp"
 
 #include <cmath>
+#include <numbers>
 #include <cstdio>
 #include <random>
 #include <vector>
@@ -33,7 +34,7 @@ double db(double x) { return 20 * std::log10(std::max(x, 1e-12)); }
 std::vector<float> tono(double frec, double ampl, double fase, int frames, int fs = 48000) {
     std::vector<float> v(static_cast<size_t>(frames) * 2);
     for (int i = 0; i < frames; ++i) {
-        const float x = static_cast<float>(ampl * std::sin(2 * M_PI * frec * i / fs + fase));
+        const float x = static_cast<float>(ampl * std::sin(2 * std::numbers::pi * frec * i / fs + fase));
         v[2 * i] = x;
         v[2 * i + 1] = x;
     }
@@ -78,7 +79,7 @@ int main() {
         // 1,0 (0 dBTP) las muestras dan −3 dBFS: un limitador por muestra no haría nada.
         LimitadorTP l;
         l.preparar(2, 48000);
-        const auto v = tono(12000, 1.0, M_PI / 4, 96000);
+        const auto v = tono(12000, 1.0, std::numbers::pi / 4, 96000);
         double picoMuestras = 0;
         for (float x : v) picoMuestras = std::max(picoMuestras, std::fabs(static_cast<double>(x)));
         const double tp = salidaTP(l, v);

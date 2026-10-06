@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <numbers>
 
 namespace ba::dsp {
 
@@ -36,7 +37,7 @@ const std::array<std::array<float, kTapsPorFase>, kFases>& coeficientes() {
             for (int t = 0; t < kTapsPorFase; ++t) {
                 const int n = f + kFases * t;
                 const double x = (n - centro) / kFases;
-                const double sinc = std::fabs(x) < 1e-12 ? 1.0 : std::sin(M_PI * x) / (M_PI * x);
+                const double sinc = std::fabs(x) < 1e-12 ? 1.0 : std::sin(std::numbers::pi * x) / (std::numbers::pi * x);
                 const double r = (n - centro) / centro;
                 const double w = besselI0(beta * std::sqrt(std::max(0.0, 1 - r * r))) / besselI0(beta);
                 k[f][t] = static_cast<float>(sinc * w);
