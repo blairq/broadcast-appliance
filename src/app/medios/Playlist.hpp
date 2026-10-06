@@ -14,6 +14,9 @@
 // libobs solo hace correr un medio que se está mostrando: si la escena no está
 // al aire, «play» la arma en PVW (el programa no cambia) y el operador la pasa
 // con el take.
+//
+// Tras un corte de luz (P0.10): lo que estaba sonando (ítem y segundo) se anota
+// en Runtime/playlist-aire.json cada 2 s y `retomar()` sigue desde ahí.
 // ============================================================================
 #pragma once
 
@@ -57,6 +60,8 @@ class Playlist : public QObject {
     void setLoop(bool on);
     /// Crea la escena si falta y la deja armada en PVW (con `armar`, el VM).
     void setArmar(std::function<void(const QString&)> f) { armar_ = std::move(f); }
+    /// Si estaba sonando cuando se cortó, sigue en ese ítem y ese segundo. "" o qué pasó.
+    std::string retomar();
 
     QVariantList itemsUi() const;
     QVariantMap estadoUi() const;
@@ -78,14 +83,17 @@ class Playlist : public QObject {
     std::string cargarItem(int i);
     void vigilar();
     void guardar() const;
+    void anotarAire() const; ///< ítem, segundo y si suena, para retomar
 
     AppRuntime& rt_;
     std::filesystem::path archivo_;
     nlohmann::json items_ = nlohmann::json::array();
     int indice_ = -1;
     bool reproduciendo_ = false, autoNext_ = true, loop_ = false;
-    bool buscarIn_ = false; ///< falta llevarlo al «in» cuando arranque
+    bool buscarIn_ = false; ///< falta llevarlo a `destinoMs_` (el «in», o donde estaba) cuando arranque
+    std::int64_t destinoMs_ = 0;
     int intentosIn_ = 0;
+    int vueltas_ = 0; ///< de vigilar(), para anotar cada 2 s
     QTimer reloj_;
     std::function<void(const QString&)> armar_;
 };

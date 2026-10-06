@@ -2,6 +2,7 @@
 #include "medios/Playlist.hpp"
 
 #include "AppRuntime.hpp"
+#include "platform/Paths.hpp"
 
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -37,7 +38,44 @@ Playlist::Playlist(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
 void Playlist::guardar() const {
     std::error_code ec;
     std::filesystem::create_directories(archivo_.parent_path(), ec);
-    std::ofstream(archivo_) << json{{"items", items_}, {"auto_next", autoNext_}, {"loop", loop_}}.dump(1);
+    const std::filesystem::path tmp = archivo_.string() + ".tmp";
+    std::ofstream(tmp) << json{{"items", items_}, {"auto_next", autoNext_}, {"loop", loop_}}.dump(1);
+    std::filesystem::rename(tmp, archivo_, ec);
+}
+
+void Playlist::anotarAire() const {
+    double tiempo = 0;
+    for (const auto& m : rt_.engine().mediaSources())
+        if (m.name == kFuente) tiempo = m.timeMs / 1000.0;
+    const std::filesystem::path dest = ba::platform::stateDir() / "playlist-aire.json";
+    const std::filesystem::path tmp = dest.string() + ".tmp";
+    std::ofstream(tmp) << json{{"indice", indice_},
+                               {"reproduciendo", reproduciendo_},
+                               {"tiempo_s", tiempo},
+                               {"archivo", indice_ >= 0 && indice_ < static_cast<int>(items_.size())
+                                               ? items_[static_cast<size_t>(indice_)].value("archivo", std::string())
+                                               : std::string()}}
+                              .dump();
+    std::error_code ec;
+    std::filesystem::rename(tmp, dest, ec);
+}
+
+std::string Playlist::retomar() {
+    std::ifstream f(ba::platform::stateDir() / "playlist-aire.json");
+    const json j = json::parse(f, nullptr, false);
+    if (!j.is_object() || !j.value("reproduciendo", false)) return "no estaba sonando";
+    const int i = j.value("indice", -1);
+    // Si la lista cambió, el mismo ítem es el del mismo archivo.
+    if (i < 0 || i >= static_cast<int>(items_.size()) ||
+        items_[static_cast<size_t>(i)].value("archivo", std::string()) != j.value("archivo", std::string()))
+        return "la playlist cambió";
+    if (const std::string e = cargarItem(i); !e.empty()) return e;
+    const double t = j.value("tiempo_s", 0.0);
+    if (t > 1) {
+        destinoMs_ = static_cast<std::int64_t>(t * 1000);
+        buscarIn_ = true;
+    }
+    return {};
 }
 
 std::string Playlist::setItems(const json& items) {
@@ -95,10 +133,12 @@ std::string Playlist::cargarItem(int i) {
     if (rt_.engine().currentScene() != kEscena && armar_) armar_(kEscena);
     rt_.engine().restartMedia(kFuente);
     indice_ = i;
-    buscarIn_ = it.value("in_s", 0.0) > 0;
+    destinoMs_ = static_cast<std::int64_t>(it.value("in_s", 0.0) * 1000);
+    buscarIn_ = destinoMs_ > 0;
     intentosIn_ = 0;
     reproduciendo_ = true;
     reloj_.start();
+    anotarAire();
     emit estadoCambio();
     return {};
 }
@@ -123,6 +163,7 @@ std::string Playlist::control(const std::string& accion, int indice) {
         reloj_.stop();
         reproduciendo_ = false;
         rt_.engine().pararMedia(kFuente); // en su escena: se para, no se saca
+        anotarAire();
         emit estadoCambio();
         return {};
     }
@@ -138,11 +179,10 @@ void Playlist::vigilar() {
         // después del restart todavía puede informar el clip anterior), así que se
         // insiste hasta que el tiempo quede pasado el in (o se agotan los intentos).
         if (buscarIn_ && m.state == "playing") {
-            const auto in = static_cast<std::int64_t>(it.value("in_s", 0.0) * 1000);
-            if (m.timeMs + 300 < in && intentosIn_++ < 12) rt_.engine().seekMedia(kFuente, in);
-            else if (m.timeMs + 300 >= in) buscarIn_ = false;
+            if (m.timeMs + 300 < destinoMs_ && intentosIn_++ < 12) rt_.engine().seekMedia(kFuente, destinoMs_);
             else buscarIn_ = false;
         }
+        if (++vueltas_ % 8 == 0) anotarAire();
         const double out = it.value("out_s", 0.0);
         const bool llegoOut = out > 0 && m.timeMs >= static_cast<std::int64_t>(out * 1000);
         if (m.state == "ended" || llegoOut) {

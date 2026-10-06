@@ -151,6 +151,9 @@ class AppRuntime {
     bool streamKeySaved() const;
     bool streamStopWanted() const { return streamStopWanted_; }
     bool recordStopWanted() const { return recordStopWanted_; }
+    /// La corrida anterior terminó sin cerrarse (corte de luz, cuelgue): hay que
+    /// volver como estaba (la escena, la playlist, las salidas).
+    bool corteAnterior() const { return corteAnterior_; }
     const std::filesystem::path& dataRoot() const { return root_; }
     /// El feed del operador (lobby): de ahí sale el micrófono del push-to-talk.
     OperatorFeed& operatorFeed() { return operator_; }
@@ -184,6 +187,7 @@ class AppRuntime {
     void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
     /// con --restore para retomar la emision tras una caida.
+    /// También la escena al aire y si el cierre fue ordenado. Escritura atómica.
     void writeOnAirState() const;
     void restoreOutputs();
 
@@ -201,6 +205,9 @@ class AppRuntime {
     std::string lastError_;
     bool streamStopWanted_ = true;
     bool recordStopWanted_ = true;
+    bool corteAnterior_ = false;
+    bool cerrando_ = false;           ///< stop(): al-aire.json dice «cerrado»
+    mutable std::string escenaEscrita_; ///< la que dice al-aire.json
     mutable int keySaved_ = -1;   // cache de streamKeySaved (-1 = sin consultar)
     bool safeBackupDone_ = false; // app.json resguardado antes de guardar en modo seguro
     bool started_ = false;

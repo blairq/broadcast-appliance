@@ -233,6 +233,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         armarEscena(escena);
     });
     connect(playlist_.get(), &medios::Playlist::notify, this, &StudioViewModel::notify);
+    // Tras un corte de luz, la playlist sigue donde estaba (P0.10). Un rato
+    // después: que las fuentes ya estén armadas.
+    if (rt.corteAnterior())
+        QTimer::singleShot(2000, this, [this]() {
+            const std::string r = playlist_->retomar();
+            if (r.empty()) emit notify("La playlist sigue donde estaba antes del corte", "info");
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       "playlist tras el corte: " + (r.empty() ? std::string("sigue donde estaba") : r));
+        });
     marca("medios");
     connect(medios_.get(), &MediosViewModel::notify, this, &StudioViewModel::notify);
     carruseles_ = std::make_unique<CarruselViewModel>(rt, this);

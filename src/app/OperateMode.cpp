@@ -432,11 +432,22 @@ int AppRuntime::start() {
     // sin cerrarse (corte de luz, cuelgue, la máquina se apagó): se retoma,
     // también en un arranque normal (no solo con --restore del launcher).
     // Con --test (pruebas: el MCP sin aprobaciones) NUNCA se arranca al aire.
-    if (!cfg_.modoPrueba) {
-        restoreOutputs();
-    } else {
+    {
+        // ¿Se cortó la anterior? Un archivo de antes de «cerrado» cuenta como cierre ordenado.
+        std::ifstream in(ba::platform::stateDir() / "al-aire.json");
+        const nlohmann::json j = nlohmann::json::parse(in, nullptr, false);
+        corteAnterior_ = j.is_object() && !j.value("cerrado", true);
+        // La escena que estaba al aire (app.json puede tener una vieja: no se
+        // guarda en cada corte). También con --test: no sale nada al aire.
+        const std::string escena = j.is_object() ? j.value("escena", std::string()) : std::string();
+        if (corteAnterior_ && !escena.empty() && escena != engine_.currentScene() && setScene(escena))
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                       "la corrida anterior no se cerró: vuelve la escena «" + escena + "»");
+    }
+    restoreOutputs();
+    if (cfg_.modoPrueba) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
-                                   "modo prueba (--test): no se retoma lo que estaba al aire");
+                                   "modo prueba (--test): no se retoman las salidas (grabación, transmisión)");
     }
     writeOnAirState();
     // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
@@ -475,6 +486,8 @@ void AppRuntime::tick() {
         latido_.uiTick(st.streaming || st.recording);
         // Un codificador que se cayó en el aire se reemplaza y se rearranca lo que corría.
         engine_.atenderEncoderCaido(!streamStopWanted_, !recordStopWanted_);
+        // La escena al aire, para volver a ella tras un corte (P0.10).
+        if (engine_.currentScene() != escenaEscrita_) writeOnAirState();
     }
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
 }
@@ -498,6 +511,7 @@ void AppRuntime::stop() {
     started_ = false;
     // Cierre ordenado: nada que retomar en el proximo arranque.
     streamStopWanted_ = recordStopWanted_ = true;
+    cerrando_ = true;
     writeOnAirState();
     // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
     // de render y su archivo abierto, y si el cierre las deja vivas el archivo
@@ -596,9 +610,21 @@ bool AppRuntime::streamKeySaved() const {
 }
 
 void AppRuntime::writeOnAirState() const {
-    const nlohmann::json j{{"streaming", !streamStopWanted_}, {"recording", !recordStopWanted_}};
-    std::ofstream out(ba::platform::stateDir() / "al-aire.json", std::ios::trunc);
-    out << j.dump();
+    escenaEscrita_ = engine_.currentScene();
+    const nlohmann::json j{{"streaming", !streamStopWanted_},
+                           {"recording", !recordStopWanted_},
+                           {"escena", escenaEscrita_},
+                           {"cerrado", cerrando_}};
+    // Temporal + rename: un corte a mitad no deja el archivo vacío.
+    const std::filesystem::path dest = ba::platform::stateDir() / "al-aire.json";
+    const std::filesystem::path tmp = dest.string() + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::trunc);
+        if (!out) return;
+        out << j.dump();
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmp, dest, ec);
 }
 
 void AppRuntime::restoreOutputs() {
@@ -607,6 +633,7 @@ void AppRuntime::restoreOutputs() {
     if (!j.is_object()) {
         return;
     }
+    if (cfg_.modoPrueba) return; // la escena sí; las salidas, nunca con --test
     if (j.value("recording", false) && !engine_.status().recording) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación");
