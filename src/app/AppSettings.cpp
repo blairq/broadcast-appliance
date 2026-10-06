@@ -278,7 +278,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
             scene.folder = get<std::string>(sc, "folder", "");
             scene.protegida = get<bool>(sc, "protegida", false);
             for (const auto& s : sc.value("sources", json::array())) {
-                scene.sources.push_back(sourceFromJson(s));
+                SourceSpec spec = sourceFromJson(s);
+                // Las cámaras de libobs de antes pasan a GStreamer (mismo nombre,
+                // lugar y recorte: las tarjetas, el PTZ y los vínculos siguen).
+                if (inputs::migrarCamara(spec))
+                    std::printf("ba-app: cámara '%s' pasada a GStreamer\n", spec.name.c_str());
+                scene.sources.push_back(spec);
             }
             c.scenes.push_back(scene);
         }

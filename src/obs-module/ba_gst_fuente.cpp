@@ -8,6 +8,13 @@
 //     manda, por RTCP) y la latencia de su jitter buffer.
 //   - `pipeline`: la parte de origen de un pipeline, como en gst-launch
 //     («videotestsrc pattern=smpte is-live=true»). Solo video.
+//   - `camara`: una cámara o capturadora del equipo por su id estable (el mismo
+//     que usaba libobs): macOS el uniqueID de AVFoundation, Windows la ruta del
+//     dispositivo, Linux /dev/videoN. Al armar se busca cuál es AHORA
+//     (avfvideosrc solo sabe de índices, que cambian al enchufar otra) y se arma
+//     avfvideosrc / mfvideosrc / v4l2src; `camara_modo` («1920x1080@30») fija
+//     tamaño y cuadros (vacío = el de la cámara que mejor va con el lienzo). Si
+//     no está enchufada, se reintenta sola.
 //
 // SINCRONÍA ESTÁNDAR DE GSTREAMER (de fábrica, `sincronia` = gstreamer): los
 // appsink de video y de audio sincronizan con el reloj (sync=true), con una cola
@@ -167,6 +174,11 @@ struct Fuente {
     std::mutex lock;
     // Lo pedido
     std::string uri, descripcion, descripcionAudio, reloj, relojServidor;
+    std::string camara, camaraModo; ///< cámara del equipo (id estable) y su modo («WxH@fps»)
+    /// Se alinea con el estudio (la compensación/latencia de todas las entradas).
+    /// false: solo su propia demora (p. ej. el audio de un invitado, cuyo video
+    /// todavía va por libobs sin esperar).
+    bool estudio = true;
     int relojPuerto = 0, relojDominio = 0;
     std::int64_t latenciaMs = 0, desfaseMs = 0;
     bool conAudio = true;
@@ -197,6 +209,7 @@ struct Fuente {
     std::deque<Pendiente> video, audio;
     // Para diagnosticar
     std::uint64_t recibidos = 0, tarde = 0, saltados = 0, descartados = 0;
+    std::uint64_t bloquesA = 0; ///< bloques de audio que llegaron (una entrada solo de audio no tiene cuadros)
     std::int64_t colchonMs = 0; ///< cuánto falta para el último cuadro del colchón
     double adelantoMs =
         0; ///< promedio de cuánto le falta a cada cuadro al llegar (≈ latencia si el reloj está bien)
@@ -392,6 +405,7 @@ GstFlowReturn alAudio(GstAppSink* sink, gpointer datos) {
     std::lock_guard<std::mutex> l(f->colaLock);
     if (retraso >= 0) f->retrasoA = retraso > f->retrasoA ? retraso : f->retrasoA - (f->retrasoA - retraso) * 0.01;
     f->audio.push_back({s, vence});
+    ++f->bloquesA;
     // Bloques de audio: 10 s de bloques chicos (~10 ms) como mucho.
     while (f->audio.size() > static_cast<size_t>(kMaxColchonSeg * 120)) {
         gst_sample_unref(f->audio.front().muestra);
@@ -831,6 +845,110 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
     return r;
 }
 
+/// Entre comillas para gst_parse_launch (los id de Windows traen \\ y #).
+std::string entreComillas(const std::string& v) {
+    std::string r = "\"";
+    for (char c : v) {
+        if (c == '\\' || c == '"') r += '\\';
+        r += c;
+    }
+    return r + "\"";
+}
+
+/// El id estable de un dispositivo de video (el que guarda `camara`).
+std::string idDeCamara(GstDevice* dev, GstElement* e) {
+    std::string id;
+#if defined(__APPLE__)
+    (void)e;
+    if (GstStructure* p = gst_device_get_properties(dev)) {
+        if (const gchar* u = gst_structure_get_string(p, "avf.unique_id")) id = u;
+        gst_structure_free(p);
+    }
+#else
+    (void)dev;
+#if defined(_WIN32)
+    const char* prop = "device-path";
+#else
+    const char* prop = "device";
+#endif
+    if (e != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(e), prop) != nullptr) {
+        gchar* v = nullptr;
+        g_object_get(e, prop, &v, nullptr);
+        if (v != nullptr) id = v;
+        g_free(v);
+    }
+#endif
+    return id;
+}
+
+/// Sin modo pedido: el de la cámara que mejor va con el lienzo (el tamaño del
+/// lienzo si lo tiene; si no, el más grande con su proporción; si no, nada y
+/// negocia GStreamer). Solo memoria de sistema.
+std::string modoParaElLienzo(GstCaps* caps) {
+    obs_video_info ovi = {};
+    if (caps == nullptr || !obs_get_video_info(&ovi) || ovi.base_width == 0 || ovi.base_height == 0) return {};
+    const double prop = static_cast<double>(ovi.base_width) / ovi.base_height;
+    int mejorW = 0, mejorH = 0;
+    for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
+        GstCapsFeatures* ft = gst_caps_get_features(caps, i);
+        if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
+        int w = 0, h = 0;
+        const GstStructure* st = gst_caps_get_structure(caps, i);
+        if (!gst_structure_get_int(st, "width", &w) || !gst_structure_get_int(st, "height", &h) || h == 0) continue;
+        if (static_cast<uint32_t>(w) == ovi.base_width && static_cast<uint32_t>(h) == ovi.base_height)
+            return std::to_string(w) + "x" + std::to_string(h);
+        if (std::abs(static_cast<double>(w) / h - prop) < 0.02 && w * h > mejorW * mejorH) {
+            mejorW = w;
+            mejorH = h;
+        }
+    }
+    return mejorW > 0 ? std::to_string(mejorW) + "x" + std::to_string(mejorH) : std::string();
+}
+
+/// La parte de origen de la cámara `id` como está enchufada AHORA ("" si no está).
+std::string origenDeCamara(const std::string& id, std::string modo) {
+    // El monitor de dispositivos: cuál es la cámara ahora (avfvideosrc solo sabe
+    // de índices, que cambian al enchufar o desenchufar otra) y qué modos tiene.
+    std::string o;
+    GstDeviceMonitor* mon = gst_device_monitor_new();
+    gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
+    if (gst_device_monitor_start(mon)) {
+        GList* lista = gst_device_monitor_get_devices(mon);
+        for (GList* l = lista; l != nullptr && o.empty(); l = l->next) {
+            auto* dev = GST_DEVICE(l->data);
+            GstElement* e = gst_device_create_element(dev, nullptr);
+            const bool es = (id.empty() || id == "default") || idDeCamara(dev, e) == id;
+            if (es && e != nullptr) {
+#if defined(__APPLE__)
+                gint indice = -1;
+                g_object_get(e, "device-index", &indice, nullptr);
+                if (indice >= 0) o = "avfvideosrc device-index=" + std::to_string(indice);
+#elif defined(_WIN32)
+                o = "mfvideosrc device-path=" + entreComillas(idDeCamara(dev, e));
+#else
+                o = "v4l2src device=" + entreComillas(idDeCamara(dev, e));
+#endif
+                if (!o.empty() && modo.empty()) {
+                    GstCaps* caps = gst_device_get_caps(dev);
+                    modo = modoParaElLienzo(caps);
+                    if (caps != nullptr) gst_caps_unref(caps);
+                }
+            }
+            if (e != nullptr) gst_object_unref(e);
+        }
+        g_list_free_full(lista, gst_object_unref);
+        gst_device_monitor_stop(mon);
+    }
+    gst_object_unref(mon);
+    if (o.empty()) return {};
+    // El modo («1920x1080@30»): tamaño y cuadros; el formato lo negocia.
+    int w = 0, h = 0, fps = 0;
+    if (!modo.empty() && std::sscanf(modo.c_str(), "%dx%d@%d", &w, &h, &fps) >= 2 && w > 0 && h > 0)
+        o += " ! video/x-raw,width=" + std::to_string(w) + ",height=" + std::to_string(h) +
+             (fps > 0 ? ",framerate=" + std::to_string(fps) + "/1" : std::string());
+    return o;
+}
+
 void armar(Fuente* f) {
     desarmar(f);
     f->avisosFiltros.clear();
@@ -845,7 +963,17 @@ void armar(Fuente* f) {
         }
         return;
     }
-    if (f->uri.empty() && f->descripcion.empty() && f->descripcionAudio.empty()) return;
+    if (f->uri.empty() && f->descripcion.empty() && f->descripcionAudio.empty() && f->camara.empty()) return;
+    // La cámara del equipo: se busca cuál es ahora; si no está, se reintenta.
+    std::string origenV = f->descripcion;
+    if (!f->camara.empty()) {
+        origenV = origenDeCamara(f->camara, f->camaraModo);
+        if (origenV.empty()) {
+            f->error = "la cámara no está conectada (" + f->camara + ")";
+            f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+            return;
+        }
+    }
     f->clock = relojDe(f->reloj, f->relojServidor, f->relojPuerto, f->relojDominio, f->error);
     if (f->clock == nullptr) return;
     // Estándar: los sinks esperan al reloj (sync=true) con una cola de espera
@@ -961,9 +1089,8 @@ void armar(Fuente* f) {
                         "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " +
                         sinkAudio;
     } else {
-        if (!f->descripcion.empty())
-            completo =
-                f->descripcion + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
+        if (!origenV.empty())
+            completo = origenV + " ! queue name=ba_origen ! " + antesSink + capsVideo + " ! " + sinkVideo;
         // El audio de un pipeline va aparte (`pipeline_audio`): p. ej. el de un
         // plugin, o un micrófono que acompaña a una cámara.
         if (!f->descripcionAudio.empty() && f->conAudio)
@@ -1026,7 +1153,8 @@ void armar(Fuente* f) {
         // La misma latencia que las demás cadenas del estudio (con el mismo reloj, la
         // hora de cada cuadro de una fuente en vivo sale del reloj al capturar: el
         // base_time de cada cadena se cancela y quedan alineadas).
-        f->latObjetivoNs = std::max<std::int64_t>(latenciaDelEstudio(f, 0), f->latenciaMs * static_cast<std::int64_t>(GST_MSECOND));
+        f->latObjetivoNs = std::max<std::int64_t>(f->estudio ? latenciaDelEstudio(f, 0) : 0,
+                                                  f->latenciaMs * static_cast<std::int64_t>(GST_MSECOND));
         gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(f->latObjetivoNs));
         // Lo que se mide al llegar a la cola de espera (antes de esperar al reloj):
         // cuán viejo llega cada cuadro y cuánto le falta para su hora.
@@ -1044,7 +1172,7 @@ void armar(Fuente* f) {
     f->pipeline = p;
     {
         std::lock_guard<std::mutex> l(f->colaLock);
-        f->recibidos = f->tarde = f->saltados = f->descartados = 0;
+        f->recibidos = f->tarde = f->saltados = f->descartados = f->bloquesA = 0;
         f->ventanaNs = f->tardeVentana = f->recibidosVentana = f->tarde10 = f->recibidos10 = 0;
         f->adelantoMs = 0;
         f->retrasoV = f->retrasoA = 0;
@@ -1071,6 +1199,8 @@ void actualizar(void* data, obs_data_t* s) {
     const int dominio = static_cast<int>(obs_data_get_int(s, "reloj_dominio"));
     const bool audio = obs_data_get_bool(s, "audio");
     const std::string rack = obs_data_get_string(s, "rack");
+    const std::string camara = obs_data_get_string(s, "camara"), camaraModo = obs_data_get_string(s, "camara_modo");
+    const bool estudio = obs_data_get_bool(s, "estudio");
     const bool normalizar = obs_data_get_bool(s, "normalizar");
     const bool superres = obs_data_get_bool(s, "superres");
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
@@ -1110,6 +1240,7 @@ void actualizar(void* data, obs_data_t* s) {
                          superres != f->superres || superresMotor != f->superresMotor ||
                          superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
                          firma != f->firmaFiltros || sincronia != f->sincronia || rack != f->rack ||
+                         camara != f->camara || camaraModo != f->camaraModo ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -1122,6 +1253,9 @@ void actualizar(void* data, obs_data_t* s) {
     f->relojDominio = dominio;
     f->conAudio = audio;
     f->rack = rack;
+    f->camara = camara;
+    f->camaraModo = camaraModo;
+    f->estudio = estudio;
     f->normalizar = normalizar;
     f->superres = superres;
     f->superresMotor = superresMotor;
@@ -1398,7 +1532,7 @@ void tic(void* data, float) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
     if (f->pipeline == nullptr) {
-        if ((!f->descripcion.empty() || !f->descripcionAudio.empty() || !f->uri.empty()) &&
+        if ((!f->descripcion.empty() || !f->descripcionAudio.empty() || !f->uri.empty() || !f->camara.empty()) &&
             f->reintento != 0 && os_gettime_ns() >= f->reintento) {
             f->reintento = 0;
             armar(f);
@@ -1498,8 +1632,9 @@ void tic(void* data, float) {
         // configurado es el piso.
         const double necesitaMs = std::max(f->declaradoMs + 15.0, p95 + 10.0);
         const std::int64_t propia = std::max<std::int64_t>(piso, static_cast<std::int64_t>(necesitaMs * 1e6));
-        const std::int64_t estudio = std::clamp<std::int64_t>(latenciaDelEstudio(f, recibidos > 30 ? propia : piso), piso,
-                                                              static_cast<std::int64_t>(5 * GST_SECOND));
+        const std::int64_t estudio = std::clamp<std::int64_t>(
+            f->estudio ? latenciaDelEstudio(f, recibidos > 30 ? propia : piso) : (recibidos > 30 ? propia : piso), piso,
+            static_cast<std::int64_t>(5 * GST_SECOND));
         // Sube enseguida (si no, los cuadros llegan tarde); baja solo si sobra
         // bastante durante 10 s (cada cambio corre la imagen y el audio).
         bool cambiar = false;
@@ -1555,8 +1690,16 @@ void tic(void* data, float) {
                                                       f->desfaseMs,
                                                   0, 3000);
             }
-            const std::int64_t deseado = compensacionEstudio(f, f->recibidos > 15 ? propia : 0);
-            if (f->recibidos > 15 && std::llabs(deseado - f->compMs) >= 8) {
+            // Una entrada solo de audio (un micrófono) también se alinea con el
+            // estudio: si no, sale adelantada respecto de las cámaras que esperan.
+            const bool anda = f->recibidos > 15 || (f->recibidos == 0 && f->bloquesA > 50);
+            std::int64_t deseado = anda ? propia : 0;
+            if (f->estudio) {
+                deseado = compensacionEstudio(f, deseado);
+            } else {
+                olvidarCompensacion(f);
+            }
+            if (anda && std::llabs(deseado - f->compMs) >= 8) {
                 const std::int64_t corr = (deseado - f->compMs) * static_cast<std::int64_t>(GST_MSECOND);
                 for (auto* q : {&f->video, &f->audio})
                     for (auto& pe : *q)
@@ -1668,6 +1811,7 @@ void porDefecto(obs_data_t* s) {
     obs_data_set_default_string(s, "pipeline", "videotestsrc pattern=smpte is-live=true");
     obs_data_set_default_string(s, "reloj", "sistema");
     obs_data_set_default_bool(s, "audio", true);
+    obs_data_set_default_bool(s, "estudio", true);
     obs_data_set_default_bool(s, "normalizar", true);
     obs_data_set_default_bool(s, "superres", false);
     obs_data_set_default_bool(s, "ntp_sync", true);

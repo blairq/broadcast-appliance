@@ -17,6 +17,7 @@
 
 #include "AppRuntime.hpp"
 #include "audio/EntradasAudio.hpp"
+#include "video/Camaras.hpp"
 #include "InputSpecs.hpp"
 #include "audio/EntradasAudio.hpp"
 #if defined(BA_HAVE_NDI)
@@ -106,11 +107,13 @@ QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, con
 #endif
 }
 
-bool InputsViewModel::hardwareAvailable() const { return rt_.engine().sourceTypeExists(inputs::kVideoType); }
+bool InputsViewModel::hardwareAvailable() const {
+    return rt_.engine().sourceTypeExists(inputs::kMicType) || rt_.engine().sourceTypeExists(inputs::kVideoType);
+}
 
 void InputsViewModel::refresh() {
     devices_.clear();
-    for (const auto& d : rt_.engine().sourceTypeListItems(inputs::kVideoType, inputs::kVideoProp))
+    for (const auto& d : video::camarasDelEquipo(rt_.engine()))
         devices_ << QVariantMap{{"name", QString::fromStdString(d.name)},
                                 {"value", QString::fromStdString(d.value)}};
     audioDevices_.clear();
@@ -153,7 +156,7 @@ void InputsViewModel::rebuildInputs() {
     for (const std::string& n : e.sourceNames()) {
         const std::string type = e.sourceTypeId(n);
         const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
-        const bool hw = type == inputs::kVideoType;
+        const bool hw = inputs::esCamara(type, s);
         const bool isNdi = type == "ba_ndi_input";
         const bool net = inputs::isNetworkInput(type, s);
         if (!hw && !net) continue;
@@ -169,7 +172,7 @@ void InputsViewModel::rebuildInputs() {
                      : isNdi ? "ndi"
                              : "red"},
             {"where", QString::fromStdString(
-                          hw      ? s.value(inputs::kVideoProp, std::string())
+                          hw      ? inputs::camaraDe(type, s)
                           : isNdi ? "NDI: " + s.value("ndi_name", s.value("host", std::string()))
                           : type == "ba_gst_fuente"
                               ? (s.contains("ba_plugin")
@@ -189,7 +192,7 @@ void InputsViewModel::rebuildInputs() {
         const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
         out << QVariantMap{{"name", QString::fromStdString(n)},
                            {"kind", "audio"},
-                           {"where", QString::fromStdString(s.value(inputs::kAudioInProp, std::string()))},
+                           {"where", QString::fromStdString(s.value("microfono", s.value(inputs::kAudioInProp, std::string())))},
                            {"width", 0},
                            {"height", 0},
                            {"receiving", true},
@@ -227,25 +230,10 @@ void InputsViewModel::setActive(bool on) {
 }
 
 QVariantList InputsViewModel::modes(const QString& device) const {
+    // Los modos de la cámara (tamaño y cuadros), del monitor de GStreamer.
     QVariantList out;
-    BroadcastEngine& e = rt_.engine();
-    json s{{inputs::kVideoProp, device.toStdString()}};
-#if !defined(_WIN32) && !defined(__APPLE__)
-    for (const auto& f : e.sourceTypeListItems(inputs::kVideoType, "pixelformat", s.dump())) {
-        json s2 = s;
-        s2["pixelformat"] = std::stoll(f.value.empty() ? std::string("0") : f.value);
-        for (const auto& r : e.sourceTypeListItems(inputs::kVideoType, "resolution", s2.dump())) {
-            if (r.value == "-1") continue;
-            out << QVariantMap{{"label", QString::fromStdString(r.name + "  ·  " + f.name)},
-                               {"pixelformat", QString::fromStdString(f.value)},
-                               {"resolution", QString::fromStdString(r.value)}};
-        }
-    }
-#else
-    for (const auto& r : e.sourceTypeListItems(inputs::kVideoType, "resolution", s.dump()))
-        out << QVariantMap{{"label", QString::fromStdString(r.name)},
-                           {"resolution", QString::fromStdString(r.value)}};
-#endif
+    for (const auto& m : video::modosDeCamara(device.toStdString()))
+        out << QVariantMap{{"label", QString::fromStdString(m.etiqueta())}, {"modo", QString::fromStdString(m.valor())}};
     return out;
 }
 
@@ -253,8 +241,7 @@ QString InputsViewModel::addHardware(const QString& device, const QString& name,
                                      const QVariantMap& mode) {
     if (device.isEmpty()) return "Elegi una camara.";
     json opts = json::object();
-    if (mode.contains("pixelformat")) opts["pixelformat"] = mode.value("pixelformat").toLongLong();
-    if (mode.contains("resolution")) opts["resolution"] = mode.value("resolution").toLongLong();
+    if (mode.contains("modo")) opts["modo"] = mode.value("modo").toString().toStdString();
     QString nm = name.trimmed();
     if (nm.isEmpty())
         for (const QVariant& d : devices_)

@@ -5,6 +5,7 @@
 #include "InputSpecs.hpp"
 
 #include "audio/EntradasAudio.hpp"
+#include "video/Camaras.hpp"
 
 #include <algorithm>
 
@@ -26,14 +27,35 @@ std::string networkScheme(const std::string& url) {
 
 SourceSpec hardwareSpec(const std::string& device, const std::string& name, const json& opts) {
     SourceSpec spec;
-    spec.id = kVideoType;
+    spec.id = kMicType;
     spec.name = name;
-    json s{{kVideoProp, device}};
-    for (const char* k : {"input", "pixelformat", "resolution", "framerate"})
-        if (opts.contains(k) && !opts[k].is_null()) s[k] = opts[k];
+    json s{{"uri", ""}, {"pipeline", ""}, {"pipeline_audio", ""}, {"audio", false}, {"normalizar", true}, {"camara", device}};
+    if (opts.is_object() && opts.contains("modo") && opts["modo"].is_string() && !opts["modo"].get<std::string>().empty())
+        s["camara_modo"] = opts["modo"];
     spec.settingsJson = s.dump();
     spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
     return spec;
+}
+
+bool esCamara(const std::string& type, const json& settings) {
+    if (type == kVideoType) return true;
+    return type == kMicType && settings.is_object() && settings.contains("camara");
+}
+
+std::string camaraDe(const std::string& type, const json& settings) {
+    if (!settings.is_object()) return {};
+    if (type == kVideoType) return settings.value(kVideoProp, std::string());
+    return type == kMicType ? settings.value("camara", std::string()) : std::string();
+}
+
+bool migrarCamara(SourceSpec& spec) {
+    if (spec.id != kVideoType) return false;
+    const json viejo = json::parse(spec.settingsJson, nullptr, false);
+    const std::string dev = video::idCamaraDesdeLibobs(viejo.is_object() ? viejo.value(kVideoProp, std::string()) : "");
+    const SourceSpec nuevo = hardwareSpec(dev, spec.name, json::object());
+    spec.id = nuevo.id;
+    spec.settingsJson = nuevo.settingsJson;
+    return true;
 }
 
 SourceSpec audioInputSpec(const std::string& device, const std::string& name) {
@@ -58,12 +80,17 @@ bool esMicrofono(const std::string& type, const json& settings) {
 std::string ajustesAudioAnillo(const std::string& canal, int slot) {
     const std::string c = canal == "remoto" ? "remoto" : "guest";
     const std::string anillo = (c == "remoto" ? "BA.Audio.Remoto." : "BA.Audio.Guest.") + std::to_string(slot);
-    return json{{"pipeline", ""}, {"pipeline_audio", "baanillo canal=" + anillo}, {"audio", true}, {"anillo", c}, {"slot", slot}}
+    // estudio=false: el video del invitado todavía va por libobs sin esperar la
+    // compensación del estudio; su audio tampoco la espera (si no, se desfasan).
+    return json{{"pipeline", ""},     {"pipeline_audio", "baanillo canal=" + anillo},
+                {"audio", true},      {"anillo", c},
+                {"slot", slot},       {"estudio", false}}
         .dump();
 }
 
 std::string tipoLogico(const std::string& type, const json& settings) {
     if (type == kMicType && settings.is_object()) {
+        if (settings.contains("camara")) return kVideoType;
         if (settings.contains("anillo")) return "ba_guest_audio";
         if (settings.contains("microfono")) return kAudioInLibobs;
     }
@@ -131,6 +158,11 @@ std::string redactUrl(std::string url) {
 bool isNetworkInput(const std::string& type, const json& settings) {
     // ba_gst_fuente: las de red sincronizadas (video_entrada_red, camara_agregar)
     // y las de los plugins de Python.
+    // Los micrófonos, las cámaras del equipo y el audio de los invitados también
+    // son ba_gst_fuente, pero no son «de red».
+    if (type == "ba_gst_fuente" && settings.is_object() &&
+        (settings.contains("microfono") || settings.contains("camara") || settings.contains("anillo")))
+        return false;
     return type == "ba_ndi_input" || type == "ba_gst_fuente" ||
            (type == "ffmpeg_source" && !settings.value("is_local_file", true));
 }

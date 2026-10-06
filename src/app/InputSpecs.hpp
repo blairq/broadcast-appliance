@@ -64,12 +64,24 @@ std::string tipoLogico(const std::string& type, const nlohmann::json& settings);
 /// Un micrófono viejo (fuente de libobs) pasado a GStreamer, con el mismo
 /// nombre, volumen y silencio. false si `spec` no era uno viejo.
 bool migrarMicrofono(SourceSpec& spec);
+bool migrarCamara(SourceSpec& spec);
 
 /// Esquema soportado de una URL de red ("" si no).
 std::string networkScheme(const std::string& url);
 
-/// Fuente de camara/capturadora. `opts`: input, pixelformat, resolution, framerate.
+/// Cámara o capturadora del equipo por GStreamer (`ba_gst_fuente` con `camara` =
+/// su id estable; ver video/Camaras.hpp). `opts`: {modo: «1920x1080@30»} (vacío
+/// = el de la cámara). kVideoType/kVideoProp quedan para listar con libobs
+/// mientras GStreamer arranca y para migrar las guardadas.
 SourceSpec hardwareSpec(const std::string& device, const std::string& name, const nlohmann::json& opts);
+
+/// ¿Es una cámara del equipo? (la de GStreamer o una vieja de libobs).
+bool esCamara(const std::string& type, const nlohmann::json& settings);
+/// El id de la cámara ("" si no es una).
+std::string camaraDe(const std::string& type, const nlohmann::json& settings);
+
+/// Una cámara vieja (fuente de libobs) pasada a GStreamer: mismo nombre, lugar,
+/// recorte y visibilidad. false si `spec` no era una vieja.
 
 /// Fuente de red. `opts`: latency (low|normal), rtspTransport (tcp|udp),
 /// hwDecode, reconnectSec, audio. `caFile`: raices para https/rtmps.

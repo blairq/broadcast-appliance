@@ -25,6 +25,7 @@
 #include "AppRuntime.hpp"
 #include "InputSpecs.hpp"
 #include "audio/EntradasAudio.hpp"
+#include "video/Camaras.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -52,13 +53,10 @@ struct DeviceKind {
 };
 #if defined(_WIN32)
 const DeviceKind kAudioOut{"wasapi_output_capture", "device_id"};
-const DeviceKind kVideo{"dshow_input", "video_device_id"};
 #elif defined(__APPLE__)
 const DeviceKind kAudioOut{"coreaudio_output_capture", "device_id"};
-const DeviceKind kVideo{"macos-avcapture", "device"};
 #else
 const DeviceKind kAudioOut{"pulse_output_capture", "device_id"};
-const DeviceKind kVideo{"v4l2_input", "device_id"};
 #endif
 
 json listToJson(const std::vector<BroadcastEngine::ListItem>& items) {
@@ -232,7 +230,7 @@ void McpService::registerSystemTools() {
                      {"monitors", screensJson()},
                      {"audioInputs", listToJson(ba::app::audio::entradasDeAudio(e))},
                      {"audioOutputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
-                     {"videoDevices", listToJson(e.sourceTypeListItems(kVideo.type, kVideo.prop))},
+                     {"videoDevices", listToJson(ba::app::video::camarasDelEquipo(e))},
                      {"gpu", {{"renderer", e.graphicsDeviceName()}, {"cards", gpusJson()}}},
                      {"videoEncoders", encoders}}));
         };
@@ -342,34 +340,21 @@ void McpService::registerSystemTools() {
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Camaras USB, capturadoras (V4L2 en Linux, DirectShow en Windows, AVFoundation en macOS). Con "
-            "`device` (el value de la lista), sus entradas, formatos, resoluciones y cuadros por segundo. "
+            "Camaras USB, capturadoras (por GStreamer: V4L2 en Linux, Media Foundation en Windows, AVFoundation "
+            "en macOS). Con `device` (el value de la lista), sus `modos` (tamaño y cuadros por segundo). "
             "Para agregarla a una escena: video_input_add.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
-            json out{{"sourceType", kVideo.type},
-                     {"available", e.sourceTypeExists(kVideo.type)},
-                     {"devices", listToJson(e.sourceTypeListItems(kVideo.type, kVideo.prop))}};
+            // Por GStreamer: las cámaras y sus modos del monitor de dispositivos.
+            json out{{"sourceType", ba::app::inputs::kMicType},
+                     {"available", e.sourceTypeExists(ba::app::inputs::kMicType)},
+                     {"devices", listToJson(ba::app::video::camarasDelEquipo(e))}};
             if (a.contains("device")) {
-                const json s{{kVideo.prop, a["device"]}};
-#if !defined(_WIN32) && !defined(__APPLE__)
-                out["inputs"] = listToJson(e.sourceTypeListItems(kVideo.type, "input", s.dump()));
-                out["formats"] = listToJson(e.sourceTypeListItems(kVideo.type, "pixelformat", s.dump()));
-                json fmts = json::array();
-                for (const auto& f : out["formats"]) {
-                    json s2 = s;
-                    s2["pixelformat"] = std::stoll(f.value("value", std::string("0")));
-                    fmts.push_back({{"format", f},
-                                    {"resolutions",
-                                     listToJson(e.sourceTypeListItems(kVideo.type, "resolution", s2.dump()))},
-                                    {"framerates", listToJson(e.sourceTypeListItems(kVideo.type, "framerate",
-                                                                                    s2.dump()))}});
-                }
-                out["modes"] = fmts;
-#else
-                out["resolutions"] = listToJson(e.sourceTypeListItems(kVideo.type, "resolution", s.dump()));
-#endif
+                json modos = json::array();
+                for (const auto& m : ba::app::video::modosDeCamara(a.value("device", "")))
+                    modos.push_back({{"modo", m.valor()}, {"ancho", m.ancho}, {"alto", m.alto}, {"cps", m.fps}});
+                out["modos"] = modos;
             }
             done(ToolResult().data(out));
         };

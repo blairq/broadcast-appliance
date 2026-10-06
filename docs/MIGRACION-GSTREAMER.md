@@ -16,6 +16,7 @@ razonable.
 | **Micrófonos y líneas del equipo** (2026-10-05) | `ba_gst_fuente` + `pipeline_audio` (`audio/EntradasAudio.*`); los viejos se migran solos |
 | **Automixer de mesa redonda** (2026-10-05) | `baautomixer`, plugin `baaudio` |
 | **Audio de los invitados y del remoto con la palabra** (2026-10-05) | `ba_gst_fuente` + `baanillo canal=BA.Audio.Guest.<n>` (plugin `baipc`): lee el anillo que escribe el gateway. Para las plantillas y la interfaz siguen siendo «ba_guest_audio» (`inputs::tipoLogico`) |
+| **Cámaras y capturadoras del equipo** (2026-10-05) | `ba_gst_fuente` con `camara` = id estable (avfvideosrc / mfvideosrc / v4l2src, resuelto al armar), `camara_modo` opcional (sin modo: el que mejor va con el lienzo). Lista y modos del monitor de dispositivos (`video/Camaras.*`); las guardadas se migran solas. Sus tarjetas del grafo corren en su cadena |
 | **Racks de audio (LSP/CLAP) de las entradas de GStreamer** (2026-10-05) | `barack`, registrado por la app (`audio/GstRack.*`): el mismo `AudioRack` corre en la cadena de audio de `ba_gst_fuente` (ajuste `rack`). Los racks guardados se montan solos donde corresponda |
 
 ## Todavía en libobs (en orden propuesto)
@@ -24,9 +25,6 @@ razonable.
    `ba_audio_rack`. Pasan solos a `barack` el día que su fuente pase a GStreamer (RackManager elige por el tipo
    de la fuente). La escucha del rack (la salida a los auriculares) sigue saliendo por el monitoreo de libobs
    hasta que se mude la mezcla (punto 5).
-2. **Cámaras locales.** `macos-avcapture` / `dshow_input` / `v4l2_input` → `avfvideosrc` / `mfvideosrc` /
-   `v4l2src` en `ba_gst_fuente` (mismo esquema que los micrófonos: dispositivo + migración al cargar).
-   Así cámara y micrófono de la sala comparten reloj y latencia.
 3. **Medios locales y playlist.** `ffmpeg_source` → `uridecodebin3` (la playlist ya maneja in/out y auto-next
    por la API de medios; hay que darle a `ba_gst_fuente` play/pausa/seek/estado).
 4. **Audio del sistema** (`*_output_capture`), el VIDEO de los invitados (`ba_guest_video`), la escucha del
@@ -46,8 +44,13 @@ Cuando estén 5–7, libobs queda sin uso y se saca del bundle.
 - Una entrada solo de audio tiene que llevar `"pipeline": ""`: si no, `ba_gst_fuente` arma su video de
   prueba de fábrica (videotestsrc), gasta CPU y, como «recibe video», se suma a la compensación del estudio
   y el audio sale ~¾ s tarde. Los micrófonos guardados sin eso se arreglan solos al cargar.
-- En modo `colchon` (el de fábrica) una entrada solo de audio NO toma la compensación del estudio (se mide
-  con los cuadros de video): sale con su propia demora. En modo `gstreamer` sí espera la del estudio.
+- Todas las entradas de GStreamer se alinean con la más lenta del estudio (compensación única, T21): con
+  superresolución o filtros pesados en una cámara de red, eso puede ser casi 1 s para todo. Una entrada solo
+  de audio (un micrófono) también se alinea (cuenta sus bloques de audio en vez de cuadros), así queda con su
+  cámara. `estudio: false` la deja con su propia demora: lo usa el audio de los invitados, porque su video
+  todavía va por libobs sin esperar.
+- Windows: libobs daba la cámara como «Nombre:ruta»; `video::idCamaraDesdeLibobs` deja la ruta para
+  mfvideosrc. **Sin probar todavía en Windows ni Linux.**
 
 - Una entrada de GStreamer en modo estándar espera la **latencia del estudio** (la mayor de todas las
   cadenas): un micrófono sale atrasado lo mismo que las cámaras de red, para que todo quede en sincronía.

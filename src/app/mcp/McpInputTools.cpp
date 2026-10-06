@@ -23,11 +23,10 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "video/Camaras.hpp"
 
 namespace ba::app::mcp {
 
-using inputs::kVideoProp;
-using inputs::kVideoType;
 
 void McpService::registerInputTools() {
     core_.addCategory(
@@ -69,11 +68,11 @@ void McpService::registerInputTools() {
         t.title = "Agregar una camara o capturadora";
         t.category = "entradas";
         t.description =
-            "Agrega a una escena una camara USB o capturadora (el `device` de video_devices), con formato, "
-            "resolucion y cuadros por segundo opcionales (los `value` de video_devices {device}). Si la "
-            "misma "
-            "camara ya es una fuente en otra escena, conviene usar esa (source_add con su nombre) en vez de "
-            "abrirla dos veces.";
+            "Agrega a una escena una camara USB o capturadora (el `device` de video_devices). Entra por "
+            "GStreamer (ba_gst_fuente: sus tarjetas y filtros corren en su cadena). `modo` opcional: tamaño y "
+            "cuadros, uno de los `modos` de video_devices {device} (p. ej. \"1920x1080@30\"); sin modo, el de "
+            "la camara (igual se normaliza al lienzo). Si la misma camara ya es una fuente en otra escena, "
+            "conviene usar esa (source_add con su nombre) en vez de abrirla dos veces.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -83,18 +82,14 @@ void McpService::registerInputTools() {
               {"layout",
                {{"description",
                  "Preset (full, pip-br, left, ...) o {x,y,w,h}. Por defecto pantalla completa."}}},
-              {"input", {{"type", "integer"}}},
-              {"pixelformat", {{"type", "integer"}}},
-              {"resolution", {{"type", "integer"}}},
-              {"framerate", {{"type", "integer"}}}}},
+              {"modo", {{"type", "string"}, {"description", "«ANCHOxALTO@cps», de video_devices {device}"}}}}},
             {"required", {"device"}}};
         t.run = [&rt, &vm, layoutOf](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
-            if (!e.sourceTypeExists(kVideoType))
-                return done(ToolResult::error(std::string("El plugin de camaras (") + kVideoType +
-                                              ") no esta cargado."));
+            if (!e.sourceTypeExists(inputs::kMicType))
+                return done(ToolResult::error("La entrada de GStreamer (ba_gst_fuente) no esta cargada."));
             std::string devName;
-            for (const auto& d : e.sourceTypeListItems(kVideoType, kVideoProp))
+            for (const auto& d : video::camarasDelEquipo(e))
                 if (d.value == a["device"].get<std::string>()) devName = d.name;
             if (devName.empty())
                 return done(ToolResult::error("No existe ese dispositivo: video_devices lista los que hay."));
@@ -281,23 +276,25 @@ void McpService::registerInputTools() {
             for (const std::string& n : e.sourceNames()) {
                 const std::string type = e.sourceTypeId(n);
                 const bool isNdi = type == "ba_ndi_input";
-                if (type != kVideoType && type != "ffmpeg_source" && !isNdi) continue;
                 const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
+                const bool cam = inputs::esCamara(type, s);
+                if (!cam && type != "ffmpeg_source" && !isNdi) continue;
                 if (type == "ffmpeg_source" && s.value("is_local_file", true)) continue;
                 int w = 0, h = 0;
                 e.sourceSize(n, w, h);
                 json it{{"name", n},
-                        {"type", type == kVideoType ? "hardware"
-                                 : isNdi            ? "ndi"
-                                                    : "red"},
+                        {"type", cam     ? "hardware"
+                                 : isNdi ? "ndi"
+                                         : "red"},
                         {"width", w},
                         {"height", h},
                         {"receiving", w > 0}};
                 if (isNdi) {
                     it["ndiName"] = s.value("ndi_name", "");
                     it["host"] = s.value("host", "");
-                } else if (type == kVideoType) {
-                    it["device"] = s.value(kVideoProp, "");
+                } else if (cam) {
+                    it["device"] = inputs::camaraDe(type, s);
+                    it["modo"] = s.value("camara_modo", "");
                 } else {
                     it["url"] = inputs::redactUrl(s.value("input", "")); // sin credenciales
                     it["state"] = media.count(n) ? media[n] : "";

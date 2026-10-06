@@ -216,8 +216,12 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
 bool VideoGrafos::esEntrada(const std::string& n) const {
     BroadcastEngine& e = rt_.engine();
     const std::string type = e.sourceTypeId(n);
-    if (type == inputs::kVideoType || type == kTipoVirtual) return true;
-    return inputs::isNetworkInput(type, json::parse(e.sourceSettingsJson(n), nullptr, false));
+    const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
+    // Los micrófonos y el audio de los invitados también son ba_gst_fuente, pero
+    // no tienen video: no van en el grafo de video.
+    if (type == kTipoVirtual && s.is_object() && (s.contains("microfono") || s.contains("anillo"))) return false;
+    if (type == inputs::kVideoType || type == kTipoVirtual) return true; // las cámaras de GStreamer son kTipoVirtual
+    return inputs::isNetworkInput(type, s);
 }
 
 QStringList VideoGrafos::entradas() const { return entradas_; }
@@ -226,7 +230,8 @@ QVariantList VideoGrafos::entradasInfo() const {
     QVariantList out;
     for (const QString& e : entradas_) {
         const std::string n = e.toStdString();
-        const std::string tipo = rt_.engine().sourceTypeId(n);
+        const std::string tipo = inputs::tipoLogico(rt_.engine().sourceTypeId(n),
+                                                    json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false));
         const QString grupo = tipo == inputs::kVideoType ? QStringLiteral("Cámaras")
                               : tipo == "ba_ndi_input"   ? QStringLiteral("NDI")
                               : tipo == kTipoVirtual     ? QStringLiteral("Virtuales")
