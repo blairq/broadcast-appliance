@@ -74,6 +74,8 @@ class Mezcla {
     /// La ganancia de escena (0…1) con un fundido de `ms`.
     void ponerEscena(const std::string& id, double ganancia, int ms);
 
+    /// El volumen de todo el bus (lineal, 0…1) con un fundido de `ms` (el FTB baja el audio).
+    void ponerMaster(double lineal, int ms);
     /// El limitador del máster: prendido y techo (dBTP). false si este bus no lo tiene.
     bool ponerLimitador(bool activo, double techoDb);
     /// Lo llama el motor seguido: medidores, latencia, fundidos.
@@ -109,6 +111,9 @@ class Mezcla {
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;
     GstElement* limitador_ = nullptr;
+    GstElement* master_ = nullptr;
+    double masterDesde_ = 1, masterHacia_ = 1, master_v_ = 1;
+    std::int64_t masterDesdeNs_ = 0, masterNs_ = 0;
     nlohmann::json loudness_ = nlohmann::json::object();
     mutable std::mutex mu_;
     std::map<std::string, Rama> ramas_;

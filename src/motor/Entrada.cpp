@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 
 namespace ba::motor {
 
@@ -98,7 +99,8 @@ void Entrada::desarmarSalida() {
 }
 
 void Entrada::armarSalida() {
-    const bool quiere = daVideo() && !medio_ && hayFabrica("fallbackswitch");
+    // Sin placa: los archivos (parados no se ven) y lo que pinta la app (manda solo cuando cambia).
+    const bool quiere = daVideo() && !medio_ && !deApp_ && hayFabrica("fallbackswitch");
     if (!quiere) {
         desarmarSalida();
         return;
@@ -188,6 +190,7 @@ void Entrada::leer(const json& a) {
     }
     // Los tipos: arman su propia cadena (lo que antes daba OBS).
     const std::string tipo = a.value("tipo", std::string());
+    deApp_ = tipo == "app";
     const int w = a.value("ancho", lienzo_.ancho), h = a.value("alto", lienzo_.alto);
     const std::string tam = ",width=" + std::to_string(std::max(2, w)) + ",height=" + std::to_string(std::max(2, h));
     bool alfaTipo = false;
@@ -213,6 +216,11 @@ void Entrada::leer(const json& a) {
                        " outline-color=" + argb(a.value("color_contorno", json()), "0xff000000") +
                        " draw-shadow=false halignment=" + (ha == "izquierda" ? "left" : ha == "derecha" ? "right" : "center") +
                        " valignment=" + (va == "arriba" ? "top" : va == "abajo" ? "bottom" : "center") + " wrap-mode=word";
+        alfaTipo = true;
+        conAudio_ = false;
+    } else if (tipo == "app") {
+        descripcion_ = "appsrc name=ba_app is-live=true format=time do-timestamp=true max-bytes=0 block=false ! "
+                       "imagefreeze is-live=true allow-replace=true";
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "pantalla") {
@@ -272,6 +280,7 @@ void Entrada::desarmar() {
         pipeline_ = nullptr;
     }
     baseAplicada_ = GST_CLOCK_TIME_NONE;
+    appAncho_ = appAlto_ = 0;
     realineadoV_ = realineadoA_ = 0;
     medVAntes_ = medAAntes_ = 0;
 }
@@ -849,6 +858,36 @@ void Entrada::procesarMensaje(GstMessage* m) {
         }
         default: return;
     }
+}
+
+bool Entrada::empujar(const std::uint8_t* bgra, int ancho, int alto, int stride) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (!deApp_ || pipeline_ == nullptr || bgra == nullptr || ancho <= 0 || alto <= 0) return false;
+    GstElement* src = gst_bin_get_by_name(GST_BIN(pipeline_), "ba_app");
+    if (src == nullptr) return false;
+    if (ancho != appAncho_ || alto != appAlto_) {
+        GstCaps* c = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, ancho, "height",
+                                         G_TYPE_INT, alto, "framerate", GST_TYPE_FRACTION, 0, 1, "pixel-aspect-ratio",
+                                         GST_TYPE_FRACTION, 1, 1, "interlace-mode", G_TYPE_STRING, "progressive", nullptr);
+        // (sin pixel-aspect-ratio ni interlace-mode, imagefreeze no negociaba con la normalización)
+        g_object_set(src, "caps", c, nullptr);
+        gst_caps_unref(c);
+        appAncho_ = ancho;
+        appAlto_ = alto;
+    }
+    const std::size_t fila = static_cast<std::size_t>(ancho) * 4;
+    GstBuffer* b = gst_buffer_new_allocate(nullptr, fila * static_cast<std::size_t>(alto), nullptr);
+    GstMapInfo m;
+    if (gst_buffer_map(b, &m, GST_MAP_WRITE)) {
+        for (int y = 0; y < alto; ++y)
+            std::memcpy(m.data + fila * static_cast<std::size_t>(y), bgra + static_cast<std::size_t>(stride) * static_cast<std::size_t>(y), fila);
+        gst_buffer_unmap(b, &m);
+    }
+    GstFlowReturn r = GST_FLOW_OK;
+    g_signal_emit_by_name(src, "push-buffer", b, &r);
+    gst_buffer_unref(b);
+    gst_object_unref(src);
+    return r == GST_FLOW_OK;
 }
 
 // --- Medios ---------------------------------------------------------------------------

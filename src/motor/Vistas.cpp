@@ -44,25 +44,45 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
     GstBuffer* b = gst_sample_get_buffer(s);
     GstMapInfo m;
     if (gst_video_info_from_caps(&info, gst_sample_get_caps(s)) && b != nullptr && gst_buffer_map(b, &m, GST_MAP_READ)) {
-        std::lock_guard<std::mutex> l(self->mu_);
-        auto it = self->vistas_.find(ll->clave);
-        if (it != self->vistas_.end()) {
-            Cuadro& c = it->second->cuadro;
-            c.ancho = GST_VIDEO_INFO_WIDTH(&info);
-            c.alto = GST_VIDEO_INFO_HEIGHT(&info);
-            c.stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
-            c.bgra.assign(m.data, m.data + std::min<std::size_t>(m.size, static_cast<std::size_t>(c.stride) * c.alto));
-            c.serie = ++self->serie_;
+        std::function<void(const Cuadro&)> aviso;
+        Cuadro copia;
+        {
+            std::lock_guard<std::mutex> l(self->mu_);
+            auto it = self->vistas_.find(ll->clave);
+            if (it != self->vistas_.end()) {
+                Cuadro& c = it->second->cuadro;
+                c.ancho = GST_VIDEO_INFO_WIDTH(&info);
+                c.alto = GST_VIDEO_INFO_HEIGHT(&info);
+                c.stride = GST_VIDEO_INFO_PLANE_STRIDE(&info, 0);
+                c.bgra.assign(m.data, m.data + std::min<std::size_t>(m.size, static_cast<std::size_t>(c.stride) * c.alto));
+                c.serie = ++self->serie_;
+                aviso = it->second->aviso;
+                if (aviso) copia = c;
+            }
         }
         gst_buffer_unmap(b, &m);
+        if (aviso) aviso(copia); // fuera del lock
     }
     gst_sample_unref(s);
     return GST_FLOW_OK;
 }
 
+namespace {
+std::string base(const std::string& clave) {
+    const auto a = clave.find('@');
+    return a == std::string::npos ? clave : clave.substr(0, a);
+}
+} // namespace
+
+void Vistas::avisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
+    std::lock_guard<std::mutex> l(mu_);
+    auto it = vistas_.find(clave);
+    if (it != vistas_.end()) it->second->aviso = std::move(fn);
+}
+
 void Vistas::armar(const std::string& clave, Una& u) {
     desarmar(u);
-    u.productor = resolver_(clave, &u.latencia);
+    u.productor = resolver_(base(clave), &u.latencia);
     if (u.productor.empty()) return;
     const std::string d = "intersrc producer-name=" + entreComillas(u.productor) +
                           " ! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! videoconvert ! "
@@ -132,7 +152,7 @@ void Vistas::tic() {
     for (auto& [clave, u] : vistas_) {
         // Lo que mira cambió de latencia, o todavía no existía (se pidió antes de armarse).
         std::int64_t lat = 0;
-        const std::string prod = resolver_(clave, &lat);
+        const std::string prod = resolver_(base(clave), &lat);
         if (u->pipeline == nullptr && !prod.empty()) {
             armar(clave, *u);
             continue;

@@ -52,6 +52,9 @@ struct Capa {
     int orden = 0;                 ///< más alto = más arriba
     int recIzq = 0, recArr = 0, recDer = 0, recAba = 0; ///< recorte en píxeles de la entrada
     bool visible = true;
+    /// true: la imagen entra en su recuadro sin deformarse, centrada (como hacía OBS);
+    /// false: se estira al recuadro.
+    bool contener = false;
     std::string productor;         ///< si no está vacío, lee este productor (p. ej. «video:programa» en el multiview)
 };
 
@@ -88,6 +91,12 @@ class Composicion {
     const std::string& escena() const { return escena_.nombre; }
     /// ¿Hay una transición en curso?
     bool enTransicion() const;
+    /// T-bar: lleva a mano una mezcla hacia `e` (t de 0 a 1). Con `soltar` termina:
+    /// pasada la mitad queda la nueva; si no, vuelve la de antes. Devuelve true si
+    /// la nueva quedó.
+    bool manual(const Escena& e, double t, bool soltar);
+    /// Hacia qué escena va la T-bar ("" = ninguna).
+    std::string manualHacia() const;
 
     /// Las capas del DSK (encima de cualquier escena): las nuevas entran con un
     /// fundido de `ms`, las que no están más salen igual. false si este bus no tiene DSK.
@@ -145,6 +154,9 @@ class Composicion {
     int genVieja_ = -1;
     std::string transicion_;
     std::int64_t transDesdeNs_ = 0, transNs_ = 0;
+    bool manual_ = false;     ///< la T-bar: la transición no avanza sola
+    double manualT_ = 0;
+    Escena escenaAntes_;      ///< la que estaba (para volver si se suelta antes de la mitad)
     std::int64_t latenciaNs_ = -1, salidaNs_ = 0, consultaNs_ = 0;
 };
 

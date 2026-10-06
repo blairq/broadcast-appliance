@@ -67,6 +67,90 @@ GstElement* crearCodificador(const std::string& fabrica, int kbps, int gop) {
     return e;
 }
 
+// --- Remux ---------------------------------------------------------------------------------
+
+std::string remuxar(const std::string& origen, const std::string& destino, const std::function<void(double)>& progreso) {
+    const bool mov = destino.size() > 4 && destino.substr(destino.size() - 4) == ".mov";
+    const std::string d = "filesrc location=" + entreComillas(origen) + " ! matroskademux name=d " + (mov ? "qtmux" : "mp4mux") +
+                          " name=mux faststart=true ! filesink location=" + entreComillas(destino);
+    GError* e = nullptr;
+    GstElement* p = gst_parse_launch(d.c_str(), &e);
+    if (e != nullptr) {
+        std::string m = e->message;
+        g_error_free(e);
+        if (p != nullptr) gst_object_unref(p);
+        return m;
+    }
+    GstElement* dmx = gst_bin_get_by_name(GST_BIN(p), "d");
+    GstElement* mux = gst_bin_get_by_name(GST_BIN(p), "mux");
+    struct Ctx {
+        GstElement* pipeline;
+        GstElement* mux;
+    };
+    auto* ctx = new Ctx{p, mux};
+    // Cada pista que aparece: su parser y al muxer (sin recodificar).
+    g_signal_connect_data(dmx, "pad-added",
+                          G_CALLBACK(+[](GstElement*, GstPad* pad, gpointer data) {
+                              auto* c = static_cast<Ctx*>(data);
+                              GstCaps* caps = gst_pad_get_current_caps(pad);
+                              const std::string tipo = caps != nullptr ? gst_structure_get_name(gst_caps_get_structure(caps, 0)) : "";
+                              if (caps != nullptr) gst_caps_unref(caps);
+                              const char* parser = tipo == "video/x-h264"   ? "h264parse"
+                                                   : tipo == "video/x-h265" ? "h265parse"
+                                                   : tipo == "audio/mpeg"   ? "aacparse"
+                                                                            : nullptr;
+                              if (parser == nullptr) return;
+                              GstElement* q = gst_element_factory_make("queue", nullptr);
+                              GstElement* pr = gst_element_factory_make(parser, nullptr);
+                              gst_bin_add_many(GST_BIN(c->pipeline), q, pr, nullptr);
+                              GstPad* entra = gst_element_get_static_pad(q, "sink");
+                              gst_pad_link(pad, entra);
+                              gst_object_unref(entra);
+                              gst_element_link(q, pr);
+                              GstPad* sale = gst_element_get_static_pad(pr, "src");
+                              GstPad* destinoPad =
+                                  gst_element_request_pad_simple(c->mux, tipo.rfind("video", 0) == 0 ? "video_%u" : "audio_%u");
+                              if (destinoPad != nullptr) {
+                                  gst_pad_link(sale, destinoPad);
+                                  gst_object_unref(destinoPad);
+                              }
+                              gst_object_unref(sale);
+                              gst_element_sync_state_with_parent(pr);
+                              gst_element_sync_state_with_parent(q);
+                          }),
+                          ctx, [](gpointer data, GClosure*) { delete static_cast<Ctx*>(data); }, static_cast<GConnectFlags>(0));
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    GstBus* bus = gst_element_get_bus(p);
+    std::string error;
+    for (;;) {
+        GstMessage* m = gst_bus_timed_pop_filtered(bus, 300 * GST_MSECOND,
+                                                   static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
+        if (m == nullptr) {
+            if (progreso) {
+                gint64 pos = 0, dur = 0;
+                if (gst_element_query_position(p, GST_FORMAT_TIME, &pos) && gst_element_query_duration(p, GST_FORMAT_TIME, &dur) && dur > 0)
+                    progreso(std::clamp(static_cast<double>(pos) / static_cast<double>(dur), 0.0, 1.0));
+            }
+            continue;
+        }
+        if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
+            GError* er = nullptr;
+            gst_message_parse_error(m, &er, nullptr);
+            error = er != nullptr ? er->message : "error";
+            if (er != nullptr) g_error_free(er);
+        }
+        gst_message_unref(m);
+        break;
+    }
+    gst_object_unref(bus);
+    gst_element_set_state(p, GST_STATE_NULL);
+    gst_object_unref(dmx);
+    gst_object_unref(mux);
+    gst_object_unref(p);
+    if (error.empty() && progreso) progreso(1.0);
+    return error;
+}
+
 // --- Grabación ---------------------------------------------------------------------------
 
 Grabacion::Grabacion(Reloj& reloj, Config cfg) : reloj_(reloj), cfg_(std::move(cfg)) {}
@@ -85,7 +169,11 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     std::error_code ec;
     std::filesystem::create_directories(cfg_.carpeta, ec);
     const std::string patron = (std::filesystem::path(cfg_.carpeta) / (cfg_.nombre + "-%05d.mkv")).string();
-    std::string d = "splitmuxsink name=mux async-finalize=false location=" + entreComillas(patron) + " max-size-time=" +
+    // Matroska (aguanta un corte: se puede abrir lo escrito). Tiene que ir en la
+    // descripción: las pistas se piden al armar y con «muxer» puesto después ya
+    // había creado su mp4mux de fábrica (los archivos salían MP4 con nombre .mkv).
+    std::string d = "splitmuxsink name=mux async-finalize=true muxer-factory=matroskamux location=" + entreComillas(patron) +
+                    " max-size-time=" +
                     std::to_string(static_cast<guint64>(std::max(0, cfg_.tramoSeg)) * GST_SECOND) + " ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
@@ -104,9 +192,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
         if (p != nullptr) gst_object_unref(p);
         return error_;
     }
-    // El muxer de los tramos: Matroska (aguanta un corte: se puede abrir lo escrito).
     GstElement* mux = gst_bin_get_by_name(GST_BIN(p), "mux");
-    if (GstElement* mk = gst_element_factory_make("matroskamux", nullptr)) g_object_set(mux, "muxer", mk, nullptr);
     if (!f.video.empty()) {
         codificador_ = elegirCodificador(cfg_.codificadores);
         GstElement* cod = crearCodificador(codificador_, cfg_.kbps, cfg_.gopSeg * std::max(1, cfg_.fps));

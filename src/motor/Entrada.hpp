@@ -28,6 +28,8 @@
 //                  color_contorno, alineacion (izquierda|centro|derecha), vertical
 //                  (arriba|centro|abajo), ancho, alto. Fondo transparente.
 //   tipo=pantalla  indice (la pantalla), cursor (true)
+//   tipo=app       la app le empuja cuadros BGRA (`empujar`): gráficos, chat, subtítulos.
+//                  El último cuadro sigue saliendo hasta que llega otro (imagefreeze).
 //   medio (false)    un archivo con controles (play/pausa/ir a/bucle): `local_file`,
 //                    `looping`, `clear_on_media_end`
 //
@@ -90,6 +92,9 @@ class Entrada {
     std::int64_t latenciaPropia() const { return pide_.load(); }
     bool llegaTarde() const { return llegaTarde_.load(); }
 
+    /// tipo=app: un cuadro nuevo (BGRA, `stride` bytes por fila). false si no es de ese tipo.
+    bool empujar(const std::uint8_t* bgra, int ancho, int alto, int stride);
+
     // --- Medios (medio = true) ---
     /// play, pausa, reiniciar, parar. "" o el error.
     std::string controlMedio(const std::string& accion);
@@ -128,6 +133,8 @@ class Entrada {
     bool alfa_ = false, normalizar_ = true, conAudio_ = true, estudio_ = true, ntpSync_ = true, superres_ = false;
     std::int64_t latenciaMs_ = 0, desfaseMs_ = 0;
     bool medio_ = false, bucle_ = false, limpiarAlTerminar_ = true;
+    bool deApp_ = false;   ///< tipo=app: los cuadros los empuja la app
+    int appAncho_ = 0, appAlto_ = 0;
     std::string firma_; ///< lo que obliga a rearmar
 
     // Lo armado

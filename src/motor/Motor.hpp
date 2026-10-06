@@ -45,6 +45,7 @@
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -112,6 +113,13 @@ class Motor {
     /// El DSK del PROGRAMA (capas encima de cualquier escena: zócalos, logo), con fundido.
     /// [{entrada, x, y, ancho, alto, alfa, orden}]. Vacío = sin DSK.
     std::string dsk(const nlohmann::json& capas, int fundidoMs = 0);
+    /// T-bar hacia `nombre` (t de 0 a 1); con `soltar` termina. true si quedó al aire.
+    bool tbar(const std::string& nombre, double t, bool soltar, std::string* error = nullptr);
+    std::string tbarHacia() const;
+    /// Una composición de `nombre` aunque no esté al aire (el editor, el DSK): cuenta
+    /// pedidos. Devuelve el productor ("" si no existe la escena).
+    std::string usarEscena(const std::string& nombre);
+    void soltarEscena(const std::string& nombre);
     /// Lo que entregan los buses de video: "programa", "limpio" (el programa sin DSK),
     /// "preview", "multiview"; y cuánto tardan.
     std::string productorDeVideo(const std::string& bus, std::int64_t* latenciaNs = nullptr);
@@ -127,6 +135,12 @@ class Motor {
     void escuchaNivel(double lineal);
 
     // --- El máster ---
+    /// El volumen de todo el programa (0…1) con fundido (el FTB baja el audio).
+    void masterVolumen(double lineal, int ms);
+    /// Cada bloque del audio del programa (F32 estéreo 48 kHz, en el hilo de datos):
+    /// el loudness, los picos, la medición de sincronía. Devuelve un id para sacarlo.
+    int escucharPrograma(std::function<void(const float*, std::size_t cuadros)> fn);
+    void dejarDeEscuchar(int id);
     bool ponerLimitador(bool activo, double techoDb);
     void ponerTopeEstudio(std::int64_t ms);
 
@@ -141,6 +155,10 @@ class Motor {
     std::string verPedir(const std::string& clave, int ancho, int alto);
     void verSoltar(const std::string& clave);
     bool verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
+    /// Cada cuadro de una vista ya pedida (en el hilo de datos). fn vacía = sacar.
+    void verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn);
+    /// Un cuadro para una entrada tipo=app.
+    bool empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride);
 
     nlohmann::json estado() const;
     Reloj& reloj() { return *reloj_; }
@@ -185,6 +203,18 @@ class Motor {
     std::unique_ptr<Composicion> vMulti_;
     std::map<std::string, std::unique_ptr<Entrada>> mvAux_; ///< los colores del tally y los nombres
     int mvAncho_ = 1280, mvAlto_ = 720;
+    struct CompEscena {
+        std::unique_ptr<Composicion> comp;
+        int pedidos = 0;
+    };
+    std::map<std::string, CompEscena> vEscenas_;
+    std::set<std::string> dskEscenas_;
+    // La toma de audio del programa
+    GstElement* tomaAudio_ = nullptr;
+    std::mutex tomaMu_;
+    std::map<int, std::function<void(const float*, std::size_t)>> oyentes_;
+    int proximoOyente_ = 1;
+    static GstFlowReturn alAudio(GstElement* sink, gpointer d);
     void actualizarMultiview();
     std::map<std::string, Escena> escenas_;
     std::string alAire_, armada_;

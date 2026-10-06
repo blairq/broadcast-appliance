@@ -38,6 +38,7 @@ int fallos = 0;
 void esperar(int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
 
 struct Info {
+    std::string contenedor;
     bool ok = false;
     double seg = 0;
     int videos = 0, audios = 0;
@@ -52,6 +53,13 @@ Info mirar(const std::string& ruta) {
     if (i != nullptr && gst_discoverer_info_get_result(i) == GST_DISCOVERER_OK) {
         r.ok = true;
         r.seg = static_cast<double>(gst_discoverer_info_get_duration(i)) / 1e9;
+        if (GstDiscovererStreamInfo* raiz = gst_discoverer_info_get_stream_info(i)) {
+            if (GstCaps* c = gst_discoverer_stream_info_get_caps(raiz)) {
+                r.contenedor = gst_structure_get_name(gst_caps_get_structure(c, 0));
+                gst_caps_unref(c);
+            }
+            gst_discoverer_stream_info_unref(raiz);
+        }
         GList* v = gst_discoverer_info_get_video_streams(i);
         GList* a = gst_discoverer_info_get_audio_streams(i);
         r.videos = static_cast<int>(g_list_length(v));
@@ -182,6 +190,8 @@ int main() {
             const Info i = mirar(ar[0]);
             std::printf("archivo: %s: %.2f s, %d video (%s), %d audio\n", ar[0].c_str(), i.seg, i.videos, i.codecV.c_str(), i.audios);
             CHECK(i.ok, "se abre");
+            std::printf("contenedor: %s\n", i.contenedor.c_str());
+            CHECK(i.contenedor == "video/x-matroska", "es Matroska de verdad (aguanta un corte)");
             CHECK(i.videos == 1 && i.codecV == "video/x-h264", "video H.264");
             CHECK(i.audios == 2, "dos pistas de audio (programa y pista 2)");
             CHECK(i.seg > 2.0 && i.seg < 4.0, "dura lo grabado (~3 s)");

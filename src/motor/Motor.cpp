@@ -3,6 +3,8 @@
 // ============================================================================
 #include "Motor.hpp"
 
+#include <gst/app/gstappsink.h>
+
 #include <algorithm>
 #include <chrono>
 
@@ -44,6 +46,12 @@ std::string Motor::iniciar() {
         std::lock_guard<std::recursive_mutex> l(mu_);
         if (clave == "programa" || clave == "preview" || clave == "multiview" || clave == "limpio")
             return productorDeVideo(clave, lat);
+        if (clave.rfind("escena:", 0) == 0) {
+            auto it = vEscenas_.find(clave.substr(7));
+            if (it == vEscenas_.end() || !it->second.comp) return {};
+            if (lat != nullptr) *lat = it->second.comp->latenciaSalidaNs();
+            return it->second.comp->productor();
+        }
         if (clave.rfind("entrada:", 0) == 0) {
             auto it = canales_.find(clave.substr(8));
             if (it == canales_.end() || !it->second.entrada->daVideo()) return {};
@@ -81,6 +89,13 @@ void Motor::detener() {
     if (hilo_.joinable()) hilo_.join();
     std::lock_guard<std::recursive_mutex> l(mu_);
     vistas_.reset();
+    if (tomaAudio_ != nullptr) {
+        gst_element_set_state(tomaAudio_, GST_STATE_NULL);
+        gst_object_unref(tomaAudio_);
+        tomaAudio_ = nullptr;
+    }
+    vEscenas_.clear();
+    dskEscenas_.clear();
     vMulti_.reset();
     mvAux_.clear();
     escucha_.reset();
@@ -111,6 +126,13 @@ void Motor::bucle() {
             if (vPrograma_) vPrograma_->tic();
             if (vPreview_) vPreview_->tic();
             if (vMulti_) vMulti_->tic();
+            for (auto& [n, c] : vEscenas_)
+                if (c.comp) c.comp->tic();
+            if (tomaAudio_ != nullptr) {
+                GstBus* bus = gst_element_get_bus(tomaAudio_);
+                while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
+                gst_object_unref(bus);
+            }
             for (auto& [n, a] : mvAux_) a->tic();
             if (vistas_) vistas_->tic();
             // Los que consumen el programa esperan lo que tarda en salir.
@@ -284,6 +306,7 @@ std::string Motor::definirEscena(const json& j) {
         escenaAlAire(ids, 0);
     }
     if (e.nombre == armada_ && vPreview_) vPreview_->mostrar(e);
+    if (auto it = vEscenas_.find(e.nombre); it != vEscenas_.end() && it->second.comp) it->second.comp->mostrar(e);
     return {};
 }
 
@@ -338,10 +361,34 @@ std::string Motor::take(const std::string& transicion, int ms) {
 std::string Motor::dsk(const json& capas, int fundidoMs) {
     std::lock_guard<std::recursive_mutex> l(mu_);
     if (!vPrograma_) return "el motor está sin video";
-    std::vector<Capa> v = Escena::desdeJson(json{{"nombre", "dsk"}, {"capas", capas.is_array() ? capas : json::array()}}).capas;
-    for (const auto& c : v)
+    // Una capa puede ser una entrada o una ESCENA entera ({"escena": "Zócalo"}).
+    json lista = capas.is_array() ? capas : json::array();
+    std::set<std::string> escenasUsadas;
+    for (auto& c : lista) {
+        if (!c.is_object() || !c.contains("escena")) continue;
+        const std::string n = c.value("escena", std::string());
+        if (escenas_.count(n) == 0) return "no hay una escena «" + n + "»";
+        escenasUsadas.insert(n);
+        if (c.value("entrada", std::string()).empty()) c["entrada"] = "escena:" + n;
+    }
+    std::vector<Capa> v = Escena::desdeJson(json{{"nombre", "dsk"}, {"capas", lista}}).capas;
+    for (auto& c : v) {
+        if (c.entrada.rfind("escena:", 0) == 0) continue;
         if (canales_.count(c.entrada) == 0) return "no hay una entrada «" + c.entrada + "»";
-    return vPrograma_->ponerDsk(v, fundidoMs) ? std::string() : "el PROGRAMA no tiene DSK";
+    }
+    // Las escenas del DSK: se piden las nuevas (antes de soltar las viejas, así no se rearman).
+    for (const auto& n : escenasUsadas)
+        if (dskEscenas_.count(n) == 0) usarEscena(n);
+    for (auto& c : v)
+        if (c.entrada.rfind("escena:", 0) == 0) {
+            auto it = vEscenas_.find(c.entrada.substr(7));
+            if (it != vEscenas_.end() && it->second.comp) c.productor = it->second.comp->productor();
+        }
+    const bool ok = vPrograma_->ponerDsk(v, fundidoMs);
+    for (const auto& n : dskEscenas_)
+        if (escenasUsadas.count(n) == 0) soltarEscena(n);
+    dskEscenas_ = escenasUsadas;
+    return ok ? std::string() : "el PROGRAMA no tiene DSK";
 }
 
 std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenciaNs) {
@@ -448,12 +495,141 @@ std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
     // del motor hace lo mismo en el tic; al revés se trababan).
     std::lock_guard<std::recursive_mutex> l(mu_);
     if (!vistas_) return "el motor no está andando";
+    const std::string b = clave.substr(0, clave.find('@'));
+    if (b.rfind("escena:", 0) == 0 && usarEscena(b.substr(7)).empty()) return "no hay una escena «" + b.substr(7) + "»";
     return vistas_->pedir(clave, ancho, alto);
 }
 
 void Motor::verSoltar(const std::string& clave) {
     std::lock_guard<std::recursive_mutex> l(mu_);
     if (vistas_) vistas_->soltar(clave);
+    const std::string b = clave.substr(0, clave.find('@'));
+    if (b.rfind("escena:", 0) == 0) soltarEscena(b.substr(7));
+}
+
+void Motor::verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (vistas_) vistas_->avisar(clave, std::move(fn));
+}
+
+bool Motor::empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride) {
+    Entrada* e = nullptr;
+    {
+        std::lock_guard<std::recursive_mutex> l(mu_);
+        auto it = canales_.find(id);
+        if (it == canales_.end()) return false;
+        e = it->second.entrada.get();
+    }
+    return e->empujar(bgra, ancho, alto, stride); // (la entrada tiene su lock)
+}
+
+std::string Motor::usarEscena(const std::string& nombre) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto e = escenas_.find(nombre);
+    if (e == escenas_.end() || !cfg_.video) return {};
+    CompEscena& c = vEscenas_[nombre];
+    if (!c.comp) {
+        c.comp = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "escena:" + nombre);
+        c.comp->mostrar(e->second);
+    }
+    ++c.pedidos;
+    return c.comp->productor();
+}
+
+void Motor::soltarEscena(const std::string& nombre) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = vEscenas_.find(nombre);
+    if (it == vEscenas_.end()) return;
+    if (--it->second.pedidos <= 0) vEscenas_.erase(it);
+}
+
+bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* error) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = escenas_.find(nombre);
+    if (it == escenas_.end() || !vPrograma_) {
+        if (error != nullptr) *error = "no hay una escena «" + nombre + "»";
+        return false;
+    }
+    const bool quedo = vPrograma_->manual(it->second, t, soltar);
+    if (soltar || t >= 1.0) {
+        if (quedo) {
+            alAire_ = nombre;
+            std::vector<std::string> ids;
+            for (const auto& c : it->second.capas)
+                if (c.visible) ids.push_back(c.entrada);
+            escenaAlAire(ids, 200);
+            actualizarMultiview();
+        }
+        return quedo;
+    }
+    return false;
+}
+
+std::string Motor::tbarHacia() const {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    return vPrograma_ ? vPrograma_->manualHacia() : std::string();
+}
+
+void Motor::masterVolumen(double lineal, int ms) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (programa_) programa_->ponerMaster(lineal, ms);
+}
+
+GstFlowReturn Motor::alAudio(GstElement* sink, gpointer d) {
+    auto* m = static_cast<Motor*>(d);
+    GstSample* s = gst_app_sink_pull_sample(GST_APP_SINK(sink));
+    if (s == nullptr) return GST_FLOW_OK;
+    GstBuffer* b = gst_sample_get_buffer(s);
+    GstMapInfo map;
+    if (b != nullptr && gst_buffer_map(b, &map, GST_MAP_READ)) {
+        std::lock_guard<std::mutex> l(m->tomaMu_);
+        for (auto& [id, fn] : m->oyentes_) fn(reinterpret_cast<const float*>(map.data), map.size / (2 * sizeof(float)));
+        gst_buffer_unmap(b, &map);
+    }
+    gst_sample_unref(s);
+    return GST_FLOW_OK;
+}
+
+int Motor::escucharPrograma(std::function<void(const float*, std::size_t)> fn) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    int id = 0;
+    {
+        std::lock_guard<std::mutex> lt(tomaMu_);
+        id = proximoOyente_++;
+        oyentes_[id] = std::move(fn);
+    }
+    if (tomaAudio_ == nullptr && programa_) {
+        const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
+                              " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! "
+                              "appsink name=s emit-signals=true sync=true max-buffers=0 drop=false";
+        tomaAudio_ = gst_parse_launch(d.c_str(), nullptr);
+        if (tomaAudio_ != nullptr) {
+            GstElement* sk = gst_bin_get_by_name(GST_BIN(tomaAudio_), "s");
+            g_signal_connect(sk, "new-sample", G_CALLBACK(&Motor::alAudio), this);
+            gst_object_unref(sk);
+            reloj_->adoptar(tomaAudio_);
+            gst_pipeline_set_latency(GST_PIPELINE(tomaAudio_),
+                                     static_cast<GstClockTime>(programa_->latenciaSalidaNs() + kMargenMezclaNs));
+            gst_element_set_state(tomaAudio_, GST_STATE_PLAYING);
+        }
+    }
+    return id;
+}
+
+void Motor::dejarDeEscuchar(int id) {
+    bool vacio = false;
+    {
+        std::lock_guard<std::mutex> lt(tomaMu_);
+        oyentes_.erase(id);
+        vacio = oyentes_.empty();
+    }
+    if (!vacio) return;
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (tomaAudio_ != nullptr) {
+        gst_element_set_state(tomaAudio_, GST_STATE_NULL);
+        gst_object_unref(tomaAudio_);
+        tomaAudio_ = nullptr;
+    }
 }
 
 bool Motor::verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const {

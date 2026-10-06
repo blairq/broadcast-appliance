@@ -57,7 +57,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
         salida += "ebur128level name=loud interval=100000000 post-messages=true ! ";
     const std::string desc =
         "audiomixer name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
-        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " + salida +
+        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! volume name=master ! " + salida +
         "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! " +
         (op.anillo.empty() ? "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false"
                            : "baanillosink name=sale canal=" + entreComillas(op.anillo));
@@ -73,6 +73,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     }
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
     limitador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "lim");
+    master_ = gst_bin_get_by_name(GST_BIN(pipeline_), "master");
     reloj_.adoptar(pipeline_);
     aplicarLatencia();
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
@@ -92,6 +93,7 @@ Mezcla::~Mezcla() {
             }
         ramas_.clear();
         if (limitador_ != nullptr) gst_object_unref(limitador_);
+        if (master_ != nullptr) gst_object_unref(master_);
         gst_object_unref(mezclador_);
         gst_object_unref(pipeline_);
     }
@@ -198,6 +200,19 @@ void Mezcla::ponerEscena(const std::string& id, double ganancia, int ms) {
     }
 }
 
+void Mezcla::ponerMaster(double lineal, int ms) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (master_ == nullptr) return;
+    masterDesde_ = master_v_;
+    masterHacia_ = std::clamp(lineal, 0.0, 1.0);
+    masterDesdeNs_ = ahoraNs();
+    masterNs_ = std::max(0, ms) * static_cast<std::int64_t>(1000000);
+    if (masterNs_ == 0) {
+        master_v_ = masterHacia_;
+        g_object_set(master_, "volume", master_v_, nullptr);
+    }
+}
+
 bool Mezcla::ponerLimitador(bool activo, double techoDb) {
     std::lock_guard<std::mutex> l(mu_);
     if (limitador_ == nullptr) return false;
@@ -223,6 +238,11 @@ void Mezcla::tic() {
     }
     // Los fundidos de escena (curva de igual potencia: sin bache en el medio).
     const std::int64_t ahora = ahoraNs();
+    if (master_ != nullptr && master_v_ != masterHacia_ && masterNs_ > 0) {
+        const double t = std::clamp(static_cast<double>(ahora - masterDesdeNs_) / static_cast<double>(masterNs_), 0.0, 1.0);
+        master_v_ = masterDesde_ + (masterHacia_ - masterDesde_) * t;
+        g_object_set(master_, "volume", master_v_, nullptr);
+    }
     for (auto& [id, r] : ramas_) {
         if (r.fundidoNs <= 0 || r.escena == r.escenaHacia) continue;
         const double t = std::clamp(static_cast<double>(ahora - r.fundidoDesdeNs) / static_cast<double>(r.fundidoNs), 0.0, 1.0);
@@ -315,6 +335,7 @@ json Mezcla::estado() const {
             {"loudness", loudness_},
             {"anda", pipeline_ != nullptr},
             {"error", error_},
+            {"master", master_v_},
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
             {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
             {"pico_db", picoDb_},

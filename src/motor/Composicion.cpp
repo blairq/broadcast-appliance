@@ -49,6 +49,7 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         k.recDer = r.value("der", 0);
         k.recAba = r.value("aba", 0);
         k.visible = c.value("visible", true);
+        k.contener = c.value("contener", false);
         if (!k.entrada.empty()) e.capas.push_back(k);
     }
     return e;
@@ -65,7 +66,8 @@ nlohmann::json Escena::aJson() const {
                          {"alfa", c.alfa},
                          {"orden", c.orden},
                          {"recorte", {{"izq", c.recIzq}, {"arr", c.recArr}, {"der", c.recDer}, {"aba", c.recAba}}},
-                         {"visible", c.visible}});
+                         {"visible", c.visible},
+                         {"contener", c.contener}});
     return {{"nombre", nombre}, {"capas", capas}};
 }
 
@@ -195,6 +197,7 @@ void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
     const guint zorder = static_cast<guint>(std::clamp(r.generacion % 1000, 0, 999) * 1000 + std::clamp(c.orden, 0, 999));
     g_object_set(r.pad, "xpos", c.x, "ypos", c.y, "width", w, "height", h, "alpha", c.visible ? alfa : 0.0, "zorder",
                  zorder, nullptr);
+    gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", c.contener ? "keep-aspect-ratio" : "none");
     g_object_set(r.recorte, "left", std::max(0, c.recIzq), "top", std::max(0, c.recArr), "right", std::max(0, c.recDer),
                  "bottom", std::max(0, c.recAba), nullptr);
     r.alfaHacia = c.visible ? c.alfa : 0.0;
@@ -225,6 +228,9 @@ void Composicion::animar(double t) {
         } else if (transicion_ == "empuje") {
             const int dx = static_cast<int>(std::lround((nueva ? (1.0 - t) : -t) * W));
             g_object_set(r->pad, "xpos", c.x + dx, nullptr);
+        } else if (transicion_ == "cortina" && nueva && c.contener) {
+            // Una capa que entra sin deformarse no se puede recortar a medida: se funde.
+            g_object_set(r->pad, "alpha", r->alfaHacia * t, nullptr);
         } else if (transicion_ == "cortina" && nueva) {
             const double borde = t * W;
             const int vis = static_cast<int>(std::clamp(borde - c.x, 0.0, static_cast<double>(w)));
@@ -311,6 +317,50 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
     }
 }
 
+bool Composicion::manual(const Escena& e, double t, bool soltar) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (pipeline_ == nullptr) return false;
+    t = std::clamp(t, 0.0, 1.0);
+    if (!manual_ || escena_.nombre != e.nombre) {
+        // Arranca: lo que esté en transición termina ya, y la nueva entra con alfa 0.
+        if (genVieja_ >= 0) {
+            sacarGeneracion(genVieja_);
+            genVieja_ = -1;
+        }
+        escenaAntes_ = escena_;
+        const int vieja = generacion_;
+        ++generacion_;
+        for (const auto& c : e.capas)
+            if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, 0.0);
+        escena_ = e;
+        genVieja_ = vieja > 0 ? vieja : -1;
+        transicion_ = "mezcla";
+        manual_ = true;
+    }
+    manualT_ = t;
+    animar(t);
+    if (t < 1.0 && !soltar) return false;
+    manual_ = false;
+    if (t >= 0.5) {
+        for (auto& [k, r] : ramas_)
+            if (r->generacion == generacion_) ponerCapa(*r, r->capa, r->alfaHacia);
+        if (genVieja_ >= 0) sacarGeneracion(genVieja_);
+        genVieja_ = -1;
+        return true;
+    }
+    // Antes de la mitad: vuelve lo de antes (se saca lo nuevo).
+    sacarGeneracion(generacion_);
+    if (genVieja_ >= 0) generacion_ = genVieja_;
+    genVieja_ = -1;
+    escena_ = escenaAntes_;
+    return false;
+}
+
+std::string Composicion::manualHacia() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return manual_ ? escena_.nombre : std::string();
+}
+
 bool Composicion::enTransicion() const {
     std::lock_guard<std::mutex> l(mu_);
     return genVieja_ >= 0;
@@ -370,12 +420,15 @@ void Composicion::tic() {
     }
     // La transición.
     if (genVieja_ >= 0) {
-        const double t = std::clamp(static_cast<double>(ahoraNs() - transDesdeNs_) / static_cast<double>(std::max<std::int64_t>(1, transNs_)), 0.0, 1.0);
+        const double t = manual_ ? manualT_
+                                 : std::clamp(static_cast<double>(ahoraNs() - transDesdeNs_) /
+                                                  static_cast<double>(std::max<std::int64_t>(1, transNs_)),
+                                              0.0, 1.0);
         bool nuevasListas = true;
         for (auto& [k, r] : ramas_)
             if (r->generacion == generacion_) nuevasListas = nuevasListas && r->listo.load();
         if (transicion_ != "corte") animar(t);
-        const bool termino = transicion_ != "corte" ? t >= 1.0 : (nuevasListas || t >= 1.0);
+        const bool termino = manual_ ? false : transicion_ != "corte" ? t >= 1.0 : (nuevasListas || t >= 1.0);
         if (termino) {
             // Lo nuevo, como tiene que quedar (posición, ancho, recorte y alfa).
             for (auto& [k, r] : ramas_)

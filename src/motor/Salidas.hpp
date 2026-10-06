@@ -25,6 +25,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -39,6 +40,11 @@ std::string elegirCodificador(const std::vector<std::string>& preferidos = {});
 /// Crea el codificador con bitrate (kbps), un cuadro clave cada `gop` cuadros y
 /// en modo tiempo real (las propiedades que tenga). nullptr si no se pudo.
 GstElement* crearCodificador(const std::string& fabrica, int kbps, int gop);
+
+/// Pasa `origen` (MKV) a `destino` (MP4 o MOV, según la extensión) sin recodificar.
+/// Bloquea hasta terminar (llamarla en otro hilo); `progreso` recibe 0…1. "" o el error.
+std::string remuxar(const std::string& origen, const std::string& destino,
+                    const std::function<void(double)>& progreso = nullptr);
 
 /// Lo que lee una salida: el video y los audios (productores de intersink) y
 /// cuánto tardan en salir (ns).

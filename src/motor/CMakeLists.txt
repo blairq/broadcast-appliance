@@ -44,4 +44,13 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_salidas gstbaaudio gstbaipc)
     add_test(NAME test_salidas COMMAND test_salidas)
     set_tests_properties(test_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_motor_app tests/test_motor_app.cpp)
+    target_link_libraries(test_motor_app PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_app "")
+    target_compile_definitions(test_motor_app PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_app gstbaaudio gstbaipc)
+    add_test(NAME test_motor_app COMMAND test_motor_app)
+    set_tests_properties(test_motor_app PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 endif()

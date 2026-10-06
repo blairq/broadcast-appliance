@@ -12,7 +12,11 @@
 // la sueltan todos (`soltar`). `ultimo` copia el último cuadro si es más nuevo
 // que el que ya tiene quien pregunta (número de serie).
 //
-// Claves: "programa", "preview" (las composiciones) o "entrada:<id>".
+// Claves: "programa", "preview" (las composiciones) o "entrada:<id>". Una clave
+// puede llevar «@<nombre>» para tener otra vista de lo mismo (otro tamaño): lo
+// que va después de la @ no se mira para resolver.
+// `avisar` registra una función que recibe CADA cuadro de esa clave (en el hilo
+// de GStreamer): para mandar el programa al gateway o medir algo.
 // ============================================================================
 #pragma once
 
@@ -51,6 +55,8 @@ class Vistas {
     void soltar(const std::string& clave);
     /// El último cuadro de `clave` si su serie es mayor que `serie` (y la actualiza).
     bool ultimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const;
+    /// Cada cuadro de `clave` a `fn` (en el hilo de datos). fn vacía = sacar.
+    void avisar(const std::string& clave, std::function<void(const Cuadro&)> fn);
     void tic();
     nlohmann::json estado() const;
 
@@ -61,6 +67,7 @@ class Vistas {
         std::int64_t latencia = 0;
         std::string productor;
         Cuadro cuadro; ///< bajo mu_
+        std::function<void(const Cuadro&)> aviso;
     };
     static GstFlowReturn alCuadro(GstElement* sink, gpointer d);
     void armar(const std::string& clave, Una& u);

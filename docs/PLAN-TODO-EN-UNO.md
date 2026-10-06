@@ -235,3 +235,14 @@ tareas quedan repartidas acá.
 - 2026-10-06 · M2.2: transiciones empuje y cortina.
   - **Cómo:** el empuje mueve la posición de los pads. La cortina recorta la fuente y achica el pad juntos, así no se deforma. Las dos en CPU, sin GL.
   - **Probado a mitad de camino** (los dos colores en su lado) **y al terminar.**
+- 2026-10-06 · M6.1, lo que el motor le tenía que dar a la app (`test_motor_app`):
+  - entrada `tipo=app` (la app empuja cuadros: gráficos, chat);
+  - composición de cualquier escena a pedido (el editor) y DSK con escenas enteras;
+  - T-bar manual;
+  - volumen del máster con fundido (FTB);
+  - toma del audio del programa (loudness, picos, aplauso);
+  - avisos por cuadro de una vista (el programa al gateway);
+  - remux MKV→MP4 sin recodificar;
+  - las capas pueden «contener» (entra sin deformarse, como hacía OBS).
+  - **Arreglado:** la grabación escribía MP4 con nombre .mkv. `splitmuxsink` crea su muxer al pedirle las pistas, antes de que se le pase otro. Ahora `muxer-factory=matroskamux` va en la descripción y el test verifica el contenedor.
+  - **Trampa:** `imagefreeze` con un `appsrc` no negocia con la normalización si las caps del `appsrc` no traen `pixel-aspect-ratio` e `interlace-mode`.
