@@ -79,6 +79,44 @@ void McpService::registerAudioTools() {
 
     {
         Tool t;
+        t.name = "audio_estudio";
+        t.title = "Vista general del audio";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "TODO el audio de una vez, como la vista Estudio de la página Audio: cada fuente con su cadena "
+            "entera de izquierda a derecha — origen (micrófono, invitado, red… y si corre en GStreamer o en "
+            "libobs) → los módulos de su rack → los filtros de su cadena de GStreamer (automixer…) → la mezcla "
+            "(volumen, silencio) —, los cables entre fuentes (tarjetas «Entrada») y las mesas del automixer. "
+            "Para ver de un vistazo qué pasa por dónde; para cambiar algo, audio_rack / automixer / "
+            "entrada_filtros_audio.";
+        t.run = [mgr](const json&, Done done) {
+            const json e = mgr()->estudio();
+            // Para leer: por fuente, la cadena en orden (sin posiciones de pantalla).
+            json fuentes = json::array();
+            for (const auto& fr : e["franjas"]) {
+                const std::string titulo = fr.value("titulo", std::string());
+                json cadena = json::array();
+                for (const auto& n : e["nodos"])
+                    if (n.value("grupo", std::string()) + "  ·  GStreamer" == titulo ||
+                        n.value("grupo", std::string()) + "  ·  libobs" == titulo || n.value("grupo", std::string()) == titulo) {
+                        json x{{"tarjeta", n.value("etiqueta", std::string())}, {"tipo", n.value("tipo", std::string())}};
+                        if (n.contains("resumen")) x["detalle"] = n["resumen"];
+                        cadena.push_back(x);
+                    }
+                fuentes.push_back({{"fuente", titulo}, {"motor", fr.value("motor", std::string())}, {"cadena", cadena}});
+            }
+            json conexiones = json::array();
+            for (const auto& c : e["cables"]) {
+                const std::string a = c.value("desde", std::string()), b = c.value("hacia", std::string());
+                if (a.substr(0, a.find('|')) != b.substr(0, b.find('|'))) conexiones.push_back({{"desde", a}, {"hacia", b}});
+            }
+            done(ToolResult().data({{"fuentes", fuentes}, {"entre_fuentes", conexiones}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_sources";
         t.title = "Fuentes con audio";
         t.category = "audio_rack";

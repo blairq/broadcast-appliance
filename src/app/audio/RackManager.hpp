@@ -60,6 +60,14 @@ class RackManager : public QObject {
     std::shared_ptr<ClapLibrary> library(std::string* error = nullptr);
     /// Fuentes con audio: [{nombre, tipo, rack: bool, modulos: n}].
     json audioSources() const;
+    /// La vista general del audio (página Audio → Estudio; MCP audio_estudio):
+    /// todas las fuentes, cada una en su franja con su cadena entera de izquierda
+    /// a derecha —origen (y dónde corre: GStreamer o libobs) → módulos de su rack
+    /// → filtros de su cadena de GStreamer (automixer…) → la mezcla (volumen,
+    /// silencio)—, los cables entre franjas (las tarjetas «Entrada» que traen el
+    /// audio de otra fuente) y una tarjeta por mesa del automixer con sus
+    /// micrófonos. Con el formato del Patchbay: {nodos, cables, franjas}.
+    json estudio() const;
     /// El rack de la fuente; con `create` lo monta si no tiene.
     AudioRack* rack(const std::string& source, bool create, std::string* error = nullptr);
     /// Los módulos que el vigía saltó en todos los racks ("<fuente>: <módulo>").

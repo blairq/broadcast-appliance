@@ -25,6 +25,7 @@
 #include <obs.h>
 #include <util/platform.h>
 
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <vector>
@@ -34,7 +35,18 @@ namespace ba::app::audio {
 namespace fs = std::filesystem;
 
 namespace {
-/// ¿Es un micrófono del equipo? (por GStreamer: `ba_gst_fuente` con `microfono`).
+constexpr const char* kTipoGstAudio = "ba_gst_fuente";
+
+/// Una entrada de GStreamer con `audio` apagado (una cámara) no tiene audio
+/// aunque su tipo diga que puede.
+bool conAudio(obs_source_t* s) {
+    if (std::string(obs_source_get_id(s)) != kTipoGstAudio) return true;
+    obs_data_t* d = obs_source_get_settings(s);
+    const bool si = d == nullptr || obs_data_get_bool(d, "audio");
+    if (d != nullptr) obs_data_release(d);
+    return si;
+}
+
 /// El tipo lógico (inputs::tipoLogico): un micrófono o un invitado por GStreamer
 /// se agrupan y usan las plantillas como los de libobs de antes.
 std::string tipoLogicoDe(obs_source_t* s) {
@@ -540,6 +552,7 @@ json RackManager::audioSources() const {
         [](void* p, obs_source_t* s) {
             auto* c = static_cast<Ctx*>(p);
             if ((obs_source_get_output_flags(s) & OBS_SOURCE_AUDIO) == 0) return true;
+            if (!conAudio(s)) return true; // una cámara de GStreamer sin audio
             const std::string name = obs_source_get_name(s);
             const std::string type = tipoLogicoDe(s);
             // Grupo para el arbol de la interfaz: por donde entra el audio.
@@ -575,6 +588,215 @@ json RackManager::audioSources() const {
         },
         &ctx);
     return ctx.list;
+}
+
+// --- Vista general (Estudio) ----------------------------------------------------
+
+namespace {
+/// De dónde viene el audio, en palabras (para la tarjeta de origen).
+std::string describirOrigen(const std::string& tipo, const nlohmann::json& s) {
+    if (tipo != kTipoGstAudio) return "libobs · " + tipo;
+    if (!s.is_object()) return "GStreamer";
+    if (s.contains("microfono")) return "Micrófono · " + s.value("pipeline_audio", std::string());
+    if (s.contains("anillo"))
+        return std::string(s.value("anillo", std::string()) == "remoto" ? "Remoto con la palabra" : "Invitado") + " · " +
+               s.value("pipeline_audio", std::string());
+    if (!s.value("uri", std::string()).empty()) return "Red · " + inputs::redactUrl(s.value("uri", std::string()));
+    if (s.contains("ba_plugin")) return "Plugin · " + s.value("ba_plugin", std::string());
+    if (!s.value("pipeline_audio", std::string()).empty()) return "Pipeline · " + s.value("pipeline_audio", std::string());
+    return "GStreamer · audio del pipeline";
+}
+
+nlohmann::json puertos(const nlohmann::json& nombres, const char* tipo = "audio") {
+    nlohmann::json out = nlohmann::json::array();
+    for (const auto& n : nombres) out.push_back({{"id", n}, {"tipo", tipo}});
+    return out;
+}
+
+/// Alto de una tarjeta del Patchbay (cabecera + puertos + cuerpo).
+double altoTarjeta(const nlohmann::json& n) {
+    const double filas = std::max<double>({1.0, static_cast<double>(n.value("entradas", nlohmann::json::array()).size()),
+                                           static_cast<double>(n.value("salidas", nlohmann::json::array()).size())});
+    return 34.0 + 24.0 * filas + 40.0;
+}
+} // namespace
+
+json RackManager::estudio() const {
+    constexpr double kPaso = 240.0;  // de una columna a la otra
+    constexpr double kTitulo = 30.0; // lo que ocupa el nombre de la franja
+    constexpr double kEntre = 24.0;  // entre franjas
+    json nodos = json::array(), cables = json::array(), franjas = json::array();
+    std::vector<std::pair<std::string, std::string>> entradas; // (tarjeta «entrada», fuente que trae)
+    std::map<std::string, std::vector<std::string>> mesas;      // mesa → tarjetas baautomixer
+    double y = 0;
+    for (const auto& f : audioSources()) {
+        const std::string nombre = f.value("nombre", std::string());
+        obs_source_t* src = obs_get_source_by_name(nombre.c_str());
+        if (src == nullptr) continue;
+        const std::string tipo = obs_source_get_id(src);
+        obs_data_t* d = obs_source_get_settings(src);
+        const json ajustes = d != nullptr ? json::parse(obs_data_get_json(d), nullptr, false) : json();
+        if (d != nullptr) obs_data_release(d);
+        const float vol = obs_source_get_volume(src);
+        const bool mudo = obs_source_muted(src);
+        obs_source_release(src);
+
+        const std::string p = nombre + "|";
+        const std::string motor = tipo == kTipoGstAudio ? "gstreamer" : "libobs";
+        const double y0 = y + kTitulo;
+        double altoFranja = 0;
+        const auto poner = [&](json n, double x, double dy) {
+            n["x"] = x;
+            n["y"] = y0 + dy;
+            n["grupo"] = nombre;
+            n["fuente"] = nombre;
+            altoFranja = std::max(altoFranja, dy + altoTarjeta(n));
+            nodos.push_back(std::move(n));
+        };
+        // El rack: se dibuja como está armado en su página, con su «in» donde va
+        // el origen y su «out» donde empieza lo que sigue (filtros y mezcla).
+        double origenY = 0, x = kPaso, etapasY = 0;
+        std::vector<json> cablesRack;
+        json rackNodos = json::array();
+        auto it = filters_.find(nombre);
+        if (it != filters_.end() && it->second->rack) {
+            const json r = it->second->rack->describe();
+            double minY = 1e9, inX = 0, inY = 0, outX = kPaso, outY = 0;
+            for (const auto& n : r["nodos"]) {
+                minY = std::min(minY, n.value("y", 0.0));
+                if (n["id"] == "in") inX = n.value("x", 0.0), inY = n.value("y", 0.0);
+                if (n["id"] == "out") outX = n.value("x", 0.0), outY = n.value("y", 0.0);
+            }
+            origenY = inY - minY;
+            x = std::max(kPaso, outX - inX);
+            etapasY = outY - minY;
+            for (const auto& n : r["nodos"]) {
+                const std::string id = n.value("id", std::string());
+                if (id == "in" || id == "out") continue;
+                const std::string k = n.value("tipo", std::string());
+                json t{{"id", p + "r:" + id},
+                       {"tipo", k},
+                       {"etiqueta", n.value("etiqueta", id)},
+                       {"entradas", puertos(n.value("entradas", json::array()))},
+                       {"salidas", puertos(n.value("salidas", json::array()))},
+                       {"rack", id}};
+                std::string resumen = k == "plugin" ? n.value("nombre", std::string()) : "";
+                if (n.value("bypass", false)) resumen += " · anulado";
+                if (n.value("bypass_auto", false)) resumen += " · anulado por el vigía";
+                if (k == "entrada") {
+                    resumen = "de «" + n.value("fuente", std::string()) + "»";
+                    t["entradas"].push_back({{"id", "desde"}, {"tipo", "audio"}});
+                    entradas.push_back({p + "r:" + id, n.value("fuente", std::string())});
+                }
+                if (k == "texto") resumen = "voz a texto · " + n.value("modo", std::string());
+                if (!resumen.empty()) t["resumen"] = resumen;
+                t["@x"] = n.value("x", 0.0) - inX;
+                t["@y"] = n.value("y", 0.0) - minY;
+                rackNodos.push_back(t);
+            }
+            for (const auto& c : r["cables"]) {
+                const std::string a = c.value("desde", std::string()), b = c.value("hacia", std::string());
+                cablesRack.push_back({{"desde", a == "in" ? p + "origen" : p + "r:" + a},
+                                      {"salida", a == "in" ? std::string("out") : c.value("salida", std::string())},
+                                      {"hacia", b == "out" ? std::string("@sigue") : p + "r:" + b},
+                                      {"entrada", b == "out" ? std::string("in") : c.value("entrada", std::string())}});
+            }
+        }
+        poner({{"id", p + "origen"},
+               {"tipo", motor == "gstreamer" ? "origen-gst" : "origen-obs"},
+               {"etiqueta", nombre},
+               {"resumen", describirOrigen(tipo, ajustes)},
+               {"motor", motor},
+               {"entradas", json::array()},
+               {"salidas", puertos(json::array({"out"}))}},
+              0, origenY);
+        for (auto& t : rackNodos) {
+            const double tx = t["@x"], ty = t["@y"];
+            t.erase("@x");
+            t.erase("@y");
+            poner(t, tx, ty);
+        }
+
+        // Los filtros de su cadena de GStreamer (después del rack) y la mezcla.
+        std::vector<std::string> etapas;
+        const json fa = json::parse(ajustes.is_object() ? ajustes.value("filtros_audio", std::string()) : std::string(),
+                                    nullptr, false);
+        int i = 0;
+        for (const auto& fl : fa.is_array() ? fa : json::array()) {
+            const std::string el = fl.value("elemento", std::string());
+            const json pr = fl.value("propiedades", json::object());
+            const std::string id = p + "f:" + std::to_string(i++);
+            json t{{"id", id},
+                   {"tipo", el == "baautomixer" ? "automixer" : "gst"},
+                   {"etiqueta", el == "baautomixer" ? std::string("Automixer") : el},
+                   {"entradas", puertos(json::array({"in"}))},
+                   {"salidas", puertos(json::array({"out"}))}};
+            if (el == "baautomixer") {
+                const std::string g = pr.value("grupo", std::string("mesa"));
+                t["resumen"] = "mesa «" + g + "»";
+                t["entradas"].push_back({{"id", "mesa"}, {"tipo", "control"}});
+                mesas[g].push_back(id);
+            } else if (el == "baplugin") {
+                t["resumen"] = "Python · " + pr.value("plugin", std::string());
+            }
+            etapas.push_back(id);
+            poner(t, x, etapasY);
+            x += kPaso;
+        }
+        char vtxt[64];
+        std::snprintf(vtxt, sizeof vtxt, "%.1f dB", vol > 0.0f ? 20.0 * std::log10(vol) : -100.0);
+        poner({{"id", p + "mezcla"},
+               {"tipo", "mezcla"},
+               {"etiqueta", "Mezcla"},
+               {"resumen", std::string(vtxt) + (mudo ? " · silenciada" : "")},
+               {"entradas", puertos(json::array({"in"}))},
+               {"salidas", puertos(json::array({"out"}))}},
+              x, etapasY);
+        etapas.push_back(p + "mezcla");
+
+        // Cables: el «out» del rack va a la primera etapa; sin rack, el origen va
+        // directo; y las etapas en fila.
+        for (auto& c : cablesRack) {
+            if (c["hacia"] == "@sigue") c["hacia"] = etapas.front();
+            cables.push_back(c);
+        }
+        if (cablesRack.empty())
+            cables.push_back({{"desde", p + "origen"}, {"salida", "out"}, {"hacia", etapas.front()}, {"entrada", "in"}});
+        for (size_t k = 1; k < etapas.size(); ++k)
+            cables.push_back({{"desde", etapas[k - 1]}, {"salida", "out"}, {"hacia", etapas[k]}, {"entrada", "in"}});
+
+        franjas.push_back({{"titulo", nombre + (motor == "gstreamer" ? "  ·  GStreamer" : "  ·  libobs")},
+                           {"y", y},
+                           {"alto", kTitulo + altoFranja + 10},
+                           {"motor", motor}});
+        y += kTitulo + altoFranja + kEntre;
+    }
+    // Las tarjetas «Entrada»: un cable desde lo que sale de la otra fuente.
+    for (const auto& [tarjeta, fuente] : entradas)
+        cables.push_back({{"desde", fuente + "|mezcla"}, {"salida", "out"}, {"hacia", tarjeta}, {"entrada", "desde"}});
+    // Las mesas del automixer: una tarjeta por mesa, con un cable de control a cada micrófono.
+    if (!mesas.empty()) {
+        const double y0 = y + kTitulo;
+        double alto = 0, x = 0;
+        for (const auto& [g, ids] : mesas) {
+            json t{{"id", "mesa|" + g},
+                   {"tipo", "mesa"},
+                   {"etiqueta", "Mesa «" + g + "»"},
+                   {"resumen", std::to_string(ids.size()) + " micrófonos"},
+                   {"entradas", json::array()},
+                   {"salidas", json::array({json{{"id", "ctl"}, {"tipo", "control"}}})},
+                   {"x", x},
+                   {"y", y0},
+                   {"grupo", "Automixer"}};
+            alto = std::max(alto, altoTarjeta(t));
+            nodos.push_back(t);
+            for (const auto& id : ids)
+                cables.push_back({{"desde", "mesa|" + g}, {"salida", "ctl"}, {"hacia", id}, {"entrada", "mesa"}});
+            x += kPaso;
+        }
+        franjas.push_back({{"titulo", "Automixer"}, {"y", y}, {"alto", kTitulo + alto + 10}, {"motor", "gstreamer"}});
+    }
+    return json{{"nodos", nodos}, {"cables", cables}, {"franjas", franjas}};
 }
 
 void RackManager::setTextoSink(TextoSink sink) {

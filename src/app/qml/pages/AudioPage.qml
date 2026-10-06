@@ -21,6 +21,16 @@ Rectangle {
     // Dos vistas: los racks de filtros de cada fuente, y la matriz de mezcla
     // (que rutea la SALIDA de esos filtros).
     property string vista: "racks"
+    // ui_show_page {page: "audio", seccion: "estudio" | "racks" | "matriz" | "mesa" | <fuente>}
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina !== "audio") return
+            const v = seccion.toLowerCase()
+            if (["racks", "estudio", "matriz", "mesa"].indexOf(v) >= 0) { page.vista = v; return }
+            if (page.au) { page.au.selectSource(seccion); page.vista = "racks" }
+        }
+    }
     onVisibleChanged: if (au) au.setActive(visible)
     Component.onCompleted: if (au) au.setActive(visible)
 
@@ -175,13 +185,26 @@ Rectangle {
     readonly property int franjaSelector: selectorVista.visible ? selectorVista.height + 14 + 10 : 18
     Row {
         id: selectorVista
-        visible: !!page.au && !!Studio.matriz
+        visible: !!page.au
         z: 10
         anchors { top: parent.top; right: parent.right; topMargin: 14; rightMargin: 22 }
         spacing: 4
         GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vista = "racks" }
-        GlassButton { compact: true; text: "Matriz"; icon: "▦"; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+        GlassButton { compact: true; text: "Estudio"; icon: "▦"; active: page.vista === "estudio"; onClicked: page.vista = "estudio"
+                      ToolTip.visible: hovered; ToolTip.delay: 400
+                      ToolTip.text: "Todas las fuentes, cada una con su cadena entera (origen → rack → filtros → mezcla) y los cables entre ellas" }
+        GlassButton { compact: true; text: "Matriz"; icon: "▦"; visible: !!Studio.matriz; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
         GlassButton { compact: true; text: "Mesa"; active: page.vista === "mesa"; onClicked: page.vista = "mesa" }
+    }
+    EstudioAudio {
+        visible: !!page.au && page.vista === "estudio" && page.visible
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
+        au: page.au
+        onAbrirRack: (fuente, nodo) => {
+            page.au.selectSource(fuente)
+            if (nodo !== "") page.au.select(nodo)
+            page.vista = "racks"
+        }
     }
     MesaAutomixer {
         visible: !!page.au && page.vista === "mesa" && page.visible

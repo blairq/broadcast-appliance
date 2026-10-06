@@ -255,6 +255,8 @@ void AudioViewModel::rebuildDetail() {
     }
 }
 
+QVariantMap AudioViewModel::estudio() const { return toVariant(mgr_.estudio()).toMap(); }
+
 void AudioViewModel::selectSource(const QString& name) {
     source_ = name;
     selected_.clear();
