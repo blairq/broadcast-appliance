@@ -4,162 +4,99 @@
 
 #include "ChatOverlaySource.hpp"
 
-#include <obs.h>
-#include <util/platform.h>
+#include "FuentesApp.hpp"
 
 #include <algorithm>
-#include <atomic>
-#include <map>
-#include <mutex>
 
 namespace ba::app::chatoverlay {
 
 namespace {
 
-struct Ctx {
-    obs_source_t* source = nullptr;
-    Instance info;
-};
+using json = nlohmann::json;
 
-std::mutex g_lock;
-std::map<std::uint64_t, Ctx*> g_live;
-std::atomic<std::uint64_t> g_nextId{1};
+int entero(const json& s, const char* k, int lo, int hi) {
+    const auto it = s.find(k);
+    return std::clamp(it != s.end() && it->is_number() ? it->get<int>() : lo, lo, hi);
+}
+bool logico(const json& s, const char* k) {
+    const auto it = s.find(k);
+    return it != s.end() && it->is_boolean() && it->get<bool>();
+}
 
-void readSettings(Instance& in, obs_data_t* s) {
-    in.width = std::clamp(static_cast<int>(obs_data_get_int(s, "width")), 64, 3840);
-    in.height = std::clamp(static_cast<int>(obs_data_get_int(s, "height")), 64, 2160);
-    in.fontSize = std::clamp(static_cast<int>(obs_data_get_int(s, "font_size")), 10, 120);
-    in.maxMessages = std::clamp(static_cast<int>(obs_data_get_int(s, "max_messages")), 1, 50);
-    in.showYoutube = obs_data_get_bool(s, "show_youtube");
-    in.showTwitch = obs_data_get_bool(s, "show_twitch");
-    in.showFacebook = obs_data_get_bool(s, "show_facebook");
-    in.showRoom = obs_data_get_bool(s, "show_room");
+Instance leer(const fuentes::Instancia& f) {
+    Instance in;
+    const json& s = f.ajustes;
+    in.id = f.id;
+    in.name = f.nombre;
+    in.width = entero(s, "width", 64, 3840);
+    in.height = entero(s, "height", 64, 2160);
+    in.fontSize = entero(s, "font_size", 10, 120);
+    in.maxMessages = entero(s, "max_messages", 1, 50);
+    in.showYoutube = logico(s, "show_youtube");
+    in.showTwitch = logico(s, "show_twitch");
+    in.showFacebook = logico(s, "show_facebook");
+    in.showRoom = logico(s, "show_room");
     // Compatibilidad: "channel" (una sola fuente de mensajes) restringe.
-    const char* ch = obs_data_get_string(s, "channel");
-    const std::string only = ch != nullptr ? ch : "";
+    const std::string only = s.value("channel", std::string());
     if (only == "youtube" || only == "twitch" || only == "facebook" || only == "room") {
         in.showYoutube = only == "youtube";
         in.showTwitch = only == "twitch";
         in.showFacebook = only == "facebook";
         in.showRoom = only == "room";
     }
-    in.bgOpacity = std::clamp(static_cast<int>(obs_data_get_int(s, "bg_opacity")), 0, 100);
-    in.showNames = obs_data_get_bool(s, "show_names");
-    in.fadeSec = std::clamp(static_cast<int>(obs_data_get_int(s, "fade_sec")), 0, 3600);
-    in.soloDestacados = obs_data_get_bool(s, "solo_destacados");
-    ++in.settingsVersion;
+    in.bgOpacity = entero(s, "bg_opacity", 0, 100);
+    in.showNames = logico(s, "show_names");
+    in.fadeSec = entero(s, "fade_sec", 0, 3600);
+    in.soloDestacados = logico(s, "solo_destacados");
+    in.settingsVersion = f.version;
+    return in;
 }
-
-const char* getName(void*) { return "Chat en vivo (YouTube, Twitch, Facebook, sala)"; }
-
-void* create(obs_data_t* settings, obs_source_t* source) {
-    auto* c = new Ctx();
-    c->source = source;
-    c->info.id = g_nextId.fetch_add(1);
-    c->info.name = obs_source_get_name(source) != nullptr ? obs_source_get_name(source) : "";
-    readSettings(c->info, settings);
-    // Cada cuadro se muestra en cuanto llega (no hay reloj de video que seguir).
-    obs_source_set_async_unbuffered(source, true);
-    std::lock_guard<std::mutex> lock(g_lock);
-    g_live[c->info.id] = c;
-    return c;
-}
-
-void destroy(void* data) {
-    auto* c = static_cast<Ctx*>(data);
-    {
-        std::lock_guard<std::mutex> lock(g_lock);
-        g_live.erase(c->info.id);
-    }
-    delete c;
-}
-
-void update(void* data, obs_data_t* settings) {
-    auto* c = static_cast<Ctx*>(data);
-    std::lock_guard<std::mutex> lock(g_lock);
-    readSettings(c->info, settings);
-}
-
-void defaults(obs_data_t* s) {
-    obs_data_set_default_int(s, "width", 640);
-    obs_data_set_default_int(s, "height", 720);
-    obs_data_set_default_int(s, "font_size", 28);
-    obs_data_set_default_int(s, "max_messages", 8);
-    obs_data_set_default_string(s, "channel", "all");
-    obs_data_set_default_bool(s, "solo_destacados", true);
-    obs_data_set_default_bool(s, "show_youtube", true);
-    obs_data_set_default_bool(s, "show_twitch", true);
-    obs_data_set_default_bool(s, "show_facebook", true);
-    obs_data_set_default_bool(s, "show_room", true);
-    obs_data_set_default_int(s, "bg_opacity", 55);
-    obs_data_set_default_bool(s, "show_names", true);
-    obs_data_set_default_int(s, "fade_sec", 0);
-}
-
-obs_properties_t* properties(void*) {
-    obs_properties_t* p = obs_properties_create();
-    obs_property_t* ch =
-        obs_properties_add_list(p, "channel", "Mensajes de", OBS_COMBO_TYPE_LIST, OBS_COMBO_FORMAT_STRING);
-    obs_property_list_add_string(ch, "Los elegidos abajo", "all");
-    obs_property_list_add_string(ch, "Solo YouTube", "youtube");
-    obs_property_list_add_string(ch, "Solo Twitch", "twitch");
-    obs_property_list_add_string(ch, "Solo Facebook", "facebook");
-    obs_property_list_add_string(ch, "Solo la sala (invitados)", "room");
-    obs_properties_add_bool(p, "solo_destacados", "Solo los mensajes destacados por el operador");
-    obs_properties_add_bool(p, "show_youtube", "YouTube");
-    obs_properties_add_bool(p, "show_twitch", "Twitch");
-    obs_properties_add_bool(p, "show_facebook", "Facebook");
-    obs_properties_add_bool(p, "show_room", "Sala (invitados)");
-    obs_properties_add_int(p, "max_messages", "Mensajes a la vista", 1, 50, 1);
-    obs_properties_add_int(p, "font_size", "Tamaño de letra", 10, 120, 1);
-    obs_properties_add_int(p, "width", "Ancho", 64, 3840, 8);
-    obs_properties_add_int(p, "height", "Alto", 64, 2160, 8);
-    obs_properties_add_int_slider(p, "bg_opacity", "Opacidad del fondo", 0, 100, 5);
-    obs_properties_add_bool(p, "show_names", "Mostrar nombres");
-    obs_properties_add_int(p, "fade_sec", "Desaparecen a los (s, 0 = nunca)", 0, 3600, 5);
-    return p;
-}
-
-struct obs_source_info g_info = {};
 
 } // namespace
 
 void registerSourceType() {
-    g_info.id = kSourceId;
-    g_info.type = OBS_SOURCE_TYPE_INPUT;
-    g_info.output_flags = OBS_SOURCE_ASYNC_VIDEO | OBS_SOURCE_DO_NOT_DUPLICATE;
-    g_info.get_name = getName;
-    g_info.create = create;
-    g_info.destroy = destroy;
-    g_info.update = update;
-    g_info.get_defaults = defaults;
-    g_info.get_properties = properties;
-    g_info.icon_type = OBS_ICON_TYPE_TEXT;
-    obs_register_source(&g_info);
+    fuentes::Tipo t;
+    t.id = kSourceId;
+    t.nombre = "Chat en vivo (YouTube, Twitch, Facebook, sala)";
+    t.deApp = true;
+    t.defectos = {{"width", 640},         {"height", 720},         {"font_size", 28},     {"max_messages", 8},
+                  {"channel", "all"},     {"solo_destacados", true}, {"show_youtube", true}, {"show_twitch", true},
+                  {"show_facebook", true}, {"show_room", true},     {"bg_opacity", 55},    {"show_names", true},
+                  {"fade_sec", 0}};
+    t.props = [](const json&) {
+        using P = fuentes::Prop;
+        P canal{"channel", "Mensajes de", "list"};
+        canal.opciones = json::array({{{"value", "all"}, {"label", "Los elegidos abajo"}},
+                                      {{"value", "youtube"}, {"label", "Solo YouTube"}},
+                                      {{"value", "twitch"}, {"label", "Solo Twitch"}},
+                                      {{"value", "facebook"}, {"label", "Solo Facebook"}},
+                                      {{"value", "room"}, {"label", "Solo la sala (invitados)"}}});
+        return std::vector<P>{canal,
+                              {"solo_destacados", "Solo los mensajes destacados por el operador", "bool"},
+                              {"show_youtube", "YouTube", "bool"},
+                              {"show_twitch", "Twitch", "bool"},
+                              {"show_facebook", "Facebook", "bool"},
+                              {"show_room", "Sala (invitados)", "bool"},
+                              {"max_messages", "Mensajes a la vista", "int", 1, 50, 1},
+                              {"font_size", "Tamaño de letra", "int", 10, 120, 1},
+                              {"width", "Ancho", "int", 64, 3840, 8},
+                              {"height", "Alto", "int", 64, 2160, 8},
+                              {"bg_opacity", "Opacidad del fondo", "int", 0, 100, 5},
+                              {"show_names", "Mostrar nombres", "bool"},
+                              {"fade_sec", "Desaparecen a los (s, 0 = nunca)", "int", 0, 3600, 5}};
+    };
+    fuentes::registrar(std::move(t));
 }
 
 std::vector<Instance> instances() {
-    std::lock_guard<std::mutex> lock(g_lock);
     std::vector<Instance> out;
-    out.reserve(g_live.size());
-    for (const auto& [id, c] : g_live)
-        out.push_back(c->info);
+    for (const auto& f : fuentes::de(kSourceId))
+        out.push_back(leer(f));
     return out;
 }
 
 void push(std::uint64_t id, const std::uint8_t* bgra, int width, int height) {
-    std::lock_guard<std::mutex> lock(g_lock); // la instancia no se destruye mientras se entrega
-    const auto it = g_live.find(id);
-    if (it == g_live.end()) return;
-    obs_source_frame frame = {};
-    frame.data[0] = const_cast<std::uint8_t*>(bgra);
-    frame.linesize[0] = static_cast<uint32_t>(width) * 4;
-    frame.width = static_cast<uint32_t>(width);
-    frame.height = static_cast<uint32_t>(height);
-    frame.format = VIDEO_FORMAT_BGRA;
-    frame.full_range = true;
-    frame.timestamp = os_gettime_ns();
-    obs_source_output_video(it->second->source, &frame);
+    fuentes::empujar(id, bgra, width, height);
 }
 
 } // namespace ba::app::chatoverlay

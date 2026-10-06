@@ -35,7 +35,7 @@
 #include <shellapi.h>
 #endif
 
-#if BA_HAVE_LIBOBS
+#if BA_HAVE_MOTOR
 #include "EngineSelfTest.hpp"
 #include "OperateMode.hpp"
 #endif
@@ -155,7 +155,7 @@ int dispatch(int argc, char** argv) {
     if (hasFlag(argc, argv, "--headless-selftest")) {
         return runHeadlessSelfTest(restore);
     }
-#if BA_HAVE_LIBOBS
+#if BA_HAVE_MOTOR
     if (hasFlag(argc, argv, "--engine-selftest")) {
         return ba::app::runEngineSelfTest(argc, argv);
     }

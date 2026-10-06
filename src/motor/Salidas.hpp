@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -46,6 +47,10 @@ GstElement* crearCodificador(const std::string& fabrica, int kbps, int gop);
 std::string remuxar(const std::string& origen, const std::string& destino,
                     const std::function<void(double)>& progreso = nullptr);
 
+/// Junta tramos (MKV seguidos de una misma grabación) en un solo archivo, sin
+/// recodificar. Bloquea. "" o el error.
+std::string juntar(const std::vector<std::string>& tramos, const std::string& destino);
+
 /// Lo que lee una salida: el video y los audios (productores de intersink) y
 /// cuánto tardan en salir (ns).
 struct Fuentes {
@@ -61,6 +66,7 @@ class Grabacion {
         std::string carpeta;     ///< dónde
         std::string nombre;      ///< sin extensión; los tramos se numeran: <nombre>-00000.mkv
         int tramoSeg = 600;      ///< 0 = un solo archivo
+        int maxTramos = 0;       ///< > 0: se guardan solo los últimos N (los viejos se borran: la repetición)
         int kbps = 8000, kbpsAudio = 192, gopSeg = 2, fps = 30;
         std::vector<std::string> codificadores; ///< preferidos (vacío = los de la placa)
     };
@@ -131,6 +137,25 @@ class Transmision {
     std::uint64_t bytesAntes_ = 0;
     std::int64_t medidoNs_ = 0, ultimoDatoNs_ = 0;
     double kbps_ = 0;
+};
+
+/// La repetición: graba sin parar en tramos de 2 s y se queda con los últimos
+/// `segundos`; `guardar` junta esos tramos en un clip (sin recodificar).
+class Repeticion {
+   public:
+    Repeticion(Reloj& reloj, std::string carpetaTramos, int segundos, int kbps);
+    ~Repeticion();
+    std::string iniciar(const Fuentes& f);
+    /// Junta lo que hay (hasta `segundos`) en `destino`. Bloquea. "" o el error.
+    std::string guardar(const std::string& destino);
+    bool andando() const;
+    void tic();
+    int segundos() const { return segundos_; }
+
+   private:
+    std::string carpeta_;
+    int segundos_ = 30;
+    std::unique_ptr<Grabacion> grab_;
 };
 
 } // namespace ba::motor

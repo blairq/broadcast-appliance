@@ -9,7 +9,7 @@
 #include <QJsonObject>
 
 #include <nlohmann/json.hpp>
-#include <util/platform.h>
+#include "HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -227,7 +227,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
     // Del reloj del gateway al de libobs.
     const double faltaMs = inicioMs - (ahoraMs() - offsetMs_);
     const std::uint64_t inicioNs =
-        os_gettime_ns() + static_cast<std::uint64_t>(std::max(0.0, faltaMs) * 1'000'000.0);
+        ba::app::ahoraNs() + static_cast<std::uint64_t>(std::max(0.0, faltaMs) * 1'000'000.0);
     audio::MonitorVoz* m = monitor_.get();
     auto pps = naturalPps_;
     const double objetivoSeg = n * 60.0 / std::max(1, est_.ppm);
@@ -241,7 +241,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
     habla_->decir(texto, 0, static_cast<float>(v),
                   [m, inicioNs, n, v, pps, log, base](const float* x, std::size_t k, std::uint32_t fr) {
                       // ¿Llegó a tiempo? Lo que falta para que tenga que sonar.
-                      const double margenMs = (static_cast<double>(inicioNs) - os_gettime_ns()) / 1e6;
+                      const double margenMs = (static_cast<double>(inicioNs) - ba::app::ahoraNs()) / 1e6;
                       m->reproducirEn(x, k, fr, inicioNs);
                       // Lo que tardó en decirla, llevado a velocidad 1: la voz natural.
                       const double seg = static_cast<double>(k) / fr;

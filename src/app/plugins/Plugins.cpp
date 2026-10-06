@@ -21,7 +21,8 @@
 #include <QProcessEnvironment>
 #include <QUrl>
 
-#include <obs.h>
+#include "FuentesApp.hpp"
+#include "diag/Registro.hpp"
 
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>
@@ -164,8 +165,8 @@ Plugins::Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras*
     e.pedir = [this](const QString& plugin, const std::string& accion, const json& args) {
         pedir(plugin.toStdString(), accion, args, [plugin, accion](json r) {
             if (!r.value("ok", false))
-                blog(LOG_WARNING, "[plugins] %s %s: %s", plugin.toUtf8().constData(), accion.c_str(),
-                     r.value("error", std::string()).c_str());
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0,
+                                           plugin.toStdString() + " " + accion + ": " + r.value("error", std::string()));
         });
     };
     e.capacidades = [this](const QString& plugin, const QString& entrada) -> json {
@@ -500,26 +501,13 @@ std::string Plugins::borrar(const std::string& id) {
     guardarActivos();
     // Sus entradas se van con él (las que creó: tienen `ba_plugin` = id).
     std::vector<std::string> suyas;
-    std::pair<std::string, std::vector<std::string>*> busca(id, &suyas);
-    obs_enum_sources(
-        [](void* d, obs_source_t* s) {
-            auto* par = static_cast<std::pair<std::string, std::vector<std::string>*>*>(d);
-            obs_data_t* st = obs_source_get_settings(s);
-            if (st != nullptr && par->first == obs_data_get_string(st, "ba_plugin"))
-                par->second->push_back(obs_source_get_name(s));
-            obs_data_release(st);
-            return true;
-        },
-        &busca);
-    for (const auto& n : suyas) {
+    for (const auto& [n, tipo] : fuentes::listar())
+        if (fuentes::ajustesDe(n).value("ba_plugin", std::string()) == id) suyas.push_back(n);
+    // Sacada de todas las escenas, el motor la suelta.
+    for (const auto& n : suyas)
         for (const auto& sc : rt_.engine().sceneNames())
             for (const auto& src : rt_.engine().sceneSources(sc))
                 if (src == n) rt_.removeSource(sc, n);
-        if (obs_source_t* src = obs_get_source_by_name(n.c_str())) {
-            obs_source_remove(src);
-            obs_source_release(src);
-        }
-    }
     if (!suyas.empty()) rt_.save();
     // No se borra: se mueve a Plugins/.papelera (un plugin hecho a mano vale).
     std::error_code ec;
@@ -1106,11 +1094,14 @@ void Plugins::recibir(const std::string& id, const json& m) {
 }
 
 void Plugins::anotarPuerto(const std::string& id, int puerto) {
-    calldata_t cd = {};
-    calldata_set_string(&cd, "plugin", id.c_str());
-    calldata_set_int(&cd, "puerto", puerto);
-    proc_handler_call(obs_get_proc_handler(), "ba_plugin_puerto", &cd);
-    calldata_free(&cd);
+#if defined(BA_HAVE_GST)
+    // En el registro de GStreamer: baplugin/bapluginsrc lo leen al (re)conectar.
+    const std::string clave = "ba-plugin-puerto:" + id;
+    g_object_set_data(G_OBJECT(gst_registry_get()), clave.c_str(), GINT_TO_POINTER(std::max(0, puerto)));
+#else
+    (void)id;
+    (void)puerto;
+#endif
 }
 
 void Plugins::declararEntrada(const std::string& id, const json& d) {
@@ -1141,7 +1132,7 @@ void Plugins::declararEntrada(const std::string& id, const json& d) {
     const std::string e =
         video_->crearEntradaPipeline(nombre, pv, pa, escena, latencia, normalizar, json{{"ba_plugin", id}});
     if (!e.empty()) {
-        blog(LOG_WARNING, "[plugins] %s: entrada «%s»: %s", id.c_str(), nombre.c_str(), e.c_str());
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0, id + ": entrada «" + nombre + "»: " + e);
         auto it = procesos_.find(id);
         if (it != procesos_.end()) it->second->error = "entrada «" + nombre + "»: " + e;
     }
@@ -1154,8 +1145,8 @@ void Plugins::declararPtz(const std::string& id, const json& d) {
     const QString e =
         camaras_->configurar(entrada, "plugin", QVariantMap{{"plugin", q(id)}, {"entrada", entrada}});
     if (!e.isEmpty()) {
-        blog(LOG_WARNING, "[plugins] %s: PTZ de «%s»: %s", id.c_str(), entrada.toUtf8().constData(),
-             e.toUtf8().constData());
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0,
+                                   id + ": PTZ de «" + entrada.toStdString() + "»: " + e.toStdString());
         auto it = procesos_.find(id);
         if (it != procesos_.end())
             it->second->error = "PTZ de «" + entrada.toStdString() + "»: " + e.toStdString();
@@ -1289,37 +1280,28 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
 
 std::string Plugins::ponerFiltroAudio(const std::string& id, const std::string& tarjeta,
                                       const std::string& fuente, const json& parametros, json* hecho) {
-    obs_source_t* src = obs_get_source_by_name(fuente.c_str());
-    if (src == nullptr) return "no hay una fuente «" + fuente + "»";
-    if ((obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) == 0) {
-        obs_source_release(src);
-        return "«" + fuente + "» no tiene audio";
-    }
-    const std::string nombre = "Plugin · " + tarjeta;
-    obs_data_t* d = obs_data_create();
-    obs_data_set_string(d, "plugin", id.c_str());
-    obs_data_set_string(d, "tarjeta", tarjeta.c_str());
-    obs_data_set_string(d, "parametros",
-                        (parametros.is_object() ? parametros : json::object()).dump().c_str());
-    obs_source_t* existente = obs_source_get_filter_by_name(src, nombre.c_str());
-    if (existente != nullptr) {
-        obs_source_update(existente, d);
-        obs_source_release(existente);
-    } else {
-        obs_source_t* f = obs_source_create("ba_plugin_audio", nombre.c_str(), d, nullptr);
-        if (f == nullptr) {
-            obs_data_release(d);
-            obs_source_release(src);
-            return "no existe el filtro ba_plugin_audio (¿falta GStreamer en el programa?)";
-        }
-        obs_source_filter_add(src, f);
-        obs_source_release(f);
-    }
-    obs_data_release(d);
-    obs_source_release(src);
+    if (!rt_.engine().sourceExists(fuente)) return "no hay una fuente «" + fuente + "»";
+    const auto conAudio = rt_.engine().audioSources();
+    if (std::find(conAudio.begin(), conAudio.end(), fuente) == conAudio.end()) return "«" + fuente + "» no tiene audio";
+    // Una tarjeta `baplugin` en la cadena de audio de la entrada (la misma tarjeta se reemplaza).
+    const std::string fid = "plugin_" + id + "_" + tarjeta;
+    const json s = json::parse(rt_.engine().sourceSettingsJson(fuente), nullptr, false);
+    json previo = s.is_object() ? s.value("filtros_audio", json()) : json();
+    if (previo.is_string()) previo = json::parse(previo.get<std::string>(), nullptr, false);
+    json lista = json::array();
+    if (previo.is_array())
+        for (const auto& f : previo)
+            if (f.value("id", std::string()) != fid) lista.push_back(f);
+    lista.push_back({{"id", fid},
+                     {"elemento", "baplugin"},
+                     {"propiedades",
+                      {{"plugin", id},
+                       {"tarjeta", tarjeta},
+                       {"parametros", (parametros.is_object() ? parametros : json::object()).dump()}}}});
+    if (!rt_.updateSourceSettings(fuente, json{{"filtros_audio", lista.dump()}}.dump())) return rt_.lastError();
     rt_.save();
     if (hecho != nullptr)
-        *hecho = {{"fuente", fuente}, {"filtro", nombre}, {"plugin", id}, {"tarjeta", tarjeta}};
+        *hecho = {{"fuente", fuente}, {"filtro", fid}, {"plugin", id}, {"tarjeta", tarjeta}};
     return {};
 }
 
@@ -1663,13 +1645,8 @@ QStringList Plugins::entradasVideo() const { return video_ ? video_->entradas() 
 
 QStringList Plugins::fuentesConAudio() const {
     QStringList out;
-    obs_enum_sources(
-        [](void* d, obs_source_t* s) {
-            if ((obs_source_get_output_flags(s) & OBS_SOURCE_AUDIO) != 0)
-                static_cast<QStringList*>(d)->append(QString::fromUtf8(obs_source_get_name(s)));
-            return true;
-        },
-        &out);
+    for (const auto& n : rt_.engine().audioSources())
+        out.append(QString::fromStdString(n));
     out.sort(Qt::CaseInsensitive);
     return out;
 }

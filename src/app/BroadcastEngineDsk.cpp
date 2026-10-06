@@ -1,155 +1,179 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// ============================================================================
+// src/app/BroadcastEngineDsk.cpp — Capas encima del programa: DSK 1..4, placa y negro
 //
-// DSK (downstream keyers): cuatro capas globales ENCIMA del programa, en los
-// canales de salida 1..4 de libobs (el 0 es el programa; la placa va en el 30
-// y el negro en el 31, así que el FTB las tapa). Cambiar de escena no las
-// toca: un logo, la mosca, el recuadro del intérprete de LSA o un zócalo fijo
-// quedan arriba hasta que se bajan. Cada capa es una escena privada con las
-// escenas o fuentes que se le asignen y su fundido (el mismo mecanismo que la
-// placa: un filtro de opacidad animado en el tick de libobs).
+// Parte de BroadcastEngine. Todo va al DSK del PROGRAMA del motor (un segundo
+// compositor encima de la escena, que no cambia con ella): las cuatro capas DSK
+// (escenas o fuentes, en un recuadro o a pantalla completa), la placa de
+// seguridad (fondo, imagen y texto) y el fundido a negro, en ese orden de abajo
+// hacia arriba. La señal limpia no los lleva.
+//
+// Cada cambio vuelve a mandar la lista entera; lo nuevo entra y lo que se va
+// sale con el fundido pedido (lo que no cambió queda como estaba).
+// ============================================================================
+
 #include "BroadcastEngine.hpp"
 
-#include <obs.h>
+#include "Motor.hpp"
 
 #include <algorithm>
 
 namespace ba::app {
 
-namespace {
-obs_source_t* fuenteDe(void* p) { return reinterpret_cast<obs_source_t*>(p); }
+using json = nlohmann::json;
 
-void opacidad(void* filtro, float op) {
-    obs_data_t* d = obs_data_create();
-    obs_data_set_double(d, "opacity", std::clamp(op, 0.0f, 1.0f));
-    obs_source_update(reinterpret_cast<obs_source_t*>(filtro), d);
-    obs_data_release(d);
-}
+namespace {
+constexpr const char* kFtb = "__ftb__";
+constexpr const char* kPlacaFondo = "__placa_fondo__";
+constexpr const char* kPlacaTexto = "__placa_texto__";
+constexpr const char* kPlacaImagen = "__placa_imagen__";
 } // namespace
 
-void BroadcastEngine::asegurarDsk(int i) {
-    asegurarVelos(); // el tick de los fundidos
-    Velo& v = dsk_[i];
-    if (v.fuente != nullptr) return;
-    const std::string nombre = "__dsk" + std::to_string(i + 1) + "__";
-    obs_scene_t* sc = obs_scene_create_private(nombre.c_str());
-    obs_source_t* s = obs_scene_get_source(sc);
-    obs_source_t* f = obs_source_create_private("color_filter_v2", (nombre + "opacidad").c_str(), nullptr);
-    if (s != nullptr && f != nullptr) obs_source_filter_add(s, f);
-    v.fuente = s;
-    v.filtro = f;
-    v.canal = static_cast<std::uint32_t>(i + 1);
-    if (f != nullptr) opacidad(f, 0.0f);
+void BroadcastEngine::publicarCapas(int ms) {
+    if (!motor_) return;
+    const int W = video_.baseWidth, H = video_.baseHeight;
+    json capas = json::array();
+    for (int i = 0; i < 4; ++i) {
+        const Dsk& d = dsk_[i];
+        if (!d.visible) continue;
+        for (std::size_t k = 0; k < d.contenido.size(); ++k) {
+            const std::string& n = d.contenido[k];
+            json c = escena(n) != nullptr ? json{{"escena", n}} : json{{"entrada", n}};
+            int x = 0, y = 0, w = W, h = H;
+            if (d.recuadro.is_object() && !d.recuadro.empty()) {
+                const double tam = std::clamp(d.recuadro.value("tamano", 0.28), 0.05, 1.0);
+                const double margen = std::clamp(d.recuadro.value("margen", 0.03), 0.0, 0.2);
+                const std::string pos = d.recuadro.value("posicion", std::string("abajo_derecha"));
+                w = static_cast<int>(W * tam);
+                h = w * H / W;
+                const int mx = static_cast<int>(W * margen), my = static_cast<int>(H * margen);
+                x = pos.find("derecha") != std::string::npos ? W - mx - w : mx;
+                y = pos.find("abajo") != std::string::npos ? H - my - h : my;
+            }
+            c.update({{"x", x}, {"y", y}, {"ancho", w}, {"alto", h}, {"orden", i * 20 + static_cast<int>(k)}, {"contener", true}});
+            capas.push_back(c);
+        }
+    }
+    if (placa_) {
+        capas.push_back({{"entrada", kPlacaFondo}, {"orden", 800}});
+        if (!placaImagen_.empty())
+            capas.push_back({{"entrada", kPlacaImagen}, {"x", W / 4}, {"y", H / 8}, {"ancho", W / 2}, {"alto", H / 2},
+                             {"orden", 801}, {"contener", true}});
+        capas.push_back({{"entrada", kPlacaTexto}, {"x", 0}, {"y", placaImagen_.empty() ? 0 : H * 2 / 3}, {"ancho", W},
+                         {"alto", placaImagen_.empty() ? H : H / 3}, {"orden", 802}});
+    }
+    if (ftb_) capas.push_back({{"entrada", kFtb}, {"orden", 899}});
+    const std::string e = motor_->dsk(capas, ms);
+    if (!e.empty()) setError("capas: " + e);
+}
+
+bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio) {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (activar && !motor_->estado()["entradas"].contains(kFtb))
+        motor_->agregarEntrada(kFtb, json{{"tipo", "color"}, {"color", "#FF000000"}, {"ancho", 64}, {"alto", 36}},
+                               json{{"interna", true}, {"audio", false}});
+    ftb_ = activar;
+    // El audio baja con el negro (y vuelve con él) si se pidió.
+    if (activar) ftbAudio_ = bajarAudio;
+    if (ftbAudio_) motor_->masterVolumen(activar ? 0.0 : 1.0, std::max(0, ms));
+    if (!activar) ftbAudio_ = false;
+    publicarCapas(std::max(0, ms));
+    return true;
+}
+
+bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::string& imagen, int ms) {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (activar) {
+        placaTexto_ = texto.empty() ? std::string("Volvemos enseguida") : texto;
+        placaImagen_ = imagen;
+        const int H = video_.baseHeight, W = video_.baseWidth;
+        const json estado = motor_->estado()["entradas"];
+        if (!estado.contains(kPlacaFondo))
+            motor_->agregarEntrada(kPlacaFondo, json{{"tipo", "color"}, {"color", "#FF1C1C22"}, {"ancho", 64}, {"alto", 36}},
+                                   json{{"interna", true}, {"audio", false}});
+        const json t{{"tipo", "texto"}, {"texto", placaTexto_}, {"tamano", std::max(12, H / 22)}, {"color", "#FFFFFFFF"},
+                     {"ancho", W}, {"alto", imagen.empty() ? H : H / 3}};
+        if (estado.contains(kPlacaTexto))
+            motor_->actualizarEntrada(kPlacaTexto, t);
+        else
+            motor_->agregarEntrada(kPlacaTexto, t, json{{"interna", true}, {"audio", false}});
+        if (!imagen.empty()) {
+            const json im{{"tipo", "imagen"}, {"archivo", imagen}};
+            if (estado.contains(kPlacaImagen))
+                motor_->actualizarEntrada(kPlacaImagen, im);
+            else
+                motor_->agregarEntrada(kPlacaImagen, im, json{{"interna", true}, {"audio", false}});
+        }
+    }
+    placa_ = activar;
+    publicarCapas(std::max(0, ms));
+    return true;
+}
+
+nlohmann::json BroadcastEngine::estadoPlaca() const {
+    return {{"ftb", ftb_}, {"ftb_audio", ftbAudio_}, {"placa", placa_}, {"placa_texto", placaTexto_}, {"placa_imagen", placaImagen_}};
 }
 
 bool BroadcastEngine::dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro) {
-    if (!started_) {
-        lastError_ = "el motor no está andando";
-        return false;
-    }
     if (capa < 1 || capa > 4) {
-        lastError_ = "la capa va de 1 a 4";
+        setError("la capa va de 1 a 4");
         return false;
     }
-    const int i = capa - 1;
-    asegurarDsk(i);
-    Velo& v = dsk_[i];
-    obs_scene_t* sc = obs_scene_from_source(fuenteDe(v.fuente));
-    if (sc == nullptr) {
-        lastError_ = "no se pudo crear la capa";
-        return false;
-    }
-    // Se vacía y se vuelve a llenar.
-    std::vector<obs_sceneitem_t*> items;
-    obs_scene_enum_items(
-        sc,
-        [](obs_scene_t*, obs_sceneitem_t* it, void* p) {
-            static_cast<std::vector<obs_sceneitem_t*>*>(p)->push_back(it);
-            return true;
-        },
-        &items);
-    for (obs_sceneitem_t* it : items) obs_sceneitem_remove(it);
-
-    obs_video_info ovi = {};
-    obs_get_video_info(&ovi);
-    const float w = ovi.base_width > 0 ? static_cast<float>(ovi.base_width) : 1920.0f;
-    const float h = ovi.base_height > 0 ? static_cast<float>(ovi.base_height) : 1080.0f;
-    std::vector<std::string> faltan;
-    for (const std::string& n : contenido) {
-        obs_source_t* src = obs_get_source_by_name(n.c_str());
-        if (src == nullptr) {
-            faltan.push_back(n);
-            continue;
+    for (const auto& n : contenido)
+        if (escena(n) == nullptr && sources_.count(n) == 0) {
+            setError("no existe la escena o fuente «" + n + "»");
+            return false;
         }
-        obs_sceneitem_t* it = obs_scene_add(sc, src);
-        obs_source_release(src);
-        if (it == nullptr) continue;
-        if (recuadro.is_object() && !recuadro.empty()) {
-            const float tam = std::clamp(recuadro.value("tamano", 0.28f), 0.05f, 1.0f);
-            const float margen = std::clamp(recuadro.value("margen", 0.03f), 0.0f, 0.2f);
-            const std::string pos = recuadro.value("posicion", std::string("abajo_derecha"));
-            const float bw = w * tam, bh = bw * h / w;
-            const float mx = w * margen, my = h * margen;
-            const bool derecha = pos.find("derecha") != std::string::npos;
-            const bool abajo = pos.find("abajo") != std::string::npos;
-            obs_transform_info ti;
-            obs_sceneitem_get_info2(it, &ti);
-            ti.bounds_type = OBS_BOUNDS_SCALE_INNER;
-            ti.bounds = {bw, bh};
-            ti.alignment = OBS_ALIGN_LEFT | OBS_ALIGN_TOP;
-            ti.bounds_alignment = OBS_ALIGN_CENTER;
-            ti.pos = {derecha ? w - mx - bw : mx, abajo ? h - my - bh : my};
-            obs_sceneitem_set_info2(it, &ti);
-        }
-    }
-    dskContenido_[i] = contenido;
-    if (!faltan.empty()) {
-        lastError_ = "no existe: " + faltan.front() + (faltan.size() > 1 ? " (y otras)" : "");
-        return false;
-    }
+    Dsk& d = dsk_[capa - 1];
+    const std::vector<std::string> antes = d.contenido;
+    d.contenido = contenido;
+    d.recuadro = recuadro.is_object() ? recuadro : json::object();
+    if (d.visible) publicarCapas(0);
+    for (const auto& n : antes)
+        if (std::find(contenido.begin(), contenido.end(), n) == contenido.end()) soltarSiHuerfana(n);
     return true;
 }
 
 bool BroadcastEngine::dskMostrar(int capa, bool visible, int ms) {
-    if (!started_) {
-        lastError_ = "el motor no está andando";
-        return false;
-    }
     if (capa < 1 || capa > 4) {
-        lastError_ = "la capa va de 1 a 4";
+        setError("la capa va de 1 a 4");
         return false;
     }
-    const int i = capa - 1;
-    asegurarDsk(i);
-    Velo& v = dsk_[i];
-    v.porSeg = ms <= 0 ? 1e6f : 1000.0f / static_cast<float>(ms);
-    v.objetivo = visible ? 1.0f : 0.0f;
-    if (visible) {
-        obs_set_output_source(v.canal, fuenteDe(v.fuente));
-    } else if (ms <= 0) {
-        v.actual = 0;
-        opacidad(v.filtro, 0);
-        obs_set_output_source(v.canal, nullptr);
+    if (visible && dsk_[capa - 1].contenido.empty()) {
+        setError("la capa " + std::to_string(capa) + " está vacía (dsk_armar primero)");
+        return false;
     }
+    dsk_[capa - 1].visible = visible;
+    publicarCapas(std::max(0, ms));
     return true;
 }
 
 nlohmann::json BroadcastEngine::dskEstado() const {
     nlohmann::json out = nlohmann::json::array();
     for (int i = 0; i < 4; ++i)
-        out.push_back({{"capa", i + 1}, {"visible", dsk_[i].objetivo > 0}, {"opacidad", dsk_[i].actual},
-                       {"contenido", dskContenido_[i]}});
+        out.push_back({{"capa", i + 1},
+                       {"visible", dsk_[i].visible},
+                       {"opacidad", dsk_[i].visible ? 1.0 : 0.0},
+                       {"contenido", dsk_[i].contenido}});
     return out;
 }
 
 std::vector<std::string> BroadcastEngine::fuentesDsk() const {
     std::vector<std::string> out;
-    for (int i = 0; i < 4; ++i) {
-        if (dsk_[i].objetivo <= 0) continue;
-        for (const std::string& n : dskContenido_[i]) {
+    for (const auto& d : dsk_) {
+        if (!d.visible) continue;
+        for (const std::string& n : d.contenido) {
             // Una escena cuenta con todo lo que tiene adentro.
             const auto hijas = sceneSources(n);
-            if (hijas.empty()) out.push_back(n);
-            else out.insert(out.end(), hijas.begin(), hijas.end());
+            if (hijas.empty())
+                out.push_back(n);
+            else
+                out.insert(out.end(), hijas.begin(), hijas.end());
         }
     }
     return out;
@@ -157,39 +181,19 @@ std::vector<std::string> BroadcastEngine::fuentesDsk() const {
 
 bool BroadcastEngine::textoGlobal(const std::string& nombre, const std::string& texto) {
     if (!started_) {
-        lastError_ = "el motor no está andando";
+        setError("el motor no está andando");
         return false;
     }
-    obs_video_info ovi = {};
-    obs_get_video_info(&ovi);
-    const int h = ovi.base_height > 0 ? static_cast<int>(ovi.base_height) : 1080;
-    obs_data_t* d = obs_data_create();
-    obs_data_set_string(d, "text", texto.c_str());
-    obs_data_t* fuente = obs_data_create();
-    obs_data_set_string(fuente, "face", "Helvetica");
-    obs_data_set_int(fuente, "size", h / 24);
-    obs_data_set_obj(d, "font", fuente);
-    obs_data_release(fuente);
-    obs_data_set_int(d, "color1", 0xFFFFFFFF);
-    obs_data_set_int(d, "color2", 0xFFFFFFFF);
-    obs_data_set_bool(d, "outline", true);
-    obs_data_set_bool(d, "drop_shadow", true);
-    obs_source_t* s = obs_get_source_by_name(nombre.c_str());
-    if (s != nullptr) {
-        obs_source_update(s, d);
-        obs_source_release(s);
-    } else {
-        s = obs_source_create("text_ft2_source_v2", nombre.c_str(), d, nullptr);
-        if (s == nullptr) {
-            obs_data_release(d);
-            lastError_ = "no se pudo crear el rótulo";
-            return false;
-        }
-        // Queda vivo mientras viva el motor (una capa DSK lo busca por nombre).
-        rotulosGlobales_.push_back(s);
-    }
-    obs_data_release(d);
-    return true;
+    const json s{{"text", texto},
+                 {"font", {{"face", "Helvetica"}, {"size", video_.baseHeight / 24}, {"flags", 1}}},
+                 {"color1", 0xFFFFFFFF},
+                 {"outline", true}};
+    if (sources_.count(nombre) > 0) return updateSourceSettings(nombre, s.dump());
+    SourceSpec spec;
+    spec.id = "text_ft2_source_v2";
+    spec.name = nombre;
+    spec.settingsJson = s.dump();
+    return crearFuente(spec, true); // global: queda viva aunque no esté en ninguna escena
 }
 
 } // namespace ba::app

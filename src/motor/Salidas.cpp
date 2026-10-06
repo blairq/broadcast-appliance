@@ -151,6 +151,143 @@ std::string remuxar(const std::string& origen, const std::string& destino, const
     return error;
 }
 
+namespace {
+/// Engancha cada pista nueva de un demux (o splitmuxsrc) a su parser y al muxer.
+void enlazarPistas(GstElement* origen, GstElement* pipeline, GstElement* mux) {
+    struct Ctx {
+        GstElement* pipeline;
+        GstElement* mux;
+    };
+    g_signal_connect_data(origen, "pad-added",
+                          G_CALLBACK(+[](GstElement*, GstPad* pad, gpointer data) {
+                              auto* c = static_cast<Ctx*>(data);
+                              GstCaps* caps = gst_pad_get_current_caps(pad);
+                              if (caps == nullptr) caps = gst_pad_query_caps(pad, nullptr);
+                              const std::string tipo =
+                                  caps != nullptr && gst_caps_get_size(caps) > 0 ? gst_structure_get_name(gst_caps_get_structure(caps, 0)) : "";
+                              if (caps != nullptr) gst_caps_unref(caps);
+                              const char* parser = tipo == "video/x-h264"   ? "h264parse"
+                                                   : tipo == "video/x-h265" ? "h265parse"
+                                                   : tipo == "audio/mpeg"   ? "aacparse"
+                                                                            : nullptr;
+                              if (parser == nullptr) return;
+                              GstElement* q = gst_element_factory_make("queue", nullptr);
+                              GstElement* pr = gst_element_factory_make(parser, nullptr);
+                              gst_bin_add_many(GST_BIN(c->pipeline), q, pr, nullptr);
+                              GstPad* entra = gst_element_get_static_pad(q, "sink");
+                              gst_pad_link(pad, entra);
+                              gst_object_unref(entra);
+                              gst_element_link(q, pr);
+                              GstPad* sale = gst_element_get_static_pad(pr, "src");
+                              GstPad* destino =
+                                  gst_element_request_pad_simple(c->mux, tipo.rfind("video", 0) == 0 ? "video_%u" : "audio_%u");
+                              if (destino != nullptr) {
+                                  gst_pad_link(sale, destino);
+                                  gst_object_unref(destino);
+                              }
+                              gst_object_unref(sale);
+                              gst_element_sync_state_with_parent(pr);
+                              gst_element_sync_state_with_parent(q);
+                          }),
+                          new Ctx{pipeline, mux}, [](gpointer data, GClosure*) { delete static_cast<Ctx*>(data); },
+                          static_cast<GConnectFlags>(0));
+}
+
+/// Corre un pipeline hasta EOS o error. "" o el error.
+std::string correrHastaElFinal(GstElement* p) {
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    GstBus* bus = gst_element_get_bus(p);
+    std::string error;
+    GstMessage* m = gst_bus_timed_pop_filtered(bus, 120 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
+    if (m == nullptr) {
+        error = "no terminó en 2 minutos";
+    } else {
+        if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
+            GError* er = nullptr;
+            gst_message_parse_error(m, &er, nullptr);
+            error = er != nullptr ? er->message : "error";
+            if (er != nullptr) g_error_free(er);
+        }
+        gst_message_unref(m);
+    }
+    gst_object_unref(bus);
+    gst_element_set_state(p, GST_STATE_NULL);
+    return error;
+}
+} // namespace
+
+std::string juntar(const std::vector<std::string>& tramos, const std::string& destino) {
+    if (tramos.empty()) return "no hay tramos";
+    GstElement* p = gst_pipeline_new("juntar");
+    GstElement* src = gst_element_factory_make("splitmuxsrc", nullptr);
+    GstElement* mux = gst_element_factory_make("matroskamux", nullptr);
+    GstElement* sink = gst_element_factory_make("filesink", nullptr);
+    if (src == nullptr || mux == nullptr || sink == nullptr) {
+        for (GstElement* e : {src, mux, sink})
+            if (e != nullptr) gst_object_unref(e);
+        gst_object_unref(p);
+        return "falta splitmuxsrc o matroskamux";
+    }
+    g_object_set(sink, "location", destino.c_str(), nullptr);
+    // La lista de archivos, en orden (en vez de un patrón).
+    auto* lista = new std::vector<std::string>(tramos);
+    g_signal_connect_data(src, "format-location",
+                          G_CALLBACK(+[](GstElement*, gpointer d) -> gchar** {
+                              auto* l = static_cast<std::vector<std::string>*>(d);
+                              auto** v = g_new0(gchar*, l->size() + 1);
+                              for (std::size_t i = 0; i < l->size(); ++i) v[i] = g_strdup((*l)[i].c_str());
+                              return v;
+                          }),
+                          lista, [](gpointer d, GClosure*) { delete static_cast<std::vector<std::string>*>(d); },
+                          static_cast<GConnectFlags>(0));
+    gst_bin_add_many(GST_BIN(p), src, mux, sink, nullptr);
+    gst_element_link(mux, sink);
+    enlazarPistas(src, p, mux);
+    const std::string e = correrHastaElFinal(p);
+    gst_object_unref(p);
+    return e;
+}
+
+Repeticion::Repeticion(Reloj& reloj, std::string carpetaTramos, int segundos, int kbps)
+    : carpeta_(std::move(carpetaTramos)), segundos_(std::clamp(segundos, 4, 600)) {
+    Grabacion::Config c;
+    c.carpeta = carpeta_;
+    c.nombre = "repeticion";
+    c.tramoSeg = 2;
+    c.gopSeg = 1; // un tramo empieza siempre en un cuadro clave
+    c.maxTramos = segundos_ / 2 + 2;
+    c.kbps = kbps;
+    grab_ = std::make_unique<Grabacion>(reloj, c);
+}
+
+Repeticion::~Repeticion() {
+    grab_.reset();
+    std::error_code ec;
+    std::filesystem::remove_all(carpeta_, ec);
+}
+
+std::string Repeticion::iniciar(const Fuentes& f) { return grab_->iniciar(f); }
+
+bool Repeticion::andando() const { return grab_ && grab_->grabando(); }
+
+void Repeticion::tic() {
+    if (grab_) grab_->tic();
+}
+
+std::string Repeticion::guardar(const std::string& destino) {
+    // Los tramos que siguen en disco, menos el que se está escribiendo (el último).
+    std::vector<std::string> hay;
+    for (const auto& a : grab_->archivos()) {
+        std::error_code ec;
+        if (std::filesystem::exists(a, ec)) hay.push_back(a);
+    }
+    if (hay.size() < 2) return "todavía no hay nada guardado (esperá unos segundos)";
+    hay.pop_back();
+    const std::size_t n = static_cast<std::size_t>(segundos_ / 2);
+    if (hay.size() > n) hay.erase(hay.begin(), hay.end() - static_cast<std::ptrdiff_t>(n));
+    return juntar(hay, destino);
+}
+
 // --- Grabación ---------------------------------------------------------------------------
 
 Grabacion::Grabacion(Reloj& reloj, Config cfg) : reloj_(reloj), cfg_(std::move(cfg)) {}
@@ -173,7 +310,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     // descripción: las pistas se piden al armar y con «muxer» puesto después ya
     // había creado su mp4mux de fábrica (los archivos salían MP4 con nombre .mkv).
     std::string d = "splitmuxsink name=mux async-finalize=true muxer-factory=matroskamux location=" + entreComillas(patron) +
-                    " max-size-time=" +
+                    (cfg_.maxTramos > 0 ? " max-files=" + std::to_string(cfg_.maxTramos) : std::string()) + " max-size-time=" +
                     std::to_string(static_cast<guint64>(std::max(0, cfg_.tramoSeg)) * GST_SECOND) + " ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
@@ -526,6 +663,7 @@ json Transmision::estado() const {
             {"reconectando", pedida_ && !conectada && intentos_ > 0},
             {"intentos", intentos_},
             {"kbps", std::round(kbps_)},
+            {"bytes", bytes_.load()},
             {"cuadros", cuadros_.load()},
             {"perdidos", perdidos_.load()},
             {"error", error_},

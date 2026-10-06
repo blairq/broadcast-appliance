@@ -4,7 +4,6 @@
 
 #include "OperateMode.hpp"
 
-#include <obs.h>
 
 #include <algorithm>
 #include <atomic>
@@ -20,6 +19,9 @@
 
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
+#include "ChatOverlaySource.hpp"
+#include "FuentesApp.hpp"
+#include "graficos/GraficoSource.hpp"
 #include "InputSpecs.hpp"
 #include "InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
@@ -344,22 +346,36 @@ int AppRuntime::start() {
     std::printf("ba-app: arrancando motor %dx%d@%d, codificador=%s%s\n", cfg_.video.baseWidth,
                 cfg_.video.baseHeight, cfg_.video.fpsNum, cfg_.encoder.videoEncoder.c_str(),
                 cfg_.safeMode ? " (modo seguro)" : "");
+    // El reloj del estudio (Video → Sincronía): con él arranca el motor.
+    {
+        std::ifstream f(root_ / "Config" / "video-reloj.json");
+        const nlohmann::json r = nlohmann::json::parse(f, nullptr, false);
+        if (r.is_object()) {
+            engine_.ponerReloj(r.value("tipo", std::string("sistema")), r.value("servidor", std::string()),
+                               r.value("puerto", 0), r.value("dominio", 0));
+            if (r.value("publicar_puerto", 0) > 0) engine_.publicarReloj(r.value("publicar_puerto", 0));
+        }
+    }
+    // Los tipos que pinta la app (antes de cargar escenas: sus valores de fábrica).
+    chatoverlay::registerSourceType();
+    graficos::registerSourceType();
     if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: el motor no arranco: %s\n", lastError_.c_str());
         if (health_.valid()) {
             health_.setState(kHealthSlot, ba::ipc::ProcessState::Terminated);
         }
-        if (lastError_.find("obs_reset_video") != std::string::npos ||
-            lastError_.find("sin sesion grafica") != std::string::npos) {
-            std::printf("ba-app: sin contexto grafico (GL/D3D). En Linux hace falta una sesion grafica: "
-                        "DISPLAY o WAYLAND_DISPLAY. Por SSH no hay.\n");
+        if (lastError_.find("GStreamer no") != std::string::npos) {
+            std::printf("ba-app: sin GStreamer en el programa (bin/64bit): el bundle está incompleto.\n");
             return ba::platform::exit_code::kEnvironment;
         }
         return 2;
     }
     health_.beat(kHealthSlot);
     started_ = true;
+    // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
+    // gráficos) pasan por acá: así quedan también en la configuración.
+    fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump()); });
     {
         std::ifstream f(root_ / "Config" / "loudness.json");
         const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
@@ -374,9 +390,7 @@ int AppRuntime::start() {
                 std::lock_guard<std::mutex> l(healthMu_);
                 health_.beat(kHealthSlot);
             },
-            []() -> std::uint64_t {
-                return obs_get_video() != nullptr ? video_output_get_total_frames(obs_get_video()) : 0;
-            });
+            [this]() -> std::uint64_t { return engine_.cuadrosPrograma(); });
 
     addGuests();
     addAudioInputs();
@@ -454,10 +468,7 @@ int AppRuntime::start() {
     inicio::revisar();
     // El tope de la latencia del estudio guardado (P0.6).
     if (cfg_.estudioTopeMs != -1) {
-        calldata_t cd = {};
-        calldata_set_int(&cd, "tope_ms", cfg_.estudioTopeMs);
-        proc_handler_call(obs_get_proc_handler(), "ba_estudio_latencia", &cd);
-        calldata_free(&cd);
+        engine_.ponerTopeEstudio(cfg_.estudioTopeMs);
     }
     // Que no falte ningún elemento de GStreamer sin que se sepa (P0.3).
     video::revisarElementosGstAlArrancar();

@@ -92,6 +92,8 @@ std::string tipoLogico(const std::string& type, const json& settings) {
     if (type == kMicType && settings.is_object()) {
         if (settings.contains("camara")) return kVideoType;
         if (settings.value("video_invitado", false)) return "ba_guest_video";
+        if (settings.value("fisica", false)) return "ba_entrada_fisica";
+        if (settings.value("virtual", false)) return "ba_entrada_virtual";
         if (settings.contains("voz")) return "ba_voz_asistente";
         if (settings.value("ndi", false)) return "ba_ndi_input";
         if (settings.contains("anillo")) return "ba_guest_audio";

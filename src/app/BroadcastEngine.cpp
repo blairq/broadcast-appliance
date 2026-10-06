@@ -1,55 +1,23 @@
 // ============================================================================
-// src/app/BroadcastEngine.cpp — Implementacion del motor de emision
+// src/app/BroadcastEngine.cpp — Motor de emision: ciclo de vida, salidas y vistas
 //
-// Ver BroadcastEngine.hpp para el proposito y el contrato. Aca vive todo lo que
-// habla con libobs; es el unico archivo del Proceso A que incluye <obs.h>.
-//
-// Orden de arranque (importa, y equivocarlo es la causa tipica de un pipeline
-// que "no hace nada"):
-//   1. obs_startup            -> contexto global
-//   2. obs_reset_video        -> modulo grafico + lienzo + formato de salida
-//   3. obs_reset_audio        -> mezclador a 48 kHz
-//   4. carga de modulos       -> SIN esto no existen encoders ni salidas
-//                                (solo los del bundle: ver loadBundleModules)
-//   5. obs_post_load_modules  -> los plugins terminan de inicializarse
+// Parte de BroadcastEngine (ver BroadcastEngine.hpp): arranque del motor de
+// GStreamer, las salidas (transmisión y destinos, grabación con copia y
+// pistas, repetición, grabación por entrada, señal limpia), las vistas para la
+// interfaz, el programa hacia el Proceso B y lo que se mide del programa
+// (loudness, picos, brillo, la sincronía con un aplauso).
 // ============================================================================
 
 #include "BroadcastEngine.hpp"
+#include "FuentesApp.hpp"
 
-#include <nlohmann/json.hpp>
-#if defined(BA_HAVE_CLAP)
-#include "audio/EquipoAudio.hpp"
-#include "audio/Matriz.hpp"
-#include "audio/MonitorVoz.hpp"
+#include "Motor.hpp"
+#include "Salidas.hpp"
 #include "camaras/SincroLabios.hpp"
-#endif
-
-#include "ChatOverlaySource.hpp"
-#include "graficos/GraficoSource.hpp"
-#include "platform/Paths.hpp"
-#if defined(BA_HAVE_NDI)
-#include "NdiSource.hpp"
-#include "video/CatalogoGst.hpp"
-#endif
-
-#include <obs.h>
-#include <mutex>
-#include <atomic>
-#include <thread>
-#include <media-io/media-remux.h>
-#include <util/platform.h> // os_gettime_ns: el mismo reloj que usa libobs
-
-#include "WindowingPlatform.hpp"
-
-#if defined(_WIN32)
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
+#include "diag/Registro.hpp"
+#include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
 
 #include <algorithm>
-#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -57,12 +25,12 @@
 #include <cstring>
 #include <filesystem>
 #include <string>
+#include <thread>
 #include <vector>
 
-#include "diag/Registro.hpp"
-#include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
-
 namespace ba::app {
+
+using json = nlohmann::json;
 
 bool fpsDeTexto(const std::string& t, int& num, int& den) {
     if (t.empty()) return false;
@@ -109,131 +77,81 @@ std::string fpsLegible(int num, int den) {
     return s;
 }
 
-/// El formato, el espacio de color y el rango de la salida (Ajustes > Video).
-/// HDR (2100 PQ/HLG) necesita 10 bits: con un formato de 8 bits se usa P010.
-void colorDeSalida(obs_video_info& ovi, const VideoConfig& v) {
-    const std::string& f = v.formato;
-    ovi.output_format = f == "i420"   ? VIDEO_FORMAT_I420
-                        : f == "i444" ? VIDEO_FORMAT_I444
-                        : f == "p010" ? VIDEO_FORMAT_P010
-                        : f == "i010" ? VIDEO_FORMAT_I010
-                                      : VIDEO_FORMAT_NV12;
-    const std::string& c = v.color;
-    ovi.colorspace = c == "601"       ? VIDEO_CS_601
-                     : c == "srgb"    ? VIDEO_CS_SRGB
-                     : c == "2100pq"  ? VIDEO_CS_2100_PQ
-                     : c == "2100hlg" ? VIDEO_CS_2100_HLG
-                                      : VIDEO_CS_709;
-    if ((ovi.colorspace == VIDEO_CS_2100_PQ || ovi.colorspace == VIDEO_CS_2100_HLG) &&
-        ovi.output_format != VIDEO_FORMAT_P010 && ovi.output_format != VIDEO_FORMAT_I010)
-        ovi.output_format = VIDEO_FORMAT_P010;
-    ovi.range = v.rango == "completo" ? VIDEO_RANGE_FULL : VIDEO_RANGE_PARTIAL;
+namespace {
+std::atomic<int> g_lienzoAncho{0}, g_lienzoAlto{0};
+std::atomic<double> g_fps{30.0};
+} // namespace
+
+double fpsActual() { return g_fps.load(); }
+
+bool lienzoActual(int& ancho, int& alto) {
+    ancho = g_lienzoAncho.load();
+    alto = g_lienzoAlto.load();
+    return ancho > 0 && alto > 0;
 }
 
 namespace {
 
-std::uint32_t currentPid() {
-#if defined(_WIN32)
-    return static_cast<std::uint32_t>(GetCurrentProcessId());
-#else
-    return static_cast<std::uint32_t>(::getpid());
-#endif
-}
-
-/// Nombres de los canales IPC hacia el Proceso B (spec §4.3/§8.5).
-constexpr const wchar_t* kReturnAudioName = L"BA.Audio.ContentForReturn";
 constexpr const wchar_t* kProgramVideoName = L"BA.Program";
 
-/// Carga los modulos de `binDir` y SOLO esos.
-///
-/// No se usa `obs_load_all_modules()` porque recorre tambien las rutas por
-/// defecto que libobs agrega en `obs_startup` (en Linux, entre otras, el
-/// OBS_INSTALL_PREFIX con el que se compilo libobs: `extern/obs-linux` en la
-/// maquina de build). En la maquina de build eso cargaba cada plugin dos veces
-/// ("Duplicate library?") y en cualquier otra podria levantar plugins ajenos
-/// al bundle. Aca el conjunto de modulos es exactamente el del bundle.
-///
-/// :param binDir: directorio con los `.so`/`.dll` (macOS: bundles `.plugin`).
-/// :param dataDir: raiz de los datos de los plugins; cada modulo recibe
-///                 `<dataDir>/<nombre>` (locale, efectos).
-/// :returns: cantidad de modulos cargados.
-int loadBundleModules(const std::string& binDir, const std::string& dataDir) {
-    std::error_code ec;
-    // (binario, nombre, datos) de cada plugin.
-    struct Found {
-        std::filesystem::path bin;
-        std::string name;
-        std::string data;
-    };
-    std::vector<Found> found;
-#if defined(__APPLE__)
-    // macOS: cada plugin es un bundle X.plugin con el binario en
-    // Contents/MacOS/X y sus datos (locale, efectos) en Contents/Resources.
-    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
-        if (!entry.is_directory(ec) || entry.path().extension() != ".plugin") continue;
-        const std::string name = entry.path().stem().string();
-        const auto bin = entry.path() / "Contents" / "MacOS" / name;
-        if (!std::filesystem::exists(bin, ec)) continue;
-        const auto res = entry.path() / "Contents" / "Resources";
-        found.push_back(
-            {bin, name, std::filesystem::is_directory(res, ec) ? res.string() : dataDir + "/" + name});
-    }
-    // Y los modulos propios (ba-sources), que son un `.so` suelto como en Linux.
-    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
-        if (entry.is_regular_file(ec) && entry.path().extension() == ".so") {
-            const std::string name = entry.path().stem().string();
-            found.push_back({entry.path(), name, dataDir + "/" + name});
-        }
-    }
-#else
-#if defined(_WIN32)
-    const char* ext = ".dll";
-#else
-    const char* ext = ".so";
-#endif
-    for (const auto& entry : std::filesystem::directory_iterator(binDir, ec)) {
-        if (entry.is_regular_file(ec) && entry.path().extension() == ext) {
-            const std::string name = entry.path().stem().string();
-            found.push_back({entry.path(), name, dataDir + "/" + name});
-        }
-    }
-#endif
-    // Orden estable entre corridas.
-    std::sort(found.begin(), found.end(), [](const Found& a, const Found& b) { return a.name < b.name; });
+std::int64_t ahoraMs() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
+}
 
-    int loaded = 0;
-    for (const auto& f : found) {
-        const std::filesystem::path& file = f.bin;
-        const std::string& name = f.name;
-        const std::string& data = f.data;
-        obs_module_t* module = nullptr;
-        const int rc = obs_open_module(&module, file.string().c_str(), data.c_str());
-        if (rc != MODULE_SUCCESS) {
-            // MODULE_MISSING_EXPORTS: una DLL de soporte que no es plugin.
-            if (rc != MODULE_MISSING_EXPORTS) {
-                blog(LOG_WARNING, "ba-engine: no se pudo abrir el modulo '%s' (%d)", file.string().c_str(),
-                     rc);
-            }
-            continue;
-        }
-        if (obs_init_module(module)) {
-            ++loaded;
-        } else {
-            // Los codificadores por hardware no inician sin su GPU (NVENC sin
-            // NVIDIA, QSV sin Intel, AMF sin AMD): es lo esperado, no una falla.
-            const bool hw = name.find("nvenc") != std::string::npos ||
-                            name.find("qsv") != std::string::npos || name.find("amf") != std::string::npos;
-            if (hw) {
-                blog(LOG_INFO, "ba-engine: '%s' no disponible (no hay GPU compatible)", name.c_str());
-            } else {
-                blog(LOG_WARNING, "ba-engine: el modulo '%s' fallo al inicializarse", name.c_str());
-            }
+std::string enmascarar(const std::string& server, const std::string& key) {
+    std::string s = server;
+    if (!key.empty()) s += " (clave …" + (key.size() > 4 ? key.substr(key.size() - 4) : key) + ")";
+    return s;
+}
+
+/// La dirección completa para el motor: en RTMP la clave va al final; en SRT, como passphrase.
+std::string urlConClave(const std::string& server, const std::string& key) {
+    if (key.empty()) return server;
+    if (server.rfind("srt://", 0) == 0)
+        return server + (server.find('?') == std::string::npos ? "?" : "&") + "passphrase=" + key;
+    return server + (server.empty() || server.back() == '/' ? "" : "/") + key;
+}
+
+motor::Lienzo lienzoDe(const VideoConfig& v) {
+    motor::Lienzo l;
+    l.ancho = v.baseWidth;
+    l.alto = v.baseHeight;
+    l.fpsN = v.fpsNum;
+    l.fpsD = std::max(1, v.fpsDen);
+    l.color = v.color == "601" ? "bt601" : v.color == "2100pq" ? "bt2100-pq" : v.color == "2100hlg" ? "bt2100-hlg" : "bt709";
+    l.rangoCompleto = v.rango == "completo";
+    l.diezBits = v.formato == "p010" || v.formato == "i010";
+    return l;
+}
+
+/// BGRA (con su stride) → RGBA empaquetado.
+void aRgba(const motor::Cuadro& c, std::vector<std::uint8_t>& dst) {
+    dst.resize(static_cast<std::size_t>(c.ancho) * c.alto * 4);
+    for (int y = 0; y < c.alto; ++y) {
+        const std::uint8_t* s = c.bgra.data() + static_cast<std::size_t>(y) * c.stride;
+        std::uint8_t* d = dst.data() + static_cast<std::size_t>(y) * c.ancho * 4;
+        for (int x = 0; x < c.ancho; ++x) {
+            d[4 * x] = s[4 * x + 2];
+            d[4 * x + 1] = s[4 * x + 1];
+            d[4 * x + 2] = s[4 * x];
+            d[4 * x + 3] = s[4 * x + 3];
         }
     }
-    return loaded;
+}
+
+std::string marcaDeTiempo() {
+    return std::to_string(
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count());
 }
 
 } // namespace
+
+struct BroadcastEngine::MedicionSincro {
+    std::mutex mu;
+    std::vector<camaras::Muestra> audio, video;
+    std::vector<std::uint8_t> anterior;
+};
 
 // ============================================================================
 // Ciclo de vida
@@ -243,199 +161,186 @@ BroadcastEngine::BroadcastEngine() = default;
 
 BroadcastEngine::~BroadcastEngine() { shutdown(); }
 
-const char* BroadcastEngine::defaultGraphicsModule() {
-#if defined(_WIN32)
-    return "libobs-d3d11";
-#elif defined(__APPLE__)
-    // macOS: dlopen de un nombre suelto no busca junto al ejecutable (solo
-    // DYLD_* y el cwd): se le da la ruta absoluta del modulo del bundle.
-    static const std::string path = (ba::platform::executableDir() / "libobs-opengl.so").string();
-    return path.c_str();
-#else
-    return "libobs-opengl";
-#endif
-}
-
 void BroadcastEngine::setError(std::string msg) { lastError_ = std::move(msg); }
 
 bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video, const AudioConfig& audio) {
-    if (started_) {
-        return true; // idempotente
-    }
+    if (started_) return true;
     paths_ = paths;
     video_ = video;
     audio_ = audio;
-
-    // 0) Plataforma de ventanas (Linux): libobs arranca por defecto en modo
-    //    X11 y en obs_startup abre el display X (atajos de teclado). En una
-    //    sesion Wayland eso funcionaba de rebote via XWayland; sin display,
-    //    obs_startup fallaba sin explicacion.
-    if (!selectWindowingPlatform()) {
+    std::string err;
+    if (!motor::iniciarGStreamer(&err)) {
+        setError("GStreamer no arrancó: " + err);
         return false;
     }
-
-    // 1) Contexto global. El segundo argumento es el directorio de config de
-    //    los modulos (cada plugin guarda ahi lo suyo).
-    if (!obs_startup("en-US", paths_.configDir.empty() ? nullptr : paths_.configDir.c_str(), nullptr)) {
-        setError("obs_startup fallo");
-        return false;
-    }
-
-    // 1b) Datos de libobs (shaders .effect). En el bundle portable viven en
-    //     <root>/data/libobs; sin registrarlos, libobs los busca en la ruta de
-    //     instalacion COMPILADA, que en una maquina de destino no existe. Es
-    //     uno de los puntos donde un bundle "portable" deja de serlo.
-    //     libobs concatena la ruta y el archivo tal cual: tiene que terminar en
-    //     '/' (sin ella buscaba ".../libobsdefault.effect" y solo andaba en la
-    //     maquina que compilo libobs, por la ruta compilada).
-    if (!paths_.obsDataDir.empty()) {
-        std::string dataDir = paths_.obsDataDir;
-        if (dataDir.back() != '/' && dataDir.back() != '\\') dataDir += '/';
-        obs_add_data_path(dataDir.c_str());
-    }
-
-    // 2) Video. `gpu_conversion` deja la conversion a NV12 en la GPU, que es lo
-    //    que permite codificar 1080p sin quemar CPU en el camino.
-    struct obs_video_info ovi = {};
-    ovi.graphics_module = defaultGraphicsModule();
-    ovi.fps_num = static_cast<uint32_t>(video_.fpsNum);
-    ovi.fps_den = static_cast<uint32_t>(video_.fpsDen);
-    ovi.base_width = static_cast<uint32_t>(video_.baseWidth);
-    ovi.base_height = static_cast<uint32_t>(video_.baseHeight);
-    ovi.output_width = static_cast<uint32_t>(video_.outputWidth);
-    ovi.output_height = static_cast<uint32_t>(video_.outputHeight);
-    colorDeSalida(ovi, video_); // de fábrica NV12, Rec.709, rango limitado (Ajustes > Video)
-    ovi.adapter = 0;
-    ovi.gpu_conversion = true;
-    ovi.scale_type = OBS_SCALE_BICUBIC;
-
-    const int rc = obs_reset_video(&ovi);
-    if (rc != OBS_VIDEO_SUCCESS) {
-        // Motivos tipicos: falta el modulo grafico junto al binario
-        // (MODULE_NOT_FOUND) o no hay contexto grafico disponible, por ejemplo
-        // en una sesion sin display.
-        std::string why = "obs_reset_video fallo (" + std::to_string(rc) + ")";
-        if (rc == OBS_VIDEO_MODULE_NOT_FOUND) {
-            why += ": no se encontro " + std::string(defaultGraphicsModule());
-        } else if (rc == OBS_VIDEO_NOT_SUPPORTED) {
-            why += ": el sistema no soporta el pipeline solicitado";
-        }
-        setError(why);
-        obs_shutdown();
-        return false;
-    }
-
-    // 3) Audio a 48 kHz (spec §7.4: el reloj del proyecto).
-    struct obs_audio_info oai = {};
-    oai.samples_per_sec = static_cast<uint32_t>(audio_.sampleRate);
-    oai.speakers = (audio_.channels == 1) ? SPEAKERS_MONO : SPEAKERS_STEREO;
-    if (!obs_reset_audio(&oai)) {
-        setError("obs_reset_audio fallo");
-        obs_shutdown();
-        return false;
-    }
-    // El loudness de lo que sale: la mezcla 0, siempre (no depende de las vueltas).
-    {
-        loudness_ = std::make_unique<audio::LoudnessPrograma>(audio_.sampleRate);
-        struct audio_convert_info ali = {};
-        ali.format = AUDIO_FORMAT_FLOAT_PLANAR;
-        ali.samples_per_sec = static_cast<uint32_t>(audio_.sampleRate);
-        ali.speakers = SPEAKERS_STEREO;
-        obs_add_raw_audio_callback(0, &ali, &BroadcastEngine::loudnessCallback, this);
-    }
-    // El programa en imagen, chiquito y 5 veces por segundo: para avisar si está en
-    // negro o congelado (alarmas, P0.9). Cuesta una bajada de 160x90.
-    {
-        struct video_scale_info pvi = {};
-        pvi.format = VIDEO_FORMAT_BGRA;
-        pvi.width = 160;
-        pvi.height = 90;
-        pvi.colorspace = VIDEO_CS_709;
-        pvi.range = VIDEO_RANGE_FULL;
-        obs_video_info ovi = {};
-        const uint32_t fps = obs_get_video_info(&ovi) && ovi.fps_den > 0 ? ovi.fps_num / ovi.fps_den : 30;
-        obs_add_raw_video_callback2(&pvi, std::max<uint32_t>(1, fps / 5), &BroadcastEngine::programaVideoCallback, this);
-    }
-
-    // 4-5) Modulos. Sin esto no hay codificadores ni salidas: es el paso que
-    //      faltaba en el arranque anterior del Proceso A. Con un directorio
-    //      de modulos explicito se cargan solo esos; sin el, se delega en las
-    //      rutas por defecto de libobs (una instalacion de OBS del sistema).
-    if (!paths_.moduleBinDir.empty()) {
-        const std::string dataDir = paths_.moduleDataDir.empty() ? paths_.moduleBinDir : paths_.moduleDataDir;
-        if (loadBundleModules(paths_.moduleBinDir, dataDir) == 0) {
-            // Sin modulos no hay encoders ni salidas: el motor no sirve y hay
-            // que decirlo aca, no dejar que falle mas tarde sin motivo claro.
-            setError("no se cargo ningun modulo desde " + paths_.moduleBinDir);
-            obs_shutdown();
-            return false;
-        }
-    } else {
-        obs_load_all_modules();
-    }
-    obs_post_load_modules();
-    // Fuentes propias de la app (no son plugins): el chat en vivo.
-    chatoverlay::registerSourceType();
-    graficos::registerSourceType();
-#if defined(BA_HAVE_CLAP)
-    audio::registrarMonitorVoz();     // la voz del asistente, solo a los auriculares
-    audio::registrarEntradaVirtual(); // las entradas virtuales de la matriz de mezcla
-    audio::registrarEntradaFisica();  // las entradas del equipo (placas, cada canal)
-    // Las entradas de audio que todavía se están abriendo: la placa no las repite.
-    audio::setDispositivosReservados([this]() {
-        std::set<std::string> out;
-        for (const auto& p : pendingAudio_) {
-            const auto j = nlohmann::json::parse(p.first.settingsJson, nullptr, false);
-            if (j.is_object() && j.contains("device_id") && j["device_id"].is_string())
-                out.insert(j["device_id"].get<std::string>());
-        }
-        return out;
+    // Los avisos del motor, al registro de la app.
+    motor::ponerRegistro([](motor::Nivel n, const std::string& t) {
+        ba::diag::registro().linea(n == motor::Nivel::Error  ? ba::diag::Nivel::Error
+                                   : n == motor::Nivel::Aviso ? ba::diag::Nivel::Aviso
+                                                              : ba::diag::Nivel::Info,
+                                   "motor", 0, t);
     });
-#endif
-#if defined(BA_HAVE_NDI)
-    // Entrada NDI(R) abierta (libNoIDea) por GStreamer: `bandisrc`, registrado
-    // apenas GStreamer arranca (en otro hilo: la primera vez revisa sus plugins).
-    std::thread([]() {
-        if (video::iniciarGStreamer()) ndi::registrarElemento();
-    }).detach();
-#endif
-
+    motor::Motor::Config c;
+    c.lienzo = lienzoDe(video);
+    c.reloj = relojTipo_;
+    c.relojServidor = relojServidor_;
+    c.relojPuerto = relojPuerto_;
+    c.relojDominio = relojDominio_;
+    motor_ = std::make_unique<motor::Motor>(c);
+    const std::string e = motor_->iniciar();
+    if (!e.empty()) {
+        setError(e);
+        motor_.reset();
+        return false;
+    }
     started_ = true;
-    lastError_.clear();
+    if (relojPublicar_ > 0) motor_->publicarReloj(relojPublicar_);
+    fuentes::ponerMotorApp(this);
+    // Lo que pinta la app (chat, gráficos, subtítulos) va a su entrada «app».
+    fuentes::ponerSalida([this](const std::string& n, const std::uint8_t* d, int w, int h, int st) {
+        if (motor_) motor_->empujarCuadro(n, d, w, h, st);
+    });
+    fuentes::ponerCambiar([this](const std::string& n, const json& cambios) {
+        return updateSourceSettings(n, cambios.dump());
+    });
+    fuentes::ponerConsultas({[this]() {
+                                 std::vector<std::pair<std::string, std::string>> v;
+                                 for (const auto& n : ordenFuentes_) v.emplace_back(n, sourceTypeId(n));
+                                 return v;
+                             },
+                             [this](const std::string& n) { return json::parse(sourceSettingsJson(n), nullptr, false); },
+                             [this](const std::string& e, const std::string& el, const std::string& p, const std::string& v) {
+                                 return motor_ ? motor_->propiedadEntrada(e, el, p, v) : std::string("no hay motor");
+                             },
+                             [this](const std::string& e, const std::string& el) {
+                                 return motor_ ? motor_->propiedadesEntrada(e, el) : json::object();
+                             },
+                             [this](const std::string& n, const std::string& tipo, const json& aj, bool monitor,
+                                    const std::vector<int>& pistas) {
+                                 if (sources_.count(n) > 0) return true;
+                                 SourceSpec spec;
+                                 spec.id = tipo;
+                                 spec.name = n;
+                                 spec.settingsJson = aj.dump();
+                                 if (!addGlobalAudio(spec)) return false;
+                                 setSourcePistas(n, pistas);
+                                 setSourceMonitoring(n, monitor);
+                                 return true;
+                             },
+                             [this](const std::string& n) { removeGlobalAudio(n); }});
+    g_lienzoAncho = video.baseWidth;
+    g_lienzoAlto = video.baseHeight;
+    g_fps = video.fpsDen > 0 ? static_cast<double>(video.fpsNum) / video.fpsDen : 30.0;
+    // Lo que se mide del programa: loudness y picos (audio), brillo y quietud (video).
+    oyenteAudio_ = motor_->escucharPrograma([this](const float* d, std::size_t n) {
+        static thread_local std::vector<float> l, r;
+        l.resize(n);
+        r.resize(n);
+        float pl = 0, pr = 0;
+        for (std::size_t i = 0; i < n; ++i) {
+            l[i] = d[2 * i];
+            r[i] = d[2 * i + 1];
+            pl = std::max(pl, std::fabs(l[i]));
+            pr = std::max(pr, std::fabs(r[i]));
+        }
+        const float* planos[2] = {l.data(), r.data()};
+        loudness_->alimentar(planos, 2, static_cast<std::uint32_t>(n));
+        for (auto [a, v] : {std::pair{&peakL_, pl}, std::pair{&peakR_, pr}}) {
+            float cur = a->load(std::memory_order_relaxed);
+            while (v > cur && !a->compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
+            }
+        }
+        if (auto m = medSincro_) {
+            // Picos cada 5 ms con la hora en que sonó (ahora es cuando sale).
+            const std::int64_t fin = ahoraMs();
+            for (std::size_t i = 0; i < n; i += 240) {
+                float p = 0;
+                for (std::size_t k = i; k < std::min(n, i + 240); ++k) p = std::max(p, std::max(std::fabs(l[k]), std::fabs(r[k])));
+                const double db = p > 1e-6f ? 20.0 * std::log10(p) : -120.0;
+                const std::int64_t ms = fin - static_cast<std::int64_t>((n - i) * 1000 / 48000);
+                std::lock_guard<std::mutex> lk(m->mu);
+                m->audio.push_back({ms, db});
+            }
+        }
+    });
+    motor_->verPedir("programa@alarmas", 160, 90);
+    motor_->verAvisar("programa@alarmas", [this](const motor::Cuadro& c) {
+        ++progCuadros_;
+        std::uint64_t suma = 0, firma = 1469598103934665603ULL;
+        int n = 0;
+        std::vector<std::uint8_t> luma;
+        const bool sincro = medSincro_ != nullptr;
+        if (sincro) luma.resize(static_cast<std::size_t>(c.ancho) * c.alto);
+        for (int y = 0; y < c.alto; ++y)
+            for (int x = 0; x < c.ancho; ++x) {
+                const std::uint8_t* px = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x) * 4;
+                const std::uint32_t lu = (px[2] * 54u + px[1] * 183u + px[0] * 19u) >> 8;
+                if (sincro) luma[static_cast<std::size_t>(y) * c.ancho + x] = static_cast<std::uint8_t>(lu);
+                if (y % 3 == 0 && x % 4 == 0) {
+                    suma += lu;
+                    ++n;
+                    firma = (firma ^ (lu >> 4)) * 1099511628211ULL;
+                }
+            }
+        progLuma_ = n > 0 ? static_cast<double>(suma) / n : 0;
+        if (firma != progFirma_.load() || progCambioMs_.load() == 0) {
+            progFirma_ = firma;
+            progCambioMs_ = ahoraMs();
+        }
+        if (auto m = medSincro_) {
+            std::lock_guard<std::mutex> lk(m->mu);
+            if (!m->anterior.empty() && m->anterior.size() == luma.size()) {
+                // El bloque (16×9) que más cambió: unas manos que aplauden son chicas en el cuadro.
+                double maximo = 0;
+                for (int by = 0; by + 9 <= c.alto; by += 9)
+                    for (int bx = 0; bx + 16 <= c.ancho; bx += 16) {
+                        int s = 0;
+                        for (int y = by; y < by + 9; ++y)
+                            for (int x = bx; x < bx + 16; ++x) {
+                                const std::size_t i = static_cast<std::size_t>(y) * c.ancho + x;
+                                s += std::abs(static_cast<int>(luma[i]) - static_cast<int>(m->anterior[i]));
+                            }
+                        maximo = std::max(maximo, s / (16.0 * 9.0));
+                    }
+                m->video.push_back({ahoraMs(), maximo});
+            }
+            m->anterior.swap(luma);
+        }
+    });
     return true;
 }
 
-void BroadcastEngine::loudnessCallback(void* param, size_t, struct audio_data* data) {
-    auto* e = static_cast<BroadcastEngine*>(param);
-    if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
-    const float* ch[2] = {reinterpret_cast<const float*>(data->data[0]),
-                          reinterpret_cast<const float*>(data->data[1] != nullptr ? data->data[1] : data->data[0])};
-    e->loudness_->alimentar(ch, 2, data->frames);
-}
-
-void BroadcastEngine::programaVideoCallback(void* param, struct video_data* frame) {
-    auto* e = static_cast<BroadcastEngine*>(param);
-    if (frame == nullptr || frame->data[0] == nullptr) return;
-    // Brillo medio y una firma (luma muestreada y cuantizada: el ruido de una
-    // cámara quieta no cuenta como cambio, un corte sí).
-    const uint8_t* p = frame->data[0];
-    const uint32_t ls = frame->linesize[0];
-    std::uint64_t suma = 0, firma = 1469598103934665603ULL;
-    int n = 0;
-    for (uint32_t y = 0; y < 90; y += 3)
-        for (uint32_t x = 0; x < 160; x += 4) {
-            const uint8_t* px = p + static_cast<size_t>(y) * ls + static_cast<size_t>(x) * 4;
-            const uint32_t l = (px[2] * 54u + px[1] * 183u + px[0] * 19u) >> 8; // BGRA → luma 709
-            suma += l;
-            ++n;
-            firma = (firma ^ (l >> 4)) * 1099511628211ULL;
-        }
-    e->progLuma_ = n > 0 ? static_cast<double>(suma) / n : 0;
-    const std::int64_t ahora = static_cast<std::int64_t>(os_gettime_ns() / 1000000ULL);
-    if (firma != e->progFirma_.load() || e->progCambioMs_.load() == 0) {
-        e->progFirma_ = firma;
-        e->progCambioMs_ = ahora;
-    }
+void BroadcastEngine::shutdown() {
+    if (!started_) return;
+    started_ = false;
+    stopAllSourceRecordings();
+    stopCleanFeed();
+    stopExtras();
+    stopStreaming();
+    stopRecording();
+    replay_.reset();
+    stopReturnFeeds();
+    disablePreview();
+    for (const auto& [canal, v] : scenePreviews_) motor_->verSoltar(v.clave);
+    scenePreviews_.clear();
+    motor_->verAvisar("programa@alarmas", nullptr);
+    motor_->verSoltar("programa@alarmas");
+    if (oyenteAudio_ != 0) motor_->dejarDeEscuchar(oyenteAudio_);
+    oyenteAudio_ = 0;
+    fuentes::ponerMotorApp(nullptr);
+    fuentes::ponerSalida(nullptr);
+    fuentes::ponerCambiar(nullptr);
+    fuentes::ponerConsultas({});
+    fuentes::bajaTodas();
+    motor_->detener();
+    motor_.reset();
+    scenes_.clear();
+    sources_.clear();
+    ordenFuentes_.clear();
+    micInputs_.clear();
+    currentScene_.clear();
+    for (auto& d : dsk_) d = Dsk{};
+    ftb_ = placa_ = ftbAudio_ = false;
 }
 
 BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo() const {
@@ -444,663 +349,244 @@ BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo() const {
     if (c == 0) return v;
     v.valido = true;
     v.luma = progLuma_.load();
-    v.quietoSeg = static_cast<double>(static_cast<std::int64_t>(os_gettime_ns() / 1000000ULL) - c) / 1000.0;
+    v.quietoSeg = static_cast<double>(ahoraMs() - c) / 1000.0;
     return v;
 }
 
-void BroadcastEngine::shutdown() {
-    if (!started_) {
-        return;
-    }
-    obs_remove_raw_audio_callback(0, &BroadcastEngine::loudnessCallback, this);
-    obs_remove_raw_video_callback(&BroadcastEngine::programaVideoCallback, this);
-    stopStreaming();
-    stopExtras();
-    stopRecording();
-    soltarVelos(); // FTB y placa
-    for (void* r : rotulosGlobales_) obs_source_release(reinterpret_cast<obs_source_t*>(r));
-    rotulosGlobales_.clear();
-    stopReturnFeeds();
-    disablePreview();
-
-    releaseVideoEncoder();
-    encoderCandidates_.clear();
-    encoderIndex_ = 0;
-    if (audioEncoder_ != nullptr) {
-        obs_encoder_release(reinterpret_cast<obs_encoder_t*>(audioEncoder_));
-        audioEncoder_ = nullptr;
-    }
-    if (service_ != nullptr) {
-        obs_service_release(reinterpret_cast<obs_service_t*>(service_));
-        service_ = nullptr;
-    }
-    releaseScenes(); // transicion, escenas, fuentes y vumetros
-
-#if defined(__APPLE__)
-    // Los micrófonos de CoreAudio (mac-capture) siguen entregando audio desde
-    // su hilo hasta que la fuente se destruye, y obs_shutdown libera la salida
-    // de audio ANTES que las fuentes: un bloque que llegaba en ese medio
-    // tumbaba la app al cerrar (copy_audio_data -> audio_output_get_planes).
-    // Se los desconecta del dispositivo antes (uno que no existe: para y no
-    // vuelve a arrancar).
-    obs_enum_sources(
-        [](void*, obs_source_t* s) {
-            const char* id = obs_source_get_unversioned_id(s);
-            if (id != nullptr && std::string(id).rfind("coreaudio_", 0) == 0) {
-                obs_data_t* d = obs_data_create();
-                obs_data_set_string(d, "device_id", "ba-cerrando");
-                obs_source_update(s, d);
-                obs_data_release(d);
-            }
-            return true;
-        },
-        nullptr);
-#endif
-    obs_shutdown();
-    started_ = false;
-    releaseWindowingPlatform();
+json BroadcastEngine::latenciaEstudio() const {
+    json out{{"latencia_ms", 0}, {"tope_ms", 0}, {"automatico", true}, {"tarde", json::array()}};
+    if (!motor_) return out;
+    motor::Reloj& r = motor_->reloj();
+    out["latencia_ms"] = r.latencia() / 1000000;
+    out["tope_ms"] = r.topeMs();
+    out["automatico"] = r.topeAutomatico();
+    for (const auto& [quien, ns] : r.anotadas())
+        if (r.llegaTarde(ns)) out["tarde"].push_back({{"entrada", quien}, {"latencia_ms", ns / 1000000}});
+    return out;
 }
 
-bool BroadcastEngine::selectWindowingPlatform() {
-    std::string err;
-    if (!ba::app::selectWindowingPlatform(nixDisplay_, nixWayland_, err)) {
-        setError(err);
-        return false;
-    }
-    return true;
+void BroadcastEngine::ponerTopeEstudio(long long ms) {
+    if (motor_) motor_->ponerTopeEstudio(ms);
 }
 
-void BroadcastEngine::releaseWindowingPlatform() {
-    ba::app::releaseWindowingPlatform(nixDisplay_, nixWayland_);
-    nixDisplay_ = nullptr;
-}
+int BroadcastEngine::enviarCaption(const std::string&, double) { return 0; }
 
 // ============================================================================
-// Publicacion del retorno hacia el Proceso B (spec §8.5/§8.6)
+// El programa hacia el Proceso B
 // ============================================================================
-
-namespace {
-
-/// Callback de VIDEO crudo de libobs: recibe cada frame del programa ya
-/// compuesto. Corre en el hilo de render de libobs.
-void rawVideoCallback(void* param, struct video_data* frame);
-
-/// Callback de AUDIO crudo: recibe la mezcla final. Corre en el hilo de audio.
-void rawAudioCallback(void* param, size_t mix_idx, struct audio_data* data);
-
-} // namespace
 
 bool BroadcastEngine::publishReturnFeeds() {
     if (!started_) {
         setError("publishReturnFeeds sin startup");
         return false;
     }
-    if (returnFeedsActive_) {
-        return true;
-    }
-
-    // --- Ring de audio de retorno (A -> B) ---
-    // El PID real identifica a ESTE escritor: si A se reinicia, B lo nota
-    // (SharedAudioRing::stale) y reabre el ring en vez de quedar mudo.
-    const std::uint32_t pid = currentPid();
-    ba::ipc::Status st = ba::ipc::SharedAudioRing::init(
-        kReturnAudioName, static_cast<std::uint32_t>(audio_.channels),
-        ba::ipc::audio_ring::kDefaultCapacityBlocks, pid, /*generation=*/1u, returnAudio_);
-    if (!st.ok) {
-        setError("no se pudo crear el ring de retorno de audio");
-        return false;
-    }
-
-    // --- Canal de video de programa (A -> B) ---
+    if (returnFeedsActive_) return true;
+    // El audio (BA.Audio.ContentForReturn) lo escribe el motor desde que arranca.
     ba::ipc::SlotConfig vcfg{video_.outputWidth, video_.outputHeight};
     if (!programVideo_.publish(kProgramVideoName, vcfg)) {
         setError("no se pudo publicar el canal de video de programa");
         return false;
     }
-
-    // El retorno al invitado va en BGRA: es lo que el MediaPump del gateway
-    // escala y entrega a WebRTC.
-    // POR QUE BGRA Y NO NV12, que es el formato en el que libobs ya lo tiene
-    // (ovi.output_format). Se midio: pidiendole el cuadro en NV12 —o sea sin
-    // conversion ninguna— libobs lo entrega EN EL MISMO MOMENTO, 44,7 ms
-    // contra 44,7. La conversion no esta en el camino del retardo; esos 44 ms
-    // son la bajada de la GPU, que no depende de lo que le pidamos.
-    //
-    // Asi que cambiar el formato del canal a NV12 ahorraria banda de memoria
-    // (8,3 MB por cuadro contra 3,1) pero NI UN MILISEGUNDO de retardo, y
-    // costaria tocar el contrato del IPC. Queda anotado para que nadie lo
-    // vuelva a proponer como arreglo del retardo: ya se probo.
-    struct video_scale_info vsi = {};
-    vsi.format = VIDEO_FORMAT_BGRA;
-    vsi.width = static_cast<uint32_t>(video_.outputWidth);
-    vsi.height = static_cast<uint32_t>(video_.outputHeight);
-    vsi.colorspace = VIDEO_CS_709;
-    vsi.range = VIDEO_RANGE_FULL;
-    obs_add_raw_video_callback(&vsi, rawVideoCallback, this);
-
-    struct audio_convert_info aci = {};
-    aci.format = AUDIO_FORMAT_FLOAT; // planar float, como el resto del proyecto
-    aci.samples_per_sec = static_cast<uint32_t>(audio_.sampleRate);
-    aci.speakers = (audio_.channels == 1) ? SPEAKERS_MONO : SPEAKERS_STEREO;
-    obs_add_raw_audio_callback(0, &aci, rawAudioCallback, this);
-
+    const std::string e = motor_->verPedir("programa@gateway", video_.outputWidth, video_.outputHeight);
+    if (!e.empty()) {
+        setError(e);
+        return false;
+    }
+    motor_->verAvisar("programa@gateway", [this](const motor::Cuadro& c) {
+        if (!programVideo_.published() || c.ancho != video_.outputWidth || c.alto != video_.outputHeight) return;
+        const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
+        const std::uint8_t* px = c.bgra.data();
+        if (static_cast<std::size_t>(c.stride) != fila) {
+            programPacked_.resize(fila * static_cast<std::size_t>(c.alto));
+            for (int y = 0; y < c.alto; ++y)
+                std::memcpy(programPacked_.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
+            px = programPacked_.data();
+        }
+        ba::ipc::FrameMeta meta;
+        meta.frameIndex = ++programFrameIndex_;
+        meta.qpc = ba::ipc::HealthBlock::nowQpc();
+        programVideo_.send(px, fila * static_cast<std::size_t>(c.alto), meta);
+    });
     returnFeedsActive_ = true;
     return true;
 }
 
 void BroadcastEngine::stopReturnFeeds() {
-    if (!returnFeedsActive_) {
-        return;
-    }
-    obs_remove_raw_video_callback(rawVideoCallback, this);
-    obs_remove_raw_audio_callback(0, rawAudioCallback, this);
+    if (!returnFeedsActive_ || !motor_) return;
+    motor_->verAvisar("programa@gateway", nullptr);
+    motor_->verSoltar("programa@gateway");
     returnFeedsActive_ = false;
 }
 
-namespace {
-
-void rawVideoCallback(void* param, struct video_data* frame) {
-    auto* eng = static_cast<BroadcastEngine*>(param);
-    if (eng == nullptr || frame == nullptr || frame->data[0] == nullptr) {
-        return;
-    }
-    eng->onRawVideo(frame);
-}
-
-void rawAudioCallback(void* param, size_t mix_idx, struct audio_data* data) {
-    (void)mix_idx;
-    auto* eng = static_cast<BroadcastEngine*>(param);
-    if (eng == nullptr || data == nullptr) {
-        return;
-    }
-    eng->onRawAudio(data);
-}
-
-} // namespace
-
-void BroadcastEngine::onRawVideo(struct video_data* frame) {
-    if (!programVideo_.published() || frame->data[0] == nullptr) {
-        return;
-    }
-    // libobs entrega BGRA empaquetado en el plano 0. `linesize` puede ser mayor
-    // que ancho*4 por alineacion, asi que el tamaño util se calcula con el
-    // ancho real, no con el linesize.
-    const std::size_t rowBytes = static_cast<std::size_t>(video_.outputWidth) * 4u;
-    const std::size_t bytes = rowBytes * static_cast<std::size_t>(video_.outputHeight);
-    const std::uint8_t* pixels = frame->data[0];
-    // Con relleno por fila (linesize > ancho*4) hay que empaquetar: mandar el
-    // buffer tal cual corria cada fila y B recibia la imagen inclinada.
-    if (static_cast<std::size_t>(frame->linesize[0]) != rowBytes) {
-        programPacked_.resize(bytes);
-        for (int y = 0; y < video_.outputHeight; ++y) {
-            std::memcpy(programPacked_.data() + static_cast<std::size_t>(y) * rowBytes,
-                        frame->data[0] + static_cast<std::size_t>(y) * frame->linesize[0], rowBytes);
-        }
-        pixels = programPacked_.data();
-    }
-    ba::ipc::FrameMeta meta;
-    meta.frameIndex = ++programFrameIndex_;
-    meta.qpc = ba::ipc::HealthBlock::nowQpc();
-    programVideo_.send(pixels, bytes, meta);
-
-    // CUANTO TARDA LIBOBS. `frame->timestamp` es de cuando se compuso el
-    // cuadro; esto es de cuando nos lo entrega. La diferencia es todo lo que
-    // pasa adentro de libobs entre componer y soltar: la bajada de la GPU
-    // (que usa dos superficies de apoyo a proposito, o sea un par de cuadros)
-    // y la conversion al formato que le pedimos.
-    //
-    // Es el ultimo tramo del camino que no tenia numero. Los otros ya lo
-    // tienen —la subida del invitado, el salto A->B, el retorno, la red hasta
-    // el televisor— y todos dieron chicos, asi que lo que falta esta aca. Sin
-    // medirlo, «bajar el retardo» es tocar cosas a ver que pasa.
-    const std::uint64_t ahora = os_gettime_ns();
-    if (frame->timestamp != 0 && ahora > frame->timestamp) programEdadNs_ += ahora - frame->timestamp;
-    ++programMedidos_;
-    if (programInformeNs_ == 0) {
-        programInformeNs_ = ahora;
-    } else if (ahora - programInformeNs_ >= 10'000'000'000ull && programMedidos_ > 0) {
-        const double seg = static_cast<double>(ahora - programInformeNs_) / 1e9;
-        // Por el registro propio y no por blog(): lo que libobs manda con
-        // LOG_INFO se guarda como «depuracion» (es MUY hablador) y queda por
-        // debajo del nivel normal, o sea que no se ve. Esto tiene que verse.
-        char linea[128];
-        std::snprintf(linea, sizeof(linea), "programa: %.1f fps, %.1f ms adentro de libobs",
-                      static_cast<double>(programMedidos_) / seg,
-                      static_cast<double>(programEdadNs_) / static_cast<double>(programMedidos_) / 1e6);
-        ba::diag::registro().linea(ba::diag::Nivel::Info, "motor", 0, linea);
-        programEdadNs_ = 0;
-        programMedidos_ = 0;
-        programInformeNs_ = ahora;
-    }
-}
-
 // ============================================================================
-// Vista previa y medidor (UI)
+// Vistas para la interfaz
 // ============================================================================
-
-namespace {
-
-void previewVideoCallback(void* param, struct video_data* frame) {
-    auto* eng = static_cast<BroadcastEngine*>(param);
-    if (eng != nullptr && frame != nullptr && frame->data[0] != nullptr) {
-        eng->onPreviewVideo(frame);
-    }
-}
-
-void meterAudioCallback(void* param, size_t, struct audio_data* data) {
-    auto* eng = static_cast<BroadcastEngine*>(param);
-    if (eng != nullptr && data != nullptr) {
-        eng->onMeterAudio(data);
-    }
-}
-
-/// Max atomico sin lock (el hilo de audio publica, la UI lee y resetea).
-void atomicMax(std::atomic<float>& a, float v) {
-    float cur = a.load(std::memory_order_relaxed);
-    while (v > cur && !a.compare_exchange_weak(cur, v, std::memory_order_relaxed)) {
-    }
-}
-
-float toDb(float lin) { return lin <= 0.00001f ? -100.0f : 20.0f * std::log10(lin); }
-
-} // namespace
 
 bool BroadcastEngine::enablePreview(int width, int height) {
     if (!started_ || width <= 0 || height <= 0) {
         setError("enablePreview sin startup o con tamaño invalido");
         return false;
     }
-    if (previewActive_) {
-        return true;
+    if (previewActive_) return true;
+    const std::string e = motor_->verPedir("programa@ui", width, height);
+    if (!e.empty()) {
+        setError(e);
+        return false;
     }
-    {
-        std::lock_guard<std::mutex> lock(previewLock_);
-        previewW_ = width;
-        previewH_ = height;
-        previewBuf_.assign(static_cast<std::size_t>(width) * height * 4u, 0);
-    }
-    struct video_scale_info vsi = {};
-    vsi.format = VIDEO_FORMAT_BGRA;
-    vsi.width = static_cast<uint32_t>(width);
-    vsi.height = static_cast<uint32_t>(height);
-    vsi.colorspace = VIDEO_CS_709;
-    vsi.range = VIDEO_RANGE_FULL;
-    obs_add_raw_video_callback(&vsi, previewVideoCallback, this);
-
-    struct audio_convert_info aci = {};
-    aci.format = AUDIO_FORMAT_FLOAT_PLANAR;
-    aci.samples_per_sec = static_cast<uint32_t>(audio_.sampleRate);
-    aci.speakers = SPEAKERS_STEREO;
-    obs_add_raw_audio_callback(0, &aci, meterAudioCallback, this);
     previewActive_ = true;
     return true;
 }
 
 void BroadcastEngine::disablePreview() {
-    if (!previewActive_) {
-        return;
-    }
-    obs_remove_raw_video_callback(previewVideoCallback, this);
-    obs_remove_raw_audio_callback(0, meterAudioCallback, this);
+    if (!previewActive_ || !motor_) return;
+    motor_->verSoltar("programa@ui");
     previewActive_ = false;
 }
 
-void BroadcastEngine::onPreviewVideo(struct video_data* frame) {
-    std::lock_guard<std::mutex> lock(previewLock_);
-    const std::size_t rowBytes = static_cast<std::size_t>(previewW_) * 4u;
-    if (previewBuf_.size() < rowBytes * static_cast<std::size_t>(previewH_)) {
-        return;
-    }
-    for (int y = 0; y < previewH_; ++y) {
-        std::memcpy(previewBuf_.data() + static_cast<std::size_t>(y) * rowBytes,
-                    frame->data[0] + static_cast<std::size_t>(y) * frame->linesize[0], rowBytes);
-    }
-    ++previewSerial_;
-}
-
-bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height,
-                                    std::uint64_t& serial) const {
-    std::lock_guard<std::mutex> lock(previewLock_);
-    if (previewSerial_ == serial || previewBuf_.empty()) {
-        return false;
-    }
-    dst = previewBuf_;
-    width = previewW_;
-    height = previewH_;
-    serial = previewSerial_;
+bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, std::uint64_t& serial) const {
+    if (!previewActive_ || !motor_) return false;
+    motor::Cuadro c;
+    if (!motor_->verUltimo("programa@ui", c, serial)) return false;
+    const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
+    dst.resize(fila * static_cast<std::size_t>(c.alto));
+    for (int y = 0; y < c.alto; ++y) std::memcpy(dst.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
+    width = c.ancho;
+    height = c.alto;
     return true;
-}
-
-void BroadcastEngine::onMeterAudio(struct audio_data* data) {
-    float pl = 0.0f;
-    float pr = 0.0f;
-    const auto* l = reinterpret_cast<const float*>(data->data[0]);
-    const auto* r = reinterpret_cast<const float*>(data->data[1]);
-    for (uint32_t i = 0; i < data->frames; ++i) {
-        if (l != nullptr) {
-            pl = std::max(pl, std::fabs(l[i]));
-        }
-        if (r != nullptr) {
-            pr = std::max(pr, std::fabs(r[i]));
-        }
-    }
-    atomicMax(peakL_, pl);
-    atomicMax(peakR_, pr);
 }
 
 void BroadcastEngine::programPeaksDb(float& left, float& right) {
-    left = toDb(peakL_.exchange(0.0f, std::memory_order_relaxed));
-    right = toDb(peakR_.exchange(0.0f, std::memory_order_relaxed));
+    const auto aDb = [](float lin) { return lin <= 0.00001f ? -100.0f : 20.0f * std::log10(lin); };
+    left = aDb(peakL_.exchange(0.0f));
+    right = aDb(peakR_.exchange(0.0f));
 }
 
-struct BroadcastEngine::MixMinus {
-    obs_source_t* fuente = nullptr;
-    std::mutex mu;
-    // Lo que aportó el invitado, por número de muestra (timestamp * tasa):
-    // un buffer circular de ~2 s.
-    static constexpr std::size_t kCap = 96000;
-    std::vector<float> l = std::vector<float>(kCap, 0.0f), r = std::vector<float>(kCap, 0.0f);
-    std::uint64_t ultimo = 0; ///< última muestra escrita + 1
-    bool hayDatos = false;
-    ba::ipc::SharedAudioRing anillo;
-    std::vector<float> accum;
-    std::atomic<bool> mixMinus{true};
-};
-
-void BroadcastEngine::capturaInvitado(void* param, struct obs_source*, const struct audio_data* data, bool muted) {
-    auto* m = static_cast<MixMinus*>(param);
-    if (data == nullptr || data->frames == 0) return;
-    const std::uint64_t s0 = data->timestamp * 48000ULL / 1000000000ULL;
-    std::lock_guard<std::mutex> lk(m->mu);
-    const auto* L = reinterpret_cast<const float*>(data->data[0]);
-    const auto* R = reinterpret_cast<const float*>(data->data[1] != nullptr ? data->data[1] : data->data[0]);
-    // Si hubo un hueco, se borra lo viejo de ese tramo (silencio).
-    if (m->hayDatos && s0 > m->ultimo)
-        for (std::uint64_t k = m->ultimo; k < s0 && k - m->ultimo < MixMinus::kCap; ++k)
-            m->l[k % MixMinus::kCap] = m->r[k % MixMinus::kCap] = 0.0f;
-    for (uint32_t i = 0; i < data->frames; ++i) {
-        const std::size_t k = static_cast<std::size_t>((s0 + i) % MixMinus::kCap);
-        m->l[k] = muted || L == nullptr ? 0.0f : L[i];
-        m->r[k] = muted || R == nullptr ? 0.0f : R[i];
+bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name, int maxWidth) {
+    auto it = scenePreviews_.find(canal);
+    if (it != scenePreviews_.end() && it->second.name == name) return true;
+    disableScenePreview(canal);
+    if (name.empty()) return true;
+    if (!started_) {
+        setError("vista previa de escena: el motor no arranco");
+        return false;
     }
-    m->ultimo = s0 + data->frames;
-    m->hayDatos = true;
-}
-
-void BroadcastEngine::iniciarMixMinus(int slot, obs_source_t* src) {
-    if (mixMinus_.size() <= static_cast<size_t>(slot)) mixMinus_.resize(static_cast<size_t>(slot) + 1);
-    auto& mm = mixMinus_[static_cast<size_t>(slot)];
-    if (mm) return;
-    mm = std::make_unique<MixMinus>();
-    mm->fuente = src;
-    const std::wstring nombre = L"BA.Audio.Return." + std::to_wstring(slot);
-    ba::ipc::SharedAudioRing::init(nombre.c_str(), 2u, ba::ipc::audio_ring::kDefaultCapacityBlocks, currentPid(), 1u,
-                                   mm->anillo);
-    obs_source_add_audio_capture_callback(src, &BroadcastEngine::capturaInvitado, mm.get());
-}
-
-void BroadcastEngine::soltarMixMinus() {
-    for (auto& mm : mixMinus_)
-        if (mm && mm->fuente != nullptr) obs_source_remove_audio_capture_callback(mm->fuente, &BroadcastEngine::capturaInvitado, mm.get());
-    mixMinus_.clear();
-}
-
-void BroadcastEngine::setRetornoInvitado(int slot, const std::string& modo) {
-    if (slot < 1 || slot >= static_cast<int>(mixMinus_.size()) || !mixMinus_[static_cast<size_t>(slot)]) return;
-    mixMinus_[static_cast<size_t>(slot)]->mixMinus = modo != "programa";
-}
-
-std::string BroadcastEngine::retornoInvitado(int slot) const {
-    if (slot < 1 || slot >= static_cast<int>(mixMinus_.size()) || !mixMinus_[static_cast<size_t>(slot)]) return "programa";
-    return mixMinus_[static_cast<size_t>(slot)]->mixMinus ? "mix_minus" : "programa";
-}
-
-void BroadcastEngine::onRawAudio(struct audio_data* data) {
-    if (returnAudio_.header() == nullptr || data->frames == 0) {
-        return;
+    const std::string base = escena(name) != nullptr ? "escena:" + name : sources_.count(name) > 0 ? "entrada:" + name : "";
+    if (base.empty()) {
+        setError("vista previa de escena: no existe '" + name + "'");
+        return false;
     }
-    // Mix-minus de cada invitado: el programa menos lo que él aportó (con su
-    // volumen y si va a la pista 1), alineado por timestamp.
-    if (audio_.channels == 2 && data->data[0] != nullptr) {
-        const auto* PL = reinterpret_cast<const float*>(data->data[0]);
-        const auto* PR = reinterpret_cast<const float*>(data->data[1] != nullptr ? data->data[1] : data->data[0]);
-        const std::uint64_t s0 = data->timestamp * 48000ULL / 1000000000ULL;
-        for (size_t slot = 1; slot < mixMinus_.size(); ++slot) {
-            MixMinus* m = mixMinus_[slot].get();
-            if (m == nullptr || m->anillo.header() == nullptr) continue;
-            const bool restar = m->mixMinus.load() && m->fuente != nullptr &&
-                                (obs_source_get_audio_mixers(m->fuente) & 1) != 0 && !obs_source_muted(m->fuente);
-            const float vol = restar ? obs_source_get_volume(m->fuente) : 0.0f;
-            const std::size_t base = m->accum.size();
-            m->accum.resize(base + data->frames * 2);
-            {
-                std::lock_guard<std::mutex> lk(m->mu);
-                for (uint32_t i = 0; i < data->frames; ++i) {
-                    const std::uint64_t k = s0 + i;
-                    // Solo lo que el invitado efectivamente mandó para esa muestra.
-                    const bool hay = restar && m->hayDatos && k < m->ultimo && m->ultimo - k < MixMinus::kCap;
-                    const float gl = hay ? m->l[k % MixMinus::kCap] * vol : 0.0f;
-                    const float gr = hay ? m->r[k % MixMinus::kCap] * vol : 0.0f;
-                    m->accum[base + i * 2] = std::clamp(PL[i] - gl, -1.0f, 1.0f);
-                    m->accum[base + i * 2 + 1] = std::clamp(PR[i] - gr, -1.0f, 1.0f);
-                }
-            }
-            const std::size_t bf = m->anillo.blockFloats();
-            std::size_t pos = 0;
-            while (m->accum.size() - pos >= bf) {
-                m->anillo.push(m->accum.data() + pos, ba::ipc::HealthBlock::nowQpc());
-                pos += bf;
-            }
-            if (pos > 0) m->accum.erase(m->accum.begin(), m->accum.begin() + static_cast<std::ptrdiff_t>(pos));
-        }
+    const int w = maxWidth > 0 ? std::min(maxWidth, video_.baseWidth) : video_.baseWidth;
+    const int h = std::max(2, w * video_.baseHeight / std::max(1, video_.baseWidth));
+    VistaPrevia v;
+    v.clave = base + "@" + canal;
+    v.name = name;
+    const std::string e = motor_->verPedir(v.clave, w, h);
+    if (!e.empty()) {
+        setError("vista previa: " + e);
+        return false;
     }
-    const int ch = audio_.channels;
-    const auto frames = static_cast<std::size_t>(data->frames);
-
-    // libobs entrega PLANAR (un buffer por canal) y el ring transporta
-    // INTERLEAVED: hay que entrelazar. Si algun plano falta se rellena con
-    // silencio en vez de descartar el bloque, para no cortar el retorno.
-    const std::size_t needed = frames * static_cast<std::size_t>(ch);
-    const std::size_t base = audioAccum_.size();
-    audioAccum_.resize(base + needed);
-    for (std::size_t f = 0; f < frames; ++f) {
-        for (int c = 0; c < ch; ++c) {
-            const auto* plane = reinterpret_cast<const float*>(data->data[c]);
-            audioAccum_[base + f * static_cast<std::size_t>(ch) + static_cast<std::size_t>(c)] =
-                (plane != nullptr) ? plane[f] : 0.0f;
-        }
-    }
-
-    // El ring solo acepta bloques exactos de 480 frames (10 ms a 48 kHz).
-    const std::size_t blockFloats = returnAudio_.blockFloats();
-    std::size_t pos = 0;
-    while (audioAccum_.size() - pos >= blockFloats) {
-        returnAudio_.push(audioAccum_.data() + pos, ba::ipc::HealthBlock::nowQpc());
-        pos += blockFloats;
-    }
-    if (pos > 0) {
-        audioAccum_.erase(audioAccum_.begin(), audioAccum_.begin() + static_cast<std::ptrdiff_t>(pos));
-    }
-}
-
-// ============================================================================
-// Codificadores y salidas
-// ============================================================================
-
-namespace {
-
-/// Ids de libobs por familia de codificador H.264 (el primero es el preferido
-/// dentro de la familia: las variantes "_tex" codifican desde la textura de la
-/// GPU sin bajar el frame a RAM).
-const std::vector<std::string>& encoderFamily(const std::string& alias) {
-    static const std::vector<std::string> kNvenc = {"obs_nvenc_h264_tex", "ffmpeg_nvenc", "jim_nvenc"};
-    static const std::vector<std::string> kQsv = {"obs_qsv11_v2", "obs_qsv11"};
-    static const std::vector<std::string> kAmf = {"h264_texture_amf", "amd_amf_h264"};
-    static const std::vector<std::string> kVaapi = {"ffmpeg_vaapi_tex", "ffmpeg_vaapi"};
-    static const std::vector<std::string> kVt = {"com.apple.videotoolbox.videoencoder.ave.avc",
-                                                 "com.apple.videotoolbox.videoencoder.h264.gva",
-                                                 "com.apple.videotoolbox.videoencoder.h264"};
-    static const std::vector<std::string> kX264 = {"obs_x264"};
-    static const std::vector<std::string> kNone = {};
-    if (alias == "nvenc") return kNvenc;
-    if (alias == "qsv") return kQsv;
-    if (alias == "amf") return kAmf;
-    if (alias == "vaapi") return kVaapi;
-    if (alias == "videotoolbox") return kVt;
-    if (alias == "x264" || alias == "software") return kX264;
-    return kNone;
-}
-
-/// Orden de hardware de "auto" por plataforma (plan multiplataforma §3.2).
-const std::vector<std::string>& autoHardwareOrder() {
-#if defined(_WIN32)
-    static const std::vector<std::string> kOrder = {"nvenc", "qsv", "amf"};
-#elif defined(__APPLE__)
-    static const std::vector<std::string> kOrder = {"videotoolbox"};
-#else
-    static const std::vector<std::string> kOrder = {"nvenc", "vaapi"};
-#endif
-    return kOrder;
-}
-
-bool encoderRegistered(const std::string& id) { return obs_encoder_get_display_name(id.c_str()) != nullptr; }
-
-} // namespace
-
-std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderConfig& enc) const {
-    std::vector<std::string> wanted;
-    const std::string& choice = enc.videoEncoder.empty() ? std::string("auto") : enc.videoEncoder;
-    if (choice == "auto") {
-        if (enc.preferHardware) {
-            for (const auto& alias : autoHardwareOrder()) {
-                const auto& fam = encoderFamily(alias);
-                wanted.insert(wanted.end(), fam.begin(), fam.end());
-            }
-        }
-    } else if (!encoderFamily(choice).empty()) {
-        const auto& fam = encoderFamily(choice);
-        wanted.insert(wanted.end(), fam.begin(), fam.end());
-    } else {
-        wanted.push_back(choice); // id literal de libobs
-    }
-    wanted.push_back("obs_x264"); // red de seguridad: viaja siempre en el bundle
-
-    // Solo los registrados (un modulo de hardware sin driver no se registra),
-    // sin repetidos y en orden.
-    std::vector<std::string> out;
-    for (const auto& id : wanted) {
-        if (encoderRegistered(id) && std::find(out.begin(), out.end(), id) == out.end()) {
-            out.push_back(id);
-        }
-    }
-    return out;
-}
-
-void BroadcastEngine::releaseVideoEncoder() {
-    if (videoEncoder_ != nullptr) {
-        obs_encoder_release(reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-        videoEncoder_ = nullptr;
-    }
-    videoEncoderId_.clear();
-}
-
-bool BroadcastEngine::ensureEncoders(const EncoderConfig& enc) {
-    if (videoEncoder_ != nullptr && audioEncoder_ != nullptr) {
-        return true;
-    }
-
-    if (videoEncoder_ == nullptr) {
-        if (encoderCandidates_.empty()) {
-            encoderCandidates_ = videoEncoderCandidates(enc);
-            encoderIndex_ = 0;
-        }
-        // Se prueban en orden los que ni siquiera se pueden CREAR (p. ej. un
-        // id literal mal escrito); los que fallan al ARRANCAR los cubre
-        // startOutputWithFallback.
-        while (encoderIndex_ < encoderCandidates_.size() && videoEncoder_ == nullptr) {
-            const std::string& encId = encoderCandidates_[encoderIndex_];
-            obs_data_t* vs = obs_data_create();
-            obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
-            obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
-            // keyint en SEGUNDOS: los CDN piden 2 s.
-            obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
-            if (encId == "obs_x264") {
-                obs_data_set_string(vs, "preset", enc.preset.c_str());
-            }
-            obs_encoder_t* ve = obs_video_encoder_create(encId.c_str(), "video", vs, nullptr);
-            obs_data_release(vs);
-            if (ve == nullptr) {
-                blog(LOG_WARNING, "ba-engine: no se pudo crear el codificador '%s'; se prueba el siguiente",
-                     encId.c_str());
-                ++encoderIndex_;
-                continue;
-            }
-            obs_encoder_set_video(ve, obs_get_video());
-            videoEncoder_ = reinterpret_cast<obs_encoder*>(ve);
-            videoEncoderId_ = encId;
-            blog(LOG_INFO, "ba-engine: codificador de video: %s", encId.c_str());
-        }
-        if (videoEncoder_ == nullptr) {
-            setError("no hay codificador de video utilizable");
-            return false;
-        }
-    }
-
-    if (audioEncoder_ == nullptr) {
-        obs_data_t* as = obs_data_create();
-        obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
-        obs_encoder_t* ae = obs_audio_encoder_create("ffmpeg_aac", "audio", as, 0, nullptr);
-        obs_data_release(as);
-        if (ae == nullptr) {
-            setError("no se pudo crear el codificador de audio (ffmpeg_aac)");
-            return false;
-        }
-        obs_encoder_set_audio(ae, obs_get_audio());
-        audioEncoder_ = reinterpret_cast<obs_encoder*>(ae);
-    }
+    scenePreviews_[canal] = v;
     return true;
 }
 
-bool BroadcastEngine::startOutputWithFallback(obs_output* outRaw, const EncoderConfig& enc) {
-    auto* out = reinterpret_cast<obs_output_t*>(outRaw);
-    for (;;) {
-        obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-        obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
-        if (obs_output_start(out)) {
-            return true;
-        }
-        const char* err = obs_output_get_last_error(out);
-        const std::string why = (err != nullptr && *err != '\0') ? err : "sin detalle";
-        // Solo se cambia de codificador si ninguna OTRA salida lo usa: cambiarlo
-        // en caliente cortaria la emision o la grabacion que ya corre.
-        const bool otherActive = (streamOutput_ != nullptr && streamOutput_ != outRaw &&
-                                  obs_output_active(reinterpret_cast<obs_output_t*>(streamOutput_))) ||
-                                 (recordOutput_ != nullptr && recordOutput_ != outRaw &&
-                                  obs_output_active(reinterpret_cast<obs_output_t*>(recordOutput_))) ||
-                                 algunExtraActivo(outRaw);
-        if (otherActive || encoderIndex_ + 1 >= encoderCandidates_.size()) {
-            setError(why);
-            return false;
-        }
-        blog(LOG_WARNING, "ba-engine: la salida no arranco con '%s' (%s); se prueba el siguiente codificador",
-             videoEncoderId_.c_str(), why.c_str());
-        releaseVideoEncoder();
-        ++encoderIndex_;
-        if (!ensureEncoders(enc)) {
-            return false;
+void BroadcastEngine::disableScenePreview(const std::string& canal) {
+    auto it = scenePreviews_.find(canal);
+    if (it == scenePreviews_.end()) return;
+    if (motor_) motor_->verSoltar(it->second.clave);
+    scenePreviews_.erase(it);
+}
+
+std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
+    auto it = scenePreviews_.find(canal);
+    return it == scenePreviews_.end() ? std::string() : it->second.name;
+}
+
+bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width, int& height) {
+    auto it = scenePreviews_.find(canal);
+    if (it == scenePreviews_.end() || !motor_) return false;
+    motor::Cuadro c;
+    std::uint64_t s = 0; // siempre el último (el que llama lo pide cuando dibuja)
+    if (!motor_->verUltimo(it->second.clave, c, s)) return false;
+    aRgba(c, dst);
+    width = c.ancho;
+    height = c.alto;
+    return true;
+}
+
+bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
+                                    int& height) {
+    if (!started_) {
+        setError("captura: el motor no arranco");
+        return false;
+    }
+    const std::string base = name.empty()                 ? std::string("programa")
+                             : escena(name) != nullptr    ? "escena:" + name
+                             : sources_.count(name) > 0   ? "entrada:" + name
+                                                          : std::string();
+    if (base.empty()) {
+        setError("captura: no existe la fuente o escena '" + name + "'");
+        return false;
+    }
+    int w = video_.baseWidth, h = video_.baseHeight;
+    if (!name.empty() && base.rfind("entrada:", 0) == 0) {
+        int sw = 0, sh = 0;
+        if (sourceSize(name, sw, sh) && sw > 0 && sh > 0) {
+            w = sw;
+            h = sh;
         }
     }
+    if (maxWidth > 0 && w > maxWidth) {
+        h = std::max(2, h * maxWidth / w);
+        w = maxWidth;
+    }
+    const std::string clave = base + "@captura";
+    if (!motor_->verPedir(clave, w & ~1, h & ~1).empty()) {
+        setError("captura: '" + name + "' no tiene imagen");
+        return false;
+    }
+    motor::Cuadro c;
+    std::uint64_t s = 0;
+    bool ok = false;
+    for (int i = 0; i < 40 && !ok; ++i) {
+        ok = motor_->verUltimo(clave, c, s);
+        if (!ok) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    motor_->verSoltar(clave);
+    if (!ok) {
+        setError("captura: '" + name + "' no dio imagen (sin señal o apagada)");
+        return false;
+    }
+    aRgba(c, rgba);
+    width = c.ancho;
+    height = c.alto;
+    return true;
 }
 
-namespace {
-std::string enmascarar(const std::string& server, const std::string& key) {
-    std::string s = server;
-    if (!key.empty()) s += " (clave …" + (key.size() > 4 ? key.substr(key.size() - 4) : key) + ")";
-    return s;
-}
-} // namespace
+// ============================================================================
+// Transmisión y destinos
+// ============================================================================
 
 std::string BroadcastEngine::destinoActivo() const { return enmascarar(activeServer_, activeKey_); }
+
+namespace {
+/// Lo que leen las salidas del programa: su video y su audio (pista 1 y las pedidas).
+motor::Fuentes fuentesDelPrograma(motor::Motor& m, const std::vector<int>& pistasExtra, bool limpio = false) {
+    motor::Fuentes f;
+    f.video = m.productorDeVideo(limpio ? "limpio" : "programa", &f.latVideoNs);
+    std::int64_t lat = 0;
+    f.audios.push_back(m.productorDeBus("programa", &lat));
+    f.latAudioNs = lat;
+    for (int p : pistasExtra) {
+        std::int64_t l = 0;
+        const std::string prod = m.productorDeBus("pista" + std::to_string(p), &l);
+        if (!prod.empty()) {
+            f.audios.push_back(prod);
+            f.latAudioNs = std::max(f.latAudioNs, l);
+        }
+    }
+    return f;
+}
+} // namespace
 
 bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente) {
     if (!started_) {
@@ -1108,20 +594,16 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         ultimoInicio_ = Inicio::Error;
         return false;
     }
-    if (streamOutput_ != nullptr && obs_output_active(reinterpret_cast<obs_output_t*>(streamOutput_))) {
-        // Ya está al aire: si es el mismo destino, nada que hacer; si es otro,
-        // NO se dice que sí (antes devolvía éxito y el operador creía que salía
-        // por el nuevo).
-        const bool mismo = (stream.server.empty() || stream.server == activeServer_) &&
-                           (stream.key.empty() || stream.key == activeKey_);
+    if (stream_ && stream_->andando()) {
+        const bool mismo = (stream.server.empty() || stream.server == activeServer_) && (stream.key.empty() || stream.key == activeKey_);
         if (mismo) {
             ultimoInicio_ = Inicio::YaIgual;
             return true;
         }
         if (!cambiarEnCaliente) {
             ultimoInicio_ = Inicio::YaOtroDestino;
-            setError("ya está transmitiendo a " + destinoActivo() + "; para cambiar a " +
-                     enmascarar(stream.server, stream.key) + " hay que pedirlo explícitamente (cambiar en caliente)");
+            setError("ya está transmitiendo a " + destinoActivo() + "; para cambiar a " + enmascarar(stream.server, stream.key) +
+                     " hay que pedirlo explícitamente (cambiar en caliente)");
             return false;
         }
         stopStreaming();
@@ -1131,98 +613,33 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         setError("startStreaming sin servidor");
         return false;
     }
-    if (!ensureEncoders(enc)) {
+    motor::Transmision::Config c;
+    c.url = urlConClave(stream.server, stream.key);
+    c.kbps = enc.videoBitrateKbps;
+    c.kbpsAudio = enc.audioBitrateKbps;
+    c.gopSeg = std::max(1, enc.keyintSec);
+    c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
+    c.codificadores = videoEncoderCandidates(enc);
+    auto tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
+    const std::string e = tx->iniciar(fuentesDelPrograma(*motor_, {}));
+    if (!e.empty()) {
+        setError("no se pudo iniciar la transmision: " + e);
         return false;
     }
-
-    // Servicio RTMP personalizado: servidor + clave los pone el operador (la
-    // clave deberia salir de la boveda de secretos, nunca del codigo).
-    obs_data_t* ss = datosServicio(stream.server, stream.key);
-    obs_service_t* svc = obs_service_create("rtmp_custom", "servicio", ss, nullptr);
-    obs_data_release(ss);
-    if (svc == nullptr) {
-        setError("obs_service_create fallo");
-        return false;
-    }
-    if (service_ != nullptr) {
-        obs_service_release(reinterpret_cast<obs_service_t*>(service_));
-    }
-    service_ = reinterpret_cast<obs_service*>(svc);
-
-    obs_output_t* out = obs_output_create(tipoSalida(stream.server), "transmision", nullptr, nullptr);
-    if (out == nullptr) {
-        setError(std::string("obs_output_create(") + tipoSalida(stream.server) + ") fallo");
-        return false;
-    }
-    obs_output_set_service(out, svc);
-    if (!startOutputWithFallback(reinterpret_cast<obs_output*>(out), enc)) {
-        setError("no se pudo iniciar la transmision: " + lastError_);
-        obs_output_release(out);
-        return false;
-    }
-    if (streamOutput_ != nullptr) {
-        obs_output_release(reinterpret_cast<obs_output_t*>(streamOutput_));
-    }
-    streamOutput_ = reinterpret_cast<obs_output*>(out);
-    watchOutput(streamOutput_);
+    stream_ = std::move(tx);
     activeServer_ = stream.server;
     activeKey_ = stream.key;
     ultimoInicio_ = Inicio::Iniciado;
     return true;
 }
 
-int BroadcastEngine::enviarCaption(const std::string& texto, double segundos) {
-    int n = 0;
-    const auto mandar = [&](void* o) {
-        auto* out = reinterpret_cast<obs_output_t*>(o);
-        if (out != nullptr && obs_output_active(out)) {
-            obs_output_output_caption_text2(out, texto.c_str(), segundos);
-            ++n;
-        }
-    };
-    mandar(streamOutput_);
-    for (auto& [id, x] : extras_) mandar(x.output);
-    return n;
+void BroadcastEngine::stopStreaming() {
+    if (!stream_) return;
+    stream_->parar();
+    stream_.reset();
 }
 
-// --- Salidas de red: RTMP(S), SRT y RIST ------------------------------------------
-// RTMP va por `rtmp_output`; SRT y RIST por `ffmpeg_mpegts_muxer` (el FFmpeg del
-// bundle trae libsrt y librist). El servicio `rtmp_custom` reconoce el protocolo
-// por el comienzo de la dirección (obs-src/plugins/rtmp-services/rtmp-custom.c):
-// en SRT la «clave» es la passphrase (va como password con use_auth) y el streamid,
-// si hace falta, va en la dirección (srt://host:puerto?streamid=…&latency=…); en
-// RIST la clave es la passphrase tal cual.
-static bool esMpegts(const std::string& url) {
-    return url.rfind("srt://", 0) == 0 || url.rfind("rist://", 0) == 0;
-}
-
-const char* BroadcastEngine::tipoSalida(const std::string& url) {
-    return esMpegts(url) ? "ffmpeg_mpegts_muxer" : "rtmp_output";
-}
-
-obs_data* BroadcastEngine::datosServicio(const std::string& server, const std::string& key) {
-    obs_data_t* ss = obs_data_create();
-    obs_data_set_string(ss, "server", server.c_str());
-    if (server.rfind("srt://", 0) == 0) {
-        if (!key.empty()) {
-            obs_data_set_bool(ss, "use_auth", true);
-            obs_data_set_string(ss, "password", key.c_str());
-        }
-    } else {
-        obs_data_set_string(ss, "key", key.c_str());
-    }
-    return ss;
-}
-
-bool BroadcastEngine::algunExtraActivo(const void* menos) const {
-    for (const auto& [id, x] : extras_)
-        if (x.output != nullptr && x.output != menos && obs_output_active(reinterpret_cast<obs_output_t*>(x.output)))
-            return true;
-    return false;
-}
-
-bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key,
-                                 const EncoderConfig& enc) {
+bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc) {
     if (!started_) {
         setError("el motor no está andando");
         return false;
@@ -1232,49 +649,32 @@ bool BroadcastEngine::startExtra(const std::string& id, const std::string& serve
         return false;
     }
     auto it = extras_.find(id);
-    if (it != extras_.end() && it->second.output != nullptr &&
-        obs_output_active(reinterpret_cast<obs_output_t*>(it->second.output)))
-        return true;
+    if (it != extras_.end() && it->second.tx && it->second.tx->andando()) return true;
     stopExtra(id);
-    if (!ensureEncoders(enc)) return false;
-    obs_data_t* ss = datosServicio(server, key);
-    obs_service_t* svc = obs_service_create_private("rtmp_custom", ("servicio-" + id).c_str(), ss);
-    obs_data_release(ss);
-    obs_output_t* out = svc != nullptr ? obs_output_create(tipoSalida(server), ("destino-" + id).c_str(), nullptr, nullptr)
-                                       : nullptr;
-    if (out == nullptr) {
-        if (svc != nullptr) obs_service_release(svc);
-        setError("no se pudo crear la salida del destino");
-        return false;
-    }
-    obs_output_set_service(out, svc);
-    obs_output_set_reconnect_settings(out, 20, 2); // reintenta solo, como el principal
-    obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-    obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
-    if (!obs_output_start(out)) {
-        const char* err = obs_output_get_last_error(out);
-        setError(std::string("el destino no arrancó: ") + (err != nullptr && *err ? err : "sin detalle"));
-        obs_output_release(out);
-        obs_service_release(svc);
-        return false;
-    }
+    motor::Transmision::Config c;
+    c.url = urlConClave(server, key);
+    c.kbps = enc.videoBitrateKbps;
+    c.kbpsAudio = enc.audioBitrateKbps;
+    c.gopSeg = std::max(1, enc.keyintSec);
+    c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
+    c.codificadores = videoEncoderCandidates(enc);
     Extra x;
     x.server = server;
     x.key = key;
-    x.output = out;
-    x.service = svc;
-    extras_[id] = x;
+    x.tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
+    const std::string e = x.tx->iniciar(fuentesDelPrograma(*motor_, {}));
+    if (!e.empty()) {
+        setError("el destino no arrancó: " + e);
+        return false;
+    }
+    extras_[id] = std::move(x);
     return true;
 }
 
 void BroadcastEngine::stopExtra(const std::string& id) {
     auto it = extras_.find(id);
     if (it == extras_.end()) return;
-    if (auto* o = reinterpret_cast<obs_output_t*>(it->second.output)) {
-        if (obs_output_active(o)) obs_output_stop(o);
-        obs_output_release(o);
-    }
-    if (auto* s = reinterpret_cast<obs_service_t*>(it->second.service)) obs_service_release(s);
+    if (it->second.tx) it->second.tx->parar();
     extras_.erase(it);
 }
 
@@ -1283,256 +683,38 @@ void BroadcastEngine::stopExtras() {
 }
 
 nlohmann::json BroadcastEngine::extrasEstado() const {
-    nlohmann::json out = nlohmann::json::object();
+    json out = json::object();
     for (const auto& [id, x] : extras_) {
-        auto* o = reinterpret_cast<obs_output_t*>(x.output);
-        const bool activo = o != nullptr && obs_output_active(o);
-        out[id] = {{"activo", activo},
-                   {"reconectando", o != nullptr && obs_output_reconnecting(o)},
-                   {"perdidos", o != nullptr ? obs_output_get_frames_dropped(o) : 0},
-                   {"cuadros", o != nullptr ? obs_output_get_total_frames(o) : 0},
-                   {"bytes", o != nullptr ? static_cast<std::uint64_t>(obs_output_get_total_bytes(o)) : 0},
+        const json st = x.tx ? x.tx->estado() : json::object();
+        out[id] = {{"activo", st.value("andando", false)},
+                   {"reconectando", st.value("reconectando", false)},
+                   {"perdidos", st.value("perdidos", 0)},
+                   {"cuadros", st.value("cuadros", 0)},
+                   {"bytes", st.value("bytes", std::uint64_t{0})},
+                   {"kbps", st.value("kbps", 0.0)},
                    {"destino", enmascarar(x.server, x.key)}};
     }
     return out;
 }
 
 nlohmann::json BroadcastEngine::saludSalidas() const {
-    const auto de = [](obs_output_t* o) {
-        return nlohmann::json{{"activo", o != nullptr && obs_output_active(o)},
-                              {"reconectando", o != nullptr && obs_output_reconnecting(o)},
-                              {"bytes", o != nullptr ? static_cast<std::uint64_t>(obs_output_get_total_bytes(o)) : 0},
-                              {"perdidos", o != nullptr ? obs_output_get_frames_dropped(o) : 0},
-                              {"cuadros", o != nullptr ? obs_output_get_total_frames(o) : 0},
-                              {"congestion", o != nullptr ? obs_output_get_congestion(o) : 0.0f}};
+    const auto de = [](const motor::Transmision* t) {
+        const json st = t != nullptr ? t->estado() : json::object();
+        return json{{"activo", st.value("andando", false)},
+                    {"reconectando", st.value("reconectando", false)},
+                    {"bytes", st.value("bytes", std::uint64_t{0})},
+                    {"perdidos", st.value("perdidos", 0)},
+                    {"cuadros", st.value("cuadros", 0)},
+                    {"congestion", 0.0}};
     };
-    nlohmann::json ex = nlohmann::json::object();
-    for (const auto& [id, x] : extras_) ex[id] = de(reinterpret_cast<obs_output_t*>(x.output));
-    video_t* v = obs_get_video();
-    return {{"principal", de(reinterpret_cast<obs_output_t*>(streamOutput_))},
-            {"extras", ex},
-            {"saltados_encoder", v != nullptr ? video_output_get_skipped_frames(v) : 0},
-            {"lag_render", obs_get_lagged_frames()}};
+    json ex = json::object();
+    for (const auto& [id, x] : extras_) ex[id] = de(x.tx.get());
+    return {{"principal", de(stream_.get())}, {"extras", ex}, {"saltados_encoder", 0}, {"lag_render", 0}};
 }
 
-void BroadcastEngine::stopStreaming() {
-    if (streamOutput_ == nullptr) {
-        return;
-    }
-    auto* out = reinterpret_cast<obs_output_t*>(streamOutput_);
-    if (obs_output_active(out)) {
-        obs_output_stop(out);
-    }
-    obs_output_release(out);
-    streamOutput_ = nullptr;
-}
-
-void BroadcastEngine::soltarEncodersGrabacion() {
-    if (recVideoEncoder_ != nullptr) obs_encoder_release(reinterpret_cast<obs_encoder_t*>(recVideoEncoder_));
-    recVideoEncoder_ = nullptr;
-    recVideoEncoderId_.clear();
-    for (obs_encoder* e : recAudioEncoders_)
-        if (e != nullptr) obs_encoder_release(reinterpret_cast<obs_encoder_t*>(e));
-    recAudioEncoders_.clear();
-    pistasGrabacionMask_ = 0;
-}
-
-// Calidad constante para un archivo que se va a editar: cada familia de
-// codificador lo llama distinto (CRF en x264 y VideoToolbox, CQP en NVENC,
-// AMF y QSV). Se prueban en el mismo orden que para transmitir, desde `desde`.
-bool BroadcastEngine::crearEncoderArchivo(const RecordConfig& rec, const EncoderConfig& enc, std::size_t desde) {
-    std::vector<std::string> cand = forzarX264Archivo_ ? std::vector<std::string>{"obs_x264"} : videoEncoderCandidates(enc);
-    const int crf = std::clamp(rec.calidadCrf, 10, 35);
-    for (std::size_t i = desde; i < cand.size(); ++i) {
-        const std::string& id = cand[i];
-        obs_data_t* vs = obs_data_create();
-        obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
-        if (id.find("x264") != std::string::npos) {
-            obs_data_set_string(vs, "rate_control", "CRF");
-            obs_data_set_int(vs, "crf", crf);
-            obs_data_set_string(vs, "preset", enc.preset.c_str());
-        } else if (id.find("videotoolbox") != std::string::npos) {
-            obs_data_set_string(vs, "rate_control", "CRF");
-            // quality 0..100: CRF 18 ≈ 70, cada punto de CRF ≈ 3 de calidad.
-            obs_data_set_int(vs, "quality", std::clamp(70 - (crf - 18) * 3, 20, 100));
-        } else if (id.find("nvenc") != std::string::npos || id.find("amf") != std::string::npos ||
-                   id.find("qsv") != std::string::npos) {
-            obs_data_set_string(vs, "rate_control", "CQP");
-            obs_data_set_int(vs, "cqp", crf);
-            obs_data_set_int(vs, "qpi", crf);
-            obs_data_set_int(vs, "qpp", crf);
-        } else {
-            obs_data_set_string(vs, "rate_control", "CBR");
-            obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps * 3);
-        }
-        obs_encoder_t* ve = obs_video_encoder_create(id.c_str(), "video-archivo", vs, nullptr);
-        obs_data_release(vs);
-        if (ve == nullptr) continue;
-        obs_encoder_set_video(ve, obs_get_video());
-        recVideoEncoder_ = reinterpret_cast<obs_encoder*>(ve);
-        recVideoEncoderId_ = id;
-        return true;
-    }
-    setError("no hay codificador de video para la grabación de archivo");
-    return false;
-}
-
-bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc) {
-    if (!started_) {
-        setError("startRecording sin startup");
-        return false;
-    }
-    if (recordOutput_ != nullptr && obs_output_active(reinterpret_cast<obs_output_t*>(recordOutput_))) {
-        return true;
-    }
-    const bool archivo = rec.calidad == "archivo";
-    if (!archivo && !ensureEncoders(enc)) {
-        return false;
-    }
-    lastRec_ = rec;
-    lastEnc_ = enc;
-    lastRecValido_ = true;
-    soltarEncodersGrabacion();
-
-    // Nombre por marca de tiempo, dentro de Recordings/ (layout §5.1).
-    const auto now = std::chrono::system_clock::now();
-    const auto secs = std::chrono::duration_cast<std::chrono::seconds>(now.time_since_epoch()).count();
-    // MP4/MOV no sobreviven a un corte (el índice va al final): se graba en MKV
-    // y se pasa al formato pedido al terminar, sin recodificar.
-    const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
-    const bool fragil = pedido == "mp4" || pedido == "mov";
-    const std::string nombre = "/ba-" + std::to_string(secs) + "." + (fragil ? std::string("mkv") : pedido);
-    const std::string path = rec.directory + nombre;
-    remuxA_ = fragil ? pedido : std::string();
-    remuxAlTerminar_ = rec.remuxAlTerminar;
-    recordPath_ = path;
-
-    // El audio: la pista 1 (mezcla 0) siempre; las extra con su propio AAC.
-    recAudioEncoders_.assign(6, nullptr);
-    const auto crearAac = [&](int mezcla, int kbps) -> bool {
-        obs_data_t* as = obs_data_create();
-        obs_data_set_int(as, "bitrate", kbps);
-        const std::string n = "audio-pista-" + std::to_string(mezcla + 1);
-        obs_encoder_t* ae = obs_audio_encoder_create("ffmpeg_aac", n.c_str(), as, static_cast<size_t>(mezcla), nullptr);
-        obs_data_release(as);
-        if (ae == nullptr) return false;
-        obs_encoder_set_audio(ae, obs_get_audio());
-        recAudioEncoders_[static_cast<std::size_t>(mezcla)] = reinterpret_cast<obs_encoder*>(ae);
-        return true;
-    };
-    if (archivo && !crearAac(0, std::max(enc.audioBitrateKbps, 256))) {
-        setError("no se pudo crear el codificador de audio de la grabación");
-        return false;
-    }
-    std::vector<int> pistas;
-    for (int p : rec.pistas)
-        if (p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) pistas.push_back(p);
-    std::sort(pistas.begin(), pistas.end());
-    for (int p : pistas) {
-        if (!crearAac(p - 1, std::max(enc.audioBitrateKbps, 192))) {
-            setError("no se pudo crear el codificador de la pista " + std::to_string(p));
-            soltarEncodersGrabacion();
-            return false;
-        }
-        pistasGrabacionMask_ |= 1 << (p - 1);
-    }
-
-    obs_data_t* os = obs_data_create();
-    obs_data_set_string(os, "path", path.c_str());
-    // `ffmpeg_muxer` remuxa sin recodificar: con "como_stream" comparte los
-    // encoders de la transmision, de modo que grabar no cuesta un segundo encode.
-    obs_output_t* out = obs_output_create("ffmpeg_muxer", "grabacion", os, nullptr);
-    obs_data_release(os);
-    if (out == nullptr) {
-        setError("obs_output_create(ffmpeg_muxer) fallo");
-        soltarEncodersGrabacion();
-        return false;
-    }
-    // Las pistas extra van en sus índices: el muxer escribe una pista por encoder.
-    // Se cargan en orden, sin huecos (el muxer cuenta las pistas hasta el primer vacío).
-    std::size_t idx = 1;
-    for (int p : pistas)
-        obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(recAudioEncoders_[static_cast<std::size_t>(p - 1)]), idx++);
-    watchOutput(reinterpret_cast<obs_output*>(out));
-
-    bool ok = false;
-    if (!archivo) {
-        ok = startOutputWithFallback(reinterpret_cast<obs_output*>(out), enc);
-    } else {
-        // Codificador propio: si el de hardware no arranca, el siguiente (x264 al final).
-        std::size_t desde = 0;
-        while (!ok && crearEncoderArchivo(rec, enc, desde)) {
-            obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(recVideoEncoder_));
-            obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(recAudioEncoders_[0]), 0);
-            ok = obs_output_start(out);
-            if (!ok) {
-                const char* e = obs_output_get_last_error(out);
-                setError(std::string("la grabación no arrancó con ") + recVideoEncoderId_ +
-                         (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
-                obs_encoder_release(reinterpret_cast<obs_encoder_t*>(recVideoEncoder_));
-                recVideoEncoder_ = nullptr;
-                const auto cand = forzarX264Archivo_ ? std::vector<std::string>{"obs_x264"} : videoEncoderCandidates(enc);
-                const auto it = std::find(cand.begin(), cand.end(), recVideoEncoderId_);
-                desde = it == cand.end() ? cand.size() : static_cast<std::size_t>(it - cand.begin()) + 1;
-            }
-        }
-    }
-    if (!ok) {
-        setError("no se pudo iniciar la grabacion: " + lastError_);
-        obs_output_release(out);
-        soltarEncodersGrabacion();
-        return false;
-    }
-    if (recordOutput_ != nullptr) {
-        obs_output_release(reinterpret_cast<obs_output_t*>(recordOutput_));
-    }
-    recordOutput_ = reinterpret_cast<obs_output*>(out);
-
-    // La copia en otro disco: los mismos encoders, otro archivo. Si no arranca
-    // (disco desconectado, sin permiso), la principal sigue y queda anotado.
-    recordCopyPath_.clear();
-    if (!rec.copiaDir.empty()) {
-        std::error_code ec;
-        std::filesystem::create_directories(rec.copiaDir, ec);
-        recordCopyPath_ = rec.copiaDir + nombre;
-        obs_data_t* cs = obs_data_create();
-        obs_data_set_string(cs, "path", recordCopyPath_.c_str());
-        obs_output_t* copia = obs_output_create("ffmpeg_muxer", "grabacion-copia", cs, nullptr);
-        obs_data_release(cs);
-        if (copia != nullptr) {
-            obs_output_set_video_encoder(copia, obs_output_get_video_encoder(out));
-            for (std::size_t i = 0; i < 6; ++i) {
-                obs_encoder_t* ae = obs_output_get_audio_encoder(out, i);
-                if (ae == nullptr) break;
-                obs_output_set_audio_encoder(copia, ae, i);
-            }
-            if (obs_output_start(copia)) {
-                recordCopy_ = reinterpret_cast<obs_output*>(copia);
-            } else {
-                blog(LOG_WARNING, "ba-engine: la copia en %s no arrancó", rec.copiaDir.c_str());
-                obs_output_release(copia);
-                recordCopyPath_.clear();
-            }
-        }
-    }
-    return true;
-}
-
-nlohmann::json BroadcastEngine::grabacionEstado() const {
-    auto* out = reinterpret_cast<obs_output_t*>(recordOutput_);
-    auto* copia = reinterpret_cast<obs_output_t*>(recordCopy_);
-    nlohmann::json pistas = nlohmann::json::array({1});
-    for (int i = 1; i < 6; ++i)
-        if (pistasGrabacionMask_ & (1 << i)) pistas.push_back(i + 1);
-    return {{"activa", out != nullptr && obs_output_active(out)},
-            {"archivo", recordPath_},
-            {"copia", recordCopyPath_},
-            {"copia_activa", copia != nullptr && obs_output_active(copia)},
-            {"calidad", lastRecValido_ ? lastRec_.calidad : std::string("como_stream")},
-            {"encoder", recVideoEncoder_ != nullptr ? recVideoEncoderId_ : videoEncoderId_},
-            {"pistas", pistas},
-            {"encoder_respaldo_activo", encoderRespaldo_}};
-}
+// ============================================================================
+// Grabación
+// ============================================================================
 
 struct BroadcastEngine::EstadoRemux {
     std::mutex mu;
@@ -1541,244 +723,87 @@ struct BroadcastEngine::EstadoRemux {
     std::atomic<bool> andando{false}, ok{false};
 };
 
-void BroadcastEngine::stopRecording() {
-    if (recordOutput_ == nullptr) {
-        return;
-    }
-    auto* out = reinterpret_cast<obs_output_t*>(recordOutput_);
-    const bool estaba = obs_output_active(out);
-    if (estaba) {
-        obs_output_stop(out);
-    }
-    // Al terminar de escribir (el muxer cierra solo, un rato después), si se
-    // grabó en MKV en vez de MP4/MOV, se pasa al formato pedido.
-    if (estaba && !remuxA_.empty() && remuxAlTerminar_) {
-        obs_output_t* ref = obs_output_get_ref(out);
-        const std::string archivo = recordPath_, formato = remuxA_;
-        std::thread([this, ref, archivo, formato]() {
-            for (int i = 0; i < 600 && ref != nullptr && obs_output_active(ref); ++i)
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            if (ref != nullptr) obs_output_release(ref);
-            remux(archivo, formato, true);
-        }).detach();
-    }
-    obs_output_release(out);
-    recordOutput_ = nullptr;
-    if (recordCopy_ != nullptr) {
-        auto* copia = reinterpret_cast<obs_output_t*>(recordCopy_);
-        if (obs_output_active(copia)) obs_output_stop(copia);
-        obs_output_release(copia);
-        recordCopy_ = nullptr;
-    }
-    // Los encoders propios los suelta libobs cuando el muxer termina de usarlos
-    // (cada salida tiene su referencia); acá se suelta la nuestra.
-    soltarEncodersGrabacion();
-}
-
-// --- Repetición -----------------------------------------------------------------
-
-void BroadcastEngine::onReplaySaved(void* data, ::calldata* /*cd*/) {
-    auto* self = static_cast<BroadcastEngine*>(data);
-    auto* out = reinterpret_cast<obs_output_t*>(self->replay_);
-    if (out == nullptr) return;
-    calldata_t q = {};
-    proc_handler_call(obs_output_get_proc_handler(out), "get_last_replay", &q);
-    const char* path = calldata_string(&q, "path");
-    std::lock_guard<std::mutex> l(self->replayMu_);
-    self->ultimoReplay_ = path != nullptr ? path : "";
-    calldata_free(&q);
-}
-
-bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc) {
+bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfig& enc) {
     if (!started_) {
-        setError("el motor no está andando");
+        setError("startRecording sin startup");
         return false;
     }
-    if (replay_ != nullptr) {
-        auto* r = reinterpret_cast<obs_output_t*>(replay_);
-        if (obs_output_active(r)) obs_output_stop(r);
-        obs_output_release(r);
-        replay_ = nullptr;
-    }
-    replaySegundos_ = 0;
-    if (segundos <= 0) return true;
-    if (!ensureEncoders(enc)) return false;
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    obs_data_t* os = obs_data_create();
-    obs_data_set_string(os, "directory", dir.c_str());
-    obs_data_set_string(os, "format", "repeticion-%CCYY%MM%DD-%hh%mm%ss");
-    obs_data_set_string(os, "extension", "mkv");
-    obs_data_set_int(os, "max_time_sec", std::clamp(segundos, 5, 600));
-    obs_data_set_int(os, "max_size_mb", 4096);
-    obs_output_t* r = obs_output_create("replay_buffer", "repeticion", os, nullptr);
-    obs_data_release(os);
-    if (r == nullptr) {
-        setError("este libobs no trae replay_buffer");
+    if (rec_ && rec_->grabando()) return true;
+    lastRec_ = rec;
+    lastRecValido_ = true;
+    const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
+    // MP4/MOV no sobreviven a un corte: se graba en MKV y se pasa al terminar.
+    remuxA_ = pedido == "mp4" || pedido == "mov" ? pedido : std::string();
+    remuxAlTerminar_ = rec.remuxAlTerminar;
+    std::vector<int> pistas;
+    pistasGrabacionMask_ = 0;
+    for (int p : rec.pistas)
+        if (p >= 2 && p <= 6 && std::find(pistas.begin(), pistas.end(), p) == pistas.end()) {
+            pistas.push_back(p);
+            pistasGrabacionMask_ |= 1 << (p - 1);
+        }
+    std::sort(pistas.begin(), pistas.end());
+    motor::Grabacion::Config c;
+    c.carpeta = rec.directory;
+    c.nombre = "ba-" + marcaDeTiempo();
+    c.tramoSeg = 0; // un archivo por grabación (como antes); el MKV ya aguanta un corte
+    c.kbps = rec.calidad == "archivo" ? enc.videoBitrateKbps * 3 : enc.videoBitrateKbps;
+    c.kbpsAudio = std::max(enc.audioBitrateKbps, rec.calidad == "archivo" ? 256 : 160);
+    c.gopSeg = std::max(1, enc.keyintSec);
+    c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
+    c.codificadores = videoEncoderCandidates(enc);
+    auto g = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
+    const motor::Fuentes f = fuentesDelPrograma(*motor_, pistas);
+    const std::string e = g->iniciar(f);
+    if (!e.empty()) {
+        setError("no se pudo iniciar la grabacion: " + e);
         return false;
     }
-    signal_handler_connect(obs_output_get_signal_handler(r), "saved", &BroadcastEngine::onReplaySaved, this);
-    replay_ = reinterpret_cast<obs_output*>(r);
-    if (!startOutputWithFallback(replay_, enc)) {
-        obs_output_release(r);
-        replay_ = nullptr;
-        setError("no arrancó la repetición: " + lastError_);
-        return false;
+    rec_ = std::move(g);
+    recordPath_ = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
+    // La copia en otro disco: otro encode igual (si no arranca, la principal sigue).
+    recordCopyPath_.clear();
+    if (!rec.copiaDir.empty()) {
+        motor::Grabacion::Config cc = c;
+        cc.carpeta = rec.copiaDir;
+        auto copia = std::make_unique<motor::Grabacion>(motor_->reloj(), cc);
+        if (copia->iniciar(f).empty()) {
+            recCopia_ = std::move(copia);
+            recordCopyPath_ = (std::filesystem::path(rec.copiaDir) / (cc.nombre + "-00000.mkv")).string();
+        } else {
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "grabacion", 0, "la copia en " + rec.copiaDir + " no arrancó");
+        }
     }
-    replaySegundos_ = segundos;
     return true;
 }
 
-bool BroadcastEngine::guardarReplay() {
-    auto* r = reinterpret_cast<obs_output_t*>(replay_);
-    if (r == nullptr || !obs_output_active(r)) {
-        setError("la repetición está apagada (replay_ajustes con segundos)");
-        return false;
+void BroadcastEngine::stopRecording() {
+    if (recCopia_) {
+        recCopia_->parar();
+        recCopia_.reset();
     }
-    calldata_t cd = {};
-    proc_handler_call(obs_output_get_proc_handler(r), "save", &cd);
-    calldata_free(&cd);
-    return true;
+    if (!rec_) return;
+    const bool estaba = rec_->grabando();
+    rec_->parar();
+    const auto archivos = rec_->archivos();
+    if (!archivos.empty()) recordPath_ = archivos.back();
+    rec_.reset();
+    if (estaba && !remuxA_.empty() && remuxAlTerminar_ && !recordPath_.empty()) remux(recordPath_, remuxA_, true);
 }
 
-std::string BroadcastEngine::ultimoReplay() const {
-    std::lock_guard<std::mutex> l(replayMu_);
-    return ultimoReplay_;
-}
-
-nlohmann::json BroadcastEngine::replayEstado() const {
-    auto* r = reinterpret_cast<obs_output_t*>(replay_);
-    return {{"activa", r != nullptr && obs_output_active(r)}, {"segundos", replaySegundos_}, {"ultimo", ultimoReplay()}};
-}
-
-// --- Sincronía labios/voz con aplauso ------------------------------------------------
-
-struct BroadcastEngine::MedicionSincro {
-    std::mutex mu;
-    std::vector<camaras::Muestra> audio, video;
-    std::vector<std::uint8_t> anterior;
-    static constexpr int kAncho = 160, kAlto = 90;
-
-    static void alVideo(void* p, struct video_data* f) {
-        auto* m = static_cast<MedicionSincro*>(p);
-        if (f == nullptr || f->data[0] == nullptr) return;
-        std::vector<std::uint8_t> luma(static_cast<size_t>(kAncho) * kAlto);
-        for (int y = 0; y < kAlto; ++y)
-            std::memcpy(luma.data() + static_cast<size_t>(y) * kAncho, f->data[0] + static_cast<size_t>(y) * f->linesize[0], kAncho);
-        std::lock_guard<std::mutex> l(m->mu);
-        if (!m->anterior.empty()) {
-            // El cambio del bloque (16×9) que MÁS cambió: unas manos que aplauden
-            // son chicas en el cuadro; el promedio de toda la imagen las diluye.
-            double maximo = 0;
-            for (int by = 0; by < kAlto; by += 9)
-                for (int bx = 0; bx < kAncho; bx += 16) {
-                    int suma = 0;
-                    for (int y = by; y < by + 9; ++y)
-                        for (int x = bx; x < bx + 16; ++x) {
-                            const size_t i = static_cast<size_t>(y) * kAncho + x;
-                            suma += std::abs(static_cast<int>(luma[i]) - static_cast<int>(m->anterior[i]));
-                        }
-                    maximo = std::max(maximo, suma / (16.0 * 9.0));
-                }
-            m->video.push_back({static_cast<int64_t>(f->timestamp / 1000000), maximo});
-        }
-        m->anterior.swap(luma);
-    }
-
-    static void alAudio(void* p, size_t, struct audio_data* d) {
-        auto* m = static_cast<MedicionSincro*>(p);
-        if (d == nullptr || d->data[0] == nullptr || d->frames == 0) return;
-        const auto* s = reinterpret_cast<const float*>(d->data[0]);
-        const uint32_t trozo = 240; // 5 ms a 48 kHz
-        const uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
-        std::lock_guard<std::mutex> l(m->mu);
-        for (uint32_t i = 0; i < d->frames; i += trozo) {
-            float pico = 0;
-            for (uint32_t k = i; k < std::min(d->frames, i + trozo); ++k) pico = std::max(pico, std::fabs(s[k]));
-            const double db = pico > 1e-6f ? 20.0 * std::log10(pico) : -120.0;
-            const int64_t ns = static_cast<int64_t>(d->timestamp) + static_cast<int64_t>(i) * 1000000000LL / std::max<uint32_t>(sr, 1);
-            m->audio.push_back({ns / 1000000, db});
-        }
-    }
-};
-
-bool BroadcastEngine::empezarMedicionSincro() {
-    if (!started_ || obs_get_video() == nullptr || obs_get_audio() == nullptr) {
-        setError("el motor no está andando");
-        return false;
-    }
-    if (medSincro_) return true;
-    medSincro_ = std::make_unique<MedicionSincro>();
-    video_scale_info conv{};
-    conv.format = VIDEO_FORMAT_I420;
-    conv.width = MedicionSincro::kAncho;
-    conv.height = MedicionSincro::kAlto;
-    conv.range = VIDEO_RANGE_DEFAULT;
-    conv.colorspace = VIDEO_CS_DEFAULT;
-    obs_add_raw_video_callback(&conv, &MedicionSincro::alVideo, medSincro_.get());
-    obs_add_raw_audio_callback(0, nullptr, &MedicionSincro::alAudio, medSincro_.get());
-    return true;
-}
-
-nlohmann::json BroadcastEngine::terminarMedicionSincro() {
-    if (!medSincro_) return {{"ok", false}, {"problema", "no se estaba midiendo"}};
-    obs_remove_raw_video_callback(&MedicionSincro::alVideo, medSincro_.get());
-    obs_remove_raw_audio_callback(0, &MedicionSincro::alAudio, medSincro_.get());
-    std::vector<camaras::Muestra> a, v;
-    {
-        std::lock_guard<std::mutex> l(medSincro_->mu);
-        a.swap(medSincro_->audio);
-        v.swap(medSincro_->video);
-    }
-    medSincro_.reset();
-    const auto ga = camaras::buscarGolpes(a, 20);   // 20 dB sobre el piso del audio
-    const auto gv = camaras::buscarGolpes(v, 12);   // 12 niveles de luma sobre el piso del bloque
-    const camaras::Medicion m = camaras::medirRetardo(ga, gv);
-    return {{"ok", m.ok},
-            {"retardo_ms", m.retardoMs},
-            {"dispersion_ms", m.dispersionMs},
-            {"aplausos", m.aplausos},
-            {"confiable", m.confiable},
-            {"problema", m.problema},
-            {"golpes_audio", ga.size()},
-            {"golpes_video", gv.size()},
-            {"muestras_audio", a.size()},
-            {"cuadros", v.size()}};
-}
-
-// --- Codificador caído en el aire ---------------------------------------------------
-
-void BroadcastEngine::atenderEncoderCaido(bool stream, bool record) {
-    if (!encoderCayo_.exchange(false)) return;
-    const bool soloArchivo = encoderCayoArchivo_.exchange(false);
-    blog(LOG_WARNING, "ba-engine: un codificador se cayó en el aire; se reemplaza");
-    encoderRespaldo_ = true;
-    if (soloArchivo) {
-        // El propio de la grabación de archivo: se rehace con x264, a un archivo nuevo.
-        forzarX264Archivo_ = true;
-        if (record && lastRecValido_) {
-            stopRecording();
-            startRecording(lastRec_, lastEnc_);
-        }
-        return;
-    }
-    releaseVideoEncoder();
-    if (encoderIndex_ + 1 < encoderCandidates_.size()) ++encoderIndex_;
-    if (!ensureEncoders(lastEnc_.videoBitrateKbps > 0 ? lastEnc_ : EncoderConfig{})) return;
-    const auto rearrancar = [this](obs_output* o) {
-        auto* out = reinterpret_cast<obs_output_t*>(o);
-        if (out == nullptr || obs_output_active(out)) return;
-        obs_output_set_video_encoder(out, reinterpret_cast<obs_encoder_t*>(videoEncoder_));
-        obs_output_set_audio_encoder(out, reinterpret_cast<obs_encoder_t*>(audioEncoder_), 0);
-        if (!obs_output_start(out)) blog(LOG_WARNING, "ba-engine: no rearrancó una salida con %s", videoEncoderId_.c_str());
-    };
-    if (stream) rearrancar(streamOutput_);
-    for (auto& [id, x] : extras_) rearrancar(static_cast<obs_output*>(x.output));
-    rearrancar(replay_);
-    if (record && lastRecValido_ && recVideoEncoder_ == nullptr) {
-        stopRecording();
-        startRecording(lastRec_, lastEnc_);
-    }
+nlohmann::json BroadcastEngine::grabacionEstado() const {
+    json pistas = json::array({1});
+    for (int i = 1; i < 6; ++i)
+        if (pistasGrabacionMask_ & (1 << i)) pistas.push_back(i + 1);
+    const json st = rec_ ? rec_->estado() : json::object();
+    return {{"activa", rec_ && rec_->grabando()},
+            {"archivo", recordPath_},
+            {"copia", recordCopyPath_},
+            {"copia_activa", recCopia_ && recCopia_->grabando()},
+            {"calidad", lastRecValido_ ? lastRec_.calidad : std::string("como_stream")},
+            {"encoder", st.value("codificador", std::string())},
+            {"pistas", pistas},
+            {"encoder_respaldo_activo", false}};
 }
 
 bool BroadcastEngine::remux(const std::string& archivo, const std::string& formato, bool borrarOrigen) {
@@ -1793,25 +818,15 @@ bool BroadcastEngine::remux(const std::string& archivo, const std::string& forma
     st->andando = true;
     remux_ = st;
     std::thread([st, archivo, destino, borrarOrigen]() {
-        media_remux_job_t job = nullptr;
-        bool ok = media_remux_job_create(&job, archivo.c_str(), destino.c_str());
-        if (ok)
-            ok = media_remux_job_process(
-                job,
-                [](void* d, float pct) {
-                    static_cast<EstadoRemux*>(d)->pct = pct;
-                    return true;
-                },
-                st.get());
-        if (job != nullptr) media_remux_job_destroy(job);
-        // Verificar antes de borrar el MKV: que exista y que no sea mucho más chico.
+        const std::string e = motor::remuxar(archivo, destino, [&](double p) { st->pct = static_cast<float>(p * 100.0); });
+        // Antes de borrar el MKV: que exista y que no sea mucho más chico.
         std::error_code ec;
         const auto tamO = std::filesystem::file_size(archivo, ec);
         const auto tamD = std::filesystem::file_size(destino, ec);
-        const bool verificado = ok && !ec && tamD > 0 && tamD * 10 >= tamO * 9;
+        const bool verificado = e.empty() && !ec && tamD > 0 && tamD * 10 >= tamO * 9;
         {
             std::lock_guard<std::mutex> l(st->mu);
-            if (!verificado) st->error = ok ? "el archivo nuevo no se verificó (tamaño)" : "el remux falló";
+            if (!verificado) st->error = e.empty() ? "el archivo nuevo no se verificó (tamaño)" : e;
         }
         if (verificado && borrarOrigen) std::filesystem::remove(archivo, ec);
         st->ok = verificado;
@@ -1822,52 +837,132 @@ bool BroadcastEngine::remux(const std::string& archivo, const std::string& forma
 }
 
 nlohmann::json BroadcastEngine::remuxEstado() const {
-    if (!remux_) return nlohmann::json::object();
+    if (!remux_) return json::object();
     std::lock_guard<std::mutex> l(remux_->mu);
     return {{"archivo", remux_->archivo}, {"destino", remux_->destino}, {"pct", remux_->pct.load()},
             {"andando", remux_->andando.load()}, {"ok", remux_->ok.load()}, {"error", remux_->error}};
 }
 
-// ============================================================================
-// Grabacion POR ENTRADA
-// ============================================================================
-// Ver el comentario del header. Lo unico que conviene repetir aca: cada entrada
-// que se graba es un ENCODE MAS, con su propia vista, su codificador y su
-// salida. Nada de esto se comparte con el programa.
+// --- Repetición -----------------------------------------------------------------
 
-struct BroadcastEngine::SourceRec {
-    std::string source;
-    std::string path;
-    obs_view_t* view = nullptr;
-    video_t* video = nullptr;
-    obs_encoder_t* venc = nullptr;
-    obs_encoder_t* aenc = nullptr;
-    obs_output_t* out = nullptr;
-    obs_service_t* svc = nullptr; ///< la señal limpia a un destino de red
-    int pista = -1;                ///< pista de audio tomada (1..5), -1 = sin audio
-    std::uint32_t mixersAntes = 0; ///< para devolverle a la fuente lo que tenia
-
-    ~SourceRec() {
-        // El orden importa: primero se para la salida, despues se sueltan los
-        // codificadores y por ultimo la vista. Al reves, libobs se queda con la
-        // vista viva y el proximo arranque no consigue GPU.
-        if (out != nullptr) {
-            if (obs_output_active(out)) obs_output_stop(out);
-            obs_output_release(out);
-        }
-        if (svc != nullptr) obs_service_release(svc);
-        if (venc != nullptr) obs_encoder_release(venc);
-        if (aenc != nullptr) obs_encoder_release(aenc);
-        if (view != nullptr) {
-            obs_view_remove(view);
-            obs_view_set_source(view, 0, nullptr);
-            obs_view_destroy(view);
-        }
-    }
+struct BroadcastEngine::Repeticion {
+    std::unique_ptr<motor::Repeticion> rep;
+    std::string dir;
+    mutable std::mutex mu;
+    std::string ultimo;
+    std::atomic<bool> guardando{false};
 };
 
-bool BroadcastEngine::startSourceRecording(const std::string& source, const std::string& dir,
-                                           const EncoderConfig& enc) {
+bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc) {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    replay_.reset();
+    if (segundos <= 0) return true;
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    auto r = std::make_unique<Repeticion>();
+    r->dir = dir;
+    r->rep = std::make_unique<motor::Repeticion>(motor_->reloj(), (std::filesystem::path(dir) / ".tramos").string(), segundos,
+                                                 enc.videoBitrateKbps);
+    const std::string e = r->rep->iniciar(fuentesDelPrograma(*motor_, {}));
+    if (!e.empty()) {
+        setError("no arrancó la repetición: " + e);
+        return false;
+    }
+    replay_ = std::move(r);
+    return true;
+}
+
+bool BroadcastEngine::guardarReplay() {
+    if (!replay_ || !replay_->rep->andando()) {
+        setError("la repetición está apagada (replay_ajustes con segundos)");
+        return false;
+    }
+    if (replay_->guardando) return true;
+    Repeticion* r = replay_.get();
+    r->guardando = true;
+    const std::string destino = (std::filesystem::path(r->dir) / ("repeticion-" + marcaDeTiempo() + ".mkv")).string();
+    std::thread([r, destino]() {
+        const std::string e = r->rep->guardar(destino);
+        {
+            std::lock_guard<std::mutex> l(r->mu);
+            if (e.empty()) r->ultimo = destino;
+        }
+        if (!e.empty()) ba::diag::registro().linea(ba::diag::Nivel::Aviso, "repeticion", 0, "no se guardó: " + e);
+        r->guardando = false;
+    }).detach();
+    return true;
+}
+
+std::string BroadcastEngine::ultimoReplay() const {
+    if (!replay_) return {};
+    std::lock_guard<std::mutex> l(replay_->mu);
+    return replay_->ultimo;
+}
+
+nlohmann::json BroadcastEngine::replayEstado() const {
+    return {{"activa", replay_ && replay_->rep->andando()},
+            {"segundos", replay_ ? replay_->rep->segundos() : 0},
+            {"ultimo", ultimoReplay()}};
+}
+
+void BroadcastEngine::atenderEncoderCaido(bool, bool) {
+    // Las salidas del motor se rearman solas; acá se atienden sus buses.
+    if (stream_) stream_->tic();
+    for (auto& [id, x] : extras_)
+        if (x.tx) x.tx->tic();
+    if (rec_) rec_->tic();
+    if (recCopia_) recCopia_->tic();
+    if (replay_) replay_->rep->tic();
+    for (auto& [n, r] : sourceRecs_) {
+        if (r.grab) r.grab->tic();
+        if (r.tx) r.tx->tic();
+    }
+    if (clean_) {
+        if (clean_->grab) clean_->grab->tic();
+        if (clean_->tx) clean_->tx->tic();
+    }
+}
+
+// --- Sincronía labios/voz con un aplauso ------------------------------------------
+
+
+
+bool BroadcastEngine::empezarMedicionSincro() {
+    if (!started_) {
+        setError("el motor no está andando");
+        return false;
+    }
+    if (!medSincro_) medSincro_ = std::make_shared<MedicionSincro>();
+    return true;
+}
+
+nlohmann::json BroadcastEngine::terminarMedicionSincro() {
+    auto m = medSincro_;
+    if (!m) return {{"ok", false}, {"problema", "no se estaba midiendo"}};
+    medSincro_.reset();
+    std::vector<camaras::Muestra> a, v;
+    {
+        std::lock_guard<std::mutex> l(m->mu);
+        a.swap(m->audio);
+        v.swap(m->video);
+    }
+    const auto ga = camaras::buscarGolpes(a, 20); // 20 dB sobre el piso del audio
+    const auto gv = camaras::buscarGolpes(v, 12); // 12 niveles de luma sobre el piso del bloque
+    const camaras::Medicion r = camaras::medirRetardo(ga, gv);
+    return {{"ok", r.ok},           {"retardo_ms", r.retardoMs}, {"dispersion_ms", r.dispersionMs},
+            {"aplausos", r.aplausos}, {"confiable", r.confiable}, {"problema", r.problema},
+            {"golpes_audio", ga.size()}, {"golpes_video", gv.size()}, {"muestras_audio", a.size()},
+            {"cuadros", v.size()}};
+}
+
+// ============================================================================
+// Grabación por entrada y señal limpia
+// ============================================================================
+
+bool BroadcastEngine::startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc) {
     if (!started_) {
         setError("startSourceRecording sin startup");
         return false;
@@ -1877,123 +972,50 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
         return false;
     }
     if (static_cast<int>(sourceRecs_.size()) >= kMaxIndividuales) {
-        setError("ya hay " + std::to_string(kMaxIndividuales) +
-                 " entradas grabandose por separado, que es el tope");
+        setError("ya hay " + std::to_string(kMaxIndividuales) + " entradas grabandose por separado, que es el tope");
         return false;
     }
-    obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(source));
-    if (src == nullptr) {
+    if (sources_.count(source) == 0) {
         setError("no existe la fuente \"" + source + "\"");
         return false;
     }
-
-    auto rec = std::make_unique<SourceRec>();
-    rec->source = source;
-
-    // 1) La vista: la fuente sola, sin escena ni nada mas. De aca sale un
-    //    `video_t` propio, que es lo que hace que esto sea la ENTRADA y no el
-    //    programa.
-    rec->view = obs_view_create();
-    if (rec->view == nullptr) {
-        setError("no se pudo crear la vista de la entrada");
-        return false;
+    const json e = estadoMotor().value("entradas", json::object()).value(source, json::object());
+    motor::Fuentes f;
+    if (e.value("video", false)) {
+        f.video = source + ":video";
+        f.latVideoNs = motor_->reloj().latencia();
     }
-    obs_view_set_source(rec->view, 0, src);
-
-    struct obs_video_info ovi;
-    if (!obs_get_video_info(&ovi)) {
-        setError("no se pudo leer la configuracion de video");
-        return false;
+    SourceRec r;
+    // Su audio, si tiene; si no, el del programa (referencia para sincronizar al editar).
+    r.audioPropio = e.value("audio", false);
+    if (r.audioPropio) {
+        f.audios.push_back(source + ":audio");
+        f.latAudioNs = motor_->reloj().latencia();
+    } else {
+        std::int64_t l = 0;
+        f.audios.push_back(motor_->productorDeBus("programa", &l));
+        f.latAudioNs = l;
     }
-    rec->video = obs_view_add2(rec->view, &ovi);
-    if (rec->video == nullptr) {
-        setError("no se pudo abrir el render de la entrada (GPU sin lugar)");
-        return false;
-    }
-
-    // 2) El codificador de video, propio. Se usa x264 y no el de la GPU: los
-    //    codificadores por hardware tienen dos o tres sesiones y hay que
-    //    dejarselas al programa, que es el que sale al aire.
-    obs_data_t* vs = obs_data_create();
-    obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
-    obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
-    obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
-    obs_data_set_string(vs, "preset", enc.preset.c_str());
-    rec->venc = obs_video_encoder_create("obs_x264", ("venc-" + source).c_str(), vs, nullptr);
-    obs_data_release(vs);
-    if (rec->venc == nullptr) {
-        setError("no se pudo crear el codificador de \"" + source + "\"");
-        return false;
-    }
-    obs_encoder_set_video(rec->venc, rec->video);
-
-    // 3) El audio. SIEMPRE hay que ponerle uno: `ffmpeg_muxer` es una salida
-    //    audio+video y sin codificador de audio no arranca —y no dice por que,
-    //    devuelve false con el mensaje vacio, que costo un rato encontrar—.
-    //
-    //    Si la fuente tiene audio propio y queda pista libre, graba EL SUYO:
-    //    libobs mezcla en 6 pistas, la 0 es la del programa, quedan 5. Si no
-    //    (la fuente no tiene audio, o ya se usaron las cinco), graba la del
-    //    PROGRAMA, que igual sirve de referencia para sincronizar al editar.
-    //    Cual de las dos quedo se informa; adivinarlo despues, mirando el
-    //    archivo, es imposible.
-    if ((obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) != 0) {
-        bool usada[6] = {true, false, false, false, false, false}; // 0 = programa
-        for (const auto& [n, r] : sourceRecs_)
-            if (r->pista > 0 && r->pista < 6) usada[r->pista] = true;
-        for (int p = 1; p < 6; ++p)
-            if (pistasGrabacionMask_ & (1 << p)) usada[p] = true; // las usa la grabación del programa
-        for (int p = 1; p < 6 && rec->pista < 0; ++p)
-            if (!usada[p]) rec->pista = p;
-
-        if (rec->pista > 0) {
-            // La fuente pasa a sonar TAMBIEN en su pista: se le suma, no se le
-            // saca la del programa, o dejaria de escucharse al aire.
-            rec->mixersAntes = obs_source_get_audio_mixers(src);
-            obs_source_set_audio_mixers(src, rec->mixersAntes | (1u << rec->pista));
-        }
-    }
-    {
-        const size_t mezcla = rec->pista > 0 ? static_cast<size_t>(rec->pista) : 0;
-        obs_data_t* as = obs_data_create();
-        obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
-        rec->aenc = obs_audio_encoder_create("ffmpeg_aac", ("aenc-" + source).c_str(), as, mezcla, nullptr);
-        obs_data_release(as);
-        if (rec->aenc == nullptr) {
-            setError("no se pudo crear el codificador de audio de \"" + source + "\"");
-            return false;
-        }
-        obs_encoder_set_audio(rec->aenc, obs_get_audio());
-    }
-
-    // 4) La salida a archivo. Nombre con la fuente adentro: despues hay que
-    //    encontrarlo entre veinte archivos y "ba-1758546202.mkv" no ayuda.
     std::string limpio;
-    for (const char c : source)
-        limpio += (std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '-' || c == '_') ? c : '-';
-    const auto secs =
-        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
-            .count();
-    rec->path = dir + "/entrada-" + limpio + "-" + std::to_string(secs) + ".mkv";
-
-    obs_data_t* os = obs_data_create();
-    obs_data_set_string(os, "path", rec->path.c_str());
-    rec->out = obs_output_create("ffmpeg_muxer", ("rec-" + source).c_str(), os, nullptr);
-    obs_data_release(os);
-    if (rec->out == nullptr) {
-        setError("no se pudo crear la salida de \"" + source + "\"");
+    for (const char c : source) limpio += (std::isalnum(static_cast<unsigned char>(c)) != 0 || c == '-' || c == '_') ? c : '-';
+    motor::Grabacion::Config c;
+    c.carpeta = dir;
+    c.nombre = "entrada-" + limpio + "-" + marcaDeTiempo();
+    c.tramoSeg = 0;
+    c.kbps = enc.videoBitrateKbps;
+    c.kbpsAudio = enc.audioBitrateKbps;
+    c.gopSeg = std::max(1, enc.keyintSec);
+    c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
+    // Las sesiones de codificación de la placa quedan para el programa: x264.
+    c.codificadores = {"x264enc"};
+    r.grab = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
+    const std::string err = r.grab->iniciar(f);
+    if (!err.empty()) {
+        setError("no arranco la grabacion de \"" + source + "\": " + err);
         return false;
     }
-    obs_output_set_video_encoder(rec->out, rec->venc);
-    obs_output_set_audio_encoder(rec->out, rec->aenc, 0);
-    if (!obs_output_start(rec->out)) {
-        const char* e = obs_output_get_last_error(rec->out);
-        setError("no arranco la grabacion de \"" + source + "\"" +
-                 (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
-        return false;
-    }
-
-    sourceRecs_[source] = std::move(rec);
+    r.path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
+    sourceRecs_[source] = std::move(r);
     return true;
 }
 
@@ -2003,232 +1025,114 @@ bool BroadcastEngine::stopSourceRecording(const std::string& source) {
         setError("no se estaba grabando \"" + source + "\" por separado");
         return false;
     }
-    // Se le devuelve a la fuente las pistas que tenia: si no, seguiria sonando
-    // en una pista que ya no graba nadie.
-    if (it->second->pista > 0) {
-        obs_source_t* src = reinterpret_cast<obs_source_t*>(ownedSource(source));
-        if (src != nullptr) obs_source_set_audio_mixers(src, it->second->mixersAntes);
-    }
-    sourceRecs_.erase(it); // el destructor para y libera, en orden
+    if (it->second.grab) it->second.grab->parar();
+    sourceRecs_.erase(it);
     return true;
 }
 
+void BroadcastEngine::stopAllSourceRecordings() {
+    while (!sourceRecs_.empty()) stopSourceRecording(sourceRecs_.begin()->first);
+}
+
+std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
+    std::vector<GrabacionIndividual> out;
+    for (const auto& [n, r] : sourceRecs_) out.push_back({n, r.path, r.audioPropio, r.grab && r.grab->grabando()});
+    return out;
+}
+
 bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::string& clave, const std::string& dir,
-                                    const EncoderConfig& enc) {
+                                     const EncoderConfig& enc) {
     if (!started_) {
         setError("el motor no está andando");
         return false;
     }
     if (clean_) return true;
-    if (transition_ == nullptr) {
-        setError("no hay programa todavía");
-        return false;
-    }
-    auto rec = std::make_unique<SourceRec>();
-    rec->source = "señal limpia";
-    // La vista mira SOLO el canal del programa (la transición): las capas DSK y la
-    // placa van en otros canales de salida y acá no entran.
-    rec->view = obs_view_create();
-    if (rec->view == nullptr) {
-        setError("no se pudo crear la vista de la señal limpia");
-        return false;
-    }
-    obs_view_set_source(rec->view, 0, reinterpret_cast<obs_source_t*>(transition_));
-    struct obs_video_info ovi;
-    if (!obs_get_video_info(&ovi)) {
-        setError("no se pudo leer la configuracion de video");
-        return false;
-    }
-    rec->video = obs_view_add2(rec->view, &ovi);
-    if (rec->video == nullptr) {
-        setError("no se pudo abrir el render de la señal limpia (GPU sin lugar)");
-        return false;
-    }
-    // Encoder propio en software: los de la GPU se los queda el programa.
-    obs_data_t* vs = obs_data_create();
-    obs_data_set_int(vs, "bitrate", enc.videoBitrateKbps);
-    obs_data_set_string(vs, "rate_control", enc.rateControl.c_str());
-    obs_data_set_int(vs, "keyint_sec", enc.keyintSec);
-    obs_data_set_string(vs, "preset", enc.preset.c_str());
-    rec->venc = obs_video_encoder_create("obs_x264", "venc-limpia", vs, nullptr);
-    obs_data_release(vs);
-    if (rec->venc == nullptr) {
-        setError("no se pudo crear el codificador de la señal limpia");
-        return false;
-    }
-    obs_encoder_set_video(rec->venc, rec->video);
-    obs_data_t* as = obs_data_create();
-    obs_data_set_int(as, "bitrate", enc.audioBitrateKbps);
-    rec->aenc = obs_audio_encoder_create("ffmpeg_aac", "aenc-limpia", as, 0, nullptr);
-    obs_data_release(as);
-    if (rec->aenc == nullptr) {
-        setError("no se pudo crear el codificador de audio de la señal limpia");
-        return false;
-    }
-    obs_encoder_set_audio(rec->aenc, obs_get_audio());
+    auto r = std::make_unique<SourceRec>();
+    const motor::Fuentes f = fuentesDelPrograma(*motor_, {}, true); // el programa SIN capas
+    const int fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     if (!destino.empty()) {
-        obs_data_t* ss = datosServicio(destino, clave);
-        rec->svc = obs_service_create_private("rtmp_custom", "servicio-limpia", ss);
-        obs_data_release(ss);
-        rec->out = rec->svc != nullptr ? obs_output_create(tipoSalida(destino), "salida-limpia", nullptr, nullptr) : nullptr;
-        if (rec->out == nullptr) {
-            setError("no se pudo crear la salida de la señal limpia");
+        motor::Transmision::Config c;
+        c.url = urlConClave(destino, clave);
+        c.kbps = enc.videoBitrateKbps;
+        c.kbpsAudio = enc.audioBitrateKbps;
+        c.gopSeg = std::max(1, enc.keyintSec);
+        c.fps = fps;
+        c.codificadores = {"x264enc"};
+        r->tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
+        const std::string e = r->tx->iniciar(f);
+        if (!e.empty()) {
+            setError("no arrancó la señal limpia: " + e);
             return false;
         }
-        obs_output_set_service(rec->out, rec->svc);
-        obs_output_set_reconnect_settings(rec->out, 20, 2);
+        r->destino = enmascarar(destino, clave);
     } else {
-        const auto secs =
-            std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-        rec->path = dir + "/senal-limpia-" + std::to_string(secs) + ".mkv";
-        obs_data_t* os = obs_data_create();
-        obs_data_set_string(os, "path", rec->path.c_str());
-        rec->out = obs_output_create("ffmpeg_muxer", "rec-limpia", os, nullptr);
-        obs_data_release(os);
-        if (rec->out == nullptr) {
-            setError("no se pudo crear la grabación de la señal limpia");
+        motor::Grabacion::Config c;
+        c.carpeta = dir;
+        c.nombre = "senal-limpia-" + marcaDeTiempo();
+        c.tramoSeg = 0;
+        c.kbps = enc.videoBitrateKbps;
+        c.fps = fps;
+        c.codificadores = {"x264enc"};
+        r->grab = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
+        const std::string e = r->grab->iniciar(f);
+        if (!e.empty()) {
+            setError("no arrancó la señal limpia: " + e);
             return false;
         }
+        r->path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
+        r->destino = r->path;
     }
-    obs_output_set_video_encoder(rec->out, rec->venc);
-    obs_output_set_audio_encoder(rec->out, rec->aenc, 0);
-    if (!obs_output_start(rec->out)) {
-        const char* e = obs_output_get_last_error(rec->out);
-        setError(std::string("no arrancó la señal limpia") + (e != nullptr && *e != '\0' ? std::string(": ") + e : std::string()));
-        return false;
-    }
-    cleanDestino_ = destino.empty() ? rec->path : enmascarar(destino, clave);
-    clean_ = std::move(rec);
+    clean_ = std::move(r);
     return true;
 }
 
 void BroadcastEngine::stopCleanFeed() {
-    clean_.reset(); // el destructor para y libera, en orden
-    cleanDestino_.clear();
+    if (!clean_) return;
+    if (clean_->tx) clean_->tx->parar();
+    if (clean_->grab) clean_->grab->parar();
+    clean_.reset();
 }
 
 nlohmann::json BroadcastEngine::cleanFeedEstado() const {
     if (!clean_) return {{"activa", false}};
-    obs_output_t* o = clean_->out;
-    return {{"activa", o != nullptr && obs_output_active(o)},
-            {"reconectando", o != nullptr && obs_output_reconnecting(o)},
-            {"destino", cleanDestino_},
+    const json st = clean_->tx ? clean_->tx->estado() : json::object();
+    return {{"activa", clean_->tx ? st.value("andando", false) : (clean_->grab && clean_->grab->grabando())},
+            {"reconectando", st.value("reconectando", false)},
+            {"destino", clean_->destino},
             {"archivo", clean_->path},
-            {"cuadros", o != nullptr ? obs_output_get_total_frames(o) : 0},
-            {"perdidos", o != nullptr ? obs_output_get_frames_dropped(o) : 0}};
-}
-
-void BroadcastEngine::stopAllSourceRecordings() {
-    while (!sourceRecs_.empty())
-        stopSourceRecording(sourceRecs_.begin()->first);
-}
-
-std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
-    std::vector<GrabacionIndividual> out;
-    out.reserve(sourceRecs_.size());
-    for (const auto& [n, r] : sourceRecs_)
-        out.push_back(
-            GrabacionIndividual{n, r->path, r->pista > 0, r->out != nullptr && obs_output_active(r->out)});
-    return out;
+            {"cuadros", st.value("cuadros", 0)},
+            {"perdidos", st.value("perdidos", 0)}};
 }
 
 // ============================================================================
 // Estado
 // ============================================================================
 
-// --- Estado de la salida: por que se corto ----------------------------------
-// libobs avisa por señales, en el hilo que se le ocurra. Aca solo se anota que
-// paso, en castellano y con la causa: el operador necesita saber si esperar
-// (se cayo la red y esta reintentando) o hacer algo (la clave es incorrecta).
-
-namespace {
-
-/// Codigos de obs_output (OBS_OUTPUT_*) en palabras que sirvan.
-const char* motivoDeCorte(int code) {
-    switch (code) {
-        case 0: return ""; // OBS_OUTPUT_SUCCESS: cierre normal
-        case -1: return "No se pudo escribir en el destino (ruta o permisos)";
-        case -2: return "No se pudo conectar con el servidor";
-        case -3: return "El servidor rechazó la transmisión (¿la clave es correcta?)";
-        case -4: return "Error en la salida";
-        case -5: return "Se cortó la conexión con el servidor";
-        case -6: return "El servidor no soporta este formato";
-        case -7: return "No queda espacio en el disco";
-        case -8: return "El codificador falló";
-        default: return "La transmisión se cortó";
-    }
-}
-
-} // namespace
-
-void BroadcastEngine::onOutputReconnect(void* data, ::calldata* /*cd*/) {
-    auto* self = static_cast<BroadcastEngine*>(data);
-    std::lock_guard<std::mutex> lock(self->outputStateLock_);
-    self->reconnecting_ = true;
-    if (self->outputProblem_.empty()) self->outputProblem_ = "Se cortó la conexión con el servidor";
-}
-
-void BroadcastEngine::onOutputReconnected(void* data, ::calldata* /*cd*/) {
-    auto* self = static_cast<BroadcastEngine*>(data);
-    std::lock_guard<std::mutex> lock(self->outputStateLock_);
-    self->reconnecting_ = false;
-    self->outputProblem_.clear();
-}
-
-void BroadcastEngine::onOutputStopped(void* data, ::calldata* cd) {
-    auto* self = static_cast<BroadcastEngine*>(data);
-    const long long code = calldata_int(cd, "code");
-    if (code == -8) { // OBS_OUTPUT_ENCODE_ERROR: lo rearma atenderEncoderCaido
-        auto* out = static_cast<obs_output_t*>(calldata_ptr(cd, "output"));
-        if (out != nullptr && reinterpret_cast<obs_output*>(out) == self->recordOutput_ && self->recVideoEncoder_ != nullptr)
-            self->encoderCayoArchivo_ = true;
-        self->encoderCayo_ = true;
-    }
-    std::lock_guard<std::mutex> lock(self->outputStateLock_);
-    self->reconnecting_ = false;
-    self->outputProblem_ = motivoDeCorte(static_cast<int>(code));
-}
-
-void BroadcastEngine::watchOutput(obs_output* outRaw) {
-    auto* out = reinterpret_cast<obs_output_t*>(outRaw);
-    if (out == nullptr) return;
-    signal_handler_t* sh = obs_output_get_signal_handler(out);
-    if (sh == nullptr) return;
-    signal_handler_connect(sh, "reconnect", &BroadcastEngine::onOutputReconnect, this);
-    signal_handler_connect(sh, "reconnect_success", &BroadcastEngine::onOutputReconnected, this);
-    signal_handler_connect(sh, "stop", &BroadcastEngine::onOutputStopped, this);
-    // Arrancar limpia lo que hubiera quedado del intento anterior.
-    std::lock_guard<std::mutex> lock(outputStateLock_);
-    reconnecting_ = false;
-    outputProblem_.clear();
-}
-
 EngineStatus BroadcastEngine::status() const {
     EngineStatus st;
     st.lastError = lastError_;
-    if (!started_) {
-        return st;
+    if (!started_) return st;
+    st.videoActive = true;
+    st.audioActive = true;
+    st.fps = static_cast<double>(video_.fpsNum) / std::max(1, video_.fpsDen);
+    if (stream_) {
+        const json t = stream_->estado();
+        st.streaming = t.value("andando", false);
+        st.droppedFrames = t.value("perdidos", 0);
+        st.totalFrames = t.value("cuadros", 0);
+        st.bytesSent = t.value("bytes", std::uint64_t{0});
+        st.videoEncoder = t.value("codificador", std::string());
+        st.reconnecting = t.value("reconectando", false);
+        if (st.reconnecting) {
+            const std::string e = t.value("error", std::string());
+            st.outputProblem = e.find("refused") != std::string::npos   ? "No se pudo conectar con el servidor"
+                               : e.find("auth") != std::string::npos    ? "El servidor rechazó la transmisión (¿la clave es correcta?)"
+                                                                        : "Se cortó la conexión con el servidor";
+        }
     }
-    st.videoActive = obs_get_video() != nullptr;
-    st.audioActive = obs_get_audio() != nullptr;
-    st.fps = obs_get_active_fps();
-    st.videoEncoder = videoEncoderId_;
-
-    auto* stream = reinterpret_cast<obs_output_t*>(streamOutput_);
-    if (stream != nullptr) {
-        st.streaming = obs_output_active(stream);
-        st.droppedFrames = obs_output_get_frames_dropped(stream);
-        st.totalFrames = obs_output_get_total_frames(stream);
-        st.bytesSent = static_cast<std::uint64_t>(obs_output_get_total_bytes(stream));
-    }
-    auto* record = reinterpret_cast<obs_output_t*>(recordOutput_);
-    if (record != nullptr) {
-        st.recording = obs_output_active(record);
-    }
-    {
-        std::lock_guard<std::mutex> lock(outputStateLock_);
-        st.reconnecting = reconnecting_;
-        st.outputProblem = outputProblem_;
+    if (rec_) {
+        st.recording = rec_->grabando();
+        if (st.videoEncoder.empty()) st.videoEncoder = rec_->estado().value("codificador", std::string());
     }
     return st;
 }

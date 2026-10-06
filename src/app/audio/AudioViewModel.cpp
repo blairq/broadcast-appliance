@@ -16,7 +16,7 @@
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
 
-#include <obs.h>
+#include "FuentesApp.hpp"
 
 namespace ba::app::audio {
 
@@ -313,14 +313,8 @@ QString AudioViewModel::setTextoOpciones(const QString& node, const QVariantMap&
 
 QStringList AudioViewModel::fuentesDeTexto() const {
     QStringList out;
-    obs_enum_sources(
-        [](void* p, obs_source_t* s) {
-            const char* id = obs_source_get_unversioned_id(s);
-            if (id != nullptr && std::string(id).rfind("text_", 0) == 0)
-                static_cast<QStringList*>(p)->append(QString::fromUtf8(obs_source_get_name(s)));
-            return true;
-        },
-        &out);
+    for (const auto& [nombre, tipo] : fuentes::listar())
+        if (tipo.rfind("text_", 0) == 0 || tipo == "ba_texto") out.append(QString::fromStdString(nombre));
     out.sort();
     return out;
 }

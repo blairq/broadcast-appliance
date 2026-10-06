@@ -2,7 +2,7 @@
 
 #include "agent/FlujosTexto.hpp"
 
-#include <obs.h>
+#include "FuentesApp.hpp"
 
 #include <QDir>
 #include <QFile>
@@ -223,14 +223,7 @@ void FlujosTexto::escribirArchivo(const Frase& f) {
 }
 
 void FlujosTexto::ponerRotulo(const QString& rotulo, const QString& texto) {
-    if (!obs_initialized()) return;
-    obs_source_t* s = obs_get_source_by_name(rotulo.toUtf8().constData());
-    if (s == nullptr) return;
-    obs_data_t* d = obs_data_create();
-    obs_data_set_string(d, "text", texto.toUtf8().constData());
-    obs_source_update(s, d);
-    obs_data_release(d);
-    obs_source_release(s);
+    fuentes::cambiarAjustes(rotulo.toStdString(), nlohmann::json{{"text", texto.toStdString()}});
 }
 
 QVariantList FlujosTexto::flujos() const {

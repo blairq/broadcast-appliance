@@ -100,7 +100,7 @@ void Entrada::desarmarSalida() {
 
 void Entrada::armarSalida() {
     // Sin placa: los archivos (parados no se ven) y lo que pinta la app (manda solo cuando cambia).
-    const bool quiere = daVideo() && !medio_ && !deApp_ && hayFabrica("fallbackswitch");
+    const bool quiere = daVideo() && !medio_ && !estatica_ && hayFabrica("fallbackswitch");
     if (!quiere) {
         desarmarSalida();
         return;
@@ -172,6 +172,7 @@ void Entrada::leer(const json& a) {
     ntpSync_ = a.value("ntp_sync", true);
     latenciaMs_ = entero(a, "latencia", 0);
     desfaseMs_ = entero(a, "desfase", 0);
+    desfaseAudioMs_ = entero(a, "desfase_audio", 0);
     superres_ = a.value("superres", false);
     superresMotor_ = a.value("superres_motor", std::string());
     superresModelo_ = a.value("superres_modelo", std::string());
@@ -191,6 +192,7 @@ void Entrada::leer(const json& a) {
     // Los tipos: arman su propia cadena (lo que antes daba OBS).
     const std::string tipo = a.value("tipo", std::string());
     deApp_ = tipo == "app";
+    estatica_ = tipo == "color" || tipo == "imagen" || tipo == "texto" || tipo == "app";
     const int w = a.value("ancho", lienzo_.ancho), h = a.value("alto", lienzo_.alto);
     const std::string tam = ",width=" + std::to_string(std::max(2, w)) + ",height=" + std::to_string(std::max(2, h));
     bool alfaTipo = false;
@@ -293,6 +295,7 @@ void Entrada::programarReintento() {
 
 void Entrada::armar() {
     desarmar();
+    controlEnviado_ = false; // la cadena nueva lo recibe apenas pasen cuadros
     segmentoListo_ = false;
     avisos_.clear();
     error_.clear();
@@ -582,7 +585,9 @@ void Entrada::corregirOffset() {
                 if (GstPad* antes = gst_pad_get_peer(pad)) {
                         const gint64 dif = medio_ ? static_cast<gint64>(base) - static_cast<gint64>(reloj_.base())
                                                   : (std::string(n) == "ba_iv" ? realineadoV_ : realineadoA_);
-                    gst_pad_set_offset(antes, dif + desf);
+                    const gint64 soloAudio =
+                        std::string(n) == "ba_ia" ? desfaseAudioMs_ * static_cast<gint64>(GST_MSECOND) : 0;
+                    gst_pad_set_offset(antes, dif + desf + soloAudio);
                     gst_object_unref(antes);
                 }
                 gst_object_unref(pad);
@@ -714,6 +719,14 @@ void Entrada::vigilarDatos() {
 
 void Entrada::tic() {
     std::lock_guard<std::mutex> l(mu_);
+    if (!controlEnviado_ && !control_.empty() && pipeline_ != nullptr) {
+        std::uint64_t c = 0;
+        {
+            std::lock_guard<std::mutex> lm(medMu_);
+            c = cuadros_;
+        }
+        if (c > 0) controlEnviado_ = enviarControl();
+    }
     if (salidaV_ != nullptr) {
         GstBus* bus = gst_element_get_bus(salidaV_);
         while (GstMessage* m = gst_bus_pop(bus)) {
@@ -987,6 +1000,7 @@ json Entrada::estado() const {
            {"latencia_ms", static_cast<double>(pide_.load()) / 1e6},
            {"declarada_ms", declaradoMs_},
            {"desfase_ms", desfaseMs_},
+           {"desfase_audio_ms", desfaseAudioMs_},
            {"placa", salidaV_ != nullptr},
            {"en_placa", enPlacaSinLock()}};
     {
@@ -1004,7 +1018,153 @@ json Entrada::estado() const {
         j["bucle"] = bucle_;
         j["limpiar_al_terminar"] = limpiarAlTerminar_;
     }
+    j["normalizado"] = normalizar_;
+    j["alfa"] = alfa_;
+    j["ntp_sync"] = ntpSync_ && !ntpApagadoSolo_;
+    j["filtros"] = estadoFiltros();
     return j;
+}
+
+void Entrada::control(const json& campos) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (!campos.is_object()) return;
+    for (auto it = campos.begin(); it != campos.end(); ++it) control_[it.key()] = *it;
+    controlEnviado_ = enviarControl();
+}
+
+bool Entrada::enviarControl() {
+    if (pipeline_ == nullptr || control_.empty()) return false;
+    GstStructure* st = gst_structure_new_empty("ba/control");
+    for (auto it = control_.begin(); it != control_.end(); ++it) {
+        const json& v = *it;
+        if (v.is_string())
+            gst_structure_set(st, it.key().c_str(), G_TYPE_STRING, v.get<std::string>().c_str(), nullptr);
+        else if (v.is_boolean())
+            gst_structure_set(st, it.key().c_str(), G_TYPE_BOOLEAN, static_cast<gboolean>(v.get<bool>()), nullptr);
+        else if (v.is_number_integer())
+            gst_structure_set(st, it.key().c_str(), G_TYPE_INT, v.get<int>(), nullptr);
+        else if (v.is_number())
+            gst_structure_set(st, it.key().c_str(), G_TYPE_DOUBLE, v.get<double>(), nullptr);
+    }
+    bool ok = false;
+    // Entra por la cola del origen y recorre toda la cadena.
+    if (GstElement* q = gst_bin_get_by_name(GST_BIN(pipeline_), "ba_origen")) {
+        if (GstPad* pad = gst_element_get_static_pad(q, "sink")) {
+            ok = gst_pad_send_event(pad, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM_OOB, gst_structure_copy(st)));
+            gst_object_unref(pad);
+        }
+        gst_object_unref(q);
+    }
+    gst_structure_free(st);
+    return ok;
+}
+
+json Entrada::estadoFiltros() const {
+    // Cada filtro: su elemento y lo que informe (lo que tarda, el motor, por qué no anda).
+    json fs = json::array();
+    for (const auto* l : {&filtrosV_, &filtrosA_})
+        for (const auto& fl : *l) {
+            json e{{"id", fl.id}, {"elemento", fl.elemento}, {"audio", l == &filtrosA_}};
+            const std::string n = (l == &filtrosV_ ? "ba_f_" : "ba_fa_") + fl.nombre;
+            GstElement* el = pipeline_ != nullptr ? gst_bin_get_by_name(GST_BIN(pipeline_), n.c_str()) : nullptr;
+            e["andando"] = el != nullptr;
+            if (el == nullptr) {
+                fs.push_back(e);
+                continue;
+            }
+            // Lo que informa (sus propiedades de solo lectura), sea el elemento que sea.
+            GObjectClass* k = G_OBJECT_GET_CLASS(el);
+            guint np = 0;
+            GParamSpec** pss = g_object_class_list_properties(k, &np);
+            json info = json::object();
+            for (guint i = 0; i < np; ++i) {
+                GParamSpec* ps = pss[i];
+                if ((ps->flags & G_PARAM_READABLE) == 0) continue;
+                if (ps->owner_type == GST_TYPE_ELEMENT || ps->owner_type == GST_TYPE_OBJECT || ps->owner_type == G_TYPE_OBJECT)
+                    continue;
+                const bool soloLectura = (ps->flags & G_PARAM_WRITABLE) == 0;
+                if (!soloLectura && std::string(ps->name) != "ms-por-cuadro") continue;
+                GValue v = G_VALUE_INIT;
+                g_value_init(&v, ps->value_type);
+                g_object_get_property(G_OBJECT(el), ps->name, &v);
+                if (G_VALUE_HOLDS_STRING(&v)) {
+                    const char* t = g_value_get_string(&v);
+                    if (t != nullptr && *t != '\0') info[ps->name] = t;
+                } else if (G_VALUE_HOLDS_DOUBLE(&v)) {
+                    info[ps->name] = g_value_get_double(&v);
+                } else if (G_VALUE_HOLDS_INT(&v)) {
+                    info[ps->name] = g_value_get_int(&v);
+                } else if (G_VALUE_HOLDS_BOOLEAN(&v)) {
+                    info[ps->name] = static_cast<bool>(g_value_get_boolean(&v));
+                }
+                g_value_unset(&v);
+            }
+            g_free(pss);
+            if (info.contains("ms-por-cuadro")) e["ms"] = info["ms-por-cuadro"];
+            for (const char* prop : {"error", "motor-usado", "proveedor-usado", "unidades-usadas"})
+                if (info.contains(prop)) e[prop] = info[prop];
+            e["info"] = info;
+            // Y lo que negoció: el formato que sale.
+            if (GstPad* pad = gst_element_get_static_pad(el, "src")) {
+                if (GstCaps* c = gst_pad_get_current_caps(pad)) {
+                    gchar* t = gst_caps_to_string(c);
+                    e["caps"] = t;
+                    g_free(t);
+                    gst_caps_unref(c);
+                }
+                gst_object_unref(pad);
+            }
+            gst_object_unref(el);
+            fs.push_back(e);
+        }
+    return fs;
+}
+
+std::string Entrada::propiedad(const std::string& elemento, const std::string& prop, const std::string& valor) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (pipeline_ == nullptr) return "la entrada no está andando";
+    GstElement* el = gst_bin_get_by_name(GST_BIN(pipeline_), elemento.c_str());
+    if (el == nullptr) return "no hay un elemento «" + elemento + "» en la entrada";
+    std::string err;
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(el), prop.c_str()) == nullptr)
+        err = "«" + elemento + "» no tiene la propiedad «" + prop + "»";
+    else
+        gst_util_set_object_arg(G_OBJECT(el), prop.c_str(), valor.c_str());
+    gst_object_unref(el);
+    return err;
+}
+
+json Entrada::leerPropiedades(const std::string& elemento) const {
+    std::lock_guard<std::mutex> l(mu_);
+    json o = json::object();
+    if (pipeline_ == nullptr) return o;
+    GstElement* el = gst_bin_get_by_name(GST_BIN(pipeline_), elemento.c_str());
+    if (el == nullptr) return o;
+    guint np = 0;
+    GParamSpec** pss = g_object_class_list_properties(G_OBJECT_GET_CLASS(el), &np);
+    for (guint i = 0; i < np; ++i) {
+        GParamSpec* ps = pss[i];
+        if ((ps->flags & G_PARAM_READABLE) == 0) continue;
+        if (ps->owner_type == GST_TYPE_ELEMENT || ps->owner_type == GST_TYPE_OBJECT || ps->owner_type == G_TYPE_OBJECT)
+            continue;
+        GValue v = G_VALUE_INIT;
+        g_value_init(&v, ps->value_type);
+        g_object_get_property(G_OBJECT(el), ps->name, &v);
+        if (G_VALUE_HOLDS_STRING(&v)) {
+            const char* t = g_value_get_string(&v);
+            o[ps->name] = t != nullptr ? t : "";
+        } else if (G_VALUE_HOLDS_DOUBLE(&v)) {
+            o[ps->name] = g_value_get_double(&v);
+        } else if (G_VALUE_HOLDS_INT(&v)) {
+            o[ps->name] = g_value_get_int(&v);
+        } else if (G_VALUE_HOLDS_BOOLEAN(&v)) {
+            o[ps->name] = static_cast<bool>(g_value_get_boolean(&v));
+        }
+        g_value_unset(&v);
+    }
+    g_free(pss);
+    gst_object_unref(el);
+    return o;
 }
 
 } // namespace ba::motor

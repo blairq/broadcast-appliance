@@ -1,5 +1,5 @@
 // ============================================================================
-// src/obs-module/ba_plugin_gst.cpp — los plugins de Python adentro de GStreamer
+// src/gst-plugins/plugin/baplugin.cpp — los plugins de Python adentro de GStreamer
 //
 // Un plugin (docs/PLUGINS.md) corre en SU proceso; su video y su audio entran
 // y salen por dos módulos de GStreamer que se registran acá:
@@ -8,7 +8,7 @@
 //                   que lo cambia, y vuelve. Va en una tarjeta `gst` del grafo
 //                   (TarjetaGst) o en cualquier pipeline.
 //   - `bapluginsrc` una ENTRADA: los cuadros (o el audio) que manda el plugin.
-//                   Va como origen de `ba_gst_fuente` (con su colchón y el
+//                   Va como origen de una entrada del motor (con su colchón y el
 //                   reloj del estudio), así que una entrada de un plugin es
 //                   una entrada como cualquier otra.
 //
@@ -22,15 +22,12 @@
 // plugin (apagado, caído, reiniciándose), la tarjeta deja pasar la imagen y
 // reintenta cada segundo; la entrada espera sin bloquear el pipeline.
 //
-// EL PUERTO: lo anuncia el plugin al arrancar y la app lo pasa con el proc
-// global «ba_plugin_puerto(plugin, puerto)»; cambia si el plugin se reinicia,
-// por eso se busca en cada reconexión. La propiedad `puerto` lo fija a mano
-// (pruebas).
+// EL PUERTO: lo anuncia el plugin al arrancar y la app lo deja anotado en el
+// registro de GStreamer (dato «ba-plugin-puerto:<plugin>» del GstRegistry, que
+// la app y este módulo comparten en el proceso); cambia si el plugin se
+// reinicia, por eso se busca en cada reconexión. La propiedad `puerto` lo fija
+// a mano (pruebas).
 // ============================================================================
-
-#if defined(BA_HAVE_GST)
-
-#include "ba_gst.hpp"
 
 #include <gst/audio/audio.h>
 #include <gst/base/gstbasesrc.h>
@@ -38,8 +35,6 @@
 #include <gst/base/gstpushsrc.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#include <media-io/audio-io.h>
-#include <obs-module.h>
 
 #include <nlohmann/json.hpp>
 
@@ -71,25 +66,13 @@ namespace ba::gst {
 // --- Los puertos de los plugins ------------------------------------------------------
 
 namespace {
-std::mutex g_puertosLock;
-std::map<std::string, int> g_puertos;
-
 int puertoDe(const std::string& plugin) {
-    std::lock_guard<std::mutex> l(g_puertosLock);
-    auto it = g_puertos.find(plugin);
-    return it == g_puertos.end() ? 0 : it->second;
+    const std::string clave = "ba-plugin-puerto:" + plugin;
+    return GPOINTER_TO_INT(g_object_get_data(G_OBJECT(gst_registry_get()), clave.c_str()));
 }
 
 gint64 ahoraMs() { return g_get_monotonic_time() / 1000; }
 } // namespace
-
-void puertoPlugin(const std::string& plugin, int puerto) {
-    std::lock_guard<std::mutex> l(g_puertosLock);
-    if (puerto > 0)
-        g_puertos[plugin] = puerto;
-    else
-        g_puertos.erase(plugin);
-}
 
 // --- El canal con el plugin -----------------------------------------------------------
 
@@ -887,144 +870,16 @@ void ba_plugin_fuente_init(BaPluginFuente* yo) {
     gst_base_src_set_do_timestamp(GST_BASE_SRC(yo), TRUE);
 }
 
-// ===================================================================================
-// ba_plugin_audio: un filtro de audio de OBS que pasa por una tarjeta de audio
-// del plugin (el micrófono de una fuente cualquiera, sin GStreamer de por medio)
-// ===================================================================================
-
-struct FiltroAudio {
-    obs_source_t* ctx = nullptr;
-    Filtro f;
-    std::vector<float> intercalado;
-};
-
-const char* audioNombre(void*) { return "Plugin de Python (audio)"; }
-
-void audioActualizar(void* d, obs_data_t* s) {
-    auto* a = static_cast<FiltroAudio*>(d);
-    std::lock_guard<std::mutex> l(a->f.lock);
-    const std::string plugin = obs_data_get_string(s, "plugin"), tarjeta = obs_data_get_string(s, "tarjeta"),
-                      params = obs_data_get_string(s, "parametros");
-    if (plugin != a->f.plugin || tarjeta != a->f.tarjeta) {
-        a->f.plugin = plugin;
-        a->f.tarjeta = tarjeta;
-        desconectar(a->f, {}, 0);
-    }
-    if (params != a->f.parametros) {
-        a->f.parametros = params.empty() ? "{}" : params;
-        a->f.paramsCambiaron = true;
-    }
-    a->f.esperaMs = static_cast<int>(obs_data_get_int(s, "espera_ms"));
-}
-
-void* audioCrear(obs_data_t* s, obs_source_t* ctx) {
-    auto* a = new FiltroAudio();
-    a->ctx = ctx;
-    a->f.esVideo = false;
-    gst_audio_info_init(&a->f.ainfo);
-    const audio_output_info* oi = obs_get_audio() ? audio_output_get_info(obs_get_audio()) : nullptr;
-    const int canales = oi ? static_cast<int>(get_audio_channels(oi->speakers)) : 2;
-    gst_audio_info_set_format(&a->f.ainfo, GST_AUDIO_FORMAT_F32LE,
-                              oi ? static_cast<int>(oi->samples_per_sec) : 48000, canales, nullptr);
-    a->f.capsListas = true;
-    audioActualizar(a, s);
-    return a;
-}
-
-void audioDestruir(void* d) {
-    auto* a = static_cast<FiltroAudio*>(d);
-    {
-        std::lock_guard<std::mutex> l(a->f.lock);
-        desconectar(a->f, {}, 0);
-    }
-    delete a;
-}
-
-/// Mismo ida y vuelta que la tarjeta: espera la vuelta `espera_ms` (10 de
-/// fábrica); si no llega, el bloque sale como vino (el audio no se repite).
-obs_audio_data* audioFiltrar(void* d, obs_audio_data* au) {
-    auto* a = static_cast<FiltroAudio*>(d);
-    Filtro& f = a->f;
-    std::lock_guard<std::mutex> l(f.lock);
-    const int canales = GST_AUDIO_INFO_CHANNELS(&f.ainfo);
-    const size_t n = au->frames;
-    if (n == 0 || canales <= 0) return au;
-    const size_t tam = n * static_cast<size_t>(canales) * sizeof(float);
-    if (!asegurarConexion(nullptr, f, std::max(tam, static_cast<size_t>(48000 * canales * 4 / 4))) ||
-        f.canal.mem() == nullptr || f.canal.tam() < tam)
-        return au;
-    if (f.paramsCambiaron) {
-        f.paramsCambiaron = false;
-        f.canal.enviar({{"parametros", parametrosDe(f)}});
-    }
-    bool conError = false;
-    if (f.ocupado && recogerVuelta(f, 0, conError)) f.ocupado = false;
-    if (f.ocupado || !f.conectado) return au;
-    auto* mem = reinterpret_cast<float*>(f.canal.mem());
-    for (size_t i = 0; i < n; ++i)
-        for (int c = 0; c < canales; ++c) {
-            const auto* plano = reinterpret_cast<const float*>(au->data[c]);
-            mem[i * canales + c] = plano != nullptr ? plano[i] : 0.0f;
-        }
-    if (!f.canal.enviar({{"c", ++f.n}, {"pts", static_cast<long long>(au->timestamp)}, {"muestras", n}})) {
-        desconectar(f, "se cortó", 1000);
-        return au;
-    }
-    f.ocupado = true;
-    ++f.cuadros;
-    if (recogerVuelta(f, f.esperaMs, conError)) {
-        f.ocupado = false;
-        if (!conError) {
-            for (size_t i = 0; i < n; ++i)
-                for (int c = 0; c < canales; ++c)
-                    if (auto* plano = reinterpret_cast<float*>(au->data[c])) plano[i] = mem[i * canales + c];
-            ++f.procesados;
-        }
-    } else {
-        ++f.tarde;
-    }
-    return au;
-}
-
-obs_properties_t* audioPropiedades(void*) {
-    obs_properties_t* p = obs_properties_create();
-    obs_properties_add_text(p, "plugin", "Plugin", OBS_TEXT_DEFAULT);
-    obs_properties_add_text(p, "tarjeta", "Tarjeta de audio", OBS_TEXT_DEFAULT);
-    obs_properties_add_text(p, "parametros", "Parámetros (JSON)", OBS_TEXT_MULTILINE);
-    obs_properties_add_int(p, "espera_ms", "Espera (ms)", 0, 100, 1);
-    return p;
-}
-
-void audioPorDefecto(obs_data_t* s) {
-    obs_data_set_default_string(s, "parametros", "{}");
-    obs_data_set_default_int(s, "espera_ms", 10);
-}
-
-obs_source_info g_filtroAudio = {};
-
 } // namespace
-
-void registrarFiltroAudioPlugin() {
-    g_filtroAudio.id = "ba_plugin_audio";
-    g_filtroAudio.type = OBS_SOURCE_TYPE_FILTER;
-    g_filtroAudio.output_flags = OBS_SOURCE_AUDIO;
-    g_filtroAudio.get_name = audioNombre;
-    g_filtroAudio.create = audioCrear;
-    g_filtroAudio.destroy = audioDestruir;
-    g_filtroAudio.update = audioActualizar;
-    g_filtroAudio.filter_audio = audioFiltrar;
-    g_filtroAudio.get_properties = audioPropiedades;
-    g_filtroAudio.get_defaults = audioPorDefecto;
-    obs_register_source(&g_filtroAudio);
-}
-
-void registrarElementosPlugin() {
-    // La superresolución (basuperres, bafsr, baonnxsr, bavtsuperres) es un
-    // plugin de GStreamer aparte: src/gst-plugins/superres.
-    gst_element_register(nullptr, "baplugin", GST_RANK_NONE, ba_plugin_filtro_get_type());
-    gst_element_register(nullptr, "bapluginsrc", GST_RANK_NONE, ba_plugin_fuente_get_type());
-}
 
 } // namespace ba::gst
 
-#endif // BA_HAVE_GST
+static gboolean plugin_init(GstPlugin* p) {
+    return gst_element_register(p, "baplugin", GST_RANK_NONE, ba::gst::ba_plugin_filtro_get_type()) &&
+           gst_element_register(p, "bapluginsrc", GST_RANK_NONE, ba::gst::ba_plugin_fuente_get_type());
+}
+
+#define PACKAGE "baplugins"
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, baplugins,
+                  "Plugins de Python de Broadcast Appliance: tarjeta (baplugin) y entrada (bapluginsrc)", plugin_init,
+                  "1.0", "GPL", "Broadcast Appliance", "Broadcast Appliance")

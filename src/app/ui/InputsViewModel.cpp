@@ -13,7 +13,6 @@
 #include <thread>
 
 #include <nlohmann/json.hpp>
-#include <obs.h>
 
 #include "AppRuntime.hpp"
 #include "audio/EntradasAudio.hpp"
@@ -285,12 +284,6 @@ void InputsViewModel::remove(const QString& name) {
             if (src == n) rt_.removeSource(sc, n);
     // Las entradas de audio no estan en ninguna escena: van por su canal global.
     rt_.removeAudioInput(n);
-    // Una que ya no estaba en ninguna escena (p. ej. la de un plugin cuya
-    // escena se borro) seguia existiendo: se la saca de libobs.
-    if (obs_source_t* src = obs_get_source_by_name(n.c_str())) {
-        obs_source_remove(src);
-        obs_source_release(src);
-    }
     rt_.save();
     vm_.refreshModels();
     refresh();

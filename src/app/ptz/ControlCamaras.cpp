@@ -15,7 +15,7 @@
 #include "ptz/PtzPlugin.hpp"
 #include "ptz/PtzVisca.hpp"
 
-#include <obs.h>
+#include "FuentesApp.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -38,8 +38,9 @@ namespace ba::app::ptz {
 
 namespace {
 
-/// Nombre del filtro de Mejorar imagen en cada fuente.
-constexpr const char* kFiltroMejora = "BA · Mejorar imagen";
+/// Orden de los filtros extra en la cadena de la entrada: se limpia antes de ampliar.
+constexpr int kOrdenMejora = 10;
+constexpr int kOrdenPtz = 20;
 
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 
@@ -236,57 +237,24 @@ void ControlCamaras::sincronizar() {
 }
 
 void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
-    obs_source_t* src = obs_get_source_by_name(c.entrada.c_str());
-    if (src == nullptr) return;
     const AppConfig& cfg = rt_.config();
-
     // 1) Mejorar imagen: lo más cerca de la fuente (se limpia antes de ampliar).
     const bool quiereMejora = c.mejora == "si" || (c.mejora == "general" && mejoraGeneral);
-    obs_source_t* mej = obs_source_get_filter_by_name(src, kFiltroMejora);
-    obs_data_t* ajustes = obs_data_create();
-    obs_data_set_int(ajustes, "ruido", cfg.mejora.ruido);
-    obs_data_set_int(ajustes, "color", cfg.mejora.color);
-    obs_data_set_int(ajustes, "nitidez", cfg.mejora.nitidez);
-    if (quiereMejora && mej == nullptr) {
-        obs_source_t* f = obs_source_create_private("ba_mejora_imagen", kFiltroMejora, ajustes);
-        if (f != nullptr) {
-            obs_source_filter_add(src, f);
-            // «Arriba» en la lista de libobs (el último del arreglo, cuyo
-            // destino es la fuente) = el primero en aplicarse: se limpia antes
-            // de que el PTZ digital amplíe. Un filtro nuevo entra «abajo»
-            // (índice 0, el último en aplicarse).
-            obs_source_filter_set_order(src, f, OBS_ORDER_MOVE_TOP);
-            obs_source_release(f);
-        }
-    } else if (quiereMejora && mej != nullptr) {
-        obs_data_t* actual = obs_source_get_settings(mej);
-        if (obs_data_get_int(actual, "ruido") != cfg.mejora.ruido ||
-            obs_data_get_int(actual, "color") != cfg.mejora.color ||
-            obs_data_get_int(actual, "nitidez") != cfg.mejora.nitidez)
-            obs_source_update(mej, ajustes);
-        obs_data_release(actual);
-    } else if (!quiereMejora && mej != nullptr) {
-        obs_source_filter_remove(src, mej);
-    }
-    obs_data_release(ajustes);
-    if (mej != nullptr) obs_source_release(mej);
-
+    nlohmann::json mejora = nlohmann::json::array();
+    if (quiereMejora)
+        mejora.push_back({{"id", "mejora"},
+                          {"elemento", "bamejora"},
+                          {"propiedades",
+                           {{"ruido", std::to_string(cfg.mejora.ruido)},
+                            {"color", std::to_string(cfg.mejora.color)},
+                            {"nitidez", std::to_string(cfg.mejora.nitidez)}}}});
+    fuentes::ponerFiltrosExtra(c.entrada, kOrdenMejora, mejora);
     // 2) PTZ digital.
-    obs_source_t* ptz = obs_source_get_filter_by_name(src, kFiltroPtz);
-    if (c.digital && ptz == nullptr) {
-        obs_source_t* f = obs_source_create_private("ba_ptz_digital", kFiltroPtz, nullptr);
-        if (f != nullptr) {
-            obs_source_filter_add(src, f);
-            obs_source_release(f);
-            c.filtroPuesto = false;
-        }
-    } else if (!c.digital && ptz != nullptr) {
-        obs_source_filter_remove(src, ptz);
-        c.filtroPuesto = false;
-    }
-    if (ptz != nullptr) obs_source_release(ptz);
-    obs_source_release(src);
-    // Recién puesto: vuelve al encuadre que tenía.
+    nlohmann::json ptz = nlohmann::json::array();
+    if (c.digital) ptz.push_back({{"id", kFiltroPtz}, {"elemento", "baptz"}});
+    fuentes::ponerFiltrosExtra(c.entrada, kOrdenPtz, ptz);
+    if (!c.digital) c.filtroPuesto = false;
+    // Recién puesto (la cadena se rearma): vuelve al encuadre que tenía.
     if (c.digital && !c.filtroPuesto && c.dig) {
         c.filtroPuesto = c.dig->ir(c.posicion.value("x").toDouble(0.5), c.posicion.value("y").toDouble(0.5),
                                    c.posicion.value("zoom").toDouble(1.0), 0.0);
@@ -891,7 +859,7 @@ void ControlCamaras::guardar() {
     QJsonObject todas;
     for (auto& [nombre, c] : camaras_) {
         // La posición digital actual (para volver a ella al reabrir).
-        if (c->dig && tipoEntrada_.count(nombre) && obs_initialized()) {
+        if (c->dig && tipoEntrada_.count(nombre)) {
             const QVariantMap p = c->dig->posicion();
             if (!p.isEmpty())
                 c->posicion = QJsonObject{

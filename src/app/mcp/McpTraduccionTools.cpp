@@ -7,6 +7,7 @@
 // archivo que dice glosario_ver (Datos/Config/glosario-traduccion.json).
 // ============================================================================
 
+#include "agent/Subtitulos.hpp"
 #include "agent/Traductor.hpp"
 #include "agent/Voz.hpp"
 #include "mcp/McpService.hpp"
@@ -14,8 +15,6 @@
 #include "ui/StudioViewModel.hpp"
 
 #include <QPointer>
-
-#include <obs.h>
 
 #include <fstream>
 #include <string>
@@ -231,30 +230,11 @@ void McpService::registerTraduccionTools() {
         x.inputSchema = {{"type", "object"},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"flujo", {{"type", "string"}}}}}};
         x.run = [](const json& a, Done done) {
-            struct B {
-                std::string nombre, flujo;
-                int cuantos = 0;
-            } b{a.value("nombre", std::string()), a.value("flujo", std::string())};
-            obs_enum_sources(
-                [](void* p, obs_source_t* s) {
-                    auto* b = static_cast<B*>(p);
-                    const char* id = obs_source_get_unversioned_id(s);
-                    if (id == nullptr || std::string(id) != "ba_subtitulos") return true;
-                    if (!b->nombre.empty() && b->nombre != obs_source_get_name(s)) return true;
-                    obs_data_t* d = obs_source_get_settings(s);
-                    const bool es = b->flujo.empty() || b->flujo == obs_data_get_string(d, "flujo");
-                    obs_data_release(d);
-                    if (!es) return true;
-                    calldata_t cd;
-                    calldata_init(&cd);
-                    proc_handler_call(obs_source_get_proc_handler(s), "limpiar", &cd);
-                    calldata_free(&cd);
-                    ++b->cuantos;
-                    return true;
-                },
-                &b);
-            if (b.cuantos == 0) return done(ToolResult::error("no hay cuadros «Subtítulos» que coincidan"));
-            done(ToolResult().text("Borrados " + std::to_string(b.cuantos) + " cuadro(s) de subtítulos."));
+            agent::Subtitulos* sub = agent::Subtitulos::activo();
+            const int cuantos =
+                sub != nullptr ? sub->limpiar(a.value("nombre", std::string()), a.value("flujo", std::string())) : 0;
+            if (cuantos == 0) return done(ToolResult::error("no hay cuadros «Subtítulos» que coincidan"));
+            done(ToolResult().text("Borrados " + std::to_string(cuantos) + " cuadro(s) de subtítulos."));
         };
         core_.addTool(std::move(x));
     }

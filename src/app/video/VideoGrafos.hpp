@@ -1,16 +1,12 @@
 // src/app/video/VideoGrafos.hpp — el grafo de video del estudio (Studio.video)
 //
 // UN grafo (video/GrafoVideo) con un sub-grafo por entrada de video (cámara,
-// red, NDI) y nodos del estudio (el compositor). A cada entrada que no está
-// en «entrada -> escena» se le pone el filtro `ba_video_grafo`
-// (src/obs-module/ba_video_grafo.cpp) con lo que le toca
-// (GrafoVideo::paraFiltro); lo corre la GPU. Va DESPUÉS de los filtros del
-// PTZ (Mejorar imagen y PTZ digital).
-//
-// Las tarjetas pueden ser propias (color, croma, recorte, salida) o
-// CUALQUIER filtro de video de OBS (`obs`, con su id y sus ajustes): el
-// catálogo sale de los filtros registrados en libobs (filtrosObs) y sus
-// controles, de sus propiedades (propiedades).
+// red, NDI) y nodos del estudio (el compositor). Las tarjetas de imagen de
+// cada entrada (color, croma, recorte, superresolución, módulos de GStreamer)
+// corren en la cadena de GStreamer de la entrada (ajuste `filtros` del motor),
+// DESPUÉS de los filtros extra (Mejorar imagen y PTZ digital, FuentesApp).
+// Las demás (salida, toma, rostros, retardo, compositor) todavía no corren en
+// el motor: el estado lo dice por tarjeta (erroresDe).
 //
 // O CUALQUIER módulo de video de GStreamer (`gst`, con su elemento y sus
 // propiedades): el catálogo sale del registro de GStreamer del bundle
@@ -47,8 +43,6 @@
 #include <string>
 #include <vector>
 
-struct obs_source;
-struct obs_data;
 
 namespace ba::app {
 class AppRuntime;
@@ -388,14 +382,14 @@ class VideoGrafos : public QObject {
     void aplicar(const std::string& entrada);
     /// Las tarjetas que cuelgan en fila de la entrada y son de imagen (color,
     /// croma, recorte, superresolución, módulos de GStreamer) pasan a la cadena
-    /// de GStreamer de la fuente (`filtros` de ba_gst_fuente): las saca de
-    /// `para` (lo que va al filtro de libobs) y devuelve los filtros
+    /// de GStreamer de la fuente (`filtros` del motor): las saca de `para`
+    /// (lo que queda es lo que el motor todavía no corre) y devuelve los filtros
     /// {"video": [...], "alfa"}. Anota cuáles corren en la entrada.
     nlohmann::json pasarAEntrada(const std::string& entrada, nlohmann::json& para);
     /// Lo que informa la cadena de GStreamer de la entrada sobre sus filtros.
     nlohmann::json filtrosDeEntrada(const std::string& entrada) const;
-    /// Cambiar ajustes de una fuente de modo que sobrevivan al reinicio (ver el .cpp).
-    void actualizarFuente(::obs_source* src, ::obs_data* cambios);
+    /// Lo que dura un cuadro del lienzo (ms).
+    double cuadroMsLienzo() const;
     /// Los compositores publicados al día, y las entradas que alimentan otra
     /// parte del estudio, activas.
     void actualizarEstudio();
@@ -413,17 +407,15 @@ class VideoGrafos : public QObject {
     AppRuntime& rt_;
     std::filesystem::path archivo_, archivoViejo_;
     GrafoVideo grafo_;
-    std::map<std::string, std::string> aplicado_; ///< lo último que recibió cada filtro
+    /// Por entrada: las tarjetas que el motor todavía no corre → por qué.
+    std::map<std::string, std::map<std::string, std::string>> sinCorrer_;
     QStringList entradas_;
     QString entrada_;
     QString vista_ = QStringLiteral("racks");
     QTimer revision_;
-    std::set<std::string> mostradas_; ///< entradas que este objeto mantiene activas
     std::string erroresVistos_;       ///< los errores de las tarjetas, la última vez
     nlohmann::json reloj_ = {{"tipo", "sistema"},
                              {"latencia_ms", 200}}; ///< el del estudio (video-reloj.json)
-    std::set<std::string>
-        desentrelazadas_; ///< entradas a las que una tarjeta normalizar les puso desentrelazado
     /// El catálogo se arma en un hilo al arrancar (GStreamer revisa sus
     /// plugins; la primera vez tarda): mientras tanto, uno vacío.
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();

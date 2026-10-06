@@ -3,6 +3,9 @@
 #include "audio/EquipoAudio.hpp"
 
 #include "audio/AnilloAudio.hpp"
+#include "audio/GstVoz.hpp"
+
+#include "FuentesApp.hpp"
 
 #include <QAudioDevice>
 #include <QAudioFormat>
@@ -11,11 +14,10 @@
 #include <QPointer>
 #include <QThread>
 
-#include <obs.h>
 #if defined(__APPLE__)
 #include <CoreAudio/CoreAudio.h>
 #endif
-#include <util/platform.h>
+#include "HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cstdio>
@@ -29,25 +31,8 @@ namespace {
 constexpr const char* kTipo = "ba_entrada_fisica";
 constexpr int kMaxCanales = 32;
 
-const char* nombreTipo(void*) { return "Entrada del equipo (matriz)"; }
-void* crear(obs_data_t*, obs_source_t* s) { return s; }
-void destruir(void*) {}
-obs_source_info g_info = {};
-
-/// Los canales de salida de libobs libres para las entradas físicas (0
-/// programa, 1-16 invitados, 17-24 micrófonos, 40-55 entradas virtuales,
-/// 62-63 las voces).
-std::vector<std::uint32_t>& canalesLibres() {
-    static std::vector<std::uint32_t> libres = [] {
-        std::vector<std::uint32_t> v;
-        for (std::uint32_t c = 25; c <= 39; ++c)
-            v.push_back(c);
-        for (std::uint32_t c = 56; c <= 61; ++c)
-            v.push_back(c);
-        return v;
-    }();
-    return libres;
-}
+/// Un poco adelante de la captura: lo que la entrada del motor necesita para no tirarlo por viejo.
+constexpr std::uint64_t kAdelanteNs = 20'000'000ULL;
 
 QAudioFormat formato(int canales) {
     QAudioFormat f;
@@ -152,17 +137,12 @@ std::function<std::set<std::string>()> g_reservados;
 
 std::set<std::string> yaUsados() {
     std::set<std::string> out = g_reservados ? g_reservados() : std::set<std::string>{};
-    obs_enum_sources(
-        [](void* p, obs_source_t* s) {
-            const std::string tipo = obs_source_get_id(s);
-            if (tipo.find("input_capture") == std::string::npos) return true;
-            obs_data_t* d = obs_source_get_settings(s);
-            const char* dev = obs_data_get_string(d, "device_id");
-            if (dev != nullptr && *dev != '\0') static_cast<std::set<std::string>*>(p)->insert(dev);
-            obs_data_release(d);
-            return true;
-        },
-        &out);
+    // Los micrófonos de la app (su dispositivo, por id estable).
+    for (const auto& [n, tipo] : fuentes::listar()) {
+        const nlohmann::json a = fuentes::ajustesDe(n);
+        for (const char* k : {"microfono", "device_id"})
+            if (!a.value(k, std::string()).empty()) out.insert(a.value(k, std::string()));
+    }
     return out;
 }
 
@@ -170,16 +150,6 @@ std::set<std::string> yaUsados() {
 
 void setDispositivosReservados(std::function<std::set<std::string>()> f) { g_reservados = std::move(f); }
 
-void registrarEntradaFisica() {
-    g_info.id = kTipo;
-    g_info.type = OBS_SOURCE_TYPE_INPUT;
-    g_info.output_flags = OBS_SOURCE_AUDIO | OBS_SOURCE_DO_NOT_DUPLICATE | OBS_SOURCE_CAP_DISABLED;
-    g_info.get_name = nombreTipo;
-    g_info.create = crear;
-    g_info.destroy = destruir;
-    g_info.icon_type = OBS_ICON_TYPE_AUDIO_INPUT;
-    obs_register_source(&g_info);
-}
 
 // --- El hilo de los dispositivos ------------------------------------------------------
 //
@@ -260,15 +230,13 @@ struct EquipoAudio::Entrada {
     QAudioDevice dev;
     std::string id, nombre;
     int canales = 1;
-    std::vector<obs_source_t*> fuentes; ///< una por canal
-    std::vector<std::uint32_t> canalesObs;
-    /// Lo que vive en el hilo de los dispositivos (con sus propias
-    /// referencias a las fuentes: el principal puede soltar las suyas).
+    std::vector<std::string> fuentes; ///< una por canal (el nombre de su entrada en el motor)
+    /// Lo que vive en el hilo de los dispositivos.
     struct Hilo {
         std::unique_ptr<QAudioSource> src;
         QIODevice* io = nullptr;
         std::vector<float> uno;
-        std::vector<obs_source_t*> fuentes;
+        std::vector<std::string> fuentes;
         int canales = 1;
         std::atomic<bool> abierta{false};
     };
@@ -279,17 +247,10 @@ struct EquipoAudio::Entrada {
     void abrir(QObject*) {
         if (pedida) return;
         pedida = true;
-        std::vector<obs_source_t*> refs;
-        for (obs_source_t* f : fuentes)
-            refs.push_back(obs_source_get_ref(f));
         QMetaObject::invokeMethod(
             trabajador(),
-            [hh = h, d = dev, c = canales, n = nombre, refs]() {
-                if (hh->src) {
-                    for (obs_source_t* f : refs)
-                        obs_source_release(f);
-                    return;
-                }
+            [hh = h, d = dev, c = canales, n = nombre, refs = fuentes]() {
+                if (hh->src) return;
                 hh->fuentes = refs;
                 hh->canales = c;
                 if (!d.isFormatSupported(formato(c))) {
@@ -320,15 +281,12 @@ struct EquipoAudio::Entrada {
                 hh->src.reset();
                 hh->io = nullptr;
                 hh->abierta = false;
-                if (obs_initialized())
-                    for (obs_source_t* f : hh->fuentes)
-                        obs_source_release(f);
                 hh->fuentes.clear();
             },
             Qt::QueuedConnection);
     }
-    /// Lo que llegó, separado por canal: cada uno a su fuente (en el hilo de
-    /// los dispositivos).
+    /// Lo que llegó, separado por canal: cada uno a la cola de su entrada
+    /// (`bavoz`), en el hilo de los dispositivos.
     static void leer(Hilo& x) {
         if (x.io == nullptr) return;
         const QByteArray b = x.io->readAll();
@@ -338,61 +296,47 @@ struct EquipoAudio::Entrada {
         if (frames == 0) return;
         const auto* m = reinterpret_cast<const float*>(b.constData());
         x.uno.resize(frames);
-        const std::uint64_t ts = os_gettime_ns();
+        const std::uint64_t ts = ba::app::ahoraNs() + kAdelanteNs;
         for (int c = 0; c < canales && c < static_cast<int>(x.fuentes.size()); ++c) {
             for (std::uint32_t i = 0; i < frames; ++i)
                 x.uno[i] = m[static_cast<std::size_t>(i) * canales + c];
-            obs_source_audio a{};
-            a.data[0] = reinterpret_cast<const std::uint8_t*>(x.uno.data());
-            a.frames = frames;
-            a.speakers = SPEAKERS_MONO;
-            a.format = AUDIO_FORMAT_FLOAT;
-            a.samples_per_sec = 48000;
-            a.timestamp = ts;
-            obs_source_output_audio(x.fuentes[static_cast<std::size_t>(c)], &a);
+            gstvoz::encolar(x.fuentes[static_cast<std::size_t>(c)], x.uno.data(), frames, 48000, ts);
         }
     }
     void crearFuentes() {
         for (int c = 0; c < canales; ++c) {
             const std::string n = canales == 1 ? nombre : nombre + " · Entrada " + std::to_string(c + 1);
-            obs_source_t* s = obs_get_source_by_name(n.c_str()); // ya existía (otra enchufada)
-            // Con ese nombre hay OTRA cosa (una entrada de audio de la app): no
-            // se la toma. Antes se le empujaba audio encima del suyo.
-            if (s != nullptr && std::string(obs_source_get_unversioned_id(s)) != kTipo) {
+            // Con ese nombre hay OTRA cosa (una entrada de audio de la app): no se la toma.
+            const auto todas = fuentes::listar();
+            const bool existe = std::any_of(todas.begin(), todas.end(), [&](const auto& p) { return p.first == n; });
+            if (existe && !fuentes::ajustesDe(n).value("fisica", false)) {
                 std::printf("ba-app: la entrada física '%s' choca con otra fuente; no se crea\n", n.c_str());
-                obs_source_release(s);
                 continue;
             }
-            if (s == nullptr) {
-                s = obs_source_create(kTipo, n.c_str(), nullptr, nullptr);
-                if (s == nullptr) continue;
-                obs_source_set_audio_mixers(s, 0); // no sale al aire sola
+            std::string nom;
+            for (char ch : n) {
+                if (ch == '\\' || ch == '"') nom += '\\';
+                nom += ch;
             }
-            fuentes.push_back(s);
-            // Un canal de salida para poder mezclarse (si quedan).
-            auto& libres = canalesLibres();
-            if (!libres.empty()) {
-                canalesObs.push_back(libres.front());
-                obs_set_output_source(libres.front(), s);
-                libres.erase(libres.begin());
-            } else {
-                canalesObs.push_back(0);
-                std::printf("ba-app: no quedan canales para '%s'\n", n.c_str());
-            }
+            // Una entrada global del motor que lee la cola de este canal; de
+            // fábrica sin pistas (no sale al aire sola).
+            const nlohmann::json aj{{"pipeline", ""},
+                                    {"pipeline_audio", "bavoz voz=\"" + nom + "\""},
+                                    {"audio", true},
+                                    {"normalizar", false},
+                                    {"estudio", false},
+                                    {"fisica", true},
+                                    {"voz", n}};
+            if (fuentes::crearGlobal(n, "ba_gst_fuente", aj, false, {})) fuentes.push_back(n);
         }
     }
     void quitarFuentes() {
         cerrar();
-        for (std::size_t i = 0; i < fuentes.size(); ++i) {
-            if (i < canalesObs.size() && canalesObs[i] != 0) {
-                obs_set_output_source(canalesObs[i], nullptr);
-                canalesLibres().push_back(canalesObs[i]);
-            }
-            obs_source_remove(fuentes[i]);
-            obs_source_release(fuentes[i]);
+        for (const auto& n : fuentes) {
+            gstvoz::vaciar(n);
+            fuentes::quitarGlobal(n);
         }
         fuentes.clear();
-        canalesObs.clear();
     }
 };
 
@@ -535,8 +479,8 @@ void EquipoAudio::usarColumnas(const std::set<std::string>& usadas) {
 void EquipoAudio::usarEntradas(const std::set<std::string>& usadas) {
     for (auto& [id, e] : entradas_) {
         bool usa = false;
-        for (obs_source_t* f : e->fuentes)
-            if (usadas.contains(obs_source_get_name(f))) usa = true;
+        for (const auto& f : e->fuentes)
+            if (usadas.contains(f)) usa = true;
         if (usa)
             e->abrir(this);
         else
@@ -546,8 +490,8 @@ void EquipoAudio::usarEntradas(const std::set<std::string>& usadas) {
 
 bool EquipoAudio::esEntradaFisica(const std::string& fuente) const {
     for (const auto& [id, e] : entradas_)
-        for (obs_source_t* f : e->fuentes)
-            if (fuente == obs_source_get_name(f)) return true;
+        for (const auto& f : e->fuentes)
+            if (fuente == f) return true;
     return false;
 }
 

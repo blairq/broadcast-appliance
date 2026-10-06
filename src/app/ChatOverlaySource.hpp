@@ -1,15 +1,12 @@
 // ============================================================================
-// src/app/ChatOverlaySource.hpp — Fuente "Chat en vivo" (libobs)
+// src/app/ChatOverlaySource.hpp — Fuente "Chat en vivo"
 //
 // Un tipo de fuente mas para las escenas: el chat del vivo de YouTube y/o el
 // chat de la sala, sobre el video (fondo transparente). La registra la propia
 // app (no un plugin): la imagen la dibuja la interfaz (ChatOverlayRenderer,
 // Qt/QPainter) con los mensajes que ya tiene y la entrega aca como cuadros
-// BGRA (fuente asincrona de libobs). Cada instancia tiene su tamaño y estilo.
-//
-// Threading: libobs crea/destruye instancias desde sus threads; el
-// renderizador las consulta y les entrega cuadros desde el thread de la UI.
-// Todo pasa por un registro con mutex, por id (nunca punteros sueltos).
+// BGRA (entrada «app» del motor, ver FuentesApp). Cada instancia tiene su
+// tamaño y estilo.
 // ============================================================================
 #pragma once
 
@@ -41,7 +38,7 @@ struct Instance {
     std::uint64_t settingsVersion = 0;
 };
 
-/// Registra el tipo en libobs (despues de cargar los modulos).
+/// Registra el tipo (propiedades y valores de fábrica).
 void registerSourceType();
 /// Instancias vivas (copia).
 std::vector<Instance> instances();

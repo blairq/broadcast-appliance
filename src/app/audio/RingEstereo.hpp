@@ -34,7 +34,7 @@ struct Ring {
             r.erase(r.begin(), r.begin() + static_cast<std::ptrdiff_t>(r.size() - kColchon));
         }
     }
-    /// Empuja un bloque que trae HORA (la de libobs, os_gettime_ns): una
+    /// Empuja un bloque que trae HORA (la de libobs, ba::app::ahoraNs): una
     /// fuente que entrega audio agendado a futuro (la voz del sistema dice una
     /// frase entera de una vez; el teleprompter la agenda segundos antes)
     /// suena a su hora y entera: si hay un hueco hasta esa hora se rellena con

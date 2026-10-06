@@ -6,10 +6,11 @@
 # programa y también `gst-launch-1.0` con su entorno.
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
-#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal (las tarjetas de imagen y el legalizador).
+#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz (tarjetas de imagen, legalizador, PTZ digital).
 #   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
+#   plugin/    baplugins: baplugin (tarjeta de un plugin de Python) y bapluginsrc (su entrada).
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -26,7 +27,7 @@ function(ba_plugin_gst target)
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp)
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp)
 ba_plugin_gst(gstbafiltros)
 
 # El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).
@@ -52,6 +53,10 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_test(NAME test_baanillo COMMAND test_baanillo)
     set_tests_properties(test_baanillo PROPERTIES SKIP_RETURN_CODE 77)
 endif()
+
+add_library(gstbaplugins MODULE plugin/baplugin.cpp)
+target_link_libraries(gstbaplugins PRIVATE nlohmann_json::nlohmann_json)
+ba_plugin_gst(gstbaplugins)
 
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).
 set(_ba_ort "${BA_ORT_LIB}")

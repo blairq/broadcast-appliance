@@ -1,16 +1,15 @@
 // ============================================================================
 // src/app/EngineSelfTest.cpp — Implementacion del autotest del motor
 //
-// Ver EngineSelfTest.hpp. Este archivo SI incluye <obs.h> (para enumerar
-// codificadores y salidas disponibles); el resto del reporte sale del propio
-// BroadcastEngine.
+// Ver EngineSelfTest.hpp. Los elementos de GStreamer que hacen falta se
+// preguntan al registro (motor::hayFabrica); el resto del reporte sale del
+// propio BroadcastEngine.
 // ============================================================================
 
 #include "EngineSelfTest.hpp"
 
-#include <obs.h>
-#include <util/bmem.h>
-#include <util/platform.h>
+#include "Piezas.hpp"
+#include "platform/Paths.hpp"
 
 #include <chrono>
 #include <cstdio>
@@ -24,6 +23,8 @@
 #include "BroadcastEngine.hpp"
 
 namespace ba::app {
+
+namespace motor = ba::motor;
 
 namespace {
 
@@ -49,65 +50,18 @@ std::string argValue(int argc, char** argv, const char* key, const std::string& 
     return def;
 }
 
-/// Raiz del bundle portable: dos niveles arriba del ejecutable
-/// (`<root>/bin/64bit/ba-app`). Las rutas por defecto se resuelven desde aca y
-/// NO desde el directorio de trabajo: si no, el autotest solo funcionaba
-/// lanzado con `cd release` y desde cualquier otro lado no cargaba ningun
-/// modulo. Si no se puede resolver, cae al cwd.
-std::string bundleRoot() {
-    std::string root = ".";
-    if (char* exeRel = os_get_executable_path_ptr("../..")) {
-        if (char* abs = os_get_abs_path_ptr(exeRel)) {
-            root = abs;
-            bfree(abs);
-        }
-        bfree(exeRel);
-    }
-    return root;
-}
-
-/// Lista los ids disponibles de un enumerador de libobs.
-std::vector<std::string> enumEncoders() {
-    std::vector<std::string> out;
-    const char* id = nullptr;
-    for (size_t i = 0; obs_enum_encoder_types(i, &id); ++i) {
-        out.emplace_back(id);
-    }
-    return out;
-}
-
-std::vector<std::string> enumOutputs() {
-    std::vector<std::string> out;
-    const char* id = nullptr;
-    for (size_t i = 0; obs_enum_output_types(i, &id); ++i) {
-        out.emplace_back(id);
-    }
-    return out;
-}
-
-bool contains(const std::vector<std::string>& v, const std::string& needle) {
-    for (const auto& s : v) {
-        if (s == needle) {
-            return true;
-        }
-    }
-    return false;
-}
+/// Raiz del bundle portable (desde el ejecutable, no desde el cwd).
+std::string bundleRoot() { return ba::platform::bundleRoot().string(); }
 
 } // namespace
 
 int runEngineSelfTest(int argc, char** argv) {
-    std::printf("== autotest del motor de emision (libobs %s) ==\n", obs_get_version_string());
+    std::printf("== autotest del motor de emision (GStreamer) ==\n");
 
     // Rutas: por defecto el layout portable relativo al cwd; se pueden
     // sobreescribir para correr desde el arbol de build.
     const std::string root = bundleRoot();
     EnginePaths paths;
-    paths.moduleBinDir = argValue(argc, argv, "--modules", root + "/obs-plugins/64bit");
-    paths.moduleDataDir = argValue(argc, argv, "--module-data", root + "/data/obs-plugins");
-    paths.obsDataDir = argValue(argc, argv, "--obs-data", root + "/data/libobs");
-    // Config de los plugins (rtmp-services baja services.json, etc.). Vacio
-    // = el cwd: ensuciaba el directorio desde donde se lanzara el autotest.
     paths.configDir = argValue(argc, argv, "--config", root + "/Config/plugin_config");
 
     const std::string recDir = argValue(argc, argv, "--rec-dir", root + "/Recordings");
@@ -125,36 +79,26 @@ int runEngineSelfTest(int argc, char** argv) {
 
     BroadcastEngine eng;
 
-    // --- 1) Arranque de libobs ---------------------------------------------
+    // --- 1) Arranque del motor ----------------------------------------------
     const bool up = eng.startup(paths, video, audio);
     if (!up) {
         const std::string& err = eng.lastError();
-        std::printf("  [ -- ] arranque de libobs — %s\n", err.c_str());
-        // Sin contexto grafico no hay nada que probar, pero tampoco es un fallo
-        // del motor: se reporta como SALTADO para no teñir de rojo una suite
-        // que corre en una maquina sin servidor grafico.
-        if (err.find("obs_reset_video") != std::string::npos ||
-            err.find("sin sesion grafica") != std::string::npos) {
-            std::printf("\nSKIP: esta sesion no tiene contexto grafico (GL/D3D).\n"
-                        "      El pipeline de video de libobs no puede inicializarse aca;\n"
-                        "      correr en una sesion con servidor grafico para ejercitarlo.\n");
+        std::printf("  [ -- ] arranque del motor — %s\n", err.c_str());
+        // Sin GStreamer en el bundle no hay nada que probar (build sin motor).
+        if (err.find("GStreamer no") != std::string::npos) {
+            std::printf("\nSKIP: este programa no tiene GStreamer.\n");
             return 77;
         }
         return 1;
     }
-    ok("arranque de libobs (video + audio + modulos)", true);
+    ok("arranque del motor (reloj, mezcla, composición)", true);
 
-    // --- 2) Modulos cargados: codificadores y salidas ------------------------
-    const auto encoders = enumEncoders();
-    const auto outputs = enumOutputs();
-    ok("codificador de video x264 disponible", contains(encoders, "obs_x264"));
-    ok("codificador de audio AAC disponible", contains(encoders, "ffmpeg_aac"));
-    ok("salida RTMP disponible", contains(outputs, "rtmp_output"));
-    ok("salida de grabacion disponible", contains(outputs, "ffmpeg_muxer"));
-    std::printf("         (%zu codificadores, %zu salidas)\n", encoders.size(), outputs.size());
-    for (const auto& id : encoders) {
-        std::printf("           - %s\n", id.c_str());
-    }
+    // --- 2) Elementos de GStreamer: codificadores y salidas -------------------
+    ok("codificador de video x264 disponible", motor::hayFabrica("x264enc"));
+    ok("codificador de audio AAC disponible", motor::hayFabrica("avenc_aac"));
+    ok("salida RTMP disponible", motor::hayFabrica("flvmux") && motor::hayFabrica("rtmp2sink"));
+    ok("salida SRT disponible", motor::hayFabrica("mpegtsmux") && motor::hayFabrica("srtsink"));
+    ok("salida de grabacion disponible", motor::hayFabrica("splitmuxsink") && motor::hayFabrica("matroskamux"));
 
     // --- 3) Escena de programa ----------------------------------------------
     ok("escena de programa creada", eng.buildScene(), eng.lastError());

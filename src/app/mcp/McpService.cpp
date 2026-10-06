@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "mcp/McpService.hpp"
+#include "Piezas.hpp" // motor::hayFabrica
 #include <QDateTime>
 #include <QRandomGenerator>
 
@@ -31,7 +32,6 @@
 #include <memory>
 #include <set>
 
-#include <obs.h>
 
 #include <fstream>
 
@@ -186,15 +186,15 @@ bool parseLayout(const json& v, float& x, float& y, float& w, float& h, std::str
         // evidente que vinieron en PÍXELES (un 640 en fracciones manda el cuadro
         // fuera de pantalla y la escena sale negra): se convierten con el lienzo.
         if (std::max({std::abs(x), std::abs(y), w, h}) > 4.0f) {
-            obs_video_info ovi{};
-            if (!obs_get_video_info(&ovi) || ovi.base_width == 0 || ovi.base_height == 0) {
+            int lw = 0, lh = 0;
+            if (!lienzoActual(lw, lh)) {
                 err = "layout {x,y,w,h} va en fracciones del lienzo (0..1), no en píxeles";
                 return false;
             }
-            const float bw = static_cast<float>(ovi.base_width), bh = static_cast<float>(ovi.base_height);
+            const float bw = static_cast<float>(lw), bh = static_cast<float>(lh);
             if (nota != nullptr)
-                *nota = "layout en píxeles: convertido a fracciones del lienzo de " + std::to_string(ovi.base_width) +
-                        "x" + std::to_string(ovi.base_height) + " (la próxima, mandá 0..1)";
+                *nota = "layout en píxeles: convertido a fracciones del lienzo de " + std::to_string(lw) + "x" +
+                        std::to_string(lh) + " (la próxima, mandá 0..1)";
             x /= bw;
             w /= bw;
             y /= bh;
@@ -417,14 +417,10 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
                             std::string mic = rtp->config().operatorAudio;
                             for (std::size_t i = 0; mic.empty() && i < audio.size(); ++i) {
                                 const std::string n = audio[i].value("nombre", std::string());
-                                if (obs_source_t* s = obs_get_source_by_name(n.c_str())) {
-                                    const char* id = obs_source_get_unversioned_id(s);
-                                    obs_data_t* d = obs_source_get_settings(s);
-                                    const json aj = d != nullptr ? json::parse(obs_data_get_json(d), nullptr, false) : json();
-                                    if (d != nullptr) obs_data_release(d);
-                                    if (id != nullptr && inputs::esMicrofono(id, aj)) mic = n;
-                                    obs_source_release(s);
-                                }
+                                const std::string id = rtp->engine().sourceTypeId(n);
+                                if (!id.empty() &&
+                                    inputs::esMicrofono(id, json::parse(rtp->engine().sourceSettingsJson(n), nullptr, false)))
+                                    mic = n;
                             }
                             for (std::size_t i = 1; i < audio.size(); ++i)
                                 if (!mic.empty() && audio[i].value("nombre", std::string()) == mic) {
@@ -3108,17 +3104,11 @@ void McpService::registerTools() {
         t.readOnly = true;
         t.description = "Qué salidas de contribución trae este equipo y cuáles no, para no prometer lo que no hay.";
         t.run = [&rt](const json&, Done done) {
-            const auto hay = [](const char* id) {
-                const char* tipo = nullptr;
-                for (std::size_t i = 0; obs_enum_output_types(i, &tipo); ++i)
-                    if (tipo != nullptr && std::strcmp(tipo, id) == 0) return true;
-                return false;
-            };
-            const bool ts = hay("ffmpeg_mpegts_muxer");
+            const bool ts = motor::hayFabrica("mpegtsmux") && motor::hayFabrica("srtsink");
             done(ToolResult().data(json{
-                {"rtmp", hay("rtmp_output")},
+                {"rtmp", motor::hayFabrica("rtmp2sink")},
                 {"srt", ts},
-                {"rist", ts},
+                {"rist", false},
                 {"senal_limpia", true},
                 {"senal_limpia_estado", rt.engine().cleanFeedEstado()},
                 {"ndi_salida", false},

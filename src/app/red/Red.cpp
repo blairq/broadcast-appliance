@@ -11,7 +11,8 @@
 #include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
 
-#include <obs.h>
+#include "BroadcastEngine.hpp"
+#include "FuentesApp.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -806,13 +807,9 @@ void Red::ficha(const std::string& ip, Listo listo) {
                                         : QString::fromStdString((*f)["url"]);
                 return analizar(uri, [=](json a) {
                     (*f)["analisis"] = a;
-                    obs_video_info ovi{};
-                    obs_get_video_info(&ovi);
-                    (*f)["plan"] = planDe(
-                        *f, a,
-                        {{"ancho", ovi.base_width},
-                         {"alto", ovi.base_height},
-                         {"fps", ovi.fps_den ? static_cast<double>(ovi.fps_num) / ovi.fps_den : 30.0}});
+                    int lw = 0, lh = 0;
+                    lienzoActual(lw, lh);
+                    (*f)["plan"] = planDe(*f, a, {{"ancho", lw}, {"alto", lh}, {"fps", fpsActual()}});
                     terminar();
                 });
             }
@@ -853,14 +850,10 @@ void Red::ficha(const std::string& ip, Listo listo) {
                                                            ? std::string()
                                                            : (*perfiles)[0].value("fuente", std::string());
                             const auto analizarYPlan = [=]() {
-                                obs_video_info ovi{};
-                                obs_get_video_info(&ovi);
-                                const json lienzo{{"ancho", ovi.base_width},
-                                                  {"alto", ovi.base_height},
-                                                  {"fps", ovi.fps_den
-                                                              ? static_cast<double>(ovi.fps_num) / ovi.fps_den
-                                                              : 30.0}};
-                                const int i = elegirPerfil(*perfiles, static_cast<int>(ovi.base_height));
+                                int lw = 0, lh = 0;
+                                lienzoActual(lw, lh);
+                                const json lienzo{{"ancho", lw}, {"alto", lh}, {"fps", fpsActual()}};
+                                const int i = elegirPerfil(*perfiles, lh);
                                 if (i < 0) {
                                     (*f)["plan"] = planDe(*f, json::object(), lienzo);
                                     return terminar();
@@ -1066,12 +1059,7 @@ QString Red::reusarDesdeUi(const QString& ip, const QString& escena) {
 
 namespace {
 std::string ipDeEntrada(const QString& entrada) {
-    obs_source_t* src = obs_get_source_by_name(entrada.toUtf8().constData());
-    if (src == nullptr) return {};
-    obs_data_t* st = obs_source_get_settings(src);
-    const QString uri = QString::fromUtf8(obs_data_get_string(st, "uri"));
-    obs_data_release(st);
-    obs_source_release(src);
+    const QString uri = QString::fromStdString(fuentes::ajustesDe(entrada.toStdString()).value("uri", std::string()));
     return QUrl(uri).host().toStdString();
 }
 } // namespace

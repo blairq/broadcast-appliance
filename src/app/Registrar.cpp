@@ -17,12 +17,6 @@
 #define BA_REG_QT 1
 #endif
 
-#if BA_HAVE_LIBOBS
-#include <obs.h>
-#include <util/base.h>
-#define BA_REG_OBS 1
-#endif
-
 namespace ba::app {
 namespace {
 
@@ -65,23 +59,6 @@ void handlerDeQt(QtMsgType tipo, const QMessageLogContext& c, const QString& msg
 }
 #endif
 
-#if BA_REG_OBS
-/// libobs habla en info todo el tiempo (cada módulo que carga, cada formato
-/// que prueba). Se registra igual, pero como depuración: así el nivel normal
-/// no queda tapado por el arranque del motor y, cuando hace falta, está.
-void handlerDeObs(int nivelObs, const char* formato, va_list args, void*) {
-    char buf[4096];
-    std::vsnprintf(buf, sizeof(buf), formato, args);
-    Nivel n = Nivel::Depuracion;
-    switch (nivelObs) {
-        case LOG_ERROR: n = Nivel::Error; break;
-        case LOG_WARNING: n = Nivel::Aviso; break;
-        case LOG_INFO: n = Nivel::Depuracion; break;
-        default: n = Nivel::Traza; break; // LOG_DEBUG
-    }
-    ba::diag::registro().linea(n, "obs", 0, buf);
-}
-#endif
 
 } // namespace
 
@@ -104,9 +81,6 @@ void registrarTodo(const std::filesystem::path& dataRoot, const char* componente
     QLoggingCategory::setFilterRules("qt.qml.binding.removal.info=false\n"
                                      "qml.debug=false\n"
                                      "*.warning=true\n");
-#endif
-#if BA_REG_OBS
-    base_set_log_handler(handlerDeObs, nullptr);
 #endif
     reg.info("registro abierto (" + std::string(componente) + ")");
 }

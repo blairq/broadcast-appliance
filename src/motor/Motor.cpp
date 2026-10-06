@@ -3,6 +3,8 @@
 // ============================================================================
 #include "Motor.hpp"
 
+#include <gst/net/net.h>
+
 #include <gst/app/gstappsink.h>
 
 #include <algorithm>
@@ -88,6 +90,15 @@ void Motor::detener() {
     seguir_ = false;
     if (hilo_.joinable()) hilo_.join();
     std::lock_guard<std::recursive_mutex> l(mu_);
+    if (relojPublicado_ != nullptr) {
+        gst_object_unref(relojPublicado_);
+        relojPublicado_ = nullptr;
+    }
+    for (auto& [n, t] : tomasEntrada_) {
+        gst_element_set_state(t->pipeline, GST_STATE_NULL);
+        gst_object_unref(t->pipeline);
+    }
+    tomasEntrada_.clear();
     vistas_.reset();
     if (tomaAudio_ != nullptr) {
         gst_element_set_state(tomaAudio_, GST_STATE_NULL);
@@ -110,6 +121,7 @@ void Motor::detener() {
     canales_.clear();
     pistas_.clear();
     directo_.reset();
+    seleccion_.reset();
     programa_.reset();
 }
 
@@ -120,6 +132,7 @@ void Motor::bucle() {
             for (auto& [id, c] : canales_) c.entrada->tic();
             if (programa_) programa_->tic();
             if (directo_) directo_->tic();
+            if (seleccion_) seleccion_->tic();
             for (auto& [n, p] : pistas_) p->tic();
             for (auto& [n, r] : retornos_)
                 if (r.bus) r.bus->tic();
@@ -156,6 +169,8 @@ void Motor::bucle() {
                     lat = directo_->latenciaSalidaNs();
                 else if (escuchaModo_ == "pfl")
                     lat = reloj_->latencia();
+                else if (escuchaModo_ == "seleccion" && seleccion_)
+                    lat = seleccion_->latenciaSalidaNs();
                 escucha_->tic(lat);
             }
         }
@@ -199,6 +214,7 @@ void Motor::aplicar(const std::string& id, int fundidoMs) {
     for (auto& [n, r] : retornos_)
         if (r.bus) enBus(*r.bus, id, c, alPrograma && r.propia != id, fundidoMs);
     if (directo_) enBus(*directo_, id, c, c.global, 0);
+    if (seleccion_) enSeleccion(id, c);
 }
 
 std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, const json& opcionesPedidas) {
@@ -210,6 +226,7 @@ std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, co
     Canal c;
     c.global = opciones.value("global", false);
     c.enEscena = opciones.value("en_escena", c.global);
+    c.interna = opciones.value("interna", false);
     c.nivel = opciones.value("nivel", 1.0);
     c.mute = opciones.value("mute", false);
     if (opciones.contains("pistas") && opciones["pistas"].is_array()) {
@@ -234,12 +251,48 @@ std::string Motor::actualizarEntrada(const std::string& id, const json& ajustes)
     return {};
 }
 
+std::string Motor::publicarReloj(int puerto) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (relojPublicado_ != nullptr) {
+        gst_object_unref(relojPublicado_);
+        relojPublicado_ = nullptr;
+    }
+    if (puerto <= 0) return {};
+    GstNetTimeProvider* p = gst_net_time_provider_new(reloj_->clock(), nullptr, puerto);
+    if (p == nullptr) return "no se pudo publicar el reloj en el puerto " + std::to_string(puerto);
+    relojPublicado_ = GST_OBJECT(p);
+    return {};
+}
+
+std::string Motor::propiedadEntrada(const std::string& id, const std::string& elemento, const std::string& prop,
+                                    const std::string& valor) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = canales_.find(id);
+    if (it == canales_.end()) return "no hay una entrada «" + id + "»";
+    return it->second.entrada->propiedad(elemento, prop, valor);
+}
+
+json Motor::propiedadesEntrada(const std::string& id, const std::string& elemento) const {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = canales_.find(id);
+    return it == canales_.end() ? json::object() : it->second.entrada->leerPropiedades(elemento);
+}
+
+std::string Motor::controlEntrada(const std::string& id, const json& campos) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = canales_.find(id);
+    if (it == canales_.end()) return "no hay una entrada «" + id + "»";
+    it->second.entrada->control(campos);
+    return {};
+}
+
 std::string Motor::quitarEntrada(const std::string& id) {
     std::lock_guard<std::recursive_mutex> l(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     if (programa_) programa_->quitar(id);
     if (directo_) directo_->quitar(id);
+    if (seleccion_) seleccion_->quitar(id);
     for (auto& [n, p] : pistas_) p->quitar(id);
     for (auto& [n, r] : retornos_)
         if (r.bus) r.bus->quitar(id);
@@ -263,6 +316,8 @@ std::string Motor::ponerMute(const std::string& id, bool mute) {
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     it->second.mute = mute;
+    for (auto& [n, t] : tomasEntrada_)
+        if (t->id == id) t->mute = mute;
     aplicar(id, 0);
     return {};
 }
@@ -481,7 +536,7 @@ void Motor::actualizarMultiview() {
     celda("programa", "video:programa", "PROGRAMA" + (alAire_.empty() ? std::string() : " · " + alAire_), "mv_rojo", W / 2, 0, W / 2, H / 2);
     int i = 0;
     for (const auto& [id, c] : canales_) {
-        if (!c.entrada->daVideo() || i >= 8) continue;
+        if (!c.entrada->daVideo() || c.interna || i >= 8) continue;
         const char* tally = alAire.count(id) > 0 ? "mv_rojo" : armada.count(id) > 0 ? "mv_verde" : "mv_gris";
         celda(id, c.entrada->productorVideo(), c.entrada->estado().value("nombre", id), tally, (i % 4) * W / 4,
               H / 2 + (i / 4) * H / 4, W / 4, H / 4);
@@ -632,8 +687,86 @@ void Motor::dejarDeEscuchar(int id) {
     }
 }
 
+int Motor::escucharEntrada(const std::string& id, std::function<void(const float*, std::size_t)> fn) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = canales_.find(id);
+    if (it == canales_.end() || !it->second.entrada->daAudio()) return 0;
+    const std::string d = "intersrc producer-name=" + entreComillas(it->second.entrada->productorAudio()) +
+                          " ! audioconvert ! audioresample ! audio/x-raw,format=F32LE,layout=interleaved,rate=48000,"
+                          "channels=2 ! appsink name=s emit-signals=true sync=false max-buffers=50 drop=true";
+    GstElement* p = gst_parse_launch(d.c_str(), nullptr);
+    if (p == nullptr) return 0;
+    auto t = std::make_unique<TomaEntrada>();
+    t->pipeline = p;
+    t->id = id;
+    t->mute = it->second.mute;
+    t->fn = std::move(fn);
+    GstElement* sk = gst_bin_get_by_name(GST_BIN(p), "s");
+    g_signal_connect(sk, "new-sample", G_CALLBACK(+[](GstElement* sink, gpointer dd) -> GstFlowReturn {
+                         auto* toma = static_cast<TomaEntrada*>(dd);
+                         GstSample* smp = gst_app_sink_pull_sample(GST_APP_SINK(sink));
+                         if (smp == nullptr) return GST_FLOW_OK;
+                         GstBuffer* b = gst_sample_get_buffer(smp);
+                         GstMapInfo map;
+                         if (b != nullptr && gst_buffer_map(b, &map, GST_MAP_READ)) {
+                             const std::size_t cuadros = map.size / (2 * sizeof(float));
+                             if (toma->mute.load()) {
+                                 thread_local std::vector<float> ceros;
+                                 ceros.assign(cuadros * 2, 0.0f);
+                                 toma->fn(ceros.data(), cuadros);
+                             } else {
+                                 toma->fn(reinterpret_cast<const float*>(map.data), cuadros);
+                             }
+                             gst_buffer_unmap(b, &map);
+                         }
+                         gst_sample_unref(smp);
+                         return GST_FLOW_OK;
+                     }),
+                     t.get());
+    gst_object_unref(sk);
+    reloj_->adoptar(p);
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    // Únicos en el proceso: una toma de un motor anterior nunca es una de este.
+    static std::atomic<int> proxima{1};
+    const int n = proxima++;
+    tomasEntrada_[n] = std::move(t);
+    return n;
+}
+
+bool Motor::tomaViva(int toma) const {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    return tomasEntrada_.count(toma) > 0;
+}
+
+void Motor::dejarDeEscucharEntrada(int toma) {
+    std::unique_ptr<TomaEntrada> t;
+    {
+        std::lock_guard<std::recursive_mutex> l(mu_);
+        auto it = tomasEntrada_.find(toma);
+        if (it == tomasEntrada_.end()) return;
+        t = std::move(it->second);
+        tomasEntrada_.erase(it);
+    }
+    // Fuera del lock: set_state espera a que termine el callback.
+    gst_element_set_state(t->pipeline, GST_STATE_NULL);
+    gst_object_unref(t->pipeline);
+}
+
 bool Motor::verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& serie) const {
     return vistas_ && vistas_->ultimo(clave, out, serie);
+}
+
+json Motor::medio(const std::string& id) const {
+    Entrada* e = nullptr;
+    {
+        std::lock_guard<std::recursive_mutex> l(mu_);
+        auto it = canales_.find(id);
+        if (it == canales_.end()) return nullptr;
+        e = it->second.entrada.get();
+    }
+    const json st = e->estado();
+    if (!st.contains("medio")) return nullptr;
+    return {{"estado", e->estadoMedio()}, {"tiempo_ms", e->tiempoMs()}, {"duracion_ms", e->duracionMs()}};
 }
 
 std::string Motor::controlMedio(const std::string& id, const std::string& accion, std::int64_t ms) {
@@ -677,12 +810,25 @@ std::string Motor::retorno(int n, const std::string& modo, const std::string& pr
 std::string Motor::escuchar(const std::string& modo, const std::string& id) {
     std::lock_guard<std::recursive_mutex> l(mu_);
     if (!escucha_) return "el motor no está andando";
+    if (modo != "seleccion") seleccion_.reset();
     if (modo == "apagado") {
         escucha_->apagar();
         escuchaModo_ = modo;
         escuchaId_.clear();
         directo_.reset();
         return {};
+    }
+    if (modo == "seleccion") {
+        if (!seleccion_) {
+            Mezcla::Opciones op;
+            op.medidores = false;
+            seleccion_ = std::make_unique<Mezcla>(*reloj_, "seleccion", op);
+            for (const auto& [cid, c] : canales_) enSeleccion(cid, c);
+        }
+        escuchaModo_ = modo;
+        escuchaId_.clear();
+        directo_.reset();
+        return escucha_->escuchar(seleccion_->productor(), seleccion_->latenciaSalidaNs());
     }
     if (modo == "programa") {
         escuchaModo_ = modo;
@@ -711,7 +857,32 @@ std::string Motor::escuchar(const std::string& modo, const std::string& id) {
         directo_.reset();
         return escucha_->escuchar(it->second.entrada->productorAudio(), reloj_->latencia());
     }
-    return "modo: programa, directo, pfl o apagado";
+    return "modo: programa, directo, pfl, seleccion o apagado";
+}
+
+void Motor::enSeleccion(const std::string& id, const Canal& c) {
+    if (!c.escucha || !c.entrada->daAudio()) {
+        seleccion_->quitar(id);
+        return;
+    }
+    // En los auriculares aunque no esté al aire (sin el fundido de escena).
+    seleccion_->agregar(id);
+    seleccion_->ponerNivel(id, c.nivel);
+    seleccion_->ponerMute(id, c.mute);
+    seleccion_->ponerEscena(id, 1.0, 0);
+}
+
+std::string Motor::ponerEscucha(const std::string& id, bool on) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = canales_.find(id);
+    if (it == canales_.end()) return "no hay una entrada «" + id + "»";
+    it->second.escucha = on;
+    bool alguna = false;
+    for (const auto& [cid, c] : canales_) alguna = alguna || c.escucha;
+    if (!alguna) return escuchaModo_ == "seleccion" ? escuchar("apagado") : std::string();
+    if (escuchaModo_ != "seleccion") return escuchar("seleccion");
+    enSeleccion(id, it->second);
+    return {};
 }
 
 void Motor::escuchaDispositivo(const std::string& id) {

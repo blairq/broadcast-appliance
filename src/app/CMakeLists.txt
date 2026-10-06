@@ -36,15 +36,15 @@ list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/mcp/bridge/.*") # ba-mcp es otro bi
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas con su propio main
 
 # WIN32 en MSVC: subsistema GUI (sin consola). En Linux es un ejecutable normal.
-# BroadcastEngine.cpp incluye <obs.h>: sin libobs no puede compilarse, asi que
-# se saca de la lista (el resto del Proceso A sigue compilando headless).
-if(NOT BA_HAVE_LIBOBS)
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Placa|Dsk)?\\.cpp$")
+# El motor es GStreamer (src/motor): sin él, el Proceso A compila sin motor.
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEnginePlaca\\.cpp$")
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
+if(NOT BA_HAVE_MOTOR)
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk)?\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AppSettings\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperateMode\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/GuiMode\\.cpp$")
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperatorFeed\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/ChatOverlaySource\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/MonitorVoz\\.cpp$")
@@ -57,7 +57,7 @@ endif()
 #   - Windows:     extern/qt6/<QT6_VERSION>/<arch>       (`make deps-qt`)
 # Sin Qt vendoreado, ba-app se compila sin interfaz (modo consola).
 set(BA_APP_QT_OK FALSE)
-if(BA_HAVE_LIBOBS)
+if(BA_HAVE_MOTOR)
     if(WIN32)
         set(_ba_qt_root "${CMAKE_SOURCE_DIR}/extern/qt6/${QT6_VERSION}")
     else()
@@ -100,7 +100,7 @@ endif()
 set(BA_NOIDEA_DIR "${CMAKE_SOURCE_DIR}/extern/libnoidea")
 set(BA_OBS_DEPS "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")
 set(BA_HAVE_NDI OFF)
-if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+if(BA_HAVE_MOTOR AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
     add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
                                  "${BA_NOIDEA_DIR}/extensions/discovery.c")
     target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" "${BA_OBS_DEPS}/include")
@@ -148,7 +148,7 @@ endif()
 # macOS: NDI con la libmicrodns de arriba (compilada del fuente) y libNoIDea.
 # Ya no hace falta FFmpeg: el SpeedHQ lo decodifica avdec_speedhq de GStreamer
 # (NdiSource.cpp: el elemento bandisrc).
-if(APPLE AND BA_HAVE_LIBOBS AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c")
+if(APPLE AND BA_HAVE_MOTOR AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c")
     add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
                                  "${BA_NOIDEA_DIR}/extensions/discovery.c")
     target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" PRIVATE "${BA_NOIDEA_DIR}/src")
@@ -161,7 +161,7 @@ if(APPLE AND BA_HAVE_LIBOBS AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv
 endif()
 # El enlace con ba-app va mas abajo, cuando el objetivo ya existe.
 set(BA_OBS_DEPS_WIN "${CMAKE_SOURCE_DIR}/extern/obs-deps-win")
-if(BA_HAVE_LIBOBS AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c"
+if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c"
    AND EXISTS "${BA_OBS_DEPS_WIN}/lib/avcodec.lib")
     add_library(ba_microdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
                                    "${BA_MDNS_DIR}/compat/compat.c" "${BA_MDNS_DIR}/compat/inet.c"
@@ -201,7 +201,7 @@ endif()
 # rack de audio no se compila.
 set(BA_CLAP_INC "${CMAKE_SOURCE_DIR}/extern/clap/include")
 set(BA_HAVE_CLAP OFF)
-if(BA_HAVE_LIBOBS AND EXISTS "${BA_CLAP_INC}/clap/clap.h")
+if(BA_HAVE_MOTOR AND EXISTS "${BA_CLAP_INC}/clap/clap.h")
     set(BA_HAVE_CLAP ON)
 else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/.*")
@@ -363,40 +363,23 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     install(FILES "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem" DESTINATION data)
 endif()
 
-# --- Motor de emision sobre libobs (spec §6) --------------------------------
-# libobs es cross-platform y el motor tambien: cuando `ba::libobs` existe se
-# compila `BroadcastEngine` en CUALQUIER plataforma, no solo en Windows. Ese
-# acoplamiento (todo lo de obs detras de `_WIN32`) era lo que mantenia el motor
-# sin compilar ni ejecutar en ningun lado.
-if(BA_HAVE_LIBOBS)
-    target_link_libraries(ba-app PRIVATE ba::libobs)
+# --- Motor de emision: GStreamer (src/motor) --------------------------------
+if(BA_HAVE_MOTOR)
+    target_link_libraries(ba-app PRIVATE ba_motor)
     if(BA_HAVE_NDI)
         # Solo libNoIDea: el SpeedHQ lo decodifica GStreamer (avdec_speedhq).
         target_link_libraries(ba-app PRIVATE ba_noidea)
         target_compile_definitions(ba-app PRIVATE BA_HAVE_NDI=1)
     endif()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=1)
-    # Linux: el motor elige Wayland o X11 para libobs antes de obs_startup
-    # (BroadcastEngine::selectWindowingPlatform). Son bibliotecas del sistema
-    # de escritorio, las mismas que ya carga libobs.
-    if(UNIX AND NOT APPLE)
-        find_package(X11 REQUIRED)
-        find_library(BA_WAYLAND_CLIENT wayland-client REQUIRED)
-        target_link_libraries(ba-app PRIVATE X11::X11 ${BA_WAYLAND_CLIENT})
-    endif()
-    # rpath $ORIGIN: el ejecutable busca sus bibliotecas JUNTO A EL dentro del
-    # bundle portable (bin/64bit/), no en el sistema. Es lo que hace que el
-    # bundle corra en una maquina sin nada instalado.
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_MOTOR=1)
+    # rpath: el ejecutable busca sus bibliotecas JUNTO A EL dentro del bundle
+    # portable (bin/64bit/), nunca en el sistema.
     if(APPLE)
-        # macOS: lo mismo con @executable_path (libobs.framework, dylibs de
-        # obs-deps y libobs-opengl.so viven junto a ba-app en bin/64bit).
         set_target_properties(ba-app PROPERTIES
-            BUILD_RPATH "${BA_OBS_MAC_PREFIX}/lib;${BA_QT_PREFIX}/lib"
+            BUILD_RPATH "${BA_QT_PREFIX}/lib"
             INSTALL_RPATH "@executable_path;@executable_path/qt/lib")
     elseif(NOT WIN32)
         set_target_properties(ba-app PROPERTIES
-            BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
-            # qt/lib: el Qt vendoreado que viaja en el bundle (BaQtDeploy.cmake).
             INSTALL_RPATH "$ORIGIN;$ORIGIN/qt/lib")
     endif()
     # Despues de fijar los rpath de arriba (los pisarian): GStreamer, del bundle.
@@ -404,7 +387,7 @@ if(BA_HAVE_LIBOBS)
         ba_gst_rpath(ba-app "")
     endif()
 else()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=0)
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_MOTOR=0)
 endif()
 
 # -rdynamic: exporta los simbolos al ejecutable para que la pila de una caida
@@ -930,8 +913,7 @@ endif()
     target_link_libraries(test_quorum PRIVATE ba_core Qt6::Core)
     set_target_properties(test_quorum PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_quorum COMMAND test_quorum)
-    add_executable(test_correccion tests/test_correccion.cpp agent/FlujosTexto.cpp agent/FlujosTexto.hpp)
-    target_include_directories(test_correccion BEFORE PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests/stubs_obs")
+    add_executable(test_correccion tests/test_correccion.cpp agent/FlujosTexto.cpp agent/FlujosTexto.hpp FuentesApp.cpp)
     target_include_directories(test_correccion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_correccion PRIVATE ba_core Qt6::Core)
     set_target_properties(test_correccion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

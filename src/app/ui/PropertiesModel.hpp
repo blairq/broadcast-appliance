@@ -1,17 +1,17 @@
 // ============================================================================
 // src/app/ui/PropertiesModel.hpp — Propiedades de una fuente (capa ViewModel)
 //
-// Adaptador del sistema de propiedades de libobs (obs_properties): cada fuente
-// describe sus opciones (camara, resolucion, archivo, texto, color...) y este
-// modelo las convierte en filas genericas que la vista dibuja por tipo. Asi
-// CUALQUIER fuente de cualquier plugin se configura sin codigo a medida.
+// Cada tipo de fuente describe sus opciones (FuentesApp: camara, archivo,
+// texto, color...) y este modelo las convierte en filas genericas que la vista
+// dibuja por tipo. Un tipo sin propiedades registradas muestra sus ajustes tal
+// cual (bool, número, texto), así cualquier fuente se configura igual.
 //
 // Tipos que expone (`kind`): bool, int, float, text, textarea, password, path,
 // list, color, font, button, info. Los grupos se aplanan con un encabezado.
 //
-// Los cambios se aplican en vivo (obs_source_update) y quedan en la
-// configuracion via AppRuntime. Si una propiedad cambia a otras (p. ej. elegir
-// una camara recarga sus resoluciones) el modelo se reconstruye.
+// Los cambios se aplican en vivo y quedan en la configuracion via AppRuntime;
+// despues de cada cambio el modelo se reconstruye (las filas pueden depender
+// de los valores).
 // ============================================================================
 
 #pragma once
@@ -76,7 +76,6 @@ class PropertiesModel : public QAbstractListModel {
     AppRuntime& rt_;
     QString source_;
     std::vector<Row> rows_;
-    void* props_ = nullptr; // obs_properties_t* vigente (para botones)
 };
 
 } // namespace ba::app

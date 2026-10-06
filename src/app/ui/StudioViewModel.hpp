@@ -24,6 +24,8 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include "UsoCpu.hpp"
+
 #include <deque>
 #include <map>
 #include <memory>
@@ -903,7 +905,7 @@ class StudioViewModel : public QObject {
     std::uint64_t lastBytes_ = 0;
     std::chrono::steady_clock::time_point lastBytesAt_{};
     double cpu_ = 0;
-    void* cpuInfo_ = nullptr; // os_cpu_usage_info_t*
+    ba::app::UsoCpu cpuUso_;
     bool gatewayAlive_ = false;
     double peakL_ = -100;
     double peakR_ = -100;

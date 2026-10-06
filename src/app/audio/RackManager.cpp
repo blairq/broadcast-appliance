@@ -22,8 +22,16 @@
 
 #include <atomic>
 
-#include <obs.h>
-#include <util/platform.h>
+#include "BroadcastEngine.hpp"
+#include "FuentesApp.hpp"
+#include "HoraMonotonica.hpp"
+#include "Motor.hpp"
+#include "audio/AnilloAudio.hpp"
+
+#include <QAudioDevice>
+#include <QAudioFormat>
+#include <QAudioSink>
+#include <QMediaDevices>
 
 #include <cmath>
 #include <cstdlib>
@@ -35,27 +43,37 @@ namespace ba::app::audio {
 namespace fs = std::filesystem;
 
 namespace {
-constexpr const char* kTipoGstAudio = "ba_gst_fuente";
 
-/// Una entrada de GStreamer con `audio` apagado (una cámara) no tiene audio
-/// aunque su tipo diga que puede.
-bool conAudio(obs_source_t* s) {
-    if (std::string(obs_source_get_id(s)) != kTipoGstAudio) return true;
-    obs_data_t* d = obs_source_get_settings(s);
-    const bool si = d == nullptr || obs_data_get_bool(d, "audio");
-    if (d != nullptr) obs_data_release(d);
-    return si;
+BroadcastEngine* motorApp() { return fuentes::motorApp(); }
+
+bool existe(const std::string& f) {
+    BroadcastEngine* e = motorApp();
+    return e != nullptr && e->sourceExists(f);
 }
 
+/// ¿Tiene audio? (una cámara de GStreamer con `audio` apagado, no).
+bool conAudio(const std::string& f) {
+    BroadcastEngine* e = motorApp();
+    if (e == nullptr) return false;
+    const auto v = e->audioSources();
+    return std::find(v.begin(), v.end(), f) != v.end();
+}
+
+nlohmann::json ajustesDe(const std::string& f) { return fuentes::ajustesDe(f); }
+
 /// El tipo lógico (inputs::tipoLogico): un micrófono o un invitado por GStreamer
-/// se agrupan y usan las plantillas como los de libobs de antes.
-std::string tipoLogicoDe(obs_source_t* s) {
-    obs_data_t* d = obs_source_get_settings(s);
-    const std::string t = inputs::tipoLogico(obs_source_get_id(s),
-                                             d != nullptr ? nlohmann::json::parse(obs_data_get_json(d), nullptr, false)
-                                                          : nlohmann::json());
-    if (d != nullptr) obs_data_release(d);
-    return t;
+/// se agrupan y usan las plantillas por tipo.
+std::string tipoLogicoDe(const std::string& f) {
+    BroadcastEngine* e = motorApp();
+    return e != nullptr ? inputs::tipoLogico(e->sourceTypeId(f), ajustesDe(f)) : std::string();
+}
+
+/// Las salidas de audio del equipo: (id estable, nombre).
+std::vector<std::pair<std::string, std::string>> salidasDeAudio() {
+    std::vector<std::pair<std::string, std::string>> v;
+    for (const QAudioDevice& d : QMediaDevices::audioOutputs())
+        v.emplace_back(QString::fromLatin1(d.id()).toStdString(), d.description().toStdString());
+    return v;
 }
 } // namespace
 using json = nlohmann::json;
@@ -75,8 +93,8 @@ class QtHostServices : public HostServices {
     void runOnMain(std::function<void()> fn) override {
         QMetaObject::invokeMethod(owner_, [fn]() { fn(); }, Qt::QueuedConnection);
     }
-    // Los timers viven en el hilo principal aunque se pidan desde otro: los
-    // racks que OBS restaura de la escena se crean en un hilo de OBS, y un
+    // Los timers viven en el hilo principal aunque se pidan desde otro: un
+    // rack puede crearse en otro hilo, y un
     // QTimer nacido ahí (sin bucle de eventos) nunca dispara; la interfaz de
     // LSP, que se dibuja y atiende el mouse en su timer, quedaba congelada.
     int addTimer(int periodMs, std::function<void()> fn) override {
@@ -155,16 +173,10 @@ class QtHostServices : public HostServices {
     std::map<int, std::vector<QSocketNotifier*>> fds_;
 };
 
-// --- Filtro de OBS ------------------------------------------------------------------------
+// --- El rack de una fuente ------------------------------------------------------------
 
 namespace {
 RackManager* g_mgr = nullptr;
-constexpr const char* kFilterId = "ba_audio_rack";
-constexpr const char* kFilterName = "Rack de audio";
-// Fuente privada por rack que lleva el nodo de escucha a los auriculares del
-// operador: MONITOR_ONLY, nunca entra en la mezcla del programa.
-constexpr const char* kTapId = "ba_rack_escucha";
-constexpr const char* kTipoGst = "ba_gst_fuente";
 } // namespace
 
 void QtHostServices::stateDirty() {
@@ -177,85 +189,41 @@ void QtHostServices::stateDirty() {
 }
 
 struct RackManager::Filter : gstrack::Anfitrion {
-    /// Lo procesa el filtro de OBS (`self`) o, si la fuente es de GStreamer, el
-    /// elemento `barack` de su cadena de audio (`gst`, sin `self`).
-    bool gst = false;
-    obs_source_t* self = nullptr;
+    /// Lo procesa el elemento `barack` de la cadena de audio de la entrada.
+    bool gst = true;
     std::string source;
     std::unique_ptr<AudioRack> rack;
-    obs_source_t* tap = nullptr; // salida de escucha (puede ser nullptr)
+    /// Escucha: lo que junta el nodo «salida» va a este anillo, que un
+    /// QAudioSink saca por los auriculares del operador (nunca a la mezcla).
+    std::shared_ptr<anillo::Ring> escucha;
+    std::unique_ptr<anillo::AlDispositivo> escuchaIo;
+    std::unique_ptr<QAudioSink> escuchaSink;
     // Grabación de la tarjeta de salida: el hilo de audio toma una copia del
     // puntero bajo este mutex (muy corto) y le agrega lo que llegó.
     std::mutex grabMu;
     std::shared_ptr<GrabadorWav> grab;
 
-    /// Hilo de audio (el de libobs o el de GStreamer): el rack, la escucha, la
+    /// Hilo de audio (el de GStreamer): el rack, la escucha, la
     /// grabación de la tarjeta de salida y la voz a texto.
     void procesarCon(float* const* planos, int canales, uint32_t frames, uint32_t sr, uint64_t ts);
     void procesar(float* const* planos, int canales, uint32_t frames) override {
-        procesarCon(planos, canales, frames, 48000, os_gettime_ns());
+        procesarCon(planos, canales, frames, 48000, ba::app::ahoraNs());
     }
 };
 
 namespace {
-
-const char* filterName(void*) { return "Rack de audio (LSP)"; }
-
-void* filterCreate(obs_data_t*, obs_source_t* self) {
-    auto* f = new RackManager::Filter();
-    f->self = self;
-    std::shared_ptr<ClapLibrary> lib = g_mgr != nullptr ? g_mgr->library() : nullptr;
-    // Con los servicios del proceso (timers, ventanas): sin ellos los plugins de
-    // un rack restaurado de la escena no tienen interfaz que funcione.
-    f->rack = std::make_unique<AudioRack>(lib, g_mgr != nullptr ? g_mgr->services() : nullptr,
-                                          g_mgr != nullptr ? g_mgr->sampleRate() : 48000);
-    return f;
-}
-
-void filterDestroy(void* data) {
-    auto* f = static_cast<RackManager::Filter*>(data);
-    if (g_mgr != nullptr) g_mgr->detach(f);
-    // Los plugins se destruyen en el hilo principal (lo pide CLAP).
-    if (QCoreApplication::instance() != nullptr &&
-        QThread::currentThread() != QCoreApplication::instance()->thread())
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [f]() { delete f; }, Qt::QueuedConnection);
-    else
-        delete f;
-}
-
 std::mutex g_textoLock;
 RackManager::TextoSink g_texto;
-
-obs_audio_data* filterAudio(void* data, obs_audio_data* audio) {
-    auto* f = static_cast<RackManager::Filter*>(data);
-    const int ch = static_cast<int>(audio_output_get_channels(obs_get_audio()));
-    f->procesarCon(reinterpret_cast<float* const*>(audio->data), ch, audio->frames,
-                   audio_output_get_sample_rate(obs_get_audio()), audio->timestamp);
-    return audio;
-}
-
-const char* tapName(void*) { return "Escucha del rack"; }
-void* tapCreate(obs_data_t*, obs_source_t* self) { return self; }
-void tapDestroy(void*) {}
-
 } // namespace
 
 void RackManager::Filter::procesarCon(float* const* planos, int canales, uint32_t frames, uint32_t sr, uint64_t ts) {
     rack->process(planos, canales, frames);
-    // Escucha: lo que junto el nodo "monitor" se entrega a su fuente privada,
-    // que libobs reproduce en la salida elegida (no vuelve a la mezcla).
+    (void)ts;
+    // Escucha: lo que juntó el nodo "monitor" va a su anillo, que suena por la
+    // salida elegida (no vuelve a la mezcla).
     const uint32_t mf = rack->monitorFrames();
-    if (tap != nullptr && mf > 0) {
-        obs_source_audio out{};
-        out.data[0] = reinterpret_cast<const uint8_t*>(rack->monitorPlane(0));
-        out.data[1] = reinterpret_cast<const uint8_t*>(rack->monitorPlane(1));
-        out.frames = mf;
-        out.speakers = SPEAKERS_STEREO;
-        out.format = AUDIO_FORMAT_FLOAT_PLANAR;
-        out.samples_per_sec = sr;
-        out.timestamp = ts;
-        obs_source_output_audio(tap, &out);
-    }
+    if (mf > 0)
+        if (std::shared_ptr<anillo::Ring> e = std::atomic_load(&escucha)) e->push(rack->monitorPlane(0), rack->monitorPlane(1), mf);
     if (mf > 0) {
         std::shared_ptr<GrabadorWav> g;
         {
@@ -274,32 +242,10 @@ void RackManager::Filter::procesarCon(float* const* planos, int canales, uint32_
 
 RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std::move(dataRoot)) {
     g_mgr = this;
-    // Viven lo que el proceso: OBS puede destruir un filtro (y sus plugins,
-    // que devuelven sus timers) despues que el manager.
+    // Viven lo que el proceso: el último rack (y sus plugins, que devuelven
+    // sus timers) puede soltarse después que el manager.
     static QtHostServices* services = new QtHostServices(QCoreApplication::instance());
     services_ = services;
-    static bool registered = false;
-    if (!registered) {
-        obs_source_info info{};
-        info.id = kFilterId;
-        info.type = OBS_SOURCE_TYPE_FILTER;
-        info.output_flags = OBS_SOURCE_AUDIO;
-        info.get_name = filterName;
-        info.create = filterCreate;
-        info.destroy = filterDestroy;
-        info.filter_audio = filterAudio;
-        obs_register_source(&info);
-
-        obs_source_info tap{};
-        tap.id = kTapId;
-        tap.type = OBS_SOURCE_TYPE_INPUT;
-        tap.output_flags = OBS_SOURCE_AUDIO;
-        tap.get_name = tapName;
-        tap.create = tapCreate;
-        tap.destroy = tapDestroy;
-        obs_register_source(&tap);
-        registered = true;
-    }
     // `barack`: el rack en la cadena de audio de las entradas de GStreamer.
     gstrack::registrarEnSegundoPlano();
     saveTimer_.setSingleShot(true);
@@ -319,10 +265,9 @@ RackManager::RackManager(fs::path dataRoot, QObject* parent) : QObject(parent), 
 RackManager::~RackManager() {
     saveNow();
     revision_.stop();
-    tomas_.clear(); // cada Toma saca su callback
-    // Los filtros siguen vivos en OBS; que no apunten al manager.
+    tomas_.clear(); // cada Toma suelta la del motor
     for (auto& [name, f] : filters_)
-        (void)f;
+        detach(f);
     filters_.clear();
     for (auto& [name, f] : gstFilters_)
         gstrack::retirar(name);
@@ -332,10 +277,7 @@ RackManager::~RackManager() {
 
 HostServices* RackManager::services() const { return services_; }
 
-double RackManager::sampleRate() const {
-    audio_t* a = obs_get_audio();
-    return a != nullptr ? static_cast<double>(audio_output_get_sample_rate(a)) : 48000.0;
-}
+double RackManager::sampleRate() const { return 48000.0; }
 
 std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
     if (!libTried_) {
@@ -363,15 +305,7 @@ std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
 
 void RackManager::attach(Filter* f) {
     filters_[f->source] = f;
-    if (f->tap == nullptr) {
-        const std::string name = "ba-escucha-" + f->source;
-        f->tap = obs_source_create_private(kTapId, name.c_str(), nullptr);
-        if (f->tap != nullptr) {
-            // Solo a los auriculares del operador: jamas a la mezcla.
-            obs_source_set_monitoring_type(f->tap, OBS_MONITORING_TYPE_MONITOR_ONLY);
-            obs_source_set_muted(f->tap, monitorId_.empty());
-        }
-    }
+    syncMonitors();
 }
 
 void RackManager::detach(Filter* f) {
@@ -395,10 +329,11 @@ void RackManager::detach(Filter* f) {
             filters_.erase(it);
             break;
         }
-    if (f->tap != nullptr) {
-        obs_source_release(f->tap);
-        f->tap = nullptr;
-    }
+    // La escucha se cierra (el hilo de audio ya no le escribe).
+    std::atomic_store(&f->escucha, std::shared_ptr<anillo::Ring>());
+    if (f->escuchaSink) f->escuchaSink->stop();
+    f->escuchaSink.reset();
+    f->escuchaIo.reset();
 }
 
 // --- Salidas de audio del equipo ------------------------------------------------
@@ -422,13 +357,7 @@ json RackManager::outputDevices() const {
         std::string id, name;
     };
     std::vector<Item> items;
-    obs_enum_audio_monitoring_devices(
-        [](void* p, const char* name, const char* id) {
-            static_cast<std::vector<Item>*>(p)->push_back(
-                {id != nullptr ? id : "", name != nullptr ? name : ""});
-            return true;
-        },
-        &items);
+    for (const auto& [id, nombre] : salidasDeAudio()) items.push_back({id, nombre});
     std::vector<std::string> order;
     std::map<std::string, json> byGroup;
     std::map<std::string, std::string> label;
@@ -450,28 +379,18 @@ json RackManager::outputDevices() const {
 std::string RackManager::setOutput(const std::string& source, const std::string& device) {
     auto it = filters_.find(source);
     if (it == filters_.end()) return "esa fuente no tiene rack";
-    struct Ctx {
-        const std::string& id;
-        std::string name;
-        bool found = false;
-    } ctx{device, {}, false};
-    obs_enum_audio_monitoring_devices(
-        [](void* p, const char* n, const char* i) {
-            auto* c = static_cast<Ctx*>(p);
-            if (i != nullptr && c->id == i) {
-                c->name = n != nullptr ? n : "";
-                c->found = true;
-                return false;
-            }
-            return true;
-        },
-        &ctx);
-    if (!ctx.found) return "esa salida de audio ya no esta";
-    if (!obs_set_audio_monitoring_device(ctx.name.c_str(), device.c_str()))
-        return "no se pudo abrir la salida de audio";
+    std::string nombre;
+    bool hay = false;
+    for (const auto& [id, n] : salidasDeAudio())
+        if (id == device) {
+            nombre = n;
+            hay = true;
+        }
+    if (!hay) return "esa salida de audio ya no esta";
     monitorId_ = device;
-    monitorName_ = ctx.name;
-    it->second->rack->addOutput(device, ctx.name);
+    monitorName_ = nombre;
+    if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
+    it->second->rack->addOutput(device, nombre);
     syncMonitors();
     saveMonitor();
     markDirty();
@@ -482,31 +401,18 @@ std::string RackManager::setOutput(const std::string& source, const std::string&
 std::string RackManager::setAuriculares(const std::string& device) {
     std::string nombre;
     if (!device.empty()) {
-        struct Ctx {
-            const std::string& id;
-            std::string name;
-            bool found = false;
-        } ctx{device, {}, false};
-        obs_enum_audio_monitoring_devices(
-            [](void* p, const char* n, const char* i) {
-                auto* c = static_cast<Ctx*>(p);
-                if (i != nullptr && c->id == i) {
-                    c->name = n != nullptr ? n : "";
-                    c->found = true;
-                    return false;
-                }
-                return true;
-            },
-            &ctx);
-        if (!ctx.found) return "esa salida de audio ya no esta";
-        nombre = ctx.name;
+        bool hay = false;
+        for (const auto& [id, n] : salidasDeAudio())
+            if (id == device) {
+                nombre = n;
+                hay = true;
+            }
+        if (!hay) return "esa salida de audio ya no esta";
     }
-    // "default" es la salida del sistema para libobs.
-    if (!obs_set_audio_monitoring_device(device.empty() ? "Default" : nombre.c_str(),
-                                         device.empty() ? "default" : device.c_str()))
-        return "no se pudo abrir la salida de audio";
     monitorId_ = device;
     monitorName_ = nombre;
+    // La escucha del motor (PFL, voces) sale por el mismo lado.
+    if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
     syncMonitors();
     saveMonitor();
     emit changed();
@@ -514,9 +420,33 @@ std::string RackManager::setAuriculares(const std::string& device) {
 }
 
 void RackManager::syncMonitors() {
-    // Suena el rack que tiene nodo de salida (y un dispositivo elegido).
-    for (auto& [name, f] : filters_)
-        if (f->tap != nullptr) obs_source_set_muted(f->tap, !f->rack->hasOutput() || monitorId_.empty());
+    // Suena el rack que tiene nodo de salida (y un dispositivo elegido): un
+    // QAudioSink por rack hacia esa salida (el sistema los suma).
+    QAudioDevice dev;
+    for (const QAudioDevice& d : QMediaDevices::audioOutputs())
+        if (QString::fromLatin1(d.id()).toStdString() == monitorId_) dev = d;
+    for (auto& [name, f] : filters_) {
+        const bool quiero = !dev.isNull() && f->rack && f->rack->hasOutput();
+        const bool tiene = static_cast<bool>(f->escuchaSink);
+        if (quiero == tiene && (!tiene || dispositivoEscucha_ == monitorId_)) continue;
+        std::atomic_store(&f->escucha, std::shared_ptr<anillo::Ring>());
+        if (f->escuchaSink) f->escuchaSink->stop();
+        f->escuchaSink.reset();
+        f->escuchaIo.reset();
+        if (!quiero) continue;
+        QAudioFormat fmt;
+        fmt.setSampleRate(48000);
+        fmt.setChannelCount(2);
+        fmt.setSampleFormat(QAudioFormat::Float);
+        if (!dev.isFormatSupported(fmt)) continue;
+        auto ring = std::make_shared<anillo::Ring>();
+        f->escuchaIo = std::make_unique<anillo::AlDispositivo>(ring);
+        f->escuchaSink = std::make_unique<QAudioSink>(dev, fmt);
+        f->escuchaSink->setBufferSize(static_cast<qsizetype>(anillo::kColchon * 2 * sizeof(float) * 2));
+        f->escuchaSink->start(f->escuchaIo.get());
+        std::atomic_store(&f->escucha, ring);
+    }
+    dispositivoEscucha_ = monitorId_;
 }
 
 void RackManager::saveMonitor() const {
@@ -535,59 +465,55 @@ void RackManager::restoreMonitor() {
     const std::string id = j.value("id", "");
     const std::string name = j.value("nombre", "");
     if (id.empty()) return;
-    // El dispositivo puede no estar (se desenchufo): se queda sin escucha.
-    if (obs_set_audio_monitoring_device(name.c_str(), id.c_str())) {
-        monitorId_ = id;
-        monitorName_ = name;
-    }
+    // El dispositivo puede no estar (se desenchufó): se queda sin escucha.
+    for (const auto& [i, n] : salidasDeAudio())
+        if (i == id) {
+            monitorId_ = id;
+            monitorName_ = name.empty() ? n : name;
+        }
+    if (!monitorId_.empty())
+        if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(monitorId_);
     syncMonitors();
 }
 
 json RackManager::audioSources() const {
-    struct Ctx {
-        const RackManager* self;
-        json list = json::array();
-    } ctx{this};
-    obs_enum_sources(
-        [](void* p, obs_source_t* s) {
-            auto* c = static_cast<Ctx*>(p);
-            if ((obs_source_get_output_flags(s) & OBS_SOURCE_AUDIO) == 0) return true;
-            if (!conAudio(s)) return true; // una cámara de GStreamer sin audio
-            const std::string name = obs_source_get_name(s);
-            const std::string type = tipoLogicoDe(s);
-            // Grupo para el arbol de la interfaz: por donde entra el audio.
-            std::string group = "Otras fuentes";
-            if (type == "ba_voz_asistente") {
-                group = "Voces (texto a audio)"; // la del sistema, la del teleprompter…
-            } else if (type == "ba_entrada_fisica") {
-                group = "Entradas del equipo (placas)";
-            } else if (type == "ba_guest_audio") {
-                group = "Invitados";
-            } else if (type.find("_input_capture") != std::string::npos) {
-                group = "Micrófonos y líneas del equipo";
-            } else if (type.find("_output_capture") != std::string::npos) {
-                group = "Audio del equipo (lo que suena)";
-            } else if (type == "ffmpeg_source" || type == "ba_gst_medio" || type == "vlc_source" || type == "ba_ndi_input") {
-                group = "Medios y red";
-            }
-            json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
-            auto it = c->self->filters_.find(name);
-            if (it != c->self->filters_.end()) {
-                j["rack"] = true;
-                // Dónde corre: en la cadena de GStreamer de la entrada o como filtro de libobs.
-                j["motor"] = it->second->gst ? "gstreamer" : "libobs";
-                if (it->second->gst) j["procesando"] = gstrack::procesando(name);
-                int mods = 0;
-                for (const auto& id : it->second->rack->nodeIds())
-                    if (it->second->rack->kindOf(id) == "plugin") ++mods;
-                j["modulos"] = mods;
-                j["salida"] = it->second->rack->meters("out");
-            }
-            c->list.push_back(std::move(j));
-            return true;
-        },
-        &ctx);
-    return ctx.list;
+    json list = json::array();
+    BroadcastEngine* e = motorApp();
+    if (e == nullptr) return list;
+    for (const std::string& name : e->audioSources()) {
+        const std::string type = tipoLogicoDe(name);
+        // Grupo para el arbol de la interfaz: por donde entra el audio.
+        std::string group = "Otras fuentes";
+        if (type == "ba_voz_asistente") {
+            group = "Voces (texto a audio)"; // la del sistema, la del teleprompter…
+        } else if (type == "ba_entrada_fisica") {
+            group = "Entradas del equipo (placas)";
+        } else if (type == "ba_entrada_virtual") {
+            group = "Entradas virtuales (matriz)";
+        } else if (type == "ba_guest_audio") {
+            group = "Invitados";
+        } else if (type.find("_input_capture") != std::string::npos) {
+            group = "Micrófonos y líneas del equipo";
+        } else if (type.find("_output_capture") != std::string::npos) {
+            group = "Audio del equipo (lo que suena)";
+        } else if (type == "ffmpeg_source" || type == "ba_gst_medio" || type == "vlc_source" || type == "ba_ndi_input") {
+            group = "Medios y red";
+        }
+        json j{{"nombre", name}, {"tipo", type}, {"grupo", group}, {"rack", false}};
+        auto it = filters_.find(name);
+        if (it != filters_.end()) {
+            j["rack"] = true;
+            j["motor"] = "gstreamer"; // en la cadena de GStreamer de la entrada
+            j["procesando"] = gstrack::procesando(name);
+            int mods = 0;
+            for (const auto& id : it->second->rack->nodeIds())
+                if (it->second->rack->kindOf(id) == "plugin") ++mods;
+            j["modulos"] = mods;
+            j["salida"] = it->second->rack->meters("out");
+        }
+        list.push_back(std::move(j));
+    }
+    return list;
 }
 
 // --- Vista general (Estudio) ----------------------------------------------------
@@ -598,7 +524,7 @@ std::string describirOrigen(const std::string& tipo, const nlohmann::json& s) {
     if (tipo == "ba_gst_medio")
         return "Archivo · " + std::filesystem::path(s.is_object() ? s.value("local_file", std::string()) : "").filename().string() +
                (s.is_object() && s.value("looping", false) ? " · repite" : "");
-    if (tipo != kTipoGstAudio) return "libobs · " + tipo;
+    if (tipo != "ba_gst_fuente") return tipo;
     if (!s.is_object()) return "GStreamer";
     if (s.contains("microfono")) return "Micrófono · " + s.value("pipeline_audio", std::string());
     if (s.contains("anillo"))
@@ -634,18 +560,15 @@ json RackManager::estudio() const {
     double y = 0;
     for (const auto& f : audioSources()) {
         const std::string nombre = f.value("nombre", std::string());
-        obs_source_t* src = obs_get_source_by_name(nombre.c_str());
-        if (src == nullptr) continue;
-        const std::string tipo = obs_source_get_id(src);
-        obs_data_t* d = obs_source_get_settings(src);
-        const json ajustes = d != nullptr ? json::parse(obs_data_get_json(d), nullptr, false) : json();
-        if (d != nullptr) obs_data_release(d);
-        const float vol = obs_source_get_volume(src);
-        const bool mudo = obs_source_muted(src);
-        obs_source_release(src);
+        BroadcastEngine* eng = motorApp();
+        if (eng == nullptr || !eng->sourceExists(nombre)) continue;
+        const std::string tipo = eng->sourceTypeId(nombre);
+        const json ajustes = ajustesDe(nombre);
+        const float vol = eng->sourceVolume(nombre);
+        const bool mudo = eng->sourceMuted(nombre);
 
         const std::string p = nombre + "|";
-        const std::string motor = tipo == kTipoGstAudio || tipo == "ba_gst_medio" ? "gstreamer" : "libobs";
+        const std::string motor = "gstreamer"; // en el motor, toda entrada es de GStreamer
         const double y0 = y + kTitulo;
         double altoFranja = 0;
         const auto poner = [&](json n, double x, double dy) {
@@ -768,7 +691,7 @@ json RackManager::estudio() const {
         for (size_t k = 1; k < etapas.size(); ++k)
             cables.push_back({{"desde", etapas[k - 1]}, {"salida", "out"}, {"hacia", etapas[k]}, {"entrada", "in"}});
 
-        franjas.push_back({{"titulo", nombre + (motor == "gstreamer" ? "  ·  GStreamer" : "  ·  libobs")},
+        franjas.push_back({{"titulo", nombre + "  ·  GStreamer"},
                            {"y", y},
                            {"alto", kTitulo + altoFranja + 10},
                            {"motor", motor}});
@@ -942,12 +865,10 @@ std::vector<std::string> RackManager::tomarSaltados() {
 AudioRack* RackManager::rack(const std::string& source, bool create, std::string* error) {
     auto it = filters_.find(source);
     if (it != filters_.end()) return it->second->rack.get();
-    obs_source_t* src = obs_get_source_by_name(source.c_str());
-    if (src == nullptr) {
+    if (!existe(source)) {
         if (error != nullptr) *error = "no existe la fuente '" + source + "'";
         return nullptr;
     }
-    AudioRack* out = nullptr;
     // El rack guardado de la fuente o, si no tiene, la plantilla marcada para
     // su tipo: es lo que hace que un invitado que se conecta ya suene bien sin
     // que nadie le arme nada.
@@ -956,87 +877,50 @@ AudioRack* RackManager::rack(const std::string& source, bool create, std::string
         if (pending_.contains(source)) {
             r.load(pending_[source], &e);
         } else {
-            const std::string plantilla = plantillaDeTipo(tipoLogicoDe(src));
+            const std::string plantilla = plantillaDeTipo(tipoLogicoDe(source));
             if (!plantilla.empty()) r.load(plantillas_[plantilla].value("rack", json::object()), &e);
         }
     };
-    const char* tipo = obs_source_get_unversioned_id(src);
-    // ba_gst_medio es el mismo código (un archivo): también lleva barack.
-    const bool deGst = tipo != nullptr && (std::string(tipo) == kTipoGst || std::string(tipo) == "ba_gst_medio");
-    if ((obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) == 0) {
+    if (!conAudio(source)) {
         if (error != nullptr) *error = "'" + source + "' no tiene audio";
-    } else if (!create) {
-        if (error != nullptr) *error = "'" + source + "' no tiene rack";
-    } else if (deGst) {
-        // Entrada de GStreamer: el rack corre en su cadena de audio (`barack`),
-        // no como filtro de libobs.
-        std::shared_ptr<Filter> f(new Filter(), [](Filter* x) {
-            // Los plugins se destruyen en el hilo principal (lo pide CLAP); la
-            // última referencia puede soltarla el hilo de audio de GStreamer.
-            if (QCoreApplication::instance() != nullptr &&
-                QThread::currentThread() != QCoreApplication::instance()->thread())
-                QMetaObject::invokeMethod(QCoreApplication::instance(), [x]() { delete x; }, Qt::QueuedConnection);
-            else
-                delete x;
-        });
-        f->gst = true;
-        f->source = source;
-        f->rack = std::make_unique<AudioRack>(library(), services_, 48000.0);
-        cargar(*f->rack);
-        gstFilters_[source] = f;
-        attach(f.get());
-        gstrack::publicar(source, f);
-        ponerRackEnFuente(src, source);
-        out = f->rack.get();
-        markDirty();
-    } else {
-        obs_source_t* filter = obs_source_create_private(kFilterId, kFilterName, nullptr);
-        auto* f = filter != nullptr ? static_cast<Filter*>(obs_obj_get_data(filter)) : nullptr;
-        if (f == nullptr) {
-            if (error != nullptr) *error = "no se pudo crear el filtro del rack";
-        } else {
-            // La biblioteca pudo abrirse despues de crear el filtro: el rack la toma.
-            f->source = source;
-            f->rack = std::make_unique<AudioRack>(library(), services_, sampleRate());
-            cargar(*f->rack);
-            obs_source_filter_add(src, filter);
-            attach(f);
-            out = f->rack.get();
-            markDirty();
-        }
-        if (filter != nullptr) obs_source_release(filter); // la fuente lo retiene
+        return nullptr;
     }
-    obs_source_release(src);
-    if (out != nullptr) emit changed();
-    return out;
+    if (!create) {
+        if (error != nullptr) *error = "'" + source + "' no tiene rack";
+        return nullptr;
+    }
+    // El rack corre en la cadena de audio de la entrada (`barack`).
+    std::shared_ptr<Filter> f(new Filter(), [](Filter* x) {
+        // Los plugins se destruyen en el hilo principal (lo pide CLAP); la
+        // última referencia puede soltarla el hilo de audio de GStreamer.
+        if (QCoreApplication::instance() != nullptr &&
+            QThread::currentThread() != QCoreApplication::instance()->thread())
+            QMetaObject::invokeMethod(QCoreApplication::instance(), [x]() { delete x; }, Qt::QueuedConnection);
+        else
+            delete x;
+    });
+    f->source = source;
+    f->rack = std::make_unique<AudioRack>(library(), services_, 48000.0);
+    cargar(*f->rack);
+    gstFilters_[source] = f;
+    attach(f.get());
+    gstrack::publicar(source, f);
+    ponerRackEnFuente(source, source);
+    markDirty();
+    emit changed();
+    return f->rack.get();
 }
 
 bool RackManager::removeRack(const std::string& source) {
     auto it = filters_.find(source);
     if (it == filters_.end()) return false;
-    if (it->second->gst) {
-        Filter* f = it->second;
-        filters_.erase(it);
-        pending_.erase(source);
-        gstrack::retirar(source);
-        detach(f); // escucha y grabación (ya no está en filters_: no queda pendiente)
-        if (obs_source_t* src = obs_get_source_by_name(source.c_str())) {
-            ponerRackEnFuente(src, "");
-            obs_source_release(src);
-        }
-        gstFilters_.erase(source);
-        markDirty();
-        emit changed();
-        return true;
-    }
-    obs_source_t* src = obs_get_source_by_name(source.c_str());
-    obs_source_t* filter = it->second->self;
+    Filter* f = it->second;
     filters_.erase(it);
     pending_.erase(source);
-    if (src != nullptr) {
-        obs_source_filter_remove(src, filter);
-        obs_source_release(src);
-    }
+    gstrack::retirar(source);
+    detach(f); // escucha y grabación (ya no está en filters_: no queda pendiente)
+    if (existe(source)) ponerRackEnFuente(source, "");
+    gstFilters_.erase(source);
     markDirty();
     emit changed();
     return true;
@@ -1233,51 +1117,27 @@ void RackManager::restore() {
     const json all = json::parse(in, nullptr, false);
     if (!all.is_object()) return;
     pending_ = all;
-    for (auto it = all.begin(); it != all.end(); ++it) {
-        obs_source_t* src = obs_get_source_by_name(it.key().c_str());
-        if (src == nullptr) continue;
-        obs_source_release(src);
-        rack(it.key(), true);
-    }
+    for (auto it = all.begin(); it != all.end(); ++it)
+        if (existe(it.key())) rack(it.key(), true);
 }
 
 // --- Tarjetas de entrada (el audio de otra fuente) ---------------------------------
 
 struct RackManager::Toma {
     std::string fuente;
-    obs_source_t* src = nullptr;
+    int toma = 0; ///< la del motor (escucharEntrada)
     std::shared_ptr<anillo::Ring> ring = std::make_shared<anillo::Ring>();
-
-    static void alAudio(void* p, obs_source_t*, const ::audio_data* data, bool muted) {
-        auto* t = static_cast<Toma*>(p);
-        if (data == nullptr || data->frames == 0 || data->data[0] == nullptr) return;
-        const auto* l = reinterpret_cast<const float*>(data->data[0]);
-        const auto* r = data->data[1] != nullptr ? reinterpret_cast<const float*>(data->data[1]) : l;
-        const std::uint32_t sr = audio_output_get_sample_rate(obs_get_audio());
-        if (muted) {
-            std::vector<float> z(data->frames, 0.0f);
-            t->ring->pushEn(z.data(), z.data(), data->frames, data->timestamp, os_gettime_ns(), sr);
-        } else {
-            t->ring->pushEn(l, r, data->frames, data->timestamp, os_gettime_ns(), sr);
-        }
-    }
     ~Toma() {
-        // Si libobs ya se apagó (cierre temprano), la fuente ya no existe.
-        if (src != nullptr && obs_initialized()) {
-            obs_source_remove_audio_capture_callback(src, &Toma::alAudio, this);
-            obs_source_release(src);
-        }
+        BroadcastEngine* e = motorApp();
+        if (toma != 0 && e != nullptr && e->motor() != nullptr) e->motor()->dejarDeEscucharEntrada(toma);
     }
 };
 
 std::string RackManager::validarEntrada(const std::string& source, const std::string& fuente) const {
     if (fuente.empty()) return "falta de qué fuente traer el audio";
     if (fuente == source) return "una fuente no puede traer su propio audio (sería un lazo)";
-    obs_source_t* src = obs_get_source_by_name(fuente.c_str());
-    if (src == nullptr) return "no existe la fuente '" + fuente + "'";
-    const bool audio = (obs_source_get_output_flags(src) & OBS_SOURCE_AUDIO) != 0;
-    obs_source_release(src);
-    if (!audio) return "'" + fuente + "' no tiene audio";
+    if (!existe(fuente)) return "no existe la fuente '" + fuente + "'";
+    if (!conAudio(fuente)) return "'" + fuente + "' no tiene audio";
     // Lazo entre racks: si `fuente` (o lo que trae su rack, y así) ya trae el
     // audio de `source`, el sonido daría vueltas (con eco, por la demora).
     std::set<std::string> vistas;
@@ -1335,7 +1195,8 @@ std::set<std::string> RackManager::fuentesDeEntradas() const {
 }
 
 void RackManager::sincronizarEntradas() {
-    if (!obs_initialized()) return;
+    BroadcastEngine* eng = motorApp();
+    if (eng == nullptr || eng->motor() == nullptr) return;
     std::set<std::string> quiero;
     for (const auto& [nombre, f] : filters_) {
         if (!f->rack) continue;
@@ -1343,7 +1204,8 @@ void RackManager::sincronizarEntradas() {
             const std::string clave = nombre + "\n" + nodo;
             // Una toma vieja de otra fuente (cambió la tarjeta) se rehace.
             auto it = tomas_.find(clave);
-            if (it != tomas_.end() && (it->second->fuente != fuente || obs_source_removed(it->second->src))) {
+            if (it != tomas_.end() && (it->second->fuente != fuente || !eng->sourceExists(it->second->fuente) ||
+                                       !eng->motor()->tomaViva(it->second->toma))) {
                 f->rack->setEntradaAnillo(nodo, nullptr);
                 tomas_.erase(it);
                 it = tomas_.end();
@@ -1354,12 +1216,24 @@ void RackManager::sincronizarEntradas() {
             }
             quiero.insert(clave);
             if (it == tomas_.end()) {
-                obs_source_t* src = obs_get_source_by_name(fuente.c_str());
-                if (src == nullptr) continue; // todavía no existe: en la próxima vuelta
+                if (!eng->sourceExists(fuente)) continue; // todavía no existe: en la próxima vuelta
                 auto t = std::make_unique<Toma>();
                 t->fuente = fuente;
-                t->src = src; // la referencia queda en la toma
-                obs_source_add_audio_capture_callback(src, &Toma::alAudio, t.get());
+                // El audio de la fuente después de su cadena, al anillo de la tarjeta.
+                std::weak_ptr<anillo::Ring> w = t->ring;
+                t->toma = eng->motor()->escucharEntrada(fuente, [w](const float* d, std::size_t cuadros) {
+                    auto r = w.lock();
+                    if (!r || cuadros == 0) return;
+                    thread_local std::vector<float> l, rr;
+                    l.resize(cuadros);
+                    rr.resize(cuadros);
+                    for (std::size_t i = 0; i < cuadros; ++i) {
+                        l[i] = d[2 * i];
+                        rr[i] = d[2 * i + 1];
+                    }
+                    r->push(l.data(), rr.data(), static_cast<std::uint32_t>(cuadros));
+                });
+                if (t->toma == 0) continue;
                 it = tomas_.emplace(clave, std::move(t)).first;
             }
             f->rack->setEntradaAnillo(nodo, it->second->ring);
@@ -1395,33 +1269,25 @@ void RackManager::sincronizarEntradas() {
     }
 }
 
-void RackManager::ponerRackEnFuente(obs_source_t* src, const std::string& rack) {
+void RackManager::ponerRackEnFuente(const std::string& fuente, const std::string& rack) {
     // Solo el ajuste `rack` de la entrada (se mezcla con los demás): la cadena
-    // se rearma con (o sin) `barack` al frente del audio.
-    obs_data_t* d = obs_data_create();
-    obs_data_set_string(d, "rack", rack.c_str());
-    obs_source_update(src, d);
-    obs_data_release(d);
+    // se rearma con (o sin) `barack` al frente del audio. Por la app: queda
+    // también en la configuración guardada.
+    fuentes::cambiarAjustes(fuente, json{{"rack", rack}});
 }
 
 void RackManager::revisarRacksGst() {
-    // Una entrada de GStreamer que se fue (la borraron, o se rearmó como fuente
-    // nueva): su rack queda pendiente y vuelve cuando aparezca otra con ese nombre.
+    // Una entrada que se fue (la borraron, o se rearmó como fuente nueva): su
+    // rack queda pendiente y vuelve cuando aparezca otra con ese nombre.
     std::vector<std::string> idas;
     for (const auto& [nombre, f] : gstFilters_) {
-        obs_source_t* src = obs_get_source_by_name(nombre.c_str());
-        const bool sigue = src != nullptr && !obs_source_removed(src);
-        if (src != nullptr) {
-            // La misma entrada, pero sin el ajuste (p. ej. le cambiaron los ajustes
-            // desde la configuración guardada): se le vuelve a pedir el rack.
-            if (sigue) {
-                obs_data_t* d = obs_source_get_settings(src);
-                if (d != nullptr && std::string(obs_data_get_string(d, "rack")) != nombre) ponerRackEnFuente(src, nombre);
-                if (d != nullptr) obs_data_release(d);
-            }
-            obs_source_release(src);
+        if (!existe(nombre)) {
+            idas.push_back(nombre);
+            continue;
         }
-        if (!sigue) idas.push_back(nombre);
+        // La misma entrada, pero sin el ajuste (p. ej. le cambiaron los ajustes
+        // desde la configuración guardada): se le vuelve a pedir el rack.
+        if (ajustesDe(nombre).value("rack", std::string()) != nombre) ponerRackEnFuente(nombre, nombre);
     }
     for (const std::string& n : idas) {
         auto it = gstFilters_.find(n);
@@ -1433,16 +1299,12 @@ void RackManager::revisarRacksGst() {
 }
 
 void RackManager::montarPendientes() {
-    if (!obs_initialized() || !pending_.is_object()) return;
+    if (motorApp() == nullptr || !pending_.is_object()) return;
     std::vector<std::string> nombres;
     for (auto it = pending_.begin(); it != pending_.end(); ++it)
         if (!filters_.contains(it.key())) nombres.push_back(it.key());
-    for (const std::string& n : nombres) {
-        obs_source_t* src = obs_get_source_by_name(n.c_str());
-        if (src == nullptr) continue;
-        obs_source_release(src);
-        rack(n, true);
-    }
+    for (const std::string& n : nombres)
+        if (existe(n)) rack(n, true);
 }
 
 // --- Grabar lo que le llega a la tarjeta de salida -----------------------------------

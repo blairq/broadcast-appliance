@@ -17,7 +17,8 @@
 //   rack             el rack de audio (barack fuente=<rack>), primero en la cadena del audio
 //   filtros          {"video":[…], "audio":[…], "alfa":bool} (JSON o texto JSON)
 //   filtros_audio    [… ] (los de audio, aparte)
-//   normalizar (true), audio (true), estudio (true), latencia, desfase (ms), ntp_sync (true)
+//   normalizar (true), audio (true), estudio (true), latencia, desfase (ms, audio y video),
+//   desfase_audio (ms, solo el audio: la «sincronía» de la app), ntp_sync (true)
 //   superres, superres_motor, superres_modelo   (la superresolución vieja: un filtro más)
 //   nombre           el que se muestra en la placa «sin señal» (de fábrica, el id)
 //
@@ -81,6 +82,14 @@ class Entrada {
     /// Lo llama el motor seguido (~20 veces por segundo): bus, reintentos, vigías, latencia.
     void tic();
     nlohmann::json estado() const;
+    /// Una propiedad de un elemento de la cadena (por nombre: ba_f_<id>, ba_fa_<id>), en vivo.
+    std::string propiedad(const std::string& elemento, const std::string& prop, const std::string& valor);
+    /// Las propiedades legibles de un elemento de la cadena (vacío si no está).
+    nlohmann::json leerPropiedades(const std::string& elemento) const;
+    /// El canal de control: un evento «ba/control» (GST_EVENT_CUSTOM_DOWNSTREAM_OOB)
+    /// con estos campos recorre la cadena; cada elemento que lo entiende lo usa.
+    /// Se recuerda (se suma a lo anterior): una cadena rearmada lo recibe de nuevo.
+    void control(const nlohmann::json& campos);
 
     bool daVideo() const;
     bool daAudio() const;
@@ -106,6 +115,8 @@ class Entrada {
 
    private:
     void leer(const nlohmann::json& a);
+    nlohmann::json estadoFiltros() const;
+    bool enviarControl();
     void armar();
     void desarmar();
     void programarReintento();
@@ -131,9 +142,10 @@ class Entrada {
     std::string filtrosJson_, superresMotor_, superresModelo_;
     std::vector<Filtro> filtrosV_, filtrosA_;
     bool alfa_ = false, normalizar_ = true, conAudio_ = true, estudio_ = true, ntpSync_ = true, superres_ = false;
-    std::int64_t latenciaMs_ = 0, desfaseMs_ = 0;
+    std::int64_t latenciaMs_ = 0, desfaseMs_ = 0, desfaseAudioMs_ = 0;
     bool medio_ = false, bucle_ = false, limpiarAlTerminar_ = true;
     bool deApp_ = false;   ///< tipo=app: los cuadros los empuja la app
+    bool estatica_ = false; ///< color, imagen, texto, app: no se caen (sin placa «sin señal»)
     int appAncho_ = 0, appAlto_ = 0;
     std::string firma_; ///< lo que obliga a rearmar
 
@@ -166,6 +178,8 @@ class Entrada {
     std::deque<double> edades_;  ///< lo viejo que salen los últimos cuadros (ms; sin video, los bloques de audio)
     std::deque<double> edadesA_; ///< lo viejo que salen los bloques de audio (ms)
     std::uint64_t cuadros_ = 0, bloques_ = 0;
+    nlohmann::json control_ = nlohmann::json::object(); ///< bajo mu_
+    bool controlEnviado_ = false;
     std::uint64_t ultimoDatoNs_ = 0;
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale

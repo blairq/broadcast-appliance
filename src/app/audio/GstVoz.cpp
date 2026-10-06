@@ -4,6 +4,8 @@
 
 #include "audio/GstVoz.hpp"
 
+#include <algorithm>
+
 #include <atomic>
 #include <condition_variable>
 #include <deque>
@@ -23,9 +25,10 @@ namespace ba::app::audio::gstvoz {
 namespace {
 
 struct Tramo {
-    std::vector<float> muestras;
+    std::vector<float> muestras; ///< intercaladas
     std::uint32_t frecuencia = 0;
     std::uint64_t ts = 0;
+    int canales = 1;
 };
 
 struct Cola {
@@ -53,16 +56,25 @@ std::shared_ptr<Cola> colaDe(const std::string& voz) {
 
 } // namespace
 
-void encolar(const std::string& voz, const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t ts) {
+void encolar(const std::string& voz, const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t ts,
+             int canales) {
     if (muestras == nullptr || n == 0 || frecuencia == 0) return;
+    canales = std::clamp(canales, 1, 2);
     auto c = colaDe(voz);
     {
         std::lock_guard<std::mutex> l(c->mu);
-        c->tramos.push_back({std::vector<float>(muestras, muestras + n), frecuencia, ts});
+        c->tramos.push_back(
+            {std::vector<float>(muestras, muestras + n * static_cast<std::size_t>(canales)), frecuencia, ts, canales});
         // Tope: 2 minutos encolados (algo se trabó del otro lado).
         while (c->tramos.size() > 2000) c->tramos.pop_front();
     }
     c->cv.notify_all();
+}
+
+void vaciar(const std::string& voz) {
+    auto c = colaDe(voz);
+    std::lock_guard<std::mutex> l(c->mu);
+    c->tramos.clear();
 }
 
 bool registrado() { return g_registrado.load(); }
@@ -90,6 +102,7 @@ struct _BaVoz {
     std::string* voz;
     std::atomic<bool> parar;
     std::uint32_t frecuencia; ///< la de las caps negociadas (0 = sin negociar)
+    int canales;
 };
 
 G_DEFINE_TYPE(BaVoz, ba_voz, GST_TYPE_PUSH_SRC)
@@ -98,7 +111,7 @@ enum { PROP_0, PROP_VOZ };
 
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     "src", GST_PAD_SRC, GST_PAD_ALWAYS,
-    GST_STATIC_CAPS("audio/x-raw, format=(string)F32LE, layout=(string)interleaved, rate=(int)[1, MAX], channels=(int)1"));
+    GST_STATIC_CAPS("audio/x-raw, format=(string)F32LE, layout=(string)interleaved, rate=(int)[1, MAX], channels=(int)[1, 2]"));
 
 static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
     using namespace ba::app::audio::gstvoz;
@@ -120,14 +133,15 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         t = std::move(cola->tramos.front());
         cola->tramos.pop_front();
     }
-    if (t.frecuencia != v->frecuencia) {
+    if (t.frecuencia != v->frecuencia || t.canales != v->canales) {
         GstCaps* caps = gst_caps_new_simple("audio/x-raw", "format", G_TYPE_STRING, "F32LE", "layout", G_TYPE_STRING,
                                             "interleaved", "rate", G_TYPE_INT, static_cast<int>(t.frecuencia), "channels",
-                                            G_TYPE_INT, 1, nullptr);
+                                            G_TYPE_INT, t.canales, nullptr);
         const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
         gst_caps_unref(caps);
         if (!ok) return GST_FLOW_NOT_NEGOTIATED;
         v->frecuencia = t.frecuencia;
+        v->canales = t.canales;
     }
     const gsize bytes = t.muestras.size() * sizeof(float);
     GstBuffer* b = gst_buffer_new_allocate(nullptr, bytes, nullptr);
@@ -144,7 +158,8 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         pts = r > 0 ? static_cast<GstClockTime>(r) : 0;
     }
     GST_BUFFER_PTS(b) = pts;
-    GST_BUFFER_DURATION(b) = gst_util_uint64_scale(t.muestras.size(), GST_SECOND, t.frecuencia);
+    GST_BUFFER_DURATION(b) =
+        gst_util_uint64_scale(t.muestras.size() / static_cast<std::size_t>(t.canales), GST_SECOND, t.frecuencia);
     *out = b;
     return GST_FLOW_OK;
 }
@@ -168,6 +183,7 @@ static gboolean desbloquearFin(GstBaseSrc* bs) {
 
 static gboolean alParar(GstBaseSrc* bs) {
     BA_VOZ(bs)->frecuencia = 0;
+    BA_VOZ(bs)->canales = 0;
     return TRUE;
 }
 

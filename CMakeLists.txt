@@ -23,7 +23,7 @@ cmake_minimum_required(VERSION 3.21)
 project(
     BroadcastAppliance
     VERSION 2.0.0
-    DESCRIPTION "Broadcast Appliance Portable v2 (libobs embebido + Gateway WebRTC + Supervisor)"
+    DESCRIPTION "Broadcast Appliance Portable v2 (motor GStreamer + Gateway WebRTC + Supervisor)"
     LANGUAGES C CXX
 )
 
@@ -227,8 +227,6 @@ include(CTest)
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
 # contra ella. El launcher solo existe en Windows (Win32 puro); el resto se
 # configura en ambas plataformas.
-# --- libobs portable (Linux y Windows) --------------------------------------
-# Define el target importado `ba::libobs` y `BA_HAVE_LIBOBS`. Ver el modulo.
 if(BA_WIN_STATIC_PART)
     add_subdirectory(src/core)
     add_subdirectory(src/launcher)
@@ -237,7 +235,6 @@ if(BA_WIN_STATIC_PART)
 endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/BaOnnxRuntime.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaGStreamer.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaPython.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaHerramientas.cmake)
@@ -266,14 +263,15 @@ else()
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
 endif()
-add_subdirectory(src/app)
-add_subdirectory(src/grafico)
-add_subdirectory(src/obs-module)
-# Plugins de GStreamer propios (superresolución): solo si hay GStreamer.
+# El motor de emisión es GStreamer (src/motor) y sus plugins propios: la app
+# los necesita (sin GStreamer, ba-app se compila sin motor: solo herramientas).
+set(BA_HAVE_MOTOR ${BA_HAVE_GST})
 if(BA_HAVE_GST)
     add_subdirectory(src/gst-plugins)
-    add_subdirectory(src/motor) # el motor de GStreamer (sin libobs)
+    add_subdirectory(src/motor)
 endif()
+add_subdirectory(src/app)
+add_subdirectory(src/grafico)
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
 # El layout espeja el portable de OBS (spec §5.1). Las rutas de destino son
@@ -282,9 +280,8 @@ endif()
 # VC++, cloudflared) los copia `tools/deploy` sobre este esqueleto.
 #
 #   <prefix>/
-#   ├── bin/64bit/            # ejecutables y DLLs propias
-#   ├── obs-plugins/64bit/    # plugins de libobs (incluye ba-sources)
-#   ├── data/libobs/          # shaders (*.effect) de libobs
+#   ├── bin/64bit/            # ejecutables y bibliotecas (GStreamer, Qt)
+#   ├── gst-plugins/          # los plugins de GStreamer propios
 #   ├── Config/               # configuración del usuario
 #   ├── Logs/                 # logs rotativos y dumps
 #   ├── Recordings/           # grabación de respaldo
@@ -299,12 +296,6 @@ endif()
 # `install(DIRECTORY DESTINATION ...)` sin fuente crea el directorio vacío.
 install(DIRECTORY
     DESTINATION bin/64bit
-)
-install(DIRECTORY
-    DESTINATION obs-plugins/64bit
-)
-install(DIRECTORY
-    DESTINATION data/libobs
 )
 install(DIRECTORY
     DESTINATION Config
@@ -341,53 +332,6 @@ if(NOT WIN32 AND NOT APPLE)
     install(PROGRAMS packaging/bundle/crear-acceso-directo.sh
         DESTINATION . COMPONENT bundle
     )
-endif()
-
-# --- Runtime de libobs dentro del bundle (portable) -------------------------
-# El bundle tiene que correr en una maquina SIN nada instalado (README, "el
-# build es self-contained"). Para eso se lleva su propia libobs, su modulo
-# grafico y los plugins de codificacion/salida/captura, y los binarios los
-# buscan con rpath $ORIGIN, o sea JUNTO A ELLOS, nunca en el sistema.
-if(BA_HAVE_LIBOBS)
-    # Bibliotecas: libobs, libobs-opengl (o las DLL en Windows) -> bin/64bit.
-    install(FILES ${BA_LIBOBS_RUNTIME_LIBS} DESTINATION bin/64bit)
-    # macOS: libobs.framework es una carpeta (con enlaces simbolicos adentro).
-    foreach(_d IN LISTS BA_LIBOBS_RUNTIME_DIRS)
-        install(DIRECTORY "${_d}" DESTINATION bin/64bit USE_SOURCE_PERMISSIONS)
-    endforeach()
-    if(BA_LIBOBS_RUNTIME_PROGRAMS)
-        install(PROGRAMS ${BA_LIBOBS_RUNTIME_PROGRAMS} DESTINATION bin/64bit)
-    endif()
-
-    # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
-    if(APPLE AND EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
-        # Bundles .plugin enteros (binario + Resources con sus datos).
-        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/" DESTINATION obs-plugins/64bit USE_SOURCE_PERMISSIONS)
-    elseif(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
-        set(_ba_excl "")
-        foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
-            list(APPEND _ba_excl PATTERN "${_p}.dll" EXCLUDE)
-        endforeach()
-        # CEF (navegador de OBS): no se usa.
-        list(APPEND _ba_excl PATTERN "libcef.dll" EXCLUDE PATTERN "chrome_elf.dll" EXCLUDE
-             PATTERN "libEGL.dll" EXCLUDE PATTERN "libGLESv2.dll" EXCLUDE PATTERN "locales" EXCLUDE)
-        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/"
-            DESTINATION obs-plugins/64bit
-            FILES_MATCHING PATTERN "*.so" PATTERN "*.dll" ${_ba_excl})
-    endif()
-
-    # Datos de libobs y de sus plugins (shaders .effect, locales) -> data/.
-    if(EXISTS "${BA_LIBOBS_DATA_DIR}/libobs")
-        install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/libobs/" DESTINATION data/libobs)
-    endif()
-    if(EXISTS "${BA_LIBOBS_DATA_DIR}/obs-plugins")
-        set(_ba_excl "")
-        foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
-            list(APPEND _ba_excl PATTERN "${_p}" EXCLUDE)
-        endforeach()
-        install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/obs-plugins/"
-            DESTINATION data/obs-plugins ${_ba_excl})
-    endif()
 endif()
 
 # Runtime de C++ del compilador (Linux): bin/64bit/cxx/. El launcher lo usa
@@ -443,7 +387,7 @@ if(APPLE)
 endif()
 
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
-if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE)
+if(NOT WIN32 AND NOT APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)
 endif()
 

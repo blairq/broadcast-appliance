@@ -85,17 +85,27 @@ class Motor {
 
     // --- Entradas ---
     /// opciones: {"global": bool (suena siempre), "en_escena": bool (de fábrica: global),
+    ///            "interna": bool (de la app: no va al multiview),
     ///            "nivel": lineal, "mute": bool, "pistas": [1…6] (de fábrica [1]: el programa)}
     std::string agregarEntrada(const std::string& id, const nlohmann::json& ajustes,
                                const nlohmann::json& opciones = nlohmann::json::object());
     std::string actualizarEntrada(const std::string& id, const nlohmann::json& ajustes);
     std::string quitarEntrada(const std::string& id);
+    /// Una propiedad de un elemento de la cadena de la entrada (ba_f_<filtro>), en vivo.
+    std::string propiedadEntrada(const std::string& id, const std::string& elemento, const std::string& prop,
+                                 const std::string& valor);
+    /// Las propiedades legibles de ese elemento (vacío si no está).
+    nlohmann::json propiedadesEntrada(const std::string& id, const std::string& elemento) const;
+    /// El canal de control «ba/control» de la entrada (ver Entrada::control).
+    std::string controlEntrada(const std::string& id, const nlohmann::json& campos);
     std::string ponerNivel(const std::string& id, double lineal);
     std::string ponerMute(const std::string& id, bool mute);
     /// A qué pistas va (1 = el programa; 2…6 = la grabación multipista).
     std::string ponerPistas(const std::string& id, const std::vector<int>& pistas);
     /// Las entradas de escena que están al aire (las demás de escena se apagan).
     void escenaAlAire(const std::vector<std::string>& ids, int fundidoMs);
+    /// {estado (none|playing|paused|stopped|ended|error), tiempo_ms, duracion_ms}; null si no es un medio.
+    nlohmann::json medio(const std::string& id) const;
     /// Controles de un medio: play, pausa, reiniciar, parar; `ir` con ms.
     std::string controlMedio(const std::string& id, const std::string& accion, std::int64_t ms = -1);
 
@@ -129,8 +139,12 @@ class Motor {
     std::string retorno(int n, const std::string& modo, const std::string& propia);
 
     // --- La escucha ---
-    /// modo: programa | directo | pfl | apagado; `id` = la entrada (pfl).
+    /// modo: programa | directo | pfl | seleccion | apagado; `id` = la entrada (pfl).
+    /// «seleccion»: la suma de las entradas marcadas con ponerEscucha.
     std::string escuchar(const std::string& modo, const std::string& id = "");
+    /// Marca (o desmarca) una entrada para la escucha «selección». Con alguna
+    /// marcada la escucha pasa a «seleccion»; sin ninguna, se apaga.
+    std::string ponerEscucha(const std::string& id, bool on);
     void escuchaDispositivo(const std::string& id);
     void escuchaNivel(double lineal);
 
@@ -141,6 +155,15 @@ class Motor {
     /// el loudness, los picos, la medición de sincronía. Devuelve un id para sacarlo.
     int escucharPrograma(std::function<void(const float*, std::size_t cuadros)> fn);
     void dejarDeEscuchar(int id);
+    /// El audio de UNA entrada después de su cadena (lo mismo que va a la mezcla),
+    /// estéreo intercalado a 48 kHz, en el hilo de GStreamer, apenas llega (sin
+    /// esperar al reloj): la matriz de la app lo usa para sus buses virtuales.
+    /// Con la entrada silenciada llegan ceros (como lo que va a la mezcla).
+    int escucharEntrada(const std::string& id, std::function<void(const float*, std::size_t cuadros)> fn);
+    void dejarDeEscucharEntrada(int toma);
+    /// ¿Sigue andando esa toma? (un motor rearmado no tiene las del anterior:
+    /// los números no se repiten entre motores).
+    bool tomaViva(int toma) const;
     bool ponerLimitador(bool activo, double techoDb);
     void ponerTopeEstudio(std::int64_t ms);
 
@@ -162,6 +185,9 @@ class Motor {
 
     nlohmann::json estado() const;
     Reloj& reloj() { return *reloj_; }
+    /// Publica el reloj del estudio en la red (GstNetTimeProvider) para que otros
+    /// aparatos lo usen (reloj «red»). 0 = dejar de publicar. "" o el error.
+    std::string publicarReloj(int puerto);
     const Lienzo& lienzo() const { return cfg_.lienzo; }
     /// Lo que entrega un bus (para la grabación, más adelante): "bus:programa", "bus:pista2"…
     /// y cuánto tarda en salir (ns). "" si no existe.
@@ -170,16 +196,18 @@ class Motor {
    private:
     struct Canal {
         std::unique_ptr<Entrada> entrada;
-        bool global = false, enEscena = false;
+        bool global = false, enEscena = false, interna = false;
         double nivel = 1.0;
         bool mute = false;
         unsigned pistas = 1; ///< bit 0 = programa, bit n-1 = pista n
+        bool escucha = false; ///< va a la escucha «selección»
     };
     struct Retorno {
         std::string modo, propia;
         std::unique_ptr<Mezcla> bus;
     };
     void bucle();
+    void enSeleccion(const std::string& id, const Canal& c);
     /// Pone (o saca) una entrada en un bus con el estado del canal.
     void enBus(Mezcla& m, const std::string& id, const Canal& c, bool incluir, int fundidoMs);
     /// Lleva un canal a todos los buses donde corresponde.
@@ -190,9 +218,11 @@ class Motor {
 
     Config cfg_;
     std::unique_ptr<Reloj> reloj_;
+    GstObject* relojPublicado_ = nullptr; ///< GstNetTimeProvider
     mutable std::recursive_mutex mu_;
     std::map<std::string, Canal> canales_;
     std::unique_ptr<Mezcla> programa_, directo_;
+    std::unique_ptr<Mezcla> seleccion_; ///< la escucha «selección»
     std::map<int, std::unique_ptr<Mezcla>> pistas_;
     GstElement* puente_ = nullptr; ///< bus:programa → BA.Audio.ContentForReturn
     std::int64_t puenteLatNs_ = -1;
@@ -211,6 +241,13 @@ class Motor {
     std::set<std::string> dskEscenas_;
     // La toma de audio del programa
     GstElement* tomaAudio_ = nullptr;
+    struct TomaEntrada {
+        GstElement* pipeline = nullptr;
+        std::string id;
+        std::atomic<bool> mute{false}; ///< la entrada está silenciada: llegan ceros
+        std::function<void(const float*, std::size_t)> fn;
+    };
+    std::map<int, std::unique_ptr<TomaEntrada>> tomasEntrada_; ///< bajo mu_ (fn se llama sin él)
     std::mutex tomaMu_;
     std::map<int, std::function<void(const float*, std::size_t)>> oyentes_;
     int proximoOyente_ = 1;

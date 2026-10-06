@@ -13,7 +13,7 @@
 #include "dsp/Resampler.hpp"
 #endif
 
-#include <util/platform.h>
+#include "HoraMonotonica.hpp"
 
 #include <QMetaObject>
 #include <QSet>
@@ -205,7 +205,7 @@ void VocesRack::decirCon(const nlohmann::json& tarjeta, const QString& texto) {
             rs.configure(static_cast<int>(f), kSalida, 1, ba::dsp::Quality::SincMedium);
             if (!rs.resample(m, n, out.data(), out.size(), &hechos) || hechos == 0) return;
             // Pegado a lo anterior de esta tarjeta; si no suena nada, un poco adelante.
-            const std::uint64_t ahora = os_gettime_ns();
+            const std::uint64_t ahora = ba::app::ahoraNs();
             std::uint64_t ts;
             {
                 std::lock_guard<std::mutex> l(proximoLock_);

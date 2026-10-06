@@ -715,7 +715,7 @@ void ConferenceViewModel::takeShare(const QString& id) {
     const std::string scene = rt_.engine().currentScene();
     const QString base = share.value("participantName").toString() + " — " + shown;
     QString name = base;
-    for (int n = 2; rt_.engine().sourceHandle(name.toStdString()) != nullptr; ++n)
+    for (int n = 2; rt_.engine().sourceExists(name.toStdString()); ++n)
         name = base + QString(" (%1)").arg(n);
     spec.name = name.toStdString();
     if (!rt_.addSource(scene, spec)) {

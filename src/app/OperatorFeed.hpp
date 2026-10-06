@@ -5,20 +5,19 @@
 //   Quien espera en el lobby ve SOLO al operador (nunca el programa ni a los
 //   demas que esperan). A le publica a B:
 //     - BA.Operator         video de la fuente que el operador elija (su
-//                           camara), a 640x360, desde una vista PROPIA de
-//                           libobs (obs_view con su mezcla, escalada en GPU):
-//                           no toca el programa ni su lienzo;
-//     - BA.Audio.Operator   su microfono, capturado directo de la fuente
-//                           (antes de la mezcla del programa).
+//                           camara), a 640x360 (con bandas), desde una vista
+//                           PROPIA del motor: no toca el programa ni su lienzo;
+//     - BA.Audio.Operator   su microfono, tomado de su entrada (despues de su
+//                           cadena, antes de la mezcla del programa).
 //   B decide a quien le llega (video a todo el lobby; voz solo a con quien el
 //   operador esta hablando).
 //
 //   Y a la inversa, el MONITOREO: la voz de quien espera (BA.Audio.Lobby.<k>)
-//   se escucha por los auriculares del operador (monitoreo, nunca la mezcla
-//   del programa) solo mientras le esta hablando.
+//   se escucha por los auriculares del operador (la escucha «seleccion» del
+//   motor, nunca la mezcla del programa) solo mientras le esta hablando.
 //
 // Threading: configure/stop/setLobbyMonitor desde el thread de la interfaz;
-// los callbacks de video/audio llegan desde threads de libobs.
+// los cuadros y el audio llegan desde threads de GStreamer.
 // ============================================================================
 #pragma once
 
@@ -31,13 +30,6 @@
 
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
-
-struct obs_scene;
-struct obs_source;
-struct obs_view;
-struct video_output;
-struct video_data;
-struct audio_data;
 
 namespace ba::app {
 
@@ -59,7 +51,7 @@ class OperatorFeed {
     /// :returns: false si alguna fuente no existe (el resto queda armado).
     bool configure(BroadcastEngine& engine, const std::string& videoSource, const std::string& audioSource);
     void stop();
-    /// stop() + libera el monitoreo. Llamar ANTES de apagar libobs.
+    /// stop() + libera el monitoreo. Llamar ANTES de apagar el motor.
     void shutdown();
 
     /// Crea las fuentes de monitoreo del lobby (1..count), silenciadas.
@@ -78,28 +70,26 @@ class OperatorFeed {
     void setPushToTalk(bool on) { ptt_ = on; }
     bool pushToTalk() const { return ptt_; }
     /// Si hay un micrófono del operador elegido (Sala): sin él no hay dictado.
-    bool hayMicrofono() const { return audioSrc_ != nullptr; }
+    bool hayMicrofono() const { return tomaAudio_ != 0; }
 
     const std::string& videoSource() const { return videoName_; }
     const std::string& audioSource() const { return audioName_; }
 
    private:
-    static void onVideo(void* param, struct video_data* frame);
-    static void onAudio(void* param, struct obs_source* source, const struct audio_data* data, bool muted);
+    void onAudio(const float* estereo, std::size_t frames);
     void stopVideo();
     void stopAudio();
 
     // Video
-    struct obs_scene* scene_ = nullptr;
-    struct obs_view* view_ = nullptr;
-    struct video_output* video_ = nullptr;
+    std::string vista_; ///< la clave de la vista del motor ("" = ninguna)
+    std::mutex videoLock_;
     ba::ipc::SpoutSender sender_;
     std::vector<std::uint8_t> packed_;
     std::uint64_t frameIndex_ = 0;
     std::string videoName_;
 
     // Audio
-    struct obs_source* audioSrc_ = nullptr;
+    int tomaAudio_ = 0; ///< la toma del motor (escucharEntrada)
     ba::ipc::SharedAudioRing ring_;
     std::mutex audioLock_;
     std::vector<float> audioBuf_; // estereo intercalado pendiente de bloque
@@ -109,8 +99,8 @@ class OperatorFeed {
     std::mutex dictadoLock_;
     Dictado dictado_;
 
-    // Monitoreo del lobby
-    std::vector<struct obs_source*> lobbyMonitors_;
+    // Monitoreo del lobby: entradas internas del motor (no van a la mezcla ni a las listas)
+    std::vector<std::string> lobbyMonitors_;
 };
 
 } // namespace ba::app

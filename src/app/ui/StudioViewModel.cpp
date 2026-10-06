@@ -32,7 +32,7 @@
 #include <QStorageInfo>
 #include <QUrl>
 
-#include <util/platform.h>
+#include "HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -1095,7 +1095,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         sources_->reload();
         mixer_->reload();
     });
-    cpuInfo_ = os_cpu_usage_info_start();
 
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
@@ -1120,11 +1119,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
 }
 
-StudioViewModel::~StudioViewModel() {
-    if (cpuInfo_ != nullptr) {
-        os_cpu_usage_info_destroy(static_cast<os_cpu_usage_info_t*>(cpuInfo_));
-    }
-}
+StudioViewModel::~StudioViewModel() = default;
 
 void StudioViewModel::tiemposCentral() {
     // El tiempo del que tiene la palabra (presencial o remoto), una vez por segundo:
@@ -1252,7 +1247,7 @@ void StudioViewModel::onTick() {
     } else if (!st.streaming) {
         kbps_ = 0;
     }
-    cpu_ = os_cpu_usage_info_query(static_cast<os_cpu_usage_info_t*>(cpuInfo_));
+    cpu_ = cpuUso_.medir();
     gatewayAlive_ = rt_.gatewayAlive();
     float l = -100;
     float r = -100;
