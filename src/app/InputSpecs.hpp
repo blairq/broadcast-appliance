@@ -78,6 +78,12 @@ std::string ajustesVideoInvitado(int slot, const std::string& channel);
 bool esVideoInvitado(const std::string& type, const std::string& settingsJson);
 /// Un ba_guest_video pasado a GStreamer (mismo nombre, lugar y recorte).
 bool migrarVideoInvitado(SourceSpec& spec);
+
+/// Una entrada NDI por GStreamer: `ba_gst_fuente` con `bandisrc` (libNoIDea) y
+/// `avdec_speedhq`. Guarda ndi_name/host/port como el ba_ndi_input de antes.
+std::string ajustesNdi(const std::string& nombre, const std::string& host, int port);
+/// Un ba_ndi_input pasado a GStreamer (mismo nombre, lugar y recorte).
+bool migrarNdi(SourceSpec& spec);
 /// Un ffmpeg_source de un archivo local pasado a ba_gst_medio (los de red
 /// quedan). false si no era uno.
 bool migrarMedio(SourceSpec& spec);

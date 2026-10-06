@@ -1004,7 +1004,10 @@ bool AppRuntime::setTransition(const std::string& type, int durationMs) {
 bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
     SourceSpec spec = pedida; // se guarda como la creó el motor (un archivo: ba_gst_medio)
     if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
-    if (engine_.sourceTypeExists(inputs::kMicType)) inputs::migrarVideoInvitado(spec);
+    if (engine_.sourceTypeExists(inputs::kMicType)) {
+        inputs::migrarVideoInvitado(spec);
+        inputs::migrarNdi(spec);
+    }
     if (!engine_.addSource(scene, spec)) {
         lastError_ = engine_.lastError();
         return false;

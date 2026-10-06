@@ -93,6 +93,7 @@ std::string tipoLogico(const std::string& type, const json& settings) {
         if (settings.contains("camara")) return kVideoType;
         if (settings.value("video_invitado", false)) return "ba_guest_video";
         if (settings.contains("voz")) return "ba_voz_asistente";
+        if (settings.value("ndi", false)) return "ba_ndi_input";
         if (settings.contains("anillo")) return "ba_guest_audio";
         if (settings.contains("microfono")) return kAudioInLibobs;
     }
@@ -130,6 +131,36 @@ bool migrarVideoInvitado(SourceSpec& spec) {
     const std::string ch = s.is_object() ? s.value("channel", std::string("guest")) : "guest";
     spec.id = kMicType;
     spec.settingsJson = ajustesVideoInvitado(slot, ch);
+    return true;
+}
+
+std::string ajustesNdi(const std::string& nombre, const std::string& host, int port) {
+    std::string esc;
+    for (char c : nombre) {
+        if (c == '\\' || c == '"') esc += '\\';
+        esc += c;
+    }
+    std::string fuente = "bandisrc name=ba_ndi fuente=\"" + esc + "\"";
+    if (!host.empty()) fuente += " host=" + host;
+    if (port > 0) fuente += " port=" + std::to_string(port);
+    // La cámara NDI es una cámara del lugar: normalizada y con el estudio.
+    return json{{"pipeline", fuente + " ba_ndi.video ! avdec_speedhq"},
+                {"pipeline_audio", "ba_ndi.audio"},
+                {"audio", true},
+                {"normalizar", true},
+                {"ndi", true},
+                {"ndi_name", nombre},
+                {"host", host},
+                {"port", port}}
+        .dump();
+}
+
+bool migrarNdi(SourceSpec& spec) {
+    if (spec.id != "ba_ndi_input") return false;
+    const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
+    spec.id = kMicType;
+    spec.settingsJson = ajustesNdi(s.is_object() ? s.value("ndi_name", std::string()) : "",
+                                   s.is_object() ? s.value("host", std::string()) : "", s.is_object() ? s.value("port", 0) : 0);
     return true;
 }
 

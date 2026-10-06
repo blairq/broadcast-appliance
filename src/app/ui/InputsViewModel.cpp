@@ -157,7 +157,7 @@ void InputsViewModel::rebuildInputs() {
         const std::string type = e.sourceTypeId(n);
         const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
         const bool hw = inputs::esCamara(type, s);
-        const bool isNdi = type == "ba_ndi_input";
+        const bool isNdi = inputs::tipoLogico(type, s) == "ba_ndi_input";
         const bool net = inputs::isNetworkInput(type, s);
         if (!hw && !net) continue;
         int w = 0, h = 0;

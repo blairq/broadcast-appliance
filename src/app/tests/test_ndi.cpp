@@ -1,48 +1,84 @@
 // ============================================================================
-// src/app/tests/test_ndi.cpp — recepcion NDI(R) abierta (libNoIDea)
+// src/app/tests/test_ndi.cpp — recepción NDI(R) abierta (libNoIDea) por GStreamer
 //
 //   1. El descubrimiento mDNS arranca, vuelve a tiempo y no se cuelga (sin
-//      emisores en la red: lista vacia).
-//   2. El FFmpeg que viaja en el bundle tiene el decodificador SpeedHQ (el
-//      video de NDI completo) y lo puede abrir.
-// En Windows corre con las DLL de FFmpeg del runtime de OBS.
+//      emisores en la red: lista vacía).
+//   2. `bandisrc` se registra, y GStreamer del bundle tiene avdec_speedhq (el
+//      video de NDI completo) y acepta las caps que pone bandisrc (con la
+//      variante SHQ2 = 4:2:2, lo que manda NDI).
+//   3. Una cadena con una fuente NDI que no está arranca, queda esperando y se
+//      cierra limpia (sin colgarse ni romper).
 // ============================================================================
+
+#include "NdiSource.hpp"
+#include "video/CatalogoGst.hpp"
+
+#include <gst/gst.h>
 
 #include <chrono>
 #include <cstdio>
-
-extern "C" {
-#include <libavcodec/avcodec.h>
-}
-
-#include "NdiSource.hpp"
+#include <cstdlib>
+#include <thread>
 
 int main() {
-    int failures = 0;
+#if defined(BA_TEST_GST_RAIZ)
+    setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1);
+#endif
+    int fallos = 0;
     const auto t0 = std::chrono::steady_clock::now();
     const auto found = ba::app::ndi::discover(1500);
-    const auto ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
     std::printf("descubrimiento: %zu emisor(es) en %lld ms\n", found.size(), static_cast<long long>(ms));
     if (ms > 6000) {
-        std::printf("FALLO: el descubrimiento no volvio a tiempo\n");
-        ++failures;
+        std::printf("FALLO: el descubrimiento no volvió a tiempo\n");
+        ++fallos;
     }
-    const AVCodec* codec = avcodec_find_decoder(AV_CODEC_ID_SPEEDHQ);
-    if (codec == nullptr) {
-        std::printf("FALLO: el FFmpeg del bundle no tiene el decodificador SpeedHQ\n");
-        ++failures;
+    std::string e;
+    if (!ba::app::video::iniciarGStreamer(&e)) {
+        std::printf("SKIP: sin GStreamer (%s)\n", e.c_str());
+        return fallos == 0 ? 77 : 1;
+    }
+    if (!ba::app::ndi::registrarElemento()) {
+        std::printf("FALLO: no se registró bandisrc\n");
+        ++fallos;
+    }
+    GstElementFactory* dec = gst_element_factory_find("avdec_speedhq");
+    if (dec == nullptr) {
+        std::printf("FALLO: el GStreamer del bundle no tiene avdec_speedhq\n");
+        ++fallos;
     } else {
-        AVCodecContext* ctx = avcodec_alloc_context3(codec);
-        ctx->codec_tag = MKTAG('S', 'H', 'Q', '2'); // 4:2:2, lo que manda NDI
-        ctx->width = 1920;
-        ctx->height = 1080;
-        if (avcodec_open2(ctx, codec, nullptr) < 0) {
-            std::printf("FALLO: no se pudo abrir SpeedHQ\n");
-            ++failures;
+        GstCaps* caps = gst_caps_from_string("video/x-speedhq, variant=(string)SHQ2, width=(int)1920, height=(int)1080, framerate=(fraction)30/1");
+        if (!gst_element_factory_can_sink_any_caps(dec, caps)) {
+            std::printf("FALLO: avdec_speedhq no acepta las caps de bandisrc\n");
+            ++fallos;
         }
-        avcodec_free_context(&ctx);
+        gst_caps_unref(caps);
+        gst_object_unref(dec);
     }
-    if (failures == 0) std::printf("test_ndi: OK\n");
-    return failures == 0 ? 0 : 1;
+    GError* err = nullptr;
+    GstElement* p = gst_parse_launch("bandisrc name=n fuente=\"NO EXISTE (prueba)\" n.video ! avdec_speedhq ! fakesink async=false "
+                                     "n.audio ! audioconvert ! fakesink async=false",
+                                     &err);
+    if (err != nullptr) {
+        std::printf("FALLO: la cadena no se arma: %s\n", err->message);
+        g_error_free(err);
+        ++fallos;
+    } else {
+        const GstStateChangeReturn r = gst_element_set_state(p, GST_STATE_PLAYING);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+        const auto st = ba::app::ndi::statuses();
+        std::printf("estado: %zu receptor(es)%s\n", st.size(), st.empty() ? "" : (", " + st[0].error).c_str());
+        if (r == GST_STATE_CHANGE_FAILURE || st.size() != 1 || st[0].connected) {
+            std::printf("FALLO: tenía que quedar un receptor esperando\n");
+            ++fallos;
+        }
+        gst_element_set_state(p, GST_STATE_NULL);
+        gst_object_unref(p);
+        if (!ba::app::ndi::statuses().empty()) {
+            std::printf("FALLO: el receptor no se cerró\n");
+            ++fallos;
+        }
+    }
+    if (fallos == 0) std::printf("test_ndi: OK\n");
+    return fallos == 0 ? 0 : 1;
 }

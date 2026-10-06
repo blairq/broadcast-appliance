@@ -21,18 +21,19 @@ Cómo cablear los pipelines (reglas, el motor de destino sin libobs, subtítulos
 | **Audio de los invitados y del remoto con la palabra** (2026-10-05) | `ba_gst_fuente` + `baanillo canal=BA.Audio.Guest.<n>` (plugin `baipc`): lee el anillo que escribe el gateway. Para las plantillas y la interfaz siguen siendo «ba_guest_audio» (`inputs::tipoLogico`) |
 | **Cámaras y capturadoras del equipo** (2026-10-05) | `ba_gst_fuente` con `camara` = id estable (avfvideosrc / mfvideosrc / v4l2src, resuelto al armar), `camara_modo` opcional (sin modo: el que mejor va con el lienzo). Lista y modos del monitor de dispositivos (`video/Camaras.*`); las guardadas se migran solas. Sus tarjetas del grafo corren en su cadena |
 | **Video de los invitados, sus pantallas y el remoto con la palabra** (2026-10-05) | `ba_gst_fuente` + `bavideoanillo canal=BA.Guest.<n>` (plugin `baipc`): lee el canal que escribe el gateway, BGRA sin normalizar. Audio y video del invitado van por la hora que les pone el gateway (`qpc` pasado al reloj del pipeline), fuera de la compensación del estudio. Aparecen en el grafo de video (grupo Invitados); para las plantillas siguen siendo «ba_guest_video» |
+| **NDI** (2026-10-05) | `ba_gst_fuente` + `bandisrc` (registrado por la app, `NdiSource.*`): el receptor libNoIDea (abierto, sin el SDK de Vizrt) entrega SpeedHQ comprimido y audio; decodifica `avdec_speedhq` de GStreamer (ya no hace falta FFmpeg aparte). Ahora también en macOS. Los `ba_ndi_input` guardados se migran solos; tipo lógico `ba_ndi_input` |
 | **Voces del asistente y del teleprompter** (2026-10-05) | `ba_gst_fuente` + `bavoz voz=<nombre>` (registrado por la app, `audio/GstVoz.*`): MonitorVoz encola las frases con su hora (reloj de libobs) y el elemento las entrega a esa hora en el reloj del pipeline; su rack corre en barack |
 | **Medios locales y playlist** (2026-10-05) | `ba_gst_medio` (mismo código que `ba_gst_fuente`): un archivo con los ajustes de ffmpeg_source y los controles de medios de libobs (play/pausa, reiniciar, parar, ir a, tiempo, duración, estado). Mira qué tiene el archivo (GstDiscoverer) y arma solo esas ramas; `looping` sin cortes con saltos por segmentos. Cualquier ffmpeg_source de un archivo local se crea como `ba_gst_medio` (motor y carga de la configuración); sus racks corren en barack |
 | **Racks de audio (LSP/CLAP) de las entradas de GStreamer** (2026-10-05) | `barack`, registrado por la app (`audio/GstRack.*`): el mismo `AudioRack` corre en la cadena de audio de `ba_gst_fuente` (ajuste `rack`). Los racks guardados se montan solos donde corresponda |
 
 ## Todavía en libobs (en orden propuesto)
 
-1. **Racks de las fuentes que siguen en libobs** (voces, NDI): todavía como filtro de OBS
+1. **Racks de las fuentes que siguen en libobs** (lo que quede: la escucha del lobby, el audio del sistema): como filtro de OBS
    `ba_audio_rack`. Pasan solos a `barack` el día que su fuente pase a GStreamer (RackManager elige por el tipo
    de la fuente). La escucha del rack (la salida a los auriculares) sigue saliendo por el monitoreo de libobs
    hasta que se mude la mezcla (punto 5).
-4. **Audio del sistema** (`*_output_capture`), la escucha del lobby (`ba_guest_audio` privada, solo
-   auriculares) y NDI (`ba_ndi_input`): entradas de GStreamer (`ndisrc`).
+4. **Audio del sistema** (`*_output_capture`) y la escucha del lobby (`ba_guest_audio` privada, solo
+   auriculares): entradas de GStreamer.
 5. **La mezcla de audio** (mezclador de OBS, pistas, monitoreo) → `audiomixer` con buses, el limitador del
    máster (T12) y la matriz.
 6. **La composición de video** (escenas, transiciones, DSK, gráficos, multiview) → `compositor`/`glvideomixer`

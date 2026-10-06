@@ -29,6 +29,7 @@
 #include "platform/Paths.hpp"
 #if defined(BA_HAVE_NDI)
 #include "NdiSource.hpp"
+#include "video/CatalogoGst.hpp"
 #endif
 
 #include <obs.h>
@@ -379,7 +380,11 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     });
 #endif
 #if defined(BA_HAVE_NDI)
-    ndi::registerSourceType(); // entrada NDI(R) abierta (libNoIDea)
+    // Entrada NDI(R) abierta (libNoIDea) por GStreamer: `bandisrc`, registrado
+    // apenas GStreamer arranca (en otro hilo: la primera vez revisa sus plugins).
+    std::thread([]() {
+        if (video::iniciarGStreamer()) ndi::registrarElemento();
+    }).detach();
 #endif
 
     started_ = true;

@@ -275,7 +275,7 @@ void McpService::registerInputTools() {
                 media[m.name] = m.state;
             for (const std::string& n : e.sourceNames()) {
                 const std::string type = e.sourceTypeId(n);
-                const bool isNdi = type == "ba_ndi_input";
+                const bool isNdi = inputs::tipoLogico(type, json::parse(e.sourceSettingsJson(n), nullptr, false)) == "ba_ndi_input";
                 const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
                 const bool cam = inputs::esCamara(type, s);
                 if (!cam && type != "ffmpeg_source" && !isNdi) continue;

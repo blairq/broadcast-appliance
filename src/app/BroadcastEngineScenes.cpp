@@ -574,7 +574,10 @@ bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& 
     SourceSpec spec = pedida;
     if (sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
     // El video de un invitado, también por GStreamer (bavideoanillo).
-    if (sourceTypeExists(inputs::kMicType)) inputs::migrarVideoInvitado(spec);
+    if (sourceTypeExists(inputs::kMicType)) {
+        inputs::migrarVideoInvitado(spec);
+        inputs::migrarNdi(spec); // NDI por GStreamer (bandisrc)
+    }
     obs_scene* sc = sceneByName(sceneName);
     if (sc == nullptr) {
         setError("addSource: no existe la escena '" + sceneName + "'");
