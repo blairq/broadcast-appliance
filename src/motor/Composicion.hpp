@@ -17,6 +17,9 @@
 //     corte   la nueva aparece entera; la vieja se saca recién cuando la nueva
 //             ya dio su primer cuadro (nada de un cuadro negro en el medio).
 //     mezcla  la nueva entra encima con su alfa de 0 a 1 en `ms`; después se saca la vieja.
+//     empuje  la nueva entra desde la derecha empujando a la vieja hacia la izquierda.
+//     cortina la nueva se va descubriendo de izquierda a derecha (recorte + ancho del
+//             pad juntos: no se deforma).
 //   Mostrar la MISMA escena otra vez (mismo nombre) actualiza las capas en el
 //   lugar: posición, tamaño, recorte y alfa cambian andando, sin rearmar.
 // - Una capa cuya entrada no da video no se ve (el pad no tiene datos): la placa
@@ -109,6 +112,7 @@ class Composicion {
         double alfaHacia = 1.0;
         int orden = 0;
         GstElement* mx = nullptr;   ///< el compositor donde está (el de la escena o el del DSK)
+        Capa capa;                  ///< cómo tiene que quedar (para las transiciones)
         // Fundido propio (las del DSK)
         double alfaDesde = 0, alfa = 0;
         std::int64_t fundeDesdeNs = 0, fundeNs = 0;
@@ -119,6 +123,10 @@ class Composicion {
     Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
     void soltar(Rama& r);
     void sacarGeneracion(int gen);
+    /// La transición en curso en el punto `t` (0…1).
+    void animar(double t);
+    /// El ancho de lo que llega a una rama (antes del recorte); 0 si no se sabe aún.
+    static int anchoDeOrigen(const Rama& r);
     static GstPadProbeReturn alPrimerCuadro(GstPad* pad, GstPadProbeInfo* info, gpointer d);
 
     Reloj& reloj_;

@@ -311,7 +311,8 @@ std::string Motor::alAire(const std::string& nombre, const std::string& transici
     std::lock_guard<std::recursive_mutex> l(mu_);
     auto it = escenas_.find(nombre);
     if (it == escenas_.end()) return "no hay una escena «" + nombre + "»";
-    if (transicion != "corte" && transicion != "mezcla") return "transición: corte o mezcla";
+    if (transicion != "corte" && transicion != "mezcla" && transicion != "empuje" && transicion != "cortina")
+        return "transición: corte, mezcla, empuje o cortina";
     alAire_ = nombre;
     if (vPrograma_) vPrograma_->mostrar(it->second, transicion, ms);
     actualizarMultiview();
@@ -319,7 +320,7 @@ std::string Motor::alAire(const std::string& nombre, const std::string& transici
     std::vector<std::string> ids;
     for (const auto& c : it->second.capas)
         if (c.visible) ids.push_back(c.entrada);
-    escenaAlAire(ids, transicion == "mezcla" ? ms : 0);
+    escenaAlAire(ids, transicion == "corte" ? 0 : ms);
     return {};
 }
 

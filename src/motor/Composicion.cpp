@@ -199,6 +199,46 @@ void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
                  "bottom", std::max(0, c.recAba), nullptr);
     r.alfaHacia = c.visible ? c.alfa : 0.0;
     r.orden = c.orden;
+    r.capa = c;
+}
+
+int Composicion::anchoDeOrigen(const Rama& r) {
+    int w = 0;
+    if (GstPad* p = gst_element_get_static_pad(r.recorte, "sink")) {
+        if (GstCaps* c = gst_pad_get_current_caps(p)) {
+            gst_structure_get_int(gst_caps_get_structure(c, 0), "width", &w);
+            gst_caps_unref(c);
+        }
+        gst_object_unref(p);
+    }
+    return w;
+}
+
+void Composicion::animar(double t) {
+    const int W = lienzo_.ancho;
+    for (auto& [k, r] : ramas_) {
+        const bool nueva = r->generacion == generacion_;
+        const Capa& c = r->capa;
+        const int w = c.ancho > 0 ? c.ancho : lienzo_.ancho;
+        if (transicion_ == "mezcla") {
+            if (nueva) g_object_set(r->pad, "alpha", r->alfaHacia * t, nullptr);
+        } else if (transicion_ == "empuje") {
+            const int dx = static_cast<int>(std::lround((nueva ? (1.0 - t) : -t) * W));
+            g_object_set(r->pad, "xpos", c.x + dx, nullptr);
+        } else if (transicion_ == "cortina" && nueva) {
+            const double borde = t * W;
+            const int vis = static_cast<int>(std::clamp(borde - c.x, 0.0, static_cast<double>(w)));
+            const int origen = anchoDeOrigen(*r);
+            if (vis <= 1 || origen <= 0) {
+                g_object_set(r->pad, "alpha", 0.0, nullptr);
+                continue;
+            }
+            const int util = std::max(1, origen - c.recIzq - c.recDer);
+            const int sacar = static_cast<int>(std::lround(util * (1.0 - static_cast<double>(vis) / w)));
+            g_object_set(r->recorte, "right", std::max(0, c.recDer) + sacar, nullptr);
+            g_object_set(r->pad, "width", vis, "alpha", r->alfaHacia, nullptr);
+        }
+    }
 }
 
 void Composicion::soltar(Rama& r) {
@@ -258,15 +298,16 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
     }
     const int vieja = generacion_;
     ++generacion_;
-    const bool mezcla = transicion == "mezcla" && ms > 0 && vieja > 0;
+    const bool animada = (transicion == "mezcla" || transicion == "empuje" || transicion == "cortina") && ms > 0 && vieja > 0;
     for (const auto& c : e.capas)
-        if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, mezcla ? 0.0 : c.alfa);
+        if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, animada && transicion != "empuje" ? 0.0 : c.alfa);
     escena_ = e;
     if (vieja > 0) {
         genVieja_ = vieja;
-        transicion_ = mezcla ? "mezcla" : "corte";
+        transicion_ = animada ? transicion : "corte";
         transDesdeNs_ = ahoraNs();
-        transNs_ = mezcla ? static_cast<std::int64_t>(ms) * 1000000 : kEsperaCorteNs;
+        transNs_ = animada ? static_cast<std::int64_t>(ms) * 1000000 : kEsperaCorteNs;
+        if (animada) animar(0.0);
     }
 }
 
@@ -332,15 +373,13 @@ void Composicion::tic() {
         const double t = std::clamp(static_cast<double>(ahoraNs() - transDesdeNs_) / static_cast<double>(std::max<std::int64_t>(1, transNs_)), 0.0, 1.0);
         bool nuevasListas = true;
         for (auto& [k, r] : ramas_)
-            if (r->generacion == generacion_) {
-                const bool listo = r->listo.load();
-                nuevasListas = nuevasListas && listo;
-                if (transicion_ == "mezcla") g_object_set(r->pad, "alpha", r->alfaHacia * t, nullptr);
-            }
-        const bool termino = transicion_ == "mezcla" ? t >= 1.0 : (nuevasListas || t >= 1.0);
+            if (r->generacion == generacion_) nuevasListas = nuevasListas && r->listo.load();
+        if (transicion_ != "corte") animar(t);
+        const bool termino = transicion_ != "corte" ? t >= 1.0 : (nuevasListas || t >= 1.0);
         if (termino) {
+            // Lo nuevo, como tiene que quedar (posición, ancho, recorte y alfa).
             for (auto& [k, r] : ramas_)
-                if (r->generacion == generacion_) g_object_set(r->pad, "alpha", r->alfaHacia, nullptr);
+                if (r->generacion == generacion_) ponerCapa(*r, r->capa, r->alfaHacia);
             sacarGeneracion(genVieja_);
             genVieja_ = -1;
         }

@@ -174,6 +174,33 @@ int main() {
     CHECK(igual(p1, 255, 0, 0) && igual(p2, 255, 0, 0), "terminada: la nueva entera");
     CHECK(!prog.enTransicion(), "la mezcla terminó");
 
+    // Empuje: a mitad de camino, la vieja (rojo) a la izquierda y la nueva (azul) entrando por la derecha.
+    {
+        Escena azul;
+        azul.nombre = "Azul";
+        azul.capas.push_back({"azul", 0, 0, 0, 0});
+        prog.mostrar(azul, "empuje", 1600);
+        esperar(es, prog, 750);
+        const Rgb izq = v.en(60, 180), der = v.en(600, 180);
+        std::printf("empuje a mitad: izq %s, der %s\n", txt(izq).c_str(), txt(der).c_str());
+        CHECK(igual(izq, 255, 0, 0), "empuje: la vieja todavía a la izquierda");
+        CHECK(igual(der, 0, 0, 255), "empuje: la nueva entrando por la derecha");
+        esperar(es, prog, 1200);
+        CHECK(igual(v.en(60, 180), 0, 0, 255) && !prog.enTransicion(), "empuje terminado: la nueva entera");
+        // Cortina: a mitad, la nueva (verde) a la izquierda y lo de antes (azul) a la derecha.
+        Escena verdeE;
+        verdeE.nombre = "Verde";
+        verdeE.capas.push_back({"verde", 0, 0, 0, 0});
+        prog.mostrar(verdeE, "cortina", 1600);
+        esperar(es, prog, 750);
+        const Rgb ci = v.en(60, 180), cd = v.en(600, 180);
+        std::printf("cortina a mitad: izq %s, der %s\n", txt(ci).c_str(), txt(cd).c_str());
+        CHECK(igual(ci, 0, 255, 0), "cortina: la nueva descubierta a la izquierda");
+        CHECK(igual(cd, 0, 0, 255), "cortina: lo de antes todavía a la derecha");
+        esperar(es, prog, 1200);
+        CHECK(igual(v.en(600, 180), 0, 255, 0) && !prog.enTransicion(), "cortina terminada: la nueva entera");
+    }
+
     // Recorte y alfa.
     Escena d;
     d.nombre = "D";
