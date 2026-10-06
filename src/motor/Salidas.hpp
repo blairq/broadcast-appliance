@@ -23,6 +23,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <string>
@@ -81,6 +82,49 @@ class Grabacion {
     mutable std::mutex arMu_; ///< archivos_ (lo toca el hilo de datos de splitmuxsink)
     std::vector<std::string> archivos_;
     std::int64_t desdeNs_ = 0;
+};
+
+class Transmision {
+   public:
+    struct Config {
+        /// rtmp://servidor/app/clave (o rtmps://) | srt://host:puerto[?mode=listener&…]
+        std::string url;
+        int kbps = 6000, kbpsAudio = 160, gopSeg = 2, fps = 30;
+        std::vector<std::string> codificadores; ///< preferidos (vacío = los de la placa)
+    };
+    Transmision(Reloj& reloj, Config cfg);
+    ~Transmision();
+    Transmision(const Transmision&) = delete;
+    Transmision& operator=(const Transmision&) = delete;
+
+    /// Arranca (y queda reintentando si se cae: 1, 2, 4, 8 s, después cada 10 s). "" o el error.
+    std::string iniciar(const Fuentes& f);
+    void parar();
+    bool andando() const;   ///< pedida (aunque esté reconectando)
+    bool conectada() const; ///< mandando datos
+    void tic();
+    /// {andando, conectada, reconectando, intentos, kbps, cuadros, perdidos, error, codificador, url (sin la clave)}
+    nlohmann::json estado() const;
+
+   private:
+    std::string armar();
+    void desarmar();
+    static GstPadProbeReturn alSalir(GstPad*, GstPadProbeInfo*, gpointer);
+    static GstPadProbeReturn alCodificar(GstPad*, GstPadProbeInfo*, gpointer);
+
+    Reloj& reloj_;
+    Config cfg_;
+    Fuentes fuentes_;
+    mutable std::mutex mu_;
+    GstElement* pipeline_ = nullptr;
+    bool pedida_ = false;
+    std::string error_, codificador_;
+    int intentos_ = 0;
+    std::int64_t reintentoNs_ = 0;
+    std::atomic<std::uint64_t> bytes_{0}, cuadros_{0}, perdidos_{0};
+    std::uint64_t bytesAntes_ = 0;
+    std::int64_t medidoNs_ = 0, ultimoDatoNs_ = 0;
+    double kbps_ = 0;
 };
 
 } // namespace ba::motor

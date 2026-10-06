@@ -95,9 +95,9 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M4.1 | Codificadores por placa (`vtenc_h264`, `nvh264enc`, `qsvh264enc`, `d3d12h264enc`, `x264enc` de respaldo) + `avenc_aac`, con la lista de candidatos que ya usa la app | arranca con el de la placa y cae al de respaldo | ⬜ |
-| M4.2 | Transmisión: `flvmux` → `rtmp2sink` con reconexión y estado (cuadros perdidos, kbps, reintentando); respaldo a la URL de respaldo de YouTube (P1.5); SRT (`mpegtsmux` → `srtsink`) | una hora sin cortes ni deriva; las alarmas de salida leen del motor | ⬜ |
-| M4.3 | Grabación con `splitmuxsink` por tramos (lo que quedó de P0.10): video y pistas 2–6, MKV, remux a MP4 al terminar, copia en otro disco | `kill -9`: se pierde a lo sumo el último tramo | ⬜ |
+| M4.1 | Codificadores por placa (`vtenc_h264`, `nvh264enc`, `qsvh264enc`, `d3d12h264enc`, `x264enc` de respaldo) + `avenc_aac`, con la lista de candidatos que ya usa la app | arranca con el de la placa y cae al de respaldo | ✅ 2026-10-06 (probado con vtenc_h264_hw; los de Windows y Linux, sin placa) |
+| M4.2 | Transmisión: `flvmux` → `rtmp2sink` con reconexión y estado (cuadros perdidos, kbps, reintentando); respaldo a la URL de respaldo de YouTube (P1.5); SRT (`mpegtsmux` → `srtsink`) | una hora sin cortes ni deriva; las alarmas de salida leen del motor | 🟡 (RTMP y SRT con reconexión y estado; falta el respaldo de YouTube y la hora de prueba) |
+| M4.3 | Grabación con `splitmuxsink` por tramos (lo que quedó de P0.10): video y pistas 2–6, MKV, remux a MP4 al terminar, copia en otro disco | `kill -9`: se pierde a lo sumo el último tramo | 🟡 (MKV en tramos hecho; falta el remux a MP4 y la copia en otro disco) |
 | M4.4 | Replay (anillo de N s → clip), grabación por entrada, NDI de salida (`ndisink`), cámara virtual | cada una da su archivo o su señal | ⬜ |
 
 ### M5 — Robustez del motor
@@ -206,3 +206,11 @@ tareas quedan repartidas acá.
   - **test_composicion:** colores leídos píxel por píxel a la salida (posiciones, corte, capa movida, mezcla a mitad y terminada, alfa 0,5).
   - **Trampa encontrada:** `videorate` sin `skip-to-first=true` rellena desde el principio del segmento hasta el primer cuadro. Con el base_time del estudio eso son ráfagas de cientos de cuadros duplicados al arrancar una cámara.
   - **El realineado** de fuentes con sus propias horas solo corrige si el corrimiento es estable (una que se está poniendo al día no se toca), y es por rama (video y audio).
+- 2026-10-06 · M4.1, M4.2 y M4.3 (en parte): `motor/Salidas`.
+  - **Codificador:** se elige el de la placa (`vtenc_h264_hw` en la Mac) con x264 de respaldo; las propiedades se ponen solo si las tiene.
+  - **Grabación:** `splitmuxsink` + `matroskamux`, con el programa y las pistas pedidas; EOS al parar.
+  - **Transmisión:** `flvmux ! rtmp2sink` o `mpegtsmux ! srtsink`. Reconecta con espera creciente (1, 2, 4, 8, 10 s). Su estado (conectada, reconectando, kbps medidos, cuadros perdidos) es lo que van a leer las alarmas. La clave nunca aparece en el estado.
+  - **test_salidas:**
+    - grabación de 3,13 s con H.264 y dos pistas AAC; 4 tramos de 1 s;
+    - SRT a la misma máquina recibido y demultiplexado (117 cuadros, 184 bloques de audio);
+    - RTMP sin servidor queda reconectando.

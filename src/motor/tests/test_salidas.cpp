@@ -12,6 +12,7 @@
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 
+#include <atomic>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -159,6 +160,70 @@ int main() {
         CHECK(ar.size() >= 3, "varios tramos de 1 s");
         for (const auto& a : ar) CHECK(mirar(a).ok, "cada tramo se abre");
     }
+    // Transmisión por SRT a esta misma máquina: el motor escucha, un receptor
+    // demultiplexa y cuenta lo que llega (video H.264 y audio AAC).
+    if (hayFabrica("srtsink") && hayFabrica("srtsrc") && hayFabrica("tsdemux")) {
+        const int puerto = 20000 + getpid() % 20000;
+        Transmision::Config tc;
+        tc.url = "srt://:" + std::to_string(puerto) + "?mode=listener";
+        tc.kbps = 1500;
+        Transmision t(motor.reloj(), tc);
+        CHECK(t.iniciar(f).empty(), "la transmisión SRT arranca");
+        const std::string rx = "srtsrc uri=srt://127.0.0.1:" + std::to_string(puerto) +
+                               "?mode=caller latency=120 ! tsdemux name=d d. ! queue ! h264parse ! fakesink name=v sync=false "
+                               "d. ! queue ! aacparse ! fakesink name=a sync=false";
+        GstElement* r = gst_parse_launch(rx.c_str(), nullptr);
+        std::atomic<int> nv{0}, na{0};
+        for (auto [nom, cuenta] : {std::pair<const char*, std::atomic<int>*>{"v", &nv}, {"a", &na}}) {
+            GstElement* s = gst_bin_get_by_name(GST_BIN(r), nom);
+            GstPad* pad = gst_element_get_static_pad(s, "sink");
+            gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER,
+                              [](GstPad*, GstPadProbeInfo*, gpointer d) {
+                                  ++*static_cast<std::atomic<int>*>(d);
+                                  return GST_PAD_PROBE_OK;
+                              },
+                              cuenta, nullptr);
+            gst_object_unref(pad);
+            gst_object_unref(s);
+        }
+        gst_element_set_state(r, GST_STATE_PLAYING);
+        for (int i = 0; i < 20; ++i) {
+            esperar(200);
+            t.tic();
+        }
+        const json st = t.estado();
+        std::printf("SRT: recibidos %d cuadros y %d bloques de audio; %s\n", nv.load(), na.load(), st.dump().c_str());
+        CHECK(nv > 30, "llega el video");
+        CHECK(na > 30, "llega el audio");
+        CHECK(st.value("conectada", false), "conectada");
+        CHECK(st.value("kbps", 0.0) > 100, "mide lo que sale");
+        gst_element_set_state(r, GST_STATE_NULL);
+        gst_object_unref(r);
+        t.parar();
+        CHECK(!t.andando(), "parada");
+    }
+    // RTMP a un puerto cerrado: queda reconectando (con espera creciente) y no muestra la clave.
+    {
+        Transmision::Config tc;
+        tc.url = "rtmp://127.0.0.1:1/live/clave-secreta";
+        Transmision t(motor.reloj(), tc);
+        CHECK(t.iniciar(f).empty(), "RTMP arranca (y reintenta)");
+        for (int i = 0; i < 25; ++i) {
+            esperar(200);
+            t.tic();
+        }
+        const json st = t.estado();
+        std::printf("RTMP sin servidor: %s\n", st.dump().c_str());
+        CHECK(st.value("reconectando", false), "queda reconectando");
+        CHECK(st.value("intentos", 0) >= 2, "reintenta");
+        CHECK(st.value("url", "").find("clave-secreta") == std::string::npos, "no muestra la clave");
+        t.parar();
+    }
+    {
+        Transmision t(motor.reloj(), Transmision::Config{"http://x", 1000, 128, 2, 30, {}});
+        CHECK(!t.iniciar(f).empty(), "una dirección rara avisa");
+    }
+
     motor.detener();
     std::error_code ec;
     std::filesystem::remove_all(dir, ec);
