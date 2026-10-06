@@ -13,6 +13,7 @@
 #                     lo importa; va junto al programa en bin/64bit. Del sistema
 #                     solo se usa el driver de la placa (como D3D12)
 #   vulkaninfo.exe    para el diagnóstico (qué ve Vulkan en esta PC)
+#   include/vulkan    los headers de Khronos (Vulkan-Headers, Apache-2.0; solo para compilar)
 #   pnnx.exe          convierte un modelo ONNX a ncnn (el laboratorio lo usa
 #                     para «compilar» la red para Vulkan)
 #
@@ -31,9 +32,11 @@ NCNN_VER=20231027
 NCNN_SHA=e78c066af35769930207a2452e2672719b3e62e55eb0a2301ada82402f97ddaf
 VK_VER=1.4.363.0
 VK_SHA=a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a
+VKH_VER=1.3.268
+VKH_SHA=d5c59d5fc3ab264006dfea1eb1a11f609ea5dfa8319a5aaca061007828012a78
 PNNX_VER=20260704
 PNNX_SHA=7472941823186e4ce8f829d54267c0e9f50e616e3214a80a524d4aa1e76d7fc8
-MARCA="ncnn $NCNN_VER vulkan $VK_VER pnnx $PNNX_VER"
+MARCA="ncnn $NCNN_VER vulkan $VK_VER headers $VKH_VER pnnx $PNNX_VER"
 
 if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$MARCA" ]; then
     log "ya está ($OUT)"
@@ -54,6 +57,8 @@ NCNN_ZIP="$(baja "https://github.com/Tencent/ncnn/releases/download/$NCNN_VER/nc
     "ncnn-$NCNN_VER-windows-vs2022-shared.zip" "$NCNN_SHA")"
 VK_ZIP="$(baja "https://sdk.lunarg.com/sdk/download/$VK_VER/windows/vulkan-runtime-components.zip" \
     "vulkan-runtime-components-$VK_VER.zip" "$VK_SHA")"
+VKH_TGZ="$(baja "https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/v$VKH_VER.tar.gz" \
+    "vulkan-headers-$VKH_VER.tar.gz" "$VKH_SHA")"
 PNNX_ZIP="$(baja "https://github.com/pnnx/pnnx/releases/download/$PNNX_VER/pnnx-$PNNX_VER-windows.zip" \
     "pnnx-$PNNX_VER-windows.zip" "$PNNX_SHA")"
 
@@ -62,11 +67,14 @@ trap 'rm -rf "$T"' EXIT
 unzip -q "$NCNN_ZIP" -d "$T/ncnn"
 unzip -q "$VK_ZIP" -d "$T/vk"
 unzip -q "$PNNX_ZIP" -d "$T/pnnx"
+tar xzf "$VKH_TGZ" -C "$T"
 N="$T/ncnn/ncnn-$NCNN_VER-windows-vs2022-shared/x64"
 V="$(echo "$T"/vk/VulkanRT-X64-*-Components/x64)"
 rm -rf "$OUT"
 mkdir -p "$OUT/include" "$OUT/lib" "$OUT/bin" "$OUT/herramientas"
 cp -R "$N/include/ncnn" "$OUT/include/"
+# Los headers de Vulkan (Khronos, Apache-2.0): ncnn 2023 los incluye al compilar.
+cp -R "$T/Vulkan-Headers-$VKH_VER/include/vulkan" "$T/Vulkan-Headers-$VKH_VER/include/vk_video" "$OUT/include/"
 cp "$N/lib/ncnn.lib" "$OUT/lib/"
 cp "$N/bin/ncnn.dll" "$OUT/bin/"
 cp "$V/vulkan-1.dll" "$V/vulkaninfo.exe" "$OUT/bin/"
