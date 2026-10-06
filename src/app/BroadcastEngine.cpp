@@ -10,6 +10,9 @@
 
 #include "BroadcastEngine.hpp"
 #include "FuentesApp.hpp"
+#include "NdiSource.hpp"
+#include "audio/GstRack.hpp"
+#include "audio/GstVoz.hpp"
 
 #include "Motor.hpp"
 #include "Salidas.hpp"
@@ -173,6 +176,11 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         setError("GStreamer no arrancó: " + err);
         return false;
     }
+    // Los elementos propios de la app, antes de armar cualquier entrada que los use
+    // (racks, voces, NDI): si no, avisaban «no element» y reintentaban.
+    audio::gstrack::registrarElemento();
+    audio::gstvoz::registrarElemento();
+    ndi::registrarElemento();
     // Los avisos del motor, al registro de la app.
     motor::ponerRegistro([](motor::Nivel n, const std::string& t) {
         ba::diag::registro().linea(n == motor::Nivel::Error  ? ba::diag::Nivel::Error

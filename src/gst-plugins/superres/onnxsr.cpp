@@ -554,18 +554,35 @@ static std::unique_ptr<Ort::Session> sesionCon(BaOnnxSr* s, Ort::Env& env, const
 }
 
 #if defined(BA_HAVE_NCNN)
-/// pnnx (convierte ONNX a ncnn): BA_PNNX, o al lado del programa.
+/// pnnx (convierte ONNX a ncnn): BA_PNNX, al lado del programa, o en el bin/64bit del
+/// bundle visto desde este plugin (gst-plugins/../bin/64bit: sirve aunque el proceso
+/// sea otro, como el Python de una prueba).
 static std::string rutaPnnx() {
     if (const char* e = std::getenv("BA_PNNX"); e != nullptr && *e != '\0') return e;
+    namespace fs = std::filesystem;
+    std::vector<fs::path> donde;
 #if defined(_WIN32)
+    const char* nombre = "pnnx.exe";
     wchar_t b[MAX_PATH] = {};
     GetModuleFileNameW(nullptr, b, MAX_PATH);
-    const auto p = std::filesystem::path(b).parent_path() / "pnnx.exe";
+    donde.push_back(fs::path(b).parent_path());
+    HMODULE yo = nullptr;
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           reinterpret_cast<LPCWSTR>(&rutaPnnx), &yo) &&
+        GetModuleFileNameW(yo, b, MAX_PATH) > 0)
+        donde.push_back(fs::path(b).parent_path().parent_path() / "bin" / "64bit");
 #else
-    const auto p = std::filesystem::path("/proc/self/exe").parent_path() / "pnnx";
+    const char* nombre = "pnnx";
+    std::error_code e0;
+    donde.push_back(fs::read_symlink("/proc/self/exe", e0).parent_path());
+    Dl_info di{};
+    if (dladdr(reinterpret_cast<void*>(&rutaPnnx), &di) != 0 && di.dli_fname != nullptr)
+        donde.push_back(fs::path(di.dli_fname).parent_path().parent_path() / "bin" / "64bit");
 #endif
     std::error_code ec;
-    return std::filesystem::exists(p, ec) ? p.string() : std::string();
+    for (const auto& d : donde)
+        if (fs::exists(d / nombre, ec)) return (d / nombre).string();
+    return {};
 }
 
 /// «Compila» la red para Vulkan: ONNX -> ncnn (.param/.bin) con pnnx, para la
