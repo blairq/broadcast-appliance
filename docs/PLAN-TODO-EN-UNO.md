@@ -12,7 +12,7 @@ Estados: ⬜ falta · 🟡 en curso · ✅ hecho (con commit) · ⏸ necesita al
 
 ---
 
-## Bloque P0 — Antes de la primera sesión real (con libobs todavía)
+## Bloque P0 — Antes de la primera sesión real (hecho sobre la app de hoy)
 
 Orden de ataque: primero lo barato que mejora el aire, después lo grande.
 
@@ -24,38 +24,104 @@ Orden de ataque: primero lo barato que mejora el aire, después lo grande.
 | P0.4 | **Tapar el hueco sin corte**: al final de cada entrada en vivo (cámaras, red, micrófonos, invitados, NDI), `livesync` y un respaldo cuando no llega nada: video = último cuadro unos segundos y después placa «<entrada> sin señal»; audio = silencio con fundido. Vuelve solo con el primer dato bueno | `ba_gst_fuente.cpp` (rama de video y de audio antes del appsink) | Desenchufar la cámara: placa con su nombre en vez de negro/congelado; enchufar: vuelve sola. Un microcorte de 100 ms no se nota | ✅ (placa; `livesync` queda para E3) |
 | P0.5 | **Vigía de datos**: si una entrada en vivo no entrega nada en N s sin haber dado error (dispositivo colgado), se rearma; reintento con espera creciente 0,2 / 0,5 / 1 / 2 s y después cada 2 s (hoy fijo 2 s) | `ba_gst_fuente.cpp` (`tic`, `reintento`) | Simular un dispositivo que deja de mandar: se rearma solo; el registro lo dice una vez | ✅ |
 | P0.6 | **Tope a la latencia del estudio**: la compensación no pasa de un tope (de fábrica 250 ms, ajustable); una entrada que pide más queda con su propia demora y un aviso «llega tarde»; interruptor `estudio` por entrada en GUI y MCP; **medidor** «latencia del estudio: N ms» (verde / rojo con la entrada que la causa) | `ba_gst_fuente.cpp` (`compensacionEstudio`, `latenciaDelEstudio`), `video_estado`, página Video (Sincronía), MCP `video_entrada_red`/nuevo `estudio_latencia` | Con la cámara con superres: el estudio queda en ≤ tope y esa cámara avisa; el medidor lo muestra | ✅ |
-| P0.7 | **Dos escuchas para el operador**: «directo» (la sala sin demora) y «programa» (lo que sale, audio con su video); una tecla para pasar | escucha de la app (auriculares: `RackManager::setAuriculares`, monitoreo de libobs) | Con «programa», el audio que se oye coincide con el video del programa; con «directo», sin demora | → E1 (ver el registro) |
-| P0.8 | **Limitador del máster (true peak) y loudness (T12 + T11)**: limitador en el programa (de fábrica −1 dBTP, se puede apagar), medidor LUFS integrado/corto con objetivo (−14 YouTube / −23 TV) y aviso si se aleja | programa de audio (hoy libobs: filtro en la mezcla; mañana `audiomixer`), `audio/LoudnessPrograma.*` (ya mide) | Un tono a +6 dBFS sale a ≤ −1 dBTP; el medidor LUFS coincide con `ebur128level` | → E1 (el medidor LUFS y su aviso ya están; falta el limitador) |
+| P0.7 | **Dos escuchas para el operador**: «directo» (la sala sin demora) y «programa» (lo que sale, audio con su video); una tecla para pasar | escucha de la app (auriculares: `RackManager::setAuriculares`, monitoreo de libobs) | Con «programa», el audio que se oye coincide con el video del programa; con «directo», sin demora | → M1.5 |
+| P0.8 | **Limitador del máster (true peak) y loudness (T12 + T11)**: limitador en el programa (de fábrica −1 dBTP, se puede apagar), medidor LUFS integrado/corto con objetivo (−14 YouTube / −23 TV) y aviso si se aleja | programa de audio (hoy libobs: filtro en la mezcla; mañana `audiomixer`), `audio/LoudnessPrograma.*` (ya mide) | Un tono a +6 dBFS sale a ≤ −1 dBTP; el medidor LUFS coincide con `ebur128level` | → M1.3 (el medidor LUFS y su aviso ya están) |
 | P0.9 | **Alarmas** de silencio (programa N s), negro (N s), cuadro congelado y salida caída (YouTube/SRT/grabación dejaron de mandar), visibles, audibles, en el bus (superficie de control / teléfono) y por MCP | nuevo `diag/Alarmas.*` sobre los medidores del programa y el estado de las salidas | Silenciar el programa 10 s → alarma; cortar la red → «YouTube dejó de recibir» | ✅ 2026-10-06 |
 | P0.10 | **Volver como estaba (lo que falta)**: guardar y retomar la escena al aire y la playlist con su posición tras un corte; configuración escrita atómica (temporal + rename); grabación en tramos (MKV) para perder como mucho el último | `OperateMode.cpp` (`al-aire.json`), `AppSettings.cpp` (`saveAppConfig`), salida de grabación | `kill -9` grabando con la playlist andando: vuelve la escena, la playlist sigue donde estaba, la grabación anterior se abre bien | ✅ 2026-10-06 (tramos → E2) |
 | P0.11 | **`--test` no arranca al aire**: con `--test`, no se retoma transmisión/grabación al arrancar | `OperateMode.cpp` (`restoreOutputs`) | Arrancar con `--test` tras un corte: no transmite | ✅ |
 | P0.12 | **Corrida larga y los otros sistemas**: script de prueba de 8 h (todas las entradas, transmisión a un canal de prueba, mide temperatura, memoria, deriva A/V, cuadros perdidos) y validación en Windows y Linux por SSH | `tools/prueba-larga/`, docs | El informe de la corrida | ⏸ (hardware y una cuenta de prueba) |
 
-## Bloque P1 — Después, todavía con libobs
+## Bloque M — El motor GStreamer (libobs no se usa más)
 
-| ID | Tarea | Dónde | Cómo se sabe | Estado |
-|---|---|---|---|---|
-| P1.1 | **Lip-sync por entrada medible y ajustable** (tono + flash; ajuste en ms guardado) | `video/Sincronia.*` (ya mide entre entradas), `desfase` de `ba_gst_fuente` | La prueba da el desfase de cada par cámara-micrófono y lo corrige | ⬜ |
-| P1.2 | **Modo «al aire» en la GUI**: con transmisión o grabación, confirmar o bloquear editar la escena al aire, cambiar ajustes de una entrada al aire, sacar fuentes, cambiar el rack de un micrófono al aire | QML + `StudioViewModel` (las guardas del MCP ya existen) | Al aire, cambiar algo riesgoso pide confirmación | ⬜ |
-| P1.3 | **`ba/control` con al aire / preview / tally**: las tarjetas caras descansan cuando su entrada no se ve | `VideoGrafos::controlEntrada` (ya existe el canal), elementos | Una entrada fuera del aire baja su CPU | ⬜ |
-| P1.4 | **Multiview estándar**: tally rojo/verde por recuadro, medidores de audio, alarmas por recuadro, nombre, reloj | multiview actual | Se ve el tally y los medidores | ⬜ |
-| P1.5 | **Transmisión de respaldo** a la URL de respaldo de YouTube | salidas | Las dos ingestas reciben | ⬜ |
-| P1.6 | **Un solo armador de ajustes de `ba_gst_fuente`** (hoy InputSpecs, VideoGrafos, Playlist, MonitorVoz) | `InputSpecs` | Una sola función por tipo; tests | ⬜ |
-| P1.7 | **Pruebas por tipo de entrada con `fakesink` y reloj falso (`GstTestClock`)** | `src/gst-plugins/tests`, `src/obs-module/tests` | ctest | ⬜ |
+**Decisión del usuario (2026-10-06):** «libobs no se usa más, no pienses más en libobs, justamente lo estamos
+sacando». El motor nuevo se diseña directo en GStreamer:
+- sin puentes hacia libobs: nada de «libobs recibe el programa mezclado» ni `appsrc` del lienzo de OBS;
+- sin modo de volver a la mezcla de libobs.
 
-## Bloque E — Las etapas del motor (sacar libobs)
+Reemplaza el viejo bloque E (que mezclaba de a poco con libobs en el medio) y el P1 «todavía con libobs». Sus
+tareas quedan repartidas acá.
 
-Cada etapa deja el aire andando y se puede volver atrás. Antes de cada una, leer §5.2 (min-upstream-latency, la
-primera entrada tarde, fallbackswitch).
+**Cómo se construye:**
+- El motor vive en `src/motor/`: una biblioteca sin nada de OBS, con sus tests en ctest y una prueba sin GUI (`ba-app --motor-prueba`).
+- La app de hoy queda congelada (no se le agrega nada) hasta el cambio (M6). En el cambio, el `BroadcastEngine` de libobs se reemplaza por el motor, detrás de la misma API de `AppRuntime`, el MCP y la GUI.
+- **El motor habla con la GUI solo por estado JSON y comandos**, así la toma de medios puede ir después a otra máquina (Linux) y la GUI a otra (Linux o Mac).
+- **Imágenes para la GUI:** por `FrameService` (claves `program`, `preview`, `entrada:X`, `multiview`), con `appsink` en vez de libobs.
 
-| ID | Etapa | Qué | Cómo se sabe | Estado |
-|---|---|---|---|---|
-| E1 | Mezcla de audio | `audiomixer` para PROGRAMA, pistas 2–6, mix-minus por invitado/remoto y escucha; entradas por `intersink`/`intersrc`; `min-upstream-latency` = latencia del estudio + margen; segmento inicial fijo; la Matriz maneja los pads; libobs recibe el programa ya mezclado como una sola fuente | Mismo nivel y loudness; el invitado no se oye en su retorno; nada se cae al entrar el primer invitado | ⬜ |
-| E2 | Salidas | Codificadores (vtenc/nv/qsv/d3d12/x264 + AAC), RTMP/SRT, grabación (`splitmuxsink` en tramos), replay, NDI desde GStreamer, alimentadas por el lienzo de libobs (`appsrc`) | Una hora transmitiendo sin cortes ni deriva; grabación multipista igual a la de hoy | ⬜ |
-| E3 | Composición | PROGRAMA, PREVIEW, MULTIVIEW, take, transiciones (GstController, glshader), DSK y gráficos en `glvideomixer`/`compositor`; la GUI por `appsink`; fuente y proceso separados con `intersink` | Take frame-exacto; cambiar de escena no corta; una entrada caída muestra la placa y vuelve sola | ⬜ |
-| E4 | WebRTC en el proceso | `webrtcbin` para invitados y sesión remota en vez de la memoria compartida, con su mix-minus | Latencia de ida y vuelta igual o menor; hora por RTCP | ⬜ |
-| E5 | Subtítulos | §6 (608/708, cccombiner, h264ccinserter) | YouTube los muestra a tiempo | ⬜ |
-| E6 | Sacar libobs | El audio del sistema y la escucha del lobby a GStreamer; fuera `libobs.framework` y sus plugins | La app arranca sin libobs | ⬜ |
+**Pieza por pieza** (`§` = obs-gstreamer-migration.md):
+
+### M0 — Núcleo y entradas sin OBS
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M0.1 | `motor::Reloj`: el reloj del estudio (sistema, monotónico), base_time común para todos los pipelines, latencia del estudio con tope (lo de P0.6) | test: dos pipelines con el mismo base_time dan el mismo tiempo de ejecución | ⬜ |
+| M0.2 | `motor::Entrada`: la capa de entrada de `ba_gst_fuente` llevada a una clase sin OBS. Arma el pipeline con los mismos ajustes JSON: pipeline, `camara`, `microfono`, rack, filtros, medios, invitados, NDI, voces. Mantiene vigía de dispositivos, placa «sin señal», vigía de datos, reintentos, compensación y bus completo. Termina en `intersink` `<id>:video` y `<id>:audio` (F32 48 kHz estéreo) | test con `audiotestsrc`/`videotestsrc` y `fakesink`; cada tipo arma | ⬜ |
+| M0.3 | Medios con controles (play/pausa/ir a/bucle/fin) y la playlist encima de `motor::Entrada` (lo de `ba_gst_medio`) | test: fin de archivo, bucle sin corte, salto | ⬜ |
+| M0.4 | Un solo armador de ajustes por tipo (P1.6) y pruebas por tipo con `GstTestClock` (P1.7) | ctest | ⬜ |
+| M0.5 | Fuentes que hoy da OBS, en GStreamer: color (`videotestsrc pattern=solid-color`), imagen (`imagefreeze`), texto (render con Qt a BGRA → `appsrc`), captura de pantalla/ventana (`avfvideosrc capture-screen` / `d3d12screencapturesrc` / `pipewiresrc`), audio del sistema (elemento propio por sistema) | cada una da imagen/sonido en la prueba | ⬜ |
+| M0.6 | Estado del motor como JSON (entradas, latencias, señales, medidores) y comandos; el MCP y la GUI leen eso | `motor_estado` por MCP | ⬜ |
+
+### M1 — Mezcla de audio (`audiomixer`)
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M1.1 | Bus PROGRAMA: `intersrc` por entrada → `volume` (nivel, mute, balance) → `audiomixer` con `force-live`, `min-upstream-latency` = latencia del estudio + margen, `start-time-selection=first` y segmento fijo (§5.2) | una entrada que entra tarde no rebobina ni corta (probado en Python el 2026-10-06: +3 dB, tiempo continuo) | 🟡 |
+| M1.1b | **El audio de la escena sigue al programa:** una entrada que está en escenas suena solo si su escena está al aire (con fundido en la transición). Las globales (micrófonos, invitados, remoto, voces) suenan siempre. Hoy lo hace el canal 0 de libobs | cambiar de escena corta el audio de la vieja y abre el de la nueva, con fundido | ⬜ |
+| M1.2 | Buses PISTA 2–6 (grabación multipista) y la Matriz (`audio-matriz.json`): qué entrada va a qué bus con qué nivel; los pads se agregan y sacan andando | cambiar la matriz no corta | ⬜ |
+| M1.3 | Limitador del máster true peak (P0.8) en el plugin `baaudio`: `balimitador`, con lookahead y sobremuestreo ×4, de fábrica −1 dBTP, se puede apagar | un tono a +6 dBFS sale a ≤ −1 dBTP medido con `ebur128level` | ⬜ |
+| M1.4 | Mix-minus por invitado: un `audiomixer` por retorno (el programa sin su propio audio, sin restar muestras) → `baanillosink` nuevo en `baipc` que escribe `BA.Audio.Return.<n>` y `BA.Audio.ContentForReturn` (el gateway no cambia). Modo por invitado `programa`/`mix_minus` (`retornos.json`) | el invitado no se oye en su retorno | ⬜ |
+| M1.4b | Buses virtuales de la Matriz (salidas a otra placa, entradas virtuales) y las entradas físicas por canal (`EquipoAudio`) como entradas del motor | la Matriz de hoy anda igual | ⬜ |
+| M1.5 | ESCUCHA (P0.7): «directo» (la sala sin demora), «programa» (lo que sale) y PFL de una entrada; salida a `osxaudiosink`/`wasapi2sink`/`pulsesink`; una tecla para pasar. También la escucha de los racks (nodo «monitor» de `barack`), las del lobby y la voz del sistema (solo auriculares) | con «programa» el audio coincide con el video del programa | ⬜ |
+| M1.6 | Medidores: `level` y `ebur128level` en cada bus. Alimentan los medidores de la GUI, `LoudnessPrograma` y las alarmas (silencio, saturación, loudness) | la GUI y las alarmas leen del motor | ⬜ |
+
+### M2 — Composición de video
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M2.1 | PROGRAMA y PREVIEW: `glvideomixer` en Mac (`compositor` de respaldo, d3d12/cuda en los otros sistemas). Escena = propiedades de pads (posición, tamaño, recorte, alfa, orden) tomadas de `app.json`; pads dinámicos con `queue` y latencia declarada | una escena de `app.json` se ve igual | ⬜ |
+| M2.2 | Take y transiciones: corte, mezcla, empuje, cortina (`GstController` + `glshader`), stinger (un medio con alfa encima); take frame-exacto | el cambio de escena no corta audio ni salida | ⬜ |
+| M2.3 | DSK y gráficos arriba del programa; clean feed (sin DSK) por `tee`; zócalos y títulos con las fuentes de M0.5; subtítulos en pantalla (`ba_subtitulos`) | el clean feed sale sin gráficos | ⬜ |
+| M2.4 | MULTIVIEW estándar (P1.4): mosaico PGM/PVW/entradas con tally rojo/verde, nombre, medidores de audio, alarmas por recuadro y reloj | se ve el tally y los medidores | ⬜ |
+| M2.5 | Lo que hacían las fuentes propias de OBS: video grafo/compositor (`ba_video_grafo`, `ba_video_compositor`), PTZ digital, mejora de imagen, placa (`ba_placeholder`). Pasan a elementos en la cadena de la entrada o a pads del compositor | cada tarjeta del grafo anda en el motor | ⬜ |
+| M2.6 | `ba/control` con al aire / preview / tally (P1.3): las tarjetas caras descansan cuando su entrada no se ve | una entrada fuera del aire baja su CPU | ⬜ |
+
+### M3 — La GUI con el motor
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M3.1 | `FrameService` lee del motor: `appsink` chico (escalado en la GPU) para programa, preview, multiview y cada entrada | las vistas de la GUI andan sin libobs | ⬜ |
+| M3.2 | Modo «al aire» en la GUI (P1.2): al aire, cambiar algo riesgoso pide confirmación | prueba en la GUI | ⬜ |
+
+### M4 — Salidas
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M4.1 | Codificadores por placa (`vtenc_h264`, `nvh264enc`, `qsvh264enc`, `d3d12h264enc`, `x264enc` de respaldo) + `avenc_aac`, con la lista de candidatos que ya usa la app | arranca con el de la placa y cae al de respaldo | ⬜ |
+| M4.2 | Transmisión: `flvmux` → `rtmp2sink` con reconexión y estado (cuadros perdidos, kbps, reintentando); respaldo a la URL de respaldo de YouTube (P1.5); SRT (`mpegtsmux` → `srtsink`) | una hora sin cortes ni deriva; las alarmas de salida leen del motor | ⬜ |
+| M4.3 | Grabación con `splitmuxsink` por tramos (lo que quedó de P0.10): video y pistas 2–6, MKV, remux a MP4 al terminar, copia en otro disco | `kill -9`: se pierde a lo sumo el último tramo | ⬜ |
+| M4.4 | Replay (anillo de N s → clip), grabación por entrada, NDI de salida (`ndisink`), cámara virtual | cada una da su archivo o su señal | ⬜ |
+
+### M5 — Robustez del motor
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M5.1 | `fallbackswitch` + `livesync` al final de cada entrada (§5.2.3): una caída no deja negro ni silencio y vuelve sola | desenchufar y enchufar sin corte en el programa | ⬜ |
+| M5.2 | Lip-sync por entrada medible y ajustable (P1.1): tono + flash, ajuste en ms guardado | la prueba da el desfase y lo corrige | ⬜ |
+| M5.3 | Una entrada en su propio proceso, opcional (§7.1), para las que pueden colgarse | matar el proceso de la entrada no tira el programa | ⬜ |
+
+### M6 — El cambio y sacar libobs
+
+| ID | Tarea | Cómo se sabe | Estado |
+|---|---|---|---|
+| M6.1 | `AppRuntime` y `StudioViewModel` sobre el motor: misma API, mismas herramientas MCP, misma GUI | las pruebas por MCP de siempre pasan | ⬜ |
+| M6.2 | Migración de `app.json`: los tipos de OBS (`color_source_v3`, `text_ft2_source_v2`, `image_source`, `ffmpeg_source`, captura) pasan a los tipos del motor | una configuración vieja abre igual | ⬜ |
+| M6.3 | Fuera `src/obs-module`, `libobs.framework` y sus plugins del bundle de los tres sistemas | la app arranca sin libobs; el bundle pesa menos | ⬜ |
+
+### M7 — Después del cambio
+
+| ID | Tarea | Estado |
+|---|---|---|
+| M7.1 | WebRTC en el proceso (`webrtcbin`) para invitados y sesión remota, con su mix-minus (ex E4) | ⬜ |
+| M7.2 | Subtítulos 608/708 en la transmisión (§6, ex E5) | ⬜ |
 
 ---
 
