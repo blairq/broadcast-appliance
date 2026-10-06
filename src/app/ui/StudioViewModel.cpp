@@ -362,7 +362,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         in.status = [this]() {
             const EngineStatus s = rt_.engine().status();
             return agent::AlertInputs::Status{s.streaming, s.recording, s.droppedFrames, s.totalFrames,
-                                              s.reconnecting, rt_.config().encoder.videoBitrateKbps};
+                                              s.reconnecting, rt_.config().encoder.videoBitrateKbps,
+                                              !rt_.recordStopWanted()};
+        };
+        in.programaVideo = [this]() {
+            const auto v = rt_.engine().programaVideo();
+            return nlohmann::json{{"valido", v.valido}, {"luma", v.luma}, {"quieto_s", v.quietoSeg}};
         };
         in.diskFreeGb = [this]() {
             const QStorageInfo si(QString::fromStdWString((rt_.dataRoot() / "Recordings").wstring()));

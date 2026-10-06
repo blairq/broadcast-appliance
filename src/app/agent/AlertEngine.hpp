@@ -27,6 +27,9 @@
 //                 regex (sin distinguir mayúsculas ni tildes)
 //   stream_health droppedPct (2), windowSec (30); y corte de la transmision
 //   disk          minGb (5) (solo grabando)
+//   program_black forSec (3), umbral (16 de 255), onlyWhenLive (true)
+//   program_frozen forSec (30), onlyWhenLive (true)
+//   record_down   forSec (5): la grabación se cortó sin que nadie la parara
 //   timer         in (seg) | at ("HH:MM") | every (seg)
 //
 // Las reglas se guardan en Config/alertas.json (sobreviven reinicios).
@@ -71,6 +74,7 @@ struct AlertInputs {
         /// lograrlo, que es justo el momento en el que hay que hacer algo.
         bool reconnecting = false;
         int kbps = 0; ///< bitrate de video configurado (para los minutos de disco)
+        bool grabacionPedida = false; ///< alguien la puso a grabar (y no la paró): si no graba, se cortó sola
     };
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;
@@ -86,6 +90,8 @@ struct AlertInputs {
     std::function<json()> loudness;
     /// La superresolución de cada entrada: {entrada: {tarde, ms, bypass_s}} (programador).
     std::function<json()> superres;
+    /// El programa en imagen: {valido, luma (0–255), quieto_s} (alarmas de negro y congelado).
+    std::function<json()> programaVideo;
     std::function<std::int64_t()> nowMs; ///< reloj (inyectable en tests)
 };
 
@@ -132,7 +138,8 @@ class AlertEngine : public QObject {
 
    private:
     std::vector<json> activas_; ///< eventos con `reconocer` todavía sin reconocer
-    void sembrar();
+    /// Las reglas de fábrica; con `faltantes`, solo las de tipos que nunca se ofrecieron (las nuevas, al actualizar).
+    void sembrar(bool faltantes = false);
     struct State {
         std::int64_t overSinceMs = -1;
         std::int64_t lastFiredMs = -1;
@@ -153,6 +160,7 @@ class AlertEngine : public QObject {
     std::deque<json> events_;
     std::uint64_t seq_ = 0;
     int ruleSeq_ = 0;
+    std::vector<std::string> sembrados_; ///< tipos de fábrica ya ofrecidos (borrados a propósito no vuelven)
     QTimer timer_;
     struct Waiter {
         std::uint64_t since;

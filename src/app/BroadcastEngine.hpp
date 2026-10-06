@@ -311,6 +311,13 @@ class BroadcastEngine {
 
     /// El loudness de lo que sale (mezcla 0): M/S/I, true peak, LRA (EBU R128).
     audio::LoudnessPrograma& loudness() { return *loudness_; }
+    /// El programa en imagen, para las alarmas (P0.9): brillo medio (0–255) y cuántos
+    /// segundos lleva sin cambiar. `valido` false si todavía no llegó ningún cuadro.
+    struct ProgramaVideo {
+        double luma = 0, quietoSeg = 0;
+        bool valido = false;
+    };
+    ProgramaVideo programaVideo() const;
 
     /// El archivo que se está grabando (o el último) y en qué contenedor de verdad.
     std::string archivoGrabacion() const { return recordPath_; }
@@ -806,6 +813,11 @@ class BroadcastEngine {
     std::string activeServer_, activeKey_;
     std::unique_ptr<audio::LoudnessPrograma> loudness_ = std::make_unique<audio::LoudnessPrograma>(48000);
     static void loudnessCallback(void* param, size_t mix, struct audio_data* data);
+    // El programa chiquito (160x90, 5 por segundo) para las alarmas de negro y congelado.
+    static void programaVideoCallback(void* param, struct video_data* frame);
+    std::atomic<double> progLuma_{0};
+    std::atomic<std::uint64_t> progFirma_{0};
+    std::atomic<std::int64_t> progCambioMs_{0}; ///< cuándo cambió la imagen por última vez (0 = nunca llegó)
     std::string recordPath_, remuxA_;   ///< lo que se graba y a qué pasarlo al terminar
     bool remuxAlTerminar_ = true;
     struct EstadoRemux;

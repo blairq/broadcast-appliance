@@ -343,6 +343,19 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         ali.speakers = SPEAKERS_STEREO;
         obs_add_raw_audio_callback(0, &ali, &BroadcastEngine::loudnessCallback, this);
     }
+    // El programa en imagen, chiquito y 5 veces por segundo: para avisar si está en
+    // negro o congelado (alarmas, P0.9). Cuesta una bajada de 160x90.
+    {
+        struct video_scale_info pvi = {};
+        pvi.format = VIDEO_FORMAT_BGRA;
+        pvi.width = 160;
+        pvi.height = 90;
+        pvi.colorspace = VIDEO_CS_709;
+        pvi.range = VIDEO_RANGE_FULL;
+        obs_video_info ovi = {};
+        const uint32_t fps = obs_get_video_info(&ovi) && ovi.fps_den > 0 ? ovi.fps_num / ovi.fps_den : 30;
+        obs_add_raw_video_callback2(&pvi, std::max<uint32_t>(1, fps / 5), &BroadcastEngine::programaVideoCallback, this);
+    }
 
     // 4-5) Modulos. Sin esto no hay codificadores ni salidas: es el paso que
     //      faltaba en el arranque anterior del Proceso A. Con un directorio
@@ -400,11 +413,47 @@ void BroadcastEngine::loudnessCallback(void* param, size_t, struct audio_data* d
     e->loudness_->alimentar(ch, 2, data->frames);
 }
 
+void BroadcastEngine::programaVideoCallback(void* param, struct video_data* frame) {
+    auto* e = static_cast<BroadcastEngine*>(param);
+    if (frame == nullptr || frame->data[0] == nullptr) return;
+    // Brillo medio y una firma (luma muestreada y cuantizada: el ruido de una
+    // cámara quieta no cuenta como cambio, un corte sí).
+    const uint8_t* p = frame->data[0];
+    const uint32_t ls = frame->linesize[0];
+    std::uint64_t suma = 0, firma = 1469598103934665603ULL;
+    int n = 0;
+    for (uint32_t y = 0; y < 90; y += 3)
+        for (uint32_t x = 0; x < 160; x += 4) {
+            const uint8_t* px = p + static_cast<size_t>(y) * ls + static_cast<size_t>(x) * 4;
+            const uint32_t l = (px[2] * 54u + px[1] * 183u + px[0] * 19u) >> 8; // BGRA → luma 709
+            suma += l;
+            ++n;
+            firma = (firma ^ (l >> 4)) * 1099511628211ULL;
+        }
+    e->progLuma_ = n > 0 ? static_cast<double>(suma) / n : 0;
+    const std::int64_t ahora = static_cast<std::int64_t>(os_gettime_ns() / 1000000ULL);
+    if (firma != e->progFirma_.load() || e->progCambioMs_.load() == 0) {
+        e->progFirma_ = firma;
+        e->progCambioMs_ = ahora;
+    }
+}
+
+BroadcastEngine::ProgramaVideo BroadcastEngine::programaVideo() const {
+    ProgramaVideo v;
+    const std::int64_t c = progCambioMs_.load();
+    if (c == 0) return v;
+    v.valido = true;
+    v.luma = progLuma_.load();
+    v.quietoSeg = static_cast<double>(static_cast<std::int64_t>(os_gettime_ns() / 1000000ULL) - c) / 1000.0;
+    return v;
+}
+
 void BroadcastEngine::shutdown() {
     if (!started_) {
         return;
     }
     obs_remove_raw_audio_callback(0, &BroadcastEngine::loudnessCallback, this);
+    obs_remove_raw_video_callback(&BroadcastEngine::programaVideoCallback, this);
     stopStreaming();
     stopExtras();
     stopRecording();

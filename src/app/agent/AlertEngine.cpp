@@ -150,6 +150,24 @@ json AlertEngine::types() {
           {{"entrada", "\"*\" (todas, por defecto) o el nombre de la entrada"},
            {"forSec", "segundos sin señal (por defecto 3)"}}},
          {"cooldownSec", 30}},
+        {{"type", "program_black"},
+         {"summary", "El programa está en negro (la imagen que sale) un rato."},
+         {"params",
+          {{"forSec", "segundos seguidos en negro (por defecto 3)"},
+           {"umbral", "brillo medio por debajo del cual es negro, de 0 a 255 (por defecto 16)"},
+           {"onlyWhenLive", "solo transmitiendo o grabando (por defecto true)"}}},
+         {"cooldownSec", 60}},
+        {{"type", "program_frozen"},
+         {"summary", "El programa está congelado: la imagen no cambia nada en N segundos (ojo con una placa fija "
+                     "o una diapositiva: subí forSec)."},
+         {"params",
+          {{"forSec", "segundos sin cambiar (por defecto 30)"},
+           {"onlyWhenLive", "solo transmitiendo o grabando (por defecto true)"}}},
+         {"cooldownSec", 120}},
+        {{"type", "record_down"},
+         {"summary", "La grabación se cortó sola (estaba pedida y no graba)."},
+         {"params", {{"forSec", "segundos sin grabar antes de avisar (por defecto 5)"}}},
+         {"cooldownSec", 60}},
         {{"type", "superres_tarde"},
          {"summary", "La superresolución de una entrada no llega a tiempo (tarda más que el umbral del cuadro); con el "
                      "bypass automático, pasó sola al modo barato."},
@@ -577,6 +595,55 @@ void AlertEngine::evaluate(json& rule, State& st, std::int64_t now) {
             fire(rule, st, "La transmision se dio por vencida: dejo de reintentar y esta fuera del aire.",
                  json::object(), now);
         }
+    } else if ((type == "program_black" || type == "program_frozen") && in_.programaVideo) {
+        if (p.value("onlyWhenLive", true) && in_.status) {
+            const auto s = in_.status();
+            if (!s.streaming && !s.recording) {
+                st.since.erase("mal");
+                st.seen.erase("mal");
+                return;
+            }
+        }
+        const json v = in_.programaVideo();
+        if (!v.value("valido", false)) return;
+        const bool negro = type == "program_black";
+        const double luma = v.value("luma", 255.0), quieto = v.value("quieto_s", 0.0);
+        const double forSec = p.value("forSec", negro ? 3.0 : 30.0);
+        // Congelado: el propio dato ya dice cuánto lleva sin cambiar.
+        const bool mal = negro ? luma < p.value("umbral", 16.0) : quieto >= forSec;
+        if (!mal) {
+            st.since.erase("mal");
+            st.seen.erase("mal");
+            return;
+        }
+        if (!st.since.count("mal")) st.since["mal"] = now;
+        const bool yaEs = negro ? now - st.since["mal"] >= static_cast<std::int64_t>(forSec * 1000) : true;
+        if (yaEs && st.seen["mal"] != "1" && cooled(type)) {
+            st.seen["mal"] = "1";
+            mark(type);
+            fire(rule, st,
+                 negro ? "El programa está en negro hace " + fmt1((now - st.since["mal"]) / 1000.0) +
+                             " s (brillo " + fmt1(luma) + " de 255)."
+                       : "El programa está congelado: la imagen no cambia hace " + fmt1(quieto) + " s.",
+                 {{"luma", luma}, {"quietoSeg", quieto}}, now);
+        }
+    } else if (type == "record_down" && in_.status) {
+        const auto s = in_.status();
+        const std::int64_t forMs = static_cast<std::int64_t>(p.value("forSec", 5.0) * 1000);
+        if (s.grabacionPedida && !s.recording) {
+            if (!st.since.count("r0")) st.since["r0"] = now;
+            if (now - st.since["r0"] >= forMs && st.seen["r0"] != "1" && cooled("rec")) {
+                st.seen["r0"] = "1";
+                mark("rec");
+                fire(rule, st,
+                     "La grabación se cortó sola y lleva " + fmt1((now - st.since["r0"]) / 1000.0) +
+                         " s sin grabar (disco, codificador o la carpeta).",
+                     json::object(), now);
+            }
+        } else {
+            st.since.erase("r0");
+            st.seen.erase("r0");
+        }
     } else if (type == "disk" && in_.diskFreeGb && in_.status) {
         const auto s = in_.status();
         if (!s.recording && !p.value("siempre", false)) return;
@@ -806,7 +873,7 @@ void AlertEngine::save() const {
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
         if (!out) return;
-        out << json{{"rules", rules_}, {"ruleSeq", ruleSeq_}}.dump(2);
+        out << json{{"rules", rules_}, {"ruleSeq", ruleSeq_}, {"fabricaOfrecida", sembrados_}}.dump(2);
     }
     std::error_code ec;
     std::filesystem::rename(tmp, storePath_, ec);
@@ -836,7 +903,7 @@ void AlertEngine::anotarResultado(std::uint64_t id, const std::string& herramien
         }
 }
 
-void AlertEngine::sembrar() {
+void AlertEngine::sembrar(bool faltantes) {
     const json reglas = json::array({
         {{"type", "audio_silence"}, {"name", "Silencio al aire (programa)"},
          {"params", {{"source", "Programa"}, {"belowDb", -50}, {"forSec", 8}, {"onlyWhenLive", true}}},
@@ -858,8 +925,18 @@ void AlertEngine::sembrar() {
          {"sonido", "aviso"}},
         {{"type", "loudness"}, {"name", "Loudness fuera de objetivo"},
          {"params", {{"toleranciaLU", 2}, {"forSec", 30}, {"soloAlAire", true}}}, {"sonido", "ninguno"}},
+        {{"type", "program_black"}, {"name", "Programa en negro"},
+         {"params", {{"forSec", 3}, {"umbral", 16}, {"onlyWhenLive", true}}}, {"sonido", "critico"}, {"reconocer", true}},
+        {{"type", "program_frozen"}, {"name", "Programa congelado"},
+         {"params", {{"forSec", 30}, {"onlyWhenLive", true}}}, {"sonido", "aviso"}},
+        {{"type", "record_down"}, {"name", "La grabación se cortó"}, {"params", {{"forSec", 5}}},
+         {"sonido", "critico"}, {"reconocer", true}},
     });
     for (json r : reglas) {
+        const std::string tipo = r.value("type", std::string());
+        const bool visto = std::find(sembrados_.begin(), sembrados_.end(), tipo) != sembrados_.end();
+        if (!visto) sembrados_.push_back(tipo);
+        if (faltantes && visto) continue;
         r["fabrica"] = true;
         r["notify"] = json::array({"ui", "llm"});
         create(r);
@@ -890,11 +967,21 @@ void AlertEngine::load() {
     const json j = json::parse(in, nullptr, false);
     if (!j.is_object()) return;
     ruleSeq_ = j.value("ruleSeq", 0);
+    // Un alertas.json de antes de esta lista: se le ofrecieron las diez primeras.
+    sembrados_ = j.value("fabricaOfrecida",
+                         std::vector<std::string>{"audio_silence", "audio_peak", "stream_health", "stream_down", "disk",
+                                                  "input_signal", "guest_drop", "guest_quality", "superres_tarde",
+                                                  "loudness"});
     for (const auto& r : j.value("rules", json::array())) {
         if (!r.is_object() || !r.contains("id")) continue;
         rules_.push_back(r);
         state_[r["id"]] = State{};
     }
+    // Las de fábrica que se agregaron después (programa en negro, congelado,
+    // grabación cortada): se suman una vez; si el operador las borra, no vuelven.
+    const std::size_t antes = rules_.size();
+    sembrar(true);
+    if (rules_.size() != antes) save();
 }
 
 } // namespace ba::app::agent

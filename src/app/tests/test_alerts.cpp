@@ -5,6 +5,7 @@
 //   speaker_time (una vez por turno), lobby/hand (sin avisar lo que ya estaba),
 //   chat (filtro y regex), stream_health (cuadros perdidos y corte),
 //   stream_down (se cayo sola y no vuelve; NO cuando la paraste vos), disk,
+//   program_black / program_frozen (solo al aire), record_down,
 //   timer (in / every), once, persistencia, alert_wait (evento y vencimiento),
 //   validaciones.
 
@@ -40,6 +41,7 @@ struct World {
     std::vector<json> textos;
     AlertInputs::Status status;
     double disk = 100;
+    json prog{{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
 
     AlertInputs inputs() {
         AlertInputs in;
@@ -50,6 +52,7 @@ struct World {
         in.textos = [this]() { return textos; };
         in.status = [this]() { return status; };
         in.diskFreeGb = [this]() { return disk; };
+        in.programaVideo = [this]() { return prog; };
         in.nowMs = [this]() { return now; };
         return in;
     }
@@ -258,6 +261,44 @@ int main(int argc, char** argv) {
           "si el reintento se rinde, avisa aunque no haya pasado el tiempo");
     eng.clear();
     fired.clear();
+
+    // --- program_black, program_frozen, record_down ---------------------------------------------
+    eng.create(json{{"type", "program_black"}, {"params", {{"forSec", 3}, {"umbral", 16}}}});
+    eng.create(json{{"type", "program_frozen"}, {"params", {{"forSec", 30}}}});
+    w.status = {};
+    w.prog = {{"valido", true}, {"luma", 2.0}, {"quieto_s", 40.0}};
+    step(5000);
+    step(250);
+    CHECK(fired.empty(), "fuera del aire, ni negro ni congelado");
+    w.status.recording = true;
+    step(250);
+    step(2000);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "program_frozen", "congelado: avisa enseguida (ya lleva 40 s)");
+    step(1500);
+    CHECK(fired.size() == 2 && fired[1]["type"] == "program_black", "negro: avisa a los 3 s");
+    step(10000);
+    CHECK(fired.size() == 2, "una sola vez mientras sigue");
+    w.prog = {{"valido", true}, {"luma", 120.0}, {"quieto_s", 0.0}};
+    step(250);
+    eng.clear();
+    fired.clear();
+    eng.create(json{{"type", "record_down"}, {"params", {{"forSec", 5}}}});
+    w.status = {};
+    w.status.grabacionPedida = false;
+    step(6000);
+    CHECK(fired.empty(), "parada a propósito: no avisa");
+    w.status.grabacionPedida = true;
+    w.status.recording = true;
+    step(250);
+    w.status.recording = false; // se cortó sola
+    step(250);
+    step(3000);
+    CHECK(fired.empty(), "unos segundos todavía no");
+    step(2500);
+    CHECK(fired.size() == 1 && fired[0]["type"] == "record_down", "la grabación se cortó: avisa");
+    eng.clear();
+    fired.clear();
+    w.status = {};
 
     // --- timer, once, persistencia, wait ----------------------------------------------------------------
     const json t1 = eng.create(json{{"type", "timer"}, {"name", "Pausa"}, {"params", {{"in", 60}}}});
