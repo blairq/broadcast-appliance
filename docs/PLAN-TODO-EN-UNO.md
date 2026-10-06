@@ -53,9 +53,9 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M0.1 | `motor::Reloj`: el reloj del estudio (sistema, monotónico), base_time común para todos los pipelines, latencia del estudio con tope (lo de P0.6) | test: dos pipelines con el mismo base_time dan el mismo tiempo de ejecución | ⬜ |
-| M0.2 | `motor::Entrada`: la capa de entrada de `ba_gst_fuente` llevada a una clase sin OBS. Arma el pipeline con los mismos ajustes JSON: pipeline, `camara`, `microfono`, rack, filtros, medios, invitados, NDI, voces. Mantiene vigía de dispositivos, placa «sin señal», vigía de datos, reintentos, compensación y bus completo. Termina en `intersink` `<id>:video` y `<id>:audio` (F32 48 kHz estéreo) | test con `audiotestsrc`/`videotestsrc` y `fakesink`; cada tipo arma | ⬜ |
-| M0.3 | Medios con controles (play/pausa/ir a/bucle/fin) y la playlist encima de `motor::Entrada` (lo de `ba_gst_medio`) | test: fin de archivo, bucle sin corte, salto | ⬜ |
+| M0.1 | `motor::Reloj`: el reloj del estudio (sistema, monotónico), base_time común para todos los pipelines, latencia del estudio con tope (lo de P0.6) | test: dos pipelines con el mismo base_time dan el mismo tiempo de ejecución | ✅ 2026-10-06 |
+| M0.2 | `motor::Entrada`: la capa de entrada de `ba_gst_fuente` llevada a una clase sin OBS. Arma el pipeline con los mismos ajustes JSON: pipeline, `camara`, `microfono`, rack, filtros, medios, invitados, NDI, voces. Mantiene vigía de dispositivos, placa «sin señal», vigía de datos, reintentos, compensación y bus completo. Termina en `intersink` `<id>:video` y `<id>:audio` (F32 48 kHz estéreo) | test con `audiotestsrc`/`videotestsrc` y `fakesink`; cada tipo arma | 🟡 (hecho y probado con fuentes de prueba; falta con cámaras, micrófonos y red reales) |
+| M0.3 | Medios con controles (play/pausa/ir a/bucle/fin) y la playlist encima de `motor::Entrada` (lo de `ba_gst_medio`) | test: fin de archivo, bucle sin corte, salto | 🟡 (controles y bucle hechos; falta la playlist encima) |
 | M0.4 | Un solo armador de ajustes por tipo (P1.6) y pruebas por tipo con `GstTestClock` (P1.7) | ctest | ⬜ |
 | M0.5 | Fuentes que hoy da OBS, en GStreamer: color (`videotestsrc pattern=solid-color`), imagen (`imagefreeze`), texto (render con Qt a BGRA → `appsrc`), captura de pantalla/ventana (`avfvideosrc capture-screen` / `d3d12screencapturesrc` / `pipewiresrc`), audio del sistema (elemento propio por sistema) | cada una da imagen/sonido en la prueba | ⬜ |
 | M0.6 | Estado del motor como JSON (entradas, latencias, señales, medidores) y comandos; el MCP y la GUI leen eso | `motor_estado` por MCP | ⬜ |
@@ -64,7 +64,7 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M1.1 | Bus PROGRAMA: `intersrc` por entrada → `volume` (nivel, mute, balance) → `audiomixer` con `force-live`, `min-upstream-latency` = latencia del estudio + margen, `start-time-selection=first` y segmento fijo (§5.2) | una entrada que entra tarde no rebobina ni corta (probado en Python el 2026-10-06: +3 dB, tiempo continuo) | 🟡 |
+| M1.1 | Bus PROGRAMA: `intersrc` por entrada → `volume` (nivel, mute, balance) → `audiomixer` con `force-live`, `min-upstream-latency` = latencia del estudio + margen, `start-time-selection=first` y segmento fijo (§5.2) | una entrada que entra tarde no rebobina ni corta (probado en Python el 2026-10-06: +3 dB, tiempo continuo) | ✅ 2026-10-06 |
 | M1.1b | **El audio de la escena sigue al programa:** una entrada que está en escenas suena solo si su escena está al aire (con fundido en la transición). Las globales (micrófonos, invitados, remoto, voces) suenan siempre. Hoy lo hace el canal 0 de libobs | cambiar de escena corta el audio de la vieja y abre el de la nueva, con fundido | ⬜ |
 | M1.2 | Buses PISTA 2–6 (grabación multipista) y la Matriz (`audio-matriz.json`): qué entrada va a qué bus con qué nivel; los pads se agregan y sacan andando | cambiar la matriz no corta | ⬜ |
 | M1.3 | Limitador del máster true peak (P0.8) en el plugin `baaudio`: `balimitador`, con lookahead y sobremuestreo ×4, de fábrica −1 dBTP, se puede apagar | un tono a +6 dBFS sale a ≤ −1 dBTP medido con `ebur128level` | ⬜ |
@@ -167,3 +167,17 @@ tareas quedan repartidas acá.
   - **Probado en la app:**
     - Playlist en la escena Playlist al aire y `kill -9` a los 28 s: al volver estaba al aire la escena Playlist y el clip seguía desde ~28 s.
     - Con un cierre ordenado (`app_quit`) no retoma nada.
+- 2026-10-06 · Motor M0.1, M0.2 (en parte), M0.3 (en parte), M1.1: `src/motor/` (biblioteca `ba_motor`, sin OBS), commit 93ff0f2.
+  - **Reloj:** un reloj y un base_time para todos los pipelines; latencia del estudio con tope (la que pasa no arrastra).
+  - **Entrada:** la capa de `ba_gst_fuente` sin OBS. Termina en `intersink <id>:video` / `<id>:audio`. Lo en vivo entrega sin esperar; los mezcladores esperan la latencia.
+  - **Lo que se aprendió (probado):**
+    - `intersrc` pasa las horas tal cual. Un archivo (con su propio base_time, que cambia en cada salto y en cada pausa) lleva un offset en el pad de **salida** del elemento que entrega; en el de entrada de `intersink` recién valía con el próximo segmento.
+    - El EOS no tiene que pasar al mezclador (`event-types` vacío): si pasa, el pad queda terminado para siempre.
+  - **Mezcla:** `audiomixer` en vivo con ramas que se agregan y sacan andando, fader, mute, ganancia de escena con fundido de igual potencia y medidores.
+  - **test_motor (ctest):**
+    - un seno de 0,5 sale a −9,03 dBFS; uno segundo que entra andando suma a −6,02 sin rebobinar;
+    - fader, mute y escena;
+    - sacar una rama;
+    - un archivo que termina, se reinicia, se pausa y vuelve;
+    - bucle sin cortes;
+    - video normalizado (NV12, 30 cuadros, píxel cuadrado).
