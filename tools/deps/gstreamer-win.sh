@@ -2,8 +2,8 @@
 # ============================================================================
 # tools/deps/gstreamer-win.sh — GStreamer para Windows (MSVC x86_64)
 #
-# Los binarios OFICIALES (gstreamer.freedesktop.org), como el OBS y el Qt de
-# Windows: el .msi de ejecución y el de desarrollo, desarmados SIN instalar con
+# Los binarios OFICIALES (gstreamer.freedesktop.org), como el Qt de Windows:
+# el .msi de ejecución y el de desarrollo, desarmados SIN instalar con
 # msiextract (tools/deps/msitools.sh). Es la 1.26: desde la 1.28 el oficial de
 # Windows viene en un instalador Inno Setup que no se puede desarmar desde
 # Linux (ni innoextract ni Wine sobre Rosetta).
@@ -18,18 +18,16 @@
 #   etc/, share/        configuración, presets (sin las piezas de Python 3.13)
 #   include/, lib/*.lib las cabeceras y bibliotecas de importación (solo build)
 #
-# Va TODO (también Python, GTK y los plugins de Qt). Las DLL con el mismo
-# nombre que las del OBS (su FFmpeg: 7.0 en el OBS, 7.1 acá) las resuelve
-# cmake/BaGStreamer.cmake: va la de GStreamer (Windows carga una sola por nombre).
+# Va TODO (también Python, GTK, los plugins de Qt y su FFmpeg, que es el único
+# FFmpeg del bundle de Windows).
 #
-# Uso: tools/deps/gstreamer-win.sh <runtime.msi> <devel.msi> <salida> [dir con DLL del bundle...]
+# Uso: tools/deps/gstreamer-win.sh <runtime.msi> <devel.msi> <salida>
 # ============================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 RT="$1"
 DEV="$2"
 OUT="$3"
-shift 3
 log() { printf '\033[1;36m[gstreamer-win]\033[0m %s\n' "$*"; }
 M="$ROOT/extern/msitools/msiextract"
 [ -x "$M" ] || "$ROOT/tools/deps/msitools.sh"

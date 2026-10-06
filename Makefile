@@ -29,7 +29,7 @@ JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 
 # mismo formato de salida y el mismo -c.
 SHA256       := $(shell sha256sum --version 2>/dev/null | grep -q GNU && echo sha256sum || echo "shasum -a 256")
 SHA256_CHECK := $(SHA256) -c --quiet
-# macOS: libobs pide Xcode completo. Si xcode-select apunta a las Command Line
+# macOS: ba-modelo (MLX, xcodebuild) pide Xcode completo. Si xcode-select apunta a las Command Line
 # Tools pero Xcode esta instalado, se usa ese sin tocar la configuracion del
 # sistema (lo mismo que `sudo xcode-select -s`, solo para este build).
 ifeq ($(shell uname -s),Darwin)
@@ -44,9 +44,9 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
         clean clean-all \
-        deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
+        deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
         deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
@@ -80,16 +80,15 @@ help:
 	@echo "  make dist-linux-docker / dist-win-docker  Un bundle en Docker (con su .sha256)"
 	@echo "  make subir          Sube lo que haya en dist/ y verifica tamaño y sha256 en GitHub"
 	@echo "  make publicar-macos / publicar-linux / publicar-win  Una plataforma, compilando aca"
-	@echo "  make deps-linux Todo lo del build completo de Linux (libobs desde fuente, Qt, libwebrtc...)"
+	@echo "  make deps-linux Todo lo del build completo de Linux (GStreamer y sus deps desde fuente, libwebrtc...)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
 	@echo ""
 	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
 	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
 	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2) -> extern/"
-	@echo "  make deps-obs         Runtime OBS 31.0.0 (libobs+CEF+Qt) -> extern/obs-studio"
 	@echo "  make deps-qt          SDK Qt 6.6.3 win64_msvc2019_64 (build de Windows) -> extern/qt6"
-	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, OBS, libwebrtc...)"
+	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, GStreamer, libwebrtc...)"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
 	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
 	@echo "  make deps-cacert      raices de Mozilla (curl.se) -> extern/cacert (HTTPS propio: YouTube)"
@@ -190,9 +189,7 @@ test-all:
 # FALA (no se salta en verde): un gate que se omite en silencio no es gate.
 CF := $(shell command -v clang-format 2>/dev/null || command -v clang-format-18 2>/dev/null)
 
-# Ya no hay exclusiones: los headers aproximados que vivian en
-# `src/obs-module/obs/` se eliminaron cuando el modulo paso a compilarse contra
-# libobs real, asi que todo `src/` es codigo propio y se lintea entero.
+# Sin exclusiones: todo `src/` es codigo propio y se lintea entero.
 lint:
 	@if [ -z "$(CF)" ]; then \
 		echo "ERROR: clang-format no encontrado. Instalarlo con: sudo apt install clang-format" >&2; \
@@ -204,7 +201,7 @@ lint:
 
 # --- Bundle portable (layout §5.1) ------------------------------------------
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
-# obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
+# gst-plugins, data, Config, Logs, Recordings, Web/guest).
 release:
 	@# Desde cero: lo que se instaló antes y ya no va (de una receta vieja) no queda.
 	rm -rf release
@@ -233,10 +230,11 @@ deps-win-toolchain:
 deps-webrtc-win:
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=windows
 
-# Todo lo que el build de Windows necesita. Qt de Windows (msvc2019_64) mas el
-# Qt del host (moc, rcc, qmlcachegen corren en Linux), OBS (runtime + fuentes
-# para los headers), libwebrtc de Windows y las fuentes compartidas.
-deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
+# Todo lo que el build de Windows necesita. Qt de Windows (msvc2019_64: SDK y
+# también las DLL que viajan) mas el Qt del host (moc, rcc, qmlcachegen corren
+# en Linux), GStreamer oficial de MSVC (trae su FFmpeg), libwebrtc de Windows y
+# las fuentes compartidas.
+deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
           deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win
@@ -244,24 +242,6 @@ deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win dep
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
 	tools/deps/lsp-win.sh $(JOBS)
-
-# FFmpeg para compilar contra el del runtime de OBS (NDI decodifica SpeedHQ con
-# libavcodec): headers + bibliotecas de importacion del obs-deps OFICIAL que fija
-# el propio OBS (extern/obs-src/buildspec.json, mismo hash). Es FFmpeg n7.0.2,
-# el mismo de las DLL de extern/obs-studio (que son las que viajan).
-OBS_DEPS_WIN_VER := 2024-09-12
-OBS_DEPS_WIN_SHA := d4a4f194591766891ad3c0b267deec3c4b85239c8fe557273559927456aeedbb
-OBS_DEPS_WIN_ZIP = $(DL_DIR)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip
-deps-obs-deps-win:
-	@mkdir -p "$(DL_DIR)"
-	@if [ -f "$(EXTERNS_DIR)/obs-deps-win/lib/avcodec.lib" ]; then echo "[deps] obs-deps (Windows): ya presente"; else \
-	  [ -f "$(OBS_DEPS_WIN_ZIP)" ] && [ "$$($(SHA256) "$(OBS_DEPS_WIN_ZIP)" | cut -d' ' -f1)" = "$(OBS_DEPS_WIN_SHA)" ] || \
-	    curl -fL --retry 3 -o "$(OBS_DEPS_WIN_ZIP)" "https://github.com/obsproject/obs-deps/releases/download/$(OBS_DEPS_WIN_VER)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip"; \
-	  printf '%s  %s\n' "$(OBS_DEPS_WIN_SHA)" "$(OBS_DEPS_WIN_ZIP)" | $(SHA256_CHECK) || { echo "[deps] ERROR obs-deps: hash" >&2; exit 1; }; \
-	  rm -rf "$(EXTERNS_DIR)/obs-deps-win"; \
-	  unzip -q -o "$(OBS_DEPS_WIN_ZIP)" 'include/libavcodec/*' 'include/libavutil/*' 'lib/avcodec.lib' 'lib/avutil.lib' \
-	    -d "$(EXTERNS_DIR)/obs-deps-win"; \
-	  echo "[deps] obs-deps (Windows): FFmpeg (headers + .lib) en $(EXTERNS_DIR)/obs-deps-win"; fi
 
 # Recepcion NDI abierta: libNoIDea + libmicrodns por commit fijado.
 deps-ndi-src:
@@ -304,29 +284,22 @@ dist-win: release-win
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.commit
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
 
-# Todo lo que el build completo de Linux necesita (libobs y sus deps desde
-# fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
-deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
+# Todo lo que el build completo de Linux necesita (las bibliotecas de terceros
+# y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
+# compartidas...).
+deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
             deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
-# Todo se compila EN la Mac con Apple clang (Xcode completo: libobs lo exige).
-# Mismo layout portable que Linux (bin/64bit, obs-plugins/64bit, data/) y el
+# Todo se compila EN la Mac con Apple clang (Xcode completo: ba-modelo lo exige).
+# Mismo layout portable que Linux (bin/64bit, gst-plugins, data/) y el
 # mismo criterio: nada del sistema salvo los frameworks de macOS.
 #   make deps-macos     -> baja/compila todo lo de terceros en extern/
 #   make macos          -> compila (build/) y corre los tests
 #   make release-macos  -> bundle portable en release/ (verificado con otool)
 #   make dist-macos     -> dist/BroadcastAppliance-<ver>-macos-arm64.tar.gz
 #   make dmg-macos      -> dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app, lo que publica el release)
-deps-obs-src:
-	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
-		--recurse-submodules --shallow-submodules \
-		https://github.com/obsproject/obs-studio.git extern/obs-src
-
-deps-obs-macos: check-macos-tools deps-obs-src
-	tools/deps/obs-macos.sh $(JOBS)
-
 deps-lsp-macos:
 	tools/deps/lsp-macos.sh $(JOBS)
 
@@ -339,8 +312,8 @@ check-macos-tools:
 	@echo "[macos] herramientas OK ($$(xcodebuild -version | head -1), $$(cmake --version | head -1))"
 
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
-# Linux viene compilada con obs-deps.
-deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
+# Linux viene compilada con las de terceros (deps-terceros-linux).
+deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
             deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
@@ -514,8 +487,7 @@ dist-linux:
 # identificadores de descarga EXACTOS (tag de release, nombre de archivo) y
 # los SHA-256 viven aquí porque son metadatos de descarga, no "pins".
 #
-#   make deps             -> todo (obs + webrtc + spout + cloudflared + vcredist + lsp)
-#   make deps-obs         -> runtime OBS 31.0.0 (libobs.dll + CEF + Qt) a extern/obs-studio
+#   make deps             -> todo (qt + webrtc + spout + cloudflared + vcredist + lsp)
 #   make deps-webrtc      -> SDK libwebrtc M123 a extern/webrtc (= BA_WEBRTC_ROOT)
 #   make deps-spout       -> SDK Spout2 (tag real 2.007h) a extern/Spout2
 #   make deps-cloudflared -> cloudflared 2024.11.0 a extern/cloudflared
@@ -545,8 +517,6 @@ endif
 # --- Versiones (sincronizadas con versions.cmake) ---------------------------
 # Se leen de versions.cmake para que el pin sea la única fuente. Si la línea
 # no se encuentra, se cae a un default conocido (robustez ante reorden).
-OBS_TAG        := $(shell awk -F'"' '/OBS_STUDIO_TAG/{print $$2; exit}' versions.cmake 2>/dev/null)
-OBS_TAG        ?= 31.0.0
 CLOUDFLARED_VER:= $(shell awk -F'"' '/CLOUDFLARED_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
 CLOUDFLARED_VER?= 2024.11.0
 LSP_VER        := $(shell awk -F'"' '/LSP_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
@@ -564,16 +534,9 @@ WEBRTC_TAG := m123.6312.3.5
 SPOUT2_TAG := 2.007h
 
 # --- URLs + SHA-256 por asset -----------------------------------------------
-# OBS 31.0.0 (Windows): runtime portable (bin/64bit + obs-plugins/64bit con
-# libcef.dll/chrome_elf.dll + data/libobs). Es la raíz que consume tools/deploy
-# vía BA_DEPLOY_OBS. Trae también las DLLs de Qt del runtime.
-OBS_URL  := https://github.com/obsproject/obs-studio/releases/download/$(OBS_TAG)/OBS-Studio-$(OBS_TAG)-Windows.zip
-OBS_SHA  := 0ea3f71bd4d8a611ef763d2591aaf12b61e6f563284a3a14ddff485621fe4c41
-OBS_ZIP  := $(EXTERNS_DIR)/.downloads/OBS-Studio-$(OBS_TAG)-Windows.zip
-OBS_DEST := $(EXTERNS_DIR)/obs-studio
-
-# Qt 6.6.3 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config +
-# moc), NO el runtime (ese lo trae el zip de OBS en extern/obs-studio/bin/64bit).
+# Qt 6.6.3 (win64_msvc2019_64): SDK (headers + import libs + CMake config + moc)
+# y también el runtime: cmake/BaQtDeployWin.cmake copia de su bin/ las DLL que
+# ba-app importa de verdad.
 # Se instala con `aqtinstall` (en el .venv local) en lugar de curl: aqt baja el
 # componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin}
 # (incl. lib/cmake/Qt6/Qt6Config.cmake y lib/libQt6Core.a). La ruta oficial de
@@ -683,7 +646,7 @@ LSP_DEST := $(EXTERNS_DIR)/lsp
 # libsamplerate y argon2). Se vendorean a `extern/` para que un
 # configure con `extern/` poblado sea OFFLINE (cero red): el CMake prefiere la
 # copia vendored y solo cae a git si falta. Son DEPS DE BUILD (entran en el
-# binario), NO assets de runtime como OBS/Qt/Spout. Mismo patrón idempotente:
+# binario), NO assets de runtime como Qt/Spout. Mismo patrón idempotente:
 # presente+SHA -> skip; si no, curl a <tar>.part, mv, $(SHA256) -c, y se
 # extrae strippeando el top-dir de codeload.
 # ============================================================================
@@ -735,83 +698,16 @@ ARGON2_SENT := $(ARGON2_DEST)/Makefile
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-obs deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+deps: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
-# --- libobs para Linux (compilada desde fuente hacia extern/) ---------------
-# El motor de emision necesita libobs. En Windows se usa el runtime prebuilt
-# que baja `make deps-obs`; en Linux no hay tal cosa, asi que se compila desde
-# el tag fijado en versions.cmake hacia `extern/obs-linux`, que es de donde el
-# build del proyecto la toma (nunca del sistema).
-#
-# Requiere las bibliotecas de desarrollo de terceros listadas en el README
-# ("Requisitos de build"). uthash y nv-codec-headers se vendorean aca mismo.
-# Sin parentesis dentro del $(shell ...): make empareja parentesis y una
-# expresion sed con ellos le corta la llamada a la mitad.
-OBS_TAG := $(shell grep OBS_STUDIO_TAG versions.cmake | head -1 | cut -d'"' -f2)
-
-# Dependencias de libobs (FFmpeg, x264, jansson, curl, ...) DESDE FUENTE fijada:
-# el bundle no usa bibliotecas de terceros del sistema.
-deps-obs-deps-linux:
-	tools/deps/obs-deps-linux.sh $(JOBS)
-
-deps-obs-linux: deps-obs-deps-linux
-	@echo "==> libobs $(OBS_TAG) desde fuente hacia extern/obs-linux"
-	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
-		--recurse-submodules --shallow-submodules \
-		https://github.com/obsproject/obs-studio.git extern/obs-src
-	@test -d extern/uthash || git clone --depth 1 --branch v2.3.0 \
-		https://github.com/troydhanson/uthash.git extern/uthash
-	@test -d extern/nv-codec-headers || git clone --depth 1 --branch n12.2.72.0 \
-		https://github.com/FFmpeg/nv-codec-headers.git extern/nv-codec-headers
-	rm -rf extern/obs-build extern/obs-linux
-	PKG_CONFIG_PATH=$(CURDIR)/extern/obs-deps-linux/lib/pkgconfig \
-	cmake -S extern/obs-src -B extern/obs-build \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_PREFIX_PATH=$(CURDIR)/extern/obs-deps-linux \
-		-DENABLE_NEW_MPEGTS_OUTPUT=OFF -DENABLE_SERVICE_UPDATES=OFF \
-		-DCMAKE_DISABLE_FIND_PACKAGE_Gio=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
-		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
-		-DCMAKE_MODULE_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
-		-DENABLE_UI=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
-		-DENABLE_WEBSOCKET=OFF -DENABLE_VLC=OFF -DENABLE_VST=OFF \
-		-DENABLE_AJA=OFF -DENABLE_DECKLINK=OFF -DENABLE_PIPEWIRE=OFF \
-		-DENABLE_QSV11=OFF -DENABLE_VIRTUALCAM=OFF -DENABLE_WEBRTC=OFF \
-		-DUthash_INCLUDE_DIR=$(CURDIR)/extern/uthash/include \
-		-DFFnvcodec_INCLUDE_DIR=$(CURDIR)/extern/nv-codec-headers/include \
-		-DCMAKE_INSTALL_PREFIX=$(CURDIR)/extern/obs-linux
-	cmake --build extern/obs-build -j$(JOBS)
-	cmake --install extern/obs-build
-	@# Uso desde el arbol de build (tests): libobs y sus plugins encuentran las
-	@# dependencias vendoreadas. En el bundle, BaPortableBundle fija $$ORIGIN.
-	@for f in extern/obs-linux/lib/*.so.* extern/obs-linux/bin/obs-ffmpeg-mux; do \
-	  [ -f "$$f" ] && [ ! -L "$$f" ] && patchelf --add-rpath '$$ORIGIN/../../obs-deps-linux/lib' "$$f"; done; true
-	@for f in extern/obs-linux/lib/obs-plugins/*.so; do \
-	  patchelf --add-rpath '$$ORIGIN/../../../obs-deps-linux/lib' "$$f"; done
-	@echo "==> libobs lista en extern/obs-linux"
-
-deps-obs:
-	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
-	@mkdir -p "$(DL_DIR)" "$(OBS_DEST)"
-	@if [ -f "$(OBS_ZIP)" ] && [ "$$($(SHA256) "$(OBS_ZIP)" | cut -d' ' -f1)" = "$(OBS_SHA)" ]; then \
-	  echo "[deps] OBS: ya presente y verificado ($(OBS_ZIP))"; \
-	else \
-	  echo "[deps] OBS: descargando $(OBS_URL)"; \
-	  curl -fL --retry 3 --connect-timeout 30 -o "$(OBS_ZIP).part" "$(OBS_URL)" \
-	    && mv "$(OBS_ZIP).part" "$(OBS_ZIP)" \
-	    && printf '%s  %s\n' "$(OBS_SHA)" "$(OBS_ZIP)" | $(SHA256_CHECK) \
-	    || { echo "[deps] ERROR OBS: fallo de descarga o hash" >&2; rm -f "$(OBS_ZIP).part"; exit 1; }; \
-	fi
-	@# Headers de libobs (el zip trae solo binarios): el arbol de fuentes del tag.
-	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
-		--recurse-submodules --shallow-submodules \
-		https://github.com/obsproject/obs-studio.git extern/obs-src
-	@if [ -f "$(OBS_DEST)/obs-plugins/64bit/libcef.dll" ]; then \
-	  echo "[deps] OBS: ya extraído en $(OBS_DEST)"; \
-	else \
-	  echo "[deps] OBS: extrayendo a $(OBS_DEST)"; \
-	  unzip -q -o "$(OBS_ZIP)" -d "$(OBS_DEST)"; \
-	fi
+# --- Bibliotecas de terceros de Linux (compiladas desde fuente) -------------
+# FFmpeg, x264, SRT, libva, libv4l2, cairo, libsndfile, libmicrodns... desde
+# fuente fijada (tools/deps/terceros-linux.sh): el bundle no usa bibliotecas de
+# terceros del sistema. Las usan GStreamer (deps-gstreamer-linux), los plugins
+# LSP y la búsqueda por mDNS. Quedan en extern/obs-deps-linux (nombre de
+# cuando eran las dependencias de libobs: src/app/CMakeLists.txt lo usa así).
+deps-terceros-linux:
+	tools/deps/terceros-linux.sh $(JOBS)
 
 # Qt 6 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config).
 # Vía aqtinstall (en el .venv local): baja el componente exacto y lo deja en
@@ -1203,7 +1099,7 @@ mcp-inventario:
 	tools/mcp-inventario.py
 
 # llama.cpp (CPU) para medir un modelo chico corriendo ACA. Ver el comentario
-# del script: la GPU no esta libre, se la come libobs.
+# del script: la GPU no esta libre, se la come el motor de video.
 deps-llamacpp:
 	tools/deps/llamacpp.sh
 
@@ -1396,7 +1292,6 @@ deps-argon2:
 # --- Estado / limpieza de dependencias --------------------------------------
 deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
-	@echo "  OBS $(OBS_TAG)          : $$( [ -f '$(OBS_DEST)/obs-plugins/64bit/libcef.dll' ] && echo OK || echo ausente )"
 	@echo "  Qt6 $(QT6_VER) (win64_msvc2019_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
 	@echo "  Spout2 $(SPOUT2_TAG)          : $$( [ -f '$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h' ] && echo OK || echo ausente )"
@@ -1480,7 +1375,7 @@ deps-herramientas-win:
 
 # GStreamer de Linux: desde fuente, la misma versión (tools/deps/gstreamer-linux.sh).
 .PHONY: deps-gstreamer-linux
-deps-gstreamer-linux: deps-obs-linux
+deps-gstreamer-linux: deps-terceros-linux
 	bash tools/deps/gstreamer-linux.sh $(JOBS)
 
 # GStreamer de Windows: el oficial de MSVC, desarmado (tools/deps/gstreamer-win.sh).
@@ -1491,13 +1386,12 @@ GST_WIN_RT_SHA := 31cbc21fa0950b5c1e79c80959b2799805cb05a7a35953a13a9f7907761376
 GST_WIN_DEV := gstreamer-1.0-devel-msvc-x86_64-$(GST_WIN_VER).msi
 GST_WIN_DEV_SHA := af0a0720692052aaf5fb0cf2847ef34a87016ef0f914328d516f049e6c86f587
 .PHONY: deps-gstreamer-win
-deps-gstreamer-win: deps-obs deps-qt
+deps-gstreamer-win:
 	@if [ "$$(cat $(EXTERNS_DIR)/gstreamer-win/.version 2>/dev/null)" = "$(GST_WIN_VER) msvc_x86_64 r4" ]; then \
 		echo "GStreamer de Windows ya está ($(EXTERNS_DIR)/gstreamer-win)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_RT)" URL="$(GST_WIN_URL)/$(GST_WIN_RT)" SHA="$(GST_WIN_RT_SHA)" QUE="GStreamer (Windows)" && \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_DEV)" URL="$(GST_WIN_URL)/$(GST_WIN_DEV)" SHA="$(GST_WIN_DEV_SHA)" QUE="GStreamer (Windows, cabeceras)" && \
-	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win" \
-		"$(EXTERNS_DIR)/obs-studio/bin/64bit" "$(EXTERNS_DIR)/qt6/6.6.3/msvc2019_64/bin"
+	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win"
 
 # Los bindings de Python de GStreamer para el Python 3.12 del bundle (macOS).
 .PHONY: deps-gst-python-mac

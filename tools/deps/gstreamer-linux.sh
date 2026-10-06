@@ -11,8 +11,8 @@
 #
 # Qué usa del sistema: solo la base (tools/deps/linux-baseline.txt: glib, GL,
 # X11/Wayland, ALSA/Pulse, udev, drm). FFmpeg (gst-libav), x264, SRT, libva,
-# libpng y cairo salen de extern/obs-deps-linux (los mismos que usa libobs y
-# que ya viajan en bin/64bit). ORC (acelera videoconvert y compañía) se
+# libpng y cairo salen de extern/obs-deps-linux (tools/deps/terceros-linux.sh;
+# cmake/BaPortableBundle.cmake los lleva a bin/64bit). ORC (acelera videoconvert y compañía) se
 # compila como subproyecto fijado del propio GStreamer. Las demás
 # dependencias opcionales que no estén se apagan solas (auto): lo que queda
 # afuera lo dice el resumen de meson en el registro. Los códecs que la imagen
@@ -48,9 +48,9 @@ if [ -f "$PREFIX/.version" ] && [ "$(cat "$PREFIX/.version")" = "$VER $COMMIT r$
     log "ya está ($PREFIX)"
     exit 0
 fi
-[ -d "$DEPS/lib" ] || { log "ERROR: falta extern/obs-deps-linux (make deps-obs-linux)"; exit 1; }
+[ -d "$DEPS/lib" ] || { log "ERROR: falta extern/obs-deps-linux (make deps-terceros-linux)"; exit 1; }
 export PATH="$ROOT/extern/.tools/bin:$PATH"
-command -v meson >/dev/null || { log "ERROR: falta meson (lo deja tools/deps/obs-deps-linux.sh en extern/.tools)"; exit 1; }
+command -v meson >/dev/null || { log "ERROR: falta meson (lo deja tools/deps/terceros-linux.sh en extern/.tools)"; exit 1; }
 
 if [ ! -d "$SRC/.git" ]; then
     rm -rf "$SRC"
@@ -100,7 +100,7 @@ if [ ! -f "$LADO/.listo-2" ]; then
 fi
 
 # Lo de extern/obs-deps-linux primero; después, el sistema (la base). SRT está
-# compilado estático (va dentro de libobs): su .pc deja en Libs.private lo que
+# compilado estático (va dentro de FFmpeg y del plugin): su .pc deja en Libs.private lo que
 # pide (mbedTLS, la de C++), y el plugin no lo enlazaba. Un .pc corregido, solo
 # para esta compilación, lo pone en Libs.
 PC="$SRC/pc"

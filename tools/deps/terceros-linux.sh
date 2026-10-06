@@ -1,28 +1,31 @@
 #!/usr/bin/env bash
 # ============================================================================
-# tools/deps/obs-deps-linux.sh — Dependencias de libobs para Linux, DESDE FUENTE
+# tools/deps/terceros-linux.sh — Bibliotecas de terceros para Linux, DESDE FUENTE
 #
 # Proposito:
 #   El bundle portable no puede depender de bibliotecas "de terceros" del
-#   sistema (FFmpeg, x264, jansson, curl, ...): en otra maquina no estan, o
-#   estan en otra version y la app no arranca. Este script compila cada una
-#   desde un tarball FIJADO (URL + SHA-256, o commit git) hacia
-#   `extern/obs-deps-linux/`, que es de donde `make deps-obs-linux` compila
-#   libobs. Lo que queda afuera es solo la BASE del sistema (ver
-#   tools/deps/linux-baseline.txt): glibc, drivers de video (GL/EGL/VA
+#   sistema (FFmpeg, x264, cairo, ...): en otra maquina no estan, o estan en
+#   otra version y la app no arranca. Este script compila cada una desde un
+#   tarball FIJADO (URL + SHA-256, o commit git) hacia `extern/obs-deps-linux/`
+#   (el nombre es de cuando eran las dependencias de libobs; src/app/CMakeLists.txt
+#   lo usa asi). De ahi las toman GStreamer (tools/deps/gstreamer-linux.sh), los
+#   plugins LSP y la busqueda por mDNS, y cmake/BaPortableBundle.cmake copia las
+#   compartidas a bin/64bit. Lo que queda afuera es solo la BASE del sistema
+#   (ver tools/deps/linux-baseline.txt): glibc, drivers de video (GL/EGL/VA
 #   drivers), servidor grafico (X11/xcb/Wayland), audio (ALSA/Pulse), udev,
 #   fuentes (fontconfig/freetype) y lo que exige Qt oficial (glib, dbus, zlib).
 #
-#   Estatico (-fPIC, queda dentro de libobs o del plugin): jansson, libuuid,
-#   speexdsp, libpci, libcurl (solo HTTP, sin TLS: las actualizaciones de
-#   servicios estan apagadas), mbedTLS.
-#   Compartido (se copia a bin/64bit): FFmpeg, x264, libva (cargador: los
-#   drivers VA son del sistema), libv4l2/libv4lconvert.
+#   Estatico (-fPIC): mbedTLS y libsrt (quedan dentro de FFmpeg y del plugin
+#   srt de GStreamer), libmicrodns (dentro de ba-app).
+#   Compartido (se copia a bin/64bit): FFmpeg (gst-libav), x264, libva
+#   (cargador: los drivers VA son del sistema), libv4l2/libv4lconvert, y lo que
+#   piden los plugins LSP y el plugin cairo de GStreamer: cairo, pixman,
+#   libpng, libsndfile.
 #
 #   Herramientas de build que no hay en el sistema (nasm, meson) tambien se
 #   compilan/extraen desde fuente fijada, en `extern/.tools/`.
 #
-# Uso: tools/deps/obs-deps-linux.sh [JOBS]   (idempotente: centinelas por paquete)
+# Uso: tools/deps/terceros-linux.sh [JOBS]   (idempotente: centinelas por paquete)
 # ============================================================================
 set -euo pipefail
 # macOS no trae sha256sum (shasum -a 256 da el mismo formato).
@@ -47,11 +50,6 @@ export LDFLAGS="-Wl,-rpath,\$ORIGIN"
 PKGS=(
   "nasm|2.16.03|https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.xz|1412a1c760bbd05db026b6c0d1657affd6631cd0a63cddb6f73cc6d4aa616148"
   "meson|1.5.2|https://github.com/mesonbuild/meson/releases/download/1.5.2/meson-1.5.2.tar.gz|f955e09ab0d71ef180ae85df65991d58ed8430323de7d77a37e11c9ea630910b"
-  "jansson|2.14|https://github.com/akheron/jansson/releases/download/v2.14/jansson-2.14.tar.gz|5798d010e41cf8d76b66236cfb2f2543c8d082181d16bc3085ab49538d4b9929"
-  "util-linux|2.40.2|https://www.kernel.org/pub/linux/utils/util-linux/v2.40/util-linux-2.40.2.tar.xz|d78b37a66f5922d70edf3bdfb01a6b33d34ed3c3cafd6628203b2a2b67c8e8b3"
-  "speexdsp|1.2.1|https://downloads.xiph.org/releases/speex/speexdsp-1.2.1.tar.gz|8c777343e4a6399569c72abc38a95b24db56882c83dbdb6c6424a5f4aeb54d3d"
-  "pciutils|3.13.0|https://mj.ucw.cz/download/linux/pci/pciutils-3.13.0.tar.gz|a03c88a0aab709b1697ca1753766f443e78297f84c7bcd80a82c1422edd7cb42"
-  "curl|8.10.1|https://curl.se/download/curl-8.10.1.tar.xz|73a4b0e99596a09fa5924a4fb7e4b995a85fda0d18a2c02ab9cf134bebce04ee"
   "libva|2.22.0|https://github.com/intel/libva/releases/download/2.22.0/libva-2.22.0.tar.bz2|e3da2250654c8d52b3f59f8cb3f3d8e7fb1a2ee64378dbc400fbc5663de7edb8"
   "v4l-utils|1.28.1|https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.28.1.tar.xz|0fa075ce59b6618847af6ea191b6155565ccaa44de0504581ddfed795a328a82"
   "srt|1.5.4|https://github.com/Haivision/srt/archive/refs/tags/v1.5.4.tar.gz|d0a8b600fe1b4eaaf6277530e3cfc8f15b8ce4035f16af4a5eb5d4b123640cdd"
@@ -72,7 +70,7 @@ MICRODNS_COMMIT="deb7ed7bf05dc26802a0ca1987049b31405b8930" # 0.2.0
 X264_URL="https://code.videolan.org/videolan/x264.git"
 X264_COMMIT="b35605ace3ddf7c1a5d67a2eb553f034aef41d55" # rama stable
 
-log() { printf '[obs-deps] %s\n' "$*" >&2; }
+log() { printf '[terceros-linux] %s\n' "$*" >&2; }
 
 # fetch <nombre> -> deja el arbol fuente en $SRC/<nombre> y lo imprime
 fetch() {
@@ -117,46 +115,6 @@ if [ ! -x "$TOOLS/bin/meson" ]; then
 fi
 
 # --- estaticas -----------------------------------------------------------------
-if ! done_mark jansson; then
-  d=$(fetch jansson); log "jansson (estatica)"
-  cmake -S "$d" -B "$d/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-    -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DJANSSON_BUILD_SHARED_LIBS=OFF \
-    -DJANSSON_BUILD_DOCS=OFF -DJANSSON_EXAMPLES=OFF -DJANSSON_WITHOUT_TESTS=ON >/dev/null
-  cmake --build "$d/build" -j"$JOBS" >/dev/null && cmake --install "$d/build" >/dev/null
-  mark jansson
-fi
-if ! done_mark libuuid; then
-  d=$(fetch util-linux); log "libuuid (estatica)"
-  (cd "$d" && ./configure --prefix="$PREFIX" --libdir="$PREFIX/lib" --disable-all-programs --enable-libuuid \
-      --disable-shared --enable-static --with-pic --disable-nls --without-python --without-systemd \
-      --without-udev --disable-bash-completion --disable-asciidoc >/dev/null \
-    && make -j"$JOBS" libuuid.la >/dev/null && make install-uuidincHEADERS install-pkgconfigDATA install-usrlib_execLTLIBRARIES >/dev/null)
-  mark libuuid
-fi
-if ! done_mark speexdsp; then
-  d=$(fetch speexdsp); log "speexdsp (estatica)"
-  (cd "$d" && ./configure --prefix="$PREFIX" --libdir="$PREFIX/lib" --disable-shared --enable-static \
-      --with-pic --disable-examples >/dev/null && make -j"$JOBS" >/dev/null && make install >/dev/null)
-  mark speexdsp
-fi
-if ! done_mark pciutils; then
-  d=$(fetch pciutils); log "libpci (estatica)"
-  (cd "$d" && make -j"$JOBS" PREFIX="$PREFIX" LIBDIR="$PREFIX/lib" ZLIB=no DNS=no LIBKMOD=no HWDB=no \
-      SHARED=no OPT="-O2 -fPIC" lib/libpci.a >/dev/null \
-    && make PREFIX="$PREFIX" LIBDIR="$PREFIX/lib" ZLIB=no DNS=no LIBKMOD=no HWDB=no SHARED=no install-lib >/dev/null)
-  mark pciutils
-fi
-if ! done_mark curl; then
-  d=$(fetch curl); log "libcurl (estatica, solo HTTP)"
-  cmake -S "$d" -B "$d/build" -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX" \
-    -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON \
-    -DBUILD_CURL_EXE=OFF -DBUILD_TESTING=OFF -DBUILD_LIBCURL_DOCS=OFF -DBUILD_MISC_DOCS=OFF -DENABLE_CURL_MANUAL=OFF \
-    -DHTTP_ONLY=ON -DCURL_ENABLE_SSL=OFF -DCURL_USE_LIBPSL=OFF -DCURL_USE_LIBSSH2=OFF -DCURL_USE_GSSAPI=OFF \
-    -DUSE_NGHTTP2=OFF -DUSE_LIBIDN2=OFF -DCURL_BROTLI=OFF -DCURL_ZSTD=OFF -DCURL_ZLIB=OFF -DENABLE_ARES=OFF \
-    -DCURL_DISABLE_LDAP=ON >/dev/null
-  cmake --build "$d/build" -j"$JOBS" >/dev/null && cmake --install "$d/build" >/dev/null
-  mark curl
-fi
 if ! done_mark mbedtls; then
   log "mbedTLS (estatica, desde extern/mbedtls)"
   [ -f "$ROOT/extern/mbedtls/CMakeLists.txt" ] || make -C "$ROOT" deps-mbedtls >/dev/null

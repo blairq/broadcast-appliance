@@ -14,8 +14,7 @@
     "--socket=wayland",
     "--socket=pulseaudio",
     "--device=all",
-    "--filesystem=home",
-    "--env=OBS_HOME=$HOME/.config/obs"
+    "--filesystem=home"
   ],
   "build-options": {
     "cflags": "-O2 -g",
@@ -89,8 +88,7 @@
       ],
       "post-install": [
         "mkdir -p /app/bin/64bit",
-        "mkdir -p /app/obs-plugins/64bit",
-        "mkdir -p /app/data/libobs",
+        "mkdir -p /app/gst-plugins",
         "mkdir -p /app/Config",
         "mkdir -p /app/Logs",
         "mkdir -p /app/Recordings",

@@ -9,7 +9,7 @@
 #
 # Compila el commit ACTUAL (tiene que estar commiteado) en un volumen de Docker
 # que persiste (ba-trabajo): extern/ y los builds se reusan entre corridas, asi
-# que solo la primera compila libobs, FFmpeg y compania. Corre los mismos make
+# que solo la primera compila GStreamer, FFmpeg y compania. Corre los mismos make
 # que el CI y deja en dist/ de aca el .tar.gz y/o el .zip, listos para
 # `tools/publicar.sh`.
 #

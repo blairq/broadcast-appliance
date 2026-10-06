@@ -21,8 +21,8 @@ concurrency:
 
 jobs:
   # macOS nativo, en un runner Apple Silicon (el unico que se puede probar: el
-  # .dmg es solo arm64). Los mismos make que en una Mac de desarrollo; libobs
-  # se compila con Xcode la primera vez y despues sale de la cache.
+  # .dmg es solo arm64). Los mismos make que en una Mac de desarrollo; lo de
+  # terceros se baja/compila la primera vez y despues sale de la cache.
   macos:
     name: "macOS arm64: deps + build + tests + .dmg"
     runs-on: macos-15
@@ -49,7 +49,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-macos-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-macos.sh', 'tools/deps/lsp-macos.sh', 'tools/deps/libreoffice.sh') }}
+          key: extern-macos-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/gstreamer-macos.sh', 'tools/deps/lsp-macos.sh', 'tools/deps/libreoffice.sh') }}
 
       - name: Dependencias (make deps-macos)
         run: |
@@ -79,7 +79,7 @@ jobs:
         run: make dmg-macos JOBS=$(sysctl -n hw.ncpu)
 
       # Humo del .dmg TAL CUAL se publica: montado, la .app copiada a otro lado
-      # y sin el libobs de extern/ (como en Linux: tapaba errores de "solo anda
+      # y sin el GStreamer de extern/ (como en Linux: tapaba errores de "solo anda
       # en la maquina que compilo"). Sin contexto grafico el autotest devuelve
       # 77 (saltado): en ese caso se avisa y no se corta el release.
       - name: Humo del .dmg (autotest del motor)
@@ -89,12 +89,12 @@ jobs:
           ditto "$d/mnt/BroadcastAppliance.app" "$d/BroadcastAppliance.app"
           hdiutil detach "$d/mnt"
           codesign --verify --deep --strict "$d/BroadcastAppliance.app"
-          mv extern/obs-macos extern/obs-macos.oculto
+          mv extern/gstreamer-macos extern/gstreamer-macos.oculto
           set +e
           HOME="$d/home" "$d/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-app" --engine-selftest >"$d/humo.log" 2>&1
           rc=$?
           set -e
-          mv extern/obs-macos.oculto extern/obs-macos
+          mv extern/gstreamer-macos.oculto extern/gstreamer-macos
           grep -E '^\s*\[|autotest del motor' "$d/humo.log" || true
           if grep -q "autotest del motor: OK" "$d/humo.log"; then exit 0; fi
           if [ "$rc" = 77 ]; then echo "::warning::sin contexto grafico en el runner: el autotest del motor se salteo"; exit 0; fi

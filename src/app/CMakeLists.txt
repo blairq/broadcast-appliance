@@ -95,7 +95,7 @@ else()
 endif()
 
 # --- NDI(R) sin SDK propietario: libNoIDea (VideoLAN, LGPL) + libmicrodns -----
-# Fuente fijada por commit (tools/deps/obs-deps-linux.sh). Se compila adentro de
+# Fuente fijada por commit (tools/deps/terceros-linux.sh). Se compila adentro de
 # ba-app; el video SpeedHQ lo decodifica el FFmpeg del bundle.
 set(BA_NOIDEA_DIR "${CMAKE_SOURCE_DIR}/extern/libnoidea")
 set(BA_OBS_DEPS "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")

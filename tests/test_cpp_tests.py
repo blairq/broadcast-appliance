@@ -115,7 +115,7 @@ def test_discover_cpp_test_binaries(build_dir: Path | None) -> None:
 
 #: Exit code that a C++ test uses to report "skipped" rather than "passed".
 #: It matches CTest's ``SKIP_RETURN_CODE`` property set in the CMake files, so
-#: a suite that cannot run (no libwebrtc, no libobs, no ``fork()``) is reported
+#: a suite that cannot run (no libwebrtc, no GStreamer, no ``fork()``) is reported
 #: as skipped on both sides instead of masquerading as a pass.
 SKIP_EXIT_CODE = 77
 

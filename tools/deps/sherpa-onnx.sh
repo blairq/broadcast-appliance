@@ -7,7 +7,7 @@
 #   audio del operador al reconocedor y el texto a la barra del asistente.
 #   sherpa-onnx corre los modelos de voz sobre ONNX Runtime —reconocer
 #   (Parakeet, Canary...), detectar voz (Silero VAD) y, mas adelante, hablar
-#   (voces de piper)— en CPU, que es lo que esta libre: la GPU la usa libobs.
+#   (voces de piper)— en CPU, que es lo que esta libre: la GPU la usa el motor de video.
 #
 # POR QUE COMPILADO Y NO EL BINARIO PUBLICADO. Porque va contra EL MISMO ONNX
 # Runtime que ya viaja en el bundle (extern/rostros, el de los rostros): dos

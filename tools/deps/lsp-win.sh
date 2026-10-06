@@ -16,8 +16,8 @@
 # "union" es un archivo delgado (llvm-ar T, sin copiar nada) y el enlace final
 # los toma enteros (--whole-archive): mismo resultado que `ld -r`.
 # El build de LSP compila tambien herramientas para el HOST (Linux) que
-# necesitan los headers de libsndfile y cairo (de extern/obs-deps-linux si
-# estan; si no, los del sistema: libsndfile1-dev libcairo2-dev) y X11/GL.
+# necesitan los headers de libsndfile y cairo (de extern/obs-deps-linux, que arma
+# tools/deps/terceros-linux.sh, si estan; si no, los del sistema: libsndfile1-dev libcairo2-dev) y X11/GL.
 #
 # Resultado: extern/lsp/windows-x86_64/{lsp-plugins.clap, lsp-r3d-wgl-lib-*.dll}
 # ============================================================================

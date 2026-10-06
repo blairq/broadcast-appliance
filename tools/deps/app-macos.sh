@@ -2,7 +2,7 @@
 # ============================================================================
 # tools/deps/app-macos.sh — el bundle portable de macOS como .app (y el .dmg)
 #
-# La .app ES el bundle portable: el layout de siempre (bin/64bit, obs-plugins,
+# La .app ES el bundle portable: el layout de siempre (bin/64bit, gst-plugins,
 # data, Config, Recordings...) va entero en Contents/Resources/, y el launcher
 # en Contents/MacOS/. El programa lo reconoce: si corre desde
 # X.app/Contents/MacOS/, la raiz del layout es Contents/Resources (ver

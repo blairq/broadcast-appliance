@@ -7,7 +7,7 @@
 #     el tiene que ser /MT, incluido ba_core y las libs de C.
 #   - El launcher tambien va /MT: arranca en cualquier Windows sin depender de
 #     las DLLs del CRT (esas viajan en bin/64bit, junto a A).
-#   - A (Qt, libobs) y el modulo de OBS van /MD, como Qt y OBS.
+#   - A (Qt, GStreamer) va /MD, como Qt y GStreamer.
 #   Un mismo arbol de CMake no puede tener ba_core en las dos variantes, asi
 #   que la parte /MT se configura aparte (mismo CMakeLists raiz, mismo
 #   toolchain, BA_WIN_STATIC_PART=ON) y sus ejecutables se instalan desde aca.

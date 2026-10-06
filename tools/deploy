@@ -4,15 +4,12 @@
 #
 # PROPÓSITO
 #   `make release` / `make prod` instalan el ESQUELETO del layout §5.1 en
-#   release/ (bin/64bit, obs-plugins/64bit, data/libobs, Config, Logs,
-#   Recordings, Web/guest) con los binarios PROPIOS (BroadcastAppliance,
-#   ba-app, ba-gateway, ba-sources). Este script completa el bundle copiando
-#   los RUNTIMES DE TERCEROS que el build no produce:
+#   release/ (bin/64bit, gst-plugins, data, Config, Logs, Recordings,
+#   Web/guest) con los binarios PROPIOS (BroadcastAppliance, ba-app,
+#   ba-gateway) y los runtimes de terceros que ya instala el build (GStreamer,
+#   Qt, CRT). Este script puede completar el bundle copiando runtimes que el
+#   build no produce:
 #
-#     * runtime de OBS  (DLLs a bin/64bit, plugins a obs-plugins/64bit,
-#                        shaders data/libobs/*.effect, obs-browser-page.exe
-#                        y el CEF completo, que viaja dentro de
-#                        obs-plugins/64bit según §5.1);
 #     * runtime de Qt   (vía windeployqt si hay, o copia de sus *.dll);
 #     * runtime VC++    app-local (incluye msvcp140_atomic_wait.dll,
 #                        requerido por std::atomic::wait de C++20);
@@ -36,10 +33,6 @@
 #                  Si no existe, se crea (el esqueleto puede ser vacío).
 #
 # VARIABLES DE ENTORNO (cada una OPCIONAL)
-#   BA_DEPLOY_OBS         Root del runtime de OBS. Debe espejar el layout
-#                         portable: <root>/bin/64bit, <root>/obs-plugins/64bit
-#                         y <root>/data/libobs. Se copia sobre el bundle
-#                         respetando esos subdirectorios.
 #   BA_DEPLOY_QT          Dir con el runtime de Qt. Si además hay
 #                         BA_DEPLOY_WINDEPLOYQT, se ejecuta ese sobre
 #                         bin/64bit (y trae plugins/tls/etc.); si no, se
@@ -171,35 +164,16 @@ sign_file() {
 
 # --- Raíces del bundle (layout §5.1) ----------------------------------------
 B_BIN64="$BUNDLE_DIR/bin/64bit"
-B_PLUGINS="$BUNDLE_DIR/obs-plugins/64bit"
-B_LIBOBS="$BUNDLE_DIR/data/libobs"
 
 # Con --solo-manifest no se copia nada: el bundle ya esta armado (es lo que
 # pasa en Linux, donde el build no necesita runtimes de terceros) y lo unico
 # que falta es el manifest para que el launcher tenga que verificar.
 if [ "$ONLY_MANIFEST" -eq 0 ]; then
 
-mkdir -p "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"
+mkdir -p "$B_BIN64"
 
 # ============================================================================
-# 1) RUNTIME DE OBS  (BA_DEPLOY_OBS)
-# ============================================================================
-# El root de OBS espeja el layout portable: bin/64bit, obs-plugins/64bit y
-# data/libobs. obs-browser-page.exe y el CEF (libcef.dll, chrome_elf.dll,
-# *.pak, icudtl.dat, locales/) viajan DENTRO de obs-plugins/64bit según §5.1,
-# así que se cubren con la copia de ese subdirectorio.
-if [ -n "${BA_DEPLOY_OBS:-}" ]; then
-  log "=== runtime de OBS (root: $BA_DEPLOY_OBS) ==="
-  copy_tree "$BA_DEPLOY_OBS/bin/64bit"        "$B_BIN64"   "OBS bin/64bit"        || true
-  copy_tree "$BA_DEPLOY_OBS/obs-plugins/64bit" "$B_PLUGINS" "OBS obs-plugins/64bit" || true
-  copy_tree "$BA_DEPLOY_OBS/data/libobs"      "$B_LIBOBS"  "OBS data/libobs"       || true
-else
-  warn "skip: BA_DEPLOY_OBS no configurado (runtime de OBS no copiado)"
-  mark_missing "BA_DEPLOY_OBS"
-fi
-
-# ============================================================================
-# 2) RUNTIME DE QT  (BA_DEPLOY_QT [, BA_DEPLOY_WINDEPLOYQT])
+# 1) RUNTIME DE QT  (BA_DEPLOY_QT [, BA_DEPLOY_WINDEPLOYQT])
 # ============================================================================
 if [ -n "${BA_DEPLOY_QT:-}" ]; then
   log "=== runtime de Qt (dir: $BA_DEPLOY_QT) ==="
@@ -228,7 +202,7 @@ else
 fi
 
 # ============================================================================
-# 3) RUNTIME VC++ APP-LOCAL  (BA_DEPLOY_VC)
+# 2) RUNTIME VC++ APP-LOCAL  (BA_DEPLOY_VC)
 # ============================================================================
 # DEBE incluir msvcp140_atomic_wait.dll (lo requiere std::atomic::wait de
 # C++20). Si falta, el bundle no arranca: es error, no skip.
@@ -250,7 +224,7 @@ else
 fi
 
 # ============================================================================
-# 4) CLOUDFLARED FIJADO  (BA_DEPLOY_CLOUDFLARED)
+# 3) CLOUDFLARED FIJADO  (BA_DEPLOY_CLOUDFLARED)
 # ============================================================================
 if [ -n "${BA_DEPLOY_CLOUDFLARED:-}" ]; then
   log "=== cloudflared (ruta: $BA_DEPLOY_CLOUDFLARED) ==="
@@ -264,17 +238,17 @@ else
 fi
 
 # ============================================================================
-# 5) FIRMA DE LOS ARCHIVOS COPIADOS  (BA_DEPLOY_SIGN_CMD)
+# 4) FIRMA DE LOS ARCHIVOS COPIADOS  (BA_DEPLOY_SIGN_CMD)
 # ============================================================================
 # Se firma cada archivo que el deploy COPIO en esta corrida (no los del
-# esqueleto, que los firma el build). Recorre los cuatro destinos conocidos.
+# esqueleto, que los firma el build). Recorre bin/64bit, donde copia todo.
 if [ -n "${BA_DEPLOY_SIGN_CMD:-}" ]; then
   log "=== firma de binarios (BA_DEPLOY_SIGN_CMD) ==="
   # Archivo temporal con la lista de rutas a firmar (una por línea).
   SIGN_LIST="$(mktemp)"
   trap 'rm -f "$SIGN_LIST"' EXIT
   # Recorre los destinos de despliegue y encola cada archivo.
-  for d in "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"; do
+  for d in "$B_BIN64"; do
     [ -d "$d" ] || continue
     while IFS= read -r -d '' f; do
       printf '%s\0' "$f" >> "$SIGN_LIST"
@@ -290,7 +264,7 @@ fi
 fi # --- fin del bloque de copiado (ver --solo-manifest) ---------------------
 
 # ============================================================================
-# 6) MANIFEST.JSON  (raíz del bundle)
+# 5) MANIFEST.JSON  (raíz del bundle)
 # ============================================================================
 # JSON determinista: claves ordenadas, lista de archivos ordenada por ruta.
 # Cubre TODO el árbol desplegado (incluye el esqueleto del build), porque el

@@ -7,9 +7,9 @@
 #
 # Reglas de la arquitectura (docs/prompts/primer_prompt.md §14, §3, §9):
 #   - C++20 obligatorio en todo el árbol.
-#   - `ba_core` es el núcleo: SIN Qt, SIN libobs, testeable por unidad.
+#   - `ba_core` es el núcleo: SIN Qt, SIN motor de video, testeable por unidad.
 #   - El launcher (`BroadcastAppliance`) es Win32 puro con CRT estático (/MT).
-#   - A (`ba-app`), B (`ba-gateway`) y el módulo (`ba-sources`) usan /MD.
+#   - A (`ba-app`) usa /MD; el gateway va /MT con el launcher (cmake/BaWinStaticPart.cmake).
 #   - Los PDBs se emiten siempre.
 #
 # Este archivo solo monta el andamiaje de build. Los sources los aportan los
@@ -183,8 +183,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # --- Flags del compilador ---------------------------------------------------
-# MSVC: flags del spec §14. /MD por defecto para A, B y el módulo (consistencia
-# con libobs y Qt); el launcher se pasa a /MT en su propio CMakeLists.
+# MSVC: flags del spec §14. /MD por defecto para A (consistencia
+# con Qt y GStreamer); el launcher se pasa a /MT en su propio CMakeLists.
 # Los PDBs se emiten SIEMPRE (debug info) incluso en Release.
 if(MSVC)
     add_compile_options(
@@ -274,10 +274,10 @@ add_subdirectory(src/app)
 add_subdirectory(src/grafico)
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
-# El layout espeja el portable de OBS (spec §5.1). Las rutas de destino son
-# relativas a CMAKE_INSTALL_PREFIX. Aquí se crean los directorios del layout
-# y se instalan los targets propios; los runtime de terceros (OBS, CEF, Qt,
-# VC++, cloudflared) los copia `tools/deploy` sobre este esqueleto.
+# Layout portable (spec §5.1). Las rutas de destino son relativas a
+# CMAKE_INSTALL_PREFIX. Aquí se crean los directorios del layout y se instalan
+# los targets propios y los runtime de terceros (GStreamer, Qt, CRT, cloudflared,
+# cada uno desde su módulo de cmake/).
 #
 #   <prefix>/
 #   ├── bin/64bit/            # ejecutables y bibliotecas (GStreamer, Qt)
