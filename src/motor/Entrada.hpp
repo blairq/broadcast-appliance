@@ -119,6 +119,7 @@ class Entrada {
     int reintentos_ = 0;
     std::uint64_t rackFaltaDesde_ = 0;
     GstClockTime baseAplicada_ = GST_CLOCK_TIME_NONE; ///< (medios) el base_time con que se puso el offset
+    std::int64_t realineadoNs_ = 0; ///< lo en vivo que trae sus propias horas (no las del estudio): la corrección
     bool ntpApagadoSolo_ = false;
 
     // Medios

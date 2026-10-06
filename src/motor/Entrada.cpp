@@ -126,6 +126,7 @@ void Entrada::desarmar() {
         pipeline_ = nullptr;
     }
     baseAplicada_ = GST_CLOCK_TIME_NONE;
+    realineadoNs_ = 0;
 }
 
 void Entrada::programarReintento() {
@@ -416,7 +417,7 @@ void Entrada::corregirOffset() {
             // pausa no viene ninguno: todo llegaba tarde y el mezclador lo tiraba).
             if (GstPad* pad = gst_element_get_static_pad(e, "sink")) {
                 if (GstPad* antes = gst_pad_get_peer(pad)) {
-                    const gint64 dif = medio_ ? static_cast<gint64>(base) - static_cast<gint64>(reloj_.base()) : 0;
+                        const gint64 dif = medio_ ? static_cast<gint64>(base) - static_cast<gint64>(reloj_.base()) : realineadoNs_;
                     gst_pad_set_offset(antes, dif + desf);
                     gst_object_unref(antes);
                 }
@@ -452,6 +453,19 @@ void Entrada::medirLatencia() {
             edadP50_ = v[v.size() / 2];
             edadP95_ = std::clamp(v[v.size() * 95 / 100], 0.0, 5000.0);
         }
+    }
+    // Una fuente en vivo con SUS horas (empieza en 0, como videotestsrc, o un
+    // emisor sin hora de captura): lo que entrega está corrido segundos del
+    // estudio. Se corrige con el offset del pad, como un archivo.
+    if (datos > 10 && std::fabs(edadP50_) > 1000.0) {
+        realineadoNs_ += static_cast<std::int64_t>((edadP50_ - 10.0) * 1e6);
+        registrar(Nivel::Info, id_ + ": trae sus propias horas (corridas " + std::to_string(static_cast<int>(edadP50_)) +
+                                   " ms del estudio): se realinea");
+        corregirOffset();
+        std::lock_guard<std::mutex> l(medMu_);
+        edades_.clear();
+        edadP50_ = edadP95_ = 0;
+        return;
     }
     const std::int64_t piso = latenciaMs_ * static_cast<std::int64_t>(GST_MSECOND);
     const double necesitaMs = std::max(declaradoMs_ + 15.0, edadP95_ + 10.0);

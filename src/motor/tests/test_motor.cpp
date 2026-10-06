@@ -2,7 +2,7 @@
 //
 // Con el GStreamer del bundle (sin él: SKIP):
 //   - dos pipelines adoptados por el reloj del estudio tienen el mismo base_time;
-//   - una entrada en vivo (tono) llega al bus PROGRAMA con su nivel (seno 0,5 = −9 dBFS);
+//   - una entrada en vivo (tono) llega al bus PROGRAMA con su nivel (seno 0,25 = −15 dBFS);
 //   - una segunda que entra andando suma (+3 dB) sin cortar ni rebobinar;
 //   - fader, mute y la ganancia de escena con fundido;
 //   - sacar una rama andando no corta las demás;
@@ -53,10 +53,10 @@ struct Banco {
 
 bool cerca(double a, double b, double tol) { return std::fabs(a - b) <= tol; }
 
-/// Un WAV de `seg` segundos con un seno de 0,5 (para el medio).
+/// Un WAV de `seg` segundos con un seno de 0,25 (para el medio).
 bool hacerWav(const std::string& ruta, double seg) {
     const int bloques = static_cast<int>(seg * 48000 / 1024);
-    const std::string d = "audiotestsrc wave=sine freq=330 volume=0.5 samplesperbuffer=1024 num-buffers=" +
+    const std::string d = "audiotestsrc wave=sine freq=330 volume=0.25 samplesperbuffer=1024 num-buffers=" +
                           std::to_string(bloques) +
                           " ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! wavenc ! filesink location=\"" + ruta + "\"";
     GError* e = nullptr;
@@ -80,6 +80,9 @@ bool hacerWav(const std::string& ruta, double seg) {
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
     setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1);
+#endif
+#if defined(BA_TEST_GST_PLUGINS)
+    setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, 1); // los nuestros (balimitador), sin instalar
 #endif
     std::string err;
     if (!iniciarGStreamer(&err)) {
@@ -114,13 +117,13 @@ int main() {
 
     Lienzo lienzo;
     Banco banco;
-    auto programa = std::make_unique<Mezcla>(reloj, "programa");
+    auto programa = std::make_unique<Mezcla>(reloj, "programa", Mezcla::Opciones{true, true});
     CHECK(programa->anda(), "el bus PROGRAMA arranca");
     banco.mezcla = programa.get();
     banco.correr(300);
     CHECK(banco.rms() < -60, "sin entradas: silencio, pero andando");
 
-    const json tono1{{"pipeline_audio", "audiotestsrc is-live=true wave=sine freq=440 volume=0.5"}};
+    const json tono1{{"pipeline_audio", "audiotestsrc is-live=true wave=sine freq=440 volume=0.25"}};
     auto e1 = std::make_unique<Entrada>(reloj, lienzo, "tono1", tono1);
     banco.entradas.push_back(e1.get());
     programa->agregar("tono1");
@@ -130,22 +133,22 @@ int main() {
     CHECK(st1.value("anda", false), "la entrada anda");
     CHECK(st1.value("bloques_audio", 0) > 20, "da audio");
     std::printf("programa con un tono: %.2f dBFS (latencia %.0f ms)\n", banco.rms(), programa->estado().value("latencia_ms", 0.0));
-    CHECK(cerca(banco.rms(), -9.03, 1.0), "un seno de 0,5 sale a -9 dBFS");
+    CHECK(cerca(banco.rms(), -15.05, 1.0), "un seno de 0,25 sale a -15 dBFS");
 
     // Una segunda que entra andando: suma (+3 dB, frecuencias distintas).
-    const json tono2{{"pipeline_audio", "audiotestsrc is-live=true wave=sine freq=1000 volume=0.5"}};
+    const json tono2{{"pipeline_audio", "audiotestsrc is-live=true wave=sine freq=1000 volume=0.25"}};
     auto e2 = std::make_unique<Entrada>(reloj, lienzo, "tono2", tono2);
     banco.entradas.push_back(e2.get());
     programa->agregar("tono2");
     banco.correr(1500);
     std::printf("programa con dos: %.2f dBFS\n", banco.rms());
-    CHECK(cerca(banco.rms(), -6.02, 1.0), "la que entra andando suma +3 dB");
+    CHECK(cerca(banco.rms(), -12.04, 1.0), "la que entra andando suma +3 dB");
     const json pe = programa->estado();
     CHECK(pe["entradas"].contains("tono1") && pe["entradas"].contains("tono2"), "las dos en el estado");
 
     programa->ponerNivel("tono2", 0.0);
     banco.correr(600);
-    CHECK(cerca(banco.rms(), -9.03, 1.0), "fader a 0: queda una");
+    CHECK(cerca(banco.rms(), -15.05, 1.0), "fader a 0: queda una");
     programa->ponerMute("tono1", true);
     banco.correr(600);
     CHECK(banco.rms() < -60, "mute: silencio");
@@ -157,7 +160,7 @@ int main() {
     CHECK(aMitad > 0.0 && aMitad < 1.0, "el fundido de escena va de a poco");
     banco.correr(900);
     std::printf("tono1 fuera de escena: %.2f dBFS\n", banco.rms());
-    CHECK(cerca(banco.rms(), -9.03, 1.0), "fuera de escena: queda la otra");
+    CHECK(cerca(banco.rms(), -15.05, 1.0), "fuera de escena: queda la otra");
 
     // Sacar una rama andando: las demás siguen.
     programa->quitar("tono2");
@@ -166,7 +169,7 @@ int main() {
     CHECK(banco.rms() < -60, "tono1 sigue fuera de escena: silencio");
     programa->ponerEscena("tono1", 1.0, 0);
     banco.correr(600);
-    CHECK(cerca(banco.rms(), -9.03, 1.0), "y la otra sigue sonando");
+    CHECK(cerca(banco.rms(), -15.05, 1.0), "y la otra sigue sonando");
     programa->ponerEscena("tono1", 0.0, 0);
 
     // Un archivo: suena, termina, se reinicia (otro base_time: el offset lo sigue).
@@ -179,14 +182,14 @@ int main() {
     std::printf("medio: %s, %.2f dBFS, %lld ms de %lld\n", m->estadoMedio().c_str(), banco.rms(),
                 static_cast<long long>(m->tiempoMs()), static_cast<long long>(m->duracionMs()));
     CHECK(m->estadoMedio() == "playing", "el medio anda");
-    CHECK(cerca(banco.rms(), -9.03, 1.5), "el medio suena por el bus");
+    CHECK(cerca(banco.rms(), -15.05, 1.5), "el medio suena por el bus");
     banco.correr(3500);
     CHECK(m->estadoMedio() == "ended", "terminó");
     CHECK(banco.rms() < -60, "terminado: silencio");
     CHECK(m->controlMedio("reiniciar").empty(), "reiniciar");
     banco.correr(900);
     std::printf("medio reiniciado: %s, %.2f dBFS\n", m->estadoMedio().c_str(), banco.rms());
-    CHECK(cerca(banco.rms(), -9.03, 1.5), "reiniciado vuelve a sonar (offset al día)");
+    CHECK(cerca(banco.rms(), -15.05, 1.5), "reiniciado vuelve a sonar (offset al día)");
     CHECK(m->controlMedio("pausa").empty(), "pausa");
     banco.correr(500);
     CHECK(banco.rms() < -60, "en pausa: silencio");
@@ -198,7 +201,7 @@ int main() {
                     m->estadoMedio().c_str(), static_cast<long long>(m->tiempoMs()));
     }
     banco.correr(700);
-    CHECK(cerca(banco.rms(), -9.03, 1.5), "después de la pausa vuelve a sonar");
+    CHECK(cerca(banco.rms(), -15.05, 1.5), "después de la pausa vuelve a sonar");
 
     // En bucle: vueltas sin cortes (saltos por segmentos, sin flush). Se mide
     // cada 100 ms durante tres vueltas: nunca silencio.
@@ -217,9 +220,34 @@ int main() {
         peor = std::min(peor, banco.rms());
     }
     std::printf("en bucle, el peor nivel en 3 s: %.2f dBFS (%s)\n", peor, m->estadoMedio().c_str());
-    CHECK(peor > -12, "en bucle no hay silencio entre vueltas");
+    CHECK(peor > -18, "en bucle no hay silencio entre vueltas");
     programa->quitar("bucle");
     std::filesystem::remove(corto);
+    // El limitador del máster: un tono a +6 dBFS sale a <= -1 dBTP (medido por el
+    // ebur128level del bus, después del limitador).
+    if (hayFabrica("balimitador")) {
+        auto f = std::make_unique<Entrada>(reloj, lienzo, "fuerte",
+                                           json{{"pipeline_audio", "audiotestsrc is-live=true freq=997 volume=1 ! "
+                                                                   "audio/x-raw,format=F32LE,rate=48000,channels=2 ! volume volume=2"}});
+        banco.entradas.push_back(f.get());
+        programa->agregar("fuerte");
+        banco.correr(1500);
+        const json pe2 = programa->estado();
+        std::printf("limitador: %s; loudness: %s\n", pe2["limitador"].dump().c_str(), pe2["loudness"].dump().c_str());
+        CHECK(pe2["loudness"].value("true_peak_db", 0.0) <= -0.95, "+6 dBFS sale a <= -1 dBTP");
+        CHECK(pe2["loudness"].value("true_peak_db", -120.0) > -2.0, "y no baja de más");
+        CHECK(pe2["limitador"].value("reduccion_db", 0.0) < -5.0, "el limitador está bajando");
+        CHECK(pe2["loudness"].value("momentaneo", -120.0) > -10, "el loudness se mide");
+        programa->ponerLimitador(false, -1.0);
+        banco.correr(800);
+        CHECK(programa->estado()["loudness"].value("true_peak_db", 0.0) > 5.0, "apagado no limita");
+        programa->ponerLimitador(true, -1.0);
+        programa->quitar("fuerte");
+        banco.entradas.pop_back();
+    } else {
+        std::printf("(sin balimitador: no se prueba el limitador)\n");
+    }
+
     // Video: normalizado al lienzo (formato, cuadros, píxel cuadrado; el tamaño queda).
     auto v = std::make_unique<Entrada>(reloj, lienzo, "camara",
                                        json{{"pipeline", "videotestsrc is-live=true ! video/x-raw,width=640,height=360,framerate=25/1"}});
@@ -232,6 +260,9 @@ int main() {
     CHECK(cerca(sv["sale"].value("fps", 0.0), 30.0, 0.01), "a los cuadros del lienzo");
     CHECK(sv["sale"].value("ancho", 0) == 640, "el tamaño queda (lo escala la composición)");
     CHECK(sv["origen"].value("fps", 0.0) == 25.0, "y se sabe cómo llegaba");
+    // videotestsrc arranca sus horas en 0 (no en la hora del estudio): se realinea.
+    CHECK(sv.value("edad_p50_ms", 9999.0) < 500, "una fuente con sus propias horas se realinea");
+    CHECK(!sv.value("llega_tarde", true), "y no queda «llega tarde»");
     banco.entradas.pop_back();
     v.reset();
     programa->quitar("tono1");

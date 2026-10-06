@@ -44,10 +44,19 @@ std::string nombreSeguro(const std::string& id) {
 
 } // namespace
 
-Mezcla::Mezcla(Reloj& reloj, std::string nombre) : reloj_(reloj), nombre_(std::move(nombre)) {
+Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op) : reloj_(reloj), nombre_(std::move(nombre)) {
+    std::string salida;
+    if (op.limitador) {
+        if (hayFabrica("balimitador"))
+            salida += "balimitador name=lim ! ";
+        else
+            registrar(Nivel::Aviso, "mezcla " + nombre_ + ": no está balimitador (plugin baaudio): sale sin limitador");
+    }
+    if (op.loudness && hayFabrica("ebur128level"))
+        salida += "ebur128level name=loud interval=100000000 post-messages=true ! ";
     const std::string desc =
         "audiomixer name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
-        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! "
+        "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " + salida +
         "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! "
         "intersink name=sale producer-name=" +
         entreComillas(productor()) + " sync=false";
@@ -62,6 +71,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre) : reloj_(reloj), nombre_(std::m
         return;
     }
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
+    limitador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "lim");
     reloj_.adoptar(pipeline_);
     aplicarLatencia();
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
@@ -80,6 +90,7 @@ Mezcla::~Mezcla() {
                 gst_object_unref(r.pad);
             }
         ramas_.clear();
+        if (limitador_ != nullptr) gst_object_unref(limitador_);
         gst_object_unref(mezclador_);
         gst_object_unref(pipeline_);
     }
@@ -183,6 +194,13 @@ void Mezcla::ponerEscena(const std::string& id, double ganancia, int ms) {
     }
 }
 
+bool Mezcla::ponerLimitador(bool activo, double techoDb) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (limitador_ == nullptr) return false;
+    g_object_set(limitador_, "activo", activo ? TRUE : FALSE, "techo-db", std::clamp(techoDb, -20.0, 0.0), nullptr);
+    return true;
+}
+
 void Mezcla::tic() {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;
@@ -204,7 +222,16 @@ void Mezcla::tic() {
         switch (GST_MESSAGE_TYPE(m)) {
             case GST_MESSAGE_ELEMENT: {
                 const GstStructure* s = gst_message_get_structure(m);
-                if (s != nullptr && gst_structure_has_name(s, "level")) {
+                if (s != nullptr && gst_structure_has_name(s, "ebur128-level")) {
+                    double v = 0;
+                    const auto lufs = [](double x) { return std::isfinite(x) ? std::max(x, -120.0) : -120.0; };
+                    if (gst_structure_get_double(s, "momentary-loudness", &v)) loudness_["momentaneo"] = lufs(v);
+                    if (gst_structure_get_double(s, "shortterm-loudness", &v)) loudness_["corto"] = lufs(v);
+                    if (gst_structure_get_double(s, "global-loudness", &v)) loudness_["integrado"] = lufs(v);
+                    if (gst_structure_get_double(s, "loudness-range", &v)) loudness_["lra"] = std::isfinite(v) ? v : 0.0;
+                    const double tp = mayor(s, "true-peak"); // lineal
+                    loudness_["true_peak_db"] = tp > 1e-6 ? 20.0 * std::log10(tp) : -120.0;
+                } else if (s != nullptr && gst_structure_has_name(s, "level")) {
                     const std::string src = GST_OBJECT_NAME(GST_MESSAGE_SRC(m));
                     const double pico = mayor(s, "peak"), rms = mayor(s, "rms");
                     if (src == "nivel") {
@@ -255,7 +282,16 @@ json Mezcla::estado() const {
     json e = json::object();
     for (const auto& [id, r] : ramas_)
         e[id] = {{"nivel", r.fader}, {"mute", r.mute}, {"escena", r.escena}, {"pico_db", r.picoDb}, {"rms_db", r.rmsDb}};
+    json lim = nullptr;
+    if (limitador_ != nullptr) {
+        gboolean activo = TRUE;
+        double techo = -1, red = 0;
+        g_object_get(limitador_, "activo", &activo, "techo-db", &techo, "reduccion-db", &red, nullptr);
+        lim = {{"activo", static_cast<bool>(activo)}, {"techo_db", techo}, {"reduccion_db", red}};
+    }
     return {{"bus", nombre_},
+            {"limitador", lim},
+            {"loudness", loudness_},
             {"anda", pipeline_ != nullptr},
             {"error", error_},
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},

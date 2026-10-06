@@ -4,8 +4,13 @@
 // Un pipeline propio por bus (PROGRAMA, una pista, un retorno…):
 //
 //   intersrc <id>:audio ! queue ! volume (fader, mute) ! level ─┐
-//   intersrc <id>:audio ! queue ! volume ! level ───────────────┼─► audiomixer ! level ! intersink bus:<nombre>
-//   …                                                            ┘   (pad: ganancia de escena con fundido)
+//   intersrc <id>:audio ! queue ! volume ! level ───────────────┼─► audiomixer ! [balimitador] ! [ebur128level]
+//   …                                                            ┘     ! level ! intersink bus:<nombre>
+//                                                     (pad: ganancia de escena con fundido)
+//
+// El PROGRAMA lleva el limitador del máster (balimitador, −1 dBTP de fábrica) y
+// el medidor de loudness (ebur128level: momentáneo, corto, integrado, LRA y true
+// peak) a la salida, después del limitador: lo que se mide es lo que sale.
 //
 // - Reloj y base_time del estudio: las horas de las entradas valen tal cual.
 // - El mezclador es en vivo aunque no tenga entradas (force-live) y arranca con
@@ -35,7 +40,12 @@ class Reloj;
 
 class Mezcla {
    public:
-    Mezcla(Reloj& reloj, std::string nombre);
+    struct Opciones {
+        bool limitador = false; ///< balimitador a la salida (el máster)
+        bool loudness = false;  ///< ebur128level a la salida
+    };
+    Mezcla(Reloj& reloj, std::string nombre, Opciones op);
+    Mezcla(Reloj& reloj, std::string nombre) : Mezcla(reloj, std::move(nombre), Opciones{}) {}
     ~Mezcla();
     Mezcla(const Mezcla&) = delete;
     Mezcla& operator=(const Mezcla&) = delete;
@@ -56,9 +66,12 @@ class Mezcla {
     /// La ganancia de escena (0…1) con un fundido de `ms`.
     void ponerEscena(const std::string& id, double ganancia, int ms);
 
+    /// El limitador del máster: prendido y techo (dBTP). false si este bus no lo tiene.
+    bool ponerLimitador(bool activo, double techoDb);
     /// Lo llama el motor seguido: medidores, latencia, fundidos.
     void tic();
-    /// {latencia_ms, pico_db, rms_db, entradas: {id: {nivel, mute, escena, pico_db, rms_db}}}
+    /// {latencia_ms, pico_db, rms_db, limitador: {activo, techo_db, reduccion_db},
+    ///  loudness: {momentaneo, corto, integrado, lra, true_peak_db}, entradas: {id: {…}}}
     nlohmann::json estado() const;
     /// El pico del bus (dBFS, el mayor de los canales; -120 sin señal).
     double picoDb() const;
@@ -83,6 +96,8 @@ class Mezcla {
     std::string nombre_, error_;
     GstElement* pipeline_ = nullptr;
     GstElement* mezclador_ = nullptr;
+    GstElement* limitador_ = nullptr;
+    nlohmann::json loudness_ = nlohmann::json::object();
     mutable std::mutex mu_;
     std::map<std::string, Rama> ramas_;
     std::int64_t latenciaNs_ = -1;

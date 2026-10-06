@@ -67,11 +67,11 @@ tareas quedan repartidas acá.
 | M1.1 | Bus PROGRAMA: `intersrc` por entrada → `volume` (nivel, mute, balance) → `audiomixer` con `force-live`, `min-upstream-latency` = latencia del estudio + margen, `start-time-selection=first` y segmento fijo (§5.2) | una entrada que entra tarde no rebobina ni corta (probado en Python el 2026-10-06: +3 dB, tiempo continuo) | ✅ 2026-10-06 |
 | M1.1b | **El audio de la escena sigue al programa:** una entrada que está en escenas suena solo si su escena está al aire (con fundido en la transición). Las globales (micrófonos, invitados, remoto, voces) suenan siempre. Hoy lo hace el canal 0 de libobs | cambiar de escena corta el audio de la vieja y abre el de la nueva, con fundido | ⬜ |
 | M1.2 | Buses PISTA 2–6 (grabación multipista) y la Matriz (`audio-matriz.json`): qué entrada va a qué bus con qué nivel; los pads se agregan y sacan andando | cambiar la matriz no corta | ⬜ |
-| M1.3 | Limitador del máster true peak (P0.8) en el plugin `baaudio`: `balimitador`, con lookahead y sobremuestreo ×4, de fábrica −1 dBTP, se puede apagar | un tono a +6 dBFS sale a ≤ −1 dBTP medido con `ebur128level` | ⬜ |
+| M1.3 | Limitador del máster true peak (P0.8) en el plugin `baaudio`: `balimitador`, con lookahead y sobremuestreo ×4, de fábrica −1 dBTP, se puede apagar | un tono a +6 dBFS sale a ≤ −1 dBTP medido con `ebur128level` | ✅ 2026-10-06 |
 | M1.4 | Mix-minus por invitado: un `audiomixer` por retorno (el programa sin su propio audio, sin restar muestras) → `baanillosink` nuevo en `baipc` que escribe `BA.Audio.Return.<n>` y `BA.Audio.ContentForReturn` (el gateway no cambia). Modo por invitado `programa`/`mix_minus` (`retornos.json`) | el invitado no se oye en su retorno | ⬜ |
 | M1.4b | Buses virtuales de la Matriz (salidas a otra placa, entradas virtuales) y las entradas físicas por canal (`EquipoAudio`) como entradas del motor | la Matriz de hoy anda igual | ⬜ |
 | M1.5 | ESCUCHA (P0.7): «directo» (la sala sin demora), «programa» (lo que sale) y PFL de una entrada; salida a `osxaudiosink`/`wasapi2sink`/`pulsesink`; una tecla para pasar. También la escucha de los racks (nodo «monitor» de `barack`), las del lobby y la voz del sistema (solo auriculares) | con «programa» el audio coincide con el video del programa | ⬜ |
-| M1.6 | Medidores: `level` y `ebur128level` en cada bus. Alimentan los medidores de la GUI, `LoudnessPrograma` y las alarmas (silencio, saturación, loudness) | la GUI y las alarmas leen del motor | ⬜ |
+| M1.6 | Medidores: `level` y `ebur128level` en cada bus. Alimentan los medidores de la GUI, `LoudnessPrograma` y las alarmas (silencio, saturación, loudness) | la GUI y las alarmas leen del motor | 🟡 (level y ebur128level en el bus; falta enchufarlos a la GUI y las alarmas, en M6) |
 
 ### M2 — Composición de video
 
@@ -181,3 +181,8 @@ tareas quedan repartidas acá.
     - un archivo que termina, se reinicia, se pausa y vuelve;
     - bucle sin cortes;
     - video normalizado (NV12, 30 cuadros, píxel cuadrado).
+- 2026-10-06 · M1.3: `balimitador` (plugin `baaudio`, DSP en `ba::dsp::LimitadorTP`), commit 84c1f4b.
+  - **Cómo limita:** true peak con sobremuestreo ×4 y lookahead de 5 ms (mínimo deslizante + promedio, que garantiza el techo). Declara su demora en LATENCY. Apagado demora lo mismo.
+  - **Medido con `ebur128level`:** +6 dBFS sale a −1,04 dBTP.
+  - **En el motor:** el PROGRAMA lleva limitador y `ebur128level` a la salida.
+  - **Realineado:** una fuente en vivo que trae sus propias horas (como `videotestsrc`, que arranca en 0) se corrige sola con el offset del pad.
