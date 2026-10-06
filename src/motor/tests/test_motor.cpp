@@ -11,6 +11,7 @@
 
 #include "Entrada.hpp"
 #include "Mezcla.hpp"
+#include "Piezas.hpp"
 #include "Reloj.hpp"
 
 #include <gst/gst.h>
@@ -58,7 +59,7 @@ bool hacerWav(const std::string& ruta, double seg) {
     const int bloques = static_cast<int>(seg * 48000 / 1024);
     const std::string d = "audiotestsrc wave=sine freq=330 volume=0.25 samplesperbuffer=1024 num-buffers=" +
                           std::to_string(bloques) +
-                          " ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! wavenc ! filesink location=\"" + ruta + "\"";
+                          " ! audio/x-raw,format=S16LE,rate=48000,channels=2 ! wavenc ! filesink location=" + entreComillas(ruta);
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
@@ -275,7 +276,7 @@ int main() {
     {
         const std::string png = (std::filesystem::temp_directory_path() / "ba_test_motor.png").string();
         GstElement* p = gst_parse_launch(("videotestsrc num-buffers=1 pattern=solid-color foreground-color=0x800000ff ! "
-                                          "video/x-raw,format=BGRA,width=64,height=64 ! videoconvert ! pngenc ! filesink location=\"" + png + "\"").c_str(), nullptr);
+                                          "video/x-raw,format=BGRA,width=64,height=64 ! videoconvert ! pngenc ! filesink location=" + entreComillas(png)).c_str(), nullptr);
         gst_element_set_state(p, GST_STATE_PLAYING);
         GstBus* b = gst_element_get_bus(p);
         if (GstMessage* m = gst_bus_timed_pop_filtered(b, 5 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR)))

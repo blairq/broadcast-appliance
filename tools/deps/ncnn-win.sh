@@ -21,7 +21,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DL="${1:-$ROOT/extern/.downloads}"
 OUT="$ROOT/extern/ncnn-win"
 command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
-log() { printf '\033[36m[ncnn-win]\033[0m %s\n' "$*"; }
+log() { printf '\033[36m[ncnn-win]\033[0m %s\n' "$*" >&2; }
 morir() { printf '\033[31m[ncnn-win] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 NCNN_VER=20260526

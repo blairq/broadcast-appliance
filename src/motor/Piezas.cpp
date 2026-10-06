@@ -183,8 +183,9 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                 const auto i = kParesGl.find(f.elemento);
                 par = i != kParesGl.end() ? i->second : f.elemento + "gl";
             } else {
-                // d3d12convert tiene las mismas propiedades que videobalance.
-                par = f.elemento == "videobalance" ? "d3d12convert" : f.elemento + "d3d12";
+                // (d3d12convert tiene brillo/contraste/saturación, pero en la PC con AMD dio
+                // otro color: videobalance y bacolor siguen en la CPU.)
+                par = f.elemento + "d3d12";
             }
             if (hayFabrica(par) && tieneLasPropiedades(par, f.props)) {
                 f.elemento = par;

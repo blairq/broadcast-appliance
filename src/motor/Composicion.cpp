@@ -6,6 +6,8 @@
 #include "Mezcla.hpp" // kMargenMezclaNs
 #include "Reloj.hpp"
 
+#include <gst/video/video.h>
+
 #include <algorithm>
 #include <cstdlib>
 #include <atomic>
@@ -162,11 +164,11 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     r->generacion = gen;
     r->src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r->cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
-    r->recorte = gst_element_factory_make(gl_ ? "gltransformation" : "videocrop", ("rec_" + n).c_str());
+    r->recorte = gst_element_factory_make(gl_ ? "gltransformation" : gpu_ ? "d3d12convert" : "videocrop", ("rec_" + n).c_str());
     if (gpu_ && !gl_) {
-        // D3D12: videocrop solo marca el recorte (meta) y d3d12convert lo aplica en la GPU.
+        // D3D12: una sonda marca la ventana en cada cuadro (meta de recorte, sin cambiar
+        // el tamaño: nada se renegocia, ni en la cortina) y d3d12convert la aplica en la GPU.
         r->subir = gst_element_factory_make("d3d12upload", ("d3d_" + n).c_str());
-        r->fijar = gst_element_factory_make("d3d12convert", ("d3dc_" + n).c_str());
     } else if (gpu_) {
         r->subir = gst_element_factory_make("glupload", ("gl_" + n).c_str());
         r->conv = gst_element_factory_make("glcolorconvert", ("glc_" + n).c_str());
@@ -176,12 +178,12 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         // shader de fábrica, copia la textura: una pasada barata en la GPU.
         r->fijar = gst_element_factory_make("glshader", ("gls_" + n).c_str());
     }
-    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || r->fijar == nullptr || (gl_ && r->conv == nullptr)))) {
+    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || (gl_ && (r->conv == nullptr || r->fijar == nullptr))))) {
         for (GstElement* e : {r->src, r->cola, r->recorte, r->subir, r->conv, r->fijar})
             if (e != nullptr) gst_object_unref(e);
         delete r;
         error_ = gl_    ? "falta intersrc, queue, glupload, glcolorconvert o gltransformation"
-                 : gpu_ ? "falta intersrc, queue, d3d12upload, videocrop o d3d12convert"
+                 : gpu_ ? "falta intersrc, queue, d3d12upload o d3d12convert"
                         : "falta intersrc, queue o videocrop";
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
         return nullptr;
@@ -193,9 +195,14 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
                  nullptr);
     gst_bin_add_many(GST_BIN(pipeline_), r->src, r->cola, r->recorte, nullptr);
     if (gpu_ && !gl_) {
-        // intersrc → cola → subir a D3D12 (si ya está, pasa) → marcar el recorte → aplicarlo.
-        gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->fijar, nullptr);
-        gst_element_link_many(r->src, r->cola, r->subir, r->recorte, r->fijar, nullptr);
+        // intersrc → cola → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
+        gst_bin_add(GST_BIN(pipeline_), r->subir);
+        gst_element_link_many(r->src, r->cola, r->subir, r->recorte, nullptr);
+        if (GstPad* p = gst_element_get_static_pad(r->recorte, "sink")) {
+            gst_pad_add_probe(p, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
+                              &Composicion::marcarRecorte, r, nullptr);
+            gst_object_unref(p);
+        }
     } else if (gpu_) {
         // intersrc → cola → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
         gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, r->fijar, nullptr);
@@ -224,7 +231,7 @@ void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
     g_object_set(r.pad, "xpos", c.x, "ypos", c.y, "width", w, "height", h, "alpha", c.visible ? alfa : 0.0, "zorder",
                  zorder, nullptr);
     gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", c.contener ? "keep-aspect-ratio" : "none");
-    if (gl_)
+    if (gpu_)
         recorteGl(r, c, 0, w, h);
     else
         g_object_set(r.recorte, "left", std::max(0, c.recIzq), "top", std::max(0, c.recArr), "right", std::max(0, c.recDer),
@@ -247,15 +254,23 @@ void Composicion::recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int
     }
     const int izq = std::max(0, c.recIzq), arr = std::max(0, c.recArr), der = std::max(0, c.recDer) + std::max(0, extraDer),
               aba = std::max(0, c.recAba);
+    if (!gl_) {
+        // D3D12: la sonda lo marca en el próximo cuadro (en píxeles de la fuente).
+        r.recIzq = izq;
+        r.recArr = arr;
+        r.recDer = der;
+        r.recAba = aba;
+    }
     if (sw <= 0 || sh <= 0 || izq + der + arr + aba == 0) {
-        g_object_set(r.recorte, "scale-x", 1.0f, "scale-y", 1.0f, "translation-x", 0.0f, "translation-y", 0.0f, nullptr);
+        if (gl_) g_object_set(r.recorte, "scale-x", 1.0f, "scale-y", 1.0f, "translation-x", 0.0f, "translation-y", 0.0f, nullptr);
         return;
     }
     // La región visible, en fracciones de la fuente; gltransformation la estira a todo el cuadro.
     const double u0 = std::clamp(static_cast<double>(izq) / sw, 0.0, 0.95), u1 = std::clamp(1.0 - static_cast<double>(der) / sw, u0 + 0.01, 1.0);
     const double v0 = std::clamp(static_cast<double>(arr) / sh, 0.0, 0.95), v1 = std::clamp(1.0 - static_cast<double>(aba) / sh, v0 + 0.01, 1.0);
     const double sx = 1.0 / (u1 - u0), sy = 1.0 / (v1 - v0);
-    g_object_set(r.recorte, "scale-x", static_cast<gfloat>(sx), "scale-y", static_cast<gfloat>(sy), "translation-x",
+    if (gl_)
+        g_object_set(r.recorte, "scale-x", static_cast<gfloat>(sx), "scale-y", static_cast<gfloat>(sy), "translation-x",
                  static_cast<gfloat>((0.5 - (u0 + u1) / 2.0) * sx), "translation-y",
                  static_cast<gfloat>((0.5 - (v0 + v1) / 2.0) * sy), nullptr);
     // Con «contener»: la caja con la forma de lo recortado (el mezclador vería la de la fuente entera).
@@ -269,6 +284,37 @@ void Composicion::recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int
         gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", "none");
         g_object_set(r.pad, "xpos", c.x + (ancho - w) / 2, "ypos", c.y + (alto - h) / 2, "width", w, "height", h, nullptr);
     }
+}
+
+GstPadProbeReturn Composicion::marcarRecorte(GstPad*, GstPadProbeInfo* info, gpointer d) {
+    auto* r = static_cast<Rama*>(d);
+    if ((info->type & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) != 0) {
+        GstEvent* e = GST_PAD_PROBE_INFO_EVENT(info);
+        if (GST_EVENT_TYPE(e) == GST_EVENT_CAPS) {
+            GstCaps* c = nullptr;
+            gst_event_parse_caps(e, &c);
+            gint w = 0, h = 0;
+            if (c != nullptr && gst_caps_get_size(c) > 0) {
+                gst_structure_get_int(gst_caps_get_structure(c, 0), "width", &w);
+                gst_structure_get_int(gst_caps_get_structure(c, 0), "height", &h);
+            }
+            r->fuenteW = w;
+            r->fuenteH = h;
+        }
+        return GST_PAD_PROBE_OK;
+    }
+    const int izq = r->recIzq, arr = r->recArr, der = r->recDer, aba = r->recAba, W = r->fuenteW, H = r->fuenteH;
+    if (izq + arr + der + aba == 0 || W <= 0 || H <= 0) return GST_PAD_PROBE_OK;
+    // Sin copiar la imagen: el buffer escribible comparte la memoria (solo cambia la meta).
+    GstBuffer* b = gst_buffer_make_writable(GST_PAD_PROBE_INFO_BUFFER(info));
+    GST_PAD_PROBE_INFO_DATA(info) = b;
+    GstVideoCropMeta* m = gst_buffer_get_video_crop_meta(b);
+    if (m == nullptr) m = gst_buffer_add_video_crop_meta(b);
+    m->x = static_cast<guint>(std::clamp(izq, 0, W - 2));
+    m->y = static_cast<guint>(std::clamp(arr, 0, H - 2));
+    m->width = static_cast<guint>(std::max(2, W - izq - der));
+    m->height = static_cast<guint>(std::max(2, H - arr - aba));
+    return GST_PAD_PROBE_OK;
 }
 
 int Composicion::anchoDeOrigen(const Rama& r) {
@@ -307,7 +353,7 @@ void Composicion::animar(double t) {
             }
             const int util = std::max(1, origen - c.recIzq - c.recDer);
             const int sacar = static_cast<int>(std::lround(util * (1.0 - static_cast<double>(vis) / w)));
-            if (gl_)
+            if (gpu_)
                 recorteGl(*r, c, sacar, w, c.alto > 0 ? c.alto : lienzo_.alto);
             else
                 g_object_set(r->recorte, "right", std::max(0, c.recDer) + sacar, nullptr);

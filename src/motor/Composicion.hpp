@@ -113,10 +113,13 @@ class Composicion {
         std::string entrada, productor;
         GstElement* src = nullptr;
         GstElement* cola = nullptr;
-        GstElement* recorte = nullptr; ///< videocrop (CPU) o gltransformation (GPU)
+        GstElement* recorte = nullptr; ///< videocrop (CPU), gltransformation (GL) o d3d12convert (D3D12: aplica la meta de recorte)
         GstElement* subir = nullptr;   ///< glupload / d3d12upload (gpu)
         GstElement* conv = nullptr;    ///< glcolorconvert (gl)
-        GstElement* fijar = nullptr;   ///< glshader (gl: obliga a gltransformation a dibujar, ver crearRama) / d3d12convert (d3d12: aplica el recorte)
+        GstElement* fijar = nullptr;   ///< glshader (gl: obliga a gltransformation a dibujar, ver crearRama)
+        // D3D12: la ventana que se marca en cada cuadro (meta de recorte, en píxeles de la
+        // fuente) y el tamaño de la fuente (lo escribe el hilo de datos).
+        std::atomic<int> recIzq{0}, recArr{0}, recDer{0}, recAba{0}, fuenteW{0}, fuenteH{0};
         GstPad* pad = nullptr;
         int generacion = 0;
         std::atomic<bool> listo{false}; ///< ya pasó su primer cuadro (lo pone el hilo de datos)
@@ -131,9 +134,12 @@ class Composicion {
     };
     void aplicarLatencia();
     void ponerCapa(Rama& r, const Capa& c, double alfa);
-    /// GPU: el recorte (y lo que saca la cortina por la derecha) con gltransformation,
-    /// y la caja en el lienzo (con «contener» y recorte, la calcula a mano).
+    /// GPU: el recorte (y lo que saca la cortina por la derecha) con gltransformation (GL)
+    /// o con la meta de recorte que aplica d3d12convert (D3D12), y la caja en el lienzo
+    /// (con «contener» y recorte, la calcula a mano).
     void recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int alto);
+    /// D3D12: marca en cada cuadro la ventana de la rama (y anota el tamaño de la fuente).
+    static GstPadProbeReturn marcarRecorte(GstPad* pad, GstPadProbeInfo* info, gpointer d);
     Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
     void soltar(Rama& r);
     void sacarGeneracion(int gen);

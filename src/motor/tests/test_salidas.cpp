@@ -269,7 +269,8 @@ int main() {
         tc.url = "rtmp://127.0.0.1:1/live/clave-secreta";
         Transmision t(motor.reloj(), tc);
         CHECK(t.iniciar(f).empty(), "RTMP arranca (y reintenta)");
-        for (int i = 0; i < 25; ++i) {
+        // En Windows, conectar a un puerto cerrado tarda más en fallar: hasta 12 s.
+        for (int i = 0; i < 60 && t.estado().value("intentos", 0) < 2; ++i) {
             esperar(200);
             t.tic();
         }

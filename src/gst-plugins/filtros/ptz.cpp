@@ -32,10 +32,10 @@
 // cuando el video de la entrada va en la GPU.
 //
 // baptzd3d12: lo mismo en D3D12 (Windows, D3D12Memory). Es un bin
-//   videocrop ! d3d12convert ! capsfilter(el tamaño de la entrada)
-// videocrop solo marca la ventana (meta de recorte, sin tocar la memoria) y
-// d3d12convert la amplía en la GPU al tamaño original. La ventana va en
-// píxeles enteros (en 1080p no se nota).
+//   d3d12convert ! capsfilter(el tamaño de la entrada)
+// En cada cuadro se le marca la ventana (meta de recorte: sin tocar la memoria
+// ni cambiar el tamaño, así nada se renegocia mientras se mueve) y d3d12convert
+// la amplía en la GPU al tamaño original. La ventana va en píxeles enteros.
 // ============================================================================
 
 #include "comun.hpp"
@@ -459,7 +459,6 @@ G_END_DECLS
 struct _BaPtzD3d12 {
     GstBin parent;
     BaPtz* cuenta;      ///< el estado y las propiedades (no está en la cadena)
-    GstElement* crop;   ///< videocrop (marca la ventana)
     GstElement* tam;    ///< capsfilter: sale del tamaño de la entrada
     gint ancho, alto;   ///< el de la entrada (en el hilo del streaming)
 };
@@ -512,16 +511,20 @@ GstPadProbeReturn alCuadroD3d(GstPad*, GstPadProbeInfo* info, gpointer d) {
     const double x = p->x, y = p->y, z = p->zoom;
     GST_OBJECT_UNLOCK(p);
     if (s->ancho <= 0 || s->alto <= 0) return GST_PAD_PROBE_OK;
-    // La ventana de centro (x, y) y lado 1/zoom, en píxeles (par: los formatos 4:2:0).
-    const int w = std::max(2, static_cast<int>(std::lround(s->ancho / z)) & ~1);
-    const int h = std::max(2, static_cast<int>(std::lround(s->alto / z)) & ~1);
-    const int izq = std::clamp(static_cast<int>(std::lround(x * s->ancho - w / 2.0)) & ~1, 0, s->ancho - w);
-    const int arr = std::clamp(static_cast<int>(std::lround(y * s->alto - h / 2.0)) & ~1, 0, s->alto - h);
-    gint li = 0, la = 0, ld = 0, lb = 0;
-    g_object_get(s->crop, "left", &li, "top", &la, "right", &ld, "bottom", &lb, nullptr);
-    const int der = s->ancho - izq - w, aba = s->alto - arr - h;
-    if (li != izq || la != arr || ld != der || lb != aba)
-        g_object_set(s->crop, "left", izq, "top", arr, "right", der, "bottom", aba, nullptr);
+    // La ventana de centro (x, y) y lado 1/zoom, en píxeles; sin zoom, nada que marcar.
+    if (z <= 1.0 + 1e-6) return GST_PAD_PROBE_OK;
+    const int w = std::max(2, static_cast<int>(std::lround(s->ancho / z)));
+    const int h = std::max(2, static_cast<int>(std::lround(s->alto / z)));
+    const int izq = std::clamp(static_cast<int>(std::lround(x * s->ancho - w / 2.0)), 0, s->ancho - w);
+    const int arr = std::clamp(static_cast<int>(std::lround(y * s->alto - h / 2.0)), 0, s->alto - h);
+    GstBuffer* b = gst_buffer_make_writable(GST_PAD_PROBE_INFO_BUFFER(info)); // comparte la memoria
+    GST_PAD_PROBE_INFO_DATA(info) = b;
+    GstVideoCropMeta* m = gst_buffer_get_video_crop_meta(b);
+    if (m == nullptr) m = gst_buffer_add_video_crop_meta(b);
+    m->x = static_cast<guint>(izq);
+    m->y = static_cast<guint>(arr);
+    m->width = static_cast<guint>(w);
+    m->height = static_cast<guint>(h);
     return GST_PAD_PROBE_OK;
 }
 
@@ -530,19 +533,18 @@ GstPadProbeReturn alCuadroD3d(GstPad*, GstPadProbeInfo* info, gpointer d) {
 static void ba_ptz_d3d12_init(BaPtzD3d12* s) {
     s->cuenta = BA_PTZ(g_object_ref_sink(g_object_new(BA_TYPE_PTZ, nullptr)));
     s->ancho = s->alto = 0;
-    s->crop = gst_element_factory_make("videocrop", nullptr);
     GstElement* conv = gst_element_factory_make("d3d12convert", nullptr);
     s->tam = gst_element_factory_make("capsfilter", nullptr);
-    if (s->crop == nullptr || conv == nullptr || s->tam == nullptr) {
-        GST_ERROR_OBJECT(s, "faltan videocrop o d3d12convert");
-        for (GstElement* e : {s->crop, conv, s->tam})
+    if (conv == nullptr || s->tam == nullptr) {
+        GST_ERROR_OBJECT(s, "falta d3d12convert");
+        for (GstElement* e : {conv, s->tam})
             if (e != nullptr) gst_object_unref(e);
-        s->crop = s->tam = nullptr;
+        s->tam = nullptr;
         return;
     }
-    gst_bin_add_many(GST_BIN(s), s->crop, conv, s->tam, nullptr);
-    gst_element_link_many(s->crop, conv, s->tam, nullptr);
-    GstPad* in = gst_element_get_static_pad(s->crop, "sink");
+    gst_bin_add_many(GST_BIN(s), conv, s->tam, nullptr);
+    gst_element_link(conv, s->tam);
+    GstPad* in = gst_element_get_static_pad(conv, "sink");
     GstPad* out = gst_element_get_static_pad(s->tam, "src");
     gst_pad_add_probe(in, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
                       alCuadroD3d, s, nullptr);
