@@ -117,6 +117,7 @@ struct AppConfig {
     int statusEverySec = 5;
     bool safeMode = false;
     bool restore = false; // --restore: el launcher relanzo A tras una caida
+    bool modoPrueba = false; // --test/--debug: pruebas (nunca se arranca al aire)
     std::filesystem::path configPath;
 };
 

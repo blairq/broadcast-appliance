@@ -123,6 +123,7 @@ void applyCli(AppConfig& c, int argc, char** argv, const fs::path& root) {
     c.durationSec = std::atoi(argValue(argc, argv, "--duration", "0").c_str());
     c.statusEverySec = std::atoi(argValue(argc, argv, "--status-every", "5").c_str());
     c.restore = hasFlag(argc, argv, "--restore");
+    c.modoPrueba = hasFlag(argc, argv, "--test") || hasFlag(argc, argv, "--debug");
     c.safeMode = hasFlag(argc, argv, "--safe-mode");
     if (c.safeMode) {
         // Modo seguro (circuit breaker del launcher): lo minimo que funciona.
@@ -429,7 +430,13 @@ int AppRuntime::start() {
     // (stop()). Si dice que se transmitía o grababa, la corrida anterior terminó
     // sin cerrarse (corte de luz, cuelgue, la máquina se apagó): se retoma,
     // también en un arranque normal (no solo con --restore del launcher).
-    restoreOutputs();
+    // Con --test (pruebas: el MCP sin aprobaciones) NUNCA se arranca al aire.
+    if (!cfg_.modoPrueba) {
+        restoreOutputs();
+    } else {
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   "modo prueba (--test): no se retoma lo que estaba al aire");
+    }
     writeOnAirState();
     // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
     inicio::revisar();

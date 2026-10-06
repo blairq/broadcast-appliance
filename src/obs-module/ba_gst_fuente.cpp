@@ -494,6 +494,33 @@ std::string capsColorDelEstudio(const obs_video_info& ovi) {
     return out;
 }
 
+/// La hora en que esta muestra tiene que salir (captura + la demora de la
+/// entrada), en el reloj de libobs (os_gettime_ns). Así libobs alinea audio y
+/// video por la hora real y no por cuándo nuestro hilo se lo entregó (el temblor
+/// del tic o del sink). Se leen los dos relojes juntos: no hace falta que tengan
+/// la misma base. Sin hora (o una sin sentido), la de ahora.
+std::uint64_t horaParaObs(Fuente* f, GstSample* s) {
+    const std::uint64_t ahoraObs = os_gettime_ns();
+    if (f->clock == nullptr || f->pipeline == nullptr) return ahoraObs;
+    GstBuffer* b = gst_sample_get_buffer(s);
+    const GstSegment* seg = gst_sample_get_segment(s);
+    if (b == nullptr || seg == nullptr || !GST_BUFFER_PTS_IS_VALID(b)) return ahoraObs;
+    const GstClockTime rt = gst_segment_to_running_time(seg, GST_FORMAT_TIME, GST_BUFFER_PTS(b));
+    if (!GST_CLOCK_TIME_IS_VALID(rt)) return ahoraObs;
+    const std::int64_t ms = static_cast<std::int64_t>(GST_MSECOND);
+    // Lo que espera cada modo: el estándar, la latencia puesta en la cadena y el
+    // ts-offset; el colchón, latencia + desfase + compensación (venceDe).
+    const std::int64_t demora = f->estandar ? (f->medio ? 0 : f->latObjetivoNs) + f->desfaseMs * ms
+                                            : (f->latenciaMs + f->desfaseMs + f->compMs) * ms;
+    const std::int64_t sale = static_cast<std::int64_t>(gst_element_get_base_time(f->pipeline)) +
+                              static_cast<std::int64_t>(rt) + demora;
+    const std::int64_t ahoraGst = static_cast<std::int64_t>(gst_clock_get_time(f->clock));
+    const std::int64_t ts = static_cast<std::int64_t>(ahoraObs) + (sale - ahoraGst);
+    // Más de 1 s corrida (un salto, un reloj que cambió): mejor la de ahora.
+    if (ts <= 0 || std::llabs(ts - static_cast<std::int64_t>(ahoraObs)) > 1'000'000'000LL) return ahoraObs;
+    return static_cast<std::uint64_t>(ts);
+}
+
 void presentarVideo(Fuente* f, GstSample* s) {
     GstCaps* caps = gst_sample_get_caps(s);
     GstVideoInfo info;
@@ -511,7 +538,7 @@ void presentarVideo(Fuente* f, GstSample* s) {
     frame.width = static_cast<uint32_t>(GST_VIDEO_INFO_WIDTH(&info));
     frame.height = static_cast<uint32_t>(GST_VIDEO_INFO_HEIGHT(&info));
     frame.format = fmt;
-    frame.timestamp = os_gettime_ns(); // se presenta ahora: la hora ya la decidió el colchón
+    frame.timestamp = horaParaObs(f, s); // la hora en que tenía que salir (no la de entrega)
     const GstVideoColorimetry& c = GST_VIDEO_INFO_COLORIMETRY(&info);
     const bool rgb = GST_VIDEO_INFO_IS_RGB(&info);
     const bool completo = rgb || c.range == GST_VIDEO_COLOR_RANGE_0_255;
@@ -562,7 +589,7 @@ void presentarAudio(Fuente* f, GstSample* s) {
     a.speakers = GST_AUDIO_INFO_CHANNELS(&info) == 1 ? SPEAKERS_MONO : SPEAKERS_STEREO;
     a.format = AUDIO_FORMAT_FLOAT;
     a.samples_per_sec = static_cast<uint32_t>(GST_AUDIO_INFO_RATE(&info));
-    a.timestamp = os_gettime_ns();
+    a.timestamp = horaParaObs(f, s);
     obs_source_output_audio(f->ctx, &a);
     gst_buffer_unmap(b, &m);
 }
@@ -1359,6 +1386,21 @@ void armar(Fuente* f) {
         blog(LOG_WARNING, "[ba_gst_fuente] %s", a.c_str());
     enganchar(f, p, "ba_video", alVideo);
     enganchar(f, p, "ba_audio", alAudio);
+    // EL RELOJ NUNCA LO PONE UN DISPOSITIVO: ningún elemento ofrece el suyo (un
+    // micrófono que se desenchufa se llevaría el reloj del pipeline: CLOCK_LOST y
+    // todo trabado). Siempre el del estudio; la deriva del dispositivo la corrige
+    // él mismo remuestreando (slave-method).
+    if (GstIterator* it = gst_bin_iterate_recurse(GST_BIN(p))) {
+        GValue v = G_VALUE_INIT;
+        while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+            auto* e = GST_ELEMENT(g_value_get_object(&v));
+            if (g_object_class_find_property(G_OBJECT_GET_CLASS(e), "provide-clock") != nullptr)
+                g_object_set(e, "provide-clock", FALSE, nullptr);
+            g_value_reset(&v);
+        }
+        g_value_unset(&v);
+        gst_iterator_free(it);
+    }
     gst_pipeline_use_clock(GST_PIPELINE(p), f->clock);
     if (f->estandar) {
         // La misma latencia que las demás cadenas del estudio (con el mismo reloj, la
