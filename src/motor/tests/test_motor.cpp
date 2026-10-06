@@ -261,7 +261,8 @@ int main() {
     const json sv = v->estado();
     std::printf("video: %s\n", sv["sale"].dump().c_str());
     CHECK(sv.value("cuadros", 0) > 20, "da cuadros");
-    CHECK(sv["sale"].value("formato", "") == "NV12", "sale en el formato del lienzo");
+    // En la GPU la entrada publica una textura RGBA (la composición la convierte).
+    CHECK(sv["sale"].value("formato", "") == (gpuVideo() ? "RGBA" : "NV12"), "sale en el formato del lienzo");
     CHECK(cerca(sv["sale"].value("fps", 0.0), 30.0, 0.01), "a los cuadros del lienzo");
     CHECK(sv["sale"].value("ancho", 0) == 640, "el tamaño queda (lo escala la composición)");
     CHECK(sv["origen"].value("fps", 0.0) == 25.0, "y se sabe cómo llegaba");
@@ -288,7 +289,7 @@ int main() {
         const json si = img->estado();
         std::printf("imagen: %d cuadros, sale %s\n", si.value("cuadros", 0), si["sale"].dump().c_str());
         CHECK(si.value("cuadros", 0) > 15, "la imagen da cuadros");
-        CHECK(si["sale"].value("formato", "") == "BGRA", "con su alfa (BGRA)");
+        CHECK(si["sale"].value("formato", "") == (gpuVideo() ? "RGBA" : "BGRA"), "con su alfa (BGRA, o RGBA en la GPU)");
         banco.entradas.pop_back();
         img.reset();
         std::filesystem::remove(png);

@@ -120,7 +120,9 @@ void Entrada::armarSalida() {
                               (hayFabrica("textoverlay") ? "textoverlay text=\"" + texto +
                                                                "\" font-desc=\"Sans Bold 22\" valignment=center halignment=center ! "
                                                          : std::string()) +
-                              "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1 ! imagefreeze is-live=true ! fs.sink_1";
+                              (gpuVideo() ? std::string("glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA,pixel-aspect-ratio=1/1")
+                                          : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
+                              " ! imagefreeze is-live=true ! fs.sink_1";
     const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=true ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
                           entreComillas(id_ + ":crudo:video") + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! fs.sink_0 " +
@@ -232,7 +234,14 @@ void Entrada::leer(const json& a) {
                        "imagefreeze is-live=true allow-replace=true";
         alfaTipo = true;
         conAudio_ = false;
-    } else if (tipo == "pantalla") {
+    }
+    // En la GPU, lo estático se sube UNA vez (antes del imagefreeze, que repite la textura).
+    if (estatica_ && gpuVideo()) {
+        const auto i = descripcion_.rfind("imagefreeze");
+        if (i != std::string::npos)
+            descripcion_.insert(i, "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! ");
+    }
+    if (tipo == "pantalla") {
         const int i = a.value("indice", 0);
 #if defined(__APPLE__)
         descripcion_ = "avfvideosrc capture-screen=true capture-screen-cursor=" + std::string(a.value("cursor", true) ? "true" : "false") +
@@ -399,6 +408,19 @@ void Entrada::armar() {
         // Con transparencia (croma, recorte): BGRA.
         capsVideo = "video/x-raw,format=BGRA";
         if (normalizar_) capsVideo += ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
+    }
+    if (gpuVideo()) {
+        // EN LA GPU (docs/MAPA-GPU-CPU.md): la cámara y el decodificador entregan
+        // GLMemory directo a glupload (que la deja pasar) y la entrada publica una
+        // textura RGBA. La normalización la hace la composición (escala cada capa);
+        // acá solo los cuadros del lienzo (videorate no toca píxeles). Con filtros
+        // de CPU, se baja solo para ellos y se sube una vez al final. Lo estático
+        // ya viene subido (leer).
+        // Pendiente: desentrelazar en GL (hoy una señal entrelazada pasa como viene).
+        if (cadenaV.empty()) antes = estatica_ ? "" : (normalizar_ ? "videorate skip-to-first=true ! " : "");
+        const std::string gl = "video/x-raw(memory:GLMemory),format=RGBA" +
+                               (normalizar_ && !estatica_ ? ",framerate=" + fps : std::string());
+        capsVideo = estatica_ ? gl : "glupload ! glcolorconvert ! " + gl;
     }
     std::string cadenaA = cadenaDe(filtrosA_, "audioconvert", "ba_fa_", avisos_);
     rackFaltaDesde_ = 0;

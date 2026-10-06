@@ -547,9 +547,16 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     motor::Cuadro c;
     std::uint64_t s = 0;
     bool ok = false;
-    for (int i = 0; i < 40 && !ok; ++i) {
-        ok = motor_->verUltimo(clave, c, s);
-        if (!ok) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    // Una escena que no está al aire se compone recién ahora: sus primeros cuadros
+    // pueden salir sin las capas que todavía arrancan (en la GPU, compilar los
+    // shaders tarda): se toma un cuadro de después.
+    const auto desde = std::chrono::steady_clock::now();
+    const auto espera = base.rfind("escena:", 0) == 0 ? std::chrono::milliseconds(700) : std::chrono::milliseconds(0);
+    for (int i = 0; i < 60; ++i) {
+        const bool hay = motor_->verUltimo(clave, c, s);
+        ok = ok || hay;
+        if (ok && std::chrono::steady_clock::now() - desde >= espera) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     motor_->verSoltar(clave);
     if (!ok) {

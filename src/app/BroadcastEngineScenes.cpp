@@ -413,6 +413,16 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     sources_[spec.name] = f;
     ordenFuentes_.push_back(spec.name);
     if (esDeApp(spec.id)) fuentes::alta(spec.name, spec.id, json::parse(spec.settingsJson, nullptr, false));
+    // Los compositores que la juntan (creados antes que ella, p. ej. al arrancar) se rearman.
+    for (const auto& [n, c] : sources_) {
+        if (c.compProductor.empty()) continue;
+        const json aj = json::parse(c.spec.settingsJson.empty() ? "{}" : c.spec.settingsJson, nullptr, false);
+        const json config = configDe(c.spec.id, aj);
+        bool usa = false;
+        if (config.is_object())
+            for (const auto& k : config.value("capas", json::array())) usa = usa || k.value("fuente", std::string()) == spec.name;
+        if (usa) motor_->definirEscena(escenaCompositor(n, config));
+    }
     estadoCacheMs_ = 0;
     return true;
 }

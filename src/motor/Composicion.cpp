@@ -7,6 +7,7 @@
 #include "Reloj.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <atomic>
 #include <cmath>
 
