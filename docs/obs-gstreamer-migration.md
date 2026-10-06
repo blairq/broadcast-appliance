@@ -5,12 +5,14 @@ sincronizados y aguanten fallas, y cómo se reemplaza libobs del todo. Junta lo 
 migraciones de octubre de 2026), lo charlado con el usuario y lo que se aprendió de otros proyectos.
 
 - El estado al día de cada pieza (qué ya pasó, qué falta) está en [MIGRACION-GSTREAMER.md](MIGRACION-GSTREAMER.md).
-- Acá van las **reglas de cableado**, el **pipeline de destino** y el **plan**.
+- Acá van las **reglas de cableado**, el **pipeline de destino**, la **robustez**, las **mejoras** a lo que ya
+  anda, lo que pediría un **operador de broadcast** y el **plan**.
 
 **En una línea:** cada fuente es un pipeline propio que sella con la hora de captura y declara su latencia.
 Todas comparten un reloj y se juntan en buses (compositor y audiomixer) que esperan a la más lenta. De los
 buses salen ramas independientes a cada destino. Hoy las entradas ya son así; falta mudar la mezcla, la
-composición y las salidas, que siguen en libobs.
+composición y las salidas, que siguen en libobs. Para el operador, lo primero no es sacar libobs sino que
+nada se caiga (§7) y lo de §9.1.
 
 ---
 
@@ -25,7 +27,8 @@ composición y las salidas, que siguen en libobs.
  archivo ──────┤  (racks barack, automixer, tarjetas,         multiview                           retorno a invitados
  invitado ─────┤   superres, filtros)                                                             (mix-minus por
  remoto ───────┘                                                                                   memoria compartida)
- voces, NDI ──────────────────────── fuentes de libobs ─────►
+ voces ────────┘
+ NDI, audio del sistema ──────────── fuentes de libobs ─────►
 ```
 
 **Ya en GStreamer**:
@@ -41,9 +44,11 @@ composición y las salidas, que siguen en libobs.
 | Automixer | `baautomixer` (plugin `baaudio`) |
 | Filtros de imagen | `bafiltros` |
 | Superresolución | `basuperres` |
+| Voces del sistema y del teleprompter | `bavoz`, registrado por la app (`audio/GstVoz.*`) |
+| Vigía de dispositivos | `GstDeviceMonitor` (DEVICE_ADDED/REMOVED): un micrófono o una cámara que falta espera y se conecta al aparecer (§7) |
 
-**Todavía en libobs**: voces del asistente, NDI, audio del sistema, la escucha del lobby, **la mezcla de audio,
-la composición de video y todas las salidas**.
+**Todavía en libobs**: NDI (en curso), audio del sistema, la escucha del lobby, **la mezcla de audio, la
+composición de video y todas las salidas**.
 
 Lo que entra por GStreamer llega a libobs por un `appsink`: cada cuadro y cada bloque de audio se le
 entregan a `obs_source_output_video/audio` con la hora de ese momento. Ese salto es lo que más problemas de
@@ -219,7 +224,7 @@ libobs presenta cada cuadro apenas lo recibe.
 ## 5. El motor de destino (sin libobs)
 
 Es el diseño: nada de esta sección está escrito todavía. Los elementos que nombra se revisaron en el bundle
-de Mac (§7.1).
+de Mac (§10.1).
 
 ```
  RELOJ DEL ESTUDIO (sistema / NTP / PTP / red) + base_time común + latencia del estudio
@@ -290,7 +295,7 @@ de Mac (§7.1).
 
 ### 5.2 Tres cosas que hay que hacer bien desde el primer día
 
-Salen de proyectos que ya armaron esto (ver §8).
+Salen de proyectos que ya armaron esto (ver §11).
 
 1. **`min-upstream-latency` en los mezcladores.**
    - `compositor` y `audiomixer` fijan su latencia al arrancar. Una entrada más lenta que se enchufa después
@@ -308,7 +313,7 @@ Salen de proyectos que ya armaron esto (ver §8).
    - Cada entrada termina en `fallbackswitch` (con una placa «sin señal» y silencio de respaldo) y, si
      tartamudea, `livesync`.
    - El cambio es sin corte y vuelve solo cuando la entrada regresa. Reemplaza buena parte del reintento
-     escrito a mano en `ba_gst_fuente`.
+     escrito a mano en `ba_gst_fuente`. Más en §7.
 
 ### 5.3 Transiciones, DSK y gráficos
 
@@ -388,34 +393,272 @@ Salen de proyectos que ya armaron esto (ver §8).
 - Elementos:
   - en gst-plugins-rs: `tttocea608`, `tttocea708`, `cea608tott`;
   - en -bad y en el núcleo: `ccconverter`, `cccombiner`, `h264ccinserter` (desde 1.24).
-  - En el bundle de Mac están todos (§7.1). Falta confirmarlo en Windows y Linux.
+  - En el bundle de Mac están todos (§10.1). Falta confirmarlo en Windows y Linux.
 - MCP y GUI: por salida, qué salidas de texto van y por qué canal (CC1, CC3, servicios 708), con un medidor
   que muestre qué sale y con cuánta demora.
 
 ---
 
-## 7. Plan por etapas
+## 7. Robustez: que una falla no tire el aire
+
+Qué pasa si se desenchufa un dispositivo, se corta un cable USB un instante, se cae una cámara de red o se
+corta la luz, y cómo hacer que levante rápido.
+
+**La idea:** separar lo que se puede caer de lo que tiene que seguir andando.
+
+```
+                  SE PUEDE CAER                     NUNCA SE CAE (siempre andando)
+ ┌──────────────────────────────┐        ┌──────────────────────────────────────────────────────────┐
+ │ pipeline FUENTE (chico)      │        │ pipeline PROCESO de la entrada                           │
+ │ avfvideosrc / osxaudiosrc /  │──────► │ intersrc ─► fallbackswitch ─► livesync ─► tarjetas,      │
+ │ fallbacksrc (red) …          │  inter │   ▲  (respaldo: último cuadro / placa «sin señal» /     │──► buses / libobs
+ │ ─► intersink                 │        │   │   silencio)      superres (modelo cargado), barack   │
+ └──────────────────────────────┘        │   └─ si no llega nada en ~200 ms, pasa al respaldo       │
+        ▲ se rearma solo este            └──────────────────────────────────────────────────────────┘
+        │ (sin tocar lo demás)
+ GstDeviceMonitor: DEVICE_REMOVED / DEVICE_ADDED ─► avisa al instante
+```
+
+### 7.1 Reglas
+
+1. **Partir cada entrada en dos.**
+   - Un pipeline de fuente, chico: solo el dispositivo y un `intersink`. Es lo único que se rearma.
+   - Un pipeline de proceso que nunca para: tarjetas, superresolución, rack, automixer.
+   - Al volver no se recargan los modelos de superresolución (CoreML/ONNX tardan segundos), ni los
+     plugins LSP, ni el estado del automixer. El programa nunca ve un error ni un EOS de un dispositivo.
+2. **Tapar el hueco sin corte.**
+   - `fallbackswitch` después del `intersrc`: si no llega nada en ~200 ms, pasa al respaldo sin corte.
+     - Video: el último cuadro unos segundos, después una placa «Cámara 2 sin señal».
+     - Audio: silencio, con un fundido corto para que no haga clic.
+   - `livesync` tapa los microcortes de un cable USB flojo (huecos de 100 ms) repitiendo o rellenando, sin
+     que salte el switch.
+   - Cuando el dispositivo vuelve, el switch regresa solo con el primer cuadro bueno.
+   - Los buses (o libobs, hoy) siguen alimentados: la latencia y la compensación del estudio no saltan.
+3. **Enterarse al instante.**
+   - `GstDeviceMonitor` con DEVICE_REMOVED/DEVICE_ADDED: cuando la cámara con ese id estable reaparece, se
+     rearma en ese momento.
+   - Los ids estables ya existen: uniqueID de AVFoundation, la ruta en Windows, `/dev/v4l/by-id` en Linux,
+     `unique-id` en los micrófonos. Se encuentran aunque el USB cambie la numeración.
+   - Un vigía de datos en cada `intersink`: si no llegan buffers en N ms pero no hubo ERROR (un
+     dispositivo colgado), se rearma igual.
+   - Reintento rápido con espera creciente: 0,2 s, 0,5 s, 1 s, 2 s, después cada 2 s.
+4. **El reloj nunca lo pone un dispositivo.**
+   - Un `osxaudiosrc`/`wasapi2src` puede ser el reloj del pipeline (`provide-clock`). Si ese dispositivo se
+     desenchufa, el pipeline pierde el reloj (`CLOCK_LOST`) y todo se traba.
+   - Regla: `provide-clock=false` en todos los dispositivos y siempre el reloj del estudio. La deriva del
+     dispositivo se corrige remuestreando (`slave-method`), no tomando su reloj.
+   - **A revisar primero**: si los micrófonos ya lo tienen. Es barato.
+5. **Cámaras de red e invitados.**
+   - `fallbacksrc` en lugar de `uridecodebin3`: reinicia la conexión RTSP/SRT sin que el pipeline dé error
+     (`timeout`, `restart-timeout`, `retry-timeout`).
+   - RTSP por TCP con `tcp-timeout` corto (2 s): un cable cortado se nota rápido.
+   - Invitados: si el gateway se reinicia, `baanillo`/`bavideoanillo` ya se resuscriben solos. Con
+     `fallbackswitch` delante, en el lugar del invitado queda su último cuadro y después una placa con su
+     nombre y foto, en vez de negro.
+6. **Las salidas también.**
+   - Si se cae el codificador de placa o la conexión a YouTube, se rearma **solo esa rama** (`tee` →
+     `queue leaky` → codificador → `rtmp2sink`) con reconexión, sin tocar el programa ni la grabación.
+7. **Corte de luz de la máquina entera.**
+   - **Volver a prender sola:**
+     - Mac: `sudo pmset autorestart 1`;
+     - Windows y Linux: «restore on AC power loss» en el BIOS.
+     - Después la app arranca con la sesión (opción ya hecha, ver la tabla), y el launcher relanza el
+       gateway y la app si se caen.
+   - **Volver al aire:** si la corrida anterior no se cerró bien, al arrancar se retoman la transmisión y
+     la grabación (T47 decidido sin passphrase; ya hecho). Falta guardar y retomar también la escena al
+     aire y la playlist con su posición.
+   - **Perder casi nada:**
+     - grabación con `splitmuxsink` en tramos (MP4 fragmentado o MKV): un corte pierde como mucho el último
+       tramo;
+     - configuración escrita de forma atómica (archivo temporal + rename): un corte a mitad de guardar no
+       deja `app.json` roto.
+   - **Hardware:** una UPS chica para la máquina y el switch de red evita casi todo esto en cortes cortos.
+
+### 7.2 Qué hay y qué falta
+
+| | Hoy | Falta |
+|---|---|---|
+| Id estable y volver a encontrar el dispositivo | Sí (cámaras, micrófonos) | — |
+| Enterarse al instante | Sí: vigía con DEVICE_ADDED/REMOVED; lo que falta espera sin reintentar cada 2 s | Vigía de datos (dispositivo colgado sin error) |
+| Seguir sin corte mientras vuelve | No: cuadro congelado o negro, silencio | `fallbackswitch` + `livesync` + placa |
+| Rearmar solo la fuente | No: se rearma la cadena entera (recarga modelos) | Partir fuente y proceso con `intersink` |
+| Reloj independiente de los dispositivos | Parcial | `provide-clock=false` en todos |
+| Invitados si se cae el gateway | Se resuscriben solos | Placa con nombre y foto en vez de negro |
+| Corte de luz | Arranque con el equipo (opcional), retoma transmisión y grabación, launcher relanza procesos | Escena y playlist al retomar; grabación en tramos; configuración atómica |
+
+---
+
+## 8. Mejoras a lo que ya tenemos
+
+Lo que conviene cambiar en lo que ya anda, aprendido de otros proyectos (Strom, la documentación de
+GStreamer). Ordenado por impacto y esfuerzo.
+
+1. **`livesync` + `fallbackswitch` al final de cada entrada** (§7). Mucho impacto, poco código; los dos
+   están en el bundle de Mac.
+2. **Entregarle a libobs cada cuadro con su hora, no con la de entrega.**
+   - Hoy `presentarVideo`/`presentarAudio` sellan con `os_gettime_ns()` al llamarlos: libobs recibe la hora
+     con el temblor de nuestro hilo.
+   - Pasar la hora de captura traducida a `os_gettime_ns` (reloj del pipeline → monotónico, el mismo
+     truco de los dos relojes de `hora.hpp`).
+   - libobs alinea audio y video por la hora real. Mejora la sincronía aunque libobs siga. Son pocas
+     líneas.
+3. **Pasar las entradas en vivo del modo «colchón» al estándar de GStreamer.**
+   - Hoy hay código propio que presenta cada cuadro a su hora (`venceDe`, las colas, `tic()`).
+   - `appsink sync=true` con reloj compartido y `gst_pipeline_set_latency` hace eso. Los medios ya andan
+     así y salió bien.
+   - Menos código, audio y video de una entrada esperados por el mismo sink, y se va el temblor de
+     presentar desde `tic()` (16–33 ms).
+   - De a una entrada por vez, midiendo con `video_sincronia` antes y después.
+4. **Latencia declarada primero, medida después.**
+   - La compensación estima la demora por «lo viejo que llega cada cuadro» (P95 + margen). Es frágil: un
+     salto, una cámara con el reloj corrido o una pausa la suben, y con ella a todo el estudio.
+   - La consulta LATENCY como fuente principal. La medición, solo para lo que no declara, con un tope por
+     entrada e histéresis.
+   - Un interruptor `estudio` en la GUI y el MCP, para dejar afuera una entrada con superresolución pesada.
+5. **Un solo lector por canal del gateway, repartido con `intersink`.**
+   - Hoy cada consumidor lee su copia de la memoria compartida. Se multiplica cuando el mismo invitado vaya
+     a programa, preview, multiview y su monitor.
+   - Un `bavideoanillo`/`baanillo` por canal → `intersink BA.Guest.N`; los demás, `intersrc`.
+   - Es el primer paso del motor sin libobs y no cambia nada al aire.
+6. **`ba/control` con al aire, preview y tally.** Las tarjetas caras (superresolución, rostros, plugins de
+   Python) descansan cuando su entrada no se ve. Generaliza lo que el programador de superresolución hace a
+   mano.
+7. **Prolijidades que evitan bugs.**
+   - Al arrancar, revisar con `gst_element_factory_find` que estén los elementos imprescindibles
+     (`intersink`, `fallbackswitch`, `barack`, `baanillo`, `bavideoanillo`, `bavoz`, los de subtítulos) y
+     avisar en Diagnóstico. Que un plugin que falta en una plataforma no aparezca como silencio o negro.
+   - Un solo armador de ajustes de `ba_gst_fuente`. Hoy se arman en `InputSpecs`, `VideoGrafos` y
+     `Playlist`: el bug del video de prueba (`"pipeline": ""`) pasó por eso.
+   - Pruebas por tipo de entrada con `fakesink` y reloj falso (`GstTestClock`), como `test_baanillo`: los
+     tiempos se prueban sin la app ni hardware.
+
+---
+
+## 9. Lo que pide un operador de broadcast
+
+Todo lo charlado mirado por alguien que tiene que sacar una sesión al aire sin sorpresas.
+
+### 9.1 Para arreglar primero (afecta el aire hoy)
+
+1. **El casi segundo de latencia del estudio.**
+   - Una cámara con superresolución atrasa *todo* ~0,9 s. El operador ve la sala atrasada en el monitor, y
+     el presentador que habla con un invitado recibe la respuesta tarde.
+   - Ponerle tope a la compensación: no más de 2–3 cuadros para lo que está en la sala. La cámara pesada
+     queda afuera (`estudio: false`) con su propia demora y un aviso: «esta cámara llega tarde».
+   - La demora extra, por salida y donde haga falta (YouTube, grabación), no en el monitoreo del operador.
+   - Un medidor visible: «latencia del estudio: 120 ms», en verde, o en rojo con la entrada que la causa.
+2. **Los auriculares del operador en sincronía con lo que ve.**
+   - Hoy se oye el micrófono directo y se ve el video atrasado: desorienta.
+   - Dos escuchas, una tecla para pasar de una a otra:
+     - «directo»: la sala sin demora, para trabajar los micrófonos;
+     - «programa»: exactamente lo que sale, audio y video juntos.
+3. **El limitador del máster y el loudness (T12 + T11).**
+   - Nada debería salir al aire sin limitador de picos reales (true peak) en el programa.
+   - Medidor LUFS con el objetivo a la vista: −14 para YouTube, −23 para TV. Avisar cuando se aleja.
+4. **Alarmas de silencio, negro y congelado** en el programa y en cada salida.
+   - «10 s de silencio al aire», «programa en negro 3 s», «cuadro congelado», «YouTube dejó de recibir».
+   - Visibles, audibles y también en el teléfono o la superficie de control.
+5. **Robustez** (§7). Para un operador es lo más importante de toda la migración, más que sacar libobs.
+6. **Lip-sync por entrada, medible y ajustable.**
+   - Una prueba de «aplauso + flash» (o tono + flash) que mide el desfase audio/video de cada cámara y
+     micrófono.
+   - Ajuste en cuadros o ms, y que el resultado quede guardado. Hoy se ajusta a ojo.
+7. **Modo «al aire» que congela lo riesgoso.**
+   - Durante una transmisión, bloquear: editar la escena al aire, cambiar ajustes de una entrada (rearma y
+     corta), sacar fuentes, cambiar el rack de un micrófono al aire. O pedir confirmación.
+   - Las guardas de aire del MCP existen; falta lo mismo en la GUI.
+   - `--test` nunca tendría que poder arrancar transmitiendo o grabando.
+8. **Probar los otros dos sistemas y corridas largas.**
+   - Casi todo se probó solo en Mac y solo minutos.
+   - Antes de un Congreso real: una corrida de 8 horas con todas las entradas y transmisión a un canal de
+     prueba, mirando temperatura, memoria, deriva A/V y cuadros perdidos.
+
+### 9.2 Lo que me gustaría tener (estándar de la industria)
+
+- **Multiview de verdad:**
+  - borde de tally rojo/verde en cada recuadro;
+  - medidores de audio por recuadro y alarmas en el recuadro (sin señal, silencio);
+  - nombre, reloj y cuenta regresiva.
+- **Tally real afuera:** luces en las cámaras, el presentador y los remotos (por Companion o GPIO), y «estás
+  al aire» en el teléfono del invitado.
+- **Superficie de control:**
+  - T-bar y macros (secuencias: «abrir sesión» = escena + gráfico + micrófono + grabar);
+  - snapshots del mezclador y de escenas;
+  - mapa de Stream Deck coherente;
+  - deshacer la última acción que fue al aire.
+- **Cue de medios:**
+  - armar el clip en PVW y verlo antes de tomarlo;
+  - lo que le queda al programa (existe), en grande, con aviso a los 10 s;
+  - volver solo a una escena al terminar un clip.
+- **Consola de audio:**
+  - PFL/AFL (solo) por canal;
+  - medidores con balística elegible (VU/PPM, en parte existe);
+  - medidor de fase en el máster;
+  - talkback al presentador y al piso (el IFB existe para invitados);
+  - grupos de mute.
+- **Redundancia:**
+  - transmisión de respaldo a la URL de respaldo de YouTube;
+  - grabación en dos discos;
+  - grabación ISO por cámara (cada entrada por separado) para posproducción y archivo.
+- **Monitoreo de confianza:** ver lo que realmente emite YouTube (con su demora) desde la misma consola.
+- **Hora y reloj:**
+  - hora del día (NTP) en las grabaciones y timecode en los archivos;
+  - marcas en la grabación («empieza el tema X»), desde la consola o el guion.
+- **Escaleta:** el guion del evento existe; hacerlo el eje (próximo punto, tiempo que queda, quién habla,
+  qué gráfico va).
+
+### 9.3 Para un Congreso en particular
+
+- **Automatismo atado al DCN:**
+  - el que pide la palabra trae su cámara (preset), su zócalo y su micrófono abierto;
+  - cronómetro del orador en pantalla y para la presidencia.
+  - Mucho existe (seguir al micrófono, zócalos de bancas). Falta que el pase sea sin parpadeos y con
+    override del operador.
+- **Intérprete de señas:** un PiP fijo que no se va al cambiar de escena, incluido o no en el clean feed
+  según se configure.
+- **Subtítulos en vivo** (§6), con corrector antes del aire y archivo por idioma.
+- **Votaciones:** gráfico de resultados desde la fuente de datos, sin tipear.
+- **Acta oficial:**
+  - grabación con hash por tramo (integridad);
+  - registro de quién hizo qué al aire;
+  - metadatos (sesión, fecha, temas) para el archivo.
+- **Remotos:**
+  - calidad de conexión a la vista antes de darles la palabra;
+  - prueba automática previa (eco, red: existe, T33);
+  - si se caen, placa digna con nombre y foto, no negro.
+
+---
+
+## 10. Plan por etapas
 
 Cada etapa deja el aire andando y se puede volver atrás. Las entradas (etapa 0) ya están hechas.
+
+**Antes de la primera sesión real** (con libobs todavía, porque no dependen del motor nuevo):
+- de §9.1, los puntos 1–5 y 8: tope a la latencia del estudio, las dos escuchas, limitador y loudness,
+  alarmas, robustez (§7) y la corrida de 8 horas;
+- de §8, los puntos 1 y 2 (`fallbackswitch`/`livesync` y la hora a libobs), y `provide-clock=false`.
+
+Después: lip-sync, modo «al aire», multiview estándar, tally real y transmisión de respaldo. Y las etapas
+del motor:
 
 | # | Etapa | Qué se hace | Cómo se sabe que anda |
 |---|---|---|---|
 | 0 | Entradas | Todo lo de §3 (hecho, ver MIGRACION-GSTREAMER.md) | Las pruebas de cada migración |
 | 1 | Mezcla de audio | `audiomixer` para PROGRAMA, pistas, mix-minus y escucha, con `min-upstream-latency` y el arreglo de §5.2. libobs recibe el programa ya mezclado como una sola fuente | Mismo nivel y loudness que hoy; un invitado no se oye en su retorno; ningún bus se cae al entrar el primer invitado |
 | 2 | Salidas | Codificadores, RTMP/SRT, grabación, replay y NDI desde GStreamer, alimentados por el programa que todavía compone libobs (`appsrc` del lienzo) | Transmisión de una hora sin cortes ni deriva A/V; grabación multipista igual a la de hoy |
-| 3 | Composición | PROGRAMA, PREVIEW, MULTIVIEW, take, transiciones, DSK y gráficos en `compositor`/`glvideomixer`; la interfaz por `appsink` (o `qml6glsink`, §5.4); `intersink`/`intersrc` entre entradas y buses; `fallbackswitch` en cada entrada | Take frame-exacto; cambiar de escena no corta ni el audio ni la transmisión; una entrada caída muestra la placa y vuelve sola |
+| 3 | Composición | PROGRAMA, PREVIEW, MULTIVIEW (con tally y medidores, §9.2), take, transiciones, DSK y gráficos en `compositor`/`glvideomixer`; la interfaz por `appsink` (o `qml6glsink`, §5.4); `intersink`/`intersrc` entre entradas y buses (fuente y proceso separados, §7.1) | Take frame-exacto; cambiar de escena no corta ni el audio ni la transmisión; una entrada caída muestra la placa y vuelve sola |
 | 4 | WebRTC en el proceso | `webrtcbin` en lugar de la memoria compartida para invitados y sesión remota, con su mix-minus | Latencia de ida y vuelta igual o menor que hoy; la hora de captura por RTCP |
 | 5 | Subtítulos | §6 | YouTube muestra los subtítulos a tiempo |
-| 6 | Sacar libobs | Voces, NDI y audio del sistema a GStreamer; se saca `libobs.framework` (y sus plugins) del bundle | La app arranca sin libobs; el bundle pesa menos |
+| 6 | Sacar libobs | NDI y audio del sistema a GStreamer (las voces ya pasaron); se saca `libobs.framework` (y sus plugins) del bundle | La app arranca sin libobs; el bundle pesa menos |
 
 **Riesgos**
 - Las transiciones y los gráficos: hoy los resuelve OBS.
 - El temblor de los compositores de placa en cada sistema (D3D12 en Windows, GL/CUDA en Linux): hay que
   medirlo con placas reales.
 - Los elementos de gst-plugins-rs tienen que estar en el bundle de Windows y Linux también (en Mac están,
-  ver §7.1).
+  ver §10.1).
 
-### 7.1 Qué hay en el bundle (Mac, GStreamer 1.28.7)
+### 10.1 Qué hay en el bundle (Mac, GStreamer 1.28.7)
 
 Revisado con `gst-inspect-1.0` del bundle el 2026-10-05. Windows y Linux, sin revisar.
 
@@ -439,7 +682,7 @@ for e in intersink fallbackswitch glvideomixer qml6glsink ebur128level h264ccins
 
 ---
 
-## 8. Referencias
+## 11. Referencias
 
 - [Eyevinn/strom](https://github.com/Eyevinn/strom): motor de pipelines de GStreamer con editor de nodos.
   - Bloques: mezclador de video PVW/PGM con shaders, consola de audio, WebRTC, RTMP, SRT, NDI, AES67,
