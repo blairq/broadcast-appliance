@@ -417,7 +417,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                            aj.value("pipeline", std::string()).rfind("bavideoanillo", 0) == 0))
                         continue;
                     const bool activa = st.value("activa", true);
-                    const bool con = !activa || tieneSenal(st);
+                    // Una que todavía no entregó nada (una cámara de red conectándose): hasta
+                    // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
+                    const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
+                    const bool con = !activa || tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
                     cache->second.emplace_back(e.toStdString(), con);
                 }
             }
