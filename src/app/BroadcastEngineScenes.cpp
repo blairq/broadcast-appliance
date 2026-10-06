@@ -254,7 +254,7 @@ bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     // rack de audio valen para cualquier tipo.
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
     if (s.is_object() && a.is_object())
-        for (const char* k : {"filtros", "filtros_audio", "rack"})
+        for (const char* k : {"filtros", "filtros_audio", "rack", "desfase", "desfase_video"})
             if (s.contains(k) && !a.contains(k)) a[k] = s[k];
     return true;
 }

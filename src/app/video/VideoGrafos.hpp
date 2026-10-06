@@ -5,7 +5,7 @@
 // cada entrada (color, croma, recorte, superresolución, módulos de GStreamer)
 // corren en la cadena de GStreamer de la entrada (ajuste `filtros` del motor),
 // DESPUÉS de los filtros extra (Mejorar imagen y PTZ digital, FuentesApp).
-// Las demás (salida, toma, rostros, retardo, compositor) todavía no corren en
+// Las demás (salida, toma, rostros, compositor) todavía no corren en
 // el motor: el estado lo dice por tarjeta (erroresDe).
 //
 // O CUALQUIER módulo de video de GStreamer (`gst`, con su elemento y sus

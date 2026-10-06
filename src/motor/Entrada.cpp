@@ -173,6 +173,7 @@ void Entrada::leer(const json& a) {
     latenciaMs_ = entero(a, "latencia", 0);
     desfaseMs_ = entero(a, "desfase", 0);
     desfaseAudioMs_ = entero(a, "desfase_audio", 0);
+    desfaseVideoMs_ = std::max<std::int64_t>(0, entero(a, "desfase_video", 0));
     superres_ = a.value("superres", false);
     superresMotor_ = a.value("superres_motor", std::string());
     superresModelo_ = a.value("superres_modelo", std::string());
@@ -612,9 +613,9 @@ void Entrada::corregirOffset() {
                 if (GstPad* antes = gst_pad_get_peer(pad)) {
                         const gint64 dif = medio_ ? static_cast<gint64>(base) - static_cast<gint64>(reloj_.base())
                                                   : (std::string(n) == "ba_iv" ? realineadoV_ : realineadoA_);
-                    const gint64 soloAudio =
-                        std::string(n) == "ba_ia" ? desfaseAudioMs_ * static_cast<gint64>(GST_MSECOND) : 0;
-                    gst_pad_set_offset(antes, dif + desf + soloAudio);
+                    const gint64 propio = (std::string(n) == "ba_ia" ? desfaseAudioMs_ : desfaseVideoMs_) *
+                                          static_cast<gint64>(GST_MSECOND);
+                    gst_pad_set_offset(antes, dif + desf + propio);
                     gst_object_unref(antes);
                 }
                 gst_object_unref(pad);
@@ -1028,6 +1029,7 @@ json Entrada::estado() const {
            {"declarada_ms", declaradoMs_},
            {"desfase_ms", desfaseMs_},
            {"desfase_audio_ms", desfaseAudioMs_},
+           {"desfase_video_ms", desfaseVideoMs_},
            {"placa", salidaV_ != nullptr},
            {"en_placa", enPlacaSinLock()}};
     {

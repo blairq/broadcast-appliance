@@ -240,6 +240,15 @@ int main() {
         std::error_code ec;
         std::filesystem::remove_all(dir, ec);
     }
+    // El video de una entrada atrasado (la tarjeta retardo): sigue viéndose, no se descarta.
+    {
+        json v = color("#00FF00");
+        v["desfase_video"] = 300;
+        CHECK(m.actualizarEntrada("verde", v).empty(), "atrasar el video de la verde");
+        esperar(1500);
+        CHECK(m.estado()["entradas"]["verde"].value("desfase_video_ms", 0) == 300, "el desfase de video, en el estado");
+        CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "con el video atrasado, el programa sigue verde");
+    }
     // El PTZ digital conserva el encuadre cuando la cadena de la entrada se rearma (M6.8).
     if (hayFabrica("baptz") && hayFabrica("bacolor")) {
         const json ptz = json{{"video", json::array({{{"id", "ptz"}, {"elemento", "baptz"}}})}};

@@ -253,7 +253,7 @@ json VideoGrafos::conPublicadas(json d) const {
 json VideoGrafos::erroresDe(const std::string& entrada) const {
     json out = json::object();
     // Las tarjetas que quedaron fuera de la cadena de la entrada: el motor
-    // todavía no las corre (salidas, tomas, rostros, retardo, compositores…).
+    // todavía no las corre (salidas, tomas, rostros, compositores…).
     const auto it = sinCorrer_.find(entrada);
     if (it != sinCorrer_.end())
         for (const auto& [id, motivo] : it->second) out[id] = motivo;
@@ -915,6 +915,14 @@ void VideoGrafos::aplicar(const std::string& entrada) {
                          {"elemento", "balegal"},
                          {"propiedades", {{"modo", "1"}, {"compuesto", compuesto}}}});
     }
+    // La tarjeta retardo: el video de la entrada sale más tarde (el audio no).
+    const long retardo = filtros.value("retardo_ms", 0L);
+    filtros.erase("retardo_ms");
+    {
+        const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
+        if (actual.is_object() && actual.value("desfase_video", 0L) != retardo)
+            rt_.updateSourceSettings(entrada, json{{"desfase_video", retardo}}.dump());
+    }
     filtros["video"] = video;
     const std::string js = video.empty() ? std::string() : filtros.dump();
     const auto ya = filtrosAplicados_.find(entrada);
@@ -958,6 +966,7 @@ std::string decimal(double v) {
 json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
     json video = json::array();
     bool alfa = false;
+    double retardoMs = 0;
     std::set<std::string>& movidas = enEntrada_[entrada];
     movidas.clear();
     auto& nodos = para["nodos"];
@@ -976,6 +985,18 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
         const json p = it->value("params", json::object());
         json f = {{"id", id}};
         json pr = json::object();
+        if (tipo == "retardo") {
+            // No es un elemento: el motor corre la salida de video de la entrada (desfase_video).
+            if (p.value("activo", true))
+                retardoMs += p.value("ms", 0) > 0 ? static_cast<double>(p.value("ms", 0))
+                                                  : p.value("cuadros", 0) * cuadroMsLienzo();
+            movidas.insert(id);
+            cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+            for (auto& c : cables)
+                if (c.value("desde", "") == id) c["desde"] = "in";
+            nodos.erase(it);
+            continue;
+        }
         if (tipo == "color") {
             f["elemento"] = "bacolor";
             for (const char* k : {"brillo", "contraste", "saturacion", "gamma"})
@@ -1050,7 +1071,7 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
                 pr["unidades"] = u->second;
             pr["activo"] = activo ? "true" : "false";
         } else {
-            break; // lo demás (salidas, tomas, rostros, retardo, filtros de OBS…) sigue en libobs
+            break; // lo demás (salidas, tomas, rostros…) todavía no corre en el motor (ver aplicar)
         }
         if (tipo != "superres" && !p.value("activo", true)) {
             // Apagada: no se agrega a la cadena (pasa sin tocar), pero igual sale del grafo.
@@ -1065,7 +1086,7 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             if (c.value("desde", "") == id) c["desde"] = "in";
         nodos.erase(it);
     }
-    return {{"video", video}, {"alfa", alfa}};
+    return {{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}};
 }
 
 json VideoGrafos::filtrosDeEntrada(const std::string& entrada) const {

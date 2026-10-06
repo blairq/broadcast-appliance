@@ -18,7 +18,8 @@
 //   filtros          {"video":[…], "audio":[…], "alfa":bool} (JSON o texto JSON)
 //   filtros_audio    [… ] (los de audio, aparte)
 //   normalizar (true), audio (true), estudio (true), latencia, desfase (ms, audio y video),
-//   desfase_audio (ms, solo el audio: la «sincronía» de la app), ntp_sync (true)
+//   desfase_audio (ms, solo el audio: la «sincronía» de la app), desfase_video (ms, solo
+//   el video: la tarjeta «retardo»), ntp_sync (true)
 //   superres, superres_motor, superres_modelo   (la superresolución vieja: un filtro más)
 //   nombre           el que se muestra en la placa «sin señal» (de fábrica, el id)
 //
@@ -145,7 +146,7 @@ class Entrada {
     std::string filtrosJson_, superresMotor_, superresModelo_;
     std::vector<Filtro> filtrosV_, filtrosA_;
     bool alfa_ = false, normalizar_ = true, conAudio_ = true, estudio_ = true, ntpSync_ = true, superres_ = false;
-    std::int64_t latenciaMs_ = 0, desfaseMs_ = 0, desfaseAudioMs_ = 0;
+    std::int64_t latenciaMs_ = 0, desfaseMs_ = 0, desfaseAudioMs_ = 0, desfaseVideoMs_ = 0;
     bool medio_ = false, bucle_ = false, limpiarAlTerminar_ = true;
     bool deApp_ = false;   ///< tipo=app: los cuadros los empuja la app
     bool estatica_ = false; ///< color, imagen, texto, app: no se caen (sin placa «sin señal»)
