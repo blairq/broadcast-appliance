@@ -327,6 +327,7 @@ const Fila kPropias[] = {
                        "pfl solo escuchar previo monitorear probar un microfono antes de abrirlo "
                        "auriculares cascos oir sin sacar al aire"},
     {"audio_devices", "placa de sonido microfono dispositivo entrada salida hardware"},
+    {"inicio_con_el_equipo", "arrancar solo al encender corte de luz volver solo inicio automatico"},
     {"audio_input_add", "agregar microfono entrada de audio linea"},
     {"audio_input_remove", "quitar sacar borrar microfono entrada de audio"},
     {"audio_rack", "rack cadena procesamiento efectos de un canal"},

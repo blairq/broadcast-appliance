@@ -106,7 +106,9 @@
 #include <cstring>
 #include <deque>
 #include <map>
+#include <filesystem>
 #include <mutex>
+#include <set>
 #include <new>
 #include <string>
 #include <utility>
@@ -187,6 +189,12 @@ struct Fuente {
     // Lo pedido
     std::string uri, descripcion, descripcionAudio, reloj, relojServidor;
     std::string camara, camaraModo; ///< cámara del equipo (id estable) y su modo («WxH@fps»)
+    std::string microfono;          ///< micrófono del equipo (id estable; "default" = el del sistema)
+    // Esperando un dispositivo que no está (vigía de dispositivos): sin rearmar en
+    // vano; se arma apenas aparece.
+    bool esperaDispositivo = false;
+    std::uint64_t genVista = 0;       ///< la generación del vigía que ya se miró
+    std::uint64_t esperaDesdeNs = 0;  ///< para el reintento de respaldo (cada 15 s)
     /// Se alinea con el estudio (la compensación/latencia de todas las entradas).
     /// false: solo su propia demora (p. ej. el audio de un invitado, cuyo video
     /// todavía va por libobs sin esperar).
@@ -877,6 +885,24 @@ std::string entreComillas(const std::string& v) {
     return r + "\"";
 }
 
+#if defined(__linux__)
+/// /dev/videoN cambia de número al reenchufar o reiniciar: el enlace estable de
+/// /dev/v4l/by-id que apunta a él (si no hay, el mismo).
+inline std::string idEstableV4l2(const std::string& dev) {
+    std::error_code ec;
+    const std::filesystem::path dir("/dev/v4l/by-id");
+    if (dev.rfind("/dev/video", 0) != 0 || !std::filesystem::is_directory(dir, ec)) return dev;
+    const auto real = std::filesystem::canonical(dev, ec);
+    if (ec) return dev;
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+        if (std::filesystem::canonical(e.path(), ec) == real && e.path().string().find("index0") != std::string::npos)
+            return e.path().string();
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+        if (std::filesystem::canonical(e.path(), ec) == real) return e.path().string();
+    return dev;
+}
+#endif
+
 /// El id estable de un dispositivo de video (el que guarda `camara`).
 std::string idDeCamara(GstDevice* dev, GstElement* e) {
     std::string id;
@@ -899,6 +925,9 @@ std::string idDeCamara(GstDevice* dev, GstElement* e) {
         if (v != nullptr) id = v;
         g_free(v);
     }
+#if defined(__linux__)
+    id = idEstableV4l2(id);
+#endif
 #endif
     return id;
 }
@@ -971,6 +1000,100 @@ std::string origenDeCamara(const std::string& id, std::string modo) {
     return o;
 }
 
+// --- El vigía de dispositivos ------------------------------------------------------
+//
+// Un GstDeviceMonitor de todo el proceso (micrófonos y cámaras): sabe qué
+// dispositivos hay y avisa (DEVICE_ADDED / DEVICE_REMOVED, por su bus) cuando
+// uno se conecta o se va. Las entradas que esperan uno no rearman cada 2 s:
+// miran la generación del vigía y se arman apenas aparece el suyo; las que lo
+// están usando se desarman si se va (algunas capturadoras no dan error al
+// desenchufarlas: dejan de mandar y nada más).
+
+/// El id estable de un micrófono (el que guarda `microfono`).
+std::string idDeMicrofono(GstElement* e) {
+    if (e == nullptr) return {};
+#if defined(__APPLE__)
+    const char* prop = "unique-id";
+#else
+    const char* prop = "device";
+#endif
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(e), prop) == nullptr) return {};
+    gchar* v = nullptr;
+    g_object_get(e, prop, &v, nullptr);
+    std::string id = v != nullptr ? v : "";
+    g_free(v);
+    return id;
+}
+
+struct Vigia {
+    std::mutex mu;
+    GstDeviceMonitor* mon = nullptr;
+    std::set<std::string> audio, video;
+    std::atomic<std::uint64_t> generacion{1};
+
+    /// Anota (o saca) un dispositivo. Con mu tomado.
+    void anotar(GstDevice* dev, bool esta) {
+        GstElement* e = gst_device_create_element(dev, nullptr);
+        const bool esVideo = gst_device_has_classes(dev, "Video/Source");
+        const std::string id = esVideo ? idDeCamara(dev, e) : idDeMicrofono(e);
+        if (e != nullptr) gst_object_unref(e);
+        if (id.empty()) return;
+        auto& conjunto = esVideo ? video : audio;
+        if (esta) conjunto.insert(id);
+        else conjunto.erase(id);
+    }
+
+    void arrancar() {
+        if (mon != nullptr) return;
+        mon = gst_device_monitor_new();
+        gst_device_monitor_add_filter(mon, "Audio/Source", nullptr);
+        gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
+        if (!gst_device_monitor_start(mon)) return;
+        GList* lista = gst_device_monitor_get_devices(mon);
+        for (GList* l = lista; l != nullptr; l = l->next) anotar(GST_DEVICE(l->data), true);
+        g_list_free_full(lista, gst_object_unref);
+    }
+
+    /// Lee los avisos del monitor (desde el tic de cualquier entrada; no bloquea).
+    void revisar() {
+        std::unique_lock<std::mutex> l(mu, std::try_to_lock);
+        if (!l.owns_lock()) return;
+        arrancar();
+        if (mon == nullptr) return;
+        GstBus* bus = gst_device_monitor_get_bus(mon);
+        bool cambio = false;
+        while (GstMessage* m = gst_bus_pop(bus)) {
+            GstDevice* dev = nullptr;
+            if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_ADDED) {
+                gst_message_parse_device_added(m, &dev);
+                anotar(dev, true);
+                cambio = true;
+            } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_DEVICE_REMOVED) {
+                gst_message_parse_device_removed(m, &dev);
+                anotar(dev, false);
+                cambio = true;
+            }
+            if (dev != nullptr) gst_object_unref(dev);
+            gst_message_unref(m);
+        }
+        gst_object_unref(bus);
+        if (cambio) ++generacion;
+    }
+
+    /// ¿Está? (sin saberlo todavía: sí, para no trabar el arranque).
+    bool hay(bool esVideo, const std::string& id) {
+        std::lock_guard<std::mutex> l(mu);
+        arrancar();
+        if (mon == nullptr) return true;
+        return (esVideo ? video : audio).count(id) > 0;
+    }
+};
+
+Vigia& vigia() {
+    static Vigia* v = new Vigia(); // vive lo que el proceso
+    return *v;
+}
+
 /// Qué tiene un archivo (video, audio), con GstDiscoverer. false + error si no se puede leer.
 bool queTieneElArchivo(const std::string& uri, bool& video, bool& audio, std::string& error) {
     video = audio = false;
@@ -1020,14 +1143,28 @@ void armar(Fuente* f) {
     if (f->uri.empty() && f->descripcion.empty() && f->descripcionAudio.empty() && f->camara.empty()) return;
     // La cámara del equipo: se busca cuál es ahora; si no está, se reintenta.
     std::string origenV = f->descripcion;
+    // Un dispositivo del equipo que no está: a esperar que aparezca (el vigía avisa).
+    const auto esperar = [f](const std::string& que) {
+        if (!f->esperaDispositivo)
+            blog(LOG_WARNING, "[ba_gst_fuente] %s: se espera a que se conecte", que.c_str());
+        f->error = que + ": esperando que se conecte";
+        f->esperaDispositivo = true;
+        f->genVista = vigia().generacion.load();
+        f->esperaDesdeNs = os_gettime_ns();
+    };
+    if (!f->microfono.empty() && f->microfono != "default" && !vigia().hay(false, f->microfono)) {
+        esperar("el micrófono " + f->microfono);
+        return;
+    }
     if (!f->camara.empty()) {
         origenV = origenDeCamara(f->camara, f->camaraModo);
         if (origenV.empty()) {
-            f->error = "la cámara no está conectada (" + f->camara + ")";
-            f->reintento = os_gettime_ns() + 2'000'000'000ULL;
+            esperar("la cámara " + f->camara);
             return;
         }
     }
+    if (f->esperaDispositivo) blog(LOG_INFO, "[ba_gst_fuente] %s: apareció, se conecta", f->camara.empty() ? f->microfono.c_str() : f->camara.c_str());
+    f->esperaDispositivo = false;
     f->clock = relojDe(f->reloj, f->relojServidor, f->relojPuerto, f->relojDominio, f->error);
     if (f->clock == nullptr) return;
     // Estándar: los sinks esperan al reloj (sync=true) con una cola de espera
@@ -1302,6 +1439,7 @@ void actualizar(void* data, obs_data_t* s) {
     const std::string rack = obs_data_get_string(s, "rack");
     const std::string camara = obs_data_get_string(s, "camara"), camaraModo = obs_data_get_string(s, "camara_modo");
     const bool estudio = f->medio ? false : obs_data_get_bool(s, "estudio");
+    const std::string microfono = obs_data_get_string(s, "microfono");
     const bool normalizar = obs_data_get_bool(s, "normalizar");
     const bool superres = obs_data_get_bool(s, "superres");
     const std::string superresMotor = obs_data_get_string(s, "superres_motor");
@@ -1343,7 +1481,7 @@ void actualizar(void* data, obs_data_t* s) {
                          superres != f->superres || superresMotor != f->superresMotor ||
                          superresModelo != f->superresModelo || ntpSync != f->ntpSync ||
                          firma != f->firmaFiltros || sincronia != f->sincronia || rack != f->rack ||
-                         camara != f->camara || camaraModo != f->camaraModo ||
+                         camara != f->camara || camaraModo != f->camaraModo || microfono != f->microfono ||
                          (latencia != f->latenciaMs && !uri.empty()) || f->pipeline == nullptr;
     const std::int64_t corrimiento =
         (latencia + desfase - f->latenciaMs - f->desfaseMs) * static_cast<std::int64_t>(GST_MSECOND);
@@ -1358,6 +1496,7 @@ void actualizar(void* data, obs_data_t* s) {
     f->rack = rack;
     f->camara = camara;
     f->camaraModo = camaraModo;
+    f->microfono = microfono;
     f->estudio = estudio;
     f->normalizar = normalizar;
     f->superres = superres;
@@ -1639,6 +1778,26 @@ void procesarMensaje(Fuente* f, GstMessage* m);
 void tic(void* data, float) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
+    const bool deDispositivo = !f->camara.empty() || (!f->microfono.empty() && f->microfono != "default");
+    if (deDispositivo) vigia().revisar();
+    if (f->pipeline == nullptr && f->esperaDispositivo) {
+        // Esperando su dispositivo: se arma cuando el vigía avisa que cambió algo
+        // (o, de respaldo, cada 15 s: hay sistemas que no avisan).
+        const std::uint64_t gen = vigia().generacion.load();
+        if (gen != f->genVista || os_gettime_ns() - f->esperaDesdeNs > 15'000'000'000ULL) armar(f);
+        return;
+    }
+    // Lo está usando y se fue: a esperar que vuelva (sin error de por medio no se notaría).
+    if (f->pipeline != nullptr && deDispositivo && vigia().generacion.load() != f->genVista) {
+        f->genVista = vigia().generacion.load();
+        const bool esta = !f->camara.empty() ? vigia().hay(true, f->camara) : vigia().hay(false, f->microfono);
+        if (!esta) {
+            desarmar(f);
+            obs_source_output_video(f->ctx, nullptr);
+            armar(f); // queda esperando (no está)
+            return;
+        }
+    }
     if (f->pipeline == nullptr) {
         if ((!f->descripcion.empty() || !f->descripcionAudio.empty() || !f->uri.empty() || !f->camara.empty()) &&
             f->reintento != 0 && os_gettime_ns() >= f->reintento) {

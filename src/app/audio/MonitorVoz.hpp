@@ -13,7 +13,8 @@
 // aire; el operador pidió poder rutearla).
 //
 // Se le empuja audio con timestamps seguidos, frase por frase, a medida que
-// se sintetiza.
+// se sintetiza. Entra por GStreamer (ba_gst_fuente con `bavoz`, audio/GstVoz):
+// su rack corre en barack; sin GStreamer, la fuente de libobs de antes.
 // ============================================================================
 #pragma once
 
@@ -64,6 +65,7 @@ class MonitorVoz {
     std::uint32_t canal_;
     std::uint64_t proximo_ = 0;       ///< ns: dónde termina lo encolado
     std::uint64_t silencioHasta_ = 0; ///< ns: callada hasta que se acabe lo encolado
+    bool gst_ = false;                 ///< por GStreamer (ba_gst_fuente + bavoz) o la fuente de libobs de antes
 };
 
 } // namespace ba::app::audio

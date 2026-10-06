@@ -3,6 +3,10 @@
 // ============================================================================
 
 #include "ui/SystemViewModel.hpp"
+#include "InicioConElSistema.hpp"
+
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <QDesktopServices>
 #include <QDir>
@@ -82,6 +86,12 @@ QVariantList SystemViewModel::backups() const {
 bool SystemViewModel::canRollback() const {
     return QFileInfo(programa() + "/.actualizacion-anterior").isDir();
 }
+
+QVariantMap SystemViewModel::inicioEstado() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump())).object().toVariantMap();
+}
+
+QString SystemViewModel::inicioPoner(bool activo) { return QString::fromStdString(inicio::poner(activo)); }
 
 void SystemViewModel::refresh() { emit changed(); }
 

@@ -21,6 +21,7 @@
 #include "AppRuntime.hpp"
 #include "BroadcastEngine.hpp"
 #include "InputSpecs.hpp"
+#include "InicioConElSistema.hpp"
 #include "diag/Registro.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -424,11 +425,14 @@ int AppRuntime::start() {
     if (cfg_.stream) {
         startStreaming();
     }
-    if (cfg_.restore) {
-        restoreOutputs();
-    } else {
-        writeOnAirState(); // arranque normal: no hereda el estado de otra corrida
-    }
+    // VOLVER COMO ESTABA: un cierre ordenado deja al-aire.json en «nada al aire»
+    // (stop()). Si dice que se transmitía o grababa, la corrida anterior terminó
+    // sin cerrarse (corte de luz, cuelgue, la máquina se apagó): se retoma,
+    // también en un arranque normal (no solo con --restore del launcher).
+    restoreOutputs();
+    writeOnAirState();
+    // Si arranca solo con el equipo y se movió la carpeta: la ruta nueva.
+    inicio::revisar();
 
     std::string err;
     if (!control_.start("control.app", &err)) {
@@ -587,14 +591,16 @@ void AppRuntime::restoreOutputs() {
         return;
     }
     if (j.value("recording", false) && !engine_.status().recording) {
-        std::printf("ba-app: --restore: se retoma la grabacion\n");
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la grabación");
         startRecording();
     }
     if (j.value("streaming", false) && !engine_.status().streaming) {
-        std::printf("ba-app: --restore: se retoma la transmision\n");
-        if (!startStreaming()) {
-            std::printf("ba-app: --restore: la transmision no se pudo retomar: %s\n", lastError_.c_str());
-        }
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
+                                   "la corrida anterior no se cerró (corte de luz o cuelgue): se retoma la transmisión");
+        if (!startStreaming())
+            ba::diag::registro().linea(ba::diag::Nivel::Error, "arranque", 0,
+                                       "la transmisión no se pudo retomar: " + lastError_);
     }
 }
 

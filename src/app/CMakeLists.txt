@@ -630,7 +630,7 @@ endif()
         add_test(NAME test_catalogo_gst COMMAND test_catalogo_gst)
         set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
         # El rack como elemento de GStreamer (barack).
-        add_executable(test_gst_rack tests/test_gst_rack.cpp audio/GstRack.cpp video/CatalogoGst.cpp)
+        add_executable(test_gst_rack tests/test_gst_rack.cpp audio/GstRack.cpp audio/GstVoz.cpp video/CatalogoGst.cpp)
         target_include_directories(test_gst_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(test_gst_rack PRIVATE ba_core ba::gstreamer)
         ba_gst_rpath(test_gst_rack "")

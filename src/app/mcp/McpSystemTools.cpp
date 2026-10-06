@@ -24,6 +24,7 @@
 
 #include "AppRuntime.hpp"
 #include "InputSpecs.hpp"
+#include "InicioConElSistema.hpp"
 #include "audio/EntradasAudio.hpp"
 #include "video/Camaras.hpp"
 #include "mcp/McpService.hpp"
@@ -309,6 +310,26 @@ void McpService::registerSystemTools() {
             done(ToolResult().data(json{{"nombre", name},
                                         {"dispositivo", dev},
                                         {"nota", "Suena en todas las escenas (canal global)."}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "inicio_con_el_equipo";
+        t.title = "Arrancar solo al encender el equipo";
+        t.category = "equipo";
+        t.description =
+            "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
+            "qué falta del sistema (que la máquina se encienda al volver la luz y que la sesión se inicie sola: eso "
+            "lo hace una persona con permisos de administrador). Con `activo`: lo prende o lo apaga. Al volver, el "
+            "programa retoma solo la transmisión y la grabación que estaban andando.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
+        t.run = [](const json& a, Done done) {
+            if (a.contains("activo")) {
+                if (const std::string e = inicio::poner(a.value("activo", false)); !e.empty())
+                    return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(inicio::estado()));
         };
         core_.addTool(std::move(t));
     }

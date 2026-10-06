@@ -92,6 +92,7 @@ std::string tipoLogico(const std::string& type, const json& settings) {
     if (type == kMicType && settings.is_object()) {
         if (settings.contains("camara")) return kVideoType;
         if (settings.value("video_invitado", false)) return "ba_guest_video";
+        if (settings.contains("voz")) return "ba_voz_asistente";
         if (settings.contains("anillo")) return "ba_guest_audio";
         if (settings.contains("microfono")) return kAudioInLibobs;
     }
@@ -205,7 +206,7 @@ bool isNetworkInput(const std::string& type, const json& settings) {
     // son ba_gst_fuente, pero no son «de red».
     if (type == "ba_gst_fuente" && settings.is_object() &&
         (settings.contains("microfono") || settings.contains("camara") || settings.contains("anillo") ||
-         settings.contains("video_invitado")))
+         settings.contains("video_invitado") || settings.contains("voz")))
         return false;
     return type == "ba_ndi_input" || type == "ba_gst_fuente" ||
            (type == "ffmpeg_source" && !settings.value("is_local_file", true));

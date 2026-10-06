@@ -40,6 +40,8 @@ y racks). Mientras tanto, T34 ya funciona sobre los niveles.
 
 ## T47 · Passphrase para las credenciales
 
+**Decidido (2026-10-05): C, sin passphrase.** El aparato tiene que volver solo después de un corte de luz, «todo como estaba». Hecho: retoma la transmisión y la grabación si la corrida anterior no se cerró; «Arrancar solo al encender el equipo» (opcional, GUI y MCP `inicio_con_el_equipo`); los dispositivos que faltan se esperan y se conectan solos al aparecer. Proteger el equipo con el disco cifrado del sistema (ojo: en Mac, FileVault impide el inicio de sesión automático).
+
 Hoy `Credenciales/` se cifra con una clave del dispositivo: alguien con la carpeta y la máquina puede
 leerla. `SecretsStore` (Argon2id) ya existe para envolver esa clave con una passphrase.
 

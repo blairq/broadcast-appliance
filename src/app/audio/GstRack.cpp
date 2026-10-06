@@ -16,6 +16,7 @@
 #include <gst/audio/gstaudiofilter.h>
 #include <gst/gst.h>
 
+#include "audio/GstVoz.hpp"
 #include "video/CatalogoGst.hpp"
 #endif
 
@@ -248,7 +249,10 @@ bool registrarElemento() {
 
 void registrarEnSegundoPlano() {
     std::thread([]() {
-        if (video::iniciarGStreamer()) registrarElemento();
+        if (video::iniciarGStreamer()) {
+            registrarElemento();
+            gstvoz::registrarElemento(); // las voces (bavoz), de paso
+        }
     }).detach();
 }
 

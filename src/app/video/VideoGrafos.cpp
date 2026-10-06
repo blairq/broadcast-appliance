@@ -219,7 +219,8 @@ bool VideoGrafos::esEntrada(const std::string& n) const {
     const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
     // Los micrófonos y el audio de los invitados también son ba_gst_fuente, pero
     // no tienen video: no van en el grafo de video.
-    if (type == kTipoVirtual && s.is_object() && (s.contains("microfono") || s.contains("anillo"))) return false;
+    if (type == kTipoVirtual && s.is_object() && (s.contains("microfono") || s.contains("anillo") || s.contains("voz")))
+        return false;
     if (type == inputs::kVideoType || type == kTipoVirtual) return true; // las cámaras de GStreamer son kTipoVirtual
     return inputs::isNetworkInput(type, s);
 }

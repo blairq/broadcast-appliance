@@ -7,6 +7,7 @@
 #include "InputSpecs.hpp"
 
 #include <algorithm>
+#include <filesystem>
 #include <set>
 #include <tuple>
 
@@ -15,6 +16,24 @@
 #endif
 
 namespace ba::app::video {
+
+#if defined(__linux__)
+/// /dev/videoN cambia de número al reenchufar o reiniciar: el enlace estable de
+/// /dev/v4l/by-id que apunta a él (si no hay, el mismo).
+static std::string idEstableV4l2(const std::string& dev) {
+    std::error_code ec;
+    const std::filesystem::path dir("/dev/v4l/by-id");
+    if (dev.rfind("/dev/video", 0) != 0 || !std::filesystem::is_directory(dir, ec)) return dev;
+    const auto real = std::filesystem::canonical(dev, ec);
+    if (ec) return dev;
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+        if (std::filesystem::canonical(e.path(), ec) == real && e.path().string().find("index0") != std::string::npos)
+            return e.path().string();
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+        if (std::filesystem::canonical(e.path(), ec) == real) return e.path().string();
+    return dev;
+}
+#endif
 
 std::string ModoCamara::valor() const {
     return std::to_string(ancho) + "x" + std::to_string(alto) + (fps > 0 ? "@" + std::to_string(fps) : std::string());
@@ -29,6 +48,8 @@ std::string idCamaraDesdeLibobs(const std::string& id) {
     // libobs (DirectShow): «Nombre:\\?\usb#…»; mfvideosrc: la ruta sola.
     const auto p = id.find(":\\\\?\\");
     if (p != std::string::npos) return id.substr(p + 1);
+#elif defined(__linux__)
+    return idEstableV4l2(id); // /dev/videoN → /dev/v4l/by-id/…
 #endif
     return id;
 }
@@ -59,6 +80,9 @@ std::string idDe(GstDevice* dev) {
         }
         gst_object_unref(e);
     }
+#if defined(__linux__)
+    id = idEstableV4l2(id);
+#endif
 #endif
     return id;
 }

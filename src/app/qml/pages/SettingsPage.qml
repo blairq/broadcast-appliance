@@ -1141,6 +1141,29 @@ Rectangle {
                        text: "Todo el sistema vive en una sola carpeta (sirve desde un pendrive): " + sys.dataRoot }
                 Text { Layout.fillWidth: true; color: Theme.textDim; font.pixelSize: 13; visible: sys.version !== ""
                        text: "Versión instalada: " + sys.version }
+                // Volver solo después de un corte de luz.
+                ColumnLayout {
+                    id: inicioBox
+                    Layout.fillWidth: true
+                    spacing: 6
+                    property var est: sys.inicioEstado()
+                    property string error: ""
+                    RowLayout {
+                        Switch {
+                            checked: inicioBox.est.activo === true
+                            onToggled: { inicioBox.error = sys.inicioPoner(checked); inicioBox.est = sys.inicioEstado() }
+                        }
+                        Text { text: "Arrancar solo al encender el equipo"; color: Theme.text; font.pixelSize: 14 }
+                    }
+                    Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                           text: "Si se corta la luz con la transmisión o la grabación andando, al volver el programa las retoma solo. Para que vuelva sin que nadie toque nada, además:" }
+                    Repeater {
+                        model: inicioBox.est.notas || []
+                        delegate: Text { required property var modelData; Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                         color: Theme.textDim; font.pixelSize: 12; text: "• " + modelData }
+                    }
+                    Text { visible: inicioBox.error !== ""; text: inicioBox.error; color: Theme.live; font.pixelSize: 12 }
+                }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2

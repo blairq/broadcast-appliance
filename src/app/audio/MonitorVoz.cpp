@@ -2,6 +2,9 @@
 // src/app/audio/MonitorVoz.cpp — ver MonitorVoz.hpp
 // ============================================================================
 #include "audio/MonitorVoz.hpp"
+#include "audio/GstVoz.hpp"
+
+#include <nlohmann/json.hpp>
 
 #include <obs.h>
 #include <util/platform.h>
@@ -56,7 +59,34 @@ MonitorVoz::~MonitorVoz() {
 bool MonitorVoz::asegurar() {
     if (fuente_ != nullptr) return true;
     if (!obs_initialized()) return false;
-    fuente_ = obs_source_create(kTipo, nombre_.c_str(), nullptr, nullptr);
+    // Por GStreamer (bavoz lee la cola de esta voz). Si `bavoz` todavía no está
+    // registrado, la entrada reintenta sola hasta que esté; lo encolado espera.
+    const char* tipoGst = "ba_gst_fuente";
+    bool hayGst = false;
+    {
+        const char* id = nullptr;
+        for (size_t i = 0; obs_enum_input_types(i, &id); ++i)
+            if (id != nullptr && std::string(id) == tipoGst) hayGst = true;
+    }
+    if (hayGst) {
+        std::string nom;
+        for (char c : nombre_) {
+            if (c == '\\' || c == '"') nom += '\\';
+            nom += c;
+        }
+        const nlohmann::json aj{{"pipeline", ""},
+                                {"pipeline_audio", "bavoz voz=\"" + nom + "\""},
+                                {"audio", true},
+                                {"normalizar", false},
+                                {"estudio", false},
+                                {"voz", nombre_}};
+        obs_data_t* d = obs_data_create_from_json(aj.dump().c_str());
+        fuente_ = obs_source_create(tipoGst, nombre_.c_str(), d, nullptr);
+        obs_data_release(d);
+        gst_ = fuente_ != nullptr;
+        gstvoz::ponerReloj(&os_gettime_ns);
+    }
+    if (fuente_ == nullptr) fuente_ = obs_source_create(kTipo, nombre_.c_str(), nullptr, nullptr);
     if (fuente_ == nullptr) return false;
     // De fábrica: en los auriculares del operador y en ninguna pista (no va
     // al aire). La Matriz le restaura el ruteo que el operador le haya dado.
@@ -142,6 +172,16 @@ void MonitorVoz::reproducirEn(const float* muestras, std::size_t n, std::uint32_
 }
 
 void MonitorVoz::empujar(const float* muestras, std::size_t n, std::uint32_t frecuencia, std::uint64_t ts) {
+    if (gst_) {
+        // A la cola de esta voz: bavoz la entrega a su hora.
+        for (std::size_t i = 0; i < n; i += kBloque) {
+            const auto frames = static_cast<std::uint32_t>(std::min<std::size_t>(kBloque, n - i));
+            gstvoz::encolar(nombre_, muestras + i, frames, frecuencia, ts);
+            ts += static_cast<std::uint64_t>(frames) * 1'000'000'000ULL / frecuencia;
+        }
+        proximo_ = ts;
+        return;
+    }
     for (std::size_t i = 0; i < n; i += kBloque) {
         const auto frames = static_cast<std::uint32_t>(std::min<std::size_t>(kBloque, n - i));
         obs_source_audio a = {};
