@@ -22,7 +22,7 @@
 
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
-    setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1);
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, TRUE);
 #endif
     int fallos = 0;
     const auto t0 = std::chrono::steady_clock::now();

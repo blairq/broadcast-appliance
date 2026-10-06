@@ -78,7 +78,7 @@ double medir(const char* fuente) {
 
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
-    setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, 1);
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, TRUE);
 #endif
     std::string e;
     if (!ba::app::video::iniciarGStreamer(&e)) {
