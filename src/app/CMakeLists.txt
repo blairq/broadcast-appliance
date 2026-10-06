@@ -117,16 +117,15 @@ if(BA_HAVE_MOTOR AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/re
                 RENAME libmicrodns-LGPL.txt)
     endif()
 endif()
-# Windows: libmicrodns y libNoIDea se compilan aca (tools/deps/ndi-src.sh) y
-# libavcodec/libavutil son las DLL del runtime de OBS (FFmpeg n7.0.2), con los
-# headers y .lib del obs-deps oficial que fija OBS (make deps-obs-deps-win).
+# Windows: libmicrodns y libNoIDea se compilan aca (tools/deps/ndi-src.sh); el
+# video lo decodifica GStreamer (bandisrc), sin FFmpeg propio.
 set(BA_MDNS_DIR "${CMAKE_SOURCE_DIR}/extern/libmicrodns")
 
 # --- mDNS para buscar Chromecast (src/app/pantallas) --------------------------
-# La misma libmicrodns que usa NDI, pero como objetivo propio: NDI solo se
-# compila con libobs y en Linux, y buscar televisores tiene que andar igual en
-# las tres plataformas. En Linux se usa el .a de obs-deps si esta; si no (y en
-# macOS), se compila del fuente vendoreado, que es el mismo.
+# La misma libmicrodns que usa NDI, pero como objetivo propio: buscar
+# televisores tiene que andar igual en las tres plataformas. En Linux se usa el
+# .a de extern/obs-deps-linux (los terceros compilados, el nombre es histórico)
+# si está; si no (y en macOS), se compila del fuente vendoreado, que es el mismo.
 set(BA_MDNS_OK OFF)
 if(NOT WIN32 AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
     add_library(ba_mdns INTERFACE)
@@ -160,9 +159,7 @@ if(APPLE AND BA_HAVE_MOTOR AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv.
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt COMPONENT bundle)
 endif()
 # El enlace con ba-app va mas abajo, cuando el objetivo ya existe.
-set(BA_OBS_DEPS_WIN "${CMAKE_SOURCE_DIR}/extern/obs-deps-win")
-if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c"
-   AND EXISTS "${BA_OBS_DEPS_WIN}/lib/avcodec.lib")
+if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
     add_library(ba_microdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
                                    "${BA_MDNS_DIR}/compat/compat.c" "${BA_MDNS_DIR}/compat/inet.c"
                                    "${BA_MDNS_DIR}/compat/poll.c")
@@ -184,9 +181,6 @@ if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "
     target_compile_options(ba_noidea PRIVATE -w)
     target_link_libraries(ba_noidea PUBLIC ba_microdns ws2_32)
 
-    add_library(ba_ffmpeg_win INTERFACE)
-    target_include_directories(ba_ffmpeg_win SYSTEM INTERFACE "${BA_OBS_DEPS_WIN}/include")
-    target_link_libraries(ba_ffmpeg_win INTERFACE "${BA_OBS_DEPS_WIN}/lib/avcodec.lib" "${BA_OBS_DEPS_WIN}/lib/avutil.lib")
     set(BA_HAVE_NDI ON)
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt)
     install(FILES "${BA_MDNS_DIR}/COPYING" DESTINATION data/licencias RENAME libmicrodns-LGPL.txt)

@@ -21,6 +21,7 @@
 #include "BroadcastEngine.hpp"
 #include "ChatOverlaySource.hpp"
 #include "FuentesApp.hpp"
+#include "TiposBasicos.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "InputSpecs.hpp"
 #include "InicioConElSistema.hpp"
@@ -359,6 +360,7 @@ int AppRuntime::start() {
     // Los tipos que pinta la app (antes de cargar escenas: sus valores de fábrica).
     chatoverlay::registerSourceType();
     graficos::registerSourceType();
+    registrarTiposBasicos();
     if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: el motor no arranco: %s\n", lastError_.c_str());

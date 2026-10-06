@@ -112,9 +112,13 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M6.1 | `AppRuntime` y `StudioViewModel` sobre el motor: misma API, mismas herramientas MCP, misma GUI | las pruebas por MCP de siempre pasan | ⬜ |
-| M6.2 | Migración de `app.json`: los tipos de OBS (`color_source_v3`, `text_ft2_source_v2`, `image_source`, `ffmpeg_source`, captura) pasan a los tipos del motor | una configuración vieja abre igual | ⬜ |
-| M6.3 | Fuera `src/obs-module`, `libobs.framework` y sus plugins del bundle de los tres sistemas | la app arranca sin libobs; el bundle pesa menos | ⬜ |
+| M6.1 | `AppRuntime` y `StudioViewModel` sobre el motor: misma API, mismas herramientas MCP, misma GUI | las pruebas por MCP de siempre pasan | ✅ 2026-10-06 (probado con `--test`: escenas, take con mezcla, multiview, grabación, subtítulos, cierre limpio) |
+| M6.2 | Migración de `app.json`: los tipos de OBS (`color_source_v3`, `text_ft2_source_v2`, `image_source`, `ffmpeg_source`, captura) pasan a los tipos del motor | una configuración vieja abre igual | ✅ 2026-10-06 (los tipos se traducen al armar la entrada, `ajustesMotor`; el app.json no se reescribe) |
+| M6.3 | Fuera `src/obs-module`, `libobs.framework` y sus plugins del bundle de los tres sistemas | la app arranca sin libobs; el bundle pesa menos | 🟡 (código y bundle de macOS sin libobs; Makefile, deps, CI y bundles de Linux/Windows: M6.4) |
+| M6.4 | Sacar libobs de la infraestructura: Makefile, `tools/deps`, cmake, CI, deploy, packaging; Linux y Windows armados en Docker | `make dist-*-docker` sin libobs | 🟡 |
+| M6.6 | Lo que corría en el filtro de grafo de libobs y todavía no corre en el motor: tarjetas salida, toma/traer, compositor, rostros, retardo, sincro (la medición de desfase), corrección de color de `normalizar`. El estado lo dice por tarjeta | cada tarjeta corre en el motor | ⬜ |
+| M6.7 | `bamejora` en la GPU (hoy CPU: ~28 ms por cuadro 1080p en 8 hilos; viene apagado de fábrica) | menos de 5 ms por cuadro | ⬜ |
+| M6.8 | El PTZ digital vuelve al encuadre si la cadena de la entrada se rearma (hoy vuelve al centro) | rearmar no mueve el encuadre | ⬜ |
 
 ### M7 — Después del cambio
 
@@ -235,6 +239,12 @@ tareas quedan repartidas acá.
 - 2026-10-06 · M2.2: transiciones empuje y cortina.
   - **Cómo:** el empuje mueve la posición de los pads. La cortina recorta la fuente y achica el pad juntos, así no se deforma. Las dos en CPU, sin GL.
   - **Probado a mitad de camino** (los dos colores en su lado) **y al terminar.**
+- 2026-10-06 · M6 el cambio (commits aa23feb, b25cc01): la app entera corre sobre el motor.
+  - `FuentesApp`: propiedades por tipo (sin `obs_properties`), fuentes que pinta la app (chat, gráficos, subtítulos dibujados con Qt), filtros extra por entrada y acceso al motor para piezas que no lo reciben.
+  - Elementos nuevos: `baptz` (PTZ digital), `bamejora` (mejorar imagen, CPU), `baplugins` (`baplugin`/`bapluginsrc`, antes en el módulo de OBS; el puerto va por el registro de GStreamer).
+  - Motor: estado de filtros por entrada, propiedades y `ba/control`, tomas de audio por entrada (ceros si está silenciada; números únicos entre motores), escucha «selección» (la suma de las marcadas), `desfase_audio` aparte del desfase de la entrada, reloj publicado.
+  - Audio sin libobs: Matriz (tomas del motor; entradas virtuales por `bavoz` estéreo), RackManager (siempre `barack`; escucha del nodo salida por QAudioSink), EquipoAudio y voces por la cola de `bavoz`, OperatorFeed (vista propia 640×360, toma de audio, monitores del lobby como entradas internas).
+  - **Arreglado:** segfault al cerrar (RackManager recorría `filters_` mientras `detach` lo vaciaba).
 - 2026-10-06 · M6.1, lo que el motor le tenía que dar a la app (`test_motor_app`):
   - entrada `tipo=app` (la app empuja cuadros: gráficos, chat);
   - composición de cualquier escena a pedido (el editor) y DSK con escenas enteras;

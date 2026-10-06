@@ -6,7 +6,7 @@
 # programa y también `gst-launch-1.0` con su entorno.
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
-#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz (tarjetas de imagen, legalizador, PTZ digital).
+#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz, bamejora (tarjetas de imagen, legalizador, PTZ digital, mejorar imagen).
 #   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
@@ -27,7 +27,7 @@ function(ba_plugin_gst target)
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp)
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp)
 ba_plugin_gst(gstbafiltros)
 
 # El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).
