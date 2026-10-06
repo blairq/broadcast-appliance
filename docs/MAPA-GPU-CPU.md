@@ -101,6 +101,36 @@ memoria por cada fondo de color.
    `GstGLContext` comunes, un buffer GL que cruza un `inter` hacia otro pipeline
    no se puede usar del otro lado. Por eso todo baja antes de cada `intersink`.
 
+## Después de M8.1–M8.3 en la Mac (2026-10-06, mismo estudio)
+
+**92 pipelines, 579 enlaces de video: 403 en GLMemory y 176 en sistema. 29
+trabajos en CPU (eran 174 en la cadena, 101 reales), 55 transiciones.** La app
+bajó de ~28 % a ~19 % de CPU con el estudio entero corriendo.
+
+- **Composición** en `glvideomixer` (programa, DSK, preview, escenas pedidas),
+  con el recorte en `gltransformation` + `glshader` (sin el `glshader`, la meta
+  afín se dibuja fuera de la caja del pad). Publica GLMemory al `intersink`.
+- **Un solo contexto GL** (`gst.gl.app_context`) puesto en cada pipeline por
+  `Reloj::adoptar`: el GLMemory cruza los `inter` sin bajar.
+- **Entradas**: la cámara y el decodificador van directo a `glupload`; lo
+  estático (color, texto, imagen, placas) se dibuja una vez, se sube una vez y
+  queda congelado con `imagefreeze`.
+- **Vistas** escalan en GPU y bajan chico (`aSistemaEscalado`); las **salidas**
+  bajan una vez a NV12 para `vtenc` (que solo toma sistema).
+
+Lo que queda en CPU, a propósito:
+
+| Qué | Cuántos | Por qué |
+|---|---|---|
+| `textoverlay` | 27 | placas y entradas de texto, dibujadas **una vez** (`num-buffers=1`) y subidas: el mapa las cuenta pero no trabajan por cuadro |
+| `baplugin` | 1 | plugin de Python en la cámara: el cuadro sale del proceso. Esa cámara negocia sistema desde el origen y sube detrás del plugin |
+| subidas `glupload` | ~51 | una por entrada: lo estático sube una sola vez; las cámaras e invitados suben cada cuadro (en la Mac la memoria es unificada: es una copia, no un cruce de bus) |
+| bajadas `gldownload` | 3 | las salidas a `vtenc` |
+
+Pendiente en la Mac: desentrelazado en GL, `baptz` en GL
+(`gltransformation`) para que una cámara con PTZ digital no baje, y confirmar
+`vtdec` → GLMemory con una cámara de red real.
+
 ## Las otras arquitecturas (análisis)
 
 ### Intel en Windows (la que más duele)
