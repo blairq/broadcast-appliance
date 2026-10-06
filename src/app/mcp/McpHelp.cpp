@@ -19,7 +19,7 @@ namespace ba::app::mcp {
 namespace {
 
 const char* kInstructions =
-    R"md(Broadcast Appliance: estudio de transmision en vivo (escenas y fuentes sobre libobs, salida RTMP y grabacion) con sala de videoconferencia propia (invitados por WebRTC con lobby, modo oradores con reloj, tablero para tablet). Este servidor maneja TODO y te deja VER todo.
+    R"md(Broadcast Appliance: estudio de transmision en vivo (escenas y fuentes sobre un motor propio de GStreamer, salida RTMP/SRT y grabacion) con sala de videoconferencia propia (invitados por WebRTC con lobby, modo oradores con reloj, tablero para tablet). Este servidor maneja TODO y te deja VER todo.
 
 Como trabajar:
 1. Orientate con `status` y mira el programa con `capture_program` (o `capture_multiview` para todas las escenas).
@@ -452,7 +452,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
     {"video", "Grafo de video",
      "Armar pipelines de video: correccion compartida entre camaras, modulos de GStreamer, compositor, "
      "entradas de red, relojes y sincronia.",
-     R"md(Un solo grafo para todo el video del estudio, como un pipeline de GStreamer. Cada entrada (camara, red, virtual) es un sub-grafo: `<entrada>.entrada` -> tarjetas -> `<entrada>.escena` (lo que ven las escenas). Corre en la GPU, adentro de libobs. Todas las entradas marchan con el reloj de video del estudio (`status`: lienzo y fps).
+     R"md(Un solo grafo para todo el video del estudio, como un pipeline de GStreamer. Cada entrada (camara, red, virtual) es un sub-grafo: `<entrada>.entrada` -> tarjetas -> `<entrada>.escena` (lo que ven las escenas). Las tarjetas de imagen corren en la cadena de GStreamer de cada entrada; las que el motor todavia no corre (salida, toma, compositor) lo dicen en su estado. Todas las entradas marchan con el reloj de video del estudio (`status`: lienzo y fps).
 
 ## Como trabajar (siempre en este orden)
 1. **Mirar**: `video_estado` (todas, con su diagnostico) y `video_estado {"entrada": ...}` antes de tocar nada: tamaño, fps, formato, color (BT.601/709, rango), si llega entrelazada, reloj, colchon de red. `video_grafo` muestra las tarjetas.
@@ -463,9 +463,9 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 **La misma correccion de color en varias camaras** (que cambiando una vez cambie en todas), en UNA llamada:
 `video_pipeline {"entradas": ["Sony", "Pelco", "Panasonic"], "tarjetas": [{"tipo": "gst", "elemento": "videobalance", "propiedades": {"contrast": 1.1, "saturation": 0.9}, "compartida": "Color camaras"}], "local_por_entrada": {"Pelco": {"propiedades": {"hue": 0.04}}}}`. El controlador queda como `estudio.color-camaras`. `modo: "agregar"` si la entrada ya tiene tarjetas que hay que conservar (de fabrica las reemplaza). Despues, ajustar la comun: `video_tarjeta_ajustar` sobre cualquiera de las manejadas (va al controlador) o sobre el controlador. `video_controlador` para hacerlo a partir de una tarjeta que ya existe.
 
-**Corregir una camara** (SIEMPRE primero GStreamer): tarjeta `gst` con `videobalance` (brillo, contraste, saturacion, matiz) y `gamma`; una dominante (verde, magenta): `hue` chico (±0.02 a ±0.08). Solo si GStreamer no alcanza: la tarjeta `color` propia o un filtro de OBS (`video_filtros`: LUT .cube).
+**Corregir una camara** (SIEMPRE primero GStreamer): tarjeta `gst` con `videobalance` (brillo, contraste, saturacion, matiz) y `gamma`; una dominante (verde, magenta): `hue` chico (±0.02 a ±0.08). Solo si GStreamer no alcanza: la tarjeta `color` propia.
 
-**Entrelazada / mal declarada** (`video_estado` lo dice): `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (desentrelaza en la fuente, donde estan los campos); colores corridos en HD que declara 601: `{"matriz_declarada": "601", "matriz_real": "709"}`. Los cuadros por segundo distintos al lienzo los convierte libobs solo (repite o salta cuadros): no hace falta tarjeta.
+**Entrelazada / mal declarada** (`video_estado` lo dice): `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (desentrelaza en la fuente, donde estan los campos); colores corridos en HD que declara 601: `{"matriz_declarada": "601", "matriz_real": "709"}`. Los cuadros por segundo distintos al lienzo los convierte la entrada sola (repite o salta cuadros): no hace falta tarjeta.
 
 **Mosaico / imagen en imagen / lado a lado**: `video_mosaico {"escena", "entradas": [...], "disposicion": "mosaico|pip|lado", "nombre"}` en UNA llamada (toma cada entrada con sus tarjetas y oculta las sueltas en esa escena: el mosaico las sigue recibiendo). Para retocar: `video_tarjeta_ajustar` sobre el compositor con `capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden}.
 
@@ -945,7 +945,7 @@ Como armarlo bien:
 Correrlo es otra cosa: `evento_correr` SALE AL AIRE. Eso lo decide el operador, no vos. Si queres mostrarle como quedo, `evento_ensayo_rapido` recorre todo sin tocar nada.
 
 ## Video: primero GStreamer
-Para CUALQUIER cosa de video (color, brillo, contraste, nitidez, ruido, desentrelazado, recorte, efectos, textos, sincronia, entradas raras) pensa primero en GStreamer: tarjetas `gst` con los modulos de `video_modulos` (videobalance, gamma, videocrop, gaussianblur, deinterlace, timeoverlay…), armadas con `video_pipeline` (y `compartida` para varias camaras). Las tarjetas propias (`color`, `croma`, `recorte`) y los filtros de OBS (`obs`, `video_filtros`) solo si GStreamer no lo resuelve o si te los piden. Algo que se calcula en Python (un plugin) MIDE sobre una imagen chica y aplica la correccion con una tarjeta gst (plugin.llamar video_tarjeta_ajustar): una tarjeta de plugin que procesa el cuadro entero en cada camara carga la maquina.
+Para CUALQUIER cosa de video (color, brillo, contraste, nitidez, ruido, desentrelazado, recorte, efectos, textos, sincronia, entradas raras) pensa primero en GStreamer: tarjetas `gst` con los modulos de `video_modulos` (videobalance, gamma, videocrop, gaussianblur, deinterlace, timeoverlay…), armadas con `video_pipeline` (y `compartida` para varias camaras). Las tarjetas propias (`color`, `croma`, `recorte`) solo si GStreamer no lo resuelve o si te las piden. Algo que se calcula en Python (un plugin) MIDE sobre una imagen chica y aplica la correccion con una tarjeta gst (plugin.llamar video_tarjeta_ajustar): una tarjeta de plugin que procesa el cuadro entero en cada camara carga la maquina.
 
 ## Archivos de video y audio: ffmpeg, ffprobe, yt-dlp (incluidos)
 El programa TRAE ffmpeg, ffprobe, yt-dlp (con deno, para YouTube) y gst-launch-1.0/gst-discoverer-1.0, ya en el PATH de la consola (y en BA_FFMPEG, BA_FFPROBE, BA_YTDLP, BA_GST_LAUNCH). **No los bajes ni instales nada**: ni brew, ni apt, ni pip, ni winget. Para un archivo que te dan (audio corrido, otro formato, recortar, sacar el audio, normalizar volumen, medir), `ffprobe` para mirarlo y `ffmpeg` para arreglarlo; para un video de una pagina, `yt-dlp`. Escribi el resultado en `Media/` (o donde te digan), nunca encima del original. Detalle y recetas: `help {"topic": "herramientas"}`.

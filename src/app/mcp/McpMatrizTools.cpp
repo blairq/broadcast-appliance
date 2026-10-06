@@ -34,7 +34,7 @@ void McpService::registerMatrizTools() {
         t.category = "audio_rack";
         t.readOnly = true;
         t.description =
-            "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas de OBS "
+            "Fuentes con audio (a la salida de sus filtros) y a qué buses van: las 6 pistas del motor "
             "(la 1 es el programa; nativas, sin retardo) y los buses virtuales (salidas a un "
             "dispositivo, entradas que vuelven como fuente). Con los envíos y sus ajustes.";
         t.run = [m](const json&, Done done) {
@@ -55,7 +55,7 @@ void McpService::registerMatrizTools() {
             "En buses virtuales, además, `nivel_db` (-60 a +12), `pan` (-1 izq a 1 der) y `mute`; "
             "`ajustes: false` lo vuelve a 0 dB, centro.";
         t.details =
-            "Las pistas de OBS son la asignacion nativa de la fuente: solo prender o apagar, sin retardo. "
+            "Las pistas son la asignacion nativa de la fuente: solo prender o apagar, sin retardo. "
             "La pista 1 es lo que sale al AIRE: apagarla saca esa fuente del programa. Los buses virtuales "
             "pasan por una mezcla propia (~25 ms). Una entrada virtual no puede mandarse a su propio bus.";
         t.inputSchema = {{"type", "object"},
@@ -123,7 +123,7 @@ void McpService::registerMatrizTools() {
         t.title = "Quitar un bus virtual";
         t.category = "audio_rack";
         t.destructive = true;
-        t.description = "Quita una entrada o salida virtual (y sus envíos). Las pistas de OBS no se quitan.";
+        t.description = "Quita una entrada o salida virtual (y sus envíos). Las pistas no se quitan.";
         t.inputSchema = {
             {"type", "object"}, {"required", {"bus"}}, {"properties", {{"bus", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {

@@ -389,7 +389,7 @@ Item {
                                         onExited: { if (mx.hFila === x0.f) mx.hFila = ""; if (mx.hBus === x0.b) mx.hBus = "" }
                                         onClicked: (ev) => {
                                             if (ev.button === Qt.RightButton) {
-                                                if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas de OBS son nativas: prender o apagar, sin retardo."; return }
+                                                if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas son nativas: prender o apagar, sin retardo."; return }
                                                 if (x0.modelData.tipo === "escucha") { mx.msg = "La escucha es prender o apagar: el volumen es el de la fuente."; return }
                                                 if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
                                                 ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col

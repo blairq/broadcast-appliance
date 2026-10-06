@@ -201,7 +201,7 @@ void McpService::registerRedTools() {
                         "eso, el `plan`: qué "
                         "perfil (el más chico que cubra el lienzo; H.264/H.265 se decodifican por hardware, "
                         "MJPEG por CPU), qué "
-                        "normalizar (solo lo que hace falta: el color lo convierte libobs en la GPU), la "
+                        "normalizar (solo lo que hace falta: el color lo convierte la entrada al del lienzo), la "
                         "latencia y el PTZ. "
                         "`plan.argumentos` va tal cual a camara_agregar (sumale `escena` y `nombre`). Sin "
                         "ONVIF, analiza la URL "

@@ -47,10 +47,11 @@ void McpService::registerVideoTools() {
         "video", "Grafo de video",
         "Un grafo de video para todo el estudio, como un pipeline de GStreamer: cada entrada es un sub-grafo "
         "(entrada -> tarjetas -> escena) y los cables pueden cruzar entre entradas (p. ej. a un compositor). "
-        "Tarjetas propias (color, croma, recorte, salida), cualquier filtro de video de OBS o cualquier "
+        "Tarjetas propias (color, croma, recorte, salida) o cualquier "
         "módulo de "
         "video de GStreamer (video_modulos: el catálogo documentado). Entradas virtuales (barras, negro, un "
-        "pipeline de GStreamer) con video_entrada_virtual. Lo corre la GPU.");
+        "pipeline de GStreamer) con video_entrada_virtual. Las tarjetas de imagen corren en la cadena de "
+        "cada entrada.");
     const QPointer<video::VideoGrafos> v = vg;
     const auto deQt = [](const QVariant& x) {
         return json::parse(QJsonDocument::fromVariant(x).toJson(QJsonDocument::Compact).toStdString(),
@@ -113,16 +114,13 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_filtros";
-        t.title = "Los filtros de video de OBS (y los controles de una tarjeta)";
+        t.title = "Los controles de una tarjeta";
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Sin `id`: los filtros de video de OBS que se pueden poner como tarjeta (corrección de color, "
-            "aplicar "
-            "LUT .cube, llaves de croma/color/luma, nitidez, recorte, escala, máscaras, Mejorar imagen, PTZ "
-            "digital…). Con `id` de una tarjeta de filtro de OBS o de un módulo de GStreamer: sus controles "
-            "(nombre, "
-            "tipo, valor, rango, opciones).";
+            "Con `id` de una tarjeta (un módulo de GStreamer): sus controles (nombre, tipo, valor, rango, "
+            "opciones). Sin `id`, vacío: los filtros de OBS se fueron con libobs; el catálogo de módulos "
+            "está en video_modulos.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", idTarjeta}}}};
         t.run = [v, deQt](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
@@ -261,7 +259,7 @@ void McpService::registerVideoTools() {
             "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
             "`entrada` "
             "(después de `despues`; vacío = justo antes de su escena): `color`, "
-            "`croma`, `recorte`, `obs` (un filtro de OBS: `filtro` = su id, de video_filtros) y `gst` (un "
+            "`croma`, `recorte` y `gst` (un "
             "módulo de "
             "GStreamer: `elemento`, de video_modulos) y `plugin` (la tarjeta de un plugin de Python: "
             "`plugin`, "
@@ -285,9 +283,7 @@ void McpService::registerVideoTools() {
             "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, "
             "ajuste "
             "(encajar|llenar)}; sin capas, mosaico; null en una capa la vuelve al mosaico. "
-            "Un filtro de OBS: sus ajustes van en `params.ajustes` (video_filtros con el id de la tarjeta "
-            "los "
-            "lista). Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
+            "Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
             "GStreamer (video_modulos con `elemento` las lista; los enum, por su nick).";
         t.inputSchema = {
             {"type", "object"},
@@ -297,7 +293,7 @@ void McpService::registerVideoTools() {
               {"tipo",
                {{"type", "string"},
                 {"enum",
-                 {"color", "croma", "recorte", "obs", "gst", "plugin", "retardo", "normalizar", "rostros",
+                 {"color", "croma", "recorte", "gst", "plugin", "retardo", "normalizar", "rostros",
                   "salida", "compositor", "superres"}}}},
               {"plugin",
                {{"type", "string"},
@@ -305,7 +301,6 @@ void McpService::registerVideoTools() {
               {"tarjeta",
                {{"type", "string"}, {"description", "con tipo plugin: la tarjeta de video que declaró"}}},
               {"parametros", {{"type", "object"}, {"description", "con tipo plugin: sus ajustes"}}},
-              {"filtro", {{"type", "string"}, {"description", "con tipo obs: el id del filtro de OBS"}}},
               {"elemento",
                {{"type", "string"},
                 {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
@@ -313,7 +308,6 @@ void McpService::registerVideoTools() {
               {"params", {{"type", "object"}}}}}};
         t.examples = {
             R"({"entrada": "Cámara 1", "tipo": "croma"})",
-            R"({"entrada": "Cámara 1", "tipo": "obs", "filtro": "clut_filter", "params": {"ajustes": {"image_path": "/ruta/look.cube"}}})",
             R"({"entrada": "Cámara 1", "tipo": "gst", "elemento": "gamma", "params": {"propiedades": {"gamma": 1.3}}})",
             R"({"tipo": "compositor"})"};
         t.run = [v](const json& a, Done done) {
@@ -385,8 +379,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.idempotent = true;
         t.description = "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
-                        "`etiqueta`. Un filtro de "
-                        "OBS: `{\"ajustes\": {…}}`; un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
+                        "`etiqueta`. Un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
                         "mezclan). Una tarjeta "
                         "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo "
                         "propio de esa entrada, en "
@@ -663,17 +656,9 @@ void McpService::registerVideoTools() {
                             id = v->agregarModuloEn(g, tj.value("elemento", std::string()), e, despues,
                                                     tj.value("propiedades", json::object()), &error);
                         } else if (tipo == "obs") {
-                            const std::string f = tj.value("filtro", std::string());
-                            if (video::VideoGrafos::nombreFiltro(f).empty())
-                                error = "no existe el filtro de OBS «" + f + "» (video_filtros)";
-                            else
-                                id = g.agregar(
-                                    "obs", e, despues,
-                                    json{{"filtro", f}, {"ajustes", tj.value("ajustes", json::object())}},
-                                    &error);
-                            if (!id.empty())
-                                g.ajustar(id, json{{"etiqueta", video::VideoGrafos::nombreFiltro(f)}},
-                                          nullptr);
+                            // Los filtros de OBS se fueron con libobs.
+                            error = "los filtros de OBS ya no existen (no hay libobs): usá una tarjeta `gst` "
+                                    "(video_modulos), p. ej. videobalance o gamma";
                         } else {
                             id = g.agregar(tipo, e, despues, tj.value("params", json::object()), &error);
                         }
@@ -1588,8 +1573,8 @@ void McpService::registerVideoTools() {
             done(ToolResult().data(
                 {{"reloj", v->reloj()},
                  {"entradas_gstreamer", fuentes},
-                 {"nota", "las cámaras locales (USB, captura) van con el reloj de libobs; se alinean "
-                          "con video_sincronia (retardo)"}}));
+                 {"nota", "todas las entradas van con el reloj del estudio (el del motor); se alinean "
+                          "con video_desfase"}}));
         };
         core_.addTool(std::move(t));
     }

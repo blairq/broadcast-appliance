@@ -1374,8 +1374,8 @@ void McpService::registerTools() {
             "en la lista se CONSERVAN (con su camara, grafo y filtros): solo se quitan las que no estan. "
             "`layout` en fracciones del lienzo (0..1); si llega en pixeles se convierte y se avisa.";
         t.details =
-            "Cada fuente: {type, name, settings?, layout?, visible?, volume?, muted?}. `type` es el id de "
-            "libobs (ver source_types): p. ej. image_source {file}, color_source_v3 {color, width, "
+            "Cada fuente: {type, name, settings?, layout?, visible?, volume?, muted?}. `type` es el id del "
+            "tipo (ver source_types): p. ej. image_source {file}, color_source_v3 {color, width, "
             "height}, text_ft2_source_v2 {text, font:{face,size}, color1}, ffmpeg_source {local_file, "
             "looping}, v4l2_input (camara), ba_guest_video {slot, channel: guest|share}, ba_subtitulos "
             "{flujo: \"Orador · en\", "
@@ -1536,7 +1536,7 @@ void McpService::registerTools() {
         t.readOnly = true;
         t.idempotent = true;
         t.description =
-            "Tipos de fuente que esta instalacion puede crear (id de libobs, nombre, si tiene video "
+            "Tipos de fuente que esta instalacion puede crear (id, nombre, si tiene video "
             "y/o audio). El id es el `type` de source_add / scene_define.";
         t.run = [&rt](const json&, Done done) {
             json out = json::array();
@@ -1594,7 +1594,7 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"scene", sceneProp},
-                           {"type", {{"type", "string"}, {"description", "Id de libobs (source_types)."}}},
+                           {"type", {{"type", "string"}, {"description", "Id del tipo (source_types)."}}},
                            {"name", {{"type", "string"}}},
                            {"settings", {{"type", "object"}}},
                            {"layout", layoutProp},
@@ -1927,8 +1927,8 @@ void McpService::registerTools() {
             "si zumba, si el invitado ya volvio. Sin esto habia que ponerlo al aire para enterarse.\n\n"
             "Es EXCLUSIVO, como el solo de una mesa: escuchar una apaga la anterior. Sin argumentos "
             "apaga la que este sonando.\n\n"
-            "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —en libobs el "
-            "silencio es antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
+            "OJO: una fuente SILENCIADA (`audio_set muted`) no suena ni por el monitor —el silencio es "
+            "antes de todo—. Para probar un microfono cerrado hay que quitarle el silencio "
             "y bajarle el volumen, no silenciarlo.\n\n"
             "Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin monitor "
             "esto no falla pero tampoco suena. `audio_sources` dice cual se esta escuchando.";
@@ -3134,9 +3134,8 @@ void McpService::registerTools() {
             "MAS, con su render propio. Ocho camaras son ocho encodes simultaneos y eso no lo hace "
             "cualquier maquina; si la CPU se satura, lo primero que se degrada es el programa, que es "
             "lo que sale al aire. Empeza por las que de verdad vas a editar y mira `status.cpu`.\n\n"
-            "EL AUDIO tiene un limite propio: libobs mezcla en 6 pistas y la 0 es la del programa, asi "
-            "que solo las primeras CINCO entradas con audio graban sonido. De la sexta en adelante se "
-            "graba el video sin audio, y la respuesta lo dice en `audioPropio`.\n\n"
+            "EL AUDIO: cada una graba el de su propia entrada (despues de su rack); una entrada sin audio "
+            "graba solo el video, y la respuesta lo dice en `audioPropio`.\n\n"
             "Los archivos van a Recordings/entradas/, con el nombre de la fuente adentro.";
         t.inputSchema = {
             {"type", "object"},

@@ -377,7 +377,7 @@ void McpService::registerGraficoTools() {
             "    { \"fuente\": \"Zocalo\", \"grafico\": \"zocalo\",\n"
             "      \"valores\": { \"nombre\": \"{orador.nombre}\", \"cargo\": \"{orador.cargo}\" } }\n\n"
             "Lo que hay que saber:\n\n"
-            "  * La FUENTE se nombra, no se numera: el id de una fuente de escena lo asigna libobs y "
+            "  * La FUENTE se nombra, no se numera: el id interno de una fuente de escena "
             "cambia cada vez que se abre el programa. El nombre no.\n"
             "  * Un valor es TEXTO con origenes entre llaves, asi que se pueden mezclar: "
             "\"{orador.nombre} - {escena}\" o \"Nos escribe {invitado2.nombre}\".\n"

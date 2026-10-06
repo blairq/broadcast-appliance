@@ -6,7 +6,7 @@
 // descripción original, el paquete y la licencia, y todas sus propiedades
 // (de la introspección de GStreamer). Los que no van como tarjeta (fuentes,
 // salidas, mezcladores, los internos) se ven igual, con por qué no.
-// Datos: VideoGrafos.modulosGst() y filtrosObs().
+// Datos: VideoGrafos.modulosGst().
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -15,7 +15,7 @@ import BA
 Popup {
     id: cat
     property var vg: Studio.video
-    /// Al elegir: tipo "gst" (id = el elemento) u "obs" (id = el filtro).
+    /// Al elegir: tipo "gst" (id = el elemento).
     signal elegido(string tipo, string id)
 
     modal: true
@@ -29,18 +29,12 @@ Popup {
     property string version: ""
     property string categoria: ""
     property bool soloTarjetas: true
-    property bool conObs: true
     property var detalle: null
     property var detalleProps: []
 
     onOpened: {
         if (modulos.length === 0 && vg) {
-            const gst = vg.modulosGst().map(m => Object.assign({ tipo: "gst" }, m))
-            const obs = vg.filtrosObs().map(f => ({
-                tipo: "obs", elemento: f.id, titulo: f.nombre, categoria: "Filtros de OBS", tarjeta: true,
-                para: f.propio ? "Filtro de esta app (corre en libobs)." : "Filtro de video de OBS (corre en libobs, en la GPU).",
-                uso: "", nombre: f.nombre, descripcion: "", licencia: "GPL-2.0", paquete: "OBS Studio" }))
-            modulos = gst.concat(obs)
+            modulos = vg.modulosGst().map(m => Object.assign({ tipo: "gst" }, m))
             version = vg.versionGst()
         }
         busqueda.forceActiveFocus()
@@ -52,7 +46,7 @@ Popup {
         "Textos y superposiciones": "#e879f9", "Análisis y medición": "#10b981", "Efectos artísticos": "#ec4899",
         "Distorsión": "#a78bfa", "Transiciones": "#f97316", "OpenGL (en la GPU)": "#ef4444",
         "Subtítulos (closed captions)": "#eab308", "Fuentes": "#14b8a6", "Salidas": "#0891b2",
-        "Mezcla y composición": "#f472b6", "Filtros de OBS": "#0ea5e9", "Internos (no van como tarjeta)": "#475569" })
+        "Mezcla y composición": "#f472b6", "Internos (no van como tarjeta)": "#475569" })
     function colorDe(c) { return colores[c] || Theme.accent }
     function normal(s) { return String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") }
 
@@ -61,7 +55,6 @@ Popup {
         const palabras = q === "" ? [] : q.split(/\s+/)
         return modulos.filter(m => {
             if (soloTarjetas && !m.tarjeta) return false
-            if (!conObs && m.tipo === "obs") return false
             if (categoria !== "" && m.categoria !== categoria) return false
             if (palabras.length === 0) return true
             const h = normal([m.elemento, m.titulo, m.nombre, m.categoria, m.para, m.uso, m.descripcion, m.clase].join(" "))
@@ -71,7 +64,7 @@ Popup {
     readonly property var categorias: {
         const vistas = []
         for (const m of modulos)
-            if ((!soloTarjetas || m.tarjeta) && (conObs || m.tipo !== "obs") && vistas.indexOf(m.categoria) < 0) vistas.push(m.categoria)
+            if ((!soloTarjetas || m.tarjeta) && vistas.indexOf(m.categoria) < 0) vistas.push(m.categoria)
         return vistas.sort()
     }
     function verDetalle(m) {
@@ -104,11 +97,6 @@ Popup {
                 spacing: 8
                 Toggle { checked: cat.soloTarjetas; onToggled: (w) => { cat.soloTarjetas = w; cat.categoria = "" } }
                 Text { text: "Solo los que van como tarjeta"; color: Theme.text; font.pixelSize: 12 }
-            }
-            RowLayout {
-                spacing: 8
-                Toggle { checked: cat.conObs; onToggled: (w) => { cat.conObs = w; cat.categoria = "" } }
-                Text { text: "Incluir los filtros de OBS"; color: Theme.text; font.pixelSize: 12 }
             }
             Text { text: "Categoría"; color: Theme.textDim; font { pixelSize: 11; capitalization: Font.AllUppercase; letterSpacing: 0.5 } }
             ScrollView {
@@ -172,7 +160,6 @@ Popup {
                             Layout.fillWidth: true
                             spacing: 6
                             Text { text: tarjeta.modelData.categoria; color: tarjeta.col; font { pixelSize: 10; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
-                            Text { visible: tarjeta.modelData.tipo === "obs"; text: "OBS"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                             Text { visible: String(tarjeta.modelData.elemento).indexOf("gl") === 0; text: "GPU"; color: "#ef4444"; font { pixelSize: 9; weight: Font.Bold } }
                         }
                         Text { Layout.fillWidth: true; text: tarjeta.modelData.titulo || tarjeta.modelData.nombre; color: Theme.text; elide: Text.ElideRight; font { pixelSize: 14; weight: Font.DemiBold } }

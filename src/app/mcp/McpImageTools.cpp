@@ -221,8 +221,7 @@ void McpService::registerImageTools() {
         t.readOnly = true;
         t.description = "Una foto de lo que esta saliendo al aire AHORA: para ver si se ve negro, congelado "
                         "o mal encuadrado. Imagen de lo que esta saliendo al aire ahora (la escena del "
-                        "programa, render completo de "
-                        "libobs). Por defecto 1280 px de ancho, JPEG.";
+                        "programa, render completo del motor). Por defecto 1280 px de ancho, JPEG.";
         t.inputSchema = withImageProps(json::object());
         t.run = [&rt, &vm, &core](const json& a, Done done) {
             QImage img;

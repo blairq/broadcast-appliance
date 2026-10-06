@@ -111,7 +111,7 @@ void McpService::registerRegistroTools() {
         t.title = "Cuánto se registra";
         t.category = "registro";
         t.description = "Lee o cambia, en vivo, el nivel desde el que este proceso registra.";
-        t.details = "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (libobs solo ya es muy "
+        t.details = "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
                     "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
                     "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
                     "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "

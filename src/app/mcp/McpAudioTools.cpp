@@ -85,8 +85,7 @@ void McpService::registerAudioTools() {
         t.readOnly = true;
         t.description =
             "TODO el audio de una vez, como la vista Estudio de la página Audio: cada fuente con su cadena "
-            "entera de izquierda a derecha — origen (micrófono, invitado, red… y si corre en GStreamer o en "
-            "libobs) → los módulos de su rack → los filtros de su cadena de GStreamer (automixer…) → la mezcla "
+            "entera de izquierda a derecha — origen (micrófono, invitado, red…) → los módulos de su rack → los filtros de su cadena de GStreamer (automixer…) → la mezcla "
             "(volumen, silencio) —, los cables entre fuentes (tarjetas «Entrada») y las mesas del automixer. "
             "Para ver de un vistazo qué pasa por dónde; para cambiar algo, audio_rack / automixer / "
             "entrada_filtros_audio.";
@@ -162,7 +161,7 @@ void McpService::registerAudioTools() {
               {"porDefecto", {{"type", "string"}, {"description", "Plantilla a marcar."}}},
               {"paraTipo",
                {{"type", "string"},
-                {"description", "Tipo de fuente de libobs para `porDefecto` (vacio = desmarcar)."}}},
+                {"description", "Tipo de fuente para `porDefecto` (vacio = desmarcar)."}}},
               {"source", {{"type", "string"}, {"description", "La fuente, para guardar o aplicar."}}}}}};
         t.run = [mgr](const json& a, Done done) {
             const std::string src = a.value("source", std::string());
