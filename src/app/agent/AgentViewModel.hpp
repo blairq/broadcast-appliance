@@ -193,6 +193,8 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void send(const QString& text);
     Q_INVOKABLE void setAlertEnabled(const QString& id, bool on);
     Q_INVOKABLE void deleteAlert(const QString& id);
+    /// Sin sonido (sus alarmas siguen apareciendo).
+    Q_INVOKABLE void setAlertSilenciada(const QString& id, bool silenciada);
     /// Los tipos de disparador con sus parámetros (para el editor).
     Q_INVOKABLE QVariantList alertTypesUi() const;
     /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.

@@ -253,8 +253,14 @@ json AlertEngine::update(const std::string& id, const json& changes) {
     for (auto& r : rules_) {
         if (r["id"] != id) continue;
         for (const char* k : {"name", "message", "notify", "actions", "once", "cooldownSec", "enabled", "sonido",
-                              "reconocer", "permitir_aire", "notificar"})
+                              "reconocer", "permitir_aire", "notificar", "silenciada"})
             if (changes.contains(k)) r[k] = changes[k];
+        // Silenciar (o devolverle el sonido) también a las alarmas suyas que esperan.
+        if (changes.contains("silenciada")) {
+            for (auto& e : activas_)
+                if (e["ruleId"] == id) e["silenciada"] = r.value("silenciada", false);
+            emit alarmasCambio();
+        }
         if (changes.contains("params") && changes["params"].is_object())
             for (auto it = changes["params"].begin(); it != changes["params"].end(); ++it)
                 r["params"][it.key()] = it.value();
@@ -835,6 +841,7 @@ void AlertEngine::fire(json& rule, State& st, const std::string& text, const jso
             {"notify", rule.value("notify", json::array())},
             {"actions", rule.value("actions", json::array())},
             {"sonido", rule.value("sonido", std::string("ninguno"))},
+            {"silenciada", rule.value("silenciada", false)},
             {"reconocer", rule.value("reconocer", false)},
             {"permitir_aire", rule.value("permitir_aire", json::array())},
             {"notificar", rule.value("notificar", json::array())},

@@ -264,7 +264,8 @@ void McpService::registerAlertTools() {
         t.title = "Cambiar un disparador";
         t.category = "alertas";
         t.description =
-            "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador.";
+            "Activa/desactiva (`enabled`) o cambia parametros, mensaje, avisos o acciones de un disparador. "
+            "`silenciada`: true le saca el sonido (sus alarmas siguen apareciendo en la tarjeta Sistema).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
@@ -275,6 +276,8 @@ void McpService::registerAlertTools() {
                            {"actions", {{"type", "array"}}},
                            {"once", {{"type", "boolean"}}},
                            {"sonido", {{"type", "string"}, {"enum", {"ninguno", "aviso", "critico"}}}},
+                           {"silenciada", {{"type", "boolean"},
+                                           {"description", "true: no suena (sus alarmas siguen apareciendo, con su color)"}}},
                            {"reconocer", {{"type", "boolean"}}},
                            {"permitir_aire", {{"type", "array"}, {"items", {{"type", "string"}}}}},
                            {"notificar", {{"type", "array"}, {"items", {{"type", "string"}}}}},

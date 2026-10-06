@@ -518,7 +518,15 @@ ApplicationWindow {
         id: franjaAlarma
         property var activas: []
         property bool critica: false
-        function refrescar() { activas = Studio.alarmasActivasUi(); critica = Studio.alarmaCritica() }
+        // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja).
+        readonly property var criticas: activas.filter(a => a.sonido === "critico")
+        readonly property bool todasSilenciadas: criticas.length > 0 && criticas.every(a => !!a.silenciada)
+        function refrescar() { activas = Studio.alarmasActivasUi(); critica = criticas.length > 0 }
+        function silenciar(si) {
+            const vistos = {}
+            for (const a of criticas)
+                if (!vistos[a.ruleId]) { vistos[a.ruleId] = true; Studio.silenciarAlarmaUi(a.ruleId, si) }
+        }
         Connections { target: Studio; function onAlarmasCambio() { franjaAlarma.refrescar() } }
         Component.onCompleted: refrescar()
         visible: critica
@@ -540,6 +548,13 @@ ApplicationWindow {
                 text: "⚠ ALARMA: " + (franjaAlarma.activas.length > 0 ? franjaAlarma.activas[franjaAlarma.activas.length - 1].text : "") +
                       (franjaAlarma.activas.length > 1 ? "  (+" + (franjaAlarma.activas.length - 1) + ")" : "")
                 color: "white"; font { pixelSize: 14; weight: Font.Bold }
+            }
+            // Corta el sonido de estas alarmas (sus disparadores quedan silenciados: la
+            // franja sigue hasta Reconocer). Apretado otra vez, les devuelve el sonido.
+            GlassButton {
+                compact: true
+                text: franjaAlarma.todasSilenciadas ? "🔇 Silenciada" : "Silenciar"
+                onClicked: franjaAlarma.silenciar(!franjaAlarma.todasSilenciadas)
             }
             GlassButton { compact: true; text: "Reconocer (R)"; onClicked: Studio.reconocerAlarmaUi(0) }
         }

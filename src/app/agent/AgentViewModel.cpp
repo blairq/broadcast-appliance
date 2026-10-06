@@ -1337,6 +1337,11 @@ void AgentViewModel::setAlertEnabled(const QString& id, bool on) {
     emit alertsChanged();
 }
 
+void AgentViewModel::setAlertSilenciada(const QString& id, bool silenciada) {
+    alerts_.update(id.toStdString(), json{{"silenciada", silenciada}});
+    emit alertsChanged();
+}
+
 void AgentViewModel::deleteAlert(const QString& id) {
     alerts_.remove(id.toStdString());
     emit alertsChanged();

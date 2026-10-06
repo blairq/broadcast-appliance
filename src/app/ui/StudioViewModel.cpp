@@ -478,7 +478,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
             for (const auto& n : ev.value("notify", nlohmann::json::array()))
                 if (n == "ui") emit notify("⚠ " + QString::fromStdString(ev.value("text", "")), "warn");
-            alarma_->sonar(QString::fromStdString(ev.value("sonido", std::string("ninguno"))));
+            // Una alarma silenciada sigue en la lista (con su color), pero no suena.
+            if (!ev.value("silenciada", false))
+                alarma_->sonar(QString::fromStdString(ev.value("sonido", std::string("ninguno"))));
         });
         connect(alerts_.get(), &agent::AlertEngine::alarmasCambio, this, [this]() {
             alarma_->criticaActiva(alarmaCritica());
@@ -1975,8 +1977,14 @@ int StudioViewModel::reconocerAlarmaUi(qint64 id) { return alerts_->reconocer(st
 
 bool StudioViewModel::alarmaCritica() const {
     for (const auto& e : alerts_->activas())
-        if (e.value("sonido", std::string()) == "critico") return true;
+        if (e.value("sonido", std::string()) == "critico" && !e.value("silenciada", false)) return true;
     return false;
+}
+
+bool StudioViewModel::silenciarAlarmaUi(const QString& disparador, bool silenciar) {
+    const auto r = alerts_->update(disparador.toStdString(), nlohmann::json{{"silenciada", silenciar}});
+    if (agent_) emit agent_->alertsChanged();
+    return !r.contains("error");
 }
 
 QObject* StudioViewModel::alarmaSonora() const { return alarma_.get(); }

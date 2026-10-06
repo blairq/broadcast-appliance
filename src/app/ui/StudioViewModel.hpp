@@ -481,6 +481,8 @@ class StudioViewModel : public QObject {
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
     Q_INVOKABLE int reconocerAlarmaUi(qint64 id);
+    /// Le saca (o le devuelve) el sonido a un disparador: sus alarmas siguen apareciendo, sin sonar.
+    Q_INVOKABLE bool silenciarAlarmaUi(const QString& disparador, bool silenciar);
     /// Hay una alarma crítica sin reconocer (la franja roja de arriba).
     Q_INVOKABLE bool alarmaCritica() const;
     /// El sonido de las alarmas (volumen, dispositivo, probar).

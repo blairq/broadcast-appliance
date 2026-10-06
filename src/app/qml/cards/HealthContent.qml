@@ -86,6 +86,13 @@ Item {
                         spacing: 6
                         Rectangle { width: 8; height: 8; radius: 4; color: modelData.sonido === "critico" ? Theme.live : Theme.warn }
                         Text { Layout.fillWidth: true; text: modelData.text; color: Theme.text; font.pixelSize: 11; elide: Text.ElideRight }
+                        // Sin sonido para este disparador (la alarma sigue acá, con su color).
+                        GlassButton {
+                            compact: true
+                            visible: modelData.sonido !== "ninguno"
+                            text: modelData.silenciada ? "🔇 Silenciada" : "Silenciar"
+                            onClicked: Studio.silenciarAlarmaUi(modelData.ruleId, !modelData.silenciada)
+                        }
                         GlassButton { compact: true; text: "Reconocer"; onClicked: Studio.reconocerAlarmaUi(modelData.id) }
                     }
                 }

@@ -401,6 +401,12 @@ Rectangle {
                                     Text { text: modelData.name; color: modelData.enabled ? Theme.text : Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                                     Text { text: modelData.type + (modelData.fired > 0 ? " · " + modelData.fired + " avisos" : ""); color: Theme.textFaint; font.pixelSize: 10 }
                                 }
+                                GlassButton {
+                                    compact: true
+                                    visible: (modelData.sonido || "ninguno") !== "ninguno"
+                                    text: modelData.silenciada ? "🔇" : "🔔"
+                                    onClicked: ag.setAlertSilenciada(modelData.id, !modelData.silenciada)
+                                }
                                 GlassButton { compact: true; text: "✕"; onClicked: ag.deleteAlert(modelData.id) }
                             }
                         }
