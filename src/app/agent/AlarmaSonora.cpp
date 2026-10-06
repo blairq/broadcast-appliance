@@ -8,6 +8,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <numbers>
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -30,7 +31,7 @@ void escribirWav(const fs::path& ruta, const std::vector<std::pair<double, int>>
         for (int i = 0; i < n; ++i) {
             // Entrada y salida suaves (5 ms) para que no haga clic.
             const double env = std::min({1.0, i / 240.0, (n - i) / 240.0});
-            const double v = f > 0 ? std::sin(2 * M_PI * f * i / kTasa) * 0.6 * env : 0.0;
+            const double v = f > 0 ? std::sin(2 * std::numbers::pi * f * i / kTasa) * 0.6 * env : 0.0;
             m.push_back(static_cast<std::int16_t>(v * 32767));
         }
     }

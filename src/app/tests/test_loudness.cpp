@@ -4,6 +4,7 @@
 //   - mitad a -20 y mitad a -30 dBFS -> LRA ≈ 10 LU.
 #include "audio/LoudnessPrograma.hpp"
 
+#include <numbers>
 #include <cmath>
 #include <cstdio>
 #include <vector>
@@ -29,7 +30,7 @@ static void seno(LoudnessPrograma& l, double dbfs, double seg, double f = 1000) 
     for (int n = 0; n < static_cast<int>(seg * 48000 / bloque); ++n) {
         for (int i = 0; i < bloque; ++i) {
             L[i] = R[i] = static_cast<float>(a * std::sin(fase));
-            fase += 2 * M_PI * f / 48000.0;
+            fase += 2 * std::numbers::pi * f / 48000.0;
         }
         const float* ch[2] = {L.data(), R.data()};
         l.alimentar(ch, 2, bloque);

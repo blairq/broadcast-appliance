@@ -16,6 +16,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <ctime>
+#include <numbers>
 #include <string>
 #include <thread>
 #include <vector>
@@ -46,7 +47,7 @@ void gateway(const wchar_t* nombre, std::uint32_t generacion, int bloques) {
     for (int i = 0; i < bloques && !g_fin; ++i) {
         for (std::uint32_t k = 0; k < ar::kBlockFrames; ++k) {
             const float v = 0.5f * static_cast<float>(std::sin(fase));
-            fase += 2 * M_PI * 440.0 / ar::kSampleRate;
+            fase += 2 * std::numbers::pi * 440.0 / ar::kSampleRate;
             b[2 * k] = b[2 * k + 1] = v;
         }
         // Sellado como el gateway: su reloj monotónico al escribir.
@@ -121,7 +122,7 @@ double cpuDelProceso() { return static_cast<double>(std::clock()) / CLOCKS_PER_S
 
 int main() {
 #if defined(BA_TEST_GST_PLUGINS)
-    setenv("GST_PLUGIN_PATH", BA_TEST_GST_PLUGINS, 1);
+    g_setenv("GST_PLUGIN_PATH", BA_TEST_GST_PLUGINS, TRUE);
 #endif
     gst_init(nullptr, nullptr);
     if (GstElementFactory* f = gst_element_factory_find("baanillo")) {

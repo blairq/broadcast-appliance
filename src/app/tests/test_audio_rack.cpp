@@ -10,6 +10,7 @@
 //      tocar el audio en vivo) y respuesta de un modulo neutro (plana).
 // ============================================================================
 
+#include <numbers>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -49,7 +50,7 @@ float feed(AudioRack& rack, float amp, double seconds) {
     for (int b = 0; b < static_cast<int>(seconds * 100); ++b) {
         for (int i = 0; i < 480; ++i) {
             l[static_cast<size_t>(i)] = r[static_cast<size_t>(i)] = amp * static_cast<float>(std::sin(ph));
-            ph += 2 * M_PI * 1000 / 48000;
+            ph += 2 * std::numbers::pi * 1000 / 48000;
         }
         rack.process(planes, 2, 480);
         peak = 0;
@@ -289,7 +290,7 @@ int main() {
             for (int i = 0; i < 480; ++i) {
                 l[static_cast<size_t>(i)] = rr[static_cast<size_t>(i)] =
                     0.5f * static_cast<float>(std::sin(ph));
-                ph += 2 * M_PI * 1000 / 48000;
+                ph += 2 * std::numbers::pi * 1000 / 48000;
             }
             r2.process(planes, 2, 480);
         }

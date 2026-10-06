@@ -4,6 +4,7 @@
 #include <QPainter>
 #include <QPainterPath>
 
+#include <numbers>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -144,7 +145,7 @@ void vector(QImage& out, const QImage& m) {
         p.drawText(q + QPointF(8, -6), mt.nombre);
     }
     // La línea de piel (~123° desde el eje de Cb, hacia rojo/amarillo).
-    const double ang = 123.0 * M_PI / 180.0;
+    const double ang = 123.0 * std::numbers::pi / 180.0;
     p.setPen(QPen(QColor(255, 200, 150, 110), 1, Qt::DashLine));
     p.drawLine(QPointF(centro), QPointF(centro.x() + std::cos(ang) * radio, centro.y() - std::sin(ang) * radio));
 }

@@ -22,6 +22,7 @@
 #include <QTimer>
 #include <QWindow>
 
+#include <numbers>
 #include <atomic>
 #include <cmath>
 #include <cstdio>
@@ -170,9 +171,9 @@ int main(int argc, char** argv) {
                 for (size_t c = 0; c < bi[p].size(); ++c)
                     for (uint32_t i = 0; i < N; ++i) {
                         const double s = t + i / 48000.0;
-                        const double env = 0.6 + 0.4 * std::sin(2 * M_PI * (0.3 + 0.07 * p) * s + c);
+                        const double env = 0.6 + 0.4 * std::sin(2 * std::numbers::pi * (0.3 + 0.07 * p) * s + c);
                         bi[p][c][i] =
-                            static_cast<float>(nivel * env * std::sin(2 * M_PI * (220.0 * (p + 1)) * s));
+                            static_cast<float>(nivel * env * std::sin(2 * std::numbers::pi * (220.0 * (p + 1)) * s));
                     }
             }
             inst->process(vi.data(), vo.data(), N);

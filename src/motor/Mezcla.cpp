@@ -6,6 +6,7 @@
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 
+#include <numbers>
 #include <algorithm>
 #include <cmath>
 
@@ -246,7 +247,7 @@ void Mezcla::tic() {
     for (auto& [id, r] : ramas_) {
         if (r.fundidoNs <= 0 || r.escena == r.escenaHacia) continue;
         const double t = std::clamp(static_cast<double>(ahora - r.fundidoDesdeNs) / static_cast<double>(r.fundidoNs), 0.0, 1.0);
-        const double sube = std::sin(t * M_PI / 2), baja = std::cos(t * M_PI / 2);
+        const double sube = std::sin(t * std::numbers::pi / 2), baja = std::cos(t * std::numbers::pi / 2);
         r.escena = r.escenaHacia > r.escenaDesde ? r.escenaDesde + (r.escenaHacia - r.escenaDesde) * sube
                                                  : r.escenaHacia + (r.escenaDesde - r.escenaHacia) * baja;
         if (t >= 1.0) r.escena = r.escenaHacia;
