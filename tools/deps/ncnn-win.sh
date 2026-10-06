@@ -5,9 +5,12 @@
 # ncnn (Tencent, BSD-3) corre redes en CUALQUIER GPU con Vulkan —AMD, Intel,
 # NVIDIA—; es lo que usa realesrgan-ncnn-vulkan. El motor «vulkan» de la
 # superresolución (bancnnsr) lo usa. Todo viaja en el bundle:
-#   ncnn.dll          el oficial (versión compartida de la release)
+#   ncnn.dll          el oficial (versión compartida de la release). FIJADO en
+#                     20231027: en una Radeon RX 5700 XT las releases de 2026
+#                     corren la misma red ~60 veces más lento (12 s contra 190 ms
+#                     por cuadro, 960x540 x4); la de 2023 anda como realesrgan.
 #   vulkan-1.dll      el cargador de Vulkan de Khronos/LunarG (Apache-2.0): ncnn
-#                     lo carga en tiempo de ejecución (simplevk); del sistema
+#                     lo importa; va junto al programa en bin/64bit. Del sistema
 #                     solo se usa el driver de la placa (como D3D12)
 #   vulkaninfo.exe    para el diagnóstico (qué ve Vulkan en esta PC)
 #   pnnx.exe          convierte un modelo ONNX a ncnn (el laboratorio lo usa
@@ -24,8 +27,8 @@ command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
 log() { printf '\033[36m[ncnn-win]\033[0m %s\n' "$*" >&2; }
 morir() { printf '\033[31m[ncnn-win] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
-NCNN_VER=20260526
-NCNN_SHA=bd44f73ff210d523368ca77badfc8ae528281cb374185717c03b472d4f5a1754
+NCNN_VER=20231027
+NCNN_SHA=e78c066af35769930207a2452e2672719b3e62e55eb0a2301ada82402f97ddaf
 VK_VER=1.4.363.0
 VK_SHA=a25a927aa8b9f0371048f1861cf88ac3b9bc9b1fb332c42d897c8ab32695769a
 PNNX_VER=20260704

@@ -611,8 +611,11 @@ static bool compilarNcnn(const std::string& onnx, int C, int w, int h, const std
     return true;
 }
 
-/// La red en ncnn con Vulkan, para la forma ya sabida (r.canales, r.iw, r.ih, r.factor).
-static bool abrirNcnn(BaOnnxSr* s, Red& r, std::string& error) {
+/// La red en ncnn con Vulkan para una cámara de w×h (r.canales ya sabido). La red se
+/// convierte una vez, con una forma chica: estas redes (convoluciones, PixelShuffle,
+/// interpolación por factor) andan en cualquier tamaño. Lo que agranda sale de una
+/// pasada de 64×64 en la GPU (antes se corría la red entera en la CPU para saberlo).
+static bool abrirNcnn(BaOnnxSr* s, Red& r, int w, int h, std::string& error) {
     const std::string& modelo = *s->rutaRed;
     std::string param, bin;
     if (modelo.size() > 6 && modelo.compare(modelo.size() - 6, 6, ".param") == 0) {
@@ -621,24 +624,24 @@ static bool abrirNcnn(BaOnnxSr* s, Red& r, std::string& error) {
         bin = modelo.substr(0, modelo.size() - 6) + ".bin";
     } else {
         const std::string cache = s->cache != nullptr && *s->cache != '\0' ? s->cache : modelo + ".cache";
-        const auto base = std::filesystem::path(cache) / ("vulkan-" + std::to_string(r.canales) + "-" + std::to_string(r.iw) +
-                                                          "x" + std::to_string(r.ih));
+        const auto base = std::filesystem::path(cache) / ("vulkan-" + std::to_string(r.canales));
         param = base.string() + ".ncnn.param";
         bin = base.string() + ".ncnn.bin";
         std::error_code ec;
         if (!std::filesystem::exists(param, ec) || !std::filesystem::exists(bin, ec)) {
-            GST_INFO_OBJECT(s, "pasando %s a ncnn (%dx%d)", modelo.c_str(), r.iw, r.ih);
-            if (!compilarNcnn(modelo, r.canales, r.iw, r.ih, param, bin, error)) return false;
+            GST_INFO_OBJECT(s, "pasando %s a ncnn", modelo.c_str());
+            if (!compilarNcnn(modelo, r.canales, 64, 64, param, bin, error)) return false;
         }
     }
-    auto net = std::make_unique<ncnn::Net>();
-    net->opt.use_vulkan_compute = true;
-    net->opt.use_fp16_packed = net->opt.use_fp16_storage = net->opt.use_fp16_arithmetic = s->fp16 != FALSE;
     const int gpus = ncnn::get_gpu_count();
     if (gpus <= 0) {
         error = "no hay GPU con Vulkan";
         return false;
     }
+    auto net = std::make_unique<ncnn::Net>();
+    net->opt.use_vulkan_compute = true;
+    net->opt.use_fp16_packed = net->opt.use_fp16_storage = s->fp16 != FALSE;
+    net->opt.use_fp16_arithmetic = false; // como realesrgan-ncnn-vulkan: guarda en FP16, cuenta en FP32
     net->set_vulkan_device(std::clamp(static_cast<int>(s->dispositivo), 0, gpus - 1));
     if (net->load_param(param.c_str()) != 0 || net->load_model(bin.c_str()) != 0) {
         error = "ncnn no pudo cargar " + param;
@@ -650,17 +653,35 @@ static bool abrirNcnn(BaOnnxSr* s, Red& r, std::string& error) {
     }
     r.blobIn = net->input_names()[0];
     r.blobOut = net->output_names()[0];
-    // Una pasada de prueba: que agrande lo mismo que la de ONNX (y calienta Vulkan).
-    ncnn::Mat in(r.iw, r.ih, r.canales);
-    in.fill(0.5f);
-    ncnn::Extractor ex = net->create_extractor();
-    ex.input(r.blobIn.c_str(), in);
+    const auto pasada = [&](int pw, int ph, ncnn::Mat& out) {
+        ncnn::Mat in(pw, ph, r.canales);
+        in.fill(0.5f);
+        ncnn::Extractor ex = net->create_extractor();
+        ex.input(r.blobIn.c_str(), in);
+        return ex.extract(r.blobOut.c_str(), out) == 0;
+    };
     ncnn::Mat out;
-    if (ex.extract(r.blobOut.c_str(), out) != 0 || out.w != r.iw * r.factor || out.h != r.ih * r.factor || out.c != r.canales) {
-        error = "la red de ncnn no agranda como la de ONNX (" + std::to_string(out.w) + "x" + std::to_string(out.h) + "x" +
-                std::to_string(out.c) + ")";
+    if (!pasada(64, 64, out) || out.c != r.canales || out.w % 64 != 0) {
+        error = "la red de ncnn no devolvió una imagen agrandada";
         return false;
     }
+    r.factor = out.w / 64;
+    if (r.factor != 2 && r.factor != 4) {
+        error = "la red agranda x" + std::to_string(r.factor) + ": se usa x2 o x4";
+        return false;
+    }
+    // Una x4 recibe la cámara a la mitad (sale x2).
+    if (r.factor == 4 && !r.mitad && w % 4 == 0 && h % 4 == 0) r.mitad = true;
+    r.iw = r.mitad ? w / 2 : w;
+    r.ih = r.mitad ? h / 2 : h;
+    // Calentar con el tamaño de verdad (Vulkan arma sus pipelines la primera vez).
+    const gint64 t0 = g_get_monotonic_time();
+    if (!pasada(r.iw, r.ih, out) || out.w != r.iw * r.factor || out.h != r.ih * r.factor) {
+        error = "la red de ncnn no anda en " + std::to_string(r.iw) + "x" + std::to_string(r.ih);
+        return false;
+    }
+    GST_INFO_OBJECT(s, "ncnn: x%d%s, %dx%d, primera pasada %.0f ms", r.factor, r.mitad ? " a la mitad" : "", r.iw, r.ih,
+                    static_cast<double>(g_get_monotonic_time() - t0) / 1000.0);
     r.net = std::move(net);
     return true;
 }
@@ -722,6 +743,19 @@ static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
             r->mitad = true;
         if (r->canales != 1 && r->canales != 3)
             throw std::runtime_error("el modelo tiene que tener 1 (luma) o 3 (RGB) canales de entrada");
+#if defined(BA_HAVE_NCNN)
+        // Vulkan: la red en ncnn, sin la pasada de prueba en la CPU (lenta en 1080p).
+        if (quiereVulkan) {
+            std::string e;
+            if (abrirNcnn(s, *r, w, h, e)) {
+                r->proveedor = "vulkan";
+                r->sesion.reset();
+                return r.release();
+            }
+            motivos += "vulkan: " + e + "; ";
+            quiereVulkan = false; // sigue con ONNX Runtime
+        }
+#endif
         // Lo que agranda: una pasada de prueba (y de paso calienta la red).
         r->iw = r->mitad ? w / 2 : w;
         r->ih = r->mitad ? h / 2 : h;
@@ -742,17 +776,6 @@ static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
             r->sesion.reset();
             continue;
         }
-#if defined(BA_HAVE_NCNN)
-        if (quiereVulkan) {
-            std::string e;
-            if (abrirNcnn(s, *r, e)) {
-                r->proveedor = "vulkan";
-                r->sesion.reset();
-            } else {
-                motivos += "vulkan: " + e + "; ";
-            }
-        }
-#endif
         return r.release();
     }
     throw std::runtime_error("no se pudo abrir la red a la mitad");
