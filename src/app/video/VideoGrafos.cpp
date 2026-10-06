@@ -946,10 +946,11 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     sin.clear();
     for (const auto& n : para["nodos"]) {
         const std::string tipo = n.value("tipo", std::string());
-        if (tipo == "in" || tipo == "out") continue;
+        // Una toma (lo que va a un compositor): el compositor del motor usa la salida de la entrada.
+        if (tipo == "in" || tipo == "out" || tipo == "toma") continue;
         sin[n.value("id", std::string())] =
-            tipo == "toma" || tipo == "traer"
-                ? "el motor todavía no lleva imagen de una entrada a otra (toma/compositor)"
+            tipo == "traer"
+                ? "el motor todavía no lleva imagen a la escena de otra entrada (traer)"
                 : "la tarjeta «" + tipo + "» todavía no corre en el motor de GStreamer (solo las de la cadena: color, croma, recorte, superresolución, módulos)";
     }
     if (sin.empty()) sinCorrer_.erase(entrada);
@@ -1170,9 +1171,16 @@ std::string VideoGrafos::configurarRostros(const std::map<std::string, std::stri
 
 
 void VideoGrafos::actualizarEstudio() {
-    // Los compositores y las salidas del grafo todavía no corren en el motor
-    // (ver aplicar): no hay fuentes que mantener al día. En el motor, una
-    // entrada da cuadros siempre (no hace falta «mostrarla»).
+    // Las fuentes de los compositores (escenas internas del motor), con su
+    // configuración al día. En el motor una entrada da cuadros siempre: no hace
+    // falta «mostrar» las que alimentan un compositor.
+    for (const std::string& nombre : rt_.engine().sourceNames()) {
+        if (rt_.engine().sourceTypeId(nombre) != kTipoCompositor) continue;
+        const json s = json::parse(rt_.engine().sourceSettingsJson(nombre), nullptr, false);
+        if (!s.is_object()) continue;
+        const std::string config = grafo_.configCompositor(s.value("nodo", std::string())).dump();
+        if (config != s.value("config", std::string())) rt_.updateSourceSettings(nombre, json{{"config", config}}.dump());
+    }
 }
 
 // --- El reloj del estudio ------------------------------------------------------------

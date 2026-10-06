@@ -64,6 +64,9 @@ bool esPantalla(const std::string& id) {
            id == "ba_pantalla";
 }
 
+constexpr const char* kTipoCompositor = "ba_video_compositor";
+const std::string kPrefijoCompositor = "__compositor:";
+
 /// Lo que pinta la app (QImage → cuadros al motor).
 bool esDeApp(const std::string& id) {
     return id == "ba_subtitulos" || id == "ba_chat_overlay" || id == "ba_grafico" || id == "ba_app" ||
@@ -96,13 +99,36 @@ const json& BroadcastEngine::estadoMotor() const {
     return estadoCache_;
 }
 
+json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& config) const {
+    const double W = video_.baseWidth, H = video_.baseHeight;
+    json capas = json::array();
+    int orden = 0;
+    if (config.is_object())
+        for (const auto& k : config.value("capas", json::array())) {
+            const std::string f = k.value("fuente", std::string());
+            if (f.empty() || sources_.count(f) == 0) continue;
+            capas.push_back({{"entrada", f},
+                             {"x", static_cast<int>(std::lround(k.value("x", 0.0) * W))},
+                             {"y", static_cast<int>(std::lround(k.value("y", 0.0) * H))},
+                             {"ancho", std::max(2, static_cast<int>(std::lround(k.value("ancho", 1.0) * W)))},
+                             {"alto", std::max(2, static_cast<int>(std::lround(k.value("alto", 1.0) * H)))},
+                             {"alfa", k.value("opacidad", 1.0)},
+                             {"orden", orden++},
+                             {"visible", true},
+                             {"contener", k.value("ajuste", std::string("encajar")) != "llenar"}});
+        }
+    return {{"nombre", kPrefijoCompositor + nombre}, {"capas", capas}};
+}
+
 json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
     const double W = video_.baseWidth, H = video_.baseHeight;
     const json& entradas = estadoMotor().value("entradas", json::object());
     json capas = json::array();
     for (std::size_t i = 0; i < e.items.size(); ++i) {
         const Item& it = e.items[i];
-        json c{{"entrada", it.fuente},
+        const auto fu = sources_.find(it.fuente);
+        const bool comp = fu != sources_.end() && !fu->second.compProductor.empty();
+        json c{{"entrada", comp ? kPrefijoCompositor + it.fuente : it.fuente},
                {"x", static_cast<int>(std::lround(it.rect.x * W))},
                {"y", static_cast<int>(std::lround(it.rect.y * H))},
                {"ancho", std::max(2, static_cast<int>(std::lround(it.rect.w * W)))},
@@ -110,6 +136,7 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
                {"orden", static_cast<int>(i)},
                {"visible", it.visible},
                {"contener", true}};
+        if (comp) c["productor"] = fu->second.compProductor; // la composición del compositor
         // El recorte va en píxeles de la fuente: hace falta su tamaño.
         if (it.recorte[0] + it.recorte[1] + it.recorte[2] + it.recorte[3] > 0) {
             const json sale = entradas.contains(it.fuente) ? entradas[it.fuente].value("sale", json::object()) : json::object();
@@ -346,6 +373,20 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         spec.id = inputs::kMicType;
         spec.settingsJson = inputs::ajustesAudioAnillo("guest", s.is_object() ? s.value("slot", 1) : 1);
     }
+    if (spec.id == kTipoCompositor) {
+        // Una escena interna del motor (sus capas: las entradas que junta).
+        const json aj = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
+        json config = aj.is_object() ? aj.value("config", json()) : json();
+        if (config.is_string()) config = json::parse(config.get<std::string>(), nullptr, false);
+        motor_->definirEscena(escenaCompositor(spec.name, config));
+        Fuente f;
+        f.spec = spec;
+        f.global = global;
+        f.compProductor = motor_->usarEscena(kPrefijoCompositor + spec.name);
+        sources_[spec.name] = f;
+        ordenFuentes_.push_back(spec.name);
+        return true;
+    }
     json ajustes;
     if (!ajustesMotor(spec, ajustes)) {
         setError("fuente '" + spec.name + "': el tipo '" + spec.id + "' todavía no lo arma el motor");
@@ -375,7 +416,11 @@ void BroadcastEngine::soltarSiHuerfana(const std::string& nombre) {
             if (i.fuente == nombre) return;
     for (const auto& d : dsk_)
         if (std::find(d.contenido.begin(), d.contenido.end(), nombre) != d.contenido.end()) return;
-    motor_->quitarEntrada(nombre);
+    if (!it->second.compProductor.empty()) {
+        motor_->soltarEscena(kPrefijoCompositor + nombre);
+        motor_->quitarEscena(kPrefijoCompositor + nombre);
+    } else
+        motor_->quitarEntrada(nombre);
     fuentes::baja(nombre);
     sources_.erase(it);
     ordenFuentes_.erase(std::remove(ordenFuentes_.begin(), ordenFuentes_.end(), nombre), ordenFuentes_.end());
@@ -616,6 +661,12 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
     if (!todo.is_object()) todo = json::object();
     todo.update(nuevos);
     it->second.spec.settingsJson = todo.dump();
+    if (!it->second.compProductor.empty()) {
+        json config = todo.value("config", json());
+        if (config.is_string()) config = json::parse(config.get<std::string>(), nullptr, false);
+        motor_->definirEscena(escenaCompositor(name, config));
+        return true;
+    }
     if (esDeApp(it->second.spec.id)) fuentes::alta(name, it->second.spec.id, todo);
     json ajustes;
     if (!ajustesMotor(it->second.spec, ajustes)) return false;

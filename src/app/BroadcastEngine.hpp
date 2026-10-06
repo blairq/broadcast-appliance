@@ -523,6 +523,9 @@ class BroadcastEngine {
         int syncMs = 0;
         bool monitor = false;
         std::vector<int> pistas{1};
+        /// Un compositor del grafo de video (ba_video_compositor): no es una
+        /// entrada, es una escena interna del motor; esta es su composición.
+        std::string compProductor;
     };
     struct Item {
         std::string fuente;
@@ -545,6 +548,8 @@ class BroadcastEngine {
     /// Los ajustes del motor para un tipo lógico (y si se pudo).
     bool ajustesMotor(const SourceSpec& spec, nlohmann::json& ajustes) const;
     bool ajustesMotorTipo(const SourceSpec& spec, nlohmann::json& ajustes) const;
+    /// La escena interna de un compositor (sus capas, de la config del grafo).
+    nlohmann::json escenaCompositor(const std::string& nombre, const nlohmann::json& config) const;
     /// ¿Quedó en alguna escena o es global? Si no, se libera.
     void soltarSiHuerfana(const std::string& nombre);
     /// Vuelve a mandarle al motor todas las capas (DSK, placa, negro).
