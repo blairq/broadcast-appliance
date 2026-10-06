@@ -5,6 +5,9 @@ Regla para lo nuevo: el procesamiento va en elementos de GStreamer (`src/gst-plu
 (`ba_gst_fuente`), nunca como fuente o filtro de OBS. Cuando se toca algo que vive en OBS, se migra si es
 razonable.
 
+Cómo cablear los pipelines (reglas, el motor de destino sin libobs, subtítulos y el plan por etapas):
+[obs-gstreamer-migration.md](obs-gstreamer-migration.md).
+
 ## Ya está en GStreamer
 
 | Qué | Dónde |
