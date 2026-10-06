@@ -6,7 +6,8 @@ migraciones de octubre de 2026), lo charlado con el usuario y lo que se aprendi�
 
 - El estado al día de cada pieza (qué ya pasó, qué falta) está en [MIGRACION-GSTREAMER.md](MIGRACION-GSTREAMER.md).
 - Acá van las **reglas de cableado**, el **pipeline de destino**, la **robustez**, las **mejoras** a lo que ya
-  anda, lo que pediría un **operador de broadcast** y el **plan**.
+  anda, lo que pediría un **operador de broadcast**, cómo partirlo en **dos máquinas**, el **Congreso a
+  escala con videowall** (simulcast bajo y alto) y el **plan**.
 
 **En una línea:** cada fuente es un pipeline propio que sella con la hora de captura y declara su latencia.
 Todas comparten un reloj y se juntan en buses (compositor y audiomixer) que esperan a la más lenta. De los
@@ -27,8 +28,8 @@ nada se caiga (§7) y lo de §9.1.
  archivo ──────┤  (racks barack, automixer, tarjetas,         multiview                           retorno a invitados
  invitado ─────┤   superres, filtros)                                                             (mix-minus por
  remoto ───────┘                                                                                   memoria compartida)
- voces ────────┘
- NDI, audio del sistema ──────────── fuentes de libobs ─────►
+ voces, NDI ───┘
+ audio del sistema ───────────────── fuentes de libobs ─────►
 ```
 
 **Ya en GStreamer**:
@@ -45,9 +46,10 @@ nada se caiga (§7) y lo de §9.1.
 | Filtros de imagen | `bafiltros` |
 | Superresolución | `basuperres` |
 | Voces del sistema y del teleprompter | `bavoz`, registrado por la app (`audio/GstVoz.*`) |
+| NDI | `bandisrc` |
 | Vigía de dispositivos | `GstDeviceMonitor` (DEVICE_ADDED/REMOVED): un micrófono o una cámara que falta espera y se conecta al aparecer (§7) |
 
-**Todavía en libobs**: NDI (en curso), audio del sistema, la escucha del lobby, **la mezcla de audio, la
+**Todavía en libobs**: audio del sistema, la escucha del lobby, **la mezcla de audio, la
 composición de video y todas las salidas**.
 
 Lo que entra por GStreamer llega a libobs por un `appsink`: cada cuadro y cada bloque de audio se le
@@ -224,7 +226,7 @@ libobs presenta cada cuadro apenas lo recibe.
 ## 5. El motor de destino (sin libobs)
 
 Es el diseño: nada de esta sección está escrito todavía. Los elementos que nombra se revisaron en el bundle
-de Mac (§10.1).
+de Mac (§12.1).
 
 ```
  RELOJ DEL ESTUDIO (sistema / NTP / PTP / red) + base_time común + latencia del estudio
@@ -295,7 +297,7 @@ de Mac (§10.1).
 
 ### 5.2 Tres cosas que hay que hacer bien desde el primer día
 
-Salen de proyectos que ya armaron esto (ver §11).
+Salen de proyectos que ya armaron esto (ver §13).
 
 1. **`min-upstream-latency` en los mezcladores.**
    - `compositor` y `audiomixer` fijan su latencia al arrancar. Una entrada más lenta que se enchufa después
@@ -393,7 +395,7 @@ Salen de proyectos que ya armaron esto (ver §11).
 - Elementos:
   - en gst-plugins-rs: `tttocea608`, `tttocea708`, `cea608tott`;
   - en -bad y en el núcleo: `ccconverter`, `cccombiner`, `h264ccinserter` (desde 1.24).
-  - En el bundle de Mac están todos (§10.1). Falta confirmarlo en Windows y Linux.
+  - En el bundle de Mac están todos (§12.1). Falta confirmarlo en Windows y Linux.
 - MCP y GUI: por salida, qué salidas de texto van y por qué canal (CC1, CC3, servicios 708), con un medidor
   que muestre qué sale y con cuánta demora.
 
@@ -629,7 +631,184 @@ Todo lo charlado mirado por alguien que tiene que sacar una sesión al aire sin 
 
 ---
 
-## 10. Plan por etapas
+## 10. Dos máquinas: entradas con GPU por un lado, mezcla y salida por el otro
+
+Separar físicamente lo que procesa (entradas, análisis, mejora de audio y video, que necesita GPU) de lo que
+mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
+
+```
+ MÁQUINA A — «ENTRADAS» (con GPU)                                   MÁQUINA B — «MEZCLA Y SALIDA»
+ ════════════════════════════════                                  ══════════════════════════════
+ cámaras, red, micrófonos de la sala (y del DCN)                   receptor de red por fuente
+   ─► ba_gst_fuente (superres, tarjetas, rostros,                     ─► compositor (escenas, take, DSK, gráficos)
+      barack, automixer, voz a texto, traductor)                      ─► audiomixer (programa, pistas, mix-minus)
+   ─► EMISOR por fuente ──────── cable 10 GbE dedicado ─────────►     ─► salidas: YouTube, SRT, grabación, pantallas
+                                 (punto a punto, MTU 9000)            ─► gateway WebRTC, GUI del operador
+   ◄──────────────── control (WebSocket con auth) y lo que A necesite de B ──┘
+ RELOJ: A publica su reloj (PTP, o el «red» que ya tenemos) ─► B lo sigue: las horas de captura de A valen en B
+```
+
+### 10.1 Por dónde va cada cosa en el cable
+
+| Forma | Elementos | Por cada 1080p60 | Latencia | En el bundle de Mac |
+|---|---|---|---|---|
+| **Video sin comprimir por RTP** (RFC 4175, la base de SMPTE ST 2110-20) | `rtpvrawpay` / `rtpvrawdepay` en `rtpbin` | ~2 Gbps (4:2:2, 8 bits); ~2,6 Gbps a 10 bits | Menos de 1 cuadro + 2–5 ms de jitter buffer | Sí |
+| **Audio sin comprimir por RTP** (L24, la base de AES67 / ST 2110-30) | `rtpL24pay` / `rtpL24depay` | ~2,3 Mbps por par estéreo | 1–4 ms | Sí |
+| **NDI** (compresión liviana, estándar de la industria) | `ndisink` / `bandisrc` | ~150–250 Mbps | ~1 cuadro | Sí |
+| **SRT / RIST** (comprimido) | `srtsink`/`srtsrc`, `ristsink`/`ristsrc` | 10–50 Mbps | 50–200 ms + codificar | Sí (para sitios lejanos, no para el cable entre racks) |
+| **JPEG XS** (mezzanine, ~10:1 casi sin demora) | `svtjpegxsenc`/`dec` + su RTP | ~200–400 Mbps | Menos de 1 ms | **No**: hay que compilar SVT-JPEG-XS |
+
+**Qué entra en 10 GbE** (números aproximados):
+- Sin comprimir, unas 3–4 fuentes 1080p60, o 7–8 a 1080p30. 4K60 sin comprimir (~8–10 Gbps) no deja lugar
+  para nada más: pide 25 GbE, NDI o JPEG XS.
+- Por NDI, decenas de fuentes 1080p.
+- Recomendación: RTP sin comprimir para las cámaras del programa que importan, NDI para lo demás, L24 para
+  todo el audio.
+
+### 10.2 La sincronía entre las dos máquinas
+
+- Un solo reloj para las dos: A publica el suyo y B lo sigue.
+  - El reloj «red» (`GstNetTimeProvider` / `GstNetClientClock`) ya lo soporta `ba_gst_fuente`.
+  - O PTP (`GstPtpClock`; necesita `gst-ptp-helper` con permisos).
+- La hora de captura cruza la red: RTP con la referencia del reloj (RFC 7273: `a=ts-refclk` en el SDP y
+  `rtpjitterbuffer rfc7273-sync=true`). La mezcla en B alinea por cuándo se capturó en A, no por cuándo
+  llegó.
+- El mezclador de B declara la latencia de la red (`min-upstream-latency`) como la de cualquier entrada.
+
+### 10.3 Cómo encaja con el diseño
+
+- Es la misma separación «un pipeline por fuente + buses» de §5. En una máquina, la unión es
+  `intersink`/`intersrc`; en dos, ese mismo punto pasa a ser un emisor/receptor RTP. El grafo es el mismo:
+  el mismo programa corre en una o en dos máquinas según la instalación.
+- **Control:** la GUI de B le habla a A por la red. El MCP hoy es local: hace falta un canal por red con
+  autenticación (un WebSocket dedicado por el mismo cable). Los eventos `ba/control` (al aire, preview,
+  tally) cruzan por ese canal o como extensiones de cabecera RTP.
+- **Cable:** punto a punto o switch con PTP; jumbo frames (MTU 9000); buffers UDP grandes (`udpsrc
+  buffer-size` y los límites del sistema: `net.core.rmem_max`, `kern.ipc.maxsockbuf`); Energy Efficient
+  Ethernet apagado. En Mac, 10 GbE por adaptadores Thunderbolt.
+- **Prueba:** 4 cámaras sin comprimir + NDI + audio durante una hora, mirando pérdida de paquetes, temblor y
+  deriva entre las dos máquinas.
+
+### 10.4 Dónde van WebRTC (servidor y clientes)
+
+En **B**, no en A. Solo el video de un invitado que necesite GPU hace ida y vuelta a A.
+
+```
+                        INTERNET (invitados, legisladores, presidencia, botonera, Companion)
+                            ▼
+ MÁQUINA B ═════════════════════════════════════════════════════════════════════════════════════
+  ┌─ GATEWAY: señalización, páginas (/, /sesion/, /presidencia/…), auth, TURN, proxy SNI/ACME
+  ├─ webrtcbin por invitado / por remoto ── audio ─► barack (AEC, rack) ─► audiomixer PROGRAMA
+  │        ▲                              └ video ─► decodificador de placa ─► compositor
+  │        └── retorno: programa (video chico) + SU mix-minus ◄── generados acá mismo
+  │
+  │      solo si un invitado necesita GPU (superres, rostros, igualar):
+  └──────── video crudo ─► cable ─► MÁQUINA A (procesa) ─► vuelve por el cable ─► compositor
+ MÁQUINA A: sin internet, solo el cable dedicado.
+```
+
+Por qué en B:
+1. **La conversación no sale de una máquina.** El invitado habla, B mezcla y le devuelve su mix-minus. Con el
+   gateway en A, cada palabra cruzaría el cable dos veces y se arriesga a que el retorno pase por la
+   compensación del estudio: arruina una charla.
+2. **El retorno se genera en B** (programa y mix-minus): se codifica para WebRTC ahí mismo.
+3. **Seguridad:** B ya mira a internet (sube a YouTube). A queda aislada; la máquina con la GPU cara y el
+   procesamiento de la sala no queda expuesta.
+4. **El gateway comparte memoria con la mezcla** (`BA.Guest.N`, `BA.Audio.Return.N`): eso no cruza dos
+   máquinas. Al lado de la mezcla (o con `webrtcbin` en el proceso, etapa 4 del plan) sigue siendo local.
+5. **Un invitado pide poca GPU:** decodificar alcanza con el decodificador de placa de B; el audio (AEC,
+   rack, automixer) es CPU. Si se quiere superresolución o rostros en un invitado, solo su video va a A y
+   vuelve, fuera del camino del audio: el video se alinea con el audio por la hora de captura.
+
+| Pieza | Dónde |
+|---|---|
+| Señalización, páginas, auth, TURN, proxy | B (o una tercera máquina en la DMZ, cuando son muchos) |
+| `webrtcbin` de invitados y del que tiene la palabra | B |
+| Mix-minus y retorno de programa a invitados | B |
+| Procesamiento con GPU del video de un invitado (opcional) | A, ida y vuelta por el cable |
+| Micrófonos de la sala y del DCN | A, a B como L24 |
+| Remotos que solo miran y escuchan | SFU (§11) |
+
+---
+
+## 11. Congreso a escala y videowall con todos los rostros (simulcast)
+
+Con cientos de legisladores conectados (la Cámara de Diputados tiene 257 bancas), la mezcla no puede
+decodificar a todos en alta calidad. La solución es **simulcast con dos calidades**: cada remoto manda a la
+vez un video **bajo** y uno **alto**.
+
+- El **bajo** es para armar videowalls al instante: todos los rostros, siempre disponibles, baratos de
+  decodificar.
+- El **alto** es solo para quien va al aire: el que tiene la palabra (y el siguiente en la lista, para que el
+  pase sea inmediato).
+
+```
+ LEGISLADORES (navegador / teléfono) — simulcast: BAJO (~320×180, 15 cps, ~150 kbps) + ALTO (720p, ~1,5 Mbps)
+                                      + audio Opus con su nivel en la cabecera RTP (RFC 6464)
+        │
+        ▼
+ SFU (gateway a escala; máquina C o DMZ) ── no decodifica: reenvía la calidad que cada destino necesita
+        │
+        ├── BAJO de TODOS ──────────────► MÁQUINA DEL MURO
+        │                                   N × decodificador liviano ─► un compositor por pantalla
+        │                                   grilla con nombre, foto si apagó la cámara, borde de quien
+        │                                   habla (por el nivel RFC 6464, sin decodificar audio), quórum
+        │                                   ─► glimagesink por pantalla (o NDI/RTP a los controladores)
+        │                                   ─► opcional: el muro como una entrada más del programa
+        │
+        ├── ALTO + audio del que tiene la palabra (y del siguiente) ─► MÁQUINA B (programa)
+        │
+        └── a todos: programa (una codificación) + audio de la sala, repartido por el SFU
+```
+
+### 11.1 Por qué escala
+
+- **Dos calidades, nada más:** el navegador manda las dos a la vez (sube ~10–20 % más que con una sola). El
+  SFU elige cuál va a cada lado sin transcodificar. Pasar a alguien del muro al aire es pedir la otra
+  calidad, sin renegociar.
+- **Decodificar el bajo es barato:** 257 × 320×180 × 15 cps ≈ 220 Mpix/s, menos que dos 1080p60. Una CPU
+  decente lo decodifica (VP8/H.264 en baja resolución); en Mac, VideoToolbox maneja muchas sesiones.
+- **Quién habla, sin decodificar audio:** el nivel viaja en la cabecera RTP de cada remoto
+  (`ssrc-audio-level`). El muro marca al que habla sin decodificar 257 audios.
+- **Ancho de banda al muro:** 257 × ~150 kbps ≈ 40 Mbps.
+- **Sin un lienzo gigante:** un compositor por pantalla con su parte de los recuadros, cada uno a su salida.
+  Un único lienzo de 8K partido después cuesta mucha más GPU.
+
+### 11.2 El muro (ejemplo: 257 en 4K, 4 pantallas)
+
+- Grilla de 16×16 con recuadros de 240×135: el video bajo alcanza.
+- **El que tiene la palabra**, agrandado en el medio (o en una pantalla propia) con el video alto.
+- **Cámara apagada:** foto y nombre del Cuerpo (los datos ya están), no negro.
+- **Estado en cada recuadro:** presente/ausente (quórum), micrófono silenciado, pidió la palabra, votó.
+- **Orden:** por banca o por bloque, como en el recinto (la disposición del Recinto ya existe).
+- **Si alguien se corta** (teléfono con mala red): el recuadro sostiene el último cuadro y después su foto,
+  sin parpadear.
+
+### 11.3 Dónde va
+
+- **No en B** (el programa): un muro con cientos de decodificaciones no tiene que competir con el aire.
+- **Al lado del SFU** (máquina C): ya tiene todos los videos bajos, sin saltos de más.
+- Si el muro tiene que salir al aire, entra al programa **como una entrada** (NDI o RTP por el cable).
+- El mismo video bajo sirve para el multiview del operador y para la página de presidencia (ver quién está
+  conectado de un vistazo).
+
+### 11.4 Qué hay que hacer (es R5 y R6 de la sesión remota)
+
+1. **Simulcast en la página de la sesión** (`assets/web/sesion/`): `sendEncodings` con dos `rid` (bajo y
+   alto).
+2. **SFU:** hoy el gateway mezcla y decodifica a mano. A escala hace falta uno que reenvíe calidades sin
+   decodificar (`webrtcsink`/`webrtcsrc` de GStreamer, o un SFU dedicado), con TURN.
+3. **Compositor «MURO»:** otro bus del motor (§5), con su disposición por pantalla y los datos del Cuerpo en
+   cada recuadro.
+4. **Prueba de carga (R6):** 257 Chrome simulados mandando simulcast, midiendo CPU de la máquina del muro,
+   latencia y recuadros perdidos.
+
+**Límite:** si además del que habla se quiere oír a todos en el muro, habría que decodificar y mezclar 257
+audios. No es lo usual: se oye solo al que tiene la palabra.
+
+---
+
+## 12. Plan por etapas
 
 Cada etapa deja el aire andando y se puede volver atrás. Las entradas (etapa 0) ya están hechas.
 
@@ -647,18 +826,18 @@ del motor:
 | 1 | Mezcla de audio | `audiomixer` para PROGRAMA, pistas, mix-minus y escucha, con `min-upstream-latency` y el arreglo de §5.2. libobs recibe el programa ya mezclado como una sola fuente | Mismo nivel y loudness que hoy; un invitado no se oye en su retorno; ningún bus se cae al entrar el primer invitado |
 | 2 | Salidas | Codificadores, RTMP/SRT, grabación, replay y NDI desde GStreamer, alimentados por el programa que todavía compone libobs (`appsrc` del lienzo) | Transmisión de una hora sin cortes ni deriva A/V; grabación multipista igual a la de hoy |
 | 3 | Composición | PROGRAMA, PREVIEW, MULTIVIEW (con tally y medidores, §9.2), take, transiciones, DSK y gráficos en `compositor`/`glvideomixer`; la interfaz por `appsink` (o `qml6glsink`, §5.4); `intersink`/`intersrc` entre entradas y buses (fuente y proceso separados, §7.1) | Take frame-exacto; cambiar de escena no corta ni el audio ni la transmisión; una entrada caída muestra la placa y vuelve sola |
-| 4 | WebRTC en el proceso | `webrtcbin` en lugar de la memoria compartida para invitados y sesión remota, con su mix-minus | Latencia de ida y vuelta igual o menor que hoy; la hora de captura por RTCP |
+| 4 | WebRTC en el proceso | `webrtcbin` en lugar de la memoria compartida para invitados y sesión remota, con su mix-minus; simulcast bajo/alto y SFU para el Congreso a escala (§11) | Latencia de ida y vuelta igual o menor que hoy; la hora de captura por RTCP |
 | 5 | Subtítulos | §6 | YouTube muestra los subtítulos a tiempo |
-| 6 | Sacar libobs | NDI y audio del sistema a GStreamer (las voces ya pasaron); se saca `libobs.framework` (y sus plugins) del bundle | La app arranca sin libobs; el bundle pesa menos |
+| 6 | Sacar libobs | El audio del sistema a GStreamer (las voces y NDI ya pasaron); se saca `libobs.framework` (y sus plugins) del bundle | La app arranca sin libobs; el bundle pesa menos |
 
 **Riesgos**
 - Las transiciones y los gráficos: hoy los resuelve OBS.
 - El temblor de los compositores de placa en cada sistema (D3D12 en Windows, GL/CUDA en Linux): hay que
   medirlo con placas reales.
 - Los elementos de gst-plugins-rs tienen que estar en el bundle de Windows y Linux también (en Mac están,
-  ver §10.1).
+  ver §12.1).
 
-### 10.1 Qué hay en el bundle (Mac, GStreamer 1.28.7)
+### 12.1 Qué hay en el bundle (Mac, GStreamer 1.28.7)
 
 Revisado con `gst-inspect-1.0` del bundle el 2026-10-05. Windows y Linux, sin revisar.
 
@@ -682,7 +861,7 @@ for e in intersink fallbackswitch glvideomixer qml6glsink ebur128level h264ccins
 
 ---
 
-## 11. Referencias
+## 13. Referencias
 
 - [Eyevinn/strom](https://github.com/Eyevinn/strom): motor de pipelines de GStreamer con editor de nodos.
   - Bloques: mezclador de video PVW/PGM con shaders, consola de audio, WebRTC, RTMP, SRT, NDI, AES67,
