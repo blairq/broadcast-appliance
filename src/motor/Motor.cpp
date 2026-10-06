@@ -427,11 +427,15 @@ void Motor::actualizarMultiview() {
 }
 
 std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
+    // Siempre en este orden: el lock del motor y después el de las vistas (el hilo
+    // del motor hace lo mismo en el tic; al revés se trababan).
+    std::lock_guard<std::recursive_mutex> l(mu_);
     if (!vistas_) return "el motor no está andando";
     return vistas_->pedir(clave, ancho, alto);
 }
 
 void Motor::verSoltar(const std::string& clave) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
     if (vistas_) vistas_->soltar(clave);
 }
 
