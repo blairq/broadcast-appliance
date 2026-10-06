@@ -126,6 +126,12 @@ class Motor {
     bool ponerLimitador(bool activo, double techoDb);
     void ponerTopeEstudio(std::int64_t ms);
 
+    // --- Multiview (M2.4) ---
+    /// PREVIEW y PROGRAMA arriba, las entradas con video abajo (hasta 8), cada una con
+    /// su tally (rojo: al aire; verde: armada; gris) y su nombre. Se ve con la vista
+    /// «multiview» o se consume como «video:multiview».
+    std::string multiview(bool activo, int ancho = 1280, int alto = 720);
+
     // --- Imágenes para la interfaz ---
     /// "programa", "preview" o "entrada:<id>" al tamaño pedido (cuenta pedidos).
     std::string verPedir(const std::string& clave, int ancho, int alto);
@@ -172,6 +178,10 @@ class Motor {
     std::unique_ptr<Escucha> escucha_;
     std::unique_ptr<Composicion> vPrograma_, vPreview_;
     std::unique_ptr<Vistas> vistas_;
+    std::unique_ptr<Composicion> vMulti_;
+    std::map<std::string, std::unique_ptr<Entrada>> mvAux_; ///< los colores del tally y los nombres
+    int mvAncho_ = 1280, mvAlto_ = 720;
+    void actualizarMultiview();
     std::map<std::string, Escena> escenas_;
     std::string alAire_, armada_;
     std::string escuchaModo_ = "apagado", escuchaId_;

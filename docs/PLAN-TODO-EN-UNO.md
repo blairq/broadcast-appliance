@@ -80,7 +80,7 @@ tareas quedan repartidas acá.
 | M2.1 | PROGRAMA y PREVIEW: `glvideomixer` en Mac (`compositor` de respaldo, d3d12/cuda en los otros sistemas). Escena = propiedades de pads (posición, tamaño, recorte, alfa, orden) tomadas de `app.json`; pads dinámicos con `queue` y latencia declarada | una escena de `app.json` se ve igual | 🟡 (PROGRAMA y PREVIEW con `compositor`; `glvideomixer` sin probar; las escenas de `app.json`, en M6) |
 | M2.2 | Take y transiciones: corte, mezcla, empuje, cortina (`GstController` + `glshader`), stinger (un medio con alfa encima); take frame-exacto | el cambio de escena no corta audio ni salida | 🟡 (corte sin negro y mezcla hechos; faltan empuje, cortina y stinger) |
 | M2.3 | DSK y gráficos arriba del programa; clean feed (sin DSK) por `tee`; zócalos y títulos con las fuentes de M0.5; subtítulos en pantalla (`ba_subtitulos`) | el clean feed sale sin gráficos | ⬜ |
-| M2.4 | MULTIVIEW estándar (P1.4): mosaico PGM/PVW/entradas con tally rojo/verde, nombre, medidores de audio, alarmas por recuadro y reloj | se ve el tally y los medidores | ⬜ |
+| M2.4 | MULTIVIEW estándar (P1.4): mosaico PGM/PVW/entradas con tally rojo/verde, nombre, medidores de audio, alarmas por recuadro y reloj | se ve el tally y los medidores | 🟡 (PVW/PGM + hasta 8 entradas con tally y nombre; faltan medidores de audio, alarmas por recuadro y reloj) |
 | M2.5 | Lo que hacían las fuentes propias de OBS: video grafo/compositor (`ba_video_grafo`, `ba_video_compositor`), PTZ digital, mejora de imagen, placa (`ba_placeholder`). Pasan a elementos en la cadena de la entrada o a pads del compositor | cada tarjeta del grafo anda en el motor | ⬜ |
 | M2.6 | `ba/control` con al aire / preview / tally (P1.3): las tarjetas caras descansan cuando su entrada no se ve | una entrada fuera del aire baja su CPU | ⬜ |
 
@@ -225,3 +225,7 @@ tareas quedan repartidas acá.
 - 2026-10-06 · M3.1 (lado del motor): `motor::Vistas`.
   - **Cómo:** «programa», «preview» o «entrada:<id>», al tamaño pedido, con la latencia de lo que mira. Se arma al pedirla y se desarma al soltarla; el último cuadro va por número de serie.
   - **Probado en test_salidas.**
+- 2026-10-06 · M2.4 (en parte): multiview en el motor.
+  - **Qué muestra:** PREVIEW y PROGRAMA arriba, las entradas con video abajo, cada una con su tally (rojo al aire, verde armada, gris) y su nombre.
+  - **Cómo está hecho:** con las piezas que ya había (composición, entradas de color y de texto). Una capa ahora puede leer cualquier productor (`video:programa`).
+  - **Probado en test_salidas:** los colores del tally, leídos de la vista.

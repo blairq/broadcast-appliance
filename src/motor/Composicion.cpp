@@ -36,6 +36,7 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         if (!c.is_object()) continue;
         Capa k;
         k.entrada = c.value("entrada", std::string());
+        k.productor = c.value("productor", std::string());
         k.x = c.value("x", 0);
         k.y = c.value("y", 0);
         k.ancho = c.value("ancho", 0);
@@ -137,6 +138,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen) {
     const std::string n = nombreSeguro(std::to_string(gen) + "_" + c.entrada);
     auto* r = new Rama();
     r->entrada = c.entrada;
+    r->productor = c.productor.empty() ? c.entrada + ":video" : c.productor;
     r->generacion = gen;
     r->src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r->cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
@@ -150,7 +152,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen) {
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
         return nullptr;
     }
-    g_object_set(r->src, "producer-name", (c.entrada + ":video").c_str(), nullptr);
+    g_object_set(r->src, "producer-name", r->productor.c_str(), nullptr);
     // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la latencia).
     g_object_set(r->cola, "max-size-buffers", 3u, "max-size-time", static_cast<guint64>(0), "max-size-bytes", 0u, "leaky", 2,
                  nullptr);
@@ -218,7 +220,9 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
         for (const auto& c : e.capas) nuevas[c.entrada] = &c;
         for (auto it = ramas_.begin(); it != ramas_.end();) {
             auto n = nuevas.find(it->second->entrada);
-            if (n == nuevas.end()) {
+            const std::string prodNuevo =
+                n == nuevas.end() ? std::string() : (n->second->productor.empty() ? n->second->entrada + ":video" : n->second->productor);
+            if (n == nuevas.end() || prodNuevo != it->second->productor) { // se fue, o ahora lee otra cosa
                 soltar(*it->second);
                 delete it->second;
                 it = ramas_.erase(it);

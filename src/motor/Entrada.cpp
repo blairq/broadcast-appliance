@@ -936,6 +936,7 @@ std::int64_t Entrada::duracionMs() const {
 json Entrada::estado() const {
     std::lock_guard<std::mutex> l(mu_);
     json j{{"id", id_},
+           {"nombre", nombre_.empty() ? id_ : nombre_},
            {"anda", pipeline_ != nullptr},
            {"error", error_},
            {"avisos", avisos_},

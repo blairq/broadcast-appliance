@@ -12,6 +12,7 @@
 #include <gst/gst.h>
 #include <gst/pbutils/pbutils.h>
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -128,6 +129,28 @@ int main() {
         motor.verSoltar("programa");
         motor.verSoltar("entrada:cam");
         CHECK(motor.estado()["vistas"].empty(), "soltadas, se desarman");
+    }
+
+    // Multiview: la cámara está al aire → su recuadro con tally rojo; la fila de arriba, PREVIEW y PROGRAMA.
+    {
+        CHECK(motor.multiview(true, 640, 360).empty(), "el multiview arranca");
+        CHECK(motor.verPedir("multiview", 640, 360).empty(), "verlo");
+        esperar(2000);
+        Cuadro c;
+        std::uint64_t serie = 0;
+        CHECK(motor.verUltimo("multiview", c, serie), "hay cuadro del multiview");
+        auto px = [&](int x, int y) {
+            const std::uint8_t* p = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x) * 4;
+            return std::array<int, 3>{p[2], p[1], p[0]};
+        };
+        const auto bordeCam = px(1, 181), bordePgm = px(321, 1), bordePvw = px(1, 1);
+        std::printf("multiview: borde cam (%d,%d,%d) borde PGM (%d,%d,%d) borde PVW (%d,%d,%d)\n", bordeCam[0], bordeCam[1], bordeCam[2],
+                    bordePgm[0], bordePgm[1], bordePgm[2], bordePvw[0], bordePvw[1], bordePvw[2]);
+        CHECK(bordeCam[0] > 180 && bordeCam[1] < 80, "la cámara al aire: tally rojo");
+        CHECK(bordePgm[0] > 180 && bordePgm[1] < 80, "el recuadro del PROGRAMA: rojo");
+        CHECK(bordePvw[1] > 150 && bordePvw[0] < 100, "el del PREVIEW: verde");
+        motor.verSoltar("multiview");
+        motor.multiview(false);
     }
 
     const std::string dir = (std::filesystem::temp_directory_path() / ("ba_test_salidas_" + std::to_string(getpid()))).string();

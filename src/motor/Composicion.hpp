@@ -42,7 +42,8 @@ namespace ba::motor {
 class Reloj;
 
 struct Capa {
-    std::string entrada;           ///< la entrada del motor (lee <entrada>:video)
+    std::string entrada;           ///< la entrada del motor (lee <entrada>:video); también el nombre de la capa
+    std::string productor;         ///< si no está vacío, lee este productor (p. ej. «video:programa» en el multiview)
     int x = 0, y = 0;
     int ancho = 0, alto = 0;       ///< 0 = el del lienzo
     double alfa = 1.0;
@@ -88,7 +89,7 @@ class Composicion {
 
    private:
     struct Rama {
-        std::string entrada;
+        std::string entrada, productor;
         GstElement* src = nullptr;
         GstElement* cola = nullptr;
         GstElement* recorte = nullptr;

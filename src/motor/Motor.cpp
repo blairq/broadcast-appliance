@@ -40,7 +40,7 @@ std::string Motor::iniciar() {
     vistas_ = std::make_unique<Vistas>(*reloj_, [this](const std::string& clave, std::int64_t* lat) -> std::string {
         // (lo llaman pedir y tic, con mu_ del motor ya tomado o no: el recursive_mutex lo permite)
         std::lock_guard<std::recursive_mutex> l(mu_);
-        if (clave == "programa" || clave == "preview") return productorDeVideo(clave, lat);
+        if (clave == "programa" || clave == "preview" || clave == "multiview") return productorDeVideo(clave, lat);
         if (clave.rfind("entrada:", 0) == 0) {
             auto it = canales_.find(clave.substr(8));
             if (it == canales_.end() || !it->second.entrada->daVideo()) return {};
@@ -78,6 +78,8 @@ void Motor::detener() {
     if (hilo_.joinable()) hilo_.join();
     std::lock_guard<std::recursive_mutex> l(mu_);
     vistas_.reset();
+    vMulti_.reset();
+    mvAux_.clear();
     escucha_.reset();
     vPreview_.reset();
     vPrograma_.reset();
@@ -105,6 +107,8 @@ void Motor::bucle() {
                 if (r.bus) r.bus->tic();
             if (vPrograma_) vPrograma_->tic();
             if (vPreview_) vPreview_->tic();
+            if (vMulti_) vMulti_->tic();
+            for (auto& [n, a] : mvAux_) a->tic();
             if (vistas_) vistas_->tic();
             // Los que consumen el programa esperan lo que tarda en salir.
             if (puente_ != nullptr && programa_) {
@@ -192,6 +196,7 @@ std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, co
     c.entrada = std::make_unique<Entrada>(*reloj_, cfg_.lienzo, id, ajustes.is_object() ? ajustes : json::object());
     canales_[id] = std::move(c);
     aplicar(id, 0);
+    actualizarMultiview();
     return {};
 }
 
@@ -215,6 +220,7 @@ std::string Motor::quitarEntrada(const std::string& id) {
         if (r.bus) r.bus->quitar(id);
     if (escuchaModo_ == "pfl" && escuchaId_ == id) escuchar("apagado");
     canales_.erase(it);
+    actualizarMultiview();
     return {};
 }
 
@@ -294,6 +300,7 @@ std::string Motor::armar(const std::string& nombre) {
     if (it == escenas_.end()) return "no hay una escena «" + nombre + "»";
     armada_ = nombre;
     if (vPreview_) vPreview_->mostrar(it->second, "corte", 0);
+    actualizarMultiview();
     return {};
 }
 
@@ -304,6 +311,7 @@ std::string Motor::alAire(const std::string& nombre, const std::string& transici
     if (transicion != "corte" && transicion != "mezcla") return "transición: corte o mezcla";
     alAire_ = nombre;
     if (vPrograma_) vPrograma_->mostrar(it->second, transicion, ms);
+    actualizarMultiview();
     // El audio de la escena la sigue, con el mismo fundido.
     std::vector<std::string> ids;
     for (const auto& c : it->second.capas)
@@ -325,10 +333,97 @@ std::string Motor::take(const std::string& transicion, int ms) {
 
 std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenciaNs) {
     std::lock_guard<std::recursive_mutex> l(mu_);
-    Composicion* c = bus == "programa" ? vPrograma_.get() : bus == "preview" ? vPreview_.get() : nullptr;
+    Composicion* c = bus == "programa"    ? vPrograma_.get()
+                     : bus == "preview"   ? vPreview_.get()
+                     : bus == "multiview" ? vMulti_.get()
+                                          : nullptr;
     if (c == nullptr) return {};
     if (latenciaNs != nullptr) *latenciaNs = c->latenciaSalidaNs();
     return c->productor();
+}
+
+std::string Motor::multiview(bool activo, int ancho, int alto) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (!activo) {
+        vMulti_.reset();
+        mvAux_.clear();
+        return {};
+    }
+    if (!cfg_.video) return "el motor está sin video";
+    mvAncho_ = std::clamp(ancho, 320, 3840) & ~1;
+    mvAlto_ = std::clamp(alto, 180, 2160) & ~1;
+    Lienzo lz = cfg_.lienzo;
+    lz.ancho = mvAncho_;
+    lz.alto = mvAlto_;
+    vMulti_ = std::make_unique<Composicion>(*reloj_, lz, "multiview");
+    if (!vMulti_->anda()) return "el multiview no arrancó: " + vMulti_->error();
+    // Los tres colores del tally, compartidos por todos los recuadros.
+    for (const auto& [n, c] : std::vector<std::pair<std::string, std::string>>{
+             {"mv_rojo", "#E0242F"}, {"mv_verde", "#2FBF3A"}, {"mv_gris", "#3A3A40"}})
+        mvAux_[n] = std::make_unique<Entrada>(*reloj_, lz, n, json{{"tipo", "color"}, {"color", c}, {"ancho", 64}, {"alto", 36}});
+    actualizarMultiview();
+    return {};
+}
+
+void Motor::actualizarMultiview() {
+    if (!vMulti_) return;
+    const int W = mvAncho_, H = mvAlto_, borde = std::max(2, H / 180);
+    std::set<std::string> alAire, armada;
+    if (auto it = escenas_.find(alAire_); it != escenas_.end())
+        for (const auto& c : it->second.capas) alAire.insert(c.entrada);
+    if (auto it = escenas_.find(armada_); it != escenas_.end())
+        for (const auto& c : it->second.capas) armada.insert(c.entrada);
+    Escena e;
+    e.nombre = "multiview";
+    Lienzo lz = cfg_.lienzo;
+    const auto nombre = [&](const std::string& celda, const std::string& texto, int x, int y, int w, int h) {
+        const std::string id = "mv_nombre_" + celda;
+        const json aj{{"tipo", "texto"}, {"texto", texto}, {"tamano", std::max(9, h / 12)}, {"ancho", w}, {"alto", h / 5},
+                      {"vertical", "abajo"}, {"color", "#FFFFFF"}};
+        auto& p = mvAux_[id];
+        if (!p) p = std::make_unique<Entrada>(*reloj_, lz, id, aj);
+        Capa k;
+        k.entrada = id;
+        k.x = x;
+        k.y = y + h - h / 5;
+        k.ancho = w;
+        k.alto = h / 5;
+        k.orden = 3;
+        e.capas.push_back(k);
+    };
+    const auto celda = [&](const std::string& id, const std::string& productor, const std::string& texto, const char* tally,
+                           int x, int y, int w, int h) {
+        Capa t;
+        t.entrada = "tally_" + id;
+        t.productor = std::string(tally) + ":video";
+        t.x = x;
+        t.y = y;
+        t.ancho = w;
+        t.alto = h;
+        t.orden = 1;
+        e.capas.push_back(t);
+        Capa c;
+        c.entrada = "celda_" + id;
+        c.productor = productor;
+        c.x = x + borde;
+        c.y = y + borde;
+        c.ancho = w - 2 * borde;
+        c.alto = h - 2 * borde;
+        c.orden = 2;
+        e.capas.push_back(c);
+        nombre(id, texto, x + borde, y + borde, w - 2 * borde, h - 2 * borde);
+    };
+    celda("preview", "video:preview", "PREVIEW" + (armada_.empty() ? std::string() : " · " + armada_), "mv_verde", 0, 0, W / 2, H / 2);
+    celda("programa", "video:programa", "PROGRAMA" + (alAire_.empty() ? std::string() : " · " + alAire_), "mv_rojo", W / 2, 0, W / 2, H / 2);
+    int i = 0;
+    for (const auto& [id, c] : canales_) {
+        if (!c.entrada->daVideo() || i >= 8) continue;
+        const char* tally = alAire.count(id) > 0 ? "mv_rojo" : armada.count(id) > 0 ? "mv_verde" : "mv_gris";
+        celda(id, c.entrada->productorVideo(), c.entrada->estado().value("nombre", id), tally, (i % 4) * W / 4,
+              H / 2 + (i / 4) * H / 4, W / 4, H / 4);
+        ++i;
+    }
+    vMulti_->mostrar(e);
 }
 
 std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
