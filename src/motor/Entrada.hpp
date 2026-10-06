@@ -119,7 +119,10 @@ class Entrada {
     int reintentos_ = 0;
     std::uint64_t rackFaltaDesde_ = 0;
     GstClockTime baseAplicada_ = GST_CLOCK_TIME_NONE; ///< (medios) el base_time con que se puso el offset
-    std::int64_t realineadoNs_ = 0; ///< lo en vivo que trae sus propias horas (no las del estudio): la corrección
+    /// Lo en vivo que trae sus propias horas (no las del estudio): la corrección, por rama
+    /// (una cámara de prueba con horas desde 0 y un micrófono con las buenas).
+    std::int64_t realineadoV_ = 0, realineadoA_ = 0;
+    double medVAntes_ = 0, medAAntes_ = 0; ///< la medida anterior (se corrige solo si el corrimiento es estable)
     bool ntpApagadoSolo_ = false;
 
     // Medios
@@ -129,7 +132,8 @@ class Entrada {
 
     // Lo que se mide al salir (hilos de GStreamer)
     mutable std::mutex medMu_;
-    std::deque<double> edades_; ///< lo viejo que salen los últimos cuadros (ms)
+    std::deque<double> edades_;  ///< lo viejo que salen los últimos cuadros (ms; sin video, los bloques de audio)
+    std::deque<double> edadesA_; ///< lo viejo que salen los bloques de audio (ms)
     std::uint64_t cuadros_ = 0, bloques_ = 0;
     std::uint64_t ultimoDatoNs_ = 0;
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)

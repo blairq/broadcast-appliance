@@ -30,6 +30,13 @@ std::string Motor::iniciar() {
     programa_ = std::make_unique<Mezcla>(*reloj_, "programa", op);
     if (!programa_->anda()) return "el bus PROGRAMA no arrancó: " + programa_->error();
     escucha_ = std::make_unique<Escucha>(*reloj_, cfg_.sinkEscucha);
+    if (cfg_.video) {
+        Composicion::Opciones vop;
+        vop.gpu = cfg_.videoGpu;
+        vPrograma_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa", vop);
+        vPreview_ = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "preview", vop);
+        if (!vPrograma_->anda()) registrar(Nivel::Error, "el video del PROGRAMA no arrancó: " + vPrograma_->error());
+    }
     // El programa para el gateway (lo que oyen los invitados en modo «programa»).
     if (!cfg_.prefijoAnillos.empty() && hayFabrica("baanillosink")) {
         const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
@@ -59,6 +66,8 @@ void Motor::detener() {
     if (hilo_.joinable()) hilo_.join();
     std::lock_guard<std::recursive_mutex> l(mu_);
     escucha_.reset();
+    vPreview_.reset();
+    vPrograma_.reset();
     retornos_.clear();
     if (puente_ != nullptr) {
         gst_element_set_state(puente_, GST_STATE_NULL);
@@ -81,6 +90,8 @@ void Motor::bucle() {
             for (auto& [n, p] : pistas_) p->tic();
             for (auto& [n, r] : retornos_)
                 if (r.bus) r.bus->tic();
+            if (vPrograma_) vPrograma_->tic();
+            if (vPreview_) vPreview_->tic();
             // Los que consumen el programa esperan lo que tarda en salir.
             if (puente_ != nullptr && programa_) {
                 const std::int64_t lat = programa_->latenciaSalidaNs() + kMargenMezclaNs;
@@ -147,8 +158,9 @@ void Motor::aplicar(const std::string& id, int fundidoMs) {
     if (directo_) enBus(*directo_, id, c, c.global, 0);
 }
 
-std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, const json& opciones) {
+std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, const json& opcionesPedidas) {
     std::lock_guard<std::recursive_mutex> l(mu_);
+    const json opciones = opcionesPedidas.is_object() ? opcionesPedidas : json::object(); // {} llega como null
     if (id.empty()) return "falta el id";
     if (id.find(':') != std::string::npos) return "el id no puede tener «:»";
     if (canales_.count(id) > 0) return "ya hay una entrada «" + id + "»";
@@ -163,7 +175,7 @@ std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, co
             if (p.is_number_integer() && p.get<int>() >= 1 && p.get<int>() <= 6) c.pistas |= 1u << (p.get<int>() - 1);
     }
     if (!opciones.value("audio", true)) c.pistas = 0;
-    c.entrada = std::make_unique<Entrada>(*reloj_, cfg_.lienzo, id, ajustes);
+    c.entrada = std::make_unique<Entrada>(*reloj_, cfg_.lienzo, id, ajustes.is_object() ? ajustes : json::object());
     canales_[id] = std::move(c);
     aplicar(id, 0);
     return {};
@@ -233,6 +245,76 @@ void Motor::escenaAlAire(const std::vector<std::string>& ids, int fundidoMs) {
         c.enEscena = al.count(id) > 0;
         if (antes != c.enEscena) aplicar(id, fundidoMs);
     }
+}
+
+std::string Motor::definirEscena(const json& j) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (!j.is_object()) return "la escena tiene que ser un objeto {nombre, capas}";
+    Escena e = Escena::desdeJson(j);
+    if (e.nombre.empty()) return "falta el nombre de la escena";
+    escenas_[e.nombre] = e;
+    // Al aire o armada: se actualiza andando (posición, tamaño, recorte, capas).
+    if (e.nombre == alAire_ && vPrograma_) {
+        vPrograma_->mostrar(e);
+        std::vector<std::string> ids;
+        for (const auto& c : e.capas) ids.push_back(c.entrada);
+        escenaAlAire(ids, 0);
+    }
+    if (e.nombre == armada_ && vPreview_) vPreview_->mostrar(e);
+    return {};
+}
+
+std::string Motor::quitarEscena(const std::string& nombre) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (escenas_.erase(nombre) == 0) return "no hay una escena «" + nombre + "»";
+    if (armada_ == nombre) {
+        armada_.clear();
+        if (vPreview_) vPreview_->mostrar(Escena{"", {}});
+    }
+    return {};
+}
+
+std::string Motor::armar(const std::string& nombre) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = escenas_.find(nombre);
+    if (it == escenas_.end()) return "no hay una escena «" + nombre + "»";
+    armada_ = nombre;
+    if (vPreview_) vPreview_->mostrar(it->second, "corte", 0);
+    return {};
+}
+
+std::string Motor::alAire(const std::string& nombre, const std::string& transicion, int ms) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = escenas_.find(nombre);
+    if (it == escenas_.end()) return "no hay una escena «" + nombre + "»";
+    if (transicion != "corte" && transicion != "mezcla") return "transición: corte o mezcla";
+    alAire_ = nombre;
+    if (vPrograma_) vPrograma_->mostrar(it->second, transicion, ms);
+    // El audio de la escena la sigue, con el mismo fundido.
+    std::vector<std::string> ids;
+    for (const auto& c : it->second.capas)
+        if (c.visible) ids.push_back(c.entrada);
+    escenaAlAire(ids, transicion == "mezcla" ? ms : 0);
+    return {};
+}
+
+std::string Motor::take(const std::string& transicion, int ms) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    if (armada_.empty()) return "no hay nada armado en el preview";
+    const std::string antes = alAire_;
+    const std::string e = alAire(armada_, transicion, ms);
+    if (!e.empty()) return e;
+    // Lo que estaba al aire queda armado (el take intercambia, como una mesa de corte).
+    if (!antes.empty() && escenas_.count(antes) > 0) armar(antes);
+    return {};
+}
+
+std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenciaNs) {
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    Composicion* c = bus == "programa" ? vPrograma_.get() : bus == "preview" ? vPreview_.get() : nullptr;
+    if (c == nullptr) return {};
+    if (latenciaNs != nullptr) *latenciaNs = c->latenciaSalidaNs();
+    return c->productor();
 }
 
 std::string Motor::controlMedio(const std::string& id, const std::string& accion, std::int64_t ms) {
@@ -379,6 +461,16 @@ json Motor::estado() const {
               {"alto", cfg_.lienzo.alto},
               {"fps", static_cast<double>(cfg_.lienzo.fpsN) / std::max(1, cfg_.lienzo.fpsD)}}},
             {"programa", programa_ ? programa_->estado() : json()},
+            {"video",
+             {{"al_aire", alAire_},
+              {"armada", armada_},
+              {"escenas", [&]() {
+                   json n = json::array();
+                   for (const auto& [k, e] : escenas_) n.push_back(k);
+                   return n;
+               }()},
+              {"programa", vPrograma_ ? vPrograma_->estado() : json()},
+              {"preview", vPreview_ ? vPreview_->estado() : json()}}},
             {"pistas", pistas},
             {"retornos", ret},
             {"escucha", esc},

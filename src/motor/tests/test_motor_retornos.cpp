@@ -164,12 +164,34 @@ int main() {
     CHECK(!motor.escuchar("pfl", "nadie").empty(), "PFL de una que no existe avisa");
     CHECK(motor.escuchar("apagado").empty(), "apagar la escucha");
 
+    // Escenas: armar y take. El audio de las capas sigue al take.
+    motor.escenaAlAire({}, 0);
+    CHECK(motor.quitarEntrada("video").empty(), "saco la de escena vieja");
+    const json cam = {{"pipeline", "videotestsrc is-live=true do-timestamp=true pattern=ball ! video/x-raw,width=320,height=180,framerate=30/1"},
+                      {"pipeline_audio", "audiotestsrc is-live=true wave=sine volume=0.25 freq=3000"}};
+    CHECK(motor.agregarEntrada("cam", cam, {}).empty(), "una cámara con su micrófono (de escena)");
+    CHECK(motor.definirEscena({{"nombre", "Cámara"}, {"capas", {{{"entrada", "cam"}}}}}).empty(), "definir la escena");
+    CHECK(motor.definirEscena({{"nombre", "Vacía"}, {"capas", json::array()}}).empty(), "y otra vacía");
+    CHECK(!motor.take().empty(), "take sin nada armado avisa");
+    CHECK(motor.armar("Cámara").empty(), "armar en el preview");
+    esperar(500);
+    CHECK(rms() < -11.0 && rms() > -13.0, "armada no suena (solo las globales)");
+    CHECK(motor.take("mezcla", 300).empty(), "take con mezcla");
+    esperar(1200);
+    std::printf("al aire la cámara: %.2f dBFS, %s\n", rms(), motor.estado()["video"]["programa"].dump().c_str());
+    CHECK(cerca(rms(), -10.28, 1.0), "al aire, su audio suma");
+    CHECK(motor.estado()["video"].value("al_aire", "") == "Cámara", "la escena al aire");
+    CHECK(motor.armar("Vacía").empty() && motor.take().empty(), "take a la vacía");
+    esperar(800);
+    CHECK(cerca(rms(), -12.04, 1.0), "fuera del aire, su audio se va");
+    CHECK(motor.estado()["video"].value("armada", "") == "Cámara", "el take intercambia: la vieja queda armada");
+
     const json st = motor.estado();
     CHECK(st["retornos"].contains("1"), "el retorno en el estado");
     CHECK(st["entradas"]["mic"].value("global", false), "el estado sabe cuáles son globales");
     CHECK(motor.retorno(1, "programa", "").empty(), "volver a programa");
-    CHECK(motor.quitarEntrada("video").empty(), "sacar una entrada");
-    CHECK(!motor.quitarEntrada("video").empty(), "sacarla dos veces avisa");
+    CHECK(motor.quitarEntrada("cam").empty(), "sacar una entrada");
+    CHECK(!motor.quitarEntrada("cam").empty(), "sacarla dos veces avisa");
 
     motor.detener();
     std::printf("== test_motor_retornos: %s ==\n", fallos == 0 ? "OK" : "FALLOS");

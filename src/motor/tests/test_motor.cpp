@@ -250,8 +250,13 @@ int main() {
 
     // Video: normalizado al lienzo (formato, cuadros, píxel cuadrado; el tamaño queda).
     auto v = std::make_unique<Entrada>(reloj, lienzo, "camara",
-                                       json{{"pipeline", "videotestsrc is-live=true ! video/x-raw,width=640,height=360,framerate=25/1"}});
+                                       json{{"pipeline", "videotestsrc is-live=true do-timestamp=true ! video/x-raw,width=640,height=360,framerate=25/1"}});
     banco.entradas.push_back(v.get());
+    for (int i = 0; i < 6 && std::getenv("BA_TRAZA"); ++i) {
+        banco.correr(300);
+        const json t = v->estado();
+        std::printf("  video: p50 %.0f p95 %.0f cuadros %d\n", t.value("edad_p50_ms", 0.0), t.value("edad_p95_ms", 0.0), t.value("cuadros", 0));
+    }
     banco.correr(1200);
     const json sv = v->estado();
     std::printf("video: %s\n", sv["sale"].dump().c_str());
@@ -260,8 +265,8 @@ int main() {
     CHECK(cerca(sv["sale"].value("fps", 0.0), 30.0, 0.01), "a los cuadros del lienzo");
     CHECK(sv["sale"].value("ancho", 0) == 640, "el tamaño queda (lo escala la composición)");
     CHECK(sv["origen"].value("fps", 0.0) == 25.0, "y se sabe cómo llegaba");
-    // videotestsrc arranca sus horas en 0 (no en la hora del estudio): se realinea.
-    CHECK(sv.value("edad_p50_ms", 9999.0) < 500, "una fuente con sus propias horas se realinea");
+    // Con do-timestamp, sus horas son las de captura (como una cámara de verdad).
+    CHECK(sv.value("edad_p50_ms", 9999.0) < 500, "sale con la hora del estudio");
     CHECK(!sv.value("llega_tarde", true), "y no queda «llega tarde»");
     banco.entradas.pop_back();
     v.reset();

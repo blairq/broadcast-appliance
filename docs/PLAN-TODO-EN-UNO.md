@@ -77,8 +77,8 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M2.1 | PROGRAMA y PREVIEW: `glvideomixer` en Mac (`compositor` de respaldo, d3d12/cuda en los otros sistemas). Escena = propiedades de pads (posición, tamaño, recorte, alfa, orden) tomadas de `app.json`; pads dinámicos con `queue` y latencia declarada | una escena de `app.json` se ve igual | ⬜ |
-| M2.2 | Take y transiciones: corte, mezcla, empuje, cortina (`GstController` + `glshader`), stinger (un medio con alfa encima); take frame-exacto | el cambio de escena no corta audio ni salida | ⬜ |
+| M2.1 | PROGRAMA y PREVIEW: `glvideomixer` en Mac (`compositor` de respaldo, d3d12/cuda en los otros sistemas). Escena = propiedades de pads (posición, tamaño, recorte, alfa, orden) tomadas de `app.json`; pads dinámicos con `queue` y latencia declarada | una escena de `app.json` se ve igual | 🟡 (PROGRAMA y PREVIEW con `compositor`; `glvideomixer` sin probar; las escenas de `app.json`, en M6) |
+| M2.2 | Take y transiciones: corte, mezcla, empuje, cortina (`GstController` + `glshader`), stinger (un medio con alfa encima); take frame-exacto | el cambio de escena no corta audio ni salida | 🟡 (corte sin negro y mezcla hechos; faltan empuje, cortina y stinger) |
 | M2.3 | DSK y gráficos arriba del programa; clean feed (sin DSK) por `tee`; zócalos y títulos con las fuentes de M0.5; subtítulos en pantalla (`ba_subtitulos`) | el clean feed sale sin gráficos | ⬜ |
 | M2.4 | MULTIVIEW estándar (P1.4): mosaico PGM/PVW/entradas con tally rojo/verde, nombre, medidores de audio, alarmas por recuadro y reloj | se ve el tally y los medidores | ⬜ |
 | M2.5 | Lo que hacían las fuentes propias de OBS: video grafo/compositor (`ba_video_grafo`, `ba_video_compositor`), PTZ digital, mejora de imagen, placa (`ba_placeholder`). Pasan a elementos en la cadena de la entrada o a pads del compositor | cada tarjeta del grafo anda en el motor | ⬜ |
@@ -196,3 +196,13 @@ tareas quedan repartidas acá.
   - **Escucha** (`motor::Escucha`): programa (espera lo que tarda en salir el programa: suena con su video), directo (un bus solo con las globales, 40 ms fijos) y PFL de una entrada. Va al sink de audio del sistema, con el dispositivo por su id estable.
   - **Regla nueva:** todo lo que consume un bus espera la latencia de salida de ese bus (`Mezcla::latenciaSalidaNs`); si no, todo le llega tarde. Vale para la escucha y el puente al gateway, y valdrá para la grabación (M4).
   - **Probado en test_motor_retornos** (la escucha a un `fakesink`, nada por los parlantes).
+- 2026-10-06 · M2.1 y M2.2 (en parte): `motor::Composicion`.
+  - **Escena:** capas (entrada, posición, tamaño, recorte, alfa, orden) como propiedades de pads de `compositor`.
+  - **Transiciones:**
+    - corte: la vieja se va cuando la nueva dio su primer cuadro;
+    - mezcla: la nueva entra encima con su alfa;
+    - la misma escena con cambios se actualiza andando, sin rearmar.
+  - **En el Motor:** escenas guardadas, `armar` (PREVIEW), `take` (intercambia, como una mesa de corte) y `alAire`. El audio de las capas sigue al take con el mismo fundido.
+  - **test_composicion:** colores leídos píxel por píxel a la salida (posiciones, corte, capa movida, mezcla a mitad y terminada, alfa 0,5).
+  - **Trampa encontrada:** `videorate` sin `skip-to-first=true` rellena desde el principio del segmento hasta el primer cuadro. Con el base_time del estudio eso son ráfagas de cientos de cuadros duplicados al arrancar una cámara.
+  - **El realineado** de fuentes con sus propias horas solo corrige si el corrimiento es estable (una que se está poniendo al día no se toca), y es por rama (video y audio).

@@ -23,12 +23,18 @@
 //   - programa:   oye el programa (el gateway usa BA.Audio.ContentForReturn).
 //   - mix_minus:  oye el programa SIN su propia voz → BA.Audio.Return.<n>.
 //
+// EL VIDEO: dos composiciones, PROGRAMA (lo que sale) y PREVIEW (la escena
+// armada). `armar` pone una escena en el preview; `take` la pasa al programa
+// con una transición (corte o mezcla), y el audio de sus capas la sigue con el
+// mismo fundido (`escenaAlAire`).
+//
 // LA ESCUCHA (auriculares del operador): programa (lo que sale, junto con su
 // video), directo (la sala sin demora: solo las globales), pfl (una entrada
 // sola) o apagado.
 // ============================================================================
 #pragma once
 
+#include "Composicion.hpp"
 #include "Entrada.hpp"
 #include "Escucha.hpp"
 #include "Mezcla.hpp"
@@ -61,6 +67,8 @@ class Motor {
         /// Un sink en vez de la salida de audio del sistema para la escucha (las
         /// pruebas: «fakesink sync=true», para no sonar por los parlantes).
         std::string sinkEscucha;
+        bool video = true;    ///< las composiciones (PROGRAMA y PREVIEW)
+        bool videoGpu = false; ///< glvideomixer en vez de compositor
     };
 
     explicit Motor(Config c);
@@ -88,6 +96,20 @@ class Motor {
     void escenaAlAire(const std::vector<std::string>& ids, int fundidoMs);
     /// Controles de un medio: play, pausa, reiniciar, parar; `ir` con ms.
     std::string controlMedio(const std::string& id, const std::string& accion, std::int64_t ms = -1);
+
+    // --- Escenas y video ---
+    /// Define (o cambia) una escena: {"nombre", "capas": [{entrada, x, y, ancho, alto, alfa, orden, recorte, visible}]}.
+    /// Si está al aire o armada, se actualiza andando.
+    std::string definirEscena(const nlohmann::json& escena);
+    std::string quitarEscena(const std::string& nombre);
+    /// La escena en el PREVIEW.
+    std::string armar(const std::string& nombre);
+    /// Lo armado al PROGRAMA: «corte» o «mezcla» de `ms`.
+    std::string take(const std::string& transicion = "corte", int ms = 0);
+    /// Una escena directo al PROGRAMA (sin pasar por el preview).
+    std::string alAire(const std::string& nombre, const std::string& transicion = "corte", int ms = 0);
+    /// Lo que entregan los buses de video: "video:programa", "video:preview"; y cuánto tardan.
+    std::string productorDeVideo(const std::string& bus, std::int64_t* latenciaNs = nullptr);
 
     // --- Retornos ---
     /// modo: programa | mix_minus | apagado; `propia` = la entrada del invitado.
@@ -141,6 +163,9 @@ class Motor {
     std::int64_t puenteLatNs_ = -1;
     std::map<int, Retorno> retornos_;
     std::unique_ptr<Escucha> escucha_;
+    std::unique_ptr<Composicion> vPrograma_, vPreview_;
+    std::map<std::string, Escena> escenas_;
+    std::string alAire_, armada_;
     std::string escuchaModo_ = "apagado", escuchaId_;
     std::thread hilo_;
     std::atomic<bool> seguir_{false};

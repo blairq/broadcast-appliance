@@ -126,7 +126,8 @@ void Entrada::desarmar() {
         pipeline_ = nullptr;
     }
     baseAplicada_ = GST_CLOCK_TIME_NONE;
-    realineadoNs_ = 0;
+    realineadoV_ = realineadoA_ = 0;
+    medVAntes_ = medAAntes_ = 0;
 }
 
 void Entrada::programarReintento() {
@@ -171,7 +172,7 @@ void Entrada::armar() {
     std::string capsVideo = "video/x-raw";
     std::string antes = "videoconvert ! ";
     if (normalizar_) {
-        antes = "deinterlace mode=auto ! videorate ! videoconvertscale ! ";
+        antes = "deinterlace mode=auto ! videorate skip-to-first=true ! videoconvertscale ! ";
         capsVideo = capsColorDelLienzo(lienzo_) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
     }
     // LOS FILTROS (las tarjetas del grafo). La superresolución vieja es uno más.
@@ -198,12 +199,12 @@ void Entrada::armar() {
         const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
         if (placaPrimero) {
             antes = cola + cadenaV + "videoconvert ! " +
-                    (normalizar_ ? "deinterlace mode=auto ! videorate ! videoconvertscale ! " : "");
+                    (normalizar_ ? "deinterlace mode=auto ! videorate skip-to-first=true ! videoconvertscale ! " : "");
         } else {
             const std::string cadena =
                 std::string(normalizar_ ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") + cola +
                 cadenaV + "videoconvert ! ";
-            antes = normalizar_ ? "deinterlace mode=auto ! " + cadena + "videorate ! videoconvertscale ! " : cadena;
+            antes = normalizar_ ? "deinterlace mode=auto ! " + cadena + "videorate skip-to-first=true ! videoconvertscale ! " : cadena;
         }
     }
     if (alfa_) {
@@ -340,6 +341,7 @@ void Entrada::armar() {
     {
         std::lock_guard<std::mutex> l(medMu_);
         edades_.clear();
+        edadesA_.clear();
         cuadros_ = bloques_ = 0;
         ultimoDatoNs_ = 0;
         vistosDatos_ = 0;
@@ -397,6 +399,10 @@ GstPadProbeReturn Entrada::alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer 
         }
     } else {
         ++e->bloques_;
+        if (edad > -1e8) {
+            e->edadesA_.push_back(edad);
+            while (e->edadesA_.size() > 300) e->edadesA_.pop_front();
+        }
         if (e->cuadros_ == 0 && edad > -1e8) { // solo audio: cuenta sus bloques
             e->edades_.push_back(edad);
             while (e->edades_.size() > 300) e->edades_.pop_front();
@@ -417,7 +423,8 @@ void Entrada::corregirOffset() {
             // pausa no viene ninguno: todo llegaba tarde y el mezclador lo tiraba).
             if (GstPad* pad = gst_element_get_static_pad(e, "sink")) {
                 if (GstPad* antes = gst_pad_get_peer(pad)) {
-                        const gint64 dif = medio_ ? static_cast<gint64>(base) - static_cast<gint64>(reloj_.base()) : realineadoNs_;
+                        const gint64 dif = medio_ ? static_cast<gint64>(base) - static_cast<gint64>(reloj_.base())
+                                                  : (std::string(n) == "ba_iv" ? realineadoV_ : realineadoA_);
                     gst_pad_set_offset(antes, dif + desf);
                     gst_object_unref(antes);
                 }
@@ -456,16 +463,51 @@ void Entrada::medirLatencia() {
     }
     // Una fuente en vivo con SUS horas (empieza en 0, como videotestsrc, o un
     // emisor sin hora de captura): lo que entrega está corrido segundos del
-    // estudio. Se corrige con el offset del pad, como un archivo.
-    if (datos > 10 && std::fabs(edadP50_) > 1000.0) {
-        realineadoNs_ += static_cast<std::int64_t>((edadP50_ - 10.0) * 1e6);
-        registrar(Nivel::Info, id_ + ": trae sus propias horas (corridas " + std::to_string(static_cast<int>(edadP50_)) +
-                                   " ms del estudio): se realinea");
-        corregirOffset();
-        std::lock_guard<std::mutex> l(medMu_);
-        edades_.clear();
-        edadP50_ = edadP95_ = 0;
-        return;
+    // estudio. Se corrige con el offset del pad, como un archivo; cada rama por
+    // su lado (el video y el audio de una entrada pueden venir de lados distintos).
+    {
+        double medV = 0, medA = 0;
+        bool hayV = false, hayA = false;
+        {
+            std::lock_guard<std::mutex> l(medMu_);
+            const auto mediana = [](const std::deque<double>& d, double& m) {
+                if (d.size() < 10) return false;
+                std::vector<double> v(d.begin(), d.end());
+                std::nth_element(v.begin(), v.begin() + static_cast<std::ptrdiff_t>(v.size() / 2), v.end());
+                m = v[v.size() / 2];
+                return true;
+            };
+            hayV = cuadros_ > 0 && mediana(edades_, medV);
+            hayA = mediana(edadesA_, medA);
+        }
+        // Solo si es estable: una fuente que arrancó atrasada y se está poniendo al
+        // día (videotestsrc en vivo sale a las apuradas hasta alcanzar la hora) no se toca.
+        const bool estableV = hayV && std::fabs(medV - medVAntes_) < 150.0;
+        const bool estableA = hayA && std::fabs(medA - medAAntes_) < 150.0;
+        if (hayV) medVAntes_ = medV;
+        if (hayA) medAAntes_ = medA;
+        bool corrigio = false;
+        if (estableV && std::fabs(medV) > 1000.0) {
+            realineadoV_ += static_cast<std::int64_t>((medV - 10.0) * 1e6);
+            registrar(Nivel::Info, id_ + ": su video trae sus propias horas (corridas " + std::to_string(static_cast<int>(medV)) +
+                                       " ms del estudio): se realinea");
+            corrigio = true;
+        }
+        if (estableA && std::fabs(medA) > 1000.0) {
+            realineadoA_ += static_cast<std::int64_t>((medA - 10.0) * 1e6);
+            registrar(Nivel::Info, id_ + ": su audio trae sus propias horas (corridas " + std::to_string(static_cast<int>(medA)) +
+                                       " ms del estudio): se realinea");
+            corrigio = true;
+        }
+        if (corrigio) {
+            corregirOffset();
+            std::lock_guard<std::mutex> l(medMu_);
+            edades_.clear();
+            edadesA_.clear();
+            edadP50_ = edadP95_ = 0;
+            medVAntes_ = medAAntes_ = 0;
+            return;
+        }
     }
     const std::int64_t piso = latenciaMs_ * static_cast<std::int64_t>(GST_MSECOND);
     const double necesitaMs = std::max(declaradoMs_ + 15.0, edadP95_ + 10.0);
