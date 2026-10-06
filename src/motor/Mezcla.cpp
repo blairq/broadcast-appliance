@@ -44,7 +44,8 @@ std::string nombreSeguro(const std::string& id) {
 
 } // namespace
 
-Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op) : reloj_(reloj), nombre_(std::move(nombre)) {
+Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
+    : reloj_(reloj), nombre_(std::move(nombre)), medidores_(op.medidores) {
     std::string salida;
     if (op.limitador) {
         if (hayFabrica("balimitador"))
@@ -57,9 +58,9 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op) : reloj_(reloj), n
     const std::string desc =
         "audiomixer name=mx force-live=true start-time-selection=first output-buffer-duration=10000000 ! "
         "audio/x-raw,format=F32LE,layout=interleaved,rate=48000,channels=2 ! " + salida +
-        "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! "
-        "intersink name=sale producer-name=" +
-        entreComillas(productor()) + " sync=false";
+        "level name=nivel interval=50000000 post-messages=true peak-ttl=300000000 ! " +
+        (op.anillo.empty() ? "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false"
+                           : "baanillosink name=sale canal=" + entreComillas(op.anillo));
     GError* e = nullptr;
     pipeline_ = gst_parse_launch(desc.c_str(), &e);
     if (e != nullptr) {
@@ -102,8 +103,10 @@ void Mezcla::aplicarLatencia() {
     const std::int64_t l = reloj_.latencia() + kMargenMezclaNs;
     if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
     latenciaNs_ = l;
+    // Solo el piso del mezclador: el pipeline suma lo demás que declaran sus
+    // elementos (el bloque de salida, el limitador) y espera eso. Forzarla con
+    // gst_pipeline_set_latency quedaba por debajo de lo que declaran.
     g_object_set(mezclador_, "min-upstream-latency", static_cast<guint64>(l), nullptr);
-    gst_pipeline_set_latency(GST_PIPELINE(pipeline_), static_cast<GstClockTime>(l));
     gst_bin_recalculate_latency(GST_BIN(pipeline_));
 }
 
@@ -115,7 +118,7 @@ void Mezcla::agregar(const std::string& id) {
     r.src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
     r.cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
     r.vol = gst_element_factory_make("volume", ("vol_" + n).c_str());
-    r.nivel = gst_element_factory_make("level", ("nivel_" + n).c_str());
+    r.nivel = gst_element_factory_make(medidores_ ? "level" : "identity", ("nivel_" + n).c_str());
     if (r.src == nullptr || r.cola == nullptr || r.vol == nullptr || r.nivel == nullptr) {
         for (GstElement* e : {r.src, r.cola, r.vol, r.nivel})
             if (e != nullptr) gst_object_unref(e);
@@ -127,8 +130,9 @@ void Mezcla::agregar(const std::string& id) {
     // La cola no agrega demora: lo que no entra se tira (una entrada trabada no traba el bus).
     g_object_set(r.cola, "max-size-time", static_cast<guint64>(GST_SECOND), "max-size-buffers", 0u, "max-size-bytes", 0u,
                  nullptr);
-    g_object_set(r.nivel, "interval", static_cast<guint64>(50 * GST_MSECOND), "post-messages", TRUE, "peak-ttl",
-                 static_cast<guint64>(300 * GST_MSECOND), nullptr);
+    if (medidores_)
+        g_object_set(r.nivel, "interval", static_cast<guint64>(50 * GST_MSECOND), "post-messages", TRUE, "peak-ttl",
+                     static_cast<guint64>(300 * GST_MSECOND), nullptr);
     gst_bin_add_many(GST_BIN(pipeline_), r.src, r.cola, r.vol, r.nivel, nullptr);
     gst_element_link_many(r.src, r.cola, r.vol, r.nivel, nullptr);
     r.pad = gst_element_request_pad_simple(mezclador_, "sink_%u");

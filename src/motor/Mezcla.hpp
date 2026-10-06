@@ -15,8 +15,9 @@
 // - Reloj y base_time del estudio: las horas de las entradas valen tal cual.
 // - El mezclador es en vivo aunque no tenga entradas (force-live) y arranca con
 //   la primera que llega sin rebobinar (start-time-selection=first).
-// - Espera la latencia del estudio más un margen (min-upstream-latency y la del
-//   pipeline): una entrada lenta que se enchufa andando no llega tarde.
+// - Espera la latencia del estudio más un margen (min-upstream-latency): una
+//   entrada lenta que se enchufa andando no llega tarde. El pipeline suma lo que
+//   declaran sus elementos (el bloque de salida, el limitador).
 // - Las ramas se agregan y se sacan andando, sin cortar las demás.
 //
 // La ganancia de ESCENA (el audio de una fuente de escena suena solo si su
@@ -43,6 +44,10 @@ class Mezcla {
     struct Opciones {
         bool limitador = false; ///< balimitador a la salida (el máster)
         bool loudness = false;  ///< ebur128level a la salida
+        bool medidores = true;  ///< un `level` por entrada (los retornos no lo necesitan)
+        /// Si no está vacío, el bus sale a ese anillo del gateway (baanillosink) en vez
+        /// de a un intersink (p. ej. BA.Audio.Return.1).
+        std::string anillo;
     };
     Mezcla(Reloj& reloj, std::string nombre, Opciones op);
     Mezcla(Reloj& reloj, std::string nombre) : Mezcla(reloj, std::move(nombre), Opciones{}) {}
@@ -102,6 +107,7 @@ class Mezcla {
     std::map<std::string, Rama> ramas_;
     std::int64_t latenciaNs_ = -1;
     double picoDb_ = -120, rmsDb_ = -120;
+    bool medidores_ = true;
 };
 
 /// El margen sobre la latencia del estudio que esperan los mezcladores.

@@ -8,7 +8,8 @@
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
 #   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal (las tarjetas de imagen y el legalizador).
 #   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
-#   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida).
+#   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
+#              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -34,7 +35,7 @@ add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitad
 target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
 ba_plugin_gst(gstbaaudio)
 
-add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/video.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
+add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/video.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp")
 target_include_directories(gstbaipc PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
 ba_plugin_gst(gstbaipc)

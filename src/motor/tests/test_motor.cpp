@@ -117,7 +117,7 @@ int main() {
 
     Lienzo lienzo;
     Banco banco;
-    auto programa = std::make_unique<Mezcla>(reloj, "programa", Mezcla::Opciones{true, true});
+    auto programa = std::make_unique<Mezcla>(reloj, "programa", Mezcla::Opciones{true, true, true, ""});
     CHECK(programa->anda(), "el bus PROGRAMA arranca");
     banco.mezcla = programa.get();
     banco.correr(300);

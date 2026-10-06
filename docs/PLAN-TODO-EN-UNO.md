@@ -58,17 +58,17 @@ tareas quedan repartidas acá.
 | M0.3 | Medios con controles (play/pausa/ir a/bucle/fin) y la playlist encima de `motor::Entrada` (lo de `ba_gst_medio`) | test: fin de archivo, bucle sin corte, salto | 🟡 (controles y bucle hechos; falta la playlist encima) |
 | M0.4 | Un solo armador de ajustes por tipo (P1.6) y pruebas por tipo con `GstTestClock` (P1.7) | ctest | ⬜ |
 | M0.5 | Fuentes que hoy da OBS, en GStreamer: color (`videotestsrc pattern=solid-color`), imagen (`imagefreeze`), texto (render con Qt a BGRA → `appsrc`), captura de pantalla/ventana (`avfvideosrc capture-screen` / `d3d12screencapturesrc` / `pipewiresrc`), audio del sistema (elemento propio por sistema) | cada una da imagen/sonido en la prueba | ⬜ |
-| M0.6 | Estado del motor como JSON (entradas, latencias, señales, medidores) y comandos; el MCP y la GUI leen eso | `motor_estado` por MCP | ⬜ |
+| M0.6 | Estado del motor como JSON (entradas, latencias, señales, medidores) y comandos; el MCP y la GUI leen eso | `motor_estado` por MCP | 🟡 (`motor::Motor` con estado JSON y comandos; falta el MCP) |
 
 ### M1 — Mezcla de audio (`audiomixer`)
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
 | M1.1 | Bus PROGRAMA: `intersrc` por entrada → `volume` (nivel, mute, balance) → `audiomixer` con `force-live`, `min-upstream-latency` = latencia del estudio + margen, `start-time-selection=first` y segmento fijo (§5.2) | una entrada que entra tarde no rebobina ni corta (probado en Python el 2026-10-06: +3 dB, tiempo continuo) | ✅ 2026-10-06 |
-| M1.1b | **El audio de la escena sigue al programa:** una entrada que está en escenas suena solo si su escena está al aire (con fundido en la transición). Las globales (micrófonos, invitados, remoto, voces) suenan siempre. Hoy lo hace el canal 0 de libobs | cambiar de escena corta el audio de la vieja y abre el de la nueva, con fundido | ⬜ |
+| M1.1b | **El audio de la escena sigue al programa:** una entrada que está en escenas suena solo si su escena está al aire (con fundido en la transición). Las globales (micrófonos, invitados, remoto, voces) suenan siempre. Hoy lo hace el canal 0 de libobs | cambiar de escena corta el audio de la vieja y abre el de la nueva, con fundido | ✅ 2026-10-06 (en el motor: `escenaAlAire`; lo dispara la composición en M2/M6) |
 | M1.2 | Buses PISTA 2–6 (grabación multipista) y la Matriz (`audio-matriz.json`): qué entrada va a qué bus con qué nivel; los pads se agregan y sacan andando | cambiar la matriz no corta | ⬜ |
 | M1.3 | Limitador del máster true peak (P0.8) en el plugin `baaudio`: `balimitador`, con lookahead y sobremuestreo ×4, de fábrica −1 dBTP, se puede apagar | un tono a +6 dBFS sale a ≤ −1 dBTP medido con `ebur128level` | ✅ 2026-10-06 |
-| M1.4 | Mix-minus por invitado: un `audiomixer` por retorno (el programa sin su propio audio, sin restar muestras) → `baanillosink` nuevo en `baipc` que escribe `BA.Audio.Return.<n>` y `BA.Audio.ContentForReturn` (el gateway no cambia). Modo por invitado `programa`/`mix_minus` (`retornos.json`) | el invitado no se oye en su retorno | ⬜ |
+| M1.4 | Mix-minus por invitado: un `audiomixer` por retorno (el programa sin su propio audio, sin restar muestras) → `baanillosink` nuevo en `baipc` que escribe `BA.Audio.Return.<n>` y `BA.Audio.ContentForReturn` (el gateway no cambia). Modo por invitado `programa`/`mix_minus` (`retornos.json`) | el invitado no se oye en su retorno | ✅ 2026-10-06 |
 | M1.4b | Buses virtuales de la Matriz (salidas a otra placa, entradas virtuales) y las entradas físicas por canal (`EquipoAudio`) como entradas del motor | la Matriz de hoy anda igual | ⬜ |
 | M1.5 | ESCUCHA (P0.7): «directo» (la sala sin demora), «programa» (lo que sale) y PFL de una entrada; salida a `osxaudiosink`/`wasapi2sink`/`pulsesink`; una tecla para pasar. También la escucha de los racks (nodo «monitor» de `barack`), las del lobby y la voz del sistema (solo auriculares) | con «programa» el audio coincide con el video del programa | ⬜ |
 | M1.6 | Medidores: `level` y `ebur128level` en cada bus. Alimentan los medidores de la GUI, `LoudnessPrograma` y las alarmas (silencio, saturación, loudness) | la GUI y las alarmas leen del motor | 🟡 (level y ebur128level en el bus; falta enchufarlos a la GUI y las alarmas, en M6) |
@@ -186,3 +186,8 @@ tareas quedan repartidas acá.
   - **Medido con `ebur128level`:** +6 dBFS sale a −1,04 dBTP.
   - **En el motor:** el PROGRAMA lleva limitador y `ebur128level` a la salida.
   - **Realineado:** una fuente en vivo que trae sus propias horas (como `videotestsrc`, que arranca en 0) se corrige sola con el offset del pad.
+- 2026-10-06 · M1.4, M1.1b, M0.6 (en parte): `motor::Motor` y `baanillosink` (plugin `baipc`).
+  - **Motor:** dueño del reloj, las entradas y los buses, con su hilo. Las entradas globales suenan siempre; las de escena, solo con su escena al aire (`escenaAlAire`, con fundido).
+  - **Retornos:** en mix-minus, un bus por invitado con todo menos su voz (mismos faders, mutes y escena) → `BA.Audio.Return.<n>`. El programa → `BA.Audio.ContentForReturn`. El gateway no cambia.
+  - **test_motor_retornos:** el retorno del invitado se lee del anillo como lo lee el gateway y lleva solo el micrófono (−15,05 dB); el programa para el gateway lleva todo (−12,04); el mute y la escena valen en el retorno.
+  - **Latencia:** no se fuerza la del pipeline del mezclador (quedaba por debajo de lo que declaran el bloque de salida y el limitador); solo el piso `min-upstream-latency`.
