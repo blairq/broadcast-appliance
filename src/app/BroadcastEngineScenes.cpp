@@ -65,6 +65,16 @@ bool esPantalla(const std::string& id) {
 }
 
 constexpr const char* kTipoCompositor = "ba_video_compositor";
+constexpr const char* kTipoSalida = "ba_video_salida";
+
+/// La config de capas de un compositor (o de una salida: su entrada, a todo el lienzo).
+json configDe(const std::string& tipo, const json& aj) {
+    if (!aj.is_object()) return json::object();
+    if (tipo == kTipoSalida)
+        return {{"capas", json::array({{{"fuente", aj.value("fuente", std::string())}, {"x", 0.0}, {"y", 0.0}, {"ancho", 1.0}, {"alto", 1.0}}})}};
+    json config = aj.value("config", json());
+    return config.is_string() ? json::parse(config.get<std::string>(), nullptr, false) : config;
+}
 const std::string kPrefijoCompositor = "__compositor:";
 
 /// Lo que pinta la app (QImage → cuadros al motor).
@@ -373,12 +383,11 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
         spec.id = inputs::kMicType;
         spec.settingsJson = inputs::ajustesAudioAnillo("guest", s.is_object() ? s.value("slot", 1) : 1);
     }
-    if (spec.id == kTipoCompositor) {
-        // Una escena interna del motor (sus capas: las entradas que junta).
+    if (spec.id == kTipoCompositor || spec.id == kTipoSalida) {
+        // Una escena interna del motor (sus capas: las entradas que junta; la
+        // salida de una tarjeta, su entrada a todo el lienzo).
         const json aj = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
-        json config = aj.is_object() ? aj.value("config", json()) : json();
-        if (config.is_string()) config = json::parse(config.get<std::string>(), nullptr, false);
-        motor_->definirEscena(escenaCompositor(spec.name, config));
+        motor_->definirEscena(escenaCompositor(spec.name, configDe(spec.id, aj)));
         Fuente f;
         f.spec = spec;
         f.global = global;
@@ -662,9 +671,7 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
     todo.update(nuevos);
     it->second.spec.settingsJson = todo.dump();
     if (!it->second.compProductor.empty()) {
-        json config = todo.value("config", json());
-        if (config.is_string()) config = json::parse(config.get<std::string>(), nullptr, false);
-        motor_->definirEscena(escenaCompositor(name, config));
+        motor_->definirEscena(escenaCompositor(name, configDe(it->second.spec.id, todo)));
         return true;
     }
     if (esDeApp(it->second.spec.id)) fuentes::alta(name, it->second.spec.id, todo);
