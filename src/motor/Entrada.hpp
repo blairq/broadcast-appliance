@@ -19,6 +19,7 @@
 //   filtros_audio    [… ] (los de audio, aparte)
 //   normalizar (true), audio (true), estudio (true), latencia, desfase (ms), ntp_sync (true)
 //   superres, superres_motor, superres_modelo   (la superresolución vieja: un filtro más)
+//   nombre           el que se muestra en la placa «sin señal» (de fábrica, el id)
 //   medio (false)    un archivo con controles (play/pausa/ir a/bucle): `local_file`,
 //                    `looping`, `clear_on_media_end`
 //
@@ -27,6 +28,12 @@
 // (intersink sync=false); los mezcladores esperan la latencia del estudio.
 // Un archivo marca su propio ritmo (identity sync=true) con su propio base_time
 // (cada salto lo cambia) y el pad que entrega lleva la diferencia (offset).
+//
+// LA PLACA (M5.1): el video en vivo pasa por un pipeline aparte que nunca se
+// rearma: `intersrc <id>:crudo:video ! fallbackswitch ! intersink <id>:video`,
+// con la placa «<nombre> — sin señal» de respaldo. Si la cadena se cae, se
+// rearma o deja de mandar 3 s, sale la placa; cuando vuelve, vuelve sola (sin
+// cuadro congelado ni negro). Los archivos no la llevan (parados no se ven).
 //
 // Se rearma sola: el dispositivo que no está se espera (vigía de dispositivos),
 // un error se reintenta con espera creciente (0,2 / 0,5 / 1 / 2 s), y una
@@ -68,6 +75,8 @@ class Entrada {
     bool daVideo() const;
     bool daAudio() const;
     std::string productorVideo() const { return id_ + ":video"; }
+    /// ¿Está mostrando la placa «sin señal»?
+    bool enPlaca() const;
     std::string productorAudio() const { return id_ + ":audio"; }
     /// Lo que pide de latencia (ns, 0 si no midió) y si pasa el tope del estudio.
     std::int64_t latenciaPropia() const { return pide_.load(); }
@@ -92,6 +101,11 @@ class Entrada {
     void vigilarDatos();
     void irANs(std::int64_t ns);
     void corregirOffset();
+    void armarSalida();
+    bool enPlacaSinLock() const;
+    void desarmarSalida();
+    /// El productor que escribe la cadena (la que se rearma): el crudo si hay placa.
+    std::string productorCrudoVideo() const { return salidaV_ != nullptr ? id_ + ":crudo:video" : id_ + ":video"; }
     static GstPadProbeReturn alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer d);
 
     Reloj& reloj_;
@@ -110,6 +124,8 @@ class Entrada {
 
     // Lo armado
     GstElement* pipeline_ = nullptr;
+    GstElement* salidaV_ = nullptr; ///< el pipeline fijo con la placa (fallbackswitch)
+    std::string nombre_;
     std::string error_, errorAnotado_;
     std::uint64_t errorAnotadoNs_ = 0;
     std::vector<std::string> avisos_;

@@ -96,6 +96,12 @@ nlohmann::json describirCaps(GstCaps* c);
 /// se llevaría el reloj: CLOCK_LOST y todo trabado).
 void sinRelojPropio(GstElement* pipeline);
 
+/// Las fuentes de prueba en vivo (videotestsrc, audiotestsrc) cuentan su tiempo
+/// desde 0: en un pipeline con el base_time del estudio (de hace rato) salen a
+/// las apuradas hasta alcanzar la hora, y ahogan a quien las consume. Arrancan
+/// en `ahora` (la hora de ejecución del estudio).
+void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora);
+
 /// Un valor JSON como texto para gst_util_set_object_arg.
 std::string comoTexto(const nlohmann::json& v);
 

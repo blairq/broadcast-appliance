@@ -47,13 +47,81 @@ Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json&
     : reloj_(reloj), lienzo_(lienzo), id_(std::move(id)) {
     std::lock_guard<std::mutex> l(mu_);
     leer(ajustes);
+    armarSalida();
     armar();
 }
 
 Entrada::~Entrada() {
     std::lock_guard<std::mutex> l(mu_);
     desarmar();
+    desarmarSalida();
     reloj_.olvidar(id_);
+}
+
+void Entrada::desarmarSalida() {
+    if (salidaV_ == nullptr) return;
+    gst_element_set_state(salidaV_, GST_STATE_NULL);
+    gst_object_unref(salidaV_);
+    salidaV_ = nullptr;
+}
+
+void Entrada::armarSalida() {
+    const bool quiere = daVideo() && !medio_ && hayFabrica("fallbackswitch");
+    if (!quiere) {
+        desarmarSalida();
+        return;
+    }
+    if (salidaV_ != nullptr) return;
+    // La placa: chica (la composición la escala), con el nombre, a los cuadros del lienzo.
+    std::string texto;
+    for (char c : (nombre_.empty() ? id_ : nombre_) + " — sin señal") {
+        if (c == '\\' || c == '"') texto += '\\';
+        texto += c;
+    }
+    const std::string fps = std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD);
+    const std::string placa = "videotestsrc is-live=true pattern=solid-color foreground-color=0xff1c1c22 ! video/x-raw,width=640,height=360,framerate=" +
+                              fps + " ! " +
+                              (hayFabrica("textoverlay") ? "textoverlay text=\"" + texto +
+                                                               "\" font-desc=\"Sans Bold 22\" valignment=center halignment=center ! "
+                                                         : std::string()) +
+                              "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1 ! fs.sink_1";
+    const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=true ! intersink name=sale producer-name=" +
+                          entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
+                          entreComillas(id_ + ":crudo:video") + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! fs.sink_0 " +
+                          placa;
+    GError* e = nullptr;
+    GstElement* p = gst_parse_launch(d.c_str(), &e);
+    if (e != nullptr) {
+        registrar(Nivel::Aviso, id_ + ": la placa no se pudo armar (" + e->message + "): sin placa");
+        g_error_free(e);
+        if (p != nullptr) gst_object_unref(p);
+        return;
+    }
+    if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
+        g_object_set(fs, "min-upstream-latency", static_cast<guint64>(std::max<std::int64_t>(reloj_.latencia(), 0) + 100 * GST_MSECOND), nullptr);
+        gst_object_unref(fs);
+    }
+    reloj_.adoptar(p);
+    fuentesDePruebaEnHora(p, reloj_.ahora());
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    salidaV_ = p;
+}
+
+bool Entrada::enPlaca() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return enPlacaSinLock();
+}
+
+bool Entrada::enPlacaSinLock() const {
+    if (salidaV_ == nullptr) return false;
+    GstElement* fs = gst_bin_get_by_name(GST_BIN(salidaV_), "fs");
+    if (fs == nullptr) return false;
+    GstPad* activo = nullptr;
+    g_object_get(fs, "active-pad", &activo, nullptr);
+    const bool placa = activo != nullptr && std::string(GST_PAD_NAME(activo)) == "sink_1";
+    if (activo != nullptr) gst_object_unref(activo);
+    gst_object_unref(fs);
+    return placa;
 }
 
 void Entrada::leer(const json& a) {
@@ -74,6 +142,7 @@ void Entrada::leer(const json& a) {
     superresMotor_ = a.value("superres_motor", std::string());
     superresModelo_ = a.value("superres_modelo", std::string());
     medio_ = a.value("medio", false);
+    nombre_ = a.value("nombre", std::string());
     bucle_ = a.value("looping", false);
     limpiarAlTerminar_ = a.value("clear_on_media_end", true);
     if (medio_) {
@@ -116,6 +185,8 @@ void Entrada::actualizar(const json& ajustes) {
         return;
     }
     firma_ = firma;
+    desarmar();
+    armarSalida(); // pudo pasar a tener (o dejar de tener) video, o ser un archivo
     armar();
 }
 
@@ -232,7 +303,8 @@ void Entrada::armar() {
         std::string r = ritmo;
         if (!r.empty()) r.replace(r.find("%s"), 2, tipo);
         return r + "intersink name=ba_i" + std::string(tipo) + " producer-name=" +
-               entreComillas(id_ + ":" + (std::string(tipo) == "v" ? "video" : "audio")) + " sync=false event-types=\"<>\"";
+               entreComillas(std::string(tipo) == "v" ? productorCrudoVideo() : productorAudio()) +
+               " sync=false event-types=\"<>\"";
     };
     std::string completo;
     if (!uri_.empty()) {
@@ -332,6 +404,7 @@ void Entrada::armar() {
             gst_object_unref(e);
         }
     sinRelojPropio(p);
+    if (!medio_) fuentesDePruebaEnHora(p, reloj_.ahora());
     if (medio_) {
         // Un archivo: el reloj del estudio pero su propio base_time (los saltos lo cambian).
         gst_pipeline_use_clock(GST_PIPELINE(p), reloj_.clock());
@@ -557,6 +630,19 @@ void Entrada::vigilarDatos() {
 
 void Entrada::tic() {
     std::lock_guard<std::mutex> l(mu_);
+    if (salidaV_ != nullptr) {
+        GstBus* bus = gst_element_get_bus(salidaV_);
+        while (GstMessage* m = gst_bus_pop(bus)) {
+            if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
+                GError* e = nullptr;
+                gst_message_parse_error(m, &e, nullptr);
+                registrar(Nivel::Aviso, id_ + " (placa): " + (e != nullptr ? e->message : "error"));
+                if (e != nullptr) g_error_free(e);
+            }
+            gst_message_unref(m);
+        }
+        gst_object_unref(bus);
+    }
     const bool deDispositivo = !camara_.empty() || (!microfono_.empty() && microfono_ != "default");
     if (deDispositivo) Vigia::el().revisar();
     if (pipeline_ == nullptr && esperaDispositivo_) {
@@ -785,7 +871,9 @@ json Entrada::estado() const {
            {"llega_tarde", llegaTarde_.load()},
            {"latencia_ms", static_cast<double>(pide_.load()) / 1e6},
            {"declarada_ms", declaradoMs_},
-           {"desfase_ms", desfaseMs_}};
+           {"desfase_ms", desfaseMs_},
+           {"placa", salidaV_ != nullptr},
+           {"en_placa", enPlacaSinLock()}};
     {
         std::lock_guard<std::mutex> lm(medMu_);
         j["cuadros"] = cuadros_;

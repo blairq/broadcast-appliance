@@ -47,7 +47,8 @@ struct Visor {
     int w = 0, h = 0;
     Visor(Reloj& reloj, const std::string& productor, std::int64_t latNs, int ancho, int alto) : w(ancho), h(alto) {
         const std::string d = "intersrc producer-name=\"" + productor +
-                              "\" ! queue ! videoconvert ! video/x-raw,format=RGB ! appsink name=s max-buffers=1 drop=true sync=true";
+                              "\" ! queue ! videoconvert ! videoscale ! video/x-raw,format=RGB,width=" + std::to_string(ancho) +
+                              ",height=" + std::to_string(alto) + " ! appsink name=s max-buffers=1 drop=true sync=true";
         p = gst_parse_launch(d.c_str(), nullptr);
         sink = gst_bin_get_by_name(GST_BIN(p), "s");
         reloj.adoptar(p);
@@ -186,6 +187,38 @@ int main() {
     p1 = v.en(320, 180);
     std::printf("verde al 50 %% sobre rojo: %s\n", txt(p1).c_str());
     CHECK(igual(p1, 128, 128, 0, 45), "alfa 0,5: mitad y mitad");
+    // La placa: una entrada en vivo cuya cadena se cae muestra «sin señal» y vuelve sola.
+    if (hayFabrica("fallbackswitch")) {
+        Escena f;
+        f.nombre = "F";
+        f.capas.push_back({"verde", 0, 0, 0, 0});
+        prog.mostrar(f, "corte");
+        esperar(es, prog, 800);
+        CHECK(igual(v.en(320, 180), 0, 255, 0), "la verde al aire");
+        CHECK(!verde.enPlaca(), "sin placa mientras manda");
+        // Se le cambia el origen por uno que no existe: la cadena se cae y se reintenta.
+        verde.actualizar(json{{"pipeline", "elementoquenoexiste"}, {"nombre", "Cámara verde"}});
+        esperar(es, prog, 4500);
+        p1 = v.en(20, 20);
+        std::printf("caída: %s, en placa: %d\n", txt(p1).c_str(), verde.enPlaca());
+        CHECK(verde.enPlaca(), "a los 3 s, la placa");
+        CHECK(igual(p1, 0x1c, 0x1c, 0x22, 25), "se ve la placa (gris oscuro), ni verde congelado ni negro");
+        verde.actualizar(color("0xff00ff00"));
+        std::unique_ptr<Visor> vv;
+        if (std::getenv("BA_TRAZA")) vv = std::make_unique<Visor>(reloj, "verde:video", reloj.latencia(), 64, 36);
+        for (int i = 0; i < 8 && std::getenv("BA_TRAZA"); ++i) {
+            esperar(es, prog, 500);
+            const json ev = verde.estado();
+            std::printf("  directo verde:video %s edad p50 %.0f p95 %.0f lat %.0f cuadros %d\n", txt(vv->en(32, 18)).c_str(),
+                        ev.value("edad_p50_ms", 0.0), ev.value("edad_p95_ms", 0.0), ev.value("latencia_ms", 0.0), ev.value("cuadros", 0));
+            std::printf("  vuelta %d: %s placa %d %s\n", i, txt(v.en(320, 180)).c_str(), verde.enPlaca(), verde.estado()["sale"].dump().c_str());
+        }
+        esperar(es, prog, 2500);
+        p1 = v.en(320, 180);
+        std::printf("vuelve: %s, en placa: %d\n", txt(p1).c_str(), verde.enPlaca());
+        CHECK(igual(p1, 0, 255, 0), "vuelve sola");
+        CHECK(!verde.enPlaca(), "y deja la placa");
+    }
     std::printf("composición: %s\n", prog.estado().dump().c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
     return fallos == 0 ? 0 : 1;

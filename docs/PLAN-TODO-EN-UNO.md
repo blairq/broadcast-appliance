@@ -104,7 +104,7 @@ tareas quedan repartidas acá.
 
 | ID | Tarea | Cómo se sabe | Estado |
 |---|---|---|---|
-| M5.1 | `fallbackswitch` + `livesync` al final de cada entrada (§5.2.3): una caída no deja negro ni silencio y vuelve sola | desenchufar y enchufar sin corte en el programa | ⬜ |
+| M5.1 | `fallbackswitch` + `livesync` al final de cada entrada (§5.2.3): una caída no deja negro ni silencio y vuelve sola | desenchufar y enchufar sin corte en el programa | ✅ 2026-10-06 (video: placa con fallbackswitch; audio: el mezclador ya pone silencio; `livesync` queda para cuando haga falta) |
 | M5.2 | Lip-sync por entrada medible y ajustable (P1.1): tono + flash, ajuste en ms guardado | la prueba da el desfase y lo corrige | ⬜ |
 | M5.3 | Una entrada en su propio proceso, opcional (§7.1), para las que pueden colgarse | matar el proceso de la entrada no tira el programa | ⬜ |
 
@@ -214,3 +214,7 @@ tareas quedan repartidas acá.
     - grabación de 3,13 s con H.264 y dos pistas AAC; 4 tramos de 1 s;
     - SRT a la misma máquina recibido y demultiplexado (117 cuadros, 184 bloques de audio);
     - RTMP sin servidor queda reconectando.
+- 2026-10-06 · M5.1: la placa «<nombre> — sin señal» en el motor.
+  - **Cómo:** el video en vivo de cada entrada pasa por un pipeline fijo (`intersrc <id>:crudo:video ! fallbackswitch ! intersink <id>:video`) con la placa de respaldo. Si la cadena se cae o se rearma, a los 3 s sale la placa; cuando vuelve, vuelve sola.
+  - **Probado en test_composicion:** el programa muestra la placa (gris) y después la cámara otra vez, sin cuadro congelado ni negro.
+  - **Trampa encontrada (horas y media de rastreo):** `videotestsrc`/`audiotestsrc` en vivo cuentan su tiempo desde 0. Con el base_time del estudio de hace segundos salen a ~90 cuadros por segundo para ponerse al día, y el consumidor se ahoga sin dar error. Arreglo: `timestamp-offset` = la hora del estudio al armar (`fuentesDePruebaEnHora`). Las fuentes de captura reales sellan con la hora del reloj y no tienen el problema.

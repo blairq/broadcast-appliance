@@ -441,4 +441,24 @@ void sinRelojPropio(GstElement* pipeline) {
     gst_iterator_free(it);
 }
 
+void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora) {
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(pipeline));
+    if (it == nullptr) return;
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        auto* e = GST_ELEMENT(g_value_get_object(&v));
+        GstElementFactory* f = gst_element_get_factory(e);
+        const std::string n = f != nullptr ? GST_OBJECT_NAME(f) : "";
+        if ((n == "videotestsrc" || n == "audiotestsrc") &&
+            g_object_class_find_property(G_OBJECT_GET_CLASS(e), "timestamp-offset") != nullptr) {
+            gboolean vivo = FALSE;
+            g_object_get(e, "is-live", &vivo, nullptr);
+            if (vivo) g_object_set(e, "timestamp-offset", static_cast<gint64>(ahora), nullptr);
+        }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+}
+
 } // namespace ba::motor
