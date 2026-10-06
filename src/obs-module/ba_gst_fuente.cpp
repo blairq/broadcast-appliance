@@ -199,6 +199,14 @@ struct Fuente {
     /// false: solo su propia demora (p. ej. el audio de un invitado, cuyo video
     /// todavía va por libobs sin esperar).
     bool estudio = true;
+    // Sin señal (P0.4): el último cuadro unos segundos y después una placa con el
+    // nombre de la entrada, en vez de negro o congelado.
+    std::uint64_t ultimoCuadroNs = 0;  ///< cuándo llegó el último cuadro a libobs
+    std::uint64_t placaEnviadaNs = 0;
+    bool enPlaca = false;
+    std::vector<std::uint8_t>* placa = nullptr; ///< BGRA, hecha una vez con GStreamer
+    int placaAncho = 0, placaAlto = 0;
+    std::string placaNombre;
     // Medios (ba_gst_medio)
     bool medio = false;
     bool bucle = false, limpiarAlTerminar = true, reiniciarAlActivar = true, cerrarInactiva = false;
@@ -522,6 +530,8 @@ std::uint64_t horaParaObs(Fuente* f, GstSample* s) {
 }
 
 void presentarVideo(Fuente* f, GstSample* s) {
+    f->ultimoCuadroNs = os_gettime_ns();
+    f->enPlaca = false;
     GstCaps* caps = gst_sample_get_caps(s);
     GstVideoInfo info;
     if (caps == nullptr || !gst_video_info_from_caps(&info, caps)) return;
@@ -1809,17 +1819,98 @@ void destruir(void* data) {
         if (f->control != nullptr) gst_structure_free(f->control);
     }
     delete f->edades;
+    delete f->placa;
     delete f;
 }
 
 void irA(Fuente* f, std::int64_t ns);
 void procesarMensaje(Fuente* f, GstMessage* m);
 
+/// ¿Esta entrada da video? (no: los micrófonos, las voces, el audio de un invitado; los
+/// archivos tienen su propio final).
+bool daVideo(const Fuente* f) {
+    if (f->medio) return false;
+    return !f->camara.empty() || !f->uri.empty() || !f->descripcion.empty();
+}
+
+/// La placa «<nombre> — sin señal» (BGRA, del tamaño del lienzo), hecha con
+/// GStreamer (videotestsrc + textoverlay) la primera vez que hace falta.
+void armarPlaca(Fuente* f) {
+    const char* n = obs_source_get_name(f->ctx);
+    const std::string nombre = n != nullptr ? n : "Entrada";
+    if (f->placa != nullptr && nombre == f->placaNombre) return;
+    obs_video_info ovi = {};
+    const int w = obs_get_video_info(&ovi) && ovi.base_width > 0 ? static_cast<int>(ovi.base_width) : 1280;
+    const int h = ovi.base_height > 0 ? static_cast<int>(ovi.base_height) : 720;
+    std::string texto;
+    for (char c : nombre + " — sin señal") {
+        if (c == '\\' || c == '"') texto += '\\';
+        texto += c;
+    }
+    const std::string d = "videotestsrc num-buffers=1 pattern=solid-color foreground-color=0xff1c1c22 ! "
+                          "video/x-raw,format=BGRA,width=" + std::to_string(w) + ",height=" + std::to_string(h) +
+                          " ! textoverlay text=\"" + texto + "\" font-desc=\"Sans Bold " + std::to_string(std::max(18, h / 18)) +
+                          "\" valignment=center halignment=center ! videoconvert ! video/x-raw,format=BGRA ! appsink name=p";
+    std::vector<std::uint8_t> px(static_cast<size_t>(w) * h * 4, 0x20);
+    GError* e = nullptr;
+    if (GstElement* p = gst_parse_launch(d.c_str(), &e)) {
+        if (GstElement* sink = gst_bin_get_by_name(GST_BIN(p), "p")) {
+            gst_element_set_state(p, GST_STATE_PLAYING);
+            if (GstSample* smp = gst_app_sink_try_pull_sample(GST_APP_SINK(sink), 2 * GST_SECOND)) {
+                GstMapInfo m;
+                GstBuffer* b = gst_sample_get_buffer(smp);
+                if (b != nullptr && gst_buffer_map(b, &m, GST_MAP_READ)) {
+                    std::memcpy(px.data(), m.data, std::min<size_t>(m.size, px.size()));
+                    gst_buffer_unmap(b, &m);
+                }
+                gst_sample_unref(smp);
+            }
+            gst_element_set_state(p, GST_STATE_NULL);
+            gst_object_unref(sink);
+        }
+        gst_object_unref(p);
+    }
+    if (e != nullptr) g_error_free(e);
+    if (f->placa == nullptr) f->placa = new std::vector<std::uint8_t>();
+    *f->placa = std::move(px);
+    f->placaAncho = w;
+    f->placaAlto = h;
+    f->placaNombre = nombre;
+}
+
+/// Cada cuadro de libobs: si la entrada dejó de dar video (se cayó, se desenchufó,
+/// espera su dispositivo), a los 3 s pasa a la placa (dos veces por segundo).
+void vigilarSenal(Fuente* f) {
+    if (!daVideo(f)) return;
+    const std::uint64_t ahora = os_gettime_ns();
+    // Recién creada: le da 10 s (una red de superresolución tarda en cargar); si ya
+    // dio video y se cortó, 3 s con el último cuadro.
+    if (f->ultimoCuadroNs == 0) f->ultimoCuadroNs = ahora + 7'000'000'000ULL;
+    if (ahora < f->ultimoCuadroNs || ahora - f->ultimoCuadroNs < 3'000'000'000ULL ||
+        ahora - f->placaEnviadaNs < 500'000'000ULL)
+        return;
+    armarPlaca(f);
+    obs_source_frame fr = {};
+    fr.data[0] = f->placa->data();
+    fr.linesize[0] = static_cast<uint32_t>(f->placaAncho) * 4;
+    fr.width = static_cast<uint32_t>(f->placaAncho);
+    fr.height = static_cast<uint32_t>(f->placaAlto);
+    fr.format = VIDEO_FORMAT_BGRA;
+    fr.full_range = true;
+    fr.timestamp = ahora;
+    obs_source_output_video(f->ctx, &fr);
+    f->placaEnviadaNs = ahora;
+    if (!f->enPlaca)
+        blog(LOG_WARNING, "[ba_gst_fuente] %s: sin señal, se muestra la placa", f->placaNombre.c_str());
+    f->enPlaca = true;
+}
+
 /// Cada cuadro de libobs: presenta lo que ya venció, y revisa el bus (un
 /// error se anota y se reintenta a los 2 s).
 void tic(void* data, float) {
     auto* f = static_cast<Fuente*>(data);
     std::lock_guard<std::mutex> l(f->lock);
+    vigilarSenal(f);
     const bool deDispositivo = !f->camara.empty() || (!f->microfono.empty() && f->microfono != "default");
     if (deDispositivo) vigia().revisar();
     if (f->pipeline == nullptr && f->esperaDispositivo) {
