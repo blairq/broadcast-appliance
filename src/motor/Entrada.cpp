@@ -113,12 +113,14 @@ void Entrada::armarSalida() {
         texto += c;
     }
     const std::string fps = std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD);
-    const std::string placa = "videotestsrc is-live=true pattern=solid-color foreground-color=0xff1c1c22 ! video/x-raw,width=640,height=360,framerate=" +
+    // Se dibuja UNA vez (un cuadro) y se congela: antes rotulaba 30 cuadros por
+    // segundo por entrada aunque nadie la mirara (docs/MAPA-GPU-CPU.md).
+    const std::string placa = "videotestsrc num-buffers=1 pattern=solid-color foreground-color=0xff1c1c22 ! video/x-raw,width=640,height=360,framerate=" +
                               fps + " ! " +
                               (hayFabrica("textoverlay") ? "textoverlay text=\"" + texto +
                                                                "\" font-desc=\"Sans Bold 22\" valignment=center halignment=center ! "
                                                          : std::string()) +
-                              "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1 ! fs.sink_1";
+                              "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1 ! imagefreeze is-live=true ! fs.sink_1";
     const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=true ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
                           entreComillas(id_ + ":crudo:video") + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! fs.sink_0 " +
@@ -198,8 +200,10 @@ void Entrada::leer(const json& a) {
     const std::string tam = ",width=" + std::to_string(std::max(2, w)) + ",height=" + std::to_string(std::max(2, h));
     bool alfaTipo = false;
     if (tipo == "color") {
-        descripcion_ = "videotestsrc is-live=true pattern=solid-color foreground-color=" + argb(a.value("color", json()), "0xff000000") +
-                       " ! video/x-raw,format=BGRA" + tam;
+        // Un cuadro, congelado: no cambia (antes, 30 cuadros por segundo del lienzo).
+        descripcion_ = "videotestsrc num-buffers=1 pattern=solid-color foreground-color=" + argb(a.value("color", json()), "0xff000000") +
+                       " ! video/x-raw,format=BGRA" + tam + ",framerate=" + std::to_string(lienzo_.fpsN) + "/" +
+                       std::to_string(lienzo_.fpsD) + " ! imagefreeze is-live=true";
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "imagen") {
@@ -212,13 +216,15 @@ void Entrada::leer(const json& a) {
                                    std::to_string(a.value("tamano", 48));
         const std::string ha = a.value("alineacion", std::string("centro"));
         const std::string va = a.value("vertical", std::string("centro"));
-        descripcion_ = "videotestsrc is-live=true pattern=solid-color foreground-color=0x00000000 ! video/x-raw,format=BGRA" + tam +
+        descripcion_ = "videotestsrc num-buffers=1 pattern=solid-color foreground-color=0x00000000 ! video/x-raw,format=BGRA" + tam +
+                       ",framerate=" + std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
                        " ! textoverlay text=" + conComillas(a.value("texto", std::string())) + " font-desc=" + conComillas(fuente) +
                        " color=" + argb(a.value("color", json()), "0xffffffff") +
                        " draw-outline=" + (a.value("contorno", false) ? "true" : "false") +
                        " outline-color=" + argb(a.value("color_contorno", json()), "0xff000000") +
                        " draw-shadow=false halignment=" + (ha == "izquierda" ? "left" : ha == "derecha" ? "right" : "center") +
-                       " valignment=" + (va == "arriba" ? "top" : va == "abajo" ? "bottom" : "center") + " wrap-mode=word";
+                       " valignment=" + (va == "arriba" ? "top" : va == "abajo" ? "bottom" : "center") +
+                       " wrap-mode=word ! imagefreeze is-live=true"; // rotulado una vez
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "app") {
