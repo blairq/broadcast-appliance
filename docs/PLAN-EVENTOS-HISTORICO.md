@@ -155,7 +155,7 @@ Categoría «historico»: `historico_listar` (carpetas, filtros), `historico_ver
 | H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | **hecho** (ver abajo); restaurar en H6 |
 | H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | **hecho** (ver abajo) |
 | H5 | Asamblea por evento (orden del día, quórum, votaciones, palabra, remota) y el pedazo de logs al cerrar; `sellos.json` | **hecho** (ver abajo) |
-| H6 | Página Histórico (carpetas, lista, detalle con pestañas, búsqueda, comparar/restaurar, exportar) + MCP + Ajustes → Histórico | test_qml_carga y capturas |
+| H6 | Página Histórico (carpetas, lista, detalle con pestañas, búsqueda, comparar/restaurar, exportar) + MCP + Ajustes → Histórico | **hecho** (ver abajo) |
 
 Migración: los eventos existentes en `Eventos/` quedan en la raíz como
 «cerrados»; las grabaciones y transcripciones viejas se pueden asignar a un
@@ -273,3 +273,40 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
   hilos, no traba la interfaz). Si el evento volvió a estar en curso, lo avisa.
 - Test `test_cierre_evento`. Probado en la app: evento nuevo en curso → la jornada se
   cierra (asamblea, registro, sellos) → terminar el nuevo → sellado e intacto.
+
+## H6 (hecho)
+
+- Página **Histórico** en el riel (Contenido, después de Guion; índice 27): carpetas
+  | eventos (estado, inicio, duración, grabaciones, vivos, sellado, acta) | detalle con
+  pestañas **Resumen** (ficha, cuánto de cada cosa, la bitácora por tipo: un clic filtra),
+  **Línea de tiempo** (la bitácora con filtros por tipo y texto, colores por tipo y
+  nivel), **Grabaciones y vivos** (capítulos, abrir el archivo, ver el vivo y su
+  estudio, transcripciones), **Configuración** (las tres fotos, el contenido de cada
+  archivo, comparar con ahora, volver a esta configuración) y **Archivos**. Arriba:
+  buscar en todos los eventos (los resultados llevan al evento y a la línea),
+  «Carpeta Eventos» y «Qué se registra…» (las categorías, la jornada automática y lo
+  que no se anota del bus, en vivo). Botones: abrir carpeta, verificar sellos,
+  exportar. `ui_show_page {page: "historico", seccion: "<evento>[/<pestaña>]"}`.
+- `HistoricoViewModel` (Studio.historico) sobre `evento/Historico` (sin Qt: resumen,
+  grabaciones con capítulos, archivos, buscar, exportar), `Bitacora`, `FotosConfig`
+  y `CierreEvento`: la página y el MCP dicen lo mismo. Buscar, verificar y exportar
+  van al pool de hilos.
+- **Volver a una configuración** no escribe `Config/` con la app andando: se prepara
+  en `Config/.restaurar/` (lo tapado toma el valor de ahora; `launcher.json` no se
+  toca) y `AppRuntime::configure` lo aplica al arrancar, antes de leer nada, dejando
+  lo de antes en `Config/.restaurar/antes-<ms>/`. La foto ignora lo que empieza con
+  punto. Una franja en la página avisa lo preparado y deja descartarlo.
+- **Exportar**: copia la carpeta (con o sin `Grabaciones/`, sin `Respaldos/`) a
+  `Exportados/` o donde se diga, con los contenidos que nombran sus fotos de
+  configuración en `config/objetos/` (no hay biblioteca de ZIP en el bundle; una
+  carpeta se lee igual en otra máquina).
+- MCP, categoría `historico`: `historico_buscar`, `historico_restaurar` (preparar,
+  consultar, `cancelar`), `historico_exportar`, `historico_ajustes`. Lo de un evento
+  sigue en `evento_bitacora`, `evento_config`, `evento_grabaciones`, `evento_sellos`.
+- Arreglado en el camino: `.items()` sobre un JSON temporal (se destruye antes del
+  cuerpo del `for`) hacía caer la app al abrir Configuración; estaba también en
+  `StudioViewModel` (extras de las cámaras). Y el runtime y los flujos de texto
+  sueltan la pregunta por la carpeta del evento al cerrar.
+- Probado en la app: las cinco pestañas con la jornada (capturas), buscar
+  «Apertura», ajustes, preparar y descartar una restauración, exportar sin
+  grabaciones; cerrar sin caídas.

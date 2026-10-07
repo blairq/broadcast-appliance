@@ -76,7 +76,9 @@ void McpService::registerUiTools() {
                                 "navegacion\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
                                 "o el nombre de una entrada. Con page=audio: \"estudio\" (todo el audio, "
                                 "cada fuente con su cadena), \"racks\", \"matriz\", \"mesa\" (automixer) o el "
-                                "nombre de una fuente (abre su rack). Sin esto queda la que estaba."}}}}},
+                                "nombre de una fuente (abre su rack). Con page=video: \"<entrada>[/<tarjeta>]\". Con "
+                                "page=historico: \"<evento>[/<pestaña>]\" (resumen, tiempo, grabaciones, config, "
+                                "archivos). Sin esto queda la que estaba."}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;

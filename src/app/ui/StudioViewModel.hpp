@@ -102,6 +102,7 @@ class Quorum;
 class AppRuntime;
 class ConferenceViewModel;
 class EventoViewModel;
+class HistoricoViewModel;
 class GraficoViewModel;
 class RotuladorViewModel;
 class PrompterViewModel;
@@ -227,6 +228,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* properties READ properties CONSTANT)
     Q_PROPERTY(QObject* conference READ conference CONSTANT)
     Q_PROPERTY(QObject* evento READ evento CONSTANT)
+    /// La página Histórico: todos los eventos, su bitácora, configuración y lo que produjeron.
+    Q_PROPERTY(QObject* historico READ historicoObj CONSTANT)
     Q_PROPERTY(QObject* grafico READ grafico CONSTANT)
     Q_PROPERTY(QObject* rotulador READ rotulador CONSTANT)
     /// El teleprompter: los discursos, quién está conectado y los controles.
@@ -533,6 +536,8 @@ class StudioViewModel : public QObject {
     QObject* properties() const;
     QObject* conference() const;
     QObject* evento() const;
+    QObject* historicoObj() const;
+    HistoricoViewModel* historico() const { return historico_.get(); }
     QObject* grafico() const;
     QObject* rotulador() const;
     QObject* prompter() const;
@@ -826,6 +831,9 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::BusEventos> bus_;
     /// bitacora.jsonl del evento en curso (docs/PLAN-EVENTOS-HISTORICO.md, H2).
     std::unique_ptr<evento::Bitacora> bitacora_;
+    std::unique_ptr<HistoricoViewModel> historico_;
+    /// Lo que no va del bus a la bitácora (cambia en vivo desde Ajustes del histórico).
+    std::shared_ptr<std::vector<std::string>> busExcluir_;
     int bitacoraOyente_ = 0, bitacoraBus_ = 0;
     void armarBitacora();
     /// Las fotos de Config/ por evento (H3): la última vista y la revisión cada 10 s.

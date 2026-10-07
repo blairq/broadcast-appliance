@@ -29,6 +29,7 @@
 #include <filesystem>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -57,6 +58,26 @@ class FotosConfig {
 
     /// El JSON con los secretos tapados.
     static json sinSecretos(const json& j);
+
+    // --- Volver a una configuración (H6) ------------------------------------
+    //
+    // No se escribe Config/ con la app andando: cada módulo tiene su estado en
+    // memoria y lo guardaría encima. Se PREPARA en Config/.restaurar/ y se
+    // aplica al próximo arranque, antes de que nadie lea nada (AppRuntime::
+    // configure). Lo de ahora queda copiado en Config/.restaurar/antes-<ms>/.
+
+    /// Prepara volver a `foto` (todos los archivos, o solo `archivos`). Lo
+    /// tapado toma el valor de ahora. launcher.json no se toca (es el que
+    /// arranca todo). Devuelve {archivos: [...], omitidos: [...]} o {error}.
+    json prepararRestauracion(const json& foto, const std::vector<std::string>& archivos, const std::string& desde);
+    /// Lo preparado y todavía no aplicado (null si nada).
+    static json restauracionPendiente(const std::filesystem::path& config);
+    /// Descarta lo preparado.
+    static bool cancelarRestauracion(const std::filesystem::path& config);
+    /// Aplica lo preparado (al arrancar). Devuelve {aplicados, respaldo} o null si no había nada.
+    static json aplicarPendiente(const std::filesystem::path& config, std::int64_t ahoraMs);
+    /// `foto` con cada «tapado» reemplazado por lo que hay en `actual` en el mismo lugar.
+    static json conTapadosDe(const json& foto, const json& actual);
 
     /// Guarda y lee una foto en un archivo (con .tmp + rename).
     static bool guardar(const std::filesystem::path& archivo, const json& foto);

@@ -107,6 +107,27 @@ int main() {
     const json f4 = fotos.foto(4000);
     CHECK(f4["archivos"].contains("nuevo.json"), "un JSON roto igual entra (como texto)");
 
+    // Volver a una foto: se prepara, no toca Config/ hasta aplicar; lo tapado
+    // toma lo de ahora; lo de antes queda respaldado.
+    escribir(cfg / "destinos.json", R"({"youtube": {"stream_key": "otra-clave-nueva-0000-1111", "url": "rtmp://otro"}})");
+    const json prep = fotos.prepararRestauracion(f1, {}, "Sesion-03");
+    CHECK(prep.contains("archivos") && !prep.contains("error"), "preparado");
+    CHECK(FotosConfig::restauracionPendiente(cfg)["desde"] == "Sesion-03", "queda pendiente");
+    CHECK(fotos.leer(fotos.foto(4500)["archivos"]["escenas.json"]["sha"])["actual"] == "Cierre",
+          "preparar no toca Config/ (y .restaurar no entra en la foto)");
+    CHECK(!fotos.foto(4600)["archivos"].contains(".restaurar/plan.json"), ".restaurar no es configuración");
+    const json ap = FotosConfig::aplicarPendiente(cfg, 5000);
+    CHECK(!ap.is_null() && ap["aplicados"].size() >= 3, "aplicado");
+    std::ifstream fe(cfg / "escenas.json");
+    CHECK(json::parse(fe)["actual"] == "Principal", "escenas como en la foto");
+    std::ifstream fd(cfg / "destinos.json");
+    const json d2 = json::parse(fd);
+    CHECK(d2["youtube"]["stream_key"] == "otra-clave-nueva-0000-1111", "lo tapado toma lo de ahora");
+    CHECK(d2["youtube"]["url"] == "rtmp://a.rtmp.youtube.com/live2", "lo demás, de la foto");
+    CHECK(fs::exists(cfg / ".restaurar" / "antes-5000" / "escenas.json"), "lo de antes, respaldado");
+    CHECK(FotosConfig::restauracionPendiente(cfg).is_null(), "ya no queda pendiente");
+    CHECK(FotosConfig::aplicarPendiente(cfg, 6000).is_null(), "aplicar sin nada no hace nada");
+
     CHECK(FotosConfig::guardar(raiz / "ev" / "config" / "inicio.json", f4), "guardar");
     CHECK(FotosConfig::cargar(raiz / "ev" / "config" / "inicio.json") == f4, "cargar lo mismo");
     fs::remove_all(raiz);

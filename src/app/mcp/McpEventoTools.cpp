@@ -30,9 +30,11 @@
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
 #include "evento/Evento.hpp"
+#include "evento/Historico.hpp"
 #include "evento/FotosConfig.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/HistoricoViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -431,6 +433,147 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                  "su último cierre es normal; los sellos valen cuando deje de estar en curso.";
                 QMetaObject::invokeMethod(qApp, [r, done]() { done(ToolResult().data(r)); }, Qt::QueuedConnection);
             });
+        };
+        core.addTool(std::move(t));
+    }
+    // --- historico_*: el archivo de todos los eventos (página Histórico) -----------
+    {
+        Tool t;
+        t.name = "historico_buscar";
+        t.title = "Buscar en todos los eventos";
+        t.category = "historico";
+        t.readOnly = true;
+        t.description =
+            "Busca un texto en todo el histórico: la bitácora de cada evento (escenas, MCP, botonera, avisos…), las "
+            "transcripciones, la asamblea (orden del día, votaciones), las actas, los discursos y los guiones. Lo "
+            "más nuevo primero.";
+        t.details = "Cada resultado: evento (carpeta), archivo, línea, el texto alrededor y, en la bitácora, la hora. "
+                    "Para ver el contexto de una línea de la bitácora: evento_bitacora con `texto` o `desde`/`hasta`.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"texto"}},
+                         {"properties",
+                          {{"texto", {{"type", "string"}, {"minLength", 2}}},
+                           {"limite", {{"type", "integer"}, {"minimum", 1}, {"maximum", 1000}}}}}};
+        t.examples = {R"({"texto": "votación"})", R"({"texto": "sin señal", "limite": 50})"};
+        t.run = [&ev](const json& a, Done done) {
+            const auto raiz = ev.raizEventos();
+            const std::string q = a.value("texto", std::string());
+            const std::size_t lim = static_cast<std::size_t>(a.value("limite", 100));
+            QThreadPool::globalInstance()->start([raiz, q, lim, done]() {
+                json r = evento::Historico::buscar(raiz, q, lim);
+                for (auto& x : r)
+                    if (x.contains("t"))
+                        x["hora"] = QDateTime::fromMSecsSinceEpoch(x["t"].get<std::int64_t>()).toString("dd/MM/yyyy HH:mm:ss").toStdString();
+                QMetaObject::invokeMethod(qApp, [r, done]() { done(ToolResult().data(json{{"resultados", r}, {"cantidad", r.size()}})); },
+                                          Qt::QueuedConnection);
+            });
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "historico_restaurar";
+        t.title = "Volver a la configuración de un evento";
+        t.category = "historico";
+        t.description =
+            "Prepara volver a la configuración que tenía un evento (toda, o solo algunos archivos de Config/), "
+            "para aplicarla al reiniciar la app. Con `cancelar`: descarta lo preparado. Sin argumentos: dice si hay "
+            "algo preparado.";
+        t.details =
+            "No escribe Config/ con la app andando (cada módulo guardaría encima lo que tiene en memoria): deja todo "
+            "en Config/.restaurar/ y se aplica al arrancar, antes de que se lea nada; lo de antes queda copiado en "
+            "Config/.restaurar/antes-<ms>/. Las claves y tokens, que en las fotos van tapados, toman el valor de "
+            "ahora. launcher.json no se toca. Mirá antes qué cambia con evento_config `comparar_con: \"actual\"`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"evento", {{"type", "string"}}},
+                           {"foto", {{"type", "string"}, {"enum", {"inicio", "cierre", "ultima"}}}},
+                           {"archivos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"cancelar", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"evento": "2026/Octubre/Sesion-03", "foto": "inicio"})",
+                      R"({"evento": "2026/Octubre/Sesion-03", "archivos": ["escenas.json", "audio-racks.json"]})",
+                      R"({"cancelar": true})", R"({})"};
+        t.run = [&vm](const json& a, Done done) {
+            auto* h = vm.historico();
+            if (h == nullptr) return done(ToolResult::error("el histórico no está disponible"));
+            if (a.value("cancelar", false)) {
+                h->cancelarRestauracion();
+                return done(ToolResult::ok("Descartado: no se va a cambiar nada al reiniciar."));
+            }
+            if (!a.contains("evento")) {
+                const QVariantMap r = h->restauracion();
+                if (r.isEmpty()) return done(ToolResult::ok("No hay nada preparado para restaurar."));
+                return done(ToolResult().data(json::parse(QJsonDocument(QJsonObject::fromVariantMap(r)).toJson().toStdString())));
+            }
+            QStringList l;
+            for (const auto& x : a.value("archivos", json::array()))
+                if (x.is_string()) l << QString::fromStdString(x.get<std::string>());
+            const QString e = h->prepararRestauracion(QString::fromStdString(a.value("evento", std::string())),
+                                                      QString::fromStdString(a.value("foto", std::string("inicio"))), l);
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            const QVariantMap r = h->restauracion();
+            done(ToolResult()
+                     .text("Preparado: se aplica la próxima vez que arranque la app (cerrarla con app_quit y abrirla).")
+                     .data(json::parse(QJsonDocument(QJsonObject::fromVariantMap(r)).toJson().toStdString())));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "historico_exportar";
+        t.title = "Exportar un evento";
+        t.category = "historico";
+        t.description =
+            "Copia un evento entero a otra carpeta (de fábrica, Exportados/ al lado de Eventos/), con o sin las "
+            "grabaciones, junto con los contenidos de sus fotos de configuración: la copia se entiende sola en "
+            "otra máquina.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"evento"}},
+                         {"properties",
+                          {{"evento", {{"type", "string"}}},
+                           {"destino", {{"type", "string"}, {"description", "Carpeta absoluta (vacío = Exportados/)."}}},
+                           {"grabaciones", {{"type", "boolean"}, {"description", "Incluir Grabaciones/ (de fábrica, sí)."}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
+            if (dir.empty()) return done(ToolResult::error("no hay un evento «" + a.value("evento", std::string()) + "»"));
+            const std::string d = a.value("destino", std::string());
+            const std::filesystem::path destino = d.empty() ? ev.raizEventos().parent_path() / "Exportados" : std::filesystem::path(d);
+            const auto objetos = ev.raizEventos() / ".objetos";
+            const bool con = a.value("grabaciones", true);
+            QThreadPool::globalInstance()->start([dir, destino, objetos, con, done]() {
+                std::filesystem::path copia;
+                const std::string e = evento::Historico::exportar(dir, objetos, destino, con, &copia);
+                QMetaObject::invokeMethod(qApp, [e, copia, done]() {
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    done(ToolResult().text("Copiado en " + copia.string()).data(json{{"copia", copia.string()}}));
+                }, Qt::QueuedConnection);
+            });
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "historico_ajustes";
+        t.title = "Qué se registra en el histórico";
+        t.category = "historico";
+        t.description =
+            "Qué entra en la bitácora de cada evento y la jornada automática. Sin argumentos: cómo está. "
+            "`registrar`: {bus, mcp, botonera, guion, aviso, evento, config} en true/false; `bus_excluir`: "
+            "patrones del bus que no se anotan (lo que se repite muchas veces por segundo); `evento_automatico`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"registrar", {{"type", "object"}}},
+                           {"bus_excluir", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"evento_automatico", {{"type", "boolean"}}}}}};
+        t.examples = {R"({})", R"({"registrar": {"aviso": false}})", R"({"bus_excluir": ["audio/nivel/#", "audio/loudness"]})"};
+        t.run = [&vm](const json& a, Done done) {
+            auto* h = vm.historico();
+            if (h == nullptr) return done(ToolResult::error("el histórico no está disponible"));
+            if (!a.empty()) {
+                const std::string e = h->guardarAjustesJson(a);
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(h->ajustesJson()));
         };
         core.addTool(std::move(t));
     }

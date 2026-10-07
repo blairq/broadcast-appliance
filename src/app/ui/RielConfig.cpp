@@ -45,6 +45,8 @@ const std::vector<Grupo>& catalogo() {
         {"Contenido",
          {{2, "sala", "☎", "Sala (lobby, invitados, chat)"},
           {10, "guion", "≣", "Guion del evento: bloques, cues y tiempos"},
+          {27, "historico", "⌛",
+           "Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió"},
           {11, "graficos", "◈", "Gráficos animados: zócalos, placas y tickers"},
           {12, "rotulos", "✎", "Rótulos en vivo: los textos de la escena que está al aire"},
           {15, "prompter", "▤", "Teleprompter: los discursos y el control del atril"},

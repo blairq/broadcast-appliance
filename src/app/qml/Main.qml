@@ -57,7 +57,7 @@ ApplicationWindow {
         // Arranca cuando la interfaz ya se ve; una página cada 150 ms.
         interval: 150
         repeat: true
-        running: win.visible && win.precargadas < 27
+        running: win.visible && win.precargadas < 28
         onTriggered: win.precargadas++
     }
     // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
@@ -241,7 +241,7 @@ ApplicationWindow {
         // en el momento. Una vez creada queda: conserva lo que se escribió.
         // El orden es el de componenteDePagina (= el índice de cada página).
         Repeater {
-            model: 27
+            model: 28
             delegate: Loader {
                 id: lugar
                 required property int index
@@ -288,12 +288,14 @@ ApplicationWindow {
     Component { id: cmpEquipos;    EquiposPage {} }
     Component { id: cmpBotonera;   BotoneraPage {} }
     Component { id: cmpAsamblea; AsambleaPage {} }
+    Component { id: cmpHistorico; HistoricoPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea][i] || null
+                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea,
+                cmpHistorico][i] || null
     }
 
     ListModel { id: sueltas }

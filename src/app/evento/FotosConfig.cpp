@@ -69,6 +69,11 @@ nlohmann::json FotosConfig::foto(std::int64_t ahoraMs) {
     std::map<std::string, Visto> vistos;
     for (fs::recursive_directory_iterator it(config_, fs::directory_options::skip_permission_denied, ec), fin;
          !ec && it != fin; it.increment(ec)) {
+        // Lo interno (.restaurar/, lo que empiece con punto) no es configuración.
+        if (it->path().filename().string().rfind('.', 0) == 0) {
+            if (it->is_directory(ec)) it.disable_recursion_pending();
+            continue;
+        }
         if (!it->is_regular_file(ec) || !entra(it->path())) continue;
         const std::uintmax_t bytes = it->file_size(ec);
         if (ec || bytes > 4u * 1024u * 1024u) continue;
@@ -150,6 +155,104 @@ nlohmann::json FotosConfig::comparar(const json& antes, const json& despues, std
     for (auto it = d.begin(); it != d.end(); ++it)
         if (!a.contains(it.key())) uno(it.key(), {}, it.value().value("sha", std::string()));
     return out;
+}
+
+nlohmann::json FotosConfig::conTapadosDe(const json& foto, const json& actual) {
+    if (foto.is_string() && foto.get<std::string>() == kTapado) return actual;
+    if (foto.is_object()) {
+        json out = json::object();
+        for (auto it = foto.begin(); it != foto.end(); ++it) {
+            const json a = actual.is_object() && actual.contains(it.key()) ? actual[it.key()] : json();
+            if (it.value().is_string() && it.value().get<std::string>() == kTapado && a.is_null()) continue; // no hay de dónde
+            out[it.key()] = conTapadosDe(it.value(), a);
+        }
+        return out;
+    }
+    if (foto.is_array()) {
+        json out = json::array();
+        for (std::size_t i = 0; i < foto.size(); ++i)
+            out.push_back(conTapadosDe(foto[i], actual.is_array() && i < actual.size() ? actual[i] : json()));
+        return out;
+    }
+    return foto;
+}
+
+nlohmann::json FotosConfig::prepararRestauracion(const json& foto, const std::vector<std::string>& archivos,
+                                                 const std::string& desde) {
+    const json a = foto.value("archivos", json::object());
+    if (a.empty()) return json{{"error", "la foto está vacía"}};
+    const fs::path dir = config_ / ".restaurar";
+    std::error_code ec;
+    fs::remove_all(dir / "archivos", ec);
+    json hechos = json::array(), omitidos = json::array();
+    for (auto it = a.begin(); it != a.end(); ++it) {
+        const std::string rel = it.key();
+        if (!archivos.empty() && std::find(archivos.begin(), archivos.end(), rel) == archivos.end()) continue;
+        if (rel == "launcher.json" || rel.find("..") != std::string::npos) {
+            omitidos.push_back(rel);
+            continue;
+        }
+        json contenido = leer(it.value().value("sha", std::string()));
+        if (contenido.is_null() || (contenido.is_object() && contenido.contains("_texto"))) {
+            omitidos.push_back(rel); // no está el contenido, o era un JSON roto
+            continue;
+        }
+        std::ifstream f(config_ / fs::u8path(rel), std::ios::binary);
+        const json actual = f ? json::parse(f, nullptr, false) : json();
+        contenido = conTapadosDe(contenido, actual.is_discarded() ? json() : actual);
+        const fs::path destino = dir / "archivos" / fs::u8path(rel);
+        fs::create_directories(destino.parent_path(), ec);
+        std::ofstream o(destino, std::ios::binary);
+        o << contenido.dump(2);
+        hechos.push_back(rel);
+    }
+    for (const std::string& pedido : archivos)
+        if (!a.contains(pedido)) omitidos.push_back(pedido);
+    if (hechos.empty()) return json{{"error", "nada para restaurar"}, {"omitidos", omitidos}};
+    guardar(dir / "plan.json", json{{"desde", desde}, {"t_foto", foto.value("t", 0LL)}, {"archivos", hechos}});
+    return json{{"archivos", hechos}, {"omitidos", omitidos}};
+}
+
+nlohmann::json FotosConfig::restauracionPendiente(const fs::path& config) {
+    return cargar(config / ".restaurar" / "plan.json");
+}
+
+bool FotosConfig::cancelarRestauracion(const fs::path& config) {
+    std::error_code ec;
+    fs::remove(config / ".restaurar" / "plan.json", ec);
+    fs::remove_all(config / ".restaurar" / "archivos", ec);
+    return !ec;
+}
+
+nlohmann::json FotosConfig::aplicarPendiente(const fs::path& config, std::int64_t ahoraMs) {
+    const json plan = restauracionPendiente(config);
+    if (plan.is_null()) return nullptr;
+    const fs::path dir = config / ".restaurar";
+    const fs::path respaldo = dir / ("antes-" + std::to_string(ahoraMs));
+    std::error_code ec;
+    json aplicados = json::array();
+    for (const auto& r : plan.value("archivos", json::array())) {
+        if (!r.is_string()) continue;
+        const std::string rel = r.get<std::string>();
+        const fs::path nuevo = dir / "archivos" / fs::u8path(rel), destino = config / fs::u8path(rel);
+        if (!fs::exists(nuevo, ec)) continue;
+        if (fs::exists(destino, ec)) {
+            fs::create_directories((respaldo / fs::u8path(rel)).parent_path(), ec);
+            fs::copy_file(destino, respaldo / fs::u8path(rel), fs::copy_options::overwrite_existing, ec);
+        }
+        fs::create_directories(destino.parent_path(), ec);
+        const fs::path tmp = destino.string() + ".tmp";
+        fs::copy_file(nuevo, tmp, fs::copy_options::overwrite_existing, ec);
+        fs::rename(tmp, destino, ec);
+        if (!ec) aplicados.push_back(rel);
+    }
+    json hecho = plan;
+    hecho["aplicado"] = ahoraMs;
+    hecho["aplicados"] = aplicados;
+    hecho["respaldo"] = respaldo.filename().string();
+    guardar(dir / ("aplicado-" + std::to_string(ahoraMs) + ".json"), hecho);
+    cancelarRestauracion(config);
+    return hecho;
 }
 
 bool FotosConfig::guardar(const fs::path& archivo, const json& foto) {

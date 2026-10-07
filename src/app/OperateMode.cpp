@@ -2,6 +2,7 @@
 // src/app/OperateMode.cpp — ver OperateMode.hpp
 // ============================================================================
 
+#include "evento/FotosConfig.hpp"
 #include "OperateMode.hpp"
 
 
@@ -184,6 +185,19 @@ void AppRuntime::configure(int argc, char** argv) {
     }
     if (root_.empty()) {
         root_ = bin_;
+    }
+    // Volver a la configuración de un evento (histórico, H6): se preparó con
+    // la app andando y se aplica acá, antes de que nadie lea Config/.
+    {
+        const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+        const nlohmann::json r = ba::evento::FotosConfig::aplicarPendiente(root_ / "Config", ahora);
+        if (!r.is_null())
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0,
+                                       "se volvió a la configuración de «" + r.value("desde", std::string()) + "»: " +
+                                           r.value("aplicados", nlohmann::json::array()).dump() + " (lo de antes en Config/.restaurar/" +
+                                           r.value("respaldo", std::string()) + ")");
     }
     const fs::path cfgPath = argValue(argc, argv, "--config", appConfigPath(root_).string());
     cfg_ = loadAppConfig(cfgPath, root_);

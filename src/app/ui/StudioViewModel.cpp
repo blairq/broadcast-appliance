@@ -90,6 +90,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/EventoViewModel.hpp"
+#include "ui/HistoricoViewModel.hpp"
 #include "ui/ExtensionesModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/FrameService.hpp"
@@ -1187,6 +1188,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 }
 
 StudioViewModel::~StudioViewModel() {
+    // El runtime y los flujos de texto viven más que el evento: que no le
+    // pregunten la carpeta a un EventoViewModel que ya no está.
+    rt_.setCarpetaDelEvento(nullptr);
+    if (flujos_) flujos_->setCarpetaDelEvento(nullptr);
     // Un sello a medias no se escribe: se corta y se vuelve a sellar otro día.
     cancelarSellos_ = true;
     for (auto& s : selladores_)
@@ -1368,13 +1373,25 @@ void StudioViewModel::armarBitacora() {
     for (const std::string& c : evento::Bitacora::categorias())
         bitacora_->setRegistrar(c, !reg.is_object() || reg.value(c, true));
     // Lo que se repite muchas veces por segundo no es un hecho: es una medición.
-    std::vector<std::string> excluir{"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud",
-                                     "aire/tally"};
+    busExcluir_ = std::make_shared<std::vector<std::string>>(
+        std::vector<std::string>{"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud", "aire/tally"});
     if (aj.contains("bus_excluir") && aj["bus_excluir"].is_array()) {
-        excluir.clear();
+        busExcluir_->clear();
         for (const auto& p : aj["bus_excluir"])
-            if (p.is_string()) excluir.push_back(p.get<std::string>());
+            if (p.is_string()) busExcluir_->push_back(p.get<std::string>());
     }
+    auto excluir = busExcluir_;
+    // La página Histórico y el MCP cambian qué se registra, en vivo.
+    historico_ = std::make_unique<HistoricoViewModel>(*evento_);
+    historico_->setAplicarAjustes([this](const nlohmann::json& a) {
+        const nlohmann::json reg = a.value("registrar", nlohmann::json::object());
+        for (const auto& [k, v] : reg.items())
+            bitacora_->setRegistrar(k, v.get<bool>());
+        std::vector<std::string> l;
+        for (const auto& p : a.value("bus_excluir", nlohmann::json::array()))
+            if (p.is_string()) l.push_back(p.get<std::string>());
+        *busExcluir_ = l; // solo lo toca el hilo de la interfaz, igual que el oyente del bus
+    });
     bitacora_->setArchivo(evento_->archivoBitacora());
     bitacora_->anotar("evento", "app", "la app arranca",
                       {{"evento", evento_->enCurso().value("carpeta").toString().toStdString()}});
@@ -1428,7 +1445,7 @@ void StudioViewModel::armarBitacora() {
     // esas solo importa cuando cambian estos campos.
     auto importa = std::make_shared<std::map<std::string, nlohmann::json>>();
     bitacoraBus_ = bus_->suscribir("#", [this, b, excluir, importa](const std::string& tema, const nlohmann::json& valor) {
-        for (const std::string& p : excluir)
+        for (const std::string& p : *excluir)
             if (control::BusEventos::coincide(p, tema)) return;
         if (tema == "salida/stream" || tema == "salida/grabacion") {
             nlohmann::json clave = nlohmann::json::object();
@@ -1801,6 +1818,7 @@ QString StudioViewModel::saveAccountCredential(const QString& platform, const QV
 QObject* StudioViewModel::inputs() const { return inputs_.get(); }
 QObject* StudioViewModel::conference() const { return conference_.get(); }
 QObject* StudioViewModel::evento() const { return evento_.get(); }
+QObject* StudioViewModel::historicoObj() const { return historico_.get(); }
 QObject* StudioViewModel::grafico() const { return grafico_.get(); }
 QObject* StudioViewModel::rotulador() const { return rotulador_.get(); }
 QObject* StudioViewModel::prompter() const { return prompter_.get(); }
@@ -3663,7 +3681,8 @@ void StudioViewModel::muestrearSalud() {
                           {"kbps_historial", hist}});
     };
     uno("principal", h.value("principal", nlohmann::json::object()));
-    for (const auto& [id, o] : h.value("extras", nlohmann::json::object()).items()) uno(id, o);
+    const nlohmann::json extras = h.value("extras", nlohmann::json::object()); // .items() de un temporal queda colgado
+    for (const auto& [id, o] : extras.items()) uno(id, o);
     if (actual != saludActual_) {
         saludActual_ = actual;
         emit saludChanged();
