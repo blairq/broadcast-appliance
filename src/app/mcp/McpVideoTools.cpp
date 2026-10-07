@@ -355,6 +355,39 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
+        t.name = "video_tarjeta_mover";
+        t.title = "Mover una tarjeta en la cadena";
+        t.category = "video";
+        t.description =
+            "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
+            "tarjeta, o de la entrada para ponerla primera; vacío = justo antes de la escena), o un lugar antes "
+            "(`paso`: -1) o después (`paso`: 1).";
+        t.details =
+            "El orden importa: el PTZ antes de la superresolución le da detalle a lo que se amplía; Rostros antes "
+            "del PTZ ve la toma entera (y el seguimiento puede llevar al PTZ fuera de lo que se ve); después, ve "
+            "lo que sale del encuadre. Todas las tarjetas dejan pasar los eventos de las otras (ba/rostros, "
+            "ba/ptz, ba/encuadre, ba/control), así que cualquier orden funciona.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties",
+                          {{"id", idTarjeta},
+                           {"entrada", entrada},
+                           {"despues", {{"type", "string"}, {"description", "después de esta tarjeta"}}},
+                           {"paso", {{"type", "integer"}, {"enum", {-1, 1}}}}}}};
+        t.run = [v, hecho](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const QString id = QString::fromStdString(a.value("id", std::string()));
+            QString e;
+            if (a.contains("paso"))
+                e = v->correr(id, a.value("paso", 1));
+            else
+                e = v->reubicar(id, QString::fromStdString(a.value("despues", std::string())));
+            hecho(a.value("entrada", std::string()), e.toStdString(), done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "video_tarjeta_quitar";
         t.title = "Quitar una tarjeta de video";
         t.category = "video";

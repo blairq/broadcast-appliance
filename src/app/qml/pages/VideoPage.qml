@@ -66,6 +66,8 @@ Rectangle {
         if (tipo === "salida") return "#a78bfa"
         if (tipo === "retardo") return "#94a3b8"
         if (tipo === "rostros") return "#f43f5e"
+        if (tipo === "ptz") return "#06b6d4"
+        if (tipo === "seguir") return "#e879f9"
         return Theme.accent
     }
     function f2(v) { return Number(v).toFixed(2) }
@@ -95,6 +97,8 @@ Rectangle {
         }
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
         if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
+        if (n.tipo === "ptz") return p.activo === false ? "Apagado" : "Pan, tilt y zoom digital (Cámaras PTZ)"
+        if (n.tipo === "seguir") return p.activo === false ? "Apagado" : (p.objetivo ? "Sigue: " + p.objetivo : "Sin nadie elegido")
         if (n.tipo === "rostros") return (({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita", seguir: "Sigue a una cara" })[p.uso] || "Caras") +
                                           (p.marcar ? " · " + (p.estilo || "recuadro") : "") + (p.texto ? " · «" + p.texto + "»" : "")
         return ""
@@ -1082,8 +1086,24 @@ Rectangle {
                             }
                         }
 
+                        // Mover en la cadena (el orden importa; todas dejan pasar los eventos de las otras).
+                        RowLayout {
+                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" &&
+                                     page.nodo.tipo !== "salida" && page.nodo.tipo !== "compositor" && page.nodo.tipo !== "control"
+                            spacing: 6
+                            GlassButton {
+                                compact: true; text: "◀ Antes"
+                                onClicked: page.avisar(page.vg.correr(page.sel, -1))
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un lugar antes en la cadena"
+                            }
+                            GlassButton {
+                                compact: true; text: "Después ▶"
+                                onClicked: page.avisar(page.vg.correr(page.sel, 1))
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un lugar después en la cadena"
+                            }
+                        }
                         GlassButton {
-                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena"
+                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" && page.nodo.tipo !== "ptz"
                             compact: true
                             text: "Quitar la tarjeta"
                             onClicked: { page.avisar(page.vg.quitar(page.sel)); page.sel = "" }

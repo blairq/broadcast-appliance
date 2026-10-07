@@ -17,7 +17,18 @@
 // animaciones es el de los cuadros (PTS), así se mueve parejo aunque la app no.
 //
 // Sin zoom y quieto, PASANTE (sin copia): tenerlo puesto en todas las entradas
-// no cuesta nada.
+// no cuesta nada (en GPU, baptzgl también deja de dibujar).
+//
+// ENCUADRE PEDIDO (seguimiento): un evento «ba/encuadre» que viene de arriba
+// (lo manda baseguir) o la propiedad `encuadre` («x,y,zoom,suavidad»; la usa la
+// app cuando el seguimiento está después del PTZ) dicen adónde ir; el PTZ va
+// hacia ahí con una curva suave (constante de tiempo `suavidad`, s). El
+// joystick o un preset mandan sobre el encuadre; si no llega otro en 1,5 s, se
+// queda donde está. zoom 0 = no tocar el zoom.
+//
+// LA VENTANA, RÍO ABAJO: cada vez que cambia (y una vez por segundo), un evento
+// «ba/ptz» (x, y, zoom, moviendo): lo que viene después (rostros, seguimiento)
+// sabe que la imagen que recibe es esa parte de la toma.
 //
 // Formatos: RGB de 4 bytes (con o sin alfa). El tamaño no cambia.
 // Concurrencia: propiedades y cuadro se cruzan bajo GST_OBJECT_LOCK.
@@ -72,11 +83,18 @@ struct _BaPtz {
     double desdeX = 0.5, desdeY = 0.5, desdeZ = 1, haciaX = 0.5, haciaY = 0.5, haciaZ = 1;
     double t = 0, duracion = 0;
     GstClockTime ultimo = GST_CLOCK_TIME_NONE;
+    // El encuadre pedido (seguimiento).
+    bool encuadrando = false;
+    double ex = 0.5, ey = 0.5, ez = 0, etau = 0.6;
+    gint64 encuadreUs = 0;
+    // Lo último que se avisó río abajo (ba/ptz).
+    double avisoX = -1, avisoY = -1, avisoZ = -1;
+    int cuadrosSinAviso = 0;
 };
 
 G_DEFINE_TYPE(BaPtz, ba_ptz, GST_TYPE_VIDEO_FILTER)
 
-enum { PROP_0, PROP_VX, PROP_VY, PROP_VZ, PROP_IR, PROP_X, PROP_Y, PROP_ZOOM, PROP_MOVIENDO, PROP_ESTADO };
+enum { PROP_0, PROP_VX, PROP_VY, PROP_VZ, PROP_IR, PROP_X, PROP_Y, PROP_ZOOM, PROP_MOVIENDO, PROP_ESTADO, PROP_ENCUADRE, PROP_ENCUADRANDO };
 
 namespace {
 
@@ -87,12 +105,91 @@ void limitar(BaPtz* p) {
     p->y = std::clamp(p->y, medio, 1.0 - medio);
 }
 
-bool moviendo(const BaPtz* p) { return p->yendo || p->ax != 0 || p->ay != 0 || p->az != 0 || p->vx != 0 || p->vy != 0 || p->vz != 0; }
+bool moviendo(const BaPtz* p) {
+    return p->yendo || p->encuadrando || p->ax != 0 || p->ay != 0 || p->az != 0 || p->vx != 0 || p->vy != 0 || p->vz != 0;
+}
+
+/// «x,y,zoom[,suavidad]» -> el encuadre pedido (bajo el lock).
+void pedirEncuadre(BaPtz* p, const char* texto) {
+    if (texto == nullptr) return;
+    double v[4] = {0.5, 0.5, 0, 0.6};
+    int n = 0;
+    const char* c = texto;
+    while (n < 4 && *c != '\0') {
+        char* fin = nullptr;
+        v[n] = g_ascii_strtod(c, &fin);
+        if (fin == c) break;
+        ++n;
+        c = fin;
+        while (*c == ',' || *c == ';' || *c == ' ') ++c;
+    }
+    if (n < 2) {
+        p->encuadrando = false; // "" = soltar
+        return;
+    }
+    p->ex = std::clamp(v[0], 0.0, 1.0);
+    p->ey = std::clamp(v[1], 0.0, 1.0);
+    p->ez = n >= 3 ? v[2] : 0.0;
+    p->etau = n >= 4 ? std::clamp(v[3], 0.05, 10.0) : 0.6;
+    p->encuadrando = true;
+    p->encuadreUs = g_get_monotonic_time();
+}
+
+/// Un evento «ba/encuadre» (del seguimiento): true si lo era.
+bool leerEncuadre(BaPtz* p, GstEvent* e) {
+    if (GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_DOWNSTREAM && GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_DOWNSTREAM_OOB) return false;
+    const GstStructure* s = gst_event_get_structure(e);
+    if (s == nullptr || !gst_structure_has_name(s, "ba/encuadre")) return false;
+    GST_OBJECT_LOCK(p);
+    gboolean soltar = FALSE;
+    if (gst_structure_get_boolean(s, "soltar", &soltar) && soltar) {
+        p->encuadrando = false;
+    } else {
+        double x = 0.5, y = 0.5, z = 0, tau = 0.6;
+        gst_structure_get_double(s, "x", &x);
+        gst_structure_get_double(s, "y", &y);
+        gst_structure_get_double(s, "zoom", &z);
+        gst_structure_get_double(s, "suavidad", &tau);
+        p->ex = std::clamp(x, 0.0, 1.0);
+        p->ey = std::clamp(y, 0.0, 1.0);
+        p->ez = z;
+        p->etau = std::clamp(tau, 0.05, 10.0);
+        p->encuadrando = true;
+        p->encuadreUs = g_get_monotonic_time();
+    }
+    GST_OBJECT_UNLOCK(p);
+    return true;
+}
+
+/// El evento «ba/ptz» si la ventana cambió (o pasó un segundo). Bajo el lock.
+GstEvent* avisoSiCambio(BaPtz* p) {
+    const bool cambio = std::fabs(p->x - p->avisoX) > 1e-4 || std::fabs(p->y - p->avisoY) > 1e-4 ||
+                        std::fabs(p->zoom - p->avisoZ) > 1e-4;
+    if (!cambio && ++p->cuadrosSinAviso < 30) return nullptr;
+    p->cuadrosSinAviso = 0;
+    p->avisoX = p->x;
+    p->avisoY = p->y;
+    p->avisoZ = p->zoom;
+    return gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM,
+                                gst_structure_new("ba/ptz", "x", G_TYPE_DOUBLE, p->x, "y", G_TYPE_DOUBLE, p->y, "zoom",
+                                                  G_TYPE_DOUBLE, p->zoom, "moviendo", G_TYPE_BOOLEAN, moviendo(p), nullptr));
+}
 
 /// Curva suave (arranca y llega despacio) para ir a un preset.
 double suave(double u) { return u * u * (3.0 - 2.0 * u); }
 
 void avanzar(BaPtz* p, double dt) {
+    // El encuadre pedido: hacia ahí, con una curva suave, si nada manda más
+    // (joystick, preset) y no venció (1,5 s sin pedidos: se queda).
+    if (p->encuadrando && g_get_monotonic_time() - p->encuadreUs > 1'500'000) p->encuadrando = false;
+    if (p->encuadrando && !p->yendo && p->vx == 0 && p->vy == 0 && p->vz == 0) {
+        const double k = dt > 0 ? 1.0 - std::exp(-dt / p->etau) : 0.0;
+        if (p->ez >= 1.0) p->zoom = std::exp(std::log(p->zoom) + (std::log(std::clamp(p->ez, 1.0, kZoomMax)) - std::log(p->zoom)) * k);
+        p->x += (p->ex - p->x) * k;
+        p->y += (p->ey - p->y) * k;
+        limitar(p);
+        return;
+    }
     if (p->yendo) {
         p->t += dt;
         const double u = suave(std::min(1.0, p->t / std::max(1e-6, p->duracion)));
@@ -168,6 +265,7 @@ void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
             if (t != nullptr) ir(p, (std::string(t) + ",0").c_str());
             break;
         }
+        case PROP_ENCUADRE: pedirEncuadre(p, g_value_get_string(v)); break;
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps); break;
     }
     if (id <= PROP_VZ && (p->vx != 0 || p->vy != 0 || p->vz != 0)) p->yendo = false; // el joystick manda
@@ -188,6 +286,8 @@ void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_Y: g_value_set_double(v, p->y); break;
         case PROP_ZOOM: g_value_set_double(v, p->zoom); break;
         case PROP_MOVIENDO: g_value_set_boolean(v, moviendo(p)); break;
+        case PROP_ENCUADRE: g_value_set_string(v, ""); break;
+        case PROP_ENCUADRANDO: g_value_set_boolean(v, p->encuadrando); break;
         case PROP_ESTADO: {
             // Con punto decimal siempre (lo vuelve a leer `ir`).
             gchar bx[G_ASCII_DTOSTR_BUF_SIZE], by[G_ASCII_DTOSTR_BUF_SIZE], bz[G_ASCII_DTOSTR_BUF_SIZE];
@@ -212,8 +312,10 @@ void antes(GstBaseTransform* bt, GstBuffer* b) {
     p->ultimo = t;
     avanzar(p, dt);
     const bool identidad = p->zoom <= 1.0 + 1e-6 && !moviendo(p);
+    GstEvent* aviso = avisoSiCambio(p);
     GST_OBJECT_UNLOCK(p);
     gst_base_transform_set_passthrough(bt, identidad);
+    if (aviso != nullptr) gst_pad_push_event(GST_BASE_TRANSFORM_SRC_PAD(bt), aviso);
 }
 
 /// Bilineal de 4 bytes por píxel: la ventana [x0, x0+w) x [y0, y0+h) del origen al destino entero.
@@ -269,6 +371,7 @@ GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* in, GstVideoFrame* 
 }
 
 gboolean alEvento(GstBaseTransform* bt, GstEvent* e) {
+    leerEncuadre(BA_PTZ(bt), e); // y sigue de largo (lo que venga después también lo ve)
     if (GST_EVENT_TYPE(e) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(e) == GST_EVENT_SEGMENT) {
         auto* p = BA_PTZ(bt);
         GST_OBJECT_LOCK(p);
@@ -309,6 +412,12 @@ static void ba_ptz_class_init(BaPtzClass* k) {
                                     g_param_spec_string("estado", "Estado", "«x,y,zoom»: la posición (el motor la conserva al rearmar)",
                                                         "0.5,0.5,1", rw));
     g_object_class_install_property(go, PROP_MOVIENDO, g_param_spec_boolean("moviendo", "Moviendo", "Se está moviendo", FALSE, ro));
+    g_object_class_install_property(go, PROP_ENCUADRE,
+                                    g_param_spec_string("encuadre", "Encuadre",
+                                                        "«x,y,zoom,suavidad»: ir siguiendo a ese encuadre (zoom 0 = no tocarlo; vacío = soltar)",
+                                                        "", rw));
+    g_object_class_install_property(go, PROP_ENCUADRANDO,
+                                    g_param_spec_boolean("encuadrando", "Encuadrando", "Está siguiendo un encuadre pedido", FALSE, ro));
 
     auto* ek = GST_ELEMENT_CLASS(k);
     gst_element_class_set_static_metadata(ek, "PTZ digital", "Filter/Effect/Video",
@@ -335,6 +444,8 @@ struct _BaPtzGl {
     GstBin parent;
     BaPtz* cuenta;        ///< el estado y las propiedades (no está en la cadena)
     GstElement* transf;   ///< gltransformation
+    GstElement* fijar;    ///< glshader (obliga a dibujar)
+    gboolean pasante;     ///< quieto y sin zoom: ninguno de los dos dibuja
 };
 
 G_DEFINE_TYPE(BaPtzGl, ba_ptz_gl, GST_TYPE_BIN)
@@ -355,6 +466,7 @@ GstPadProbeReturn alCuadroGl(GstPad*, GstPadProbeInfo* info, gpointer d) {
     BaPtz* p = s->cuenta;
     if ((info->type & GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM) != 0) {
         GstEvent* e = GST_PAD_PROBE_INFO_EVENT(info);
+        leerEncuadre(p, e);
         if (GST_EVENT_TYPE(e) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(e) == GST_EVENT_SEGMENT) {
             GST_OBJECT_LOCK(p);
             p->ultimo = GST_CLOCK_TIME_NONE;
@@ -370,7 +482,22 @@ GstPadProbeReturn alCuadroGl(GstPad*, GstPadProbeInfo* info, gpointer d) {
     p->ultimo = t;
     avanzar(p, dt);
     const double x = p->x, y = p->y, z = p->zoom;
+    const gboolean quieto = z <= 1.0 + 1e-6 && !moviendo(p);
+    GstEvent* aviso = avisoSiCambio(p);
     GST_OBJECT_UNLOCK(p);
+    if (aviso != nullptr) {
+        GstPad* sale = gst_element_get_static_pad(s->fijar, "src");
+        gst_pad_push_event(sale, aviso);
+        gst_object_unref(sale);
+    }
+    // QUIETO Y SIN ZOOM: ni gltransformation ni glshader dibujan (pasa la misma
+    // textura). Eran una copia por cuadro en cada entrada para nada.
+    if (quieto != s->pasante) {
+        s->pasante = quieto;
+        gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(s->transf), quieto);
+        gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(s->fijar), quieto);
+    }
+    if (quieto) return GST_PAD_PROBE_OK;
     // Con ortho, la ventana de centro (x, y) y lado 1/zoom ocupa todo el cuadro:
     // escala zoom y corrimiento (0,5 − centro) × zoom (igual que el recorte de la composición).
     g_object_set(s->transf, "scale-x", static_cast<gfloat>(z), "scale-y", static_cast<gfloat>(z), "translation-x",
@@ -392,6 +519,8 @@ static void ba_ptz_gl_init(BaPtzGl* s) {
         return;
     }
     g_object_set(s->transf, "ortho", TRUE, nullptr);
+    s->fijar = fijar;
+    s->pasante = FALSE;
     gst_bin_add_many(GST_BIN(s), s->transf, fijar, nullptr);
     gst_element_link(s->transf, fijar);
     GstPad* in = gst_element_get_static_pad(s->transf, "sink");
@@ -498,6 +627,8 @@ GstPadProbeReturn alCuadroD3d(GstPad*, GstPadProbeInfo* info, gpointer d) {
             GST_OBJECT_LOCK(p);
             p->ultimo = GST_CLOCK_TIME_NONE;
             GST_OBJECT_UNLOCK(p);
+        } else {
+            leerEncuadre(p, e);
         }
         return GST_PAD_PROBE_OK;
     }
@@ -509,7 +640,13 @@ GstPadProbeReturn alCuadroD3d(GstPad*, GstPadProbeInfo* info, gpointer d) {
     p->ultimo = t;
     avanzar(p, dt);
     const double x = p->x, y = p->y, z = p->zoom;
+    GstEvent* aviso = avisoSiCambio(p);
     GST_OBJECT_UNLOCK(p);
+    if (aviso != nullptr) {
+        GstPad* sale = gst_element_get_static_pad(s->tam, "src");
+        gst_pad_push_event(sale, aviso);
+        gst_object_unref(sale);
+    }
     if (s->ancho <= 0 || s->alto <= 0) return GST_PAD_PROBE_OK;
     // La ventana de centro (x, y) y lado 1/zoom, en píxeles; sin zoom, nada que marcar.
     if (z <= 1.0 + 1e-6) return GST_PAD_PROBE_OK;

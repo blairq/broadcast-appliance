@@ -592,6 +592,49 @@ QString VideoGrafos::quitar(const QString& id) {
         return e;
     }));
 }
+QString VideoGrafos::reubicar(const QString& id, const QString& despues) {
+    return q(editar([&](GrafoVideo& g) {
+        std::string e;
+        g.reubicar(id.toStdString(), despues.toStdString(), &e);
+        return e;
+    }));
+}
+
+QString VideoGrafos::correr(const QString& id, int paso) {
+    return q(editar([&](GrafoVideo& g) {
+        // La cadena de la entrada, en orden: de la entrada a la escena.
+        const GrafoVideo::Nodo* n = g.nodo(id.toStdString());
+        if (n == nullptr) return std::string("no existe la tarjeta «") + id.toStdString() + "»";
+        std::vector<std::string> cadena;
+        std::string actual = GrafoVideo::idEntrada(n->grupo);
+        for (int guarda = 0; guarda < 64; ++guarda) {
+            cadena.push_back(actual);
+            std::string sig;
+            for (const auto& c : g.cables())
+                if (c.desde == actual && c.entrada == "in") {
+                    const GrafoVideo::Nodo* h = g.nodo(c.hacia);
+                    if (h != nullptr && h->grupo == n->grupo && h->tipo != "salida") sig = c.hacia;
+                }
+            if (sig.empty()) break;
+            actual = sig;
+        }
+        const auto it = std::find(cadena.begin(), cadena.end(), id.toStdString());
+        if (it == cadena.end()) return std::string("«") + id.toStdString() + "» no está en la cadena de la entrada";
+        const long i = it - cadena.begin();
+        std::string e;
+        if (paso < 0) {
+            if (i <= 1) return std::string("ya está primera");
+            g.reubicar(id.toStdString(), cadena[static_cast<size_t>(i - 2)], &e);
+        } else {
+            // Después de la siguiente (que no sea la escena).
+            if (i + 1 >= static_cast<long>(cadena.size()) || g.nodo(cadena[static_cast<size_t>(i + 1)])->tipo == "escena")
+                return std::string("ya está última");
+            g.reubicar(id.toStdString(), cadena[static_cast<size_t>(i + 1)], &e);
+        }
+        return e;
+    }));
+}
+
 QString VideoGrafos::conectar(const QString& desde, const QString& salida, const QString& hacia,
                               const QString& entrada) {
     return q(editar([&](GrafoVideo& g) {
@@ -848,8 +891,11 @@ void VideoGrafos::sincronizar() {
             grafo_.quitarEntrada(e);
             nuevos = true;
         }
-    for (const QString& e : entradas_)
+    for (const QString& e : entradas_) {
         if (grafo_.asegurarEntrada(e.toStdString())) nuevos = true;
+        // Toda entrada tiene su PTZ (una tarjeta más, que se mueve donde se quiera).
+        if (grafo_.asegurarPtz(e.toStdString())) nuevos = true;
+    }
     if (nuevos) guardar();
     if (entrada_.isEmpty() && !entradas_.isEmpty()) entrada_ = entradas_.first();
     for (const QString& e : entradas_)
@@ -896,16 +942,28 @@ void VideoGrafos::setLegalizar(const std::string& modo) {
 
 void VideoGrafos::aplicar(const std::string& entrada) {
     if (!rt_.engine().sourceExists(entrada)) return;
+    // Cámaras PTZ dice si el PTZ digital está prendido en esta entrada (su filtro «ptz»).
+    {
+        bool ptz = false;
+        for (const auto& f : fuentes::filtrosExtra(entrada)) ptz = ptz || f.value("id", std::string()) == "ptz";
+        if (ptz)
+            ptzHabilitado_.insert(entrada);
+        else
+            ptzHabilitado_.erase(entrada);
+    }
     json para = grafo_.paraFiltro(entrada);
     // Las tarjetas de imagen corren en la cadena de GStreamer de la entrada.
     json filtros = pasarAEntrada(entrada, para);
     if (!filtros.contains("video")) filtros["video"] = json::array();
-    // Rostros primero (la toma entera, antes del PTZ: ver pasarAEntrada); después
-    // lo que agregan otras piezas (mejorar imagen, PTZ digital) y las tarjetas.
+    // Lo que agregan otras piezas (mejorar imagen) antes de las tarjetas. El PTZ
+    // ya no va acá: es una tarjeta más (ver pasarAEntrada); lo que pide Cámaras
+    // PTZ es solo si está prendido.
     json video = json::array();
-    if (filtros.contains("rostros")) video.push_back(filtros["rostros"]);
     filtros.erase("rostros");
-    for (const auto& f : fuentes::filtrosExtra(entrada)) video.push_back(f);
+    for (const auto& f : fuentes::filtrosExtra(entrada)) {
+        if (f.value("id", std::string()) == "ptz") continue;
+        video.push_back(f);
+    }
     for (const auto& f : filtros["video"]) video.push_back(f);
     // Legalizar para TV: al final de la cadena, después de todas las tarjetas.
     if (legalizar_ != "no") {
@@ -1015,6 +1073,27 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
                 if (!uso.empty()) rp["reconocer"] = "true";
             }
             rostros = json{{"id", id}, {"elemento", "barostros"}, {"propiedades", rp}};
+            // En SU lugar de la cadena (la primera que aparece; las demás la ajustan).
+            bool ya = false;
+            for (auto& v : video)
+                if (v.value("elemento", std::string()) == "barostros") {
+                    v["propiedades"] = rp;
+                    ya = true;
+                }
+            if (!ya) video.push_back(rostros);
+            movidas.insert(id);
+            cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+            for (auto& c : cables)
+                if (c.value("desde", "") == id) c["desde"] = "in";
+            nodos.erase(it);
+            continue;
+        }
+        if (tipo == "ptz") {
+            // EL PTZ DIGITAL (baptz) en el lugar de su tarjeta. Su id es «ptz»: Cámaras
+            // PTZ lo maneja por nombre (ba_f_ptz). Va si la tarjeta está activa y
+            // Cámaras PTZ lo tiene prendido en esta entrada.
+            if (p.value("activo", true) && ptzHabilitado_.count(entrada))
+                video.push_back(json{{"id", "ptz"}, {"elemento", "baptz"}});
             movidas.insert(id);
             cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
             for (auto& c : cables)
@@ -1130,9 +1209,7 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             if (c.value("desde", "") == id) c["desde"] = "in";
         nodos.erase(it);
     }
-    json out{{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}};
-    if (!rostros.is_null()) out["rostros"] = rostros;
-    return out;
+    return {{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}};
 }
 
 json VideoGrafos::filtrosDeEntrada(const std::string& entrada) const {

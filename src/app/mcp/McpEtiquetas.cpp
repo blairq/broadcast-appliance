@@ -697,6 +697,7 @@ const Fila kPropias[] = {
     {"evento_abrir", "abrir evento cargar guion"},
     {"modelo_local_disco", "modelos instalados disco espacio limpiar borrar viejos versiones gigas"},
     {"agente_limpieza", "limpiar chats asistente borrar conversaciones reinstalar agente versiones viejas espacio"},
+    {"video_tarjeta_mover", "mover tarjeta orden cadena antes despues ptz rostros reordenar"},
     {"evento_en_curso", "que evento esta en curso historico jornada del dia registro"},
     {"evento_iniciar", "empezar evento poner en curso registrar historico"},
     {"evento_terminar", "terminar cerrar evento en curso historico automatico"},

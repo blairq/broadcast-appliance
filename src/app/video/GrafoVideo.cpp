@@ -21,7 +21,7 @@ constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
     return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" ||
-           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres";
+           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres" || t == "ptz" || t == "seguir";
 }
 
 json fabrica(const std::string& tipo) {
@@ -66,6 +66,17 @@ json fabrica(const std::string& tipo) {
         return {{"plugin", ""},        {"motor", "auto"}, {"modelo", ""},   {"escala_red", 2},
                 {"nitidez", 0.2},      {"proveedor", "auto"}, {"activo", true}, {"esperar", 0},
                 {"unidades", "auto"}}; // CoreML: auto (Neural Engine), ane, gpu, cpu
+    // El PTZ digital (baptz): uno por entrada, se crea solo y no se quita (se
+    // apaga con `activo`); va donde se lo ponga. Lo maneja Cámaras PTZ.
+    if (tipo == "ptz") return {{"activo", true}};
+    // El seguimiento (baseguir): lee las caras de una tarjeta Rostros que esté
+    // antes y decide el encuadre. `objetivo`: "" (nadie) | "id:N" | "persona:<id>"
+    // | "x,y" (la cara más cercana a ese punto) | "mayor" | "centro".
+    // `zoom`: 0 = no lo toca; >0 = el zoom que busca; `aire` (lugar arriba de la
+    // cabeza), `suavidad` (s), `zona_muerta`, `perdida_s` (cuánto espera).
+    if (tipo == "seguir")
+        return {{"activo", true}, {"objetivo", ""},     {"zoom", 0.0},       {"tamano_cara", 0.0},
+                {"aire", 0.12},   {"suavidad", 0.6},   {"zona_muerta", 0.04}, {"perdida_s", 3.0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca
@@ -97,6 +108,8 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "normalizar") return "Normalizar";
     if (tipo == "sincro") return "Sincronía";
     if (tipo == "rostros") return "Rostros";
+    if (tipo == "ptz") return "PTZ";
+    if (tipo == "seguir") return "Seguimiento";
     if (tipo == "obs") return "Filtro";
     if (tipo == "gst") return "Módulo";
     if (tipo == "superres") return "Superresolución";
@@ -274,6 +287,65 @@ bool GrafoVideo::llega(const std::string& desde, const std::string& hasta) const
     return false;
 }
 
+bool GrafoVideo::asegurarPtz(const std::string& fuente) {
+    if (nodo(idEntrada(fuente)) == nullptr) return false;
+    for (const auto& n : nodos_)
+        if (n.grupo == fuente && n.tipo == "ptz") return false;
+    std::string e;
+    return !agregar("ptz", fuente, idEntrada(fuente), json::object(), &e).empty();
+}
+
+bool GrafoVideo::reubicar(const std::string& id, const std::string& despues, std::string* error) {
+    Nodo* n = nullptr;
+    for (auto& x : nodos_)
+        if (x.id == id) n = &x;
+    if (n == nullptr || !esFiltro(n->tipo)) {
+        if (error) *error = "«" + id + "» no es una tarjeta que se pueda mover en la cadena";
+        return false;
+    }
+    if (despues == id) return true;
+    const std::string grupo = n->grupo;
+    // Se saca de donde está (lo de antes sigue a lo de después)...
+    std::vector<Cable> antes = entrantes(id);
+    antes.erase(std::remove_if(antes.begin(), antes.end(), [](const Cable& c) { return c.entrada == "ctl"; }),
+                antes.end());
+    const std::vector<Cable> sale = salientes(id);
+    if (antes.size() != 1) {
+        if (error) *error = "«" + id + "» no está en una cadena simple (tiene " + std::to_string(antes.size()) + " entradas)";
+        return false;
+    }
+    cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
+                                 [&](const Cable& c) { return (c.desde == id || c.hacia == id) && c.entrada != "ctl"; }),
+                  cables_.end());
+    for (const auto& c : sale) cables_.push_back({antes[0].desde, antes[0].salida, c.hacia, c.entrada});
+    // ...y se intercala después de `despues` (vacío = justo antes de la escena).
+    std::string desde = despues;
+    if (desde.empty()) {
+        desde = idEntrada(grupo);
+        for (const auto& c : entrantes(idEscena(grupo))) desde = c.desde;
+    }
+    const Nodo* d = nodo(desde);
+    if (d == nullptr || d->grupo != grupo || puertosSalida(*d).empty()) {
+        // No se pudo: vuelve a donde estaba.
+        cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
+                                     [&](const Cable& c) { return c.desde == antes[0].desde && c.salida == antes[0].salida; }),
+                      cables_.end());
+        cables_.push_back(antes[0]);
+        for (const auto& c : sale) cables_.push_back(c);
+        if (error) *error = "no hay una tarjeta «" + desde + "» de esta entrada después de la cual ponerla";
+        return false;
+    }
+    for (auto& c : cables_)
+        if (c.desde == desde && c.entrada != "ctl") c.desde = id;
+    cables_.push_back({desde, "out", id, "in"});
+    n = nullptr;
+    for (auto& x : nodos_)
+        if (x.id == id) n = &x;
+    n->x = d->x + kColumna;
+    n->y = d->y;
+    return true;
+}
+
 bool GrafoVideo::asegurarEntrada(const std::string& fuente) {
     const std::string ie = idEntrada(fuente), is = idEscena(fuente);
     bool creo = false;
@@ -315,6 +387,12 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
         if (error) *error = "falta qué módulo de GStreamer (`elemento`)";
         return {};
     }
+    if (tipo == "ptz")
+        for (const auto& m : nodos_)
+            if (m.grupo == grupo && m.tipo == "ptz") {
+                if (error) *error = "«" + grupo + "» ya tiene su PTZ (" + m.id + "): se mueve con video_tarjeta_mover";
+                return {};
+            }
     Nodo n;
     n.tipo = tipo;
     n.etiqueta = titulo(tipo);
@@ -374,6 +452,10 @@ bool GrafoVideo::quitar(const std::string& id, std::string* error) {
     }
     if (n->tipo == "entrada" || n->tipo == "escena") {
         if (error) *error = "la entrada y la escena no se quitan";
+        return false;
+    }
+    if (n->tipo == "ptz") {
+        if (error) *error = "el PTZ de la entrada no se quita: se apaga (activo) o se mueve de lugar";
         return false;
     }
     // Un filtro (una entrada, una salida) se puentea: lo de antes sigue a lo de después.

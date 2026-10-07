@@ -124,6 +124,11 @@ class VideoGrafos : public QObject {
     /// un id de virtuales() o, si empieza con «pipeline:», el pipeline de origen.
     Q_INVOKABLE QString crearVirtual(const QString& nombre, const QString& preset, const QString& escena);
     Q_INVOKABLE QString quitar(const QString& id);
+    /// Lleva una tarjeta a otro lugar de la cadena de su entrada: después de
+    /// `despues` (vacío = justo antes de la escena). "" o el error.
+    Q_INVOKABLE QString reubicar(const QString& id, const QString& despues);
+    /// La corre un lugar antes (-1) o después (+1) en la cadena. "" o el error.
+    Q_INVOKABLE QString correr(const QString& id, int paso);
     Q_INVOKABLE QString conectar(const QString& desde, const QString& salida, const QString& hacia,
                                  const QString& entrada);
     Q_INVOKABLE QString desconectar(const QString& desde, const QString& salida, const QString& hacia,
@@ -417,6 +422,7 @@ class VideoGrafos : public QObject {
     std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
     std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
     std::string legalizar_ = "no";
+    std::set<std::string> ptzHabilitado_; ///< entradas con el PTZ digital prendido (Cámaras PTZ)
 };
 
 } // namespace ba::app::video

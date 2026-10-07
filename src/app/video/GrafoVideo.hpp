@@ -73,6 +73,13 @@ class GrafoVideo {
     /// Se asegura de que la entrada tenga su sub-grafo (entrada -> escena).
     /// true si lo creó.
     bool asegurarEntrada(const std::string& fuente);
+    /// Que la entrada tenga su tarjeta PTZ (justo después de la entrada si no
+    /// tiene). true si la puso.
+    bool asegurarPtz(const std::string& fuente);
+    /// Lleva una tarjeta de la cadena a otro lugar de la misma entrada: después
+    /// de `despues` (vacío = justo antes de la escena). La saca de donde está
+    /// uniendo lo de antes con lo de después.
+    bool reubicar(const std::string& id, const std::string& despues, std::string* error);
     std::vector<std::string> entradas() const;
     /// Saca el sub-grafo de una entrada (sus nodos y sus cables).
     void quitarEntrada(const std::string& fuente);
