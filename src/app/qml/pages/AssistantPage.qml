@@ -301,6 +301,127 @@ Rectangle {
                     }
                 }
 
+                // LIMPIEZA: los chats que se acumulan, las versiones viejas del
+                // programa, y reinstalar si algo falla (agent/AgentViewModel).
+                Panel {
+                    id: limpiezaPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: limpiezaCol.implicitHeight + 64
+                    title: "Limpieza"
+                    function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB" }
+                    function aviso(r, hecho) {
+                        if (r.ok === false) ApplicationWindow.window.toast(r.error, "error")
+                        else ApplicationWindow.window.toast(hecho + ": se liberaron " + mb(r.bytes || 0), "ok")
+                    }
+                    Component.onCompleted: ag.revisarLimpieza()
+                    onVisibleChanged: if (visible) ag.revisarLimpieza()
+                    ColumnLayout {
+                        id: limpiezaCol
+                        anchors.fill: parent
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
+                            text: "Cada asistente guarda sus conversaciones en su perfil y se van acumulando. Borrarlas no toca " +
+                                  "el login ni los ajustes. Si el asistente no arranca o anda raro, «Reinstalar» vuelve a bajar " +
+                                  "el programa; «Desde cero» borra también el perfil y hay que volver a entrar. Nada de esto se " +
+                                  "puede con el asistente corriendo."
+                            color: Theme.textDim; font.pixelSize: 11
+                        }
+                        Repeater {
+                            model: ag.limpieza.filter(m => m.runtime !== "espacios")
+                            delegate: ColumnLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.maximumWidth: limpiezaCol.width
+                                spacing: 4
+                                Text {
+                                    text: modelData.runtime + (modelData.enUso ? "  (el que usa el asistente)" : "")
+                                    color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                }
+                                Text {
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    color: Theme.textDim; font.pixelSize: 11
+                                    text: "Programa " + limpiezaPanel.mb(modelData.bytesPrograma) +
+                                          (modelData.versiones.length > 0
+                                           ? " (" + modelData.versiones.map(v => v.version + (v.enUso ? " en uso" : "")).join(", ") + ")" : "") +
+                                          " · chats " + limpiezaPanel.mb(modelData.bytesChats) +
+                                          " · perfil " + limpiezaPanel.mb(modelData.bytesPerfil)
+                                }
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    GlassButton {
+                                        compact: true; text: "Borrar chats"
+                                        enabled: !ag.running && modelData.bytesChats > 0
+                                        onClicked: ApplicationWindow.window.confirm({
+                                            title: "¿Borrar los chats de " + modelData.runtime + "?",
+                                            text: limpiezaPanel.mb(modelData.bytesChats) + " de conversaciones guardadas. El login y los ajustes quedan.",
+                                            accept: "Borrar", reject: "Cancelar",
+                                            action: function() { limpiezaPanel.aviso(ag.borrarChats(modelData.runtime), "Chats borrados") }
+                                        })
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "Versiones viejas"
+                                        visible: modelData.versiones.filter(v => !v.enUso).length > 0
+                                        enabled: !ag.running
+                                        onClicked: limpiezaPanel.aviso(ag.borrarVersionesViejas(modelData.runtime), "Versiones viejas borradas")
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "Reinstalar"
+                                        enabled: !ag.running && !ag.installing
+                                        onClicked: ApplicationWindow.window.confirm({
+                                            title: "¿Reinstalar " + modelData.runtime + "?",
+                                            text: "Se borra el programa y se vuelve a bajar" +
+                                                  (modelData.enUso ? "." : " cuando se lo elija.") + " El login y los chats quedan.",
+                                            accept: "Reinstalar", reject: "Cancelar",
+                                            action: function() {
+                                                const e = ag.reinstalar(modelData.runtime, false)
+                                                if (e !== "") ApplicationWindow.window.toast(e, "error")
+                                            }
+                                        })
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "Desde cero"
+                                        enabled: !ag.running && !ag.installing
+                                        onClicked: ApplicationWindow.window.confirm({
+                                            title: "¿Reinstalar " + modelData.runtime + " desde cero?",
+                                            text: "Se borra el programa y el perfil entero: chats, ajustes y el LOGIN (hay que volver a " +
+                                                  "entrar). Las claves de API pegadas quedan.",
+                                            accept: "Borrar todo", reject: "Cancelar",
+                                            action: function() {
+                                                const e = ag.reinstalar(modelData.runtime, true)
+                                                if (e !== "") ApplicationWindow.window.toast(e, "error")
+                                            }
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
+                            readonly property var esp: ag.limpieza.find(m => m.runtime === "espacios")
+                            text: "Espacios de trabajo de los agentes: " + limpiezaPanel.mb(esp ? esp.bytesChats : 0) +
+                                  " (se rehacen solos al arrancar)"
+                            color: Theme.textFaint; font.pixelSize: 11
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            GlassButton {
+                                compact: true; text: "Borrar todos los chats"
+                                enabled: !ag.running
+                                onClicked: ApplicationWindow.window.confirm({
+                                    title: "¿Borrar los chats de todos los asistentes?",
+                                    text: "Las conversaciones guardadas de todos los motores y los espacios de trabajo. Los logins y los ajustes quedan.",
+                                    accept: "Borrar", reject: "Cancelar",
+                                    action: function() { limpiezaPanel.aviso(ag.borrarChats(""), "Chats borrados") }
+                                })
+                            }
+                            GlassButton { compact: true; text: "Revisar"; onClicked: ag.revisarLimpieza() }
+                        }
+                    }
+                }
+
                 // Seguridad en vivo: lo que el asistente (y todo lo automático) no hace al aire sin preguntar.
                 Panel {
                     id: segPanel

@@ -94,6 +94,12 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QVariantList alerts READ alerts NOTIFY alertsChanged)
     Q_PROPERTY(QVariantList events READ events NOTIFY alertsChanged)
+    /// LIMPIEZA: por cada motor de agente (claude, gemini, opencode) lo que ocupa
+    /// en el disco: [{runtime, versiones: [{version, bytes, enUso}], bytesPrograma,
+    /// bytesChats, bytesPerfil, enUso}]. Los chats se acumulan en su perfil
+    /// (Credenciales/agentes/<motor>), al lado del login. Se recalcula con
+    /// `revisarLimpieza`.
+    Q_PROPERTY(QVariantList limpieza READ limpieza NOTIFY limpiezaChanged)
    public:
     AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* parent = nullptr);
     ~AgentViewModel() override;
@@ -201,6 +207,22 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
 
+    // --- Limpieza -----------------------------------------------------------------
+    QVariantList limpieza() const { return limpieza_; }
+    Q_INVOKABLE void revisarLimpieza();
+    /// Borra los chats guardados de un motor ("" = de todos, y los espacios de
+    /// trabajo de Runtime/agente*). El login y los ajustes quedan.
+    /// {ok, bytes, error}. No con un agente corriendo.
+    Q_INVOKABLE QVariantMap borrarChats(const QString& runtime);
+    /// Borra las versiones del programa que no se usan (quedan de actualizaciones).
+    Q_INVOKABLE QVariantMap borrarVersionesViejas(const QString& runtime);
+    /// Si algo falla: borra el programa del motor y lo vuelve a bajar. Con
+    /// `deCero`, además el perfil entero (chats, ajustes y el LOGIN: hay que volver
+    /// a entrar; las claves de API pegadas quedan). "" si arrancó, o el motivo.
+    Q_INVOKABLE QString reinstalar(const QString& runtime, bool deCero);
+    /// Cuántos encargos de roles corren (para no borrar debajo de ellos). Lo pone la app.
+    void setCorridasEnCurso(std::function<int()> fn) { corridasEnCurso_ = std::move(fn); }
+
     /// Nota del sistema al agente (respuesta del operador, etc.): va a su chat.
     void deliverNote(const QString& text);
 
@@ -241,9 +263,14 @@ class AgentViewModel : public QObject {
     void mcpReadyChanged();
     void errorChanged();
     void alertsChanged();
+    void limpiezaChanged();
     void notify(const QString& message, const QString& level);
 
    private:
+    QVariantList limpieza_;
+    std::function<int()> corridasEnCurso_;
+    /// "" si se puede tocar el disco de los agentes; si no, por qué no.
+    QString ocupadoParaLimpiar() const;
     void loadConfig();
     void saveConfig() const;
     void setError(const QString& e);

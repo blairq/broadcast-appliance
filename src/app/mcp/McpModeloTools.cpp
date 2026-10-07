@@ -183,6 +183,55 @@ void McpService::registerModeloTools() {
     }
     {
         Tool t;
+        t.name = "modelo_local_disco";
+        t.destructive = true; // borra (la lista sola no toca nada)
+        t.title = "Modelos en el disco y limpieza";
+        t.category = "agentes";
+        t.description = "Qué modelos hay bajados en el disco (estén o no en el catálogo), cuánto ocupa cada uno, "
+                        "cuáles son viejos, y limpiarlos.";
+        t.details =
+            "Sin `limpiar`: la lista (carpeta, repo, tipo, bytes, en el catálogo, activo, `viejo` y por qué) y "
+            "las descargas cortadas que quedaron. `viejo` es un modelo de lenguaje que no está activo y salió "
+            "del catálogo o tiene bajada una versión más nueva de su familia (v2 → v3), o uno a medio instalar.\n"
+            "- `limpiar: viejos`: borra todos los `viejo`.\n"
+            "- `limpiar: restos`: borra las descargas cortadas.\n"
+            "- `limpiar: carpeta` con `carpeta`: borra esa (sirve para uno que ya no está en el catálogo, que "
+            "modelo_local_borrar no ve). Si es el activo, lo apaga. Todo se puede volver a bajar si sigue en "
+            "el catálogo.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"limpiar", {{"type", "string"}, {"enum", {"viejos", "restos", "carpeta"}}}},
+              {"carpeta", {{"type", "string"}, {"description", "La carpeta tal cual la da la lista."}}}}}};
+        t.run = [&ml](const json& a, Done done) {
+            const std::string que = a.value("limpiar", std::string());
+            const auto gb = [](double b) {
+                char t[32];
+                std::snprintf(t, sizeof(t), "%.2f GB", b / 1073741824.0);
+                return std::string(t);
+            };
+            if (que == "viejos" || que == "restos") {
+                const QVariantMap r = que == "viejos" ? ml.limpiarViejos() : ml.limpiarRestos();
+                return done(ToolResult::ok(std::string(que == "viejos" ? "Modelos viejos" : "Descargas cortadas") +
+                                           " borrados: se liberaron " + gb(r.value("bytes").toDouble()) + "."));
+            }
+            if (que == "carpeta") {
+                const std::string c = a.value("carpeta", std::string());
+                if (!ml.borrarCarpeta(QString::fromStdString(c)))
+                    return done(ToolResult::error("No se pudo borrar `" + c + "` (no es una carpeta de un modelo)."));
+                return done(ToolResult::ok("Borrada `" + c + "`."));
+            }
+            ml.revisarDisco();
+            double total = 0;
+            for (const QVariant& v : ml.instalados()) total += v.toMap().value("bytes").toDouble();
+            done(ToolResult().data(json{{"instalados", qvToJson(ml.instalados())},
+                                        {"restos", qvToJson(ml.restos())},
+                                        {"total", gb(total)}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "modelo_local_activar";
         t.title = "Cargar un modelo local";
         t.category = "agentes";

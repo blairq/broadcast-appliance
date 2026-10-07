@@ -539,6 +539,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
         marca("roles");
         despachador_ = std::make_unique<agent::Despachador>(*roles_, agent_->motores());
+        agent_->setCorridasEnCurso([d = despachador_.get()]() { return d->enCurso(); });
         marca("despachador");
         connect(despachador_.get(), &agent::Despachador::notify, this, &StudioViewModel::notify);
         agent_->setReclamado([this](const nlohmann::json& ev) { return despachador_->evento(ev); });

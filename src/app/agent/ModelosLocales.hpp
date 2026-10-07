@@ -113,6 +113,15 @@ class ModelosLocales : public QObject {
     /// Con qué herramientas se entrenó cada modelo (su modelo.json) comparado con
     /// las de la app de hoy: repo -> {estado: buscando|ok|sin_ficha|error, ...}.
     Q_PROPERTY(QVariantMap fichas READ fichas NOTIFY fichasCambio)
+    /// LO QUE HAY EN EL DISCO, esté o no en el catálogo (un modelo que salió del
+    /// catálogo seguía ocupando gigas sin aparecer en ningún lado):
+    /// [{carpeta, repo, tipo, bytes, enCatalogo, activo, viejo, motivo, fecha}].
+    /// `viejo`: un reactivo que no está activo y o salió del catálogo o tiene
+    /// bajada una versión más nueva de la misma familia. Se recalcula con
+    /// `revisarDisco` (recorrer gigas no va en cada cambio de estado).
+    Q_PROPERTY(QVariantList instalados READ instalados NOTIFY discoCambio)
+    /// Las descargas cortadas que quedaron (.bajando-*): {cuantas, bytes}.
+    Q_PROPERTY(QVariantMap restos READ restos NOTIFY discoCambio)
 
    public:
     using json = nlohmann::json;
@@ -145,6 +154,17 @@ class ModelosLocales : public QObject {
     Q_INVOKABLE void descargar(const QString& repo);
     Q_INVOKABLE void cancelarDescarga();
     Q_INVOKABLE void borrar(const QString& repo);
+    QVariantList instalados() const { return instalados_; }
+    QVariantMap restos() const { return restos_; }
+    /// Recorre Modelos/ y actualiza `instalados` y `restos`.
+    Q_INVOKABLE void revisarDisco();
+    /// Borra una carpeta de Modelos/ por su nombre (la de un modelo, esté o no en
+    /// el catálogo, o una descarga cortada). false si no es una de esas.
+    Q_INVOKABLE bool borrarCarpeta(const QString& carpeta);
+    /// Borra los `viejo` de `instalados`. {borrados: [repo], bytes}
+    Q_INVOKABLE QVariantMap limpiarViejos();
+    /// Borra las descargas cortadas (no la que está bajando ahora). {borrados, bytes}
+    Q_INVOKABLE QVariantMap limpiarRestos();
     /// Carga el modelo (y apaga el que hubiera).
     Q_INVOKABLE void activar(const QString& repo);
     Q_INVOKABLE void apagar();
@@ -208,6 +228,7 @@ class ModelosLocales : public QObject {
     void descargaCambio();
     void pruebasCambio();
     void fichasCambio();
+    void discoCambio();
     void notify(const QString& text, const QString& kind);
 
    private:
@@ -251,6 +272,9 @@ class ModelosLocales : public QObject {
     std::function<json()> herramientas_;
     std::vector<std::thread> hilosFicha_;
     void ponerFicha(const QString& repo, json ficha);
+
+    QVariantList instalados_;
+    QVariantMap restos_;
 
     std::thread hiloDescarga_;
     std::atomic<bool> cancelar_{false};

@@ -1413,4 +1413,152 @@ void AgentViewModel::openAgentsFolder() const {
         QUrl::fromLocalFile(QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring())));
 }
 
+// --- Limpieza ----------------------------------------------------------------------
+
+namespace {
+
+namespace fs = std::filesystem;
+
+std::uintmax_t bytesDe(const fs::path& p) {
+    std::error_code ec;
+    if (fs::is_regular_file(p, ec)) return fs::file_size(p, ec);
+    std::uintmax_t total = 0;
+    for (fs::recursive_directory_iterator it(p, fs::directory_options::skip_permission_denied, ec), fin;
+         !ec && it != fin; it.increment(ec)) {
+        std::error_code e2;
+        if (it->is_regular_file(e2)) total += it->file_size(e2);
+    }
+    return total;
+}
+
+/// Lo que cada motor guarda como conversaciones dentro de su perfil (relativo a
+/// Credenciales/agentes/<motor>). NO está: el login (.claude.json,
+/// .credentials.json, oauth_creds.json, auth.json), los ajustes, plugins y skills.
+std::vector<std::string> chatsDe(const std::string& runtime) {
+    if (runtime == "claude")
+        return {"projects", "sessions", "session-env", "shell-snapshots", "todos", "file-history", "paste-cache",
+                "debug", "backups", "history.jsonl", "statsig", "telemetry", "cache"};
+    if (runtime == "gemini") return {".gemini/tmp", ".gemini/history", ".gemini/logs"};
+    if (runtime == "opencode")
+        return {"data/opencode/storage", "data/opencode/log", "data/opencode/snapshot", "state"};
+    return {};
+}
+
+const char* const kMotores[] = {"claude", "gemini", "opencode"};
+
+} // namespace
+
+QString AgentViewModel::ocupadoParaLimpiar() const {
+    if (running()) return "Primero pará el asistente (la consola está corriendo).";
+    if (corridasEnCurso_ && corridasEnCurso_() > 0) return "Hay encargos de agentes corriendo: esperá que terminen.";
+    if (installing_) return "Hay una instalación en curso.";
+    return {};
+}
+
+void AgentViewModel::revisarLimpieza() {
+    QVariantList out;
+    const fs::path root = rt_.dataRoot();
+    for (const char* rt : kMotores) {
+        const fs::path prog = root / "Agentes" / rt;
+        const fs::path perfil = root / "Credenciales" / "agentes" / rt;
+        std::error_code ec;
+        if (!fs::exists(prog, ec) && !fs::exists(perfil, ec)) continue;
+        const QString enUsoDir = usableDir(rt);
+        QVariantList versiones;
+        double bytesPrograma = 0;
+        for (const fs::directory_entry& d : fs::directory_iterator(prog, ec)) {
+            if (!d.is_directory(ec)) continue;
+            const double b = static_cast<double>(bytesDe(d.path()));
+            bytesPrograma += b;
+            const QString dir = QString::fromStdWString(d.path().wstring());
+            versiones.push_back(QVariantMap{{"version", QString::fromStdString(d.path().filename().string())},
+                                            {"bytes", b},
+                                            {"enUso", QDir::cleanPath(dir) == QDir::cleanPath(enUsoDir)}});
+        }
+        double bytesChats = 0;
+        for (const std::string& c : chatsDe(rt)) bytesChats += static_cast<double>(bytesDe(perfil / c));
+        out.push_back(QVariantMap{{"runtime", QString(rt)},
+                                  {"versiones", versiones},
+                                  {"bytesPrograma", bytesPrograma},
+                                  {"bytesChats", bytesChats},
+                                  {"bytesPerfil", static_cast<double>(bytesDe(perfil))},
+                                  {"enUso", runtimeOf(provider_) == rt}});
+    }
+    // Los espacios de trabajo (Runtime/agente, Runtime/agentes/<rol>): se rehacen al lanzar.
+    double bytesTrabajo = static_cast<double>(bytesDe(root / "Runtime" / "agente")) +
+                          static_cast<double>(bytesDe(root / "Runtime" / "agentes"));
+    out.push_back(QVariantMap{{"runtime", QString("espacios")}, {"bytesChats", bytesTrabajo}});
+    limpieza_ = out;
+    emit limpiezaChanged();
+}
+
+QVariantMap AgentViewModel::borrarChats(const QString& runtime) {
+    const QString ocupado = ocupadoParaLimpiar();
+    if (!ocupado.isEmpty()) return {{"ok", false}, {"error", ocupado}};
+    const fs::path root = rt_.dataRoot();
+    double bytes = 0;
+    const auto borrar = [&](const fs::path& p) {
+        std::error_code ec;
+        if (!fs::exists(p, ec)) return;
+        bytes += static_cast<double>(bytesDe(p));
+        fs::remove_all(p, ec);
+    };
+    for (const char* rt : kMotores) {
+        if (!runtime.isEmpty() && runtime != rt) continue;
+        for (const std::string& c : chatsDe(rt)) borrar(root / "Credenciales" / "agentes" / rt / c);
+    }
+    if (runtime.isEmpty()) {
+        borrar(root / "Runtime" / "agente");
+        borrar(root / "Runtime" / "agentes");
+    }
+    revisarLimpieza();
+    return {{"ok", true}, {"bytes", bytes}};
+}
+
+QVariantMap AgentViewModel::borrarVersionesViejas(const QString& runtime) {
+    const QString ocupado = ocupadoParaLimpiar();
+    if (!ocupado.isEmpty()) return {{"ok", false}, {"error", ocupado}};
+    double bytes = 0;
+    QStringList borradas;
+    for (const char* rt : kMotores) {
+        if (!runtime.isEmpty() && runtime != rt) continue;
+        const QString enUso = QDir::cleanPath(usableDir(rt));
+        if (enUso.isEmpty()) continue; // sin una que ande no se borra nada: podría ser la única
+        std::error_code ec;
+        for (const fs::directory_entry& d : fs::directory_iterator(rt_.dataRoot() / "Agentes" / rt, ec)) {
+            if (!d.is_directory(ec) || QDir::cleanPath(QString::fromStdWString(d.path().wstring())) == enUso) continue;
+            bytes += static_cast<double>(bytesDe(d.path()));
+            std::error_code e2;
+            fs::remove_all(d.path(), e2);
+            if (!e2) borradas << QString(rt) + " " + QString::fromStdString(d.path().filename().string());
+        }
+    }
+    revisarLimpieza();
+    return {{"ok", true}, {"bytes", bytes}, {"borradas", borradas}};
+}
+
+QString AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
+    const QString ocupado = ocupadoParaLimpiar();
+    if (!ocupado.isEmpty()) return ocupado;
+    bool conocido = false;
+    for (const char* rt : kMotores) conocido = conocido || runtime == rt;
+    if (!conocido) return "Motor desconocido: " + runtime;
+    const fs::path root = rt_.dataRoot();
+    std::error_code ec;
+    fs::remove_all(root / "Agentes" / runtime.toStdString(), ec);
+    if (deCero) {
+        fs::remove_all(root / "Credenciales" / "agentes" / runtime.toStdString(), ec);
+        fs::remove_all(root / "Runtime" / "agente", ec);
+        fs::remove_all(root / "Runtime" / "agentes", ec);
+    }
+    emit installChanged();
+    revisarLimpieza();
+    // Se vuelve a bajar el que usa el asistente; otro motor se baja cuando se lo elija.
+    if (runtimeOf(provider_) == runtime) {
+        install();
+        return {};
+    }
+    return {};
+}
+
 } // namespace ba::app::agent

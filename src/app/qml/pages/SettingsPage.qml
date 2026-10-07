@@ -413,6 +413,93 @@ Rectangle {
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
+                // EN EL DISCO: todo lo bajado, esté o no en el catálogo (un modelo que
+                // salió del catálogo seguía ocupando gigas sin aparecer en ningún lado).
+                ColumnLayout {
+                    id: disco
+                    Layout.fillWidth: true
+                    spacing: 6
+                    readonly property var viejos: ml.instalados.filter(m => m.viejo)
+                    function gb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(2) + " GB" : Math.round(b / 1048576) + " MB" }
+                    function suma(l) { let t = 0; for (const m of l) t += m.bytes; return t }
+                    Component.onCompleted: ml.revisarDisco()
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+                        Text {
+                            text: "En el disco"
+                            color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            text: ml.instalados.length + " modelos · " + disco.gb(disco.suma(ml.instalados))
+                            color: Theme.textDim; font.pixelSize: 12
+                        }
+                        GlassButton { compact: true; text: "Revisar"; onClicked: ml.revisarDisco() }
+                        GlassButton {
+                            compact: true
+                            visible: disco.viejos.length > 0
+                            text: "Borrar los viejos (" + disco.viejos.length + " · " + disco.gb(disco.suma(disco.viejos)) + ")"
+                            active: true
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Borrar los modelos viejos?",
+                                text: disco.viejos.map(m => m.repo + " — " + m.motivo).join("\n") +
+                                      "\n\nSi siguen en el catálogo se pueden volver a bajar.",
+                                accept: "Borrar", reject: "Cancelar",
+                                action: function() { ml.limpiarViejos() }
+                            })
+                        }
+                        GlassButton {
+                            compact: true
+                            visible: (ml.restos.cuantas || 0) > 0
+                            text: "Borrar descargas cortadas (" + disco.gb(ml.restos.bytes || 0) + ")"
+                            onClicked: ml.limpiarRestos()
+                        }
+                    }
+                    Repeater {
+                        model: ml.instalados
+                        delegate: RowLayout {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Text {
+                                Layout.preferredWidth: 70
+                                text: disco.gb(modelData.bytes)
+                                horizontalAlignment: Text.AlignRight
+                                color: Theme.textDim; font.pixelSize: 12
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                elide: Text.ElideMiddle
+                                text: modelData.repo
+                                color: modelData.viejo ? Theme.textDim : Theme.text
+                                font.pixelSize: 12
+                            }
+                            Text {
+                                text: modelData.activo ? "en uso"
+                                    : modelData.viejo ? "viejo: " + modelData.motivo
+                                    : !modelData.enCatalogo ? "fuera del catálogo"
+                                    : modelData.tipo
+                                color: modelData.activo ? Theme.ok : modelData.viejo ? Theme.amber : Theme.textFaint
+                                font.pixelSize: 11
+                            }
+                            GlassButton {
+                                compact: true
+                                text: "Borrar"
+                                onClicked: ApplicationWindow.window.confirm({
+                                    title: "¿Borrar «" + modelData.repo + "»?",
+                                    text: disco.gb(modelData.bytes) + (modelData.activo ? ". Es el que está en uso: se apaga." : ".") +
+                                          (modelData.enCatalogo ? " Se puede volver a bajar." : " Ya no está en el catálogo: no se puede volver a bajar desde acá."),
+                                    accept: "Borrar", reject: "Cancelar",
+                                    action: function() { ml.borrarCarpeta(modelData.carpeta) }
+                                })
+                            }
+                        }
+                    }
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
                 // Ajustes
                 Text { text: "Cuánto deriva"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {

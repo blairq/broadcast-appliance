@@ -20,6 +20,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <regex>
 #include <utility>
 
 #include "net/HttpsClient.hpp"
@@ -331,7 +332,23 @@ net::HttpResponse pedirHf(const std::string& url) {
     net::HttpRequest req;
     req.url = url;
     req.timeoutMs = 20000;
-    return net::HttpsClient::request(req);
+    // Siguiendo las redirecciones: Hugging Face contesta `resolve/<commit>/…` con un
+    // 307 a /api/resolve-cache/… (desde 2026-10; antes daba el archivo directo) y,
+    // sin seguirlo, cada modelo.json parecía «no publicado».
+    net::HttpResponse res;
+    for (int salto = 0; salto < 6; ++salto) {
+        res = net::HttpsClient::request(req);
+        if (res.status < 300 || res.status >= 400) break;
+        std::string loc = res.header("Location");
+        if (loc.empty()) break;
+        if (loc.rfind("http", 0) != 0) { // relativa
+            const auto esquema = req.url.find("://");
+            const auto barra = req.url.find('/', esquema == std::string::npos ? 0 : esquema + 3);
+            loc = req.url.substr(0, barra) + (loc.front() == '/' ? "" : "/") + loc;
+        }
+        req.url = loc;
+    }
+    return res;
 }
 } // namespace
 
@@ -375,7 +392,11 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
             de = "el modelo bajado";
         } else if (!forzar && fs::exists(guardado, ec)) {
             const json g = leer(guardado);
-            if (g.is_object()) {
+            // Un «no hay» guardado vale 6 horas: el repo pudo publicarlo después (o la
+            // consulta falló por otra cosa). Lo que sí se encontró, vale siempre.
+            const std::int64_t edad =
+                QDateTime::currentSecsSinceEpoch() - (g.is_object() ? g.value("cuando", std::int64_t{0}) : 0);
+            if (g.is_object() && (!g.value("modelo_json", json()).is_null() || edad < 6 * 3600)) {
                 mj = g.value("modelo_json", json());
                 nota = g.value("nota", std::string());
                 de = g.value("de", std::string("Hugging Face"));
@@ -429,7 +450,11 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
                 // Se guarda para mirarlo sin red la próxima vez (también el «no hay»).
                 QDir().mkpath(deRuta(guardado.parent_path()));
                 escribir(deRuta(guardado), QByteArray::fromStdString(
-                                               json{{"modelo_json", mj}, {"nota", nota}, {"de", de}}.dump()));
+                                               json{{"modelo_json", mj},
+                                                    {"nota", nota},
+                                                    {"de", de},
+                                                    {"cuando", QDateTime::currentSecsSinceEpoch()}}
+                                                   .dump()));
             }
         }
         if (f.empty() && (mj.is_null() || !mj.is_object() || !mj.contains("endpoints")))
@@ -636,6 +661,7 @@ void ModelosLocales::descargar(const QString& repo) {
             emit descargaCambio();
             emit cambio();
             emit notify(err.isEmpty() ? "Modelo bajado y verificado." : err, err.isEmpty() ? "ok" : "error");
+            revisarDisco();
         });
     });
 }
@@ -651,6 +677,187 @@ void ModelosLocales::borrar(const QString& repo) {
         guardarAjustes();
     }
     emit cambio();
+    revisarDisco();
+}
+
+// --- lo que hay en el disco ------------------------------------------------------
+
+namespace {
+
+std::uintmax_t bytesDe(const fs::path& dir) {
+    std::uintmax_t total = 0;
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(dir, fs::directory_options::skip_permission_denied, ec), fin;
+         !ec && it != fin; it.increment(ec)) {
+        std::error_code e2;
+        if (it->is_regular_file(e2)) total += it->file_size(e2);
+    }
+    return total;
+}
+
+/// La familia de un repo: sin la versión («-v3»). «…-4b-mlx-q4», «…-4b-v2-mlx-q4» y
+/// «…-4b-v3-mlx-q4» son la misma; «…-4b-mtp-ud-mlx-q4» es otra.
+std::pair<std::string, int> familiaYVersion(const std::string& repo) {
+    static const std::regex v("-v([0-9]+)(?=-|$)");
+    std::smatch m;
+    if (std::regex_search(repo, m, v)) return {m.prefix().str() + m.suffix().str(), std::stoi(m[1].str())};
+    return {repo, 1};
+}
+
+std::string tipoPorNombre(const std::string& repo) {
+    if (repo.rfind("argos/", 0) == 0) return "traduccion";
+    if (repo.find("vits-piper") != std::string::npos) return "tts";
+    if (repo.find("silero") != std::string::npos) return "vad";
+    if (repo.find("sherpa") != std::string::npos || repo.find("parakeet") != std::string::npos) return "voz";
+    return "reactivo";
+}
+
+} // namespace
+
+void ModelosLocales::revisarDisco() {
+    QVariantList lista;
+    int restos = 0;
+    std::uintmax_t bytesRestos = 0;
+    std::error_code ec;
+    const fs::path raiz = carpetaModelos();
+    struct Fila {
+        QVariantMap m;
+        std::string familia, formato;
+        int version = 1;
+    };
+    std::vector<Fila> filas;
+    for (const fs::directory_entry& d : fs::directory_iterator(raiz, ec)) {
+        if (!d.is_directory(ec)) continue;
+        const std::string nombre = d.path().filename().string();
+        if (nombre.rfind(".bajando-", 0) == 0) {
+            // La que está bajando ahora no es un resto.
+            if (!descargando_) {
+                ++restos;
+                bytesRestos += bytesDe(d.path());
+            }
+            continue;
+        }
+        // Solo las carpetas de un repo («dueño__nombre»): lo demás (superres/,
+        // .fichas) es de otros y no se toca desde acá.
+        if (nombre.empty() || nombre[0] == '.' || nombre.find("__") == std::string::npos) continue;
+        std::string repo;
+        std::string fecha;
+        bool completo = false;
+        {
+            QFile f(deRuta(d.path() / ".ok"));
+            if (f.open(QIODevice::ReadOnly)) {
+                completo = true;
+                const json j = json::parse(f.readAll().toStdString(), nullptr, false);
+                if (j.is_object()) {
+                    repo = j.value("repo", std::string());
+                    fecha = j.value("fecha", std::string());
+                }
+            }
+        }
+        if (repo.empty()) {
+            repo = nombre;
+            const auto p = repo.find("__");
+            repo.replace(p, 2, "/");
+        }
+        const json e = entradaCatalogo(QString::fromStdString(repo));
+        const bool enCatalogo = !e.empty();
+        Fila f;
+        f.m = QVariantMap{{"carpeta", QString::fromStdString(nombre)},
+                          {"repo", QString::fromStdString(repo)},
+                          {"tipo", QString::fromStdString(enCatalogo ? e.value("tipo", std::string("reactivo"))
+                                                                     : tipoPorNombre(repo))},
+                          {"bytes", static_cast<double>(bytesDe(d.path()))},
+                          {"enCatalogo", enCatalogo},
+                          {"completo", completo},
+                          {"activo", QString::fromStdString(repo) == activo_},
+                          {"fecha", QString::fromStdString(fecha.substr(0, 10))}};
+        std::tie(f.familia, f.version) = familiaYVersion(repo);
+        f.formato = enCatalogo ? e.value("formato", std::string()) : std::string();
+        filas.push_back(std::move(f));
+    }
+    for (Fila& f : filas) {
+        QString motivo;
+        const bool reactivo = f.m["tipo"].toString() == "reactivo";
+        if (!f.m["completo"].toBool()) {
+            motivo = "quedó a medio instalar";
+        } else if (reactivo && !f.m["activo"].toBool()) {
+            if (!f.m["enCatalogo"].toBool()) motivo = "ya no está en el catálogo";
+            for (const Fila& o : filas)
+                if (&o != &f && o.familia == f.familia && o.version > f.version && o.m["completo"].toBool())
+                    motivo = "está bajada la v" + QString::number(o.version);
+        }
+        f.m["viejo"] = !motivo.isEmpty();
+        f.m["motivo"] = motivo;
+        lista.push_back(f.m);
+    }
+    std::sort(lista.begin(), lista.end(), [](const QVariant& a, const QVariant& b) {
+        return a.toMap()["bytes"].toDouble() > b.toMap()["bytes"].toDouble();
+    });
+    instalados_ = lista;
+    restos_ = QVariantMap{{"cuantas", restos}, {"bytes", static_cast<double>(bytesRestos)}};
+    emit discoCambio();
+}
+
+bool ModelosLocales::borrarCarpeta(const QString& carpeta) {
+    const std::string n = carpeta.toStdString();
+    const bool resto = n.rfind(".bajando-", 0) == 0;
+    if (n.empty() || n.find('/') != std::string::npos || n.find('\\') != std::string::npos || n == "." ||
+        n == ".." || (!resto && (n[0] == '.' || n.find("__") == std::string::npos)))
+        return false;
+    if (resto && descargando_) return false; // podría ser la que está bajando
+    std::error_code ec;
+    const fs::path dir = carpetaModelos() / n;
+    if (!fs::is_directory(dir, ec)) return false;
+    // Si es el activo, primero se apaga (el motor tiene los archivos abiertos).
+    for (const QVariant& v : instalados_) {
+        const QVariantMap m = v.toMap();
+        if (m["carpeta"].toString() == carpeta && m["repo"].toString() == activo_) {
+            apagar();
+            activo_.clear();
+            guardarAjustes();
+            emit cambio();
+        }
+    }
+    fs::remove_all(dir, ec);
+    emit cambio();
+    revisarDisco();
+    return !ec;
+}
+
+QVariantMap ModelosLocales::limpiarViejos() {
+    revisarDisco();
+    QStringList borrados;
+    double bytes = 0;
+    for (const QVariant& v : QVariantList(instalados_)) {
+        const QVariantMap m = v.toMap();
+        if (!m["viejo"].toBool() || m["activo"].toBool()) continue;
+        std::error_code ec;
+        fs::remove_all(carpetaModelos() / m["carpeta"].toString().toStdString(), ec);
+        if (ec) continue;
+        borrados << m["repo"].toString();
+        bytes += m["bytes"].toDouble();
+    }
+    emit cambio();
+    revisarDisco();
+    return {{"borrados", borrados}, {"bytes", bytes}};
+}
+
+QVariantMap ModelosLocales::limpiarRestos() {
+    int borrados = 0;
+    double bytes = 0;
+    if (!descargando_) {
+        std::error_code ec;
+        for (const fs::directory_entry& d : fs::directory_iterator(carpetaModelos(), ec)) {
+            const std::string nombre = d.path().filename().string();
+            if (!d.is_directory(ec) || nombre.rfind(".bajando-", 0) != 0) continue;
+            bytes += static_cast<double>(bytesDe(d.path()));
+            std::error_code e2;
+            fs::remove_all(d.path(), e2);
+            if (!e2) ++borrados;
+        }
+    }
+    revisarDisco();
+    return {{"borrados", borrados}, {"bytes", bytes}};
 }
 
 // --- el motor -------------------------------------------------------------------

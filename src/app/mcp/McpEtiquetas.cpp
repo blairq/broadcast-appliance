@@ -695,6 +695,8 @@ const Fila kPropias[] = {
     {"evento_ver", "que sigue en el guion que viene ahora proximo bloque proximo cue ver el guion del "
                    "evento leer rundown cuando es el evento que dia a que hora arranca"},
     {"evento_abrir", "abrir evento cargar guion"},
+    {"modelo_local_disco", "modelos instalados disco espacio limpiar borrar viejos versiones gigas"},
+    {"agente_limpieza", "limpiar chats asistente borrar conversaciones reinstalar agente versiones viejas espacio"},
     {"evento_en_curso", "que evento esta en curso historico jornada del dia registro"},
     {"evento_iniciar", "empezar evento poner en curso registrar historico"},
     {"evento_terminar", "terminar cerrar evento en curso historico automatico"},
