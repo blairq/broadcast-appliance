@@ -109,7 +109,8 @@ int main() {
     CHECK(b.size() == 1 && b[0]["evento"] == "Otra", "en la bitácora");
     CHECK(b2.size() == 1 && b2[0]["archivo"] == "Transcripciones/sala-hoy.txt", "en las transcripciones");
 
-    fs::remove_all(raiz);
+    std::error_code ecFin;
+    fs::remove_all(raiz, ecFin); // sin lanzar: en Windows, un archivo abierto no se borra
     std::printf(g_fallos == 0 ? "test_historico: OK\n" : "test_historico: %d fallos\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }

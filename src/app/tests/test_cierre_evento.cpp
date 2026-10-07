@@ -111,7 +111,8 @@ int main() {
     CHECK(CierreEvento::sellar(raiz / "ev", 2000, &cancelar).is_null(), "cancelado devuelve null");
     CHECK(!fs::exists(raiz / "ev" / "sellos.json"), "y no escribe nada");
 
-    fs::remove_all(raiz);
+    std::error_code ecFin;
+    fs::remove_all(raiz, ecFin); // sin lanzar: en Windows, un archivo abierto no se borra
     std::printf(g_fallos == 0 ? "test_cierre_evento: OK\n" : "test_cierre_evento: %d fallos\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }

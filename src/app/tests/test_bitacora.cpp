@@ -45,7 +45,8 @@ std::size_t lineas(const fs::path& p) {
 
 int main() {
     const fs::path dir = fs::temp_directory_path() / ("ba-test-bitacora-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
-    fs::remove_all(dir);
+    std::error_code ecFin;
+    fs::remove_all(dir, ecFin);
     const fs::path a = dir / "A" / "bitacora.jsonl", b = dir / "B" / "bitacora.jsonl";
     {
         Bitacora bit;
@@ -102,7 +103,7 @@ int main() {
     CHECK(Bitacora::leer(a, 2500, 3500).size() == 1, "rango");
     const json ult = Bitacora::leer(a, 0, 0, {}, {}, 2);
     CHECK(ult.size() == 2 && ult[1].value("t", 0) == 4000, "límite: las últimas");
-    fs::remove_all(dir);
+    fs::remove_all(dir, ecFin);
     std::printf(g_fallos == 0 ? "test_bitacora: OK\n" : "test_bitacora: %d fallos\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }

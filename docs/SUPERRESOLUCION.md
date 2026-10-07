@@ -218,8 +218,32 @@ Los shaders GLSL no llevan variantes: la placa los compila para cualquier tamañ
 | SPAN en FP32 | 59 dB contra PyTorch. |
 | Destilación | Prueba de humo. |
 
+**Probado en Windows con AMD (Ryzen 9 5900X + Radeon RX 5700 XT, 2026-10-07):** lo que tarda la RED por
+cuadro (el resumen de `baonnxsr` al parar; medir el tiempo total de la cadena engaña, porque el elemento
+entrega el cuadro anterior cuando la red no llega):
+
+| Red | Acelerador | Entrada | ms por cuadro |
+|---|---|---|---|
+| SPAN x2 | DirectML | 960×540 | 86,5 (fp16: 84,8) |
+| SPAN x2 | DirectML | 1280×720 | 147 |
+| general-x4v3 (a la mitad) | DirectML | 1280×720 | 80 (fp16: 79,6) |
+| general-x4v3 (a la mitad) | DirectML | 1920×1080 | 172 (fp16: 170) |
+| SPAN x2 | Vulkan (ncnn 20231027) | 960×540 | 97 |
+| general-x4v3 | Vulkan (ncnn) | 1920×1080 | 207 |
+| SPAN x2 | CPU | 960×540 | no termina 300 cuadros en 10 min |
+| FSR (`bafsr`, sin red) | GL | 960×540 / 1280×720 / 1920×1080 | 2,9 / 5,2 / 11,1 (con la ida y vuelta a la placa) |
+
+Conclusiones para esta placa (RDNA 1, sin núcleos de IA):
+- Ninguna red llega a tiempo real (33 ms a 30 fps); fp16 no cambia nada en DirectML. Sirven para lo que no es en
+  vivo (grabaciones, repeticiones) o para un plano fijo a pocos cuadros por segundo; en vivo, FSR o los shaders
+  GLSL, o una red propia chica destilada para la cámara.
+- **D3D12 sin copias (DirectML leyendo la textura de la placa) no vale la pena acá:** la copia de ida y vuelta
+  cuesta unos pocos ms (FSR entero, con copias, tarda 11 ms a 1080p) contra 80–170 ms de red, y DirectML lee
+  buffers, no texturas: haría falta un shader de cómputo propio para pasar de textura a tensor y otro de vuelta,
+  más la sincronización entre las dos colas de la placa. Queda para una placa que corra la red en menos de 20 ms.
+- `test_eventos` (todos los elementos, también las variantes GL y `basalida`) pasa en esta PC.
+
 **Compilado pero sin probar (no hay placas acá):**
 - NVIDIA: CUDA/TensorRT, CUDAMemory y el runtime de GPU.
-- AMD: DirectML, ROCm y MIGraphX.
+- AMD en Linux: ROCm y MIGraphX.
 - Intel: OpenVINO.
-- D3D11/D3D12 en Windows.

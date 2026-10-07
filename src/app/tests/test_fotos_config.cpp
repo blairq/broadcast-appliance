@@ -132,10 +132,16 @@ int correr() {
     CHECK(!fotos.foto(4600)["archivos"].contains(".restaurar/plan.json"), ".restaurar no es configuración");
     const json ap = FotosConfig::aplicarPendiente(cfg, 5000);
     CHECK(!ap.is_null() && ap["aplicados"].size() >= 3, "aplicado");
-    std::ifstream fe(cfg / "escenas.json");
-    CHECK(json::parse(fe)["actual"] == "Principal", "escenas como en la foto");
-    std::ifstream fd(cfg / "destinos.json");
-    const json d2 = json::parse(fd);
+    // (Cada lectura en su bloque: en Windows un archivo abierto no se puede borrar.)
+    {
+        std::ifstream fe(cfg / "escenas.json");
+        CHECK(json::parse(fe)["actual"] == "Principal", "escenas como en la foto");
+    }
+    json d2;
+    {
+        std::ifstream fd(cfg / "destinos.json");
+        d2 = json::parse(fd);
+    }
     CHECK(d2["youtube"]["stream_key"] == "otra-clave-nueva-0000-1111", "lo tapado toma lo de ahora");
     CHECK(d2["youtube"]["url"] == "rtmp://a.rtmp.youtube.com/live2", "lo demás, de la foto");
     CHECK(fs::exists(cfg / ".restaurar" / "antes-5000" / "escenas.json"), "lo de antes, respaldado");
@@ -144,7 +150,8 @@ int correr() {
 
     CHECK(FotosConfig::guardar(raiz / "ev" / "config" / "inicio.json", f4), "guardar");
     CHECK(FotosConfig::cargar(raiz / "ev" / "config" / "inicio.json") == f4, "cargar lo mismo");
-    fs::remove_all(raiz);
+    std::error_code ec;
+    fs::remove_all(raiz, ec);
     std::printf(g_fallos == 0 ? "test_fotos_config: OK\n" : "test_fotos_config: %d fallos\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;
 }
