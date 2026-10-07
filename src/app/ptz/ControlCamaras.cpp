@@ -208,9 +208,13 @@ void ControlCamaras::sincronizar() {
     for (const std::string& n : e.sourceNames()) {
         const std::string type = e.sourceTypeId(n);
         const auto s = nlohmann::json::parse(e.sourceSettingsJson(n), nullptr, false);
-        const bool hw = type == inputs::kVideoType;
-        const bool ndi = type == "ba_ndi_input";
-        if (!hw && !inputs::isNetworkInput(type, s)) continue;
+        // Por lo que ES, no por su tipo: con GStreamer una cámara del equipo o una
+        // NDI son `ba_gst_fuente` (con `camara` / `ndi`), y comparando contra el tipo
+        // viejo de libobs la cámara web no aparecía en el PTZ.
+        const std::string logico = inputs::tipoLogico(type, s);
+        const bool hw = logico == inputs::kVideoType;
+        const bool ndi = logico == "ba_ndi_input";
+        if (!hw && !ndi && !inputs::isNetworkInput(type, s)) continue;
         presentes[n] = hw ? QStringLiteral("hardware") : ndi ? QStringLiteral("ndi") : QStringLiteral("red");
     }
     bool cambiaron = presentes != tipoEntrada_;

@@ -100,15 +100,27 @@ Rectangle {
     }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
     // derecha: su posición es la de su propia vista.
+    // EN «RACKS», LAS TARJETAS DE LA ENTRADA EMPIEZAN ARRIBA A LA IZQUIERDA. Las
+    // posiciones guardadas son las de la vista Estudio (cada entrada en su franja):
+    // una entrada nueva quedaba en y=4272 y en Racks no se veía ninguna tarjeta.
+    // Se corren al mostrarlas y al moverlas se devuelve la posición de verdad.
+    readonly property point corrimiento: {
+        const l = page.g.nodos || []
+        let minX = Infinity, minY = Infinity
+        for (const n of l) if (!n.externo) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y) }
+        return minX === Infinity ? Qt.point(0, 0) : Qt.point(minX - 20, minY - 20)
+    }
     readonly property var nodosVista: {
         const l = page.g.nodos || []
+        const dx = page.corrimiento.x, dy = page.corrimiento.y
         let maxX = 0
-        for (const n of l) if (!n.externo) maxX = Math.max(maxX, n.x)
+        for (const n of l) if (!n.externo) maxX = Math.max(maxX, n.x - dx)
         const out = []
-        let yExt = 0
+        let yExt = 20
         for (let i = 0; i < l.length; ++i) {
             const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) })
             if (n.externo) { n.x = maxX + 260; n.y = yExt; yExt += 140 }
+            else { n.x = n.x - dx; n.y = n.y - dy }
             out.push(n)
         }
         return out
@@ -311,7 +323,8 @@ Rectangle {
                 seleccionado: page.sel
                 colorDe: page.colorDe
                 onElegir: (id) => page.elegir(id)
-                onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, page.vista === "estudio" ? y - 30 : y))
+                onMover: (id, x, y) => page.avisar(page.vista === "estudio" ? page.vg.mover(id, x, y - 30)
+                                                   : page.vg.mover(id, x + page.corrimiento.x, y + page.corrimiento.y))
                 onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
                 onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
                 onOrdenar: page.avisar(page.vg.ordenar())
