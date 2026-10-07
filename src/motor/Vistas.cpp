@@ -125,7 +125,7 @@ void Vistas::armar(const std::string& clave, Una& u) {
     u.productor = resolver_(base(clave), &u.latencia);
     if (u.productor.empty()) return;
     const std::string d = "intersrc name=entra producer-name=" + entreComillas(u.productor) +
-                          " ! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! " +
+                          " max-buffers=2 max-time=0 ! " +
                           aSistemaEscalado("BGRA", u.ancho, u.alto) + " ! appsink name=s max-buffers=1 drop=true sync=false";
     GstElement* p = gst_parse_launch(d.c_str(), nullptr);
     if (p == nullptr) return;

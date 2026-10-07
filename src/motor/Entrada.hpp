@@ -98,8 +98,9 @@ class Entrada {
 
     bool daVideo() const;
     /// ¿La está mostrando alguien (una composición o una vista)? Si no, deja pasar
-    /// 2 cuadros por segundo antes de los filtros (ver Motor::actualizarUso).
-    void ponerEnUso(bool si) { enUso_ = si; }
+    /// 2 cuadros por segundo antes de los filtros (ver Motor::actualizarUso) y, al
+    /// rato, desarma la placa (sus hilos); se rearma apenas alguien la usa.
+    void ponerEnUso(bool si);
     bool enUso() const { return enUso_; }
     bool daAudio() const;
     std::string productorVideo() const { return id_ + ":video"; }
@@ -141,7 +142,7 @@ class Entrada {
     bool enPlacaSinLock() const;
     void desarmarSalida();
     /// El productor que escribe la cadena (la que se rearma): el crudo si hay placa.
-    std::string productorCrudoVideo() const { return salidaV_ != nullptr ? id_ + ":crudo:video" : id_ + ":video"; }
+    std::string productorCrudoVideo() const { return conPlaca_ ? id_ + ":crudo:video" : id_ + ":video"; }
     static GstPadProbeReturn alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer d);
 
     Reloj& reloj_;
@@ -164,6 +165,9 @@ class Entrada {
     // Lo armado
     GstElement* pipeline_ = nullptr;
     GstElement* salidaV_ = nullptr; ///< el pipeline fijo con la placa (fallbackswitch)
+    bool conPlaca_ = false;          ///< lleva placa (aunque esté desarmada por falta de uso)
+    std::int64_t sinUsoDesdeUs_ = 0; ///< desde cuándo nadie la usa (0: la usan)
+    int revisarTareas_ = 0;          ///< vueltas en que todavía se buscan fuentes terminadas (soltarTareasTerminadas)
     std::string nombre_;
     std::string error_, errorAnotado_;
     std::uint64_t errorAnotadoNs_ = 0;

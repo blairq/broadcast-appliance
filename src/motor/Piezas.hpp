@@ -155,6 +155,12 @@ void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora);
 /// pendiente se queda con el último `antes`.
 void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes = {});
 
+/// Suelta los hilos de las fuentes que ya terminaron (pasó el EOS y su tarea
+/// quedó en pausa): una fuente de un cuadro (el rótulo, un color, la placa)
+/// tenía su hilo dormido para siempre. Devuelve cuántas soltó. No es para lo
+/// que puede volver a andar sin rearmarse (un archivo que se rebobina).
+int soltarTareasTerminadas(GstElement* bin);
+
 /// Una referencia de GStreamer que se suelta sola (para llevar elementos a otro hilo).
 std::shared_ptr<GstObject> refCompartida(gpointer o);
 

@@ -206,7 +206,6 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     r->productor = c.productor.empty() ? c.entrada + ":video" : c.productor;
     r->generacion = gen;
     r->src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
-    r->cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
     r->recorte = gst_element_factory_make(gl_ ? "gltransformation" : gpu_ ? "d3d12convert" : "videocrop", ("rec_" + n).c_str());
     if (gpu_ && !gl_) {
         // D3D12: una sonda marca la ventana en cada cuadro (meta de recorte, sin cambiar
@@ -221,8 +220,8 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         // shader de fábrica, copia la textura: una pasada barata en la GPU.
         r->fijar = gst_element_factory_make("glshader", ("gls_" + n).c_str());
     }
-    if (r->src == nullptr || r->cola == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || (gl_ && (r->conv == nullptr || r->fijar == nullptr))))) {
-        for (GstElement* e : {r->src, r->cola, r->recorte, r->subir, r->conv, r->fijar})
+    if (r->src == nullptr || r->recorte == nullptr || (gpu_ && (r->subir == nullptr || (gl_ && (r->conv == nullptr || r->fijar == nullptr))))) {
+        for (GstElement* e : {r->src, r->recorte, r->subir, r->conv, r->fijar})
             if (e != nullptr) gst_object_unref(e);
         delete r;
         error_ = gl_    ? "falta intersrc, queue, glupload, glcolorconvert o gltransformation"
@@ -233,25 +232,26 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     }
     if (gl_) g_object_set(r->recorte, "ortho", TRUE, nullptr);
     g_object_set(r->src, "producer-name", r->productor.c_str(), nullptr);
-    // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la latencia).
-    g_object_set(r->cola, "max-size-buffers", 3u, "max-size-time", static_cast<guint64>(0), "max-size-bytes", 0u, "leaky", 2,
-                 nullptr);
-    gst_bin_add_many(GST_BIN(pipeline_), r->src, r->cola, r->recorte, nullptr);
+    // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la
+    // latencia). Lo hace la cola del intersrc (descarta lo viejo, como una queue
+    // leaky): una queue más atrás era un hilo más por capa y no cambiaba nada.
+    g_object_set(r->src, "max-buffers", static_cast<guint64>(3), "max-time", static_cast<guint64>(0), nullptr);
+    gst_bin_add_many(GST_BIN(pipeline_), r->src, r->recorte, nullptr);
     if (gpu_ && !gl_) {
-        // intersrc → cola → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
+        // intersrc → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
         gst_bin_add(GST_BIN(pipeline_), r->subir);
-        gst_element_link_many(r->src, r->cola, r->subir, r->recorte, nullptr);
+        gst_element_link_many(r->src, r->subir, r->recorte, nullptr);
         if (GstPad* p = gst_element_get_static_pad(r->recorte, "sink")) {
             gst_pad_add_probe(p, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
                               &Composicion::marcarRecorte, r, nullptr);
             gst_object_unref(p);
         }
     } else if (gpu_) {
-        // intersrc → cola → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
+        // intersrc → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
         gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, r->fijar, nullptr);
-        gst_element_link_many(r->src, r->cola, r->subir, r->conv, r->recorte, r->fijar, nullptr);
+        gst_element_link_many(r->src, r->subir, r->conv, r->recorte, r->fijar, nullptr);
     } else {
-        gst_element_link_many(r->src, r->cola, r->recorte, nullptr);
+        gst_element_link_many(r->src, r->recorte, nullptr);
     }
     r->mx = mx;
     r->pad = gst_element_request_pad_simple(mx, "sink_%u");
@@ -259,7 +259,7 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     gst_pad_link(sale, r->pad);
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
     gst_object_unref(sale);
-    for (GstElement* e : {r->fijar, r->recorte, r->conv, r->subir, r->cola, r->src})
+    for (GstElement* e : {r->fijar, r->recorte, r->conv, r->subir, r->src})
         if (e != nullptr) gst_element_sync_state_with_parent(e);
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.entrada] = r;
     return r;
@@ -406,14 +406,14 @@ void Composicion::animar(double t) {
 }
 
 void Composicion::soltar(Rama& r) {
-    for (GstElement* e : {r.src, r.cola, r.recorte, r.subir, r.conv, r.fijar})
+    for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
         gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
         gst_object_unref(r.pad);
         r.pad = nullptr;
     }
-    gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.cola, r.recorte, nullptr);
+    gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.recorte, nullptr);
     if (r.subir != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.subir);
     if (r.conv != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.conv);
     if (r.fijar != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.fijar);

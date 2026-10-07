@@ -95,7 +95,6 @@ class Mezcla {
    private:
     struct Rama {
         GstElement* src = nullptr;
-        GstElement* cola = nullptr;
         GstElement* vol = nullptr;
         GstElement* nivel = nullptr;
         GstPad* pad = nullptr; ///< el del mezclador

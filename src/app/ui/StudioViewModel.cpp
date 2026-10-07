@@ -426,7 +426,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
                     const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
                     bool con = !activa || tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
-                    auto& [reportada, conDesde] = (*vuelta)[e.toStdString()];
+                    // La primera vez que se la ve no «vuelve» de nada: arranca dada por buena
+                    // (si no, a los 15 s del arranque todas pasaban 10 s «sin señal»).
+                    auto& [reportada, conDesde] =
+                        vuelta->try_emplace(e.toStdString(), std::pair<bool, qint64>{true, 0}).first->second;
                     if (!con) {
                         reportada = false;
                         conDesde = 0;

@@ -229,11 +229,20 @@ void Entrada::desarmarSalida() {
 void Entrada::armarSalida() {
     // Sin placa: los archivos (parados no se ven) y lo que pinta la app (manda solo cuando cambia).
     const bool quiere = daVideo() && !medio_ && !estatica_ && hayFabrica("fallbackswitch");
+    conPlaca_ = quiere;
     if (!quiere) {
         desarmarSalida();
         return;
     }
-    if (salidaV_ != nullptr) return;
+    // Sin nadie que la use, no se arma (ponerEnUso la arma cuando hace falta).
+    if (salidaV_ != nullptr || !enUso_) return;
+    // Rearmada a pedido con la señal llegando: que espere el primer cuadro (si
+    // salta a la placa enseguida, el preview mostraba «sin señal» un instante).
+    bool inmediata = true;
+    {
+        std::lock_guard<std::mutex> lm(medMu_);
+        inmediata = ultimoDatoNs_ == 0 || ahoraNs() - ultimoDatoNs_ > 1'000'000'000ULL;
+    }
     // La placa: chica (la composición la escala), con el nombre, a los cuadros del lienzo.
     const std::string fps = std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD);
     // Un cuadro (ya rotulado: placaDibujada) que se congela: antes rotulaba 30
@@ -243,9 +252,10 @@ void Entrada::armarSalida() {
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
                               " ! imagefreeze name=congela is-live=true ! fs.sink_1";
-    const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=true ! intersink name=sale producer-name=" +
+    const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=" +
+                          std::string(inmediata ? "true" : "false") + " ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
-                          entreComillas(id_ + ":crudo:video") + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! fs.sink_0 " +
+                          entreComillas(id_ + ":crudo:video") + " max-time=2500000000 ! fs.sink_0 " +
                           placa;
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
@@ -308,6 +318,22 @@ void Entrada::armarSalida() {
     fuentesDePruebaEnHora(p, reloj_.ahora());
     gst_element_set_state(p, GST_STATE_PLAYING);
     salidaV_ = p;
+    revisarTareas_ = 150; // el appsrc de la placa manda un cuadro y termina
+}
+
+void Entrada::ponerEnUso(bool si) {
+    enUso_ = si;
+    std::lock_guard<std::mutex> l(mu_);
+    if (!si) {
+        if (sinUsoDesdeUs_ == 0) sinUsoDesdeUs_ = g_get_monotonic_time();
+        return;
+    }
+    sinUsoDesdeUs_ = 0;
+    if (conPlaca_ && salidaV_ == nullptr) {
+        const std::int64_t t0 = g_get_monotonic_time();
+        armarSalida();
+        registrar(Nivel::Info, id_ + ": placa rearmada en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+    }
 }
 
 bool Entrada::enPlaca() const {
@@ -632,10 +658,10 @@ void Entrada::armar() {
         // Una cámara de red: la conexión es compartida con las otras entradas de la
         // misma dirección (ver OrigenRed.hpp); acá se toma lo ya decodificado.
         origenRed_ = origen_red::usar(reloj_, uri_, static_cast<int>(latenciaMs_), ntpSync_ && !ntpApagadoSolo_);
-        completo = "intersrc producer-name=" + entreComillas(origenRed_ + ":video") + " ! queue name=ba_origen ! " + antes +
+        completo = "intersrc producer-name=" + entreComillas(origenRed_ + ":video") + " ! identity name=ba_origen ! " + antes +
                    capsVideo + " ! " + salida("v");
         if (conAudio_)
-            completo += " intersrc producer-name=" + entreComillas(origenRed_ + ":audio") + " ! queue ! " + cadenaA +
+            completo += " intersrc producer-name=" + entreComillas(origenRed_ + ":audio") + " ! " + cadenaA +
                         "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
     } else if (!uri_.empty()) {
         // Un archivo: solo las ramas de lo que tiene (una rama sin datos nunca termina),
@@ -653,12 +679,15 @@ void Entrada::armar() {
             padA = "ba_dec.audio_0";
         }
         completo = "uridecodebin3 name=ba_dec uri=" + entreComillas(uri_);
-        if (hayV) completo += " " + padV + " ! queue name=ba_origen ! " + antes + capsVideo + " ! " + salida("v");
+        if (hayV) completo += " " + padV + " ! identity name=ba_origen ! " + antes + capsVideo + " ! " + salida("v");
         if (hayA)
-            completo += " " + padA + " ! queue ! " + cadenaA + "audioconvert ! audioresample ! " + kAudio + " ! " +
+            completo += " " + padA + " ! " + cadenaA + "audioconvert ! audioresample ! " + kAudio + " ! " +
                         salida("a");
     } else {
-        if (!origenV.empty()) completo = origenV + " ! queue name=ba_origen ! " + antes + capsVideo + " ! " + salida("v");
+        // Lo estático termina en un imagefreeze, que ya tiene su hilo: sin cola.
+        if (!origenV.empty())
+            completo = origenV + (estatica_ ? " ! identity name=ba_origen ! " : " ! queue name=ba_origen ! ") + antes + capsVideo +
+                       " ! " + salida("v");
         if (!descripcionAudio_.empty() && conAudio_)
             completo += std::string(completo.empty() ? "" : " ") + descripcionAudio_ + " ! queue ! " + cadenaA +
                         "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
@@ -812,6 +841,7 @@ void Entrada::armar() {
         return;
     }
     if (medio_) estadoMedio_ = "playing";
+    revisarTareas_ = 150; // un rótulo, un color, una imagen: un cuadro y su fuente termina
 }
 
 GstPadProbeReturn Entrada::alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer d) {
@@ -1040,6 +1070,15 @@ void Entrada::tic() {
         if (c > 0) controlEnviado_ = enviarControl();
     }
 
+    // LA PLACA SE DESARMA si hace 15 s que nadie usa la entrada: sus hilos
+    // (intersrc, imagefreeze, el fallbackswitch) y su trabajo, por entrada que nadie
+    // mira. La cadena sigue andando (a 2 cuadros/s): la alarma de «sin señal» la
+    // mira a ella. Rearmarla tarda ~2 ms (ponerEnUso).
+    if (salidaV_ != nullptr && !enUso_ && sinUsoDesdeUs_ != 0 && g_get_monotonic_time() - sinUsoDesdeUs_ > 15'000'000) {
+        const std::int64_t t0 = g_get_monotonic_time();
+        desarmarSalida();
+        registrar(Nivel::Info, id_ + ": placa en reposo (nadie la usa) en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+    }
     if (salidaV_ != nullptr) {
         GstBus* bus = gst_element_get_bus(salidaV_);
         while (GstMessage* m = gst_bus_pop(bus)) {
@@ -1052,6 +1091,13 @@ void Entrada::tic() {
             gst_message_unref(m);
         }
         gst_object_unref(bus);
+    }
+    // Las fuentes de un cuadro ya terminaron: sus hilos, de vuelta (unos 3 s
+    // después de armar, revisando cada 200 ms; un archivo no: se rebobina).
+    static const bool soltar = g_getenv("BA_SIN_SOLTAR_TAREAS") == nullptr;
+    if (soltar && revisarTareas_ > 0 && --revisarTareas_ % 10 == 0) {
+        if (!medio_) soltarTareasTerminadas(pipeline_);
+        soltarTareasTerminadas(salidaV_);
     }
     const bool deDispositivo = !camara_.empty() || (!microfono_.empty() && microfono_ != "default");
     if (deDispositivo) Vigia::el().revisar();
@@ -1320,7 +1366,8 @@ json Entrada::estado() const {
            {"desfase_ms", desfaseMs_},
            {"desfase_audio_ms", desfaseAudioMs_},
            {"desfase_video_ms", desfaseVideoMs_},
-           {"placa", salidaV_ != nullptr},
+           {"placa", conPlaca_},
+           {"placa_armada", salidaV_ != nullptr},
            {"en_placa", enPlacaSinLock()}};
     {
         std::lock_guard<std::mutex> lm(medMu_);

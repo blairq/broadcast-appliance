@@ -541,6 +541,32 @@ void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes)
     }).detach();
 }
 
+int soltarTareasTerminadas(GstElement* bin) {
+    if (bin == nullptr || !GST_IS_BIN(bin)) return 0;
+    int n = 0;
+    GstIterator* it = gst_bin_iterate_recurse(GST_BIN(bin));
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        auto* e = GST_ELEMENT(g_value_get_object(&v));
+        GST_OBJECT_LOCK(e);
+        std::vector<GstPad*> pads;
+        for (GList* l = e->srcpads; l != nullptr; l = l->next) pads.push_back(GST_PAD(gst_object_ref(l->data)));
+        GST_OBJECT_UNLOCK(e);
+        for (GstPad* pad : pads) {
+            GST_OBJECT_LOCK(pad);
+            GstTask* t = GST_PAD_TASK(pad);
+            const bool terminada = t != nullptr && GST_PAD_IS_EOS(pad) && gst_task_get_state(t) == GST_TASK_PAUSED;
+            GST_OBJECT_UNLOCK(pad);
+            if (terminada && gst_pad_stop_task(pad)) ++n;
+            gst_object_unref(pad);
+        }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+    return n;
+}
+
 std::shared_ptr<GstObject> refCompartida(gpointer o) {
     if (o == nullptr) return {};
     return std::shared_ptr<GstObject>(GST_OBJECT(gst_object_ref(o)), [](GstObject* x) { gst_object_unref(x); });
@@ -816,16 +842,12 @@ std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {
         // d3d12convert convierte y escala en una pasada; baja chico.
         return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=" + formato + tam +
                ",pixel-aspect-ratio=1/1 ! d3d12download ! video/x-raw,format=" + formato + tam + ",pixel-aspect-ratio=1/1";
-    // En GL: achicar en la placa y bajar CHICO en RGBA; el formato final, en la CPU
-    // (a este tamaño es casi gratis). Cada paso de GL espera su turno en el hilo
-    // de GL del contexto: con cuatro pasos seguidos por cuadro (convertir,
-    // escalar, convertir, bajar) una vista rendía 10 cuadros/s aunque le
-    // entraran 30. Con un paso menos y colas entre etapas (trabajan a la vez),
-    // rinde lo que tarda el paso más lento, no la suma.
-    const std::string cola = " ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! ";
+    // En GL: achicar en la placa y bajar CHICO en RGBA; el formato final, en la
+    // CPU (a este tamaño es casi gratis): un paso de GL menos por cuadro. Sin colas
+    // entre etapas: cada cola es un hilo y no cambiaban nada medible.
     return "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! glcolorscale ! video/x-raw(memory:GLMemory),format=RGBA" +
-           tam + cola + "gldownload ! video/x-raw,format=RGBA" + tam + cola + "videoconvert ! video/x-raw,format=" + formato +
-           tam + ",pixel-aspect-ratio=1/1";
+           tam + " ! gldownload ! video/x-raw,format=RGBA" + tam + " ! videoconvert ! video/x-raw,format=" + formato + tam +
+           ",pixel-aspect-ratio=1/1";
 }
 
 } // namespace ba::motor

@@ -121,42 +121,42 @@ void Mezcla::agregar(const std::string& id) {
     const std::string n = nombreSeguro(id);
     Rama r;
     r.src = gst_element_factory_make("intersrc", ("src_" + n).c_str());
-    r.cola = gst_element_factory_make("queue", ("cola_" + n).c_str());
     r.vol = gst_element_factory_make("volume", ("vol_" + n).c_str());
     r.nivel = gst_element_factory_make(medidores_ ? "level" : "identity", ("nivel_" + n).c_str());
-    if (r.src == nullptr || r.cola == nullptr || r.vol == nullptr || r.nivel == nullptr) {
-        for (GstElement* e : {r.src, r.cola, r.vol, r.nivel})
+    if (r.src == nullptr || r.vol == nullptr || r.nivel == nullptr) {
+        for (GstElement* e : {r.src, r.vol, r.nivel})
             if (e != nullptr) gst_object_unref(e);
         error_ = "falta intersrc, queue, volume o level";
         registrar(Nivel::Error, "mezcla " + nombre_ + ": " + error_);
         return;
     }
     g_object_set(r.src, "producer-name", (id + ":audio").c_str(), nullptr);
-    // La cola no agrega demora: lo que no entra se tira (una entrada trabada no traba el bus).
-    g_object_set(r.cola, "max-size-time", static_cast<guint64>(GST_SECOND), "max-size-buffers", 0u, "max-size-bytes", 0u,
-                 nullptr);
+    // La cola no agrega demora: lo que no entra se tira (una entrada trabada no
+    // traba el bus). Es la del intersrc (tira lo viejo): una queue atrás era un
+    // hilo más por rama. 1,5 s: lo que sumaban las dos.
+    g_object_set(r.src, "max-time", static_cast<guint64>(3 * GST_SECOND / 2), "max-buffers", static_cast<guint64>(0), nullptr);
     if (medidores_)
         g_object_set(r.nivel, "interval", static_cast<guint64>(50 * GST_MSECOND), "post-messages", TRUE, "peak-ttl",
                      static_cast<guint64>(300 * GST_MSECOND), nullptr);
-    gst_bin_add_many(GST_BIN(pipeline_), r.src, r.cola, r.vol, r.nivel, nullptr);
-    gst_element_link_many(r.src, r.cola, r.vol, r.nivel, nullptr);
+    gst_bin_add_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
+    gst_element_link_many(r.src, r.vol, r.nivel, nullptr);
     r.pad = gst_element_request_pad_simple(mezclador_, "sink_%u");
     GstPad* sale = gst_element_get_static_pad(r.nivel, "src");
     gst_pad_link(sale, r.pad);
     gst_object_unref(sale);
-    for (GstElement* e : {r.nivel, r.vol, r.cola, r.src}) gst_element_sync_state_with_parent(e);
+    for (GstElement* e : {r.nivel, r.vol, r.src}) gst_element_sync_state_with_parent(e);
     ramas_[id] = r;
 }
 
 void Mezcla::soltar(Rama& r) {
     // Se para la rama de atrás para adelante y se suelta el pad del mezclador.
-    for (GstElement* e : {r.src, r.cola, r.vol, r.nivel}) gst_element_set_state(e, GST_STATE_NULL);
+    for (GstElement* e : {r.src, r.vol, r.nivel}) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
         gst_element_release_request_pad(mezclador_, r.pad);
         gst_object_unref(r.pad);
         r.pad = nullptr;
     }
-    gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.cola, r.vol, r.nivel, nullptr);
+    gst_bin_remove_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
 }
 
 void Mezcla::quitar(const std::string& id) {

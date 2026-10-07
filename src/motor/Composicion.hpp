@@ -117,7 +117,6 @@ class Composicion {
     struct Rama {
         std::string entrada, productor;
         GstElement* src = nullptr;
-        GstElement* cola = nullptr;
         GstElement* recorte = nullptr; ///< videocrop (CPU), gltransformation (GL) o d3d12convert (D3D12: aplica la meta de recorte)
         GstElement* subir = nullptr;   ///< glupload / d3d12upload (gpu)
         GstElement* conv = nullptr;    ///< glcolorconvert (gl)
