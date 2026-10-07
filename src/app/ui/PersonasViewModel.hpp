@@ -31,6 +31,8 @@
 
 class QImage;
 
+typedef struct _GstSample GstSample; // gst/gst.h
+
 namespace ba::rostros {
 struct Cara;
 class Motor;
@@ -137,6 +139,9 @@ class PersonasViewModel : public QObject {
     /// Una cámara del estudio recién pedida tarda unos cuadros en tener imagen
     /// (su tarjeta empieza a bajar con el primer pedido): se reintenta ~2 s.
     void reintentarAnalisis(const QString& feed, Analisis luego, int intento);
+    /// Lo que vio la tarjeta «Rostros» de una entrada (su mensaje del bus, ya en
+    /// el hilo de la interfaz): contesta a quien lo esté esperando.
+    void alRostros(const QString& entrada, const std::string& json, GstSample* cuadro);
 
     /// La libreta EN USO, para quien tenga que trabajar sobre la misma y no
     /// sobre otra copia del archivo.

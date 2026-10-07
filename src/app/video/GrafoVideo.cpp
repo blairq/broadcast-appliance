@@ -43,10 +43,19 @@ json fabrica(const std::string& tipo) {
                 {"rango_real", "limitado"},  {"desentrelazar", "no"},         {"campo", "arriba"}};
     // La huella para medir desfases (la pone video_sincronia y la saca al terminar).
     if (tipo == "sincro") return {{"auto", false}};
-    // `uso`: para qué la usa Personas (mirar | autoalta | puerta); `auto`: la
-    // puso Personas sola (y la saca cuando no la necesita).
+    // El elemento barostros (src/gst-plugins/rostros). `uso`: para qué la usa
+    // Personas (mirar | autoalta | puerta | seguir; "" = nadie, la puso el
+    // usuario); `auto`: la puso Personas sola (y la saca cuando no la necesita).
+    // `fps`: análisis por segundo; `reconocer`: el vector de cada cara (Personas
+    // lo pide siempre que la usa); `detector`: auto | vision | yunet. EL OVERLAY:
+    // `marcar`, `estilo` (recuadro | esquinas | relleno | tapar | pixelar),
+    // `color` (ARGB), `grosor`, `texto` (plantilla: {nombre} {cargo} {id}
+    // {confianza} {n}), `texto_posicion` (arriba | abajo), `texto_tamano`.
     if (tipo == "rostros")
-        return {{"uso", "mirar"}, {"cada", 500}, {"ancho", 640}, {"marcar", false}, {"auto", false}};
+        return {{"uso", ""},           {"auto", false},          {"activo", true},       {"fps", 5.0},
+                {"reconocer", false},  {"detector", "auto"},     {"confianza", 0.7},     {"marcar", false},
+                {"estilo", "recuadro"}, {"color", 0xFFFFC83CLL}, {"grosor", 4},          {"texto", ""},
+                {"texto_posicion", "arriba"}, {"texto_tamano", 0.035}};
     // Superresolución x2 (el plugin de GStreamer basuperres): `motor` auto | apple |
     // fsr | onnx (con `modelo`, la ruta del .onnx), `nitidez` (FSR), `proveedor`
     // (onnx: auto | cpu | coreml | dml), `activo`. Lo que la sigue trabaja al doble.
@@ -160,8 +169,11 @@ json GrafoVideo::catalogo() {
         {"croma", "Saca un fondo de color (verde de fábrica): queda transparente.", "entrada"},
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
         {"rostros",
-         "Reconoce caras en este punto de la entrada (para Personas: anotado, puerta). La imagen pasa igual; "
-         "con «marcar», dibuja las caras.",
+         "Encuentra, sigue y reconoce caras (elemento barostros): mira la toma entera de la cámara, sin demorar "
+         "la imagen. Con «marcar», un overlay sobre cada cara (recuadro, esquinas, relleno, tapar o pixelar) con "
+         "un texto ({nombre}, {cargo}, {id}, {confianza}). Publica las caras en cada cuadro (metas de región de "
+         "GStreamer) y en eventos «ba/rostros» para el resto de la cadena; Personas y el seguimiento del PTZ la "
+         "usan.",
          "entrada"},
         {"normalizar",
          "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "

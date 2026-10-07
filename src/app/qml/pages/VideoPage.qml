@@ -95,7 +95,8 @@ Rectangle {
         }
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
         if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
-        if (n.tipo === "rostros") return ({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita" })[p.uso] + (p.marcar ? " · marca" : "")
+        if (n.tipo === "rostros") return (({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita", seguir: "Sigue a una cara" })[p.uso] || "Caras") +
+                                          (p.marcar ? " · " + (p.estilo || "recuadro") : "") + (p.texto ? " · «" + p.texto + "»" : "")
         return ""
     }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
@@ -540,7 +541,10 @@ Rectangle {
                                     { k: "suavidad", t: "Suavidad del borde", min: 0, max: 1 },
                                     { k: "derrame", t: "Quitar el reflejo de color", min: 0, max: 1 }]
                                 if (t === "rostros") return [
-                                    { k: "cada", t: "Cada cuánto mira (ms)", min: 100, max: 3000, entero: true }]
+                                    { k: "fps", t: "Análisis por segundo", min: 1, max: 15, entero: true },
+                                    { k: "confianza", t: "Confianza mínima", min: 0.3, max: 0.95 },
+                                    { k: "grosor", t: "Grosor del borde", min: 1, max: 20, entero: true },
+                                    { k: "texto_tamano", t: "Tamaño del texto", min: 0.015, max: 0.1 }]
                                 if (t === "retardo") return [
                                     { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
@@ -643,24 +647,112 @@ Rectangle {
                             }
                         }
 
-                        // Rostros: para qué la usa Personas, y marcar las caras.
+                        // Rostros (barostros): para qué la usa Personas, el análisis y el overlay.
                         ColumnLayout {
+                            id: rostrosPanel
                             visible: page.tipoEf === "rostros"
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: 6
+                            readonly property var p: page.paramsEf || ({})
+                            readonly property var plantillas: [
+                                { t: "Sin texto", v: "" },
+                                { t: "Nombre", v: "{nombre}" },
+                                { t: "Nombre y cargo", v: "{nombre} — {cargo}" },
+                                { t: "Número", v: "Cara {id}" },
+                                { t: "Confianza", v: "{confianza}" },
+                                { t: "Nombre o número", v: "{nombre} #{id}" }]
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
-                                text: !page.paramsEf ? "" : (page.paramsEf.auto
-                                      ? "La puso Personas (" + ({ mirar: "la página la está mirando", autoalta: "anotado automático", puerta: "cámara de la puerta" })[page.paramsEf.uso] + "): se va sola cuando deja de usarla."
-                                      : "Personas reconoce caras con lo que pasa por acá. Moverla de lugar cambia qué imagen mira (antes o después de corregir el color, de recortar…).")
+                                text: rostrosPanel.p.auto
+                                      ? "La puso Personas (" + (({ mirar: "la página la está mirando", autoalta: "anotado automático", puerta: "cámara de la puerta", seguir: "seguimiento del PTZ" })[rostrosPanel.p.uso] || "") + "): se va sola cuando deja de usarla."
+                                      : "Mira la toma entera de la cámara (antes del PTZ digital) sin demorar la imagen. Las caras van en cada cuadro y en eventos «ba/rostros» para el resto de la cadena."
                             }
-                            CheckBox {
-                                text: "Marcar las caras en la imagen"
-                                checked: !!page.paramsEf && !!page.paramsEf.marcar
-                                onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
-                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Para probar o para un monitor: conviene ponerla en una rama (con una salida), no en lo que va al aire"
+                            RowLayout {
+                                Layout.fillWidth: true
+                                CheckBox {
+                                    text: "Reconocer (para Personas)"
+                                    checked: !!rostrosPanel.p.reconocer
+                                    onToggled: page.avisar(page.vg.ajustar(page.sel, { reconocer: checked }))
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Saca el vector de cada cara (lo que compara la libreta). Personas lo prende sola cuando usa la cámara."
+                                }
+                                Item { Layout.fillWidth: true }
+                                Text { text: "Detector"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    model: [{ t: "Automático", v: "auto" }, { t: "Apple (Vision)", v: "vision" }, { t: "YuNet", v: "yunet" }]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.detector || "auto")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { detector: model[i].v }))
+                                }
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                CheckBox {
+                                    text: "Overlay sobre las caras"
+                                    checked: !!rostrosPanel.p.marcar
+                                    onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
+                                }
+                                Item { Layout.fillWidth: true }
+                                ComboBox {
+                                    enabled: !!rostrosPanel.p.marcar
+                                    model: [{ t: "Recuadro", v: "recuadro" }, { t: "Esquinas", v: "esquinas" }, { t: "Relleno", v: "relleno" },
+                                            { t: "Tapar", v: "tapar" }, { t: "Pixelar", v: "pixelar" }]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.estilo || "recuadro")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { estilo: model[i].v }))
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Tapar y pixelar sirven para no mostrar una cara (privacidad)"
+                                }
+                            }
+                            RowLayout {
+                                enabled: !!rostrosPanel.p.marcar
+                                spacing: 6
+                                Text { text: "Color"; color: Theme.textDim; font.pixelSize: 12 }
+                                Repeater {
+                                    model: [0xFFFFC83C, 0xFF35C46B, 0xFF38BDF8, 0xFFFF3B30, 0xFFFFFFFF, 0xFF000000]
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        width: 20; height: 20; radius: 4
+                                        color: "#" + (modelData & 0xFFFFFF).toString(16).padStart(6, "0")
+                                        border.width: (rostrosPanel.p.color || 0xFFFFC83C) === modelData ? 2 : 1
+                                        border.color: (rostrosPanel.p.color || 0xFFFFC83C) === modelData ? Theme.text : Qt.rgba(1, 1, 1, 0.3)
+                                        MouseArea { anchors.fill: parent; onClicked: page.avisar(page.vg.ajustar(page.sel, { color: modelData })) }
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                enabled: !!rostrosPanel.p.marcar
+                                Text { text: "Texto"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.preferredWidth: 150
+                                    model: rostrosPanel.plantillas
+                                    textRole: "t"
+                                    currentIndex: rostrosPanel.plantillas.findIndex(m => m.v === (rostrosPanel.p.texto || ""))
+                                    displayText: currentIndex < 0 ? "Personalizado" : currentText
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto: rostrosPanel.plantillas[i].v }))
+                                }
+                                ComboBox {
+                                    model: [{ t: "Arriba", v: "arriba" }, { t: "Abajo", v: "abajo" }]
+                                    textRole: "t"
+                                    currentIndex: rostrosPanel.p.texto_posicion === "abajo" ? 1 : 0
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto_posicion: model[i].v }))
+                                }
+                            }
+                            TextField {
+                                Layout.fillWidth: true
+                                enabled: !!rostrosPanel.p.marcar
+                                text: rostrosPanel.p.texto || ""
+                                placeholderText: "Plantilla: {nombre} {cargo} {id} {confianza} {n}"
+                                color: Theme.text
+                                onEditingFinished: if (text !== (rostrosPanel.p.texto || "")) page.avisar(page.vg.ajustar(page.sel, { texto: text }))
+                            }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 11
+                                text: "El nombre y el cargo aparecen cuando Personas reconoce a alguien. Para un monitor o para probar, conviene el overlay en una rama con salida, no en lo que va al aire."
                             }
                         }
 

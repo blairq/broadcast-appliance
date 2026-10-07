@@ -1175,8 +1175,32 @@ void Entrada::tic() {
     gst_object_unref(bus);
 }
 
+namespace {
+std::mutex gAvisoRostrosMu;
+AvisoRostros gAvisoRostros;
+} // namespace
+
+void ponerAvisoRostros(AvisoRostros aviso) {
+    std::lock_guard<std::mutex> l(gAvisoRostrosMu);
+    gAvisoRostros = std::move(aviso);
+}
+
 void Entrada::procesarMensaje(GstMessage* m) {
     switch (GST_MESSAGE_TYPE(m)) {
+        case GST_MESSAGE_ELEMENT: {
+            // Lo que ve la tarjeta «Rostros» (barostros): a quien lo escuche.
+            const GstStructure* s = gst_message_get_structure(m);
+            if (s == nullptr || !gst_structure_has_name(s, "ba-rostros")) return;
+            const gchar* js = gst_structure_get_string(s, "json");
+            GstSample* cuadro = nullptr;
+            gst_structure_get(s, "cuadro", GST_TYPE_SAMPLE, &cuadro, nullptr);
+            {
+                std::lock_guard<std::mutex> l(gAvisoRostrosMu);
+                if (gAvisoRostros && js != nullptr) gAvisoRostros(id_, js, cuadro);
+            }
+            if (cuadro != nullptr) gst_sample_unref(cuadro);
+            return;
+        }
         case GST_MESSAGE_LATENCY: recalcularLatenciaAparte(pipeline_); return;
         case GST_MESSAGE_CLOCK_LOST:
             gst_element_set_state(pipeline_, GST_STATE_PAUSED);

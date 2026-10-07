@@ -11,6 +11,7 @@
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
 #   plugin/    baplugins: baplugin (tarjeta de un plugin de Python) y bapluginsrc (su entrada).
+#   rostros/   barostros (+ barostrosgl, barostrosd3d12): caras en la cadena de una entrada.
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -112,4 +113,39 @@ endif()
 if(APPLE)
     target_link_libraries(gstbasuperres PRIVATE "-framework VideoToolbox" "-framework CoreVideo" "-framework CoreMedia" "-framework Foundation"
         "-framework CoreML" "-framework Accelerate")
+endif()
+
+# Rostros: YuNet + SFace (src/core/rostros, el mismo de Personas) con el ONNX
+# Runtime de la plataforma; en la Mac, además el detector de Apple (Vision).
+if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
+    set(_ros rostros/plugin.cpp rostros/barostros.cpp "${CMAKE_SOURCE_DIR}/src/core/rostros/Rostros.cpp")
+    if(APPLE)
+        list(APPEND _ros rostros/vision_mac.mm)
+        set_source_files_properties(rostros/vision_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    else()
+        list(APPEND _ros rostros/vision_otros.cpp)
+    endif()
+    add_library(gstbarostros MODULE ${_ros})
+    ba_plugin_gst(gstbarostros)
+    target_include_directories(gstbarostros PRIVATE "${BA_ORT_DIR}/include" "${CMAKE_SOURCE_DIR}/src/core")
+    target_link_libraries(gstbarostros PRIVATE "${_ba_ort}" nlohmann_json::nlohmann_json)
+    if(APPLE)
+        target_link_libraries(gstbarostros PRIVATE "-framework Vision" "-framework CoreVideo" "-framework Foundation")
+    endif()
+    # El texto del overlay: Pango + Cairo, los mismos que usa textoverlay (vienen
+    # con GStreamer). Sin ellos, el overlay anda sin texto.
+    get_filename_component(_ba_gst_inc "${BA_GST_LIBDIR}/../include" ABSOLUTE)
+    find_library(_ba_pangocairo NAMES pangocairo-1.0 PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
+    find_library(_ba_pango NAMES pango-1.0 PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
+    find_library(_ba_cairo NAMES cairo PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
+    find_library(_ba_gobject NAMES gobject-2.0 PATHS "${BA_GST_LIBDIR}" NO_DEFAULT_PATH)
+    if(_ba_pangocairo AND _ba_pango AND _ba_cairo AND EXISTS "${_ba_gst_inc}/pango-1.0/pango/pangocairo.h")
+        target_include_directories(gstbarostros PRIVATE "${_ba_gst_inc}/pango-1.0" "${_ba_gst_inc}/cairo"
+                                   "${_ba_gst_inc}/harfbuzz" "${_ba_gst_inc}/freetype2" "${_ba_gst_inc}/fribidi")
+        target_link_libraries(gstbarostros PRIVATE "${_ba_pangocairo}" "${_ba_pango}" "${_ba_cairo}" "${_ba_gobject}")
+        target_compile_definitions(gstbarostros PRIVATE BA_ROSTROS_TEXTO=1)
+        message(STATUS "barostros: con texto en el overlay (Pango + Cairo)")
+    else()
+        message(STATUS "barostros: sin Pango/Cairo, el overlay va sin texto")
+    endif()
 endif()

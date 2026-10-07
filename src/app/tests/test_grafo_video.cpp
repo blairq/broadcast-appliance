@@ -308,10 +308,10 @@ int main() {
         bool ok = false;
         for (const auto& n : pf["nodos"])
             if (n.value("tipo", "") == "rostros")
-                ok = n["params"].value("uso", "") == "puerta" && n["params"].value("cada", 0) == 500 &&
+                ok = n["params"].value("uso", "") == "puerta" && n["params"].value("fps", 0.0) == 5.0 &&
                      n["params"].value("auto", false);
         CHECK(!r.empty() && ok && pf["cables"].size() == 2,
-              "rostros: tarjeta intercalada, con uso, cada y auto");
+              "rostros: tarjeta intercalada, con uso, fps y auto");
         CHECK(k.quitar(r, &e) && k.trivial("Cam"), "rostros: al quitarla, la entrada vuelve a como vino");
     }
     // El retardo es un filtro más.

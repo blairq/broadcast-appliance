@@ -855,15 +855,6 @@ void VideoGrafos::sincronizar() {
     for (const QString& e : entradas_)
         aplicar(e.toStdString());
     actualizarEstudio();
-    // Las vistas de rostros de entradas que ya no tienen la tarjeta, se sueltan.
-    for (auto it = vistasRostros_.begin(); it != vistasRostros_.end();) {
-        if (!tarjetaRostros(grafo_, it->first).empty() && entradas_.contains(q(it->first))) {
-            ++it;
-            continue;
-        }
-        if (motor::Motor* m = rt_.engine().motor()) m->verSoltar("entrada:" + it->first + "@rostros");
-        it = vistasRostros_.erase(it);
-    }
     // Si cambió por qué alguna tarjeta no corre, la interfaz se entera.
     json errores = json::object();
     for (const QString& e : entradas_) {
@@ -909,8 +900,12 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     // Las tarjetas de imagen corren en la cadena de GStreamer de la entrada.
     json filtros = pasarAEntrada(entrada, para);
     if (!filtros.contains("video")) filtros["video"] = json::array();
-    // Lo que agregan otras piezas (mejorar imagen, PTZ digital), antes de las tarjetas.
-    json video = fuentes::filtrosExtra(entrada);
+    // Rostros primero (la toma entera, antes del PTZ: ver pasarAEntrada); después
+    // lo que agregan otras piezas (mejorar imagen, PTZ digital) y las tarjetas.
+    json video = json::array();
+    if (filtros.contains("rostros")) video.push_back(filtros["rostros"]);
+    filtros.erase("rostros");
+    for (const auto& f : fuentes::filtrosExtra(entrada)) video.push_back(f);
     for (const auto& f : filtros["video"]) video.push_back(f);
     // Legalizar para TV: al final de la cadena, después de todas las tarjetas.
     if (legalizar_ != "no") {
@@ -970,6 +965,7 @@ std::string decimal(double v) {
 
 json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
     json video = json::array();
+    json rostros; // la tarjeta Rostros (va al principio de la cadena)
     bool alfa = false;
     double retardoMs = 0;
     std::set<std::string>& movidas = enEntrada_[entrada];
@@ -990,11 +986,46 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
         const json p = it->value("params", json::object());
         json f = {{"id", id}};
         json pr = json::object();
-        if (tipo == "retardo" || tipo == "rostros" || tipo == "sincro") {
+        if (tipo == "rostros") {
+            // ROSTROS: el elemento barostros, pero AL PRINCIPIO de la cadena (antes
+            // del PTZ digital, ver aplicar): mira la toma entera, así sus caras
+            // sirven para encuadrar (baptz las sigue) y para el overlay.
+            const std::string uso = p.value("uso", std::string());
+            json rp = json::object();
+            rp["activo"] = p.value("activo", true) ? "true" : "false";
+            rp["fps"] = decimal(p.contains("fps") ? p.value("fps", 5.0)
+                                                  : 1000.0 / std::max(100, p.value("cada", 200))); // `cada` (ms): las viejas
+            // Personas (y el seguimiento por persona) necesitan el vector de cada cara.
+            rp["reconocer"] = (p.value("reconocer", false) || !uso.empty()) ? "true" : "false";
+            rp["detector"] = p.value("detector", std::string("auto"));
+            rp["confianza"] = decimal(p.value("confianza", 0.7));
+            rp["marcar"] = p.value("marcar", false) ? "true" : "false";
+            rp["estilo"] = p.value("estilo", std::string("recuadro"));
+            rp["color"] = std::to_string(static_cast<unsigned long long>(p.value("color", 0xFFFFC83CLL)) & 0xFFFFFFFFULL);
+            rp["grosor"] = std::to_string(p.value("grosor", 4));
+            rp["texto"] = p.value("texto", std::string());
+            rp["texto-posicion"] = p.value("texto_posicion", std::string("arriba"));
+            rp["texto-tamano"] = decimal(p.value("texto_tamano", 0.035));
+            // Dos tarjetas (la que pone Personas sola y una del usuario): UN elemento.
+            // El overlay y los ajustes, de la del usuario; reconocer, si cualquiera lo pide.
+            if (!rostros.is_null()) {
+                const bool reconocerAntes = rostros["propiedades"].value("reconocer", std::string()) == "true";
+                if (p.value("auto", false)) rp = rostros["propiedades"]; // la de antes manda
+                if (reconocerAntes) rp["reconocer"] = "true";
+                if (!uso.empty()) rp["reconocer"] = "true";
+            }
+            rostros = json{{"id", id}, {"elemento", "barostros"}, {"propiedades", rp}};
+            movidas.insert(id);
+            cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+            for (auto& c : cables)
+                if (c.value("desde", "") == id) c["desde"] = "in";
+            nodos.erase(it);
+            continue;
+        }
+        if (tipo == "retardo" || tipo == "sincro") {
             // No son elementos. Retardo: el motor corre la salida de video de la
-            // entrada (desfase_video). Rostros: la imagen pasa igual; Personas toma
-            // el cuadro de la entrada con una vista del motor (cuadroRostros).
-            // Sincro: la medición mira lo que sale de la entrada (medirDesfase).
+            // entrada (desfase_video). Sincro: la medición mira lo que sale de la
+            // entrada (medirDesfase).
             if (tipo == "retardo" && p.value("activo", true))
                 retardoMs += p.value("ms", 0) > 0 ? static_cast<double>(p.value("ms", 0))
                                                   : p.value("cuadros", 0) * cuadroMsLienzo();
@@ -1099,7 +1130,9 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             if (c.value("desde", "") == id) c["desde"] = "in";
         nodos.erase(it);
     }
-    return {{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}};
+    json out{{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}};
+    if (!rostros.is_null()) out["rostros"] = rostros;
+    return out;
 }
 
 json VideoGrafos::filtrosDeEntrada(const std::string& entrada) const {
@@ -1115,36 +1148,6 @@ std::string tarjetaRostros(const GrafoVideo& g, const std::string& entrada) {
     return {};
 }
 } // namespace
-
-bool VideoGrafos::cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho,
-                                int& alto, std::uint64_t& serie) const {
-    // El cuadro de la entrada (después de sus tarjetas): una vista propia del motor.
-    if (tarjetaRostros(grafo_, entrada).empty()) return false;
-    motor::Motor* m = rt_.engine().motor();
-    if (m == nullptr) return false;
-    const std::string clave = "entrada:" + entrada + "@rostros";
-    if (!vistasRostros_.count(entrada)) {
-        if (!m->verPedir(clave, 960, 540).empty()) return false;
-        vistasRostros_[entrada] = 0;
-    }
-    motor::Cuadro c;
-    std::uint64_t& ultima = vistasRostros_[entrada];
-    if (!m->verUltimo(clave, c, ultima) || c.ancho <= 0 || c.alto <= 0) return false;
-    ancho = c.ancho;
-    alto = c.alto;
-    serie = ultima;
-    bgra.resize(static_cast<std::size_t>(ancho) * alto * 4);
-    for (int y = 0; y < alto; ++y)
-        std::memcpy(bgra.data() + static_cast<std::size_t>(y) * ancho * 4,
-                    c.bgra.data() + static_cast<std::size_t>(y) * c.stride, static_cast<std::size_t>(ancho) * 4);
-    return true;
-}
-
-void VideoGrafos::marcarCaras(const std::string& entrada, const json& cajas) const {
-    // Dibujar las caras sobre la imagen («marcar») todavía no está en el motor.
-    (void)entrada;
-    (void)cajas;
-}
 
 std::string VideoGrafos::configurarRostros(const std::map<std::string, std::string>& quiero) {
     return editar([&](GrafoVideo& g) {
@@ -1165,8 +1168,8 @@ std::string VideoGrafos::configurarRostros(const std::map<std::string, std::stri
                 const GrafoVideo::Nodo* n = g.nodo(id);
                 if (n->params.value("auto", false))
                     g.quitar(id, &e);
-                else if (n->params.value("uso", std::string()) != "mirar")
-                    g.ajustar(id, json{{"uso", "mirar"}}, &e);
+                else if (!n->params.value("uso", std::string()).empty())
+                    g.ajustar(id, json{{"uso", ""}}, &e);
             }
         }
         return std::string();

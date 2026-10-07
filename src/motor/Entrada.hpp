@@ -62,6 +62,7 @@
 #include <atomic>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -71,6 +72,13 @@
 namespace ba::motor {
 
 struct Rotulo; // Entrada.cpp: un texto para dibujar
+
+/// Lo que ve una tarjeta «Rostros» (el elemento barostros) de una entrada: el
+/// JSON de su mensaje «ba-rostros» y el cuadro analizado (puede ser nulo; quien
+/// lo quiera conservar le suma una referencia). Se llama en el bucle del motor,
+/// con la entrada tomada: hay que devolver enseguida.
+using AvisoRostros = std::function<void(const std::string& entrada, const std::string& json, GstSample* cuadro)>;
+void ponerAvisoRostros(AvisoRostros aviso);
 
 class Reloj;
 

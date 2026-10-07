@@ -310,7 +310,8 @@ void McpService::registerVideoTools() {
         t.examples = {
             R"({"entrada": "Cámara 1", "tipo": "croma"})",
             R"({"entrada": "Cámara 1", "tipo": "gst", "elemento": "gamma", "params": {"propiedades": {"gamma": 1.3}}})",
-            R"({"tipo": "compositor"})"};
+            R"({"tipo": "compositor"})",
+            R"({"entrada": "Cámara 1", "tipo": "rostros", "params": {"marcar": true, "estilo": "esquinas", "texto": "{nombre} — {cargo}"}})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const json ap = tarjetaDePlugin(json{{"tipo", a.value("tipo", std::string())},

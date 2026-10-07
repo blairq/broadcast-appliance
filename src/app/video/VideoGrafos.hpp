@@ -271,13 +271,7 @@ class VideoGrafos : public QObject {
     /// (salvo la etiqueta). "" o el error.
     static std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params);
     // --- Rostros (lo usa Personas) ------------------------------------------
-    /// El último cuadro que bajó la tarjeta `rostros` de `entrada` (BGRA), y
-    /// pedirlo la mantiene bajando. false si la entrada no tiene esa tarjeta.
-    /// `serie` sube con cada cuadro nuevo (0: todavía ninguno).
-    bool cuadroRostros(const std::string& entrada, std::vector<std::uint8_t>& bgra, int& ancho, int& alto,
-                       std::uint64_t& serie) const;
-    /// Las caras para marcar en esa tarjeta: [{x, y, ancho, alto}] en 0..1.
-    void marcarCaras(const std::string& entrada, const nlohmann::json& cajas) const;
+    // (Lo que ve cada tarjeta llega por el bus de la entrada: motor::ponerAvisoRostros.)
     /// Pone o saca las tarjetas `rostros` que Personas necesita: `quiero` es
     /// {entrada: uso}. Las que puso Personas y ya no hacen falta se van; una
     /// que puso alguien a mano se queda (con uso «mirar»). "" o el error.
@@ -422,8 +416,6 @@ class VideoGrafos : public QObject {
     std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
     std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
     std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
-    /// Entradas con vista de rostros pedida al motor -> la serie del último cuadro leído.
-    mutable std::map<std::string, std::uint64_t> vistasRostros_;
     std::string legalizar_ = "no";
 };
 
