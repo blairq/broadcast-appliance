@@ -7,6 +7,7 @@
 #include "Reloj.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <mutex>
 
@@ -59,11 +60,18 @@ void desarmar(Origen& o) {
 
 void armar(Origen& o) {
     desarmar(o);
-    // Lo crudo, en memoria de sistema: lo leen pipelines distintos (una
-    // memoria de GPU es de un contexto). El EOS no pasa (event-types vacío).
+    // Con la GPU del motor, lo decodificado se sube UNA vez y se publica la
+    // textura: el decodificador se la da a la subida sin copiar (en la Mac,
+    // vtdec → GL) y cada entrada la toma tal cual (su cadena arranca con la
+    // subida, que la deja pasar). Todos los pipelines del motor comparten el
+    // contexto (Reloj::adoptar). Publicarlo en memoria de sistema obligaba a
+    // cada entrada a subir el cuadro de nuevo: medido con 8 entradas de una
+    // cámara, 270 % de CPU y el programa a 10 cuadros/s, contra 170 % y 30.
+    // Sin GPU, memoria de sistema. El EOS no pasa (event-types vacío).
+    const std::string video = gpuVideo() ? subirGpu() + " ! " + texturaGpu() : std::string("video/x-raw");
     const std::string d =
         "uridecodebin3 name=ba_dec uri=" + conComillasGst(o.uri) +
-        " ba_dec.video_0 ! queue max-size-buffers=4 max-size-time=0 max-size-bytes=0 ! video/x-raw ! intersink producer-name=" +
+        " ba_dec.video_0 ! queue max-size-buffers=4 max-size-time=0 max-size-bytes=0 ! " + video + " ! intersink producer-name=" +
         conComillasGst(o.prefijo + ":video") + " sync=false event-types=\"<>\"" +
         " ba_dec.audio_0 ! queue ! audioconvert ! intersink producer-name=" + conComillasGst(o.prefijo + ":audio") +
         " sync=false event-types=\"<>\"";
@@ -108,6 +116,8 @@ void armar(Origen& o) {
 } // namespace
 
 bool esDeRed(const std::string& uri) {
+    // Para medir (BA_SIN_ORIGEN_RED=1): cada entrada con su propia conexión, como antes.
+    if (const char* v = std::getenv("BA_SIN_ORIGEN_RED"); v != nullptr && std::string(v) == "1") return false;
     for (const char* p : {"rtsp://", "rtsps://", "rtmp://", "rtmps://", "srt://", "http://", "https://", "udp://", "rtp://"})
         if (uri.rfind(p, 0) == 0) return true;
     return false;

@@ -95,6 +95,10 @@ class Entrada {
     void control(const nlohmann::json& campos);
 
     bool daVideo() const;
+    /// ¿La está mostrando alguien (una composición o una vista)? Si no, deja pasar
+    /// 2 cuadros por segundo antes de los filtros (ver Motor::actualizarUso).
+    void ponerEnUso(bool si) { enUso_ = si; }
+    bool enUso() const { return enUso_; }
     bool daAudio() const;
     std::string productorVideo() const { return id_ + ":video"; }
     /// ¿Está mostrando la placa «sin señal»?
@@ -195,6 +199,15 @@ class Entrada {
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
     std::uint64_t consultaNs_ = 0;
     LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
+    std::atomic<bool> enUso_{true};
+    /// El freno del realineo (ver medirLatencia): cuándo se corrigió cada rama,
+    /// para qué lado, y hasta cuándo no se la toca si va y viene.
+    struct Realineo {
+        std::int64_t ultimoUs = 0, quietoHastaUs = 0;
+        double ultimo = 0;
+    };
+    Realineo realineoV_, realineoA_;
+    std::atomic<std::int64_t> ultimoPasoUs_{0}; ///< el último cuadro que pasó estando sin usar
     std::string origenRed_; ///< el origen de red compartido que usa («origen:<n>»; ver OrigenRed.hpp)
     std::uint64_t vistosDatos_ = 0, datosDesdeNs_ = 0;
     std::atomic<std::int64_t> pide_{0};

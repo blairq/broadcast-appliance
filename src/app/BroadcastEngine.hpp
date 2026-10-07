@@ -505,6 +505,8 @@ class BroadcastEngine {
     bool enableScenePreview(const std::string& canal, const std::string& name, int maxWidth);
     bool enableScenePreview(const std::string& name, int maxWidth) { return enableScenePreview("editor", name, maxWidth); }
     void disableScenePreview(const std::string& canal);
+    /// Diagnóstico de parpadeos (BA_MEDIR_PREVIEW=1): ver medirVista en el .cpp.
+    void medirVista(const std::string& clave);
     void disableScenePreview() { disableScenePreview("editor"); }
     /// El último cuadro de ese canal (RGBA empaquetado).
     bool renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width, int& height);

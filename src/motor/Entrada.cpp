@@ -637,6 +637,29 @@ void Entrada::armar() {
         }
         gst_object_unref(q);
     }
+    // SIN USAR, A 2 CUADROS POR SEGUNDO: una entrada que no está en ninguna
+    // composición ni vista no procesa sus filtros (PTZ, color, superresolución…)
+    // a 30 cuadros por segundo. Todo lo de GL va por un hilo: ocho cámaras
+    // trabajando para nadie atrasaban el programa (bajaba a 15-20 cuadros/s).
+    // Como libobs, que solo dibuja lo que se ve. Dos por segundo alcanzan para la
+    // miniatura y para saber que hay señal; en uso, todos.
+    if (GstElement* q = gst_bin_get_by_name(GST_BIN(p), "ba_origen")) {
+        if (GstPad* pad = gst_element_get_static_pad(q, "src")) {
+            gst_pad_add_probe(
+                pad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                    auto* e = static_cast<Entrada*>(d);
+                    if (e->enUso_.load(std::memory_order_relaxed)) return GST_PAD_PROBE_OK;
+                    const std::int64_t ahora = g_get_monotonic_time();
+                    if (ahora - e->ultimoPasoUs_.load(std::memory_order_relaxed) < 500'000) return GST_PAD_PROBE_DROP;
+                    e->ultimoPasoUs_.store(ahora, std::memory_order_relaxed);
+                    return GST_PAD_PROBE_OK;
+                },
+                this, nullptr);
+            gst_object_unref(pad);
+        }
+        gst_object_unref(q);
+    }
     // Las propiedades de cada filtro (las que no tiene, se avisan).
     for (const auto* lista : {&filtrosV, &filtrosA_})
         for (const auto& x : *lista) {
@@ -820,13 +843,33 @@ void Entrada::medirLatencia() {
         if (hayV) medVAntes_ = medV;
         if (hayA) medAAntes_ = medA;
         bool corrigio = false;
-        if (estableV && std::fabs(medV) > 1000.0) {
+        // EL FRENO: una cámara de red cuyas horas saltan entre dos referencias (la
+        // del RTP y la del RTCP cuando llega) hacía ir y venir el realineo cada
+        // pocos segundos (+1030 ms, −1009 ms…), y cada vuelta corta el audio y el
+        // video de esa entrada. Entre una corrección y la siguiente, 10 s; si una
+        // deshace a la anterior (signo contrario dentro de 20 s), esa rama queda
+        // quieta un minuto.
+        const std::int64_t ahoraUs = g_get_monotonic_time();
+        const auto puede = [&](Realineo& r, double med, const char* que) {
+            if (ahoraUs < r.quietoHastaUs || ahoraUs - r.ultimoUs < 10'000'000) return false;
+            if (r.ultimoUs != 0 && ahoraUs - r.ultimoUs < 20'000'000 && (med > 0) != (r.ultimo > 0)) {
+                r.quietoHastaUs = ahoraUs + 60'000'000;
+                registrar(Nivel::Aviso, id_ + ": las horas de su " + que + " van y vienen (" +
+                                            std::to_string(static_cast<int>(r.ultimo)) + " ms, " +
+                                            std::to_string(static_cast<int>(med)) + " ms): no se realinea por un minuto");
+                return false;
+            }
+            r.ultimoUs = ahoraUs;
+            r.ultimo = med;
+            return true;
+        };
+        if (estableV && std::fabs(medV) > 1000.0 && puede(realineoV_, medV, "video")) {
             realineadoV_ += static_cast<std::int64_t>((medV - 10.0) * 1e6);
             registrar(Nivel::Info, id_ + ": su video trae sus propias horas (corridas " + std::to_string(static_cast<int>(medV)) +
                                        " ms del estudio): se realinea");
             corrigio = true;
         }
-        if (estableA && std::fabs(medA) > 1000.0) {
+        if (estableA && std::fabs(medA) > 1000.0 && puede(realineoA_, medA, "audio")) {
             realineadoA_ += static_cast<std::int64_t>((medA - 10.0) * 1e6);
             registrar(Nivel::Info, id_ + ": su audio trae sus propias horas (corridas " + std::to_string(static_cast<int>(medA)) +
                                        " ms del estudio): se realinea");

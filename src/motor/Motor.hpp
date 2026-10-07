@@ -253,6 +253,9 @@ class Motor {
     int proximoOyente_ = 1;
     static GstFlowReturn alAudio(GstElement* sink, gpointer d);
     void actualizarMultiview();
+    /// Qué entradas está mostrando alguien (composiciones y vistas): las demás
+    /// van a 2 cuadros/s (Entrada::ponerEnUso). Con mu_ tomado.
+    void actualizarUso();
     std::map<std::string, Escena> escenas_;
     std::string alAire_, armada_;
     std::string escuchaModo_ = "apagado", escuchaId_;

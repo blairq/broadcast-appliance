@@ -800,9 +800,16 @@ std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {
         // d3d12convert convierte y escala en una pasada; baja chico.
         return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=" + formato + tam +
                ",pixel-aspect-ratio=1/1 ! d3d12download ! video/x-raw,format=" + formato + tam + ",pixel-aspect-ratio=1/1";
-    return "glupload ! glcolorconvert ! glcolorscale ! video/x-raw(memory:GLMemory)" + tam + " ! glcolorconvert ! "
-           "video/x-raw(memory:GLMemory),format=" + formato + " ! gldownload ! video/x-raw,format=" + formato + tam +
-           ",pixel-aspect-ratio=1/1";
+    // En GL: achicar en la placa y bajar CHICO en RGBA; el formato final, en la CPU
+    // (a este tamaño es casi gratis). Cada paso de GL espera su turno en el hilo
+    // de GL del contexto: con cuatro pasos seguidos por cuadro (convertir,
+    // escalar, convertir, bajar) una vista rendía 10 cuadros/s aunque le
+    // entraran 30. Con un paso menos y colas entre etapas (trabajan a la vez),
+    // rinde lo que tarda el paso más lento, no la suma.
+    const std::string cola = " ! queue max-size-buffers=2 max-size-time=0 max-size-bytes=0 leaky=downstream ! ";
+    return "glupload ! glcolorconvert ! video/x-raw(memory:GLMemory),format=RGBA ! glcolorscale ! video/x-raw(memory:GLMemory),format=RGBA" +
+           tam + cola + "gldownload ! video/x-raw,format=RGBA" + tam + cola + "videoconvert ! video/x-raw,format=" + formato +
+           tam + ",pixel-aspect-ratio=1/1";
 }
 
 } // namespace ba::motor

@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <set>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -46,6 +47,8 @@ class Vistas {
     /// `resolver(clave, latencia)` da el productor de la clave ("" si no existe) y su latencia (ns).
     using Resolver = std::function<std::string(const std::string&, std::int64_t*)>;
     Vistas(Reloj& reloj, Resolver resolver);
+    /// Las entradas que alguien está mirando («entrada:<id>@…»).
+    std::set<std::string> entradasEnUso() const;
     ~Vistas();
     Vistas(const Vistas&) = delete;
     Vistas& operator=(const Vistas&) = delete;
@@ -68,6 +71,9 @@ class Vistas {
         std::string productor;
         Cuadro cuadro; ///< bajo mu_
         std::function<void(const Cuadro&)> aviso;
+        // BA_MEDIR_VISTAS=1: cuadros por segundo y el hueco más largo, al registro cada 2 s.
+        std::int64_t medirDesde = 0, ultimoUs = 0, huecoMaxUs = 0;
+        int medidos = 0;
     };
     static GstFlowReturn alCuadro(GstElement* sink, gpointer d);
     void armar(const std::string& clave, Una& u);

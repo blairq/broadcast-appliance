@@ -3,6 +3,8 @@
 // ============================================================================
 #include "Vistas.hpp"
 
+#include <cstdlib>
+
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 
@@ -57,6 +59,26 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
                 c.bgra.assign(m.data, m.data + std::min<std::size_t>(m.size, static_cast<std::size_t>(c.stride) * c.alto));
                 c.serie = ++self->serie_;
                 aviso = it->second->aviso;
+                static const bool medir = [] {
+                    const char* v = std::getenv("BA_MEDIR_VISTAS");
+                    return v != nullptr && std::string(v) == "1";
+                }();
+                if (medir) {
+                    Una& u = *it->second;
+                    const std::int64_t ahora = g_get_monotonic_time();
+                    if (u.medirDesde == 0) u.medirDesde = ahora;
+                    if (u.ultimoUs != 0) u.huecoMaxUs = std::max(u.huecoMaxUs, ahora - u.ultimoUs);
+                    u.ultimoUs = ahora;
+                    ++u.medidos;
+                    if (ahora - u.medirDesde >= 2'000'000) {
+                        const double cps = u.medidos * 1e6 / static_cast<double>(ahora - u.medirDesde);
+                        registrar(Nivel::Info, "vista " + ll->clave + ": " + std::to_string(static_cast<int>(cps + 0.5)) +
+                                                   " cuadros/s, hueco máx " + std::to_string(u.huecoMaxUs / 1000) + " ms");
+                        u.medirDesde = ahora;
+                        u.medidos = 0;
+                        u.huecoMaxUs = 0;
+                    }
+                }
                 if (aviso) copia = c;
             }
         }
@@ -74,6 +96,16 @@ std::string base(const std::string& clave) {
 }
 } // namespace
 
+std::set<std::string> Vistas::entradasEnUso() const {
+    std::lock_guard<std::mutex> l(mu_);
+    std::set<std::string> out;
+    for (const auto& [clave, u] : vistas_) {
+        const std::string b = base(clave);
+        if (b.rfind("entrada:", 0) == 0) out.insert(b.substr(8));
+    }
+    return out;
+}
+
 void Vistas::avisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
     std::lock_guard<std::mutex> l(mu_);
     auto it = vistas_.find(clave);
@@ -84,9 +116,9 @@ void Vistas::armar(const std::string& clave, Una& u) {
     desarmar(u);
     u.productor = resolver_(base(clave), &u.latencia);
     if (u.productor.empty()) return;
-    const std::string d = "intersrc producer-name=" + entreComillas(u.productor) +
+    const std::string d = "intersrc name=entra producer-name=" + entreComillas(u.productor) +
                           " ! queue leaky=downstream max-size-buffers=2 max-size-time=0 max-size-bytes=0 ! " +
-                          aSistemaEscalado("BGRA", u.ancho, u.alto) + " ! appsink name=s max-buffers=1 drop=true sync=true";
+                          aSistemaEscalado("BGRA", u.ancho, u.alto) + " ! appsink name=s max-buffers=1 drop=true sync=false";
     GstElement* p = gst_parse_launch(d.c_str(), nullptr);
     if (p == nullptr) return;
     GstElement* s = gst_bin_get_by_name(GST_BIN(p), "s");
@@ -94,6 +126,34 @@ void Vistas::armar(const std::string& clave, Una& u) {
     g_signal_connect_data(s, "new-sample", G_CALLBACK(&Vistas::alCuadro), new Llamada{this, clave},
                           [](gpointer d, GClosure*) { delete static_cast<Llamada*>(d); }, static_cast<GConnectFlags>(0));
     gst_object_unref(s);
+    // BA_MEDIR_VISTAS=1: lo que ENTRA a la vista (para separar «no llega» de «no da abasto»).
+    if (const char* m = std::getenv("BA_MEDIR_VISTAS"); m != nullptr && std::string(m) == "1")
+        if (GstElement* en = gst_bin_get_by_name(GST_BIN(p), "entra")) {
+            struct Cuenta {
+                std::string clave;
+                std::int64_t desde = 0;
+                int n = 0;
+            };
+            GstPad* pad = gst_element_get_static_pad(en, "src");
+            gst_pad_add_probe(
+                pad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                    auto* c = static_cast<Cuenta*>(d);
+                    const std::int64_t ahora = g_get_monotonic_time();
+                    if (c->desde == 0) c->desde = ahora;
+                    ++c->n;
+                    if (ahora - c->desde >= 2'000'000) {
+                        registrar(Nivel::Info, "entra a vista " + c->clave + ": " +
+                                                   std::to_string(static_cast<int>(c->n * 1e6 / (ahora - c->desde) + 0.5)) + " cuadros/s");
+                        c->desde = ahora;
+                        c->n = 0;
+                    }
+                    return GST_PAD_PROBE_OK;
+                },
+                new Cuenta{clave}, [](gpointer d) { delete static_cast<Cuenta*>(d); });
+            gst_object_unref(pad);
+            gst_object_unref(en);
+        }
     reloj_.adoptar(p);
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(u.latencia + kMargenNs));
     gst_element_set_state(p, GST_STATE_PLAYING);

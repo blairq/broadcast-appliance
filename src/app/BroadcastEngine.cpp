@@ -476,6 +476,41 @@ void BroadcastEngine::programPeaksDb(float& left, float& right) {
 }
 
 bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::string& name, int maxWidth) {
+    if (canal == "armada" && started_ && motor_) {
+        // LO ARMADO ES EL BUS DE PREVIEW DEL MOTOR: una composición que vive
+        // siempre y a la que armar le cambia la escena con un corte (las capas
+        // nuevas reemplazan a las viejas cuando ya tienen cuadro). Antes cada
+        // escena armada tenía su propia vista y su propia composición: en cada
+        // TAKE se soltaba una y se armaba otra de cero (ramas, shaders) y el
+        // preview parpadeaba en negro o sin capas, y además iba a 10-15 cuadros/s.
+        const std::string e = motor_->armar(name);
+        if (!e.empty()) {
+            setError("armar: " + e);
+            return false;
+        }
+        if (name.empty()) {
+            disableScenePreview(canal);
+            return true;
+        }
+        auto ya = scenePreviews_.find(canal);
+        if (ya != scenePreviews_.end()) {
+            ya->second.name = name;
+            return true;
+        }
+        const int w = maxWidth > 0 ? std::min(maxWidth, video_.baseWidth) : video_.baseWidth;
+        const int h = std::max(2, w * video_.baseHeight / std::max(1, video_.baseWidth));
+        VistaPrevia v;
+        v.clave = "preview@armada";
+        v.name = name;
+        const std::string ev = motor_->verPedir(v.clave, w, h);
+        if (!ev.empty()) {
+            setError("vista previa: " + ev);
+            return false;
+        }
+        scenePreviews_[canal] = v;
+        medirVista(v.clave);
+        return true;
+    }
     auto it = scenePreviews_.find(canal);
     if (it != scenePreviews_.end() && it->second.name == name) return true;
     disableScenePreview(canal);
@@ -500,7 +535,31 @@ bool BroadcastEngine::enableScenePreview(const std::string& canal, const std::st
         return false;
     }
     scenePreviews_[canal] = v;
+    medirVista(v.clave);
     return true;
+}
+
+void BroadcastEngine::medirVista(const std::string& clave) {
+    // BA_MEDIR_PREVIEW=1: cada cuadro de la vista, con su brillo medio y cuánto
+    // tardó desde el anterior, al registro (para encontrar parpadeos: un cuadro
+    // negro, a medio armar o que falta alrededor de un TAKE).
+    const char* medir = std::getenv("BA_MEDIR_PREVIEW");
+    if (medir == nullptr || std::string(medir) != "1" || !motor_) return;
+    auto antes = std::make_shared<std::int64_t>(0);
+    motor_->verAvisar(clave, [clave, antes](const motor::Cuadro& c) {
+        std::uint64_t suma = 0, n = 0;
+        for (int y = 0; y < c.alto; y += 8)
+            for (int x = 0; x < c.ancho; x += 8) {
+                const std::uint8_t* p = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x) * 4;
+                suma += (p[0] + 2 * p[1] + p[2]) / 4;
+                ++n;
+            }
+        const std::int64_t ahora = g_get_monotonic_time();
+        const std::int64_t dt = *antes ? (ahora - *antes) / 1000 : 0;
+        *antes = ahora;
+        ba::diag::registro().info("medir " + clave + ": brillo " + std::to_string(n ? suma / n : 0) + " dt " +
+                                  std::to_string(dt) + " ms serie " + std::to_string(c.serie));
+    });
 }
 
 void BroadcastEngine::disableScenePreview(const std::string& canal) {

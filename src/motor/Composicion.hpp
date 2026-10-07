@@ -36,6 +36,7 @@
 #include <atomic>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -83,6 +84,8 @@ class Composicion {
 
     const std::string& nombre() const { return nombre_; }
     std::string productor() const { return "video:" + nombre_; }
+    /// Las entradas que tiene ahora (capas, las que salen en una transición y el DSK).
+    std::set<std::string> entradasEnUso() const;
     bool anda() const { return pipeline_ != nullptr; }
     const std::string& error() const { return error_; }
 

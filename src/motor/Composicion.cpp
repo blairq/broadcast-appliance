@@ -113,6 +113,47 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     }
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
     dskMx_ = gst_bin_get_by_name(GST_BIN(pipeline_), "dsk");
+    // BA_MEDIR_VISTAS=1: cuántos cuadros salen del mezclador (y del DSK) y su
+    // hueco más largo, en horas del pipeline y del reloj de pared, cada 2 s.
+    if (const char* m = std::getenv("BA_MEDIR_VISTAS"); m != nullptr && std::string(m) == "1")
+        for (GstElement* el : {mezclador_, dskMx_}) {
+            if (el == nullptr) continue;
+            struct Medida {
+                std::string nombre;
+                std::int64_t desde = 0, ultimo = 0, hueco = 0, ultimoPts = -1, huecoPts = 0;
+                int n = 0;
+            };
+            auto* md = new Medida{nombre_ + (el == dskMx_ ? ":dsk" : ":mx")};
+            GstPad* pad = gst_element_get_static_pad(el, "src");
+            gst_pad_add_probe(
+                pad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
+                    auto* md = static_cast<Medida*>(d);
+                    GstBuffer* b = GST_PAD_PROBE_INFO_BUFFER(info);
+                    const std::int64_t ahora = g_get_monotonic_time();
+                    if (md->desde == 0) md->desde = ahora;
+                    if (md->ultimo) md->hueco = std::max(md->hueco, ahora - md->ultimo);
+                    md->ultimo = ahora;
+                    if (GST_BUFFER_PTS_IS_VALID(b)) {
+                        const auto pts = static_cast<std::int64_t>(GST_BUFFER_PTS(b));
+                        if (md->ultimoPts >= 0) md->huecoPts = std::max(md->huecoPts, pts - md->ultimoPts);
+                        md->ultimoPts = pts;
+                    }
+                    ++md->n;
+                    if (ahora - md->desde >= 2'000'000) {
+                        registrar(Nivel::Info, "mezcla " + md->nombre + ": " +
+                                                   std::to_string(static_cast<int>(md->n * 1e6 / (ahora - md->desde) + 0.5)) +
+                                                   " cuadros/s, hueco " + std::to_string(md->hueco / 1000) + " ms (pts " +
+                                                   std::to_string(md->huecoPts / 1000000) + " ms)");
+                        md->desde = ahora;
+                        md->n = 0;
+                        md->hueco = md->huecoPts = 0;
+                    }
+                    return GST_PAD_PROBE_OK;
+                },
+                md, [](gpointer d) { delete static_cast<Medida*>(d); });
+            gst_object_unref(pad);
+        }
     reloj_.adoptar(pipeline_);
     aplicarLatencia();
     if (gst_element_set_state(pipeline_, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
@@ -388,6 +429,14 @@ void Composicion::sacarGeneracion(int gen) {
             ++it;
         }
     }
+}
+
+std::set<std::string> Composicion::entradasEnUso() const {
+    std::lock_guard<std::mutex> l(mu_);
+    std::set<std::string> out;
+    for (const auto& [k, r] : ramas_) out.insert(r->entrada);
+    for (const auto& [k, r] : dsk_) out.insert(r->entrada);
+    return out;
 }
 
 void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms) {

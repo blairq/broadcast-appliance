@@ -147,9 +147,12 @@ void Motor::bucle() {
             }
         };
         origen_red::tic(); // las cámaras de red compartidas (tiene su propio candado)
+        static int vueltas = 0;
+        const bool revisarUso = ++vueltas % 10 == 0; // cada ~200 ms
         {
             std::lock_guard<std::recursive_mutex> l(mu_);
             Vigia vigia{desdeUs, ultimoAvisoUs};
+            if (revisarUso) actualizarUso();
             for (auto& [id, c] : canales_) c.entrada->tic();
             if (programa_) programa_->tic();
             if (directo_) directo_->tic();
@@ -384,6 +387,7 @@ std::string Motor::definirEscena(const json& j) {
     }
     if (e.nombre == armada_ && vPreview_) vPreview_->mostrar(e);
     if (auto it = vEscenas_.find(e.nombre); it != vEscenas_.end() && it->second.comp) it->second.comp->mostrar(e);
+    actualizarUso();
     return {};
 }
 
@@ -399,12 +403,30 @@ std::string Motor::quitarEscena(const std::string& nombre) {
 
 std::string Motor::armar(const std::string& nombre) {
     std::lock_guard<std::recursive_mutex> l(mu_);
+    if (nombre.empty()) { // nada armado
+        armada_.clear();
+        if (vPreview_) vPreview_->mostrar(Escena{"", {}}, "corte", 0);
+        actualizarUso();
+        return {};
+    }
     auto it = escenas_.find(nombre);
     if (it == escenas_.end()) return "no hay una escena «" + nombre + "»";
     armada_ = nombre;
     if (vPreview_) vPreview_->mostrar(it->second, "corte", 0);
     actualizarMultiview();
+    actualizarUso(); // lo armado ya corre entero: el TAKE no la agarra a 2 cuadros/s
     return {};
+}
+
+void Motor::actualizarUso() {
+    std::set<std::string> uso;
+    const auto sumar = [&uso](const std::set<std::string>& s) { uso.insert(s.begin(), s.end()); };
+    for (Composicion* c : {vPrograma_.get(), vPreview_.get(), vMulti_.get()})
+        if (c != nullptr) sumar(c->entradasEnUso());
+    for (const auto& [n, c] : vEscenas_)
+        if (c.comp) sumar(c.comp->entradasEnUso());
+    if (vistas_) sumar(vistas_->entradasEnUso());
+    for (auto& [id, c] : canales_) c.entrada->ponerEnUso(uso.count(id) > 0);
 }
 
 std::string Motor::alAire(const std::string& nombre, const std::string& transicion, int ms) {
@@ -421,6 +443,7 @@ std::string Motor::alAire(const std::string& nombre, const std::string& transici
     for (const auto& c : it->second.capas)
         if (c.visible) ids.push_back(c.entrada);
     escenaAlAire(ids, transicion == "corte" ? 0 : ms);
+    actualizarUso(); // las que entran, a todos sus cuadros ya
     return {};
 }
 
@@ -574,7 +597,9 @@ std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
     if (!vistas_) return "el motor no está andando";
     const std::string b = clave.substr(0, clave.find('@'));
     if (b.rfind("escena:", 0) == 0 && usarEscena(b.substr(7)).empty()) return "no hay una escena «" + b.substr(7) + "»";
-    return vistas_->pedir(clave, ancho, alto);
+    const std::string e = vistas_->pedir(clave, ancho, alto);
+    actualizarUso();
+    return e;
 }
 
 void Motor::verSoltar(const std::string& clave) {
