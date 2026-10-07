@@ -1456,7 +1456,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
                 if (ba::ort::trae(p)) l += std::string(l.empty() ? "" : ",") + p;
 #endif
 #if defined(BA_HAVE_NCNN)
-            if (hayVulkan()) l += std::string(l.empty() ? "" : ",") + "vulkan"; // ncnn, aparte de ONNX Runtime
+            if (ba::ort::hayVulkan()) l += std::string(l.empty() ? "" : ",") + "vulkan"; // ncnn, aparte de ONNX Runtime
 #endif
             g_value_set_string(v, l.c_str());
             break;
