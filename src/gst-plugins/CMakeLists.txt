@@ -149,3 +149,17 @@ if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
         message(STATUS "barostros: sin Pango/Cairo, el overlay va sin texto")
     endif()
 endif()
+
+# Que todos nuestros elementos dejen pasar los eventos (serializados, fuera de
+# banda y hacia arriba): la cadena de una entrada se comunica así.
+add_executable(test_eventos tests/test_eventos.cpp)
+target_link_libraries(test_eventos PRIVATE ba::gstreamer)
+if(DEFINED BA_GST_LIBDIR)
+    set_target_properties(test_eventos PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR};${BA_ORT_DIR}/lib")
+endif()
+target_compile_definitions(test_eventos PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(test_eventos gstbafiltros gstbaaudio gstbaplugins gstbasuperres)
+if(TARGET gstbarostros)
+    add_dependencies(test_eventos gstbarostros)
+endif()
+add_test(NAME test_eventos COMMAND test_eventos)
