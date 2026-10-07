@@ -35,11 +35,16 @@ Rectangle {
         for (const p of page.bot.perfiles) if (p.id === page.perfilId) return p
         return null
     }
-    // ui_show_page {page: "botonera", seccion: <perfil (id o nombre)>}
+    // ui_show_page {page: "botonera", seccion: <perfil (id o nombre)> | "herramientas[/<búsqueda>]"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
             if (pagina !== "botonera") return
+            if (seccion.toLowerCase().startsWith("herramientas")) {
+                const barra = seccion.indexOf("/")
+                selectorHerr.abrir(herrF.text.trim(), barra >= 0 ? seccion.substring(barra + 1) : "")
+                return
+            }
             const l = page.bot.perfiles
             for (let i = 0; i < l.length; ++i)
                 if (l[i].id === seccion || l[i].nombre.toLowerCase() === seccion.toLowerCase()) {
@@ -388,7 +393,7 @@ Rectangle {
                         fondoF.text = est.fondo || ""
                         colorF.text = est.color || ""
                         const a = c.accion || {}
-                        herrF.editText = a.herramienta || ""
+                        herrF.text = a.herramienta || ""
                         argsF.text = a.args ? JSON.stringify(a.args) : ""
                         jsonF.text = txt || ""
                     }
@@ -400,10 +405,10 @@ Rectangle {
                         c.estilo = Object.assign({}, c.estilo || {}, { texto: textoF.text })
                         if (fondoF.text !== "") c.estilo.fondo = fondoF.text
                         if (colorF.text !== "") c.estilo.color = colorF.text
-                        if (herrF.editText.trim() !== "") {
+                        if (herrF.text.trim() !== "") {
                             let args = {}
                             if (argsF.text.trim() !== "") args = JSON.parse(argsF.text)
-                            c.accion = { tipo: "herramienta", herramienta: herrF.editText.trim(), args: args }
+                            c.accion = { tipo: "herramienta", herramienta: herrF.text.trim(), args: args }
                         } else {
                             delete c.accion
                         }
@@ -428,11 +433,23 @@ Rectangle {
                         Text { text: "Letra"; color: Theme.textDim; font.pixelSize: 12 }
                         TextField { id: colorF; Layout.fillWidth: true; color: Theme.text; placeholderText: "#ffffff" }
                         Text { text: "Herramienta"; color: Theme.textDim; font.pixelSize: 12 }
-                        ComboBox {
-                            id: herrF
+                        // El nombre se puede escribir; «Elegir…» abre el catálogo con
+                        // secciones, explicaciones y búsqueda (SelectorHerramientas).
+                        RowLayout {
                             Layout.fillWidth: true
-                            editable: true
-                            model: page.bot.herramientasUi("")
+                            spacing: 6
+                            TextField {
+                                id: herrF
+                                Layout.fillWidth: true
+                                color: Theme.text
+                                font.family: Theme.mono
+                                placeholderText: "ninguna"
+                            }
+                            GlassButton {
+                                compact: true
+                                text: "Elegir…"
+                                onClicked: selectorHerr.abrir(herrF.text.trim())
+                            }
                         }
                         Text { text: "Argumentos"; color: Theme.textDim; font.pixelSize: 12 }
                         TextField {
@@ -986,6 +1003,16 @@ Rectangle {
                 running: page.visible && page.pestana === "auditoria"
                 onTriggered: audLista.model = page.bot.auditoriaUi()
             }
+        }
+    }
+
+    // El catálogo de herramientas para la celda (ver controls/SelectorHerramientas.qml).
+    SelectorHerramientas {
+        id: selectorHerr
+        onElegida: (nombre, ejemplo) => {
+            herrF.text = nombre
+            // Los argumentos de ejemplo, solo si no había escritos.
+            if (nombre !== "" && ejemplo !== "" && argsF.text.trim() === "") argsF.text = ejemplo
         }
     }
 }

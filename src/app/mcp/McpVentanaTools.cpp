@@ -208,7 +208,7 @@ const char* kSobreWayland =
 
 void McpService::registerVentanaTools() {
     core_.addCategory("ventanas", "Ventanas y monitores",
-                      "Donde esta cada ventana y como acomodarlas: mover, redimensionar, mandar a otro "
+                      "Dónde está cada ventana y cómo acomodarlas: mover, redimensionar, mandar a otro "
                       "monitor, pantalla completa, cerrar. Para armar el puesto del operador en varias "
                       "pantallas.");
 

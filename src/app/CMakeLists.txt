@@ -454,6 +454,13 @@ endif()
     file(GLOB _ba_lsp_capturas "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/*.jpg")
     qt_add_resources(ba-app "ba_lsp_capturas" PREFIX "/lsp" BASE "${CMAKE_SOURCE_DIR}/assets/lsp-capturas"
                      FILES ${_ba_lsp_capturas})
+    # Una captura chica de la página de cada categoría, para el selector de
+    # herramientas de la Botonera (tools/capturas-botonera.py las saca de la app).
+    file(GLOB _ba_bot_capturas "${CMAKE_SOURCE_DIR}/assets/botonera-capturas/*.jpg")
+    if(_ba_bot_capturas)
+        qt_add_resources(ba-app "ba_bot_capturas" PREFIX "/botonera" BASE "${CMAKE_SOURCE_DIR}/assets/botonera-capturas"
+                         FILES ${_ba_bot_capturas})
+    endif()
     install(FILES "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/LEEME.txt" DESTINATION data/licencias
             RENAME lsp-capturas-LEEME.txt COMPONENT bundle)
     # Los modelos locales que se ofrecen bajar (los actualiza la fabrica al subir).

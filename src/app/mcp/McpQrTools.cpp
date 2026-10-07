@@ -54,9 +54,9 @@ QVariantMap aMapa(const json& o) {
 } // namespace
 
 void McpService::registerQrTools() {
-    core_.addCategory("qr", "Codigos QR",
-                      "Generar codigos QR (enlace, WiFi, contacto, reunion, y los del propio aparato: "
-                      "sala, teleprompter, rotulos), guardarlos en la biblioteca y exportarlos.");
+    core_.addCategory("qr", "Códigos QR",
+                      "Generar códigos QR (enlace, WiFi, contacto, reunión, y los del propio aparato: "
+                      "sala, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos.");
     auto* q = static_cast<QrViewModel*>(vm_.qr());
     if (q == nullptr) return;
 

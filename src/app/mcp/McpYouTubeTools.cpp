@@ -38,7 +38,7 @@ void McpService::registerYouTubeTools() {
     core_.addCategory(
         "youtube", "YouTube",
         "Cuenta de YouTube: videos, subidas, eventos en vivo (crear, transmitir, terminar) y chat. "
-        "Primero youtube_status: si no esta configurado o conectado, explica que falta.");
+        "Primero youtube_status: si no está configurado o conectado, explica qué falta.");
     auto* yt = static_cast<YouTubeViewModel*>(vm_.youtube());
     AppRuntime& rt = rt_;
     const auto needLogin = [yt](Done& done) {

@@ -82,6 +82,8 @@ class Botonera : public QObject {
         std::function<std::set<std::string>()> presidentes;
         /// Nombres de herramientas que existen (para validar y el selector).
         std::function<std::set<std::string>()> herramientas;
+        /// El catálogo por categorías con sus explicaciones (McpCore::catalogo), para el selector.
+        std::function<json()> catalogo;
     };
 
     Botonera(const std::filesystem::path& datos, BusEventos& bus, Ganchos g, QObject* parent = nullptr);
@@ -189,6 +191,8 @@ class Botonera : public QObject {
     Q_INVOKABLE int revocarUi(const QString& dispositivo);
     Q_INVOKABLE QVariantList auditoriaUi() const;
     Q_INVOKABLE QStringList herramientasUi(const QString& filtro) const;
+    /// El catálogo por categorías para el selector de herramientas (ver Ganchos::catalogo).
+    Q_INVOKABLE QVariantList catalogoUi() const;
 
    signals:
     void cambio();

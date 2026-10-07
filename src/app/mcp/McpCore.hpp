@@ -263,6 +263,11 @@ class McpCore {
         return out;
     }
     const Tool* findTool(const std::string& name) const;
+    /// El catálogo para elegir una herramienta a mano (el selector de la
+    /// Botonera): [{id, titulo, resumen, herramientas: [{nombre, titulo,
+    /// descripcion, etiquetas, ejemplo, solo_lectura, destructiva}]}], en el orden
+    /// de las categorías; las sin categoría van al final, en «Otras».
+    json catalogo() const;
     /// Para ajustar herramientas ya registradas (marcas de seguridad).
     void forEachTool(const std::function<void(Tool&)>& fn) {
         for (Tool& t : tools_)

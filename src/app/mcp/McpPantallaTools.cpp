@@ -35,8 +35,8 @@ QString idDePantalla(PantallasViewModel& p, const QString& quien) {
 
 void McpService::registerPantallaTools() {
     core_.addCategory("pantallas", "Pantallas externas",
-                      "Televisores y proyectores de la sala (Chromecast): cuales hay y que mostrar en "
-                      "cada uno (un mensaje, un QR, la hora, una pagina, el teleprompter).");
+                      "Televisores y proyectores de la sala (Chromecast): cuáles hay y qué mostrar en "
+                      "cada uno (un mensaje, un QR, la hora, una página, el teleprompter).");
     auto* p = static_cast<PantallasViewModel*>(vm_.pantallas());
     if (p == nullptr) return;
 

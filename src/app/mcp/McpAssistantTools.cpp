@@ -29,7 +29,7 @@ void McpService::registerAssistantTools() {
     core_.addCategory(
         "asistente", "Pestaña Asistente",
         "El agente de IA que corre en la pestaña Asistente (Claude Code, Gemini CLI u opencode): "
-        "proveedor, modelo, instalacion, arrancar/detener y mandarle pedidos.");
+        "proveedor, modelo, instalación, arrancar/detener y mandarle pedidos.");
     auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
     {
         Tool t;

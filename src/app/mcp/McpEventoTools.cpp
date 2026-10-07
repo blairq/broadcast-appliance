@@ -766,7 +766,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
 // ============================================================================
 void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     core.addCategory("padron", "La gente del evento",
-                     "Quien viene, con que papel, por donde asiste y si ya llego. Vale para los "
+                     "Quién viene, con qué papel, por dónde asiste y si ya llegó. Vale para los "
                      "que entran por la puerta y para los que entran por la sala: es una sola lista.");
 
     const auto sinEvento = [](Done& done) {

@@ -48,8 +48,8 @@ json aJson(const QJsonObject& o) {
 } // namespace
 
 void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
-    core.addCategory("preguntas", "Preguntas del publico",
-                     "La cola de lo que pregunta la gente, del salon y de las plataformas, para "
+    core.addCategory("preguntas", "Preguntas del público",
+                     "La cola de lo que pregunta la gente, del salón y de las plataformas, para "
                      "moderarla y sacarla al aire.");
 
     const auto salaDe = [&vm]() { return static_cast<ConferenceViewModel*>(vm.conference()); };

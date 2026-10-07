@@ -31,7 +31,7 @@ namespace ba::app::mcp {
 void McpService::registerInputTools() {
     core_.addCategory(
         "entradas", "Entradas de video",
-        "Camaras y capturadoras conectadas a la maquina (hardware) y camaras/señales por la red "
+        "Cámaras y capturadoras conectadas a la máquina (hardware) y cámaras/señales por la red "
         "(RTSP, RTMP, SRT, HLS, UDP). Quedan como fuentes de las escenas.");
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;

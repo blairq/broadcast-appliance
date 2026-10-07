@@ -50,7 +50,7 @@ json estadoDe(PrompterViewModel& p) {
 void McpService::registerPrompterTools() {
     core_.addCategory("prompter", "Teleprompter",
                       "Los discursos que lee el orador (carpeta del evento), el control del texto "
-                      "(arrancar, velocidad, avisos) y que pantallas hay conectadas.");
+                      "(arrancar, velocidad, avisos) y qué pantallas hay conectadas.");
     auto* p = static_cast<PrompterViewModel*>(vm_.prompter());
     if (p == nullptr) return;
 

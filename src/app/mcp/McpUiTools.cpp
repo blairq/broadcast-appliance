@@ -48,7 +48,7 @@ int paginaDeId(StudioViewModel& vm, const std::string& id) {
 void McpService::registerUiTools() {
     core_.addCategory(
         "interfaz", "Interfaz de la app",
-        "Navegar paginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
+        "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
         "(multiview en otro monitor).");
     core_.addCategory("sistema", "Sistema", "Videos disponibles, registros, salud, salir.");
     AppRuntime& rt = rt_;

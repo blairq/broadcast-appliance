@@ -198,7 +198,7 @@ std::string cpuModel() {
 void McpService::registerSystemTools() {
     core_.addCategory(
         "equipo", "El equipo",
-        "Monitores (para repartir ventanas de salida), placas de audio, camaras y capturadoras con sus "
+        "Monitores (para repartir ventanas de salida), placas de audio, cámaras y capturadoras con sus "
         "formatos, GPU y codificadores, CPU, memoria y disco.");
     AppRuntime& rt = rt_;
     {

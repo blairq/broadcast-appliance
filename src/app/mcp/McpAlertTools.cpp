@@ -21,8 +21,8 @@ namespace ba::app::mcp {
 void McpService::registerAlertTools() {
     core_.addCategory(
         "alertas", "Disparadores (alertas)",
-        "Pedirle al servidor que vigile algo (saturacion, silencio, fin de un tema, tiempo de un "
-        "orador, lobby, chat, cortes, disco, temporizadores) y que avise o actue solo. Evita tener "
+        "Pedirle al servidor que vigile algo (saturación, silencio, fin de un tema, tiempo de un "
+        "orador, lobby, chat, cortes, disco, temporizadores) y que avise o actúe solo. Evita tener "
         "que consultar cada tanto: el aviso llega al chat del asistente.");
     agent::AlertEngine& eng = vm_.alerts();
 

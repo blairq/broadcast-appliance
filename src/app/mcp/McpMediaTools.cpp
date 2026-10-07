@@ -64,7 +64,7 @@ QString resolveInside(const QString& root, const QString& p) {
 
 void McpService::registerMediaTools() {
     core_.addCategory(
-        "medios", "Medios (imagenes, videos, musica)",
+        "medios", "Medios (imágenes, videos, música)",
         "Buscar, ver y usar en escenas los archivos de las carpetas de medios del sistema: Media/ (la "
         "biblioteca), Shares/ (lo que compartieron los invitados) y Recordings/.");
     AppRuntime& rt = rt_;

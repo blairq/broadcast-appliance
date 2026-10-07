@@ -22,9 +22,9 @@
 namespace ba::app::mcp {
 
 void McpService::registerAgenteTools() {
-    core_.addCategory("agentes", "Agentes automaticos",
-                      "Roles que atienden solos lo que llega de afuera (recepcion del lobby, tecnico de "
-                      "audio): cuales hay, prenderlos, encargarles algo, ver que hicieron.");
+    core_.addCategory("agentes", "Agentes automáticos",
+                      "Roles que atienden solos lo que llega de afuera (recepción del lobby, técnico de "
+                      "audio): cuáles hay, prenderlos, encargarles algo, ver qué hicieron.");
     agent::Despachador& d = vm_.despachador();
 
     {

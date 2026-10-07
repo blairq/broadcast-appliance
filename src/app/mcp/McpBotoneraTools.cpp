@@ -569,7 +569,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     // --- DSK: capas encima del programa ---------------------------------------------------
     core.addCategory("dsk", "Capas (DSK)",
                      "Cuatro capas globales encima del programa que no cambian con la escena: logo o mosca, el "
-                     "recuadro del interprete de LSA, un zocalo fijo, un reloj.");
+                     "recuadro del intérprete de LSA, un zócalo fijo, un reloj.");
     {
         Tool t;
         t.name = "dsk_listar";

@@ -15,6 +15,7 @@
 #include <chrono>
 
 #include <algorithm>
+#include <map>
 #include <cctype>
 #include <memory>
 #include <set>
@@ -141,7 +142,7 @@ ToolResult ToolResult::ok(const std::string& message) {
 // --- McpCore ------------------------------------------------------------------
 
 McpCore::McpCore() {
-    addCategory("ayuda", "Ayuda", "Guia, temas y fichas de cada herramienta.");
+    addCategory("ayuda", "Ayuda", "Guía, temas y fichas de cada herramienta.");
     // La ayuda es parte del protocolo de este servidor: siempre esta.
     Tool help;
     help.name = "help";
@@ -278,6 +279,45 @@ void McpCore::setServerInfo(std::string name, std::string version, std::string i
     name_ = std::move(name);
     version_ = std::move(version);
     instructions_ = std::move(instructions);
+}
+
+json McpCore::catalogo() const {
+    json out = json::array();
+    std::map<std::string, std::size_t> donde;
+    for (const auto& c : categories_) {
+        donde[c.id] = out.size();
+        out.push_back({{"id", c.id}, {"titulo", c.title}, {"resumen", c.summary}, {"herramientas", json::array()}});
+    }
+    for (const auto& t : tools_) {
+        auto it = donde.find(t.category);
+        if (it == donde.end()) {
+            it = donde.find("");
+            if (it == donde.end()) {
+                it = donde.emplace("", out.size()).first;
+                out.push_back({{"id", ""}, {"titulo", "Otras"}, {"resumen", ""}, {"herramientas", json::array()}});
+            }
+        }
+        std::string etiquetas;
+        for (const auto& e : etiquetasDe(t.name)) etiquetas += (etiquetas.empty() ? "" : " ") + e;
+        // El primer ejemplo, si es JSON: precarga los argumentos.
+        std::string ejemplo;
+        for (const auto& e : t.examples)
+            if (json::parse(e, nullptr, false).is_object()) {
+                ejemplo = e;
+                break;
+            }
+        out[it->second]["herramientas"].push_back({{"nombre", t.name},
+                                                   {"titulo", t.title.empty() ? t.name : t.title},
+                                                   {"descripcion", t.description},
+                                                   {"etiquetas", etiquetas},
+                                                   {"ejemplo", ejemplo},
+                                                   {"solo_lectura", t.readOnly},
+                                                   {"destructiva", t.destructive}});
+    }
+    json sin = json::array();
+    for (auto& c : out)
+        if (!c["herramientas"].empty()) sin.push_back(std::move(c));
+    return sin;
 }
 
 void McpCore::addCategory(const std::string& id, const std::string& title, const std::string& summary) {

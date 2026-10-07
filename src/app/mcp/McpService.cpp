@@ -730,15 +730,15 @@ QString McpService::token() const { return http_ ? http_->token() : QString(); }
 // ============================================================================
 
 void McpService::registerTools() {
-    core_.addCategory("estado", "Estado", "Vistazo general: que esta al aire, salidas, salud.");
+    core_.addCategory("estado", "Estado", "Vistazo general: qué está al aire, salidas, salud.");
     core_.addCategory("escenas", "Escenas",
                       "Escenas: listar, cambiar la del aire, crear, definir completas, exportar.");
     core_.addCategory("fuentes", "Fuentes",
-                      "Lo que compone cada escena: camaras, imagenes, textos, invitados...");
+                      "Lo que compone cada escena: cámaras, imágenes, textos, invitados...");
     core_.addCategory("audio", "Audio", "Mezclador: volumen, silencio, niveles.");
-    core_.addCategory("salidas", "Salidas", "Transmision (RTMP) y grabacion.");
-    core_.addCategory("config", "Configuracion",
-                      "Todos los ajustes del appliance (video, codificacion, sala, red...).");
+    core_.addCategory("salidas", "Salidas", "Transmisión (RTMP) y grabación.");
+    core_.addCategory("config", "Configuración",
+                      "Todos los ajustes del appliance (video, codificación, sala, red...).");
     // La botonera y el bus de eventos (ver McpBotoneraTools.cpp).
     registerBotoneraTools(core_, vm_);
     // El guion del evento: su propio bloque (ver McpEventoTools.cpp).

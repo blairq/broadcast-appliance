@@ -31,10 +31,10 @@
 namespace ba::app::mcp {
 
 void McpService::registerLaminaTools() {
-    core_.addCategory("laminas", "Carruseles de laminas",
-                      "Tiras de imagenes para una escena: la presentacion de un orador, las placas "
+    core_.addCategory("laminas", "Carruseles de láminas",
+                      "Tiras de imágenes para una escena: la presentación de un orador, las placas "
                       "institucionales. Se arman una vez y se aplican donde haga falta; saltar a una "
-                      "lamina cualquiera es instantaneo. Un PDF o un PowerPoint se desarma solo.");
+                      "lámina cualquiera es instantaneo. Un PDF o un PowerPoint se desarma solo.");
 
     auto* cc = qobject_cast<CarruselViewModel*>(vm_.carruseles());
     AppRuntime& rt = rt_;

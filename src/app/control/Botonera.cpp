@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Botonera.hpp"
+#include <QJsonArray>
+#include <QFile>
 
 #include "control/BusEventos.hpp"
 
@@ -1597,6 +1599,17 @@ QVariantList Botonera::auditoriaUi() const {
             {"que", QString::fromStdString(it->value("que", std::string()))},
             {"detalle", QString::fromStdString(it->value("detalle", std::string()))}});
     return out;
+}
+
+QVariantList Botonera::catalogoUi() const {
+    if (!g_.catalogo) return {};
+    json cat = g_.catalogo();
+    for (auto& c : cat) {
+        // La miniatura de la página de la categoría, si viaja en el programa.
+        const QString ruta = ":/botonera/" + QString::fromStdString(c.value("id", std::string())) + ".jpg";
+        if (QFile::exists(ruta)) c["captura"] = ("qrc" + ruta).toStdString();
+    }
+    return QJsonDocument::fromJson(QByteArray::fromStdString(cat.dump())).array().toVariantList();
 }
 
 QStringList Botonera::herramientasUi(const QString& filtro) const {
