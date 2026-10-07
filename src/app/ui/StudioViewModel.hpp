@@ -833,6 +833,9 @@ class StudioViewModel : public QObject {
     /// última. `momento`: "inicio" | "cierre" | "" (solo revisar), del evento
     /// `carpeta` (vacío = el en curso).
     void revisarConfig(const std::string& carpeta, const std::string& momento);
+    /// grabaciones.json y transmisiones.json del evento en curso (H4): cada
+    /// grabación con su archivo y desde/hasta; cada vivo con su URL y caídas.
+    void indexarSalida(const std::string& tema, const nlohmann::json& valor);
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;

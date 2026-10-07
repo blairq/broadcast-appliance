@@ -4,6 +4,7 @@
 
 #include "ui/FacebookViewModel.hpp"
 
+#include <algorithm>
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QDir>
@@ -126,14 +127,19 @@ void FacebookViewModel::refresh() {
 }
 
 QString FacebookViewModel::recordingsDir() const {
-    return QString::fromStdString(rt_.config().rec.directory);
+    return QString::fromStdString(rt_.carpetaGrabacion());
 }
 
 void FacebookViewModel::refreshRecordings() {
     QJsonArray out;
-    for (const QFileInfo& f :
-         QDir(recordingsDir())
-             .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time)) {
+    // Las del evento en curso y las de Recordings/, lo más nuevo primero.
+    QFileInfoList files;
+    for (const std::string& c : rt_.carpetasDeGrabaciones())
+        files += QDir(QString::fromStdString(c))
+                     .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
+    std::sort(files.begin(), files.end(),
+              [](const QFileInfo& a, const QFileInfo& b) { return a.lastModified() > b.lastModified(); });
+    for (const QFileInfo& f : files) {
         out.append(QJsonObject{{"id", f.absoluteFilePath()},
                                {"uid", f.absoluteFilePath()},
                                {"name", f.fileName()},
@@ -175,6 +181,9 @@ void FacebookViewModel::goLive(const QJsonObject& p, FacebookClient::Done done) 
         self->liveId_ = d.value("id").toString();
         self->setChatLive(self->liveId_);
         emit self->stateChanged();
+        QVariantMap v{{"plataforma", "facebook"}, {"id", self->liveId_}};
+        if (d.contains("permalink_url")) v["url"] = "https://www.facebook.com" + d.value("permalink_url").toString();
+        emit self->vivo(v);
         QTimer::singleShot(4000, self, [self]() {
             if (self) self->refresh();
         });

@@ -25,6 +25,7 @@
 #include <atomic>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -59,6 +60,13 @@ class AppRuntime {
     static bool stopRequested();
 
     // --- Salidas --------------------------------------------------------------
+    /// La carpeta del evento en curso (docs/PLAN-EVENTOS-HISTORICO.md, H4): con
+    /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
+    void setCarpetaDelEvento(std::function<std::filesystem::path()> fn) { carpetaDelEvento_ = std::move(fn); }
+    /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración.
+    std::string carpetaGrabacion() const;
+    /// Dónde buscar grabaciones (para subir, listar): la del evento y Recordings/.
+    std::vector<std::string> carpetasDeGrabaciones() const;
     bool startRecording();
     void stopRecording();
     /// Graba una entrada a su propio archivo, ademas del programa. Ver
@@ -184,6 +192,7 @@ class AppRuntime {
     void ajustarInvitados(int n);
 
    private:
+    std::function<std::filesystem::path()> carpetaDelEvento_;
     void addAudioInputs();
     /// Runtime/al-aire.json: que salidas estaban activas. Lo lee un arranque
     /// con --restore para retomar la emision tras una caida.

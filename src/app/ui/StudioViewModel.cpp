@@ -459,6 +459,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
         armarBitacora();
+        // Con un evento en curso, lo que se graba va a su carpeta (H4).
+        if (evento_) rt_.setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
+        // Cada vivo con su URL pública (sin la clave), al bus y al histórico.
+        const auto alVivo = [this](const QVariantMap& m) {
+            bus_->publicar("salida/vivo",
+                           nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson().toStdString(),
+                                                 nullptr, false),
+                           true);
+        };
+        connect(youtube_.get(), &YouTubeViewModel::vivo, this, alVivo);
+        connect(twitch_.get(), &TwitchViewModel::vivo, this, alVivo);
+        connect(facebook_.get(), &FacebookViewModel::vivo, this, alVivo);
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
         {
             std::ifstream f(rt.dataRoot() / "Config" / "modo-vivo.json");
@@ -631,6 +643,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     // Las salidas de texto (antes que la Voz las use).
     flujos_ = std::make_unique<agent::FlujosTexto>(rt.dataRoot());
+    if (evento_) flujos_->setCarpetaDelEvento([this]() { return evento_->carpetaEvento(); });
     marca("flujos");
     // El puesto web del corrector de subtítulos (/correccion/, T44).
     puestoCorreccion_ = std::make_unique<PuestoCorreccion>(static_cast<ConferenceViewModel*>(conference_.get())->client(),
@@ -1229,6 +1242,76 @@ void StudioViewModel::revisarConfig(const std::string& carpeta, const std::strin
     if (momento == "cierre") evento::FotosConfig::guardar(cfg / "cierre.json", f);
 }
 
+namespace {
+nlohmann::json leerLista(const std::filesystem::path& p) {
+    std::ifstream f(p);
+    nlohmann::json j = f ? nlohmann::json::parse(f, nullptr, false) : nlohmann::json();
+    return j.is_array() ? j : nlohmann::json::array();
+}
+void guardarLista(const std::filesystem::path& p, const nlohmann::json& j) {
+    const auto tmp = std::filesystem::path(p.string() + ".tmp");
+    {
+        std::ofstream o(tmp);
+        o << j.dump(1, '\t');
+    }
+    std::error_code ec;
+    std::filesystem::rename(tmp, p, ec);
+}
+} // namespace
+
+void StudioViewModel::indexarSalida(const std::string& tema, const nlohmann::json& valor) {
+    if (!evento_) return;
+    const auto dir = evento_->carpetaEvento();
+    if (dir.empty()) return;
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    if (tema == "salida/grabacion") {
+        const auto p = dir / "grabaciones.json";
+        nlohmann::json l = leerLista(p);
+        if (valor.value("activo", false)) {
+            nlohmann::json g{{"archivo", rt_.engine().archivoGrabacion()}, {"desde_ms", ahora}};
+            l.push_back(g);
+        } else {
+            for (auto it = l.rbegin(); it != l.rend(); ++it) {
+                if (it->contains("hasta_ms")) continue;
+                (*it)["hasta_ms"] = ahora;
+                // Si se pasó a MP4 al terminar, el archivo es otro.
+                std::filesystem::path a = it->value("archivo", std::string());
+                const std::string final = rt_.engine().archivoGrabacion();
+                if (!final.empty()) a = final;
+                (*it)["archivo"] = a.string();
+                std::error_code ec;
+                const auto bytes = std::filesystem::file_size(a, ec);
+                if (!ec) (*it)["bytes"] = bytes;
+                break;
+            }
+        }
+        guardarLista(p, l);
+        return;
+    }
+    const auto p = dir / "transmisiones.json";
+    nlohmann::json l = leerLista(p);
+    auto abierta = l.end();
+    for (auto it = l.begin(); it != l.end(); ++it)
+        if (!it->contains("hasta_ms")) abierta = it;
+    if (tema == "salida/vivo") {
+        if (abierta == l.end()) {
+            l.push_back({{"desde_ms", ahora}, {"caidas", 0}});
+            abierta = l.end() - 1;
+        }
+        for (auto it = valor.begin(); it != valor.end(); ++it) (*abierta)[it.key()] = it.value();
+    } else if (valor.value("activo", false)) {
+        if (abierta == l.end()) {
+            l.push_back({{"desde_ms", ahora}, {"caidas", 0}});
+        } else if (valor.value("reconectando", false)) {
+            (*abierta)["caidas"] = abierta->value("caidas", 0) + 1;
+        }
+    } else if (abierta != l.end()) {
+        (*abierta)["hasta_ms"] = ahora;
+        if (!valor.value("problema", std::string()).empty()) (*abierta)["problema"] = valor["problema"];
+    }
+    guardarLista(p, l);
+}
+
 // LA BITÁCORA DEL EVENTO EN CURSO (H2 de docs/PLAN-EVENTOS-HISTORICO.md): se
 // cuelga de lo que ya pasa por dos lugares —el registro general (MCP, botonera,
 // guion, avisos) y el bus de eventos (aire, salidas, oradores, asamblea)— sin
@@ -1298,9 +1381,26 @@ void StudioViewModel::armarBitacora() {
         if (r.codigo != 0) d["codigo"] = r.codigo;
         b->anotar(tipo, r.componente, r.texto, d, r.ms);
     });
-    bitacoraBus_ = bus_->suscribir("#", [b, excluir](const std::string& tema, const nlohmann::json& valor) {
+    // Las salidas se publican cada segundo (cambia el tiempo y los kbps): de
+    // esas solo importa cuando cambian estos campos.
+    auto importa = std::make_shared<std::map<std::string, nlohmann::json>>();
+    bitacoraBus_ = bus_->suscribir("#", [this, b, excluir, importa](const std::string& tema, const nlohmann::json& valor) {
         for (const std::string& p : excluir)
             if (control::BusEventos::coincide(p, tema)) return;
+        if (tema == "salida/stream" || tema == "salida/grabacion") {
+            nlohmann::json clave = nlohmann::json::object();
+            for (const char* k : {"activo", "reconectando", "problema"})
+                if (valor.is_object() && valor.contains(k)) clave[k] = valor[k];
+            auto& antes = (*importa)[tema];
+            if (antes == clave) return;
+            antes = clave;
+            nlohmann::json v = valor;
+            if (tema == "salida/grabacion" && v.value("activo", false)) v["archivo"] = rt_.engine().archivoGrabacion();
+            b->anotar("bus", tema, {}, v);
+            indexarSalida(tema, valor);
+            return;
+        }
+        if (tema == "salida/vivo") indexarSalida(tema, valor);
         b->anotar("bus", tema, {}, valor);
     });
     // Cambia el evento en curso: lo que sigue va a su carpeta.
@@ -1820,7 +1920,7 @@ void StudioViewModel::toggleRecording() {
     if (recording_) {
         rt_.stopRecording();
     } else if (rt_.startRecording()) {
-        emit notify("Grabando en " + qs(rt_.config().rec.directory), "ok");
+        emit notify("Grabando en " + qs(rt_.carpetaGrabacion()), "ok");
     } else {
         emit notify("No se pudo grabar: " + qs(rt_.lastError()), "error");
     }
@@ -1884,8 +1984,11 @@ void StudioViewModel::startStreaming(const QString& server, const QString& key) 
         // Nunca un "Al aire" verde si no cambió nada.
         if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
             emit notify("Ya estabas transmitiendo a ese destino: no cambió nada", "info");
-        else
+        else {
             emit notify("Al aire", "ok");
+            // El servidor sí (es público); la clave nunca.
+            if (bus_ && !server.isEmpty()) bus_->publicar("salida/vivo", {{"plataforma", "manual"}, {"servidor", server.toStdString()}}, true);
+        }
     } else if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
         emit pedirCambioDestino(qs(rt_.engine().destinoActivo()), server, key);
     } else {

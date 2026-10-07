@@ -60,6 +60,8 @@ FlujosTexto::FlujosTexto(std::filesystem::path dataRoot, QObject* parent)
 FlujosTexto::~FlujosTexto() = default;
 
 QString FlujosTexto::carpeta() const {
+    const std::filesystem::path ev = carpetaDelEvento_ ? carpetaDelEvento_() : std::filesystem::path();
+    if (!ev.empty()) return QString::fromStdString((ev / "Transcripciones").string());
     return QString::fromStdString((root_ / "Recordings" / "Transcripciones").string());
 }
 

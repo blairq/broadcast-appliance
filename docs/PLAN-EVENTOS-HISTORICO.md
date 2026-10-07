@@ -153,7 +153,7 @@ Categoría «historico»: `historico_listar` (carpetas, filtros), `historico_ver
 | H1 | Evento en curso + `ficha.json` + carpetas anidadas en `EventoStore`; evento automático del día | **hecho** (ver abajo) |
 | H2 | `Bitacora` (escritor único) colgada de BusEventos, traza MCP, botonera, guion, avisos | **hecho** (ver abajo) |
 | H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | **hecho** (ver abajo); restaurar en H6 |
-| H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | `Salidas`, `FlujosTexto`, YouTube/Twitch/Facebook |
+| H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | **hecho** (ver abajo) |
 | H5 | Asamblea por evento (orden del día, quórum, votaciones, palabra, remota) y el pedazo de logs al cerrar; `sellos.json` | deja de pisarse «la sesión en curso» |
 | H6 | Página Histórico (carpetas, lista, detalle con pestañas, búsqueda, comparar/restaurar, exportar) + MCP + Ajustes → Histórico | test_qml_carga y capturas |
 
@@ -235,3 +235,24 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
 - Pendiente fino: si la app arranca otro día, el automático de ayer pasa a
   terminado antes de que exista la bitácora, y no recibe su foto `cierre` (tiene
   su `ultima`, que es lo mismo).
+
+## H4 (hecho)
+
+- `AppRuntime::setCarpetaDelEvento` / `carpetaGrabacion()`: con un evento en curso,
+  la grabación del programa va a `<evento>/Grabaciones/`, las de entradas a
+  `Grabaciones/entradas/` y la señal limpia a `Grabaciones/limpia/`. Sin evento, a
+  `Recordings/` como siempre. La repetición (un búfer) sigue en `Recordings/repeticiones`.
+- `FlujosTexto::setCarpetaDelEvento`: las transcripciones a `<evento>/Transcripciones/`.
+- Subir a YouTube/Facebook lista las grabaciones del evento y las de `Recordings/`
+  (`carpetasDeGrabaciones()`), lo más nuevo primero.
+- `grabaciones.json` (archivo, desde/hasta, bytes; si se pasó a MP4, el final) y
+  `transmisiones.json` (desde/hasta, caídas, problema y, con la señal `vivo` de
+  YouTube/Twitch/Facebook o el destino manual, plataforma, URL pública, estudio e id;
+  nunca la clave). El bus tiene un tema nuevo, `salida/vivo`.
+- La bitácora ya no anota `salida/stream` ni `salida/grabacion` cada segundo: solo
+  cuando cambian `activo`, `reconectando` o `problema` (con el archivo al empezar).
+- MCP `evento_grabaciones`: grabaciones con sus capítulos (la escena al aire en cada
+  momento, de la bitácora, en segundos desde el inicio del archivo), vivos y
+  transcripciones.
+- Probado en la app: 10 s de grabación con dos cambios de escena → archivo en la
+  carpeta del evento y tres capítulos correctos.

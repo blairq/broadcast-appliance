@@ -118,6 +118,9 @@ class YouTubeViewModel : public QObject {
     void chatChanged();
     /// Aviso para el operador (mismo formato que el resto de la app).
     void notify(const QString& message, const QString& level);
+    /// Arrancó un vivo desde acá: {plataforma, url, id, estudio?} (sin la clave).
+    /// Va al bus como «salida/vivo» y queda en el histórico del evento.
+    void vivo(const QVariantMap& datos);
 
    private:
     void setError(const QString& e);

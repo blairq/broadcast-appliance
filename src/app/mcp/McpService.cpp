@@ -3209,7 +3209,7 @@ void McpService::registerTools() {
                                        {"contenedor_pedido", rt.config().rec.container},
                                        {"horas_restantes", d.value("horas", -1.0)}}));
             emit vm.statusChanged();
-            done(ToolResult::ok("Grabando en " + rt.config().rec.directory + "."));
+            done(ToolResult::ok("Grabando en " + rt.carpetaGrabacion() + "."));
         };
         core_.addTool(std::move(t));
     }

@@ -578,16 +578,29 @@ void AppRuntime::stop() {
     std::printf("ba-app: cierre ordenado\n");
 }
 
+std::string AppRuntime::carpetaGrabacion() const {
+    const fs::path ev = carpetaDelEvento_ ? carpetaDelEvento_() : fs::path();
+    return ev.empty() ? cfg_.rec.directory : (ev / "Grabaciones").string();
+}
+
+std::vector<std::string> AppRuntime::carpetasDeGrabaciones() const {
+    std::vector<std::string> out{carpetaGrabacion()};
+    if (out.front() != cfg_.rec.directory) out.push_back(cfg_.rec.directory);
+    return out;
+}
+
 bool AppRuntime::startRecording() {
     std::error_code ec;
-    fs::create_directories(cfg_.rec.directory, ec);
+    RecordConfig rec = cfg_.rec;
+    rec.directory = carpetaGrabacion();
+    fs::create_directories(rec.directory, ec);
     const EngineStatus antes = engine_.status();
-    if (!engine_.startRecording(cfg_.rec, cfg_.encoder)) {
+    if (!engine_.startRecording(rec, cfg_.encoder)) {
         lastError_ = engine_.lastError();
         std::printf("ba-app: la grabacion no arranco: %s\n", lastError_.c_str());
         return false;
     }
-    std::printf("ba-app: grabando en %s\n", cfg_.rec.directory.c_str());
+    std::printf("ba-app: grabando en %s\n", rec.directory.c_str());
     // El integrado del loudness arranca con la sesión (si no había nada saliendo).
     if (!antes.streaming && !antes.recording) engine_.loudness().reiniciar();
     recordStopWanted_ = false;
@@ -600,7 +613,7 @@ bool AppRuntime::startSourceRecording(const std::string& source) {
     // Las individuales van a su propia carpeta: en Recordings/ ya estan las del
     // programa, y mezclar veinte archivos de entradas con las del evento hace
     // que despues nadie encuentre nada.
-    const std::string dir = cfg_.rec.directory + "/entradas";
+    const std::string dir = carpetaGrabacion() + "/entradas";
     fs::create_directories(dir, ec);
     if (!engine_.startSourceRecording(source, dir, cfg_.encoder)) {
         lastError_ = engine_.lastError();
@@ -859,7 +872,7 @@ std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
         ba::security::CredentialStore::bundle().read("stream-" + destino, clave);
     } else {
         std::error_code ec;
-        dir = cfg_.rec.directory + "/limpia";
+        dir = carpetaGrabacion() + "/limpia";
         fs::create_directories(dir, ec);
     }
     if (!engine_.startCleanFeed(url, clave, dir, cfg_.encoder)) return engine_.lastError();

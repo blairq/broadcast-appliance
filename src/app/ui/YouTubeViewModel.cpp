@@ -183,12 +183,16 @@ void YouTubeViewModel::fetchThumbs(const QJsonArray& items, JsonListModel* model
     }
 }
 
-QString YouTubeViewModel::recordingsDir() const { return QString::fromStdString(rt_.config().rec.directory); }
+QString YouTubeViewModel::recordingsDir() const { return QString::fromStdString(rt_.carpetaGrabacion()); }
 
 void YouTubeViewModel::refreshRecordings() {
-    QDir d(recordingsDir());
-    const QFileInfoList files =
-        d.entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
+    // Las del evento en curso y las de Recordings/, lo más nuevo primero.
+    QFileInfoList files;
+    for (const std::string& c : rt_.carpetasDeGrabaciones())
+        files += QDir(QString::fromStdString(c))
+                     .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
+    std::sort(files.begin(), files.end(),
+              [](const QFileInfo& a, const QFileInfo& b) { return a.lastModified() > b.lastModified(); });
     QJsonArray out;
     for (const QFileInfo& f : files) {
         out.append(QJsonObject{{"id", f.absoluteFilePath()},
@@ -304,6 +308,10 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
         self->liveBroadcastId_ = broadcastId;
         self->setChatBroadcast(broadcastId);
         emit self->stateChanged();
+        emit self->vivo(QVariantMap{{"plataforma", "youtube"},
+                                    {"id", broadcastId},
+                                    {"url", "https://youtu.be/" + broadcastId},
+                                    {"estudio", "https://studio.youtube.com/video/" + broadcastId + "/livestreaming"}});
         done(true,
              QJsonObject{{"broadcastId", broadcastId},
                          {"server", url},

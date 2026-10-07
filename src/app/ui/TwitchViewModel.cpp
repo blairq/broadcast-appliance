@@ -213,6 +213,8 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
                             QString::fromStdString(self->rt_.lastError()));
         self->streamingHere_ = true;
         emit self->stateChanged();
+        emit self->vivo(QVariantMap{{"plataforma", "twitch"},
+                                    {"url", "https://twitch.tv/" + self->client_->user().value("login").toString()}});
         if (!self->client_->chatRunning()) self->setChatOn(true);
         QTimer::singleShot(20000, self, [self]() {
             if (self) self->pollStream();

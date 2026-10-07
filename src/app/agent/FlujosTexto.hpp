@@ -91,6 +91,9 @@ class FlujosTexto : public QObject {
     std::uint64_t ultimoSeq() const { return seq_; }
     /// Dónde se guardan los archivos.
     QString carpeta() const;
+    /// La carpeta del evento en curso: con una, las transcripciones van a
+    /// <evento>/Transcripciones (histórico, H4). Vacía = Recordings/Transcripciones.
+    void setCarpetaDelEvento(std::function<std::filesystem::path()> fn) { carpetaDelEvento_ = std::move(fn); }
 
    signals:
     void cambio();
@@ -100,6 +103,7 @@ class FlujosTexto : public QObject {
     void pendientesCambio();
 
    private:
+    std::function<std::filesystem::path()> carpetaDelEvento_;
     struct Archivo;
     struct Pendiente {
         std::uint64_t id = 0;

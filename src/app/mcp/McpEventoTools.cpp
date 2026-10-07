@@ -17,6 +17,7 @@
 #include "mcp/McpEventoTools.hpp"
 
 #include <algorithm>
+#include <fstream>
 #include <set>
 
 #include <QDateTime>
@@ -326,6 +327,76 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             done(ToolResult().data(json{
                 {"hora", QDateTime::fromMSecsSinceEpoch(f.value("t", 0LL)).toString("dd/MM/yyyy HH:mm:ss").toStdString()},
                 {"archivos", lista}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_grabaciones";
+        t.title = "Grabaciones, vivos y transcripciones de un evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description =
+            "Lo que produjo un evento: cada grabación (archivo, desde/hasta, tamaño y sus capítulos: qué escena "
+            "estaba al aire en cada momento), cada vivo (plataforma, URL pública, estudio, caídas) y las "
+            "transcripciones. Sin `evento`: el en curso.";
+        t.details =
+            "Con un evento en curso, la grabación va a <evento>/Grabaciones/ (y las de entradas y la señal limpia, "
+            "a sus subcarpetas) y las transcripciones a <evento>/Transcripciones/. Los índices son "
+            "grabaciones.json y transmisiones.json en la carpeta del evento. Los capítulos salen de la bitácora "
+            "(`aire/escena`), en segundos desde el inicio del archivo. Las claves de transmisión nunca se guardan.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"evento", {{"type", "string"}, {"description", "La carpeta (vacío = el en curso)."}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            const std::string carpeta = a.value("evento", std::string());
+            const auto dir = ev.carpetaEvento(carpeta);
+            if (dir.empty())
+                return done(ToolResult::error(carpeta.empty() ? "no hay un evento en curso" : "no hay un evento «" + carpeta + "»"));
+            const auto lista = [](const std::filesystem::path& p) {
+                std::ifstream f(p);
+                json j = f ? json::parse(f, nullptr, false) : json();
+                return j.is_array() ? j : json::array();
+            };
+            const auto hora = [](std::int64_t ms) {
+                return QDateTime::fromMSecsSinceEpoch(ms).toString("dd/MM HH:mm:ss").toStdString();
+            };
+            const json escenas = evento::Bitacora::leer(dir / "bitacora.jsonl", 0, 0, {"bus"}, "aire/escena", 0);
+            json grab = json::array();
+            for (json g : lista(dir / "grabaciones.json")) {
+                const std::int64_t d = g.value("desde_ms", std::int64_t{0});
+                const std::int64_t h = g.value("hasta_ms", std::int64_t{0});
+                g["desde"] = hora(d);
+                if (h != 0) g["hasta"] = hora(h), g["duracion_seg"] = (h - d) / 1000;
+                else g["en_curso"] = true;
+                json caps = json::array();
+                std::string escenaAntes;
+                for (const json& e : escenas) {
+                    if (e.value("origen", std::string()) != "aire/escena") continue;
+                    const std::int64_t t = e.value("t", std::int64_t{0});
+                    const std::string esc = e.value("escena", std::string());
+                    if (t <= d) { escenaAntes = esc; continue; }
+                    if (h != 0 && t > h) break;
+                    if (caps.empty() && !escenaAntes.empty()) caps.push_back(json{{"seg", 0}, {"escena", escenaAntes}});
+                    caps.push_back(json{{"seg", (t - d) / 1000}, {"escena", esc}});
+                }
+                if (caps.empty() && !escenaAntes.empty()) caps.push_back(json{{"seg", 0}, {"escena", escenaAntes}});
+                g["capitulos"] = caps;
+                std::error_code ec;
+                g["existe"] = std::filesystem::exists(g.value("archivo", std::string()), ec);
+                grab.push_back(std::move(g));
+            }
+            json vivos = json::array();
+            for (json v : lista(dir / "transmisiones.json")) {
+                v["desde"] = hora(v.value("desde_ms", std::int64_t{0}));
+                if (v.contains("hasta_ms")) v["hasta"] = hora(v.value("hasta_ms", std::int64_t{0}));
+                vivos.push_back(std::move(v));
+            }
+            json textos = json::array();
+            std::error_code ec;
+            for (const auto& e : std::filesystem::directory_iterator(dir / "Transcripciones", ec))
+                if (e.is_regular_file()) textos.push_back(json{{"archivo", e.path().filename().string()}, {"bytes", e.file_size()}});
+            done(ToolResult().data(json{{"carpeta", dir.string()}, {"grabaciones", grab}, {"transmisiones", vivos},
+                                        {"transcripciones", textos}}));
         };
         core.addTool(std::move(t));
     }
