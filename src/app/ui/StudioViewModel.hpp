@@ -71,6 +71,9 @@ namespace ba::app::dispositivos {
 class Dispositivos;
 } // namespace ba::app::dispositivos
 
+namespace ba::evento {
+class Bitacora;
+}
 namespace ba::app::control {
 class BusEventos;
 class Botonera;
@@ -818,6 +821,10 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;
     std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;
+    /// bitacora.jsonl del evento en curso (docs/PLAN-EVENTOS-HISTORICO.md, H2).
+    std::unique_ptr<evento::Bitacora> bitacora_;
+    int bitacoraOyente_ = 0, bitacoraBus_ = 0;
+    void armarBitacora();
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;

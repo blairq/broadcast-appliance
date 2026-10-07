@@ -129,6 +129,10 @@ class Registro {
     /// para que la interfaz se entere sin preguntar. Tiene que ser barato y no
     /// puede volver a llamar al registro.
     void setOyente(std::function<void(const Registrado&)> fn);
+    /// Otro oyente más (la bitácora del evento, por ejemplo), con las mismas
+    /// reglas. Devuelve un id para sacarlo.
+    int agregarOyente(std::function<void(const Registrado&)> fn);
+    void quitarOyente(int id);
 
     /// Tamaño del anillo en memoria.
     static constexpr std::size_t kEnMemoria = 2000;

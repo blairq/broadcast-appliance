@@ -19,6 +19,7 @@
 #include <QTimeZone>
 
 #include "AppRuntime.hpp"
+#include "diag/Registro.hpp"
 #include "BroadcastEngine.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
@@ -167,6 +168,20 @@ QVariantMap EventoViewModel::enCurso() const {
                        {"grupo", QString::fromStdString(barra == std::string::npos ? std::string() : c.substr(0, barra))},
                        {"desdeMs", static_cast<qint64>(d.iniciadoMs)},
                        {"automatico", d.automatico}};
+}
+
+std::filesystem::path EventoViewModel::archivoBitacora() const { return archivoBitacoraDe({}); }
+
+std::filesystem::path EventoViewModel::archivoBitacoraDe(const std::string& carpeta) const {
+    const std::string c = carpeta.empty() ? store_.enCurso() : carpeta;
+    if (c.empty() || !evento::EventoStore::rutaValida(c)) return {};
+    return store_.carpetaDe(c) / "bitacora.jsonl";
+}
+
+nlohmann::json EventoViewModel::ajustesHistorico() const {
+    std::ifstream f(rt_.dataRoot() / "Config" / "historico.json");
+    const json j = f ? json::parse(f, nullptr, false) : json();
+    return j.is_object() ? j : json::object();
 }
 
 QStringList EventoViewModel::carpetas() const {
@@ -1183,8 +1198,11 @@ void EventoViewModel::anotar(const QString& texto, const QString& tipo) {
     QVariantMap m{
         {"hora", QDateTime::currentDateTime().toString("HH:mm:ss")}, {"texto", texto}, {"tipo", tipo}};
     bitacora_.prepend(m);
-    // La bitacora es para mirar de reojo durante el evento, no un registro
-    // historico: eso es el recorrido del guion.
+    // La bitacora de la página es para mirar de reojo; la del histórico
+    // (bitacora.jsonl del evento en curso) la toma del registro general.
+    if (!texto.startsWith("(ensayo)"))
+        ba::diag::registro().linea(tipo == "error" ? ba::diag::Nivel::Aviso : ba::diag::Nivel::Info, "guion", 0,
+                                   texto.toStdString());
     while (bitacora_.size() > 60)
         bitacora_.removeLast();
     emit bitacoraChanged();

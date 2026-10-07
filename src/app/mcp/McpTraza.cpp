@@ -163,6 +163,8 @@ void Traza::anotar(const std::string& texto) {
     d_->escritos += linea.size();
 }
 
+json Traza::limpio(const json& j) { return podar(j); }
+
 std::string Traza::resumir(const json& j, std::size_t tope) {
     if (j.is_null()) return "{}";
     // NO SE LE ESCAPA NADA A QUIEN LLAMA. Esto lo usa el camino de respuesta

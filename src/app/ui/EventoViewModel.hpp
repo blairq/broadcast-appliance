@@ -95,6 +95,12 @@ class EventoViewModel : public QObject {
     QVariantList eventos() const;
     QString abierto() const { return abierto_; }
     QVariantMap enCurso() const;
+    /// El bitacora.jsonl del evento en curso (vacío si no hay ninguno).
+    std::filesystem::path archivoBitacora() const;
+    /// La bitácora de un evento (por su carpeta; vacía = el en curso).
+    std::filesystem::path archivoBitacoraDe(const std::string& carpeta) const;
+    /// Config/historico.json (lo que se registra, el automático…).
+    nlohmann::json ajustesHistorico() const;
     QStringList carpetas() const;
     bool eventoAutomatico() const { return automatico_; }
     void setEventoAutomatico(bool si);

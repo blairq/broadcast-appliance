@@ -151,7 +151,7 @@ Categoría «historico»: `historico_listar` (carpetas, filtros), `historico_ver
 | Fase | Qué | Notas |
 |---|---|---|
 | H1 | Evento en curso + `ficha.json` + carpetas anidadas en `EventoStore`; evento automático del día | **hecho** (ver abajo) |
-| H2 | `Bitacora` (escritor único) colgada de BusEventos, traza MCP, botonera, guion, avisos | el «histórico total» empieza acá |
+| H2 | `Bitacora` (escritor único) colgada de BusEventos, traza MCP, botonera, guion, avisos | **hecho** (ver abajo) |
 | H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | comparar y restaurar en H6 |
 | H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | `Salidas`, `FlujosTexto`, YouTube/Twitch/Facebook |
 | H5 | Asamblea por evento (orden del día, quórum, votaciones, palabra, remota) y el pedazo de logs al cerrar; `sellos.json` | deja de pisarse «la sesión en curso» |
@@ -189,3 +189,26 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
   Jornada automática), el selector con la carpeta de cada evento, «Evento nuevo»
   con carpeta. La página Histórico completa es H6.
 - Tests: `test_evento_store` (carpetas, mover, en curso, día, cambio de día).
+
+## H2 (hecho)
+
+- `evento/Bitacora`: escritor único en su hilo, tandas con un fsync por segundo,
+  `bitacora.jsonl` del evento en curso. El cambio de evento viaja en la cola como
+  una marca: lo de antes queda en el anterior, lo de después en el nuevo. Con el
+  disco trabado no se come la memoria (tope de 20 000 líneas, se pierde lo más viejo).
+- Se cuelga de dos lugares, sin tocar cada módulo (`StudioViewModel::armarBitacora`):
+  - el **registro** general (`Registro::agregarOyente`, ahora con varios oyentes):
+    `mcp` (lo que modifica y los fallos), `botonera` (`Botonera::auditar` ahora
+    también va al registro), `guion` (`EventoViewModel::anotar`, menos el ensayo)
+    y `aviso` (avisos y errores de cualquier componente). Lo mismo repetido en 10 s
+    se anota una vez; los «missed update from display link» de Qt no entran;
+  - el **bus** (`#`), menos lo que es medición: `audio/nivel/#`, `audio/loudness`,
+    `oradores/tiempo`, `salida/salud`, `aire/tally` (`bus_excluir` en
+    `Config/historico.json` lo cambia).
+- `evento`: la app arranca y se cierra, un evento entra o deja de estar en curso.
+- Sin secretos: pasa por `Traza::limpio`, el mismo limpiador de la traza del MCP.
+- Categorías apagables: `registrar: {bus, mcp, botonera, guion, aviso, evento}` en
+  `Config/historico.json` (la pantalla de Ajustes → Histórico es H6).
+- MCP `evento_bitacora` (evento, tipos, texto, desde/hasta en ms o «HH:MM», límite).
+- Test `test_bitacora` (orden, cambio de archivo, categorías, limpiador, filtros,
+  línea cortada por un corte de luz, 8 hilos × 500 líneas sin perder ninguna).

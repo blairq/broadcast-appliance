@@ -71,6 +71,8 @@
 #include "AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "evento/Bitacora.hpp"
+#include "mcp/McpTraza.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "dispositivos/Registro.hpp"
 #include "graficos/Emisor.hpp"
@@ -454,6 +456,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         cuerpo_ = std::make_unique<asamblea::CuerpoViewModel>(rt.dataRoot());
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
+        armarBitacora();
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
         {
             std::ifstream f(rt.dataRoot() / "Config" / "modo-vivo.json");
@@ -1167,7 +1170,92 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
 }
 
-StudioViewModel::~StudioViewModel() = default;
+StudioViewModel::~StudioViewModel() {
+    if (bitacoraOyente_ != 0) ba::diag::registro().quitarOyente(bitacoraOyente_);
+    if (bitacoraBus_ != 0 && bus_) bus_->desuscribir(bitacoraBus_);
+    if (bitacora_) {
+        bitacora_->anotar("evento", "app", "la app se cierra");
+        bitacora_->vaciar();
+    }
+}
+
+// LA BITÁCORA DEL EVENTO EN CURSO (H2 de docs/PLAN-EVENTOS-HISTORICO.md): se
+// cuelga de lo que ya pasa por dos lugares —el registro general (MCP, botonera,
+// guion, avisos) y el bus de eventos (aire, salidas, oradores, asamblea)— sin
+// tocar cada módulo.
+void StudioViewModel::armarBitacora() {
+    if (!evento_ || !bus_) return;
+    bitacora_ = std::make_unique<evento::Bitacora>();
+    bitacora_->setLimpiador([](const nlohmann::json& j) { return mcp::Traza::limpio(j); });
+    const nlohmann::json aj = evento_->ajustesHistorico();
+    const nlohmann::json reg = aj.value("registrar", nlohmann::json::object());
+    for (const std::string& c : evento::Bitacora::categorias())
+        bitacora_->setRegistrar(c, !reg.is_object() || reg.value(c, true));
+    // Lo que se repite muchas veces por segundo no es un hecho: es una medición.
+    std::vector<std::string> excluir{"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud",
+                                     "aire/tally"};
+    if (aj.contains("bus_excluir") && aj["bus_excluir"].is_array()) {
+        excluir.clear();
+        for (const auto& p : aj["bus_excluir"])
+            if (p.is_string()) excluir.push_back(p.get<std::string>());
+    }
+    bitacora_->setArchivo(evento_->archivoBitacora());
+    bitacora_->anotar("evento", "app", "la app arranca",
+                      {{"evento", evento_->enCurso().value("carpeta").toString().toStdString()}});
+
+    auto* b = bitacora_.get();
+    // Del registro: cualquier hilo. Lo mismo repetido en 10 s se anota una vez
+    // (un aviso que se dispara por cuadro no llena el disco).
+    struct Repetidos {
+        std::mutex mu;
+        std::map<std::string, std::int64_t> visto;
+    };
+    auto rep = std::make_shared<Repetidos>();
+    bitacoraOyente_ = ba::diag::registro().agregarOyente([b, rep](const ba::diag::Registrado& r) {
+        std::string tipo;
+        if (r.componente == "mcp")
+            tipo = "mcp";
+        else if (r.componente == "botonera")
+            tipo = "botonera";
+        else if (r.componente == "guion")
+            tipo = "guion";
+        else if (r.nivel >= ba::diag::Nivel::Aviso)
+            tipo = "aviso";
+        else
+            return;
+        if (r.nivel < ba::diag::Nivel::Info) return;
+        // Qt avisa que se perdió un refresco cada vez que la pantalla se
+        // bloquea o se duerme: no es un hecho del evento.
+        if (r.componente == "qt" && r.texto.find("display link") != std::string::npos) return;
+        {
+            std::lock_guard<std::mutex> g(rep->mu);
+            const std::string clave = r.componente + "|" + r.texto;
+            auto it = rep->visto.find(clave);
+            if (it != rep->visto.end() && r.ms - it->second < 10000) return;
+            rep->visto[clave] = r.ms;
+            if (rep->visto.size() > 2000) rep->visto.clear();
+        }
+        nlohmann::json d = nlohmann::json::object();
+        if (r.nivel >= ba::diag::Nivel::Aviso) d["nivel"] = ba::diag::nombreDeNivel(r.nivel);
+        if (r.codigo != 0) d["codigo"] = r.codigo;
+        b->anotar(tipo, r.componente, r.texto, d, r.ms);
+    });
+    bitacoraBus_ = bus_->suscribir("#", [b, excluir](const std::string& tema, const nlohmann::json& valor) {
+        for (const std::string& p : excluir)
+            if (control::BusEventos::coincide(p, tema)) return;
+        b->anotar("bus", tema, {}, valor);
+    });
+    // Cambia el evento en curso: lo que sigue va a su carpeta.
+    auto anterior = std::make_shared<std::string>(evento_->enCurso().value("carpeta").toString().toStdString());
+    connect(evento_.get(), &EventoViewModel::enCursoChanged, this, [this, anterior]() {
+        const std::string ahora = evento_->enCurso().value("carpeta").toString().toStdString();
+        if (ahora == *anterior) return;
+        if (!anterior->empty()) bitacora_->anotar("evento", "historico", "deja de estar en curso", {{"siguiente", ahora}});
+        bitacora_->setArchivo(evento_->archivoBitacora());
+        if (!ahora.empty()) bitacora_->anotar("evento", "historico", "en curso", {{"anterior", *anterior}});
+        *anterior = ahora;
+    });
+}
 
 namespace {
 std::filesystem::path archivoInterfaz(AppRuntime& rt) { return rt.dataRoot() / "Config" / "interfaz.json"; }

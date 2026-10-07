@@ -17,11 +17,14 @@
 #include "mcp/McpEventoTools.hpp"
 
 #include <algorithm>
+#include <set>
 
+#include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimeZone>
 
+#include "evento/Bitacora.hpp"
 #include "evento/Evento.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -192,6 +195,65 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                      {"automatico", m["automatico"].toBool()}};
             }
             done(ToolResult().data(j));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_bitacora";
+        t.title = "La bitácora de un evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description =
+            "Lo que pasó durante un evento, en orden: escenas al aire, grabación y transmisión, oradores, "
+            "votaciones, cada herramienta del MCP que cambió algo, cada botón de la botonera, cada cue del guion, "
+            "avisos y errores. Sin `evento`: el en curso.";
+        t.details =
+            "Sale de `bitacora.jsonl` en la carpeta del evento (una línea por hecho, se escribe mientras el evento "
+            "está en curso y sobrevive a un corte de luz). Cada línea: `t` (ms, reloj de pared), `tipo` (bus | mcp "
+            "| botonera | guion | aviso | evento), `origen` (el tema del bus, el componente) y `texto` o `valor`. "
+            "Filtros: `tipos`, `texto` (busca en toda la línea), `desde`/`hasta` (ms o «HH:MM» del día del "
+            "evento), `limite` (las últimas N, 200 de fábrica). Las claves y tokens van tapados.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"evento", {{"type", "string"}, {"description", "La carpeta del evento (evento_listar)."}}},
+              {"tipos", {{"type", "array"}, {"items", {{"type", "string"}, {"enum", {"bus", "mcp", "botonera", "guion", "aviso", "evento"}}}}}},
+              {"texto", {{"type", "string"}}},
+              {"desde", {{"type", {"integer", "string"}}}},
+              {"hasta", {{"type", {"integer", "string"}}}},
+              {"limite", {{"type", "integer"}, {"minimum", 1}, {"maximum", 5000}}}}}};
+        t.examples = {R"({"tipos": ["bus"], "limite": 50})", R"({"texto": "votacion"})",
+                      R"({"evento": "2026/Octubre/Sesion-ordinaria", "desde": "18:00", "hasta": "19:30"})"};
+        t.run = [&ev](const json& a, Done done) {
+            const std::string carpeta = a.value("evento", std::string());
+            const auto archivo = ev.archivoBitacoraDe(carpeta);
+            if (archivo.empty())
+                return done(ToolResult::error(carpeta.empty() ? "no hay un evento en curso" : "no hay un evento «" + carpeta + "»"));
+            // «HH:MM» es del día de la bitácora: se toma la fecha de la primera línea.
+            const json primera = evento::Bitacora::leer(archivo, 0, 0, {}, {}, 0);
+            const auto ms = [&](const char* k) -> std::int64_t {
+                if (!a.contains(k)) return 0;
+                if (a[k].is_number()) return a[k].get<std::int64_t>();
+                const QTime h = QTime::fromString(QString::fromStdString(a.value(k, std::string())), "HH:mm");
+                if (!h.isValid() || primera.empty()) return 0;
+                QDateTime d = QDateTime::fromMSecsSinceEpoch(primera.front().value("t", std::int64_t{0}));
+                d.setTime(h);
+                return d.toMSecsSinceEpoch();
+            };
+            std::set<std::string> tipos;
+            for (const auto& x : a.value("tipos", json::array()))
+                if (x.is_string()) tipos.insert(x.get<std::string>());
+            const json l = evento::Bitacora::leer(archivo, ms("desde"), ms("hasta"), tipos, a.value("texto", std::string()),
+                                                  static_cast<std::size_t>(a.value("limite", 200)));
+            json out = json::array();
+            for (json x : l) {
+                x["hora"] = QDateTime::fromMSecsSinceEpoch(x.value("t", std::int64_t{0})).toString("HH:mm:ss").toStdString();
+                out.push_back(std::move(x));
+            }
+            done(ToolResult().data(json{{"evento", carpeta.empty() ? ev.enCurso().value("carpeta").toString().toStdString() : carpeta},
+                                        {"lineas", out},
+                                        {"total_en_archivo", primera.size()}}));
         };
         core.addTool(std::move(t));
     }

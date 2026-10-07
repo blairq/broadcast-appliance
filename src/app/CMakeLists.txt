@@ -744,6 +744,10 @@ endif()
     target_include_directories(test_evento_store PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_evento_store PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_evento_store COMMAND test_evento_store)
+    add_executable(test_bitacora tests/test_bitacora.cpp evento/Bitacora.cpp)
+    target_include_directories(test_bitacora PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_bitacora PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_bitacora COMMAND test_bitacora)
 
     # El padron: quien viene, con que papel, por donde y si llego.
     add_executable(test_padron tests/test_padron.cpp evento/Padron.cpp)

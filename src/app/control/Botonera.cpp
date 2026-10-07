@@ -4,6 +4,7 @@
 #include <QFile>
 
 #include "control/BusEventos.hpp"
+#include "diag/Registro.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -306,6 +307,9 @@ void Botonera::auditar(const std::string& dispositivo, const std::string& que, c
     const std::int64_t ms = ahoraMs();
     const json e{{"ms", ms}, {"dispositivo", dispositivo}, {"que", que}, {"detalle", detalle}};
     auditoria_.push_back(e);
+    // También al registro general: de ahí lo toma la bitácora del evento en curso.
+    ba::diag::registro().linea(ba::diag::Nivel::Info, "botonera", 0,
+                               dispositivo + " " + que + (detalle.empty() ? "" : " " + detalle));
     while (auditoria_.size() > kAuditoria) auditoria_.pop_front();
     std::error_code ec;
     fs::create_directories(log_.parent_path(), ec);
