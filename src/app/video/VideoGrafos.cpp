@@ -1233,9 +1233,11 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
         }
         if (tipo == "ptz") {
             // EL PTZ DIGITAL (baptz) en el lugar de su tarjeta. Su id es «ptz»: Cámaras
-            // PTZ lo maneja por nombre (ba_f_ptz). Va si la tarjeta está activa y
-            // Cámaras PTZ lo tiene prendido en esta entrada.
-            if (p.value("activo", true) && ptzHabilitado_.count(entrada))
+            // PTZ lo maneja por nombre (ba_f_ptz). Va siempre que la tarjeta esté
+            // activa, prendido o no en Cámaras PTZ: quieto y sin zoom pasa los cuadros
+            // sin tocarlos (passthrough), y así prenderlo o apagarlo no rearma la
+            // cámara (rearmarla son unos segundos sin cuadros: saltaba la alarma).
+            if (p.value("activo", true))
                 video.push_back(json{{"id", "ptz"}, {"elemento", "baptz"}});
             movidas.insert(id);
             cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
@@ -1380,6 +1382,15 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
         nodos.erase(it);
     }
     return {{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}, {"normalizar", normalizar}};
+}
+
+std::vector<std::pair<int, int>> VideoGrafos::tamanosDeEntradas() const {
+    std::vector<std::pair<int, int>> out;
+    for (const QString& e : entradas_) {
+        int w = 0, h = 0;
+        if (rt_.engine().sourceSize(e.toStdString(), w, h) && w > 0 && h > 0) out.push_back({w, h});
+    }
+    return out;
 }
 
 std::string VideoGrafos::productorDe(const std::string& salida) const {
@@ -1893,8 +1904,18 @@ void VideoGrafos::evaluarSuperres() {
             const bool yaActiva = modoSr_.count(c.entrada) && modoSr_[c.entrada] == "activo";
             if ((pasada == 0) != yaActiva || quiero[c.entrada] == "activo") continue;
             const auto med = medidasSr_.count(c.entrada) ? medidasSr_[c.entrada] : std::pair<double, std::string>{0.0, "?"};
-            // Sin medición todavía: lo de una red compacta en la Mac.
-            const double ms = med.first > 0 ? med.first : 35.0;
+            // Sin medición en vivo todavía: lo que midió el banco de pruebas para ese
+            // plugin a ese tamaño; si nunca se midió, lo de una red compacta en la Mac.
+            double ms = med.first;
+            if (ms <= 0 && estimadorSr_) {
+                std::string plugin;
+                for (const auto& n : grafo_.nodos())
+                    if (n.grupo == c.entrada && n.tipo == "superres") plugin = n.params.value("plugin", std::string());
+                int w = 0, h = 0;
+                rt_.engine().sourceSize(c.entrada, w, h);
+                if (!plugin.empty()) ms = estimadorSr_(plugin, w, h);
+            }
+            if (ms <= 0) ms = 35.0;
             const bool forzada = c.prioridad >= 100.0;
             bool entra = forzada;
             if (!entra) {

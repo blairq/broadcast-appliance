@@ -492,6 +492,9 @@ void Entrada::actualizar(const json& ajustes) {
     }
     firma_ = firma;
     entrelazada_ = false; // otra señal: se vuelve a mirar
+    // Un rearme pedido (cambió la configuración): unos segundos sin cuadros son
+    // esperables y no son una caída (ver «rearmada_hace_s»).
+    if (pipeline_ != nullptr) rearmePedidoNs_ = ahoraNs();
     desarmar();
     armarSalida(); // pudo pasar a tener (o dejar de tener) video, o ser un archivo
     armar();
@@ -1438,6 +1441,9 @@ json Entrada::estado() const {
         j["origen"] = origen_;
         j["sale"] = sale_;
         j["sin_datos_s"] = ultimoDatoNs_ == 0 ? -1.0 : static_cast<double>(ahoraNs() - ultimoDatoNs_) / 1e9;
+        // Hace cuánto se rearmó a pedido (cambio de configuración: una tarjeta, el PTZ…);
+        // -1 si nunca. La alarma de «sin señal» le da unos segundos de gracia.
+        j["rearmada_hace_s"] = rearmePedidoNs_ == 0 ? -1.0 : static_cast<double>(ahoraNs() - rearmePedidoNs_) / 1e9;
     }
     if (medio_) {
         j["medio"] = estadoMedio_;

@@ -257,6 +257,9 @@ void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
     nlohmann::json ptz = nlohmann::json::array();
     if (c.digital) ptz.push_back({{"id", kFiltroPtz}, {"elemento", "baptz"}});
     fuentes::ponerFiltrosExtra(c.entrada, kOrdenPtz, ptz);
+    // Apagado: el elemento sigue en la cadena (no se rearma la cámara), pero vuelve
+    // al encuadre completo, quieto (y así pasa sin tocar los cuadros).
+    if (!c.digital && c.filtroPuesto && c.dig) c.dig->ir(0.5, 0.5, 1.0, 0.0);
     if (!c.digital) c.filtroPuesto = false;
     // Recién puesto (la cadena se rearma): vuelve al encuadre que tenía.
     if (c.digital && !c.filtroPuesto && c.dig) {
