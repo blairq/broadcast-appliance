@@ -47,7 +47,21 @@ std::size_t contar(const fs::path& d) {
 }
 } // namespace
 
+int correr();
+
 int main() {
+    // Sin búfer: si algo se cae (en Windows, una excepción sin atrapar), lo que
+    // ya se imprimió no se pierde.
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    try {
+        return correr();
+    } catch (const std::exception& e) {
+        std::printf("FALLO: excepción: %s\n", e.what());
+        return 1;
+    }
+}
+
+int correr() {
     const fs::path raiz = fs::temp_directory_path() /
                           ("ba-test-fotos-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
     const fs::path cfg = raiz / "Config", obj = raiz / "Eventos" / ".objetos";
