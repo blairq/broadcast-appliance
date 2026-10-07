@@ -1477,6 +1477,10 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width - 80, 900)
         height: Math.min(parent.height - 80, 760)
+        // El tamaño es fijo: sin esto el alto implícito salía del contenido, que a su
+        // vez se estira al popup (bucle de bindings).
+        implicitWidth: width
+        implicitHeight: height
         modal: true
         padding: 18
         background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }

@@ -26,6 +26,8 @@
 // ============================================================================
 #pragma once
 
+#include "Piezas.hpp"
+
 #include <gst/gst.h>
 
 #include <nlohmann/json.hpp>
@@ -120,6 +122,7 @@ class Mezcla {
     std::int64_t latenciaNs_ = -1;
     std::int64_t salidaNs_ = 0;
     std::int64_t consultaNs_ = 0;
+    LatenciaAparte latencia_;
     double picoDb_ = -120, rmsDb_ = -120;
     bool medidores_ = true;
     std::int64_t latenciaFijaNs_ = -1;

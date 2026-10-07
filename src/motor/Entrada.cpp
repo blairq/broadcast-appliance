@@ -667,7 +667,7 @@ void Entrada::armar() {
         sale_ = json::object();
     }
     pipeline_ = p;
-    latencia_ = std::make_shared<ConsultaLatencia>(); // lo que respondía la cadena anterior ya no vale
+    latencia_.olvidar(); // lo que respondía la cadena anterior ya no vale
     corregirOffset();
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = "el pipeline no arrancó";
@@ -766,22 +766,7 @@ void Entrada::medirLatencia() {
     // tanto todo lo que pasa por el motor esperaba, la interfaz incluida.
     // Acá se lee lo último que respondió; la próxima pregunta sale cuando
     // contestó la anterior.
-    if (!latencia_->enCurso.exchange(true)) {
-        auto* p = GST_ELEMENT(gst_object_ref(pipeline_));
-        std::thread([p, c = latencia_]() {
-            GstQuery* q = gst_query_new_latency();
-            if (gst_element_query(p, q)) {
-                gboolean vivo = FALSE;
-                GstClockTime min = 0, max = 0;
-                gst_query_parse_latency(q, &vivo, &min, &max);
-                c->ms = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
-            }
-            gst_query_unref(q);
-            gst_object_unref(p);
-            c->enCurso = false;
-        }).detach();
-    }
-    if (const double ms = latencia_->ms.load(); ms >= 0) declaradoMs_ = ms;
+    if (const std::int64_t ns = latencia_.consultar(pipeline_); ns >= 0) declaradoMs_ = static_cast<double>(ns) / 1e6;
     // Lo medido: el percentil 95 de lo viejo que salen los últimos ~10 s (no todos
     // los elementos declaran lo que demoran: vtdec guarda cuadros y no lo dice).
     std::uint64_t datos = 0;
@@ -990,7 +975,7 @@ void Entrada::tic() {
 
 void Entrada::procesarMensaje(GstMessage* m) {
     switch (GST_MESSAGE_TYPE(m)) {
-        case GST_MESSAGE_LATENCY: gst_bin_recalculate_latency(GST_BIN(pipeline_)); return;
+        case GST_MESSAGE_LATENCY: recalcularLatenciaAparte(pipeline_); return;
         case GST_MESSAGE_CLOCK_LOST:
             gst_element_set_state(pipeline_, GST_STATE_PAUSED);
             gst_element_set_state(pipeline_, GST_STATE_PLAYING);

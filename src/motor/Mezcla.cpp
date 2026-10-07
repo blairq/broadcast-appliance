@@ -109,8 +109,10 @@ void Mezcla::aplicarLatencia() {
     // Solo el piso del mezclador: el pipeline suma lo demás que declaran sus
     // elementos (el bloque de salida, el limitador) y espera eso. Forzarla con
     // gst_pipeline_set_latency quedaba por debajo de lo que declaran.
-    g_object_set(mezclador_, "min-upstream-latency", static_cast<guint64>(l), nullptr);
-    gst_bin_recalculate_latency(GST_BIN(pipeline_));
+    // En otro hilo, con el recálculo (ver recalcularLatenciaAparte): corre en el bucle del motor.
+    recalcularLatenciaAparte(pipeline_, [mx = refCompartida(mezclador_), l]() {
+        g_object_set(mx.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
+    });
 }
 
 void Mezcla::agregar(const std::string& id) {
@@ -228,14 +230,8 @@ void Mezcla::tic() {
     // La latencia con que sale (la del mezclador y lo que declaran los de atrás).
     if (ahoraNs() - consultaNs_ > 1'000'000'000LL) {
         consultaNs_ = ahoraNs();
-        GstQuery* q = gst_query_new_latency();
-        if (gst_element_query(pipeline_, q)) {
-            gboolean vivo = FALSE;
-            GstClockTime min = 0, max = 0;
-            gst_query_parse_latency(q, &vivo, &min, &max);
-            if (GST_CLOCK_TIME_IS_VALID(min)) salidaNs_ = static_cast<std::int64_t>(min);
-        }
-        gst_query_unref(q);
+        // En otro hilo: ver LatenciaAparte (Piezas.hpp).
+        if (const std::int64_t ns = latencia_.consultar(pipeline_); ns >= 0) salidaNs_ = ns;
     }
     // Los fundidos de escena (curva de igual potencia: sin bache en el medio).
     const std::int64_t ahora = ahoraNs();
@@ -284,7 +280,7 @@ void Mezcla::tic() {
                 }
                 break;
             }
-            case GST_MESSAGE_LATENCY: gst_bin_recalculate_latency(GST_BIN(pipeline_)); break;
+            case GST_MESSAGE_LATENCY: recalcularLatenciaAparte(pipeline_); break;
             case GST_MESSAGE_ERROR: {
                 GError* e = nullptr;
                 gst_message_parse_error(m, &e, nullptr);

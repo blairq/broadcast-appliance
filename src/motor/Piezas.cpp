@@ -2,6 +2,8 @@
 // src/motor/Piezas.cpp — ver Piezas.hpp
 // ============================================================================
 #include "Piezas.hpp"
+
+#include <thread>
 #include "Reloj.hpp"
 
 #include <gst/pbutils/pbutils.h>
@@ -497,6 +499,70 @@ void sinRelojPropio(GstElement* pipeline) {
     }
     g_value_unset(&v);
     gst_iterator_free(it);
+}
+
+void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes) {
+    if (pipeline == nullptr) return;
+    struct Pedido {
+        bool otraVez = false;
+        std::function<void()> antes;
+    };
+    // Nunca se destruyen (un estático que se destruye al salir con un hilo usándolo mata el proceso).
+    static auto* mu = new std::mutex;
+    static auto* pedidos = new std::map<GstElement*, Pedido>; // los que tienen un hilo en curso
+    {
+        std::lock_guard<std::mutex> l(*mu);
+        auto it = pedidos->find(pipeline);
+        if (it != pedidos->end()) {
+            it->second.otraVez = true;
+            if (antes) it->second.antes = std::move(antes);
+            return;
+        }
+        (*pedidos)[pipeline] = Pedido{false, {}};
+    }
+    // La referencia mientras está en el mapa: el puntero no se puede reusar.
+    gst_object_ref(pipeline);
+    std::thread([pipeline, antes = std::move(antes)]() mutable {
+        for (;;) {
+            if (antes) antes();
+            gst_bin_recalculate_latency(GST_BIN(pipeline));
+            std::lock_guard<std::mutex> l(*mu);
+            auto it = pedidos->find(pipeline);
+            if (it->second.otraVez) {
+                it->second.otraVez = false;
+                antes = std::move(it->second.antes);
+                it->second.antes = {};
+                continue;
+            }
+            pedidos->erase(it);
+            break;
+        }
+        gst_object_unref(pipeline);
+    }).detach();
+}
+
+std::shared_ptr<GstObject> refCompartida(gpointer o) {
+    if (o == nullptr) return {};
+    return std::shared_ptr<GstObject>(GST_OBJECT(gst_object_ref(o)), [](GstObject* x) { gst_object_unref(x); });
+}
+
+std::int64_t LatenciaAparte::consultar(GstElement* pipeline) {
+    if (pipeline != nullptr && !e_->enCurso.exchange(true)) {
+        auto* p = GST_ELEMENT(gst_object_ref(pipeline));
+        std::thread([p, e = e_]() {
+            GstQuery* q = gst_query_new_latency();
+            if (gst_element_query(p, q)) {
+                gboolean vivo = FALSE;
+                GstClockTime min = 0, max = 0;
+                gst_query_parse_latency(q, &vivo, &min, &max);
+                e->ns = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<std::int64_t>(min) : 0;
+            }
+            gst_query_unref(q);
+            gst_object_unref(p);
+            e->enCurso = false;
+        }).detach();
+    }
+    return e_->ns.load();
 }
 
 void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora) {

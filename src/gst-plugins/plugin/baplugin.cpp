@@ -249,16 +249,22 @@ const char* kCaps = "video/x-raw, format=(string){ RGBA, BGRA, RGBx, BGRx, I420,
 // ===================================================================================
 
 struct Filtro {
+    /// El de PROCESAR: lo tiene el hilo de video mientras el cuadro va y vuelve
+    /// del plugin (hasta espera-ms). Leer el estado no lo toma: la interfaz lo
+    /// pregunta seguido y esperaba ese ida y vuelta en cada tic (la vista previa
+    /// salteaba cuadros).
     std::mutex lock;
+    /// El de LEER: los textos que se leen de afuera (plugin, tarjeta, parámetros, error).
+    mutable std::mutex props;
     std::string plugin, tarjeta, parametros = "{}";
     int puerto = 0;
     int esperaMs = 25;
     bool paramsCambiaron = false;
 
     CanalPlugin canal;
-    bool conectado = false;
+    std::atomic<bool> conectado{false};
     gint64 proximoIntento = 0;
-    std::string error;
+    std::string error; ///< bajo `props`
     bool avisado = false;
 
     bool esVideo = true;
@@ -271,8 +277,13 @@ struct Filtro {
     uint64_t n = 0;
     std::vector<uint8_t> ultimo; ///< el último que volvió a tiempo… o tarde
     bool hayUltimo = false;
-    uint64_t cuadros = 0, procesados = 0, tarde = 0, pasados = 0;
+    std::atomic<uint64_t> cuadros{0}, procesados{0}, tarde{0}, pasados{0};
 };
+
+void ponerError(Filtro& f, const std::string& e) {
+    std::lock_guard<std::mutex> l(f.props);
+    f.error = e;
+}
 
 struct BaPluginFiltro {
     GstBaseTransform padre;
@@ -339,7 +350,7 @@ void desconectar(Filtro& f, const std::string& error, gint64 esperaMs) {
     f.conectado = false;
     f.ocupado = false;
     f.hayUltimo = false;
-    f.error = error;
+    ponerError(f, error);
     f.proximoIntento = ahoraMs() + esperaMs;
 }
 
@@ -406,7 +417,7 @@ bool recogerVuelta(Filtro& f, int ms, bool& conError) {
         if (k == 0) return false;
         if (r.value("c", static_cast<uint64_t>(0)) == f.n) {
             conError = r.contains("error");
-            if (conError) f.error = r.value("error", std::string());
+            if (conError) ponerError(f, r.value("error", std::string()));
             return true;
         }
     }
@@ -492,13 +503,16 @@ gboolean filtroParar(GstBaseTransform* t) {
 void filtroPoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
     Filtro& f = *reinterpret_cast<BaPluginFiltro*>(o)->f;
     std::lock_guard<std::mutex> l(f.lock);
+    std::unique_lock<std::mutex> lp(f.props);
     switch (id) {
         case P_PLUGIN:
             f.plugin = g_value_get_string(v) ? g_value_get_string(v) : "";
+            lp.unlock(); // desconectar pone el error (y toma `props`)
             desconectar(f, {}, 0);
             break;
         case P_TARJETA:
             f.tarjeta = g_value_get_string(v) ? g_value_get_string(v) : "";
+            lp.unlock();
             desconectar(f, {}, 0);
             break;
         case P_PARAMETROS:
@@ -507,6 +521,7 @@ void filtroPoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
             break;
         case P_PUERTO:
             f.puerto = g_value_get_int(v);
+            lp.unlock();
             desconectar(f, {}, 0);
             break;
         case P_ESPERA: f.esperaMs = g_value_get_int(v); break;
@@ -516,7 +531,7 @@ void filtroPoner(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
 
 void filtroLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     Filtro& f = *reinterpret_cast<BaPluginFiltro*>(o)->f;
-    std::lock_guard<std::mutex> l(f.lock);
+    std::lock_guard<std::mutex> l(f.props); // no el de procesar: ver Filtro::lock
     switch (id) {
         case P_PLUGIN: g_value_set_string(v, f.plugin.c_str()); break;
         case P_TARJETA: g_value_set_string(v, f.tarjeta.c_str()); break;
@@ -524,8 +539,8 @@ void filtroLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case P_PUERTO: g_value_set_int(v, f.puerto); break;
         case P_ESPERA: g_value_set_int(v, f.esperaMs); break;
         case P_ESTADO: {
-            const json e{{"conectado", f.conectado},   {"error", f.error}, {"cuadros", f.cuadros},
-                         {"procesados", f.procesados}, {"tarde", f.tarde}, {"sin_procesar", f.pasados}};
+            const json e{{"conectado", f.conectado.load()},   {"error", f.error}, {"cuadros", f.cuadros.load()},
+                         {"procesados", f.procesados.load()}, {"tarde", f.tarde.load()}, {"sin_procesar", f.pasados.load()}};
             g_value_set_string(v, e.dump().c_str());
             break;
         }

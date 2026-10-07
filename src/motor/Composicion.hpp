@@ -170,6 +170,7 @@ class Composicion {
     double manualT_ = 0;
     Escena escenaAntes_;      ///< la que estaba (para volver si se suelta antes de la mitad)
     std::int64_t latenciaNs_ = -1, salidaNs_ = 0, consultaNs_ = 0;
+    LatenciaAparte latencia_;
 };
 
 } // namespace ba::motor

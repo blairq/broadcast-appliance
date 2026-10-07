@@ -121,7 +121,7 @@ void Escucha::tic(std::int64_t latenciaNs) {
         latenciaNs < latenciaNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
         latenciaNs_ = latenciaNs;
         gst_pipeline_set_latency(GST_PIPELINE(pipeline_), static_cast<GstClockTime>(latenciaNs_ + kMargenNs));
-        gst_bin_recalculate_latency(GST_BIN(pipeline_));
+        recalcularLatenciaAparte(pipeline_);
     }
     GstBus* bus = gst_element_get_bus(pipeline_);
     while (GstMessage* m = gst_bus_pop(bus)) {

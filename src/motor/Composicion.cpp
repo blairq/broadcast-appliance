@@ -144,9 +144,11 @@ void Composicion::aplicarLatencia() {
     const std::int64_t l = reloj_.latencia() + kMargenMezclaNs;
     if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
     latenciaNs_ = l;
-    g_object_set(mezclador_, "min-upstream-latency", static_cast<guint64>(l), nullptr);
-    if (dskMx_ != nullptr) g_object_set(dskMx_, "min-upstream-latency", static_cast<guint64>(l), nullptr);
-    gst_bin_recalculate_latency(GST_BIN(pipeline_));
+    // Todo en otro hilo (ver recalcularLatenciaAparte): esto corre en el bucle del motor.
+    recalcularLatenciaAparte(pipeline_, [mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_), l]() {
+        g_object_set(mx.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
+        if (dsk) g_object_set(dsk.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
+    });
 }
 
 GstPadProbeReturn Composicion::alPrimerCuadro(GstPad*, GstPadProbeInfo*, gpointer d) {
@@ -526,14 +528,8 @@ void Composicion::tic() {
     aplicarLatencia();
     if (ahoraNs() - consultaNs_ > 1'000'000'000LL) {
         consultaNs_ = ahoraNs();
-        GstQuery* q = gst_query_new_latency();
-        if (gst_element_query(pipeline_, q)) {
-            gboolean vivo = FALSE;
-            GstClockTime min = 0, max = 0;
-            gst_query_parse_latency(q, &vivo, &min, &max);
-            if (GST_CLOCK_TIME_IS_VALID(min)) salidaNs_ = static_cast<std::int64_t>(min);
-        }
-        gst_query_unref(q);
+        // En otro hilo: ver LatenciaAparte (Piezas.hpp).
+        if (const std::int64_t ns = latencia_.consultar(pipeline_); ns >= 0) salidaNs_ = ns;
     }
     // La transición.
     if (genVieja_ >= 0) {
@@ -578,7 +574,7 @@ void Composicion::tic() {
             registrar(Nivel::Error, "composición " + nombre_ + " (" + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + error_);
             if (e != nullptr) g_error_free(e);
         } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_LATENCY) {
-            gst_bin_recalculate_latency(GST_BIN(pipeline_));
+            recalcularLatenciaAparte(pipeline_);
         }
         gst_message_unref(m);
     }

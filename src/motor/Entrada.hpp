@@ -113,6 +113,7 @@ class Entrada {
     void irA(std::int64_t ms);
     /// none, playing, paused, stopped, ended, error
     std::string estadoMedio() const;
+    bool esMedio() const { return medio_; }
     std::int64_t tiempoMs() const;
     std::int64_t duracionMs() const;
 
@@ -193,14 +194,7 @@ class Entrada {
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
     std::uint64_t consultaNs_ = 0;
-    /// La consulta de latencia, que corre en su propio hilo (ver medirLatencia).
-    /// Compartida: si la entrada se va con la consulta en curso, el hilo
-    /// termina sobre esto y no sobre una entrada que ya no existe.
-    struct ConsultaLatencia {
-        std::atomic<bool> enCurso{false};
-        std::atomic<double> ms{-1};
-    };
-    std::shared_ptr<ConsultaLatencia> latencia_ = std::make_shared<ConsultaLatencia>();
+    LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
     std::uint64_t vistosDatos_ = 0, datosDesdeNs_ = 0;
     std::atomic<std::int64_t> pide_{0};
     std::atomic<bool> llegaTarde_{false};

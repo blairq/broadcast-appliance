@@ -173,8 +173,9 @@ void Motor::bucle() {
                 if (lat > puenteLatNs_ + static_cast<std::int64_t>(5 * GST_MSECOND) ||
                     lat < puenteLatNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
                     puenteLatNs_ = lat;
-                    gst_pipeline_set_latency(GST_PIPELINE(puente_), static_cast<GstClockTime>(lat));
-                    gst_bin_recalculate_latency(GST_BIN(puente_));
+                    recalcularLatenciaAparte(puente_, [p = refCompartida(puente_), lat]() {
+                        gst_pipeline_set_latency(GST_PIPELINE(p.get()), static_cast<GstClockTime>(lat));
+                    });
                 }
                 GstBus* bus = gst_element_get_bus(puente_);
                 while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
@@ -776,15 +777,13 @@ bool Motor::verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& seri
 }
 
 json Motor::medio(const std::string& id) const {
-    Entrada* e = nullptr;
-    {
-        std::lock_guard<std::recursive_mutex> l(mu_);
-        auto it = canales_.find(id);
-        if (it == canales_.end()) return nullptr;
-        e = it->second.entrada.get();
-    }
-    const json st = e->estado();
-    if (!st.contains("medio")) return nullptr;
+    std::lock_guard<std::recursive_mutex> l(mu_);
+    auto it = canales_.find(id);
+    if (it == canales_.end()) return nullptr;
+    Entrada* e = it->second.entrada.get();
+    // Solo pregunta si es un medio: armar el estado entero (las propiedades de
+    // todos sus filtros) en cada tic de la interfaz la trababa.
+    if (!e->esMedio()) return nullptr;
     return {{"estado", e->estadoMedio()}, {"tiempo_ms", e->tiempoMs()}, {"duracion_ms", e->duracionMs()}};
 }
 

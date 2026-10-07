@@ -160,7 +160,7 @@ void Vistas::tic() {
                                        lat < u->latencia - static_cast<std::int64_t>(60 * GST_MSECOND))) {
             u->latencia = lat;
             gst_pipeline_set_latency(GST_PIPELINE(u->pipeline), static_cast<GstClockTime>(lat + kMargenNs));
-            gst_bin_recalculate_latency(GST_BIN(u->pipeline));
+            recalcularLatenciaAparte(u->pipeline);
         }
         if (u->pipeline != nullptr) {
             GstBus* bus = gst_element_get_bus(u->pipeline);

@@ -14,6 +14,8 @@
 
 #include <atomic>
 #include <cstdint>
+#include <functional>
+#include <memory>
 #include <mutex>
 #include <set>
 #include <string>
@@ -142,6 +144,42 @@ void sinRelojPropio(GstElement* pipeline);
 /// las apuradas hasta alcanzar la hora, y ahogan a quien las consume. Arrancan
 /// en `ahora` (la hora de ejecución del estudio).
 void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora);
+
+/// gst_bin_recalculate_latency EN OTRO HILO. Por dentro hace la misma consulta
+/// que recorre todo el pipeline (ver LatenciaAparte) y se llamaba con los
+/// candados del motor tomados. Los pedidos se juntan: si llega uno con otro en
+/// curso, se recalcula una vez más al terminar (con lo último).
+/// `antes` corre en ese hilo justo antes de recalcular: poner la latencia en
+/// el mezclador (min-upstream-latency) toma su candado, que el recálculo tiene
+/// mientras dura; hecho desde el bucle del motor, lo trababa igual. Un pedido
+/// pendiente se queda con el último `antes`.
+void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes = {});
+
+/// Una referencia de GStreamer que se suelta sola (para llevar elementos a otro hilo).
+std::shared_ptr<GstObject> refCompartida(gpointer o);
+
+/// La latencia de un pipeline, preguntada EN OTRO HILO. El bucle del motor la
+/// pedía con su candado tomado y la consulta recorre todo el pipeline: una
+/// fuente que se está conectando, o un elemento con su candado ocupado, la tenía
+/// segundos sin responder, y mientras tanto todo lo que pasa por el motor
+/// esperaba (la interfaz incluida: la vista previa salteaba cuadros).
+class LatenciaAparte {
+   public:
+    /// Lanza una consulta si no hay otra en curso y devuelve la última respuesta
+    /// (ns del mínimo; -1 si todavía no respondió ninguna).
+    std::int64_t consultar(GstElement* pipeline);
+    /// Lo que respondía la cadena anterior ya no vale (se rearmó).
+    void olvidar() { e_ = std::make_shared<Estado>(); }
+
+   private:
+    /// Compartido con el hilo: si el dueño se va con la consulta en curso, el
+    /// hilo termina sobre esto y no sobre algo que ya no existe.
+    struct Estado {
+        std::atomic<bool> enCurso{false};
+        std::atomic<std::int64_t> ns{-1};
+    };
+    std::shared_ptr<Estado> e_ = std::make_shared<Estado>();
+};
 
 /// Un valor JSON como texto para gst_util_set_object_arg.
 std::string comoTexto(const nlohmann::json& v);

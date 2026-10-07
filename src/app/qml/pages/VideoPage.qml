@@ -337,14 +337,16 @@ Rectangle {
                     radius: 8; color: "black"; clip: true
                     // Damero: lo transparente (croma, recorte) se ve como tal.
                     Grid {
+                        id: damero
                         anchors.fill: parent
                         columns: Math.ceil(width / 12)
                         Repeater {
-                            model: Math.ceil(parent.width / 12) * Math.ceil(parent.height / 12)
+                            model: damero.columns * Math.ceil(damero.height / 12)
                             delegate: Rectangle {
                                 required property int index
                                 width: 12; height: 12
-                                color: (Math.floor(index / Math.ceil(parent.width / 12)) + index) % 2 ? "#2a2a2a" : "#1a1a1a"
+                                // Por el id y no por `parent`: un delegado recién creado todavía no lo tiene.
+                                color: (Math.floor(index / damero.columns) + index) % 2 ? "#2a2a2a" : "#1a1a1a"
                             }
                         }
                     }
