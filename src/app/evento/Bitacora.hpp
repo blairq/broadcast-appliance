@@ -17,6 +17,8 @@
 //     guion      cada cue lanzado, pausas, saltos
 //     aviso      avisos y errores del registro, de cualquier componente
 //     evento     el evento empieza, termina, la app arranca o se cierra
+//     config     un archivo de Config/ cambió (con el JSON Patch del cambio;
+//                ver FotosConfig)
 //
 // UN SOLO ESCRITOR, en su hilo: `anotar` no toca el disco (se puede llamar
 // desde cualquier hilo, también desde el oyente del registro). El hilo escribe

@@ -173,10 +173,19 @@ QVariantMap EventoViewModel::enCurso() const {
 std::filesystem::path EventoViewModel::archivoBitacora() const { return archivoBitacoraDe({}); }
 
 std::filesystem::path EventoViewModel::archivoBitacoraDe(const std::string& carpeta) const {
+    const auto d = carpetaEvento(carpeta);
+    return d.empty() ? d : d / "bitacora.jsonl";
+}
+
+std::filesystem::path EventoViewModel::carpetaEvento(const std::string& carpeta) const {
     const std::string c = carpeta.empty() ? store_.enCurso() : carpeta;
     if (c.empty() || !evento::EventoStore::rutaValida(c)) return {};
-    return store_.carpetaDe(c) / "bitacora.jsonl";
+    std::error_code ec;
+    if (!std::filesystem::is_directory(store_.carpetaDe(c), ec)) return {};
+    return store_.carpetaDe(c);
 }
+
+std::filesystem::path EventoViewModel::carpetaConfig() const { return rt_.dataRoot() / "Config"; }
 
 nlohmann::json EventoViewModel::ajustesHistorico() const {
     std::ifstream f(rt_.dataRoot() / "Config" / "historico.json");

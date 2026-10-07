@@ -59,7 +59,7 @@ bool escribir(const fs::path& archivo, const std::vector<std::string>& lineas) {
 } // namespace
 
 const std::vector<std::string>& Bitacora::categorias() {
-    static const std::vector<std::string> c{"bus", "mcp", "botonera", "guion", "aviso", "evento"};
+    static const std::vector<std::string> c{"bus", "mcp", "botonera", "guion", "aviso", "evento", "config"};
     return c;
 }
 

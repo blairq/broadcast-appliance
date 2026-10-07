@@ -152,7 +152,7 @@ Categoría «historico»: `historico_listar` (carpetas, filtros), `historico_ver
 |---|---|---|
 | H1 | Evento en curso + `ficha.json` + carpetas anidadas en `EventoStore`; evento automático del día | **hecho** (ver abajo) |
 | H2 | `Bitacora` (escritor único) colgada de BusEventos, traza MCP, botonera, guion, avisos | **hecho** (ver abajo) |
-| H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | comparar y restaurar en H6 |
+| H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | **hecho** (ver abajo); restaurar en H6 |
 | H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | `Salidas`, `FlujosTexto`, YouTube/Twitch/Facebook |
 | H5 | Asamblea por evento (orden del día, quórum, votaciones, palabra, remota) y el pedazo de logs al cerrar; `sellos.json` | deja de pisarse «la sesión en curso» |
 | H6 | Página Histórico (carpetas, lista, detalle con pestañas, búsqueda, comparar/restaurar, exportar) + MCP + Ajustes → Histórico | test_qml_carga y capturas |
@@ -212,3 +212,26 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
 - MCP `evento_bitacora` (evento, tipos, texto, desde/hasta en ms o «HH:MM», límite).
 - Test `test_bitacora` (orden, cambio de archivo, categorías, limpiador, filtros,
   línea cortada por un corte de luz, 8 hilos × 500 líneas sin perder ninguna).
+
+## H3 (hecho)
+
+- `evento/FotosConfig`: la foto es un índice (`<evento>/config/{inicio,cierre,ultima}.json`
+  → `{t, archivos: {ruta: {sha, bytes}}}`) y cada contenido se guarda una sola vez
+  en `Eventos/.objetos/<sha>.json` (las carpetas con punto no son eventos). Entran
+  los `*.json` de `Config/` (con subcarpetas), no las copias `*.anterior`/`*.migrado`
+  ni lo de más de 4 MB. Un JSON a medio escribir entra como texto.
+- Secretos tapados antes de guardar (nombre de secreto + valor de secreto: tira
+  larga sin espacios); «clave» de un catálogo no se tapa. Al restaurar (H6), lo
+  tapado se deja como está ahora.
+- `StudioViewModel::revisarConfig`: foto `inicio` al entrar en curso (la primera
+  vez), `cierre` al dejar de estarlo, y revisión cada 10 s (solo `stat` de ~35
+  archivos; relee únicamente lo que cambió de fecha o tamaño). Cada cambio va a la
+  bitácora como tipo `config` con el JSON Patch (recortado a 40 operaciones; los
+  valores grandes, «…(grande)»). Al arrancar, lo que cambió con la app cerrada se
+  anota contra la última foto del evento.
+- MCP `evento_config`: lista de archivos de una foto, el contenido de uno, o
+  `comparar_con` «actual» / otro evento.
+- Test `test_fotos_config`.
+- Pendiente fino: si la app arranca otro día, el automático de ayer pasa a
+  terminado antes de que exista la bitácora, y no recibe su foto `cierre` (tiene
+  su `ultima`, que es lo mismo).

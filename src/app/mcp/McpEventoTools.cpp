@@ -26,6 +26,7 @@
 
 #include "evento/Bitacora.hpp"
 #include "evento/Evento.hpp"
+#include "evento/FotosConfig.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -254,6 +255,77 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             done(ToolResult().data(json{{"evento", carpeta.empty() ? ev.enCurso().value("carpeta").toString().toStdString() : carpeta},
                                         {"lineas", out},
                                         {"total_en_archivo", primera.size()}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_config";
+        t.title = "La configuración de un evento";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description =
+            "Con qué configuración se hizo un evento: la foto de Config/ al entrar en curso (`inicio`), al terminar "
+            "(`cierre`) o la última vista (`ultima`, de fábrica). Sin `archivo`: la lista de archivos; con `archivo`: "
+            "su contenido. Con `comparar_con`: qué cambió (contra «actual» o contra otro evento).";
+        t.details =
+            "Las fotos están en <evento>/config/{inicio,cierre,ultima}.json y nombran cada contenido por su sha256 "
+            "(Eventos/.objetos/<sha>.json, guardado una sola vez). Los secretos van tapados («tapado»). Los cambios "
+            "durante el evento también quedan en la bitácora (evento_bitacora, tipo `config`), con el JSON Patch. "
+            "`comparar_con`: \"actual\" (la configuración de ahora) o {evento, foto}. Volver a una configuración "
+            "es otra herramienta (con aprobación).";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"evento", {{"type", "string"}, {"description", "La carpeta (vacío = el en curso)."}}},
+              {"foto", {{"type", "string"}, {"enum", {"inicio", "cierre", "ultima"}}}},
+              {"archivo", {{"type", "string"}, {"description", "p. ej. escenas.json"}}},
+              {"comparar_con", {{"description", "\"actual\" o {evento, foto}"}}}}}};
+        t.examples = {R"({})", R"({"archivo": "escenas.json"})", R"({"foto": "inicio", "comparar_con": "actual"})",
+                      R"({"evento": "2026/Octubre/Sesion-03", "comparar_con": {"evento": "2026/Octubre/Sesion-10", "foto": "inicio"}})"};
+        t.run = [&ev](const json& a, Done done) {
+            evento::FotosConfig fotos(ev.carpetaConfig(), ev.raizEventos() / ".objetos");
+            const auto cargarFoto = [&](const std::string& carpeta, const std::string& cual, std::string& err) -> json {
+                const auto dir = ev.carpetaEvento(carpeta);
+                if (dir.empty()) {
+                    err = carpeta.empty() ? "no hay un evento en curso" : "no hay un evento «" + carpeta + "»";
+                    return nullptr;
+                }
+                json f = evento::FotosConfig::cargar(dir / "config" / ((cual.empty() ? "ultima" : cual) + ".json"));
+                if (f.is_null()) err = "ese evento no tiene foto «" + (cual.empty() ? "ultima" : cual) + "»";
+                return f;
+            };
+            std::string err;
+            const std::string carpeta = a.value("evento", std::string());
+            const json f = cargarFoto(carpeta, a.value("foto", std::string()), err);
+            if (f.is_null()) return done(ToolResult::error(err));
+            if (a.contains("comparar_con")) {
+                json otra;
+                if (a["comparar_con"].is_string() && a["comparar_con"].get<std::string>() == "actual") {
+                    otra = fotos.foto(QDateTime::currentMSecsSinceEpoch());
+                } else if (a["comparar_con"].is_object()) {
+                    otra = cargarFoto(a["comparar_con"].value("evento", std::string()),
+                                      a["comparar_con"].value("foto", std::string()), err);
+                    if (otra.is_null()) return done(ToolResult::error(err));
+                } else {
+                    return done(ToolResult::error("`comparar_con`: \"actual\" o {evento, foto}"));
+                }
+                const json c = fotos.comparar(f, otra);
+                return done(ToolResult().data(json{{"cambios", c}, {"archivos_distintos", c.size()}}));
+            }
+            const std::string archivo = a.value("archivo", std::string());
+            const json archivos = f.value("archivos", json::object());
+            if (!archivo.empty()) {
+                if (!archivos.contains(archivo)) return done(ToolResult::error("la foto no tiene «" + archivo + "»"));
+                return done(ToolResult().data(
+                    json{{"archivo", archivo}, {"contenido", fotos.leer(archivos[archivo].value("sha", std::string()))}}));
+            }
+            json lista = json::array();
+            for (auto it = archivos.begin(); it != archivos.end(); ++it)
+                lista.push_back(json{{"archivo", it.key()}, {"bytes", it.value().value("bytes", 0)}});
+            done(ToolResult().data(json{
+                {"hora", QDateTime::fromMSecsSinceEpoch(f.value("t", 0LL)).toString("dd/MM/yyyy HH:mm:ss").toStdString()},
+                {"archivos", lista}}));
         };
         core.addTool(std::move(t));
     }

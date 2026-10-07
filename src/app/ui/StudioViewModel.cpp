@@ -7,6 +7,7 @@
 #include <fstream>
 #include <QClipboard>
 #include <QDateTime>
+#include <QTimer>
 #include <QElapsedTimer>
 
 #include <QGuiApplication>
@@ -72,6 +73,7 @@
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "evento/Bitacora.hpp"
+#include "evento/FotosConfig.hpp"
 #include "mcp/McpTraza.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "dispositivos/Registro.hpp"
@@ -1174,9 +1176,57 @@ StudioViewModel::~StudioViewModel() {
     if (bitacoraOyente_ != 0) ba::diag::registro().quitarOyente(bitacoraOyente_);
     if (bitacoraBus_ != 0 && bus_) bus_->desuscribir(bitacoraBus_);
     if (bitacora_) {
+        revisarConfig({}, "");
         bitacora_->anotar("evento", "app", "la app se cierra");
         bitacora_->vaciar();
     }
+}
+
+void StudioViewModel::revisarConfig(const std::string& carpeta, const std::string& momento) {
+    if (!fotos_ || !evento_) return;
+    const auto dir = evento_->carpetaEvento(carpeta);
+    if (dir.empty()) return;
+    const auto ahoraMs = QDateTime::currentMSecsSinceEpoch();
+    nlohmann::json f;
+    try {
+        f = fotos_->foto(ahoraMs);
+    } catch (const std::exception&) {
+        return;
+    }
+    const auto cfg = dir / "config";
+    nlohmann::json antes = fotoUltima_;
+    if (antes.is_null()) antes = evento::FotosConfig::cargar(cfg / "ultima.json");
+    if (!antes.is_null() && antes.value("archivos", nlohmann::json::object()) == f.value("archivos", nlohmann::json::object())) {
+        fotoUltima_ = f;
+        std::error_code ec;
+        if (momento == "inicio" && !std::filesystem::exists(cfg / "inicio.json", ec))
+            evento::FotosConfig::guardar(cfg / "inicio.json", f);
+        if (momento == "cierre") evento::FotosConfig::guardar(cfg / "cierre.json", f);
+        return;
+    }
+    if (!antes.is_null() && bitacora_) {
+        // Si es de otro evento (el que se cierra), la línea va a SU bitácora:
+        // la bitácora ya puede estar apuntando al nuevo. Se escribe directo.
+        const bool otro = !carpeta.empty();
+        for (const auto& c : fotos_->comparar(antes, f)) {
+            const std::string texto = c.value("archivo", std::string()) + " " + c.value("que", std::string()) +
+                                      (antes.value("t", 0LL) != 0 && momento == "inicio" ? " (con la app cerrada)" : "");
+            if (otro) {
+                evento::Bitacora b;
+                b.setArchivo(dir / "bitacora.jsonl");
+                b.anotar("config", c.value("archivo", std::string()), texto, c, ahoraMs);
+                b.vaciar();
+            } else {
+                bitacora_->anotar("config", c.value("archivo", std::string()), texto, c, ahoraMs);
+            }
+        }
+    }
+    fotoUltima_ = f;
+    evento::FotosConfig::guardar(cfg / "ultima.json", f);
+    std::error_code ec;
+    if (momento == "inicio" && !std::filesystem::exists(cfg / "inicio.json", ec))
+        evento::FotosConfig::guardar(cfg / "inicio.json", f);
+    if (momento == "cierre") evento::FotosConfig::guardar(cfg / "cierre.json", f);
 }
 
 // LA BITÁCORA DEL EVENTO EN CURSO (H2 de docs/PLAN-EVENTOS-HISTORICO.md): se
@@ -1202,6 +1252,14 @@ void StudioViewModel::armarBitacora() {
     bitacora_->setArchivo(evento_->archivoBitacora());
     bitacora_->anotar("evento", "app", "la app arranca",
                       {{"evento", evento_->enCurso().value("carpeta").toString().toStdString()}});
+    // La configuración: lo que cambió con la app cerrada se ve al arrancar
+    // (contra la última foto del evento), y después, cada 10 s.
+    fotos_ = std::make_unique<evento::FotosConfig>(rt_.dataRoot() / "Config", evento_->raizEventos() / ".objetos");
+    revisarConfig({}, "inicio");
+    auto* tFotos = new QTimer(this);
+    tFotos->setInterval(10000);
+    connect(tFotos, &QTimer::timeout, this, [this]() { revisarConfig({}, ""); });
+    tFotos->start();
 
     auto* b = bitacora_.get();
     // Del registro: cualquier hilo. Lo mismo repetido en 10 s se anota una vez
@@ -1250,9 +1308,16 @@ void StudioViewModel::armarBitacora() {
     connect(evento_.get(), &EventoViewModel::enCursoChanged, this, [this, anterior]() {
         const std::string ahora = evento_->enCurso().value("carpeta").toString().toStdString();
         if (ahora == *anterior) return;
-        if (!anterior->empty()) bitacora_->anotar("evento", "historico", "deja de estar en curso", {{"siguiente", ahora}});
+        if (!anterior->empty()) {
+            revisarConfig(*anterior, "cierre");
+            bitacora_->anotar("evento", "historico", "deja de estar en curso", {{"siguiente", ahora}});
+        }
         bitacora_->setArchivo(evento_->archivoBitacora());
-        if (!ahora.empty()) bitacora_->anotar("evento", "historico", "en curso", {{"anterior", *anterior}});
+        if (!ahora.empty()) {
+            bitacora_->anotar("evento", "historico", "en curso", {{"anterior", *anterior}});
+            fotoUltima_ = nullptr; // el evento nuevo compara contra su propia última foto
+            revisarConfig({}, "inicio");
+        }
         *anterior = ahora;
     });
 }

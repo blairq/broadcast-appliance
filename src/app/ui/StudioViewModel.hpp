@@ -73,6 +73,7 @@ class Dispositivos;
 
 namespace ba::evento {
 class Bitacora;
+class FotosConfig;
 }
 namespace ba::app::control {
 class BusEventos;
@@ -825,6 +826,13 @@ class StudioViewModel : public QObject {
     std::unique_ptr<evento::Bitacora> bitacora_;
     int bitacoraOyente_ = 0, bitacoraBus_ = 0;
     void armarBitacora();
+    /// Las fotos de Config/ por evento (H3): la última vista y la revisión cada 10 s.
+    std::unique_ptr<evento::FotosConfig> fotos_;
+    nlohmann::json fotoUltima_;
+    /// Saca la foto de ahora y anota en la bitácora lo que cambió desde la
+    /// última. `momento`: "inicio" | "cierre" | "" (solo revisar), del evento
+    /// `carpeta` (vacío = el en curso).
+    void revisarConfig(const std::string& carpeta, const std::string& momento);
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;

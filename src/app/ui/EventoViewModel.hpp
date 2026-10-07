@@ -97,6 +97,12 @@ class EventoViewModel : public QObject {
     QVariantMap enCurso() const;
     /// El bitacora.jsonl del evento en curso (vacío si no hay ninguno).
     std::filesystem::path archivoBitacora() const;
+    /// La carpeta de un evento (vacía = el en curso; vacío si no hay).
+    std::filesystem::path carpetaEvento(const std::string& carpeta = {}) const;
+    /// Eventos/ (donde están todos).
+    std::filesystem::path raizEventos() const { return store_.raiz(); }
+    /// Config/ (lo que se fotografía).
+    std::filesystem::path carpetaConfig() const;
     /// La bitácora de un evento (por su carpeta; vacía = el en curso).
     std::filesystem::path archivoBitacoraDe(const std::string& carpeta) const;
     /// Config/historico.json (lo que se registra, el automático…).
