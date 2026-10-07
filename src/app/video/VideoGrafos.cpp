@@ -635,6 +635,30 @@ QString VideoGrafos::correr(const QString& id, int paso) {
     }));
 }
 
+QVariantMap VideoGrafos::eventosDeEntrada() const {
+    QVariantMap out;
+    const std::string entrada = entrada_.toStdString();
+    if (entrada.empty()) return out;
+    for (const auto& f : filtrosDeEntrada(entrada)) {
+        if (!f.contains("eventos") || !f["eventos"].is_object()) continue;
+        std::string id = f.value("id", std::string());
+        // El PTZ va en la cadena con id «ptz»: su tarjeta es la de tipo ptz de la entrada.
+        if (id == "ptz")
+            for (const auto& n : grafo_.nodos())
+                if (n.grupo == entrada && n.tipo == "ptz") id = n.id;
+        QVariantList l;
+        for (const auto& [k, v] : f["eventos"].items()) {
+            const auto dos = k.find(':');
+            l << QVariantMap{{"direccion", QString::fromStdString(k.substr(0, dos))},
+                             {"evento", QString::fromStdString(dos == std::string::npos ? k : k.substr(dos + 1))},
+                             {"n", static_cast<double>(v.value("n", 0ULL))},
+                             {"hace_ms", static_cast<double>(v.value("hace_ms", 0LL))}};
+        }
+        out[QString::fromStdString(id)] = l;
+    }
+    return out;
+}
+
 QString VideoGrafos::conectar(const QString& desde, const QString& salida, const QString& hacia,
                               const QString& entrada) {
     return q(editar([&](GrafoVideo& g) {

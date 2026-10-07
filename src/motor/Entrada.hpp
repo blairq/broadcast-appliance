@@ -151,6 +151,7 @@ class Entrada {
     void irANs(std::int64_t ns);
     void corregirOffset();
     void armarSalida();
+    void sondearEventos(GstElement* e, const std::string& filtro);
     bool enPlacaSinLock() const;
     void desarmarSalida();
     /// El productor que escribe la cadena (la que se rearma): el crudo si hay placa.
@@ -218,6 +219,16 @@ class Entrada {
     std::uint64_t consultaNs_ = 0;
     LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
     std::shared_ptr<Rotulo> rotulo_; ///< un rótulo de texto: lo que dibuja (textoDibujado)
+    /// Los eventos «ba/*» que salen de cada filtro (sondas en sus pads): para
+    /// ver en la vista de video cómo se hablan las tarjetas. filtro -> "abajo:ba/rostros" -> {cuántos, último}.
+   public:
+    struct Eventos {
+        std::mutex mu;
+        std::map<std::string, std::map<std::string, std::pair<std::uint64_t, std::int64_t>>> c;
+    };
+
+   private:
+    std::shared_ptr<Eventos> eventos_ = std::make_shared<Eventos>();
     std::atomic<bool> enUso_{true};
     std::atomic<bool> placaActiva_{false};          ///< el fallbackswitch está en la placa
     std::atomic<std::int64_t> ultimaPlacaUs_{0};    ///< el último cuadro de placa que pasó sin estar en la placa

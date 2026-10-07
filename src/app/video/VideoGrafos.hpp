@@ -129,6 +129,10 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString reubicar(const QString& id, const QString& despues);
     /// La corre un lugar antes (-1) o después (+1) en la cadena. "" o el error.
     Q_INVOKABLE QString correr(const QString& id, int paso);
+    /// Los eventos de GStreamer «ba/*» que salen de cada tarjeta de la entrada
+    /// elegida (sondas en sus pads): tarjeta -> [{evento, direccion (abajo|arriba),
+    /// n, hace_ms}]. Para ver en Racks cómo se hablan las tarjetas.
+    Q_INVOKABLE QVariantMap eventosDeEntrada() const;
     Q_INVOKABLE QString conectar(const QString& desde, const QString& salida, const QString& hacia,
                                  const QString& entrada);
     Q_INVOKABLE QString desconectar(const QString& desde, const QString& salida, const QString& hacia,

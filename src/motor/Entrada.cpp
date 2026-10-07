@@ -792,6 +792,7 @@ void Entrada::armar() {
         for (const auto& x : *lista) {
             const std::string n = (lista == &filtrosV ? "ba_f_" : "ba_fa_") + x.nombre;
             if (GstElement* e = gst_bin_get_by_name(GST_BIN(p), n.c_str())) {
+                sondearEventos(e, x.id);
                 ponerPropiedades(e, x, &avisos_);
                 // Lo que tenía antes de rearmar (el encuadre del PTZ digital…).
                 if (auto it = estados_.find(n);
@@ -1458,6 +1459,40 @@ bool Entrada::enviarControl() {
     return ok;
 }
 
+namespace {
+struct SondaEventos {
+    std::shared_ptr<Entrada::Eventos> ev;
+    std::string filtro;
+    const char* dir; ///< "abajo" | "arriba"
+};
+} // namespace
+
+void Entrada::sondearEventos(GstElement* e, const std::string& filtro) {
+    // Sondas (lo estándar de GStreamer): lo que SALE de la tarjeta, hacia abajo
+    // por su salida y hacia arriba por su entrada. Solo los eventos «ba/*».
+    const auto poner = [&](const char* pad, GstPadProbeType tipo, const char* dir) {
+        GstPad* p = gst_element_get_static_pad(e, pad);
+        if (p == nullptr) return;
+        auto* d = new SondaEventos{eventos_, filtro, dir};
+        gst_pad_add_probe(
+            p, tipo,
+            [](GstPad*, GstPadProbeInfo* info, gpointer u) -> GstPadProbeReturn {
+                const GstStructure* s = gst_event_get_structure(GST_PAD_PROBE_INFO_EVENT(info));
+                if (s == nullptr || std::strncmp(gst_structure_get_name(s), "ba/", 3) != 0) return GST_PAD_PROBE_OK;
+                auto* d = static_cast<SondaEventos*>(u);
+                std::lock_guard<std::mutex> l(d->ev->mu);
+                auto& c = d->ev->c[d->filtro][std::string(d->dir) + ":" + gst_structure_get_name(s)];
+                ++c.first;
+                c.second = g_get_monotonic_time();
+                return GST_PAD_PROBE_OK;
+            },
+            d, [](gpointer u) { delete static_cast<SondaEventos*>(u); });
+        gst_object_unref(p);
+    };
+    poner("src", GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM, "abajo");
+    poner("sink", GST_PAD_PROBE_TYPE_EVENT_UPSTREAM, "arriba");
+}
+
 json Entrada::estadoFiltros() const {
     // Cada filtro: su elemento y lo que informe (lo que tarda, el motor, por qué no anda).
     json fs = json::array();
@@ -1503,6 +1538,18 @@ json Entrada::estadoFiltros() const {
             for (const char* prop : {"error", "motor-usado", "proveedor-usado", "unidades-usadas"})
                 if (info.contains(prop)) e[prop] = info[prop];
             e["info"] = info;
+            // Los eventos «ba/*» que salieron de esta tarjeta: cuántos y hace cuánto el último.
+            {
+                std::lock_guard<std::mutex> le(eventos_->mu);
+                const auto it = eventos_->c.find(fl.id);
+                if (it != eventos_->c.end()) {
+                    json ev = json::object();
+                    const std::int64_t ahora = g_get_monotonic_time();
+                    for (const auto& [k, v] : it->second)
+                        ev[k] = {{"n", v.first}, {"hace_ms", (ahora - v.second) / 1000}};
+                    e["eventos"] = ev;
+                }
+            }
             // Y lo que negoció: el formato que sale.
             if (GstPad* pad = gst_element_get_static_pad(el, "src")) {
                 if (GstCaps* c = gst_pad_get_current_caps(pad)) {

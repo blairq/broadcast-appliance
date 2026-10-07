@@ -115,6 +115,29 @@ Rectangle {
         for (const n of l) if (!n.externo) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y) }
         return minX === Infinity ? Qt.point(0, 0) : Qt.point(minX - 20, minY - 20)
     }
+    // ui_show_page {page: "video", seccion: "<entrada>[/<id de tarjeta>]"}: esa entrada (y esa tarjeta).
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina !== "video" || !page.vg || seccion === "") return
+            const partes = seccion.split("/")
+            page.vg.entrada = partes[0]
+            if (partes.length > 1) page.elegir(partes.slice(1).join("/"))
+        }
+    }
+
+    // LOS EVENTOS ENTRE TARJETAS (ba/rostros, ba/ptz, ba/encuadre, ba/control…):
+    // lo que salió de cada una en los últimos 2 s, ↓ hacia abajo y ↑ hacia arriba.
+    property var eventosVivos: ({})
+    Timer {
+        interval: 1000; repeat: true; triggeredOnStart: true
+        running: page.visible && page.vista !== "estudio" && !!page.vg && page.vg.entrada !== ""
+        onTriggered: page.eventosVivos = page.vg.eventosDeEntrada()
+    }
+    function eventosTexto(id) {
+        const l = (page.eventosVivos || {})[id] || []
+        return l.filter(e => e.hace_ms < 2000).map(e => (e.direccion === "arriba" ? "↑ " : "↓ ") + e.evento).join("  ")
+    }
     readonly property var nodosVista: {
         const l = page.g.nodos || []
         const dx = page.corrimiento.x, dy = page.corrimiento.y
@@ -123,7 +146,8 @@ Rectangle {
         const out = []
         let yExt = 20
         for (let i = 0; i < l.length; ++i) {
-            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) })
+            const ev = page.eventosTexto(l[i].id)
+            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) + (ev ? "\n" + ev : "") })
             if (n.externo) { n.x = maxX + 260; n.y = yExt; yExt += 140 }
             else { n.x = n.x - dx; n.y = n.y - dy }
             out.push(n)
