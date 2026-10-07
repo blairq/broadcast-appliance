@@ -82,7 +82,7 @@ cat >"$C/Info.plist" <<PLIST
     <key>CFBundleExecutable</key>
     <string>BroadcastAppliance</string>
     <key>CFBundleIdentifier</key>
-    <string>com.legisstudio.broadcastappliance</string>
+    <string>io.github.blairq.broadcastappliance</string>
     <key>CFBundleName</key>
     <string>Broadcast Appliance</string>
     <key>CFBundleDisplayName</key>

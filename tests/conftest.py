@@ -1,4 +1,4 @@
-"""Shared fixtures for the legis-studio repo-invariant suite.
+"""Shared fixtures for the broadcast-appliance repo-invariant suite.
 
 This suite verifies repository-level invariants (packaging files, the
 documentation, dependency pins) and drives the compiled C++

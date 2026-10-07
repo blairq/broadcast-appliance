@@ -324,7 +324,7 @@ if(WIN32)
 endif()
 # macOS: permisos de camara/microfono (TCC) en un ejecutable que no es .app.
 include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
-ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast Appliance")
+ba_mac_embed_info_plist(ba-app io.github.blairq.broadcastappliance.app "Broadcast Appliance")
 
 # MinGW GUI: subsistema GUI (sin consola), igual que el launcher. Sin esto,
 # MinGW enlaza como consola y el CRT espera `main` en vez de `WinMain`/

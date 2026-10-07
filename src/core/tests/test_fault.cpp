@@ -115,7 +115,7 @@ void testChecksumMismatchProducesCorruptedCopy() {
     // Contenido de prueba con bytes variados (incluye 0x00 y 0xFF para que el
     // XOR 0x01 siempre cambie el primer byte).
     const std::string content =
-        std::string("\x00\x01\x02\xFF\x10\x20\x30\x40", 8) + "legis-studio-fault-injection-checksum-mismatch";
+        std::string("\x00\x01\x02\xFF\x10\x20\x30\x40", 8) + "ba-fault-injection-checksum-mismatch";
 
     CHECK(writeFileAll(src, content));
 
@@ -174,7 +174,7 @@ void testWriteWithFaultNoneIsExactCopy() {
     const std::string src = (std::filesystem::temp_directory_path() / "ba_fault_src2.bin").string();
     const std::string dst = (std::filesystem::temp_directory_path() / "ba_fault_dst2.bin").string();
 
-    const std::string content = "legis-studio-fault-injection-exact-copy\x00\xFF";
+    const std::string content = "ba-fault-injection-exact-copy\x00\xFF";
     CHECK(writeFileAll(src, content));
 
     FaultInjector inj;
@@ -199,7 +199,7 @@ void testWriteWithFaultOtherKindIsExactCopy() {
     const std::string src = (std::filesystem::temp_directory_path() / "ba_fault_src3.bin").string();
     const std::string dst = (std::filesystem::temp_directory_path() / "ba_fault_dst3.bin").string();
 
-    const std::string content = "legis-studio-fault-injection-timeout-kind";
+    const std::string content = "ba-fault-injection-timeout-kind";
     CHECK(writeFileAll(src, content));
 
     FaultInjector inj;

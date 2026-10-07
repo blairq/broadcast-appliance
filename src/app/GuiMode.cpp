@@ -163,7 +163,7 @@ class CartelDeCarga : public QRasterWindow {
         p.setFont(f);
         p.setPen(tenue);
         p.drawText(QRect(m, 244, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
-                   "Hecho por Jorge Ortega · Legis Studio");
+                   "Hecho por Jorge Ortega");
         p.setPen(acento);
         p.drawText(QRect(m, 264, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
                    "github.com/blairq/broadcast-appliance");

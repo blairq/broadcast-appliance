@@ -705,7 +705,7 @@ tarballs ya verificados de `extern/.downloads`.
   descomprime y corre, o se aplica sobre una instalación con `--update`.
 
 - **Flatpak** (Linux): manifiesto en
-  [`packaging/flatpak/org.legis.broadcastappliance.json`](packaging/flatpak/org.legis.broadcastappliance.json)
+  [`packaging/flatpak/io.github.blairq.broadcastappliance.json`](packaging/flatpak/io.github.blairq.broadcastappliance.json)
   (runtime `org.freedesktop.Platform` 23.08, C++20, módulos mbedtls/nlohmann/
   libsamplerate/argon2) y `.desktop` en
   [`packaging/BroadcastAppliance.desktop`](packaging/BroadcastAppliance.desktop).
@@ -779,7 +779,7 @@ compila en Linux y Windows; "plataforma-gated (Windows)" = solo se trae/usa bajo
 ## Licencia
 
 El código propio del proyecto se distribuye bajo **GNU GPL-3.0** (ver
-[`LICENSE`](LICENSE)); el titular es **Legis Studio**. Las dependencias de
+[`LICENSE`](LICENSE)); el titular es **Jorge Ortega**. Las dependencias de
 terceros conservan sus licencias propias (ver tabla de
 [Dependencias](#dependencias)): mbedTLS (Apache-2.0), nlohmann/json (MIT),
 libsamplerate (MIT), Argon2 (CC0/Apache-2.0), CLAP (MIT) y LSP (LGPL), entre

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-FLATPAK_MANIFEST = Path("packaging/flatpak/org.legis.broadcastappliance.json")
+FLATPAK_MANIFEST = Path("packaging/flatpak/io.github.blairq.broadcastappliance.json")
 DESKTOP_FILE = Path("packaging/BroadcastAppliance.desktop")
 
 
@@ -40,7 +40,7 @@ def test_manifest_has_required_key(manifest: dict, key: str) -> None:
 
 def test_manifest_app_id_matches_filename(manifest: dict) -> None:
     """The app-id must match the manifest file name (flatpak convention)."""
-    assert manifest["app-id"] == "org.legis.broadcastappliance"
+    assert manifest["app-id"] == "io.github.blairq.broadcastappliance"
 
 
 def test_manifest_modules_is_non_empty_list(manifest: dict) -> None:

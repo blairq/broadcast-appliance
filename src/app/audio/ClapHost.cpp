@@ -322,7 +322,7 @@ std::unique_ptr<ClapInstance> ClapInstance::create(std::shared_ptr<ClapLibrary> 
     h.host.clap_version = CLAP_VERSION;
     h.host.host_data = &h;
     h.host.name = "Broadcast Appliance";
-    h.host.vendor = "Legis Studio";
+    h.host.vendor = "Jorge Ortega";
     h.host.url = "";
     h.host.version = "2.0";
     h.host.get_extension = Host::getExtension;
