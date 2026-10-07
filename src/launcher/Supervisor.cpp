@@ -208,10 +208,16 @@ void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
     BA_LOG_INFO("shadow", 0, "ejecutando desde la copia sombra: " + execRoot.string());
 }
 
+std::filesystem::path Supervisor::cacheIntegridad() const {
+    return (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Cache" / "integridad.txt";
+}
+
 IntegrityReport Supervisor::verifyIntegrity() {
-    const IntegrityReport report = Integrity::verify(cfg_.root.wstring());
+    const IntegrityReport report = Integrity::verify(cfg_.root.wstring(), cacheIntegridad());
     if (report.ok) {
-        BA_LOG_INFO("integrity", 0, "integridad OK (" + std::to_string(report.checked) + " archivos)");
+        BA_LOG_INFO("integrity", 0,
+                    "integridad OK (" + std::to_string(report.checked) + " archivos, " +
+                        std::to_string(report.hashed) + " leídos enteros; el resto sin cambios desde el último cierre)");
     } else {
         BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
                      "integridad: " + std::to_string(report.missing) + " ausentes, " +
@@ -514,6 +520,7 @@ void Supervisor::orderedShutdown() {
     // Sin PIDs publicados: un launcher futuro no debe intentar readoptar.
     health_.setIdentity(cfg_.slotA, 0, kProcVersion);
     health_.setIdentity(cfg_.slotB, 0, kProcVersion);
+    Integrity::guardarCache(cacheIntegridad());
     BA_LOG_INFO("sup", 0, "clean_shutdown marcado");
 }
 

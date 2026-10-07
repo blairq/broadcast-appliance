@@ -8,12 +8,93 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <map>
+#include <mutex>
+#include <thread>
 
 namespace ba::motor {
 
 using json = nlohmann::json;
 
 namespace {
+
+// --- La placa «sin señal», dibujada una vez ------------------------------------------
+// Cada entrada tenía su textoverlay solo para rotular UN cuadro, y textoverlay
+// arma su propio mapa de fuentes de pango en cada instancia: recorre todas las
+// tipografías del sistema (~30-60 ms en la Mac, más con fontconfig). Con veinte
+// entradas era más de la mitad de lo que tardaba en armar las escenas al
+// arrancar. Acá hay UN textoverlay para todo el motor y cada texto se dibuja una
+// sola vez; la entrada recibe el cuadro hecho por un appsrc.
+constexpr int kPlacaAncho = 640, kPlacaAlto = 360;
+
+GstBuffer* placaDibujada(const std::string& texto) {
+    // Nunca se destruyen: un std::mutex estático que se destruye al salir
+    // mientras otro hilo lo usa es «mutex lock failed» y el proceso muere.
+    static auto* mu = new std::mutex;
+    static auto* hechas = new std::map<std::string, GstBuffer*>;
+    static GstElement* dibujante = nullptr;
+    static GstClockTime pts = 0;
+    std::lock_guard<std::mutex> l(*mu);
+    if (auto it = hechas->find(texto); it != hechas->end()) return gst_buffer_ref(it->second);
+
+    // El fondo: 0xff1c1c22 en BGRA (B, G, R, A).
+    const gsize bytes = static_cast<gsize>(kPlacaAncho) * kPlacaAlto * 4;
+    GstBuffer* fondo = gst_buffer_new_allocate(nullptr, bytes, nullptr);
+    if (GstMapInfo m; gst_buffer_map(fondo, &m, GST_MAP_WRITE)) {
+        for (gsize i = 0; i + 3 < m.size; i += 4) {
+            m.data[i] = 0x22;
+            m.data[i + 1] = 0x1c;
+            m.data[i + 2] = 0x1c;
+            m.data[i + 3] = 0xff;
+        }
+        gst_buffer_unmap(fondo, &m);
+    }
+    GstBuffer* hecha = fondo;
+    if (dibujante == nullptr && hayFabrica("textoverlay")) {
+        GError* e = nullptr;
+        dibujante = gst_parse_launch(
+            ("appsrc name=entra format=time caps=video/x-raw,format=BGRA,width=" + std::to_string(kPlacaAncho) +
+             ",height=" + std::to_string(kPlacaAlto) +
+             ",framerate=1/1 ! textoverlay name=rotulo font-desc=\"Sans Bold 22\" valignment=center halignment=center"
+             " ! appsink name=sale sync=false")
+                .c_str(),
+            &e);
+        if (e != nullptr) {
+            g_error_free(e);
+            if (dibujante != nullptr) gst_object_unref(dibujante);
+            dibujante = nullptr;
+        } else {
+            gst_element_set_state(dibujante, GST_STATE_PLAYING);
+        }
+    }
+    if (dibujante != nullptr) {
+        GstElement* entra = gst_bin_get_by_name(GST_BIN(dibujante), "entra");
+        GstElement* rotulo = gst_bin_get_by_name(GST_BIN(dibujante), "rotulo");
+        GstElement* sale = gst_bin_get_by_name(GST_BIN(dibujante), "sale");
+        g_object_set(rotulo, "text", texto.c_str(), nullptr);
+        GstBuffer* in = gst_buffer_ref(fondo);
+        GST_BUFFER_PTS(in) = pts;
+        GST_BUFFER_DURATION(in) = GST_SECOND;
+        pts += GST_SECOND;
+        GstFlowReturn r = GST_FLOW_OK;
+        g_signal_emit_by_name(entra, "push-buffer", in, &r);
+        gst_buffer_unref(in);
+        GstSample* muestra = nullptr;
+        if (r == GST_FLOW_OK) g_signal_emit_by_name(sale, "try-pull-sample", static_cast<GstClockTime>(2 * GST_SECOND), &muestra);
+        if (muestra != nullptr) {
+            if (GstBuffer* b = gst_sample_get_buffer(muestra)) {
+                hecha = gst_buffer_ref(b);
+                gst_buffer_unref(fondo);
+            }
+            gst_sample_unref(muestra);
+        }
+        gst_object_unref(entra);
+        gst_object_unref(rotulo);
+        gst_object_unref(sale);
+    }
+    (*hechas)[texto] = hecha; // la del mapa
+    return gst_buffer_ref(hecha);
+}
 
 std::uint64_t ahoraNs() { return static_cast<std::uint64_t>(g_get_monotonic_time()) * 1000ULL; }
 
@@ -107,19 +188,11 @@ void Entrada::armarSalida() {
     }
     if (salidaV_ != nullptr) return;
     // La placa: chica (la composición la escala), con el nombre, a los cuadros del lienzo.
-    std::string texto;
-    for (char c : (nombre_.empty() ? id_ : nombre_) + " — sin señal") {
-        if (c == '\\' || c == '"') texto += '\\';
-        texto += c;
-    }
     const std::string fps = std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD);
-    // Se dibuja UNA vez (un cuadro) y se congela: antes rotulaba 30 cuadros por
-    // segundo por entrada aunque nadie la mirara (docs/MAPA-GPU-CPU.md).
-    const std::string placa = "videotestsrc num-buffers=1 pattern=solid-color foreground-color=0xff1c1c22 ! video/x-raw,width=640,height=360,framerate=" +
-                              fps + " ! " +
-                              (hayFabrica("textoverlay") ? "textoverlay text=\"" + texto +
-                                                               "\" font-desc=\"Sans Bold 22\" valignment=center halignment=center ! "
-                                                         : std::string()) +
+    // Un cuadro (ya rotulado: placaDibujada) que se congela: antes rotulaba 30
+    // cuadros por segundo por entrada aunque nadie la mirara (docs/MAPA-GPU-CPU.md).
+    const std::string placa = "appsrc name=placa format=time caps=video/x-raw,format=BGRA,width=" + std::to_string(kPlacaAncho) +
+                              ",height=" + std::to_string(kPlacaAlto) + ",framerate=" + fps + " ! " +
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
                               " ! imagefreeze is-live=true ! fs.sink_1";
@@ -134,6 +207,18 @@ void Entrada::armarSalida() {
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return;
+    }
+    if (GstElement* fuente = gst_bin_get_by_name(GST_BIN(p), "placa")) {
+        GstBuffer* hecha = placaDibujada((nombre_.empty() ? id_ : nombre_) + " — sin señal");
+        GstBuffer* b = gst_buffer_copy(hecha); // comparte la memoria; las horas son de esta
+        gst_buffer_unref(hecha);
+        GST_BUFFER_PTS(b) = 0;
+        GST_BUFFER_DURATION(b) = GST_CLOCK_TIME_NONE;
+        GstFlowReturn r = GST_FLOW_OK;
+        g_signal_emit_by_name(fuente, "push-buffer", b, &r);
+        gst_buffer_unref(b);
+        g_signal_emit_by_name(fuente, "end-of-stream", &r);
+        gst_object_unref(fuente);
     }
     if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
         g_object_set(fs, "min-upstream-latency", static_cast<guint64>(std::max<std::int64_t>(reloj_.latencia(), 0) + 100 * GST_MSECOND), nullptr);
@@ -582,6 +667,7 @@ void Entrada::armar() {
         sale_ = json::object();
     }
     pipeline_ = p;
+    latencia_ = std::make_shared<ConsultaLatencia>(); // lo que respondía la cadena anterior ya no vale
     corregirOffset();
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = "el pipeline no arrancó";
@@ -674,14 +760,28 @@ void Entrada::medirLatencia() {
     const std::uint64_t ahora = ahoraNs();
     if (ahora - consultaNs_ < 1'000'000'000ULL) return;
     consultaNs_ = ahora;
-    GstQuery* q = gst_query_new_latency();
-    if (gst_element_query(pipeline_, q)) {
-        gboolean vivo = FALSE;
-        GstClockTime min = 0, max = 0;
-        gst_query_parse_latency(q, &vivo, &min, &max);
-        declaradoMs_ = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
+    // La consulta de latencia, EN OTRO HILO: esto corre en el bucle del motor
+    // con su candado tomado, y una fuente que se está conectando (una cámara de
+    // red al arrancar o al volver) la tenía segundos sin responder. Mientras
+    // tanto todo lo que pasa por el motor esperaba, la interfaz incluida.
+    // Acá se lee lo último que respondió; la próxima pregunta sale cuando
+    // contestó la anterior.
+    if (!latencia_->enCurso.exchange(true)) {
+        auto* p = GST_ELEMENT(gst_object_ref(pipeline_));
+        std::thread([p, c = latencia_]() {
+            GstQuery* q = gst_query_new_latency();
+            if (gst_element_query(p, q)) {
+                gboolean vivo = FALSE;
+                GstClockTime min = 0, max = 0;
+                gst_query_parse_latency(q, &vivo, &min, &max);
+                c->ms = GST_CLOCK_TIME_IS_VALID(min) ? static_cast<double>(min) / 1e6 : 0;
+            }
+            gst_query_unref(q);
+            gst_object_unref(p);
+            c->enCurso = false;
+        }).detach();
     }
-    gst_query_unref(q);
+    if (const double ms = latencia_->ms.load(); ms >= 0) declaradoMs_ = ms;
     // Lo medido: el percentil 95 de lo viejo que salen los últimos ~10 s (no todos
     // los elementos declaran lo que demoran: vtdec guarda cuadros y no lo dice).
     std::uint64_t datos = 0;

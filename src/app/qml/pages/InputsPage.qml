@@ -20,7 +20,8 @@ Rectangle {
     property string netError: ""
     // Miniaturas vivas solo mientras la pagina esta a la vista.
     onVisibleChanged: inp.setActive(visible)
-    Component.onCompleted: inp.setActive(visible)
+    // Solo prende: si se crea oculta (en segundo plano) no apaga a la otra que comparte `inp` (Cámaras PTZ).
+    Component.onCompleted: if (visible) inp.setActive(true)
 
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }

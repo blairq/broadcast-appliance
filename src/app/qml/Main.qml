@@ -51,6 +51,15 @@ ApplicationWindow {
     }
 
     property int page: 0
+    /// Cuántas páginas (en orden) ya se pidieron en segundo plano (ver `paginas`).
+    property int precargadas: 0
+    Timer {
+        // Arranca cuando la interfaz ya se ve; una página cada 150 ms.
+        interval: 150
+        repeat: true
+        running: win.visible && win.precargadas < 27
+        onTriggered: win.precargadas++
+    }
     // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
     property int paginaPermitida: 0
     onPageChanged: {
@@ -224,36 +233,28 @@ ApplicationWindow {
         anchors.topMargin: win.libreArr + win.libreAlarma
         anchors.rightMargin: win.libreDer
         currentIndex: win.page
-        DashboardPage { leftInset: win.insetPagina }
-        ScenesPage { leftInset: win.insetPagina }
-        ConferencePage { leftInset: win.insetPagina }
-        YouTubePage { leftInset: win.insetPagina }
-        TwitchPage { leftInset: win.insetPagina }
-        FacebookPage { leftInset: win.insetPagina }
-        SettingsPage { leftInset: win.insetPagina }
-        AssistantPage { leftInset: win.insetPagina }
-        InputsPage { leftInset: win.insetPagina }
-        AudioPage { leftInset: win.insetPagina }
-        EventoPage { leftInset: win.insetPagina }
-        GraficosPage { leftInset: win.insetPagina }
-        RotulosPage { leftInset: win.insetPagina }
-        RegistroPage { leftInset: win.insetPagina }
-        AgentesPage { leftInset: win.insetPagina }
-        PrompterPage { leftInset: win.insetPagina }
-        PantallasPage { leftInset: win.insetPagina }
-        QrPage { leftInset: win.insetPagina }
-        // AL FINAL, y no donde quedaria mas prolijo: el indice de cada pagina
-        // es su posicion en esta lista, y RielConfig los tiene escritos.
-        // Meterla en el medio le cambia el numero a todas las de abajo.
-        PersonasPage { leftInset: win.insetPagina }
-        PublicoPage { leftInset: win.insetPagina }
-        MediosPage { leftInset: win.insetPagina }
-        PtzPage { leftInset: win.insetPagina }
-        VideoPage { leftInset: win.insetPagina }
-        PluginsPage { leftInset: win.insetPagina }
-        EquiposPage { leftInset: win.insetPagina }
-        BotoneraPage { leftInset: win.insetPagina }
-        LegislaturaPage { leftInset: win.insetPagina }
+        // Las páginas, CUANDO HACEN FALTA. Antes se creaban las 27 al arrancar
+        // (la mitad de lo que tardaba la interfaz en aparecer) y cada cambio de
+        // datos repintaba también las que nadie miraba. Ahora se crea la que se
+        // ve; las demás se van creando de a una, en segundo plano y de a pedazos
+        // (asynchronous: no traban), y una que se abre antes de tiempo se crea
+        // en el momento. Una vez creada queda: conserva lo que se escribió.
+        // El orden es el de componenteDePagina (= el índice de cada página).
+        Repeater {
+            model: 27
+            delegate: Loader {
+                id: lugar
+                required property int index
+                readonly property bool actual: paginas.currentIndex === index
+                property bool pedida: actual
+                onActualChanged: if (actual) pedida = true
+                active: pedida || win.precargadas > index
+                // La que se está mirando, ya (si estaba a medio crear, se termina ya).
+                asynchronous: !actual
+                sourceComponent: win.componenteDePagina(index)
+                onLoaded: item.leftInset = Qt.binding(() => win.insetPagina)
+            }
+        }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------

@@ -929,6 +929,16 @@ void Plugins::enviar(const std::string& id, const json& m) {
     it->second->p->escribir(QByteArray::fromStdString(m.dump() + "\n"));
 }
 
+void Plugins::avisarCambio() {
+    if (cambioJuntado_ == nullptr) {
+        cambioJuntado_ = new QTimer(this);
+        cambioJuntado_->setSingleShot(true);
+        cambioJuntado_->setInterval(100);
+        connect(cambioJuntado_, &QTimer::timeout, this, &Plugins::cambio);
+    }
+    if (!cambioJuntado_->isActive()) cambioJuntado_->start();
+}
+
 void Plugins::recibir(const std::string& id, const json& m) {
     Proceso& p = *procesos_.at(id);
     const std::string t = m.value("t", "");
@@ -957,7 +967,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
             if (t == "entrada") declararEntrada(id, m);
             if (t == "ptz") declararPtz(id, m);
         }
-        emit cambio();
+        avisarCambio();
     } else if (t == "listo") {
         escribirRegistro(id, "[app] listo: " + QByteArray::number(static_cast<int>(p.declarado.size())) +
                                  " declaraciones\n");
@@ -979,10 +989,10 @@ void Plugins::recibir(const std::string& id, const json& m) {
         auto cbs = std::move(p.alListo);
         for (auto& cb : cbs)
             cb(estado(id));
-        emit cambio();
+        avisarCambio();
     } else if (t == "estado") {
         p.estadoPlugin = {{"texto", m.value("texto", std::string())}, {"ok", m.value("ok", true)}};
-        emit cambio();
+        avisarCambio();
     } else if (t == "valores") {
         // Lo que muestra el plugin (indicadores, medidores): no se guarda en disco.
         if (m.contains("valores") && m["valores"].is_object()) {

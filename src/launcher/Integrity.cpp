@@ -13,7 +13,9 @@
 #include <execution>
 #include <fstream>
 #include <mutex>
+#include <sstream>
 #include <thread>
+#include <unordered_map>
 
 namespace ba::launcher {
 
@@ -99,6 +101,66 @@ std::wstring join(const std::wstring& a, const std::wstring& b) {
 #endif
 }
 
+// --- Caché de lo ya verificado -------------------------------------------------
+// Una línea por archivo: sha256 \t tamaño \t fecha (ticks del reloj del sistema
+// de archivos) \t ruta relativa. Texto plano a propósito: se lee en un ms y si
+// está roto o es de otra versión, simplemente no coincide y se hashea.
+struct Visto {
+    std::string sha256;
+    std::uintmax_t tamano = 0;
+    long long fecha = 0;
+};
+
+std::filesystem::path rutaFs(const std::wstring& p) {
+#ifdef _WIN32
+    return std::filesystem::path(p);
+#else
+    return std::filesystem::path(toUtf8Path(p));
+#endif
+}
+
+bool estado(const std::wstring& full, std::uintmax_t& tamano, long long& fecha) {
+    std::error_code ec;
+    const std::filesystem::path f = rutaFs(full);
+    tamano = std::filesystem::file_size(f, ec);
+    if (ec) return false;
+    const auto t = std::filesystem::last_write_time(f, ec);
+    if (ec) return false;
+    fecha = static_cast<long long>(t.time_since_epoch().count());
+    return true;
+}
+
+std::unordered_map<std::wstring, Visto> leerCache(const std::filesystem::path& cachePath) {
+    std::unordered_map<std::wstring, Visto> out;
+    if (cachePath.empty()) return out;
+    std::ifstream in(cachePath, std::ios::binary);
+    if (!in) return out;
+    std::string linea;
+    while (std::getline(in, linea)) {
+        std::istringstream ls(linea);
+        Visto v;
+        std::string tam, fecha, ruta;
+        if (!std::getline(ls, v.sha256, '\t') || !std::getline(ls, tam, '\t') || !std::getline(ls, fecha, '\t') ||
+            !std::getline(ls, ruta))
+            continue;
+        try {
+            v.tamano = std::stoull(tam);
+            v.fecha = std::stoll(fecha);
+        } catch (...) {
+            continue;
+        }
+        out[std::wstring(ruta.begin(), ruta.end())] = std::move(v);
+    }
+    in.close();
+    std::error_code ec;
+    std::filesystem::remove(cachePath, ec); // se consume: ver Integrity.hpp
+    return out;
+}
+
+// Lo verificado en este arranque, para guardarCache() al cierre ordenado.
+std::mutex gVistoMu;
+std::vector<std::pair<std::wstring, Visto>> gVisto;
+
 } // namespace
 
 int Integrity::verifyOne(const std::wstring& path, const std::string& expectedHex) {
@@ -110,7 +172,33 @@ int Integrity::verifyOne(const std::wstring& path, const std::string& expectedHe
 }
 
 IntegrityReport Integrity::verify(const std::wstring& root, int workers) {
+    return verify(root, std::filesystem::path(), workers);
+}
+
+void Integrity::guardarCache(const std::filesystem::path& cachePath) {
+    if (cachePath.empty()) return;
+    std::lock_guard<std::mutex> lock(gVistoMu);
+    if (gVisto.empty()) return;
+    std::error_code ec;
+    std::filesystem::create_directories(cachePath.parent_path(), ec);
+    const std::filesystem::path tmp = cachePath.string() + ".tmp";
+    {
+        std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
+        if (!out) return;
+        for (const auto& [ruta, v] : gVisto) {
+            out << v.sha256 << '\t' << v.tamano << '\t' << v.fecha << '\t';
+            for (wchar_t c : ruta) out.put(static_cast<char>(c)); // como vino del manifest (bytes)
+            out << '\n';
+        }
+        if (!out) return;
+    }
+    std::filesystem::rename(tmp, cachePath, ec);
+}
+
+IntegrityReport Integrity::verify(const std::wstring& root, const std::filesystem::path& cachePath, int workers) {
     IntegrityReport report;
+    const std::unordered_map<std::wstring, Visto> cache = leerCache(cachePath);
+    std::vector<std::pair<std::wstring, Visto>> visto;
     const std::wstring manifestPath = join(root, L"manifest.json");
     const std::vector<ManifestEntry> entries = parseManifest(manifestPath);
     if (entries.empty()) {
@@ -145,9 +233,19 @@ IntegrityReport Integrity::verify(const std::wstring& root, int workers) {
         pool.emplace_back([&, begin, end]() {
             for (std::size_t i = begin; i < end; ++i) {
                 const std::wstring full = join(root, entries[i].path);
-                const int rc = verifyOne(full, entries[i].sha256);
+                Visto v;
+                const bool hayEstado = estado(full, v.tamano, v.fecha);
+                const auto c = hayEstado ? cache.find(entries[i].path) : cache.end();
+                const bool igual = c != cache.end() && c->second.sha256 == entries[i].sha256 &&
+                                   c->second.tamano == v.tamano && c->second.fecha == v.fecha;
+                const int rc = igual ? 0 : verifyOne(full, entries[i].sha256);
                 std::lock_guard<std::mutex> lock(mu);
                 report.checked += 1;
+                if (!igual) report.hashed += 1;
+                if (rc == 0 && hayEstado) {
+                    v.sha256 = entries[i].sha256;
+                    visto.emplace_back(entries[i].path, std::move(v));
+                }
                 if (rc == -1) {
                     report.missing += 1;
                     report.failures.push_back(entries[i].path);
@@ -163,6 +261,12 @@ IntegrityReport Integrity::verify(const std::wstring& root, int workers) {
     }
 
     report.ok = report.failures.empty();
+    {
+        // Solo una verificación sin fallos deja algo para el caché.
+        std::lock_guard<std::mutex> lock(gVistoMu);
+        if (report.ok) gVisto = std::move(visto);
+        else gVisto.clear();
+    }
     return report;
 }
 

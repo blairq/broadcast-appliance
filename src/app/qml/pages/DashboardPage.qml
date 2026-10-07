@@ -169,19 +169,11 @@ Item {
             onPaint: {
                 const c = getContext("2d")
                 c.reset()
-                c.strokeStyle = Qt.rgba(1, 1, 1, 0.10)
-                c.lineWidth = 1
+                // fillRect y no stroke(): las líneas trazadas en Retina son caras (ver AudioPage).
+                c.fillStyle = Qt.rgba(1, 1, 1, 0.10)
                 const cols = Studio.dashboard.gridCols, rows = Studio.dashboard.gridRows
-                c.beginPath()
-                for (let i = 1; i < cols; ++i) {
-                    const x = Math.round(width * i / cols) + 0.5
-                    c.moveTo(x, 0); c.lineTo(x, height)
-                }
-                for (let j = 1; j < rows; ++j) {
-                    const y = Math.round(height * j / rows) + 0.5
-                    c.moveTo(0, y); c.lineTo(width, y)
-                }
-                c.stroke()
+                for (let i = 1; i < cols; ++i) c.fillRect(Math.round(width * i / cols), 0, 1, height)
+                for (let j = 1; j < rows; ++j) c.fillRect(0, Math.round(height * j / rows), width, 1)
             }
         }
 

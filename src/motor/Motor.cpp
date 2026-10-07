@@ -126,9 +126,28 @@ void Motor::detener() {
 }
 
 void Motor::bucle() {
+    std::int64_t ultimoAvisoUs = 0;
     while (seguir_) {
+        // Vigía: este candado lo esperan la interfaz y el MCP. Una vuelta que
+        // lo tiene mucho (algo que bloquea adentro) traba la app entera; queda
+        // en el registro para encontrarlo.
+        const std::int64_t desdeUs = g_get_monotonic_time();
+        struct Vigia {
+            std::int64_t desde;
+            std::int64_t& ultimo;
+            ~Vigia() {
+                const std::int64_t ahora = g_get_monotonic_time();
+                const std::int64_t ms = (ahora - desde) / 1000;
+                if (ms > 200 && ahora - ultimo > 10'000'000) {
+                    ultimo = ahora;
+                    registrar(Nivel::Aviso, "el bucle del motor tuvo el candado " + std::to_string(ms) +
+                                                " ms: la interfaz y el MCP esperaron eso");
+                }
+            }
+        };
         {
             std::lock_guard<std::recursive_mutex> l(mu_);
+            Vigia vigia{desdeUs, ultimoAvisoUs};
             for (auto& [id, c] : canales_) c.entrada->tic();
             if (programa_) programa_->tic();
             if (directo_) directo_->tic();

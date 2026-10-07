@@ -52,7 +52,7 @@ Rectangle {
 
     onVisibleChanged: inp.setActive(visible)
     Component.onCompleted: {
-        inp.setActive(visible)
+        if (visible) inp.setActive(true) // creada oculta no apaga a Entradas, que comparte `inp`
         if (cc && cc.camaras.length > 0) sel = cc.camaras[0].entrada
     }
     Connections {

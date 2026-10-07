@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "AppRuntime.hpp"
+#include "ArranqueAviso.hpp"
 #include "BroadcastEngine.hpp"
 #include "ChatOverlaySource.hpp"
 #include "FuentesApp.hpp"
@@ -347,6 +348,17 @@ int AppRuntime::start() {
     std::printf("ba-app: arrancando motor %dx%d@%d, codificador=%s%s\n", cfg_.video.baseWidth,
                 cfg_.video.baseHeight, cfg_.video.fpsNum, cfg_.encoder.videoEncoder.c_str(),
                 cfg_.safeMode ? " (modo seguro)" : "");
+    // El arranque del motor, medido como el de la interfaz (StudioViewModel):
+    // cada etapa de más de 150 ms queda en el registro.
+    const auto relojArranque = std::chrono::steady_clock::now();
+    auto ultimaMarca = relojArranque;
+    const auto marca = [&ultimaMarca](const char* que) {
+        const auto ahora = std::chrono::steady_clock::now();
+        const long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora - ultimaMarca).count();
+        if (ms > 150) ba::diag::registro().info("arranque: " + std::string(que) + " tardó " + std::to_string(ms) + " ms");
+        ultimaMarca = ahora;
+    };
+    arranque::avisar("Arrancando el motor de video y audio…");
     // El reloj del estudio (Video → Sincronía): con él arranca el motor.
     {
         std::ifstream f(root_ / "Config" / "video-reloj.json");
@@ -373,6 +385,7 @@ int AppRuntime::start() {
         }
         return 2;
     }
+    marca("el motor");
     health_.beat(kHealthSlot);
     started_ = true;
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
@@ -394,8 +407,14 @@ int AppRuntime::start() {
             },
             [this]() -> std::uint64_t { return engine_.cuadrosPrograma(); });
 
+    marca("loudness y latido");
+    arranque::avisar("Preparando los lugares de los invitados…");
     addGuests();
+    marca("los invitados");
+    arranque::avisar("Abriendo los micrófonos…");
     addAudioInputs();
+    marca("las entradas de audio");
+    arranque::avisar("Armando las escenas…");
     // Lo que oye cada invitado (mix-minus de fábrica): Config/retornos.json.
     {
         std::ifstream f(root_ / "Config" / "retornos.json");
@@ -406,6 +425,7 @@ int AppRuntime::start() {
     }
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
+        arranque::avisar("Armando la escena «" + sc.name + "»…");
         engine_.createScene(sc.name);
         // En modo seguro las escenas se crean VACIAS: si una fuente es la que
         // venia tumbando el arranque, asi no se la toca. La configuracion no
@@ -414,28 +434,39 @@ int AppRuntime::start() {
         for (const auto& src : sc.sources) {
             // Una fuente rota (camara desenchufada, id mal escrito) no tumba
             // el proceso: se avisa y la emision sigue con el resto.
-            if (!engine_.addSource(sc.name, src)) {
+            const auto t0 = std::chrono::steady_clock::now();
+            const bool ok = engine_.addSource(sc.name, src);
+            const long long ms =
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+            if (ms > 50)
+                ba::diag::registro().info("arranque: «" + src.name + "» (" + sc.name + ", " + src.id +
+                                          ") tardó " + std::to_string(ms) + " ms");
+            if (!ok) {
                 std::printf("ba-app: fuente '%s' omitida: %s\n", src.name.c_str(),
                             engine_.lastError().c_str());
             }
         }
     }
+    marca("las escenas");
     engine_.setCurrentScene(cfg_.currentScene);
     if (cfg_.returnFeeds && !engine_.publishReturnFeeds()) {
         std::printf("ba-app: sin retorno hacia B: %s\n", engine_.lastError().c_str());
     }
+    marca("la escena al aire y el retorno");
     // Lobby: la voz de quien espera (monitoreo) y lo que ve del operador.
     operator_.startLobbyMonitor(gateway_.lobbySlots);
     if (!operator_.configure(engine_, cfg_.operatorVideo, cfg_.operatorAudio)) {
         std::printf("ba-app: feed del operador incompleto (fuente inexistente)\n");
     }
 
+    marca("el lobby y el operador");
     std::printf("ba-app: codificadores candidatos:");
     for (const auto& id : engine_.videoEncoderCandidates(cfg_.encoder)) {
         std::printf(" %s", id.c_str());
     }
     std::printf("\n");
 
+    marca("los codificadores");
     if (cfg_.replaySegundos > 0) aplicarReplay();
     if (cfg_.record) {
         startRecording();
@@ -460,7 +491,10 @@ int AppRuntime::start() {
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                        "la corrida anterior no se cerró: vuelve la escena «" + escena + "»");
     }
+    marca("las salidas");
+    arranque::avisar("Volviendo a como estaba…");
     restoreOutputs();
+    marca("volver como estaba");
     if (cfg_.modoPrueba) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
                                    "modo prueba (--test): no se retoman las salidas (grabación, transmisión)");
@@ -473,7 +507,9 @@ int AppRuntime::start() {
         engine_.ponerTopeEstudio(cfg_.estudioTopeMs);
     }
     // Que no falte ningún elemento de GStreamer sin que se sepa (P0.3).
+    marca("estado y latencia");
     video::revisarElementosGstAlArrancar();
+    marca("revisar los elementos de GStreamer");
 
     std::string err;
     if (!control_.start("control.app", &err)) {

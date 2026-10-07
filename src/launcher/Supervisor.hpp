@@ -73,6 +73,8 @@ class Supervisor {
    private:
     // --- Ciclo de vida ------------------------------------------------------
     void applyExecRoot(const std::filesystem::path& execRoot);
+    /// Dónde vive el caché de la verificación (en los datos, nunca adentro de la .app).
+    std::filesystem::path cacheIntegridad() const;
     IntegrityReport verifyIntegrity();
 
     // --- Hijos --------------------------------------------------------------

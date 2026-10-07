@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include "GuiMode.hpp"
+#include "ArranqueAviso.hpp"
 #include "platform/Paths.hpp"
 
 #include <QDir>
@@ -28,6 +29,7 @@
 
 #include <csignal>
 #include <cstdio>
+#include <memory>
 
 #include "agent/AgentViewModel.hpp"
 #include "agent/ModelosLocales.hpp"
@@ -43,6 +45,13 @@
 #include "ui/StudioViewModel.hpp"
 #include "ui/VideoItem.hpp"
 #include <QElapsedTimer>
+#include <QEventLoop>
+#include <QFont>
+#include <QImage>
+#include <QPainter>
+#include <QPointer>
+#include <QRasterWindow>
+#include <QScreen>
 
 namespace ba::app {
 
@@ -51,6 +60,126 @@ namespace {
 extern "C" void onGuiStopSignal(int) { AppRuntime::requestStop(); }
 
 constexpr int kPreviewWidth = 1280; // vista previa/fondo: 720p alcanza y es barata
+
+#ifndef BA_APP_VERSION
+#define BA_APP_VERSION ""
+#endif
+
+// --- El cartel de carga -----------------------------------------------------------
+// Lo primero que se ve, a las décimas de segundo de abrir la app: antes del
+// motor, del modelo y del QML (que juntos son varios segundos). Por eso es una
+// ventana pintada a mano con QPainter y no QML: no espera a nada. El motor
+// arranca en este mismo hilo, así que el cartel se repinta solo cuando una
+// etapa avisa (ArranqueAviso.hpp); se va cuando la ventana principal dibujó.
+class CartelDeCarga : public QRasterWindow {
+   public:
+    CartelDeCarga() {
+        setFlags(Qt::SplashScreen | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+        setTitle("Broadcast Appliance");
+        resize(560, 330);
+        if (QScreen* pantalla = QGuiApplication::primaryScreen())
+            setPosition(pantalla->availableGeometry().center() - QPoint(width() / 2, height() / 2));
+        logo_ = QImage(":/icons/broadcast-appliance-256.png");
+    }
+
+    void ponerEstado(const QString& que) {
+        estado_ = que;
+        update();
+        // El hilo está ocupado arrancando el motor: se pinta ya, sin esperar al lazo.
+        QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+    }
+
+    /// Lo muestra y espera (como mucho 300 ms) a que esté de verdad en pantalla.
+    void mostrar() {
+        show();
+        QElapsedTimer t;
+        t.start();
+        while (!pintado_ && t.elapsed() < 300) QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 20);
+    }
+
+   protected:
+    void paintEvent(QPaintEvent*) override {
+        QPainter p(this);
+        pintar(p);
+        if (!pintado_) {
+            pintado_ = true;
+            ba::diag::registro().info("arranque: el cartel de carga ya se ve");
+        }
+        // Para mirarlo sin captura de pantalla (pruebas): BA_CARTEL_PNG=archivo.png.
+        if (const QByteArray png = qgetenv("BA_CARTEL_PNG"); !png.isEmpty()) {
+            QImage im(size() * devicePixelRatio(), QImage::Format_ARGB32);
+            im.setDevicePixelRatio(devicePixelRatio());
+            QPainter pi(&im);
+            pintar(pi);
+            pi.end();
+            im.save(QString::fromUtf8(png));
+        }
+    }
+
+    void pintar(QPainter& p) {
+        p.setRenderHint(QPainter::Antialiasing);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        const QColor fondo("#0a0a0c"), borde("#26262c"), texto("#f4f4f6"), tenue("#a2a2aa"),
+            apagado("#6c6c74"), acento("#ff6a2b");
+        p.fillRect(QRect(0, 0, width(), height()), fondo);
+        p.setPen(QPen(borde, 1));
+        p.drawRect(QRect(0, 0, width() - 1, height() - 1));
+        // Una franja del color de la marca arriba, como la píldora de AIRE.
+        p.fillRect(QRect(0, 0, width(), 3), acento);
+
+        const int m = 36;
+        if (!logo_.isNull()) p.drawImage(QRect(m, 44, 88, 88), logo_);
+        QFont f = p.font();
+        f.setPixelSize(30);
+        f.setWeight(QFont::DemiBold);
+        p.setFont(f);
+        p.setPen(texto);
+        p.drawText(QRect(m + 108, 52, width() - m * 2 - 108, 40), Qt::AlignLeft | Qt::AlignVCenter,
+                   "Broadcast Appliance");
+        f.setPixelSize(14);
+        f.setWeight(QFont::Normal);
+        p.setFont(f);
+        p.setPen(tenue);
+        const QString version = QString(BA_APP_VERSION).isEmpty() ? QString() : "Versión " + QString(BA_APP_VERSION) + " · ";
+        p.drawText(QRect(m + 108, 92, width() - m * 2 - 108, 22), Qt::AlignLeft | Qt::AlignVCenter,
+                   version + "estudio de transmisión todo en uno");
+
+        // Lo que está haciendo, con una barra que avanza con cada etapa.
+        f.setPixelSize(13);
+        p.setFont(f);
+        p.setPen(texto);
+        p.drawText(QRect(m, 168, width() - m * 2, 20), Qt::AlignLeft | Qt::AlignVCenter,
+                   estado_.isEmpty() ? QStringLiteral("Cargando…") : estado_);
+        const QRect barra(m, 196, width() - m * 2, 4);
+        p.setPen(Qt::NoPen);
+        p.setBrush(borde);
+        p.drawRoundedRect(barra, 2, 2);
+        p.setBrush(acento);
+        const double avance = std::min(1.0, 0.08 + 0.92 * (1.0 - 1.0 / (1.0 + pasos_ * 0.12)));
+        p.drawRoundedRect(QRect(barra.x(), barra.y(), static_cast<int>(barra.width() * avance), barra.height()), 2, 2);
+
+        // Quién lo hizo.
+        f.setPixelSize(12);
+        p.setFont(f);
+        p.setPen(tenue);
+        p.drawText(QRect(m, 244, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   "Hecho por Jorge Ortega · Legis Studio");
+        p.setPen(acento);
+        p.drawText(QRect(m, 264, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   "github.com/blairq/broadcast-appliance");
+        p.setPen(apagado);
+        p.drawText(QRect(m, 284, width() - m * 2, 18), Qt::AlignLeft | Qt::AlignVCenter,
+                   "Software libre (GPL-3.0) · GStreamer, Qt y ONNX Runtime");
+    }
+
+   public:
+    int pasos_ = 0;
+
+   private:
+    QImage logo_;
+    QString estado_;
+    bool pintado_ = false;
+};
 
 } // namespace
 
@@ -74,6 +203,15 @@ int runGui(int argc, char** argv) {
     }
     QQuickStyle::setStyle("Basic"); // controles propios encima; nada nativo que desentone
 
+    // El cartel de carga, ANTES que todo lo demás (ver CartelDeCarga).
+    auto cartel = std::make_unique<CartelDeCarga>();
+    cartel->mostrar();
+    arranque::oyente() = [c = QPointer<CartelDeCarga>(cartel.get())](const std::string& que) {
+        if (!c) return; // un arranque que falló y salió antes: el cartel ya no está
+        ++c->pasos_;
+        c->ponerEstado(QString::fromStdString(que));
+    };
+
     AppRuntime rt;
     rt.configure(argc, argv);
     const int rc = rt.start();
@@ -94,6 +232,7 @@ int runGui(int argc, char** argv) {
     {
         QElapsedTimer relojGui;
         relojGui.start();
+        arranque::avisar("Cargando la configuración del estudio…");
         StudioViewModel vm(rt);
         ba::diag::registro().info("arranque: el modelo de la app, " + std::to_string(relojGui.restart()) +
                                   " ms");
@@ -120,6 +259,7 @@ int runGui(int argc, char** argv) {
         engine.addImageProvider("qr", new QrImageProvider(vm.qrVm()));
         QObject::connect(&vm, &StudioViewModel::quitRequested, &app, &QGuiApplication::quit);
         relojGui.restart();
+        arranque::avisar("Abriendo la interfaz…");
         engine.load(QUrl("qrc:/qml/Main.qml"));
         ba::diag::registro().info("arranque: la interfaz (QML), " + std::to_string(relojGui.restart()) +
                                   " ms");
@@ -134,10 +274,13 @@ int runGui(int argc, char** argv) {
         if (auto* w = qobject_cast<QQuickWindow*>(engine.rootObjects().first())) {
             QObject::connect(
                 w, &QQuickWindow::frameSwapped, w,
-                []() {
+                [&cartel]() {
                     static bool avisado = false;
                     if (avisado) return;
                     avisado = true;
+                    // La ventana de verdad ya se ve: el cartel se va.
+                    arranque::oyente() = nullptr;
+                    cartel.reset();
                     ba::diag::diario().arranqueOk();
                     ba::diag::registro().info("arranque terminado: la interfaz dibujo");
                 },

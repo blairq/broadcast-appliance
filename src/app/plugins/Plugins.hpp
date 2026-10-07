@@ -231,6 +231,13 @@ class Plugins : public QObject {
     void evento(const QString& plugin, const QString& canal, const QString& datosJson);
 
    private:
+    /// `cambio()` juntado: un plugin que arranca manda decenas de declaraciones
+    /// seguidas, y cada `cambio()` hace que la interfaz rearme de cero todo lo
+    /// que lista los plugins (eran segundos de interfaz trabada). Varios avisos
+    /// dentro de 100 ms salen como uno solo.
+    void avisarCambio();
+    QTimer* cambioJuntado_ = nullptr;
+
     struct Proceso;
     struct Pendiente {
         std::function<void(json)> listo;

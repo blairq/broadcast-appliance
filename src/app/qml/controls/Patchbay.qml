@@ -158,13 +158,17 @@ Rectangle {
                 onPaint: {
                     const c = getContext("2d")
                     c.clearRect(0, 0, width, height)
+                    // Con fillRect y no con stroke(): en una pantalla Retina el
+                    // pintor de Qt trazaba cada línea vertical renglón por
+                    // renglón repartiéndolos a un grupo de hilos, y la grilla
+                    // trababa la interfaz varios segundos al arrancar.
                     for (let x = 0; x <= width; x += pb.grid) {
-                        c.strokeStyle = x % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
-                        c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, height); c.stroke()
+                        c.fillStyle = x % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
+                        c.fillRect(x, 0, 1, height)
                     }
                     for (let y = 0; y <= height; y += pb.grid) {
-                        c.strokeStyle = y % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
-                        c.beginPath(); c.moveTo(0, y + 0.5); c.lineTo(width, y + 0.5); c.stroke()
+                        c.fillStyle = y % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
+                        c.fillRect(0, y, width, 1)
                     }
                 }
             }
@@ -201,14 +205,14 @@ Rectangle {
                 onPaint: {
                     const c = getContext("2d")
                     c.reset()
-                    c.lineWidth = 1
+                    // fillRect y no stroke(): ver la grilla de abajo de todo.
                     for (let x = 0; x < width; x += pb.grid) {
-                        c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(x / pb.grid) % 5 === 0 ? 0.10 : 0.04)
-                        c.beginPath(); c.moveTo(Math.round(x) + 0.5, 0); c.lineTo(Math.round(x) + 0.5, height); c.stroke()
+                        c.fillStyle = Qt.rgba(1, 1, 1, Math.round(x / pb.grid) % 5 === 0 ? 0.10 : 0.04)
+                        c.fillRect(Math.round(x), 0, 1, height)
                     }
                     for (let y = 0; y < height; y += pb.grid) {
-                        c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(y / pb.grid) % 5 === 0 ? 0.10 : 0.04)
-                        c.beginPath(); c.moveTo(0, Math.round(y) + 0.5); c.lineTo(width, Math.round(y) + 0.5); c.stroke()
+                        c.fillStyle = Qt.rgba(1, 1, 1, Math.round(y / pb.grid) % 5 === 0 ? 0.10 : 0.04)
+                        c.fillRect(0, Math.round(y), width, 1)
                     }
                 }
             }

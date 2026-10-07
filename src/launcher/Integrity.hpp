@@ -22,6 +22,7 @@
 #pragma once
 
 #include <cstdint>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,7 @@ struct IntegrityReport {
     std::size_t checked = 0;            // archivos verificados.
     std::size_t missing = 0;            // archivos ausentes.
     std::size_t mismatch = 0;           // hashes que no coinciden.
+    std::size_t hashed = 0;             // los que hubo que leer enteros (el resto salió del caché).
     std::vector<std::wstring> failures; // archivos con problema (ausente o mismatch).
 };
 
@@ -45,6 +47,23 @@ class Integrity {
     /// :param workers: cantidad de workers de hashing (0 => auto por nucleos).
     /// :returns: Report con los fallos; ok=false si hay alguno.
     static IntegrityReport verify(const std::wstring& root, int workers = 0);
+
+    /// Igual, pero con un caché de lo ya verificado: un archivo con el mismo
+    /// tamaño y la misma fecha de modificación que la vez anterior, y el mismo
+    /// hash en el manifest, no se vuelve a leer. Hashear el bundle entero
+    /// (~2 GB, ~20.000 archivos) eran 4 s de cada arranque.
+    ///
+    /// El caché se CONSUME al leerlo (se borra): solo vuelve a existir si se
+    /// llama a `guardarCache` al cerrar bien. Después de un corte de luz o de
+    /// un launcher que se cayó —justo cuando el disco pudo quedar mal— la
+    /// verificación es completa. Si falla algo, tampoco se guarda nada.
+    ///
+    /// :param cachePath: archivo del caché (vacío = sin caché).
+    static IntegrityReport verify(const std::wstring& root, const std::filesystem::path& cachePath,
+                                  int workers = 0);
+
+    /// Escribe el caché de la última verificación correcta (al cierre ordenado).
+    static void guardarCache(const std::filesystem::path& cachePath);
 
     /// Verifica un solo archivo contra un hash esperado (hex, 64 chars).
     ///

@@ -32,7 +32,7 @@ Rectangle {
         }
     }
     onVisibleChanged: if (au) au.setActive(visible)
-    Component.onCompleted: if (au) au.setActive(visible)
+    Component.onCompleted: if (au && visible) au.setActive(true)
 
     // --- Geometria de los nodos -------------------------------------------------------------
     readonly property int nodeW: 178
@@ -473,15 +473,18 @@ Rectangle {
                                 const c = getContext("2d")
                                 c.reset()
                                 const g = page.grid
-                                c.lineWidth = 1
+                                // Con fillRect y no con stroke(): en una pantalla
+                                // Retina el pintor de Qt trazaba cada línea vertical
+                                // renglón por renglón repartiéndolos a un grupo de
+                                // hilos, y la grilla trababa la interfaz segundos.
                                 for (let x = 0; x < width; x += g) {
                                     // Cada 5 celdas la linea se ve un poco mas.
-                                    c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(x / g) % 5 === 0 ? 0.10 : 0.04)
-                                    c.beginPath(); c.moveTo(Math.round(x) + 0.5, 0); c.lineTo(Math.round(x) + 0.5, height); c.stroke()
+                                    c.fillStyle = Qt.rgba(1, 1, 1, Math.round(x / g) % 5 === 0 ? 0.10 : 0.04)
+                                    c.fillRect(Math.round(x), 0, 1, height)
                                 }
                                 for (let y = 0; y < height; y += g) {
-                                    c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(y / g) % 5 === 0 ? 0.10 : 0.04)
-                                    c.beginPath(); c.moveTo(0, Math.round(y) + 0.5); c.lineTo(width, Math.round(y) + 0.5); c.stroke()
+                                    c.fillStyle = Qt.rgba(1, 1, 1, Math.round(y / g) % 5 === 0 ? 0.10 : 0.04)
+                                    c.fillRect(0, Math.round(y), width, 1)
                                 }
                             }
                         }
