@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/InputsViewModel.hpp"
+#include <QCoreApplication>
 #include "platform/Paths.hpp"
 
 #include <QImage>
@@ -294,8 +295,23 @@ QImage InputThumbProvider::requestImage(const QString& id, QSize* size, const QS
     std::vector<std::uint8_t> rgba;
     int w = 0, h = 0;
     QImage img;
-    if (rt_.engine().captureSource(name.toStdString(), requested.width() > 0 ? requested.width() : 480, rgba,
-                                   w, h))
+    // Esto corre en un hilo de carga de imágenes (ForceAsynchronousImageLoading):
+    // qué capturar y de qué tamaño se averigua en el hilo de la interfaz (lee
+    // escenas, fuentes y el estado del motor, que son de ese hilo); esperar el
+    // cuadro, que es lo lento, acá.
+    std::string clave;
+    int cw = 0, ch = 0;
+    bool esEscena = false;
+    std::string error = "sin interfaz";
+    BroadcastEngine& engine = rt_.engine();
+    const std::string nombre = name.toStdString();
+    const int ancho = requested.width() > 0 ? requested.width() : 480;
+    if (QCoreApplication::instance() != nullptr)
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [&]() { error = engine.prepararCaptura(nombre, ancho, clave, cw, ch, esEscena); },
+            Qt::BlockingQueuedConnection);
+    if (error.empty() && engine.capturarVista(clave, cw, ch, esEscena, rgba, w, h).empty())
         img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
     if (img.isNull()) {
         img = QImage(16, 9, QImage::Format_RGBA8888);

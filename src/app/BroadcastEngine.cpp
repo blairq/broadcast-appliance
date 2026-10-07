@@ -529,19 +529,28 @@ bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<s
 
 bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
                                     int& height) {
-    if (!started_) {
-        setError("captura: el motor no arranco");
+    std::string clave;
+    int w = 0, h = 0;
+    bool esEscena = false;
+    std::string e = prepararCaptura(name, maxWidth, clave, w, h, esEscena);
+    if (e.empty()) e = capturarVista(clave, w, h, esEscena, rgba, width, height);
+    if (!e.empty()) {
+        setError("captura: " + e);
         return false;
     }
+    return true;
+}
+
+std::string BroadcastEngine::prepararCaptura(const std::string& name, int maxWidth, std::string& clave, int& w, int& h,
+                                             bool& esEscena) const {
+    if (!started_) return "el motor no arranco";
     const std::string base = name.empty()                 ? std::string("programa")
                              : escena(name) != nullptr    ? "escena:" + name
                              : sources_.count(name) > 0   ? "entrada:" + name
                                                           : std::string();
-    if (base.empty()) {
-        setError("captura: no existe la fuente o escena '" + name + "'");
-        return false;
-    }
-    int w = video_.baseWidth, h = video_.baseHeight;
+    if (base.empty()) return "no existe la fuente o escena '" + name + "'";
+    w = video_.baseWidth;
+    h = video_.baseHeight;
     if (!name.empty() && base.rfind("entrada:", 0) == 0) {
         int sw = 0, sh = 0;
         if (sourceSize(name, sw, sh) && sw > 0 && sh > 0) {
@@ -553,7 +562,15 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
         h = std::max(2, h * maxWidth / w);
         w = maxWidth;
     }
-    const std::string clave = base + "@captura";
+    w &= ~1;
+    h &= ~1;
+    esEscena = base.rfind("escena:", 0) == 0;
+    clave = base + "@captura";
+    return {};
+}
+
+std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int h, bool esEscena,
+                                           std::vector<std::uint8_t>& rgba, int& width, int& height) {
     std::lock_guard<std::mutex> lc(capturaMu_);
     const auto ahora = std::chrono::steady_clock::now();
     // Las que nadie pidió en 10 s, afuera.
@@ -566,15 +583,14 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
         }
     // La vista de esta fuente: si ya está con este tamaño, se reusa (sin armar nada).
     auto viva = capturas_.find(clave);
-    const bool nueva = viva == capturas_.end() || viva->second.ancho != (w & ~1) || viva->second.alto != (h & ~1);
+    const bool nueva = viva == capturas_.end() || viva->second.ancho != w || viva->second.alto != h;
     if (nueva) {
         if (viva != capturas_.end()) motor_->verSoltar(clave);
-        if (!motor_->verPedir(clave, w & ~1, h & ~1).empty()) {
+        if (!motor_->verPedir(clave, w, h).empty()) {
             capturas_.erase(clave);
-            setError("captura: '" + name + "' no tiene imagen");
-            return false;
+            return "'" + clave.substr(0, clave.find('@')) + "' no tiene imagen";
         }
-        capturas_[clave] = {w & ~1, h & ~1, ahora};
+        capturas_[clave] = {w, h, ahora};
     }
     capturas_[clave].uso = ahora;
     motor::Cuadro c;
@@ -584,7 +600,7 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     // pueden salir sin las capas que todavía arrancan (en la GPU, compilar los
     // shaders tarda): se toma un cuadro de después. Una vista ya viva, al toque.
     const auto desde = std::chrono::steady_clock::now();
-    const auto espera = nueva && base.rfind("escena:", 0) == 0 ? std::chrono::milliseconds(700) : std::chrono::milliseconds(0);
+    const auto espera = nueva && esEscena ? std::chrono::milliseconds(700) : std::chrono::milliseconds(0);
     for (int i = 0; i < 60; ++i) {
         const bool hay = motor_->verUltimo(clave, c, s);
         ok = ok || hay;
@@ -594,13 +610,12 @@ bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::
     if (!ok) {
         motor_->verSoltar(clave);
         capturas_.erase(clave);
-        setError("captura: '" + name + "' no dio imagen (sin señal o apagada)");
-        return false;
+        return "'" + clave.substr(0, clave.find('@')) + "' no dio imagen (sin señal o apagada)";
     }
     aRgba(c, rgba);
     width = c.ancho;
     height = c.alto;
-    return true;
+    return {};
 }
 
 // ============================================================================

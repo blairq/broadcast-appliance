@@ -327,6 +327,16 @@ class BroadcastEngine {
     /// con ancho de a lo sumo `maxWidth` (0 = el del lienzo). RGBA 8 bits.
     bool captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
                        int& height);
+    /// captureSource en dos partes, para capturar desde otro hilo (las
+    /// miniaturas de Entradas, que se cargan aparte para no trabar la interfaz):
+    /// `prepararCaptura` lee las escenas, las fuentes y el estado del motor, que
+    /// son del hilo de la interfaz (desde otro hilo era una carrera que tumbaba
+    /// la app); `capturarVista` arma o reusa la vista y espera el cuadro, y se
+    /// puede llamar desde cualquier hilo. "" o el error.
+    std::string prepararCaptura(const std::string& name, int maxWidth, std::string& clave, int& w, int& h,
+                                bool& esEscena) const;
+    std::string capturarVista(const std::string& clave, int w, int h, bool esEscena, std::vector<std::uint8_t>& rgba,
+                              int& width, int& height);
     /// Tipos de fuente que el motor sabe armar.
     std::vector<SourceType> inputTypes() const;
     /// Invitados: la fuente de video va en escenas; la de AUDIO es global.
