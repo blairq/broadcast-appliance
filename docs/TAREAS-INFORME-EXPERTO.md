@@ -39,13 +39,13 @@
 | T13 | Watchdog de tiempo para plugins CLAP y aislamiento por proceso | P0 | hecho |
 | T14 | Mix-minus por invitado | P0 | hecho, sin probar con un invitado real |
 | T15 | Estadísticas de conexión por invitado y disparador `guest_quality` | P0 | hecho, sin probar con un invitado real |
-| T16 | Base de legisladores (fuente única) | P0 | hecho |
+| T16 | Base de integrantes (fuente única) | P0 | hecho |
 | T17 | Bancas presenciales en la fila de oradores | P0 | hecho |
 | T18 | Contenido de terceros al aire: zócalo validado, chat con aprobación, votación rotulada | P0 | hecho |
 | T19 | Placa y alarma de pérdida de señal, con escena de respaldo | P0 | hecho |
 | T20 | Interlock de PTZ: no mover la cámara al aire | P0 | hecho |
 | T21 | Closed captions (CEA-608 en el stream y API de subtítulos de YouTube) | P0 | hecho, sin probar contra YouTube ni el 608 en un reproductor |
-| T22 | Vocabulario propio para el STT (legisladores, localidades) | P0 | hecho |
+| T22 | Vocabulario propio para el STT (integrantes, localidades) | P0 | hecho |
 | T23 | Interfaz para crear disparadores y notificación remota | P1 | hecho (Telegram y mail sin probar contra servidores reales) |
 | T24 | Recuperación visible: cartel de causa, configuración con dos generaciones, volcados | P1 | hecho en parte (cartel con causa y tiempo, dos generaciones de Config/; faltan volcados con Crashpad en Mac y Linux) |
 | T25 | Overlays globales (DSK) y recuadro fijo de intérprete LSA | P1 | hecho (sin componer en el preview ni miniaturas) |
@@ -66,7 +66,7 @@
 | T40 | Superresolución: alarma, bypass y entrenamiento desde cámaras locales | P1 | hecho |
 | T41 | PTZ: presets con miniatura, grilla de bancas, velocidad | P1 | hecho (foto, velocidad VISCA/ONVIF y segundos por posición; Recinto en PTZ, MCP y plantilla de botonera; Panasonic sin velocidad; sin probar con cámara motorizada) |
 | T42 | PTZ: VISCA por serie y joysticks vía plugin | P1 | hecho (plugins VISCA serie, joystick HID y cámara virtual VISCA-IP; sin probar con equipos) |
-| T43 | Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (plantillas, vínculos, PVW y campos vivos por segundo —{hora_s}, {orador.cronometro}, {orador.restante} con `vivo`—, sin probar de punta a punta; falta HTML) |
+| T43 | Gráficos de asamblea: plantillas, preview en PVW, datos vivos, HTML | P1 | hecho en parte (plantillas, vínculos, PVW y campos vivos por segundo —{hora_s}, {orador.cronometro}, {orador.restante} con `vivo`—, sin probar de punta a punta; falta HTML) |
 | T44 | Subtítulos con corrección humana y parciales | P1 | hecho en parte (cola de corrección en la app, por MCP y en el puesto web /correccion/; faltan los parciales en streaming) |
 | T45 | Archivo y rotulado: WebVTT, transcripción al acta, "Traducción automática" | P1 | hecho (la voz sintética todavía no prende el rótulo) |
 | T46 | Tiempos en Dirección: cuenta regresiva del medio, playlist, back-timing | P1 | hecho (contador del medio, back-timing y playlist con in/out, auto-next, loop y PVW) |
@@ -93,7 +93,7 @@
 - **Plugins de Python en Windows**: la ruta del intérprete está en `src/app/plugins/Plugins.cpp:196-197`. Falta probarlos a mano.
 
 **Camino crítico.**
-- **T16 (legisladores)** desbloquea T17, T18, T34, T35, T41 y T43.
+- **T16 (integrantes)** desbloquea T17, T18, T34, T35, T41 y T43.
 - **T50 (bus de eventos)** desbloquea T04, T49, T51 y toda la superficie de control (T52-T59).
 - **T25 (DSK)** desbloquea T07 en su forma completa y el recuadro de LSA.
 - **T02 (guardas de aire)** es requisito de seguridad de T52 (las superficies disparan herramientas).
@@ -211,7 +211,7 @@
     - PTZ probado con las cámaras reales;
     - casteo probado en los televisores del recinto;
     - ensayo de caída: matar `ba-app` al aire y cronometrar la vuelta, con el resultado de T24;
-    - glosario revisado por la Legislatura;
+    - glosario revisado por la asamblea;
     - máquina de respaldo lista con la escena básica;
     - auriculares para los remotos hasta que esté T14.
 - **MCP.**
@@ -383,14 +383,14 @@
 - **GUI.** En la tarjeta del invitado, un semáforo con tooltip de cifras y un menú "Bajar a 720p / 360p". Cuando un invitado se pone rojo al aire, aviso en la tarjeta Sistema.
 - **Depende de:** nada. Alimenta T04.
 
-## Legislatura: oradores y contenido institucional
+## Asamblea: oradores y contenido institucional
 
-### T16 · Base de legisladores — P0
-- **Estado: falta.** No hay tabla de legisladores. Existen el padrón y Personas (`src/app/ui/PersonasViewModel.cpp:653`) y las posiciones PTZ (`src/app/ptz/Posiciones.hpp:25-41`), pero no están vinculados.
+### T16 · Base de integrantes — P0
+- **Estado: falta.** No hay tabla de integrantes. Existen el padrón y Personas (`src/app/ui/PersonasViewModel.cpp:653`) y las posiciones PTZ (`src/app/ptz/Posiciones.hpp:25-41`), pero no están vinculados.
 - **Qué hacer.**
   - Ampliar la libreta de Personas en vez de duplicarla: `Persona` suma `{bloque, distrito, cargo_oficial, banca, preset_ptz: {camara, posicion}, microfono: {fuente_audio|canal_conferencia}, foto, rostro_id, validado_por, validado_en}`.
-  - Una colección "Cuerpo" (por ejemplo "Legislatura del Chubut 2025-2029") agrupa personas con banca.
-  - Importar desde CSV o XLSX; la planilla de fábrica está en `assets/plantillas/legisladores.csv`.
+  - Una colección "Cuerpo" (por ejemplo "Asamblea 2025-2029") agrupa personas con banca.
+  - Importar desde CSV o XLSX; la planilla de fábrica está en `assets/plantillas/integrantes.csv`.
   - Esta es la fuente única para zócalos (T18, T43), padrón, rostros, bancas (T17), seguir al micrófono (T34) y el sistema de conferencia (T35).
 - **MCP.** Herramientas nuevas:
   - `cuerpo_listar`, `cuerpo_crear {nombre}`;
@@ -505,8 +505,8 @@
 - **Qué hacer.**
   - Crear `src/app/agent/Vocabulario.{hpp,cpp}`, con fuentes:
     - nombres y apellidos del Cuerpo (T16);
-    - localidades del Chubut (lista de fábrica en `assets/vocabulario/chubut.txt`);
-    - términos legislativos;
+    - localidades (lista de fábrica en `assets/vocabulario/chubut.txt`);
+    - términos de asamblea;
     - términos del operador.
   - Si el modelo de sherpa-onnx admite `hotwords_file` (transducers), pasarlo con un `hotwords_score` configurable.
   - Para Parakeet o CTC sin hotwords: corrección posterior por diccionario, con distancia fonética (Metaphone en español o una distancia de edición ponderada). Solo se reemplaza con confianza alta, y se registra cada reemplazo.
@@ -724,7 +724,7 @@
   - Probado en la app: dos micrófonos iguales en la mesa → −6,3 dB cada uno; una entrada con solo ruido → −31 dB; se guarda y vuelve igual al reiniciar.
 - **Falta:** publicar en el bus (T50) qué micrófono «abrió» (T34 sigue con los niveles) y la insignia «AM» en el Mezclador.
 
-## Sala y Legislatura
+## Sala y asamblea
 
 ### T33 · Sala: IFB en sala, cupo en caliente, prueba técnica con eco y red — P1
 - **Estado: hecho** (2026-10-05).
@@ -769,7 +769,7 @@
 ### T34 · Seguir al micrófono abierto — P1
 - **Estado: falta.** `audio_peak` solo es una alarma de saturación (`src/app/agent/AlertEngine.cpp:62,279`).
 - **Qué hacer.**
-  - Crear `src/app/legislatura/SeguirMicrofono.{hpp,cpp}`, que se suscribe a "micrófono abierto" del automixer (T32) o, sin automixer, a niveles sostenidos (> umbral durante N ms, con histéresis).
+  - Crear `src/app/asamblea/SeguirMicrofono.{hpp,cpp}`, que se suscribe a "micrófono abierto" del automixer (T32) o, sin automixer, a niveles sostenidos (> umbral durante N ms, con histéresis).
   - Mapea micrófono → Persona → banca (T16) y **propone** `speaker_on_air {banca, modo: armar}` (T17). El operador confirma con TAKE.
   - Modo automático solo con la casilla marcada y nunca sobre la cámara al aire (T20).
 - **MCP.** Herramientas nuevas: `seguir_microfono {activo, modo: proponer|automatico, umbral_db, sostener_ms}` y `seguir_microfono_estado`.
@@ -938,10 +938,10 @@
 
 ## Gráficos y accesibilidad
 
-### T43 · Gráficos legislativos: plantillas, preview en PVW, datos vivos, HTML — P1
-- **Estado: hecho en parte.** Plantillas zocalo-legislador, punto-orden-del-dia, votacion, cuarto-intermedio, minuto-silencio y quorum (categoría «Legislatura» en la galería). Los datos vivos van por vínculos (`{orador.*}`, `{punto.*}`, `{votacion.*}`, `{quorum.*}`, `{hora}`), que vuelven a disparar cuando cambia lo que resuelven. «Armar en PVW» en Rótulos y `grafico_mostrar {armar: true}`. Falta: campos que cambian cuadro a cuadro (reloj con segundos, cronómetro) y HTML; decisión sobre obs-browser pendiente (pesa mucho para el bundle). Ver docs/GRAFICOS.md. Lo de abajo es el pedido original.
+### T43 · Gráficos de asamblea: plantillas, preview en PVW, datos vivos, HTML — P1
+- **Estado: hecho en parte.** Plantillas zocalo-integrante, punto-orden-del-dia, votacion, cuarto-intermedio, minuto-silencio y quorum (categoría «Asamblea» en la galería). Los datos vivos van por vínculos (`{orador.*}`, `{punto.*}`, `{votacion.*}`, `{quorum.*}`, `{hora}`), que vuelven a disparar cuando cambia lo que resuelven. «Armar en PVW» en Rótulos y `grafico_mostrar {armar: true}`. Falta: campos que cambian cuadro a cuadro (reloj con segundos, cronómetro) y HTML; decisión sobre obs-browser pendiente (pesa mucho para el bundle). Ver docs/GRAFICOS.md. Lo de abajo es el pedido original.
 - **Estado original: parcial.**
-  - Las plantillas son placa-titulo, pregunta, proximo-orador, ticker y zocalo (`assets/graficos/`). Ninguna es legislativa.
+  - Las plantillas son placa-titulo, pregunta, proximo-orador, ticker y zocalo (`assets/graficos/`). Ninguna es de asamblea.
   - El preview existe solo en el editor (`src/app/qml/pages/GraficosPage.qml:194-242`).
   - El render es PNG previo en base64 (`src/grafico/main.cpp:13-19`). No hay obs-browser.
 - **Qué hacer.**
@@ -956,9 +956,9 @@
   - HTML: evaluar `obs-browser` (CEF pesa mucho para el bundle) o renderizar HTML con el motor propio. Decidir y documentar.
 - **MCP.**
   - `grafico_mostrar {armar: bool}`.
-  - `grafico_repertorio` incluye las legislativas.
+  - `grafico_repertorio` incluye las de asamblea.
   - Herramienta nueva `grafico_campo_vivo {grafico, campo, fuente: reloj|cronometro_orador|votos}`.
-- **GUI.** En Rótulos, el botón "Armar en PVW" además de "Mostrar". En la galería de Gráficos, una categoría "Legislatura". En el editor de plantillas, los campos vivos se marcan con un ícono.
+- **GUI.** En Rótulos, el botón "Armar en PVW" además de "Mostrar". En la galería de Gráficos, una categoría "Asamblea". En el editor de plantillas, los campos vivos se marcan con un ícono.
 - **Depende de:** T16, T36, T37 y T25.
 
 ### T44 · Subtítulos con corrección humana y parciales — P1
@@ -991,7 +991,7 @@
 - **Estado: falta.**
   - Solo hay `.txt` y `.srt` (`src/app/agent/FlujosTexto.cpp:88`, `TarjetaTraduccion.qml:120`).
   - No hay rótulo automático "Traducción automática". La pista separada de traducción ya se puede (`src/app/mcp/McpHelp.cpp:661`).
-  - El glosario no fue revisado por la Legislatura.
+  - El glosario no fue revisado por la asamblea.
 - **Qué hacer.**
   - Exportar `.vtt`. La transcripción con tiempos va a `Eventos/<id>/` y se adjunta al acta (T37).
   - Mientras se muestre una traducción o salga una voz sintética, se activa un DSK (T25) con el rótulo "Traducción automática".
@@ -1190,7 +1190,7 @@
   - Plantillas de fábrica:
     - "Director" (escenas con tally, TAKE, CUT, FTB, DSK, T-bar);
     - "Audio" (faders de micrófonos con mute y medidor, loudness);
-    - "Legislatura" (grilla de bancas de T41, siguiente orador, punto del orden del día, quórum);
+    - "Asamblea" (grilla de bancas de T41, siguiente orador, punto del orden del día, quórum);
     - "Prompter" (velocidad, pausa, saltos).
 - **MCP.** Ver T57.
 - **GUI.** Ver T56.

@@ -1,5 +1,5 @@
 // La central de conferencia del recinto (Bosch DCN): micrófonos de banca,
-// pedidos de palabra y oradores. Fuente: Studio.dcn (legislatura/ConferenciaDcn),
+// pedidos de palabra y oradores. Fuente: Studio.dcn (asamblea/ConferenciaDcn),
 // que le pide todo al plugin bosch-dcn; las respuestas llegan por `hecho` y
 // nada espera en la interfaz. Guía: docs/bosch/open-interface.md §10.
 //

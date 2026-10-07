@@ -345,7 +345,7 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // La central de conferencia del recinto (micrófonos de banca): las que
         // abren o cierran micrófonos pasan por las guardas de aire.
         "conferencia",
-        // La banca virtual (legisladores desde el navegador, en la sala o afuera).
+        // La banca virtual (integrantes desde el navegador, en la sala o afuera).
         "sesion"};
     return c;
 }

@@ -552,7 +552,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 - **Idiomas:**
   - directos: es↔en y es↔pt;
   - fr, de, ru y zh pasan por el inglés.
-- **Glosario de 67 términos:** 59 del grupo `legislativo-chubut` y 8 generales. El operador suma términos y apaga grupos.
+- **Glosario de 45 términos:** 29 del grupo `asamblea`, 8 de `localidades` y 8 generales. El operador suma términos y apaga grupos.
 - **Armado de oraciones:** espera el punto, o 0,6 s, o 8 s / 280 caracteres.
 - **Salida:** una nueva salida de texto («Orador · en»), que sirve para subtítulos, TTS y archivos.
 
@@ -565,7 +565,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 **Limitaciones.**
 - La latencia se acumula: VAD + armado + traducción (el doble con pivote) + TTS. Varios segundos.
 - Procesa un pedido a la vez.
-- El glosario todavía no lo revisó nadie de la Legislatura (memoria del proyecto).
+- El glosario todavía no lo revisó nadie de la asamblea (memoria del proyecto).
 
 ### 4.20 Teleprompter
 

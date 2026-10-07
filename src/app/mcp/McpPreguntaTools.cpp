@@ -27,8 +27,8 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
-#include "legislatura/OrdenDelDia.hpp"
-#include "legislatura/Quorum.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/Quorum.hpp"
 #include "control/BusEventos.hpp"
 
 namespace ba::app::mcp {

@@ -283,7 +283,7 @@ de Mac (§10.1).
   invitados de la sala ◄─► webrtcbin por invitado
         entra: decodebin ─► intersink «Invitado N»
         sale:  programa (video chico) + su mix-minus (Opus)
-  congreso (sesión remota) ◄─► webrtcbin por legislador (o webrtcsink/WHEP con SFU si son muchos)
+  asamblea (sesión remota) ◄─► webrtcbin por integrante (o webrtcsink/WHEP con SFU si son muchos)
         el que tiene la palabra ─► intersink «Remoto» ─► programa
         todos reciben: programa + audio de la sala (cada uno su mix-minus)
   audio del recinto: los micrófonos entran por la placa o la consola como micrófonos comunes
@@ -767,7 +767,7 @@ mezcla, arma escenas y sube. Las une un cable de red dedicado de 10 GbE.
 En **B**, no en A. Solo el video de un invitado que necesite GPU hace ida y vuelta a A.
 
 ```
-                        INTERNET (invitados, legisladores, presidencia, botonera, Companion)
+                        INTERNET (invitados, integrantes, presidencia, botonera, Companion)
                             ▼
  MÁQUINA B ═════════════════════════════════════════════════════════════════════════════════════
   ┌─ GATEWAY: señalización, páginas (/, /sesion/, /presidencia/…), auth, TURN, proxy SNI/ACME
@@ -806,7 +806,7 @@ Por qué en B:
 
 ## 12. Congreso a escala y videowall con todos los rostros (simulcast)
 
-Con cientos de legisladores conectados (la Cámara de Diputados tiene 257 bancas), la mezcla no puede
+Con cientos de integrantes conectados (una cámara grande tiene más de 250 bancas), la mezcla no puede
 decodificar a todos en alta calidad. La solución es **simulcast con dos calidades**: cada remoto manda a la
 vez un video **bajo** y uno **alto**.
 
@@ -816,7 +816,7 @@ vez un video **bajo** y uno **alto**.
   pase sea inmediato).
 
 ```
- LEGISLADORES (navegador / teléfono) — simulcast: BAJO (~320×180, 15 cps, ~150 kbps) + ALTO (720p, ~1,5 Mbps)
+ INTEGRANTES (navegador / teléfono) — simulcast: BAJO (~320×180, 15 cps, ~150 kbps) + ALTO (720p, ~1,5 Mbps)
                                       + audio Opus con su nivel en la cabecera RTP (RFC 6464)
         │
         ▼

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// Cuerpo: los integrantes de un cuerpo legislativo (o cualquier grupo con
+// Cuerpo: los integrantes de un cuerpo deliberativo (o cualquier grupo con
 // bancas): la FUENTE ÚNICA de nombre, cargo, bloque y banca para los zócalos,
 // la fila de oradores (bancas presenciales), el PTZ de cada banca, el micrófono
 // de cada banca y el sistema de conferencia del recinto.
@@ -25,7 +25,7 @@
 #include <filesystem>
 #include <string>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class Cuerpo {
    public:
@@ -71,4 +71,4 @@ class Cuerpo {
     json datos_;
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/CuerpoViewModel.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 namespace {
 nlohmann::json deMapa(const QVariantMap& m) {
@@ -145,7 +145,7 @@ QString CuerpoViewModel::importar(const QString& archivo, bool reemplazar) {
 }
 
 QString CuerpoViewModel::plantilla() {
-    const auto ruta = datos_ / "Exportado" / "planilla-legisladores.csv";
+    const auto ruta = datos_ / "Exportado" / "planilla-integrantes.csv";
     return Cuerpo::escribirPlantilla(ruta) ? QString::fromStdWString(ruta.wstring()) : QString();
 }
 
@@ -170,4 +170,4 @@ QVariantMap CuerpoViewModel::buscar(const QString& clave) const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(c_->buscar(clave.toStdString()).dump())).object().toVariantMap();
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

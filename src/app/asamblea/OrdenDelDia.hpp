@@ -29,7 +29,7 @@ namespace ba::app::control {
 class BusEventos;
 }
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class OrdenDelDia : public QObject {
     Q_OBJECT
@@ -79,4 +79,4 @@ class OrdenDelDia : public QObject {
     int sub_ = 0;
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

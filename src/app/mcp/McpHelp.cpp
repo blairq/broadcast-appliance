@@ -250,10 +250,10 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - **DDI doble:** una DCN-DDI en modo doble son dos micrófonos: la mitad izquierda es la unidad N y la derecha N+256; cada una se asigna a su banca (docs/bosch/dcn-ddi.md).
 - **Funciones sin documentar** (del software de Bosch, sin probar contra una CCU real): `dcn_funciones` las lista y `dcn_funcion {"nombre", "args"}` las llama; las peligrosas piden `confirmar`. Con nombre propio: `dcn_proximo` (próximo en hablar, turno del llamado nominal), `dcn_cerrar_tras_siguiente {"activo": true}`, `dcn_llamado_nominal {"bancas": [...]}`. Si el presidente maneja la votación desde su unidad, el estado de `dcn_votacion_resultado` lo sigue solo.
 - Problemas: `dcn_traza {"activa": true}` y `dcn_traza {"ultimas": 50}` (tramas en hexadecimal y contadores de reenvíos). Guía completa: docs/bosch/open-interface.md.)md"},
-    {"sesion", "Banca virtual (sesión remota)", "Legisladores desde el navegador, en la sala o afuera.",
-     R"md(La banca virtual (docs/SESION-REMOTA.md): cada integrante del Cuerpo puede entrar desde el navegador (celular, tablet, compu) con su **link personal y su PIN**, esté en el recinto o en su casa. También es el respaldo de la central: si la CCU se cae, los legisladores entran con el celular.
-1. **Link y PIN:** `sesion_credencial {"banca": "12"}` los genera y los muestra UNA vez (si ya tenía, el anterior deja de andar). Se le pasan al legislador por un canal seguro. `sesion_clave {"banca", "usuario"}` le da usuario y contraseña para entrar tipeando sin el link; `sesion_datos` guarda su email, teléfono y una nota. `sesion_revocar` lo corta. Todo esto también en Legislatura → Conexiones remotas.
-2. **Habilitar:** cuando entra queda «esperando». Una persona lo mira por la cámara (en Legislatura → Recinto su banca muestra la cara y titila en ámbar) y lo habilita: `sesion_habilitar {"banca": "12"}`. Habilitado, cuenta como presente en Quórum (sin contarlo dos veces si la central ya lo tiene presente). **Nunca habilites a alguien que ninguna persona vio.**
+    {"sesion", "Banca virtual (sesión remota)", "Integrantes desde el navegador, en la sala o afuera.",
+     R"md(La banca virtual (docs/SESION-REMOTA.md): cada integrante del Cuerpo puede entrar desde el navegador (celular, tablet, compu) con su **link personal y su PIN**, esté en el recinto o en su casa. También es el respaldo de la central: si la CCU se cae, los integrantes entran con el celular.
+1. **Link y PIN:** `sesion_credencial {"banca": "12"}` los genera y los muestra UNA vez (si ya tenía, el anterior deja de andar). Se le pasan al integrante por un canal seguro. `sesion_clave {"banca", "usuario"}` le da usuario y contraseña para entrar tipeando sin el link; `sesion_datos` guarda su email, teléfono y una nota. `sesion_revocar` lo corta. Todo esto también en Asamblea → Conexiones remotas.
+2. **Habilitar:** cuando entra queda «esperando». Una persona lo mira por la cámara (en Asamblea → Recinto su banca muestra la cara y titila en ámbar) y lo habilita: `sesion_habilitar {"banca": "12"}`. Habilitado, cuenta como presente en Quórum (sin contarlo dos veces si la central ya lo tiene presente). **Nunca habilites a alguien que ninguna persona vio.**
 3. `sesion_estado`: quién está conectado, desde dónde (sala/afuera), quién lo habilitó. `sesion_expulsar` lo saca.
 4. `sesion_registro {"texto": true}`: lo que va al acta (entradas, habilitaciones, intentos fallidos, bloqueos).
 - Seguridad: 5 PIN errados bloquean ese acceso 15 minutos; un integrante, una conexión.
@@ -515,7 +515,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
      R"md(La botonera es una grilla de controles en una **tablet** (emparejada por QR), un **Stream Deck**, un controlador **MIDI** u **OSC** (por plugin). Cada celda dispara una accion y muestra estado vivo. La app decide todo: el aparato solo dice «apretaron (x, y)».
 
 ## Armar
-1. `botonera_plantillas` y `botonera_perfil_crear {desde_plantilla: "director"}` (o audio, legislatura, prompter): se arma con las escenas, fuentes y bancas que hay. Un perfil es un PUESTO con sus `herramientas_permitidas`.
+1. `botonera_plantillas` y `botonera_perfil_crear {desde_plantilla: "director"}` (o audio, asamblea, prompter): se arma con las escenas, fuentes y bancas que hay. Un perfil es un PUESTO con sus `herramientas_permitidas`.
 2. `botonera_celdas {perfil, pagina}` para ver; `botonera_celda_set` para poner o cambiar una celda:
    - `tipo`: boton, fader, perilla, medidor, texto, reloj; `estilo`: {texto, icono, color, fondo};
    - `accion`: {tipo: herramienta, herramienta, args} (args con "{{valor}}" para faders, "{{delta}}" para perillas relativas, "{{no_activo}}" para alternar), {tipo: pagina, ir_a}, {tipo: secuencia, pasos, espera_ms}, {tipo: receta, id}; `accion_mantener` (0,7 s) y `accion_soltar`;
@@ -702,8 +702,8 @@ La carpeta es `BA_HERRAMIENTAS`. Si en los datos hay una carpeta `Herramientas/`
 Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
     {"traduccion", "Traducción en vivo",
      "Traducir lo que dice el orador (castellano) a inglés, portugués, francés, alemán, ruso o chino, sin "
-     "red: subtítulos y voz en otro idioma; el glosario de términos del evento (Legislatura del Chubut "
-     "incluida).",
+     "red: subtítulos y voz en otro idioma; el glosario de términos del evento (los de "
+     "una asamblea incluidos).",
      R"md(La traducción toma una **salida de texto** (la de una tarjeta «Voz a texto»: «Orador») y publica otra con lo mismo en otro idioma («Orador · en»). Corre en la máquina, sin red, con modelos OPUS-MT (0,1 a 0,6 s por frase). Castellano <-> inglés y castellano <-> portugués son directos; francés, alemán, ruso y chino pasan por el inglés.
 
 ## Receta: subtítulos en inglés y voz en inglés por la pista 2
@@ -714,7 +714,7 @@ Despues: `media_find` para encontrarlo y usarlo en una escena.)md"},
 4. `traducciones` muestra la última frase traducida y cuánto tardó.
 
 ## El glosario (lo que no se puede traducir mal)
-Antes de traducir, cada término conocido se reemplaza por su traducción ya hecha. Sin esto «cuarto intermedio» sale «middle room» y «no es moco de pavo» «turkey mucus». Viene con dos grupos: «general» (cabina) y «legislativo-chubut» (sesiones, mociones, sobre tablas, bloques, comisiones, ciudades). **Antes de un evento, sumá sus términos**: nombres de comisiones, programas, leyes con nombre, cargos, instituciones.
+Antes de traducir, cada término conocido se reemplaza por su traducción ya hecha. Sin esto «cuarto intermedio» sale «middle room» y «no es moco de pavo» «turkey mucus». Viene con tres grupos: «general» (cabina), «asamblea» (sesiones, mociones, sobre tablas, bloques, comisiones) y «localidades». **Antes de un evento, sumá sus términos**: nombres de comisiones, programas, leyes con nombre, cargos, instituciones.
 - `glosario_ver {"buscar"?}`: lo que hay, y `archivo`: el JSON del operador (Datos/Config/glosario-traduccion.json). Se puede editar directo: cada término `{"es": ["forma", "otra forma"], "en": "...", "pt": "...", "fr": "...", "de": "...", "ru": "...", "zh": "...", "grupo": "..."}`; pisa al de fábrica por la primera forma.
 - `glosario_agregar {"es": [...], "en": "...", ...}`, `glosario_quitar {"es"}` o `{"grupo", "activo": false}`.
 - Probá con `traducir {"texto", "a"}` antes de salir al aire.

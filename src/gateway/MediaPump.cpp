@@ -245,7 +245,7 @@ void MediaPump::start() {
         lobbyVideo_.push_back(makeVideo(name(cfg_.lobbyVideoNames, k), cfg_.lobbyW, cfg_.lobbyH));
         lobbyAudio_.push_back(makeAudio(name(cfg_.lobbyAudioNames, k)));
     }
-    // R3: el legislador remoto con la palabra (a la app, como una entrada más).
+    // R3: el integrante remoto con la palabra (a la app, como una entrada más).
     remotoVideo_.clear();
     remotoAudio_.clear();
     remotoVideo_.emplace_back();

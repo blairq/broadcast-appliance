@@ -71,9 +71,9 @@ class Botonera : public QObject {
         /// Para las plantillas: escenas, fuentes de audio, bancas.
         std::function<std::vector<std::string>()> escenas;
         std::function<std::vector<std::string>()> fuentesAudio;
-        /// (banca, nombre) del cuerpo, para la plantilla Legislatura.
+        /// (banca, nombre) del cuerpo, para la plantilla Asamblea.
         std::function<std::vector<std::pair<std::string, std::string>>()> bancas;
-        /// La grilla del recinto (legislatura/Cuerpo::recinto), para la plantilla Recinto.
+        /// La grilla del recinto (asamblea/Cuerpo::recinto), para la plantilla Recinto.
         std::function<json()> recinto;
         /// Una referencia de imagen («cuerpo:<banca>», «ptz:<cámara>/<posición>») como
         /// miniatura chica en data: URL ("" si no hay). Se llama al dibujar: con caché.

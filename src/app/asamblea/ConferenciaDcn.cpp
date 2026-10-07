@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/ConferenciaDcn.hpp"
+#include "asamblea/ConferenciaDcn.hpp"
 
 #include "control/BusEventos.hpp"
 #include "plugins/Plugins.hpp"
@@ -11,7 +11,7 @@
 #include <filesystem>
 #include <fstream>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 
@@ -123,7 +123,7 @@ void ConferenciaDcn::control(const std::string& nombre, const json& args, Listo 
     if (p == nullptr) return listo(false, {}, "los plugins no están disponibles");
     if (p->estado(kPlugin).value("estado", std::string()) != "corriendo")
         return listo(false, {}, "el control de la central (plugin bosch-dcn) no está corriendo: conectalo en "
-                                "Legislatura → Conferencia (o dcn_conectar)");
+                                "Asamblea → Conferencia (o dcn_conectar)");
     QPointer<ConferenciaDcn> yo(this);
     p->pedir(kPlugin, "control", {{"nombre", nombre}, {"args", args}}, [listo, nombre, yo](json r) {
         if (!r.value("ok", false)) return listo(false, {}, limpio(r.value("error", std::string("falló"))));
@@ -174,4 +174,4 @@ void ConferenciaDcn::conectarUi(const QVariantMap& config) {
     });
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

@@ -444,16 +444,16 @@ def asignar_aprendida(u: int) -> None:
 
 
 def asignar(banca: str, u: int) -> None:
-    r = plugin.llamar("legislador_ver", {"clave": banca}, timeout=10) or {}
+    r = plugin.llamar("integrante_ver", {"clave": banca}, timeout=10) or {}
     if not r.get("id"):
         raise RuntimeError(f"no hay nadie con la banca {banca} en el Cuerpo")
     # La unidad es de UNA banca: si otra la tenía, se la saca.
     vieja = mapa_u2b.get(u)
     if vieja and vieja != banca:
-        rv = plugin.llamar("legislador_ver", {"clave": vieja}, timeout=10) or {}
+        rv = plugin.llamar("integrante_ver", {"clave": vieja}, timeout=10) or {}
         if rv.get("id"):
-            plugin.llamar("legislador_editar", {"id": rv["id"], "dcn_unidad": ""}, timeout=10)
-    plugin.llamar("legislador_editar", {"id": r["id"], "dcn_unidad": str(u)}, timeout=10)
+            plugin.llamar("integrante_editar", {"id": rv["id"], "dcn_unidad": ""}, timeout=10)
+    plugin.llamar("integrante_editar", {"id": r["id"], "dcn_unidad": str(u)}, timeout=10)
     registrar(f"unidad {u} asignada a la banca {banca}")
     leer_mapa()
 

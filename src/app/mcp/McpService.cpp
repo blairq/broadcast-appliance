@@ -49,10 +49,10 @@
 #include "ui/EventoViewModel.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
-#include "legislatura/Bancas.hpp"
-#include "legislatura/SeguirMicrofono.hpp"
-#include "legislatura/OrdenDelDia.hpp"
-#include "legislatura/CuerpoViewModel.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/SeguirMicrofono.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
@@ -2315,7 +2315,7 @@ void McpService::registerTools() {
         t.category = "traduccion";
         t.readOnly = true;
         t.description = "Los terminos que la transcripcion escribe bien aunque el modelo no los conozca (nombres del "
-                        "cuerpo, localidades, terminos legislativos, los del operador), por grupo (activo o no), y los "
+                        "cuerpo, localidades, terminos de asamblea, los del operador), por grupo (activo o no), y los "
                         "ultimos reemplazos hechos. La correccion es por sonido y solo con confianza alta.";
         t.run = [&vm](const json&, Done done) {
             json d = vm.vocabulario().todo();
@@ -2330,7 +2330,7 @@ void McpService::registerTools() {
         t.title = "Agregar un termino al vocabulario";
         t.category = "traduccion";
         t.description = "Agrega (o cambia) el `termino` bien escrito, con `variantes` (como lo escribe mal el modelo, "
-                        "opcional), en el `grupo` (operador de fabrica; cuerpo, localidades, legislativo u otro nuevo). "
+                        "opcional), en el `grupo` (operador de fabrica; cuerpo, localidades, asamblea u otro nuevo). "
                         "Con `grupo` y `activo` y sin `termino`, prende o apaga el grupo. Con `del_cuerpo`: true, pone "
                         "en el grupo cuerpo los nombres y apellidos de cuerpo_listar.";
         t.inputSchema = {{"type", "object"},
@@ -2615,10 +2615,10 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "cuerpo_listar";
-        t.title = "Integrantes del cuerpo (legisladores)";
+        t.title = "Integrantes del cuerpo";
         t.category = "evento";
         t.readOnly = true;
-        t.description = "El cuerpo legislativo: nombre e integrantes con banca, cargo oficial, bloque, distrito, "
+        t.description = "El cuerpo deliberativo: nombre e integrantes con banca, cargo oficial, bloque, distrito, "
                         "preset PTZ de su banca (camara/posicion), microfono y si estan VALIDADOS (validado_por). Es "
                         "la fuente unica para los zocalos, las bancas de la fila de oradores y el PTZ por banca.";
         t.run = [&vm](const json&, Done done) { done(ToolResult().data(vm.cuerpo().cuerpo().todo())); };
@@ -2629,7 +2629,7 @@ void McpService::registerTools() {
         t.name = "cuerpo_crear";
         t.title = "Nombrar el cuerpo";
         t.category = "evento";
-        t.description = "Pone el nombre del cuerpo (p. ej. «Legislatura del Chubut 2025-2029»). No borra integrantes.";
+        t.description = "Pone el nombre del cuerpo (p. ej. «Asamblea 2025-2029»). No borra integrantes.";
         t.inputSchema = {{"type", "object"}, {"required", {"nombre"}}, {"properties", {{"nombre", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             vm.cuerpo().setNombre(QString::fromStdString(a.value("nombre", std::string())));
@@ -2640,7 +2640,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "cuerpo_importar";
-        t.title = "Importar la planilla de legisladores";
+        t.title = "Importar la planilla de integrantes";
         t.category = "evento";
         t.description = "Importa una planilla CSV (coma o punto y coma, con encabezado: banca, nombre, cargo, bloque, "
                         "distrito, camara, posicion, microfono). Los que ya estan (por banca o nombre) se actualizan. "
@@ -2658,7 +2658,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "cuerpo_plantilla";
-        t.title = "Planilla de legisladores de ejemplo";
+        t.title = "Planilla de integrantes de ejemplo";
         t.category = "evento";
         t.description = "Escribe una planilla CSV de ejemplo (encabezado y dos filas) en Exportado/ y devuelve la ruta.";
         t.run = [&vm](const json&, Done done) {
@@ -2670,14 +2670,14 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "legislador_editar";
+        t.name = "integrante_editar";
         t.title = "Agregar o cambiar un integrante del cuerpo";
         t.category = "evento";
         t.description = "Con `id` lo cambia; sin `id`, lo crea (`nombre` obligatorio). Campos: nombre, cargo_oficial, "
                         "bloque, distrito, banca (unica), camara + posicion (el preset PTZ de su banca), microfono (la "
                         "fuente de audio de su banca), dcn_unidad (la unidad de la central Bosch DCN de su banca; vacío la "
                         "saca), persona_id (la ficha de Personas). Si cambia el nombre o el cargo, "
-                        "deja de estar validado (legislador_validar).";
+                        "deja de estar validado (integrante_validar).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"id", {{"type", "string"}}},
@@ -2701,7 +2701,7 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "legislador_ver";
+        t.name = "integrante_ver";
         t.title = "Ver un integrante del cuerpo";
         t.category = "evento";
         t.readOnly = true;
@@ -2716,7 +2716,7 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "legislador_validar";
+        t.name = "integrante_validar";
         t.title = "Validar los datos de un integrante";
         t.category = "evento";
         t.description = "Marca que una persona revisó el nombre y el cargo de un integrante (lo que sale en el zocalo). "
@@ -2731,7 +2731,7 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "legislador_borrar";
+        t.name = "integrante_borrar";
         t.title = "Sacar a un integrante del cuerpo";
         t.category = "evento";
         t.destructive = true;
@@ -2746,7 +2746,7 @@ void McpService::registerTools() {
     }
     {
         Tool t;
-        t.name = "legislador_foto";
+        t.name = "integrante_foto";
         t.title = "La foto de un integrante";
         t.category = "evento";
         t.description = "La foto de un integrante (`banca`, id o nombre), que es la cara de su botón en la botonera: "
@@ -2778,7 +2778,7 @@ void McpService::registerTools() {
         };
         core_.addTool(std::move(t));
     }
-    // --- El recinto: la grilla de bancas (legislatura/Cuerpo) ------------------------
+    // --- El recinto: la grilla de bancas (asamblea/Cuerpo) ------------------------
     {
         Tool t;
         t.name = "recinto_ver";

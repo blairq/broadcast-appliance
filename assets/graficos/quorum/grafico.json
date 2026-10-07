@@ -1,6 +1,6 @@
 {
   "nombre": "Quórum",
-  "categoria": "Legislatura",
+  "categoria": "Asamblea",
   "descripcion": "Una etiqueta chica arriba a la derecha: con o sin quórum y cuántos presentes.",
   "ancho": 640,
   "alto": 140,

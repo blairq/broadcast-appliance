@@ -50,14 +50,14 @@
 #include "AppSettings.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
-#include "legislatura/Bancas.hpp"
-#include "legislatura/ConferenciaDcn.hpp"
-#include "legislatura/SesionRemota.hpp"
-#include "legislatura/SeguirMicrofono.hpp"
-#include "legislatura/OrdenDelDia.hpp"
-#include "legislatura/Quorum.hpp"
-#include "legislatura/Cuerpo.hpp"
-#include "legislatura/CuerpoViewModel.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/ConferenciaDcn.hpp"
+#include "asamblea/SesionRemota.hpp"
+#include "asamblea/SeguirMicrofono.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/Quorum.hpp"
+#include "asamblea/Cuerpo.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
@@ -432,7 +432,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                        (rt.dataRoot() / "Config" / "alertas.json").string());
         marca("alerts");
         alarma_ = std::make_unique<agent::AlarmaSonora>(rt.dataRoot());
-        cuerpo_ = std::make_unique<legislatura::CuerpoViewModel>(rt.dataRoot());
+        cuerpo_ = std::make_unique<asamblea::CuerpoViewModel>(rt.dataRoot());
         vocabulario_ = std::make_unique<agent::Vocabulario>(rt.dataRoot() / "Config" / "vocabulario.json");
         bus_ = std::make_unique<control::BusEventos>();
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
@@ -656,9 +656,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
     // entradas nuevas y de lo que cambia en Configuración.
     camaras_ = std::make_unique<ptz::ControlCamaras>(rt, rt.dataRoot());
-    // Las bancas presenciales de la fila de oradores (legislatura/Bancas).
+    // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
-        legislatura::Bancas::Ganchos g;
+        asamblea::Bancas::Ganchos g;
         g.camaraAlAire = [this](const std::string& c) { return camaras_->alAire(QString::fromStdString(c)); };
         g.irAPosicion = [this](const std::string& c, const std::string& p) {
             const QVariantMap r = camaras_->irAPosicion(QString::fromStdString(c), QString::fromStdString(p), -1);
@@ -701,10 +701,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.filaCambio = [this](const std::vector<std::string>& cola, const std::string& alAire) {
             if (sesionRemota_) sesionRemota_->fila(cola, alAire);
         };
-        bancas_ = std::make_unique<legislatura::Bancas>(cuerpo_->cuerpo(), g);
+        bancas_ = std::make_unique<asamblea::Bancas>(cuerpo_->cuerpo(), g);
         // La foto de cada integrante, capturada con la cámara de su banca.
         {
-            legislatura::CuerpoViewModel::Ganchos gc;
+            asamblea::CuerpoViewModel::Ganchos gc;
             gc.apuntar = [this](const QString& banca) { return bancas_->apuntar(banca); };
             gc.capturar = [this](const QString& camara) {
                 std::vector<std::uint8_t> rgba;
@@ -714,13 +714,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             };
             cuerpo_->setGanchos(std::move(gc));
         }
-        seguirMic_ = std::make_unique<legislatura::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
-        ordenDia_ = std::make_unique<legislatura::OrdenDelDia>(rt.dataRoot(), *bus_);
+        seguirMic_ = std::make_unique<asamblea::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
+        ordenDia_ = std::make_unique<asamblea::OrdenDelDia>(rt.dataRoot(), *bus_);
         // La banca virtual (sesión remota, en la sala o afuera): docs/SESION-REMOTA.md.
-        sesionRemota_ = std::make_unique<legislatura::SesionRemota>(cuerpo_->cuerpo(), rt.dataRoot());
+        sesionRemota_ = std::make_unique<asamblea::SesionRemota>(cuerpo_->cuerpo(), rt.dataRoot());
         // Los presentes con voto salen del padrón del evento abierto (o de la central),
         // más los habilitados por la banca virtual, sin contar a nadie dos veces.
-        quorum_ = std::make_unique<legislatura::Quorum>(rt.dataRoot(), [this]() {
+        quorum_ = std::make_unique<asamblea::Quorum>(rt.dataRoot(), [this]() {
             const std::vector<std::string> virtuales = sesionRemota_ ? sesionRemota_->presentesBancas() : std::vector<std::string>{};
             // Si se eligió, los presentes los dice la asistencia de la central de conferencia.
             if (dcn_ && dcn_->presentesDeLaCentral())
@@ -822,7 +822,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // En vivo (T48) solo arrancan los plugins aprobados para el aire (T60).
     plugins_->setEnVivo([this]() { return modoVivo(); });
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
-    dcn_ = std::make_unique<legislatura::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
+    dcn_ = std::make_unique<asamblea::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
     dcn_->setAQuorum([this](const nlohmann::json& r) {
         if (!quorum_) return nlohmann::json{{"error", "Quórum no está"}};
         // Con votos por los celulares en la misma votación: un voto por integrante (vale el último).
@@ -831,7 +831,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         return quorum_->cargarOficial(r);
     });
     // La votación de la central también en los celulares (abrir, pausar, cerrar).
-    connect(dcn_.get(), &legislatura::ConferenciaDcn::cambio, this, [this]() { seguirVotacionCentral(); });
+    connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, this, [this]() { seguirVotacionCentral(); });
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
@@ -897,7 +897,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
         // El Cuerpo cambió (nombres, fotos, unidades de la central): al bus, así se
         // redibuja la botonera y el plugin de la central relee su mapa.
-        connect(cuerpo_.get(), &legislatura::CuerpoViewModel::cambio, this, [this]() {
+        connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, [this]() {
             bus_->publicar("cuerpo/cambio", {{"ms", QDateTime::currentMSecsSinceEpoch()}}, true);
         });
         satellite_ = std::make_unique<control::SatelliteServidor>(rt.dataRoot(), *botonera_);
@@ -981,36 +981,36 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
                 if (ev.is_object()) sesionRemota_->evento(ev);
             });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::enviar, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::enviar, this,
                     [cli, aQt](const QString& id, const nlohmann::json& msg) {
                         cli->post("/api/v1/sesion/enviar", aQt({{"id", id.toStdString()}, {"msg", msg}}),
                                   [](bool, const QJsonObject&) {});
                     });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::mediosA, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::mediosA, this,
                     [cli, aQt](const QString& id) {
                         cli->post("/api/v1/sesion/medios", aQt({{"id", id.toStdString()}}), [](bool, const QJsonObject&) {});
                     });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::cortar, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::cortar, this,
                     [cli, aQt](const QString& id, const QString& motivo) {
                         cli->post("/api/v1/sesion/cortar", aQt({{"id", id.toStdString()}, {"motivo", motivo.toStdString()}}),
                                   [](bool, const QJsonObject&) {});
                     });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::fotoPedida, this, [this, cli](const QString& id) {
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::fotoPedida, this, [this, cli](const QString& id) {
                 cli->getRaw("/api/v1/sesion/foto?id=" + QString::fromUtf8(QUrl::toPercentEncoding(id)),
                             [this, id](bool ok, const QByteArray& b) {
                                 if (ok && sesionRemota_) sesionRemota_->ponerFoto(id, b);
                             });
             });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::pedidoPalabra, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::pedidoPalabra, this,
                     [this](const QString& id, bool pedir) {
                         if (!bancas_) return;
                         if (pedir) bancas_->agregar(id);
                         else bancas_->quitar(id);
                     });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::aviso, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::aviso, this,
                     [this](const QString& t, const QString& nivel) { emit notify(t, nivel); });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::credencialesCambio, this, [this]() { sincronizarSesion(); });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::cambio, this, [this]() {
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::credencialesCambio, this, [this]() { sincronizarSesion(); });
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, [this]() {
                 if (quorum_) emit quorum_->cambio();
             });
             connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
@@ -1024,17 +1024,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             const auto programar = [this]() {
                 if (sesionRemota_ && sesionRemota_->hayConsolas() && !consolaTimer_.isActive()) consolaTimer_.start();
             };
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::cambio, this, programar);
-            connect(bancas_.get(), &legislatura::Bancas::cambio, this, programar);
-            connect(cuerpo_.get(), &legislatura::CuerpoViewModel::cambio, this, programar);
-            if (quorum_) connect(quorum_.get(), &legislatura::Quorum::cambio, this, programar);
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::consolaConexion, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, programar);
+            connect(bancas_.get(), &asamblea::Bancas::cambio, this, programar);
+            connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, programar);
+            if (quorum_) connect(quorum_.get(), &asamblea::Quorum::cambio, this, programar);
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::consolaConexion, this,
                     [this, cli](const QString& id, bool on) {
                         if (!on) return;
                         mandarEstadoConsola();
                         enlaceProgramaConsola(id);
                     });
-            connect(sesionRemota_.get(), &legislatura::SesionRemota::accionConsola, this,
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::accionConsola, this,
                     [this](const QString& id, const nlohmann::json& m) { accionConsola(id, m); });
             // El punto del orden del día en el celular de cada uno.
             bus_->suscribir("sesion/punto", [this](const std::string&, const nlohmann::json& p) {
@@ -1542,8 +1542,8 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
         ctx["guion"] = guion;
         ctx["evento"] = QJsonObject{{"nombre", evento_->property("nombre").toString()}};
     }
-    // El quórum de ahora y la última votación oficial (legislatura/Quorum), para
-    // las placas legislativas: {quorum.texto}, {votacion.resultado}…
+    // El quórum de ahora y la última votación oficial (asamblea/Quorum), para
+    // las placas de la asamblea: {quorum.texto}, {votacion.resultado}…
     if (quorum_) {
         const nlohmann::json q = quorum_->estado();
         if (q.value("configurado", false))
@@ -2242,7 +2242,7 @@ int StudioViewModel::vocabularioDelCuerpoUi() {
         const std::string n = i.value("nombre", std::string());
         if (n.empty()) continue;
         nombres.push_back(n);
-        // El apellido solo también (se dice «el diputado Pérez»).
+        // El apellido solo también (se dice «el consejero Pérez»).
         if (const auto sp = n.rfind(' '); sp != std::string::npos && n.size() - sp > 4) nombres.push_back(n.substr(sp + 1));
     }
     std::sort(nombres.begin(), nombres.end());
@@ -2455,7 +2455,7 @@ void StudioViewModel::seguirVotacionCentral() {
     const int numero = v.value("numero", 0);
     if (est == "abierta" && (remoto == "sin" || remoto == "cerrada" || !deLaCentral || actual.value("numero", -1) != numero)) {
         sesionRemota_->abrirVotacion(numero, v.value("tema", std::string()),
-                                     legislatura::SesionRemota::opcionesDeMenu(v.value("menu", std::string())),
+                                     asamblea::SesionRemota::opcionesDeMenu(v.value("menu", std::string())),
                                      sesionRemota_->votoSegundos(), "central");
     } else if (deLaCentral && est == "pausada" && remoto == "abierta") {
         sesionRemota_->pausarVotacion(true);
@@ -2610,7 +2610,7 @@ void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json
             }
         }
     } else if (t == "ptt") {
-        // «Apretar para hablar»: le avisa al legislador; el audio y el video van
+        // «Apretar para hablar»: le avisa al integrante; el audio y el video van
         // directo entre la consola y su navegador (WebRTC, señalizado por el gateway).
         sesionRemota_->ptt(id, m.value("activo", false), consola.toStdString());
     } else if (t == "foto_cuerpo") {

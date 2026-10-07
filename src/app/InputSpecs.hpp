@@ -52,7 +52,7 @@ bool esMicrofono(const std::string& type, const nlohmann::json& settings);
 
 /// Los ajustes de un `ba_gst_fuente` con el audio que el gateway deja en un
 /// anillo de memoria compartida (`baanillo`): `canal` guest (el invitado
-/// `slot`) o remoto (el legislador remoto con la palabra).
+/// `slot`) o remoto (el integrante remoto con la palabra).
 std::string ajustesAudioAnillo(const std::string& canal, int slot);
 
 /// El tipo «lógico» de una fuente, para las plantillas de rack y la interfaz:

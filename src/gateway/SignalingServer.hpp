@@ -134,7 +134,7 @@ class SignalingServer {
         /// preguntas la llene cualquiera que pase por el tunel.
         std::string publicoKey;
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
-        std::string sesionWebroot;   // Web/sesion (la sesión remota de los legisladores)
+        std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -274,7 +274,7 @@ class SignalingServer {
     void wsLoop(long long fd, const std::string& pid, uint64_t gen);
     void handleWsMessage(const std::string& pid, uint64_t gen, const nlohmann::json& msg);
     void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
-    /// R3: la oferta del celular de un legislador remoto con la palabra -> ruta Remoto 1.
+    /// R3: la oferta del celular de un integrante remoto con la palabra -> ruta Remoto 1.
     bool ofertaRemoto(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
 
     struct WsConn {
@@ -378,7 +378,7 @@ class SignalingServer {
     Rotulador rotulador_;
     /// La botonera (superficie de control): borde de red, ver Botonera.hpp.
     std::unique_ptr<BotoneraBorde> botonera_;
-    /// La sesión remota (legisladores desde afuera): borde de red, ver Sesion.hpp.
+    /// La sesión remota (integrantes desde afuera): borde de red, ver Sesion.hpp.
     std::unique_ptr<SesionBorde> sesion_;
     Preguntas preguntas_;
     Votacion votacion_;

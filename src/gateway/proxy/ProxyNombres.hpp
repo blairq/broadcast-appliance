@@ -53,7 +53,7 @@ class ProxyNombres {
         std::string bind = "0.0.0.0";
         uint16_t puertoTls = 443;
         uint16_t puertoHttp = 80; ///< 0 = no atender el 80
-        std::string dominio;      ///< "legislatura.gob.ar": los hosts son <servicio>.<dominio>
+        std::string dominio;      ///< "midominio.org": los hosts son <servicio>.<dominio>
         std::vector<Servicio> servicios;
         /// Qué servicio atiende si el nombre no coincide con ninguno (o se entra por IP).
         std::string porDefecto = "sala";

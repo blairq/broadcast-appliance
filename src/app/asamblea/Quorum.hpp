@@ -23,7 +23,7 @@
 #include <functional>
 #include <string>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class Quorum : public QObject {
     Q_OBJECT
@@ -70,4 +70,4 @@ class Quorum : public QObject {
     json oficiales_ = json::array();
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

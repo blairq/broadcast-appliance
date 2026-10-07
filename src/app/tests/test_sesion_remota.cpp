@@ -1,4 +1,4 @@
-// test_sesion_remota.cpp — la banca virtual (legislatura/SesionRemota): link y
+// test_sesion_remota.cpp — la banca virtual (asamblea/SesionRemota): link y
 // PIN con el mismo hash que verifica el gateway, conectar → esperar →
 // habilitar, la gracia al reconectar, presentes sin contar dos veces, registro.
 #include <QCoreApplication>
@@ -7,8 +7,8 @@
 
 #include <cstdio>
 
-#include "legislatura/Cuerpo.hpp"
-#include "legislatura/SesionRemota.hpp"
+#include "asamblea/Cuerpo.hpp"
+#include "asamblea/SesionRemota.hpp"
 
 using namespace ba::app;
 using json = nlohmann::json;
@@ -33,16 +33,16 @@ int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     QTemporaryDir dir;
     const std::filesystem::path d = dir.path().toStdString();
-    legislatura::Cuerpo cuerpo(d / "cuerpo.json");
+    asamblea::Cuerpo cuerpo(d / "cuerpo.json");
     std::string err;
     const std::string ana = cuerpo.guardar({{"nombre", "Ana Pérez"}, {"banca", "3"}}, &err);
     const std::string juan = cuerpo.guardar({{"nombre", "Juan Gómez"}, {"banca", "7"}}, &err);
-    legislatura::SesionRemota s(cuerpo, d);
+    asamblea::SesionRemota s(cuerpo, d);
     std::vector<json> enviados;
-    QObject::connect(&s, &legislatura::SesionRemota::enviar,
+    QObject::connect(&s, &asamblea::SesionRemota::enviar,
                      [&](const QString&, const nlohmann::json& m) { enviados.push_back(m); });
     int cortes = 0;
-    QObject::connect(&s, &legislatura::SesionRemota::cortar, [&](const QString&, const QString&) { ++cortes; });
+    QObject::connect(&s, &asamblea::SesionRemota::cortar, [&](const QString&, const QString&) { ++cortes; });
 
     s.setOrigen("https://sesion.ejemplo.org");
     const json c = s.generar(ana);
@@ -63,7 +63,7 @@ int main(int argc, char** argv) {
           "ni el token ni el PIN viajan en claro");
     // Persistencia: otra instancia lee lo mismo.
     {
-        legislatura::SesionRemota otra(cuerpo, d);
+        asamblea::SesionRemota otra(cuerpo, d);
         CHECK(otra.tieneCredencial(ana) && !otra.tieneCredencial(juan), "las credenciales se guardan");
     }
 
@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
     // Votación por el celular (R4): habilitado vota; el voto combinado con la central.
     s.evento({{"tipo", "conexion"}, {"id", juan}, {"conectado", true}, {"lugar", "sala"}});
     s.habilitar(juan, true, "presidencia");
-    CHECK(s.abrirVotacion(4, "Proyecto 12", legislatura::SesionRemota::opcionesDeMenu("si_no_abstencion"), 60, "central").empty(),
+    CHECK(s.abrirVotacion(4, "Proyecto 12", asamblea::SesionRemota::opcionesDeMenu("si_no_abstencion"), 60, "central").empty(),
           "abre la votación");
     CHECK(enviados.back().value("type", std::string()) == "votacion" && enviados.back().value("estado", std::string()) == "abierta",
           "le llega el cartel de votación");

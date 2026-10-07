@@ -73,7 +73,7 @@
 {"frase": "¿Podés juntar en una sola persona estas dos fichas repetidas?", "herramienta": "rostro_fusionar"}
 {"frase": "El reconocimiento lo muestra con dos nombres porque quedó duplicado, dejalo en una ficha.", "herramienta": "rostro_fusionar"}
 {"frase": "Dá de alta a Marta Gómez, ministra de Salud, con la cara que se ve en la cámara uno.", "herramienta": "rostro_guardar"}
-{"frase": "¿Le podés corregir el cargo al diputado para que salga bien en el zócalo?", "herramienta": "rostro_guardar"}
+{"frase": "¿Le podés corregir el cargo al consejero para que salga bien en el zócalo?", "herramienta": "rostro_guardar"}
 {"frase": "La ficha sin nombre de recién es el gobernador, poneles nombre y cargo.", "herramienta": "rostro_guardar"}
 {"frase": "Pasame la lista de todas las personas que tenemos cargadas para reconocer.", "herramienta": "rostro_listar"}
 {"frase": "¿A quiénes conoce el sistema y cuándo los vio por última vez?", "herramienta": "rostro_listar"}
@@ -680,7 +680,7 @@
 {"frase": "Fijate a quién se parece el invitado tres y con cuánta confianza", "herramienta": "rostro_ver"}
 {"frase": "No reconozco al tipo de la armada, ¿quién es?", "herramienta": "rostro_ver"}
 {"frase": "Acreditá al intendente, llegó recién por la puerta principal", "herramienta": "padron_acreditar"}
-{"frase": "Marcá en el padrón que la diputada ya se fue", "herramienta": "padron_acreditar"}
+{"frase": "Marcá en el padrón que la consejera ya se fue", "herramienta": "padron_acreditar"}
 {"frase": "Llegó el invitado por el acceso de prensa, dejalo registrado", "herramienta": "padron_acreditar"}
 {"frase": "¿Podés anotar la llegada de García con la hora y el ingreso?", "herramienta": "padron_acreditar"}
 {"frase": "Leeme el discurso del intendente, el de la apertura", "herramienta": "prompter_leer"}
@@ -1149,7 +1149,7 @@
 {"frase": "Sumale a la ficha del ministro la pose de perfil que se ve ahora en la cámara dos", "herramienta": "rostro_sumar"}
 {"frase": "Agregale otra toma de cara a la ficha de la conductora con lo que hay en guest 1", "herramienta": "rostro_sumar"}
 {"frase": "El reconocimiento no la agarra de costado, cargale esta pose a su rostro registrado", "herramienta": "rostro_sumar"}
-{"frase": "Enriquecé la ficha facial del diputado con la cara de la armada y decime si aportó", "herramienta": "rostro_sumar"}
+{"frase": "Enriquecé la ficha facial del consejero con la cara de la armada y decime si aportó", "herramienta": "rostro_sumar"}
 {"frase": "¿Le sirvió esa pose con anteojos a la ficha del invitado o ya la tenía?", "herramienta": "rostro_sumar"}
 {"frase": "Entrená un poco más el rostro del intendente con el primer plano de ahora", "herramienta": "rostro_sumar"}
 {"frase": "¿Quién es el tipo que aparece en la cámara del invitado? Reconocé la cara", "herramienta": "rostro_ver"}

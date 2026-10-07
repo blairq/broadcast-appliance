@@ -30,7 +30,7 @@ namespace ba::gateway {
 struct MediaRoute {
     /// Backstage: admitido en modo oradores, esperando su turno: RECIBE el
     /// programa pero lo que manda no va a ningun lado (ni al programa).
-    /// Remoto: un legislador remoto con la palabra (docs/SESION-REMOTA.md R3): lo que
+    /// Remoto: un integrante remoto con la palabra (docs/SESION-REMOTA.md R3): lo que
     /// manda va a BA.Audio.Remoto.<n> / BA.Remoto.<n>; no recibe nada por acá (el
     /// programa lo ve en su página).
     enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto };

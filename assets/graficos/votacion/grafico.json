@@ -1,6 +1,6 @@
 {
   "nombre": "Resultado de votación",
-  "categoria": "Legislatura",
+  "categoria": "Asamblea",
   "descripcion": "El resultado oficial de una votación: afirmativos, negativos, abstenciones y si se aprobó. Pantalla completa.",
   "ancho": 1920,
   "alto": 1080,

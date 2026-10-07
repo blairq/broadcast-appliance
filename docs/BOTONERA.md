@@ -15,7 +15,7 @@ Página **Botonera** (riel, grupo Producción) → **Editor**:
 1. **Perfiles.** Cada perfil es un *puesto* (director, audio, gráficos, sala) con su lista de
    **herramientas permitidas**: lo que no está en la lista, el aparato no lo puede hacer aunque la celda
    lo pida. De fábrica hay un perfil **Director** armado con las escenas que existen. Con «＋» se crea
-   otro, vacío o desde una plantilla (Director, Audio, Legislatura, Prompter).
+   otro, vacío o desde una plantilla (Director, Audio, Asamblea, Prompter).
 2. **Páginas.** Una grilla de columnas × filas (hasta 16 × 16). Un perfil puede tener varias; en la
    tablet se cambia con las pestañas de abajo, o con una celda de acción «página».
 3. **Celdas.** Tocá un hueco o una celda: tipo (botón, fader, perilla, medidor, texto, reloj), texto,

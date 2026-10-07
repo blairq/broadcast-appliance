@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // Bancas: la fila de oradores del recinto. Cada banca sale del Cuerpo
-// (legislatura/Cuerpo): su preset PTZ, su micrófono, su nombre y cargo validados.
+// (asamblea/Cuerpo): su preset PTZ, su micrófono, su nombre y cargo validados.
 // Es la FILA ÚNICA: también entran los que hablan desde el navegador (la sesión
 // remota, en la sala o afuera; docs/SESION-REMOTA.md). A esos no se les mueve
 // ninguna cámara: se les da la palabra por la sesión remota (`palabraRemota`).
@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class Cuerpo;
 
@@ -103,4 +103,4 @@ class Bancas : public QObject {
     std::string aviso_;
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

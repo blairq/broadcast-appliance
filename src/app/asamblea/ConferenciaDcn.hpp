@@ -14,7 +14,7 @@
 //   * instalar y prender el plugin la primera vez que se conecta.
 //
 // La usan las herramientas MCP dcn_* (mcp/McpDcnTools.cpp), la página
-// Conferencia (Legislatura) y Bancas («al aire» abre el micrófono de la banca
+// Conferencia (Asamblea) y Bancas («al aire» abre el micrófono de la banca
 // por la central cuando está conectada).
 #pragma once
 
@@ -35,7 +35,7 @@ namespace ba::app::control {
 class BusEventos;
 }
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class ConferenciaDcn : public QObject {
     Q_OBJECT
@@ -73,7 +73,7 @@ class ConferenciaDcn : public QObject {
     void setPresentesDeLaCentral(bool si);
     /// Presentes según la asistencia de la central (-1 si no hay dato o no está conectada).
     int presentesCentral() const;
-    /// Quién carga un resultado oficial en Quórum (legislatura/Quorum::cargarOficial).
+    /// Quién carga un resultado oficial en Quórum (asamblea/Quorum::cargarOficial).
     void setAQuorum(std::function<json(const json&)> fn) { aQuorum_ = std::move(fn); }
     /// La última votación CERRADA de la central, como resultado oficial de Quórum
     /// (con el voto de cada banca). {resultado} o {error}.
@@ -104,4 +104,4 @@ class ConferenciaDcn : public QObject {
     std::function<json(const json&)> aQuorum_;
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

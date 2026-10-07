@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// La interfaz del Cuerpo (legislatura/Cuerpo): la tabla de integrantes con su
+// La interfaz del Cuerpo (asamblea/Cuerpo): la tabla de integrantes con su
 // banca, cargo, bloque, cámara/preset y micrófono; importar planilla; validar.
 #pragma once
 
-#include "legislatura/Cuerpo.hpp"
+#include "asamblea/Cuerpo.hpp"
 
 #include <QImage>
 #include <QObject>
@@ -14,7 +14,7 @@
 #include <functional>
 #include <memory>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class CuerpoViewModel : public QObject {
     Q_OBJECT
@@ -71,4 +71,4 @@ class CuerpoViewModel : public QObject {
     QString guardarFoto(const QString& id, const QImage& img);
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

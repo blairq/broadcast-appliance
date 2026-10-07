@@ -1,9 +1,9 @@
 // ============================================================================
 // src/gateway/Sesion.hpp — el borde de red de la sesión remota (docs/SESION-REMOTA.md)
 //
-// Legisladores que sesionan desde afuera. La app (A) es la fuente de verdad:
+// Integrantes que sesionan desde afuera. La app (A) es la fuente de verdad:
 // quién tiene credencial, quién está habilitado, la palabra y la votación viven
-// allá (src/app/legislatura/SesionRemota). Este lado (B) es SOLO el borde:
+// allá (src/app/asamblea/SesionRemota). Este lado (B) es SOLO el borde:
 // sirve la página, autentica cada WebSocket con el link personal y el PIN, guarda
 // la última foto de la cámara de cada uno (para que el operador lo vea antes de
 // habilitarlo) y reparte mensajes. No decide nada.
@@ -13,7 +13,7 @@
 // integrante. Es transparente estar en la sala o afuera (también es el respaldo
 // de la central): cada conexión dice su `lugar` ("sala" | "afuera").
 //
-// Legislador (puerto de invitados, 8787, o el HTTPS 8789, o el túnel):
+// Integrante (puerto de invitados, 8787, o el HTTPS 8789, o el túnel):
 //   GET /sesion/...            la página (CSP estricta)
 //   GET /ws?sesion=1           WebSocket de texto (JSON). Primer mensaje
 //        {type:"auth", i, t, pin} (el link trae i y t en el fragmento, nunca
@@ -23,7 +23,7 @@
 //
 // App (API de control, loopback + Bearer):
 //   POST /api/v1/sesion/credenciales {participantes:[{id, nombre, banca, sal, hash_token, hash_pin}]}
-//   POST /api/v1/sesion/enviar       {id | "*" (legisladores) | "consolas", msg}
+//   POST /api/v1/sesion/enviar       {id | "*" (integrantes) | "consolas", msg}
 //   POST /api/v1/sesion/cortar       {id, motivo}
 //   GET  /api/v1/sesion/estado       conexiones vivas
 //   GET  /api/v1/sesion/foto?id=     la última foto de su cámara (image/jpeg)
@@ -37,8 +37,8 @@
 //   GET /ws?presidencia=1      primer mensaje {type:"auth", c, t, pin}: credencial propia
 //        (id "consola:<c>"). Manda lo que la app decide (habilitar, dar_palabra,
 //        votacion, ptt…), pide fotos {type:"foto", id} y hace de punta de la
-//        señalización WebRTC directa con un legislador ({type:"rtc", a, …}: el
-//        gateway solo la pasa, y solo entre una consola y un legislador).
+//        señalización WebRTC directa con un integrante ({type:"rtc", a, …}: el
+//        gateway solo la pasa, y solo entre una consola y un integrante).
 //
 // Seguridad: el token del link (256 bits) y el PIN se guardan solo como hash con
 // sal; comparación en tiempo constante; 10 intentos por IP cada 10 min; 5 PIN
@@ -79,7 +79,7 @@ class SesionBorde {
     /// R3: lo que manda el celular del que tiene la palabra va a la app por el
     /// WebRTC del gateway. Lo arma SignalingServer (que tiene el hub y el pump).
     struct Medios {
-        /// Una oferta del legislador `id`: `enviar` le contesta (respuesta e ICE). false si no se pudo.
+        /// Una oferta del integrante `id`: `enviar` le contesta (respuesta e ICE). false si no se pudo.
         std::function<bool(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar)>
             oferta;
         std::function<void(const std::string& id, const std::string& candidato)> ice;

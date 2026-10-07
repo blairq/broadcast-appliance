@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/Bancas.hpp"
+#include "asamblea/Bancas.hpp"
 
-#include "legislatura/Cuerpo.hpp"
+#include "asamblea/Cuerpo.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -9,7 +9,7 @@
 
 #include <algorithm>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 
@@ -172,4 +172,4 @@ json Bancas::oradorParaZocalo() const {
             {"validado", i.contains("validado_por")}};
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

@@ -41,12 +41,12 @@ int main(int argc, char** argv) {
     CHECK(salieron == QStringList{"sin cola"}, "apagada: sale directo");
 
     fl.setCorreccion(true, 600);
-    fl.publicar("Sala", "la diputada perez", "Voz a texto en «Mic»", 1.0);
+    fl.publicar("Sala", "la consejera perez", "Voz a texto en «Mic»", 1.0);
     fl.publicar("Sala", "texto del operador", "Escrito a mano");
     CHECK(salieron.size() == 2 && salieron.last() == "texto del operador", "lo escrito a mano no espera");
     CHECK(fl.pendientes().size() == 1, "la transcripción espera");
     const auto id = fl.pendientes()[0].value("id", 0ULL);
-    CHECK(fl.corregir(id, "la diputada Pérez", false).empty() && salieron.last() == "la diputada Pérez", "corregida sale ya");
+    CHECK(fl.corregir(id, "la consejera Pérez", false).empty() && salieron.last() == "la consejera Pérez", "corregida sale ya");
     CHECK(!fl.corregir(id, "otra", false).empty(), "no se corrige dos veces");
 
     fl.publicar("Sala", "esto se tira", "Voz a texto en «Mic»", 1.0);
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
             QFile f(a);
             f.open(QIODevice::ReadOnly);
             const QString t = QString::fromUtf8(f.readAll());
-            vtt = t.startsWith("WEBVTT") && t.contains(" --> ") && t.contains("la diputada Pérez") && !t.contains("esto se tira");
+            vtt = t.startsWith("WEBVTT") && t.contains(" --> ") && t.contains("la consejera Pérez") && !t.contains("esto se tira");
         }
     CHECK(vtt, "WebVTT con lo que salió (corregido, sin lo descartado)");
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);

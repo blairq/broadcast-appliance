@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/SeguirMicrofono.hpp"
+#include "asamblea/SeguirMicrofono.hpp"
 
 #include "control/BusEventos.hpp"
-#include "legislatura/Bancas.hpp"
-#include "legislatura/Cuerpo.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/Cuerpo.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -11,7 +11,7 @@
 
 #include <fstream>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -209,4 +209,4 @@ QString SeguirMicrofono::configurarUi(const QVariantMap& c) {
     return QString::fromStdString(configurar(j));
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

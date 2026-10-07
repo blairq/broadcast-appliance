@@ -915,7 +915,7 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 6
                             CheckBox { id: pxActivo; text: "Activo"; checked: !!proxyPanel.cfgp.activo }
-                            TextField { id: pxDominio; Layout.fillWidth: true; placeholderText: "dominio (p. ej. legislatura.gob.ar)"; text: proxyPanel.cfgp.dominio || "" }
+                            TextField { id: pxDominio; Layout.fillWidth: true; placeholderText: "dominio (p. ej. midominio.org)"; text: proxyPanel.cfgp.dominio || "" }
                         }
                         RowLayout {
                             Layout.fillWidth: true

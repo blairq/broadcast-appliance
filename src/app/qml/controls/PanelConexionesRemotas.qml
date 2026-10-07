@@ -3,7 +3,7 @@
 // link personal con PIN, su contraseña (para entrar tipeando), sus datos de
 // contacto, si está conectado o bloqueado, y el registro. Habilitar a los que
 // entran se hace en el Recinto (su banca muestra la cara). Fuente:
-// Studio.sesionRemota (legislatura/SesionRemota); lo mismo por MCP con sesion_*.
+// Studio.sesionRemota (asamblea/SesionRemota); lo mismo por MCP con sesion_*.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts

@@ -287,13 +287,13 @@ ApplicationWindow {
     Component { id: cmpPlugins;    PluginsPage {} }
     Component { id: cmpEquipos;    EquiposPage {} }
     Component { id: cmpBotonera;   BotoneraPage {} }
-    Component { id: cmpLegislatura; LegislaturaPage {} }
+    Component { id: cmpAsamblea; AsambleaPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpLegislatura][i] || null
+                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea][i] || null
     }
 
     ListModel { id: sueltas }

@@ -7,7 +7,7 @@
 #include <cstdio>
 
 #include "control/BusEventos.hpp"
-#include "legislatura/OrdenDelDia.hpp"
+#include "asamblea/OrdenDelDia.hpp"
 
 using namespace ba::app;
 using json = nlohmann::json;
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     QTemporaryDir dir;
     control::BusEventos bus;
-    legislatura::OrdenDelDia od(dir.path().toStdString(), bus);
+    asamblea::OrdenDelDia od(dir.path().toStdString(), bus);
     int n = 0;
     CHECK(od.cargar("1. Expte. 123/24 – Ley de bosques\n2) Homenaje a los veteranos\n\n3 - Expediente Nº 77/25: Presupuesto", &n).empty() && n == 3,
           "tres puntos de texto");
@@ -62,15 +62,15 @@ int main(int argc, char** argv) {
     }
     CHECK(ana, "el tiempo de Ana repartido entre los puntos 1 y 2");
     CHECK(remoto, "los remotos suman su tiempo");
-    od.punto(2, "comision", "pasa a Legislación General");
+    od.punto(2, "comision", "pasa a Asuntos Generales");
     const std::string a = od.anexoActa(json::array());
     CHECK(a.find("## Orden del día") != std::string::npos && a.find("a comisión") != std::string::npos &&
-              a.find("Legislación General") != std::string::npos && a.find("## Uso de la palabra") != std::string::npos,
+              a.find("Asuntos Generales") != std::string::npos && a.find("## Uso de la palabra") != std::string::npos,
           "anexo del acta");
     CHECK(!od.punto(9, "votado", "").empty(), "punto inexistente");
     CHECK(!od.punto(1, "raro", "").empty(), "estado inválido");
     {
-        legislatura::OrdenDelDia otra(dir.path().toStdString(), bus);
+        asamblea::OrdenDelDia otra(dir.path().toStdString(), bus);
         CHECK(otra.puntos().size() == 2, "queda guardado");
     }
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);

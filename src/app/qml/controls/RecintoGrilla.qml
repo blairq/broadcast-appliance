@@ -1,5 +1,5 @@
 // El recinto: las bancas como se ven desde la cabina, para tocar. Fuente:
-// Studio.cuerpo.recinto (legislatura/Cuerpo), Studio.bancas (la fila de
+// Studio.cuerpo.recinto (asamblea/Cuerpo), Studio.bancas (la fila de
 // oradores presenciales), Studio.dcn (la central) y Studio.sesionRemota (los que
 // entran desde el navegador, en la sala o afuera).
 //
@@ -271,7 +271,7 @@ ColumnLayout {
                                                                        : celda.rem && celda.rem.lugar === "sala" ? "Conectado con el celular desde la sala" : "Conectado desde afuera"
                            HoverHandler { id: hvR } }
                     Text { visible: celda.sinUnidad && !celda.conectado; text: "⏻"; color: Theme.textFaint; font.pixelSize: 11
-                           ToolTip.visible: hvU.hovered; ToolTip.text: celda.uni === null ? "Sin unidad de la central (Legislatura → Conferencia → Unidades)" : "Unidad desconectada"
+                           ToolTip.visible: hvU.hovered; ToolTip.text: celda.uni === null ? "Sin unidad de la central (Asamblea → Conferencia → Unidades)" : "Unidad desconectada"
                            HoverHandler { id: hvU } }
                     Text { visible: celda.turno > 0; text: "#" + celda.turno; color: Theme.amber; font { pixelSize: 11; weight: Font.DemiBold } }
                     Text { visible: celda.i !== null && !celda.i.validado; text: "⚠"; color: Theme.amber; font.pixelSize: 11

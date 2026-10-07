@@ -1,15 +1,15 @@
 // ============================================================================
 // src/app/mcp/McpSesionTools.cpp — la banca virtual (sesión remota), por MCP
 //
-// Los legisladores entran desde el navegador con su link personal y su PIN, en
+// Los integrantes entran desde el navegador con su link personal y su PIN, en
 // la sala o afuera (docs/SESION-REMOTA.md). Estas herramientas hablan de
 // BANCAS (o del id o el nombre del integrante, como en el Cuerpo).
 // ============================================================================
 
-#include "legislatura/Cuerpo.hpp"
-#include "legislatura/CuerpoViewModel.hpp"
-#include "legislatura/Quorum.hpp"
-#include "legislatura/SesionRemota.hpp"
+#include "asamblea/Cuerpo.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
+#include "asamblea/Quorum.hpp"
+#include "asamblea/SesionRemota.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -17,11 +17,11 @@
 namespace ba::app::mcp {
 
 void McpService::registerSesionTools() {
-    legislatura::SesionRemota* s = vm_.sesionRemota();
+    asamblea::SesionRemota* s = vm_.sesionRemota();
     if (s == nullptr) return;
     auto& cuerpo = vm_.cuerpo().cuerpo();
     core_.addCategory("sesion", "Banca virtual (sesión remota)",
-                      "Legisladores que sesionan desde el navegador (en la sala o afuera): link personal y PIN, "
+                      "Integrantes que sesionan desde el navegador (en la sala o afuera): link personal y PIN, "
                       "habilitarlos viéndolos por la cámara, presentes por la banca virtual, registro para el acta.");
 
     const json quien = {{"type", "string"}, {"description", "La banca, el id o el nombre del integrante (como en el Cuerpo)."}};
@@ -61,12 +61,12 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_credencial";
-        t.title = "Link y PIN de un legislador";
+        t.title = "Link y PIN de un integrante";
         t.category = "sesion";
         t.destructive = true;
         t.description = "Genera el link personal y el PIN de la banca virtual de un integrante (si ya tenía, el "
                         "anterior deja de andar). El link y el PIN se muestran UNA sola vez: se le pasan al "
-                        "legislador por un canal seguro (no por el chat de la transmisión).";
+                        "integrante por un canal seguro (no por el chat de la transmisión).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"banca", quien}}}, {"required", {"banca"}}};
         t.run = [s, idDe](const json& a, Done done) {
             std::string e;
@@ -81,7 +81,7 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_clave";
-        t.title = "Usuario y contraseña de un legislador";
+        t.title = "Usuario y contraseña de un integrante";
         t.category = "sesion";
         t.destructive = true;
         t.description = "Le da usuario y contraseña para entrar tipeando en …/sesion/ (sin el link). La contraseña "
@@ -124,7 +124,7 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_revocar";
-        t.title = "Revocar el link de un legislador";
+        t.title = "Revocar el link de un integrante";
         t.category = "sesion";
         t.destructive = true;
         t.description = "Su link deja de andar (y si está conectado, se lo corta). Para volver a entrar necesita uno nuevo.";
@@ -141,7 +141,7 @@ void McpService::registerSesionTools() {
     {
         Tool t;
         t.name = "sesion_habilitar";
-        t.title = "Habilitar a un legislador de la banca virtual";
+        t.title = "Habilitar a un integrante de la banca virtual";
         t.category = "sesion";
         t.description = "Con `habilitado: true` (de fábrica) cuenta como presente y, en las fases siguientes, puede "
                         "pedir la palabra y votar; con false vuelve a esperar. Solo después de VERLO por la cámara "
@@ -185,7 +185,7 @@ void McpService::registerSesionTools() {
         t.name = "sesion_votacion";
         t.title = "Votación en los celulares";
         t.category = "sesion";
-        t.description = "Los legisladores habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
+        t.description = "Los integrantes habilitados votan desde el celular (cartel rojo con el tema, las opciones y la "
                         "cuenta regresiva). Si la central abre una votación, los celulares la siguen solos; esto es para "
                         "votar SIN la central (o ver cómo va): `accion` abrir {tema, menu: si_no | si_no_abstencion | "
                         "si_no_abstencion_nppv, segundos} | pausar | reanudar | cerrar | estado | a_quorum (carga el "
@@ -238,7 +238,7 @@ void McpService::registerSesionTools() {
         t.category = "sesion";
         t.destructive = true;
         t.description = "La consola web de la presidencia (…/presidencia/): el recinto con las caras, habilitar, la fila de "
-                        "oradores y su tiempo, la votación, el programa en vivo y el legislador que habla, y «apretar para "
+                        "oradores y su tiempo, la votación, el programa en vivo y el integrante que habla, y «apretar para "
                         "hablar» con los que pidieron la palabra. `accion` crear {nombre} (devuelve link y PIN UNA vez) | "
                         "revocar {id} | listar.";
         t.inputSchema = {{"type", "object"},

@@ -1,4 +1,4 @@
-// Legislatura: todo lo de una sesión de un cuerpo deliberativo en un lugar.
+// Asamblea: todo lo de una sesión de un cuerpo deliberativo en un lugar.
 //
 //   Conferencia   la central del recinto (Bosch DCN): micrófonos de banca,
 //                 pedidos de palabra, oradores, unidades y conexión
@@ -27,7 +27,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             spacing: 10
-            Text { text: "Legislatura" + (Studio.cuerpo.nombre ? " · " + Studio.cuerpo.nombre : ""); color: Theme.text
+            Text { text: "Asamblea" + (Studio.cuerpo.nombre ? " · " + Studio.cuerpo.nombre : ""); color: Theme.text
                    font { pixelSize: 20; weight: Font.DemiBold } }
             Item { Layout.fillWidth: true }
             GlassButton { text: "Cuerpo (" + Studio.cuerpo.integrantes.length + ")…"; onClicked: cuerpo.open() }
@@ -60,11 +60,11 @@ Rectangle {
         }
     }
 
-    // ui_show_page {page: "legislatura", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "conexiones"}
+    // ui_show_page {page: "asamblea", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "conexiones"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
-            if (pagina !== "legislatura") return
+            if (pagina !== "asamblea") return
             const partes = seccion.toLowerCase().split("/")
             const i = ["conferencia", "recinto", "orden", "votacion", "conexiones"].indexOf(partes[0])
             if (i >= 0) tabs.currentIndex = i

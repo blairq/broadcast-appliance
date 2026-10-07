@@ -246,7 +246,7 @@ void McpService::registerTraduccionTools() {
         x.readOnly = true;
         x.description = "Los términos que la traducción respeta (castellano -> en, pt, fr, de, ru, zh), por "
                         "grupo («general», "
-                        "«legislativo-chubut», «operador»), cuáles están activos, y `archivo`: el JSON del "
+                        "«asamblea», «operador»), cuáles están activos, y `archivo`: el JSON del "
                         "operador, que también se puede "
                         "editar directamente (se suma al de fábrica y lo pisa). Con `buscar` filtra.";
         x.inputSchema = {{"type", "object"},
@@ -370,7 +370,7 @@ void McpService::registerTraduccionTools() {
         x.description =
             "Saca el término `es` (uno de fábrica queda apagado, no se borra). Con `grupo` y `activo`, "
             "prende o "
-            "apaga un grupo entero (p. ej. «legislativo-chubut» fuera de una sesión legislativa).";
+            "apaga un grupo entero (p. ej. «asamblea» fuera de una asamblea).";
         x.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"es", {{"type", "string"}}},

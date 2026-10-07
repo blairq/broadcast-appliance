@@ -1,6 +1,6 @@
 {
-  "nombre": "Zócalo de legislador",
-  "categoria": "Legislatura",
+  "nombre": "Zócalo de integrante",
+  "categoria": "Asamblea",
   "descripcion": "Nombre, cargo y bloque de quien habla desde su banca, abajo a la izquierda. Los datos salen validados del Cuerpo.",
   "ancho": 1100,
   "alto": 240,
@@ -16,7 +16,7 @@
       "clave": "cargo",
       "titulo": "Cargo",
       "tipo": "texto",
-      "porDefecto": "Concejal",
+      "porDefecto": "Integrante",
       "ayuda": "El cargo oficial."
     },
     {

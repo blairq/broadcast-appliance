@@ -1,8 +1,8 @@
 # Crítica de experto: Broadcast Appliance frente a una producción de TV en vivo
 
-> Segundo informe. El primero es [INFORME-FUNCIONES.md](INFORME-FUNCIONES.md), con el inventario de funciones y las 400 herramientas MCP. Este lo mira con los ojos de un técnico de control room que hizo vivos con switchers Ross, Grass Valley y ATEM, gráficos Chyron y Vizrt, playout, consolas de audio de broadcast, intercom y transmisiones legislativas.
+> Segundo informe. El primero es [INFORME-FUNCIONES.md](INFORME-FUNCIONES.md), con el inventario de funciones y las 400 herramientas MCP. Este lo mira con los ojos de un técnico de control room que hizo vivos con switchers Ross, Grass Valley y ATEM, gráficos Chyron y Vizrt, playout, consolas de audio de broadcast, intercom y transmisiones de sesiones.
 >
-> **Caso de uso que ordena las prioridades: las sesiones de la Legislatura del Chubut.** Son largas (3 a 8 horas), con muchos oradores sentados en bancas, uso de la palabra por turno, votaciones, cuartos intermedios, versión taquigráfica y archivo. Además hay una obligación de accesibilidad: la Ley 26.522, art. 66, pide subtitulado oculto, lengua de señas y audiodescripción en la TV abierta. Una transmisión institucional por streaming no está obligada en lo formal (suposición: depende de cómo se emita), pero es el estándar que se va a pedir.
+> **Caso de uso que ordena las prioridades: las sesiones de una asamblea deliberativa.** Son largas (3 a 8 horas), con muchos oradores sentados en bancas, uso de la palabra por turno, votaciones, cuartos intermedios, versión taquigráfica y archivo. Además hay una obligación de accesibilidad: la Ley 26.522, art. 66, pide subtitulado oculto, lengua de señas y audiodescripción en la TV abierta. Una transmisión institucional por streaming no está obligada en lo formal (suposición: depende de cómo se emita), pero es el estándar que se va a pedir.
 >
 > Todo lo que se afirma sobre el sistema sale del código, con las rutas citadas en el informe 1. Las comparaciones con productos comerciales son de conocimiento general del mercado.
 
@@ -45,7 +45,7 @@ Las debilidades están donde un profesional mira primero:
 4. **Interfaz física.** No hay superficies de control, tally de hardware, GPIO ni hotkeys globales.
 5. **Interconexión profesional.** No hay salida NDI, SDI, SRT ni ST 2110, ni timecode.
 
-Para una Legislatura la mayoría de esas faltas se pueden cubrir sin convertirlo en un Ross. Pero las primeras dos categorías son las que, si fallan, **tiran abajo una sesión**. Ahí hay que poner el esfuerzo antes que en features nuevas.
+Para una asamblea la mayoría de esas faltas se pueden cubrir sin convertirlo en un Ross. Pero las primeras dos categorías son las que, si fallan, **tiran abajo una sesión**. Ahí hay que poner el esfuerzo antes que en features nuevas.
 
 ---
 
@@ -94,7 +94,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 - **Un solo `rtmp_output`.** Si YouTube se cae o rechaza la clave, no hay plan B.
 - `startStreaming` **devuelve "ok" sin hacer nada** si ya había una transmisión: el asistente o un operador creen haber cambiado de destino y no cambió. Es un error silencioso, el peor tipo de error en vivo.
 - Solo fps enteros: si mañana hay que entregar a un canal de TV en 59,94, no se puede.
-- RTMP sobre redes inestables (la Legislatura saliendo por un enlace de oficina) no tiene ni recuperación de paquetes ni latencia controlada.
+- RTMP sobre redes inestables (la asamblea saliendo por un enlace de oficina) no tiene ni recuperación de paquetes ni latencia controlada.
 
 **Mejoras.**
 
@@ -120,7 +120,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 - **Replay** para repetir un momento: en una sesión, "repetimos la votación" o la jugada de la discusión.
 
 **Riesgos en vivo.**
-- Grabación y stream **comparten encoder**: si el stream va a 4 Mbps para que entre por la red de la Legislatura, el archivo oficial de la sesión también queda en 4 Mbps.
+- Grabación y stream **comparten encoder**: si el stream va a 4 Mbps para que entre por la red de la asamblea, el archivo oficial de la sesión también queda en 4 Mbps.
 - La ISO existe **pero solo por MCP**: un operador humano no la puede prender.
 - Después de una caída de A, la grabación sigue en un archivo nuevo. Correcto en MKV, pero si alguien eligió MP4, el archivo viejo queda corrupto.
 - No hay control de espacio en disco visible antes de arrancar. El disparador `disk` existe, pero solo grabando y solo si alguien lo creó.
@@ -149,7 +149,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 
 **Riesgos en vivo.**
 - Operar un vivo de 6 horas solo con mouse y una pantalla táctil es **cansador y propenso a errores**. Las teclas existen solo con foco en ciertas tarjetas.
-- El **tally es una página web en un televisor**. Si el Wi-Fi se cae, el camarógrafo no sabe si está al aire. En la Legislatura, con cámaras PTZ fijas, importa menos para el camarógrafo, pero mucho para **el orador remoto**: necesita saber que está al aire, y eso sí lo tiene en la web del invitado.
+- El **tally es una página web en un televisor**. Si el Wi-Fi se cae, el camarógrafo no sabe si está al aire. En la asamblea, con cámaras PTZ fijas, importa menos para el camarógrafo, pero mucho para **el orador remoto**: necesita saber que está al aire, y eso sí lo tiene en la web del invitado.
 - El multiview no avisa que una fuente perdió señal: una entrada de red que se cae queda congelada o en negro **sin alarma visual**.
 
 **Mejoras.**
@@ -176,7 +176,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 - Grabación ISO de cada invitado.
 
 **Riesgos en vivo.**
-- **Sin mix-minus** el invitado escucha su voz con 200-500 ms de retardo. Mucha gente no puede hablar así: se traba y se corta. Además, si el invitado usa parlantes, el AEC del navegador tiene que cancelar su propia voz demorada; cuando falla, **hay eco al aire**. En una sesión con legisladores conectados desde sus despachos es el problema número uno.
+- **Sin mix-minus** el invitado escucha su voz con 200-500 ms de retardo. Mucha gente no puede hablar así: se traba y se corta. Además, si el invitado usa parlantes, el AEC del navegador tiene que cancelar su propia voz demorada; cuando falla, **hay eco al aire**. En una sesión con integrantes conectados desde sus despachos es el problema número uno.
 - No hay alarma de mala conexión: el operador se entera cuando el invitado se congela al aire.
 - El cupo de fábrica es 2 invitados y subirlo **reinicia el gateway**: no se puede cambiar en medio de la sesión.
 - Un solo hilo de red de libwebrtc es el techo de escala documentado. Con 16 invitados no está medido desde otro equipo.
@@ -196,12 +196,12 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 
 ## 6. Modo oradores (uso de la palabra)
 
-**Qué esperaría un profesional legislativo.** El uso de la palabra lo maneja la Presidencia de la sesión, normalmente con un **sistema de conferencia** (Bosch DICENTIS/DCN, Televic Confidea, Shure MXCW, Sennheiser). Cada banca tiene micrófono con botón de pedido de palabra, y la consola de Presidencia lo habilita. Las transmisiones profesionales **siguen al micrófono**: cuando se abre el micrófono de la banca 12, la cámara va al preset de la banca 12 y sale el zócalo con nombre y bloque.
+**Qué esperaría un profesional de sesiones.** El uso de la palabra lo maneja la Presidencia de la sesión, normalmente con un **sistema de conferencia** (Bosch DICENTIS/DCN, Televic Confidea, Shure MXCW, Sennheiser). Cada banca tiene micrófono con botón de pedido de palabra, y la consola de Presidencia lo habilita. Las transmisiones profesionales **siguen al micrófono**: cuando se abre el micrófono de la banca 12, la cámara va al preset de la banca 12 y sale el zócalo con nombre y bloque.
 
-**Lo que tiene.** Fila de oradores con tiempos, al aire de a uno o varios, presentador fijo, reloj que cuenta en negativo y no corta a nadie (correcto para una legislatura: el tiempo lo administra la Presidencia, no la máquina) y tablero de solo lectura.
+**Lo que tiene.** Fila de oradores con tiempos, al aire de a uno o varios, presentador fijo, reloj que cuenta en negativo y no corta a nadie (correcto para una asamblea: el tiempo lo administra la Presidencia, no la máquina) y tablero de solo lectura.
 
 **Riesgos en vivo.**
-- Funciona solo para quien está **conectado a la sala WebRTC**. Los legisladores presentes en el recinto no están en la fila. Hoy se resuelve con cues del guion, que no sirven para un debate donde la palabra cambia cada 2 minutos sin orden previo.
+- Funciona solo para quien está **conectado a la sala WebRTC**. Los integrantes presentes en el recinto no están en la fila. Hoy se resuelve con cues del guion, que no sirven para un debate donde la palabra cambia cada 2 minutos sin orden previo.
 
 **Mejoras.**
 
@@ -210,7 +210,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 | Imprescindible | Medio | **Oradores presenciales en la fila**: entradas "banca" (persona del padrón + preset de cámara + micrófono), manejadas con el mismo `speaker_on_air`. Un toque en "Banca 12" y sale la cámara, el zócalo y arranca el reloj. |
 | Imprescindible | Grande | **Integración con el sistema de micrófonos del recinto** (Bosch DICENTIS y Televic tienen API IP; Shure MXCW y algunos Sennheiser también): micrófono abierto → preset PTZ + rótulo + reloj. Es la automatización que más trabajo le saca al operador. Se puede hacer como plugin de Python (la arquitectura ya lo permite), pero tiene que ser un plugin **oficial y probado**. |
 | Importante | Chico | Si no hay sistema de conferencia: **"seguir al micrófono abierto"** con los niveles del mezclador (el `audio_peak` y el analizador ya existen). Micrófono de la banca con nivel sostenido → propuesta de corte a su preset, que el operador confirma con una tecla. |
-| Deseable | Chico | Exportar los tiempos de uso de la palabra por legislador al acta. |
+| Deseable | Chico | Exportar los tiempos de uso de la palabra por integrante al acta. |
 
 ---
 
@@ -228,7 +228,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 **Riesgos en vivo.**
 - **Un plugin CLAP que crashea tira `ba-app` entera**, con la transmisión. Con ~200 plugins LSP y un asistente que puede agregar cualquiera, es un riesgo real.
 - **Sin loudness del programa** nadie sabe si la sesión sale a -30 LUFS (inaudible en un celular) o a -10 (la plataforma la normaliza y bombea).
-- **Una legislatura tiene 20-40 micrófonos abiertos en potencia.** Sin automixer, el ruido de sala y el filtrado por peine de varios micrófonos abiertos degradan mucho la inteligibilidad. El Automixer está escrito en `src/core/dsp/` y **no se usa**. Muchas veces el sistema de conferencia del recinto ya entrega una mezcla; si no, hace falta.
+- **Una asamblea grande tiene 20-40 micrófonos abiertos en potencia.** Sin automixer, el ruido de sala y el filtrado por peine de varios micrófonos abiertos degradan mucho la inteligibilidad. El Automixer está escrito en `src/core/dsp/` y **no se usa**. Muchas veces el sistema de conferencia del recinto ya entrega una mezcla; si no, hace falta.
 - Sin compensación de latencia, poner un limitador con lookahead en un micrófono y no en otro **desfasa** micrófonos que captan la misma fuente (filtrado por peine).
 - El PFL no está en el mezclador: el operador no puede escuchar rápido "¿de dónde viene ese zumbido?".
 
@@ -252,7 +252,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 **Qué esperaría un profesional.** La Matriz está bien pensada: 6 pistas nativas, buses virtuales, salidas físicas y escucha. Un profesional agregaría:
 - **mix-minus generados** (ver §5);
 - **salidas a varios dispositivos a la vez** (hoy el monitoreo de libobs sale por una sola);
-- **audio sobre IP** (AES67/Dante) si la Legislatura tiene consola digital.
+- **audio sobre IP** (AES67/Dante) si la asamblea tiene consola digital.
 
 **Riesgos en vivo.** Los buses virtuales suman 20-30 ms: si alguien mete por ahí la mezcla de programa y la vuelve a mezclar, el desfase aparece. No hay advertencia en la interfaz.
 
@@ -291,7 +291,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 | Importante | Medio | **Scopes** (forma de onda, vectorscopio, histograma) en la página Video y como celda del multiview. Hay elementos de GStreamer y shaders simples para esto. |
 | Importante | Chico | **Costo por tarjeta** (ms/cuadro) visible en el grafo. `docs/VIDEO-GRAFO.md` ya lo tiene como pendiente. |
 | Deseable | Medio | Legalizador broadcast-safe en la salida de programa si va a TV. |
-| Deseable | Grande | ST 2110 / ST 2059: no tiene sentido para una legislatura hoy. **NDI de salida** sí (ver §12). |
+| Deseable | Grande | ST 2110 / ST 2059: no tiene sentido para una asamblea hoy. **NDI de salida** sí (ver §12). |
 
 ---
 
@@ -322,7 +322,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 - Interlock: **nunca mover una cámara que está al aire**.
 
 **Riesgos en vivo.**
-- **No hay protección de "cámara al aire".** Un preset, un seguimiento automático o el asistente pueden mover la cámara que está saliendo, y se ve el barrido. En una sesión, ver la cámara "buscando" al legislador queda muy amateur.
+- **No hay protección de "cámara al aire".** Un preset, un seguimiento automático o el asistente pueden mover la cámara que está saliendo, y se ve el barrido. En una sesión, ver la cámara "buscando" al integrante queda muy amateur.
 - Todo el PTZ está probado solo contra cámaras simuladas. Antes de la primera sesión hay que probarlo con las cámaras reales del recinto.
 - El seguimiento por rostro con pulsos proporcionales sobre una cámara al aire puede oscilar.
 
@@ -370,13 +370,13 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 - Placas de "Orden del día", "Votación: Afirmativo N / Negativo M / Abstenciones K".
 - Ticker.
 - **Preview del gráfico antes de salir.**
-- Integración con una base de datos de legisladores.
+- Integración con una base de datos de integrantes.
 
 **Lo que tiene.** El motor propio en proceso aparte (bien pensado: un gráfico roto no cuelga la app), el IDE, los vínculos automáticos a quien está al aire y la página Rótulos con "nada sale hasta apretar".
 
 **Riesgos en vivo.**
 - **Pre-render de hasta 15 s y último cuadro congelado:** un reloj o un contador de votos que cambia obliga a re-renderizar. Si el render tarda, el dato llega tarde o el gráfico parpadea.
-- El zócalo "del que habla" depende de que esté `onair` en la sala o del cue. Para un legislador presente en el recinto, el zócalo no sale solo y depende de la memoria del operador.
+- El zócalo "del que habla" depende de que esté `onair` en la sala o del cue. Para un integrante presente en el recinto, el zócalo no sale solo y depende de la memoria del operador.
 - El cargo sale de lo que el invitado escribió en su campo `info`: **riesgo de que salga al aire un texto mal escrito o inapropiado.** Es contenido de terceros en el zócalo institucional.
 
 **Mejoras.**
@@ -384,9 +384,9 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 | Prioridad | Esfuerzo | Propuesta |
 |---|---|---|
 | Imprescindible | Chico | **El zócalo nunca toma texto escrito por un invitado sin validar**: el nombre y el cargo salen del padrón o de la libreta de Personas (cargados por la organización); el `info` del invitado queda como sugerencia. |
-| Imprescindible | Medio | **Base de legisladores** (nombre, bloque, distrito, foto, banca, preset PTZ) como fuente única para zócalos, padrón, rostros y bancas. Una sola tabla con muchos usos. |
+| Imprescindible | Medio | **Base de integrantes** (nombre, bloque, distrito, foto, banca, preset PTZ) como fuente única para zócalos, padrón, rostros y bancas. Una sola tabla con muchos usos. |
 | Importante | Grande | **Render en tiempo real** (el pendiente de 30 fps por memoria compartida) para datos vivos: reloj, cronómetro del orador, resultados de votación. |
-| Importante | Medio | Plantillas legislativas de fábrica: zócalo de orador con bloque, "Orden del día" con el punto actual, resultado de votación nominal, "Cuarto intermedio", "Minuto de silencio". |
+| Importante | Medio | Plantillas de asamblea de fábrica: zócalo de orador con bloque, "Orden del día" con el punto actual, resultado de votación nominal, "Cuarto intermedio", "Minuto de silencio". |
 | Importante | Chico | **Preview del gráfico en el bus de preview** (que el gráfico que se va a sacar se vea primero en PVW). |
 | Deseable | Medio | Gráficos HTML (CasparCG o plantillas H2R) vía `obs-browser`, que ya está en el bundle, para aprovechar diseños existentes. |
 
@@ -404,16 +404,16 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 **Lo que tiene.** Transcripción offline buena (Parakeet + VAD), subtítulos quemados con buen manejo de tiempos, .srt y .txt, traducción y voz. Todo sin red: muy valioso para privacidad y costo.
 
 **Riesgos en vivo.**
-- **Subtítulos quemados = no se pueden apagar.** Para una parte del público son un estorbo, y un error de reconocimiento queda escrito en la imagen y en la grabación oficial. En un recinto legislativo, un nombre propio o una cifra mal transcriptos quedan en el archivo para siempre.
+- **Subtítulos quemados = no se pueden apagar.** Para una parte del público son un estorbo, y un error de reconocimiento queda escrito en la imagen y en la grabación oficial. En un recinto, un nombre propio o una cifra mal transcriptos quedan en el archivo para siempre.
 - Sin resultados parciales y con 1-3 s por frase, los subtítulos llegan 3-5 s tarde: aceptable para CC en vivo, pero conviene saberlo.
-- Nombres propios: el riesgo está señalado en `docs/AUDIO-TTS.md` y no resuelto. **Para la Legislatura es crítico** (apellidos, localidades del Chubut, nombres de leyes).
+- Nombres propios: el riesgo está señalado en `docs/AUDIO-TTS.md` y no resuelto. **Para la asamblea es crítico** (apellidos, localidades, nombres de leyes).
 
 **Mejoras.**
 
 | Prioridad | Esfuerzo | Propuesta |
 |---|---|---|
 | Imprescindible | Medio | **Closed captions en el stream**: libobs tiene `obs_output_output_caption_text2()` para CEA-608 en H.264 sobre RTMP, y YouTube lo toma. Además, la **API de subtítulos de YouTube** (HTTP POST por evento) como alternativa. Los subtítulos quemados quedan como opción, no como única salida. |
-| Imprescindible | Chico | **Vocabulario propio para el STT**: hotwords y contexto en sherpa-onnx, con nombres de legisladores, localidades y términos (el glosario de traducción ya existe, reusarlo). Si el modelo no admite hotwords, al menos corrección por diccionario después del reconocimiento. |
+| Imprescindible | Chico | **Vocabulario propio para el STT**: hotwords y contexto en sherpa-onnx, con nombres de integrantes, localidades y términos (el glosario de traducción ya existe, reusarlo). Si el modelo no admite hotwords, al menos corrección por diccionario después del reconocimiento. |
 | Importante | Chico | **Recuadro fijo de intérprete LSA**: una plantilla de escena o un overlay global (ver DSK, §1) con la cámara del intérprete, que no se pueda sacar por accidente al cambiar de escena. |
 | Importante | Chico | Exportar **WebVTT** además de SRT, y sumar la transcripción con tiempos al acta y a la carpeta del evento. |
 | Importante | Medio | **Modo "respeaker" o corrección humana**: una persona ve la frase antes de que salga y puede corregir un nombre con un clic (demora de 2-3 s más, configurable). |
@@ -423,18 +423,18 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 
 ## 15. Texto a voz y traducción en vivo
 
-**Opinión.** Para una legislatura, la traducción a otros idiomas es un **deseable**: sirve en visitas oficiales o eventos internacionales, no en una sesión ordinaria. El TTS al aire con voz sintética en un ámbito institucional es delicado: conviene que siempre esté rotulado como "traducción automática".
+**Opinión.** Para una asamblea, la traducción a otros idiomas es un **deseable**: sirve en visitas oficiales o eventos internacionales, no en una sesión ordinaria. El TTS al aire con voz sintética en un ámbito institucional es delicado: conviene que siempre esté rotulado como "traducción automática".
 
 **Riesgos.**
 - La latencia acumulada (STT + armado + traducción + TTS) puede pasar los 5-8 s. Un error de traducción al aire en un contexto político es un riesgo de comunicación.
-- El glosario no lo revisó nadie de la Legislatura.
+- El glosario no lo revisó nadie de la asamblea.
 
 **Mejoras.**
 
 | Prioridad | Esfuerzo | Propuesta |
 |---|---|---|
 | Importante | Chico | Rótulo automático "Traducción automática" cuando se muestra una traducción o sale una voz sintética. |
-| Importante | Chico | **Revisión del glosario** por el área de prensa o taquigrafía de la Legislatura antes de usarla. |
+| Importante | Chico | **Revisión del glosario** por el área de prensa o taquigrafía de la asamblea antes de usarla. |
 | Deseable | Medio | Traducción como **pista de audio aparte** (la pista 2 ya está prevista en la receta): el espectador elige el idioma en la plataforma, en vez de mezclarlo al programa. |
 
 ---
@@ -496,7 +496,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 **Lo que tiene.** El guion con bloques y cues, el ensayo sin aire, la revisión previa y el informe de previsto contra real están muy bien. Para un evento armado (acto, conferencia) es muy completo.
 
 **Riesgos en vivo.**
-- **Una sesión legislativa no sigue un guion de tiempos:** sigue un **orden del día** cuyos puntos duran lo que dure el debate. El guion de cues sirve para la apertura, el himno y el cierre, pero no para el cuerpo de la sesión.
+- **Una sesión no sigue un guion de tiempos:** sigue un **orden del día** cuyos puntos duran lo que dure el debate. El guion de cues sirve para la apertura, el himno y el cierre, pero no para el cuerpo de la sesión.
 - El cue Pantalla no se ejecuta y el ensayo acelerado informa mal qué se ejecuta: el ensayo **miente** sobre algo que después pasa o no pasa al aire.
 
 **Mejoras.**
@@ -512,19 +512,19 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 
 ## 20. Padrón, quórum, votación y acta
 
-**Qué esperaría un profesional legislativo.** El **voto nominal oficial** lo da el sistema de conferencia del recinto o el tablero electrónico de votación, no un sistema de streaming. Lo que espera la transmisión es **mostrar** el resultado oficial: quórum en pantalla, resultado de votación con detalle nominal, y el registro de presentes.
+**Qué esperaría un profesional de sesiones.** El **voto nominal oficial** lo da el sistema de conferencia del recinto o el tablero electrónico de votación, no un sistema de streaming. Lo que espera la transmisión es **mostrar** el resultado oficial: quórum en pantalla, resultado de votación con detalle nominal, y el registro de presentes.
 
 **Lo que tiene.** Padrón, acreditación por rostro, QR o mostrador, preguntas del público, votación formal con código y acta. Es muy completo para **eventos** (audiencias públicas, asambleas, jornadas).
 
 **Riesgos.**
-- **Que la votación de este sistema se tome como la votación oficial de la Cámara.** No tiene firma, auditoría, regla de mayoría codificada ni respaldo legal. El voto por "código de votante" en un teléfono no es un sistema de votación legislativa.
+- **Que la votación de este sistema se tome como la votación oficial del cuerpo.** No tiene firma, auditoría, regla de mayoría codificada ni respaldo legal. El voto por "código de votante" en un teléfono no es un sistema de votación oficial.
 - El quórum es un conteo sin regla: no dice "hay quórum" o "no hay quórum" según el reglamento.
 
 **Mejoras.**
 
 | Prioridad | Esfuerzo | Propuesta |
 |---|---|---|
-| Imprescindible | Chico | **Etiquetar la votación como "consulta / no vinculante"** en la interfaz y en el acta cuando se use en sesiones, salvo que la Legislatura la adopte formalmente. |
+| Imprescindible | Chico | **Etiquetar la votación como "consulta / no vinculante"** en la interfaz y en el acta cuando se use en sesiones, salvo que la asamblea la adopte formalmente. |
 | Importante | Chico | **Regla de quórum y de mayorías configurable** (mitad más uno de los miembros, dos tercios de presentes, etc.) con indicador "hay quórum: sí/no" en Dirección y en la pantalla de proyección. |
 | Importante | Medio | **Importar el resultado oficial** del tablero o sistema de votación del recinto (CSV, API, o carga manual rápida) y mostrarlo con la plantilla de resultado nominal. |
 | Deseable | Medio | Acta con firma (hash) y transcripción adjunta. |
@@ -578,7 +578,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 | Prioridad | Esfuerzo | Propuesta |
 |---|---|---|
 | Importante | Chico | Extensiones QML apagadas por defecto durante `enVivo`, o cargadas en un `Loader` con tiempo máximo. |
-| Importante | Medio | Plugins en Windows, si la Legislatura opera con Windows. |
+| Importante | Medio | Plugins en Windows, si la asamblea opera con Windows. |
 | Deseable | Chico | Firmar o fijar por hash los plugins "aprobados" para el aire. |
 
 ---
@@ -631,7 +631,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 ## 26. Seguridad y credenciales
 
 **Riesgos.**
-- **El pendrive con el sistema lleva todas las claves**: stream, YouTube, cámaras, token MCP, WireGuard. Si se pierde o lo roban, quien lo tenga puede transmitir en el canal oficial de la Legislatura.
+- **El pendrive con el sistema lleva todas las claves**: stream, YouTube, cámaras, token MCP, WireGuard. Si se pierde o lo roban, quien lo tenga puede transmitir en el canal oficial de la asamblea.
 - Cualquier proceso del mismo usuario puede leer el token MCP y controlar todo.
 - El túnel y el acceso remoto exponen la sala a internet: PIN y tokens están bien, pero un PIN débil fijo es un riesgo.
 
@@ -648,7 +648,7 @@ vMix y Wirecast hacen multidestino de fábrica. OBS 30+ trae SRT/RIST/WHIP y mul
 
 ## 27. Interfaz y operación multi-operador
 
-**Qué esperaría un profesional.** En una sesión legislativa con transmisión decente hay **2 a 4 personas**:
+**Qué esperaría un profesional.** En una sesión con transmisión decente hay **2 a 4 personas**:
 - director/switcher;
 - audio;
 - gráficos y zócalos;
@@ -670,7 +670,7 @@ Cada uno necesita su puesto con su vista y sus permisos.
 
 ## Top 15 de mejoras priorizadas
 
-Ordenadas por impacto en una sesión real de la Legislatura, contra el esfuerzo.
+Ordenadas por impacto en una sesión real de la asamblea, contra el esfuerzo.
 
 | # | Mejora | Área | Prioridad | Esfuerzo |
 |---|---|---|---|---|
@@ -680,8 +680,8 @@ Ordenadas por impacto en una sesión real de la Legislatura, contra el esfuerzo.
 | 4 | **Herramientas "de aire" siempre con confirmación** mientras se transmite (asistente, voz, disparadores, recetas, plugins) | Asistente (§22) | Imprescindible | Chico |
 | 5 | **Multidestino + error explícito al cambiar de destino** estando al aire | Salida (§2) | Imprescindible | Medio |
 | 6 | **Placa y alarma de pérdida de señal** por entrada, con escena de respaldo | Video (§9, §4) | Imprescindible | Chico |
-| 7 | **Closed captions CEA-608 / API de subtítulos de YouTube** + vocabulario propio (nombres de legisladores) en el STT | Accesibilidad (§14) | Imprescindible | Medio |
-| 8 | **Bancas presenciales en la fila de oradores** (persona + preset + micrófono + zócalo de la base de legisladores) | Oradores (§6, §13) | Imprescindible | Medio |
+| 7 | **Closed captions CEA-608 / API de subtítulos de YouTube** + vocabulario propio (nombres de integrantes) en el STT | Accesibilidad (§14) | Imprescindible | Medio |
+| 8 | **Bancas presenciales en la fila de oradores** (persona + preset + micrófono + zócalo de la base de integrantes) | Oradores (§6, §13) | Imprescindible | Medio |
 | 9 | **Interlock de PTZ**: no mover la cámara que está al aire | PTZ (§11) | Imprescindible | Chico |
 | 10 | **Disparadores de fábrica activos** con alarma sonora (silencio, saturación, stream, disco, señal, invitado) e interfaz para crearlos | Monitoreo (§24) | Imprescindible | Chico |
 | 11 | **Grabación oficial robusta**: MKV/remux, chequeo de disco, pistas de audio separadas, encoder propio | Grabación (§3) | Importante | Medio |
@@ -693,7 +693,7 @@ Ordenadas por impacto en una sesión real de la Legislatura, contra el esfuerzo.
 **Para hacer antes de la primera sesión real, aunque no sea código:**
 - probar PTZ, casteo y NDI con el hardware real del recinto;
 - un ensayo de caída (matar `ba-app` al aire y cronometrar la vuelta);
-- revisión del glosario por la Legislatura;
+- revisión del glosario por la asamblea;
 - una máquina de respaldo preparada.
 
 ---
@@ -707,7 +707,7 @@ Ordenados por probabilidad × impacto, con lo que el código hace hoy y lo que l
 | 1 | **La interfaz se traba más de 5 s** (QML pesado, extensión, `coreaudiod`, diálogo) | El supervisor mata `ba-app` y **corta el aire** aunque el encoder anduviera bien (`AppRuntime::tick` late desde el hilo de la UI) | Latido desde un hilo propio que mire el encoder (Top 1). Mientras tanto, no usar extensiones QML al aire. |
 | 2 | **Crash de un plugin de audio CLAP/LSP** | Se cae `ba-app` entera; vuelve sola en segundos con la transmisión retomada, pero hay corte | No experimentar con plugins durante la sesión; usar solo los 6 módulos con nombre propio, probados de antemano. |
 | 3 | **Se cae el destino RTMP o la red** | Reconexión de libobs; no hay segundo destino ni respaldo | Multidestino (Top 5); un enlace de red alternativo; vigilar `youtube_live_health`. |
-| 4 | **Eco o retorno de su propia voz a un legislador remoto** | Sin mix-minus: el invitado se oye con retardo; si usa parlantes y el AEC falla, hay eco al aire | Exigir auriculares a los remotos (guía del invitado) hasta tener mix-minus (Top 2). |
+| 4 | **Eco o retorno de su propia voz a un integrante remoto** | Sin mix-minus: el invitado se oye con retardo; si usa parlantes y el AEC falla, hay eco al aire | Exigir auriculares a los remotos (guía del invitado) hasta tener mix-minus (Top 2). |
 | 5 | **Una acción automática toca el aire** (asistente, voz mal reconocida, disparador mal armado, receta) | Con la política `invitados`, el asistente ejecuta sin preguntar si no leyó contenido de invitados; las acciones de voz "automáticas" no confirman; los disparadores corren sin rol | Política `siempre` durante las sesiones; vaciar la lista de acciones de voz automáticas; revisar disparadores antes de empezar. A mediano plazo, Top 4. |
 | 6 | **Una entrada de cámara se cae** | Negro o congelado al aire sin aviso; reintento cada 2 s | Tener la escena de respaldo (plano general) a una tecla; disparador de "sin señal" (Top 6). |
 | 7 | **Se llena el disco** | La grabación falla; el disparador `disk` solo existe si alguien lo creó | Chequeo manual de espacio antes de cada sesión; crear el disparador `disk` (Top 10). |

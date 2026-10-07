@@ -648,7 +648,7 @@ json Botonera::plantillas() const {
                          {"descripcion", "Escenas con tally (un toque arma, TAKE corta), FTB, grabación y transmisión"}},
                         {{"id", "audio"}, {"nombre", "Audio"},
                          {"descripcion", "Un fader por fuente con su medidor y mudo; loudness del programa"}},
-                        {{"id", "legislatura"}, {"nombre", "Legislatura"},
+                        {{"id", "asamblea"}, {"nombre", "Asamblea"},
                          {"descripcion", "Las bancas del cuerpo (un toque: al aire armado), siguiente, terminar, TAKE"}},
                         {{"id", "recinto"}, {"nombre", "Recinto"},
                          {"descripcion", "Las bancas donde están en la sala (un toque: al aire armado), siguiente, terminar, TAKE"}},
@@ -730,8 +730,8 @@ json Botonera::armarPlantilla(const std::string& id) const {
         usar(json{{"x", x}, {"y", 1}, {"tipo", "texto"},
                   {"estilo", {{"texto", "TP"}, {"fondo", "#111"}, {"color", "#9ad"}}},
                   {"estado", {lig("audio/loudness", "tp", "", nullptr, "texto", "TP {{v}}")}}});
-    } else if (id == "legislatura") {
-        nombre = "Legislatura";
+    } else if (id == "asamblea") {
+        nombre = "Asamblea";
         const auto bs = g_.bancas ? g_.bancas() : std::vector<std::pair<std::string, std::string>>{};
         columnas = 6;
         filas = std::max(3, static_cast<int>((bs.size() + 5) / 6) + 1);
@@ -751,7 +751,7 @@ json Botonera::armarPlantilla(const std::string& id) const {
                   {"estado", {lig("oradores/al_aire", "nombre", "existe", nullptr, "texto", "{{v}}")}}});
         usar(boton(5, f, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
     } else if (id == "recinto") {
-        // Como Legislatura, pero cada banca en su lugar de la grilla del recinto
+        // Como Asamblea, pero cada banca en su lugar de la grilla del recinto
         // (hasta 16 columnas y 15 filas; la última fila es la de los comandos).
         nombre = "Recinto";
         const json r = g_.recinto ? g_.recinto() : json::object();

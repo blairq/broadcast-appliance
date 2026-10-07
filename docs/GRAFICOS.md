@@ -157,13 +157,13 @@ mejor que empezar de cero.
 
 ---
 
-## Las legislativas (categoría «Legislatura»)
+## Las de asamblea (categoría «Asamblea»)
 
-Vienen de fábrica seis, todas declarativas, con `"categoria": "Legislatura"` en su `grafico.json` (la galería las agrupa por ese campo; sin él, «General»):
+Vienen de fábrica seis, todas declarativas, con `"categoria": "Asamblea"` en su `grafico.json` (la galería las agrupa por ese campo; sin él, «General»):
 
 | Gráfico | Para qué | Vínculo típico |
 |---|---|---|
-| `zocalo-legislador` | Nombre, cargo y bloque de quien habla desde su banca | `{orador.nombre}`, `{orador.cargo}`, `{orador.bloque}` |
+| `zocalo-integrante` | Nombre, cargo y bloque de quien habla desde su banca | `{orador.nombre}`, `{orador.cargo}`, `{orador.bloque}` |
 | `punto-orden-del-dia` | «PUNTO N» y el asunto | `{punto.n}`, `{punto.titulo}` |
 | `votacion` | Resultado OFICIAL de una votación, pantalla completa | `{votacion.asunto}`, `{votacion.afirmativos}`, `{votacion.negativos}`, `{votacion.abstenciones}`, `{votacion.resultado}`, `{votacion.color}` |
 | `cuarto-intermedio` | Pausa de la sesión, con la vuelta | a mano, o «Volvemos a las …» con `{hora}` |

@@ -146,7 +146,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
         t.title = "Plantillas de la botonera";
         t.category = "botonera";
         t.readOnly = true;
-        t.description = "Las plantillas de fabrica (director, audio, legislatura, prompter): se arman con las escenas, "
+        t.description = "Las plantillas de fabrica (director, audio, asamblea, prompter): se arman con las escenas, "
                         "fuentes y bancas que hay ahora.";
         t.run = [&bot](const json&, Done done) { done(ToolResult().data({{"plantillas", bot.plantillas()}})); };
         core.addTool(std::move(t));

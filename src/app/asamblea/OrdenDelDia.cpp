@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/OrdenDelDia.hpp"
+#include "asamblea/OrdenDelDia.hpp"
 
 #include "control/BusEventos.hpp"
 
@@ -14,7 +14,7 @@
 #include <set>
 #include <sstream>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -293,4 +293,4 @@ QString OrdenDelDia::puntoUi(int n, const QString& estado, const QString& result
     return QString::fromStdString(punto(n, estado.toStdString(), resultado.toStdString()));
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

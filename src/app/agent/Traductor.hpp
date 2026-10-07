@@ -17,7 +17,7 @@
 // EL GLOSARIO. Antes de traducir, los términos conocidos se reemplazan por su
 // traducción ya hecha (medido: el modelo los respeta; sin esto «cuarto
 // intermedio» sale «middle room»). El de fábrica (datos/glosario-traduccion.json:
-// cabina y Legislatura del Chubut) más el del operador, que se suma o lo pisa:
+// cabina, asamblea y localidades) más el del operador, que se suma o lo pisa:
 // Datos/Config/glosario-traduccion.json. Los grupos se pueden apagar.
 //
 // ORACIONES ENTERAS. La transcripción continua manda un pedazo en cada pausa

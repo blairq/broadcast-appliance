@@ -2,7 +2,7 @@
 // src/app/mcp/McpDcnTools.cpp — la central de conferencia Bosch DCN, por MCP
 //
 // Herramientas con nombre propio (dcn_*) sobre los controles del plugin
-// bosch-dcn (legislatura/ConferenciaDcn). Hablan de BANCAS, no de unidades de
+// bosch-dcn (asamblea/ConferenciaDcn). Hablan de BANCAS, no de unidades de
 // la central: el mapa lo tiene el Cuerpo (dcn_unidad). Las que cambian lo que
 // se escucha (abrir/cerrar micrófonos, siguiente, cerrar todos, modo) están en
 // McpAire: si las dispara algo automático con aire, se piden confirmar.
@@ -10,7 +10,7 @@
 // Guía: docs/bosch/open-interface.md §9.
 // ============================================================================
 
-#include "legislatura/ConferenciaDcn.hpp"
+#include "asamblea/ConferenciaDcn.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"

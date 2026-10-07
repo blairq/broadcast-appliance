@@ -4,9 +4,9 @@
 
 #include <cstdio>
 
-#include "legislatura/Quorum.hpp"
+#include "asamblea/Quorum.hpp"
 
-using ba::app::legislatura::Quorum;
+using ba::app::asamblea::Quorum;
 using json = nlohmann::json;
 
 namespace {

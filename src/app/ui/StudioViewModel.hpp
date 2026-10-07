@@ -83,7 +83,7 @@ namespace medios {
 class Playlist;
 }
 class PuestoCorreccion;
-namespace legislatura {
+namespace asamblea {
 class CuerpoViewModel;
 class Bancas;
 class ConferenciaDcn;
@@ -136,13 +136,13 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
-    /// El cuerpo legislativo (integrantes, bancas, presets, micrófonos): legislatura/CuerpoViewModel.
+    /// El cuerpo deliberativo (integrantes, bancas, presets, micrófonos): asamblea/CuerpoViewModel.
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
-    /// La fila de oradores presenciales (bancas): legislatura/Bancas.
+    /// La fila de oradores presenciales (bancas): asamblea/Bancas.
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
-    /// La central de conferencia Bosch DCN (micrófonos de banca): legislatura/ConferenciaDcn.
+    /// La central de conferencia Bosch DCN (micrófonos de banca): asamblea/ConferenciaDcn.
     Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
-    /// La banca virtual (sesión remota, en la sala o afuera): legislatura/SesionRemota.
+    /// La banca virtual (sesión remota, en la sala o afuera): asamblea/SesionRemota.
     Q_PROPERTY(QObject* sesionRemota READ sesionRemotaQml CONSTANT)
     /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
@@ -156,9 +156,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
     /// Seguir al micrófono abierto: propone (o arma) la banca que pidió la palabra.
     Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
-    /// El orden del día de la sesión y el uso de la palabra (legislatura/OrdenDelDia).
+    /// El orden del día de la sesión y el uso de la palabra (asamblea/OrdenDelDia).
     Q_PROPERTY(QObject* ordenDelDia READ ordenDelDiaQml CONSTANT)
-    /// Quórum, mayorías y resultados oficiales de las votaciones (legislatura/Quorum).
+    /// Quórum, mayorías y resultados oficiales de las votaciones (asamblea/Quorum).
     Q_PROPERTY(QObject* quorum READ quorumQml CONSTANT)
     /// El catálogo de acciones y los atajos de teclado (control/Acciones).
     Q_PROPERTY(QObject* acciones READ accionesQml CONSTANT)
@@ -332,9 +332,9 @@ class StudioViewModel : public QObject {
     QObject* sesionRemotaQml() const;
     QObject* ccQml() const;
     agent::SubtitulosCC& cc() { return *cc_; }
-    legislatura::Bancas& bancas() { return *bancas_; }
-    legislatura::ConferenciaDcn& dcn() { return *dcn_; }
-    legislatura::SesionRemota* sesionRemota() { return sesionRemota_.get(); }
+    asamblea::Bancas& bancas() { return *bancas_; }
+    asamblea::ConferenciaDcn& dcn() { return *dcn_; }
+    asamblea::SesionRemota* sesionRemota() { return sesionRemota_.get(); }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
     /// como el cargo de su zócalo. "" o el error.
     Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
@@ -348,7 +348,7 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE bool rotuloTraduccionActivo() const { return rotuloTraduccion_; }
     Q_INVOKABLE void setRotuloTraduccion(bool activo);
     nlohmann::json rotuloTraduccionEstado() const;
-    legislatura::CuerpoViewModel& cuerpo() { return *cuerpo_; }
+    asamblea::CuerpoViewModel& cuerpo() { return *cuerpo_; }
     /// Vocabulario del reconocedor de voz (agent/Vocabulario): grupos, términos,
     /// probar una frase y traer los nombres del Cuerpo.
     Q_INVOKABLE QVariantMap vocabularioUi() const;
@@ -373,11 +373,11 @@ class StudioViewModel : public QObject {
     QObject* satelliteQml() const;
     QObject* dskQml() const;
     QObject* seguirMicrofonoQml() const;
-    legislatura::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
+    asamblea::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
     QObject* ordenDelDiaQml() const;
-    legislatura::OrdenDelDia& ordenDelDia() { return *ordenDia_; }
+    asamblea::OrdenDelDia& ordenDelDia() { return *ordenDia_; }
     QObject* quorumQml() const;
-    legislatura::Quorum& quorum() { return *quorum_; }
+    asamblea::Quorum& quorum() { return *quorum_; }
     QObject* accionesQml() const;
     control::Acciones& acciones() { return *acciones_; }
     QObject* notificadorQml() const;
@@ -811,7 +811,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<SystemViewModel> system_;
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
-    std::unique_ptr<legislatura::CuerpoViewModel> cuerpo_;
+    std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;
     std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;
     std::unique_ptr<control::Botonera> botonera_;
@@ -849,9 +849,9 @@ class StudioViewModel : public QObject {
     void aplicarAfv(const QString& dest, int ms);
     void guardarTransiciones() const;
     qint64 caidaMs_ = 0;
-    std::unique_ptr<legislatura::SeguirMicrofono> seguirMic_;
-    std::unique_ptr<legislatura::OrdenDelDia> ordenDia_;
-    std::unique_ptr<legislatura::Quorum> quorum_;
+    std::unique_ptr<asamblea::SeguirMicrofono> seguirMic_;
+    std::unique_ptr<asamblea::OrdenDelDia> ordenDia_;
+    std::unique_ptr<asamblea::Quorum> quorum_;
     bool rotuloTraduccion_ = true;
     int rotuloCapa_ = 4;
     QTimer rotuloApagar_;
@@ -859,9 +859,9 @@ class StudioViewModel : public QObject {
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
     void publicarEventos();
     int busTicks_ = 0;
-    std::unique_ptr<legislatura::Bancas> bancas_;
-    std::unique_ptr<legislatura::ConferenciaDcn> dcn_;
-    std::unique_ptr<legislatura::SesionRemota> sesionRemota_;
+    std::unique_ptr<asamblea::Bancas> bancas_;
+    std::unique_ptr<asamblea::ConferenciaDcn> dcn_;
+    std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.

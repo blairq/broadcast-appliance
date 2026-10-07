@@ -68,7 +68,7 @@ Rectangle {
                 text: page.pv.sinNombre + " sin nombre"
                 dot: Theme.warn
             }
-            GlassButton { compact: true; text: "Cuerpo (legisladores)…"; onClicked: panelCuerpo.open() }
+            GlassButton { compact: true; text: "Cuerpo (integrantes)…"; onClicked: panelCuerpo.open() }
             Item { Layout.fillWidth: true }
             Text {
                 text: "Se reconoce a quien ya se dio de alta. La foto es para que vos confirmes; " +

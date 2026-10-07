@@ -877,7 +877,7 @@ endif()
     set_target_properties(test_account_guides PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_account_guides COMMAND test_account_guides)
     # Disparadores (alertas) con entradas y reloj falsos.
-    add_executable(test_cuerpo tests/test_cuerpo.cpp legislatura/Cuerpo.cpp)
+    add_executable(test_cuerpo tests/test_cuerpo.cpp asamblea/Cuerpo.cpp)
     target_include_directories(test_cuerpo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_cuerpo PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_cuerpo COMMAND test_cuerpo)
@@ -888,26 +888,26 @@ endif()
     target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_botonera COMMAND test_botonera)
-    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp legislatura/SeguirMicrofono.cpp
-                   legislatura/SeguirMicrofono.hpp legislatura/Bancas.cpp legislatura/Bancas.hpp legislatura/Cuerpo.cpp
+    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp asamblea/SeguirMicrofono.cpp
+                   asamblea/SeguirMicrofono.hpp asamblea/Bancas.cpp asamblea/Bancas.hpp asamblea/Cuerpo.cpp
                    control/BusEventos.cpp control/BusEventos.hpp)
     target_include_directories(test_seguir_microfono PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_seguir_microfono PRIVATE ba_core Qt6::Core)
     set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
-    add_executable(test_sesion_remota tests/test_sesion_remota.cpp legislatura/SesionRemota.cpp legislatura/SesionRemota.hpp
-                   legislatura/Cuerpo.cpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+    add_executable(test_sesion_remota tests/test_sesion_remota.cpp asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp
+                   asamblea/Cuerpo.cpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
     target_include_directories(test_sesion_remota PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
     target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
     set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_sesion_remota COMMAND test_sesion_remota)
-    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp legislatura/OrdenDelDia.cpp legislatura/OrdenDelDia.hpp
+    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp asamblea/OrdenDelDia.cpp asamblea/OrdenDelDia.hpp
                    control/BusEventos.cpp control/BusEventos.hpp)
     target_include_directories(test_orden_del_dia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_orden_del_dia PRIVATE ba_core Qt6::Core)
     set_target_properties(test_orden_del_dia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_orden_del_dia COMMAND test_orden_del_dia)
-    add_executable(test_quorum tests/test_quorum.cpp legislatura/Quorum.cpp legislatura/Quorum.hpp)
+    add_executable(test_quorum tests/test_quorum.cpp asamblea/Quorum.cpp asamblea/Quorum.hpp)
     target_include_directories(test_quorum PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_quorum PRIVATE ba_core Qt6::Core)
     set_target_properties(test_quorum PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")

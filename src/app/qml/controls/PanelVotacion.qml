@@ -411,7 +411,7 @@ Item {
                          { t: "2/3 de miembros", v: "dos_tercios_miembros" } ]
                 textRole: "t"
             }
-            Text { text: "O la votación nominal (CSV «nombre;voto», un legislador por línea):"; color: Theme.textDim; font.pixelSize: 11 }
+            Text { text: "O la votación nominal (CSV «nombre;voto», un integrante por línea):"; color: Theme.textDim; font.pixelSize: 11 }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.preferredHeight: 90

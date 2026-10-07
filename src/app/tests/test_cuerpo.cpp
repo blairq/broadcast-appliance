@@ -1,11 +1,11 @@
-// legislatura/Cuerpo: integrantes, banca única, validación e importación de CSV.
-#include "legislatura/Cuerpo.hpp"
+// asamblea/Cuerpo: integrantes, banca única, validación e importación de CSV.
+#include "asamblea/Cuerpo.hpp"
 
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 
-using ba::app::legislatura::Cuerpo;
+using ba::app::asamblea::Cuerpo;
 namespace fs = std::filesystem;
 
 static int fallas = 0;
@@ -26,7 +26,7 @@ int main() {
     {
         Cuerpo c(dir / "cuerpo.json");
         std::string err;
-        const std::string id = c.guardar({{"nombre", "Ana Pérez"}, {"banca", "3"}, {"cargo_oficial", "Diputada"}}, &err);
+        const std::string id = c.guardar({{"nombre", "Ana Pérez"}, {"banca", "3"}, {"cargo_oficial", "Consejera"}}, &err);
         CHECK(!id.empty(), "crea un integrante");
         CHECK(c.guardar({{"nombre", "Otro"}, {"banca", "3"}}, &err).empty() && err.find("ya es de") != std::string::npos,
               "la banca es única");
@@ -38,8 +38,8 @@ int main() {
     {
         std::ofstream o(dir / "p.csv");
         o << "\xEF\xBB\xBF" << "Banca;Nombre;Cargo;Bloque;Cámara;Posición;Micrófono\n"
-          << "3;Ana Pérez;Diputada;A;Sala;banca 3;Mic 3\n"
-          << "4;\"Juan, el Bueno\";Diputado;B;Sala;banca 4;\n";
+          << "3;Ana Pérez;Consejera;A;Sala;banca 3;Mic 3\n"
+          << "4;\"Juan, el Bueno\";Consejero;B;Sala;banca 4;\n";
     }
     {
         Cuerpo c(dir / "cuerpo.json");

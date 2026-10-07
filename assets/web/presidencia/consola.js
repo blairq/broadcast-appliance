@@ -2,7 +2,7 @@
 // completo (recinto, remotos, fila, votación, quórum) y la consola pide cosas:
 // habilitar, dar la palabra, sumar tiempo, votar… La app decide y vuelve a mandar
 // el estado. El video del que habla y «apretar para hablar» van DIRECTO entre esta
-// página y el navegador del legislador (WebRTC); el gateway solo pasa la señalización.
+// página y el navegador del integrante (WebRTC); el gateway solo pasa la señalización.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -405,8 +405,8 @@ function pedirFotosVivas() {
 }
 setInterval(() => { if (est) pedirFotosVivas(); }, 3000);
 
-// --- WebRTC directo con un legislador ----------------------------------------------------------
-// Una conexión por legislador: video y audio de él hacia acá; el micrófono de la
+// --- WebRTC directo con un integrante ----------------------------------------------------------
+// Una conexión por integrante: video y audio de él hacia acá; el micrófono de la
 // presidencia hacia él solo mientras se mantiene apretado 🎙.
 const conexiones = new Map(); // id -> {pc, flujo, audio(sender)}
 let micro = null;
@@ -431,7 +431,7 @@ function abrirConexion(id) {
   };
   pc.onicecandidate = (ev) => { if (ev.candidate) mandar({ type: "rtc", a: id, candidato: ev.candidate }); };
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "failed") { conexiones.delete(id); avisar("No se pudo conectar directo con el legislador (¿está en otra red? hace falta TURN).", true); }
+    if (pc.connectionState === "failed") { conexiones.delete(id); avisar("No se pudo conectar directo con el integrante (¿está en otra red? hace falta TURN).", true); }
   };
   (async () => {
     const offer = await pc.createOffer();

@@ -1678,7 +1678,7 @@ const std::vector<std::pair<const char*, const char*>>& itemsDeChequeo() {
         {"ptz", "PTZ probado con las cámaras reales (presets, que no se muevan al aire)"},
         {"casteo", "Casteo probado en los televisores del recinto"},
         {"caida", "Ensayo de caída: cerrar la app al aire y cronometrar cuánto tarda en volver"},
-        {"glosario", "Glosario y nombres revisados (legisladores, localidades)"},
+        {"glosario", "Glosario y nombres revisados (integrantes, localidades)"},
         {"respaldo", "Máquina de respaldo lista con la escena básica"},
         {"auriculares", "Los invitados remotos con auriculares (o mix-minus probado)"},
         {"sonido", "Prueba de sonido con cada micrófono de la sala"},

@@ -280,7 +280,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         };
         if (!m.is_object() || m.value("type", std::string()) != "auth") return rechazar("Mensaje inválido.");
         // La consola de la presidencia tiene su propia credencial (id "consola:<x>"); un
-        // legislador nunca entra por la consola ni la consola por la página del legislador.
+        // integrante nunca entra por la consola ni la consola por la página del integrante.
         const bool conUsuario = !consola && m.contains("u");
         std::string id = consola ? "consola:" + m.value("c", std::string()) : m.value("i", std::string());
         if (!consola && id.rfind("consola:", 0) == 0) return rechazar("Mensaje inválido.");
@@ -388,9 +388,9 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
         if (t == "rtc") {
             // Señalización WebRTC directa entre la consola de la presidencia y un
-            // legislador (ver la cara del que habla, hablarle «apretar para hablar»).
-            // El gateway solo la pasa: un legislador solo le puede escribir a una
-            // consola, y una consola solo a un legislador.
+            // integrante (ver la cara del que habla, hablarle «apretar para hablar»).
+            // El gateway solo la pasa: un integrante solo le puede escribir a una
+            // consola, y una consola solo a un integrante.
             const std::string a = m.value("a", std::string());
             const bool aConsola = a.rfind("consola:", 0) == 0;
             if (!a.empty() && aConsola != consola) {
@@ -409,7 +409,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
         if (consola) {
             if (t == "foto") {
-                // La cara de un legislador conectado (la última foto de su cámara).
+                // La cara de un integrante conectado (la última foto de su cámara).
                 const std::string quien = m.value("id", std::string());
                 std::string jpeg;
                 {
@@ -528,7 +528,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         std::vector<std::shared_ptr<Conn>> a;
         {
             std::lock_guard<std::mutex> l(mu_);
-            // "*" = todos los legisladores; "consolas" = todas las consolas de la presidencia.
+            // "*" = todos los integrantes; "consolas" = todas las consolas de la presidencia.
             for (const auto& [cid, c] : conns_) {
                 const bool esConsola = cid.rfind("consola:", 0) == 0;
                 if ((id == "*" && !esConsola) || (id == "consolas" && esConsola) || cid == id) a.push_back(c);

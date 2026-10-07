@@ -36,7 +36,7 @@ int main() {
         ultimo = d.value("tipo", std::string());
     });
 
-    // La credencial como la arma la app (legislatura/SesionRemota).
+    // La credencial como la arma la app (asamblea/SesionRemota).
     const std::string sal = "00112233445566778899aabbccddeeff";
     const std::string token(64, 'a');
     const std::string pin = "123456";

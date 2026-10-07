@@ -1,6 +1,6 @@
-# Sesión remota: legisladores que sesionan desde afuera
+# Sesión remota: integrantes que sesionan desde afuera
 
-Un legislador que no está en el recinto entra por el navegador (WebRTC) y **ocupa su banca**: lo
+Un integrante que no está en el recinto entra por el navegador (WebRTC) y **ocupa su banca**: lo
 ven y lo escuchan en la sala y en la transmisión cuando tiene la palabra, pide la palabra en la misma
 fila que los presenciales, vota, cuenta para el quórum, ve la pantalla de la sala y escucha la sala.
 
@@ -11,13 +11,13 @@ del Cuerpo** con credencial propia, y lo que hace (estar presente, votar) va al 
 ## 0. Transparente: en la sala o afuera
 
 No es solo para los de afuera: es **una banca virtual** que anda en cualquier lado. Para el sistema
-da lo mismo si el legislador está en el recinto o en su casa: **un integrante, una presencia, un
+da lo mismo si el integrante está en el recinto o en su casa: **un integrante, una presencia, un
 voto**. Así también es el **respaldo de la central**: si se quema la CCU (o se corta el audio), los
-legisladores abren su link en el celular, votan y lo usan de micrófono, y la sesión sigue.
+integrantes abren su link en el celular, votan y lo usan de micrófono, y la sesión sigue.
 
 - **Dónde está:** el gateway sabe si entró por la red local o desde internet (por el túnel). En la
   sala el celular es **solo micrófono** (apretar para hablar) y **no** reproduce la sala (si no,
-  acopla con los parlantes); afuera recibe la vuelta de la sala. El legislador lo puede cambiar.
+  acopla con los parlantes); afuera recibe la vuelta de la sala. El integrante lo puede cambiar.
 - **Voz a la sala:** la salida «A la sala» de la matriz va a la entrada de la CCU cuando anda, o
   directo a la potencia de sala cuando no (se elige en el panel de audio, sin tocar nada más).
 - **Fila y voto:** con la central, su fila y la de los celulares se unen; sin la central, la de los
@@ -87,7 +87,7 @@ legisladores abren su link en el celular, votan y lo usan de micrófono, y la se
 
 - **Asistencia:** los remotos `habilitado` cuentan como presentes en línea; el padrón ya separa
   `presenciales` y `enLinea`. Quórum suma las dos fuentes.
-- **Lo que le llega al legislador:** el **tema a votar** (y los que vienen, del orden del día); al
+- **Lo que le llega al integrante:** el **tema a votar** (y los que vienen, del orden del día); al
   abrirse la votación, un **cartel rojo de votación** a pantalla completa con el tema, las opciones y
   la **cuenta regresiva** del tiempo para votar (el de la central, `VT_C_GET_TIMER_VALUES`, o el que
   fije la app); la confirmación de su voto; al cerrar, el resultado.
@@ -144,7 +144,7 @@ Lo que cambia respecto de la sala de invitados (hoy 16 lugares fijos en memoria 
 
 ## 8. Páginas web
 
-- `…/sesion/` — la del legislador: su imagen, la pantalla de la sala, «Pedir la palabra», la boleta
+- `…/sesion/` — la del integrante: su imagen, la pantalla de la sala, «Pedir la palabra», la boleta
   cuando hay votación, quién habla, la fila, el punto del orden del día, aviso de conexión.
 - `…/presidencia/` — la de la presidencia: fila unificada, dar y quitar la palabra, habilitar a los
   que entran (con su imagen), abrir y cerrar votación si así se decide.
@@ -169,7 +169,7 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
   - credenciales por integrante (link + PIN, o usuario y contraseña);
   - borde propio en el gateway (`src/gateway/Sesion.{hpp,cpp}`, prueba `test_sesion_borde`);
   - página `assets/web/sesion/`;
-  - `legislatura/SesionRemota` (prueba `test_sesion_remota`);
+  - `asamblea/SesionRemota` (prueba `test_sesion_remota`);
   - habilitar viendo la cámara;
   - presentes sumados a Quórum sin contar dos veces;
   - registro anexado al acta.
@@ -191,12 +191,12 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
   - recinto con caras, habilitar, fila con 🎙 «apretar para hablar», el que habla con su anillo de
     tiempo, votación con barras;
   - el programa en vivo (la misma página de `/cast/`).
-  - El video y la charla van por WebRTC directo entre la consola y el navegador del legislador; el
+  - El video y la charla van por WebRTC directo entre la consola y el navegador del integrante; el
     gateway solo pasa la señalización.
   - Probado con Chrome sin ventana: la conexión llega a «connected». El video real no se pudo probar
     ahí, porque ese Chrome no da cámara.
 - **R3 hecha (2026-10-05):**
-  - **Cómo entra:** cuando la app le da la palabra a un remoto, le avisa al gateway (`POST /api/v1/sesion/medios {id}`). El celular de ese legislador abre un WebRTC propio hacia el gateway (`medios-oferta` / `medios-ice`, solo envía) con su micrófono y su cámara.
+  - **Cómo entra:** cuando la app le da la palabra a un remoto, le avisa al gateway (`POST /api/v1/sesion/medios {id}`). El celular de ese integrante abre un WebRTC propio hacia el gateway (`medios-oferta` / `medios-ice`, solo envía) con su micrófono y su cámara.
   - **El gateway** lo recibe en una sesión del pool con la ruta «Remoto» y lo publica en `BA.Audio.Remoto.1` / `BA.Remoto.1`. Hay un solo «remoto con la palabra»: si se le da a otro, al anterior se le corta.
   - **En la app** son dos entradas:
     - «Remoto con la palabra (audio)»: global, suena en la sala y en la transmisión, y se le pone el rack de filtros en Audio como a cualquier micrófono;

@@ -1,4 +1,4 @@
-// La sesión remota del legislador (docs/SESION-REMOTA.md). Fase R1: entrar con el
+// La sesión remota del integrante (docs/SESION-REMOTA.md). Fase R1: entrar con el
 // link personal y el PIN, mostrar la cámara propia y mandar una foto de vez en
 // cuando para que la presidencia lo vea antes de habilitarlo. El audio y el
 // video por WebRTC, la palabra y el voto llegan en las fases siguientes.

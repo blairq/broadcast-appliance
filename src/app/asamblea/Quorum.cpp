@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/Quorum.hpp"
+#include "asamblea/Quorum.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -11,7 +11,7 @@
 #include <set>
 #include <sstream>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -200,7 +200,7 @@ std::string Quorum::anexoActa() const {
                  " votos): **" + (v.value("aprobado", false) ? "APROBADO" : "RECHAZADO") + "**.\n\n";
             const json nom = v.value("nominal", json::array());
             if (!nom.empty()) {
-                t += "| Legislador | Voto |\n|---|---|\n";
+                t += "| Integrante | Voto |\n|---|---|\n";
                 for (const auto& x : nom) t += "| " + x.value("nombre", std::string()) + " | " + x.value("voto", std::string()) + " |\n";
                 t += "\n";
             }
@@ -229,4 +229,4 @@ QString Quorum::cargarCsvUi(const QString& asunto, const QString& csv, const QSt
     return QString::fromStdString(res.value("error", std::string()));
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

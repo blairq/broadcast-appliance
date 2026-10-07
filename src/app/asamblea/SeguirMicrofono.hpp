@@ -23,7 +23,7 @@ namespace ba::app::control {
 class BusEventos;
 }
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class Cuerpo;
 class Bancas;
@@ -80,4 +80,4 @@ class SeguirMicrofono : public QObject {
     std::string descartada_;          ///< fuente descartada (hasta que se cierre)
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

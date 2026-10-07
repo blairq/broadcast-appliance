@@ -816,7 +816,8 @@ QVariantList Traductor::gruposQml() const {
         apagados.insert(x.get<std::string>());
     QVariantList out;
     static const std::map<std::string, std::string> nombres{{"general", "Generales de cabina"},
-                                                            {"legislativo-chubut", "Legislatura del Chubut"},
+                                                            {"asamblea", "Términos de asamblea"},
+                                                            {"localidades", "Localidades"},
                                                             {"operador", "Agregados por el operador"}};
     for (const auto& [k, v] : g) {
         const auto n = nombres.find(k);

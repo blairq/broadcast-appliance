@@ -2,7 +2,7 @@
 //
 // Vocabulario: lo que el reconocedor de voz tiene que escribir BIEN aunque no
 // lo conozca: nombres y apellidos del cuerpo, localidades, términos
-// legislativos, lo que agregue el operador.
+// de asamblea, lo que agregue el operador.
 //
 // Los modelos de voz a texto que usamos (transducers con greedy search,
 // Parakeet) no aceptan "hotwords", así que se corrige DESPUÉS: cada palabra (o

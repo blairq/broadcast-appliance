@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
 // SesionRemota: la banca virtual de cada integrante (docs/SESION-REMOTA.md).
-// Un legislador entra desde el navegador (en la sala o afuera, da lo mismo) con
+// Un integrante entra desde el navegador (en la sala o afuera, da lo mismo) con
 // su link personal y su PIN; la presidencia o el operador lo ve por la cámara y
 // lo habilita; habilitado, cuenta como presente (y en las fases siguientes pide
 // la palabra, habla y vota).
@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 class Cuerpo;
 
@@ -89,7 +89,7 @@ class SesionRemota : public QObject {
     std::vector<std::string> presentesBancas() const;
 
     // --- La palabra (fase R2) ------------------------------------------------------------
-    /// Darle o quitarle la palabra (lo llama la fila de oradores, legislatura/Bancas):
+    /// Darle o quitarle la palabra (lo llama la fila de oradores, asamblea/Bancas):
     /// le avisa al celular, con su tiempo; en la fase R3 también abre su audio.
     void darPalabra(const std::string& integrante, bool palabra, int segundos);
     /// La fila cambió: a cada remoto que está en la fila le dice su turno; a todos, quién habla.
@@ -97,7 +97,7 @@ class SesionRemota : public QObject {
     /// «ultimo_minuto» | «terminado»: aviso en su celular.
     void avisoTiempo(const std::string& integrante, const std::string& aviso);
     std::string conPalabra() const { return conPalabra_; }
-    /// «Apretar para hablar» desde la consola: le avisa al legislador que la presidencia
+    /// «Apretar para hablar» desde la consola: le avisa al integrante que la presidencia
     /// le habla (su navegador contesta la conexión directa de la consola).
     void ptt(const std::string& integrante, bool activo, const std::string& consola);
     /// Mandarle algo a todos los conectados (el punto del orden del día, por ejemplo).
@@ -232,4 +232,4 @@ class SesionRemota : public QObject {
     void mandarVotacion();
 };
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

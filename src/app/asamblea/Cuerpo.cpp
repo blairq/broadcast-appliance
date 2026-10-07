@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/Cuerpo.hpp"
+#include "asamblea/Cuerpo.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -9,7 +9,7 @@
 #include <sstream>
 #include <vector>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -329,9 +329,9 @@ bool Cuerpo::escribirPlantilla(const fs::path& archivo) {
     fs::create_directories(archivo.parent_path(), ec);
     std::ofstream o(archivo);
     o << "banca;nombre;cargo;bloque;distrito;camara;posicion;microfono\n"
-         "1;Nombre Apellido;Diputada;Bloque A;Distrito 1;Cámara sala;banca 1;Mic banca 1\n"
-         "2;Otro Nombre;Diputado;Bloque B;Distrito 2;Cámara sala;banca 2;Mic banca 2\n";
+         "1;Nombre Apellido;Consejera;Bloque A;Distrito 1;Cámara sala;banca 1;Mic banca 1\n"
+         "2;Otro Nombre;Consejero;Bloque B;Distrito 2;Cámara sala;banca 2;Mic banca 2\n";
     return static_cast<bool>(o);
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

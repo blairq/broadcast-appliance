@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "legislatura/SesionRemota.hpp"
+#include "asamblea/SesionRemota.hpp"
 
-#include "legislatura/Cuerpo.hpp"
+#include "asamblea/Cuerpo.hpp"
 
 #include "qrcodegen.hpp"
 
@@ -15,7 +15,7 @@
 #include <cstdio>
 #include <fstream>
 
-namespace ba::app::legislatura {
+namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 
@@ -750,4 +750,4 @@ void SesionRemota::ponerFoto(const QString& id, const QByteArray& jpeg) {
     emit fotoLista(id);
 }
 
-} // namespace ba::app::legislatura
+} // namespace ba::app::asamblea

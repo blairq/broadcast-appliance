@@ -7,9 +7,9 @@
 #include <cstdio>
 
 #include "control/BusEventos.hpp"
-#include "legislatura/Bancas.hpp"
-#include "legislatura/Cuerpo.hpp"
-#include "legislatura/SeguirMicrofono.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/Cuerpo.hpp"
+#include "asamblea/SeguirMicrofono.hpp"
 
 using namespace ba::app;
 using json = nlohmann::json;
@@ -37,15 +37,15 @@ int main(int argc, char** argv) {
     QTemporaryDir dir;
     const std::filesystem::path d = dir.path().toStdString();
     control::BusEventos bus;
-    legislatura::Cuerpo cuerpo(d / "cuerpo.json");
+    asamblea::Cuerpo cuerpo(d / "cuerpo.json");
     std::string err;
     cuerpo.guardar({{"nombre", "Ana Pérez"}, {"banca", "3"}, {"microfono", {{"fuente", "Mic 3"}}}}, &err);
     cuerpo.guardar({{"nombre", "Juan Gómez"}, {"banca", "7"}, {"microfono", {{"fuente", "Mic 7"}}}}, &err);
     std::vector<std::pair<std::string, bool>> mics;
-    legislatura::Bancas::Ganchos g;
+    asamblea::Bancas::Ganchos g;
     g.microfono = [&](const std::string& f, bool abierto) { mics.emplace_back(f, abierto); };
-    legislatura::Bancas bancas(cuerpo, g);
-    legislatura::SeguirMicrofono seg(d, bus, cuerpo, bancas);
+    asamblea::Bancas bancas(cuerpo, g);
+    asamblea::SeguirMicrofono seg(d, bus, cuerpo, bancas);
 
     bus.publicar("audio/nivel/Mic 3", {{"pico_db", -12.0}, {"mudo", false}});
     esperar(1200);

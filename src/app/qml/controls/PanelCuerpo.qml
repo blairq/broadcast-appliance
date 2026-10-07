@@ -1,4 +1,4 @@
-// El cuerpo legislativo (legislatura/CuerpoViewModel): la fuente única de
+// El cuerpo deliberativo (asamblea/CuerpoViewModel): la fuente única de
 // nombre, cargo, bloque y banca para los zócalos, las bancas de la fila de
 // oradores y el PTZ por banca. Tabla editable, importar planilla, validar.
 import QtQuick
@@ -44,7 +44,7 @@ Popup {
             TextField {
                 Layout.preferredWidth: 320
                 text: pop.cu.nombre
-                placeholderText: "Nombre (p. ej. Legislatura 2025-2029)"
+                placeholderText: "Nombre (p. ej. Asamblea 2025-2029)"
                 onEditingFinished: if (text !== pop.cu.nombre) pop.cu.setNombre(text)
             }
             StatusPill {

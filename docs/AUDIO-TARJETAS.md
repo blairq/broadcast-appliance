@@ -74,7 +74,7 @@ estéreo, 48 kHz) en `Recordings/Audio/<fuente>-<fecha>.wav`, escrito en un hilo
 3. Barra del rack → «Traducción…» (o Configuración → Traducción): traducir «Orador» al inglés; publica «Orador · en»
    (con subtítulos en un rótulo y archivo si se quiere). Sin red: modelos OPUS-MT (Argos Translate) en el Python del
    programa, 0,1 a 0,6 s por frase; castellano <-> inglés y <-> portugués directos, francés, alemán, ruso y chino por
-   el inglés. Un glosario fija los términos del evento (viene con los de la Legislatura del Chubut); se edita ahí, con
+   el inglés. Un glosario fija los términos del evento (viene con los de una asamblea); se edita ahí, con
    `glosario_agregar` o en `Datos/Config/glosario-traduccion.json`. MCP: `traducciones`, `traduccion_agregar`,
    `traducir`, `traduccion_bajar`, `glosario_*`; ayuda: `help {"topic": "traduccion"}`.
 4. «+ Texto a voz» con una voz en inglés, leyendo «Orador · en», cableada a `out`; en la Matriz, «Traducción» a la
