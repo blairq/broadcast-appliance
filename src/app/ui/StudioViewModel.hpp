@@ -302,6 +302,10 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE qint64 recordStartMs() const { return recording_ ? recSinceMs_ : 0; }
     /// El latido del supervisor: {motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms, politica}.
     Q_INVOKABLE QVariantMap latidoUi() const;
+    /// Preferencias chicas de la interfaz (anchos de paneles, lo último elegido),
+    /// en Config/interfaz.json: portable, al lado de la app, nunca en el sistema.
+    Q_INVOKABLE QVariant uiValor(const QString& clave, const QVariant& porDefecto = {}) const;
+    Q_INVOKABLE void uiGuardar(const QString& clave, const QVariant& valor);
     /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}). "" o el error.
     Q_INVOKABLE QString latidoPoliticaUi(const QVariantMap& cambios);
     /// Las alarmas de los disparadores que esperan que alguien las reconozca.

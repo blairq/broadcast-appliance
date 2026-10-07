@@ -1168,6 +1168,41 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
 StudioViewModel::~StudioViewModel() = default;
 
+namespace {
+std::filesystem::path archivoInterfaz(AppRuntime& rt) { return rt.dataRoot() / "Config" / "interfaz.json"; }
+nlohmann::json leerInterfaz(AppRuntime& rt) {
+    std::ifstream f(archivoInterfaz(rt));
+    const nlohmann::json j = f ? nlohmann::json::parse(f, nullptr, false) : nlohmann::json();
+    return j.is_object() ? j : nlohmann::json::object();
+}
+} // namespace
+
+QVariant StudioViewModel::uiValor(const QString& clave, const QVariant& porDefecto) const {
+    const nlohmann::json j = leerInterfaz(rt_);
+    const auto it = j.find(clave.toStdString());
+    if (it == j.end()) return porDefecto;
+    if (it->is_number_integer()) return QVariant::fromValue(it->get<long long>());
+    if (it->is_number()) return it->get<double>();
+    if (it->is_boolean()) return it->get<bool>();
+    if (it->is_string()) return QString::fromStdString(it->get<std::string>());
+    return porDefecto;
+}
+
+void StudioViewModel::uiGuardar(const QString& clave, const QVariant& valor) {
+    nlohmann::json j = leerInterfaz(rt_);
+    const std::string k = clave.toStdString();
+    switch (valor.typeId()) {
+        case QMetaType::Bool: j[k] = valor.toBool(); break;
+        case QMetaType::Int:
+        case QMetaType::LongLong: j[k] = valor.toLongLong(); break;
+        case QMetaType::Double: j[k] = valor.toDouble(); break;
+        default: j[k] = valor.toString().toStdString(); break;
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(archivoInterfaz(rt_).parent_path(), ec);
+    std::ofstream(archivoInterfaz(rt_)) << j.dump(1) << "\n";
+}
+
 void StudioViewModel::tiemposCentral() {
     // El tiempo del que tiene la palabra (presencial o remoto), una vez por segundo:
     // a un minuto y al terminar, aviso al operador, en el celular del remoto y en la

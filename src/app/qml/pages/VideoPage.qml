@@ -342,8 +342,10 @@ Rectangle {
         }
 
         // --- Vista previa y la tarjeta elegida ------------------------------------------
+        // Se arrastra para darle más lugar a las tarjetas o al panel (se recuerda).
+        Divisor { id: divisorPanel; clave: "video.panel"; ancho: 320; minimo: 240; maximo: 720 }
         Panel {
-            Layout.preferredWidth: 320
+            Layout.preferredWidth: divisorPanel.ancho
             Layout.fillHeight: true
             title: page.nodo ? page.nodo.etiqueta : "Vista previa"
             ColumnLayout {

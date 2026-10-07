@@ -928,8 +928,10 @@ Rectangle {
         }
 
         // --- Detalle del nodo -------------------------------------------------------------
+        // Se arrastra para darle más lugar a las tarjetas o al panel (se recuerda).
+        Divisor { id: divisorPanel; clave: "audio.panel"; ancho: 360; minimo: 240; maximo: 720 }
         Panel {
-            Layout.preferredWidth: 360
+            Layout.preferredWidth: divisorPanel.ancho
             Layout.fillHeight: true
             title: page.au && page.au.detail.nodo ? (page.au.detail.etiqueta || page.au.detail.nombre || page.au.detail.nodo) : "Detalle"
             ScrollView {
