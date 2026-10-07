@@ -91,6 +91,7 @@
 #include "ui/DashboardModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/HistoricoViewModel.hpp"
+#include "video/BancoSuperRes.hpp"
 #include "ui/ExtensionesModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/FrameService.hpp"
@@ -143,6 +144,11 @@ namespace {
 bool tieneSenal(const nlohmann::json& st) {
     const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
     if (!g.is_object()) return false;
+    // Recién rearmada a pedido (se prendió el PTZ, se agregó una tarjeta): la
+    // cámara se vuelve a abrir y tarda unos segundos en dar cuadros. No es una
+    // caída: 12 s de gracia (una que de verdad se cayó sigue sin señal después).
+    const double rearmada = g.value("rearmada_hace_s", -1.0);
+    if (rearmada >= 0.0 && rearmada < 12.0) return true;
     if (g.contains("fps_recibidos")) return st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5;
     const double sin = g.value("sin_datos_s", -1.0);
     return sin >= 0.0 && sin < 1.5;
@@ -846,6 +852,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     // La superresolución de las entradas de red (motores, modelos, laboratorio).
     superres_ = std::make_unique<video::SuperRes>(rt.dataRoot(), video_.get());
+    {
+        video::BancoSuperRes::Entorno en;
+        en.alAire = [this]() {
+            const auto s = rt_.engine().status();
+            return s.streaming || s.recording;
+        };
+        en.fps = [this]() {
+            const auto& v = rt_.engine().videoConfig();
+            return std::make_pair(v.fpsNum, v.fpsDen);
+        };
+        en.tamanosCamaras = [this]() { return video_->tamanosDeEntradas(); };
+        bancoSr_ = std::make_unique<video::BancoSuperRes>(rt.dataRoot(), *superres_, en);
+        video_->setEstimadorSr([this](const std::string& p, int w, int h) { return bancoSr_->estimarMs(p, w, h); });
+    }
     marca("video");
     connect(inputs_.get(), &InputsViewModel::changed, video_.get(), &video::VideoGrafos::sincronizar);
     // Los equipos de video de la red: la biblioteca de marcas y la base OUI
@@ -1191,6 +1211,7 @@ StudioViewModel::~StudioViewModel() {
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.
     rt_.setCarpetaDelEvento(nullptr);
+    if (video_) video_->setEstimadorSr(nullptr);
     if (flujos_) flujos_->setCarpetaDelEvento(nullptr);
     // Un sello a medias no se escribe: se corta y se vuelve a sellar otro día.
     cancelarSellos_ = true;
@@ -1785,6 +1806,7 @@ QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::traductor() const { return traductor_.get(); }
 QObject* StudioViewModel::superres() const { return superres_.get(); }
+QObject* StudioViewModel::bancoSrObj() const { return bancoSr_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }
 QObject* StudioViewModel::messages() const { return messages_.get(); }
 

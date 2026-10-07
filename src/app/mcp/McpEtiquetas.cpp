@@ -819,6 +819,7 @@ const Fila kPropias[] = {
     {"audio_estudio", "vista general todo el audio cadenas pipelines fuentes rack mezcla de un vistazo"},
     {"automixer", "automixer mesa redonda dugan bancas microfonos ganancia el que habla"},
     {"entrada_filtros_audio", "audio filtros entrada plugin python compresor ecualizador eco gstreamer cadena"},
+    {"superres_banco", "banco pruebas benchmark medir maquina capacidad superresolucion acelerador en vivo rapido cuanto tarda"},
     {"superres_runtime_gpu", "gpu placa nvidia amd intel cuda tensorrt rocm migraphx openvino directml runtime onnx"},
     {"superres_runtime_gpu_instalar", "bajar instalar runtime gpu nvidia cuda tensorrt amd rocm intel openvino"},
     {"traduccion_agregar",

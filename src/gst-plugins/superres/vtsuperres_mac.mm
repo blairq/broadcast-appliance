@@ -84,7 +84,7 @@ G_DEFINE_TYPE(BaVtSuperRes, ba_vtsuperres, GST_TYPE_BASE_TRANSFORM)
 GST_DEBUG_CATEGORY_STATIC(ba_vtsuperres_debug);
 #define GST_CAT_DEFAULT ba_vtsuperres_debug
 
-enum { PROP_0, PROP_ACTIVO, PROP_MS };
+enum { PROP_0, PROP_ACTIVO, PROP_MS, PROP_CUADROS_RED, PROP_MS_SUMA };
 
 static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
                                                               GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
@@ -263,6 +263,8 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_VTSUPERRES(o);
     if (id == PROP_ACTIVO) g_value_set_boolean(v, s->activo);
     else if (id == PROP_MS) g_value_set_double(v, s->demora->media());
+    else if (id == PROP_CUADROS_RED) g_value_set_uint64(v, s->demora->totales().first);
+    else if (id == PROP_MS_SUMA) g_value_set_double(v, s->demora->totales().second);
     else G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
 }
 
@@ -301,6 +303,14 @@ static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
     g_object_class_install_property(go, PROP_MS,
                                     g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda en promedio", 0, 1000, 0,
                                                         static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_CUADROS_RED,
+                                    g_param_spec_uint64("cuadros-red", "Cuadros por la red",
+                                                        "Cuántos cuadros pasaron por la red (para medir una ventana)", 0,
+                                                        G_MAXUINT64, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_MS_SUMA,
+                                    g_param_spec_double("ms-suma", "ms en total",
+                                                        "Lo que tardó la red, sumado (con cuadros-red: el promedio de una ventana)",
+                                                        0, G_MAXDOUBLE, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     gst_element_class_set_static_metadata(ge, "Superresolución x2 (VideoToolbox)", "Filter/Effect/Video/Scaler",
                                           "Duplica la resolución de un video chico con la superresolución de baja latencia de Apple",
                                           "Broadcast Appliance");

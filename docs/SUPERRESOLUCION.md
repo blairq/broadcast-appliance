@@ -202,6 +202,31 @@ Los shaders GLSL no llevan variantes: la placa los compila para cualquier tamañ
 | `superres_programador` | Ver y configurar el programador. |
 | `video_estado` | Filtros, demoras y compensación de cada entrada. |
 
+## Banco de pruebas: qué puede usar esta máquina
+
+`superres_banco` (MCP) y «Esta máquina: qué superresolución puede usar» (panel de superresolución) miden cada
+método disponible y dicen cuál sirve en vivo:
+
+- **Qué se mide:** FSR, Apple (si hay), cada shader instalado y cada red instalada **con cada acelerador**:
+  Neural Engine y GPU en la Mac; en Windows y Linux, los proveedores que trae el ONNX Runtime (DirectML, CUDA,
+  TensorRT, ROCm, MIGraphX, OpenVINO, el procesador) y Vulkan (ncnn). El procesador, solo a 540p. Los plugins
+  `elemento` que piden memoria de placa (CUDA, D3D12) no se miden acá: se miden en la tarjeta, con la cámara.
+- **A qué tamaños:** 540p, 720p, 1080p y el tamaño de cada cámara del estudio (o los que se pidan).
+- **Cómo** (`motor/BancoSr`): un pipeline sin pantalla con `basuperres` (video en vivo a los cuadros del lienzo).
+  Las redes trabajan en otro hilo y entregan el cuadro anterior si no llegan, así que se lee lo que mide el
+  propio elemento (`ms-por-cuadro`); FSR y los shaders son sincrónicos y se miden con sondas en los pads
+  (mediana de entrada → salida). Abrir o compilar la red (TensorRT, ncnn) no cuenta: se espera el primer cuadro
+  (hasta 90 s; 30 s el procesador) y después se mide `segundos` (4 de fábrica).
+- **Veredicto** con los cuadros del lienzo (33 ms a 30 fps): `en_vivo` (entra en el 85 % del cuadro; con
+  cuántas a la vez en ese acelerador), `reducido` (hasta 2,5 cuadros: corre a menos fps), `diferido` (solo para
+  lo grabado), `no_corre`. `recomendado`: por tamaño, entre lo que va en vivo una red le gana a FSR; si nada va
+  en vivo, lo más rápido.
+- **Dónde queda:** `Config/superres-banco.json`, con la máquina, los fps y la fecha. **El programador lo usa**
+  para saber cuánto va a costar una red antes de prenderla (antes suponía 35 ms): el tamaño medido más parecido,
+  escalado por los píxeles, con el acelerador más rápido.
+- Mide con la app andando (lo que esté corriendo le quita placa): no arranca con una transmisión o una grabación
+  al aire salvo `forzar`. Tarda unos minutos y calienta la máquina; se puede cancelar y lo medido queda.
+
 ## Probado y sin probar
 
 **Probado en la Mac:**

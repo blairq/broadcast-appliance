@@ -127,6 +127,8 @@ enum {
     PROP_MEZCLA,
     PROP_MOTOR_USADO,
     PROP_MS,
+    PROP_CUADROS_RED,
+    PROP_MS_SUMA,
     PROP_ERROR
 };
 
@@ -359,6 +361,20 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
             break;
         }
         case PROP_MOTOR_USADO: g_value_set_string(v, s->usado); break;
+        case PROP_CUADROS_RED: {
+            guint64 n = 0;
+            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "cuadros-red") != nullptr)
+                g_object_get(s->motor, "cuadros-red", &n, nullptr);
+            g_value_set_uint64(v, n);
+            break;
+        }
+        case PROP_MS_SUMA: {
+            gdouble x = 0;
+            if (s->motor != nullptr && g_object_class_find_property(G_OBJECT_GET_CLASS(s->motor), "ms-suma") != nullptr)
+                g_object_get(s->motor, "ms-suma", &x, nullptr);
+            g_value_set_double(v, x);
+            break;
+        }
         case PROP_MS: {
             gdouble ms = 0;
             if (s->motor != nullptr &&
@@ -452,6 +468,12 @@ static void ba_superres_class_init(BaSuperResClass* k) {
     g_object_class_install_property(
         go, PROP_MS,
         g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda (onnx/apple)", 0, 100000, 0, ro));
+    g_object_class_install_property(go, PROP_CUADROS_RED,
+                                    g_param_spec_uint64("cuadros-red", "Cuadros por la red", "Los que pasaron por la red del motor",
+                                                        0, G_MAXUINT64, 0, ro));
+    g_object_class_install_property(go, PROP_MS_SUMA,
+                                    g_param_spec_double("ms-suma", "ms en total", "Lo que tardó la red del motor, sumado", 0,
+                                                        G_MAXDOUBLE, 0, ro));
     g_object_class_install_property(
         go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
     gst_element_class_set_static_metadata(

@@ -234,6 +234,11 @@ class VideoGrafos : public QObject {
     Q_INVOKABLE QString superresMotorUi(const QString& entrada, const QString& motor, const QString& modelo);
     /// Qué motores hay en este sistema: [apple?, fsr?, onnx?].
     Q_INVOKABLE QStringList motoresSuperres() const;
+    /// Los tamaños (ancho, alto) de las entradas de video que hay (para el banco).
+    std::vector<std::pair<int, int>> tamanosDeEntradas() const;
+    /// Lo que va a tardar `plugin` con entradas de ancho×alto según el banco de
+    /// pruebas (0 = no se midió). El programador lo usa antes de prender una red.
+    void setEstimadorSr(std::function<double(const std::string&, int, int)> fn) { estimadorSr_ = std::move(fn); }
     /// Vuelve a armar la cadena de cada entrada (p. ej. hay variantes nuevas de una red).
     void reaplicarEntradas();
     /// El legalizador broadcast-safe (balegal) al final de la cadena de cada entrada
@@ -433,6 +438,7 @@ class VideoGrafos : public QObject {
     /// Salida (su nombre) -> el productor que lee su escena: "" = el final de la
     /// cadena de su entrada; si cuelga del medio, el de su basalida.
     std::map<std::string, std::string> productorSalida_;
+    std::function<double(const std::string&, int, int)> estimadorSr_;
     std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
     std::string legalizar_ = "no";
     std::set<std::string> ptzHabilitado_; ///< entradas con el PTZ digital prendido (Cámaras PTZ)

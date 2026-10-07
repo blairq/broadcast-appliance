@@ -15,6 +15,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "video/Diagnostico.hpp"
+#include "video/BancoSuperRes.hpp"
 #include "video/SuperRes.hpp"
 #include "video/VideoGrafos.hpp"
 
@@ -1503,6 +1504,56 @@ void McpService::registerVideoTools() {
             t.run = [srp](const json&, Done done) {
                 if (!srp) return done(ToolResult::error("no disponible"));
                 done(ToolResult().data(srp->runtimeGpu()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_banco";
+            t.title = "Medir qué superresolución puede usar esta máquina";
+            t.category = "video";
+            t.description =
+                "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
+                "instalada con cada acelerador: Neural Engine y GPU en la Mac; DirectML, CUDA/TensorRT, ROCm, "
+                "OpenVINO, Vulkan y el procesador en Windows/Linux) a 540p, 720p, 1080p y al tamaño de cada cámara, y "
+                "dice cuál corre en vivo, cuál a menos cuadros y cuál solo sirve para lo grabado. `accion`: resultado "
+                "(lo último medido, de fábrica), correr, estado o cancelar.";
+            t.details =
+                "Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con "
+                "sondas). Veredicto con los cuadros del lienzo: en_vivo (entra en el 85 % del cuadro, con cuántas a la "
+                "vez), reducido (hasta 2,5 cuadros), diferido, no_corre. `recomendado`: lo mejor por tamaño (entre lo "
+                "que va en vivo, una red le gana a FSR). Queda en Config/superres-banco.json y el programador lo usa "
+                "para saber cuánto va a costar una red antes de prenderla. Tarda unos minutos y calienta la máquina; "
+                "no arranca con algo al aire salvo `forzar`. Opciones: `resoluciones` [\"1280x720\"…], `metodos` "
+                "[ids de plugin], `segundos` por prueba (4).";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"accion", {{"type", "string"}, {"enum", {"resultado", "correr", "estado", "cancelar"}}}},
+                               {"resoluciones", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                               {"metodos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                               {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 30}}},
+                               {"forzar", {{"type", "boolean"}}}}}};
+            t.examples = {R"({})", R"({"accion": "correr"})", R"({"accion": "correr", "resoluciones": ["1280x720"], "metodos": ["fsr"]})",
+                          R"({"accion": "estado"})"};
+            t.run = [this](const json& a, Done done) {
+                auto* b = vm_.bancoSr();
+                if (b == nullptr) return done(ToolResult::error("no disponible"));
+                const std::string ac = a.value("accion", std::string("resultado"));
+                if (ac == "correr") {
+                    const std::string e = b->correr(a);
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    json est = b->estado();
+                    est.erase("parciales");
+                    return done(ToolResult().text("Midiendo: superres_banco {accion: \"estado\"} muestra el avance.").data(est));
+                }
+                if (ac == "cancelar") {
+                    b->cancelar();
+                    return done(ToolResult::ok("Cancelado: lo medido hasta acá queda."));
+                }
+                if (ac == "estado") return done(ToolResult().data(b->estado()));
+                const json r = b->resultado();
+                if (r.empty()) return done(ToolResult::ok("Nunca se midió esta máquina: superres_banco {accion: \"correr\"}."));
+                done(ToolResult().data(r));
             };
             core_.addTool(std::move(t));
         }

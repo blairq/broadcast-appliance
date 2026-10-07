@@ -126,6 +126,8 @@ enum {
     PROP_ESCALA,
     PROP_ACTIVO,
     PROP_MS,
+    PROP_CUADROS_RED,
+    PROP_MS_SUMA,
     PROP_ERROR,
     PROP_SIN_COPIAS,
     PROP_UNIDADES,
@@ -660,6 +662,8 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_MEZCLA: g_value_set_double(v, s->mezcla.valor); break;
         case PROP_UNIDADES_USADAS: g_value_set_string(v, kUnidades[std::clamp(s->unidadesUsadas, 0, 4)]); break;
         case PROP_MS: g_value_set_double(v, s->demora->media()); break;
+        case PROP_CUADROS_RED: g_value_set_uint64(v, s->demora->totales().first); break;
+        case PROP_MS_SUMA: g_value_set_double(v, s->demora->totales().second); break;
         case PROP_SIN_COPIAS:
             g_value_set_double(v, s->conMeta + s->sinMeta > 0
                                       ? static_cast<double>(s->conMeta) / static_cast<double>(s->conMeta + s->sinMeta)
@@ -775,6 +779,14 @@ static void ba_coremlsr_class_init(BaCoreMlSrClass* k) {
     g_object_class_install_property(go, PROP_MS,
                                     g_param_spec_double("ms-por-cuadro", "ms por cuadro",
                                                         "Lo que tarda la red en promedio", 0, 100000, 0, ro));
+    g_object_class_install_property(go, PROP_CUADROS_RED,
+                                    g_param_spec_uint64("cuadros-red", "Cuadros por la red",
+                                                        "Cuántos cuadros pasaron por la red (para medir una ventana)", 0,
+                                                        G_MAXUINT64, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_MS_SUMA,
+                                    g_param_spec_double("ms-suma", "ms en total",
+                                                        "Lo que tardó la red, sumado (con cuadros-red: el promedio de una ventana)",
+                                                        0, G_MAXDOUBLE, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     g_object_class_install_property(
         go, PROP_SIN_COPIAS,
         g_param_spec_double("sin-copias", "Sin copias",

@@ -480,6 +480,8 @@ enum {
     PROP_FP16,
     PROP_CACHE,
     PROP_MS,
+    PROP_CUADROS_RED,
+    PROP_MS_SUMA,
     PROP_ERROR,
     PROP_PROVEEDOR_USADO,
     PROP_PROVEEDORES,
@@ -1432,6 +1434,8 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_TRANSICION: g_value_set_int(v, s->transicionMs->load()); break;
         case PROP_MEZCLA: g_value_set_double(v, s->mezcla.valor); break;
         case PROP_MS: g_value_set_double(v, s->demora->media()); break;
+        case PROP_CUADROS_RED: g_value_set_uint64(v, s->demora->totales().first); break;
+        case PROP_MS_SUMA: g_value_set_double(v, s->demora->totales().second); break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_ERROR: {
             std::lock_guard<std::mutex> l(*s->errorMu);
@@ -1450,6 +1454,9 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
 #if defined(BA_HAVE_ORT)
             for (const char* p : {"tensorrt", "cuda", "dml", "migraphx", "rocm", "openvino", "coreml", "cpu"})
                 if (ba::ort::trae(p)) l += std::string(l.empty() ? "" : ",") + p;
+#endif
+#if defined(BA_HAVE_NCNN)
+            if (hayVulkan()) l += std::string(l.empty() ? "" : ",") + "vulkan"; // ncnn, aparte de ONNX Runtime
 #endif
             g_value_set_string(v, l.c_str());
             break;
@@ -1577,6 +1584,14 @@ static void ba_onnxsr_class_init(BaOnnxSrClass* k) {
     g_object_class_install_property(go, PROP_MS,
                                     g_param_spec_double("ms-por-cuadro", "ms por cuadro",
                                                         "Lo que tarda (promedio móvil)", 0, 100000, 0, ro));
+    g_object_class_install_property(go, PROP_CUADROS_RED,
+                                    g_param_spec_uint64("cuadros-red", "Cuadros por la red",
+                                                        "Cuántos cuadros pasaron por la red (para medir una ventana)", 0,
+                                                        G_MAXUINT64, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_MS_SUMA,
+                                    g_param_spec_double("ms-suma", "ms en total",
+                                                        "Lo que tardó la red, sumado (con cuadros-red: el promedio de una ventana)",
+                                                        0, G_MAXDOUBLE, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     g_object_class_install_property(
         go, PROP_ERROR, g_param_spec_string("error", "Error", "Por qué no anda (si no anda)", nullptr, ro));
     g_object_class_install_property(

@@ -167,6 +167,135 @@ ColumnLayout {
         }
     }
 
+    // --- El banco de pruebas: qué puede usar esta máquina -----------------------------------
+    ColumnLayout {
+        id: banco
+        Layout.fillWidth: true
+        spacing: 6
+        readonly property var b: Studio.bancoSr
+        readonly property var est: b ? b.estado : ({})
+        readonly property var res: b ? b.resultado : ({})
+        readonly property var datos: (est.corriendo ? est.parciales : res.resultados) || []
+        readonly property var tamanos: {
+            const vistos = {}
+            const l = []
+            for (const r of datos) {
+                const k = r.ancho + "x" + r.alto
+                if (!vistos[k]) { vistos[k] = true; l.push({ k: k, px: r.ancho * r.alto, t: r.alto + "p" + (r.ancho * 9 !== r.alto * 16 ? " (" + r.ancho + "×" + r.alto + ")" : "") }) }
+            }
+            return l.sort((x, y) => x.px - y.px)
+        }
+        readonly property var filas: {
+            const vistos = {}
+            const l = []
+            for (const r of datos) if (!vistos[r.id]) { vistos[r.id] = true; l.push({ id: r.id, nombre: r.nombre, acel: r.acelerador_nombre }) }
+            return l
+        }
+        function celda(id, k) { return datos.find(r => r.id === id && (r.ancho + "x" + r.alto) === k) }
+        function colorDe(v) { return v === "en_vivo" ? Theme.ok : v === "reducido" ? Theme.warn : v === "diferido" ? "#ff8a65" : Theme.textFaint }
+        // Mientras mide, se refresca solo (la señal del banco ya avisa; esto es por la cuenta regresiva).
+        Timer { interval: 1000; running: panel.visible && !!banco.est.corriendo; repeat: true; onTriggered: banco.estChanged() }
+
+        RowLayout {
+            Layout.fillWidth: true
+            Text { text: "Esta máquina: qué superresolución puede usar"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+            GlassButton {
+                compact: true
+                text: banco.est.corriendo ? "Cancelar" : (banco.res.fecha ? "Medir de nuevo" : "Medir esta máquina")
+                onClicked: {
+                    if (banco.est.corriendo) { banco.b.cancelar(); return }
+                    const e = banco.b.correrUi({})
+                    if (e !== "")
+                        ApplicationWindow.window.confirm({
+                            title: "Medir igual", text: e + ".", accept: "Medir igual", reject: "No",
+                            action: () => panel.avisar(banco.b.correrUi({ forzar: true }), "Midiendo…")
+                        })
+                }
+            }
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 12
+            text: banco.est.corriendo
+                  ? "Midiendo " + (banco.est.actual || "") + " · " + (banco.est.hechas || 0) + " de " + (banco.est.total || 0)
+                    + (banco.est.eta_s ? " · quedan unos " + Math.ceil(banco.est.eta_s / 60) + " min" : "") + ". Calienta la máquina: mejor sin nada al aire."
+                  : banco.res.fecha
+                    ? "Medido el " + banco.res.fecha + " en " + ((banco.res.maquina || {}).sistema || "") + " a " + banco.res.fps + " fps (" + banco.res.cuadro_ms + " ms por cuadro)"
+                      + (banco.res.completo === false ? " · incompleto (se canceló)" : "") + ". El programador usa estos números antes de prender una red."
+                    : "Nunca se midió. Prueba cada método instalado con cada acelerador (Neural Engine, GPU, DirectML, CUDA, Vulkan…) a 540p, 720p, 1080p y al tamaño de cada cámara; tarda unos minutos."
+        }
+        // La tabla: un método y acelerador por fila; ms por cuadro por tamaño, en colores.
+        GridLayout {
+            visible: banco.filas.length > 0
+            Layout.fillWidth: true
+            columns: banco.tamanos.length + 1
+            columnSpacing: 12
+            rowSpacing: 3
+            Text { text: "Método · acelerador"; color: Theme.textDim; font.pixelSize: 11 }
+            Repeater {
+                model: banco.tamanos
+                delegate: Text { required property var modelData; text: modelData.t; color: Theme.textDim; font.pixelSize: 11 }
+            }
+            Repeater {
+                model: banco.filas
+                delegate: Item {
+                    // (una fila del GridLayout: el nombre y una celda por tamaño)
+                    required property var modelData
+                    Layout.columnSpan: banco.tamanos.length + 1
+                    Layout.fillWidth: true
+                    implicitHeight: filaB.implicitHeight
+                    RowLayout {
+                        id: filaB
+                        anchors { left: parent.left; right: parent.right }
+                        spacing: 12
+                        Text {
+                            Layout.preferredWidth: 220
+                            elide: Text.ElideRight
+                            text: modelData.nombre + " · " + modelData.acel
+                            color: Theme.text; font.pixelSize: 12
+                        }
+                        Repeater {
+                            model: banco.tamanos
+                            delegate: Text {
+                                required property var modelData
+                                readonly property var c: banco.celda(filaB.parent.modelData.id, modelData.k)
+                                Layout.preferredWidth: 90
+                                text: !c ? "—" : c.error ? "no corre" : c.ms + " ms" + (c.simultaneas > 1 ? " ×" + c.simultaneas : "")
+                                color: c ? banco.colorDe(c.veredicto) : Theme.textFaint
+                                font.pixelSize: 12
+                                ToolTip.visible: maB.containsMouse && !!c
+                                ToolTip.text: !c ? "" : c.error ? c.error
+                                              : (c.veredicto === "en_vivo" ? "En vivo" + (c.simultaneas > 1 ? " (" + c.simultaneas + " a la vez en este acelerador)" : "")
+                                                 : c.veredicto === "reducido" ? "Corre a unos " + c.fps + " cuadros por segundo"
+                                                 : "Solo para lo grabado") + (c.abrir_s > 2 ? " · abrir la red: " + c.abrir_s + " s" : "")
+                                MouseArea { id: maB; anchors.fill: parent; hoverEnabled: true }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Text {
+            visible: banco.filas.length > 0
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            font.pixelSize: 11
+            color: Theme.textFaint
+            text: "Verde: en vivo (×N: cuántas a la vez). Ámbar: corre a menos cuadros. Naranja: solo para lo grabado."
+        }
+        Repeater {
+            model: banco.res.recomendado ? Object.keys(banco.res.recomendado) : []
+            delegate: Text {
+                required property var modelData
+                readonly property var r: banco.res.recomendado[modelData]
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                font.pixelSize: 12
+                color: banco.colorDe(r.veredicto)
+                text: "Para " + modelData.replace("x", "×") + ": " + r.nombre + " en " + r.acelerador + " (" + r.ms + " ms"
+                      + (r.veredicto === "en_vivo" ? ", en vivo)" : r.veredicto === "reducido" ? ", a menos cuadros)" : ", solo grabado)")
+            }
+        }
+    }
+
     // --- Placa de video ------------------------------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
     Text { text: "Placa de video y aceleración"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }

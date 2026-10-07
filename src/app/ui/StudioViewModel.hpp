@@ -62,6 +62,7 @@ class ControlCamaras;
 namespace ba::app::video {
 class VideoGrafos;
 class SuperRes;
+class BancoSuperRes;
 } // namespace ba::app::video
 namespace ba::app::red {
 class Red;
@@ -295,6 +296,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* traductor READ traductor CONSTANT)
     /// La superresolución de las entradas de red: motores, modelos, laboratorio (video/SuperRes.hpp).
     Q_PROPERTY(QObject* superres READ superres CONSTANT)
+    /// El banco de pruebas de superresolución: qué puede usar esta máquina.
+    Q_PROPERTY(QObject* bancoSr READ bancoSrObj CONSTANT)
     /// Los roles automaticos y sus corridas (pagina Agentes).
     Q_PROPERTY(QObject* despachador READ despachadorQml CONSTANT)
     Q_PROPERTY(QObject* messages READ messages CONSTANT)
@@ -586,6 +589,8 @@ class StudioViewModel : public QObject {
     QObject* voces() const;
     QObject* traductor() const;
     QObject* superres() const;
+    QObject* bancoSrObj() const;
+    video::BancoSuperRes* bancoSr() const { return bancoSr_.get(); }
     video::SuperRes* superresVideo() const { return superres_.get(); }
     agent::Traductor* traductorAgent() const { return traductor_.get(); }
     agent::ModelosLocales* modelosLocales() const { return modelos_.get(); }
@@ -818,6 +823,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<agent::Subtitulos> subtitulos_;
     std::unique_ptr<agent::SubtitulosCC> cc_;
     std::unique_ptr<video::SuperRes> superres_;
+    std::unique_ptr<video::BancoSuperRes> bancoSr_;
     std::unique_ptr<audio::AudioViewModel> audio_;
 #endif
     std::unique_ptr<YouTubeViewModel> youtube_;

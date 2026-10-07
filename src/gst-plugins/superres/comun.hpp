@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <mutex>
 #include <string>
 
@@ -184,6 +185,12 @@ struct Demora {
     double media() {
         std::lock_guard<std::mutex> l(mu);
         return promedio;
+    }
+    /// {cuadros, suma de ms} desde el último reinicio (para medir una ventana:
+    /// la diferencia entre dos lecturas; ver el banco de pruebas).
+    std::pair<std::uint64_t, double> totales() {
+        std::lock_guard<std::mutex> l(mu);
+        return {static_cast<std::uint64_t>(n), suma};
     }
     /// {cuadros, promedio exacto de todos}.
     std::pair<size_t, double> resumen() {
