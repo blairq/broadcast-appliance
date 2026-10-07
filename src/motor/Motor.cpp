@@ -419,13 +419,31 @@ std::string Motor::armar(const std::string& nombre) {
 }
 
 void Motor::actualizarUso() {
-    std::set<std::string> uso;
-    const auto sumar = [&uso](const std::set<std::string>& s) { uso.insert(s.begin(), s.end()); };
+    std::set<std::string> uso, leidos;
+    const auto sumar = [](std::set<std::string>& a, const std::set<std::string>& s) { a.insert(s.begin(), s.end()); };
     for (Composicion* c : {vPrograma_.get(), vPreview_.get(), vMulti_.get()})
-        if (c != nullptr) sumar(c->entradasEnUso());
-    for (const auto& [n, c] : vEscenas_)
-        if (c.comp) sumar(c.comp->entradasEnUso());
-    if (vistas_) sumar(vistas_->entradasEnUso());
+        if (c != nullptr) {
+            sumar(uso, c->entradasEnUso());
+            sumar(leidos, c->productoresEnUso());
+        }
+    if (vistas_) {
+        sumar(uso, vistas_->entradasEnUso());
+        sumar(leidos, vistas_->productoresEnUso());
+    }
+    // Una composición interna (un compositor, una escena del DSK, la vista de
+    // una escena) cuenta solo si algo en uso la lee: si no, sus capas también
+    // descansan. En cadena (un compositor dentro de otro).
+    std::set<const Composicion*> vistas;
+    for (bool cambio = true; cambio;) {
+        cambio = false;
+        for (const auto& [n, c] : vEscenas_) {
+            if (!c.comp || vistas.count(c.comp.get()) || !leidos.count(c.comp->productor())) continue;
+            vistas.insert(c.comp.get());
+            sumar(uso, c.comp->entradasEnUso());
+            sumar(leidos, c.comp->productoresEnUso());
+            cambio = true;
+        }
+    }
     for (auto& [id, c] : canales_) c.entrada->ponerEnUso(uso.count(id) > 0);
 }
 

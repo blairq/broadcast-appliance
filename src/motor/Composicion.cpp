@@ -439,6 +439,14 @@ std::set<std::string> Composicion::entradasEnUso() const {
     return out;
 }
 
+std::set<std::string> Composicion::productoresEnUso() const {
+    std::lock_guard<std::mutex> l(mu_);
+    std::set<std::string> out;
+    for (const auto& [k, r] : ramas_) out.insert(r->productor);
+    for (const auto& [k, r] : dsk_) out.insert(r->productor);
+    return out;
+}
+
 void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms) {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return;

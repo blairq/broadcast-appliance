@@ -41,6 +41,7 @@
 
 namespace ba::motor {
 class Motor;
+struct Cuadro;
 class Grabacion;
 class Transmision;
 } // namespace ba::motor
@@ -429,6 +430,10 @@ class BroadcastEngine {
     /// Publica el programa hacia el Proceso B (BA.Program; el audio va por BA.Audio.ContentForReturn).
     bool publishReturnFeeds();
     void stopReturnFeeds();
+    /// ¿Alguien mira el retorno (invitados en la sala, integrantes remotos)? Sin
+    /// nadie, la vista que lo baja a 1920×1080 en cada cuadro se suelta (el canal
+    /// queda publicado); con alguien, vuelve.
+    void retornoEnUso(bool si);
 
     /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada
     /// (ultimoInicio = YaIgual); a OTRO destino falla (YaOtroDestino), salvo
@@ -666,6 +671,9 @@ class BroadcastEngine {
     // Al gateway
     ba::ipc::SpoutSender programVideo_;
     bool returnFeedsActive_ = false;
+    bool retornoPausado_ = false;
+    void pedirVistaRetorno();
+    void enviarRetorno(const motor::Cuadro& c);
     std::uint64_t programFrameIndex_ = 0;
     std::vector<std::uint8_t> programPacked_;
 

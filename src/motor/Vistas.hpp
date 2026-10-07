@@ -49,6 +49,8 @@ class Vistas {
     Vistas(Reloj& reloj, Resolver resolver);
     /// Las entradas que alguien está mirando («entrada:<id>@…»).
     std::set<std::string> entradasEnUso() const;
+    /// Lo que leen las vistas (sus productores).
+    std::set<std::string> productoresEnUso() const;
     ~Vistas();
     Vistas(const Vistas&) = delete;
     Vistas& operator=(const Vistas&) = delete;

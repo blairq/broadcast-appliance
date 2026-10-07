@@ -760,6 +760,22 @@ void darContextoGpu(GstElement* pipeline) {
     gst_structure_set(gst_context_writable_structure(ca), "context", GST_TYPE_GL_CONTEXT, c, nullptr);
     gst_element_set_context(pipeline, ca);
     gst_context_unref(ca);
+    // EL MISMO CONTEXTO PARA TODOS: con el de la app solo como «compartido»,
+    // cada pipeline armaba su contexto, y cada textura que pasaba de un pipeline
+    // a otro pagaba una barrera de sincronización (glFenceSync: ~25 % del hilo
+    // de GL). Con uno solo no hacen falta. Medido (8 cámaras, programa +
+    // preview): 181 % → 163 % de CPU, las vistas parejas a 30 cuadros/s.
+    // BA_GL_UN_CONTEXTO=0 vuelve a uno por pipeline.
+    static const bool unContexto = [] {
+        const char* v = std::getenv("BA_GL_UN_CONTEXTO");
+        return v == nullptr || std::string(v) != "0";
+    }();
+    if (unContexto) {
+        GstContext* cl = gst_context_new("gst.gl.local_context", TRUE);
+        gst_structure_set(gst_context_writable_structure(cl), "context", GST_TYPE_GL_CONTEXT, c, nullptr);
+        gst_element_set_context(pipeline, cl);
+        gst_context_unref(cl);
+    }
 }
 
 std::string aSistema(const std::string& formato) {

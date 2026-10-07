@@ -406,29 +406,46 @@ bool BroadcastEngine::publishReturnFeeds() {
         setError(e);
         return false;
     }
-    motor_->verAvisar("programa@gateway", [this](const motor::Cuadro& c) {
-        if (!programVideo_.published() || c.ancho != video_.outputWidth || c.alto != video_.outputHeight) return;
-        const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
-        const std::uint8_t* px = c.bgra.data();
-        if (static_cast<std::size_t>(c.stride) != fila) {
-            programPacked_.resize(fila * static_cast<std::size_t>(c.alto));
-            for (int y = 0; y < c.alto; ++y)
-                std::memcpy(programPacked_.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
-            px = programPacked_.data();
-        }
-        ba::ipc::FrameMeta meta;
-        meta.frameIndex = ++programFrameIndex_;
-        meta.qpc = ba::ipc::HealthBlock::nowQpc();
-        programVideo_.send(px, fila * static_cast<std::size_t>(c.alto), meta);
-    });
+    motor_->verAvisar("programa@gateway", [this](const motor::Cuadro& c) { enviarRetorno(c); });
     returnFeedsActive_ = true;
     return true;
 }
 
+void BroadcastEngine::enviarRetorno(const motor::Cuadro& c) {
+    if (!programVideo_.published() || c.ancho != video_.outputWidth || c.alto != video_.outputHeight) return;
+    const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
+    const std::uint8_t* px = c.bgra.data();
+    if (static_cast<std::size_t>(c.stride) != fila) {
+        programPacked_.resize(fila * static_cast<std::size_t>(c.alto));
+        for (int y = 0; y < c.alto; ++y)
+            std::memcpy(programPacked_.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
+        px = programPacked_.data();
+    }
+    ba::ipc::FrameMeta meta;
+    meta.frameIndex = ++programFrameIndex_;
+    meta.qpc = ba::ipc::HealthBlock::nowQpc();
+    programVideo_.send(px, fila * static_cast<std::size_t>(c.alto), meta);
+}
+
+void BroadcastEngine::retornoEnUso(bool si) {
+    if (!returnFeedsActive_ || !motor_ || si == !retornoPausado_) return;
+    if (si) {
+        if (motor_->verPedir("programa@gateway", video_.outputWidth, video_.outputHeight).empty())
+            motor_->verAvisar("programa@gateway", [this](const motor::Cuadro& c) { enviarRetorno(c); });
+    } else {
+        motor_->verAvisar("programa@gateway", nullptr);
+        motor_->verSoltar("programa@gateway");
+    }
+    retornoPausado_ = !si;
+}
+
 void BroadcastEngine::stopReturnFeeds() {
     if (!returnFeedsActive_ || !motor_) return;
-    motor_->verAvisar("programa@gateway", nullptr);
-    motor_->verSoltar("programa@gateway");
+    if (!retornoPausado_) {
+        motor_->verAvisar("programa@gateway", nullptr);
+        motor_->verSoltar("programa@gateway");
+    }
+    retornoPausado_ = false;
     returnFeedsActive_ = false;
 }
 

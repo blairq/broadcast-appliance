@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <deque>
 #include <map>
 #include <mutex>
 #include <thread>
@@ -28,38 +29,59 @@ namespace {
 // sola vez; la entrada recibe el cuadro hecho por un appsrc.
 constexpr int kPlacaAncho = 640, kPlacaAlto = 360;
 
-GstBuffer* placaDibujada(const std::string& texto) {
+} // namespace
+
+/// Un texto para dibujar (la placa «sin señal» y los rótulos de texto).
+struct Rotulo {
+    std::string texto, fuente = "Sans Bold 22", color = "0xffffffff", colorContorno = "0xff000000";
+    std::string ha = "center", va = "center";
+    bool contorno = false;
+    int ancho = kPlacaAncho, alto = kPlacaAlto;
+    std::uint32_t fondo = 0xff1c1c22; ///< ARGB
+    std::string clave() const {
+        return texto + '\x1f' + fuente + '\x1f' + color + '\x1f' + colorContorno + '\x1f' + ha + '\x1f' + va + '\x1f' +
+               (contorno ? "1" : "0") + '\x1f' + std::to_string(ancho) + 'x' + std::to_string(alto) + '\x1f' + std::to_string(fondo);
+    }
+};
+
+namespace {
+
+GstBuffer* textoDibujado(const Rotulo& r) {
     // Nunca se destruyen: un std::mutex estático que se destruye al salir
     // mientras otro hilo lo usa es «mutex lock failed» y el proceso muere.
     static auto* mu = new std::mutex;
     static auto* hechas = new std::map<std::string, GstBuffer*>;
+    static auto* orden = new std::deque<std::string>; // los más viejos adelante
     static GstElement* dibujante = nullptr;
     static GstClockTime pts = 0;
     std::lock_guard<std::mutex> l(*mu);
-    if (auto it = hechas->find(texto); it != hechas->end()) return gst_buffer_ref(it->second);
+    const std::string clave = r.clave();
+    if (auto it = hechas->find(clave); it != hechas->end()) return gst_buffer_ref(it->second);
 
-    // El fondo: 0xff1c1c22 en BGRA (B, G, R, A).
-    const gsize bytes = static_cast<gsize>(kPlacaAncho) * kPlacaAlto * 4;
+    // El fondo, en BGRA (B, G, R, A).
+    const gsize bytes = static_cast<gsize>(r.ancho) * r.alto * 4;
     GstBuffer* fondo = gst_buffer_new_allocate(nullptr, bytes, nullptr);
     if (GstMapInfo m; gst_buffer_map(fondo, &m, GST_MAP_WRITE)) {
+        const std::uint8_t b = r.fondo & 0xff, g = (r.fondo >> 8) & 0xff, rr = (r.fondo >> 16) & 0xff, a = r.fondo >> 24;
         for (gsize i = 0; i + 3 < m.size; i += 4) {
-            m.data[i] = 0x22;
-            m.data[i + 1] = 0x1c;
-            m.data[i + 2] = 0x1c;
-            m.data[i + 3] = 0xff;
+            m.data[i] = b;
+            m.data[i + 1] = g;
+            m.data[i + 2] = rr;
+            m.data[i + 3] = a;
         }
         gst_buffer_unmap(fondo, &m);
     }
     GstBuffer* hecha = fondo;
     if (dibujante == nullptr && hayFabrica("textoverlay")) {
         GError* e = nullptr;
-        dibujante = gst_parse_launch(
-            ("appsrc name=entra format=time caps=video/x-raw,format=BGRA,width=" + std::to_string(kPlacaAncho) +
-             ",height=" + std::to_string(kPlacaAlto) +
-             ",framerate=1/1 ! textoverlay name=rotulo font-desc=\"Sans Bold 22\" valignment=center halignment=center"
-             " ! appsink name=sale sync=false")
-                .c_str(),
-            &e);
+        // auto-resize=false: el tamaño ya viene en puntos de la letra pedida.
+        // Prendido (lo de fábrica), textoverlay la agranda según el ancho (toma
+        // 640 de referencia): un rótulo de 1152 de ancho salía casi al doble,
+        // partido en dos renglones y cortado arriba.
+        dibujante = gst_parse_launch("appsrc name=entra format=time ! textoverlay name=rotulo draw-shadow=false wrap-mode=word"
+                                     " auto-resize=false"
+                                     " ! appsink name=sale sync=false",
+                                     &e);
         if (e != nullptr) {
             g_error_free(e);
             if (dibujante != nullptr) gst_object_unref(dibujante);
@@ -72,16 +94,24 @@ GstBuffer* placaDibujada(const std::string& texto) {
         GstElement* entra = gst_bin_get_by_name(GST_BIN(dibujante), "entra");
         GstElement* rotulo = gst_bin_get_by_name(GST_BIN(dibujante), "rotulo");
         GstElement* sale = gst_bin_get_by_name(GST_BIN(dibujante), "sale");
-        g_object_set(rotulo, "text", texto.c_str(), nullptr);
+        GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, r.ancho,
+                                            "height", G_TYPE_INT, r.alto, "framerate", GST_TYPE_FRACTION, 1, 1, nullptr);
+        g_object_set(entra, "caps", caps, nullptr);
+        gst_caps_unref(caps);
+        g_object_set(rotulo, "text", r.texto.c_str(), "font-desc", r.fuente.c_str(), "draw-outline", r.contorno, nullptr);
+        gst_util_set_object_arg(G_OBJECT(rotulo), "color", r.color.c_str());
+        gst_util_set_object_arg(G_OBJECT(rotulo), "outline-color", r.colorContorno.c_str());
+        gst_util_set_object_arg(G_OBJECT(rotulo), "halignment", r.ha.c_str());
+        gst_util_set_object_arg(G_OBJECT(rotulo), "valignment", r.va.c_str());
         GstBuffer* in = gst_buffer_ref(fondo);
         GST_BUFFER_PTS(in) = pts;
         GST_BUFFER_DURATION(in) = GST_SECOND;
         pts += GST_SECOND;
-        GstFlowReturn r = GST_FLOW_OK;
-        g_signal_emit_by_name(entra, "push-buffer", in, &r);
+        GstFlowReturn res = GST_FLOW_OK;
+        g_signal_emit_by_name(entra, "push-buffer", in, &res);
         gst_buffer_unref(in);
         GstSample* muestra = nullptr;
-        if (r == GST_FLOW_OK) g_signal_emit_by_name(sale, "try-pull-sample", static_cast<GstClockTime>(2 * GST_SECOND), &muestra);
+        if (res == GST_FLOW_OK) g_signal_emit_by_name(sale, "try-pull-sample", static_cast<GstClockTime>(2 * GST_SECOND), &muestra);
         if (muestra != nullptr) {
             if (GstBuffer* b = gst_sample_get_buffer(muestra)) {
                 hecha = gst_buffer_ref(b);
@@ -93,8 +123,24 @@ GstBuffer* placaDibujada(const std::string& texto) {
         gst_object_unref(rotulo);
         gst_object_unref(sale);
     }
-    (*hechas)[texto] = hecha; // la del mapa
+    // Los últimos 64 (un rótulo que el operador va escribiendo deja uno por versión).
+    (*hechas)[clave] = hecha;
+    orden->push_back(clave);
+    while (orden->size() > 64) {
+        auto it = hechas->find(orden->front());
+        if (it != hechas->end()) {
+            gst_buffer_unref(it->second);
+            hechas->erase(it);
+        }
+        orden->pop_front();
+    }
     return gst_buffer_ref(hecha);
+}
+
+GstBuffer* placaDibujada(const std::string& texto) {
+    Rotulo r;
+    r.texto = texto;
+    return textoDibujado(r);
 }
 
 std::uint64_t ahoraNs() { return static_cast<std::uint64_t>(g_get_monotonic_time()) * 1000ULL; }
@@ -196,7 +242,7 @@ void Entrada::armarSalida() {
                               ",height=" + std::to_string(kPlacaAlto) + ",framerate=" + fps + " ! " +
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
-                              " ! imagefreeze is-live=true ! fs.sink_1";
+                              " ! imagefreeze name=congela is-live=true ! fs.sink_1";
     const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=true ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
                           entreComillas(id_ + ":crudo:video") + " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! fs.sink_0 " +
@@ -220,6 +266,39 @@ void Entrada::armarSalida() {
         gst_buffer_unref(b);
         g_signal_emit_by_name(fuente, "end-of-stream", &r);
         gst_object_unref(fuente);
+    }
+    // LA PLACA DESCANSA mientras la señal llega: imagefreeze la repite a 30
+    // cuadros/s y el fallbackswitch la tiraba (con 40 entradas, ~1.200 cuadros por
+    // segundo para nada). Pasa uno por segundo (que el fallbackswitch tenga uno
+    // fresco cuando lo necesite) y, ya en la placa, todos.
+    if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
+        g_signal_connect(fs, "notify::active-pad",
+                         G_CALLBACK(+[](GObject* o, GParamSpec*, gpointer d) {
+                             GstPad* activo = nullptr;
+                             g_object_get(o, "active-pad", &activo, nullptr);
+                             static_cast<Entrada*>(d)->placaActiva_ =
+                                 activo != nullptr && std::string(GST_PAD_NAME(activo)) == "sink_1";
+                             if (activo != nullptr) gst_object_unref(activo);
+                         }),
+                         this);
+        gst_object_unref(fs);
+    }
+    if (GstElement* cg = gst_bin_get_by_name(GST_BIN(p), "congela")) {
+        if (GstPad* pad = gst_element_get_static_pad(cg, "src")) {
+            gst_pad_add_probe(
+                pad, GST_PAD_PROBE_TYPE_BUFFER,
+                [](GstPad*, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                    auto* e = static_cast<Entrada*>(d);
+                    if (e->placaActiva_.load(std::memory_order_relaxed)) return GST_PAD_PROBE_OK;
+                    const std::int64_t ahora = g_get_monotonic_time();
+                    if (ahora - e->ultimaPlacaUs_.load(std::memory_order_relaxed) < 1'000'000) return GST_PAD_PROBE_DROP;
+                    e->ultimaPlacaUs_.store(ahora, std::memory_order_relaxed);
+                    return GST_PAD_PROBE_OK;
+                },
+                this, nullptr);
+            gst_object_unref(pad);
+        }
+        gst_object_unref(cg);
     }
     if (GstElement* fs = gst_bin_get_by_name(GST_BIN(p), "fs")) {
         g_object_set(fs, "min-upstream-latency", static_cast<guint64>(std::max<std::int64_t>(reloj_.latencia(), 0) + 100 * GST_MSECOND), nullptr);
@@ -300,19 +379,24 @@ void Entrada::leer(const json& a) {
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "texto") {
-        const std::string fuente = a.value("fuente", std::string("Sans")) + (a.value("negrita", true) ? " Bold " : " ") +
-                                   std::to_string(a.value("tamano", 48));
+        // Dibujado UNA vez con el dibujante compartido (textoDibujado): cada
+        // textoverlay propio armaba su mapa de tipografías (~50 ms por rótulo).
+        rotulo_ = std::make_shared<Rotulo>();
+        rotulo_->texto = a.value("texto", std::string());
+        rotulo_->fuente = a.value("fuente", std::string("Sans")) + (a.value("negrita", true) ? " Bold " : " ") +
+                          std::to_string(a.value("tamano", 48));
         const std::string ha = a.value("alineacion", std::string("centro"));
         const std::string va = a.value("vertical", std::string("centro"));
-        descripcion_ = "videotestsrc num-buffers=1 pattern=solid-color foreground-color=0x00000000 ! video/x-raw,format=BGRA" + tam +
-                       ",framerate=" + std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
-                       " ! textoverlay text=" + conComillas(a.value("texto", std::string())) + " font-desc=" + conComillas(fuente) +
-                       " color=" + argb(a.value("color", json()), "0xffffffff") +
-                       " draw-outline=" + (a.value("contorno", false) ? "true" : "false") +
-                       " outline-color=" + argb(a.value("color_contorno", json()), "0xff000000") +
-                       " draw-shadow=false halignment=" + (ha == "izquierda" ? "left" : ha == "derecha" ? "right" : "center") +
-                       " valignment=" + (va == "arriba" ? "top" : va == "abajo" ? "bottom" : "center") +
-                       " wrap-mode=word ! imagefreeze is-live=true"; // rotulado una vez
+        rotulo_->ha = ha == "izquierda" ? "left" : ha == "derecha" ? "right" : "center";
+        rotulo_->va = va == "arriba" ? "top" : va == "abajo" ? "bottom" : "center";
+        rotulo_->color = argb(a.value("color", json()), "0xffffffff");
+        rotulo_->contorno = a.value("contorno", false);
+        rotulo_->colorContorno = argb(a.value("color_contorno", json()), "0xff000000");
+        rotulo_->ancho = std::max(2, w);
+        rotulo_->alto = std::max(2, h);
+        rotulo_->fondo = 0x00000000;
+        descripcion_ = "appsrc name=ba_texto format=time caps=video/x-raw,format=BGRA" + tam + ",framerate=" +
+                       std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) + " ! imagefreeze is-live=true";
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "app") {
@@ -660,6 +744,20 @@ void Entrada::armar() {
         }
         gst_object_unref(q);
     }
+    // El rótulo de texto, ya dibujado: un cuadro y fin (lo repite imagefreeze).
+    if (rotulo_)
+        if (GstElement* t = gst_bin_get_by_name(GST_BIN(p), "ba_texto")) {
+            GstBuffer* hecho = textoDibujado(*rotulo_);
+            GstBuffer* b = gst_buffer_copy(hecho);
+            gst_buffer_unref(hecho);
+            GST_BUFFER_PTS(b) = 0;
+            GST_BUFFER_DURATION(b) = GST_CLOCK_TIME_NONE;
+            GstFlowReturn r = GST_FLOW_OK;
+            g_signal_emit_by_name(t, "push-buffer", b, &r);
+            gst_buffer_unref(b);
+            g_signal_emit_by_name(t, "end-of-stream", &r);
+            gst_object_unref(t);
+        }
     // Las propiedades de cada filtro (las que no tiene, se avisan).
     for (const auto* lista : {&filtrosV, &filtrosA_})
         for (const auto& x : *lista) {
@@ -941,6 +1039,7 @@ void Entrada::tic() {
         }
         if (c > 0) controlEnviado_ = enviarControl();
     }
+
     if (salidaV_ != nullptr) {
         GstBus* bus = gst_element_get_bus(salidaV_);
         while (GstMessage* m = gst_bus_pop(bus)) {

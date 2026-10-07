@@ -70,6 +70,8 @@
 
 namespace ba::motor {
 
+struct Rotulo; // Entrada.cpp: un texto para dibujar
+
 class Reloj;
 
 class Entrada {
@@ -199,7 +201,10 @@ class Entrada {
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
     std::uint64_t consultaNs_ = 0;
     LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
+    std::shared_ptr<Rotulo> rotulo_; ///< un rótulo de texto: lo que dibuja (textoDibujado)
     std::atomic<bool> enUso_{true};
+    std::atomic<bool> placaActiva_{false};          ///< el fallbackswitch está en la placa
+    std::atomic<std::int64_t> ultimaPlacaUs_{0};    ///< el último cuadro de placa que pasó sin estar en la placa
     /// El freno del realineo (ver medirLatencia): cuándo se corrigió cada rama,
     /// para qué lado, y hasta cuándo no se la toca si va y viene.
     struct Realineo {

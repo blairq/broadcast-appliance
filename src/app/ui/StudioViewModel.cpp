@@ -1209,6 +1209,16 @@ void StudioViewModel::tiemposCentral() {
 void StudioViewModel::onTick() {
     tiemposCentral();
     rt_.tick();
+    // El retorno a los invitados: sin nadie que lo mire hace 10 s, la vista que
+    // baja el programa entero en cada cuadro descansa (ver retornoEnUso).
+    {
+        auto* conf = static_cast<ConferenceViewModel*>(conference());
+        const bool alguien = (conf != nullptr && static_cast<JsonListModel*>(conf->inside())->count() > 0) ||
+                             (sesionRemota_ && sesionRemota_->conectados() > 0);
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        if (alguien) retornoVistoMs_ = ahora;
+        rt_.engine().retornoEnUso(alguien || ahora - retornoVistoMs_ < 10000);
+    }
     if (AppRuntime::stopRequested()) {
         emit quitRequested();
         return;

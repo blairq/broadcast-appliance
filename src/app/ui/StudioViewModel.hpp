@@ -862,6 +862,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::Bancas> bancas_;
     std::unique_ptr<asamblea::ConferenciaDcn> dcn_;
     std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
+    qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.

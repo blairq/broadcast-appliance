@@ -106,6 +106,14 @@ std::set<std::string> Vistas::entradasEnUso() const {
     return out;
 }
 
+std::set<std::string> Vistas::productoresEnUso() const {
+    std::lock_guard<std::mutex> l(mu_);
+    std::set<std::string> out;
+    for (const auto& [clave, u] : vistas_)
+        if (!u->productor.empty()) out.insert(u->productor);
+    return out;
+}
+
 void Vistas::avisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
     std::lock_guard<std::mutex> l(mu_);
     auto it = vistas_.find(clave);

@@ -86,6 +86,8 @@ class Composicion {
     std::string productor() const { return "video:" + nombre_; }
     /// Las entradas que tiene ahora (capas, las que salen en una transición y el DSK).
     std::set<std::string> entradasEnUso() const;
+    /// Lo que leen sus capas (para saber qué composiciones internas están en uso).
+    std::set<std::string> productoresEnUso() const;
     bool anda() const { return pipeline_ != nullptr; }
     const std::string& error() const { return error_; }
 
