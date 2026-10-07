@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/plugins/Plugins.hpp — los plugins de Python (docs/PLUGINS.md)
+// src/app/plugins/Plugins.hpp — los plugins de Python (docs/funciones/PLUGINS.md)
 //
 // Un plugin es una carpeta en `Datos/Plugins/<id>/` (plugin.json + plugin.py +
 // sus bibliotecas en _libs/): vive en los DATOS, no en el programa, así que

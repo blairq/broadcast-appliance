@@ -31,7 +31,7 @@ log "$(du -h "$DESTINO/$nombre" | cut -f1)"
 # Si el prompt cambio desde que se entreno, el banco lo avisa solo (compara la
 # firma guardada con el conjunto). No se silencia: es justo lo que hay que ver.
 log "examen, 48 casos, el mismo de la linea de base"
-"$RAIZ/tools/bateria-local.py" --modelo "$DESTINO/$nombre" --solo-nombre --hilos 8
+"$RAIZ/tools/entrenar/bateria-local.py" --modelo "$DESTINO/$nombre" --solo-nombre --hilos 8
 
 cat <<'FIN'
 

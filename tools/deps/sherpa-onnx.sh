@@ -3,7 +3,7 @@
 # tools/deps/sherpa-onnx.sh — escuchar (y hablar) aca adentro: sherpa-onnx
 #
 # Proposito:
-#   El control por voz de la cabina (docs/AUDIO-TTS.md): push-to-talk, el
+#   El control por voz de la cabina (docs/funciones/AUDIO-TTS.md): push-to-talk, el
 #   audio del operador al reconocedor y el texto a la barra del asistente.
 #   sherpa-onnx corre los modelos de voz sobre ONNX Runtime —reconocer
 #   (Parakeet, Canary...), detectar voz (Silero VAD) y, mas adelante, hablar

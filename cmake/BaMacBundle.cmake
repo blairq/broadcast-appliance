@@ -7,7 +7,7 @@
 # certificado propio «BA Desarrollo local» si esta (tools/firma-local.sh: la
 # identidad no cambia entre compilaciones y macOS recuerda los permisos de
 # camara y microfono), o ad-hoc ("-"). Alcanza para correr en esta Mac. Para distribuir a otras Macs hace
-# falta firma Developer ID + notarizacion (docs/MACOS.md).
+# falta firma Developer ID + notarizacion (docs/desarrollo/MACOS.md).
 # Tambien se quita la cuarentena de Gatekeeper por si el arbol vino de un zip.
 # ============================================================================
 # Las rutas del árbol de fuentes y del build, para el bloque de abajo (que va

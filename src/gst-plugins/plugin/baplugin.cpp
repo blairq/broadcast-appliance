@@ -1,7 +1,7 @@
 // ============================================================================
 // src/gst-plugins/plugin/baplugin.cpp — los plugins de Python adentro de GStreamer
 //
-// Un plugin (docs/PLUGINS.md) corre en SU proceso; su video y su audio entran
+// Un plugin (docs/funciones/PLUGINS.md) corre en SU proceso; su video y su audio entran
 // y salen por dos módulos de GStreamer que se registran acá:
 //
 //   - `baplugin`    una TARJETA: cada cuadro (o bloque de audio) va al plugin,

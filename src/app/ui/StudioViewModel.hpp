@@ -578,7 +578,7 @@ class StudioViewModel : public QObject {
     video::VideoGrafos* videoGrafos() const { return video_.get(); }
     QObject* red() const;
     red::Red* redEquipos() const { return red_.get(); }
-    /// Los plugins de Python (docs/PLUGINS.md).
+    /// Los plugins de Python (docs/funciones/PLUGINS.md).
     plugins::Plugins* plugins() const { return plugins_.get(); }
     QObject* pluginsQml() const;
     QObject* seguidor() const;
@@ -835,7 +835,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;
     std::unique_ptr<agent::Vocabulario> vocabulario_;
     std::unique_ptr<control::BusEventos> bus_;
-    /// bitacora.jsonl del evento en curso (docs/PLAN-EVENTOS-HISTORICO.md, H2).
+    /// bitacora.jsonl del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H2).
     std::unique_ptr<evento::Bitacora> bitacora_;
     std::unique_ptr<HistoricoViewModel> historico_;
     /// Lo que no va del bus a la bitácora (cambia en vivo desde Ajustes del histórico).

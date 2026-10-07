@@ -8,7 +8,7 @@
 //
 // De fábrica NO va al aire: es una entrada global sin pistas que suena en la
 // escucha del operador (auriculares). Si el operador la rutea a una pista en la Matriz,
-// va a donde la mande (docs/AUDIO-TTS.md: antes era privada y sin camino al
+// va a donde la mande (docs/funciones/AUDIO-TTS.md: antes era privada y sin camino al
 // aire; el operador pidió poder rutearla).
 //
 // Se le empuja audio con timestamps seguidos, frase por frase, a medida que

@@ -3,7 +3,7 @@
 // Bancas: la fila de oradores del recinto. Cada banca sale del Cuerpo
 // (asamblea/Cuerpo): su preset PTZ, su micrófono, su nombre y cargo validados.
 // Es la FILA ÚNICA: también entran los que hablan desde el navegador (la sesión
-// remota, en la sala o afuera; docs/SESION-REMOTA.md). A esos no se les mueve
+// remota, en la sala o afuera; docs/funciones/SESION-REMOTA.md). A esos no se les mueve
 // ninguna cámara: se les da la palabra por la sesión remota (`palabraRemota`).
 //
 // Poner una banca al aire es UNA acción:

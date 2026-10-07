@@ -3,7 +3,7 @@
 #
 # Biblioteca estática `ba_motor`: reloj del estudio, entradas (lo que era
 # ba_gst_fuente, sin OBS), buses de audio (audiomixer) y, después, composición
-# y salidas. Ver docs/PLAN-TODO-EN-UNO.md, bloque M.
+# y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
 add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp)

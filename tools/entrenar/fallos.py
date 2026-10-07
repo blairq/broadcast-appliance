@@ -30,7 +30,7 @@ QUE HACER CON CADA UNO, que es lo que el informe imprime:
   · VECINA -> pares que las DISTINGAN, en las semillas de las dos.
   · LEJOS -> frases nuevas para la esperada, con las palabras de la frase.
 
-  tools/entrenar/fallos.py docs/bateria-local.json
+  tools/entrenar/fallos.py docs/modelos/bateria-local.json
 """
 import argparse
 import json
@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 import lib_prompt as lp  # noqa: E402
 
 SEMILLAS = RAIZ / "datos/semillas-reactivas.json"
@@ -112,7 +112,7 @@ def main():
         print(f"\nACEPTABLES QUE ESTAN FUERA DEL REPERTORIO REACTIVO ({len(afuera)}):")
         print(f"  {', '.join(afuera)}")
         print("  El modelo no puede elegirlas: la gramatica no las permite. Si hacen falta")
-        print("  en vivo, agregar su categoria a REACTIVAS en tools/lib_prompt.py —lo que")
+        print("  en vivo, agregar su categoria a REACTIVAS en tools/entrenar/lib_prompt.py —lo que")
         print("  cambia el prompt y obliga a reentrenar, y corpus-descubrir lo va a avisar—.")
 
 

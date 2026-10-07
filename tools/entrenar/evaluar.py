@@ -4,7 +4,7 @@
 LA MEDICION QUE VALE ES LA OTRA. Esta corre en la 3090 y en bf16; el aparato
 corre un GGUF cuantizado en la CPU de una notebook. Sirve para iterar sin
 esperar veinte minutos por cada idea, pero el numero final se saca con
-`tools/bateria-local.py` en la maquina de verdad. Cuantizar cambia el acierto:
+`tools/entrenar/bateria-local.py` en la maquina de verdad. Cuantizar cambia el acierto:
 medido sin entrenar, Q4 58% y Q8 62%.
 
 RESPUESTAS RESTRINGIDAS, igual que en produccion. Alla una gramatica impide
@@ -26,7 +26,7 @@ import time
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 EXAMEN = RAIZ / "datos/entrenamiento/examen.jsonl"
 

@@ -1,7 +1,7 @@
 {
   "_comentario": [
     "Inventario del servidor MCP del Broadcast Appliance.",
-    "GENERADO: no se edita a mano. Lo arma tools/mcp-inventario.py con el aparato andando.",
+    "GENERADO: no se edita a mano. Lo arma tools/docs/mcp-inventario.py con el aparato andando.",
     "`roles` de cada herramienta = los que la pueden usar (su categoria esta en su juego).",
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."

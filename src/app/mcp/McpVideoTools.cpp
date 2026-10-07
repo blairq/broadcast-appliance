@@ -1290,7 +1290,7 @@ void McpService::registerVideoTools() {
             t.title = "Crear un plugin de superresolución propio con cualquier elemento de GStreamer";
             t.category = "video";
             t.description =
-                "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/SUPERRESOLUCION.md): cualquier "
+                "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
                 "elemento de GStreamer —de GStreamer o propio, con su biblioteca en Datos/Modelos/superres/<id>/gst/— "
                 "que después se elige como cualquier plugin (superres_tarjeta {plugin: id}). `memoria`: vacía "
                 "(sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory: la cadena de la entrada sube a esa memoria "

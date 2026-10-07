@@ -760,7 +760,7 @@ QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Q
 # chequeo, en una maquina que ya tenia Qt el `qtpdf` no se bajaria nunca y nadie
 # se enteraria hasta que un PDF no se pueda abrir.
 # Renderiza las paginas de un PDF a imagen, que es de donde sale un carrusel
-# (ver docs/CARRUSEL.md). Se eligio sobre MuPDF porque usa el mismo vendoreo que
+# (ver docs/funciones/CARRUSEL.md). Se eligio sobre MuPDF porque usa el mismo vendoreo que
 # ya existe, anda igual en Linux y Windows, y no agrega otro build.
 QT6_HOST_PDF := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake
 # Multimedia (qtmultimedia), con su propio centinela por lo mismo que el PDF.
@@ -899,7 +899,7 @@ else
 endif
 ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER)/$(ORT_PKG)
 
-# La voz (docs/AUDIO-TTS.md): sherpa-onnx contra el MISMO ONNX Runtime de los
+# La voz (docs/funciones/AUDIO-TTS.md): sherpa-onnx contra el MISMO ONNX Runtime de los
 # rostros. Los modelos de voz NO: se bajan a pedido desde la app.
 deps-sherpa-onnx: deps-rostros
 	tools/deps/sherpa-onnx.sh
@@ -1074,7 +1074,7 @@ deps-lsp:
 CLAP_VER := 1.2.6
 CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
 # --- LibreOffice (opcional) --------------------------------------------------
-# Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/CARRUSEL.md).
+# Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/funciones/CARRUSEL.md).
 # NO entra en `make deps`: hay que pedirlo, porque son ~420 MB por plataforma y
 # el que recibe PDF no lo necesita. El bundle lo incluye solo si esta.
 # En la Mac, el de macOS (el .dmg se monta con hdiutil: solo se arma ahi).
@@ -1102,7 +1102,7 @@ deps-msitools:
 # de preguntarle a el, que es lo que el modelo ve de verdad. Sacarlo del codigo
 # obligaria a interpretar literales de C++ partidos en pedazos.
 mcp-inventario:
-	tools/mcp-inventario.py
+	tools/docs/mcp-inventario.py
 
 # llama.cpp (CPU) para medir un modelo chico corriendo ACA. Ver el comentario
 # del script: la GPU no esta libre, se la come el motor de video.
@@ -1112,13 +1112,13 @@ deps-llamacpp:
 # Cuanto tarda y cuanto acierta ese modelo chico, con el prefijo cacheado.
 # Hace falta un .gguf en extern/modelos (no viaja en el repo: son gigas).
 bateria-local:
-	tools/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf --solo-nombre
+	tools/entrenar/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf --solo-nombre
 
 # El conjunto de entrenamiento del modelo chico, desde las semillas escritas a
 # mano. El examen (el corpus de siempre) queda intacto: es el unico numero
 # honesto que hay.
 corpus-entrenamiento:
-	tools/corpus-entrenamiento.py
+	tools/entrenar/corpus-entrenamiento.py
 
 ## El entorno de entrenamiento, por script: nada se instala a mano.
 venv-entrenar:
@@ -1137,7 +1137,7 @@ vector-control:
 # —que es cuando el modelo entrenado quedo viejo aunque las frases esten—.
 # Con --generar propone frases desde las etiquetas del buscador, PARA REVISAR.
 corpus-descubrir:
-	tools/corpus-descubrir.py
+	tools/entrenar/corpus-descubrir.py
 
 ## EL MODELO REACTIVO, AUTOMATICO. Cada vez que el MCP crece: inventario, json de
 ## equivalencias, bucle del corpus (cobertura, sentido, CDNV, Frobenius, margen)
@@ -1331,7 +1331,7 @@ GST_RT := gstreamer-1.0-$(GST_VER)-universal.pkg
 GST_RT_SHA := 529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994
 GST_DEV := gstreamer-1.0-devel-$(GST_VER)-universal.pkg
 GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
-# --- Python de los plugins (docs/PLUGINS.md) -----------------------------------
+# --- Python de los plugins (docs/funciones/PLUGINS.md) -----------------------------------
 # CPython relocalizable de python-build-standalone: va adentro del programa
 # (Resources/python). Versión y sha256 fijados (el digest que publica GitHub).
 PY_REL := 20261001

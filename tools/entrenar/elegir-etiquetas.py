@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 ENTRENAR = RAIZ / "datos/entrenamiento/entrenar.jsonl"
 

@@ -33,7 +33,7 @@
 // Formatos: RGB de 4 bytes (con o sin alfa). El tamaño no cambia.
 // Concurrencia: propiedades y cuadro se cruzan bajo GST_OBJECT_LOCK.
 //
-// baptzgl: lo mismo en la GPU (GLMemory RGBA, docs/MAPA-GPU-CPU.md). Es un bin
+// baptzgl: lo mismo en la GPU (GLMemory RGBA, docs/desarrollo/MAPA-GPU-CPU.md). Es un bin
 //   gltransformation ! glshader
 // con las mismas propiedades: las guarda un baptz que no está en la cadena
 // (solo lleva la cuenta del movimiento) y, en cada cuadro, la ventana pasa a

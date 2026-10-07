@@ -123,7 +123,7 @@ const std::pair<const char*, const char*> kHerramientas[] = {
 // --- La bateria de preguntas tipicas ----------------------------------------
 //
 // El corpus vive en datos/preguntas.json y lo comparten DOS bancos de prueba:
-// este (el buscador, sin modelo ni red) y tools/bateria-modelo.py (el modelo).
+// este (el buscador, sin modelo ni red) y tools/entrenar/bateria-modelo.py (el modelo).
 // Un solo corpus para los dos, o se van separando y dejan de comparar lo mismo.
 //
 // QUE MIDE ESTE. Si la herramienta que hace falta esta entre las primeras que

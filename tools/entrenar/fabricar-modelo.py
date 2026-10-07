@@ -265,7 +265,7 @@ class Fabrica:
             shutil.rmtree(self.corpus)
         shutil.copytree(RAIZ / "datos/entrenamiento", self.corpus)
         self.man["corpus_firma"] = firma(self.corpus)
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         self.man["perfil"] = {"nombre": lp.PERFIL, "categorias": lp.REACTIVAS, "entradas": lp.ENTRADAS,
                               "herramientas": lp.herramientas_reactivas(), "prompt": lp.huella()["prompt"],
@@ -566,7 +566,7 @@ class Fabrica:
     def completar_datos(self):
         """Lo que la tarjeta necesita, calculado aca: no depende de que las etapas
         anteriores hayan corrido en esta corrida (una fabrica retomada las saltea)."""
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         if self.corpus.exists():
             self.man["corpus_firma"] = firma(self.corpus)
@@ -719,7 +719,7 @@ con otras fichas es otro modelo, aunque siga contestando.
         """Todo lo que necesita quien SIRVE el modelo, sin reconstruir el prompt:
         la app (C++) y el servidor MLX lo leen tal cual. Es el MISMO de
         entrenamiento: con otras fichas seria otro modelo (ver huella)."""
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         cabeza, cola = lp.partes(lp.inventario(), 0)
         nombres = lp.nombres_posibles()

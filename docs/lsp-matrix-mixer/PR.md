@@ -27,7 +27,7 @@
 > arm64.
 >
 > Regenerar las capturas, los íconos y las configs:
-> `.venv/bin/python tools/lsp-matrix-mixer-doc.py` (Mac). Los parches salen de
+> `.venv/bin/python tools/docs/lsp-matrix-mixer-doc.py` (Mac). Los parches salen de
 > `tools/deps/lsp-modulo-propio.sh`, que hace lo mismo en el árbol de build.
 
 ---

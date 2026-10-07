@@ -91,6 +91,6 @@ nitpicky = False
 # Mostrar el número de versión en el header (si el tema lo soporta).
 html_show_sourcelink = False
 
-# El logo del programa (tools/icono.py): arriba del menu y en la pestaña.
+# El logo del programa (tools/generar/icono.py): arriba del menu y en la pestaña.
 html_logo = "../assets/icons/logo-marca.png"
 html_favicon = "../assets/icons/broadcast-appliance-32.png"

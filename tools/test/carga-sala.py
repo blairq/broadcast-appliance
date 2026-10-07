@@ -292,7 +292,7 @@ def main() -> int:
     if picos["hilo"] >= 85:
         print("\nOjo: un solo hilo casi al tope. El techo no es la máquina sino ese núcleo:\n"
               "     ahí tiene sentido repartir las conexiones en varias fábricas de libwebrtc\n"
-              "     (ver docs/IDEAS.md).")
+              "     (ver docs/planes/IDEAS.md).")
     elif picos["cpu"] >= 70:
         print("\nOjo: el proceso está apretado en CPU total; la máquina es el límite.")
     return 0

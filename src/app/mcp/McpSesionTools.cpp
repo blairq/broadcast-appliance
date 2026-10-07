@@ -2,7 +2,7 @@
 // src/app/mcp/McpSesionTools.cpp — la banca virtual (sesión remota), por MCP
 //
 // Los integrantes entran desde el navegador con su link personal y su PIN, en
-// la sala o afuera (docs/SESION-REMOTA.md). Estas herramientas hablan de
+// la sala o afuera (docs/funciones/SESION-REMOTA.md). Estas herramientas hablan de
 // BANCAS (o del id o el nombre del integrante, como en el Cuerpo).
 // ============================================================================
 

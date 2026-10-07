@@ -15,7 +15,7 @@
 // un evento; una sin, una carpeta que agrupa. Un evento se nombra por su ruta
 // relativa a Eventos/ con «/» («2026/Octubre/Sesion-ordinaria»).
 //
-// EL EVENTO EN CURSO (docs/PLAN-EVENTOS-HISTORICO.md) es el que recibe todo lo
+// EL EVENTO EN CURSO (docs/planes/PLAN-EVENTOS-HISTORICO.md) es el que recibe todo lo
 // que pasa: uno a la vez, anotado en Eventos/en-curso.json para que un corte de
 // luz no lo pierda. Sin uno elegido, el del día («Jornada del 07/10/2026», en
 // «2026/Octubre»): nada queda sin evento.

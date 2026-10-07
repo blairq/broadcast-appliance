@@ -246,7 +246,7 @@ void Entrada::armarSalida() {
     // La placa: chica (la composición la escala), con el nombre, a los cuadros del lienzo.
     const std::string fps = std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD);
     // Un cuadro (ya rotulado: placaDibujada) que se congela: antes rotulaba 30
-    // cuadros por segundo por entrada aunque nadie la mirara (docs/MAPA-GPU-CPU.md).
+    // cuadros por segundo por entrada aunque nadie la mirara (docs/desarrollo/MAPA-GPU-CPU.md).
     const std::string placa = "appsrc name=placa format=time caps=video/x-raw,format=BGRA,width=" + std::to_string(kPlacaAncho) +
                               ",height=" + std::to_string(kPlacaAlto) + ",framerate=" + fps + " ! " +
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
@@ -631,7 +631,7 @@ void Entrada::armar() {
         if (normalizar_) capsVideo += ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
     }
     if (usaGpu) {
-        // EN LA GPU (docs/MAPA-GPU-CPU.md): la cámara y el decodificador entregan
+        // EN LA GPU (docs/desarrollo/MAPA-GPU-CPU.md): la cámara y el decodificador entregan
         // memoria de GPU directo a la subida (que la deja pasar: glupload, d3d12upload)
         // y la entrada publica una textura RGBA. La normalización la hace la composición (escala cada capa);
         // acá solo los cuadros del lienzo (videorate no toca píxeles). Los filtros

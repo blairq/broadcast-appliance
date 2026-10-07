@@ -60,7 +60,7 @@ class AppRuntime {
     static bool stopRequested();
 
     // --- Salidas --------------------------------------------------------------
-    /// La carpeta del evento en curso (docs/PLAN-EVENTOS-HISTORICO.md, H4): con
+    /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
     /// uno, lo que se graba va a <evento>/Grabaciones/. Vacía = Recordings/.
     void setCarpetaDelEvento(std::function<std::filesystem::path()> fn) { carpetaDelEvento_ = std::move(fn); }
     /// Dónde va la próxima grabación: <evento>/Grabaciones o la de la configuración.

@@ -56,7 +56,7 @@ const char* tipoDe(const std::string& rel) {
     return "application/octet-stream";
 }
 
-constexpr int kMaxConexiones = 4096;    // el límite técnico (docs/SESION-REMOTA.md §7)
+constexpr int kMaxConexiones = 4096;    // el límite técnico (docs/funciones/SESION-REMOTA.md §7)
 constexpr int kMensajesPorSegundo = 20;
 constexpr int kLatidoMs = 30000;
 constexpr int kAuthMs = 15000;

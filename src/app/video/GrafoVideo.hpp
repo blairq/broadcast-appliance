@@ -29,7 +29,7 @@
 // Lo ejecuta en la GPU el filtro `ba_video_grafo` de cada entrada
 // (src/obs-module/ba_video_grafo.cpp), que recibe `paraFiltro(entrada)`: lo
 // que se alcanza desde esa entrada, sin pasar por nodos de varias entradas
-// (esos los ejecuta el estudio; ver docs/VIDEO-GRAFO.md).
+// (esos los ejecuta el estudio; ver docs/funciones/VIDEO-GRAFO.md).
 
 #pragma once
 

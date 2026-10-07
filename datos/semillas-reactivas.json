@@ -2,7 +2,7 @@
   "_comentario": [
     "Como PIDE un operador cada cosa, en cabina, apurado. Escritas a mano.",
     "",
-    "ESTO ES LA SEMILLA, no el conjunto: tools/corpus-entrenamiento.py le aplica",
+    "ESTO ES LA SEMILLA, no el conjunto: tools/entrenar/corpus-entrenamiento.py le aplica",
     "encima la variacion que de verdad aparece al hablar y al tipear rapido (sin",
     "tildes, con el verbo al final, con «che» adelante, con un typo).",
     "",

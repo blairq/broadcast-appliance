@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/agent/ModelosLocales.hpp — el modelo chico que corre en la máquina
 //
-// QUE ES. El modelo reactivo (docs/modelo-local.md): una frase corta de cabina
+// QUE ES. El modelo reactivo (docs/modelos/modelo-local.md): una frase corta de cabina
 // entra y sale la herramienta que la atiende —o `derivar`, y el pedido va
 // tal cual al asistente grande—. Y, de a poco, texto corto que tiene que salir
 // al toque. Corre acá: la ida y vuelta a un modelo remoto se come el tiempo.
@@ -25,7 +25,7 @@
 // del entrenamiento, y con otras fichas sería otro modelo. Su huella se
 // muestra; compararla con la del inventario actual del MCP (si cambió, el
 // modelo quedó viejo y sigue contestando a otra cosa) queda pendiente: la
-// calcula tools/lib_prompt.py y hay que portarla igual, byte a byte.
+// calcula tools/entrenar/lib_prompt.py y hay que portarla igual, byte a byte.
 // ============================================================================
 #pragma once
 

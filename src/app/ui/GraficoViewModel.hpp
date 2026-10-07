@@ -45,7 +45,7 @@ class GraficoViewModel : public QObject {
     Q_PROPERTY(QVariantList parametros READ parametros NOTIFY abiertoChanged)
     Q_PROPERTY(QVariantMap valores READ valores NOTIFY valoresChanged)
     /// Los botones de prompt prearmado que declara su ficha (ver `acciones` en
-    /// docs/GRAFICOS.md): lo que el que diseñó el gráfico ya sabe que le van a
+    /// docs/funciones/GRAFICOS.md): lo que el que diseñó el gráfico ya sabe que le van a
     /// querer pedir al asistente cuando el gráfico esté en uso.
     Q_PROPERTY(QVariantList acciones READ acciones NOTIFY abiertoChanged)
     /// Vacío = la última vista previa salió bien.

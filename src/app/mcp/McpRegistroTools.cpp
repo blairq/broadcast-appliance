@@ -167,7 +167,7 @@ void McpService::registerRegistroTools() {
 
     // --- Extensiones: UNA familia, no una herramienta por extension ---------
     // Cien extensiones instaladas cuestan lo mismo que una en el contexto del
-    // modelo. Ver docs/EXTENSIONES.md: reflexion, no inventario.
+    // modelo. Ver docs/funciones/EXTENSIONES.md: reflexion, no inventario.
     {
         Tool t;
         t.name = "ext_listar";

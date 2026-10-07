@@ -1,4 +1,4 @@
-// El Histórico: todos los eventos y todo lo de cada uno (docs/PLAN-EVENTOS-HISTORICO.md).
+// El Histórico: todos los eventos y todo lo de cada uno (docs/planes/PLAN-EVENTOS-HISTORICO.md).
 // La página Evento es preparar y correr; esta es el archivo: qué pasó, con qué
 // configuración, qué se grabó y transmitió. Solo presentación: lee de
 // Studio.historico, que dice lo mismo que el MCP (evento_* e historico_*).

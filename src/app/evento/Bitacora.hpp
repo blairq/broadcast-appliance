@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/evento/Bitacora.hpp — todo lo que pasa, en la carpeta del evento en curso
 //
-// El «histórico total» (docs/PLAN-EVENTOS-HISTORICO.md, H2): una sola línea de
+// El «histórico total» (docs/planes/PLAN-EVENTOS-HISTORICO.md, H2): una sola línea de
 // tiempo por evento, en `<evento>/bitacora.jsonl`, de solo agregar. Una línea
 // por hecho:
 //

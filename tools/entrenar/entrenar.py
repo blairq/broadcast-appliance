@@ -11,7 +11,7 @@ LO QUE SE ENTRENA Y LO QUE NO:
     0,79 s, con el mismo acierto. Los argumentos los sabe el aparato, que tiene
     la lista de canales y el que esta picando.
   · El prompt es EXACTAMENTE el que se sirve, fichas incluidas. Lo arma
-    tools/lib_prompt.py, el mismo modulo que usa el banco. Entrenar con una
+    tools/entrenar/lib_prompt.py, el mismo modulo que usa el banco. Entrenar con una
     forma y servir con otra degrada el modelo sin avisar: en este proyecto se
     midio de casualidad y fueron 40 puntos.
   · La perdida se calcula SOLO sobre la respuesta. El prompt son 2.650 tokens
@@ -30,7 +30,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 
 DATOS = RAIZ / "datos/entrenamiento"
 # Donde arranca la respuesta. Tiene que coincidir con lib_prompt.partes():
@@ -150,7 +150,7 @@ def main():
             print(f"exportando GGUF {q}")
             modelo.save_pretrained_gguf(f"{args.salida}-{q}", tok, quantization_method=q)
     print(f"\nlisto. Ahora, EN LA NOTEBOOK, contra el mismo examen:\n"
-          f"  tools/bateria-local.py --modelo <el .gguf> --solo-nombre")
+          f"  tools/entrenar/bateria-local.py --modelo <el .gguf> --solo-nombre")
 
 
 if __name__ == "__main__":

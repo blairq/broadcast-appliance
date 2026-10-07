@@ -131,7 +131,7 @@ Los procesos están **implementados** y corren en Linux (nativo) y en Windows
   cuelgan la consola web `Web/admin/` y la vista Qt), `Webrtc` (libwebrtc real,
   también en Linux), `MediaPump` (IPC ↔ WebRTC por ruta), `TlsTerminator`
   (HTTPS), `WgDevice` + `IpStack` (WireGuard + lwIP en espacio de usuario) y
-  `Cloudflared`. Ver [`docs/CONFERENCIA.md`](docs/CONFERENCIA.md).
+  `Cloudflared`. Ver [`docs/funciones/CONFERENCIA.md`](docs/funciones/CONFERENCIA.md).
 - **Motor de video** (`src/motor`, GStreamer): escenas, transiciones, DSK,
   clean feed, grabación y salidas; los invitados remotos entran a la escena
   desde el IPC del Proceso B. Sus plugins propios viven en `src/gst-plugins`.
@@ -150,7 +150,7 @@ Los procesos están **implementados** y corren en Linux (nativo) y en Windows
   (lobby privado, invitados con su video, chat, archivos, acceso directo).
   Sin pantalla, `ba-app --no-ui` corre en modo consola.
 
-Queda por hacer (ver [`docs/PLAN_MULTIPLATAFORMA.md`](docs/PLAN_MULTIPLATAFORMA.md)):
+Queda por hacer (ver [`docs/historia/PLAN_MULTIPLATAFORMA.md`](docs/historia/PLAN_MULTIPLATAFORMA.md)):
 
 - **Compilar y probar en Windows (MSVC) y macOS** la interfaz, el motor y el
   gateway real (hoy se validan en Linux), y **CI** con runners nativos.
@@ -404,7 +404,7 @@ las dos son clientes de la misma API de control.
   asistente de la página Sala genera la configuración del servidor.
 
 Detalle completo (arquitectura, lobby, API, servidor, seguridad):
-[`docs/CONFERENCIA.md`](docs/CONFERENCIA.md).
+[`docs/funciones/CONFERENCIA.md`](docs/funciones/CONFERENCIA.md).
 
 ### Todo en la carpeta portable
 
@@ -449,7 +449,7 @@ app: escenas, fuentes, audio, salidas, configuración, sala y oradores, con
 capturas del programa, de cada persona y de la interfaz. Solo en
 `127.0.0.1:8790` con token (cifrado en `Credenciales/`; `bin/64bit/ba-mcp
 --token` lo muestra); puente stdio `ba-mcp`. Ver
-[`docs/MCP.md`](docs/MCP.md).
+[`docs/funciones/MCP.md`](docs/funciones/MCP.md).
 
 ### Asistente de IA dentro de la app
 
@@ -462,7 +462,7 @@ El agente se instala desde la pestaña (versión fijada y verificada) dentro de
 la carpeta portable. Con las **vigilancias**, el servidor avisa solo en ese
 chat cuando algo pasa (un canal satura, termina un tema, a un orador se le
 acaba el tiempo, alguien espera en el lobby...) y puede actuar en el acto. Ver
-[`docs/MCP.md`](docs/MCP.md).
+[`docs/funciones/MCP.md`](docs/funciones/MCP.md).
 
 **Salvaguarda.** Lo que escriben los invitados o el público nunca se convierte
 en acciones solas: el servidor MCP marca en código todo contenido que viene de
@@ -597,7 +597,7 @@ make macos             # compila y corre los tests
 make release-macos     # bundle portable en release/ (verificado con otool, firmado ad-hoc)
 ```
 
-Guía completa, qué probar y qué falta: [`docs/MACOS.md`](docs/MACOS.md).
+Guía completa, qué probar y qué falta: [`docs/desarrollo/MACOS.md`](docs/desarrollo/MACOS.md).
 
 ### (d) Documentación
 
@@ -636,7 +636,7 @@ Dos suites:
 
   `test_gateway_integration` (el test histórico contra el SDK de Windows) se
   reporta **Skipped**; el WebRTC real de Linux lo prueba
-  `test_webrtc_loopback`. Detalle en [`docs/tests.rst`](docs/tests.rst).
+  `test_webrtc_loopback`. Detalle en [`docs/desarrollo/tests.rst`](docs/desarrollo/tests.rst).
 
 - **Python (pytest)** — suite de invariantes del repositorio en
   [`tests/`](tests/) (docs, packaging, pins, tests C++):
@@ -742,7 +742,7 @@ tarballs ya verificados de `extern/.downloads`.
 ├── assets/                   # assets de despliegue (no se compilan)
 │   └── web/                  #   apps web: invitado, admin, pizarra (las sirve B)
 ├── packaging/                # flatpak (manifiesto) + .desktop
-├── docs/                     # documentación Sphinx (módulos, compilación, tests)
+├── docs/                     # documentación (mapa en docs/README.md)
 ├── tests/                    # suite Python de invariantes del repo (pytest)
 └── .github/workflows/ci.yml  # CI/CD: lint + linux + windows (clang-cl + Wine) + sanitizers + release
 ```

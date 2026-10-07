@@ -6,7 +6,7 @@
 // ESCRIBE un plugin: plugin_escribir -> plugin_probar (sin la app: informe)
 // -> plugin_activar -> lo usa (sus entradas ya son entradas, su PTZ ya es un
 // PTZ, sus tarjetas van con plugin_tarjeta, sus controles con plugin_control).
-// Ayuda: `help {"topic": "plugins"}`. Ver docs/PLUGINS.md.
+// Ayuda: `help {"topic": "plugins"}`. Ver docs/funciones/PLUGINS.md.
 // ============================================================================
 
 #include "mcp/McpService.hpp"

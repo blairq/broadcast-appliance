@@ -10,7 +10,7 @@
 //   capturar_lsp --clap lsp-plugins.clap --id in.lsp-plug.matrix_mixer_x8_stereo \
 //                --salida captura.png [--esperar 2500] [--param "Matrix gain 1 to 2=-6"]...
 //
-// No es un test: es una herramienta (tools/lsp-matrix-mixer-doc.py la usa).
+// No es un test: es una herramienta (tools/docs/lsp-matrix-mixer-doc.py la usa).
 // (`--id` y no `--plugin`: Qt se queda con `-plugin` como opción propia.)
 
 #include "audio/ClapHost.hpp"

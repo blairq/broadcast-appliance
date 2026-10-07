@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/audio/Habla.hpp — de texto a voz, frase por frase
 //
-// La boca del control por voz (docs/AUDIO-TTS.md): sherpa-onnx con voces de
+// La boca del control por voz (docs/funciones/AUDIO-TTS.md): sherpa-onnx con voces de
 // piper, en CPU (la GPU la usa libobs). Sintetiza FRASE POR FRASE y entrega
 // cada una apenas está: la primera suena mientras se arma la segunda, que es
 // lo que hace que una respuesta se sienta inmediata. Medido en una M1 Pro con

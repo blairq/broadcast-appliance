@@ -5,7 +5,7 @@
     "PARA QUE SIRVE ESTE ARCHIVO. Es el banco de pruebas de dos cosas distintas",
     "que conviene medir con el MISMO corpus, o se van separando:",
     "  1. el buscador (test_mcp_busqueda): sin modelo, sin red, en microsegundos;",
-    "  2. el modelo (tools/bateria-modelo.py): con qué acierto elige la",
+    "  2. el modelo (tools/entrenar/bateria-modelo.py): con qué acierto elige la",
     "     herramienta cuando se le dan las que encontró el buscador.",
     "Lo segundo es lo que dice si alcanza con un modelo más chico.",
     "",

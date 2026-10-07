@@ -2,7 +2,7 @@
 // Explorador muestra en Propiedades. Sin esto el programa sale con el ícono
 // genérico y sin nombre, que es lo primero que ve el operador.
 //
-// El ícono es el mismo de assets/icons (se genera con tools/icono.py). La ruta
+// El ícono es el mismo de assets/icons (se genera con tools/generar/icono.py). La ruta
 // la pasa CMake en BA_ICON_DIR; el recurso 1 es el del ejecutable, porque
 // Windows usa el de menor identificador.
 

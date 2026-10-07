@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/audio/Escucha.hpp — de la voz del operador a texto (push-to-talk)
 //
-// QUE ES. El oído del control por voz (docs/AUDIO-TTS.md): mientras el
+// QUE ES. El oído del control por voz (docs/funciones/AUDIO-TTS.md): mientras el
 // operador aprieta la tecla, su micrófono —capturado en OperatorFeed antes de
 // la mezcla, y cortado hacia el lobby en ese mismo momento— llega acá; al
 // soltar, se recorta el silencio con el VAD y se transcribe. El texto va a la

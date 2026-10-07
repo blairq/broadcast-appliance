@@ -4,7 +4,7 @@
 
 ..
    Página de entrada. El toctree referencia SOLO páginas que existen en este
-   árbol (docs/modules/*.rst, docs/compilacion.rst, docs/tests.rst).
+   árbol (docs/modules/*.rst, docs/desarrollo/compilacion.rst, docs/desarrollo/tests.rst).
 
 Broadcast Appliance Portable v2
 ===============================
@@ -28,8 +28,8 @@ que viven en los headers (comentarios de bloque) son extraíbles con Doxygen
    modules/gateway
    modules/app
    modules/obs-module
-   compilacion
-   tests
+   desarrollo/compilacion
+   desarrollo/tests
 
 Visión general
 --------------

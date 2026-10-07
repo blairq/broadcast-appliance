@@ -1,4 +1,4 @@
-"""ba_plugin — el SDK de los plugins de Broadcast Appliance (docs/PLUGINS.md).
+"""ba_plugin — el SDK de los plugins de Broadcast Appliance (docs/funciones/PLUGINS.md).
 
 Un plugin es un programa en Python que corre en SU PROPIO PROCESO (si se cuelga
 o se cae, la emisión sigue y la app lo vuelve a arrancar) y que le suma al

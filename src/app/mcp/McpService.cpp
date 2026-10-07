@@ -2242,7 +2242,7 @@ void McpService::registerTools() {
             done(ToolResult().data({{"rotar_token_mcp", j.value("rotar_token_mcp", true)},
                                     {"pin_por_sesion", j.value("pin_por_sesion", true)},
                                     {"modo_vivo", vm_.modoVivoEstado()},
-                                    {"passphrase", "todavia no (ver docs/DECISIONES-PENDIENTES.md)"}}));
+                                    {"passphrase", "todavia no (ver docs/planes/DECISIONES-PENDIENTES.md)"}}));
         };
         core_.addTool(std::move(t));
     }

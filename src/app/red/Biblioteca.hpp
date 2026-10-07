@@ -2,7 +2,7 @@
 //
 // Dos datos vendoreados (sin internet en el aparato):
 //   - datos/oui.tsv: el fabricante de cada bloque de direcciones MAC (el
-//     registro público de la IEEE; tools/oui-generar.py).
+//     registro público de la IEEE; tools/generar/oui-generar.py).
 //   - datos/camaras-urls.json: por marca, cómo reconocerla y sus rutas RTSP
 //     típicas, el usuario de fábrica y lo que hay que saber (habilitar el
 //     RTSP, de dónde sale la clave).

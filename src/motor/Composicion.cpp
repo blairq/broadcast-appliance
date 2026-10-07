@@ -84,7 +84,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                             ",pixel-aspect-ratio=1/1";
     const std::string comun = "force-live=true start-time-selection=first background=black ";
     // En GPU todo queda en la GPU (GLMemory o D3D12Memory): lo que sale es una
-    // textura (el que consume la baja si hace falta, chica o en NV12: docs/MAPA-GPU-CPU.md).
+    // textura (el que consume la baja si hace falta, chica o en NV12: docs/desarrollo/MAPA-GPU-CPU.md).
     const std::string salida = gl_    ? "video/x-raw(memory:GLMemory),format=RGBA," + tam
                                : gpu_ ? "video/x-raw(memory:D3D12Memory),format=RGBA," + tam
                                       : capsColorDelLienzo(lienzo_) + "," + tam;

@@ -46,7 +46,7 @@ class EventoViewModel : public QObject {
     // --- La lista de eventos --------------------------------------------------
     Q_PROPERTY(QVariantList eventos READ eventos NOTIFY listaChanged)
     Q_PROPERTY(QString abierto READ abierto NOTIFY guionChanged)
-    // --- El histórico (docs/PLAN-EVENTOS-HISTORICO.md) -------------------------
+    // --- El histórico (docs/planes/PLAN-EVENTOS-HISTORICO.md) -------------------------
     /// El evento EN CURSO: el que recibe todo lo que pasa (no es el abierto para
     /// editar: se puede preparar el de la semana que viene con el de hoy en curso).
     /// {carpeta, nombre, grupo, desdeMs, automatico}; vacío si no hay ninguno.

@@ -54,7 +54,7 @@ import time
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 SISTEMA_TEXTO = ("Sos el asistente de un estudio de television en vivo. Contestale al operador en espanol, "

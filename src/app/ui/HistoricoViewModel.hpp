@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/ui/HistoricoViewModel.hpp — la página Histórico (H6 de docs/PLAN-EVENTOS-HISTORICO.md)
+// src/app/ui/HistoricoViewModel.hpp — la página Histórico (H6 de docs/planes/PLAN-EVENTOS-HISTORICO.md)
 //
 // El archivo de todos los eventos: carpetas, la lista, y el detalle de cada
 // uno (resumen, línea de tiempo, grabaciones y vivos, configuración, archivos),

@@ -46,7 +46,8 @@ def discover_test_binaries(build_dir: Path) -> list[Path]:
     """Find compiled ``test_*`` executables under the build tree.
 
     Recursively walks the build tree and keeps only the project's own native
-    CTest targets: third-party sources under ``_deps/`` and non-native
+    CTest targets: third-party sources under ``_deps/`` (and the SwiftPM
+    checkouts under ``SourcePackages/``) and non-native
     executables (e.g. the Windows ``.exe`` cross-build on a Linux host) are
     excluded.
 
@@ -60,6 +61,7 @@ def discover_test_binaries(build_dir: Path) -> list[Path]:
         path
         for path in build_dir.rglob("test_*")
         if "_deps" not in path.parts
+        and "SourcePackages" not in path.parts
         and path.is_file()
         and os.access(path, os.X_OK)
         and _is_native_executable(path)

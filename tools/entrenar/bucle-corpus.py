@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Bucle de mejora del corpus: una frase entra solo si mejora la geometria.
 
-Documentacion completa, con la matematica y el procedimiento: docs/bucle-corpus.md
+Documentacion completa, con la matematica y el procedimiento: docs/modelos/bucle-corpus.md
 
 QUE HACE. Mide, adentro de un modelo ya entrenado, donde cae cada frase de
 entrenamiento, y usa esa medicion para decidir que frases nuevas conviene
@@ -66,7 +66,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 SEMILLAS = RAIZ / "datos/semillas-reactivas.json"
 DERIVACIONES = RAIZ / "datos/derivaciones.json"
@@ -80,7 +80,7 @@ def _corpus_mod():
     """Las mismas guardas del generador de corpus, sin copiarlas: una sola forma
     de decidir si una frase se parece al examen."""
     spec = importlib.util.spec_from_file_location(
-        "corpus_entrenamiento", RAIZ / "tools/corpus-entrenamiento.py")
+        "corpus_entrenamiento", RAIZ / "tools/entrenar/corpus-entrenamiento.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

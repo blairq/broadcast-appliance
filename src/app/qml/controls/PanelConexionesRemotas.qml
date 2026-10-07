@@ -1,4 +1,4 @@
-// Conexiones remotas (docs/SESION-REMOTA.md): la administración de cómo entra
+// Conexiones remotas (docs/funciones/SESION-REMOTA.md): la administración de cómo entra
 // cada conferencista desde el navegador (en la sala o afuera): su usuario, su
 // link personal con PIN, su contraseña (para entrar tipeando), sus datos de
 // contacto, si está conectado o bloqueado, y el registro. Habilitar a los que

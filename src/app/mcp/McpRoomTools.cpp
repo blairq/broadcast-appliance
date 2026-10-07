@@ -238,7 +238,7 @@ void McpService::registerRoomTools() {
     // sus detalles y sus ejemplos: se estaban publicando DOS VECES cada una.
     // El modelo las veia repetidas —dos fichas distintas con el mismo nombre—
     // y el listado pesaba de mas. Lo encontro el inventario del MCP
-    // (tools/mcp-inventario.py), que cuenta nombres repetidos.
+    // (tools/docs/mcp-inventario.py), que cuenta nombres repetidos.
     {
         Tool t;
         t.name = "participant_requeue";

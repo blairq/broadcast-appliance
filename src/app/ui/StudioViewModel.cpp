@@ -762,7 +762,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         seguirMic_ = std::make_unique<asamblea::SeguirMicrofono>(rt.dataRoot(), *bus_, cuerpo_->cuerpo(), *bancas_);
         ordenDia_ = std::make_unique<asamblea::OrdenDelDia>(rt.dataRoot(), *bus_);
-        // La banca virtual (sesión remota, en la sala o afuera): docs/SESION-REMOTA.md.
+        // La banca virtual (sesión remota, en la sala o afuera): docs/funciones/SESION-REMOTA.md.
         sesionRemota_ = std::make_unique<asamblea::SesionRemota>(cuerpo_->cuerpo(), rt.dataRoot());
         // Los presentes con voto salen del padrón del evento abierto (o de la central),
         // más los habilitados por la banca virtual, sin contar a nadie dos veces.
@@ -1384,7 +1384,7 @@ void StudioViewModel::cerrarEnHistorico(const std::string& carpeta) {
     }), listo});
 }
 
-// LA BITÁCORA DEL EVENTO EN CURSO (H2 de docs/PLAN-EVENTOS-HISTORICO.md): se
+// LA BITÁCORA DEL EVENTO EN CURSO (H2 de docs/planes/PLAN-EVENTOS-HISTORICO.md): se
 // cuelga de lo que ya pasa por dos lugares —el registro general (MCP, botonera,
 // guion, avisos) y el bus de eventos (aire, salidas, oradores, asamblea)— sin
 // tocar cada módulo.

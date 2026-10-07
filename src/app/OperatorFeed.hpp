@@ -59,7 +59,7 @@ class OperatorFeed {
     /// Escuchar (o no) a quien ocupa el lugar `slot` del lobby.
     void setLobbyMonitor(int slot, bool on);
 
-    // --- Push-to-talk (docs/AUDIO-TTS.md) -------------------------------------
+    // --- Push-to-talk (docs/funciones/AUDIO-TTS.md) -------------------------------------
     /// Mono en float con su frecuencia: el oído del control por voz.
     using Dictado = std::function<void(const float* mono, std::size_t frames, std::uint32_t frecuencia)>;
     /// A dónde va la voz mientras la tecla está apretada (thread-safe).

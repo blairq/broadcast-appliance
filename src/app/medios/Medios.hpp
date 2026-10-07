@@ -16,7 +16,7 @@
 // LOS DOCUMENTOS SON NUEVOS. `pdf` y `pptx` no estaban en ninguna lista, asi
 // que `media_list` ni los veia: un orador mandaba su presentacion y para el
 // aparato ese archivo no existia. Ahora son un tipo mas, porque son de donde
-// sale un carrusel (ver docs/CARRUSEL.md).
+// sale un carrusel (ver docs/funciones/CARRUSEL.md).
 // ============================================================================
 #pragma once
 

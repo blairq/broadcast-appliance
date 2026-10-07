@@ -289,7 +289,7 @@ void AppRuntime::addGuests() {
             cfg_.scenes.front().sources.push_back(spec);
         }
     }
-    // R3 (docs/SESION-REMOTA.md): el integrante remoto con la palabra, como una
+    // R3 (docs/funciones/SESION-REMOTA.md): el integrante remoto con la palabra, como una
     // entrada más. El audio es global (suena en cualquier escena, con su rack en
     // Audio); el video va oculto a pantalla completa en la primera escena, como la
     // pantalla de un invitado: el operador lo muestra (o lo usa en otra escena).

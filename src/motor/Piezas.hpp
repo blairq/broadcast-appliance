@@ -61,7 +61,7 @@ void ponerPropiedades(GstElement* e, const Filtro& f, std::vector<std::string>* 
 bool ponerEnVivo(GstElement* pipeline, const std::vector<Filtro>& v, const char* prefijo);
 bool hayFabrica(const std::string& elemento);
 
-// --- El video en la GPU (docs/MAPA-GPU-CPU.md) ---------------------------------------
+// --- El video en la GPU (docs/desarrollo/MAPA-GPU-CPU.md) ---------------------------------------
 /// Con qué GPU lleva y compone el video el motor:
 ///   Gl     macOS (glvideomixer, gltransformation; GLMemory)
 ///   D3D12  Windows, cualquier marca (d3d12compositor, d3d12convert; D3D12Memory)

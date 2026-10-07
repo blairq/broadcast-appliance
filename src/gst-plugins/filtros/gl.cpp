@@ -1,7 +1,7 @@
 // ============================================================================
 // src/gst-plugins/filtros/gl.cpp — las tarjetas de imagen en la GPU (OpenGL)
 //
-// El par de GL de bacolor y barecorte (docs/MAPA-GPU-CPU.md): mismas
+// El par de GL de bacolor y barecorte (docs/desarrollo/MAPA-GPU-CPU.md): mismas
 // propiedades y la misma cuenta, pero sobre la textura (GLMemory RGBA), así una
 // entrada con tarjetas no baja a la CPU. El motor usa «<elemento>gl» cuando el
 // video de la entrada va en la GPU y el par tiene todas las propiedades que se

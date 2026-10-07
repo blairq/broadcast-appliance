@@ -1,4 +1,4 @@
-# Fabricantes por MAC (registro OUI de la IEEE, vía Wireshark manuf). tools/oui-generar.py
+# Fabricantes por MAC (registro OUI de la IEEE, vía Wireshark manuf). tools/generar/oui-generar.py
 000000	24	Officially Xerox, but 0:0:0:0:0:0 is more common
 000001	24	Xerox Corporation
 000002	24	Xerox Corporation

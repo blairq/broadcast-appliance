@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 //
-// SesionRemota: la banca virtual de cada integrante (docs/SESION-REMOTA.md).
+// SesionRemota: la banca virtual de cada integrante (docs/funciones/SESION-REMOTA.md).
 // Un integrante entra desde el navegador (en la sala o afuera, da lo mismo) con
 // su link personal y su PIN; la presidencia o el operador lo ve por la cámara y
 // lo habilita; habilitado, cuenta como presente (y en las fases siguientes pide

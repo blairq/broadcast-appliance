@@ -311,7 +311,7 @@ if(BA_HAVE_VOZ)
 endif()
 # Los modulos se incluyen como "evento/Evento.hpp": hace falta tambien sin Qt.
 target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-# Windows: el logo en el .exe (el mismo .ico que el launcher, ver tools/icono.py).
+# Windows: el logo en el .exe (el mismo .ico que el launcher, ver tools/generar/icono.py).
 if(WIN32)
     enable_language(RC)
     target_sources(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ba-app.rc")
@@ -446,12 +446,12 @@ endif()
     # Las reglas con las que el modelo local completa argumentos (agent/ArgumentosLocales).
     qt_add_resources(ba-app "ba_voz" PREFIX "/voz" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/voz-argumentos.txt")
-    # Sus capturas (del codigo fuente de LSP, LGPL-3.0: tools/lsp-capturas.sh).
+    # Sus capturas (del codigo fuente de LSP, LGPL-3.0: tools/capturas/lsp-capturas.sh).
     file(GLOB _ba_lsp_capturas "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/*.jpg")
     qt_add_resources(ba-app "ba_lsp_capturas" PREFIX "/lsp" BASE "${CMAKE_SOURCE_DIR}/assets/lsp-capturas"
                      FILES ${_ba_lsp_capturas})
     # Una captura chica de la página de cada categoría, para el selector de
-    # herramientas de la Botonera (tools/capturas-botonera.py las saca de la app).
+    # herramientas de la Botonera (tools/capturas/capturas-botonera.py las saca de la app).
     file(GLOB _ba_bot_capturas "${CMAKE_SOURCE_DIR}/assets/botonera-capturas/*.jpg")
     if(_ba_bot_capturas)
         qt_add_resources(ba-app "ba_bot_capturas" PREFIX "/botonera" BASE "${CMAKE_SOURCE_DIR}/assets/botonera-capturas"
@@ -463,7 +463,7 @@ endif()
     qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json"
                            "${CMAKE_SOURCE_DIR}/datos/glosario-traduccion.json")
-    # El logo, para el icono de la ventana (tools/icono.py los genera).
+    # El logo, para el icono de la ventana (tools/generar/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
         list(APPEND _ba_iconos "${CMAKE_SOURCE_DIR}/assets/icons/broadcast-appliance-${_lado}.png")
@@ -559,7 +559,7 @@ endif()
     add_executable(test_mcp_busqueda tests/test_mcp_busqueda.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp)
     target_include_directories(test_mcp_busqueda PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp_busqueda PRIVATE nlohmann_json::nlohmann_json)
-    # El corpus de preguntas lo comparten este test y tools/bateria-modelo.py.
+    # El corpus de preguntas lo comparten este test y tools/entrenar/bateria-modelo.py.
     target_compile_definitions(test_mcp_busqueda PRIVATE
         BA_CORPUS_PREGUNTAS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos/preguntas.json")
     add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
@@ -833,7 +833,7 @@ endif()
         add_test(NAME test_clap_host COMMAND test_clap_host)
         set_tests_properties(test_clap_host PROPERTIES SKIP_RETURN_CODE 77)
         # Herramienta (no test, solo Mac): captura la interfaz de un plugin CLAP
-        # (las capturas y los iconos del Matrix Mixer: tools/lsp-matrix-mixer-doc.py).
+        # (las capturas y los iconos del Matrix Mixer: tools/docs/lsp-matrix-mixer-doc.py).
         if(APPLE)
             add_executable(capturar_lsp tools/capturar_lsp.cpp tools/capturar_vista_mac.mm audio/ClapHost.cpp
                 audio/ClapEditor.cpp)

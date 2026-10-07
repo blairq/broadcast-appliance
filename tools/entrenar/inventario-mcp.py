@@ -6,7 +6,7 @@ parametros). Cuando el software crece —una herramienta nueva, una descripcion
 que cambia— el prompt cambia y el modelo entrenado queda viejo aunque siga
 contestando. Este paso lo detecta.
 
-DE DONDE SALE: docs/mcp.json, que escribe tools/mcp-inventario.py preguntandole
+DE DONDE SALE: docs/mcp.json, que escribe tools/docs/mcp-inventario.py preguntandole
 al aparato andando (tools/list). Con --regenerar se corre ese script (hace
 falta el aparato arriba); si no, se usa el que haya y se avisa su fecha.
 
@@ -37,17 +37,17 @@ def huella(h):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--perfil", default=os.environ.get("BA_PERFIL") or "reactivo")
-    ap.add_argument("--regenerar", action="store_true", help="correr tools/mcp-inventario.py (aparato andando)")
+    ap.add_argument("--regenerar", action="store_true", help="correr tools/docs/mcp-inventario.py (aparato andando)")
     ap.add_argument("--anterior", help="foto anterior {nombre: huella}")
     ap.add_argument("--salida")
     ap.add_argument("--guardar", action="store_true", help="la foto actual pasa a ser la anterior")
     args = ap.parse_args()
     if args.regenerar:
-        r = subprocess.run([sys.executable, str(RAIZ / "tools/mcp-inventario.py"), str(INV)], cwd=RAIZ)
+        r = subprocess.run([sys.executable, str(RAIZ / "tools/docs/mcp-inventario.py"), str(INV)], cwd=RAIZ)
         if r.returncode:
             sys.exit("no se pudo regenerar el inventario: hace falta el aparato andando")
     os.environ["BA_PERFIL"] = args.perfil
-    sys.path.insert(0, str(RAIZ / "tools"))
+    sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
     import lib_prompt as lp
     inv = json.loads(INV.read_text(encoding="utf-8"))
     foto = {h["nombre"]: huella(h) for h in inv["herramientas"]}

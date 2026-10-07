@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/Sesion.hpp — el borde de red de la sesión remota (docs/SESION-REMOTA.md)
+// src/gateway/Sesion.hpp — el borde de red de la sesión remota (docs/funciones/SESION-REMOTA.md)
 //
 // Integrantes que sesionan desde afuera. La app (A) es la fuente de verdad:
 // quién tiene credencial, quién está habilitado, la palabra y la votación viven
@@ -32,7 +32,7 @@
 //        ({type:"medios-oferta", sdp}, {type:"medios-ice", candidate}); al que sale, false.
 //   y por el SSE de siempre, evento "sesion": {tipo: conexion|entrada|intento|bloqueo, …}
 //
-// Presidencia (la consola web, docs/SESION-REMOTA.md §8):
+// Presidencia (la consola web, docs/funciones/SESION-REMOTA.md §8):
 //   GET /presidencia/...       la página (Web/presidencia)
 //   GET /ws?presidencia=1      primer mensaje {type:"auth", c, t, pin}: credencial propia
 //        (id "consola:<c>"). Manda lo que la app decide (habilitar, dar_palabra,

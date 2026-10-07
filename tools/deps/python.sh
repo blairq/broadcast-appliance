@@ -2,7 +2,7 @@
 # ============================================================================
 # tools/deps/python.sh — el Python de los plugins (portable, vendoreado)
 #
-# Los plugins de equipos y de video/audio (docs/PLUGINS.md) son programas en
+# Los plugins de equipos y de video/audio (docs/funciones/PLUGINS.md) son programas en
 # Python que corren en su propio proceso. El intérprete viaja ADENTRO del
 # programa: nada del sistema (ver la regla de portabilidad). Es el de
 # python-build-standalone (CPython relocalizable, sin rutas absolutas), la

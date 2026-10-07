@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/agent/Voz.hpp — hablarle al aparato: push-to-talk -> texto -> asistente
 //
-// LA DECISION QUE ORDENA TODO (docs/AUDIO-TTS.md): es para quien está sentado
+// LA DECISION QUE ORDENA TODO (docs/funciones/AUDIO-TTS.md): es para quien está sentado
 // en la cabina. Hablar es OTRA FORMA DE ESCRIBIR en la barra del asistente:
 // el texto entra por ahí, con el contexto de la página, y hereda la misma
 // política de aprobación. Sin palabra de activación: push-to-talk.

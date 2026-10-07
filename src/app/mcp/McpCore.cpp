@@ -631,7 +631,7 @@ json McpCore::toolListEntry(const Tool& t) const {
     // cuesta tokens en cada pedido. Con el pensamiento apagado no razona «me
     // piden hacer algo, elijo una que hace»: empareja las palabras del pedido
     // con las de la descripcion. Lo que funciona es que las descripciones NO SE
-    // PISEN, herramienta por herramienta (ver tools/bateria-modelo.py).
+    // PISEN, herramienta por herramienta (ver tools/entrenar/bateria-modelo.py).
     json e{
         {"name", t.name}, {"title", t.title}, {"description", t.description}, {"inputSchema", t.inputSchema}};
     // Las cuatro marcas van SIEMPRE, aunque repitan el valor por defecto: en

@@ -117,7 +117,7 @@ void McpService::registerGraficoTools() {
             "`acciones` son los botones de pedido ya escrito que ese gráfico le ofrece al operador en "
             "la pantalla de Rótulos. Cuando te llegue uno de esos pedidos vas a recibirlo con el "
             "contexto puesto (escena, fuente y gráfico). Si un gráfico no tiene ninguno, proponelos: "
-            "se escriben en su `grafico.json` y estan explicados en docs/GRAFICOS.md.";
+            "se escriben en su `grafico.json` y estan explicados en docs/funciones/GRAFICOS.md.";
         t.run = [&rt, proc](const json&, Done done) {
             json out = json::array();
             for (const QString& base : carpetas(rt)) {

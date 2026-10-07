@@ -1,4 +1,4 @@
-// La consola de la presidencia (docs/SESION-REMOTA.md §8). La app manda el estado
+// La consola de la presidencia (docs/funciones/SESION-REMOTA.md §8). La app manda el estado
 // completo (recinto, remotos, fila, votación, quórum) y la consola pide cosas:
 // habilitar, dar la palabra, sumar tiempo, votar… La app decide y vuelve a mandar
 // el estado. El video del que habla y «apretar para hablar» van DIRECTO entre esta

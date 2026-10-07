@@ -58,7 +58,7 @@ ORIENTACION = RAIZ / "datos/orientacion.jsonl"
 EXAMEN = RAIZ / "src/app/tests/datos/preguntas.json"
 MINIMO, MAXIMO = 15, 20
 RUIDO = 8           # aciertos propios (de ~394): dos entrenamientos iguales difieren 2 a 4 puntos
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(E))
 import agente  # noqa: E402
 
@@ -68,7 +68,7 @@ def log(*a):
 
 
 def _cm():
-    spec = importlib.util.spec_from_file_location("cm", RAIZ / "tools/corpus-entrenamiento.py")
+    spec = importlib.util.spec_from_file_location("cm", RAIZ / "tools/entrenar/corpus-entrenamiento.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

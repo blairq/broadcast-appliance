@@ -377,7 +377,7 @@ void McpService::registerUiTools() {
     // --- La barra de navegacion ---------------------------------------------
     // Tiene vista (Configuracion -> Barra de navegacion), asi que se puede
     // publicar: la regla es que no se expone un setter que no se vea en
-    // ningun lado (ver docs/EXTENSIONES.md).
+    // ningun lado (ver docs/funciones/EXTENSIONES.md).
     {
         Tool t;
         t.name = "ui_barra";

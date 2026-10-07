@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 
 PEDIDO = ("Tenés que ponerle nombre a una función de una API para operar un "
           "estudio de televisión. Esto es lo que hace:\n\n{desc}\n\n"
