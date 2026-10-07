@@ -46,6 +46,16 @@ class EventoViewModel : public QObject {
     // --- La lista de eventos --------------------------------------------------
     Q_PROPERTY(QVariantList eventos READ eventos NOTIFY listaChanged)
     Q_PROPERTY(QString abierto READ abierto NOTIFY guionChanged)
+    // --- El histórico (docs/PLAN-EVENTOS-HISTORICO.md) -------------------------
+    /// El evento EN CURSO: el que recibe todo lo que pasa (no es el abierto para
+    /// editar: se puede preparar el de la semana que viene con el de hoy en curso).
+    /// {carpeta, nombre, grupo, desdeMs, automatico}; vacío si no hay ninguno.
+    Q_PROPERTY(QVariantMap enCurso READ enCurso NOTIFY enCursoChanged)
+    /// Las carpetas que agrupan eventos ("2026/Octubre"...).
+    Q_PROPERTY(QStringList carpetas READ carpetas NOTIFY listaChanged)
+    /// Si se crea solo el evento del día cuando no hay ninguno en curso
+    /// (Config/historico.json, `evento_automatico`; de fábrica, sí).
+    Q_PROPERTY(bool eventoAutomatico READ eventoAutomatico WRITE setEventoAutomatico NOTIFY enCursoChanged)
 
     // --- El guion abierto -----------------------------------------------------
     /// {nombre, inicio, nota, duracionSeg, bloques: [{id, nombre, nota,
@@ -84,6 +94,26 @@ class EventoViewModel : public QObject {
 
     QVariantList eventos() const;
     QString abierto() const { return abierto_; }
+    QVariantMap enCurso() const;
+    QStringList carpetas() const;
+    bool eventoAutomatico() const { return automatico_; }
+    void setEventoAutomatico(bool si);
+    /// Pone en curso un evento (termina el que estaba). Lo hace solo al correr
+    /// el guion de verdad (no en ensayo).
+    Q_INVOKABLE bool iniciarEvento(const QString& carpeta);
+    /// Termina el que está en curso. Con el automático prendido, el del día
+    /// vuelve a quedar en curso (nada pasa sin evento).
+    Q_INVOKABLE bool terminarEvento();
+    /// Lo lleva a otra carpeta (se crea si no está). Devuelve la ruta nueva.
+    Q_INVOKABLE QString moverEvento(const QString& carpeta, const QString& aCarpeta);
+    /// Crea una carpeta para agrupar ("2026/Octubre"). Devuelve la ruta limpia.
+    Q_INVOKABLE QString crearCarpeta(const QString& ruta);
+    /// La ficha del histórico de un evento (ficha.json), como mapa.
+    Q_INVOKABLE QVariantMap datosDe(const QString& carpeta) const;
+    /// Cambia lugar, etiquetas y notas de la ficha (solo las claves que vengan).
+    Q_INVOKABLE bool cambiarDatos(const QString& carpeta, const QVariantMap& campos);
+    /// Que haya uno en curso (el del día si hace falta). Corre cada minuto.
+    void asegurarEnCurso();
     QVariantMap guion() const;
     bool sucio() const { return sucio_; }
     QString estado() const;
@@ -110,7 +140,7 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QVariantList chequeo() const;
     /// Marca un ítem (o lo agrega si no existe). false si no hay evento abierto.
     Q_INVOKABLE bool marcarChequeo(const QString& item, bool hecho, const QString& nota);
-    Q_INVOKABLE QString crear(const QString& nombre);
+    Q_INVOKABLE QString crear(const QString& nombre, const QString& enCarpeta = {});
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();
     Q_INVOKABLE bool borrar(const QString& carpeta);
@@ -284,6 +314,7 @@ class EventoViewModel : public QObject {
     void reparosChanged();
     void chequeoChanged();
     void padronChanged();
+    void enCursoChanged();
     void notify(const QString& texto, const QString& tipo);
 
    public:
@@ -354,6 +385,8 @@ class EventoViewModel : public QObject {
     QVariantList bitacora_;
     std::vector<evento::Reparo> reparos_;
     QTimer reloj_;
+    QTimer vigiaEnCurso_; ///< cada minuto: el cambio de día y el evento automático
+    bool automatico_ = true;
 };
 
 } // namespace ba::app

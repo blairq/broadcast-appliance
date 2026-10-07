@@ -127,9 +127,18 @@ Rectangle {
                     Layout.preferredWidth: 260
                     model: page.ev.eventos
                     textRole: "nombre"
-                    displayText: page.ev.abierto === "" ? "Elegí un evento…" : currentText
+                    displayText: page.ev.abierto === "" ? "Elegí un evento…" : (page.ev.guion.nombre || page.ev.abierto)
                     onActivated: (i) => page.ev.abrir(page.ev.eventos[i].carpeta)
                     Component.onCompleted: page.ev.refrescar()
+                    // Con su carpeta adelante: con el histórico hay muchos y se agrupan.
+                    delegate: ItemDelegate {
+                        required property var modelData
+                        required property int index
+                        width: selector.width
+                        text: (modelData.grupo ? modelData.grupo + " / " : "") + modelData.nombre +
+                              (modelData.enCurso ? "  ● en curso" : "")
+                        highlighted: selector.highlightedIndex === index
+                    }
                 }
                 GlassButton {
                     icon: "+"; text: "Evento"
@@ -180,6 +189,70 @@ Rectangle {
                     text: "Guardar"; compact: true
                     active: page.ev.sucio
                     onClicked: page.ev.guardar()
+                }
+            }
+        }
+
+        // --- El evento EN CURSO: el que recibe todo lo que pasa (histórico) ------
+        Panel {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 58
+            RowLayout {
+                anchors.fill: parent
+                spacing: 10
+                Rectangle {
+                    width: 10; height: 10; radius: 5
+                    color: page.ev.enCurso.carpeta ? Theme.ok : Theme.textDim
+                }
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    color: Theme.text
+                    font.pixelSize: 13
+                    text: page.ev.enCurso.carpeta
+                          ? "En curso: " + page.ev.enCurso.nombre +
+                            (page.ev.enCurso.grupo ? "  ·  " + page.ev.enCurso.grupo : "") +
+                            (page.ev.enCurso.desdeMs ? "  ·  desde las " + Qt.formatTime(new Date(page.ev.enCurso.desdeMs), "HH:mm") : "") +
+                            (page.ev.enCurso.automatico ? "  (la jornada del día: se creó sola)" : "")
+                          : "Ningún evento en curso: lo que pase no queda en ningún evento"
+                }
+                GlassButton {
+                    compact: true
+                    visible: page.ev.abierto !== "" && page.ev.enCurso.carpeta !== page.ev.abierto
+                    text: "Poner en curso este"
+                    onClicked: page.ev.iniciarEvento(page.ev.abierto)
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Desde ahora, grabaciones, vivos y registro van a «" + (page.ev.guion.nombre || page.ev.abierto) +
+                                  "». Correr el guion de verdad lo hace solo."
+                }
+                GlassButton {
+                    compact: true
+                    visible: !!page.ev.enCurso.carpeta
+                    text: "Terminar"
+                    onClicked: page.ev.terminarEvento()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: page.ev.eventoAutomatico
+                                  ? "Queda en el histórico como terminado; lo que siga va a la jornada del día"
+                                  : "Queda en el histórico como terminado"
+                }
+                GlassButton {
+                    compact: true
+                    visible: page.ev.abierto !== ""
+                    text: "Carpeta…"
+                    onClicked: moverDlg.open()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Llevar el evento abierto a otra carpeta (2026/Octubre, Consejo/Ordinarias…)"
+                }
+                CheckBox {
+                    text: "Jornada automática"
+                    checked: page.ev.eventoAutomatico
+                    onToggled: page.ev.eventoAutomatico = checked
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Si no hay ningún evento en curso, se crea solo el del día: nada queda sin evento"
                 }
             }
         }
@@ -1241,8 +1314,8 @@ Rectangle {
         modal: true
         title: "Evento nuevo"
         standardButtons: Dialog.Ok | Dialog.Cancel
-        onAboutToShow: nombreCampo.text = ""
-        onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim())
+        onAboutToShow: { nombreCampo.text = ""; carpetaNueva.editText = "" }
+        onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim(), carpetaNueva.editText.trim())
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
@@ -1260,6 +1333,47 @@ Rectangle {
                 placeholderText: "Acto del 25 de mayo"
                 color: Theme.text
                 onAccepted: nuevoDlg.accept()
+            }
+            Text { text: "En la carpeta (vacío = Eventos/; se crea si no está)"; color: Theme.textDim; font.pixelSize: 12 }
+            ComboBox {
+                id: carpetaNueva
+                Layout.fillWidth: true
+                editable: true
+                model: page.ev.carpetas
+            }
+        }
+    }
+
+    // --- Mover el evento abierto a otra carpeta ---------------------------------
+    Dialog {
+        id: moverDlg
+        anchors.centerIn: parent
+        width: 420
+        modal: true
+        title: "Llevar a otra carpeta"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAboutToShow: {
+            const c = page.ev.abierto
+            const i = c.lastIndexOf("/")
+            carpetaDestino.editText = i < 0 ? "" : c.substring(0, i)
+        }
+        onAccepted: page.ev.moverEvento(page.ev.abierto, carpetaDestino.editText.trim())
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Las carpetas ordenan el histórico como quieras («2026/Octubre», «Consejo/Ordinarias»). " +
+                      "Vacío es la raíz de Eventos/. Mover no cambia nada del evento."
+                color: Theme.textDim
+                font.pixelSize: 12
+            }
+            ComboBox {
+                id: carpetaDestino
+                Layout.fillWidth: true
+                editable: true
+                model: page.ev.carpetas
             }
         }
     }

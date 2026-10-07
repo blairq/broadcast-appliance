@@ -695,6 +695,11 @@ const Fila kPropias[] = {
     {"evento_ver", "que sigue en el guion que viene ahora proximo bloque proximo cue ver el guion del "
                    "evento leer rundown cuando es el evento que dia a que hora arranca"},
     {"evento_abrir", "abrir evento cargar guion"},
+    {"evento_en_curso", "que evento esta en curso historico jornada del dia registro"},
+    {"evento_iniciar", "empezar evento poner en curso registrar historico"},
+    {"evento_terminar", "terminar cerrar evento en curso historico automatico"},
+    {"evento_carpeta", "carpeta mover ordenar eventos agrupar archivo historico"},
+    {"evento_ficha", "ficha evento lugar etiquetas notas estado historico"},
     {"evento_bloque", "bloque del guion seccion agregar mover"},
     {"evento_cue", "cue paso accion del guion agregar editar"},
     {"evento_guardar", "guardar el guion del evento ponerle fecha hora y huso horario cambiarle el titulo"},

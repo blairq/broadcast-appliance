@@ -122,6 +122,18 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     // lado: la fecha del archivo ya lo dice.
     const std::string ultimo = sinAbrirUltimo ? std::string() : store_.ultimoTocado();
     if (!ultimo.empty()) abrir(QString::fromStdString(ultimo));
+    // EL EVENTO EN CURSO: el que quedó anotado sigue (un corte de luz no lo
+    // corta); si no hay ninguno y está prendido el automático, el del día. Cada
+    // minuto se mira de nuevo: a la medianoche el automático pasa al de hoy.
+    {
+        std::ifstream f(rt.dataRoot() / "Config" / "historico.json");
+        const json j = f ? json::parse(f, nullptr, false) : json();
+        if (j.is_object()) automatico_ = j.value("evento_automatico", true);
+    }
+    asegurarEnCurso();
+    vigiaEnCurso_.setInterval(60 * 1000);
+    connect(&vigiaEnCurso_, &QTimer::timeout, this, &EventoViewModel::asegurarEnCurso);
+    vigiaEnCurso_.start();
     refrescar();
 }
 
@@ -129,10 +141,154 @@ EventoViewModel::~EventoViewModel() = default;
 
 // --- La lista ---------------------------------------------------------------
 
+namespace {
+QVariantMap datosAMap(const evento::DatosDelEvento& d) {
+    QStringList etiquetas;
+    for (const auto& e : d.etiquetas) etiquetas << QString::fromStdString(e);
+    return QVariantMap{{"estado", QString::fromStdString(d.estado)},
+                       {"iniciadoMs", static_cast<qint64>(d.iniciadoMs)},
+                       {"terminadoMs", static_cast<qint64>(d.terminadoMs)},
+                       {"lugar", QString::fromStdString(d.lugar)},
+                       {"etiquetas", etiquetas},
+                       {"notas", QString::fromStdString(d.notas)},
+                       {"automatico", d.automatico},
+                       {"dia", QString::fromStdString(d.dia)}};
+}
+} // namespace
+
+QVariantMap EventoViewModel::enCurso() const {
+    const std::string c = store_.enCurso();
+    if (c.empty()) return {};
+    const evento::Evento e = store_.cargar(c);
+    const evento::DatosDelEvento d = store_.datos(c);
+    const auto barra = c.rfind('/');
+    return QVariantMap{{"carpeta", QString::fromStdString(c)},
+                       {"nombre", QString::fromStdString(e.nombre.empty() ? c : e.nombre)},
+                       {"grupo", QString::fromStdString(barra == std::string::npos ? std::string() : c.substr(0, barra))},
+                       {"desdeMs", static_cast<qint64>(d.iniciadoMs)},
+                       {"automatico", d.automatico}};
+}
+
+QStringList EventoViewModel::carpetas() const {
+    QStringList out;
+    for (const auto& c : store_.carpetas()) out << QString::fromStdString(c);
+    return out;
+}
+
+void EventoViewModel::setEventoAutomatico(bool si) {
+    if (si == automatico_) return;
+    automatico_ = si;
+    const auto ruta = rt_.dataRoot() / "Config" / "historico.json";
+    json j;
+    {
+        std::ifstream f(ruta);
+        if (f) j = json::parse(f, nullptr, false);
+    }
+    if (!j.is_object()) j = json::object();
+    j["evento_automatico"] = si;
+    std::error_code ec;
+    std::filesystem::create_directories(ruta.parent_path(), ec);
+    std::ofstream(ruta) << j.dump(2) << "\n";
+    asegurarEnCurso();
+    emit enCursoChanged();
+}
+
+void EventoViewModel::asegurarEnCurso() {
+    const std::string antes = store_.enCurso();
+    if (automatico_) {
+        std::string err;
+        const std::string dia = QDate::currentDate().toString("yyyy-MM-dd").toStdString();
+        if (store_.asegurarDelDia(dia, ahoraMs(), &err).empty())
+            emit notify("No se pudo crear el evento del día: " + QString::fromStdString(err), "error");
+    }
+    if (store_.enCurso() != antes) {
+        emit enCursoChanged();
+        emit listaChanged();
+    }
+}
+
+bool EventoViewModel::iniciarEvento(const QString& carpeta) {
+    std::string err;
+    if (store_.enCurso() == carpeta.toStdString()) return true;
+    if (!store_.iniciar(carpeta.toStdString(), ahoraMs(), &err)) {
+        emit notify("No se pudo poner en curso: " + QString::fromStdString(err), "error");
+        return false;
+    }
+    emit enCursoChanged();
+    emit listaChanged();
+    return true;
+}
+
+bool EventoViewModel::terminarEvento() {
+    std::string err;
+    if (!store_.terminar(ahoraMs(), &err)) {
+        emit notify(QString::fromStdString(err), "error");
+        return false;
+    }
+    asegurarEnCurso();
+    emit enCursoChanged();
+    emit listaChanged();
+    return true;
+}
+
+QString EventoViewModel::moverEvento(const QString& carpeta, const QString& aCarpeta) {
+    if (carpeta == abierto_ && sucio_) guardar();
+    std::string err;
+    const std::string nueva = store_.mover(carpeta.toStdString(), aCarpeta.toStdString(), &err);
+    if (nueva.empty()) {
+        emit notify("No se pudo mover: " + QString::fromStdString(err), "error");
+        return {};
+    }
+    if (abierto_ == carpeta) {
+        abierto_ = QString::fromStdString(nueva);
+        emit guionChanged();
+    }
+    emit enCursoChanged();
+    emit listaChanged();
+    return QString::fromStdString(nueva);
+}
+
+QString EventoViewModel::crearCarpeta(const QString& ruta) {
+    std::string err;
+    const std::string c = store_.crearCarpeta(ruta.toStdString(), &err);
+    if (c.empty()) {
+        emit notify("No se pudo crear la carpeta: " + QString::fromStdString(err), "error");
+        return {};
+    }
+    emit listaChanged();
+    return QString::fromStdString(c);
+}
+
+QVariantMap EventoViewModel::datosDe(const QString& carpeta) const {
+    return datosAMap(store_.datos(carpeta.toStdString()));
+}
+
+bool EventoViewModel::cambiarDatos(const QString& carpeta, const QVariantMap& campos) {
+    evento::DatosDelEvento d = store_.datos(carpeta.toStdString());
+    if (campos.contains("lugar")) d.lugar = campos.value("lugar").toString().toStdString();
+    if (campos.contains("notas")) d.notas = campos.value("notas").toString().toStdString();
+    if (campos.contains("etiquetas")) {
+        d.etiquetas.clear();
+        for (const QString& e : campos.value("etiquetas").toStringList())
+            if (!e.trimmed().isEmpty()) d.etiquetas.push_back(e.trimmed().toStdString());
+    }
+    std::string err;
+    if (!store_.guardarDatos(carpeta.toStdString(), d, &err)) {
+        emit notify("No se pudo guardar la ficha: " + QString::fromStdString(err), "error");
+        return false;
+    }
+    emit listaChanged();
+    return true;
+}
+
 QVariantList EventoViewModel::eventos() const {
     QVariantList out;
+    const std::string enCurso = store_.enCurso();
     for (const evento::Ficha& f : store_.listar()) {
         out.append(QVariantMap{{"carpeta", QString::fromStdString(f.carpeta)},
+                               {"grupo", QString::fromStdString(f.grupo)},
+                               {"enCurso", f.carpeta == enCurso},
+                               {"historico", datosAMap(f.datos)},
                                {"nombre", QString::fromStdString(f.nombre)},
                                {"fecha", QString::fromStdString(f.fecha)},
                                {"inicio", QString::fromStdString(f.inicio)},
@@ -146,9 +302,9 @@ QVariantList EventoViewModel::eventos() const {
 
 void EventoViewModel::refrescar() { emit listaChanged(); }
 
-QString EventoViewModel::crear(const QString& nombre) {
+QString EventoViewModel::crear(const QString& nombre, const QString& enCarpeta) {
     std::string err;
-    const std::string carpeta = store_.crear(nombre.toStdString(), &err);
+    const std::string carpeta = store_.crear(nombre.toStdString(), &err, enCarpeta.toStdString());
     if (carpeta.empty()) {
         emit notify("No se pudo crear el evento: " + QString::fromStdString(err), "error");
         return {};
@@ -1039,6 +1195,8 @@ void EventoViewModel::arrancar() {
         emit notify("El guion no tiene ningún cue", "error");
         return;
     }
+    // Correrlo de verdad lo pone en curso: lo que pase desde ahora es de este evento.
+    if (!ensayo_ && !abierto_.isEmpty() && store_.enCurso() != abierto_.toStdString()) iniciarEvento(abierto_);
     guionCorriendo_ = std::make_unique<evento::Guion>(e_);
     guionCorriendo_->arrancar(ahoraMs());
     reloj_.start();

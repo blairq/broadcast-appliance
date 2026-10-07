@@ -150,7 +150,7 @@ Categoría «historico»: `historico_listar` (carpetas, filtros), `historico_ver
 
 | Fase | Qué | Notas |
 |---|---|---|
-| H1 | Evento abierto + `ficha.json` + carpetas anidadas en `EventoStore`; evento automático del día | base de todo |
+| H1 | Evento en curso + `ficha.json` + carpetas anidadas en `EventoStore`; evento automático del día | **hecho** (ver abajo) |
 | H2 | `Bitacora` (escritor único) colgada de BusEventos, traza MCP, botonera, guion, avisos | el «histórico total» empieza acá |
 | H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | comparar y restaurar en H6 |
 | H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | `Salidas`, `FlujosTexto`, YouTube/Twitch/Facebook |
@@ -161,10 +161,31 @@ Migración: los eventos existentes en `Eventos/` quedan en la raíz como
 «cerrados»; las grabaciones y transcripciones viejas se pueden asignar a un
 evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no quiere.
 
-## Para decidir
+## Decidido (2026-10-07)
 
-1. ¿Página nueva «Histórico» o pestaña dentro de Evento? (propuesta: página nueva;
-   Evento es preparar y correr, Histórico es el archivo).
-2. Grabaciones: ¿dentro de la carpeta del evento (recomendado: todo junto, se
-   copia de una) o en `Recordings/` con índice?
-3. ¿Evento automático por día cuando nadie abrió uno? (propuesta: sí).
+1. Página nueva «Histórico» (Evento sigue siendo preparar y correr).
+2. Grabaciones dentro de la carpeta del evento.
+3. Evento automático por día: sí (se puede apagar).
+
+## H1 (hecho)
+
+- «En curso» y no «abierto»: en la app «abrir» ya era cargar un guion para
+  editarlo. El evento EN CURSO es el que recibe todo; se puede editar otro.
+- `EventoStore`: eventos en carpetas anidadas (ruta con «/»; una carpeta con
+  `evento.json` es un evento, una sin, agrupa), `carpetas()`, `crearCarpeta`,
+  `crear(…, enCarpeta)`, `mover`, `ficha.json` (`DatosDelEvento`: estado,
+  iniciado/terminado, lugar, etiquetas, notas, automático; conserva claves que no
+  conoce), `Eventos/en-curso.json` (sobrevive al corte de luz), `iniciar`,
+  `terminar`, `asegurarDelDia` («Jornada del 07/10/2026» en `2026/Octubre`; a la
+  medianoche el automático pasa al de hoy; uno elegido sigue). El automático no
+  cuenta como «el último tocado».
+- `EventoViewModel`: `enCurso`, `carpetas`, `eventoAutomatico`
+  (`Config/historico.json`), iniciar/terminar/mover/crear carpeta/ficha; revisa
+  cada minuto; correr el guion de verdad (no en ensayo) lo pone en curso.
+- MCP: `evento_en_curso`, `evento_iniciar`, `evento_terminar` (también prende o
+  apaga el automático), `evento_carpeta`, `evento_ficha`; `evento_listar` con
+  grupo, estado y carpetas; `evento_abrir` con `en_carpeta`.
+- Página Evento: franja «En curso» (Poner en curso este, Terminar, Carpeta…,
+  Jornada automática), el selector con la carpeta de cada evento, «Evento nuevo»
+  con carpeta. La página Histórico completa es H6.
+- Tests: `test_evento_store` (carpetas, mover, en curso, día, cambio de día).

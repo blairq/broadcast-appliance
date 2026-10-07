@@ -9,8 +9,13 @@
 //   6. Borrar no se deja llevar fuera de Eventos/.
 //   7. Revisar los archivos: los que faltan, los vacios y los que se escapan
 //      de la carpeta del evento.
+//   8. Carpetas anidadas: crear adentro, listar en todas, mover, no borrar
+//      una carpeta que agrupa.
+//   9. El evento en curso: iniciar, terminar, uno solo a la vez, sobrevive a
+//      mover; el automático del día y el cambio de día.
 // ============================================================================
 
+#include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <filesystem>
@@ -235,6 +240,83 @@ void borrar_no_se_escapa() {
 
 } // namespace
 
+void carpetas_anidadas() {
+    EventoStore s(carpetaDePrueba());
+    std::string err;
+    CHECK(s.crearCarpeta("2026/Octubre", &err) == "2026/Octubre", "crea carpetas anidadas");
+    CHECK(s.crearCarpeta("Consejo/Ordi:narias", &err) == "Consejo/Ordinarias", "limpia cada parte");
+    CHECK(s.crearCarpeta("../afuera", &err) == "afuera", "«..» no sale de Eventos/");
+    const std::string e = s.crear("Sesión ordinaria", &err, "2026/Octubre");
+    CHECK(e == "2026/Octubre/Sesión-ordinaria", "crea el evento adentro de la carpeta");
+    const std::string raiz = s.crear("Ensayo", &err);
+    const auto fichas = s.listar();
+    CHECK(fichas.size() == 2, "lista los eventos de todas las carpetas");
+    bool vio = false;
+    for (const auto& f : fichas)
+        if (f.carpeta == e) vio = f.grupo == "2026/Octubre" && f.nombre == "Sesión ordinaria";
+    CHECK(vio, "con su grupo");
+    const auto cs = s.carpetas();
+    CHECK(std::find(cs.begin(), cs.end(), "2026/Octubre") != cs.end(), "las carpetas que agrupan");
+    CHECK(std::find(cs.begin(), cs.end(), e) == cs.end(), "un evento no es una carpeta que agrupa");
+    CHECK(s.crearCarpeta(e + "/adentro", &err).empty(), "no se agrupa adentro de un evento");
+    const std::string movido = s.mover(raiz, "Consejo/Ordinarias", &err);
+    CHECK(movido == "Consejo/Ordinarias/Ensayo", "mueve un evento a otra carpeta");
+    bool ok = false;
+    s.cargar(movido, &ok);
+    CHECK(ok, "y se sigue pudiendo cargar");
+    CHECK(!s.borrar("2026", &err), "no borra una carpeta que agrupa");
+    CHECK(s.borrar(e, &err), "borra un evento anidado");
+}
+
+void en_curso() {
+    EventoStore s(carpetaDePrueba());
+    std::string err;
+    const std::string a = s.crear("Uno", &err);
+    const std::string b = s.crear("Dos", &err, "Otros");
+    CHECK(s.enCurso().empty(), "al principio no hay ninguno en curso");
+    CHECK(s.iniciar(a, 1000, &err), "inicia uno");
+    CHECK(s.enCurso() == a, "queda en curso");
+    CHECK(s.datos(a).estado == "en_curso" && s.datos(a).iniciadoMs == 1000, "con su estado y hora");
+    CHECK(s.iniciar(b, 2000, &err), "inicia otro");
+    CHECK(s.datos(a).estado == "terminado" && s.datos(a).terminadoMs == 2000, "el anterior se termina solo");
+    // Lo que no conoce se conserva.
+    DatosDelEvento d = s.datos(b);
+    d.resto["futuro"] = 7;
+    d.etiquetas = {"con votación"};
+    s.guardarDatos(b, d, &err);
+    const std::string movido = s.mover(b, "2026", &err);
+    CHECK(s.enCurso() == movido, "sigue en curso después de moverlo");
+    CHECK(s.datos(movido).resto.value("futuro", 0) == 7, "ficha.json conserva las claves que no conoce");
+    CHECK(s.datos(movido).etiquetas.size() == 1, "y las etiquetas");
+    {
+        EventoStore otra(s.raiz()); // la app que vuelve después de un corte de luz
+        CHECK(otra.enCurso() == movido, "el en curso sobrevive a reabrir");
+    }
+    CHECK(s.terminar(3000, &err), "termina");
+    CHECK(s.enCurso().empty() && s.datos(movido).estado == "terminado", "y no queda ninguno");
+    CHECK(!s.terminar(3001, &err), "terminar sin ninguno avisa");
+}
+
+void del_dia() {
+    EventoStore s(carpetaDePrueba());
+    std::string err;
+    const std::string hoy = s.asegurarDelDia("2026-10-07", 1000, &err);
+    CHECK(hoy == "2026/Octubre/2026-10-07-jornada", "crea el del día en su carpeta");
+    CHECK(s.enCurso() == hoy, "y lo pone en curso");
+    CHECK(s.cargar(hoy).nombre == "Jornada del 07/10/2026", "con nombre legible");
+    CHECK(s.datos(hoy).automatico && s.datos(hoy).dia == "2026-10-07", "marcado automático");
+    CHECK(s.asegurarDelDia("2026-10-07", 2000, &err) == hoy, "el mismo día no crea otro");
+    const std::string manana = s.asegurarDelDia("2026-10-08", 3000, &err);
+    CHECK(manana == "2026/Octubre/2026-10-08-jornada", "a la medianoche pasa al de hoy");
+    CHECK(s.datos(hoy).estado == "terminado", "y termina el de ayer");
+    const std::string elegido = s.crear("Sesión especial", &err);
+    s.iniciar(elegido, 4000, &err);
+    CHECK(s.asegurarDelDia("2026-10-09", 5000, &err) == elegido, "uno elegido sigue aunque cambie el día");
+    s.terminar(6000, &err);
+    CHECK(s.asegurarDelDia("2026-10-08", 7000, &err) == manana, "vuelve a abrir el del día si ya existía");
+    CHECK(s.datos(manana).iniciadoMs == 3000, "conservando cuándo empezó");
+}
+
 int main() {
     crear_y_listar();
     no_se_pisan();
@@ -244,6 +326,9 @@ int main() {
     revisar_archivos();
     nombres();
     borrar_no_se_escapa();
+    carpetas_anidadas();
+    en_curso();
+    del_dia();
     std::error_code ec;
     fs::remove_all(fs::temp_directory_path() / "ba-test-eventos", ec);
     if (g_fallos == 0) std::printf("test_evento_store: OK\n");
