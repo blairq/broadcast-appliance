@@ -71,7 +71,8 @@ Rectangle {
         editor.cargar(txt)
     }
     Component.onCompleted: refrescar()
-    onVisibleChanged: if (visible) refrescar()
+    // El selector es un Popup (vive encima de toda la ventana): al irse de la página se cierra.
+    onVisibleChanged: if (visible) refrescar(); else selectorHerr.close()
     Connections {
         target: page.bot
         function onCambio() { page.refrescar() }
