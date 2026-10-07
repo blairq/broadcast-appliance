@@ -974,6 +974,13 @@ endif()
     target_link_libraries(test_facebook PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_facebook PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_facebook COMMAND test_facebook)
+    # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
+    # propiedades asignadas dos veces, tipos o ids que no existen).
+    add_executable(test_qml_carga tests/test_qml_carga.cpp)
+    target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+    set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_qml_carga COMMAND test_qml_carga)
     # La interfaz parsea: qmllint sobre todos los QML (ver cmake/tests).
     find_program(BA_QMLLINT qmllint PATHS "${BA_QT_PREFIX}/bin" NO_DEFAULT_PATH)
     if(BA_QMLLINT)

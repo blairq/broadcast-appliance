@@ -24,7 +24,7 @@ import "../controls"
 //
 // No hace nada si no hay nada armado: un TAKE al vacio no es una operacion.
 Item {
-    id: direccion
+    id: tarjeta
     focus: true
     Keys.onPressed: (e) => {
         if ((e.key === Qt.Key_T || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) &&
@@ -33,7 +33,6 @@ Item {
             e.accepted = true
         }
     }
-    id: tarjeta
     readonly property var ev: Studio.evento
     readonly property var reloj: ev ? ev.reloj : ({})
     readonly property bool corriendo: ev && ev.estado === "corriendo"
