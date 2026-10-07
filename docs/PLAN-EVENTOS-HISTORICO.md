@@ -310,3 +310,31 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
 - Probado en la app: las cinco pestañas con la jornada (capturas), buscar
   «Apertura», ajustes, preparar y descartar una restauración, exportar sin
   grabaciones; cerrar sin caídas.
+
+## Después de H6 (2026-10-07)
+
+- **Cierre pendiente al arrancar:** si el día cambió con la app cerrada, la jornada de
+  ayer se terminaba sin bitácora y sin cierre. Al arrancar, todo evento terminado en
+  la última semana, con bitácora y sin sellos, recibe su cierre (asamblea, registro
+  hasta su fin, sellos; la foto `cierre` es su `ultima`).
+- **Acta, informe y capítulos** en el resumen del Histórico, con «Abrir».
+- **Traer lo del día** (pestaña Grabaciones, `historico_traer_del_dia`): las
+  grabaciones de `Recordings/` (con `entradas/` y `limpia/`) y las transcripciones
+  que terminaron en el día del evento (inicio, fecha o jornada), o entre `desde` y
+  `hasta`. De fábrica quedan donde están y el evento las nombra (`importada`); con
+  «moverlas», pasan a su carpeta (en otro disco: copia, verifica el tamaño y borra).
+  El inicio de cada una sale de su nombre (`ba-<segundos>-…`). No repite.
+- **Copia en otro disco por evento:** con `copiaDir` en la grabación y un evento en
+  curso, la copia va a `<copia>/Eventos/<evento>/Grabaciones/` y queda en el índice.
+- **Disco y retención** (`Config/historico.json` `retencion`, «Qué se registra…»,
+  `historico_retencion`): cada hora (y al minuto de arrancar) avisa si el disco de
+  Eventos pasa de `aviso_disco_pct` (90 de fábrica) y, con `grabaciones_dias` > 0
+  (0 de fábrica: nunca), borra las grabaciones de los eventos terminados hace más de
+  N días; todo lo demás queda, cada borrada se anota en `grabaciones.json`
+  (`borrada_ms`) y en la bitácora del evento. «¿Qué borraría?» y el MCP simulan.
+- **Buscar** encuentra «votación» aunque se escriba «VOTACIÓN» (mayúsculas latinas con
+  tilde, en el histórico y en la bitácora).
+- Probado: «volver a esta configuración» de punta a punta (preparar, cerrar, abrir:
+  aplicado, con su respaldo en `Config/.restaurar/antes-<ms>/` y la línea en el
+  registro); el aviso de disco (la Mac de desarrollo está al 90 %); traer lo del día
+  y la retención (simulada) por MCP; `test_historico`.
