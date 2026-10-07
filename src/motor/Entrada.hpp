@@ -195,6 +195,7 @@ class Entrada {
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
     std::uint64_t consultaNs_ = 0;
     LatenciaAparte latencia_; ///< la consulta de latencia, en su propio hilo
+    std::string origenRed_; ///< el origen de red compartido que usa («origen:<n>»; ver OrigenRed.hpp)
     std::uint64_t vistosDatos_ = 0, datosDesdeNs_ = 0;
     std::atomic<std::int64_t> pide_{0};
     std::atomic<bool> llegaTarde_{false};

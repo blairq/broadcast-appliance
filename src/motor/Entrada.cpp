@@ -3,6 +3,7 @@
 // ============================================================================
 #include "Entrada.hpp"
 
+#include "OrigenRed.hpp"
 #include "Reloj.hpp"
 
 #include <algorithm>
@@ -384,6 +385,10 @@ void Entrada::desarmar() {
         gst_object_unref(pipeline_);
         pipeline_ = nullptr;
     }
+    if (!origenRed_.empty()) {
+        origen_red::soltar(origenRed_);
+        origenRed_.clear();
+    }
     baseAplicada_ = GST_CLOCK_TIME_NONE;
     appAncho_ = appAlto_ = 0;
     realineadoV_ = realineadoA_ = 0;
@@ -539,7 +544,16 @@ void Entrada::armar() {
                " sync=false event-types=\"<>\"";
     };
     std::string completo;
-    if (!uri_.empty()) {
+    if (!uri_.empty() && !medio_ && origen_red::esDeRed(uri_)) {
+        // Una cámara de red: la conexión es compartida con las otras entradas de la
+        // misma dirección (ver OrigenRed.hpp); acá se toma lo ya decodificado.
+        origenRed_ = origen_red::usar(reloj_, uri_, static_cast<int>(latenciaMs_), ntpSync_ && !ntpApagadoSolo_);
+        completo = "intersrc producer-name=" + entreComillas(origenRed_ + ":video") + " ! queue name=ba_origen ! " + antes +
+                   capsVideo + " ! " + salida("v");
+        if (conAudio_)
+            completo += " intersrc producer-name=" + entreComillas(origenRed_ + ":audio") + " ! queue ! " + cadenaA +
+                        "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
+    } else if (!uri_.empty()) {
         // Un archivo: solo las ramas de lo que tiene (una rama sin datos nunca termina),
         // con los pads por nombre (si no, el audio de un mp3 se engancha en la del video).
         bool hayV = true, hayA = conAudio_;

@@ -2,6 +2,7 @@
 // src/motor/Motor.cpp — ver Motor.hpp
 // ============================================================================
 #include "Motor.hpp"
+#include "OrigenRed.hpp"
 
 #include <gst/net/net.h>
 
@@ -145,6 +146,7 @@ void Motor::bucle() {
                 }
             }
         };
+        origen_red::tic(); // las cámaras de red compartidas (tiene su propio candado)
         {
             std::lock_guard<std::recursive_mutex> l(mu_);
             Vigia vigia{desdeUs, ultimoAvisoUs};
