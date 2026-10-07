@@ -65,3 +65,4 @@ checkpoint-*/
 imatrix.dat
 docs/bosch/dvd/
 docs/bosch/desassembly/
+.ghidra_docker/
