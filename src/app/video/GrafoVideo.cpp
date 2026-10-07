@@ -75,7 +75,7 @@ json fabrica(const std::string& tipo) {
     // `zoom`: 0 = no lo toca; >0 = el zoom que busca; `aire` (lugar arriba de la
     // cabeza), `suavidad` (s), `zona_muerta`, `perdida_s` (cuánto espera).
     if (tipo == "seguir")
-        return {{"activo", true}, {"objetivo", ""},     {"zoom", 0.0},       {"tamano_cara", 0.0},
+        return {{"activo", true}, {"auto", false}, {"objetivo", ""},     {"zoom", 0.0},       {"tamano_cara", 0.0},
                 {"aire", 0.12},   {"suavidad", 0.6},   {"zona_muerta", 0.04}, {"perdida_s", 3.0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).

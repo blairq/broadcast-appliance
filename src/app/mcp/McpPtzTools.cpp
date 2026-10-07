@@ -216,20 +216,27 @@ void McpService::registerPtzTools() {
             t.name = "ptz_seguir";
             t.title = "Seguir a una persona con el PTZ";
             t.category = "camaras";
-            t.description = "La cámara `entrada` sigue a una cara y la mantiene en el centro: con el PTZ "
-                            "real si tiene motor (pulsos de "
-                            "pan/tilt), si no con el recorte digital. `persona`: el id de alguien reconocido "
-                            "(de ptz_rostros o Personas; "
-                            "la sigue aunque se cruce con otro); o `x`, `y` (0..1): la cara sin nombre que "
-                            "está ahí. `parar: true` deja "
-                            "de seguir. El estado (siguiendo, centrada, perdida) sale en ptz_camaras… y en "
-                            "la ventana del PTZ.";
+            t.description =
+                "La cámara `entrada` sigue a una cara y la mantiene encuadrada. A quién: `persona` (el id de alguien "
+                "reconocido, de ptz_rostros o Personas: la vuelve a encontrar si se cruza con otro), `cara` (el número "
+                "que le puso la tarjeta Rostros), `regla` (\"mayor\": la más grande; \"centro\": la más cercana al "
+                "centro) o `x`, `y` (0..1 de la toma entera: la cara más cercana a ese punto). `parar: true` deja de seguir.";
+            t.details =
+                "Corre en el pipeline de la entrada, con tarjetas que se pueden ver y mover en Video › Racks: Rostros "
+                "(barostros) ve las caras, Seguimiento (baseguir) elige y decide el encuadre, y el PTZ digital (baptz) va "
+                "hacia ahí. Se hablan con eventos de GStreamer (ba/rostros, ba/encuadre, ba/ptz) en las dos direcciones, "
+                "así que anda en cualquier orden. Si faltan, las tarjetas Rostros y Seguimiento se ponen solas. Con una "
+                "cámara motorizada (VISCA, ONVIF) la app la mueve con pulsos según el mensaje «ba-seguir» de la tarjeta. "
+                "Ajustes del encuadre (zoom, tamaño de la cara, aire, suavidad, zona muerta): video_tarjeta_ajustar sobre "
+                "la tarjeta Seguimiento. El estado (siguiendo, buscando, perdida) sale en ptz_camaras y en la tarjeta.";
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
                               {{"entrada", entrada},
                                {"persona", {{"type", "string"}}},
                                {"nombre", {{"type", "string"}}},
+                               {"cara", {{"type", "integer"}, {"description", "el número de la cara (tarjeta Rostros)"}}},
+                               {"regla", {{"type", "string"}, {"enum", {"mayor", "centro"}}}},
                                {"x", {{"type", "number"}}},
                                {"y", {{"type", "number"}}},
                                {"parar", {{"type", "boolean"}}}}}};
@@ -241,6 +248,8 @@ void McpService::registerPtzTools() {
                     return done(ToolResult::ok("Dejó de seguir en «" + e.toStdString() + "»."));
                 }
                 QVariantMap obj{{"id", qarg(a, "persona")}, {"nombre", qarg(a, "nombre")}};
+                if (a.contains("cara")) obj["cara"] = a.value("cara", 0);
+                if (a.contains("regla")) obj["regla"] = qarg(a, "regla");
                 if (a.contains("x")) obj["x"] = a.value("x", 0.5);
                 if (a.contains("y")) obj["y"] = a.value("y", 0.5);
                 const QString err = seg->seguir(e, obj);

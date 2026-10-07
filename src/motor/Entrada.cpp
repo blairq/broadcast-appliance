@@ -1176,27 +1176,36 @@ void Entrada::tic() {
 }
 
 namespace {
-std::mutex gAvisoRostrosMu;
-AvisoRostros gAvisoRostros;
+std::mutex gAvisosMu;
+std::map<int, AvisoElemento> gAvisos;
+int gProximoAviso = 1;
 } // namespace
 
-void ponerAvisoRostros(AvisoRostros aviso) {
-    std::lock_guard<std::mutex> l(gAvisoRostrosMu);
-    gAvisoRostros = std::move(aviso);
+int escucharElementos(AvisoElemento aviso) {
+    std::lock_guard<std::mutex> l(gAvisosMu);
+    gAvisos[gProximoAviso] = std::move(aviso);
+    return gProximoAviso++;
+}
+
+void dejarDeEscuchar(int id) {
+    std::lock_guard<std::mutex> l(gAvisosMu);
+    gAvisos.erase(id);
 }
 
 void Entrada::procesarMensaje(GstMessage* m) {
     switch (GST_MESSAGE_TYPE(m)) {
         case GST_MESSAGE_ELEMENT: {
-            // Lo que ve la tarjeta «Rostros» (barostros): a quien lo escuche.
+            // Lo que dicen nuestros elementos («ba-rostros», «ba-seguir»…): a quien escuche.
             const GstStructure* s = gst_message_get_structure(m);
-            if (s == nullptr || !gst_structure_has_name(s, "ba-rostros")) return;
+            if (s == nullptr || std::strncmp(gst_structure_get_name(s), "ba-", 3) != 0) return;
             const gchar* js = gst_structure_get_string(s, "json");
+            if (js == nullptr) return;
             GstSample* cuadro = nullptr;
-            gst_structure_get(s, "cuadro", GST_TYPE_SAMPLE, &cuadro, nullptr);
+            if (gst_structure_has_field_typed(s, "cuadro", GST_TYPE_SAMPLE))
+                gst_structure_get(s, "cuadro", GST_TYPE_SAMPLE, &cuadro, nullptr);
             {
-                std::lock_guard<std::mutex> l(gAvisoRostrosMu);
-                if (gAvisoRostros && js != nullptr) gAvisoRostros(id_, js, cuadro);
+                std::lock_guard<std::mutex> l(gAvisosMu);
+                for (const auto& [i, a] : gAvisos) a(id_, gst_structure_get_name(s), js, cuadro);
             }
             if (cuadro != nullptr) gst_sample_unref(cuadro);
             return;

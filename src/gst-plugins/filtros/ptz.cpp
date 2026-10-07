@@ -19,9 +19,9 @@
 // Sin zoom y quieto, PASANTE (sin copia): tenerlo puesto en todas las entradas
 // no cuesta nada (en GPU, baptzgl también deja de dibujar).
 //
-// ENCUADRE PEDIDO (seguimiento): un evento «ba/encuadre» que viene de arriba
-// (lo manda baseguir) o la propiedad `encuadre` («x,y,zoom,suavidad»; la usa la
-// app cuando el seguimiento está después del PTZ) dicen adónde ir; el PTZ va
+// ENCUADRE PEDIDO (seguimiento): un evento «ba/encuadre» que viene de arriba o
+// de abajo (lo manda baseguir en las dos direcciones, así anda en cualquier
+// orden) o la propiedad `encuadre` («x,y,zoom,suavidad») dicen adónde ir; el PTZ va
 // hacia ahí con una curva suave (constante de tiempo `suavidad`, s). El
 // joystick o un preset mandan sobre el encuadre; si no llega otro en 1,5 s, se
 // queda donde está. zoom 0 = no tocar el zoom.
@@ -137,7 +137,9 @@ void pedirEncuadre(BaPtz* p, const char* texto) {
 
 /// Un evento «ba/encuadre» (del seguimiento): true si lo era.
 bool leerEncuadre(BaPtz* p, GstEvent* e) {
-    if (GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_DOWNSTREAM && GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_DOWNSTREAM_OOB) return false;
+    if (GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_DOWNSTREAM && GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_DOWNSTREAM_OOB &&
+        GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_UPSTREAM && GST_EVENT_TYPE(e) != GST_EVENT_CUSTOM_BOTH)
+        return false;
     const GstStructure* s = gst_event_get_structure(e);
     if (s == nullptr || !gst_structure_has_name(s, "ba/encuadre")) return false;
     GST_OBJECT_LOCK(p);
@@ -370,6 +372,12 @@ GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* in, GstVideoFrame* 
     return GST_FLOW_OK;
 }
 
+/// De abajo: un encuadre que manda un seguimiento que está después (y sigue de largo).
+gboolean alEventoArriba(GstBaseTransform* bt, GstEvent* e) {
+    leerEncuadre(BA_PTZ(bt), e);
+    return GST_BASE_TRANSFORM_CLASS(ba_ptz_parent_class)->src_event(bt, e);
+}
+
 gboolean alEvento(GstBaseTransform* bt, GstEvent* e) {
     leerEncuadre(BA_PTZ(bt), e); // y sigue de largo (lo que venga después también lo ve)
     if (GST_EVENT_TYPE(e) == GST_EVENT_FLUSH_STOP || GST_EVENT_TYPE(e) == GST_EVENT_SEGMENT) {
@@ -430,6 +438,7 @@ static void ba_ptz_class_init(BaPtzClass* k) {
     auto* bk = GST_BASE_TRANSFORM_CLASS(k);
     bk->before_transform = antes;
     bk->sink_event = alEvento;
+    bk->src_event = alEventoArriba;
     GST_VIDEO_FILTER_CLASS(k)->transform_frame = transformar;
 }
 
@@ -527,6 +536,13 @@ static void ba_ptz_gl_init(BaPtzGl* s) {
     GstPad* out = gst_element_get_static_pad(fijar, "src");
     gst_pad_add_probe(in, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
                       alCuadroGl, s, nullptr);
+    // Un encuadre que llega de abajo (un seguimiento después del PTZ).
+    gst_pad_add_probe(out, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
+                      [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
+                          leerEncuadre(static_cast<BaPtzGl*>(d)->cuenta, GST_PAD_PROBE_INFO_EVENT(info));
+                          return GST_PAD_PROBE_OK;
+                      },
+                      s, nullptr);
     GstElementClass* ek = GST_ELEMENT_GET_CLASS(s);
     gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("sink", in, gst_element_class_get_pad_template(ek, "sink")));
     gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("src", out, gst_element_class_get_pad_template(ek, "src")));
@@ -685,6 +701,12 @@ static void ba_ptz_d3d12_init(BaPtzD3d12* s) {
     GstPad* out = gst_element_get_static_pad(s->tam, "src");
     gst_pad_add_probe(in, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
                       alCuadroD3d, s, nullptr);
+    gst_pad_add_probe(out, GST_PAD_PROBE_TYPE_EVENT_UPSTREAM,
+                      [](GstPad*, GstPadProbeInfo* info, gpointer d) -> GstPadProbeReturn {
+                          leerEncuadre(static_cast<BaPtzD3d12*>(d)->cuenta, GST_PAD_PROBE_INFO_EVENT(info));
+                          return GST_PAD_PROBE_OK;
+                      },
+                      s, nullptr);
     GstElementClass* ek = GST_ELEMENT_GET_CLASS(s);
     gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("sink", in, gst_element_class_get_pad_template(ek, "sink")));
     gst_element_add_pad(GST_ELEMENT(s), gst_ghost_pad_new_from_template("src", out, gst_element_class_get_pad_template(ek, "src")));

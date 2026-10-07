@@ -1088,6 +1088,27 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             nodos.erase(it);
             continue;
         }
+        if (tipo == "seguir") {
+            // EL SEGUIMIENTO (baseguir): no toca la imagen; lee las caras de un
+            // Rostros que esté antes y manda el encuadre (ver seguir.cpp).
+            if (p.value("activo", true)) {
+                json sp = json::object();
+                sp["objetivo"] = p.value("objetivo", std::string());
+                sp["zoom"] = decimal(p.value("zoom", 0.0));
+                sp["tamano-cara"] = decimal(p.value("tamano_cara", 0.0));
+                sp["aire"] = decimal(p.value("aire", 0.12));
+                sp["suavidad"] = decimal(p.value("suavidad", 0.6));
+                sp["zona-muerta"] = decimal(p.value("zona_muerta", 0.04));
+                sp["perdida-s"] = decimal(p.value("perdida_s", 3.0));
+                video.push_back(json{{"id", id}, {"elemento", "baseguir"}, {"propiedades", sp}});
+            }
+            movidas.insert(id);
+            cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+            for (auto& c : cables)
+                if (c.value("desde", "") == id) c["desde"] = "in";
+            nodos.erase(it);
+            continue;
+        }
         if (tipo == "ptz") {
             // EL PTZ DIGITAL (baptz) en el lugar de su tarjeta. Su id es «ptz»: Cámaras
             // PTZ lo maneja por nombre (ba_f_ptz). Va si la tarjeta está activa y
@@ -1234,9 +1255,11 @@ std::string VideoGrafos::configurarRostros(const std::map<std::string, std::stri
             const auto it = quiero.find(entrada);
             if (it != quiero.end()) {
                 if (id.empty()) {
-                    // Antes de la escena: ve la imagen ya corregida (color, recorte).
-                    const std::string nuevo =
-                        g.agregar("rostros", entrada, "", json{{"uso", it->second}, {"auto", true}}, &e);
+                    // Justo después de la entrada: ve la toma entera (antes del PTZ), así
+                    // sigue viendo a la gente que sale del encuadre y el seguimiento la
+                    // puede ir a buscar. El usuario la mueve donde quiera.
+                    const std::string nuevo = g.agregar("rostros", entrada, GrafoVideo::idEntrada(entrada),
+                                                        json{{"uso", it->second}, {"auto", true}}, &e);
                     if (nuevo.empty()) return e;
                 } else if (g.nodo(id)->params.value("uso", std::string()) != it->second) {
                     g.ajustar(id, json{{"uso", it->second}}, &e);
@@ -1254,6 +1277,32 @@ std::string VideoGrafos::configurarRostros(const std::map<std::string, std::stri
 }
 
 
+
+std::string VideoGrafos::configurarSeguir(const std::string& entrada, const std::string& objetivo) {
+    return editar([&](GrafoVideo& g) {
+        std::string e;
+        std::string id, rostros;
+        for (const auto& n : g.nodos())
+            if (n.grupo == entrada) {
+                if (n.tipo == "seguir") id = n.id;
+                if (n.tipo == "rostros") rostros = n.id;
+            }
+        if (id.empty()) {
+            if (objetivo.empty()) return std::string();
+            // Después de Rostros (lee sus caras); sin Rostros, después de la entrada.
+            id = g.agregar("seguir", entrada, rostros.empty() ? GrafoVideo::idEntrada(entrada) : rostros,
+                           json{{"objetivo", objetivo}, {"auto", true}}, &e);
+            return id.empty() ? e : std::string();
+        }
+        // Soltar: la que puso la app sola se va; la del usuario queda, sin objetivo.
+        if (objetivo.empty() && g.nodo(id)->params.value("auto", false)) {
+            g.quitar(id, &e);
+            return e;
+        }
+        g.ajustar(id, json{{"objetivo", objetivo}}, &e);
+        return e;
+    });
+}
 
 void VideoGrafos::actualizarEstudio() {
     // Las fuentes de los compositores (escenas internas del motor), con su

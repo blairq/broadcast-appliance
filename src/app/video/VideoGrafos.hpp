@@ -276,7 +276,11 @@ class VideoGrafos : public QObject {
     /// (salvo la etiqueta). "" o el error.
     static std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params);
     // --- Rostros (lo usa Personas) ------------------------------------------
-    // (Lo que ve cada tarjeta llega por el bus de la entrada: motor::ponerAvisoRostros.)
+    // (Lo que ve cada tarjeta llega por el bus de la entrada: motor::escucharElementos.)
+    /// A quién sigue la tarjeta Seguimiento de `entrada` (la pone después de
+    /// Rostros si no está). `objetivo`: "" | id:N | persona:X | x,y | mayor | centro.
+    /// "" o el error.
+    std::string configurarSeguir(const std::string& entrada, const std::string& objetivo);
     /// Pone o saca las tarjetas `rostros` que Personas necesita: `quiero` es
     /// {entrada: uso}. Las que puso Personas y ya no hacen falta se van; una
     /// que puso alguien a mano se queda (con uso «mirar»). "" o el error.

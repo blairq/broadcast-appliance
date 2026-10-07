@@ -1077,6 +1077,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("plugins");
     // Seguir una cara con el PTZ (la ventana del PTZ y el asistente).
     seguidor_ = std::make_unique<Seguidor>(personas_.get(), camaras_.get());
+    seguidor_->setGrafos(video_.get());
     marca("seguidor");
     // Los equipos (red, esta máquina, USB): un catálogo con acciones declaradas.
     dispositivos_ = std::make_unique<dispositivos::Dispositivos>();

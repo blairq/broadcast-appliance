@@ -376,6 +376,19 @@ Rectangle {
                         source: page.vg && page.vg.entrada !== "" ? "entrada:" + page.vg.entrada : ""
                         fillMode: VideoItem.Fit
                     }
+                    // Con la tarjeta Seguimiento elegida: un clic en la imagen sigue a esa cara.
+                    MouseArea {
+                        anchors.fill: parent
+                        visible: page.tipoEf === "seguir" && !!page.vg && page.vg.entrada !== ""
+                        cursorShape: Qt.CrossCursor
+                        onClicked: (m) => {
+                            const asp = vistaPrevia.frameSize.width > 0 ? vistaPrevia.frameSize.width / vistaPrevia.frameSize.height : 16 / 9
+                            const iw = Math.min(width, height * asp), ih = iw / asp
+                            const u = Math.max(0, Math.min(1, (m.x - (width - iw) / 2) / iw))
+                            const v = Math.max(0, Math.min(1, (m.y - (height - ih) / 2) / ih))
+                            page.avisar(Studio.seguidor ? Studio.seguidor.seguirPunto(page.vg.entrada, u, v) : "El seguimiento no está disponible")
+                        }
+                    }
                     Text {
                         visible: !vistaPrevia.hasFrame
                         anchors.centerIn: parent
@@ -551,6 +564,13 @@ Rectangle {
                                     { k: "confianza", t: "Confianza mínima", min: 0.3, max: 0.95 },
                                     { k: "grosor", t: "Grosor del borde", min: 1, max: 20, entero: true },
                                     { k: "texto_tamano", t: "Tamaño del texto", min: 0.015, max: 0.1 }]
+                                if (t === "seguir") return [
+                                    { k: "zoom", t: "Zoom que busca (0 = no tocarlo)", min: 0, max: 4 },
+                                    { k: "tamano_cara", t: "Tamaño de la cara (0 = no ajustar el zoom)", min: 0, max: 0.6 },
+                                    { k: "aire", t: "Aire arriba de la cabeza", min: -0.2, max: 0.35 },
+                                    { k: "suavidad", t: "Suavidad del movimiento (s)", min: 0.1, max: 3 },
+                                    { k: "zona_muerta", t: "Zona muerta (no tiembla)", min: 0, max: 0.2 },
+                                    { k: "perdida_s", t: "Espera si la pierde (s)", min: 0, max: 15 }]
                                 if (t === "retardo") return [
                                     { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
@@ -650,6 +670,33 @@ Rectangle {
                                     const v = parseInt(text.replace("#", ""), 16)
                                     if (!isNaN(v)) page.avisar(page.vg.ajustar(page.sel, { clave: v }))
                                 }
+                            }
+                        }
+
+                        // Seguimiento (baseguir): a quién sigue.
+                        ColumnLayout {
+                            visible: page.tipoEf === "seguir"
+                            Layout.fillWidth: true
+                            spacing: 6
+                            readonly property var p: page.paramsEf || ({})
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 12
+                                text: "No toca la imagen: lee las caras de una tarjeta Rostros (antes o después) y le manda el encuadre al PTZ (antes o después) con eventos de GStreamer. Clic en la vista previa: seguir a esa cara."
+                            }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.text; font.pixelSize: 12
+                                text: "Sigue: " + (parent.p.objetivo ? parent.p.objetivo : "nadie") +
+                                      (Studio.seguidor && Studio.seguidor.siguiendo[page.vg.entrada]
+                                       ? " · " + Studio.seguidor.siguiendo[page.vg.entrada].estado : "")
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                GlassButton { compact: true; text: "La más grande"; onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "mayor" })) }
+                                GlassButton { compact: true; text: "La del centro"; onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "centro" })) }
+                                GlassButton { compact: true; text: "Soltar"; onClicked: Studio.seguidor.dejar(page.vg.entrada) }
                             }
                         }
 

@@ -144,6 +144,7 @@ int main(int argc, char** argv) {
         {"bacolorgl", Tipo::Gl},           {"barecortegl", Tipo::Gl},
         {"baptzgl", Tipo::Gl},             {"baptzgl", Tipo::Gl, "ir=0.5,0.5,2,0"},
         {"barostrosgl", Tipo::Gl, "marcar=true"},
+        {"baseguir", Tipo::Video, "objetivo=mayor"},  {"baseguirgl", Tipo::Gl, "objetivo=mayor"},
         {"basuperres", Tipo::Video},       {"bafsr", Tipo::Video},
         {"baonnxsr", Tipo::Video},         {"bacoremlsr", Tipo::Video},
         {"bavtsuperres", Tipo::Video},     {"baglsl", Tipo::Gl},

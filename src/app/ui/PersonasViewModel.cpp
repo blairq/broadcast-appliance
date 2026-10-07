@@ -104,6 +104,7 @@ struct PersonasViewModel::Impl {
     std::map<QString, std::vector<int>> idsDe;
     /// Lo último que se le mandó a cada tarjeta como etiquetas (para no repetir).
     std::map<QString, std::string> etiquetasDe;
+    int escucha = 0; ///< los mensajes de las tarjetas (motor::escucharElementos)
 #endif
     Impl(AppRuntime& r, StudioViewModel& v) : rt(r), vm(v) {}
 };
@@ -294,7 +295,9 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
     // Lo que ven las tarjetas «Rostros» llega por el bus de cada entrada (en el
     // bucle del motor): se pasa al hilo de la interfaz, que es quien toca la libreta.
     QPointer<PersonasViewModel> yo(this);
-    ba::motor::ponerAvisoRostros([yo](const std::string& entrada, const std::string& json, GstSample* cuadro) {
+    d_->escucha = ba::motor::escucharElementos([yo](const std::string& entrada, const std::string& nombre,
+                                                    const std::string& json, GstSample* cuadro) {
+        if (nombre != "ba-rostros") return;
         if (cuadro != nullptr) gst_sample_ref(cuadro);
         QMetaObject::invokeMethod(
             qApp,
@@ -305,7 +308,7 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
             Qt::QueuedConnection);
     });
 }
-PersonasViewModel::~PersonasViewModel() { ba::motor::ponerAvisoRostros(nullptr); }
+PersonasViewModel::~PersonasViewModel() { ba::motor::dejarDeEscuchar(d_->escucha); }
 
 void PersonasViewModel::alRostros(const QString& entrada, const std::string& js, GstSample* cuadro) {
     const QString feed = "entrada:" + entrada;
@@ -324,7 +327,7 @@ void PersonasViewModel::alRostros(const QString& entrada, const std::string& js,
             if (q.parecido < ba::rostros::kMismaPersona) continue;
             const ba::rostros::Persona* p = d_->libreta.porId(q.id);
             if (p == nullptr || p->nombre.empty()) continue;
-            etiquetas.push_back({{"id", c.value("id", 0)}, {"nombre", p->nombre}, {"cargo", p->cargo}});
+            etiquetas.push_back({{"id", c.value("id", 0)}, {"nombre", p->nombre}, {"cargo", p->cargo}, {"persona", q.id}});
         }
         const std::string texto = etiquetas.dump();
         if (hayVectores && d_->etiquetasDe[feed] != texto) {

@@ -18,11 +18,14 @@
 //     `id` = el número de la cara, en píxeles del cuadro) con un parámetro
 //     «ba-rostro» {id, confianza, nombre, cargo, edad-ms}: la meta estándar de
 //     GStreamer para regiones, la que entienden los elementos que miran ROIs.
-//   - Por cada análisis, un evento «ba/rostros» río abajo
-//     (GST_EVENT_CUSTOM_DOWNSTREAM): `cantidad`, `pts` (el del cuadro
+//   - Por cada análisis, un evento «ba/rostros» río abajo y río arriba
+//     (GST_EVENT_CUSTOM_DOWNSTREAM y _UPSTREAM): `cantidad`, `pts` (el del cuadro
 //     analizado), `ms`, `detector`, `caras` («x,y,ancho,alto;…» en fracciones:
 //     lo lee baptz para seguir a una) y `json` (todo: id, caja, confianza, los
 //     cinco puntos, nombre y cargo si se conocen).
+//   Cada cara trae también `toma` (su caja en la TOMA ENTERA de la cámara: si
+//   hay un PTZ antes, su evento «ba/ptz» dice qué parte se está viendo) y, si
+//   se sabe quién es, `nombre`, `cargo` y `persona` (el id de su ficha).
 //   - Por cada análisis, un mensaje de elemento «ba-rostros» al bus: el mismo
 //     `json` más el vector de cada cara (con `reconocer`) y `cuadro` (el cuadro
 //     analizado, un GstSample, para la foto de una ficha). La app lo lee como
@@ -91,7 +94,7 @@ struct Pista {
 };
 
 struct Etiqueta {
-    std::string nombre, cargo;
+    std::string nombre, cargo, persona; ///< persona: el id de su ficha en la libreta
 };
 
 struct Estado {
@@ -112,6 +115,9 @@ struct Estado {
     std::string textoPosicion = "arriba";
     double textoTamano = 0.035; ///< fracción del alto del video
     std::map<int, Etiqueta> etiquetas;
+    /// La ventana de un PTZ que esté ANTES (su evento «ba/ptz»): la imagen que se
+    /// analiza es esa parte de la toma. Sin PTZ antes, la toma entera.
+    double ventanaX = 0.5, ventanaY = 0.5, ventanaZoom = 1.0;
     // Lo último que se vio (bajo mu).
     std::vector<Pista> pistas;
     int proximoId = 1;
@@ -416,7 +422,13 @@ nlohmann::json comoJson(const Estado* st, bool vectores) {
         if (const auto e = st->etiquetas.find(p.id); e != st->etiquetas.end()) {
             j["nombre"] = e->second.nombre;
             if (!e->second.cargo.empty()) j["cargo"] = e->second.cargo;
+            if (!e->second.persona.empty()) j["persona"] = e->second.persona;
         }
+        // En coordenadas de la TOMA ENTERA (si hay un PTZ antes, la imagen es una
+        // parte): lo que necesita el seguimiento para mover el PTZ.
+        const double z = std::max(1.0, st->ventanaZoom);
+        const double ox = st->ventanaX - 0.5 / z, oy = st->ventanaY - 0.5 / z;
+        j["toma"] = {{"x", ox + p.caja.x / z}, {"y", oy + p.caja.y / z}, {"ancho", p.caja.ancho / z}, {"alto", p.caja.alto / z}};
         if (vectores && !p.vector.empty()) j["vector"] = p.vector;
         caras.push_back(std::move(j));
     }
@@ -425,7 +437,8 @@ nlohmann::json comoJson(const Estado* st, bool vectores) {
                        {"detector", st->detectorUsado},
                        {"ms", std::round(st->msAnalisis * 10) / 10},
                        {"video", {{"ancho", st->anchoVideo}, {"alto", st->altoVideo}}},
-                       {"analisis", {{"ancho", st->anchoA}, {"alto", st->altoA}}}};
+                       {"analisis", {{"ancho", st->anchoA}, {"alto", st->altoA}}},
+                       {"ventana", {{"x", st->ventanaX}, {"y", st->ventanaY}, {"zoom", st->ventanaZoom}}}};
     if (GST_CLOCK_TIME_IS_VALID(st->ptsAnalisis)) out["pts"] = st->ptsAnalisis;
     if (!st->error.empty()) out["error"] = st->error;
     return out;
@@ -541,7 +554,8 @@ void leerEtiquetas(Estado* st, const char* texto) {
     if (j.is_array())
         for (const auto& e : j)
             if (e.is_object() && e.contains("id"))
-                st->etiquetas[e.value("id", 0)] = {e.value("nombre", std::string()), e.value("cargo", std::string())};
+                st->etiquetas[e.value("id", 0)] = {e.value("nombre", std::string()), e.value("cargo", std::string()),
+                                                   e.value("persona", std::string())};
     rehacerComposicion(st);
 }
 
@@ -592,6 +606,12 @@ GstPadProbeReturn alEntrar(GstPad*, GstPadProbeInfo* info, gpointer d) {
             }
         } else if (GST_EVENT_TYPE(e) == GST_EVENT_CUSTOM_DOWNSTREAM_OOB || GST_EVENT_TYPE(e) == GST_EVENT_CUSTOM_DOWNSTREAM) {
             const GstStructure* s = gst_event_get_structure(e);
+            if (s != nullptr && gst_structure_has_name(s, "ba/ptz")) {
+                std::lock_guard<std::mutex> l(st->mu);
+                gst_structure_get_double(s, "x", &st->ventanaX);
+                gst_structure_get_double(s, "y", &st->ventanaY);
+                gst_structure_get_double(s, "zoom", &st->ventanaZoom);
+            }
             if (s != nullptr && gst_structure_has_name(s, "ba/control")) {
                 if (const gchar* t = gst_structure_get_string(s, "rostros_etiquetas")) {
                     std::lock_guard<std::mutex> l(st->mu);
@@ -660,6 +680,10 @@ GstPadProbeReturn alSalir(GstPad*, GstPadProbeInfo* info, gpointer d) {
         }
     }
     if (evento != nullptr) {
+        // También HACIA ARRIBA: un seguimiento que esté antes en la cadena las recibe.
+        GstPad* entra = gst_element_get_static_pad(GST_ELEMENT(self), "sink");
+        gst_pad_push_event(entra, gst_event_new_custom(GST_EVENT_CUSTOM_UPSTREAM, gst_structure_copy(evento)));
+        gst_object_unref(entra);
         GstPad* src = gst_element_get_static_pad(priv(self)->sale, "src");
         gst_pad_push_event(src, gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM, evento));
         gst_object_unref(src);
@@ -875,7 +899,8 @@ void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case PROP_TEXTO_TAMANO: g_value_set_double(v, st->textoTamano); break;
         case PROP_ETIQUETAS: {
             nlohmann::json a = nlohmann::json::array();
-            for (const auto& [i, e] : st->etiquetas) a.push_back({{"id", i}, {"nombre", e.nombre}, {"cargo", e.cargo}});
+            for (const auto& [i, e] : st->etiquetas)
+                a.push_back({{"id", i}, {"nombre", e.nombre}, {"cargo", e.cargo}, {"persona", e.persona}});
             g_value_set_string(v, a.dump().c_str());
             break;
         }

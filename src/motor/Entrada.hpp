@@ -73,12 +73,16 @@ namespace ba::motor {
 
 struct Rotulo; // Entrada.cpp: un texto para dibujar
 
-/// Lo que ve una tarjeta «Rostros» (el elemento barostros) de una entrada: el
-/// JSON de su mensaje «ba-rostros» y el cuadro analizado (puede ser nulo; quien
-/// lo quiera conservar le suma una referencia). Se llama en el bucle del motor,
-/// con la entrada tomada: hay que devolver enseguida.
-using AvisoRostros = std::function<void(const std::string& entrada, const std::string& json, GstSample* cuadro)>;
-void ponerAvisoRostros(AvisoRostros aviso);
+/// Los mensajes de nuestros elementos de una entrada («ba-rostros» de
+/// barostros, «ba-seguir» de baseguir…): el nombre, el JSON de su campo `json` y
+/// el cuadro si lo trae (puede ser nulo; quien lo quiera conservar le suma una
+/// referencia). Se llama en el bucle del motor, con la entrada tomada: hay que
+/// devolver enseguida. Varios pueden escuchar.
+using AvisoElemento = std::function<void(const std::string& entrada, const std::string& nombre, const std::string& json,
+                                         GstSample* cuadro)>;
+/// Devuelve un número para dejar de escuchar.
+int escucharElementos(AvisoElemento aviso);
+void dejarDeEscuchar(int id);
 
 class Reloj;
 
