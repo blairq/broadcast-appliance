@@ -6,8 +6,8 @@
 #   El bundle portable no puede depender de bibliotecas "de terceros" del
 #   sistema (FFmpeg, x264, cairo, ...): en otra maquina no estan, o estan en
 #   otra version y la app no arranca. Este script compila cada una desde un
-#   tarball FIJADO (URL + SHA-256, o commit git) hacia `extern/obs-deps-linux/`
-#   (el nombre es de cuando eran las dependencias de libobs; src/app/CMakeLists.txt
+#   tarball FIJADO (URL + SHA-256, o commit git) hacia `extern/terceros-linux/`
+#   (antes extern/obs-deps-linux, de cuando eran las dependencias de libobs; src/app/CMakeLists.txt
 #   lo usa asi). De ahi las toman GStreamer (tools/deps/gstreamer-linux.sh), los
 #   plugins LSP y la busqueda por mDNS, y cmake/BaPortableBundle.cmake copia las
 #   compartidas a bin/64bit. Lo que queda afuera es solo la BASE del sistema
@@ -33,11 +33,22 @@ command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DL="$ROOT/extern/.downloads"
-SRC="$ROOT/extern/.build-obs-deps"
-PREFIX="$ROOT/extern/obs-deps-linux"
+SRC="$ROOT/extern/.build-terceros"
+PREFIX="$ROOT/extern/terceros-linux"
 TOOLS="$ROOT/extern/.tools"
 JOBS="${1:-$(nproc)}"
 
+# Antes se llamaba extern/obs-deps-linux (cuando eran las dependencias de
+# libobs, que ya no está). Un árbol armado con el nombre viejo se muda y deja
+# un enlace con ese nombre: los .pc, los .la y los RUNPATH que ya lo nombran
+# siguen andando sin recompilar horas.
+for par in "obs-deps-linux:terceros-linux" ".build-obs-deps:.build-terceros"; do
+    viejo="$ROOT/extern/${par%%:*}"; nuevo="$ROOT/extern/${par##*:}"
+    if [ -d "$viejo" ] && [ ! -L "$viejo" ] && [ ! -e "$nuevo" ]; then
+        mv "$viejo" "$nuevo" && ln -s "${par##*:}" "$viejo"
+        echo "[terceros] ${par%%:*} -> ${par##*:} (queda un enlace con el nombre viejo)"
+    fi
+done
 mkdir -p "$DL" "$SRC" "$PREFIX" "$TOOLS/bin"
 export PATH="$TOOLS/bin:$PATH"
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig"

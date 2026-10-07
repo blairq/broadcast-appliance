@@ -10,7 +10,7 @@
 #include "diag/Caidas.hpp"
 #include "diag/Registro.hpp"
 
-#if BA_APP_HAVE_QT_OBS
+#if BA_APP_HAVE_GUI
 #include <QLoggingCategory>
 #include <QString>
 #include <QtGlobal>

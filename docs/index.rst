@@ -96,7 +96,7 @@ clases y namespaces reales:
 - :doc:`modules/gateway` — `ba-gateway` (Proceso B, implementado; flag
   `BA_GATEWAY_HAVE_WEBRTC`).
 - :doc:`modules/app` — `ba-app` (Proceso A, implementado; flag
-  `BA_APP_HAVE_QT_OBS`).
+  `BA_APP_HAVE_GUI`).
 - :doc:`modules/obs-module` — `ba-sources` (módulo libobs, implementado; flag
   `BA_HAVE_LIBOBS`).
 

@@ -161,13 +161,13 @@ jobs:
           d="$RUNNER_TEMP/humo" && rm -rf "$d" && mkdir -p "$d"
           tar xzf dist/*-linux-x64.tar.gz -C "$d"
           mv extern/gstreamer-linux extern/gstreamer-linux.oculto
-          mv extern/obs-deps-linux extern/obs-deps-linux.oculto
+          mv extern/terceros-linux extern/terceros-linux.oculto
           cd "$d/BroadcastAppliance"
           HOME="$d/home" LIBGL_ALWAYS_SOFTWARE=1 timeout 300 \
             xvfb-run -a -s "-screen 0 1280x720x24" ./bin/64bit/ba-app --engine-selftest 2>&1 | tee "$d/humo.log" \
             | grep -E '^\s*\[|autotest del motor' || true
           cd "$GITHUB_WORKSPACE" && mv extern/gstreamer-linux.oculto extern/gstreamer-linux
-          mv extern/obs-deps-linux.oculto extern/obs-deps-linux
+          mv extern/terceros-linux.oculto extern/terceros-linux
           grep -q "autotest del motor: OK" "$d/humo.log" || { tail -40 "$d/humo.log"; exit 1; }
 
       - uses: actions/upload-artifact@v4

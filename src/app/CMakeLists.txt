@@ -4,23 +4,19 @@
 # El Proceso A es un ejecutable GUI (sin consola en Windows) que integra
 # `ba_core` (dsp + ipc + persist) con la UI de operación (spec §6).
 #
-# Arquitectura (docs/prompts/primer_prompt.md §6, §14):
-#   - `ba_core` es el núcleo: SIN Qt, SIN libobs, testeable por unidad.
-#   - `ba-app` (A) usa /MD (CRT dinámica) por consistencia con libobs y Qt.
-#   - Todo lo Qt/obs va tras `#ifdef _WIN32` (y, en la app completa, tras
-#     `BA_APP_HAVE_QT_OBS`, definido solo cuando Qt 6 + libobs están presentes).
+# Arquitectura:
+#   - `ba_core` es el núcleo: SIN Qt, testeable por unidad.
+#   - El motor de emisión es GStreamer (src/motor): libobs ya no está.
+#   - `ba-app` (A) usa /MD (CRT dinámica) por consistencia con Qt y GStreamer.
 #
 # Dos rutas de compilación, elegidas en el configure:
-#   1. Windows + Qt 6 + libobs presentes  -> app COMPLETA (QApplication +
-#      obs_startup + MainWindow). Se enlaza Qt 6 Widgets + libobs y se define
-#      `BA_APP_HAVE_QT_OBS`.
-#   2. Cross-compile MinGW de validación (o Linux) sin Qt/libobs -> modo
-#      HEADLESS: solo `ba_core`, que ejercita la misma integración dsp/ipc/
-#      persist (ver main.cpp, runHeadlessSelfTest). Así el target compila y se
-#      valida en cualquier plataforma, y la app real se construye en el
-#      entorno con Qt/libobs.
+#   1. Con Qt 6 vendoreado -> app COMPLETA (interfaz QML + motor). Se define
+#      `BA_APP_HAVE_GUI=1`.
+#   2. Sin Qt (una validación cruzada) -> modo HEADLESS: solo `ba_core`, que
+#      ejercita la misma integración dsp/ipc/persist (ver main.cpp,
+#      runHeadlessSelfTest). Así el target compila en cualquier plataforma.
 #
-# /MD (CRT dinámica) por consistencia con libobs y Qt — hereda del root.
+# /MD (CRT dinámica) — hereda del root.
 # ============================================================================
 
 # --- Sources ----------------------------------------------------------------
@@ -51,7 +47,7 @@ if(NOT BA_HAVE_MOTOR)
 endif()
 
 # --- Qt 6 (interfaz grafica) — VENDOREADO, nunca el del sistema -------------
-# Igual que libobs: el bundle es portable y se lleva su propio Qt. Se busca
+# El bundle es portable y se lleva su propio Qt (como GStreamer). Se busca
 # SOLO en extern/ (NO_DEFAULT_PATH):
 #   - Linux/macOS: extern/qt6-host/<QT6_VERSION>/<arch>  (`make deps-qt-host`)
 #   - Windows:     extern/qt6/<QT6_VERSION>/<arch>       (`make deps-qt`)
@@ -98,22 +94,22 @@ endif()
 # Fuente fijada por commit (tools/deps/terceros-linux.sh). Se compila adentro de
 # ba-app; el video SpeedHQ lo decodifica el FFmpeg del bundle.
 set(BA_NOIDEA_DIR "${CMAKE_SOURCE_DIR}/extern/libnoidea")
-set(BA_OBS_DEPS "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")
+set(BA_TERCEROS "${CMAKE_SOURCE_DIR}/extern/terceros-linux")
 set(BA_HAVE_NDI OFF)
-if(BA_HAVE_MOTOR AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+if(BA_HAVE_MOTOR AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_TERCEROS}/lib/libmicrodns.a")
     add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
                                  "${BA_NOIDEA_DIR}/extensions/discovery.c")
-    target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" "${BA_OBS_DEPS}/include")
+    target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" "${BA_TERCEROS}/include")
     target_compile_definitions(ba_noidea PUBLIC NOIDEA_EXT_DISCOVERY NOIDEA_STATIC PRIVATE HAVE_POLL=1 _GNU_SOURCE)
     set_target_properties(ba_noidea PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
     target_compile_options(ba_noidea PRIVATE -w)
     find_package(Threads REQUIRED)
-    target_link_libraries(ba_noidea PUBLIC "${BA_OBS_DEPS}/lib/libmicrodns.a" Threads::Threads)
+    target_link_libraries(ba_noidea PUBLIC "${BA_TERCEROS}/lib/libmicrodns.a" Threads::Threads)
     set(BA_HAVE_NDI ON)
     # Licencias (LGPL) junto al programa.
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/.build-obs-deps/libmicrodns/COPYING")
-        install(FILES "${CMAKE_SOURCE_DIR}/extern/.build-obs-deps/libmicrodns/COPYING" DESTINATION data/licencias
+    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/.build-terceros/libmicrodns/COPYING")
+        install(FILES "${CMAKE_SOURCE_DIR}/extern/.build-terceros/libmicrodns/COPYING" DESTINATION data/licencias
                 RENAME libmicrodns-LGPL.txt)
     endif()
 endif()
@@ -124,13 +120,13 @@ set(BA_MDNS_DIR "${CMAKE_SOURCE_DIR}/extern/libmicrodns")
 # --- mDNS para buscar Chromecast (src/app/pantallas) --------------------------
 # La misma libmicrodns que usa NDI, pero como objetivo propio: buscar
 # televisores tiene que andar igual en las tres plataformas. En Linux se usa el
-# .a de extern/obs-deps-linux (los terceros compilados, el nombre es histórico)
+# .a de extern/terceros-linux (los terceros compilados, el nombre es histórico)
 # si está; si no (y en macOS), se compila del fuente vendoreado, que es el mismo.
 set(BA_MDNS_OK OFF)
-if(NOT WIN32 AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+if(NOT WIN32 AND EXISTS "${BA_TERCEROS}/lib/libmicrodns.a")
     add_library(ba_mdns INTERFACE)
-    target_include_directories(ba_mdns INTERFACE "${BA_OBS_DEPS}/include")
-    target_link_libraries(ba_mdns INTERFACE "${BA_OBS_DEPS}/lib/libmicrodns.a")
+    target_include_directories(ba_mdns INTERFACE "${BA_TERCEROS}/include")
+    target_link_libraries(ba_mdns INTERFACE "${BA_TERCEROS}/lib/libmicrodns.a")
     set(BA_MDNS_OK ON)
 elseif(NOT WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
     # compat.c: os_strerror y compania (en Windows van ademas inet.c y poll.c).
@@ -426,7 +422,7 @@ endif()
 if(_ba_lo_ok)
     target_compile_definitions(ba-app PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
 endif()
-    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
+    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=1)
     # Version visible en Configuracion -> Sistema y datos (soporte).
     target_compile_definitions(ba-app PRIVATE BA_APP_VERSION="${PROJECT_VERSION}")
     target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -828,7 +824,7 @@ endif()
         if(APPLE)
             set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         elseif(NOT WIN32)
-            set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_OBS_DEPS}/lib")
+            set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_TERCEROS}/lib")
         endif()
         add_test(NAME test_clap_host COMMAND test_clap_host)
         set_tests_properties(test_clap_host PROPERTIES SKIP_RETURN_CODE 77)
@@ -850,7 +846,7 @@ endif()
         if(APPLE)
             set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         elseif(NOT WIN32)
-            set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_OBS_DEPS}/lib")
+            set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_TERCEROS}/lib")
         endif()
         add_test(NAME test_matrix_mixer COMMAND test_matrix_mixer)
         set_tests_properties(test_matrix_mixer PROPERTIES SKIP_RETURN_CODE 77)
@@ -1000,7 +996,7 @@ endif()
                  -DQML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/qml -P ${CMAKE_SOURCE_DIR}/cmake/tests/qml_syntax.cmake)
     endif()
 else()
-    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=0)
+    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=0)
     message(STATUS "ba-app: sin Qt vendoreado -> solo modo consola ('make deps-qt-host' lo baja)")
 endif()
 

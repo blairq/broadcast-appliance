@@ -42,7 +42,7 @@
 #include "EngineSelfTest.hpp"
 #include "OperateMode.hpp"
 #endif
-#if BA_APP_HAVE_QT_OBS
+#if BA_APP_HAVE_GUI
 #include "GuiMode.hpp"
 #endif
 
@@ -170,7 +170,7 @@ int dispatch(int argc, char** argv) {
     if (hasFlag(argc, argv, "--engine-selftest")) {
         return ba::app::runEngineSelfTest(argc, argv);
     }
-#if BA_APP_HAVE_QT_OBS
+#if BA_APP_HAVE_GUI
     if (!hasFlag(argc, argv, "--no-ui") && hasDisplay()) {
         return ba::app::runGui(argc, argv);
     }

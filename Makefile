@@ -704,8 +704,8 @@ deps: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-sp
 # FFmpeg, x264, SRT, libva, libv4l2, cairo, libsndfile, libmicrodns... desde
 # fuente fijada (tools/deps/terceros-linux.sh): el bundle no usa bibliotecas de
 # terceros del sistema. Las usan GStreamer (deps-gstreamer-linux), los plugins
-# LSP y la búsqueda por mDNS. Quedan en extern/obs-deps-linux (nombre de
-# cuando eran las dependencias de libobs: src/app/CMakeLists.txt lo usa así).
+# LSP y la búsqueda por mDNS. Quedan en extern/terceros-linux (antes
+# extern/obs-deps-linux: el script muda un árbol viejo y deja un enlace).
 deps-terceros-linux:
 	tools/deps/terceros-linux.sh $(JOBS)
 
@@ -1063,9 +1063,12 @@ deps-lsp:
 	    && mkdir -p "$(LSP_DEST)/licencias" \
 	    && mv "$(LSP_DEST)/.x/lsp-plugins-$(LSP_VER)-Linux-x86_64/"*.txt "$(LSP_DEST)/licencias/"; \
 	  rm -rf "$(LSP_DEST)/.x"; \
-	  patchelf --set-rpath '$$ORIGIN:$$ORIGIN/../../obs-deps-linux/lib' "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap"; \
 	  echo "[deps] LSP: CLAP de Linux en $(LSP_DEST)/linux-x86_64"; \
 	fi
+	@# Siempre (es idempotente): un CLAP extraído antes del cambio de nombre
+	@# de extern/obs-deps-linux también queda apuntando a extern/terceros-linux.
+	@if command -v patchelf >/dev/null 2>&1; then \
+	  patchelf --set-rpath '$$ORIGIN:$$ORIGIN/../../terceros-linux/lib' "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap"; fi
 
 # CLAP (free-audio/clap, MIT): headers del formato de plugins que carga el host.
 CLAP_VER := 1.2.6

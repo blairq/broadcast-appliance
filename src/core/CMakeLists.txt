@@ -1,8 +1,8 @@
 # ============================================================================
-# src/core — `ba_core` (núcleo, SIN Qt, SIN libobs)
+# src/core — `ba_core` (núcleo, SIN Qt)
 #
-# Es la pieza testeable por unidad (spec §9, §14). No depende de Qt ni de
-# libobs, por lo que debe compilar en Windows/MSVC Y en Linux (gcc/clang) para
+# Es la pieza testeable por unidad (spec §9, §14). No depende de Qt, por lo
+# que debe compilar en Windows/MSVC Y en Linux (gcc/clang) para
 # poder correr sus unit tests en el desarrollo local.
 #
 # Los sources los aportan los agentes del núcleo; aquí solo se descubren con
@@ -91,7 +91,7 @@ target_include_directories(ba_core
         "${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
-# El núcleo no enlaza Qt ni libobs (spec §1.7). Solo std + las deps de
+# El núcleo no enlaza Qt (spec §1.7). Solo std + las deps de
 # terceros que se declaran en el root (FetchContent). En MSVC hereda los flags
 # /MD del root; el launcher se pasa a /MT solo para él.
 #   - mbedtls: PRIVATE porque ningún header de ba_core expone tipos de mbedtls.
@@ -105,9 +105,9 @@ target_include_directories(ba_core
 #     tipos de argon2 (solo usa std::string/std::size_t); el include de
 #     <argon2.h> vive solo en SecretsStore.cpp. KDF Argon2id de secrets.json
 #     (spec §12, D7).
-# -fPIC: `ba_core` es estatica, pero el modulo de libobs (`ba-sources`) es una
-# biblioteca COMPARTIDA que la enlaza. Sin codigo independiente de posicion el
-# enlace de ese modulo falla ("can not be used when making a shared object").
+# -fPIC: `ba_core` es estatica; con codigo independiente de posicion se puede
+# enlazar tambien desde una biblioteca COMPARTIDA (un plugin), sin el error
+# "can not be used when making a shared object".
 set_target_properties(ba_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(ba_core PRIVATE mbedcrypto mbedx509 mbedtls)
@@ -144,7 +144,7 @@ foreach(test_source ${BA_CORE_TESTS})
     add_test(NAME ${test_name} COMMAND ${test_name})
     # Codigo 77 = "saltado", no "pasado". Sin esto, un test que imprime SKIP y
     # devuelve 0 lo contaba CTest como PASS, y el verde tapaba que caminos
-    # enteros (libwebrtc, libobs) no se ejercitaban nunca.
+    # enteros (libwebrtc, el motor) no se ejercitaban nunca.
     set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
 

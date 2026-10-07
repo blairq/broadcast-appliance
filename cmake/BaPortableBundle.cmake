@@ -10,7 +10,7 @@
 #   lado.
 #
 #   1) Copia a bin/64bit las bibliotecas de terceros compiladas desde fuente
-#      (tools/deps/terceros-linux.sh, en extern/obs-deps-linux): FFmpeg, x264,
+#      (tools/deps/terceros-linux.sh, en extern/terceros-linux): FFmpeg, x264,
 #      libva y libv4l2 (las piden los plugins de GStreamer, que buscan en
 #      bin/64bit con su RUNPATH) y cairo, pixman, libpng y libsndfile (las
 #      piden los plugins LSP y el plugin cairo de GStreamer).
@@ -22,7 +22,7 @@
 #   nada en `extern/`.
 # ============================================================================
 
-set(BA_TERCEROS_LINUX "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")
+set(BA_TERCEROS_LINUX "${CMAKE_SOURCE_DIR}/extern/terceros-linux")
 if(EXISTS "${BA_TERCEROS_LINUX}/lib")
     set(_ba_terceros "")
     foreach(_pat avcodec avdevice avfilter avformat avutil swresample swscale x264 va va-drm v4l2 v4lconvert
@@ -35,7 +35,7 @@ if(EXISTS "${BA_TERCEROS_LINUX}/lib")
     endif()
     message(STATUS "ba-bundle: bibliotecas de terceros de ${BA_TERCEROS_LINUX}")
 else()
-    message(STATUS "ba-bundle: falta extern/obs-deps-linux ('make deps-terceros-linux'): el bundle no va a ser portable")
+    message(STATUS "ba-bundle: falta extern/terceros-linux ('make deps-terceros-linux'): el bundle no va a ser portable")
 endif()
 
 find_program(BA_PATCHELF patchelf)
