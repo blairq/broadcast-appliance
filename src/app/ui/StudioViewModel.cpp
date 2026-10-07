@@ -397,6 +397,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // Señal de cada entrada de video (las de GStreamer: cuadros que llegan). Se
         // consulta como mucho una vez por segundo.
         in.senales = [this, cache = std::make_shared<std::pair<qint64, std::vector<std::pair<std::string, bool>>>>(),
+                      // Histéresis: la que quedó sin señal vuelve a «con señal» recién
+                      // después de 10 s seguidos con cuadros. Una cámara que se corta y
+                      // vuelve cada pocos segundos disparaba la alarma otra vez a cada
+                      // rato (y la franja roja reaparecía apenas se la reconocía).
+                      vuelta = std::make_shared<std::map<std::string, std::pair<bool, qint64>>>(),
                       desde = QDateTime::currentMSecsSinceEpoch()]() {
             const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
             // Recién arrancada, las entradas todavía se están conectando (una cámara de red
@@ -420,7 +425,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     // Una que todavía no entregó nada (una cámara de red conectándose): hasta
                     // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
                     const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
-                    const bool con = !activa || tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
+                    bool con = !activa || tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
+                    auto& [reportada, conDesde] = (*vuelta)[e.toStdString()];
+                    if (!con) {
+                        reportada = false;
+                        conDesde = 0;
+                    } else if (!reportada && activa) {
+                        if (conDesde == 0) conDesde = ahora;
+                        if (ahora - conDesde < 10000) con = false; // todavía no se la da por vuelta
+                        else reportada = true;
+                    } else {
+                        reportada = true;
+                    }
                     cache->second.emplace_back(e.toStdString(), con);
                 }
             }
