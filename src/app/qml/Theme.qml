@@ -36,4 +36,14 @@ QtObject {
     // Para numeros que se leen en columna (tiempos, relojes, contadores): con
     // ancho fijo no bailan cuando cambian.
     readonly property string mono: "JetBrains Mono"
+
+    /// Cuánto hace, legible: «12 s», «5 min», «3 h», «4 días» (antes salía «5826 min»).
+    function hace(seg) {
+        const s = Math.max(0, Math.round(seg))
+        if (s < 90) return s + " s"
+        if (s < 90 * 60) return Math.round(s / 60) + " min"
+        if (s < 36 * 3600) return Math.round(s / 3600) + " h"
+        const d = Math.round(s / 86400)
+        return d + (d === 1 ? " día" : " días")
+    }
 }

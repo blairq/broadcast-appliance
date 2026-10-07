@@ -72,6 +72,8 @@ ColumnLayout {
     function microfono(banca, abrir, confirmar) {
         Studio.dcn.pedirUi("microfono", "microfono", {banca: banca, abierto: abrir, confirmar: !!confirmar})
     }
+    /// Sin integrantes cargados: la página abre el panel del cuerpo.
+    signal pedirCuerpo()
     property string elegida: ""
     property string aviso: ""
 
@@ -173,6 +175,20 @@ ColumnLayout {
               : rec.filas === 0 ? "Todavía no hay grilla. Cargá el cuerpo (Personas → Cuerpo) con su banca y su preset, y tocá «Acomodar solas»."
               : rec.elegida !== "" ? "Banca " + rec.elegida + ": tocá el lugar vacío donde va (o «Sacar»)."
               : "Tocá una banca y después el lugar donde va. En el hemiciclo, las filas son los arcos (la primera, la más cerca de la presidencia)."
+    }
+    // Sin nadie cargado la grilla queda vacía y no dice nada: lo que hay que hacer.
+    RowLayout {
+        Layout.fillWidth: true
+        visible: !rec.editando && (Studio.cuerpo.integrantes || []).length === 0
+        spacing: 10
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            color: Theme.textDim
+            font.pixelSize: 13
+            text: "Todavía no hay integrantes. Cargalos (a mano o desde una planilla) con su banca, y las bancas aparecen acá."
+        }
+        GlassButton { compact: true; active: true; text: "Cargar integrantes…"; onClicked: rec.pedirCuerpo() }
     }
     // Las que todavía no tienen lugar.
     Flow {

@@ -369,9 +369,7 @@ Rectangle {
                                                       ? "sin ninguna cara: no se la va a reconocer"
                                                       : fila.modelData.caras + " cara(s)" +
                                                         (fila.modelData.vistaSeg >= 0
-                                                         ? " · vista hace " + (fila.modelData.vistaSeg < 90
-                                                            ? fila.modelData.vistaSeg + " s"
-                                                            : Math.round(fila.modelData.vistaSeg / 60) + " min")
+                                                         ? " · vista hace " + Theme.hace(fila.modelData.vistaSeg)
                                                          : " · nunca vista")
                                             }
                                         }

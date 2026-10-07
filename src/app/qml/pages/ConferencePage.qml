@@ -38,8 +38,7 @@ Rectangle {
         // manda el primer mensaje, y hasta entonces se escribe desde acá.
     }
     function since(ms) {
-        const s = Math.max(0, Math.round((page.now - ms) / 1000))
-        return s < 60 ? s + " s" : Math.floor(s / 60) + " min"
+        return Theme.hace((page.now - ms) / 1000)
     }
     function mb(bytes) { return (bytes / 1048576).toFixed(1) + " MB" }
     /// kbit/s a algo que se lea de un vistazo.

@@ -122,14 +122,17 @@ Rectangle {
         return Qt.point((a.x + 3 * (a.x + d) + 3 * (b.x - d) + b.x) / 8, (a.y + 3 * a.y + 3 * b.y + b.y) / 8)
     }
 
-    // Si el grafo no entra a lo ancho, se achica (hasta 40 %) en vez de
-    // dejar tarjetas fuera de vista; con lugar, tamaño normal.
+    // Si el grafo no entra a lo ancho, se achica hasta 75 % (más chico no se lee:
+    // a 40 % las tarjetas eran rayitas) y el resto se recorre desplazando; con
+    // lugar, tamaño normal. «Ajustar» (BarraGrafo) sigue pudiendo verlo todo junto.
     readonly property real anchoGrafo: {
         let m = 0
         for (let i = 0; i < nodos.length; ++i) m = Math.max(m, nodos[i].x + nodeW)
         return m + 40
     }
-    readonly property real escalaAjustada: Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    /// La que hace entrar todo a lo ancho, por chica que sea (la usa «Ajustar»).
+    readonly property real escalaParaTodo: Math.max(0.25, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    readonly property real escalaAjustada: Math.max(0.75, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
     readonly property real escala: pb.zoom > 0 ? pb.zoom : pb.escalaAjustada
     function acercar(f) { pb.zoom = Math.max(0.25, Math.min(2.5, pb.escala * f)) }
 

@@ -174,7 +174,7 @@ Item {
                     { t: "−", tip: "Alejar (Cmd + rueda)", f: () => barra.lienzo.acercar(1 / 1.2) },
                     { t: barra.lienzo ? Math.round(barra.lienzo.escala * 100) + " %" : "", tip: "Tamaño real (100 %)", f: () => barra.lienzo.zoom = 1, ancho: 52 },
                     { t: "+", tip: "Acercar (Cmd + rueda)", f: () => barra.lienzo.acercar(1.2) },
-                    { t: "Ajustar", tip: "Que entre todo a lo ancho", f: () => barra.lienzo.zoom = 0 }
+                    { t: "Ajustar", tip: "Que entre todo a lo ancho", f: () => barra.lienzo.zoom = barra.lienzo.escalaParaTodo || 0 }
                 ]
                 delegate: GlassButton {
                     required property var modelData

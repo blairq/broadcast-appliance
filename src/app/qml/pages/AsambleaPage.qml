@@ -51,7 +51,7 @@ Rectangle {
                     anchors.fill: parent
                     contentWidth: availableWidth
                     clip: true
-                    RecintoGrilla { width: parent.width }
+                    RecintoGrilla { width: parent.width; onPedirCuerpo: cuerpo.open() }
                 }
             }
             Panel { PanelOrdenDelDia { anchors.fill: parent } }

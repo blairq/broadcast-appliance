@@ -97,10 +97,18 @@ Rectangle {
                                     color: Theme.text
                                     font { pixelSize: 13; weight: Font.Medium }
                                 }
+                                // Qué es (antes decía «descripción» a secas: el tipo, que parecía un texto que faltaba).
                                 Text {
-                                    text: modelData.declarativo ? "descripción" : "QML"
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: modelData.descripcion
+                                          ? modelData.descripcion
+                                          : (modelData.declarativo ? "armado con capas, sin código" : "escrito en QML")
                                     color: Theme.textFaint
                                     font.pixelSize: 10
+                                    ToolTip.visible: maDesc.containsMouse && truncated
+                                    ToolTip.text: text
+                                    MouseArea { id: maDesc; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                                 }
                             }
                             MouseArea {

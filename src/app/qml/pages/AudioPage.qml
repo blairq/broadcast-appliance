@@ -433,7 +433,9 @@ Rectangle {
                     for (let k = 0; k < page.nodes.length; ++k) m = Math.max(m, page.nodes[k].x + page.nodeW)
                     return m + 40
                 }
-                readonly property real escala: zoom > 0 ? zoom : Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+                // Sola, no más chica que 75 % (más chico no se lee: se desplaza); «Ajustar», todo junto.
+                readonly property real escalaParaTodo: Math.max(0.25, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+                readonly property real escala: zoom > 0 ? zoom : Math.max(0.75, escalaParaTodo)
                 function acercar(f) { zoom = Math.max(0.25, Math.min(2.5, escala * f)) }
                 function ordenar() { page.au.tidy() }
                 // Cmd/Ctrl + rueda: zoom (la rueda sola sigue desplazando).
