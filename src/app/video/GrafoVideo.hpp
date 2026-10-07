@@ -66,6 +66,13 @@ class GrafoVideo {
     static nlohmann::json catalogo();
     static bool tipoValido(const std::string& tipo);
     /// El id del nodo `entrada` / `escena` de una entrada.
+    /// Los parámetros de un tipo de tarjeta, documentados: [{clave, tipo,
+    /// descripcion, min?, max?, opciones?}]. Los ve la tarjeta y el MCP.
+    static nlohmann::json parametrosDe(const std::string& tipo);
+    /// Lo que manda y escucha una tarjeta (eventos de GStreamer): {manda, escucha}.
+    static nlohmann::json eventosDe(const std::string& tipo);
+    /// Cómo se arma el texto del overlay de Rostros (la plantilla).
+    static std::string ayudaTextoOverlay();
     static std::string idEntrada(const std::string& fuente);
     static std::string idEscena(const std::string& fuente);
 

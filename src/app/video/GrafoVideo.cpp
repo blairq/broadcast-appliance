@@ -175,6 +175,129 @@ int indicePedido(const std::string& puerto) {
 
 } // namespace
 
+namespace {
+
+/// Un parámetro documentado: clave, tipo (numero | entero | texto | si_no |
+/// opcion | color), qué hace y, según el tipo, rango u opciones.
+json param(const char* clave, const char* tipo, const char* descripcion, json extra = json::object()) {
+    json p{{"clave", clave}, {"tipo", tipo}, {"descripcion", descripcion}};
+    for (auto it = extra.begin(); it != extra.end(); ++it) p[it.key()] = it.value();
+    return p;
+}
+
+} // namespace
+
+std::string GrafoVideo::ayudaTextoOverlay() {
+    return "EL TEXTO DEL OVERLAY (tarjeta Rostros, parámetro `texto`) es una plantilla: se escribe lo que se quiera y "
+           "estas marcas se reemplazan por lo de cada cara:\n"
+           "  {nombre}     quién es (lo pone Personas cuando la reconoce; vacío si no)\n"
+           "  {cargo}      su cargo, de su ficha en Personas\n"
+           "  {id}         el número de la cara (se conserva mientras se mueve)\n"
+           "  {confianza}  qué tan segura está la detección («91 %»)\n"
+           "  {n}          cuántas caras hay en el cuadro\n"
+           "Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin cargo muestra solo el nombre, y "
+           "si no queda nada no hay cartel. Ejemplos: «{nombre}», «{nombre} — {cargo}», «Cara {id}», «{confianza}», "
+           "«{nombre} #{id}». `texto_posicion`: arriba | abajo de la cara (si arriba no entra, va abajo); "
+           "`texto_tamano`: fracción del alto del video (0,035 = 3,5 %); el color es el de la marca (`color`). Vacío = sin texto.";
+}
+
+json GrafoVideo::parametrosDe(const std::string& tipo) {
+    json l = json::array();
+    if (tipo == "rostros") {
+        l.push_back(param("activo", "si_no", "Analizar; si no, la imagen solo pasa."));
+        l.push_back(param("fps", "numero", "Análisis por segundo (la imagen pasa siempre a su ritmo).", {{"min", 0.5}, {"max", 30}}));
+        l.push_back(param("reconocer", "si_no", "Sacar el vector de cada cara para la libreta de Personas (lo prende sola Personas cuando usa la cámara)."));
+        l.push_back(param("detector", "opcion", "Quién encuentra las caras: auto (Apple Vision en la Mac si no hace falta reconocer; si no, YuNet), vision o yunet.", {{"opciones", {"auto", "vision", "yunet"}}}));
+        l.push_back(param("confianza", "numero", "Descarta las detecciones dudosas.", {{"min", 0.1}, {"max", 1}}));
+        l.push_back(param("marcar", "si_no", "Dibujar el overlay sobre cada cara."));
+        l.push_back(param("estilo", "opcion", "Cómo se marca: recuadro, esquinas, relleno (translúcido), tapar (color sólido) o pixelar; tapar y pixelar sirven para no mostrar una cara.", {{"opciones", {"recuadro", "esquinas", "relleno", "tapar", "pixelar"}}}));
+        l.push_back(param("color", "color", "Color de la marca y del texto (ARGB, 0xFFFFC83C de fábrica)."));
+        l.push_back(param("grosor", "entero", "Grosor del borde en píxeles del video.", {{"min", 1}, {"max", 40}}));
+        l.push_back(param("texto", "texto", "Plantilla del texto sobre cada cara: {nombre} {cargo} {id} {confianza} {n} (ver la ayuda del texto)."));
+        l.push_back(param("texto_posicion", "opcion", "Dónde va el texto.", {{"opciones", {"arriba", "abajo"}}}));
+        l.push_back(param("texto_tamano", "numero", "Alto del texto, en fracción del alto del video.", {{"min", 0.01}, {"max", 0.2}}));
+        l.push_back(param("uso", "texto", "Para qué la usa Personas (mirar, autoalta, puerta, seguir); vacío = la puso el usuario. Lo maneja la app."));
+    } else if (tipo == "seguir") {
+        l.push_back(param("activo", "si_no", "Seguir; si no, pasa sin hacer nada."));
+        l.push_back(param("objetivo", "texto", "A quién: vacío (nadie) | id:N (la cara número N) | persona:X (id de su ficha o su nombre) | x,y (la cara más cercana a ese punto de la toma, 0..1) | mayor (la más grande) | centro (la más cercana al centro)."));
+        l.push_back(param("zoom", "numero", "El zoom que busca; 0 = no tocarlo.", {{"min", 0}, {"max", 8}}));
+        l.push_back(param("tamano_cara", "numero", "Qué parte del alto ocupa la cara (calcula el zoom); 0 = no ajustarlo.", {{"min", 0}, {"max", 1}}));
+        l.push_back(param("aire", "numero", "Cuánto queda la cara arriba del centro, en fracción del alto (deja aire arriba de la cabeza).", {{"min", -0.5}, {"max", 0.5}}));
+        l.push_back(param("suavidad", "numero", "Constante de tiempo del movimiento, en segundos.", {{"min", 0.05}, {"max", 10}}));
+        l.push_back(param("zona_muerta", "numero", "Lo que se puede correr la cara sin mover nada (que no tiemble).", {{"min", 0}, {"max", 0.5}}));
+        l.push_back(param("perdida_s", "numero", "Segundos que la busca donde estaba antes de soltarla.", {{"min", 0}, {"max", 60}}));
+    } else if (tipo == "ptz") {
+        l.push_back(param("activo", "si_no", "Encender o apagar el PTZ digital de esta entrada (también en Cámaras PTZ)."));
+    } else if (tipo == "color") {
+        l.push_back(param("brillo", "numero", "Suma luz (-1..1).", {{"min", -1}, {"max", 1}}));
+        l.push_back(param("contraste", "numero", "1 = sin cambio.", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("saturacion", "numero", "0 = blanco y negro, 1 = sin cambio.", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("gamma", "numero", "1 = sin cambio.", {{"min", 0.2}, {"max", 3}}));
+    } else if (tipo == "croma") {
+        l.push_back(param("clave", "color", "El color de fondo a sacar (RGB, 0x00B140 = verde)."));
+        l.push_back(param("similitud", "numero", "Cuánto se parece un color para irse.", {{"min", 0}, {"max", 1}}));
+        l.push_back(param("suavidad", "numero", "Suavidad del borde.", {{"min", 0}, {"max", 1}}));
+        l.push_back(param("derrame", "numero", "Quita el reflejo del color en la persona.", {{"min", 0}, {"max", 1}}));
+    } else if (tipo == "recorte") {
+        for (const char* k : {"izquierda", "arriba", "derecha", "abajo"})
+            l.push_back(param(k, "numero", "Cuánto se recorta de ese lado (fracción del cuadro; queda transparente).", {{"min", 0}, {"max", 0.5}}));
+        l.push_back(param("espejoH", "si_no", "Espejo horizontal."));
+        l.push_back(param("espejoV", "si_no", "Espejo vertical."));
+    } else if (tipo == "retardo") {
+        l.push_back(param("cuadros", "entero", "Cuadros de atraso.", {{"min", 0}, {"max", 120}}));
+        l.push_back(param("ms", "entero", "Milisegundos de atraso (manda sobre `cuadros` si es > 0)."));
+    } else if (tipo == "superres") {
+        l.push_back(param("plugin", "texto", "El id de un plugin de superresolución (video_superres_plugins)."));
+        l.push_back(param("motor", "opcion", "auto, apple, fsr u onnx.", {{"opciones", {"auto", "apple", "fsr", "onnx"}}}));
+        l.push_back(param("modelo", "texto", "Con motor onnx: la ruta del .onnx."));
+        l.push_back(param("escala_red", "entero", "Cuánto agranda el modelo (2 = x2)."));
+        l.push_back(param("nitidez", "numero", "Nitidez (FSR).", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("proveedor", "opcion", "ONNX: dónde corre.", {{"opciones", {"auto", "cpu", "coreml", "dml"}}}));
+        l.push_back(param("unidades", "opcion", "CoreML: dónde corre (auto = Neural Engine).", {{"opciones", {"auto", "ane", "gpu", "cpu"}}}));
+        l.push_back(param("esperar", "entero", "ms: 0 entrega el cuadro anterior (nunca frena); más espera el de ahora."));
+        l.push_back(param("activo", "si_no", "Encender o apagar."));
+    } else if (tipo == "salida") {
+        l.push_back(param("nombre", "texto", "El nombre de la fuente que se publica para las escenas."));
+    }
+    else if (tipo == "compositor") {
+        l.push_back(param("ancho", "entero", "Ancho del lienzo; 0 = el del estudio."));
+        l.push_back(param("alto", "entero", "Alto del lienzo; 0 = el del estudio."));
+        l.push_back(param("fondo", "color", "Color de fondo (ARGB, 0xFF000000 = negro)."));
+        l.push_back(param("nombre", "texto", "La fuente con la que se pone en las escenas."));
+        l.push_back(param("capas", "texto", "Por puerto, {\"in_N\": {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, ajuste encajar|llenar}}; sin capas, mosaico."));
+    } else if (tipo == "gst") {
+        l.push_back(param("elemento", "texto", "El módulo de GStreamer (video_modulos)."));
+        l.push_back(param("propiedades", "texto", "Sus propiedades, con los nombres de GStreamer (video_filtros las lista)."));
+        l.push_back(param("esperar", "entero", "ms: 0 entrega el cuadro anterior; más espera el de ahora."));
+    }
+    return l;
+}
+
+json GrafoVideo::eventosDe(const std::string& tipo) {
+    // Lo que cada tarjeta manda y escucha, todo con mecanismos estándar de
+    // GStreamer (eventos propios, mensajes al bus, metas). Se ve en Racks.
+    if (tipo == "rostros")
+        return {{"manda",
+                 {"evento «ba/rostros» hacia abajo y hacia arriba (json con las caras: id, x, y, ancho, alto 0..1, "
+                  "confianza, nombre, cargo, persona, toma; ventana del PTZ, video, detector, ms, pts)",
+                  "meta GstVideoRegionOfInterestMeta «face» en cada cuadro (parámetro «ba-rostro»)",
+                  "mensaje de elemento «ba-rostros» al bus (el mismo json y el cuadro analizado)"}},
+                {"escucha",
+                 {"«ba/ptz» (la ventana del PTZ: para dar cada cara también en la toma)",
+                  "«ba/control» con rostros_etiquetas (quién es cada cara, lo manda Personas)"}}};
+    if (tipo == "seguir")
+        return {{"manda",
+                 {"evento «ba/encuadre» hacia arriba y hacia abajo (x, y, zoom, suavidad, id; o soltar=true)",
+                  "mensaje de elemento «ba-seguir» al bus (estado, a quién sigue, el encuadre)"}},
+                {"escucha",
+                 {"«ba/rostros» venga de antes o de después", "«ba/ptz» (dónde está la ventana)",
+                  "«ba/control» con seguir_objetivo"}}};
+    if (tipo == "ptz")
+        return {{"manda", {"evento «ba/ptz» hacia abajo cuando cambia la ventana (x, y, zoom, moviendo)"}},
+                {"escucha", {"«ba/encuadre» venga de antes o de después (lo sigue 1,5 s; si no llega más, suelta)"}}};
+    return json::object();
+}
+
 json GrafoVideo::catalogo() {
     json out = json::array();
     const std::tuple<const char*, const char*, const char*> tipos[] = {
@@ -187,6 +310,16 @@ json GrafoVideo::catalogo() {
          "un texto ({nombre}, {cargo}, {id}, {confianza}). Publica las caras en cada cuadro (metas de región de "
          "GStreamer) y en eventos «ba/rostros» para el resto de la cadena; Personas y el seguimiento del PTZ la "
          "usan.",
+         "entrada"},
+        {"ptz",
+         "Pan, tilt y zoom digital (elemento baptz): uno por entrada, va donde se lo ponga en la cadena. Lo manejan "
+         "Cámaras PTZ, el joystick y los presets; sigue el encuadre que le pida una tarjeta Seguimiento (evento "
+         "«ba/encuadre», venga de antes o de después) y publica su ventana («ba/ptz»).",
+         "entrada"},
+        {"seguir",
+         "Sigue a una cara (elemento baseguir, no toca la imagen): lee las caras de una tarjeta Rostros (antes o "
+         "después), elige a quién (`objetivo`) y le manda el encuadre al PTZ (antes o después) con eventos de "
+         "GStreamer. Con una cámara motorizada, la app la mueve con pulsos.",
          "entrada"},
         {"normalizar",
          "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
@@ -210,7 +343,10 @@ json GrafoVideo::catalogo() {
     };
     for (const auto& [t, d, a] : tipos)
         out.push_back(
-            {{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"ambito", a}});
+            {{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"parametros", parametrosDe(t)},
+             {"eventos", eventosDe(t)}, {"ambito", a}});
+    for (json& e : out)
+        if (e.value("tipo", std::string()) == "rostros") e["texto_overlay"] = ayudaTextoOverlay();
     return out;
 }
 

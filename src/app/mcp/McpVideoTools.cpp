@@ -271,15 +271,16 @@ void McpService::registerVideoTools() {
             "video_cable, y se "
             "pone en una escena con video_salida_a_escena o se cablea a la escena de una entrada.";
         t.details =
-            "`params` con los de fábrica que quieras cambiar (video_grafo los lista). Croma: `clave` "
+            "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
+            "rangos y opciones; el texto del overlay de Rostros también). Croma: `clave` "
             "0xRRGGBB (verde "
             "0x00B140), `similitud`, `suavidad`, `derrame`. Color: `brillo`, `contraste`, `saturacion`, "
             "`gamma`. "
             "Recorte: `izquierda`, `arriba`, `derecha`, `abajo` (0..1), `espejoH`, `espejoV`. Retardo: "
             "`cuadros` "
-            "(0..120, para sincronizar). Rostros: `cada` (ms), `marcar` (dibuja las caras); la pone sola "
-            "Personas "
-            "al elegir una camara (`entrada:<camara>`), `uso` dice para que. Salida: `nombre`. Compositor: "
+            "(0..120, para sincronizar). Rostros: `fps`, `reconocer`, `detector`, `marcar`, `estilo`, `color`, "
+            "`texto` (plantilla {nombre} {cargo} {id} {confianza} {n}); la pone sola Personas al elegir una "
+            "cámara (`entrada:<camara>`), `uso` dice para qué. Seguir: `objetivo`, `zoom`, `aire`… Salida: `nombre`. Compositor: "
             "`ancho`, `alto`, `fondo` (0xAARRGGBB), "
             "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, "
             "ajuste "
@@ -295,7 +296,7 @@ void McpService::registerVideoTools() {
                {{"type", "string"},
                 {"enum",
                  {"color", "croma", "recorte", "gst", "plugin", "retardo", "normalizar", "rostros",
-                  "salida", "compositor", "superres"}}}},
+                  "seguir", "salida", "compositor", "superres"}}}},
               {"plugin",
                {{"type", "string"},
                 {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
@@ -350,6 +351,31 @@ void McpService::registerVideoTools() {
             json d = v->describir(tipo == "compositor" ? std::string() : e);
             d["agregada"] = nuevo;
             done(ToolResult().data(d));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_tarjeta_ayuda";
+        t.title = "Ayuda de un tipo de tarjeta";
+        t.category = "video";
+        t.readOnly = true;
+        t.description =
+            "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
+            "eventos de GStreamer manda y escucha. Con Rostros, además, cómo se arma el texto del overlay. Sin "
+            "`tipo`: todos.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"tipo", {{"type", "string"}, {"description", "rostros, seguir, ptz, color…"}}}}}};
+        t.examples = {R"({"tipo": "rostros"})", R"({"tipo": "seguir"})"};
+        t.run = [](const json& a, Done done) {
+            const std::string tipo = a.value("tipo", std::string());
+            const json cat = video::GrafoVideo::catalogo();
+            if (tipo.empty()) return done(ToolResult().data({{"tarjetas", cat}}));
+            for (const json& c : cat) {
+                if (c.value("tipo", std::string()) != tipo) continue;
+                return done(ToolResult().data(c));
+            }
+            done(ToolResult::error("no hay una tarjeta «" + tipo + "»; sin `tipo` se listan todas"));
         };
         core_.addTool(std::move(t));
     }

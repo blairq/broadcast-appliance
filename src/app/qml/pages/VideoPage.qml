@@ -314,7 +314,7 @@ Rectangle {
                 porQueNoAgregar: "Elegí una entrada a la izquierda"
                 agregar: [
                     { titulo: "Tarjetas" + (page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? " (van después de «" + (page.nodo.etiqueta || page.sel) + "»)" : ""),
-                      items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control") : []).map(c => ({
+                      items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control" && c.tipo !== "ptz") : []).map(c => ({
                           t: c.titulo, tip: c.descripcion,
                           f: () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
@@ -1156,6 +1156,50 @@ Rectangle {
                             GlassButton {
                                 text: "Poner en la escena al aire"
                                 onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                            }
+                        }
+
+                        // La ayuda de la tarjeta: cada parámetro y los eventos que manda y
+                        // escucha (lo mismo que da video_tarjeta_ayuda por MCP).
+                        ColumnLayout {
+                            id: ayudaPanel
+                            readonly property var info: page.vg && page.tipoEf ? (page.vg.catalogo.find(c => c.tipo === page.tipoEf) || null) : null
+                            property bool abierto: false
+                            visible: !!info && ((info.parametros || []).length > 0 || !!(info.eventos && info.eventos.manda))
+                            Layout.fillWidth: true
+                            spacing: 4
+                            GlassButton {
+                                compact: true
+                                text: (ayudaPanel.abierto ? "▾ " : "▸ ") + "Parámetros y eventos"
+                                onClicked: ayudaPanel.abierto = !ayudaPanel.abierto
+                            }
+                            Repeater {
+                                model: ayudaPanel.abierto && ayudaPanel.info ? ayudaPanel.info.parametros : []
+                                Text {
+                                    required property var modelData
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    color: Theme.textDim; font.pixelSize: 11; textFormat: Text.StyledText
+                                    text: "<b>" + modelData.clave + "</b> <i>(" + modelData.tipo
+                                          + (modelData.opciones ? ": " + modelData.opciones.join(" | ") : "")
+                                          + (modelData.min !== undefined ? ", " + modelData.min + "…" + modelData.max : "")
+                                          + ")</i> — " + modelData.descripcion
+                                }
+                            }
+                            Text {
+                                visible: ayudaPanel.abierto && !!ayudaPanel.info && !!ayudaPanel.info.texto_overlay
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 11
+                                text: ayudaPanel.info && ayudaPanel.info.texto_overlay ? ayudaPanel.info.texto_overlay.replace(/`/g, "") : ""
+                            }
+                            Text {
+                                visible: ayudaPanel.abierto && !!ayudaPanel.info && !!(ayudaPanel.info.eventos && ayudaPanel.info.eventos.manda)
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 11
+                                text: {
+                                    const e = ayudaPanel.info && ayudaPanel.info.eventos ? ayudaPanel.info.eventos : null
+                                    if (!e || !e.manda) return ""
+                                    return "Manda:\n• " + e.manda.join("\n• ") + "\nEscucha:\n• " + (e.escucha || []).join("\n• ")
+                                }
                             }
                         }
 

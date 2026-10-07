@@ -153,3 +153,7 @@ La guía para el asistente está en `help {"topic": "camaras"}`.
   prueba a correr ahí.
 - Los temporizadores de GPU por pasada (proc `tiempos` de Mejorar imagen) no andan en el OpenGL de Apple Silicon (lo
   ignora); en Windows y Linux sí.
+
+## Seguimiento de caras y PTZ digital
+
+Las tarjetas Rostros, PTZ y Seguimiento, sus parámetros, el texto del overlay y los eventos de GStreamer con que se hablan: [ROSTROS-PTZ-SEGUIMIENTO.md](ROSTROS-PTZ-SEGUIMIENTO.md).
