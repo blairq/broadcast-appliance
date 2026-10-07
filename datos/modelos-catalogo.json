@@ -106,6 +106,31 @@
    "fecha": "2026-10-03"
   },
   {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v4-mlx-q4",
+   "revision": "",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "archivo": null,
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "nota": "todavía sin publicar: la app no lo muestra hasta que exista en Hugging Face; fabricar-modelo.py completa revision y métricas al subir"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v4-GGUF",
+   "revision": "",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-v4-Q4_K_M.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "nota": "todavía sin publicar: la app no lo muestra hasta que exista en Hugging Face; fabricar-modelo.py completa revision y métricas al subir"
+  },
+  {
    "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-mtp-ud-GGUF",
    "formato": "gguf",
    "plataformas": [
