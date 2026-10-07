@@ -39,7 +39,7 @@
 #include <fstream>
 
 #include "agent/AlertEngine.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "net/Credentials.hpp"
 #include "net/HttpsClient.hpp"
 

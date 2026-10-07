@@ -33,12 +33,12 @@
 #include <QStorageInfo>
 #include <QUrl>
 
-#include "HoraMonotonica.hpp"
+#include "comun/HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 
-#include "AccountGuides.hpp"
+#include "net/AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
@@ -48,7 +48,7 @@
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
 #include "control/Acciones.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppSettings.hpp"
 #include "control/SatelliteServidor.hpp"
 #include "qr/Qr.hpp"
 #include "asamblea/Bancas.hpp"
@@ -69,7 +69,7 @@
 #include "agent/VocesRack.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "evento/Bitacora.hpp"

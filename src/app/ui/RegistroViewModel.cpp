@@ -10,7 +10,7 @@
 #include <QFile>
 #include <QTimer>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"

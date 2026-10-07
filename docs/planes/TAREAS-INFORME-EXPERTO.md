@@ -87,7 +87,7 @@
 | T61 | Proxy propio con un nombre (DNS) por servicio y certificados automáticos | P2 | hecho (sin HTTP/2 ni DNS-01; ACME sin probar contra Let's Encrypt real) |
 
 **Ya hecho (no genera tarea)**
-- **fps fraccionarios**: `src/app/ui/SettingsModel.cpp:44` ofrece 24000/1001, 30000/1001 y 60000/1001; se guardan en `src/app/AppSettings.cpp:166-171` y `:283`.
+- **fps fraccionarios**: `src/app/ui/SettingsModel.cpp:44` ofrece 24000/1001, 30000/1001 y 60000/1001; se guardan en `src/app/arranque/AppSettings.cpp:166-171` y `:283`.
 - **Matriz sin realimentación**: `haceLazo` en `src/app/audio/Matriz.cpp:308-316`, aplicado en `:365`.
 - **Varias salidas físicas a la vez**: los buses virtuales van a dispositivos distintos (`src/app/audio/Matriz.hpp:14-15`, hilo propio en `Matriz.cpp:683`).
 - **Plugins de Python en Windows**: la ruta del intérprete está en `src/app/plugins/Plugins.cpp:196-197`. Falta probarlos a mano.
@@ -106,7 +106,7 @@
 
 ### T01 · Latido del supervisor fuera del hilo de la interfaz — P0
 - **Estado: falta.**
-  - El latido sale de un `QTimer` de 100 ms en el hilo de la UI (`src/app/ui/StudioViewModel.cpp:545-558`). Llama a `AppRuntime::tick`, que a su vez llama a `health_.beat` (`src/app/OperateMode.cpp:368-377`).
+  - El latido sale de un `QTimer` de 100 ms en el hilo de la UI (`src/app/ui/StudioViewModel.cpp:545-558`). Llama a `AppRuntime::tick`, que a su vez llama a `health_.beat` (`src/app/arranque/OperateMode.cpp:368-377`).
   - El umbral es de 5 s (`src/core/ipc/HealthBlock.hpp:219-225`). Si se pasa, el supervisor vuelca y mata (`src/launcher/Supervisor.cpp:327-335`, `:394`).
   - No hay hilo propio ni se mira el contador de cuadros codificados.
 - **Qué hacer.**
@@ -127,7 +127,7 @@
 - **Estado: falta.**
   - La aprobación solo se pide con la política `Always`, o con `Untrusted` y la sesión contaminada (`src/app/mcp/McpCore.cpp:764-770`). No hay lista "de aire" ni se mira si hay transmisión.
   - La única guarda en vivo es `settings_set` para el asistente (`src/app/mcp/McpService.cpp:1907-1914`).
-  - Los plugins llaman con rol vacío, así que ven todo (`src/app/GuiMode.cpp:169-173`, `McpCore.cpp:315-316`).
+  - Los plugins llaman con rol vacío, así que ven todo (`src/app/arranque/GuiMode.cpp:169-173`, `McpCore.cpp:315-316`).
   - El asistente interactivo siempre recibe `Bash PowerShell` (`src/app/agent/AgentViewModel.cpp:1167`).
   - `agente_configurar consola=true` no mira `enVivo` (`src/app/mcp/McpAgenteTools.cpp:50-89`).
   - Las acciones automáticas de voz deciden sin mirar el aire (`src/app/agent/Voz.cpp:682-693`).
@@ -237,7 +237,7 @@
 - **Depende de:** T02 para la parte MCP.
 
 ### T07 · FTB / placa de seguridad a un toque — P0
-- **Estado: falta.** No hay FTB ni placa (lo más cercano es el tipo de transición `fade_to_color`, `src/app/BroadcastEngineScenes.cpp:41-47`). "Cuarto intermedio" aparece solo como texto de ejemplo de traducción.
+- **Estado: falta.** No hay FTB ni placa (lo más cercano es el tipo de transición `fade_to_color`, `src/app/emision/BroadcastEngineScenes.cpp:41-47`). "Cuarto intermedio" aparece solo como texto de ejemplo de traducción.
 - **Qué hacer.**
   - En `BroadcastEngineScenes`, crear una escena interna protegida `__placa__`, que no depende de que el usuario la cree. Lleva imagen configurable más texto ("Cuarto intermedio", "Volvemos enseguida", "Minuto de silencio"). La imagen de fábrica está en `assets/placas/`.
   - Funciones `placaSeguridad(on, texto, fundido_ms)` y `ftb(on, ms)`. FTB es un fundido a negro del canal de salida, y el audio baja con él salvo que se elija "mantener audio".
@@ -255,7 +255,7 @@
 
 ### T08 · `stream_start` con otro destino estando al aire: error explícito — P0
 - **Estado: falta.**
-  - El motor devuelve `true` si ya está activa (`src/app/BroadcastEngine.cpp:921-923`).
+  - El motor devuelve `true` si ya está activa (`src/app/emision/BroadcastEngine.cpp:921-923`).
   - El MCP responde "Ya esta transmitiendo." como éxito (`src/app/mcp/McpService.cpp:1749`).
   - `StudioViewModel::startStreaming` (`:880-882`) muestra el aviso de "Al aire".
 - **Qué hacer.**
@@ -266,7 +266,7 @@
 - **Depende de:** nada.
 
 ### T09 · Multidestino — P0
-- **Estado: falta.** Hay un solo `obs_output* streamOutput_` (`src/app/BroadcastEngine.hpp:697`), creado como `rtmp_custom` + `rtmp_output` (`BroadcastEngine.cpp:935-963`).
+- **Estado: falta.** Hay un solo `obs_output* streamOutput_` (`src/app/emision/BroadcastEngine.hpp:697`), creado como `rtmp_custom` + `rtmp_output` (`BroadcastEngine.cpp:935-963`).
 - **Qué hacer.**
   - Reemplazarlo por `std::vector<SalidaStream>`, con `{id, nombre, servicio, url, clave_cred, obs_output*, estado, reconexiones, kbps}`. Todas comparten `videoEncoder_`/`audioEncoder_`, con una opción por salida de encoder propio cuando cambia la resolución o el bitrate.
   - Reconexión y señales por salida. `Runtime/al-aire.json` guarda la lista activa para retomar.
@@ -356,7 +356,7 @@
 
 ### T14 · Mix-minus por invitado — P0
 - **Estado: falta.**
-  - `obs_add_raw_audio_callback(0, …)` toma la mezcla completa (`src/app/BroadcastEngine.cpp:504`). `onRawAudio` (`:715-745`) escribe un solo anillo, `BA.Audio.ContentForReturn` (`:138`).
+  - `obs_add_raw_audio_callback(0, …)` toma la mezcla completa (`src/app/emision/BroadcastEngine.cpp:504`). `onRawAudio` (`:715-745`) escribe un solo anillo, `BA.Audio.ContentForReturn` (`:138`).
   - El gateway manda el mismo anillo a todos (`src/gateway/MediaPump.hpp:19`).
 - **Qué hacer.**
   - Recomiendo la forma limpia, en la app (A): una mezcla por slot de invitado activo, que es el programa menos `BA.Audio.Guest.n`. Como todas las fuentes ya pasan por A, se arma en `onRawAudio` restando la fuente del invitado con el mismo reloj, antes del limitador.
@@ -425,7 +425,7 @@
 ### T18 · Contenido de terceros al aire: zócalo validado, chat con aprobación, votación rotulada — P0
 - **Estado: falta.**
   - El `info` del invitado va directo a `cargo` (`src/app/ui/StudioViewModel.cpp:824-828`, en `contextoDeVinculos`, `:812`), y el contexto no ofrece Personas ni padrón.
-  - El overlay de chat solo tiene llaves por plataforma, sin aprobación (`src/app/ChatOverlaySource.hpp`).
+  - El overlay de chat solo tiene llaves por plataforma, sin aprobación (`src/app/emision/ChatOverlaySource.hpp`).
   - La votación distingue "formal" de "encuesta" (`src/app/ui/EventoViewModel.cpp:724-728`), pero no dice "consulta / no vinculante".
 - **Qué hacer.**
   - **Zócalo.** `contextoDeVinculos` toma nombre y cargo de la Persona vinculada (T16) cuando existe. El `info` del invitado queda como `sugerencia` y solo pasa al zócalo si el operador lo aprueba; eso queda grabado en la Persona con `validado_por`.
@@ -448,7 +448,7 @@
 ### T19 · Placa y alarma de pérdida de señal, con escena de respaldo — P0
 - **Estado: parcial.**
   - "Sin señal" solo aparece en el panel de sincronía (`src/app/qml/controls/PanelSincronia.qml:169`) y como texto fijo en PTZ y Monitor.
-  - NDI pone negro (`src/app/NdiSource.cpp:284`).
+  - NDI pone negro (`src/app/emision/NdiSource.cpp:284`).
   - El multiview (`src/app/qml/controls/VideoWall.qml:62-74`) no avisa, y no hay placa ni escena de respaldo.
 - **Qué hacer.**
   - En `ba_gst_fuente.cpp` y `VideoGrafos`, crear el estado `senal: ok|tarde|perdida`: `perdida` si no llega cuadro en 500 ms, configurable.
@@ -545,8 +545,8 @@
 ### T24 · Recuperación visible: cartel de causa, configuración con dos generaciones, volcados — P1
 - **Estado: parcial.**
   - Hay retoma de stream y grabación (`Runtime/al-aire.json`) y un cartel de reconexión del stream (`src/app/ui/StudioViewModel.cpp:612`, `src/app/qml/Main.qml:402-406`).
-  - No se muestra la causa de la caída anterior; solo `src/app/Registrar.cpp:90` lee `Caidas`.
-  - `SnapshotStore` solo se usa en el autotest (`src/app/main.cpp:48-50`) y la configuración es JSON plano (`src/app/AppSettings.cpp:31-54`).
+  - No se muestra la causa de la caída anterior; solo `src/app/arranque/Registrar.cpp:90` lee `Caidas`.
+  - `SnapshotStore` solo se usa en el autotest (`src/app/main.cpp:48-50`) y la configuración es JSON plano (`src/app/arranque/AppSettings.cpp:31-54`).
   - Hay volcados solo en Windows (`src/launcher/Supervisor.cpp:5-6`, `:77-119`).
 - **Qué hacer.**
   - El supervisor escribe en `Runtime/ultima-caida.json` `{causa, hora, tiempo_hasta_aire_ms}`. La app la muestra al volver y mide hasta el primer cuadro saliente.
@@ -561,7 +561,7 @@
 ## Escenas
 
 ### T25 · Overlays globales (DSK) y recuadro fijo de intérprete LSA — P1
-- **Estado: falta.** No hay DSK. La salida es una transición en el canal 0 (`src/app/BroadcastEngineScenes.cpp:167`).
+- **Estado: falta.** No hay DSK. La salida es una transición en el canal 0 (`src/app/emision/BroadcastEngineScenes.cpp:167`).
 - **Qué hacer.**
   - Usar los canales de salida superiores de libobs (1..4) con escenas internas `__dsk1__`..`__dsk4__`, cada una con su visibilidad y su transición (fundido en ms).
   - Se componen encima del programa y también del preview, de forma opcional.
@@ -577,7 +577,7 @@
 
 ### T26 · Transiciones profesionales: CUT/AUTO, por take, por escena, stinger, T-bar, AFV — P1
 - **Estado: parcial.**
-  - Hay una transición global (`src/app/BroadcastEngineScenes.cpp:150-176`) con los tipos cut, fade, swipe, slide y fade_to_color (`:41-47`, enum MCP en `src/app/mcp/McpService.cpp:1235`).
+  - Hay una transición global (`src/app/emision/BroadcastEngineScenes.cpp:150-176`) con los tipos cut, fade, swipe, slide y fade_to_color (`:41-47`, enum MCP en `src/app/mcp/McpService.cpp:1235`).
   - `scene_take` no recibe parámetros (`McpService.cpp:920/930`).
   - No hay stinger, T-bar ni audio follow video.
 - **Qué hacer.**
@@ -658,7 +658,7 @@
 - **Depende de:** nada.
 
 ### T30 · Interfaz para la grabación ISO (entradas e invitados) — P1
-- **Estado: parcial.** El motor tiene `SourceRec` (`src/app/BroadcastEngine.cpp:1031-1060`, hasta 8 en `BroadcastEngine.hpp:534`) y la herramienta `grabacion_individual` (`src/app/mcp/McpService.cpp:~1780-1830`). Ningún QML la usa.
+- **Estado: parcial.** El motor tiene `SourceRec` (`src/app/emision/BroadcastEngine.cpp:1031-1060`, hasta 8 en `BroadcastEngine.hpp:534`) y la herramienta `grabacion_individual` (`src/app/mcp/McpService.cpp:~1780-1830`). Ningún QML la usa.
 - **Qué hacer.**
   - Exponer en `StudioViewModel` un modelo `isos` con `{fuente, grabando, archivo, mb, pista}`.
   - Validar el máximo y el disco con T10.
@@ -1016,7 +1016,7 @@
   - **Probado en la app:** con out 2 s pasa solo al siguiente, el in de 10 s arranca en 10, y el salto («ir») anda.
   - Ojo: un archivo con keyframes muy espaciados salta al keyframe anterior (en un clip con un solo keyframe, al principio).
   - Antes:
-  - La duración y la posición del medio se leen (`src/app/BroadcastEngineScenes.cpp:994-995`), pero solo alimentan `media_end`.
+  - La duración y la posición del medio se leen (`src/app/emision/BroadcastEngineScenes.cpp:994-995`), pero solo alimentan `media_end`.
   - La cuenta regresiva de Dirección es la del cue (`DireccionContent.qml:128`, `EventoViewModel.cpp:955`).
   - No hay playlist (`src/app/medios/Medios.hpp` es un explorador).
   - El back-timing es parcial: hay `desvioSeg` y `restanteSeg` del cue (`EventoViewModel.cpp:943-957`), pero no hora de fin ni tiempo restante del bloque.
@@ -1038,7 +1038,7 @@
 ### T47 · Credenciales y accesos: passphrase, PIN por sesión, enlaces que vencen, token MCP — P1
 - **Estado: parcial.**
   - El almacén usa una clave de dispositivo sin passphrase (`SecretsStore` con Argon2id existe, pero no se usa para esto).
-  - `docs/funciones/MCP.md:217` dice que la clave de stream no se guarda, y se guarda como `stream-last` (`src/app/OperateMode.cpp:466`, `:547`).
+  - `docs/funciones/MCP.md:217` dice que la clave de stream no se guarda, y se guarda como `stream-last` (`src/app/arranque/OperateMode.cpp:466`, `:547`).
   - El PIN es aleatorio por arranque del gateway, no por sesión (`src/gateway/main.cpp:496-499`).
   - Los enlaces de invitado no vencen.
   - El token MCP es persistente (`src/app/mcp/McpHttp.cpp:66-76`).
@@ -1157,7 +1157,7 @@
 **Lo que ya hay y se reusa**, verificado:
 - **Gateway (proceso B).** Tiene un servidor HTTP/WS propio:
   - `SignalingServer`, puerto 8787 (`src/gateway/SignalingServer.cpp:291`, `:415`);
-  - bind configurable `gateway.bind` (`src/app/AppSettings.hpp:123`, `127.0.0.1` de fábrica);
+  - bind configurable `gateway.bind` (`src/app/arranque/AppSettings.hpp:123`, `127.0.0.1` de fábrica);
   - HTTPS con mbedtls en 8789 (`src/gateway/net/TlsTerminator.{hpp,cpp}`, arrancado en `main.cpp:649-663`, con certificado propio o autofirmado);
   - archivos estáticos de `assets/web/<x>` con canonicalización (`SignalingServer.cpp:835`);
   - WebSocket `/ws` con el cliente común `assets/web/comun/canal.js`.

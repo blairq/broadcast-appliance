@@ -10,7 +10,7 @@
 // ============================================================================
 #include <algorithm>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"

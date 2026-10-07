@@ -37,7 +37,7 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-#include "JsonSignals.hpp"
+#include "comun/JsonSignals.hpp"
 
 #include <atomic>
 #include <QTimer>

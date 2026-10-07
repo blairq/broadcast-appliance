@@ -19,7 +19,7 @@
 #include <QUdpSocket>
 #include <QUrl>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "pantallas/Buscar.hpp"
 #include "pantallas/Cast.hpp"

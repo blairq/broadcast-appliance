@@ -4,7 +4,7 @@
 
 #include "video/Camaras.hpp"
 
-#include "InputSpecs.hpp"
+#include "emision/InputSpecs.hpp"
 
 #include <algorithm>
 #include <filesystem>

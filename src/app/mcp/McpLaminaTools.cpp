@@ -21,8 +21,8 @@
 
 #include "medios/Medios.hpp"
 
-#include "AppRuntime.hpp"
-#include "BroadcastEngine.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/BroadcastEngine.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CarruselViewModel.hpp"

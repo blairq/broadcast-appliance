@@ -13,7 +13,7 @@
 #include "dsp/Resampler.hpp"
 #endif
 
-#include "HoraMonotonica.hpp"
+#include "comun/HoraMonotonica.hpp"
 
 #include <QMetaObject>
 #include <QSet>

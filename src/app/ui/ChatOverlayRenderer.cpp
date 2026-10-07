@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-#include "ChatOverlaySource.hpp"
+#include "emision/ChatOverlaySource.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FacebookViewModel.hpp"

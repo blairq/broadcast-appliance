@@ -66,7 +66,7 @@ asistente la guía y automatiza el resto:
 
 1. `accounts_status` dice qué falta en cada plataforma y el paso siguiente.
 2. `account_setup_guide` trae los pasos (los mismos que muestra cada pestaña:
-   una sola fuente, `src/app/AccountGuides.cpp`) y los **valores exactos** a
+   una sola fuente, `src/app/net/AccountGuides.cpp`) y los **valores exactos** a
    pegar, como la URI de redirección de Facebook de esta instalación.
    `account_open` abre la página de cada paso.
 3. La credencial **nunca pasa por el chat** (que viaja al proveedor de IA):

@@ -3,7 +3,7 @@
 // ============================================================================
 
 #include "ui/SystemViewModel.hpp"
-#include "InicioConElSistema.hpp"
+#include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
 
 #include <QJsonArray>

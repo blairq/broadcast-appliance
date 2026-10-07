@@ -31,7 +31,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 

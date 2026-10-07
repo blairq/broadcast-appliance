@@ -2,7 +2,7 @@
 
 #include "agent/FlujosTexto.hpp"
 
-#include "FuentesApp.hpp"
+#include "emision/FuentesApp.hpp"
 
 #include <QDir>
 #include <QFile>

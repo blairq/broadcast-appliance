@@ -9,8 +9,8 @@
 #include <QFileInfo>
 #include <QUrl>
 
-#include "AppRuntime.hpp"
-#include "BroadcastEngine.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/BroadcastEngine.hpp"
 #include "carrusel/Carrusel.hpp"
 #include "carrusel/CarruselStore.hpp"
 #include "carrusel/Conversion.hpp"

@@ -12,7 +12,7 @@
 #include <QJsonObject>
 #include <QUrl>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 

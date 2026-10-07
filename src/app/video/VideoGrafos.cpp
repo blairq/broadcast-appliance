@@ -9,13 +9,13 @@
 
 #include "video/Sincronia.hpp"
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
-#include "BroadcastEngine.hpp"
-#include "InputSpecs.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/InputSpecs.hpp"
 
-#include "FuentesApp.hpp"
-#include "HoraMonotonica.hpp"
+#include "emision/FuentesApp.hpp"
+#include "comun/HoraMonotonica.hpp"
 #include "Motor.hpp"
 
 #include <QCoreApplication>

@@ -9,9 +9,9 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 
-#include "AccountGuides.hpp"
-#include "AppRuntime.hpp"
-#include "ChatOverlaySource.hpp"
+#include "net/AccountGuides.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/ChatOverlaySource.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"

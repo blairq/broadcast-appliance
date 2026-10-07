@@ -18,9 +18,9 @@
 #include <QJsonObject>
 #include <QTimeZone>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
-#include "BroadcastEngine.hpp"
+#include "emision/BroadcastEngine.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"

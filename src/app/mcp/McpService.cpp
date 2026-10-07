@@ -36,9 +36,9 @@
 
 #include <fstream>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
-#include "InputSpecs.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
+#include "emision/InputSpecs.hpp"
 #include "mcp/McpBotoneraTools.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"

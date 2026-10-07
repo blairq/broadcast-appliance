@@ -16,7 +16,7 @@
 #include "ui/Seguidor.hpp"
 #include "ui/StudioViewModel.hpp"
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 
 #include <QFile>
 #include <QJsonArray>

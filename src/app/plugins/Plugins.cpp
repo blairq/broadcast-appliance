@@ -4,7 +4,7 @@
 #include "control/BusEventos.hpp"
 #include "plugins/Hijo.hpp"
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "net/Credentials.hpp"
 #include "platform/Paths.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -21,7 +21,7 @@
 #include <QProcessEnvironment>
 #include <QUrl>
 
-#include "FuentesApp.hpp"
+#include "emision/FuentesApp.hpp"
 #include "diag/Registro.hpp"
 
 #if defined(BA_HAVE_GST)

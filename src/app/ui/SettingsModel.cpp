@@ -6,7 +6,7 @@
 
 #include <QVariantMap>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 
 namespace ba::app {
 

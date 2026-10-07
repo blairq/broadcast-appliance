@@ -16,7 +16,7 @@
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
 
-#include "FuentesApp.hpp"
+#include "emision/FuentesApp.hpp"
 
 namespace ba::app::audio {
 

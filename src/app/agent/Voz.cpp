@@ -22,7 +22,7 @@
 
 #include "agent/ArgumentosLocales.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"

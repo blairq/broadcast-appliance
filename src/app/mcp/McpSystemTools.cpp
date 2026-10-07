@@ -22,9 +22,9 @@
 #include <map>
 #include <thread>
 
-#include "AppRuntime.hpp"
-#include "InputSpecs.hpp"
-#include "InicioConElSistema.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
+#include "arranque/InicioConElSistema.hpp"
 #include "video/ElementosGst.hpp"
 #include "audio/EntradasAudio.hpp"
 #include "video/Camaras.hpp"

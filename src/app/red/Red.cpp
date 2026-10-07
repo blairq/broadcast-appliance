@@ -11,8 +11,8 @@
 #include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
 
-#include "BroadcastEngine.hpp"
-#include "FuentesApp.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/FuentesApp.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>

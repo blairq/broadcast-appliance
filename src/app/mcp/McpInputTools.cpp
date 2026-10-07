@@ -14,10 +14,10 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
-#include "InputSpecs.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
 #if defined(BA_HAVE_NDI)
-#include "NdiSource.hpp"
+#include "emision/NdiSource.hpp"
 #endif
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"

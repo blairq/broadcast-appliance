@@ -7,7 +7,7 @@
 
 #include "audio/GrabadorWav.hpp"
 #include "audio/GstRack.hpp"
-#include "InputSpecs.hpp"
+#include "emision/InputSpecs.hpp"
 
 #include <mutex>
 
@@ -22,9 +22,9 @@
 
 #include <atomic>
 
-#include "BroadcastEngine.hpp"
-#include "FuentesApp.hpp"
-#include "HoraMonotonica.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/FuentesApp.hpp"
+#include "comun/HoraMonotonica.hpp"
 #include "Motor.hpp"
 #include "audio/AnilloAudio.hpp"
 

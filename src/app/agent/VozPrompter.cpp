@@ -9,13 +9,13 @@
 #include <QJsonObject>
 
 #include <nlohmann/json.hpp>
-#include "HoraMonotonica.hpp"
+#include "comun/HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 #include "agent/Voz.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"

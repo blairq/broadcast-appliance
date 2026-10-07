@@ -29,7 +29,7 @@
 #include "agent/Despachador.hpp"
 #include "agent/ModeloPropio.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/Credentials.hpp"

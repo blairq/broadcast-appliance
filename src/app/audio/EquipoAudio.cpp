@@ -5,7 +5,7 @@
 #include "audio/AnilloAudio.hpp"
 #include "audio/GstVoz.hpp"
 
-#include "FuentesApp.hpp"
+#include "emision/FuentesApp.hpp"
 
 #include <QAudioDevice>
 #include <QAudioFormat>
@@ -17,7 +17,7 @@
 #if defined(__APPLE__)
 #include <CoreAudio/CoreAudio.h>
 #endif
-#include "HoraMonotonica.hpp"
+#include "comun/HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cstdio>

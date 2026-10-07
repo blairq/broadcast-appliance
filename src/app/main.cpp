@@ -15,10 +15,10 @@
 // ============================================================================
 
 #include "diag/DiarioDeArranque.hpp"
-#include "OperatorEngine.hpp"
+#include "emision/OperatorEngine.hpp"
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
-#include "Registrar.hpp"
+#include "arranque/Registrar.hpp"
 #include "security/CredentialStore.hpp"
 
 #include <algorithm>
@@ -39,11 +39,11 @@
 #endif
 
 #if BA_HAVE_MOTOR
-#include "EngineSelfTest.hpp"
-#include "OperateMode.hpp"
+#include "emision/EngineSelfTest.hpp"
+#include "arranque/OperateMode.hpp"
 #endif
 #if BA_APP_HAVE_GUI
-#include "GuiMode.hpp"
+#include "arranque/GuiMode.hpp"
 #endif
 
 namespace {

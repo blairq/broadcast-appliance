@@ -8,7 +8,7 @@
 
 #include <QFileInfo>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/FacebookViewModel.hpp"

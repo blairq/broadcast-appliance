@@ -11,9 +11,9 @@
 #include <QIODevice>
 #include <QMediaDevices>
 
-#include "BroadcastEngine.hpp"
-#include "FuentesApp.hpp"
-#include "HoraMonotonica.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/FuentesApp.hpp"
+#include "comun/HoraMonotonica.hpp"
 #include "Motor.hpp"
 #include "audio/GstVoz.hpp"
 

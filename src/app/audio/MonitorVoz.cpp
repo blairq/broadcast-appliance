@@ -4,8 +4,8 @@
 #include "audio/MonitorVoz.hpp"
 #include "audio/GstVoz.hpp"
 
-#include "FuentesApp.hpp"
-#include "HoraMonotonica.hpp"
+#include "emision/FuentesApp.hpp"
+#include "comun/HoraMonotonica.hpp"
 
 #include <QCoreApplication>
 #include <QMetaObject>

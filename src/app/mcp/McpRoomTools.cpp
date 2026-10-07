@@ -19,7 +19,7 @@
 #include <memory>
 #include <set>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/ConferenceClient.hpp"

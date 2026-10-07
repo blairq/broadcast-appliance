@@ -19,7 +19,7 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"

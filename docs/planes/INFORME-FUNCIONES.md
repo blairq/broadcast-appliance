@@ -162,7 +162,7 @@ Todo lo de tiempo de ejecución viaja en el bundle (Qt, libobs, GStreamer, Pytho
 
 **MCP.** `scene_list`, `scene_create`, `scene_define`, `scene_copy`, `scene_delete`, `scene_rename`, `scene_protect`, `scene_folder`, `scene_move`, `scene_export`, `scene_preview`, `scene_take`, `scene_switch`, `transition_set`; fuentes: `source_list`, `source_add`, `source_remove`, `source_update`, `source_properties`, `source_set_property`, `source_types`, `guest_source_add`; estado general: `status`.
 
-**Archivos.** `src/app/BroadcastEngine.cpp`, `src/app/BroadcastEngineScenes.cpp`, `src/app/ui/StudioViewModel.cpp` (~884-946), `src/app/ui/PropertiesModel.cpp`, `src/app/qml/pages/ScenesPage.qml`, `src/app/qml/cards/ScenesContent.qml`, `src/app/qml/cards/DireccionContent.qml`.
+**Archivos.** `src/app/emision/BroadcastEngine.cpp`, `src/app/emision/BroadcastEngineScenes.cpp`, `src/app/ui/StudioViewModel.cpp` (~884-946), `src/app/ui/PropertiesModel.cpp`, `src/app/qml/pages/ScenesPage.qml`, `src/app/qml/cards/ScenesContent.qml`, `src/app/qml/cards/DireccionContent.qml`.
 
 **Limitaciones.**
 - No hay stingers, luma wipes, T-bar ni transición elegida para un take puntual.
@@ -189,7 +189,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
 
 **MCP.** `stream_start`, `stream_stop`, `status`; por plataforma, `youtube_live_start`, `twitch_live_start` y `facebook_live_create`.
 
-**Archivos.** `src/app/BroadcastEngine.cpp` (695-755 encoders, 852-901 stream), `src/app/AppSettings.*`, `src/app/ui/SettingsModel.cpp`, `src/app/qml/cards/OutputsContent.qml`, `src/app/qml/Main.qml:487-496`.
+**Archivos.** `src/app/emision/BroadcastEngine.cpp` (695-755 encoders, 852-901 stream), `src/app/arranque/AppSettings.*`, `src/app/ui/SettingsModel.cpp`, `src/app/qml/cards/OutputsContent.qml`, `src/app/qml/Main.qml:487-496`.
 
 **Limitaciones.**
 - Sin SRT/RIST/WHIP de salida, sin multidestino y sin salida NDI/SDI/cámara virtual (los plugins de salida de OBS se excluyen en `cmake/BaLibObs.cmake:137`).
@@ -410,7 +410,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **MCP.** `video_devices`, `video_input_add`, `network_input_add`, `ndi_sources`, `ndi_input_add`, `input_status`, `entrada_borrar`, `audio_devices`, `audio_input_add`.
 
-**Archivos.** `src/app/InputSpecs.*`, `src/app/ui/InputsViewModel.*`, `src/app/NdiSource.*`.
+**Archivos.** `src/app/emision/InputSpecs.*`, `src/app/ui/InputsViewModel.*`, `src/app/emision/NdiSource.*`.
 
 **Limitaciones.**
 - No hay salida NDI, ni SDI/Decklink/AJA (de entrada ni de salida), ni ST 2110.
@@ -689,7 +689,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 - Facebook: 13 `facebook_*`.
 - Cuentas: `accounts_status`, `account_setup_guide`, `account_open`, `account_credentials_request`, `account_check`.
 
-**Archivos.** `src/app/youtube/*`, `twitch/*`, `facebook/*`, `src/app/AccountGuides.*`, `src/app/net/HttpsClient.*`, `src/app/ChatOverlaySource.*`, `src/app/ui/ChatOverlayRenderer.*`.
+**Archivos.** `src/app/youtube/*`, `twitch/*`, `facebook/*`, `src/app/net/AccountGuides.*`, `src/app/net/HttpsClient.*`, `src/app/emision/ChatOverlaySource.*`, `src/app/ui/ChatOverlayRenderer.*`.
 
 **Limitaciones.**
 - Un solo destino a la vez (ver 4.2).
@@ -818,7 +818,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 
 **MCP.** `settings_list`, `settings_set`, `app_save`, `system_info`, `system_update`, `app_quit`.
 
-**Archivos.** `src/launcher/*`, `src/app/AppSettings.*`, `src/app/ui/SettingsModel.*`, `src/app/OperateMode.cpp` (482-512 retoma), `src/app/ui/SystemViewModel.*`.
+**Archivos.** `src/launcher/*`, `src/app/arranque/AppSettings.*`, `src/app/ui/SettingsModel.*`, `src/app/arranque/OperateMode.cpp` (482-512 retoma), `src/app/ui/SystemViewModel.*`.
 
 **Limitaciones.**
 - **El latido se emite desde el hilo de la interfaz** (`AppRuntime::tick`). Si la interfaz se traba más de 5 s, el supervisor mata a A y **corta la emisión**, aunque libobs siga codificando bien.

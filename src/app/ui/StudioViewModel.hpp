@@ -26,7 +26,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include "UsoCpu.hpp"
+#include "comun/UsoCpu.hpp"
 
 #include <deque>
 #include <map>

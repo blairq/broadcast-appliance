@@ -48,7 +48,7 @@
 #include <QFile>
 #include <QImage>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
 #include "ui/CalidadCara.hpp"

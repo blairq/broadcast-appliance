@@ -15,13 +15,13 @@
 
 #include <nlohmann/json.hpp>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "audio/EntradasAudio.hpp"
 #include "video/Camaras.hpp"
-#include "InputSpecs.hpp"
+#include "emision/InputSpecs.hpp"
 #include "audio/EntradasAudio.hpp"
 #if defined(BA_HAVE_NDI)
-#include "NdiSource.hpp"
+#include "emision/NdiSource.hpp"
 #endif
 #include "ui/StudioViewModel.hpp"
 

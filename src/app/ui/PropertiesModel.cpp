@@ -7,8 +7,8 @@
 #include <QColor>
 #include <QVariantMap>
 
-#include "AppRuntime.hpp"
-#include "FuentesApp.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/FuentesApp.hpp"
 
 #include <nlohmann/json.hpp>
 

@@ -13,7 +13,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"

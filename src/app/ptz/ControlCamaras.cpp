@@ -2,9 +2,9 @@
 
 #include "ptz/ControlCamaras.hpp"
 
-#include "AppRuntime.hpp"
-#include "BroadcastEngine.hpp"
-#include "InputSpecs.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/InputSpecs.hpp"
 #include "net/Credentials.hpp"
 #include "ptz/OnvifBusqueda.hpp"
 #include "ptz/Posiciones.hpp"
@@ -15,7 +15,7 @@
 #include "ptz/PtzPlugin.hpp"
 #include "ptz/PtzVisca.hpp"
 
-#include "FuentesApp.hpp"
+#include "emision/FuentesApp.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>

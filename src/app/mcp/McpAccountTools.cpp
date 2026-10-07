@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "AccountGuides.hpp"
+#include "net/AccountGuides.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/FacebookViewModel.hpp"

@@ -18,8 +18,8 @@
 #include <filesystem>
 #include <system_error>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
 #include "ui/ConferenceClient.hpp"
 
 namespace ba::app {

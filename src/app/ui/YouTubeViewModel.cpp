@@ -17,8 +17,8 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
 #include "net/HttpsClient.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
 

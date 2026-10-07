@@ -4,7 +4,7 @@
 
 #include "audio/EntradasAudio.hpp"
 
-#include "InputSpecs.hpp"
+#include "emision/InputSpecs.hpp"
 
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>

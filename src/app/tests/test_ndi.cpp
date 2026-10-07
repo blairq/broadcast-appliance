@@ -10,7 +10,7 @@
 //      cierra limpia (sin colgarse ni romper).
 // ============================================================================
 
-#include "NdiSource.hpp"
+#include "emision/NdiSource.hpp"
 #include "video/CatalogoGst.hpp"
 
 #include <gst/gst.h>

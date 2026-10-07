@@ -735,7 +735,12 @@ tarballs ya verificados de `extern/.downloads`.
 │   │   ├── hw/               #   identidad de dispositivos de audio
 │   │   └── tests/            #   unit tests
 │   ├── launcher/             # BroadcastAppliance — supervisor + RecoveryUi (Win32, /MT)
-│   ├── app/                  # ba-app — Proceso A (Qt + motor)
+│   ├── app/                  # ba-app — Proceso A (Qt + motor); main.cpp en la raíz
+│   │   ├── arranque/         #   modos (GUI, operar, registrar), ajustes, inicio con el sistema
+│   │   ├── emision/          #   BroadcastEngine sobre el motor, fuentes, NDI, autotest
+│   │   ├── comun/            #   utilidades chicas (hora monotónica, uso de CPU, señales JSON)
+│   │   ├── ui/ qml/          #   view-models y QML
+│   │   └── …                 #   una carpeta por función: audio, video, mcp, evento, ptz…
 │   ├── motor/                # el motor de emisión sobre GStreamer
 │   ├── gst-plugins/          # plugins de GStreamer propios
 │   └── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
@@ -744,6 +749,10 @@ tarballs ya verificados de `extern/.downloads`.
 ├── packaging/                # flatpak (manifiesto) + .desktop
 ├── docs/                     # documentación (mapa en docs/README.md)
 ├── tests/                    # suite Python de invariantes del repo (pytest)
+├── tools/                    # deps/, ci/, entrenar/, docs/, capturas/, generar/, test/ + deploy y publicar
+├── datos/                    # datos versionados (catálogos, semillas, OUI)
+├── cmake/                    # módulos de CMake (bundle de macOS, Python, dependencias)
+├── third_party/              # código de terceros copiado al repo
 └── .github/workflows/ci.yml  # CI/CD: lint + linux + windows (clang-cl + Wine) + sanitizers + release
 ```
 

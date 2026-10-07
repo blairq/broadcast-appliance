@@ -271,7 +271,7 @@ Tamaños: **S** ≈ días, **M** ≈ 1–2 semanas, **L** ≈ 3+ semanas (una pe
 3. `make deps-obs-macos`: libobs 31 desde fuente para arm64 con los
    `obs-deps` prebuilt de macOS (Xcode requerido).
 4. Nombres de memoria compartida hasheados (3.4).
-5. Arreglar `make lint` (falla en `src/app/OperatorEngine.hpp`) y sacar
+5. Arreglar `make lint` (falla en `src/app/emision/OperatorEngine.hpp`) y sacar
    `include/`/`lib/` de mbedTLS del bundle.
 
 ### Fase 2 — IPC real entre procesos (M)

@@ -20,7 +20,7 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "medios/Playlist.hpp"
 #include "mcp/McpToolsCommon.hpp"

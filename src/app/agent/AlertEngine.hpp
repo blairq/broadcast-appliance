@@ -40,7 +40,7 @@
 #include <QString>
 #include <QTimer>
 
-#include "JsonSignals.hpp"
+#include "comun/JsonSignals.hpp"
 
 #include <deque>
 #include <functional>

@@ -20,7 +20,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"

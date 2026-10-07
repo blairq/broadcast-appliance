@@ -11,7 +11,7 @@
 #include <QJsonObject>
 #include <QTimer>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"

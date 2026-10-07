@@ -2,7 +2,7 @@
 
 #include "agent/Subtitulos.hpp"
 
-#include "FuentesApp.hpp"
+#include "emision/FuentesApp.hpp"
 #include "agent/FlujosTexto.hpp"
 
 #include <QColor>
