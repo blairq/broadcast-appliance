@@ -20,17 +20,29 @@ namespace ba::motor {
 
 using json = nlohmann::json;
 
-std::string capsColorDelLienzo(const Lienzo& l) {
-    const bool diez = l.diezBits || l.color == "bt2100-pq" || l.color == "bt2100-hlg";
+std::string colorimetriaDelLienzo(const Lienzo& l) {
     GstVideoColorimetry c = {};
     gst_video_colorimetry_from_string(&c, l.color.c_str());
     c.range = l.rangoCompleto ? GST_VIDEO_COLOR_RANGE_0_255 : GST_VIDEO_COLOR_RANGE_16_235;
     gchar* col = gst_video_colorimetry_to_string(&c);
-    std::string out = std::string("video/x-raw,format=") + (diez ? "P010_10LE" : "NV12") +
-                      ",colorimetry=" + (col != nullptr ? col : l.color);
+    std::string out = col != nullptr ? col : l.color;
     g_free(col);
     return out;
 }
+
+std::string capsColorDelLienzo(const Lienzo& l) {
+    const bool diez = l.diezBits || l.color == "bt2100-pq" || l.color == "bt2100-hlg";
+    return std::string("video/x-raw,format=") + (diez ? "P010_10LE" : "NV12") + ",colorimetry=" + colorimetriaDelLienzo(l);
+}
+
+namespace {
+std::string& colorSalida() {
+    static std::string c = "bt709";
+    return c;
+}
+} // namespace
+
+void fijarColorSalida(const Lienzo& l) { colorSalida() = colorimetriaDelLienzo(l); }
 
 std::string comoTexto(const json& v) {
     if (v.is_string()) return v.get<std::string>();
@@ -830,9 +842,15 @@ bool aceptaMemoria(const std::string& fabrica, const std::string& memoria) {
 }
 
 std::string aCodificador(const std::string& codificador) {
+    // Con la colorimetría del lienzo dicha: el que convierte de RGBA a NV12 usa
+    // esa matriz y el codificador la escribe en el archivo (ver fijarColorSalida).
+    const std::string col = ",colorimetry=" + colorSalida();
     if (gpu() == Gpu::D3D12 && aceptaMemoria(codificador, "D3D12Memory"))
-        return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=NV12";
-    return aSistema("NV12");
+        return "d3d12upload ! d3d12convert ! video/x-raw(memory:D3D12Memory),format=NV12" + col;
+    if (!gpuVideo()) return "videoconvert ! video/x-raw,format=NV12" + col;
+    const std::string mem = gpu() == Gpu::D3D12 ? "D3D12Memory" : "GLMemory";
+    return subirGpu() + " ! video/x-raw(memory:" + mem + "),format=NV12" + col + " ! " + bajarGpu() +
+           " ! video/x-raw,format=NV12" + col;
 }
 
 std::string aSistemaEscalado(const std::string& formato, int ancho, int alto) {

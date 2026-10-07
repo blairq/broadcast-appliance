@@ -35,6 +35,12 @@ struct Lienzo {
 
 /// Las caps de color del lienzo («video/x-raw,format=NV12,colorimetry=…»).
 std::string capsColorDelLienzo(const Lienzo& l);
+/// La colorimetría del lienzo («bt709», «1:3:5:1»…).
+std::string colorimetriaDelLienzo(const Lienzo& l);
+/// La que se le pide a lo que entra al codificador (la del lienzo; la anota el
+/// motor al crearse). Sin esto, pasar de RGBA a NV12 elige solo: en D3D12 salía
+/// matriz BT.601 con transferencia sRGB en una salida HD («2:4:7:1»).
+void fijarColorSalida(const Lienzo& l);
 
 /// Un filtro de la cadena: un elemento de GStreamer con sus propiedades (como texto).
 struct Filtro {

@@ -20,6 +20,7 @@ constexpr std::int64_t kDirectoNs = 40 * GST_MSECOND; ///< lo que espera el bus 
 }
 
 Motor::Motor(Config c) : cfg_(std::move(c)) {
+    fijarColorSalida(cfg_.lienzo);
     reloj_ = std::make_unique<Reloj>(cfg_.reloj, cfg_.relojServidor, cfg_.relojPuerto, cfg_.relojDominio);
     reloj_->ponerTope(cfg_.topeMs);
 }
