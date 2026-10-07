@@ -304,6 +304,11 @@ class BroadcastEngine {
     bool renameSource(const std::string& from, const std::string& to);
     /// Tipo de la fuente ("" si no existe).
     std::string sourceTypeId(const std::string& name) const;
+    /// TRAER (la tarjeta del grafo): lo que se ve de la entrada `entrada` en las
+    /// escenas viene de otra parte: un compositor (`compositor`, el nombre de su
+    /// fuente) o lo que publica otra entrada (`productor`, el de su basalida o
+    /// «<fuente>:video»). Ambos vacíos = lo suyo. Rearma las escenas que la usan.
+    void setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor);
     /// ¿Existe la fuente?
     bool sourceExists(const std::string& name) const { return sources_.count(name) > 0; }
     /// Lo que mide el motor de la entrada (tamaño, latencia, filtros, error...); null si no existe.
@@ -568,6 +573,8 @@ class BroadcastEngine {
     const EscenaApp* escena(const std::string& nombre) const;
     /// La escena tal como la entiende el motor (capas en píxeles).
     nlohmann::json escenaMotor(const EscenaApp& e) const;
+    /// entrada -> {compositor, productor} (ver setTraer).
+    std::map<std::string, std::pair<std::string, std::string>> traer_;
     /// Le manda la escena al motor (si está al aire o armada, cambia andando).
     void publicarEscena(const EscenaApp& e);
     /// Crea la fuente en el motor (si no existe). false + lastError si no se pudo.

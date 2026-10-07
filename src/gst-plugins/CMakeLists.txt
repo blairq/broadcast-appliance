@@ -28,7 +28,7 @@ function(ba_plugin_gst target)
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp)
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp)
 ba_plugin_gst(gstbafiltros)
 
 # El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).

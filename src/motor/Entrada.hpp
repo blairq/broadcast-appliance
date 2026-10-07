@@ -166,6 +166,12 @@ class Entrada {
     // Lo pedido
     std::string uri_, descripcion_, descripcionAudio_, camara_, camaraModo_, microfono_, rack_;
     std::string filtrosJson_, superresMotor_, superresModelo_;
+    /// La tarjeta Normalizar (una fuente que declara mal su color o su entrelazado):
+    /// `colorReal_` es la colorimetría de verdad ("R:M:T:P", la de GstVideoColorimetry),
+    /// que se impone en las caps ANTES de convertir o subir a la GPU; `desentrelazar_`
+    /// "auto" (lo que diga la señal) | "no" | un método de `deinterlace` (yadif, linear…);
+    /// `campo_` "auto" | "tff" | "bff".
+    std::string colorReal_, desentrelazar_ = "auto", campo_ = "auto";
     std::vector<Filtro> filtrosV_, filtrosA_;
     bool alfa_ = false, normalizar_ = true, conAudio_ = true, estudio_ = true, ntpSync_ = true, superres_ = false;
     std::int64_t latenciaMs_ = 0, desfaseMs_ = 0, desfaseAudioMs_ = 0, desfaseVideoMs_ = 0;

@@ -362,6 +362,14 @@ void Entrada::leer(const json& a) {
     microfono_ = a.value("microfono", std::string());
     rack_ = a.value("rack", std::string());
     normalizar_ = a.value("normalizar", true);
+    colorReal_ = a.value("color_real", std::string());
+    desentrelazar_ = a.value("desentrelazar", std::string("auto"));
+    campo_ = a.value("campo", std::string("auto"));
+    // Lo que va a una descripción de gst-launch: solo lo que se espera.
+    if (colorReal_.find_first_not_of("0123456789:") != std::string::npos) colorReal_.clear();
+    static const char* kMetodos[] = {"auto", "no", "tomsmocomp", "greedyh", "greedyl", "vfir", "linear", "scalerbob", "yadif"};
+    if (std::find(std::begin(kMetodos), std::end(kMetodos), desentrelazar_) == std::end(kMetodos)) desentrelazar_ = "auto";
+    if (campo_ != "tff" && campo_ != "bff") campo_ = "auto";
     conAudio_ = a.value("audio", true);
     estudio_ = a.value("estudio", true);
     ntpSync_ = a.value("ntp_sync", true);
@@ -471,6 +479,7 @@ void Entrada::actualizar(const json& ajustes) {
     // La firma de lo que obliga a rearmar (todo menos las propiedades vivas de los filtros).
     const std::string firma = uri_ + "|" + descripcion_ + "|" + descripcionAudio_ + "|" + camara_ + "|" +
                               camaraModo_ + "|" + microfono_ + "|" + rack_ + "|" + (normalizar_ ? "n" : "") +
+                              colorReal_ + "/" + desentrelazar_ + "/" + campo_ + "|" +
                               (conAudio_ ? "a" : "") + (medio_ ? "m" : "") + "|" + std::to_string(latenciaMs_) + "|" +
                               superresMotor_ + superresModelo_ + (superres_ ? "s" : "") + "|" +
                               firmaDe(filtrosV_, filtrosA_, alfa_);
@@ -569,8 +578,15 @@ void Entrada::armar() {
     const std::string fps = std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD);
     std::string capsVideo = "video/x-raw";
     std::string antes = "videoconvert ! ";
+    // El desentrelazador de CPU: lo que diga la señal, o el de la tarjeta Normalizar
+    // (fuerza: la fuente dice progresiva y no lo es).
+    const std::string desentrelazar =
+        desentrelazar_ == "no" ? std::string()
+        : desentrelazar_ == "auto"
+            ? std::string("deinterlace mode=auto ! ")
+            : "deinterlace mode=interlaced method=" + desentrelazar_ + (campo_ != "auto" ? " fields=all tff=" + campo_ : "") + " ! ";
     if (normalizar_) {
-        antes = "deinterlace mode=auto ! videorate skip-to-first=true ! videoconvertscale ! ";
+        antes = desentrelazar + "videorate skip-to-first=true ! videoconvertscale ! ";
         capsVideo = capsColorDelLienzo(lienzo_) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
     }
     // LOS FILTROS (las tarjetas del grafo). La superresolución vieja es uno más.
@@ -598,12 +614,12 @@ void Entrada::armar() {
         const bool placaPrimero = !filtrosV.front().memoria.empty();
         if (placaPrimero) {
             antes = cola + cadenaV + "videoconvert ! " +
-                    (normalizar_ ? "deinterlace mode=auto ! videorate skip-to-first=true ! videoconvertscale ! " : "");
+                    (normalizar_ ? desentrelazar + "videorate skip-to-first=true ! videoconvertscale ! " : "");
         } else {
             const std::string cadena =
                 std::string(normalizar_ ? "videoconvertscale ! video/x-raw,pixel-aspect-ratio=1/1 ! " : "") + cola +
                 cadenaV + "videoconvert ! ";
-            antes = normalizar_ ? "deinterlace mode=auto ! " + cadena + "videorate skip-to-first=true ! videoconvertscale ! " : cadena;
+            antes = normalizar_ ? desentrelazar + cadena + "videorate skip-to-first=true ! videoconvertscale ! " : cadena;
         }
     }
     if (alfa_) {
@@ -622,14 +638,24 @@ void Entrada::armar() {
         // desentrelaza en GL; a una progresiva no se le pone nada.
         const std::string textura = texturaGpu();
         const std::string gl = texturaGpu(normalizar_ && !estatica_ ? ",framerate=" + fps : std::string());
-        const char* desentrelazador = gpu() == Gpu::D3D12 ? "d3d12deinterlace" : "gldeinterlace method=greedyh";
-        const bool desentrelazar = normalizar_ && entrelazada_ && !estatica_ &&
+        // La tarjeta Normalizar puede forzarlo (una que dice progresiva y no es):
+        // en GL, greedyh para los adaptativos y vfir para los simples.
+        const bool simple = desentrelazar_ == "linear" || desentrelazar_ == "vfir" || desentrelazar_ == "scalerbob";
+        const std::string desentrelazador =
+            gpu() == Gpu::D3D12 ? "d3d12deinterlace" : std::string("gldeinterlace method=") + (simple ? "vfir" : "greedyh");
+        const bool forzado = desentrelazar_ != "auto" && desentrelazar_ != "no";
+        const bool desentrelazar = normalizar_ && (entrelazada_ || forzado) && desentrelazar_ != "no" && !estatica_ &&
                                    hayFabrica(gpu() == Gpu::D3D12 ? "d3d12deinterlace" : "gldeinterlace");
         antes = (estatica_ ? std::string() : subirGpu() + " ! " + textura + " ! ") +
-                (desentrelazar ? std::string(desentrelazador) + " ! " : "") + (cadenaV.empty() ? "" : cola + cadenaV) +
+                (desentrelazar ? desentrelazador + " ! " : "") + (cadenaV.empty() ? "" : cola + cadenaV) +
                 (normalizar_ && !estatica_ ? "videorate skip-to-first=true ! " : "");
         capsVideo = (cadenaV.empty() && estatica_ ? std::string() : subirGpu() + " ! ") + gl;
     }
+    // NORMALIZAR (la tarjeta): la colorimetría de verdad se impone en las caps
+    // ANTES de todo (convertir, subir a la GPU): el que convierte YUV→RGB lee de
+    // ahí qué matriz y qué rango usar. Sin copiar ni tocar píxeles.
+    if (!colorReal_.empty() && !estatica_)
+        antes = "capssetter join=true replace=false caps=\"video/x-raw,colorimetry=(string)" + colorReal_ + "\" ! " + antes;
     std::string cadenaA = cadenaDe(filtrosA_, "audioconvert", "ba_fa_", avisos_);
     rackFaltaDesde_ = 0;
     if (!rack_.empty()) {

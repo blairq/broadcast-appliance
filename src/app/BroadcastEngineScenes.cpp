@@ -71,7 +71,10 @@ constexpr const char* kTipoSalida = "ba_video_salida";
 json configDe(const std::string& tipo, const json& aj) {
     if (!aj.is_object()) return json::object();
     if (tipo == kTipoSalida)
-        return {{"capas", json::array({{{"fuente", aj.value("fuente", std::string())}, {"x", 0.0}, {"y", 0.0}, {"ancho", 1.0}, {"alto", 1.0}}})}};
+        // `productor`: si la Salida cuelga del medio de la cadena, lo que publica su basalida.
+        return {{"capas", json::array({{{"fuente", aj.value("fuente", std::string())},
+                                        {"productor", aj.value("productor", std::string())},
+                                        {"x", 0.0}, {"y", 0.0}, {"ancho", 1.0}, {"alto", 1.0}}})}};
     json config = aj.value("config", json());
     return config.is_string() ? json::parse(config.get<std::string>(), nullptr, false) : config;
 }
@@ -117,7 +120,7 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
         for (const auto& k : config.value("capas", json::array())) {
             const std::string f = k.value("fuente", std::string());
             if (f.empty() || sources_.count(f) == 0) continue;
-            capas.push_back({{"entrada", f},
+            json capa{{"entrada", f},
                              {"x", static_cast<int>(std::lround(k.value("x", 0.0) * W))},
                              {"y", static_cast<int>(std::lround(k.value("y", 0.0) * H))},
                              {"ancho", std::max(2, static_cast<int>(std::lround(k.value("ancho", 1.0) * W)))},
@@ -125,7 +128,9 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
                              {"alfa", k.value("opacidad", 1.0)},
                              {"orden", orden++},
                              {"visible", true},
-                             {"contener", k.value("ajuste", std::string("encajar")) != "llenar"}});
+                             {"contener", k.value("ajuste", std::string("encajar")) != "llenar"}};
+            if (!k.value("productor", std::string()).empty()) capa["productor"] = k["productor"];
+            capas.push_back(capa);
         }
     return {{"nombre", kPrefijoCompositor + nombre}, {"capas", capas}};
 }
@@ -147,6 +152,14 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
                {"visible", it.visible},
                {"contener", true}};
         if (comp) c["productor"] = fu->second.compProductor; // la composición del compositor
+        // Traer: lo que se ve de esta entrada viene de otra parte.
+        if (const auto t = traer_.find(it.fuente); !comp && t != traer_.end()) {
+            const auto co = sources_.find(t->second.first);
+            if (!t->second.first.empty() && co != sources_.end() && !co->second.compProductor.empty())
+                c["productor"] = co->second.compProductor;
+            else if (!t->second.second.empty())
+                c["productor"] = t->second.second;
+        }
         // El recorte va en píxeles de la fuente: hace falta su tamaño.
         if (it.recorte[0] + it.recorte[1] + it.recorte[2] + it.recorte[3] > 0) {
             const json sale = entradas.contains(it.fuente) ? entradas[it.fuente].value("sale", json::object()) : json::object();
@@ -160,6 +173,24 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
         capas.push_back(c);
     }
     return {{"nombre", e.nombre}, {"capas", capas}};
+}
+
+void BroadcastEngine::setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor) {
+    const auto antes = traer_.find(entrada);
+    if (compositor.empty() && productor.empty()) {
+        if (antes == traer_.end()) return;
+        traer_.erase(antes);
+    } else {
+        const std::pair<std::string, std::string> nuevo{compositor, productor};
+        if (antes != traer_.end() && antes->second == nuevo) return;
+        traer_[entrada] = nuevo;
+    }
+    for (const EscenaApp& e : scenes_)
+        for (const Item& it : e.items)
+            if (it.fuente == entrada) {
+                publicarEscena(e);
+                break;
+            }
 }
 
 void BroadcastEngine::publicarEscena(const EscenaApp& e) {
@@ -291,7 +322,7 @@ bool BroadcastEngine::ajustesMotor(const SourceSpec& spec, json& a) const {
     // rack de audio valen para cualquier tipo.
     const json s = json::parse(spec.settingsJson.empty() ? "{}" : spec.settingsJson, nullptr, false);
     if (s.is_object() && a.is_object())
-        for (const char* k : {"filtros", "filtros_audio", "rack", "desfase", "desfase_video"})
+        for (const char* k : {"filtros", "filtros_audio", "rack", "desfase", "desfase_video", "color_real", "desentrelazar", "campo"})
             if (s.contains(k) && !a.contains(k)) a[k] = s[k];
     return true;
 }

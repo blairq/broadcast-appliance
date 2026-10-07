@@ -393,6 +393,8 @@ class VideoGrafos : public QObject {
     /// (lo que queda es lo que el motor todavía no corre) y devuelve los filtros
     /// {"video": [...], "alfa"}. Anota cuáles corren en la entrada.
     nlohmann::json pasarAEntrada(const std::string& entrada, nlohmann::json& para);
+    /// El productor de una Salida (vacío = el final de la cadena de su entrada).
+    std::string productorDe(const std::string& salida) const;
     /// Lo que informa la cadena de GStreamer de la entrada sobre sus filtros.
     nlohmann::json filtrosDeEntrada(const std::string& entrada) const;
     /// Lo que dura un cuadro del lienzo (ms).
@@ -428,6 +430,9 @@ class VideoGrafos : public QObject {
     std::shared_ptr<const CatalogoGst> gst_ = std::make_shared<CatalogoGst>();
     std::map<std::string, int> compAudio_; ///< entrada -> ms de audio agregados por las tarjetas
     std::map<std::string, std::set<std::string>> enEntrada_; ///< entrada -> tarjetas que corren en GStreamer
+    /// Salida (su nombre) -> el productor que lee su escena: "" = el final de la
+    /// cadena de su entrada; si cuelga del medio, el de su basalida.
+    std::map<std::string, std::string> productorSalida_;
     std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
     std::string legalizar_ = "no";
     std::set<std::string> ptzHabilitado_; ///< entradas con el PTZ digital prendido (Cámaras PTZ)

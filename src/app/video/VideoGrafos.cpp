@@ -890,7 +890,7 @@ std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string&
     spec.id = comp ? kTipoCompositor : kTipoSalida;
     spec.name = nombre;
     spec.settingsJson = comp ? json{{"nodo", n->id}, {"config", grafo_.configCompositor(n->id).dump()}}.dump()
-                             : json{{"fuente", n->grupo}}.dump();
+                             : json{{"fuente", n->grupo}, {"productor", productorDe(nombre)}}.dump();
     const std::string sc = escena.empty() ? rt_.engine().currentScene() : escena;
     if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? "no se pudo agregar" : rt_.lastError();
     rt_.save();
@@ -1004,6 +1004,24 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         if (actual.is_object() && actual.value("desfase_video", 0L) != retardo)
             rt_.updateSourceSettings(entrada, json{{"desfase_video", retardo}}.dump());
     }
+    // La tarjeta Normalizar: ajustes de la entrada (sin ella, lo de fábrica).
+    {
+        const json n = filtros.value("normalizar", json::object());
+        filtros.erase("normalizar");
+        const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
+        json cambia = json::object();
+        for (const char* k : {"color_real", "desentrelazar", "campo"}) {
+            const std::string fabrica = std::string(k) == "color_real" ? "" : "auto";
+            const std::string quiero = n.value(k, fabrica);
+            const std::string hay = actual.is_object() ? actual.value(k, fabrica) : fabrica;
+            if (quiero != hay) cambia[k] = quiero;
+        }
+        if (!cambia.empty()) {
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "video-grafo", 0,
+                                       "«" + entrada + "»: normalizar: " + cambia.dump());
+            rt_.updateSourceSettings(entrada, cambia.dump());
+        }
+    }
     filtros["video"] = video;
     const std::string js = video.empty() ? std::string() : filtros.dump();
     const auto ya = filtrosAplicados_.find(entrada);
@@ -1018,11 +1036,36 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         }
         filtrosAplicados_[entrada] = js;
     }
+    // Las Salidas de esta entrada: que su escena lea el punto de la cadena del que cuelgan.
+    for (const auto& n : grafo_.nodos()) {
+        if (n.tipo != "salida" || n.grupo != entrada) continue;
+        const std::string nombre = n.params.value("nombre", std::string());
+        if (nombre.empty() || rt_.engine().sourceTypeId(nombre) != kTipoSalida) continue;
+        const json actual = json::parse(rt_.engine().sourceSettingsJson(nombre), nullptr, false);
+        const std::string prod = productorDe(nombre);
+        if (!actual.is_object() || actual.value("productor", std::string()) != prod || actual.value("fuente", std::string()) != entrada)
+            rt_.updateSourceSettings(nombre, json{{"fuente", entrada}, {"productor", prod}}.dump());
+    }
+    // TRAER: lo que llega a la escena de esta entrada desde afuera (un compositor,
+    // o la toma de otra entrada, que esa entrada publica con un basalida).
+    std::string traerComp, traerProd;
+    for (const auto& n : para["nodos"]) {
+        if (n.value("tipo", std::string()) != "traer") continue;
+        const json p = n.value("params", json::object());
+        if (p.contains("compositor")) {
+            if (const GrafoVideo::Nodo* c = grafo_.nodo(p.value("compositor", std::string())))
+                traerComp = c->params.value("nombre", std::string());
+        } else if (p.contains("toma")) {
+            traerProd = p.value("fuente", std::string()) + ":toma:" + p.value("toma", std::string());
+        }
+    }
+    rt_.engine().setTraer(entrada, traerComp, traerProd);
     // Lo que queda del grafo (salvo «in -> out») todavía no corre en el motor.
     std::map<std::string, std::string>& sin = sinCorrer_[entrada];
     sin.clear();
     for (const auto& n : para["nodos"]) {
         const std::string tipo = n.value("tipo", std::string());
+        if (tipo == "traer" && (!traerComp.empty() || !traerProd.empty())) continue;
         // Una toma (lo que va a un compositor): el compositor del motor usa la salida de la entrada.
         if (tipo == "in" || tipo == "out" || tipo == "toma") continue;
         sin[n.value("id", std::string())] =
@@ -1050,11 +1093,66 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
     json rostros; // la tarjeta Rostros (va al principio de la cadena)
     bool alfa = false;
     double retardoMs = 0;
+    // La tarjeta Normalizar no es un elemento: le dice a la entrada la colorimetría
+    // de verdad y cómo desentrelazar (ver motor/Entrada, capssetter y deinterlace).
+    json normalizar{{"color_real", ""}, {"desentrelazar", "auto"}, {"campo", "auto"}};
     std::set<std::string>& movidas = enEntrada_[entrada];
     movidas.clear();
     auto& nodos = para["nodos"];
     auto& cables = para["cables"];
     while (true) {
+        // UNA SALIDA colgada de este punto (la tarjeta Salida, para publicar la
+        // imagen de acá con nombre): si la cadena sigue, un basalida en este
+        // lugar; si es el final, la escena de la Salida lee la salida de la entrada.
+        {
+            std::vector<size_t> aSalida, otros;
+            for (size_t i = 0; i < cables.size(); ++i) {
+                if (cables[i].value("desde", "") != "in") continue;
+                const std::string h = cables[i].value("hacia", "");
+                const auto n = std::find_if(nodos.begin(), nodos.end(), [&](const json& x) { return x.value("id", "") == h; });
+                const bool publica = n != nodos.end() && (n->value("tipo", "") == "salida" ||
+                                                          (n->value("tipo", "") == "toma" &&
+                                                           n->value("params", json::object()).value("escena", false)));
+                (publica ? aSalida : otros).push_back(i);
+            }
+            if (!aSalida.empty()) {
+                bool sigue = false;
+                for (size_t i : otros) {
+                    const std::string h = cables[i].value("hacia", "");
+                    const auto n = std::find_if(nodos.begin(), nodos.end(), [&](const json& x) { return x.value("id", "") == h; });
+                    sigue = sigue || (n != nodos.end() && n->value("tipo", "") != "out" && n->value("tipo", "") != "escena");
+                }
+                std::set<std::string> quitar;
+                for (size_t i : aSalida) {
+                    const std::string sid = cables[i].value("hacia", "");
+                    const auto n = std::find_if(nodos.begin(), nodos.end(), [&](const json& x) { return x.value("id", "") == sid; });
+                    const std::string nombre = n->value("params", json::object()).value("nombre", std::string());
+                    if (n->value("tipo", "") == "toma") {
+                        // Una toma que va a la escena de otra entrada (traer): siempre
+                        // se publica acá, con un nombre que la otra entrada sabe armar.
+                        video.push_back(json{{"id", sid}, {"elemento", "basalida"},
+                                             {"propiedades", {{"productor", entrada + ":toma:" + nombre}}}});
+                        quitar.insert(sid);
+                        continue;
+                    }
+                    if (sigue && !nombre.empty()) {
+                        const std::string prod = entrada + ":salida:" + nombre;
+                        video.push_back(json{{"id", sid}, {"elemento", "basalida"}, {"propiedades", {{"productor", prod}}}});
+                        productorSalida_[nombre] = prod;
+                        movidas.insert(sid);
+                    } else if (!nombre.empty()) {
+                        productorSalida_[nombre] = "";
+                    }
+                    quitar.insert(sid);
+                }
+                cables.erase(std::remove_if(cables.begin(), cables.end(),
+                                            [&](const json& c) { return quitar.count(c.value("hacia", "")) > 0; }),
+                             cables.end());
+                nodos.erase(std::remove_if(nodos.begin(), nodos.end(),
+                                           [&](const json& x) { return quitar.count(x.value("id", "")) > 0; }),
+                            nodos.end());
+            }
+        }
         // La entrada tiene que alimentar UNA sola tarjeta (si no, la imagen sin
         // tocar hace falta en otra parte del grafo).
         std::vector<size_t> desdeIn;
@@ -1139,6 +1237,33 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             // Cámaras PTZ lo tiene prendido en esta entrada.
             if (p.value("activo", true) && ptzHabilitado_.count(entrada))
                 video.push_back(json{{"id", "ptz"}, {"elemento", "baptz"}});
+            movidas.insert(id);
+            cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
+            for (auto& c : cables)
+                if (c.value("desde", "") == id) c["desde"] = "in";
+            nodos.erase(it);
+            continue;
+        }
+        if (tipo == "normalizar") {
+            if (p.value("activo", true)) {
+                const std::string md = p.value("matriz_declarada", std::string("709")), mr = p.value("matriz_real", md);
+                const std::string rd = p.value("rango_declarado", std::string("limitado")), rr = p.value("rango_real", rd);
+                if (md != mr || rd != rr) {
+                    // GstVideoColorimetry «rango:matriz:transferencia:primarios», o su nombre.
+                    const bool completo = rr == "completo";
+                    if (mr == "601") normalizar["color_real"] = completo ? "1:4:5:4" : "2:4:5:4";
+                    else if (mr == "2020") normalizar["color_real"] = completo ? "1:6:13:7" : "2:6:13:7";
+                    else normalizar["color_real"] = completo ? "1:3:5:1" : "2:3:5:1";
+                }
+                static const std::map<std::string, std::string> kMetodo{
+                    {"descartar", "linear"}, {"retro", "scalerbob"}, {"mezclar", "vfir"},
+                    {"lineal", "linear"},    {"yadif", "yadif"},     {"yadif2x", "yadif"}};
+                const auto m = kMetodo.find(p.value("desentrelazar", std::string("no")));
+                if (m != kMetodo.end()) {
+                    normalizar["desentrelazar"] = m->second;
+                    normalizar["campo"] = p.value("campo", std::string("arriba")) == "abajo" ? "bff" : "tff";
+                }
+            }
             movidas.insert(id);
             cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));
             for (auto& c : cables)
@@ -1254,7 +1379,12 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             if (c.value("desde", "") == id) c["desde"] = "in";
         nodos.erase(it);
     }
-    return {{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}};
+    return {{"video", video}, {"alfa", alfa}, {"retardo_ms", std::lround(retardoMs)}, {"normalizar", normalizar}};
+}
+
+std::string VideoGrafos::productorDe(const std::string& salida) const {
+    const auto it = productorSalida_.find(salida);
+    return it == productorSalida_.end() ? std::string() : it->second;
 }
 
 json VideoGrafos::filtrosDeEntrada(const std::string& entrada) const {

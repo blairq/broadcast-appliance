@@ -34,10 +34,11 @@ json fabrica(const std::string& tipo) {
     if (tipo == "salida") return {{"nombre", ""}};
     // `ms` (lo que se mide) manda sobre `cuadros` si es > 0.
     if (tipo == "retardo") return {{"cuadros", 0}, {"ms", 0}};
-    // Una fuente que declaró mal su color: cómo la decodificó libobs (lo
-    // declarado) y cómo es en verdad. `desentrelazar` se aplica a la fuente
-    // (en libobs, que tiene los campos): no | descartar | retro | mezclar |
-    // lineal | yadif | yadif2x; `campo`: arriba | abajo.
+    // Una fuente que declara mal su color o su entrelazado: lo que dice
+    // (declarado) y cómo es en verdad. El motor impone la colorimetría real en
+    // las caps antes de convertir (capssetter). `desentrelazar`: no (lo que diga
+    // la señal) | descartar | retro | mezclar | lineal | yadif | yadif2x; `campo`:
+    // arriba | abajo.
     if (tipo == "normalizar")
         return {{"matriz_declarada", "709"}, {"rango_declarado", "limitado"}, {"matriz_real", "709"},
                 {"rango_real", "limitado"},  {"desentrelazar", "no"},         {"campo", "arriba"}};
@@ -259,7 +260,15 @@ json GrafoVideo::parametrosDe(const std::string& tipo) {
     } else if (tipo == "salida") {
         l.push_back(param("nombre", "texto", "El nombre de la fuente que se publica para las escenas."));
     }
-    else if (tipo == "compositor") {
+    else if (tipo == "normalizar") {
+        l.push_back(param("matriz_declarada", "opcion", "La matriz de color que dice la fuente.", {{"opciones", {"601", "709", "2020"}}}));
+        l.push_back(param("matriz_real", "opcion", "La que es en verdad (si es distinta, se corrige).", {{"opciones", {"601", "709", "2020"}}}));
+        l.push_back(param("rango_declarado", "opcion", "El rango que dice la fuente.", {{"opciones", {"limitado", "completo"}}}));
+        l.push_back(param("rango_real", "opcion", "El rango de verdad (lavado o empastado = está mal).", {{"opciones", {"limitado", "completo"}}}));
+        l.push_back(param("desentrelazar", "opcion", "Forzar el desentrelazado (una que dice progresiva y no es); no = lo que diga la señal.",
+                          {{"opciones", {"no", "descartar", "retro", "mezclar", "lineal", "yadif", "yadif2x"}}}));
+        l.push_back(param("campo", "opcion", "Qué campo va primero.", {{"opciones", {"arriba", "abajo"}}}));
+    } else if (tipo == "compositor") {
         l.push_back(param("ancho", "entero", "Ancho del lienzo; 0 = el del estudio."));
         l.push_back(param("alto", "entero", "Alto del lienzo; 0 = el del estudio."));
         l.push_back(param("fondo", "color", "Color de fondo (ARGB, 0xFF000000 = negro)."));
@@ -322,8 +331,9 @@ json GrafoVideo::catalogo() {
          "GStreamer. Con una cámara motorizada, la app la mueve con pulsos.",
          "entrada"},
         {"normalizar",
-         "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
-         "desentrelaza (en la fuente, donde están los campos).",
+         "Corrige una fuente que declara mal su color (BT.601/709/2020, rango limitado/completo: la "
+         "imagen se ve lavada o empastada) o su entrelazado. No copia píxeles: le dice al que convierte "
+         "cómo es la señal de verdad.",
          "entrada"},
         {"retardo",
          "Atrasa la imagen (`ms`, o `cuadros`): para sincronizar una cámara con otra o con el audio.",
@@ -1067,7 +1077,13 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
         if (c.entrada == "ctl" || !dentro.count(c.desde) || dentro.count(c.hacia) || c.hacia == is) continue;
         if (!tomadas.insert(c.desde).second) continue;
         const std::string t = "toma:" + c.desde;
-        ns.push_back({{"id", t}, {"tipo", "toma"}, {"params", {{"nombre", c.desde}}}});
+        // `escena`: va a la escena de otra entrada (traer): se publica en su punto de la cadena.
+        bool aEscena = false;
+        for (const auto& c2 : salientes(c.desde)) {
+            const Nodo* h = nodo(c2.hacia);
+            aEscena = aEscena || (h != nullptr && h->tipo == "escena" && !dentro.count(c2.hacia) && c2.hacia != is);
+        }
+        ns.push_back({{"id", t}, {"tipo", "toma"}, {"params", {{"nombre", c.desde}, {"escena", aEscena}}}});
         cs.push_back({{"desde", mapear(c.desde)}, {"hacia", t}});
     }
     // Lo que llega a su escena desde afuera: se trae (un compositor, o la toma
