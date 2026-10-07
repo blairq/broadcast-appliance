@@ -317,6 +317,18 @@ Rectangle {
                                         }
                                     }
                                 }
+                                Text {
+                                    visible: (page.resumen.documentos || []).length > 0
+                                    text: "Acta, informe y capítulos"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6
+                                }
+                                Repeater {
+                                    model: page.resumen.documentos || []
+                                    delegate: RowLayout {
+                                        required property var modelData
+                                        Text { text: modelData.archivo; color: Theme.text; font.pixelSize: 12 }
+                                        GlassButton { compact: true; text: "Abrir"; onClicked: page.h.abrirArchivo(modelData.ruta) }
+                                    }
+                                }
                                 Text { text: "En la bitácora"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
                                 Flow {
                                     Layout.fillWidth: true
@@ -429,7 +441,20 @@ Rectangle {
                                 readonly property var d: { page.version; return page.sel && page.tab === "grabaciones" ? page.h.grabaciones(page.sel) : ({}) }
                                 width: parent.width
                                 spacing: 6
-                                Text { text: "Grabaciones"; color: Theme.textDim; font.pixelSize: 11 }
+                                RowLayout {
+                                    Text { text: "Grabaciones"; color: Theme.textDim; font.pixelSize: 11; Layout.fillWidth: true }
+                                    CheckBox { id: moverlas; text: "moverlas a la carpeta del evento"; font.pixelSize: 11 }
+                                    GlassButton {
+                                        compact: true; text: "Traer lo del día"
+                                        onClicked: {
+                                            const r = page.h.traerDelDia(page.sel, moverlas.checked)
+                                            if (r.error) page.toast(r.error, "error")
+                                            else page.toast((r.grabaciones || []).length + " grabaciones y " + (r.transcripciones || []).length
+                                                            + " transcripciones del " + r.desde.split(" ")[0], "ok")
+                                            page.version++
+                                        }
+                                    }
+                                }
                                 Text { visible: (gv.d.grabaciones || []).length === 0; text: "Ninguna"; color: Theme.textFaint; font.pixelSize: 12 }
                                 Repeater {
                                     model: gv.d.grabaciones || []
@@ -782,7 +807,39 @@ Rectangle {
                     if (e) page.toast(e, "error")
                 }
             }
+            Text { text: "Disco y retención"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
             RowLayout {
+                Layout.fillWidth: true
+                Text { text: "Borrar las grabaciones de eventos terminados hace más de"; color: Theme.text; font.pixelSize: 12 }
+                SpinBox {
+                    from: 0; to: 3650
+                    value: ajustes.a.retencion ? ajustes.a.retencion.grabaciones_dias : 0
+                    onValueModified: page.h.guardarAjustes({ retencion: { grabaciones_dias: value } })
+                }
+                Text { text: "días (0 = nunca)"; color: Theme.textDim; font.pixelSize: 12 }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "Avisar cuando el disco pase del"; color: Theme.text; font.pixelSize: 12 }
+                SpinBox {
+                    from: 0; to: 100
+                    value: ajustes.a.retencion ? ajustes.a.retencion.aviso_disco_pct : 90
+                    onValueModified: page.h.guardarAjustes({ retencion: { aviso_disco_pct: value } })
+                }
+                Text {
+                    readonly property var d: { page.version; return ajustes.visible ? page.h.discoUi() : ({}) }
+                    text: "% (ahora " + (d.usado_pct || 0) + " %, quedan " + (d.libre_gb || 0) + " GB)"
+                    color: Theme.textDim; font.pixelSize: 12
+                }
+            }
+            RowLayout {
+                GlassButton {
+                    compact: true; text: "¿Qué borraría?"
+                    onClicked: {
+                        const r = page.h.retencionUi(true)
+                        page.toast(r.nota ? r.nota : (r.eventos.length + " eventos, " + Math.round(r.bytes / 1e6) + " MB de grabaciones"), "info")
+                    }
+                }
                 Item { Layout.fillWidth: true }
                 GlassButton { text: "Listo"; onClicked: ajustes.close() }
             }

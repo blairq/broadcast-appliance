@@ -38,6 +38,22 @@ struct Historico {
     static json buscar(const std::filesystem::path& raiz, const std::string& texto, std::size_t limite = 200,
                        const std::atomic<bool>* cancelar = nullptr);
 
+    /// TRAER LO DEL DÍA: las grabaciones (de `carpetasGrabacion`, y sus
+    /// subcarpetas entradas/ y limpia/) y las transcripciones (de
+    /// `transcripciones`) que terminaron entre desde y hasta, al evento. Sin
+    /// `mover`, quedan donde están y el evento las nombra (grabaciones.json,
+    /// «importada»); con `mover`, pasan a su Grabaciones/ y Transcripciones/.
+    /// Lo que el evento ya tiene no se repite. {grabaciones:[…], transcripciones:[…]}.
+    static json traerDelDia(const std::filesystem::path& evento, const std::vector<std::filesystem::path>& carpetasGrabacion,
+                            const std::filesystem::path& transcripciones, std::int64_t desdeMs, std::int64_t hastaMs,
+                            bool mover);
+
+    /// RETENCIÓN: borra los archivos de Grabaciones/ del evento (y los que
+    /// nombra grabaciones.json dentro de su carpeta), deja todo lo demás y anota
+    /// en grabaciones.json cuándo se borró cada una. Con `simular`, solo dice qué
+    /// borraría. {archivos: [{archivo, bytes}], bytes}.
+    static json limpiarGrabaciones(const std::filesystem::path& evento, std::int64_t ahoraMs, bool simular);
+
     /// Copia el evento a `destino`/<nombre>/ (con o sin Grabaciones/) y los
     /// contenidos de sus fotos de configuración (en config/objetos/), para que
     /// la copia se entienda sola en otra máquina. "" o el error.

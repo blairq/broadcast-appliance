@@ -1279,6 +1279,7 @@ void StudioViewModel::indexarSalida(const std::string& tema, const nlohmann::jso
         nlohmann::json l = leerLista(p);
         if (valor.value("activo", false)) {
             nlohmann::json g{{"archivo", rt_.engine().archivoGrabacion()}, {"desde_ms", ahora}};
+            if (!rt_.engine().archivoCopiaGrabacion().empty()) g["copia"] = rt_.engine().archivoCopiaGrabacion();
             l.push_back(g);
         } else {
             for (auto it = l.rbegin(); it != l.rend(); ++it) {
@@ -1326,8 +1327,10 @@ void StudioViewModel::cerrarEnHistorico(const std::string& carpeta) {
     if (!evento_) return;
     const auto dir = evento_->carpetaEvento(carpeta);
     if (dir.empty()) return;
-    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     const evento::DatosDelEvento d = evento_->datosEvento(carpeta);
+    // Hasta cuándo: si ya terminó (el cierre que quedó pendiente de un día que
+    // cambió con la app cerrada), su fin; si no, ahora.
+    const qint64 ahora = d.terminadoMs != 0 && d.estado == "terminado" ? d.terminadoMs : QDateTime::currentMSecsSinceEpoch();
     // Sin inicio conocido, el día del evento (lo que haya en los logs de hoy).
     std::int64_t desde = d.iniciadoMs;
     if (desde == 0) desde = QDateTime(QDate::currentDate(), QTime(0, 0)).toMSecsSinceEpoch();
@@ -1383,6 +1386,7 @@ void StudioViewModel::armarBitacora() {
     auto excluir = busExcluir_;
     // La página Histórico y el MCP cambian qué se registra, en vivo.
     historico_ = std::make_unique<HistoricoViewModel>(*evento_);
+    historico_->setCarpetasGrabacion([this]() { return std::vector<std::filesystem::path>{rt_.config().rec.directory}; });
     historico_->setAplicarAjustes([this](const nlohmann::json& a) {
         const nlohmann::json reg = a.value("registrar", nlohmann::json::object());
         for (const auto& [k, v] : reg.items())
@@ -1399,6 +1403,51 @@ void StudioViewModel::armarBitacora() {
     // (contra la última foto del evento), y después, cada 10 s.
     fotos_ = std::make_unique<evento::FotosConfig>(rt_.dataRoot() / "Config", evento_->raizEventos() / ".objetos");
     revisarConfig({}, "inicio");
+    // LO QUE QUEDÓ SIN CERRAR: si el día cambió con la app cerrada, la jornada de
+    // ayer se terminó al arrancar (antes de que hubiera bitácora) y no recibió su
+    // cierre. Todo evento terminado en la última semana, con bitácora y sin
+    // sellos, lo recibe ahora (su foto de cierre es la última que tuvo).
+    {
+        const qint64 semana = QDateTime::currentMSecsSinceEpoch() - 7LL * 24 * 3600 * 1000;
+        const std::string enCursoAhora = evento_->enCurso().value("carpeta").toString().toStdString();
+        for (const QVariant& v : evento_->eventos()) {
+            const std::string c = v.toMap().value("carpeta").toString().toStdString();
+            if (c.empty() || c == enCursoAhora) continue;
+            const auto d = evento_->datosEvento(c);
+            const auto dir = evento_->carpetaEvento(c);
+            std::error_code ec;
+            if (d.estado != "terminado" || d.terminadoMs < semana || dir.empty() ||
+                !std::filesystem::exists(dir / "bitacora.jsonl", ec) || std::filesystem::exists(dir / "sellos.json", ec))
+                continue;
+            if (!std::filesystem::exists(dir / "config" / "cierre.json", ec))
+                std::filesystem::copy_file(dir / "config" / "ultima.json", dir / "config" / "cierre.json", ec);
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0, "cierre pendiente de «" + c + "»");
+            cerrarEnHistorico(c);
+        }
+    }
+    // CADA HORA (y al minuto de arrancar): el disco de Eventos/ y la retención.
+    {
+        auto* tDisco = new QTimer(this);
+        const auto revisar = [this]() {
+            if (!historico_) return;
+            const nlohmann::json d = historico_->disco();
+            if (d.value("lleno", false)) {
+                const QString t = QString("El disco de los eventos está al %1 % (quedan %2 GB)")
+                                      .arg(d.value("usado_pct", 0))
+                                      .arg(d.value("libre_gb", 0.0));
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0, t.toStdString());
+                emit notify(t, "warn");
+            }
+            const nlohmann::json r = historico_->retencion(false);
+            if (!r.value("eventos", nlohmann::json::array()).empty())
+                ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
+                                           "retención: grabaciones borradas de " + std::to_string(r["eventos"].size()) +
+                                               " eventos (" + std::to_string(r.value("bytes", 0ULL) / 1000000) + " MB)");
+        };
+        QTimer::singleShot(60000, this, revisar);
+        connect(tDisco, &QTimer::timeout, this, revisar);
+        tDisco->start(3600 * 1000);
+    }
     auto* tFotos = new QTimer(this);
     tFotos->setInterval(10000);
     connect(tFotos, &QTimer::timeout, this, [this]() { revisarConfig({}, ""); });

@@ -520,6 +520,58 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     }
     {
         Tool t;
+        t.name = "historico_traer_del_dia";
+        t.title = "Traer las grabaciones viejas de un día a un evento";
+        t.category = "historico";
+        t.description =
+            "Le asigna a un evento las grabaciones (Recordings/, con entradas/ y limpia/) y las transcripciones que "
+            "terminaron en su día (el de su inicio, su fecha o el de la jornada), o entre `desde` y `hasta`. De "
+            "fábrica quedan donde están y el evento las nombra; con `mover`, pasan a su carpeta.";
+        t.details = "Para lo grabado antes del histórico (o con la jornada automática apagada). Lo que el evento ya "
+                    "tiene no se repite. Las transcripciones se copian (son chicas), o se mueven con `mover`. "
+                    "`desde`/`hasta`: ms de reloj de pared.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"evento"}},
+                         {"properties",
+                          {{"evento", {{"type", "string"}}},
+                           {"mover", {{"type", "boolean"}}},
+                           {"desde", {{"type", "integer"}}},
+                           {"hasta", {{"type", "integer"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto* h = vm.historico();
+            if (h == nullptr) return done(ToolResult::error("el histórico no está disponible"));
+            const json r = h->traerDelDiaJson(a.value("evento", std::string()), a.value("mover", false),
+                                              a.value("desde", std::int64_t{0}), a.value("hasta", std::int64_t{0}));
+            if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
+            done(ToolResult().data(r));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "historico_retencion";
+        t.title = "Retención de grabaciones y disco";
+        t.category = "historico";
+        t.description =
+            "Cuánto disco queda para los eventos y qué grabaciones borra la retención (las de eventos terminados "
+            "hace más de `grabaciones_dias`; la bitácora, la configuración, la asamblea, las transcripciones y los "
+            "índices quedan). De fábrica SIMULA: dice qué borraría. Con `simular: false`, borra.";
+        t.details = "Se configura con historico_ajustes {retencion: {grabaciones_dias, aviso_disco_pct}}; 0 días = "
+                    "nunca borrar (de fábrica). La app la aplica sola cada hora y avisa cuando el disco pasa del "
+                    "porcentaje. Lo borrado queda anotado en grabaciones.json (`borrada_ms`) y en la bitácora del "
+                    "evento; sus sellos van a decir que faltan esos archivos.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"simular", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto* h = vm.historico();
+            if (h == nullptr) return done(ToolResult::error("el histórico no está disponible"));
+            json r = h->retencion(a.value("simular", true));
+            r["disco"] = h->disco();
+            done(ToolResult().data(r));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "historico_exportar";
         t.title = "Exportar un evento";
         t.category = "historico";
@@ -559,13 +611,15 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.description =
             "Qué entra en la bitácora de cada evento y la jornada automática. Sin argumentos: cómo está. "
             "`registrar`: {bus, mcp, botonera, guion, aviso, evento, config} en true/false; `bus_excluir`: "
-            "patrones del bus que no se anotan (lo que se repite muchas veces por segundo); `evento_automatico`.";
+            "patrones del bus que no se anotan (lo que se repite muchas veces por segundo); `evento_automatico`; "
+            "`retencion`: {grabaciones_dias (0 = nunca borrar), aviso_disco_pct} (ver historico_retencion).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"registrar", {{"type", "object"}}},
                            {"bus_excluir", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                           {"evento_automatico", {{"type", "boolean"}}}}}};
-        t.examples = {R"({})", R"({"registrar": {"aviso": false}})", R"({"bus_excluir": ["audio/nivel/#", "audio/loudness"]})"};
+                           {"evento_automatico", {{"type", "boolean"}}},
+                           {"retencion", {{"type", "object"}}}}}};
+        t.examples = {R"({})", R"({"registrar": {"aviso": false}})", R"({"retencion": {"grabaciones_dias": 90, "aviso_disco_pct": 85}})", R"({"bus_excluir": ["audio/nivel/#", "audio/loudness"]})"};
         t.run = [&vm](const json& a, Done done) {
             auto* h = vm.historico();
             if (h == nullptr) return done(ToolResult::error("el histórico no está disponible"));

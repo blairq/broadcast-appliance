@@ -272,6 +272,8 @@ class BroadcastEngine {
 
     /// El archivo que se está grabando (o el último).
     std::string archivoGrabacion() const { return recordPath_; }
+    /// La copia en el otro disco (vacío si no hay).
+    std::string archivoCopiaGrabacion() const { return recordCopyPath_; }
     /// Pasa `archivo` (mkv) a `formato` (mp4/mov) sin recodificar, en otro hilo.
     bool remux(const std::string& archivo, const std::string& formato, bool borrarOrigen);
     /// {archivo, destino, pct, andando, ok, error}.

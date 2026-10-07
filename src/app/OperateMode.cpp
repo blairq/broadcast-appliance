@@ -607,6 +607,15 @@ bool AppRuntime::startRecording() {
     std::error_code ec;
     RecordConfig rec = cfg_.rec;
     rec.directory = carpetaGrabacion();
+    // La copia en el otro disco, también por evento: <copia>/Eventos/<evento>/Grabaciones.
+    if (!rec.copiaDir.empty() && carpetaDelEvento_) {
+        const fs::path ev = carpetaDelEvento_();
+        std::error_code e2;
+        const fs::path rel = ev.empty() ? fs::path() : fs::relative(ev, root_ / "Eventos", e2);
+        if (!ev.empty() && !e2 && !rel.empty() && rel.string().rfind("..", 0) != 0)
+            rec.copiaDir = (fs::path(rec.copiaDir) / "Eventos" / rel / "Grabaciones").string();
+        fs::create_directories(rec.copiaDir, e2);
+    }
     fs::create_directories(rec.directory, ec);
     const EngineStatus antes = engine_.status();
     if (!engine_.startRecording(rec, cfg_.encoder)) {

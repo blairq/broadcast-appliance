@@ -10,10 +10,12 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPointer>
+#include <QStorageInfo>
 #include <QThreadPool>
 #include <QUrl>
 
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <set>
 
@@ -118,6 +120,20 @@ QVariantMap HistoricoViewModel::resumen(const QString& carpeta) const {
     for (const auto& e : d.etiquetas) et << QString::fromStdString(e);
     m["etiquetas"] = et;
     m["enCurso"] = carpeta == enCurso();
+    // El acta, el informe y los capítulos que genera la página Evento al cerrar.
+    QVariantList docs;
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(dir, ec)) {
+        const std::string n = e.path().filename().string();
+        const bool esDoc = (n.rfind("acta-", 0) == 0 && e.path().extension() == ".md") || n.rfind("informe-", 0) == 0 ||
+                           n == "capitulos.txt";
+        if (e.is_regular_file() && esDoc)
+            docs << QVariantMap{{"archivo", QString::fromStdString(n)}, {"ruta", QString::fromStdString(e.path().string())}};
+    }
+    std::sort(docs.begin(), docs.end(), [](const QVariant& a, const QVariant& b) {
+        return a.toMap()["archivo"].toString() > b.toMap()["archivo"].toString();
+    });
+    m["documentos"] = docs;
     // Por tipo, cuántas líneas tiene la bitácora (para los filtros de la línea de tiempo).
     QVariantMap porTipo;
     for (const auto& l : evento::Bitacora::leer(dir / "bitacora.jsonl", 0, 0, {}, {}, 0)) {
@@ -175,6 +191,43 @@ QVariantList HistoricoViewModel::archivos(const QString& carpeta) const {
     const fs::path dir = carpetaEvento(carpeta.toStdString());
     if (dir.empty()) return {};
     return aQv(evento::Historico::archivos(dir)).toList();
+}
+
+nlohmann::json HistoricoViewModel::traerDelDiaJson(const std::string& carpeta, bool mover, std::int64_t desdeMs,
+                                                  std::int64_t hastaMs) {
+    const fs::path dir = carpetaEvento(carpeta);
+    if (dir.empty()) return {{"error", "no hay un evento «" + carpeta + "»"}};
+    if (desdeMs == 0) {
+        // El día del evento: el de su inicio, su fecha o el de la jornada automática.
+        const auto d = ev_.datosEvento(carpeta);
+        QDate dia;
+        if (d.iniciadoMs != 0) dia = QDateTime::fromMSecsSinceEpoch(d.iniciadoMs).date();
+        if (!dia.isValid()) {
+            const QString f = ev_.eventos().isEmpty() ? QString() : [&] {
+                for (const QVariant& v : ev_.eventos())
+                    if (v.toMap()["carpeta"].toString().toStdString() == carpeta) return v.toMap()["fecha"].toString();
+                return QString();
+            }();
+            dia = QDate::fromString(f, "yyyy-MM-dd");
+        }
+        if (!dia.isValid()) dia = QDate::fromString(QString::fromStdString(d.dia), "yyyy-MM-dd");
+        if (!dia.isValid()) return {{"error", "el evento no tiene día (ni inicio, ni fecha): pasá desde y hasta"}};
+        desdeMs = QDateTime(dia, QTime(0, 0)).toMSecsSinceEpoch();
+        QDate ultimo = d.terminadoMs != 0 ? QDateTime::fromMSecsSinceEpoch(d.terminadoMs).date() : dia;
+        if (ultimo < dia) ultimo = dia;
+        hastaMs = QDateTime(ultimo.addDays(1), QTime(0, 0)).toMSecsSinceEpoch() - 1;
+    }
+    std::vector<fs::path> carpetas = carpetasGrabacion_ ? carpetasGrabacion_() : std::vector<fs::path>{};
+    const fs::path transcripciones = ev_.carpetaConfig().parent_path() / "Recordings" / "Transcripciones";
+    json r = evento::Historico::traerDelDia(dir, carpetas, transcripciones, desdeMs, hastaMs, mover);
+    r["desde"] = hora(desdeMs).toStdString();
+    r["hasta"] = hora(hastaMs).toStdString();
+    emit cambio();
+    return r;
+}
+
+QVariantMap HistoricoViewModel::traerDelDia(const QString& carpeta, bool mover) {
+    return aQv(traerDelDiaJson(carpeta.toStdString(), mover)).toMap();
 }
 
 QVariantList HistoricoViewModel::config(const QString& carpeta, const QString& foto) const {
@@ -310,6 +363,51 @@ void HistoricoViewModel::abrirArchivo(const QString& ruta) {
     QDesktopServices::openUrl(QUrl::fromLocalFile(ruta));
 }
 
+QVariantMap HistoricoViewModel::aQvPublico(const json& j) { return aQv(j).toMap(); }
+
+nlohmann::json HistoricoViewModel::retencion(bool simular) {
+    const int dias = ajustesJson()["retencion"].value("grabaciones_dias", 0);
+    json eventos = json::array();
+    std::uintmax_t total = 0;
+    if (dias <= 0) return {{"grabaciones_dias", 0}, {"eventos", eventos}, {"bytes", 0}, {"nota", "la retención está apagada"}};
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    const qint64 limite = ahora - static_cast<qint64>(dias) * 24 * 3600 * 1000;
+    const std::string enCursoAhora = enCurso().toStdString();
+    for (const QVariant& v : ev_.eventos()) {
+        const std::string c = v.toMap()["carpeta"].toString().toStdString();
+        if (c.empty() || c == enCursoAhora) continue;
+        const auto d = ev_.datosEvento(c);
+        if (d.estado != "terminado" || d.terminadoMs == 0 || d.terminadoMs > limite) continue;
+        const fs::path dir = carpetaEvento(c);
+        if (dir.empty()) continue;
+        const json r = evento::Historico::limpiarGrabaciones(dir, ahora, simular);
+        if (r["archivos"].empty()) continue;
+        total += r.value("bytes", std::uintmax_t{0});
+        eventos.push_back(json{{"evento", c}, {"terminado", hora(d.terminadoMs).toStdString()}, {"archivos", r["archivos"]},
+                               {"bytes", r["bytes"]}});
+        if (!simular) {
+            evento::Bitacora b;
+            b.setArchivo(dir / "bitacora.jsonl");
+            b.anotar("evento", "retencion", "grabaciones borradas (retención de " + std::to_string(dias) + " días)", r, ahora);
+            b.vaciar();
+        }
+    }
+    if (!simular && !eventos.empty()) emit cambio();
+    return {{"grabaciones_dias", dias}, {"simular", simular}, {"eventos", eventos}, {"bytes", total}};
+}
+
+nlohmann::json HistoricoViewModel::disco() const {
+    const QStorageInfo si(QString::fromStdString(ev_.raizEventos().string()));
+    const double total = static_cast<double>(si.bytesTotal()), libre = static_cast<double>(si.bytesAvailable());
+    const int aviso = ajustesJson()["retencion"].value("aviso_disco_pct", 90);
+    const int usado = total > 0 ? static_cast<int>(std::lround(100.0 * (1.0 - libre / total))) : 0;
+    return {{"libre_gb", std::round(libre / 1e8) / 10.0},
+            {"total_gb", std::round(total / 1e8) / 10.0},
+            {"usado_pct", usado},
+            {"aviso_pct", aviso},
+            {"lleno", aviso > 0 && usado >= aviso}};
+}
+
 nlohmann::json HistoricoViewModel::ajustesJson() const {
     const nlohmann::json aj = ev_.ajustesHistorico();
     nlohmann::json reg = nlohmann::json::object();
@@ -319,7 +417,13 @@ nlohmann::json HistoricoViewModel::ajustesJson() const {
                               ? aj["bus_excluir"]
                               : nlohmann::json::array({"audio/nivel/#", "audio/loudness", "oradores/tiempo", "salida/salud",
                                                        "aire/tally"});
-    return {{"registrar", reg}, {"bus_excluir", excl}, {"evento_automatico", ev_.eventoAutomatico()}};
+    const json ret = aj.value("retencion", json::object());
+    return {{"registrar", reg},
+            {"bus_excluir", excl},
+            {"evento_automatico", ev_.eventoAutomatico()},
+            {"retencion",
+             {{"grabaciones_dias", ret.is_object() ? ret.value("grabaciones_dias", 0) : 0},
+              {"aviso_disco_pct", ret.is_object() ? ret.value("aviso_disco_pct", 90) : 90}}}};
 }
 
 QVariantMap HistoricoViewModel::ajustes() const { return aQv(ajustesJson()).toMap(); }
@@ -339,6 +443,18 @@ std::string HistoricoViewModel::guardarAjustesJson(const nlohmann::json& c) {
             reg[k] = v;
         }
         j["registrar"] = reg;
+    }
+    if (c.contains("retencion")) {
+        if (!c["retencion"].is_object()) return "`retencion`: {grabaciones_dias, aviso_disco_pct}";
+        json ret = j.value("retencion", json::object());
+        if (!ret.is_object()) ret = json::object();
+        for (const auto& [k, v] : c["retencion"].items()) {
+            if (k != "grabaciones_dias" && k != "aviso_disco_pct") return "en `retencion` no hay «" + k + "»";
+            if (!v.is_number_integer() || v.get<int>() < 0 || (k == "aviso_disco_pct" && v.get<int>() > 100))
+                return "«" + k + "»: un entero (días, o % de 0 a 100)";
+            ret[k] = v;
+        }
+        j["retencion"] = ret;
     }
     if (c.contains("bus_excluir")) {
         if (!c["bus_excluir"].is_array()) return "`bus_excluir`: una lista de patrones del bus";

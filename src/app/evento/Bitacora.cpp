@@ -28,6 +28,12 @@ std::int64_t ahoraMs() {
 
 std::string minusculas(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    // Y las mayúsculas latinas con tilde (Á É Í Ó Ú Ñ Ü…: 0xC3 0x80–0x9E en UTF-8),
+    // que tolower no toca: «VOTACIÓN» tiene que encontrar «votación».
+    for (std::size_t i = 0; i + 1 < s.size(); ++i) {
+        const auto b = static_cast<unsigned char>(s[i + 1]);
+        if (static_cast<unsigned char>(s[i]) == 0xC3 && b >= 0x80 && b <= 0x9E && b != 0x97) s[i + 1] = static_cast<char>(b + 0x20);
+    }
     return s;
 }
 

@@ -44,6 +44,8 @@ class HistoricoViewModel : public QObject {
 
     /// Cuando cambian los ajustes de qué se registra (los aplica la bitácora).
     void setAplicarAjustes(std::function<void(const json&)> fn) { aplicarAjustes_ = std::move(fn); }
+    /// De dónde traer grabaciones viejas (Recordings/ de la configuración).
+    void setCarpetasGrabacion(std::function<std::vector<std::filesystem::path>()> fn) { carpetasGrabacion_ = std::move(fn); }
 
     QStringList carpetas() const;
     QString enCurso() const;
@@ -56,6 +58,10 @@ class HistoricoViewModel : public QObject {
                                       int limite) const;
     Q_INVOKABLE QVariantMap grabaciones(const QString& carpeta) const;
     Q_INVOKABLE QVariantList archivos(const QString& carpeta) const;
+    /// Trae al evento las grabaciones y transcripciones de su día (ver
+    /// evento::Historico::traerDelDia). {grabaciones, transcripciones, desde, hasta} o {error}.
+    Q_INVOKABLE QVariantMap traerDelDia(const QString& carpeta, bool mover);
+    json traerDelDiaJson(const std::string& carpeta, bool mover, std::int64_t desdeMs = 0, std::int64_t hastaMs = 0);
 
     /// La foto de Config/ de un evento: [{archivo, bytes}] (foto: inicio | cierre | ultima).
     Q_INVOKABLE QVariantList config(const QString& carpeta, const QString& foto) const;
@@ -79,6 +85,15 @@ class HistoricoViewModel : public QObject {
     Q_INVOKABLE QString carpetaDeExportar() const;
 
     QVariantMap ajustes() const;
+    /// RETENCIÓN (Config/historico.json «retencion»: grabaciones_dias, 0 = nunca;
+    /// aviso_disco_pct): borra las grabaciones de los eventos terminados hace más
+    /// de N días (todo lo demás queda). Con `simular`, solo dice qué borraría.
+    json retencion(bool simular);
+    Q_INVOKABLE QVariantMap retencionUi(bool simular) { return aQvPublico(retencion(simular)); }
+    /// El disco de Eventos/: {libre_gb, total_gb, usado_pct, aviso_pct, lleno}.
+    json disco() const;
+    Q_INVOKABLE QVariantMap discoUi() const { return aQvPublico(disco()); }
+    static QVariantMap aQvPublico(const json& j);
     /// {registrar: {bus, mcp, …}, bus_excluir: [...], evento_automatico}. "" o el error.
     Q_INVOKABLE QString guardarAjustes(const QVariantMap& cambios);
 
@@ -101,6 +116,7 @@ class HistoricoViewModel : public QObject {
    private:
     EventoViewModel& ev_;
     std::function<void(const json&)> aplicarAjustes_;
+    std::function<std::vector<std::filesystem::path>()> carpetasGrabacion_;
     bool buscando_ = false;
     std::shared_ptr<std::atomic<bool>> cancelarBusqueda_;
 };
