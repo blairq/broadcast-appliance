@@ -20,12 +20,15 @@
 #include <fstream>
 #include <set>
 
+#include <QCoreApplication>
 #include <QDateTime>
+#include <QThreadPool>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimeZone>
 
 #include "evento/Bitacora.hpp"
+#include "evento/CierreEvento.hpp"
 #include "evento/Evento.hpp"
 #include "evento/FotosConfig.hpp"
 #include "mcp/McpCore.hpp"
@@ -397,6 +400,37 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 if (e.is_regular_file()) textos.push_back(json{{"archivo", e.path().filename().string()}, {"bytes", e.file_size()}});
             done(ToolResult().data(json{{"carpeta", dir.string()}, {"grabaciones", grab}, {"transmisiones", vivos},
                                         {"transcripciones", textos}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_sellos";
+        t.title = "Verificar que un evento no se tocó";
+        t.category = "evento";
+        t.readOnly = true;
+        t.description =
+            "Compara la carpeta de un evento cerrado con su sellos.json (sha256 de cada archivo al cerrarlo): dice "
+            "si está intacto, qué archivos cambiaron, cuáles faltan y cuáles se agregaron después.";
+        t.details =
+            "Al dejar de estar en curso, cada evento recibe asamblea/ (copia sin secretos de orden del día, quórum, "
+            "votaciones, cuerpo, sesión remota…), registro/ (el pedazo de cada log entre su inicio y su fin) y, en "
+            "segundo plano, sellos.json. Verificar relee todo, también las grabaciones: con gigas tarda.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"evento"}},
+                         {"properties", {{"evento", {{"type", "string"}, {"description", "La carpeta (evento_listar)."}}}}}};
+        t.run = [&ev](const json& a, Done done) {
+            const auto dir = ev.carpetaEvento(a.value("evento", std::string()));
+            if (dir.empty()) return done(ToolResult::error("no hay un evento «" + a.value("evento", std::string()) + "»"));
+            // Fuera del hilo de la interfaz: puede leer gigas.
+            const bool enCurso = dir == ev.carpetaEvento();
+            QThreadPool::globalInstance()->start([dir, done, enCurso]() {
+                json r = evento::CierreEvento::verificar(dir);
+                if (enCurso)
+                    r["aviso"] = "está en curso: se sigue escribiendo (bitácora, ficha…), así que lo que cambió desde "
+                                 "su último cierre es normal; los sellos valen cuando deje de estar en curso.";
+                QMetaObject::invokeMethod(qApp, [r, done]() { done(ToolResult().data(r)); }, Qt::QueuedConnection);
+            });
         };
         core.addTool(std::move(t));
     }

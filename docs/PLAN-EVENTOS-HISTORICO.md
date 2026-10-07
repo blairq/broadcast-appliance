@@ -154,7 +154,7 @@ Categoría «historico»: `historico_listar` (carpetas, filtros), `historico_ver
 | H2 | `Bitacora` (escritor único) colgada de BusEventos, traza MCP, botonera, guion, avisos | **hecho** (ver abajo) |
 | H3 | Fotos de `Config/` al abrir/cerrar + diffs + tachado de secretos + dedupe | **hecho** (ver abajo); restaurar en H6 |
 | H4 | Grabaciones, transcripciones y vivos al evento: índice con horas, capítulos, URLs | **hecho** (ver abajo) |
-| H5 | Asamblea por evento (orden del día, quórum, votaciones, palabra, remota) y el pedazo de logs al cerrar; `sellos.json` | deja de pisarse «la sesión en curso» |
+| H5 | Asamblea por evento (orden del día, quórum, votaciones, palabra, remota) y el pedazo de logs al cerrar; `sellos.json` | **hecho** (ver abajo) |
 | H6 | Página Histórico (carpetas, lista, detalle con pestañas, búsqueda, comparar/restaurar, exportar) + MCP + Ajustes → Histórico | test_qml_carga y capturas |
 
 Migración: los eventos existentes en `Eventos/` quedan en la raíz como
@@ -256,3 +256,20 @@ evento por fecha (botón «Traer lo del día»), sin moverlas si el usuario no q
   transcripciones.
 - Probado en la app: 10 s de grabación con dos cambios de escena → archivo en la
   carpeta del evento y tres capítulos correctos.
+
+## H5 (hecho)
+
+- `evento/CierreEvento`, al dejar de estar en curso (`StudioViewModel::cerrarEnHistorico`):
+  - `asamblea/`: copia sin secretos de orden-del-dia, quorum, votaciones-oficiales,
+    cuerpo, sesion-remota, conferencia y seguir-microfono, como quedaron. El uso de
+    la palabra, los puntos y las votaciones minuto a minuto ya están en la bitácora
+    (bus `oradores/…`, `sesion/punto`, `sesion/votacion`);
+  - `registro/`: el pedazo de cada log de `Logs/` (también los rotados, en orden)
+    entre el inicio del evento y el cierre. Entiende la hora UTC con Z, la local, la
+    de «====» y la `ms`/`t` de los jsonl; una línea sin hora sigue a la anterior;
+  - `sellos.json`: sha256 de cada archivo (menos `Respaldos/` y `config/ultima.json`),
+    en un hilo aparte que se cancela al cerrar la app (un sello a medias no se escribe).
+- MCP `evento_sellos`: intacto o qué cambió, qué falta y qué se agregó (en el pool de
+  hilos, no traba la interfaz). Si el evento volvió a estar en curso, lo avisa.
+- Test `test_cierre_evento`. Probado en la app: evento nuevo en curso → la jornada se
+  cierra (asamblea, registro, sellos) → terminar el nuevo → sellado e intacto.

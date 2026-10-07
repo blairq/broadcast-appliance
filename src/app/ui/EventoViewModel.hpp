@@ -103,6 +103,8 @@ class EventoViewModel : public QObject {
     std::filesystem::path raizEventos() const { return store_.raiz(); }
     /// Config/ (lo que se fotografía).
     std::filesystem::path carpetaConfig() const;
+    /// ficha.json de un evento (el histórico).
+    evento::DatosDelEvento datosEvento(const std::string& carpeta) const { return store_.datos(carpeta); }
     /// La bitácora de un evento (por su carpeta; vacía = el en curso).
     std::filesystem::path archivoBitacoraDe(const std::string& carpeta) const;
     /// Config/historico.json (lo que se registra, el automático…).

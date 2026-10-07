@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <thread>
+#include <atomic>
 #include <QHash>
 #include <QSet>
 #include <QObject>
@@ -836,6 +838,15 @@ class StudioViewModel : public QObject {
     /// grabaciones.json y transmisiones.json del evento en curso (H4): cada
     /// grabación con su archivo y desde/hasta; cada vivo con su URL y caídas.
     void indexarSalida(const std::string& tema, const nlohmann::json& valor);
+    /// Lo que queda al cerrar un evento (H5): asamblea/, registro/ y, en otro
+    /// hilo, sellos.json. Los hilos se cancelan y esperan al cerrar la app.
+    void cerrarEnHistorico(const std::string& carpeta);
+    struct Sellador {
+        std::thread hilo;
+        std::shared_ptr<std::atomic<bool>> listo;
+    };
+    std::vector<Sellador> selladores_;
+    std::atomic<bool> cancelarSellos_{false};
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;

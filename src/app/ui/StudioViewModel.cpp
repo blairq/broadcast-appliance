@@ -73,6 +73,7 @@
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 #include "evento/Bitacora.hpp"
+#include "evento/CierreEvento.hpp"
 #include "evento/FotosConfig.hpp"
 #include "mcp/McpTraza.hpp"
 #include "dispositivos/Dispositivos.hpp"
@@ -1186,6 +1187,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 }
 
 StudioViewModel::~StudioViewModel() {
+    // Un sello a medias no se escribe: se corta y se vuelve a sellar otro día.
+    cancelarSellos_ = true;
+    for (auto& s : selladores_)
+        if (s.hilo.joinable()) s.hilo.join();
     if (bitacoraOyente_ != 0) ba::diag::registro().quitarOyente(bitacoraOyente_);
     if (bitacoraBus_ != 0 && bus_) bus_->desuscribir(bitacoraBus_);
     if (bitacora_) {
@@ -1312,6 +1317,44 @@ void StudioViewModel::indexarSalida(const std::string& tema, const nlohmann::jso
     guardarLista(p, l);
 }
 
+void StudioViewModel::cerrarEnHistorico(const std::string& carpeta) {
+    if (!evento_) return;
+    const auto dir = evento_->carpetaEvento(carpeta);
+    if (dir.empty()) return;
+    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    const evento::DatosDelEvento d = evento_->datosEvento(carpeta);
+    // Sin inicio conocido, el día del evento (lo que haya en los logs de hoy).
+    std::int64_t desde = d.iniciadoMs;
+    if (desde == 0) desde = QDateTime(QDate::currentDate(), QTime(0, 0)).toMSecsSinceEpoch();
+    const int asamblea = evento::CierreEvento::copiarAsamblea(rt_.dataRoot() / "Config", dir);
+    const nlohmann::json registro =
+        evento::CierreEvento::recortarRegistros(rt_.dataRoot() / "Logs", desde, ahora, dir / "registro");
+    {
+        evento::Bitacora b;
+        b.setArchivo(dir / "bitacora.jsonl");
+        b.anotar("evento", "historico", "cerrado", {{"asamblea", asamblea}, {"registro", registro}}, ahora);
+        b.vaciar();
+    }
+    // Ya terminados los hilos viejos, se limpian.
+    for (auto it = selladores_.begin(); it != selladores_.end();) {
+        if (it->listo->load()) {
+            it->hilo.join();
+            it = selladores_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    auto listo = std::make_shared<std::atomic<bool>>(false);
+    selladores_.push_back({std::thread([this, dir, ahora, listo]() {
+        const nlohmann::json s = evento::CierreEvento::sellar(dir, ahora, &cancelarSellos_);
+        listo->store(true);
+        if (!s.is_null())
+            ba::diag::registro().linea(ba::diag::Nivel::Info, "historico", 0,
+                                       "sellado " + dir.filename().string() + " (" +
+                                           std::to_string(s.value("archivos", nlohmann::json::object()).size()) + " archivos)");
+    }), listo});
+}
+
 // LA BITÁCORA DEL EVENTO EN CURSO (H2 de docs/PLAN-EVENTOS-HISTORICO.md): se
 // cuelga de lo que ya pasa por dos lugares —el registro general (MCP, botonera,
 // guion, avisos) y el bus de eventos (aire, salidas, oradores, asamblea)— sin
@@ -1411,6 +1454,8 @@ void StudioViewModel::armarBitacora() {
         if (!anterior->empty()) {
             revisarConfig(*anterior, "cierre");
             bitacora_->anotar("evento", "historico", "deja de estar en curso", {{"siguiente", ahora}});
+            bitacora_->vaciar();
+            cerrarEnHistorico(*anterior);
         }
         bitacora_->setArchivo(evento_->archivoBitacora());
         if (!ahora.empty()) {

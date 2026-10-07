@@ -752,6 +752,10 @@ endif()
     target_include_directories(test_fotos_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_fotos_config PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
     add_test(NAME test_fotos_config COMMAND test_fotos_config)
+    add_executable(test_cierre_evento tests/test_cierre_evento.cpp evento/CierreEvento.cpp evento/FotosConfig.cpp)
+    target_include_directories(test_cierre_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_cierre_evento PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    add_test(NAME test_cierre_evento COMMAND test_cierre_evento)
 
     # El padron: quien viene, con que papel, por donde y si llego.
     add_executable(test_padron tests/test_padron.cpp evento/Padron.cpp)
