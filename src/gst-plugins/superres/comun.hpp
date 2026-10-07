@@ -171,17 +171,24 @@ struct Demora {
     std::array<double, 30> ms{};
     size_t n = 0;
     double promedio = 0;
+    double suma = 0;          ///< de todos los cuadros (para el resumen al parar)
     GstClockTime informada = 0; ///< la última que se declaró (para avisar si cambia)
 
     void anotar(double v) {
         std::lock_guard<std::mutex> l(mu);
         ms[n % ms.size()] = v;
         ++n;
+        suma += v;
         promedio = n == 1 ? v : promedio * 0.9 + v * 0.1;
     }
     double media() {
         std::lock_guard<std::mutex> l(mu);
         return promedio;
+    }
+    /// {cuadros, promedio exacto de todos}.
+    std::pair<size_t, double> resumen() {
+        std::lock_guard<std::mutex> l(mu);
+        return {n, n == 0 ? 0.0 : suma / static_cast<double>(n)};
     }
     /// El peor reciente, con 20 % de margen y al menos 1 ms (en tiempo de GStreamer).
     GstClockTime latencia() {
@@ -193,6 +200,7 @@ struct Demora {
     }
     void reiniciar() {
         std::lock_guard<std::mutex> l(mu);
+        suma = 0;
         n = 0;
         promedio = 0;
         ms.fill(0);

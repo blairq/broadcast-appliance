@@ -1467,6 +1467,10 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
 }
 
 static gboolean parar(GstBaseTransform* bt) {
+    // El resumen de la corrida (lo que de verdad tardó la red, no el tiempo de
+    // la cadena: con `esperar` en 0 se entrega el cuadro anterior si no llega).
+    const auto [cuadros, ms] = BA_ONNXSR(bt)->demora->resumen();
+    if (cuadros > 0) GST_INFO_OBJECT(bt, "resumen: %zu cuadros por la red, %.1f ms de promedio", cuadros, ms);
     soltarRed(BA_ONNXSR(bt));
     BA_ONNXSR(bt)->demora->reiniciar();
     return TRUE;
