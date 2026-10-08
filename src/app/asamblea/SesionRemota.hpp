@@ -208,6 +208,8 @@ class SesionRemota : public QObject {
     /// R3: quién manda audio y video a la sala (el remoto con la palabra; "" = nadie).
     /// Quiénes mandan audio y video a la sala (hasta dos), en orden de canal.
     void mediosA(const QStringList& integrantes);
+    /// Volvió a entrar (o recargó la página): lo que no es de acá (el debate) se le reenvía.
+    void volvio(const QString& integrante);
 
    private:
     struct Estado {

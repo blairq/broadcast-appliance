@@ -145,6 +145,7 @@ class SesionBorde {
     static constexpr int kCanalesRemotos = 2;
     std::map<std::string, int> mediosDe_; ///< quiénes mandan audio y video a la sala, y por qué canal (1..2)
     void ponerMedios(const std::vector<std::string>& ids);
+    long long ultimoSeqMedios_ = 0; ///< el número de la última lista de medios (la app los numera)
     nlohmann::json vistas_ = nlohmann::json::array(); ///< [{id, nombre, canal}]
     std::map<std::string, std::string> vistaDe_;       ///< integrante -> la vista que eligió
     std::map<std::string, bool> hablando_;             ///< a quién le habla el operador

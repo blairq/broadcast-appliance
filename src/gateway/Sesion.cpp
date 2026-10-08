@@ -611,6 +611,16 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         return true;
     }
     if (que == "medios") {
+        // Con número: una lista vieja que llega después de una nueva no la pisa.
+        if (r.contains("seq") && r["seq"].is_number_integer()) {
+            const long long seq = r["seq"].get<long long>();
+            std::lock_guard<std::mutex> l(mu_);
+            if (seq <= ultimoSeqMedios_) {
+                http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"ignorado", "vieja"}}.dump());
+                return true;
+            }
+            ultimoSeqMedios_ = seq;
+        }
         std::vector<std::string> ids;
         if (r.contains("ids") && r["ids"].is_array()) {
             for (const auto& x : r["ids"])

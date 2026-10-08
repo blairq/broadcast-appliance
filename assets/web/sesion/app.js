@@ -90,7 +90,9 @@ function ponerPalabra(activa, segundos, titulo) {
 }
 
 function ponerDebate(m) {
+  const empieza = m.activo && !debate;
   debate = m.activo ? { habla: !!m.habla, segundos: m.segundos || 0 } : null;
+  if (empieza && vistas.some((v) => v.id === "debate") && vista !== "debate") { vistaAntesDebate = vista; elegirVista("debate"); }
   if (!debate) { ponerPalabra(palabraHasta > 0, 0); return; }
   ponerPalabra(true, debate.habla ? debate.segundos : 0,
                debate.habla ? "Debate: es tu turno" : "Debate: habla el otro, esperá tu turno");
@@ -342,6 +344,7 @@ function dejarDeCompartir(avisar) {
 let vistas = [];          // [{id, nombre}] que armó la secretaría
 let vista = leerVista();  // la elegida: "yo" | id
 let pcVista = null;
+let vistaAntesDebate = "";
 let sonidoPrendido = false;
 let sonidoAntesPtt = null;
 
@@ -349,7 +352,12 @@ function leerVista() { try { return localStorage.getItem("ba-sesion-vista") || "
 function guardarVista(v) { try { localStorage.setItem("ba-sesion-vista", v); } catch (e) {} }
 
 function ponerVistas(lista) {
+  const habiaDebate = vistas.some((v) => v.id === "debate");
   vistas = Array.isArray(lista) ? lista : [];
+  // Apareció el canal del debate y soy uno de los dos: paso solo a verlo (nos vemos entre los dos).
+  if (!habiaDebate && debate && vistas.some((v) => v.id === "debate") && vista !== "debate") { vistaAntesDebate = vista; vista = "debate"; }
+  // Se terminó el debate: vuelve a lo que miraba antes.
+  if (vista === "debate" && !vistas.some((v) => v.id === "debate")) vista = vistaAntesDebate || "";
   if (vista !== "yo" && !vistas.some((v) => v.id === vista)) vista = vistas.length ? vistas[0].id : "yo";
   const caja = $("botonesVista");
   caja.textContent = "";

@@ -81,6 +81,10 @@ class Debate : public QObject {
     /// Le suma (o resta) segundos al turno en curso.
     void sumar(int segundos);
     void terminar();
+    /// Le vuelve a mandar el turno (y el micrófono) a los del debate: uno volvió a entrar.
+    void reenviar() {
+        if (activo_) aplicarTurno();
+    }
     bool activo() const { return activo_; }
     bool participa(const std::string& id) const { return activo_ && (id == a_ || id == b_); }
 

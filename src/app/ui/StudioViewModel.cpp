@@ -1139,12 +1139,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         cli->post("/api/v1/sesion/enviar", aQt({{"id", id.toStdString()}, {"msg", msg}}),
                                   [](bool, const QJsonObject&) {});
                     });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::mediosA, this,
-                    [cli, aQt](const QStringList& ids) {
-                        nlohmann::json l = nlohmann::json::array();
-                        for (const QString& i : ids) l.push_back(i.toStdString());
-                        cli->post("/api/v1/sesion/medios", aQt({{"ids", l}}), [](bool, const QJsonObject&) {});
-                    });
+            // Quiénes mandan medios a la sala: va solo la lista final de cada tanda (un debate
+            // da la palabra a dos seguidos) y con número, así una que llega tarde no pisa
+            // a la nueva (los POST viajan en paralelo y llegaban al revés).
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::mediosA, this, [this, cli, aQt](const QStringList& ids) {
+                mediosPendientes_ = ids;
+                if (mediosProgramados_) return;
+                mediosProgramados_ = true;
+                QTimer::singleShot(0, this, [this, cli, aQt]() {
+                    mediosProgramados_ = false;
+                    nlohmann::json l = nlohmann::json::array();
+                    for (const QString& i : mediosPendientes_) l.push_back(i.toStdString());
+                    cli->post("/api/v1/sesion/medios", aQt({{"ids", l}, {"seq", ++mediosSeq_}}), [](bool, const QJsonObject&) {});
+                });
+            });
             connect(sesionRemota_.get(), &asamblea::SesionRemota::cortar, this,
                     [cli, aQt](const QString& id, const QString& motivo) {
                         cli->post("/api/v1/sesion/cortar", aQt({{"id", id.toStdString()}, {"motivo", motivo.toStdString()}}),
@@ -1184,6 +1192,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             connect(bancas_.get(), &asamblea::Bancas::cambio, this, programar);
             connect(this, &StudioViewModel::presidenciaHablaChanged, this, programar);
             if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, programar);
+            if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, [this]() { aplicarVistasRemotas(); });
+            connect(sesionRemota_.get(), &asamblea::SesionRemota::volvio, this, [this](const QString& id) {
+                // Después de la palabra que le reenvía SesionRemota: el turno del debate manda.
+                if (debate_ && debate_->participa(id.toStdString()))
+                    QTimer::singleShot(0, this, [this]() { if (debate_) debate_->reenviar(); });
+            });
             connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, programar);
             if (quorum_) connect(quorum_.get(), &asamblea::Quorum::cambio, this, programar);
             connect(sesionRemota_.get(), &asamblea::SesionRemota::consolaConexion, this,
@@ -3223,7 +3237,8 @@ void StudioViewModel::sincronizarSesion() {
     {
         QJsonArray ids;
         for (const auto& i : sesionRemota_->conPalabraTodos()) ids.append(QString::fromStdString(i));
-        cli.post("/api/v1/sesion/medios", QJsonObject{{"ids", ids}}, [](bool, const QJsonObject&) {});
+        cli.post("/api/v1/sesion/medios", QJsonObject{{"ids", ids}, {"seq", static_cast<qint64>(++mediosSeq_)}},
+                 [](bool, const QJsonObject&) {});
     }
     // El origen de los links: el del túnel si hay; si no, el de la red local (HTTPS).
     QPointer<StudioViewModel> yo(this);
@@ -3246,7 +3261,13 @@ void StudioViewModel::aplicarVistasRemotas(bool forzar) {
     if (!cli.online()) return;
     // Las escenas se componen solo mientras haya algún remoto conectado.
     const bool alguien = sesionRemota_->conectados() > 0;
-    const nlohmann::json vistas = sesionRemota_->vistas();
+    nlohmann::json vistas = sesionRemota_->vistas();
+    // Durante un debate, un canal más con la escena del debate: los remotos se ven entre
+    // ellos (los dos del debate pasan solos a ese canal).
+    if (debate_ && debate_->activo()) {
+        const std::string esc = debate_->estadoJson().value("escena", std::string());
+        if (!esc.empty()) vistas.push_back({{"id", "debate"}, {"nombre", "Debate"}, {"fuente", esc}});
+    }
     const std::string firma = (alguien ? "1" : "0") + vistas.dump();
     if (!forzar && firma == firmaVistas_) return;
     firmaVistas_ = firma;

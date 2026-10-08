@@ -17,6 +17,7 @@
 #include <QHash>
 #include <QImage>
 #include <QSet>
+#include <QDateTime>
 #include <QObject>
 #include <QString>
 #include <QTimer>
@@ -513,6 +514,11 @@ class StudioViewModel : public QObject {
     /// (toma sus canales mientras haya alguien conectado). `forzar`: aunque no cambió nada.
     void aplicarVistasRemotas(bool forzar = false);
     std::string firmaVistas_;
+    QStringList mediosPendientes_;
+    bool mediosProgramados_ = false;
+    /// Arranca en la hora de arranque: siempre mayor que el de la corrida anterior (el gateway
+    /// sigue andando y descarta las listas con número menor al último).
+    long long mediosSeq_ = QDateTime::currentMSecsSinceEpoch();
     bool presidenciaHabla_ = false;
     bool prioridadCentral_ = false; ///< el botón de prioridad del presidente, como lo vio la última vez
     /// Los remotos que tienen la palabra (y el orador remoto al aire) dejan de hablar.

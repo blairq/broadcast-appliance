@@ -301,6 +301,7 @@ void SesionRemota::evento(const json& ev) {
             auto tu = turnos_.find(id);
             if (tu != turnos_.end()) emit enviar(QString::fromStdString(id), json{{"type", "fila"}, {"turno", tu->second}});
             if (vot_.estado == "abierta" || vot_.estado == "pausada") emit enviar(QString::fromStdString(id), mensajeVotacion(id));
+            emit volvio(QString::fromStdString(id));
             // Tenía la palabra y se le cortó (o recargó): la sigue teniendo, con el
             // mismo reloj; el gateway le vuelve a pedir el micrófono y la cámara.
             for (const Palabra& pa : palabras_)

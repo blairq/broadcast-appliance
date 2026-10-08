@@ -118,6 +118,22 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     if (!camaraRara.empty())
         falta("camaras", "Bancas con una cámara que no existe: " + camaraRara.front() + (camaraRara.size() > 1 ? " y otras" : "") + ".",
               "Corregí la cámara en el Cuerpo o agregá esa entrada.");
+    // Muchas bancas en la MISMA posición: al darle la palabra a una no se la encuadra a ella.
+    {
+        std::map<std::string, std::vector<std::string>> porPosicion;
+        for (const auto& i : integrantes) {
+            const json p = i.value("preset_ptz", json::object());
+            const std::string c = p.value("camara", std::string()), pos = p.value("posicion", std::string());
+            if (!c.empty() && !pos.empty() && !i.value("banca", std::string()).empty())
+                porPosicion[c + " / " + pos].push_back(i.value("banca", std::string()));
+        }
+        for (const auto& [cp, bancas] : porPosicion)
+            if (bancas.size() > 2)
+                aviso("camaras", std::to_string(bancas.size()) + " bancas usan la misma posición («" + cp +
+                                     "»): al darle la palabra a una no se la encuadra a ella, se ve el plano entero.",
+                      "Una posición por banca (o por grupo chico de bancas vecinas): apuntá la PTZ, ptz_posicion_guardar "
+                      "{entrada, nombre: \"Banca N\"} e integrante_editar {id, camara, posicion}.");
+    }
     if (!posicionRara.empty())
         aviso("camaras", "Bancas con una posición PTZ que la cámara no tiene: " + posicionRara.front() + (posicionRara.size() > 1 ? " y otras" : "") + ".",
               "ptz_posicion_guardar en esa cámara con ese nombre.");
