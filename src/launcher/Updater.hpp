@@ -29,6 +29,9 @@ namespace ba::launcher {
 
 struct UpdateOptions {
     std::filesystem::path root;   ///< raiz del sistema instalado
+    /// La carpeta de DATOS (Config/, Credenciales/): en Windows y Linux es `root`; en macOS
+    /// está al lado de la .app. Vacía = `root`. El respaldo se hace acá.
+    std::filesystem::path datos;
     std::filesystem::path source; ///< carpeta de la version nueva (vacio en rollback)
     bool rollback = false;
     int waitLockMs = 60000;            ///< cuanto esperar a que la app cierre

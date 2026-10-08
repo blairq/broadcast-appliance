@@ -76,6 +76,7 @@ int runLauncher(const std::vector<std::string>& args) {
     {
         ba::launcher::UpdateOptions uo;
         uo.root = root;
+        uo.datos = datos;
         bool wantUpdate = false;
         bool start = false;
         for (std::size_t i = 0; i < args.size(); ++i) {

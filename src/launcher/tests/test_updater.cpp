@@ -140,6 +140,22 @@ int main() {
         CHECK(!r.ok && r.message.find("abierto") != std::string::npos);
     }
 
+    // --- 6) datos al lado del programa (macOS: «<App> Datos» junto a la .app) -------------
+    {
+        const fs::path root2 = base / "sistema2";
+        const fs::path datos2 = base / "sistema2 Datos";
+        makeVersion(root2, "1");
+        spit(datos2 / "Config" / "app.json", "LA CONFIG DE VERDAD");
+        spit(datos2 / "Credenciales" / "x.cred", "EL TOKEN DE VERDAD");
+        UpdateOptions o = opts(root2, v2);
+        o.datos = datos2;
+        r = runUpdate(o);
+        CHECK(r.ok);
+        CHECK(r.backup.parent_path().parent_path() == datos2); // el respaldo va en la carpeta de datos
+        CHECK(slurp(r.backup / "Config" / "app.json") == "LA CONFIG DE VERDAD");
+        CHECK(slurp(r.backup / "Credenciales" / "x.cred") == "EL TOKEN DE VERDAD");
+    }
+
     ba::launcher::Log::close();
     fs::remove_all(base);
     if (g_failures == 0) std::printf("test_updater: OK\n");

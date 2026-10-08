@@ -79,7 +79,7 @@ QStringList SystemViewModel::credentials() const {
 
 QVariantList SystemViewModel::backups() const {
     QVariantList out;
-    QDir d(programa() + "/Respaldos");
+    QDir d(root() + "/Respaldos"); // el launcher respalda en la carpeta de datos
     const auto list = d.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed);
     for (const QFileInfo& fi : list)
         out << QVariantMap{{"name", fi.fileName()}, {"path", fi.absoluteFilePath()}};
