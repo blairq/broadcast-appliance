@@ -281,7 +281,7 @@ void McpService::registerVideoTools() {
             "`cuadros` "
             "(0..120, para sincronizar). Rostros: `fps`, `reconocer`, `detector`, `marcar`, `estilo`, `color`, "
             "`texto` (plantilla {nombre} {cargo} {id} {confianza} {n}); la pone sola Personas al elegir una "
-            "cámara (`entrada:<camara>`), `uso` dice para qué. Seguir: `objetivo`, `zoom`, `aire`… Salida: `nombre`. Vista 360 (una cámara 360 vista como una común, en la placa): `yaw`, `pitch`, `fov` (grados), `proporcion`. Compositor: "
+            "cámara (`entrada:<camara>`), `uso` dice para qué. Seguir: `objetivo`, `zoom`, `aire`… Salida: `nombre`. Vista 360 (una cámara 360 en un stream vista como una común, en la placa): `modo` (equirect | ojo | dos-ojos), `ver`, `yaw`, `pitch`, `fov` (grados), `ancho`, `alto` (0 = como entra), las lentes y la guía (video_tarjeta_ayuda); con un stream por cámara (varias lado a lado o una 360 de dos lentes), video_panoramica. Compositor: "
             "`ancho`, `alto`, `fondo` (0xAARRGGBB), "
             "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, "
             "ajuste "
@@ -297,7 +297,7 @@ void McpService::registerVideoTools() {
                {{"type", "string"},
                 {"enum",
                  {"color", "croma", "recorte", "gst", "plugin", "retardo", "normalizar", "rostros",
-                  "seguir", "salida", "compositor", "superres", "vista360"}}}},
+                  "seguir", "salida", "compositor", "superres", "vista360", "panoramica"}}}},
               {"plugin",
                {{"type", "string"},
                 {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
@@ -798,6 +798,55 @@ void McpService::registerVideoTools() {
             hecho["verificar"] = "imagen_analizar sobre «" + hecho.value("fuente", std::string()) +
                                  "» con una pregunta concreta (¿algo estirado o en negro?; el primer cuadro "
                                  "puede tardar un instante)";
+            done(ToolResult().data(hecho));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_panoramica";
+        t.title = "Unir varias cámaras en una imagen (panorámica o 360), en una llamada";
+        t.category = "video";
+        t.description =
+            "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
+            "sola imagen, todo en la placa: la tarjeta Panorámica del estudio (o rearma la que se llame "
+            "`nombre`), un cable de cada cámara (lo que llega a la escena de cada una) y, con `escena`, la "
+            "fuente ahí (las cámaras sueltas se ocultan en esa escena). Las pone lado a lado en su lienzo "
+            "(`lente_ancho` x `lente_alto` cada una: 1920x1080 de fábrica; máximo 16384 de ancho) y corrige la "
+            "deformación de cada una y cómo encajan. `preset`: «fila» (cámaras comunes de `campo` grados, 60 de "
+            "fábrica, repartidas con un 10% que se pisa; sale la tira del tamaño de la suma de las "
+            "resoluciones) o «360» (dos ojos de pez de 190° espalda con espalda; sale la vista, un PTZ). "
+            "`params` (encima del preset; video_tarjeta_ayuda tipo panoramica): ver (vista | tira | panorama | "
+            "entrada), yaw, pitch, fov (pan, tilt y zoom de la vista), tira_campo, ancho, alto (0 = la suma), "
+            "mezcla; por cámara lenteN_tipo (ojo | normal), lenteN_x, _y, _radio, _campo, _yaw, _pitch, _roll "
+            "(cómo encaja), _k1, _k2 (su deformación); la guía para calibrar: guia (ninguna | rectangulo | "
+            "circulo | grilla | cruz | esfera), guia_x, guia_y, guia_ancho, guia_alto, guia_grosor, guia_color. "
+            "Para retocar: video_tarjeta_ajustar sobre la tarjeta.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"camaras"}},
+            {"properties",
+             {{"camaras", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "las entradas, en orden"}}},
+              {"preset", {{"type", "string"}, {"enum", {"fila", "360"}}}},
+              {"campo", {{"type", "number"}, {"description", "con preset: el campo de cada lente (grados)"}}},
+              {"nombre", {{"type", "string"}, {"description", "el de la fuente (de fábrica, «Panorámica»)"}}},
+              {"escena", {{"type", "string"}}},
+              {"params", {{"type", "object"}}}}}};
+        t.examples = {
+            R"({"camaras": ["Cám 1", "Cám 2", "Cám 3", "Cám 4"], "preset": "fila", "campo": 70, "escena": "Panorámica"})",
+            R"({"camaras": ["360 adelante", "360 atrás"], "preset": "360", "escena": "Plano 360", "params": {"ver": "entrada"}})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            std::vector<std::string> cs;
+            for (const auto& x : a.value("camaras", json::array()))
+                if (x.is_string()) cs.push_back(x.get<std::string>());
+            json hecho;
+            const std::string err = v->armarPanoramica(cs, a.value("preset", std::string()), a.value("campo", 0.0),
+                                                       a.value("nombre", std::string()), a.value("escena", std::string()),
+                                                       a.value("params", json::object()), &hecho);
+            if (!err.empty()) return done(ToolResult::error(err));
+            hecho["verificar"] = "capture_source sobre «" + hecho.value("fuente", std::string()) +
+                                 "» (o imagen_analizar con una pregunta concreta)";
             done(ToolResult().data(hecho));
         };
         core_.addTool(std::move(t));

@@ -114,7 +114,12 @@ const json& BroadcastEngine::estadoMotor() const {
 }
 
 json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& config) const {
-    const double W = video_.baseWidth, H = video_.baseHeight;
+    // Con lienzo propio (la Cámara 360: las dos lentes lado a lado sin achicar), las
+    // capas van en ese; si no, en el del estudio.
+    const json lienzo = config.is_object() ? config.value("lienzo", json::object()) : json::object();
+    const bool propio = lienzo.is_object() && lienzo.value("ancho", 0) > 0 && lienzo.value("alto", 0) > 0;
+    const double W = propio ? lienzo.value("ancho", 0) : video_.baseWidth;
+    const double H = propio ? lienzo.value("alto", 0) : video_.baseHeight;
     json capas = json::array();
     int orden = 0;
     if (config.is_object())
@@ -133,7 +138,10 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
             if (!k.value("productor", std::string()).empty()) capa["productor"] = k["productor"];
             capas.push_back(capa);
         }
-    return {{"nombre", kPrefijoCompositor + nombre}, {"capas", capas}};
+    json e{{"nombre", kPrefijoCompositor + nombre}, {"capas", capas}};
+    if (propio) e["lienzo"] = lienzo;
+    if (config.is_object() && config.contains("filtros")) e["filtros"] = config["filtros"];
+    return e;
 }
 
 json BroadcastEngine::escenaMotor(const EscenaApp& e) const {

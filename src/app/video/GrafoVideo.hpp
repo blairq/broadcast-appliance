@@ -40,6 +40,9 @@
 
 namespace ba::app::video {
 
+/// Cuántas cámaras une como mucho una Panorámica (ba360: hasta 8 lentes).
+constexpr int kMaxLentes360 = 8;
+
 class GrafoVideo {
    public:
     struct Nodo {
@@ -160,6 +163,11 @@ class GrafoVideo {
     /// opacidad, ajuste}]} de abajo hacia arriba. Las capas sin posición van
     /// en mosaico.
     nlohmann::json configCompositor(const std::string& id) const;
+    /// Los parámetros de una Vista 360 o una Panorámica, como propiedades de ba360
+    /// (`lentes` > 0: la Panorámica, con esa cantidad de cámaras lado a lado).
+    static nlohmann::json propiedades360(const nlohmann::json& params, int lentes);
+    /// Cuántas cámaras tiene una Panorámica (hasta el último puerto conectado).
+    int lentesConectadas(const std::string& id) const;
     /// Para la interfaz y MCP. Con `grupo`: ese sub-grafo y, marcados
     /// `externo`, los nodos de afuera que se conectan con él. Sin grupo: todo.
     nlohmann::json describir(const std::string& grupo, bool soloGrupo) const;

@@ -237,7 +237,7 @@ json VideoGrafos::conPublicadas(json d) const {
     // Si cada salida ya existe como fuente.
     for (auto& n : d["nodos"]) {
         const std::string tipo = n.value("tipo", std::string());
-        if (tipo == "salida" || tipo == "compositor") {
+        if (tipo == "salida" || tipo == "compositor" || tipo == "panoramica") {
             const std::string nombre = n["params"].value("nombre", std::string());
             n["publicada"] = !nombre.empty() && rt_.engine().sourceTypeId(nombre) ==
                                                     (tipo == "salida" ? kTipoSalida : kTipoCompositor);
@@ -545,15 +545,17 @@ void VideoGrafos::nombrarSalidas(GrafoVideo& g) const {
         usados.insert(s);
     std::vector<std::pair<std::string, std::string>> sinNombre;
     for (const auto& n : g.nodos())
-        if ((n.tipo == "salida" || n.tipo == "compositor") && n.params.value("nombre", std::string()).empty())
+        if ((n.tipo == "salida" || n.tipo == "compositor" || n.tipo == "panoramica") &&
+            n.params.value("nombre", std::string()).empty())
             sinNombre.emplace_back(n.id, n.grupo);
-        else if (n.tipo == "compositor")
+        else if (n.tipo == "compositor" || n.tipo == "panoramica")
             usados.insert(n.params.value("nombre", std::string()));
     for (const auto& [id, grupo] : sinNombre) {
         // «Cámara 1 · salida», «Cámara 1 · salida 2», «Estudio · compositor»…
         // sin chocar con otra fuente.
-        const bool comp = g.nodo(id)->tipo == "compositor";
-        const std::string base = comp ? std::string("Estudio · compositor")
+        const bool comp = g.nodo(id)->tipo == "compositor" || g.nodo(id)->tipo == "panoramica";
+        const std::string base = g.nodo(id)->tipo == "panoramica" ? std::string("Panorámica")
+                                 : comp ? std::string("Estudio · compositor")
                                       : (grupo.empty() ? std::string("Estudio") : grupo) + " · salida";
         std::string nombre;
         for (int i = 1;; ++i) {
@@ -880,9 +882,9 @@ QString VideoGrafos::aEscena(const QString& id, const QString& escena) {
 
 std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string& escena) {
     const GrafoVideo::Nodo* n = grafo_.nodo(id);
-    if (n == nullptr || (n->tipo != "salida" && n->tipo != "compositor"))
+    if (n == nullptr || (n->tipo != "salida" && n->tipo != "compositor" && n->tipo != "panoramica"))
         return "«" + id + "» no es una salida ni un compositor del grafo";
-    const bool comp = n->tipo == "compositor";
+    const bool comp = n->tipo == "compositor" || n->tipo == "panoramica";
     const std::string nombre = n->params.value("nombre", std::string());
     const std::string tipo = rt_.engine().sourceTypeId(nombre);
     if (!tipo.empty() && tipo != (comp ? kTipoCompositor : kTipoSalida))
@@ -1088,34 +1090,6 @@ std::string decimal(double v) {
     return b;
 }
 
-/// La tarjeta Vista 360: de una imagen equirectangular a lo que ve una cámara que
-/// mira hacia yaw/pitch con un campo vertical fov (grados); aspect = ancho/alto de la salida.
-constexpr const char* kShader360 = R"(#version 100
-#ifdef GL_ES
-precision highp float;
-#endif
-varying vec2 v_texcoord;
-uniform sampler2D tex;
-uniform float yaw;
-uniform float pitch;
-uniform float fov;
-uniform float aspect;
-void main () {
-  vec2 p = v_texcoord * 2.0 - 1.0;
-  p.y = -p.y;
-  float t = tan(radians(fov) * 0.5);
-  vec3 d = normalize(vec3(p.x * t * aspect, p.y * t, 1.0));
-  float cp = cos(radians(pitch));
-  float sp = sin(radians(pitch));
-  d = vec3(d.x, d.y * cp + d.z * sp, -d.y * sp + d.z * cp);
-  float cy = cos(radians(yaw));
-  float sy = sin(radians(yaw));
-  d = vec3(d.x * cy + d.z * sy, d.y, -d.x * sy + d.z * cy);
-  float lon = atan(d.x, d.z);
-  float lat = asin(clamp(d.y, -1.0, 1.0));
-  gl_FragColor = texture2D(tex, vec2(lon / 6.2831853 + 0.5, 0.5 - lat / 3.1415927));
-}
-)";
 } // namespace
 
 json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
@@ -1339,12 +1313,12 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             pr["espejo-v"] = p.value("espejoV", false) ? "true" : "false";
             alfa = alfa || recorta;
         } else if (tipo == "vista360") {
-            // En la placa: glshader con el shader de la 360 (el motor le pone la subida a GL).
-            f["elemento"] = "glshader";
-            pr["fragment"] = kShader360;
-            pr["uniforms"] = "u, yaw=(float)" + decimal(p.value("yaw", 0.0)) + ", pitch=(float)" +
-                             decimal(p.value("pitch", 0.0)) + ", fov=(float)" + decimal(p.value("fov", 90.0)) +
-                             ", aspect=(float)" + decimal(std::max(0.1, p.value("proporcion", 2.0)));
+            // ba360; en la GPU el motor pone su par (ba360gl, ba360d3d12): no baja a la CPU.
+            f["elemento"] = "ba360";
+            for (const auto pr360 = GrafoVideo::propiedades360(p, 0); const auto& [k, v] : pr360.items())
+                pr[k] = v.is_string() ? v.get<std::string>()
+                        : v.is_number_integer() ? std::to_string(v.get<long long>())
+                                                : decimal(v.get<double>());
         } else if (tipo == "gst") {
             const std::string el = p.value("elemento", std::string());
             if (el.empty()) break;
@@ -2513,6 +2487,125 @@ bool VideoGrafos::mostrarEnEscena(const std::string& nombre, const std::string& 
     const bool ok = rt_.setSourceVisible(escena, nombre, visible);
     if (ok) rt_.save();
     return ok;
+}
+
+json VideoGrafos::paramsPreset(const std::string& preset, int cuantas, double campo) {
+    json p = json::object();
+    if (preset == "360") {
+        // Dos ojos de pez de 190° espalda con espalda; sale la vista (el PTZ).
+        for (int i = 1; i <= 2; ++i) {
+            const std::string b = "lente" + std::to_string(i) + "_";
+            p[b + "tipo"] = "ojo";
+            p[b + "campo"] = campo > 0 ? campo : 190.0;
+            p[b + "yaw"] = i == 1 ? 0.0 : 180.0;
+            for (const char* k : {"pitch", "roll", "k1", "k2"}) p[b + k] = 0.0;
+            p[b + "x"] = p[b + "y"] = p[b + "radio"] = 0.5;
+        }
+        p["ver"] = "vista";
+        p["ancho"] = 1920;
+        p["alto"] = 1080;
+        p["mezcla"] = 5.0;
+    } else if (preset == "fila") {
+        // Comunes de `campo` grados, una al lado de la otra con un 10% que se pisa; sale la
+        // tira con todas, del tamaño de la suma de sus resoluciones.
+        const double c = campo > 0 ? campo : 60.0, paso = c * 0.9;
+        for (int i = 0; i < cuantas; ++i) {
+            const std::string b = "lente" + std::to_string(i + 1) + "_";
+            p[b + "tipo"] = "normal";
+            p[b + "campo"] = c;
+            p[b + "yaw"] = (i - (cuantas - 1) / 2.0) * paso;
+            for (const char* k : {"pitch", "roll", "k1", "k2"}) p[b + k] = 0.0;
+            p[b + "x"] = p[b + "y"] = 0.5;
+        }
+        p["ver"] = "tira";
+        p["yaw"] = 0.0;
+        p["pitch"] = 0.0;
+        p["tira_campo"] = std::min(360.0, paso * cuantas);
+        p["ancho"] = 0;
+        p["alto"] = 0;
+        p["mezcla"] = std::min(10.0, c * 0.05);
+    }
+    return p;
+}
+
+std::string VideoGrafos::presetPanoramica(const std::string& id, const std::string& preset, double campo) {
+    const GrafoVideo::Nodo* n = grafo_.nodo(id);
+    if (n == nullptr || n->tipo != "panoramica") return "«" + id + "» no es una Panorámica";
+    if (preset != "360" && preset != "fila") return "preset: 360 o fila";
+    const int cuantas = std::max(preset == "360" ? 2 : 1, grafo_.lentesConectadas(id));
+    const json p = paramsPreset(preset, cuantas, campo);
+    return editar([&](GrafoVideo& g) {
+        std::string e;
+        return g.ajustar(id, p, &e) ? std::string() : e;
+    });
+}
+
+std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras, const std::string& preset, double campo,
+                                         const std::string& nombre, const std::string& escena, const json& params,
+                                         json* hecho) {
+    if (camaras.empty()) return "falta `camaras` (de 1 a " + std::to_string(kMaxLentes360) + ")";
+    if (static_cast<int>(camaras.size()) > kMaxLentes360)
+        return "hasta " + std::to_string(kMaxLentes360) + " cámaras (una textura no pasa de 16384 de ancho)";
+    for (size_t i = 0; i < camaras.size(); ++i) {
+        if (!esEntrada(camaras[i])) return "«" + camaras[i] + "» no es una entrada de video";
+        for (size_t j = 0; j < i; ++j)
+            if (camaras[i] == camaras[j]) return "«" + camaras[i] + "» está dos veces";
+    }
+    if (preset == "360" && camaras.size() != 2) return "el preset 360 es de dos lentes";
+    std::string id;
+    const std::string err = editar([&](GrafoVideo& g) {
+        std::string e;
+        for (const auto& n : g.nodos())
+            if (n.tipo == "panoramica" && !nombre.empty() && n.params.value("nombre", std::string()) == nombre) id = n.id;
+        if (id.empty()) {
+            id = g.agregar("panoramica", "", "", json::object(), &e);
+            if (id.empty()) return e;
+        } else {
+            std::vector<GrafoVideo::Cable> viejos;
+            for (const auto& c : g.cables())
+                if (c.hacia == id) viejos.push_back(c);
+            for (const auto& c : viejos) g.desconectar(c.desde, c.salida, c.hacia, c.entrada);
+        }
+        // Primero lo del preset, encima lo que se pidió.
+        json p = preset.empty() ? json::object() : paramsPreset(preset, static_cast<int>(camaras.size()), campo);
+        if (params.is_object())
+            for (auto it = params.begin(); it != params.end(); ++it) p[it.key()] = it.value();
+        if (!nombre.empty()) p["nombre"] = nombre;
+        if (!p.empty() && !g.ajustar(id, p, &e)) return e;
+        if (!nombre.empty()) g.ajustar(id, json{{"etiqueta", nombre}}, nullptr);
+        // De cada cámara, lo que llega a su escena (con sus tarjetas): la k-ésima a in_k.
+        for (size_t i = 0; i < camaras.size(); ++i) {
+            std::string desde = GrafoVideo::idEntrada(camaras[i]);
+            for (const auto& c : g.cables())
+                if (c.hacia == GrafoVideo::idEscena(camaras[i]) && c.entrada == "in") desde = c.desde;
+            if (g.conectar(desde, "out", id, "in_" + std::to_string(i), &e).empty()) return e;
+        }
+        return std::string();
+    });
+    if (!err.empty()) return err;
+    json ocultas = json::array();
+    if (!escena.empty()) {
+        if (!asegurarEscena(escena)) return "no se pudo crear la escena «" + escena + "»";
+        const std::string pe = ponerEnEscena(id, escena);
+        if (!pe.empty() && pe.find("ya hay") == std::string::npos) return pe;
+        for (const auto& e : camaras)
+            if (mostrarEnEscena(e, escena, false)) ocultas.push_back(e);
+    }
+    const GrafoVideo::Nodo* n = grafo_.nodo(id);
+    const json p = n ? n->params : json::object();
+    const int la = p.value("lente_ancho", 1920), al = p.value("lente_alto", 1080);
+    if (hecho != nullptr)
+        *hecho = {{"tarjeta", id},
+                  {"fuente", p.value("nombre", std::string())},
+                  {"camaras", camaras},
+                  {"lienzo", std::to_string(static_cast<int>(camaras.size()) * la) + "x" + std::to_string(al)},
+                  {"ocultas", ocultas},
+                  {"calibrar",
+                   "video_tarjeta_ajustar sobre la tarjeta: ver=entrada para encajar centros y círculos; "
+                   "ver=tira o panorama con guia=esfera para cómo encajan (lenteN_yaw, _pitch, _roll, _campo) "
+                   "hasta que el horizonte quede derecho y sin costuras; guía rectángulo o círculo encima de "
+                   "algo que lo sea para la deformación (lenteN_k1, _k2)"}};
+    return {};
 }
 
 std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,

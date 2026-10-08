@@ -557,6 +557,9 @@ const Fila kPropias[] = {
                        "camaras igualar camaras"},
     {"video_mosaico",
      "mosaico de camaras imagen en imagen pip lado a lado multicamara juntar camaras en una escena"},
+    {"video_panoramica",
+     "panoramica unir camaras stitching coser varias camaras lado a lado camara 360 dos lentes ojo de pez "
+     "fisheye equirectangular dewarp calibrar lentes corregir deformacion distorsion encajar ptz virtual"},
     {"video_estado", "estado de la camara resolucion fps cuadros por segundo espacio de color colorimetria "
                      "entrelazado diagnostico de video"},
     {"video_entrada_red", "stream de red srt rtmp rtsp udp recibir video por red entrada remota corresponsal "

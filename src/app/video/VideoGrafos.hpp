@@ -346,6 +346,20 @@ class VideoGrafos : public QObject {
     /// cada una, o sea con sus tarjetas) y la fuente en la escena. Con
     /// `ocultarSueltas`, oculta en esa escena las entradas sueltas (el
     /// compositor las sigue recibiendo). "" o el error; `hecho` dice qué quedó.
+    /// La Panorámica en UNA llamada: la tarjeta (o la que se llame `nombre`), un cable de
+    /// cada cámara (lo que llega a su escena; la k-ésima es la lente k) y la fuente en
+    /// `escena` (las cámaras sueltas se ocultan ahí). `preset`: "" | "360" (dos ojos de
+    /// pez) | "fila" (comunes de `campo` grados); encima, `params` (los de la tarjeta).
+    std::string armarPanoramica(const std::vector<std::string>& camaras, const std::string& preset, double campo,
+                                const std::string& nombre, const std::string& escena, const nlohmann::json& params,
+                                nlohmann::json* hecho);
+    /// Un atajo sobre una Panorámica que ya está: "360" o "fila" (con las cámaras que tiene).
+    std::string presetPanoramica(const std::string& id, const std::string& preset, double campo);
+    Q_INVOKABLE QString presetPanoramicaUi(const QString& id, const QString& preset, double campo) {
+        return QString::fromStdString(presetPanoramica(id.toStdString(), preset.toStdString(), campo));
+    }
+    /// Los parámetros de un atajo para `cuantas` cámaras.
+    static nlohmann::json paramsPreset(const std::string& preset, int cuantas, double campo);
     std::string armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
                              const std::string& disposicion, const std::string& nombre, bool ocultarSueltas,
                              nlohmann::json* hecho);

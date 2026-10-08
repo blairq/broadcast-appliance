@@ -34,8 +34,33 @@ json fabrica(const std::string& tipo) {
     if (tipo == "salida") return {{"nombre", ""}};
     // Una imagen 360 (equirectangular) vista como una cámara común: hacia dónde mira
     // (`yaw` -180..180, `pitch` -90..90, en grados), cuánto abre (`fov`, el campo
-    // vertical) y la `proporcion` (ancho/alto) del cuadro que sale (2 = el de la 360).
-    if (tipo == "vista360") return {{"yaw", 0.0}, {"pitch", 0.0}, {"fov", 90.0}, {"proporcion", 2.0}};
+    // vertical) y el tamaño del cuadro que sale (`ancho` x `alto`; 0 = como entra).
+    // El elemento ba360: en la GPU, ba360gl o ba360d3d12 (lo elige el motor).
+    if (tipo == "vista360" || tipo == "panoramica") {
+        const bool pano = tipo == "panoramica";
+        json p{{"yaw", 0.0},       {"pitch", 0.0},      {"fov", 90.0},       {"tira_campo", 180.0},
+               {"ancho", pano ? 0 : 1920}, {"alto", pano ? 0 : 1080},
+               {"modo", pano ? "lentes" : "equirect"}, {"ver", pano ? "tira" : "vista"}, {"mezcla", 5.0},
+               {"guia", "ninguna"}, {"guia_x", 0.5},     {"guia_y", 0.5},     {"guia_ancho", 0.5}, {"guia_alto", 0.5},
+               {"guia_grosor", 3.0}, {"guia_color", 0xFF00FF00LL}};
+        for (int i = 1; i <= kMaxLentes360; ++i) {
+            const std::string b = "lente" + std::to_string(i) + "_";
+            p[b + "tipo"] = pano ? "normal" : "ojo";
+            for (const auto& [k, v] : std::initializer_list<std::pair<const char*, double>>{
+                     {"x", 0.5}, {"y", 0.5}, {"radio", 0.5}, {"campo", pano ? 60.0 : 190.0}, {"yaw", 0},
+                     {"pitch", 0}, {"roll", 0}, {"k1", 0}, {"k2", 0}})
+                p[b + k] = v;
+        }
+        // La Panorámica (del estudio): un stream por cámara, lado a lado en su lienzo
+        // (lente_ancho x lente_alto cada uno), unidas en una imagen; de fábrica la tira,
+        // del tamaño de la suma de las resoluciones. `nombre`: la fuente en las escenas.
+        if (pano) {
+            p["lente_ancho"] = 1920;
+            p["lente_alto"] = 1080;
+            p["nombre"] = "";
+        }
+        return p;
+    }
     // `ms` (lo que se mide) manda sobre `cuadros` si es > 0.
     if (tipo == "retardo") return {{"cuadros", 0}, {"ms", 0}};
     // Una fuente que declara mal su color o su entrelazado: lo que dice
@@ -109,6 +134,7 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "croma") return "Croma";
     if (tipo == "recorte") return "Recorte y espejo";
     if (tipo == "vista360") return "Vista 360";
+    if (tipo == "panoramica") return "Panorámica";
     if (tipo == "salida") return "Salida";
     if (tipo == "retardo") return "Retardo";
     if (tipo == "normalizar") return "Normalizar";
@@ -249,11 +275,45 @@ json GrafoVideo::parametrosDe(const std::string& tipo) {
             l.push_back(param(k, "numero", "Cuánto se recorta de ese lado (fracción del cuadro; queda transparente).", {{"min", 0}, {"max", 0.5}}));
         l.push_back(param("espejoH", "si_no", "Espejo horizontal."));
         l.push_back(param("espejoV", "si_no", "Espejo vertical."));
-    } else if (tipo == "vista360") {
-        l.push_back(param("yaw", "numero", "Hacia dónde mira, de costado (grados).", {{"min", -180}, {"max", 180}}));
-        l.push_back(param("pitch", "numero", "Hacia arriba o abajo (grados).", {{"min", -90}, {"max", 90}}));
-        l.push_back(param("fov", "numero", "Cuánto abre (grados, vertical): menos es más zoom.", {{"min", 20}, {"max", 150}}));
-        l.push_back(param("proporcion", "numero", "Ancho/alto del cuadro que sale (2 = el de una 360).", {{"min", 0.5}, {"max", 4}}));
+    } else if (tipo == "vista360" || tipo == "panoramica") {
+        if (tipo == "panoramica") {
+            l.push_back(param("nombre", "texto", "La fuente con la que se pone en las escenas."));
+            l.push_back(param("lente_ancho", "entero", "Ancho del stream de cada cámara (su franja en el lienzo).", {{"min", 64}, {"max", 7680}}));
+            l.push_back(param("lente_alto", "entero", "Alto del stream de cada cámara.", {{"min", 64}, {"max", 4320}}));
+        } else {
+            l.push_back(param("modo", "opcion", "Lo que entra: equirectangular, un ojo de pez, dos lado a lado o varias cámaras lado a lado (`lentes` las cuenta la tarjeta: de 1 a 8).", {{"opciones", {"equirect", "ojo", "dos-ojos", "lentes"}}}));
+        }
+        l.push_back(param("ver", "opcion", "Lo que sale: la vista (una cámara común: el PTZ), la tira (la panorámica), el panorama (la esfera entera) o la entrada con los círculos y las franjas (para calibrar).", {{"opciones", {"vista", "tira", "panorama", "entrada"}}}));
+        l.push_back(param("yaw", "numero", "Hacia dónde mira, de costado (grados): el pan (en la tira, su centro).", {{"min", -180}, {"max", 180}}));
+        l.push_back(param("pitch", "numero", "Hacia arriba o abajo (grados): el tilt.", {{"min", -90}, {"max", 90}}));
+        l.push_back(param("fov", "numero", "La vista: cuánto abre (grados, vertical): el zoom.", {{"min", 10}, {"max", 170}}));
+        l.push_back(param("tira_campo", "numero", "La tira: cuántos grados de costado entran.", {{"min", 10}, {"max", 360}}));
+        l.push_back(param("ancho", "entero", "Ancho del cuadro que sale (0 = como entra: en la Panorámica, la suma de las cámaras).", {{"min", 0}, {"max", 16384}}));
+        l.push_back(param("alto", "entero", "Alto del cuadro que sale (0 = como entra).", {{"min", 0}, {"max", 8192}}));
+        l.push_back(param("mezcla", "numero", "Franja donde se mezclan dos cámaras que se pisan (grados).", {{"min", 0}, {"max", 40}}));
+        for (int i = 1; i <= kMaxLentes360; ++i) {
+            const std::string b = "lente" + std::to_string(i) + "_", cual = " (lente " + std::to_string(i) + ")";
+            l.push_back(param((b + "tipo").c_str(), "opcion", ("Ojo de pez o común" + cual).c_str(), {{"opciones", {"ojo", "normal"}}}));
+            const auto lp = [&](const char* k, const std::string& d, double mn, double mx) {
+                l.push_back(param((b + k).c_str(), "numero", (d + cual).c_str(), {{"min", mn}, {"max", mx}}));
+            };
+            lp("x", "Centro óptico, de costado (fracción de su franja)", -0.5, 1.5);
+            lp("y", "Centro óptico, de arriba abajo (fracción del alto)", -0.5, 1.5);
+            lp("radio", "Ojo de pez: radio del círculo (fracción del alto)", 0.05, 1.5);
+            lp("campo", "Lo que cubre (grados): el círculo, o el ancho si es común", 10, 270);
+            lp("yaw", "Cómo encaja: hacia dónde mira, de costado (grados)", -180, 180);
+            lp("pitch", "Cómo encaja: inclinación (grados)", -90, 90);
+            lp("roll", "Cómo encaja: rotación sobre su eje (grados)", -180, 180);
+            lp("k1", "Deformación k1 (barril < 0 < cojín)", -1, 1);
+            lp("k2", "Deformación k2", -1, 1);
+        }
+        l.push_back(param("guia", "opcion", "Un dibujo encima para calibrar a mano: se ajustan las cámaras hasta que lo filmado coincida.", {{"opciones", {"ninguna", "rectangulo", "circulo", "grilla", "cruz", "esfera"}}}));
+        l.push_back(param("guia_x", "numero", "Centro de la guía, de costado (fracción de la salida).", {{"min", -1}, {"max", 2}}));
+        l.push_back(param("guia_y", "numero", "Centro de la guía, de arriba abajo.", {{"min", -1}, {"max", 2}}));
+        l.push_back(param("guia_ancho", "numero", "Ancho de la guía (fracción; en la grilla, el paso).", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("guia_alto", "numero", "Alto de la guía (fracción; en la grilla, el paso).", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("guia_grosor", "numero", "Grosor de la línea (píxeles).", {{"min", 0.5}, {"max", 40}}));
+        l.push_back(param("guia_color", "color", "Color de la guía (ARGB)."));
     } else if (tipo == "retardo") {
         l.push_back(param("cuadros", "entero", "Cuadros de atraso.", {{"min", 0}, {"max", 120}}));
         l.push_back(param("ms", "entero", "Milisegundos de atraso (manda sobre `cuadros` si es > 0)."));
@@ -325,7 +385,8 @@ json GrafoVideo::catalogo() {
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
         {"vista360",
          "Una cámara 360 (imagen equirectangular) vista como una cámara común: hacia dónde mira y cuánto abre. "
-         "Corre en la placa de video (glshader de GStreamer, OpenGL).",
+         "Corre en la placa de video (OpenGL en Mac y Linux, Direct3D 12 en Windows): la imagen no baja a la "
+         "memoria de la máquina.",
          "entrada"},
         {"rostros",
          "Encuentra, sigue y reconoce caras (elemento barostros): mira la toma entera de la cámara, sin demorar "
@@ -360,6 +421,12 @@ json GrafoVideo::catalogo() {
          "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.",
          "estudio"},
+        {"panoramica",
+         "Une varias cámaras (hasta 8, un stream cada una) en una sola imagen: una fila de cámaras comunes "
+         "(la tira, del tamaño de la suma de sus resoluciones) o una 360 de ojos de pez (la vista, como un "
+         "PTZ). Corrige la deformación de cada una y cómo encajan (centro, campo, montaje, distorsión) con "
+         "una guía encima para calibrar. Todo en la placa. Es del estudio: un cable de cada cámara.",
+         "estudio"},
         {"control",
          "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "
          "en todas las cámaras): un cable de control a cada una.",
@@ -375,7 +442,7 @@ json GrafoVideo::catalogo() {
 }
 
 bool GrafoVideo::tipoValido(const std::string& t) {
-    return esFiltro(t) || t == "salida" || t == "compositor" || t == "control";
+    return esFiltro(t) || t == "salida" || t == "compositor" || t == "panoramica" || t == "control";
 }
 
 std::string GrafoVideo::idEntrada(const std::string& fuente) { return slug(fuente) + ".entrada"; }
@@ -405,8 +472,9 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
     if (n.tipo == "entrada" || n.tipo == "control") return {};
     // Un filtro tiene además su entrada de control (de un controlador).
     if (esFiltro(n.tipo)) return {{"in", "video", false}, {"ctl", "control", false}};
-    if (n.tipo != "compositor") return {{"in", "video", false}};
-    // A pedido: los conectados, en orden, y uno libre al final.
+    if (n.tipo != "compositor" && n.tipo != "panoramica") return {{"in", "video", false}};
+    // A pedido: los conectados, en orden, y uno libre al final (en la Panorámica, hasta 8:
+    // el puerto in_k es la cámara k+1, y su franja en el lienzo).
     std::vector<int> usados;
     for (const auto& c : entrantes(n.id))
         if (indicePedido(c.entrada) >= 0) usados.push_back(indicePedido(c.entrada));
@@ -414,7 +482,8 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
     std::vector<Puerto> out;
     for (int i : usados)
         out.push_back({"in_" + std::to_string(i), "video", false});
-    out.push_back({"in_" + std::to_string(usados.empty() ? 0 : usados.back() + 1), "video", true});
+    const int libre = usados.empty() ? 0 : usados.back() + 1;
+    if (n.tipo != "panoramica" || libre < kMaxLentes360) out.push_back({"in_" + std::to_string(libre), "video", true});
     return out;
 }
 
@@ -561,7 +630,7 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
         for (auto it = params.begin(); it != params.end(); ++it)
             n.params[it.key()] = it.value();
     // Un compositor o un controlador es del estudio: suelto, a la derecha de todo.
-    if (tipo == "compositor" || tipo == "control") {
+    if (tipo == "compositor" || tipo == "panoramica" || tipo == "control") {
         n.grupo = "";
         n.id = idNuevo("", tipo);
         int x = 0;
@@ -656,12 +725,13 @@ std::string GrafoVideo::conectar(const std::string& desde, const std::string& sa
     std::string ent = entrada;
     if (ent.empty()) {
         // El primer puerto del mismo tipo (en un compositor, el libre).
-        if (h->tipo == "compositor" && tipoSal == "video") ent = pe.back().id;
+        if ((h->tipo == "compositor" || h->tipo == "panoramica") && tipoSal == "video") ent = pe.back().id;
         for (const auto& p : pe)
             if (ent.empty() && p.tipo == tipoSal) ent = p.id;
     }
     const auto puerto = std::find_if(pe.begin(), pe.end(), [&](const Puerto& p) { return p.id == ent; });
-    const bool valida = puerto != pe.end() || (h->tipo == "compositor" && indicePedido(ent) >= 0);
+    const bool valida = puerto != pe.end() || (h->tipo == "compositor" && indicePedido(ent) >= 0) ||
+                        (h->tipo == "panoramica" && indicePedido(ent) >= 0 && indicePedido(ent) < kMaxLentes360);
     if (!valida) {
         if (error)
             *error = "«" + h->etiqueta + "» no tiene entrada" +
@@ -1003,8 +1073,65 @@ std::string GrafoVideo::agregarControlada(const std::string& control, const std:
     return id;
 }
 
+json GrafoVideo::propiedades360(const json& p, int lentes) {
+    const auto num = [&](const char* k, double def) { return p.value(k, def); };
+    json pr{{"yaw", num("yaw", 0)},           {"pitch", num("pitch", 0)},
+            {"fov", num("fov", 90)},          {"tira-campo", num("tira_campo", 180)},
+            {"ancho", std::max(0, p.value("ancho", 0))}, {"alto", std::max(0, p.value("alto", 0))},
+            {"modo", lentes > 0 ? std::string("lentes") : p.value("modo", std::string("equirect"))},
+            {"ver", p.value("ver", std::string("vista"))}, {"mezcla", num("mezcla", 5)},
+            {"guia", p.value("guia", std::string("ninguna"))}, {"guia-x", num("guia_x", 0.5)},
+            {"guia-y", num("guia_y", 0.5)},   {"guia-ancho", num("guia_ancho", 0.5)},
+            {"guia-alto", num("guia_alto", 0.5)}, {"guia-grosor", num("guia_grosor", 3)},
+            {"guia-color", p.value("guia_color", 0xFF00FF00LL) & 0xFFFFFFFFLL}};
+    if (lentes > 0) pr["lentes"] = std::clamp(lentes, 1, kMaxLentes360);
+    static const std::pair<const char*, double> kLente[] = {{"x", 0.5},   {"y", 0.5},     {"radio", 0.5},
+                                                            {"campo", 190}, {"yaw", 0},   {"pitch", 0},
+                                                            {"roll", 0},  {"k1", 0},      {"k2", 0}};
+    for (int i = 1; i <= kMaxLentes360; ++i) {
+        const std::string l = "lente" + std::to_string(i);
+        pr[l + "-tipo"] = p.value(l + "_tipo", std::string("ojo"));
+        for (const auto& [k, def] : kLente) pr[l + "-" + k] = p.value(l + "_" + k, def);
+    }
+    return pr;
+}
+
+int GrafoVideo::lentesConectadas(const std::string& id) const {
+    int n = 0;
+    for (const auto& c : entrantes(id))
+        if (const int i = indicePedido(c.entrada); i >= 0) n = std::max(n, i + 1);
+    return std::min(n, kMaxLentes360);
+}
+
 json GrafoVideo::configCompositor(const std::string& id) const {
     const Nodo* n = nodo(id);
+    if (n != nullptr && n->tipo == "panoramica") {
+        // Las cámaras lado a lado en su lienzo (sin achicar: cada una en su franja,
+        // encajada; in_k es la k-ésima), y la unión sobre lo que sale (en la GPU,
+        // ba360gl / ba360d3d12). Una franja sin cable queda negra.
+        const json& p = n->params;
+        const int la = std::max(64, p.value("lente_ancho", 1920)), al = std::max(64, p.value("lente_alto", 1080));
+        const int cuantas = std::max(1, lentesConectadas(id));
+        json capas = json::array();
+        for (const auto& c : entrantes(id)) {
+            const Nodo* d = nodo(c.desde);
+            const int i = indicePedido(c.entrada);
+            if (d == nullptr || d->grupo.empty() || i < 0 || i >= cuantas) continue;
+            capas.push_back({{"toma", d->id},
+                             {"fuente", d->grupo},
+                             {"x", static_cast<double>(i) / cuantas},
+                             {"y", 0.0},
+                             {"ancho", 1.0 / cuantas},
+                             {"alto", 1.0},
+                             {"opacidad", 1.0},
+                             {"ajuste", "encajar"}});
+        }
+        // El lienzo no pasa del máximo de una textura (16384 de lado).
+        return {{"lienzo", {{"ancho", std::min(16384, cuantas * la)}, {"alto", al}}},
+                {"fondo", 0xFF000000LL},
+                {"capas", capas},
+                {"filtros", json::array({{{"id", "vista360"}, {"elemento", "ba360"}, {"propiedades", propiedades360(p, cuantas)}}})}};
+    }
     if (n == nullptr || n->tipo != "compositor") return json::object();
     const json& p = n->params;
     // Los puertos conectados, en orden; cada uno con lo que le llega.
