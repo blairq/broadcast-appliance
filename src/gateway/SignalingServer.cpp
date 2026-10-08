@@ -109,8 +109,8 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     // mismo WebRTC que los invitados (una sesión del pool, ruta «Remoto»).
     {
         SesionBorde::Medios m;
-        m.oferta = [this](const std::string& id, const std::string& sdp, std::function<void(const json&)> enviar) {
-            return ofertaRemoto(id, sdp, std::move(enviar));
+        m.oferta = [this](const std::string& id, int canal, const std::string& sdp, std::function<void(const json&)> enviar) {
+            return ofertaRemoto(id, canal, sdp, std::move(enviar));
         };
         m.ice = [this](const std::string& id, const std::string& cand) {
             int idx = 0;
@@ -144,9 +144,9 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             if (idx > 0 && pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
         };
         m.vistaCerrar = [this](const std::string& id) { releaseSession("vista:" + id, 0, true); };
-        m.cerrar = [this](const std::string& id) {
+        m.cerrar = [this](const std::string& id, int canal) {
             releaseSession("remoto:" + id, 0, true);
-            if (pump_ != nullptr) pump_->apagarRemoto(1); // que no quede su último cuadro
+            if (pump_ != nullptr) pump_->apagarRemoto(canal); // que no quede su último cuadro
         };
         sesion_->setMedios(std::move(m));
     }
@@ -1762,24 +1762,26 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
              pantalla ? "pantalla" : "invitado", fresh ? ", sesion nueva" : "");
 }
 
-bool SignalingServer::ofertaRemoto(const std::string& id, const std::string& sdp,
+bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
                                    std::function<void(const json&)> enviar) {
     const std::string pid = "remoto:" + id;
     int idx = 0;
     bool fresh = false;
     {
         std::lock_guard<std::mutex> lock(sessLock_);
-        // Un solo «remoto con la palabra»: si había otro, se le saca la sesión.
+        // Un remoto por canal: si otro tenía este canal, se le saca la sesión.
         std::string otro;
         for (const auto& [p, i] : sessionOf_)
-            if (p.rfind("remoto:", 0) == 0 && p != pid) otro = p;
+            if (p.rfind("remoto:", 0) == 0 && p != pid && pump_ != nullptr && pump_->route(i).kind == MediaRoute::Kind::Remoto &&
+                pump_->route(i).index == canal)
+                otro = p;
         if (!otro.empty()) {
             const int vi = sessionOf_[otro];
             sessionOwner_.erase(vi);
             sessionOf_.erase(otro);
             if (pump_ != nullptr) {
                 pump_->setRoute(vi, MediaRoute{});
-                pump_->apagarRemoto(1); // el nuevo no arranca con la cara del anterior
+                pump_->apagarRemoto(canal); // el nuevo no arranca con la cara del anterior
             }
             if (WebrtcSession* s = hub_.session(vi)) s->close();
         }
@@ -1841,7 +1843,7 @@ bool SignalingServer::ofertaRemoto(const std::string& id, const std::string& sdp
         }
         sess->configure(cb, hub_.rtcFactory());
     }
-    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(1));
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(canal));
     if (!sess->setRemoteOffer(sdp)) {
         log_.warn("sesion: setRemoteOffer del remoto " + id + " falló", -1);
         return false;

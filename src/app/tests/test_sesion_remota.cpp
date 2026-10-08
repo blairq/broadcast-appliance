@@ -111,7 +111,8 @@ int main(int argc, char** argv) {
 
     // La palabra: si se le corta y vuelve («hola»), la sigue teniendo con lo que le queda.
     std::vector<QString> medios;
-    QObject::connect(&s, &asamblea::SesionRemota::mediosA, [&](const QString& id) { medios.push_back(id); });
+    QObject::connect(&s, &asamblea::SesionRemota::mediosA,
+                     [&](const QStringList& ids) { medios.push_back(ids.join(",")); });
     s.darPalabra(juan, true, 120);
     CHECK(!medios.empty() && medios.back().toStdString() == juan, "con la palabra, sus medios van a la sala");
     enviados.clear();
@@ -127,7 +128,13 @@ int main(int argc, char** argv) {
     bool aOtro = false;
     for (const json& m : enviados) aOtro = aOtro || m.value("type", std::string()) == "palabra";
     CHECK(!aOtro, "a otro que vuelve no le llega la palabra");
+    // Un debate entre remotos: los dos a la vez, cada uno por su canal.
+    s.darPalabra(ana, true, 60);
+    CHECK(medios.back().toStdString() == juan + "," + ana, "dos con la palabra: canal 1 y 2");
+    CHECK(s.tienePalabra(juan) && s.tienePalabra(ana), "los dos la tienen");
     s.darPalabra(juan, false, 0);
+    CHECK(medios.back().toStdString() == ana, "sale uno: queda el otro");
+    s.darPalabra(ana, false, 0);
     CHECK(medios.back().isEmpty(), "sin la palabra, nadie manda medios");
     s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "afirmativo"}}}});
     CHECK(!enviados.back().value("ok", true), "cerrada: no se vota más");

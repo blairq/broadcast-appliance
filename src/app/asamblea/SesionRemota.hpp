@@ -22,6 +22,7 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QStringList>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -96,7 +97,11 @@ class SesionRemota : public QObject {
     void fila(const std::vector<std::string>& cola, const std::string& alAire);
     /// «ultimo_minuto» | «terminado»: aviso en su celular.
     void avisoTiempo(const std::string& integrante, const std::string& aviso);
-    std::string conPalabra() const { return conPalabra_; }
+    /// El primero que tiene la palabra ("" si nadie); en un debate entre remotos son dos.
+    std::string conPalabra() const { return palabras_.empty() ? std::string() : palabras_.front().id; }
+    bool tienePalabra(const std::string& id) const;
+    /// Los que tienen la palabra, en orden: el primero va al canal 1 (BA.Remoto.1), el segundo al 2.
+    std::vector<std::string> conPalabraTodos() const;
     /// «Apretar para hablar» desde la consola: le avisa al integrante que la presidencia
     /// le habla (su navegador contesta la conexión directa de la consola).
     void ptt(const std::string& integrante, bool activo, const std::string& consola);
@@ -199,7 +204,8 @@ class SesionRemota : public QObject {
     /// Se conectó o se fue una consola (para mandarle el estado).
     void consolaConexion(const QString& consola, bool conectada);
     /// R3: quién manda audio y video a la sala (el remoto con la palabra; "" = nadie).
-    void mediosA(const QString& integrante);
+    /// Quiénes mandan audio y video a la sala (hasta dos), en orden de canal.
+    void mediosA(const QStringList& integrantes);
 
    private:
     struct Estado {
@@ -226,10 +232,14 @@ class SesionRemota : public QObject {
     int graciaS_ = 120;
     int votoSegundos_ = 60;
     std::map<QString, QByteArray> fotos_;
-    std::string conPalabra_;
+    struct Palabra {
+        std::string id;
+        int segundos = 0;       ///< lo que se le dio (para reenviárselo si vuelve)
+        long long desdeMs = 0;
+    };
+    std::vector<Palabra> palabras_; ///< hasta dos (un debate); el resto, uno
+    void emitirMedios();
     json vistas_ = json::array();
-    int palabraSeg_ = 0;          ///< lo que se le dio (para reenviárselo si vuelve)
-    long long palabraDesdeMs_ = 0;
     json consolas_ = json::object();          // id -> {nombre, sal, hash_token, hash_pin, creado_ms}
     std::set<std::string> consolasConectadas_;
     std::map<std::string, int> turnos_; // lo último que se le dijo a cada uno

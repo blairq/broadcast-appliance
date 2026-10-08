@@ -293,40 +293,44 @@ void AppRuntime::addGuests() {
     // entrada más. El audio es global (suena en cualquier escena, con su rack en
     // Audio); el video va oculto a pantalla completa en la primera escena, como la
     // pantalla de un invitado: el operador lo muestra (o lo usa en otra escena).
-    {
+    // Dos canales: el que tiene la palabra y, en un debate entre remotos, el otro (canal 2).
+    for (int k = 1; k <= 2; ++k) {
+        const std::string sufijo = k == 1 ? "" : " " + std::to_string(k);
+        const std::string slot = std::to_string(k);
         SourceSpec a;
-        a.name = "Remoto con la palabra (audio)";
+        a.name = "Remoto con la palabra" + sufijo + " (audio)";
         if (engine_.sourceTypeExists(inputs::kMicType)) {
             a.id = inputs::kMicType; // por GStreamer (baanillo): su rack corre en la cadena
-            a.settingsJson = inputs::ajustesAudioAnillo("remoto", 1);
+            a.settingsJson = inputs::ajustesAudioAnillo("remoto", k);
         } else {
             a.id = "ba_guest_audio";
-            a.settingsJson = R"({"slot":1,"channel":"remoto"})";
+            a.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto\"}";
         }
         if (!engine_.addGlobalAudio(a))
-            std::printf("ba-app: el audio del remoto con la palabra no entró: %s\n", engine_.lastError().c_str());
+            std::printf("ba-app: el audio de «%s» no entró: %s\n", a.name.c_str(), engine_.lastError().c_str());
         bool hayVideo = false, hayContenido = false;
+        const std::string deSlot = "\"slot\":" + slot;
         for (const auto& sc : cfg_.scenes)
             for (const auto& s : sc.sources) {
-                if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
+                if (!inputs::esVideoInvitado(s.id, s.settingsJson) || s.settingsJson.find(deSlot) == std::string::npos) continue;
                 hayVideo = hayVideo || s.settingsJson.find("\"remoto\"") != std::string::npos;
                 hayContenido = hayContenido || s.settingsJson.find("\"remoto_contenido\"") != std::string::npos;
             }
-        // Lo que comparte (su pantalla o la otra cámara del celular), oculto como la pantalla de un invitado.
-        if (!hayContenido && !cfg_.scenes.empty()) {
+        if (!hayVideo && !cfg_.scenes.empty()) {
             SourceSpec v;
             v.id = "ba_guest_video";
-            v.name = "Remoto con la palabra — contenido";
-            v.settingsJson = R"({"slot":1,"channel":"remoto_contenido"})";
+            v.name = "Remoto con la palabra" + sufijo;
+            v.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto\"}";
             v.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
             v.visible = false;
             cfg_.scenes.front().sources.push_back(v);
         }
-        if (!hayVideo && !cfg_.scenes.empty()) {
+        // Lo que comparte (su pantalla o la otra cámara del celular), oculto como la pantalla de un invitado.
+        if (!hayContenido && !cfg_.scenes.empty()) {
             SourceSpec v;
             v.id = "ba_guest_video";
-            v.name = "Remoto con la palabra";
-            v.settingsJson = R"({"slot":1,"channel":"remoto"})";
+            v.name = "Remoto con la palabra" + sufijo + " — contenido";
+            v.settingsJson = "{\"slot\":" + slot + ",\"channel\":\"remoto_contenido\"}";
             v.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
             v.visible = false;
             cfg_.scenes.front().sources.push_back(v);

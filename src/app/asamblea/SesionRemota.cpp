@@ -303,14 +303,15 @@ void SesionRemota::evento(const json& ev) {
             if (vot_.estado == "abierta" || vot_.estado == "pausada") emit enviar(QString::fromStdString(id), mensajeVotacion(id));
             // Tenía la palabra y se le cortó (o recargó): la sigue teniendo, con el
             // mismo reloj; el gateway le vuelve a pedir el micrófono y la cámara.
-            if (id == conPalabra_) {
-                // Lo que le queda (el celular cuenta desde que le llega, con su reloj);
-                // sin límite (0) sigue sin límite.
-                const long long pasados = (ahoraMs() - palabraDesdeMs_) / 1000;
-                const int queda = palabraSeg_ > 0 ? static_cast<int>(std::max<long long>(1, palabraSeg_ - pasados)) : 0;
-                emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", true}, {"segundos", queda},
-                                                             {"desde_ms", palabraDesdeMs_}});
-            }
+            for (const Palabra& pa : palabras_)
+                if (pa.id == id) {
+                    // Lo que le queda (el celular cuenta desde que le llega, con su reloj);
+                    // sin límite (0) sigue sin límite.
+                    const long long pasados = (ahoraMs() - pa.desdeMs) / 1000;
+                    const int queda = pa.segundos > 0 ? static_cast<int>(std::max<long long>(1, pa.segundos - pasados)) : 0;
+                    emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", true}, {"segundos", queda},
+                                                                 {"desde_ms", pa.desdeMs}});
+                }
             return;
         }
         if (t == "palabra" && e.habilitado && e.conectado) {
@@ -397,7 +398,7 @@ json SesionRemota::participantes() const {
             p["desde_ms"] = e.desdeMs;
             p["habilitado_por"] = e.habilitadoPor;
             p["bloqueado"] = e.bloqueadoHasta > ahora;
-            p["palabra"] = id == conPalabra_;
+            p["palabra"] = tienePalabra(id);
             auto tu = turnos_.find(id);
             p["turno"] = tu != turnos_.end() ? tu->second : 0;
         }
@@ -432,20 +433,51 @@ std::vector<std::string> SesionRemota::presentesBancas() const {
 
 // --- La palabra ----------------------------------------------------------------------------
 
+bool SesionRemota::tienePalabra(const std::string& id) const {
+    return std::any_of(palabras_.begin(), palabras_.end(), [&](const Palabra& p) { return p.id == id; });
+}
+
+std::vector<std::string> SesionRemota::conPalabraTodos() const {
+    std::vector<std::string> v;
+    for (const Palabra& p : palabras_) v.push_back(p.id);
+    return v;
+}
+
+void SesionRemota::emitirMedios() {
+    QStringList l;
+    for (const Palabra& p : palabras_) l << QString::fromStdString(p.id);
+    emit mediosA(l);
+}
+
 void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos) {
+    long long desde = ahoraMs();
     if (palabra) {
-        conPalabra_ = id;
-        palabraSeg_ = segundos;
-        palabraDesdeMs_ = ahoraMs();
+        auto it = std::find_if(palabras_.begin(), palabras_.end(), [&](const Palabra& p) { return p.id == id; });
+        if (it != palabras_.end()) {
+            it->segundos = segundos;
+            it->desdeMs = desde;
+        } else {
+            // Hasta dos a la vez (los dos de un debate): un tercero saca al más viejo.
+            if (palabras_.size() >= 2) {
+                const std::string viejo = palabras_.front().id;
+                palabras_.erase(palabras_.begin());
+                anotar("fin_palabra", viejo);
+                emit enviar(QString::fromStdString(viejo), json{{"type", "palabra"}, {"activa", false}, {"segundos", 0},
+                                                                {"desde_ms", desde}});
+            }
+            palabras_.push_back({id, segundos, desde});
+        }
         anotar("palabra", id, {{"segundos", segundos}});
-    } else if (conPalabra_ == id) {
-        conPalabra_.clear();
-        anotar("fin_palabra", id);
+    } else {
+        const auto antes = palabras_.size();
+        palabras_.erase(std::remove_if(palabras_.begin(), palabras_.end(), [&](const Palabra& p) { return p.id == id; }),
+                        palabras_.end());
+        if (palabras_.size() != antes) anotar("fin_palabra", id);
     }
     emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", palabra}, {"segundos", segundos},
-                                                 {"desde_ms", palabra ? palabraDesdeMs_ : ahoraMs()}});
+                                                 {"desde_ms", desde}});
     // R3: su micrófono y su cámara entran a la app mientras tenga la palabra.
-    emit mediosA(QString::fromStdString(conPalabra_));
+    emitirMedios();
     emit cambio();
 }
 

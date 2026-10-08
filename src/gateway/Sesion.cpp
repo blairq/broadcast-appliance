@@ -331,14 +331,16 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         std::lock_guard<std::mutex> l(vieja->sendLock);
         if (vieja->fd >= 0) http::shutdownFd(vieja->fd);
     }
-    bool tieneMedios;
+    int canalMedios = 0;
     {
         std::lock_guard<std::mutex> l(mu_);
-        tieneMedios = !consola && c->id == mediosDe_;
+        if (!consola)
+            if (auto it = mediosDe_.find(c->id); it != mediosDe_.end()) canalMedios = it->second;
     }
+    const bool tieneMedios = canalMedios > 0;
     // Si tenía la palabra, su WebRTC hacia la sala era de la conexión vieja (las
     // respuestas iban a ella): se cierra para que la oferta nueva arranque limpia.
-    if (tieneMedios && vieja && medios_.cerrar) medios_.cerrar(c->id);
+    if (tieneMedios && vieja && medios_.cerrar) medios_.cerrar(c->id, canalMedios);
     enviar(c, {{"type", "auth"}, {"ok", true}, {"id", c->id}, {"nombre", datos.value("nombre", std::string())},
                {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}});
     log_.info("sesion: " + c->id + " conectado desde " + c->ip);
@@ -389,15 +391,15 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
         // R3: el que tiene la palabra manda su micrófono y su cámara a la sala.
         if (!consola && (t == "medios-oferta" || t == "medios-ice")) {
-            bool permitido;
+            int canal = 0;
             {
                 std::lock_guard<std::mutex> l(mu_);
-                permitido = c->id == mediosDe_;
+                if (auto it = mediosDe_.find(c->id); it != mediosDe_.end()) canal = it->second;
             }
-            if (!permitido || !medios_.oferta) continue;
+            if (canal == 0 || !medios_.oferta) continue;
             if (t == "medios-oferta") {
                 std::weak_ptr<Conn> w = c;
-                const bool ok = medios_.oferta(c->id, m.value("sdp", std::string()), [this, w](const json& r) {
+                const bool ok = medios_.oferta(c->id, canal, m.value("sdp", std::string()), [this, w](const json& r) {
                     if (auto cc = w.lock()) enviar(cc, r);
                 });
                 if (!ok) enviar(c, {{"type", "medios"}, {"activo", false}, {"error", "no hay lugar para el audio en la sala"}});
@@ -507,12 +509,12 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     }
     // Si lo reemplazó otra conexión suya, no se avisa que se fue.
     if (eraLaActual && medios_.cerrar) {
-        bool tenia;
+        int canal = 0;
         {
             std::lock_guard<std::mutex> l(mu_);
-            tenia = c->id == mediosDe_;
+            if (auto it = mediosDe_.find(c->id); it != mediosDe_.end()) canal = it->second;
         }
-        if (tenia) medios_.cerrar(c->id); // su WebRTC hacia la sala no sigue sin él
+        if (canal > 0) medios_.cerrar(c->id, canal); // su WebRTC hacia la sala no sigue sin él
     }
     if (eraLaActual && !consola && medios_.vistaCerrar) medios_.vistaCerrar(c->id);
     if (eraLaActual) {
@@ -608,8 +610,16 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         return true;
     }
     if (que == "medios") {
-        ponerMediosDe(r.value("id", std::string()));
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"id", r.value("id", std::string())}}.dump());
+        std::vector<std::string> ids;
+        if (r.contains("ids") && r["ids"].is_array()) {
+            for (const auto& x : r["ids"])
+                if (x.is_string() && !x.get<std::string>().empty()) ids.push_back(x.get<std::string>());
+        } else if (!r.value("id", std::string()).empty()) {
+            ids.push_back(r.value("id", std::string()));
+        }
+        if (static_cast<int>(ids.size()) > kCanalesRemotos) ids.resize(kCanalesRemotos);
+        ponerMedios(ids);
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"ids", ids}}.dump());
         return true;
     }
     if (que == "enviar" || que == "cortar") {
@@ -665,21 +675,43 @@ json SesionBorde::listaVistas() const {
     return out;
 }
 
-void SesionBorde::ponerMediosDe(const std::string& id) {
-    std::string antes;
-    std::shared_ptr<Conn> viejo, nuevo;
+void SesionBorde::ponerMedios(const std::vector<std::string>& ids) {
+    // Los que siguen conservan su canal; los nuevos toman el que quede libre.
+    std::map<std::string, int> nuevo;
+    std::vector<std::pair<std::string, int>> salen;
+    std::vector<std::shared_ptr<Conn>> avisarSale, avisarEntra;
     {
         std::lock_guard<std::mutex> l(mu_);
-        antes = mediosDe_;
-        if (antes == id) return;
-        mediosDe_ = id;
-        if (auto it = conns_.find(antes); it != conns_.end()) viejo = it->second;
-        if (auto it = conns_.find(id); it != conns_.end()) nuevo = it->second;
+        std::set<int> libres;
+        for (int k = 1; k <= kCanalesRemotos; ++k) libres.insert(k);
+        for (const auto& id : ids)
+            if (auto it = mediosDe_.find(id); it != mediosDe_.end()) {
+                nuevo[id] = it->second;
+                libres.erase(it->second);
+            }
+        for (const auto& id : ids)
+            if (!nuevo.count(id) && !libres.empty()) {
+                nuevo[id] = *libres.begin();
+                libres.erase(libres.begin());
+            }
+        for (const auto& [id, canal] : mediosDe_)
+            if (!nuevo.count(id)) {
+                salen.push_back({id, canal});
+                if (auto it = conns_.find(id); it != conns_.end()) avisarSale.push_back(it->second);
+            }
+        for (const auto& [id, canal] : nuevo)
+            if (!mediosDe_.count(id))
+                if (auto it = conns_.find(id); it != conns_.end()) avisarEntra.push_back(it->second);
+        if (nuevo == mediosDe_) return;
+        mediosDe_ = nuevo;
     }
-    if (!antes.empty() && medios_.cerrar) medios_.cerrar(antes);
-    if (viejo) enviar(viejo, {{"type", "medios"}, {"activo", false}});
-    if (nuevo) enviar(nuevo, {{"type", "medios"}, {"activo", true}});
-    log_.info("sesion: medios a la sala: " + (id.empty() ? std::string("nadie") : id));
+    for (const auto& [id, canal] : salen)
+        if (medios_.cerrar) medios_.cerrar(id, canal);
+    for (const auto& c : avisarSale) enviar(c, {{"type", "medios"}, {"activo", false}});
+    for (const auto& c : avisarEntra) enviar(c, {{"type", "medios"}, {"activo", true}});
+    std::string quienes;
+    for (const auto& [id, canal] : nuevo) quienes += (quienes.empty() ? "" : ", ") + id + " (canal " + std::to_string(canal) + ")";
+    log_.info("sesion: medios a la sala: " + (quienes.empty() ? std::string("nadie") : quienes));
 }
 
 } // namespace ba::gateway

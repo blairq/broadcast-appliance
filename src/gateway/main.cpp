@@ -516,7 +516,7 @@ int main(int argc, char** argv) {
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby
     // o en la fila de oradores, que ve el programa).
-    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 1 /* el remoto con la palabra */ +
+    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
                       cfg.vistasRemotas /* lo que miran los integrantes en su celular */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
@@ -544,9 +544,10 @@ int main(int argc, char** argv) {
         pumpCfg.shareVideoNames.push_back(toWide("BA.GuestShare." + std::to_string(s)));
     }
     // R3: el remoto con la palabra (un canal; [0] reservado como los demás).
-    pumpCfg.remotoAudioNames = {std::wstring(), toWide("BA.Audio.Remoto.1")};
-    pumpCfg.remotoVideoNames = {std::wstring(), toWide("BA.Remoto.1")};
-    pumpCfg.remotoContenidoNames = {std::wstring(), toWide("BA.RemotoContenido.1")};
+    // Dos canales: el que tiene la palabra y, en un debate entre remotos, el otro.
+    pumpCfg.remotoAudioNames = {std::wstring(), toWide("BA.Audio.Remoto.1"), toWide("BA.Audio.Remoto.2")};
+    pumpCfg.remotoVideoNames = {std::wstring(), toWide("BA.Remoto.1"), toWide("BA.Remoto.2")};
+    pumpCfg.remotoContenidoNames = {std::wstring(), toWide("BA.RemotoContenido.1"), toWide("BA.RemotoContenido.2")};
     for (int k = 1; k <= cfg.lobbySlots; ++k) {
         pumpCfg.lobbyAudioNames.push_back(toWide("BA.Audio.Lobby." + std::to_string(k)));
         pumpCfg.lobbyVideoNames.push_back(toWide("BA.Lobby." + std::to_string(k)));

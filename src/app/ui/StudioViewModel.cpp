@@ -751,7 +751,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (!sesionRemota_) return false;
             // El que tiene la palabra remota sigue siendo remoto aunque se le haya
             // cortado la red: si no, terminar no le soltaba los medios.
-            if (id == sesionRemota_->conPalabra()) return true;
+            if (sesionRemota_->tienePalabra(id)) return true;
             const auto v = sesionRemota_->presentesIds();
             return std::find(v.begin(), v.end(), id) != v.end();
         };
@@ -1072,8 +1072,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                   [](bool, const QJsonObject&) {});
                     });
             connect(sesionRemota_.get(), &asamblea::SesionRemota::mediosA, this,
-                    [cli, aQt](const QString& id) {
-                        cli->post("/api/v1/sesion/medios", aQt({{"id", id.toStdString()}}), [](bool, const QJsonObject&) {});
+                    [cli, aQt](const QStringList& ids) {
+                        nlohmann::json l = nlohmann::json::array();
+                        for (const QString& i : ids) l.push_back(i.toStdString());
+                        cli->post("/api/v1/sesion/medios", aQt({{"ids", l}}), [](bool, const QJsonObject&) {});
                     });
             connect(sesionRemota_.get(), &asamblea::SesionRemota::cortar, this,
                     [cli, aQt](const QString& id, const QString& motivo) {
@@ -1631,7 +1633,7 @@ void StudioViewModel::tiemposCentral() {
     const std::string nombre = al.value("nombre", std::string());
     const int asignado = j.value("asignado_s", 0), usado = static_cast<int>(j.value("usado_s", 0LL));
     if (asignado <= 0) return;
-    const bool remoto = sesionRemota_ && sesionRemota_->conPalabra() == id;
+    const bool remoto = sesionRemota_ && sesionRemota_->tienePalabra(id);
     const bool central = !remoto && dcn_ && dcn_->conectada() && !banca.empty() && dcn_->tieneUnidad(banca);
     const std::string clave = id + "@" + std::to_string(j.value("desde_ms", 0LL));
     const auto ignorar = [](bool, const nlohmann::json&, const std::string&) {};
@@ -3130,8 +3132,11 @@ void StudioViewModel::sincronizarSesion() {
              [](bool, const QJsonObject&) {});
     aplicarVistasRemotas(true);
     // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
-    cli.post("/api/v1/sesion/medios",
-             QJsonObject{{"id", QString::fromStdString(sesionRemota_->conPalabra())}}, [](bool, const QJsonObject&) {});
+    {
+        QJsonArray ids;
+        for (const auto& i : sesionRemota_->conPalabraTodos()) ids.append(QString::fromStdString(i));
+        cli.post("/api/v1/sesion/medios", QJsonObject{{"ids", ids}}, [](bool, const QJsonObject&) {});
+    }
     // El origen de los links: el del túnel si hay; si no, el de la red local (HTTPS).
     QPointer<StudioViewModel> yo(this);
     cli.get("/api/v1/sesion/origen?target=remote", [yo, &cli](bool ok, const QJsonObject& r) {
