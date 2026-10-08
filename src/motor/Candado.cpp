@@ -1,0 +1,62 @@
+#include "Candado.hpp"
+
+#include <gst/gst.h>
+
+#include <atomic>
+#include <map>
+#include <string>
+#include <thread>
+
+#include "Reloj.hpp" // registrar
+
+namespace ba::motor {
+namespace {
+
+std::atomic<std::thread::id> hiloInterfaz{};
+std::mutex avisosM;
+std::map<std::string, std::int64_t> ultimoAviso; // lugar -> cuándo se avisó (us)
+
+} // namespace
+
+void marcarHiloInterfaz() { hiloInterfaz.store(std::this_thread::get_id()); }
+
+bool enHiloInterfaz() { return hiloInterfaz.load() == std::this_thread::get_id(); }
+
+void avisarDemora(const char* donde, std::int64_t ms, std::int64_t umbralMs, const char* que) {
+    if (ms <= umbralMs) return;
+    const std::int64_t ahora = g_get_monotonic_time();
+    {
+        std::lock_guard<std::mutex> l(avisosM);
+        std::int64_t& ult = ultimoAviso[std::string(que) + donde];
+        if (ult != 0 && ahora - ult < 10'000'000) return;
+        ult = ahora;
+    }
+    registrar(Nivel::Aviso, std::string(que) + " " + std::to_string(ms) + " ms en " + donde);
+}
+
+Candado::Candado(std::recursive_mutex& m, const char* donde)
+    : m_(m), donde_(donde), interfaz_(enHiloInterfaz()), pedidoUs_(g_get_monotonic_time()) {
+    m_.lock();
+    tomadoUs_ = g_get_monotonic_time();
+}
+
+Candado::~Candado() {
+    const std::int64_t ahora = g_get_monotonic_time();
+    m_.unlock();
+    const std::int64_t esperaMs = (tomadoUs_ - pedidoUs_) / 1000;
+    const std::int64_t adentroMs = (ahora - tomadoUs_) / 1000;
+    if (interfaz_) {
+        avisarDemora(donde_, esperaMs, 50, "la interfaz esperó el candado del motor");
+        avisarDemora(donde_, adentroMs, 50, "la interfaz tuvo el candado del motor");
+    } else {
+        avisarDemora(donde_, adentroMs, 200, "el candado del motor estuvo tomado");
+    }
+}
+
+Tramo::Tramo(const char* nombre) : nombre_(nombre), desdeUs_(g_get_monotonic_time()) {}
+
+Tramo::~Tramo() {
+    avisarDemora(nombre_, (g_get_monotonic_time() - desdeUs_) / 1000, 100, "la vuelta del motor se demoró");
+}
+
+} // namespace ba::motor

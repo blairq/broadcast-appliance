@@ -208,7 +208,9 @@ namespace {
 /// La salida de escucha (los auriculares del operador): la del motor.
 QString nombreEscucha() {
     BroadcastEngine* e = motor();
-    const nlohmann::json st = e != nullptr && e->motor() != nullptr ? e->motor()->estado() : nlohmann::json();
+    // La foto del motor: no espera su candado (ver Motor::instantanea).
+    const auto foto = e != nullptr && e->motor() != nullptr ? e->motor()->instantanea() : nullptr;
+    const nlohmann::json st = foto ? *foto : nlohmann::json();
     const nlohmann::json es = st.is_object() ? st.value("escucha", nlohmann::json::object()) : nlohmann::json::object();
     const std::string d = es.is_object() ? es.value("dispositivo", std::string()) : std::string();
     return d.empty() || d == "default" ? QStringLiteral("la salida del sistema") : QString::fromStdString(d);

@@ -37,6 +37,7 @@
 #include "mcp/McpService.hpp"
 #include "control/Botonera.hpp"
 #include "control/Acciones.hpp"
+#include "Candado.hpp"
 #include "plugins/Plugins.hpp"
 #include "term/TerminalView.hpp"
 #include "ui/FrameService.hpp"
@@ -191,6 +192,9 @@ int runGui(int argc, char** argv) {
 #endif
 
     QGuiApplication app(argc, argv);
+    // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
+    // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
+    ba::motor::marcarHiloInterfaz();
 
     QGuiApplication::setApplicationName("Broadcast Appliance");
     // El logo en la barra de tareas, el Dock y el selector de ventanas. Varios

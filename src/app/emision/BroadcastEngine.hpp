@@ -709,7 +709,7 @@ class BroadcastEngine {
     void enviarEscena(int k, const motor::Cuadro& c);
 
     mutable nlohmann::json estadoCache_;
-    mutable std::int64_t estadoCacheMs_ = 0;
+    mutable std::shared_ptr<const nlohmann::json> estadoFoto_;
 };
 
 } // namespace ba::app

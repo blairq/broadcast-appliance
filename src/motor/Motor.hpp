@@ -185,6 +185,14 @@ class Motor {
     bool empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride);
 
     nlohmann::json estado() const;
+    /// La última foto de `estado()` que publicó el bucle del motor (cada ~100 ms).
+    /// NO toma el candado: es lo que lee la interfaz (los vúmetros la leen cada
+    /// 100 ms; con `estado()` cualquier espera del candado congelaba la app).
+    /// Vacía (json nulo) hasta la primera vuelta del bucle.
+    std::shared_ptr<const nlohmann::json> instantanea() const;
+    /// Que la próxima vuelta del bucle (20 ms) publique la foto, sin esperar las
+    /// 10 vueltas de siempre: lo pide quien acaba de cambiar algo.
+    void pedirFoto() { fotoPedida_.store(true); }
     Reloj& reloj() { return *reloj_; }
     /// Publica el reloj del estudio en la red (GstNetTimeProvider) para que otros
     /// aparatos lo usen (reloj «red»). 0 = dejar de publicar. "" o el error.
@@ -239,6 +247,10 @@ class Motor {
         int pedidos = 0;
     };
     std::map<std::string, CompEscena> vEscenas_;
+    mutable std::mutex instantaneaM_; ///< solo para copiar el puntero: nunca se tiene haciendo algo
+    std::shared_ptr<const nlohmann::json> instantanea_;
+    std::atomic<bool> fotoPedida_{true};
+    void publicarInstantanea();
     /// Las composiciones que se están desarmando aparte (ver soltarEscena).
     std::mutex desarmesM_;
     std::vector<std::future<void>> desarmes_;

@@ -2,6 +2,7 @@
 // src/motor/Motor.cpp — ver Motor.hpp
 // ============================================================================
 #include "Motor.hpp"
+#include "Candado.hpp"
 #include "OrigenRed.hpp"
 
 #include <gst/net/net.h>
@@ -28,7 +29,7 @@ Motor::Motor(Config c) : cfg_(std::move(c)) {
 Motor::~Motor() { detener(); }
 
 std::string Motor::iniciar() {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (andando()) return {};
     Mezcla::Opciones op;
     op.limitador = true;
@@ -47,7 +48,7 @@ std::string Motor::iniciar() {
     }
     vistas_ = std::make_unique<Vistas>(*reloj_, [this](const std::string& clave, std::int64_t* lat) -> std::string {
         // (lo llaman pedir y tic, con mu_ del motor ya tomado o no: el recursive_mutex lo permite)
-        std::lock_guard<std::recursive_mutex> l(mu_);
+        BA_CANDADO(mu_);
         if (clave == "programa" || clave == "preview" || clave == "multiview" || clave == "limpio")
             return productorDeVideo(clave, lat);
         if (clave.rfind("escena:", 0) == 0) {
@@ -97,7 +98,7 @@ void Motor::detener() {
         for (auto& f : desarmes_) f.wait();
         desarmes_.clear();
     }
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (relojPublicado_ != nullptr) {
         gst_object_unref(relojPublicado_);
         relojPublicado_ = nullptr;
@@ -134,51 +135,57 @@ void Motor::detener() {
 }
 
 void Motor::bucle() {
-    std::int64_t ultimoAvisoUs = 0;
     while (seguir_) {
-        // Vigía: este candado lo esperan la interfaz y el MCP. Una vuelta que
-        // lo tiene mucho (algo que bloquea adentro) traba la app entera; queda
-        // en el registro para encontrarlo.
-        const std::int64_t desdeUs = g_get_monotonic_time();
-        struct Vigia {
-            std::int64_t desde;
-            std::int64_t& ultimo;
-            ~Vigia() {
-                const std::int64_t ahora = g_get_monotonic_time();
-                const std::int64_t ms = (ahora - desde) / 1000;
-                if (ms > 200 && ahora - ultimo > 10'000'000) {
-                    ultimo = ahora;
-                    registrar(Nivel::Aviso, "el bucle del motor tuvo el candado " + std::to_string(ms) +
-                                                " ms: la interfaz y el MCP esperaron eso");
-                }
-            }
-        };
-        origen_red::tic(); // las cámaras de red compartidas (tiene su propio candado)
+        {
+            Tramo t("cámaras de red (sin el candado del motor, con el suyo)");
+            origen_red::tic(); // las cámaras de red compartidas (tiene su propio candado)
+        }
         static int vueltas = 0;
         const bool revisarUso = ++vueltas % 10 == 0; // cada ~200 ms
         {
-            std::lock_guard<std::recursive_mutex> l(mu_);
-            Vigia vigia{desdeUs, ultimoAvisoUs};
-            if (revisarUso) actualizarUso();
-            for (auto& [id, c] : canales_) c.entrada->tic();
-            if (programa_) programa_->tic();
-            if (directo_) directo_->tic();
-            if (seleccion_) seleccion_->tic();
-            for (auto& [n, p] : pistas_) p->tic();
-            for (auto& [n, r] : retornos_)
-                if (r.bus) r.bus->tic();
-            if (vPrograma_) vPrograma_->tic();
-            if (vPreview_) vPreview_->tic();
-            if (vMulti_) vMulti_->tic();
-            for (auto& [n, c] : vEscenas_)
-                if (c.comp) c.comp->tic();
+            // Con el candado vigilado y cada tramo con nombre: una vuelta que
+            // tarda dice cuál de sus partes fue (ver Candado.hpp).
+            BA_CANDADO(mu_);
+            if (revisarUso) {
+                Tramo t("actualizarUso");
+                actualizarUso();
+            }
+            for (auto& [id, c] : canales_) {
+                Tramo t("tic de las entradas");
+                c.entrada->tic();
+            }
+            {
+                Tramo t("tic de los buses de audio");
+                if (programa_) programa_->tic();
+                if (directo_) directo_->tic();
+                if (seleccion_) seleccion_->tic();
+                for (auto& [n, p] : pistas_) p->tic();
+                for (auto& [n, r] : retornos_)
+                    if (r.bus) r.bus->tic();
+            }
+            {
+                Tramo t("tic de las composiciones");
+                if (vPrograma_) vPrograma_->tic();
+                if (vPreview_) vPreview_->tic();
+                if (vMulti_) vMulti_->tic();
+                for (auto& [n, c] : vEscenas_)
+                    if (c.comp) c.comp->tic();
+            }
+            Tramo tResto("resto de la vuelta (toma de audio, multiview, puente, escucha)");
             if (tomaAudio_ != nullptr) {
                 GstBus* bus = gst_element_get_bus(tomaAudio_);
                 while (GstMessage* m = gst_bus_pop(bus)) gst_message_unref(m);
                 gst_object_unref(bus);
             }
             for (auto& [n, a] : mvAux_) a->tic();
-            if (vistas_) vistas_->tic();
+            if (vistas_) {
+                Tramo t("tic de las vistas");
+                vistas_->tic();
+            }
+            if (revisarUso || fotoPedida_.exchange(false)) {
+                Tramo t("foto del estado");
+                publicarInstantanea();
+            }
             // Los que consumen el programa esperan lo que tarda en salir.
             if (puente_ != nullptr && programa_) {
                 const std::int64_t lat = programa_->latenciaSalidaNs() + kMargenMezclaNs;
@@ -250,7 +257,7 @@ void Motor::aplicar(const std::string& id, int fundidoMs) {
 }
 
 std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, const json& opcionesPedidas) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     const json opciones = opcionesPedidas.is_object() ? opcionesPedidas : json::object(); // {} llega como null
     if (id.empty()) return "falta el id";
     if (id.find(':') != std::string::npos) return "el id no puede tener «:»";
@@ -275,7 +282,7 @@ std::string Motor::agregarEntrada(const std::string& id, const json& ajustes, co
 }
 
 std::string Motor::actualizarEntrada(const std::string& id, const json& ajustes) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     it->second.entrada->actualizar(ajustes);
@@ -284,7 +291,7 @@ std::string Motor::actualizarEntrada(const std::string& id, const json& ajustes)
 }
 
 std::string Motor::publicarReloj(int puerto) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (relojPublicado_ != nullptr) {
         gst_object_unref(relojPublicado_);
         relojPublicado_ = nullptr;
@@ -298,20 +305,20 @@ std::string Motor::publicarReloj(int puerto) {
 
 std::string Motor::propiedadEntrada(const std::string& id, const std::string& elemento, const std::string& prop,
                                     const std::string& valor) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     return it->second.entrada->propiedad(elemento, prop, valor);
 }
 
 json Motor::propiedadesEntrada(const std::string& id, const std::string& elemento) const {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     return it == canales_.end() ? json::object() : it->second.entrada->leerPropiedades(elemento);
 }
 
 std::string Motor::controlEntrada(const std::string& id, const json& campos) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     it->second.entrada->control(campos);
@@ -319,7 +326,7 @@ std::string Motor::controlEntrada(const std::string& id, const json& campos) {
 }
 
 std::string Motor::quitarEntrada(const std::string& id) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     if (programa_) programa_->quitar(id);
@@ -335,7 +342,7 @@ std::string Motor::quitarEntrada(const std::string& id) {
 }
 
 std::string Motor::ponerNivel(const std::string& id, double lineal) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     it->second.nivel = std::clamp(lineal, 0.0, 4.0);
@@ -344,7 +351,7 @@ std::string Motor::ponerNivel(const std::string& id, double lineal) {
 }
 
 std::string Motor::ponerMute(const std::string& id, bool mute) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     it->second.mute = mute;
@@ -355,7 +362,7 @@ std::string Motor::ponerMute(const std::string& id, bool mute) {
 }
 
 std::string Motor::ponerPistas(const std::string& id, const std::vector<int>& pistas) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     unsigned m = 0;
@@ -369,7 +376,7 @@ std::string Motor::ponerPistas(const std::string& id, const std::vector<int>& pi
 }
 
 void Motor::escenaAlAire(const std::vector<std::string>& ids, int fundidoMs) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     const std::set<std::string> al(ids.begin(), ids.end());
     for (auto& [id, c] : canales_) {
         if (c.global) continue;
@@ -380,7 +387,7 @@ void Motor::escenaAlAire(const std::vector<std::string>& ids, int fundidoMs) {
 }
 
 std::string Motor::definirEscena(const json& j) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (!j.is_object()) return "la escena tiene que ser un objeto {nombre, capas}";
     Escena e = Escena::desdeJson(j);
     if (e.nombre.empty()) return "falta el nombre de la escena";
@@ -399,7 +406,7 @@ std::string Motor::definirEscena(const json& j) {
 }
 
 std::string Motor::quitarEscena(const std::string& nombre) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (escenas_.erase(nombre) == 0) return "no hay una escena «" + nombre + "»";
     if (armada_ == nombre) {
         armada_.clear();
@@ -409,7 +416,7 @@ std::string Motor::quitarEscena(const std::string& nombre) {
 }
 
 std::string Motor::armar(const std::string& nombre) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (nombre.empty()) { // nada armado
         armada_.clear();
         if (vPreview_) vPreview_->mostrar(Escena{"", {}}, "corte", 0);
@@ -455,7 +462,7 @@ void Motor::actualizarUso() {
 }
 
 std::string Motor::alAire(const std::string& nombre, const std::string& transicion, int ms) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = escenas_.find(nombre);
     if (it == escenas_.end()) return "no hay una escena «" + nombre + "»";
     if (transicion != "corte" && transicion != "mezcla" && transicion != "empuje" && transicion != "cortina")
@@ -473,7 +480,7 @@ std::string Motor::alAire(const std::string& nombre, const std::string& transici
 }
 
 std::string Motor::take(const std::string& transicion, int ms) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (armada_.empty()) return "no hay nada armado en el preview";
     const std::string antes = alAire_;
     const std::string e = alAire(armada_, transicion, ms);
@@ -484,7 +491,7 @@ std::string Motor::take(const std::string& transicion, int ms) {
 }
 
 std::string Motor::dsk(const json& capas, int fundidoMs) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (!vPrograma_) return "el motor está sin video";
     // Una capa puede ser una entrada o una ESCENA entera ({"escena": "Zócalo"}).
     json lista = capas.is_array() ? capas : json::array();
@@ -517,7 +524,7 @@ std::string Motor::dsk(const json& capas, int fundidoMs) {
 }
 
 std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenciaNs) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (bus == "limpio" && vPrograma_) {
         if (latenciaNs != nullptr) *latenciaNs = vPrograma_->latenciaSalidaNs();
         return vPrograma_->productorLimpio();
@@ -532,7 +539,7 @@ std::string Motor::productorDeVideo(const std::string& bus, std::int64_t* latenc
 }
 
 std::string Motor::multiview(bool activo, int ancho, int alto) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (!activo) {
         vMulti_.reset();
         mvAux_.clear();
@@ -618,7 +625,7 @@ void Motor::actualizarMultiview() {
 std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
     // Siempre en este orden: el lock del motor y después el de las vistas (el hilo
     // del motor hace lo mismo en el tic; al revés se trababan).
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (!vistas_) return "el motor no está andando";
     const std::string b = clave.substr(0, clave.find('@'));
     if (b.rfind("escena:", 0) == 0 && usarEscena(b.substr(7)).empty()) return "no hay una escena «" + b.substr(7) + "»";
@@ -628,21 +635,21 @@ std::string Motor::verPedir(const std::string& clave, int ancho, int alto) {
 }
 
 void Motor::verSoltar(const std::string& clave) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (vistas_) vistas_->soltar(clave);
     const std::string b = clave.substr(0, clave.find('@'));
     if (b.rfind("escena:", 0) == 0) soltarEscena(b.substr(7));
 }
 
 void Motor::verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (vistas_) vistas_->avisar(clave, std::move(fn));
 }
 
 bool Motor::empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride) {
     Entrada* e = nullptr;
     {
-        std::lock_guard<std::recursive_mutex> l(mu_);
+        BA_CANDADO(mu_);
         auto it = canales_.find(id);
         if (it == canales_.end()) return false;
         e = it->second.entrada.get();
@@ -651,7 +658,7 @@ bool Motor::empujarCuadro(const std::string& id, const std::uint8_t* bgra, int a
 }
 
 std::string Motor::usarEscena(const std::string& nombre) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto e = escenas_.find(nombre);
     if (e == escenas_.end() || !cfg_.video) return {};
     CompEscena& c = vEscenas_[nombre];
@@ -664,7 +671,7 @@ std::string Motor::usarEscena(const std::string& nombre) {
 }
 
 void Motor::soltarEscena(const std::string& nombre) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = vEscenas_.find(nombre);
     if (it == vEscenas_.end()) return;
     if (--it->second.pedidos > 0) return;
@@ -693,7 +700,7 @@ void Motor::desarmarAparte(std::unique_ptr<Composicion> c) {
 }
 
 bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* error) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = escenas_.find(nombre);
     if (it == escenas_.end() || !vPrograma_) {
         if (error != nullptr) *error = "no hay una escena «" + nombre + "»";
@@ -715,12 +722,12 @@ bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* 
 }
 
 std::string Motor::tbarHacia() const {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     return vPrograma_ ? vPrograma_->manualHacia() : std::string();
 }
 
 void Motor::masterVolumen(double lineal, int ms) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (programa_) programa_->ponerMaster(lineal, ms);
 }
 
@@ -740,7 +747,7 @@ GstFlowReturn Motor::alAudio(GstElement* sink, gpointer d) {
 }
 
 int Motor::escucharPrograma(std::function<void(const float*, std::size_t)> fn) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     int id = 0;
     {
         std::lock_guard<std::mutex> lt(tomaMu_);
@@ -773,7 +780,7 @@ void Motor::dejarDeEscuchar(int id) {
         vacio = oyentes_.empty();
     }
     if (!vacio) return;
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (tomaAudio_ != nullptr) {
         gst_element_set_state(tomaAudio_, GST_STATE_NULL);
         gst_object_unref(tomaAudio_);
@@ -782,7 +789,7 @@ void Motor::dejarDeEscuchar(int id) {
 }
 
 int Motor::escucharEntrada(const std::string& id, std::function<void(const float*, std::size_t)> fn) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end() || !it->second.entrada->daAudio()) return 0;
     const std::string d = "intersrc producer-name=" + entreComillas(it->second.entrada->productorAudio()) +
@@ -828,14 +835,14 @@ int Motor::escucharEntrada(const std::string& id, std::function<void(const float
 }
 
 bool Motor::tomaViva(int toma) const {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     return tomasEntrada_.count(toma) > 0;
 }
 
 void Motor::dejarDeEscucharEntrada(int toma) {
     std::unique_ptr<TomaEntrada> t;
     {
-        std::lock_guard<std::recursive_mutex> l(mu_);
+        BA_CANDADO(mu_);
         auto it = tomasEntrada_.find(toma);
         if (it == tomasEntrada_.end()) return;
         t = std::move(it->second);
@@ -851,7 +858,7 @@ bool Motor::verUltimo(const std::string& clave, Cuadro& out, std::uint64_t& seri
 }
 
 json Motor::medio(const std::string& id) const {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return nullptr;
     Entrada* e = it->second.entrada.get();
@@ -862,7 +869,7 @@ json Motor::medio(const std::string& id) const {
 }
 
 std::string Motor::controlMedio(const std::string& id, const std::string& accion, std::int64_t ms) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     if (accion == "ir") {
@@ -884,7 +891,7 @@ void Motor::armarRetorno(int n, Retorno& r) {
 }
 
 std::string Motor::retorno(int n, const std::string& modo, const std::string& propia) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (n < 1 || n > 64) return "invitado fuera de rango (1…64)";
     if (modo != "programa" && modo != "mix_minus" && modo != "apagado") return "modo: programa, mix_minus o apagado";
     if (modo == "programa" || modo == "apagado") {
@@ -900,7 +907,7 @@ std::string Motor::retorno(int n, const std::string& modo, const std::string& pr
 }
 
 std::string Motor::escuchar(const std::string& modo, const std::string& id) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (!escucha_) return "el motor no está andando";
     if (modo != "seleccion") seleccion_.reset();
     if (modo == "apagado") {
@@ -965,7 +972,7 @@ void Motor::enSeleccion(const std::string& id, const Canal& c) {
 }
 
 std::string Motor::ponerEscucha(const std::string& id, bool on) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
     it->second.escucha = on;
@@ -978,24 +985,24 @@ std::string Motor::ponerEscucha(const std::string& id, bool on) {
 }
 
 void Motor::escuchaDispositivo(const std::string& id) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (escucha_) escucha_->ponerDispositivo(id);
 }
 
 void Motor::escuchaNivel(double lineal) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     if (escucha_) escucha_->ponerNivel(lineal);
 }
 
 bool Motor::ponerLimitador(bool activo, double techoDb) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     return programa_ && programa_->ponerLimitador(activo, techoDb);
 }
 
 void Motor::ponerTopeEstudio(std::int64_t ms) { reloj_->ponerTope(ms); }
 
 std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latenciaNs) {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     Mezcla* m = nullptr;
     if (bus == "programa")
         m = programa_.get();
@@ -1006,8 +1013,19 @@ std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latencia
     return m->productor();
 }
 
+std::shared_ptr<const json> Motor::instantanea() const {
+    std::lock_guard<std::mutex> l(instantaneaM_);
+    return instantanea_;
+}
+
+void Motor::publicarInstantanea() {
+    auto foto = std::make_shared<const json>(estado());
+    std::lock_guard<std::mutex> l(instantaneaM_);
+    instantanea_ = std::move(foto);
+}
+
 json Motor::estado() const {
-    std::lock_guard<std::recursive_mutex> l(mu_);
+    BA_CANDADO(mu_);
     json entradas = json::object();
     for (const auto& [id, c] : canales_) {
         json e = c.entrada->estado();

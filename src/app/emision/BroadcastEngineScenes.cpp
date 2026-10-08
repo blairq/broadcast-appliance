@@ -105,9 +105,14 @@ const BroadcastEngine::EscenaApp* BroadcastEngine::escena(const std::string& nom
 }
 
 const json& BroadcastEngine::estadoMotor() const {
-    if (motor_ && ahoraMs() - estadoCacheMs_ > 100) {
-        estadoCache_ = motor_->estado();
-        estadoCacheMs_ = ahoraMs();
+    // La foto que publica el bucle del motor: leerla no espera el candado (ver
+    // Motor::instantanea). Se guarda la copia para devolver una referencia que
+    // no cambie mientras el que llama la recorre.
+    if (motor_) {
+        if (auto f = motor_->instantanea(); f && f.get() != estadoFoto_.get()) {
+            estadoFoto_ = f;
+            estadoCache_ = *f;
+        }
     }
     return estadoCache_;
 }
@@ -195,7 +200,7 @@ void BroadcastEngine::setTraer(const std::string& entrada, const std::string& co
 
 void BroadcastEngine::publicarEscena(const EscenaApp& e) {
     if (!motor_) return;
-    estadoCacheMs_ = 0; // el tamaño de una fuente nueva puede haber llegado recién
+    motor_->pedirFoto(); // el tamaño de una fuente nueva puede haber llegado recién
     motor_->definirEscena(escenaMotor(e));
 }
 
@@ -454,7 +459,7 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
             for (const auto& k : config.value("capas", json::array())) usa = usa || k.value("fuente", std::string()) == spec.name;
         if (usa) motor_->definirEscena(escenaCompositor(n, config));
     }
-    estadoCacheMs_ = 0;
+    if (motor_) motor_->pedirFoto();
     return true;
 }
 
@@ -591,7 +596,7 @@ void BroadcastEngine::aplicarRecortesPendientes() {
     if (recortesPendientes_.empty()) return;
     const auto pendientes = recortesPendientes_;
     recortesPendientes_.clear();
-    estadoCacheMs_ = 0;
+    if (motor_) motor_->pedirFoto();
     for (const auto& r : pendientes) {
         int w = 0, h = 0;
         if (!sourceSize(r.fuente, w, h) || w == 0) {
