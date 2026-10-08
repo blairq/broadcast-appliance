@@ -20,6 +20,7 @@
 // Conferencia) un toque abre o cierra el micrófono; el menú sigue en el toque largo.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import BA
 
@@ -99,7 +100,19 @@ ColumnLayout {
         rec.aviso = e
         return e === ""
     }
-    // La cara: en vivo si está conectado por el navegador; si no, su foto del Cuerpo.
+    // La foto de cada posición PTZ ("cámara/posición" -> url), para las bancas sin foto.
+    readonly property var fotosPtz: {
+        const m = {}
+        for (const c of (Studio.camaras ? Studio.camaras.camaras : []))
+            for (const p of (c.posiciones || []))
+                if (p.miniatura_url) {
+                    m[c.entrada + "/" + p.id] = p.miniatura_url
+                    if (p.nombre) m[c.entrada + "/" + p.nombre] = p.miniatura_url
+                }
+        return m
+    }
+    // La cara: en vivo si está conectado por el navegador; si no, su foto del Cuerpo;
+    // si no tiene, lo que muestra la cámara de su banca (la foto de su posición PTZ).
     function cara(i) {
         if (!i) return ""
         const p = rec.remotos[i.id]
@@ -107,7 +120,21 @@ ColumnLayout {
             const u = rec.sr.fotoUrl(i.id)
             if (u !== "") return u
         }
-        return i.foto_url || ""
+        if (i.foto_url) return i.foto_url
+        const pp = i.preset_ptz || {}
+        return pp.camara && pp.posicion ? (rec.fotosPtz[pp.camara + "/" + pp.posicion] || "") : ""
+    }
+    // El resultado de cada foto (la de una banca o la tanda de las que faltan).
+    Connections {
+        target: Studio.cuerpo
+        function onFotoLista(id, ok, texto) { if (!ok) rec.aviso = texto }
+    }
+    FileDialog {
+        id: subirFoto
+        property string deId: ""
+        title: "La foto del integrante"
+        nameFilters: ["Imágenes (*.jpg *.jpeg *.png *.webp *.heic *.bmp)"]
+        onAccepted: { const e = Studio.cuerpo.subirFoto(deId, selectedFile.toString()); rec.aviso = e }
     }
     function tocar(celda) {
         rec.aviso = ""
@@ -162,6 +189,21 @@ ColumnLayout {
             }
         }
         Item { Layout.fillWidth: true }
+        // Las caras que faltan, con la cámara de cada banca (una por una).
+        GlassButton {
+            compact: true
+            visible: !rec.editando
+            readonly property int pendientes: Studio.cuerpo.fotosPendientes
+            text: pendientes > 0 ? "Sacando fotos… faltan " + pendientes + " (parar)" : "Sacar las fotos que faltan"
+            active: pendientes > 0
+            onClicked: {
+                if (pendientes > 0) { Studio.cuerpo.cancelarFaltantes(); return }
+                const n = Studio.cuerpo.capturarFaltantes()
+                rec.aviso = n === 0 ? "No falta ninguna foto de los que tienen cámara en su banca (las demás se suben a mano: tocá la banca)." : ""
+            }
+            ToolTip.visible: hovered; ToolTip.delay: 400
+            ToolTip.text: "Lleva la cámara de cada banca a su posición y saca la foto (al aire, la cámara no se mueve)"
+        }
         Text { visible: !!rec.sr && rec.sr.conectados > 0; color: Theme.textDim; font.pixelSize: 12
                text: rec.sr ? "Remotos: " + rec.sr.presentes + " presentes de " + rec.sr.conectados + " conectados" : "" }
         GlassButton { compact: true; text: rec.editando ? "Listo" : "Editar lugares"; active: rec.editando
@@ -420,6 +462,10 @@ ColumnLayout {
                    onTriggered: rec.microfono(menu.l.banca, true, false) }
         MenuItem { text: "Cerrar el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0
                    onTriggered: rec.microfono(menu.l.banca, false, true) }
+        MenuItem { text: "Sacar su foto con la cámara"; enabled: menu.i !== null && !!(menu.i.preset_ptz && menu.i.preset_ptz.camara)
+                   onTriggered: { rec.aviso = ""; Studio.cuerpo.capturarFoto(menu.i.id) } }
+        MenuItem { text: "Subir su foto…"; enabled: menu.i !== null
+                   onTriggered: { subirFoto.deId = menu.i.id; subirFoto.open() } }
         MenuItem { text: "Apuntar la cámara"; enabled: menu.i !== null
                    onTriggered: rec.aviso = Studio.bancas.apuntar(menu.l.banca) }
         MenuItem { text: "Al aire (arma su cámara)"; enabled: menu.i !== null

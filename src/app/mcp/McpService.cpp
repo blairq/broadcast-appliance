@@ -2752,15 +2752,23 @@ void McpService::registerTools() {
         t.description = "La foto de un integrante (`banca`, id o nombre), que es la cara de su botón en la botonera: "
                         "`archivo` (una imagen: se recorta cuadrada) o `capturar: true` (lleva la cámara de su banca a "
                         "su preset, si no está al aire, y toma lo que se ve; tarda unos segundos y el resultado llega "
-                        "como aviso). `quitar: true` la saca.";
+                        "como aviso). `quitar: true` la saca. `faltantes: true` (sin banca) saca una por una las de "
+                        "todos los que no tienen foto y tienen cámara en su banca.";
         t.inputSchema = {{"type", "object"},
-                         {"required", {"banca"}},
                          {"properties",
                           {{"banca", {{"type", "string"}}},
                            {"archivo", {{"type", "string"}}},
                            {"capturar", {{"type", "boolean"}}},
-                           {"quitar", {{"type", "boolean"}}}}}};
+                           {"quitar", {{"type", "boolean"}}},
+                           {"faltantes", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
+            if (a.value("faltantes", false)) {
+                const int n = vm.cuerpo().capturarFaltantes();
+                return done(ToolResult::ok(n == 0 ? "No falta ninguna foto (de los que tienen cámara en su banca)."
+                                                  : "Sacando " + std::to_string(n) +
+                                                        " foto(s), una por una; cada una llega como aviso."));
+            }
+            if (a.value("banca", std::string()).empty()) return done(ToolResult::error("falta `banca` (o `faltantes: true`)"));
             const json i = vm.cuerpo().cuerpo().buscar(a.value("banca", std::string()));
             if (i.empty()) return done(ToolResult::error("no hay nadie con esa banca, id o nombre en el cuerpo"));
             const QString id = QString::fromStdString(i.value("id", std::string()));

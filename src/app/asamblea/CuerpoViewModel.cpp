@@ -22,7 +22,42 @@ nlohmann::json deMapa(const QVariantMap& m) {
 } // namespace
 
 CuerpoViewModel::CuerpoViewModel(std::filesystem::path datos, QObject* parent)
-    : QObject(parent), datos_(std::move(datos)), c_(std::make_unique<Cuerpo>(datos_ / "Config" / "cuerpo.json")) {}
+    : QObject(parent), datos_(std::move(datos)), c_(std::make_unique<Cuerpo>(datos_ / "Config" / "cuerpo.json")) {
+    // La tanda de fotos sigue cuando termina la que estaba (salga bien o mal).
+    connect(this, &CuerpoViewModel::fotoLista, this, [this](const QString& id, bool, const QString&) {
+        if (!capturando_.isEmpty() && id == capturando_) {
+            capturando_.clear();
+            siguienteFaltante();
+        }
+    });
+}
+
+int CuerpoViewModel::capturarFaltantes() {
+    if (!faltan_.isEmpty() || !capturando_.isEmpty()) return fotosPendientes();
+    for (const auto& i : c_->integrantes()) {
+        const QString id = QString::fromStdString(i.value("id", std::string()));
+        const bool conCamara = !i.value("preset_ptz", nlohmann::json::object()).value("camara", std::string()).empty();
+        if (!id.isEmpty() && conCamara && rutaFoto(id).isEmpty()) faltan_ << id;
+    }
+    const int n = static_cast<int>(faltan_.size());
+    siguienteFaltante();
+    return n;
+}
+
+void CuerpoViewModel::cancelarFaltantes() {
+    faltan_.clear();
+    emit fotosPendientesCambio();
+}
+
+void CuerpoViewModel::siguienteFaltante() {
+    if (faltan_.isEmpty()) {
+        emit fotosPendientesCambio();
+        return;
+    }
+    capturando_ = faltan_.takeFirst();
+    emit fotosPendientesCambio();
+    capturarFoto(capturando_);
+}
 
 QString CuerpoViewModel::nombre() const { return QString::fromStdString(c_->nombre()); }
 

@@ -22,6 +22,8 @@ class CuerpoViewModel : public QObject {
     Q_PROPERTY(QVariantList integrantes READ integrantes NOTIFY cambio)
     /// {filas, columnas, bancas: [{banca, fila, columna, integrante?}], sin_lugar}.
     Q_PROPERTY(QVariantMap recinto READ recinto NOTIFY cambio)
+    /// Cuántas fotos faltan sacar de la tanda de capturarFaltantes (0 = ninguna en curso).
+    Q_PROPERTY(int fotosPendientes READ fotosPendientes NOTIFY fotosPendientesCambio)
    public:
     CuerpoViewModel(std::filesystem::path datos, QObject* parent = nullptr);
     Cuerpo& cuerpo() { return *c_; }
@@ -50,6 +52,12 @@ class CuerpoViewModel : public QObject {
     /// aire), espera a que llegue y toma lo que se ve. El resultado llega por `fotoLista`.
     Q_INVOKABLE void capturarFoto(const QString& id);
     Q_INVOKABLE bool borrarFoto(const QString& id);
+    /// Saca, una por una, las fotos que faltan de los que tienen cámara en su banca
+    /// (como capturarFoto: al aire no se mueve la cámara). Devuelve cuántas van a ser;
+    /// cada una avisa por `fotoLista`. `cancelarFaltantes` deja de seguir.
+    Q_INVOKABLE int capturarFaltantes();
+    Q_INVOKABLE void cancelarFaltantes();
+    int fotosPendientes() const { return static_cast<int>(faltan_.size()) + (capturando_.isEmpty() ? 0 : 1); }
     /// La ruta del archivo de la foto ("" si no tiene).
     QString rutaFoto(const QString& idOBanca) const;
     /// Lo que necesita para capturar: llevar la cámara (devuelve "" o el error) y
@@ -64,11 +72,15 @@ class CuerpoViewModel : public QObject {
    signals:
     void cambio();
     void fotoLista(const QString& id, bool ok, const QString& texto);
+    void fotosPendientesCambio();
 
    private:
     std::filesystem::path datos_;
     std::unique_ptr<Cuerpo> c_;
     Ganchos g_;
+    QStringList faltan_;   // la tanda de capturarFaltantes
+    QString capturando_;   // la de la tanda que se está sacando
+    void siguienteFaltante();
     QString guardarFoto(const QString& id, const QImage& img);
 };
 
