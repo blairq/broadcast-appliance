@@ -178,6 +178,8 @@ Plugins::Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras*
                 return d.value("capacidades", json::object());
         return nullptr;
     };
+    // Los que salieron de un ejemplo de la app se ponen al día con ella.
+    actualizarEjemplos();
 }
 
 Plugins::~Plugins() {
@@ -234,8 +236,16 @@ bool volatil(const std::string& rel) {
 }
 } // namespace
 
-std::string Plugins::hashCodigo(const std::string& id, std::vector<std::string>* archivos) const {
-    const fs::path dir = carpetaDe(id);
+namespace {
+/// Lo que la app escribe en plugin.json y no es código: no cuenta para el hash
+/// (cambiar un ajuste no le quita la aprobación; el mismo ejemplo instalado con
+/// otro id es el mismo código).
+const char* const kNoEsCodigo[] = {"config", "id", "ejemplo", "ejemplo_huella"};
+
+/// El hash de una carpeta de plugin: un hash por archivo (nombre + contenido) y
+/// el total sobre la lista, así se puede decir QUÉ archivo cambió. `v` 1 es el de
+/// antes (plugin.json entero), para las aprobaciones viejas.
+std::string hashCarpeta(const fs::path& dir, std::vector<std::string>* archivos, int v = 2) {
     std::vector<std::string> rels;
     std::error_code ec;
     for (auto it = fs::recursive_directory_iterator(dir, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
@@ -247,13 +257,17 @@ std::string Plugins::hashCodigo(const std::string& id, std::vector<std::string>*
         if (it->is_regular_file()) rels.push_back(r);
     }
     std::sort(rels.begin(), rels.end());
-    // Un hash por archivo (nombre + contenido) y el total sobre la lista: así se
-    // puede decir QUÉ archivo cambió.
     QCryptographicHash total(QCryptographicHash::Sha256);
     for (const std::string& r : rels) {
-        QFile f(q(dir / r));
         QCryptographicHash h(QCryptographicHash::Sha256);
-        if (f.open(QIODevice::ReadOnly)) h.addData(&f);
+        if (v >= 2 && r == "plugin.json") {
+            json man = leerJson(dir / r);
+            for (const char* k : kNoEsCodigo) man.erase(k);
+            h.addData(QByteArray::fromStdString(man.dump()));
+        } else {
+            QFile f(q(dir / r));
+            if (f.open(QIODevice::ReadOnly)) h.addData(&f);
+        }
         const QByteArray uno = h.result().toHex();
         total.addData(QByteArray::fromStdString(r));
         total.addData(QByteArrayView("\0", 1));
@@ -261,6 +275,11 @@ std::string Plugins::hashCodigo(const std::string& id, std::vector<std::string>*
         if (archivos) archivos->push_back(r + "=" + uno.toStdString());
     }
     return total.result().toHex().toStdString();
+}
+} // namespace
+
+std::string Plugins::hashCodigo(const std::string& id, std::vector<std::string>* archivos) const {
+    return hashCarpeta(carpetaDe(id), archivos);
 }
 
 json Plugins::leerAprobados() const {
@@ -273,7 +292,7 @@ json Plugins::aprobar(const std::string& id, const std::string& quien) {
     std::vector<std::string> archivos;
     const std::string h = hashCodigo(id, &archivos);
     json a = leerAprobados();
-    a[id] = {{"hash", h}, {"ms", QDateTime::currentMSecsSinceEpoch()}, {"quien", quien}, {"archivos", archivos}};
+    a[id] = {{"hash", h}, {"v", 2}, {"ms", QDateTime::currentMSecsSinceEpoch()}, {"quien", quien}, {"archivos", archivos}};
     const fs::path f = rt_.dataRoot() / "Config" / "plugins-aprobados.json";
     std::error_code ec;
     fs::create_directories(f.parent_path(), ec);
@@ -293,7 +312,10 @@ std::string Plugins::desaprobar(const std::string& id) {
 
 bool Plugins::aprobadoVigente(const std::string& id) const {
     const json a = leerAprobados();
-    return a.contains(id) && a[id].value("hash", std::string()) == hashCodigo(id);
+    if (!a.contains(id)) return false;
+    const std::string h = a[id].value("hash", std::string());
+    // Las de antes se hicieron con plugin.json entero (v 1).
+    return h == hashCodigo(id) || (a[id].value("v", 1) < 2 && h == hashCarpeta(carpetaDe(id), nullptr, 1));
 }
 
 json Plugins::aprobados() const {
@@ -301,9 +323,10 @@ json Plugins::aprobados() const {
     for (const auto& [id, d] : leerAprobados().items()) {
         std::vector<std::string> ahora;
         const bool existe = fs::exists(carpetaDe(id) / "plugin.json");
-        const std::string h = existe ? hashCodigo(id, &ahora) : std::string();
+        const int v = d.value("v", 1);
+        const std::string h = existe ? hashCarpeta(carpetaDe(id), &ahora, v < 2 ? 1 : 2) : std::string();
         json x{{"hash", d.value("hash", std::string())}, {"ms", d.value("ms", 0LL)}, {"quien", d.value("quien", std::string())},
-               {"vigente", existe && h == d.value("hash", std::string())}};
+               {"vigente", existe && aprobadoVigente(id)}};
         if (!x["vigente"].get<bool>() && existe) {
             // Qué cambió: archivos nuevos, borrados o con otro contenido.
             std::set<std::string> antes, despues;
@@ -490,9 +513,82 @@ std::string Plugins::desdeEjemplo(const std::string& ejemplo, const std::string&
     if (ec) return "no se pudo copiar: " + ec.message();
     json man = leerJson(carpetaDe(id) / "plugin.json");
     man["id"] = id;
+    // De dónde salió: así se actualiza con la app (actualizarEjemplos).
+    man["ejemplo"] = ejemplo;
+    man["ejemplo_huella"] = hashCarpeta(desde, nullptr);
     escribirTexto(carpetaDe(id) / "plugin.json", man.dump(2));
     emit cambio();
     return {};
+}
+
+json Plugins::actualizarEjemplos() {
+    json hechos = json::array();
+    std::error_code ec;
+    const json aprobadosAntes = leerAprobados();
+    for (const auto& d : fs::directory_iterator(carpeta_, ec)) {
+        const std::string id = d.path().filename().string();
+        if (!d.is_directory() || id.empty() || id[0] == '.') continue;
+        json man = leerJson(d.path() / "plugin.json");
+        if (man.empty()) continue;
+        // Los instalados antes de anotar el origen: el ejemplo de la misma carpeta.
+        std::string ejemplo = man.value("ejemplo", std::string());
+        const bool viejo = ejemplo.empty();
+        if (viejo) ejemplo = id;
+        const fs::path desde = ejemplos() / ejemplo;
+        if (!idValido(ejemplo) || !fs::exists(desde / "plugin.json")) continue;
+        const std::string nueva = hashCarpeta(desde, nullptr);
+        const std::string anotada = man.value("ejemplo_huella", std::string());
+        if (anotada == nueva) continue; // al día
+        const std::string instalada = hashCarpeta(d.path(), nullptr);
+        if (!viejo && instalada != anotada) {
+            // Lo tocó alguien: no se pisa; que lo decida una persona.
+            hechos.push_back({{"id", id}, {"estado", "modificado"},
+                              {"texto", "«" + id + "» tiene una versión nueva en la app, pero su código se cambió a mano: no se actualizó"}});
+            continue;
+        }
+        if (instalada != nueva) {
+            // Copia de lo que había (por las dudas) y el código nuevo encima; los
+            // ajustes (config), el id y datos/ quedan.
+            const fs::path copia = carpeta_ / ".papelera" /
+                                   (id + "-antes-de-actualizar-" + std::to_string(QDateTime::currentSecsSinceEpoch()));
+            fs::create_directories(copia.parent_path(), ec);
+            fs::copy(d.path(), copia, fs::copy_options::recursive, ec);
+            if (ec) {
+                hechos.push_back({{"id", id}, {"estado", "error"}, {"texto", "no se pudo copiar «" + id + "»: " + ec.message()}});
+                continue;
+            }
+            for (auto it = fs::recursive_directory_iterator(desde, ec); it != fs::recursive_directory_iterator(); it.increment(ec)) {
+                const std::string r = fs::relative(it->path(), desde, ec).generic_string();
+                if (volatil(r)) {
+                    if (it->is_directory()) it.disable_recursion_pending();
+                    continue;
+                }
+                if (r == "plugin.json") continue;
+                if (it->is_directory()) fs::create_directories(d.path() / r, ec);
+                else fs::copy_file(it->path(), d.path() / r, fs::copy_options::overwrite_existing, ec);
+            }
+            json nuevoMan = leerJson(desde / "plugin.json");
+            json conf = nuevoMan.value("config", json::object());
+            for (const auto& [k, v] : man.value("config", json::object()).items()) conf[k] = v; // lo del operador gana
+            nuevoMan["config"] = conf;
+            nuevoMan["id"] = id;
+            man = nuevoMan;
+        }
+        man["ejemplo"] = ejemplo;
+        man["ejemplo_huella"] = nueva;
+        escribirTexto(d.path() / "plugin.json", man.dump(2));
+        if (instalada != nueva) {
+            // Si estaba aprobado para el aire, el código nuevo viene con la app: se re-aprueba y queda anotado.
+            if (aprobadosAntes.contains(id)) aprobar(id, "la app (ejemplo actualizado)");
+            hechos.push_back({{"id", id}, {"estado", "actualizado"},
+                              {"texto", "«" + id + "» actualizado con la versión de la app (los ajustes quedaron)"}});
+        }
+    }
+    for (const auto& h : hechos)
+        ba::diag::registro().linea(h.value("estado", "") == "actualizado" ? ba::diag::Nivel::Info : ba::diag::Nivel::Aviso,
+                                   "plugins", 0, h.value("texto", std::string()));
+    if (!hechos.empty()) emit cambio();
+    return hechos;
 }
 
 std::string Plugins::borrar(const std::string& id) {

@@ -133,6 +133,10 @@ class Plugins : public QObject {
     /// Escribe (crea o pisa) archivos del plugin `id`; `manifiesto` se mezcla con plugin.json.
     std::string escribir(const std::string& id, const json& archivos, const json& manifiesto, json* hecho);
     std::string desdeEjemplo(const std::string& ejemplo, const std::string& id);
+    /// Pone al día los plugins que salieron de un ejemplo de la app cuando el
+    /// ejemplo cambió (se copia lo que había a .papelera; quedan config, id y
+    /// datos/). Si alguien tocó el código, no se pisa: se avisa. Al arrancar.
+    json actualizarEjemplos();
     std::string borrar(const std::string& id);
     /// Un .zip con el plugin (sin _libs ni datos) en Datos/Exportado. Async: {archivo} o {error}.
     void exportar(const std::string& id, std::function<void(json)> listo);
