@@ -686,6 +686,28 @@ void testSingleInstance() {
 
 } // namespace
 
+// Rutas guardables: relativas a los datos y de vuelta, aunque la carpeta se haya movido.
+void testRutasDeDatos() {
+    namespace fs = std::filesystem;
+#ifndef _WIN32
+    const fs::path raiz = fs::temp_directory_path() / ("ba-rutas-" + std::to_string(::getpid()));
+    fs::create_directories(raiz / "Modelos" / "superres");
+    { std::ofstream(raiz / "Modelos" / "superres" / "m.onnx") << "x"; }
+    setenv("BA_DATA_ROOT", raiz.string().c_str(), 1);
+    CHECK(rutaGuardable(raiz / "Modelos" / "superres" / "m.onnx") == "Modelos/superres/m.onnx");
+    CHECK(rutaGuardable("/otra/cosa/afuera.onnx") == "/otra/cosa/afuera.onnx");
+    CHECK(rutaDeDatos("Modelos/superres/m.onnx") == raiz / "Modelos" / "superres" / "m.onnx");
+    // Una ruta de antes de mover la carpeta de datos: se rearma desde la de ahora.
+    CHECK(rutaDeDatos("/viejo/lugar/BroadcastAppliance Datos/Modelos/superres/m.onnx") ==
+          raiz / "Modelos" / "superres" / "m.onnx");
+    CHECK(rutaDeDatos("/viejo/lugar/sin/carpetas/conocidas.onnx") == fs::path("/viejo/lugar/sin/carpetas/conocidas.onnx"));
+    CHECK(rutaDeDatos("").empty());
+    unsetenv("BA_DATA_ROOT");
+    std::error_code ec;
+    fs::remove_all(raiz, ec);
+#endif
+}
+
 int main(int argc, char** argv) {
     if (argc >= 3 && std::strcmp(argv[1], "--child") == 0) {
         return childMain(argc, argv);
@@ -712,6 +734,7 @@ int main(int argc, char** argv) {
     testSocketConnectTimeout();
     testControlEndpointOverSocket();
     testSingleInstance();
+    testRutasDeDatos();
 
     if (g_failures == 0) {
         std::printf("test_platform: OK\n");

@@ -1,6 +1,7 @@
 // src/app/video/VideoGrafos.cpp — ver VideoGrafos.hpp
 
 #include "video/VideoGrafos.hpp"
+#include "platform/Paths.hpp"
 
 #include "video/Diagnostico.hpp"
 #if defined(BA_HAVE_GST)
@@ -1353,7 +1354,9 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             }
             const std::string motor = q.value("motor", std::string("auto"));
             if (!motor.empty() && motor != "auto") pr["motor"] = motor;
-            if (!q.value("modelo", std::string()).empty()) pr["modelo"] = q.value("modelo", std::string());
+            // Lo guardado puede ser relativo a los datos o una ruta vieja de antes de mover la carpeta.
+            if (!q.value("modelo", std::string()).empty())
+                pr["modelo"] = ba::platform::rutaDeDatos(q.value("modelo", std::string())).string();
             // Las variantes compiladas para cada tamaño (el motor usa la del que llega).
             if (!q.value("variantes", std::string()).empty()) pr["variantes"] = q.value("variantes", std::string());
             if (q.value("escala_red", 2) > 2) pr["escala-red"] = std::to_string(q.value("escala_red", 2));

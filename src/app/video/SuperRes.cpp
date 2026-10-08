@@ -416,7 +416,8 @@ std::string SuperRes::aplicar(const std::string& entrada, const std::string& mot
     std::error_code ec;
     if (motor == "onnx" && !fs::exists(ruta, ec))
         return "no existe el modelo «" + modelo + "» (superres_estado lista los que hay)";
-    return video_->superresMotor(entrada, motor, motor == "onnx" ? ruta : std::string());
+    // Relativa a los datos: la carpeta se puede mover y la tarjeta sigue andando.
+    return video_->superresMotor(entrada, motor, motor == "onnx" ? ba::platform::rutaGuardable(ruta) : std::string());
 }
 
 namespace {

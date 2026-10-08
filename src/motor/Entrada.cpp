@@ -5,6 +5,7 @@
 
 #include "OrigenRed.hpp"
 #include "Reloj.hpp"
+#include "platform/Paths.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -419,7 +420,10 @@ void Entrada::leer(const json& a) {
     desfaseVideoMs_ = std::max<std::int64_t>(0, entero(a, "desfase_video", 0));
     superres_ = a.value("superres", false);
     superresMotor_ = a.value("superres_motor", std::string());
-    superresModelo_ = a.value("superres_modelo", std::string());
+    // Relativa a los datos (o una ruta de antes de mover la carpeta): la de ahora.
+    superresModelo_ = a.value("superres_modelo", std::string()).empty()
+                          ? std::string()
+                          : ba::platform::rutaDeDatos(a.value("superres_modelo", std::string())).string();
     medio_ = a.value("medio", false);
     nombre_ = a.value("nombre", std::string());
     bucle_ = a.value("looping", false);

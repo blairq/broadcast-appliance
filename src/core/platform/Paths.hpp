@@ -70,6 +70,16 @@ inline constexpr const char* kDataRootEnv = "BA_DATA_ROOT";
 /// bundle (`dataRootFor(bundleRoot())`: en macOS, la carpeta al lado de la .app).
 std::filesystem::path dataRoot();
 
+/// Una ruta para GUARDAR en la configuración: si está dentro de los datos, relativa
+/// a ellos («Modelos/superres/x.onnx»); si no, tal cual. Así la carpeta se puede
+/// mover (o copiar a otra máquina) y lo guardado sigue apuntando bien.
+std::string rutaGuardable(const std::filesystem::path& p);
+/// Lo guardado, de vuelta a una ruta para usar: relativa = dentro de los datos;
+/// absoluta que existe, tal cual; absoluta que ya no existe (la carpeta se movió)
+/// pero pasa por una carpeta de los datos (Modelos/, Media/…), rearmada desde los
+/// datos de ahora.
+std::filesystem::path rutaDeDatos(const std::string& guardada);
+
 /// Estado de ejecucion DENTRO del bundle portable: `<datos>/Runtime/`
 /// (archivos de encuentro con tokens: gateway-admin.json, mcp.json). Nada de
 /// esto va al perfil del usuario ni a la maquina: el appliance corre desde

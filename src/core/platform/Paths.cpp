@@ -114,4 +114,42 @@ void redirectUserDirs() {
     setEnv("__GL_SHADER_DISK_CACHE_PATH", cache / "nvidia");
 }
 
+std::string rutaGuardable(const std::filesystem::path& p) {
+    if (p.empty()) return {};
+    std::error_code ec;
+    const auto raiz = std::filesystem::weakly_canonical(dataRoot(), ec);
+    const auto abs = std::filesystem::weakly_canonical(p, ec);
+    const auto rel = abs.lexically_relative(raiz);
+    if (!ec && !rel.empty() && *rel.begin() != "..") {
+        const std::u8string u = rel.generic_u8string();
+        return std::string(u.begin(), u.end());
+    }
+    const std::u8string u = p.u8string();
+    return std::string(u.begin(), u.end());
+}
+
+std::filesystem::path rutaDeDatos(const std::string& guardada) {
+    if (guardada.empty()) return {};
+    const std::filesystem::path p(std::u8string(guardada.begin(), guardada.end()));
+    if (p.is_relative()) return dataRoot() / p;
+    std::error_code ec;
+    if (std::filesystem::exists(p, ec)) return p;
+    // La carpeta de datos se movió: desde la primera carpeta conocida de los datos.
+    static const char* const kCarpetas[] = {"Modelos", "Media", "Graficos", "Eventos", "Recordings", "Plugins",
+                                            "Herramientas", "Miniaturas", "Fotos", "Shares"};
+    std::filesystem::path resto;
+    bool desde = false;
+    for (const auto& parte : p) {
+        if (!desde)
+            for (const char* c : kCarpetas)
+                if (parte == c) desde = true;
+        if (desde) resto /= parte;
+    }
+    if (desde) {
+        const auto nueva = dataRoot() / resto;
+        if (std::filesystem::exists(nueva, ec)) return nueva;
+    }
+    return p;
+}
+
 } // namespace ba::platform
