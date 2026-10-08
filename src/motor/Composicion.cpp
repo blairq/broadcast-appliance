@@ -55,6 +55,12 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         k.contener = c.value("contener", false);
         if (!k.entrada.empty()) e.capas.push_back(k);
     }
+    const json l = j.value("lienzo", json::object());
+    if (l.is_object()) {
+        e.lienzoAncho = l.value("ancho", 0);
+        e.lienzoAlto = l.value("alto", 0);
+    }
+    if (j.contains("filtros") && j["filtros"].is_array()) e.filtros = j["filtros"];
     return e;
 }
 
@@ -71,7 +77,10 @@ nlohmann::json Escena::aJson() const {
                          {"recorte", {{"izq", c.recIzq}, {"arr", c.recArr}, {"der", c.recDer}, {"aba", c.recAba}}},
                          {"visible", c.visible},
                          {"contener", c.contener}});
-    return {{"nombre", nombre}, {"capas", capas}};
+    nlohmann::json out{{"nombre", nombre}, {"capas", capas}};
+    if (lienzoAncho > 0 && lienzoAlto > 0) out["lienzo"] = {{"ancho", lienzoAncho}, {"alto", lienzoAlto}};
+    if (!filtros.empty()) out["filtros"] = filtros;
+    return out;
 }
 
 // --- Composición ---------------------------------------------------------------------
@@ -92,6 +101,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     const std::string desc = gpu_ ? mezclador + " name=mx " + comun + "! " + salida
                                   : "compositor name=mx " + comun + "! video/x-raw," + tam + " ! videoconvert ! " + salida;
     std::string completo;
+    const std::vector<Filtro> filtros = op.dsk ? std::vector<Filtro>{} : leerFiltros(op.filtros);
     if (op.dsk) {
         // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro mezclador.
         completo = desc + " ! tee name=t t. ! queue ! intersink name=limpio producer-name=" + entreComillas(productorLimpio()) +
@@ -99,7 +109,12 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                    (gpu_ ? salida : "video/x-raw," + tam + " ! videoconvert ! " + salida) +
                    " ! intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
     } else {
-        completo = desc + " ! intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
+        // Los filtros de después del mezclador (la Vista 360 de la Cámara 360): en la
+        // GPU, su par (ba360gl, ba360d3d12) sobre lo que sale del mezclador, sin bajarlo.
+        firmaFiltros_ = firmaDe(filtros, {}, false);
+        const std::string cadena = cadenaDe(filtros, "videoconvert", "ba_c_", avisosFiltros_, gpu_);
+        for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, "composición " + nombre_ + ": " + a);
+        completo = desc + " ! " + cadena + "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
     }
     GError* e = nullptr;
     pipeline_ = gst_parse_launch(completo.c_str(), &e);
@@ -111,6 +126,8 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
         return;
     }
+    // Las propiedades de los filtros de después del mezclador (la cadena solo los nombra).
+    if (!filtros.empty()) ponerEnVivo(pipeline_, filtros, "ba_c_");
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
     dskMx_ = gst_bin_get_by_name(GST_BIN(pipeline_), "dsk");
     // BA_MEDIR_VISTAS=1: cuántos cuadros salen del mezclador (y del DSK) y su
@@ -664,6 +681,12 @@ json Composicion::estado() const {
             {"latencia_ms", static_cast<double>(latenciaNs_) / 1e6},
             {"latencia_salida_ms", static_cast<double>(std::max(salidaNs_, latenciaNs_)) / 1e6},
             {"capas", capas}};
+}
+
+bool Composicion::ponerFiltros(const json& filtros) {
+    const std::vector<Filtro> fv = leerFiltros(filtros);
+    if (firmaDe(fv, {}, false) != firmaFiltros_) return false;
+    return pipeline_ == nullptr || ponerEnVivo(pipeline_, fv, "ba_c_");
 }
 
 } // namespace ba::motor

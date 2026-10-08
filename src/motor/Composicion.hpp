@@ -62,6 +62,11 @@ struct Capa {
 struct Escena {
     std::string nombre;
     std::vector<Capa> capas;
+    /// Solo las escenas internas (un compositor, la Cámara 360): un lienzo propio
+    /// (0 = el del estudio) y filtros después del mezclador (la lista de Piezas:
+    /// [{id, elemento, propiedades}]; en la GPU, con su par de GL o D3D12).
+    int lienzoAncho = 0, lienzoAlto = 0;
+    nlohmann::json filtros = nlohmann::json::array();
     static Escena desdeJson(const nlohmann::json& j);
     nlohmann::json aJson() const;
 };
@@ -74,6 +79,8 @@ class Composicion {
         /// un segundo compositor le pone encima las capas del DSK (zócalos, logo), que
         /// no cambian con la escena.
         bool dsk = false;
+        /// Filtros después del mezclador (ver Escena::filtros); no con `dsk`.
+        nlohmann::json filtros = nlohmann::json::array();
     };
     Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op);
     Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre)
@@ -83,6 +90,10 @@ class Composicion {
     Composicion& operator=(const Composicion&) = delete;
 
     const std::string& nombre() const { return nombre_; }
+    const Lienzo& lienzo() const { return lienzo_; }
+    /// Los filtros de después del mezclador, andando: false si cambió algo que no se
+    /// cambia en vivo (otros elementos o propiedades fijas): hay que rearmarla.
+    bool ponerFiltros(const nlohmann::json& filtros);
     std::string productor() const { return "video:" + nombre_; }
     /// Las entradas que tiene ahora (capas, las que salen en una transición y el DSK).
     std::set<std::string> entradasEnUso() const;
@@ -155,6 +166,8 @@ class Composicion {
 
     Reloj& reloj_;
     Lienzo lienzo_;
+    std::string firmaFiltros_; ///< los filtros de después del mezclador (Piezas::firmaDe)
+    std::vector<std::string> avisosFiltros_;
     std::string nombre_, error_;
     bool gpu_ = false; ///< en la GPU (GL o D3D12)
     bool gl_ = false;  ///< en GL (si no, D3D12)

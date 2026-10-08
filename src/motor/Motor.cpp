@@ -459,7 +459,20 @@ std::string Motor::definirEscenaYa(const json& j) {
         escenaAlAire(ids, 0);
     }
     if (e.nombre == armada_ && vPreview_) vPreview_->mostrar(e);
-    if (auto it = vEscenas_.find(e.nombre); it != vEscenas_.end() && it->second.comp) it->second.comp->mostrar(e);
+    if (auto it = vEscenas_.find(e.nombre); it != vEscenas_.end() && it->second.comp) {
+        // Otro lienzo u otros filtros (no solo sus valores): se rearma; los consumidores
+        // la siguen leyendo por el mismo nombre.
+        const Lienzo l = lienzoDe(e);
+        Composicion& c = *it->second.comp;
+        if (c.lienzo().ancho != l.ancho || c.lienzo().alto != l.alto || !c.ponerFiltros(e.filtros)) {
+            std::unique_ptr<Composicion> vieja = std::move(it->second.comp);
+            Composicion::Opciones op;
+            op.filtros = e.filtros;
+            it->second.comp = std::make_unique<Composicion>(*reloj_, l, "escena:" + e.nombre, op);
+            desarmarAparte(std::move(vieja));
+        }
+        it->second.comp->mostrar(e);
+    }
     actualizarUso();
     return {};
 }
@@ -799,13 +812,24 @@ void Motor::cuadros() {
     }
 }
 
+Lienzo Motor::lienzoDe(const Escena& e) const {
+    Lienzo l = cfg_.lienzo;
+    if (e.lienzoAncho > 0 && e.lienzoAlto > 0) {
+        l.ancho = e.lienzoAncho;
+        l.alto = e.lienzoAlto;
+    }
+    return l;
+}
+
 std::string Motor::usarEscenaYa(const std::string& nombre) {
     BA_CANDADO(mu_);
     auto e = escenas_.find(nombre);
     if (e == escenas_.end() || !cfg_.video) return {};
     CompEscena& c = vEscenas_[nombre];
     if (!c.comp) {
-        c.comp = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "escena:" + nombre);
+        Composicion::Opciones op;
+        op.filtros = e->second.filtros;
+        c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second), "escena:" + nombre, op);
         c.comp->mostrar(e->second);
     }
     ++c.pedidos;

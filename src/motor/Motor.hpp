@@ -323,6 +323,8 @@ class Motor {
     std::string dskYa(const nlohmann::json& capas, int fundidoMs);
     bool tbarYa(const std::string& nombre, double t, bool soltar, std::string* error);
     std::string usarEscenaYa(const std::string& nombre);
+    /// El lienzo de una escena interna (el suyo, o el del estudio).
+    Lienzo lienzoDe(const Escena& e) const;
     void soltarEscenaYa(const std::string& nombre);
     std::string retornoYa(int n, const std::string& modo, const std::string& propia);
     std::string escucharYa(const std::string& modo, const std::string& id);
