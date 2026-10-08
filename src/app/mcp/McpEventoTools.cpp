@@ -15,6 +15,9 @@
 // asistente las descubre sin nadie que se las explique.
 // ============================================================================
 #include "mcp/McpEventoTools.hpp"
+#include "mcp/McpAsamblea.hpp"
+#include "asamblea/Cuerpo.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -1206,7 +1209,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "eso no hay quorum y lo que se decida no vale. Las fichas de rostro se enganchan "
             "despues con `padron_cambiar`.\n\n"
             "LA FECHA CON SU HUSO no es opcional en un evento hibrido: el que se conecta de otro lado "
-            "no sabe a que hora es. Si no te la dijeron, pregunta antes de armar.";
+            "no sabe a que hora es. Si no te la dijeron, pregunta antes de armar.\n\n"
+            "UNA SESION DE ASAMBLEA (cuerpo con bancas, central, votacion nominal, remotos) necesita mucho mas que "
+            "el guion: camaras por banca y ESCENAS que las muestren. Lee help {\"topic\": \"asamblea\"}; si hay "
+            "un Cuerpo cargado, el resultado trae lo que falta (asamblea_revisar).";
         t.inputSchema = {
             {"type", "object"},
             {"required", {"nombre"}},
@@ -1248,7 +1254,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                     {"contacto", {{"type", "string"}}},
                     {"nota", {{"type", "string"}}},
                     {"vota", {{"type", "boolean"}}}}}}}}}}}};
-        t.run = [&ev](const json& a, Done done) {
+        t.run = [&ev, &vm](const json& a, Done done) {
             const std::string nombre = a.value("nombre", std::string());
             if (nombre.empty()) return done(ToolResult::error("El evento necesita un nombre."));
             // Se valida ANTES de crear la carpeta: quedarse con un evento a
@@ -1315,6 +1321,19 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                 {"bloques", nBloques},
                                 {"cues", nCues},
                                 {"gente", nGente}};
+            // Con un Cuerpo cargado es una sesión de asamblea: lo que le falta (sobre todo
+            // escenas) se dice ya, aunque nadie haya pedido revisarlo.
+            if (!vm.cuerpo().cuerpo().integrantes().empty()) {
+                const json asam = revisarAsamblea(vm, vm.runtime());
+                r.structured["asamblea"] = asam;
+                if (!asam.value("listo", true)) {
+                    std::string t = "\n\nPara sesionar todavía falta (asamblea_revisar):";
+                    for (const auto& f : asam["faltas"])
+                        t += "\n- " + f.value("detalle", std::string()) + " → " + f.value("como", std::string());
+                    t += "\nDecíselo al operador y ofrecé arreglarlo (asamblea_escenas_base arma las escenas).";
+                    r.text(t);
+                }
+            }
             done(r);
         };
         core.addTool(std::move(t));

@@ -371,6 +371,7 @@ class StudioViewModel : public QObject {
     asamblea::Bancas& bancas() { return *bancas_; }
     asamblea::ConferenciaDcn& dcn() { return *dcn_; }
     asamblea::SesionRemota* sesionRemota() { return sesionRemota_.get(); }
+    AppRuntime& runtime() { return rt_; }
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
     /// como el cargo de su zócalo. "" o el error.
     Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});

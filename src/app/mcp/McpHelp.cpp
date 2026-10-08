@@ -259,8 +259,30 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 - Seguridad: 5 PIN errados bloquean ese acceso 15 minutos; un integrante, una conexión.
 - **La palabra:** el celular pide la palabra y entra en la misma fila (`banca_cola`); `banca_al_aire` le da la palabra con su cuenta regresiva en el celular; `banca_tiempo` suma o resta tiempo.
 - **Votar:** si la central abre una votación, a los habilitados les aparece el cartel rojo en el celular; sin la central, `sesion_votacion {"accion": "abrir", "tema", "menu", "segundos"}`. A Quórum va un voto por integrante.
-- **Consola de la presidencia:** `sesion_consola {"accion": "crear"}` da el link y el PIN de …/presidencia/ (recinto con caras, fila con «apretar para hablar», votación, programa en vivo).
-- El audio de los remotos hacia la sala y la transmisión todavía no está (fase R3).)md"},
+- **Consola de la presidencia:** `sesion_consola {"accion": "crear"}` da el link y el PIN de …/presidencia/ (recinto con caras, fila y bancas con «apretar para hablar», silenciar a todos, «hablo yo», debate, votación, programa en vivo).
+- **Su imagen y su voz:** el que tiene la palabra entra como «Remoto con la palabra» (audio, video y «— contenido», lo que muestra); en un debate entre remotos el otro entra como «Remoto con la palabra 2». Las escenas tienen que mostrar esas entradas.
+- **Lo que ve en el celular:** su cámara, la salida principal u otra escena (`sesion_vistas`), con su propia imagen en un recuadro.
+- **Hablarle:** `sesion_hablar {"banca", "activo"}` (tu micrófono de la sala le llega al celular).)md"},
+    {"asamblea", "Sesión de asamblea", "Cómo se prepara una sesión: Cuerpo, recinto, cámaras, ESCENAS, central, remotos, debate.",
+     R"md(Una sesión de asamblea (concejo, consejo, directorio, consorcio) no es un guion de cues: la palabra cambia sin orden previo y cada banca tiene que verse y oírse cuando le toca. Se prepara en este orden, y `asamblea_revisar` dice en cada momento qué falta y cómo se arregla. **Corrélo al empezar y al terminar.**
+
+1. **El Cuerpo:** cada integrante con su banca (`cuerpo_importar` desde una planilla, o `integrante_editar`). Sin banca no aparece en el recinto.
+2. **El recinto:** la grilla de bancas como se ven desde la cabina (`recinto_editar {filas, columnas, auto: true}`).
+3. **Las cámaras de las bancas:** para cada banca, una posición PTZ que la encuadre (`ptz_posicion_guardar`) anotada en el Cuerpo (`integrante_editar {id, camara, posicion}`). Al darle la palabra, la cámara va sola a esa posición.
+4. **LAS ESCENAS** (lo que más se olvida): al darle la palabra a una banca se ARMA la escena que muestra su cámara; si ninguna escena la muestra, no sale nadie. Hace falta:
+   - una escena por cada cámara de bancas (con el zócalo `{orador}` si se quiere el nombre en pantalla);
+   - un plano general;
+   - una con «Remoto con la palabra» (el integrante que habla desde el celular);
+   - las del debate: dos remotos lado a lado («Remoto con la palabra» y «Remoto con la palabra 2»), uno de la sala y un remoto, dos de la sala;
+   - si hay votación en pantalla, la del resultado.
+   `asamblea_escenas_base` las propone armadas con las cámaras y entradas que hay (mostrale la propuesta al operador) y con `crear: true` las crea y configura el debate. Después se pueden retocar (zócalo, fondo, logo).
+5. **La central de conferencia** (si hay): `help {"topic": "conferencia"}`; cada banca con su unidad.
+6. **Los remotos:** `help {"topic": "sesion"}`; link y PIN a los que sesionan a distancia; qué ven en el celular (`sesion_vistas`).
+7. **El orden del día** (`orden_del_dia`): se ve en los celulares y en la consola de la presidencia.
+8. **El debate** (si va a haber): `debate_config` con la escena de cada tipo y el tiempo de cada turno.
+9. **El guion** (`evento_armar`) para lo que sí tiene orden: apertura, himno, cierre. El cuerpo de la sesión lo maneja la fila de oradores (`banca_*`), no los cues.
+
+Durante la sesión: `banca_al_aire` / `banca_terminar` (la palabra), `presidencia_silenciar` y `presidencia_hablar`, `debate_iniciar` / `debate_turno`, votación con `dcn_votacion` o `sesion_votacion`.)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
 
@@ -923,6 +945,8 @@ Cuando alguien te cuenta un evento («asamblea del consorcio, el jueves 8 a las 
 1. **Preguntá la fecha con su huso si no te la dijeron.** En un evento hibrido el que se conecta de otro lado no sabe a que hora es «las 19». El del aparato viene en `evento_ver` y casi siempre es el bueno.
 2. **Mostrale lo que vas a armar ANTES de armarlo**, en dos o tres renglones: los bloques con sus tiempos y cuanta gente. Armar un evento entero de una orden es justo donde una equivocacion cuesta caro y se descubre en vivo.
 3. **Armalo** y despues corre `evento_revisar` y contale lo que salga. No queda al aire: queda escrito.
+
+**Si es una sesión de asamblea** (un cuerpo con bancas: concejo, consejo, directorio, consorcio con votación nominal, central de conferencia, integrantes desde el celular): el guion es lo de menos. Leé ANTES `help {"topic": "asamblea"}`: hace falta el Cuerpo con sus bancas, el preset de cámara de cada banca y **escenas** que muestren esas cámaras, al remoto con la palabra y los debates. `asamblea_revisar` dice qué falta y cómo se arregla (evento_armar lo corre solo si hay un Cuerpo cargado) y `asamblea_escenas_base` propone las escenas con lo que hay.
 
 Lo que casi siempre falta y conviene ofrecer sin que te lo pidan:
 
