@@ -78,7 +78,8 @@ void McpService::registerUiTools() {
                                 "cada fuente con su cadena), \"racks\", \"matriz\", \"mesa\" (automixer) o el "
                                 "nombre de una fuente (abre su rack). Con page=video: \"<entrada>[/<tarjeta>]\". Con "
                                 "page=historico: \"<evento>[/<pestaña>]\" (resumen, tiempo, grabaciones, config, "
-                                "archivos). Sin esto queda la que estaba."}}}}},
+                                "archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], "
+                                "recinto, orden, votacion, conexiones o debate. Sin esto queda la que estaba."}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;

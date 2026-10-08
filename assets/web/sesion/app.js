@@ -61,16 +61,24 @@ function ponerPedido(turno) {
   $("turno").textContent = turno > 0 ? (turno === 1 ? "Sos el próximo" : "Tu turno: " + turno) : "";
 }
 
-function ponerPalabra(activa, segundos) {
+let debate = null;  // {activo, habla, segundos}: en un debate la palabra la maneja el turno
+
+function ponerPalabra(activa, segundos, titulo) {
   clearInterval(timerReloj);
   $("palabra").classList.toggle("oculto", !activa);
-  $("palabra").classList.remove("minuto", "terminado");
+  $("palabra").classList.remove("minuto", "terminado", "espera");
   $("pedir").classList.toggle("oculto", activa);
   if (!activa) { palabraHasta = 0; microfono(pttActivo); return; }
-  microfono(true);
-  palabraHasta = Date.now() + segundos * 1000;
-  $("palabraTitulo").textContent = "Tenés la palabra";
+  // En un debate, el micrófono solo en su turno.
+  const habla = !debate || debate.habla;
+  microfono(habla || pttActivo);
+  $("palabra").classList.toggle("espera", !habla);
+  $("palabraTitulo").textContent = titulo || "Tenés la palabra";
   $("palabraTexto").textContent = "";
+  // Sin límite (0): sin cuenta regresiva.
+  $("reloj").classList.toggle("oculto", !(segundos > 0));
+  if (!(segundos > 0)) { palabraHasta = 1; return; }
+  palabraHasta = Date.now() + segundos * 1000;
   const pintar = () => {
     const s = Math.round((palabraHasta - Date.now()) / 1000);
     const a = Math.abs(s);
@@ -79,6 +87,13 @@ function ponerPalabra(activa, segundos) {
   pintar();
   timerReloj = setInterval(pintar, 250);
   if (navigator.vibrate) navigator.vibrate([150, 80, 150]);
+}
+
+function ponerDebate(m) {
+  debate = m.activo ? { habla: !!m.habla, segundos: m.segundos || 0 } : null;
+  if (!debate) { ponerPalabra(palabraHasta > 0, 0); return; }
+  ponerPalabra(true, debate.habla ? debate.segundos : 0,
+               debate.habla ? "Debate: es tu turno" : "Debate: habla el otro, esperá tu turno");
 }
 
 function avisoTiempo(aviso) {
@@ -481,7 +496,12 @@ function recibir(m) {
       ponerPedido(m.turno || 0);
       break;
     case "palabra":
+      if (debate && m.activa) break; // en el debate manda el turno
+      if (!m.activa) debate = null;
       ponerPalabra(!!m.activa, m.segundos || 0);
+      break;
+    case "debate":
+      ponerDebate(m);
       break;
     case "tiempo":
       avisoTiempo(m.aviso);
@@ -506,7 +526,7 @@ function recibir(m) {
       // la presidencia, por la conexión directa (y él le contesta).
       const delOperador = m.consola === "operador";
       $("pttTitulo").textContent = delOperador ? "Te están hablando desde la cabina" : "La presidencia te está hablando";
-      if (!delOperador) microfono(pttActivo || palabraHasta > 0);
+      if (!delOperador) microfono(pttActivo || (palabraHasta > 0 && (!debate || debate.habla)));
       if (delOperador) {
         if (pttActivo) { sonidoAntesPtt = sonidoPrendido; ponerSonido(true); }
         else if (sonidoAntesPtt !== null) { ponerSonido(sonidoAntesPtt); sonidoAntesPtt = null; }

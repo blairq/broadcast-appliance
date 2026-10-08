@@ -40,6 +40,7 @@ Rectangle {
             TabButton { text: "Orden del día" }
             TabButton { text: "Votación" }
             TabButton { text: "Conexiones remotas" + (Studio.sesionRemota && Studio.sesionRemota.conectados > 0 ? " (" + Studio.sesionRemota.conectados + ")" : "") }
+            TabButton { text: "Debate" + (Studio.debate && Studio.debate.estado.activo ? " ●" : "") }
         }
         StackLayout {
             Layout.fillWidth: true
@@ -57,16 +58,18 @@ Rectangle {
             Panel { PanelOrdenDelDia { anchors.fill: parent } }
             Panel { PanelVotacion { anchors.fill: parent } }
             Panel { PanelConexionesRemotas { anchors.fill: parent; anchors.margins: 12; onIrAlRecinto: tabs.currentIndex = 1 } }
+            Panel { ScrollView { anchors.fill: parent; contentWidth: availableWidth; clip: true
+                                 PanelDebate { width: parent.width - 24; x: 12; y: 12 } } }
         }
     }
 
-    // ui_show_page {page: "asamblea", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "conexiones"}
+    // ui_show_page {page: "asamblea", seccion: "conferencia[/sala|unidades|votacion|conexion|avanzado]" | "recinto" | "orden" | "votacion" | "conexiones" | "debate"}
     Connections {
         target: Studio
         function onMostrarSeccion(pagina, seccion) {
             if (pagina !== "asamblea") return
             const partes = seccion.toLowerCase().split("/")
-            const i = ["conferencia", "recinto", "orden", "votacion", "conexiones"].indexOf(partes[0])
+            const i = ["conferencia", "recinto", "orden", "votacion", "conexiones", "debate"].indexOf(partes[0])
             if (i >= 0) tabs.currentIndex = i
             if (i === 0 && partes.length > 1) {
                 const j = ["sala", "unidades", "votacion", "conexion", "avanzado"].indexOf(partes[1])

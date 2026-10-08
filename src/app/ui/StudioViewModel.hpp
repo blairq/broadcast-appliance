@@ -95,6 +95,7 @@ class PuestoCorreccion;
 namespace asamblea {
 class CuerpoViewModel;
 class Bancas;
+class Debate;
 class ConferenciaDcn;
 class SesionRemota;
 class SeguirMicrofono;
@@ -150,6 +151,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* cuerpo READ cuerpoQml CONSTANT)
     /// La fila de oradores presenciales (bancas): asamblea/Bancas.
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
+    /// El debate entre dos (de la sala o remotos): asamblea/Debate.
+    Q_PROPERTY(QObject* debate READ debateQml CONSTANT)
     /// La central de conferencia Bosch DCN (micrófonos de banca): asamblea/ConferenciaDcn.
     Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
     /// La banca virtual (sesión remota, en la sala o afuera): asamblea/SesionRemota.
@@ -359,6 +362,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
+    QObject* debateQml() const;
+    asamblea::Debate* debate() { return debate_.get(); }
     QObject* dcnQml() const;
     QObject* sesionRemotaQml() const;
     QObject* ccQml() const;
@@ -940,6 +945,8 @@ class StudioViewModel : public QObject {
     void publicarEventos();
     int busTicks_ = 0;
     std::unique_ptr<asamblea::Bancas> bancas_;
+    std::unique_ptr<asamblea::Debate> debate_;
+    nlohmann::json centralAntesDelDebate_; ///< modo y máximo de abiertos para devolverle a la central
     std::unique_ptr<asamblea::ConferenciaDcn> dcn_;
     std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
     qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)

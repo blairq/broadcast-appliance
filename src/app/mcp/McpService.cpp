@@ -7,6 +7,7 @@
 
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
+#include "asamblea/Debate.hpp"
 #include <QRegularExpression>
 #include <QDateTime>
 #include <QRandomGenerator>
@@ -2641,6 +2642,114 @@ void McpService::registerTools() {
             done(ToolResult::ok(a.value("activo", true) ? "Todos callados; habla la presidencia." : "La presidencia cerró su micrófono."));
         };
         core_.addTool(std::move(t));
+    }
+    // --- El debate entre dos (asamblea/Debate) --------------------------------------
+    if (vm.debate() != nullptr) {
+        asamblea::Debate* deb = vm.debate();
+        {
+            Tool t;
+            t.name = "debate_estado";
+            t.title = "El debate en curso";
+            t.category = "oradores";
+            t.readOnly = true;
+            t.description = "Si hay un debate: los dos (A y B, de la sala o remotos, con el canal de cada remoto), de qué "
+                            "tipo es (sala_sala, sala_remoto, remoto_remoto), a quién le toca, cuánto le queda y la "
+                            "escena; y la configuración (la escena de cada tipo, el tiempo de cada turno).";
+            t.run = [deb](const json&, Done done) { done(ToolResult().data(deb->estadoJson())); };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "debate_iniciar";
+            t.title = "Empezar un debate entre dos";
+            t.category = "oradores";
+            t.description =
+                "Debate entre `a` y `b` (banca, id o nombre del Cuerpo): dos de la sala, dos remotos o uno y uno. Termina "
+                "al orador que estaba; con alguno de la sala pone la central en modo operador con dos micrófonos (y la "
+                "devuelve como estaba al terminar); a los remotos les da la palabra todo el debate (A por «Remoto con la "
+                "palabra», B por «Remoto con la palabra 2»); lleva las cámaras de los de la sala a su banca y arma la "
+                "escena configurada para ese tipo (debate_config). `turno`: a (de fábrica), b, ambos o nadie.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"a", "b"}},
+                             {"properties",
+                              {{"a", {{"type", "string"}}},
+                               {"b", {{"type", "string"}}},
+                               {"turno", {{"type", "string"}, {"enum", {"a", "b", "ambos", "nadie"}}}}}}};
+            t.run = [deb](const json& a, Done done) {
+                const std::string e = deb->iniciar(a.value("a", std::string()), a.value("b", std::string()),
+                                                   a.value("turno", std::string("a")));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().data(deb->estadoJson()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "debate_turno";
+            t.title = "Dar el turno en el debate";
+            t.category = "oradores";
+            t.description = "`turno`: a, b, ambos o nadie. Al que no le toca se le cierra el micrófono (en la central, o su "
+                            "audio en la mezcla y en su celular); su imagen sigue. Arranca el reloj del turno. `sumar`: "
+                            "segundos de más (o de menos) al turno en curso.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"turno", {{"type", "string"}, {"enum", {"a", "b", "ambos", "nadie"}}}},
+                               {"sumar", {{"type", "integer"}}}}}};
+            t.run = [deb](const json& a, Done done) {
+                if (a.contains("turno"))
+                    if (const std::string e = deb->turno(a.value("turno", std::string())); !e.empty())
+                        return done(ToolResult::error(e));
+                if (a.contains("sumar")) deb->sumar(a.value("sumar", 0));
+                done(ToolResult().data(deb->estadoJson()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "debate_terminar";
+            t.title = "Terminar el debate";
+            t.category = "oradores";
+            t.description = "Cierra los micrófonos de los dos, les saca la palabra a los remotos y devuelve la central "
+                            "como estaba. La escena no cambia.";
+            t.run = [deb](const json&, Done done) {
+                deb->terminar();
+                done(ToolResult::ok("Debate terminado."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "debate_config";
+            t.title = "Configurar el debate";
+            t.category = "oradores";
+            t.description = "`escenas`: {sala_sala, sala_remoto, remoto_remoto} = la escena que se arma para cada tipo de "
+                            "debate (para dos remotos, una que muestre «Remoto con la palabra» y «Remoto con la palabra 2»). "
+                            "`turno_s`: segundos de cada turno (0 = sin reloj). `directo`: true corta la escena al aire en "
+                            "vez de armarla. Sin argumentos, la muestra.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"escenas",
+                                {{"type", "object"},
+                                 {"properties",
+                                  {{"sala_sala", {{"type", "string"}}},
+                                   {"sala_remoto", {{"type", "string"}}},
+                                   {"remoto_remoto", {{"type", "string"}}}}}}},
+                               {"turno_s", {{"type", "integer"}, {"minimum", 0}}},
+                               {"directo", {{"type", "boolean"}}}}}};
+            t.run = [deb, &rt](const json& a, Done done) {
+                if (a.contains("escenas") && a["escenas"].is_object()) {
+                    const auto n = rt.engine().sceneNames();
+                    for (const auto& [k, v] : a["escenas"].items())
+                        if (v.is_string() && !v.get<std::string>().empty() &&
+                            std::find(n.begin(), n.end(), v.get<std::string>()) == n.end())
+                            return done(ToolResult::error("no hay ninguna escena «" + v.get<std::string>() + "» (scene_list)"));
+                }
+                if (!a.empty())
+                    if (const std::string e = deb->configurar(a); !e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().data(deb->config()));
+            };
+            core_.addTool(std::move(t));
+        }
     }
     {
         Tool t;

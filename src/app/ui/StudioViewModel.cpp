@@ -45,6 +45,7 @@
 #include "agent/Vocabulario.hpp"
 #include "agent/Notificador.hpp"
 #include "control/Botonera.hpp"
+#include "asamblea/Debate.hpp"
 #include "control/CarasBotonera.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
@@ -762,6 +763,62 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (sesionRemota_) sesionRemota_->fila(cola, alAire);
         };
         bancas_ = std::make_unique<asamblea::Bancas>(cuerpo_->cuerpo(), g);
+        // El debate entre dos: reusa lo de la fila (micrófonos, cámaras, escenas, remotos).
+        {
+            asamblea::Debate::Ganchos gd;
+            gd.esRemoto = g.esRemoto;
+            gd.palabraRemota = g.palabraRemota;
+            gd.canalRemoto = [this](const std::string& id) {
+                if (!sesionRemota_) return 0;
+                const auto v = sesionRemota_->conPalabraTodos();
+                const auto it = std::find(v.begin(), v.end(), id);
+                return it == v.end() ? 0 : static_cast<int>(it - v.begin()) + 1;
+            };
+            gd.microfono = g.microfono;
+            gd.microfonoBanca = g.microfonoBanca;
+            gd.apuntar = [this](const std::string& id) { return bancas_->apuntar(QString::fromStdString(id)).toStdString(); };
+            gd.armar = g.armar;
+            gd.cortar = g.cortar;
+            gd.terminarOrador = [this]() { bancas_->terminar(); };
+            gd.central = [this](bool debate) {
+                if (!dcn_ || !dcn_->conectada()) return;
+                QPointer<StudioViewModel> yo(this);
+                if (debate) {
+                    // Lo que tenía, para devolvérselo; después, operador con dos abiertos.
+                    dcn_->control("ajustes", nlohmann::json::object(), [yo](bool ok, const nlohmann::json& r, const std::string& e) {
+                        if (!yo) return;
+                        if (!ok) {
+                            emit yo->notify(QString::fromStdString("Central (debate): " + e), "error");
+                            return;
+                        }
+                        yo->centralAntesDelDebate_ = {{"modo", r.value("modo", std::string("operador"))},
+                                                      {"max_abiertos", r.value("max_abiertos", 4)}};
+                        yo->dcn_->control("ajustes", {{"modo", "operador"}, {"max_abiertos", 2}},
+                                          [yo](bool ok2, const nlohmann::json&, const std::string& e2) {
+                                              if (yo && !ok2)
+                                                  emit yo->notify(QString::fromStdString("Central (debate): " + e2), "error");
+                                          });
+                    });
+                } else if (centralAntesDelDebate_.is_object() && !centralAntesDelDebate_.empty()) {
+                    dcn_->control("ajustes", centralAntesDelDebate_, [yo](bool ok, const nlohmann::json&, const std::string& e) {
+                        if (yo && !ok) emit yo->notify(QString::fromStdString("Central (fin del debate): " + e), "error");
+                    });
+                    centralAntesDelDebate_ = nlohmann::json();
+                }
+            };
+            gd.avisarRemoto = [this](const std::string& id, const nlohmann::json& m) {
+                if (sesionRemota_) sesionRemota_->mandar(id, m);
+            };
+            gd.avisoRemoto = [this](const std::string& id, const std::string& a) {
+                if (sesionRemota_) sesionRemota_->avisoTiempo(id, a);
+            };
+            gd.avisoCentral = [this](const std::string& banca, const std::string& a) {
+                if (dcn_ && dcn_->conectada() && dcn_->tieneUnidad(banca))
+                    dcn_->control("tiempo", {{"banca", banca}, {"aviso", a}}, [](bool, const nlohmann::json&, const std::string&) {});
+            };
+            debate_ = std::make_unique<asamblea::Debate>(cuerpo_->cuerpo(), rt_.dataRoot(), gd);
+            connect(debate_.get(), &asamblea::Debate::aviso, this, [this](const QString& t, const QString& n) { emit notify(t, n); });
+        }
         // La foto de cada integrante, capturada con la cámara de su banca.
         {
             asamblea::CuerpoViewModel::Ganchos gc;
@@ -1126,6 +1183,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, programar);
             connect(bancas_.get(), &asamblea::Bancas::cambio, this, programar);
             connect(this, &StudioViewModel::presidenciaHablaChanged, this, programar);
+            if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, programar);
             connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, programar);
             if (quorum_) connect(quorum_.get(), &asamblea::Quorum::cambio, this, programar);
             connect(sesionRemota_.get(), &asamblea::SesionRemota::consolaConexion, this,
@@ -2620,6 +2678,7 @@ QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
 }
 
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
+QObject* StudioViewModel::debateQml() const { return debate_.get(); }
 QObject* StudioViewModel::dcnQml() const { return dcn_.get(); }
 QObject* StudioViewModel::sesionRemotaQml() const { return sesionRemota_.get(); }
 
@@ -2975,6 +3034,7 @@ nlohmann::json StudioViewModel::estadoConsola() const {
     e["recinto"] = cuerpo_->cuerpo().recinto(true);
     e["remotos"] = sesionRemota_->participantes();
     e["presidencia_habla"] = presidenciaHabla_;
+    if (debate_) e["debate"] = debate_->estadoJson();
     e["con_central"] = dcn_ && dcn_->conectada();
     // La fila: cada uno con si habla desde el navegador.
     const json b = bancas_->estadoJson();
@@ -3060,6 +3120,16 @@ void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json
         error = bancas_->alAire(QString::fromStdString(id), "armar", m.value("segundos", -1)).toStdString();
     } else if (t == "terminar") {
         bancas_->terminar();
+    } else if (t == "debate" && debate_) {
+        const std::string acc = m.value("accion", std::string());
+        if (acc == "iniciar")
+            error = debate_->iniciar(m.value("a", std::string()), m.value("b", std::string()), m.value("turno", std::string("a")));
+        else if (acc == "turno")
+            error = debate_->turno(m.value("turno", std::string()));
+        else if (acc == "sumar")
+            debate_->sumar(m.value("segundos", 60));
+        else if (acc == "terminar")
+            debate_->terminar();
     } else if (t == "silenciar_todos") {
         error = silenciarTodos(QString::fromStdString(quien)).toStdString();
     } else if (t == "hablar_presidencia") {
@@ -3225,16 +3295,20 @@ int StudioViewModel::unidadPresidente() const {
 
 void StudioViewModel::silenciarRemotos() {
     if (!sesionRemota_) return;
+    // En un debate, callarlos es darle el turno a nadie (su imagen sigue entrando).
+    if (debate_ && debate_->activo()) debate_->turno("nadie");
     // El orador al aire, si habla por el celular, termina (eso le suelta los medios).
     if (bancas_) {
         const nlohmann::json aa = bancas_->estadoJson().value("al_aire", nlohmann::json());
         if (aa.is_object() && sesionRemota_->tienePalabra(aa.value("id", std::string()))) bancas_->terminar();
     }
-    for (const auto& id : sesionRemota_->conPalabraTodos()) sesionRemota_->darPalabra(id, false, 0);
+    for (const auto& id : sesionRemota_->conPalabraTodos())
+        if (!debate_ || !debate_->participa(id)) sesionRemota_->darPalabra(id, false, 0);
 }
 
 QString StudioViewModel::silenciarTodos(const QString& quien) {
     if (bancas_) bancas_->terminar();
+    if (debate_ && debate_->activo()) debate_->turno("nadie"); // los dos callados, el debate sigue
     silenciarRemotos();
     if (dcn_ && dcn_->conectada())
         dcn_->control("cerrar_todos", {{"incluir_presidente", false}}, [this](bool ok, const nlohmann::json&, const std::string& e) {

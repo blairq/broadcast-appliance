@@ -18,6 +18,7 @@ let reintento = 1000;
 let cortado = false;
 const caras = new Map();     // id -> dataURL (la última foto)
 const pedidasCuerpo = new Set();
+let debateA = null, debateB = null; // {id, nombre} elegidos en el recinto antes de empezar
 
 // --- Utilidades ---------------------------------------------------------------------
 function el(tag, cls, texto) {
@@ -138,6 +139,7 @@ function pintar() {
   $("central").textContent = est.central && est.central.conectada ? "Central conectada" : "Sin central";
   $("central").className = "chip " + (est.central && est.central.conectada ? "bien" : "");
   if (document.activeElement !== $("asignado")) $("asignado").value = (est.fila || {}).asignado_fabrica_s || 180;
+  pintarDebate();
   $("hablaYo").textContent = est.presidencia_habla ? "🎙 Hablando (soltar)" : "🎙 Hablo yo";
   $("hablaYo").classList.toggle("rojo", !!est.presidencia_habla);
   $("hablaYo").disabled = !est.con_central;
@@ -309,6 +311,13 @@ for (const b of document.querySelectorAll("[data-accion]")) {
     else if (a === "terminar") mandar({ type: "terminar" });
     else if (a === "siguiente") mandar({ type: "siguiente" });
     else if (a === "silenciar") mandar({ type: "silenciar_todos" });
+    else if (a === "debate-iniciar") {
+      if (!debateA || !debateB) return avisar("Elegí A y B tocando sus bancas.", true);
+      mandar({ type: "debate", accion: "iniciar", a: debateA.id, b: debateB.id, turno: "a" });
+    }
+    else if (a === "debate-turno") mandar({ type: "debate", accion: "turno", turno: b.dataset.t });
+    else if (a === "debate-sumar") mandar({ type: "debate", accion: "sumar", segundos: 30 });
+    else if (a === "debate-terminar") mandar({ type: "debate", accion: "terminar" });
     else if (a === "hablo") mandar({ type: "hablar_presidencia", activo: !(est && est.presidencia_habla) });
   });
 }
@@ -381,6 +390,26 @@ $("votQuorum").addEventListener("click", () => {
   if (confirm("¿Llevar el resultado a Quórum como resultado oficial?")) mandar({ type: "votacion", accion: "a_quorum" });
 });
 
+// --- El debate ---------------------------------------------------------------------------------
+const TIPOS_DEBATE = { sala_sala: "· dos de la sala", sala_remoto: "· sala y remoto", remoto_remoto: "· dos remotos" };
+function pintarDebate() {
+  const d = (est && est.debate) || {};
+  const activo = !!d.activo;
+  const nombre = (l, elegido) => activo && l ? l.nombre + (l.remoto ? " (remoto)" : "") : elegido ? elegido.nombre : null;
+  $("debateNombreA").textContent = nombre(d.a, debateA) || "tocá una banca → «Debate: A»";
+  $("debateNombreB").textContent = nombre(d.b, debateB) || "tocá una banca → «Debate: B»";
+  $("debateA").classList.toggle("habla", activo && (d.turno === "a" || d.turno === "ambos"));
+  $("debateB").classList.toggle("habla", activo && (d.turno === "b" || d.turno === "ambos"));
+  $("debateTipo").textContent = activo ? (TIPOS_DEBATE[d.tipo] || "") : "";
+  const r = d.restante_s || 0;
+  $("debateReloj").textContent = !activo ? "" : d.turno === "nadie" ? "Nadie tiene el turno"
+    : d.turno === "ambos" ? "Hablan los dos"
+    : (d.turno === "a" ? "Turno de A" : "Turno de B") + (d.turno_s > 0 ? " · " + (r < 0 ? "-" : "") + Math.floor(Math.abs(r) / 60) + ":" + String(Math.abs(r) % 60).padStart(2, "0") : "");
+  $("debateIniciar").classList.toggle("oculto", activo);
+  for (const x of document.querySelectorAll(".debate-en")) x.classList.toggle("oculto", !activo);
+  if (activo && d.aviso) $("debateReloj").title = d.aviso;
+}
+
 // --- El menú de una banca --------------------------------------------------------------------
 function menuBanca(ev, b, i, remoto) {
   ev.stopPropagation();
@@ -390,6 +419,8 @@ function menuBanca(ev, b, i, remoto) {
   const op = (texto, cls, fn) => { const x = el("button", "boton " + cls, texto); x.addEventListener("click", () => { fn(); cerrarMenu(); }); m.appendChild(x); };
   if (remoto && remoto.estado === "esperando") op("Habilitar (lo vi en cámara)", "celeste", () => mandar({ type: "habilitar", id: i.id }));
   op("Darle la palabra", "celeste", () => mandar({ type: "dar_palabra", id: i.id }));
+  op("Debate: A", "", () => { debateA = { id: i.id, nombre: i.nombre }; pintarDebate(); });
+  op("Debate: B", "", () => { debateB = { id: i.id, nombre: i.nombre }; pintarDebate(); });
   if (remoto && remoto.estado === "habilitado") {
     op("Deshabilitar", "", () => mandar({ type: "deshabilitar", id: i.id }));
   }

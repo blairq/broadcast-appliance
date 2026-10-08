@@ -97,6 +97,8 @@ class SesionRemota : public QObject {
     void fila(const std::vector<std::string>& cola, const std::string& alAire);
     /// «ultimo_minuto» | «terminado»: aviso en su celular.
     void avisoTiempo(const std::string& integrante, const std::string& aviso);
+    /// Un mensaje cualquiera a su celular (el debate, por ejemplo).
+    void mandar(const std::string& integrante, const json& msg) { emit enviar(QString::fromStdString(integrante), msg); }
     /// El primero que tiene la palabra ("" si nadie); en un debate entre remotos son dos.
     std::string conPalabra() const { return palabras_.empty() ? std::string() : palabras_.front().id; }
     bool tienePalabra(const std::string& id) const;

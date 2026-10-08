@@ -85,6 +85,23 @@
           <button id="hablaYo" class="boton" data-accion="hablo">🎙 Hablo yo</button>
         </div>
       </article>
+      <!-- El debate entre dos (de la sala o remotos): se eligen tocando las bancas. -->
+      <article class="tarjeta vidrio" id="tarjetaDebate">
+        <h2>Debate <span id="debateTipo" class="tenue"></span></h2>
+        <div class="debate-lados">
+          <div id="debateA" class="debate-lado"><span class="tenue">A</span><strong id="debateNombreA">tocá una banca → «Debate: A»</strong></div>
+          <div id="debateB" class="debate-lado"><span class="tenue">B</span><strong id="debateNombreB">tocá una banca → «Debate: B»</strong></div>
+        </div>
+        <div id="debateReloj" class="debate-reloj tenue"></div>
+        <div class="acciones">
+          <button id="debateIniciar" class="boton celeste" data-accion="debate-iniciar">Empezar el debate</button>
+          <button class="boton debate-en" data-accion="debate-turno" data-t="a">Turno de A</button>
+          <button class="boton debate-en" data-accion="debate-turno" data-t="b">Turno de B</button>
+          <button class="boton debate-en" data-accion="debate-turno" data-t="ambos">Ambos</button>
+          <button class="boton debate-en" data-accion="debate-sumar">+30 s</button>
+          <button class="boton rojo debate-en" data-accion="debate-terminar">Terminar el debate</button>
+        </div>
+      </article>
     </section>
 
     <section class="col col-centro">
