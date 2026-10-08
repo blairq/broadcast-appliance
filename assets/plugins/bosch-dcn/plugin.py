@@ -183,9 +183,23 @@ def foto_votacion(e) -> dict:
 
 
 def foto_asistencia(e) -> dict:
+    """Presentes y ausentes POR BANCA: cuentan solo las bancas del Cuerpo (una banca sin registro en la central
+    es ausente). Las unidades sin banca (la presidencia si no tiene banca, la mitad libre de una DDI doble, una de
+    repuesto) van aparte en ``sin_banca`` y no suman; lo que cuenta la central entera queda en ``central``."""
     with e.lock:
-        por_banca = {banca_de(x["unidad"]) or f"u{x['unidad']}": x["presente"] for x in e.asistencia.values()}
-        return {**e.asistencia_total, "por_banca": por_banca}
+        por_banca: dict[str, bool] = {}
+        sin_banca: dict[str, bool] = {}
+        for x in e.asistencia.values():
+            b = banca_de(x["unidad"])
+            if b:
+                por_banca[b] = por_banca.get(b, False) or bool(x["presente"])
+            else:
+                sin_banca[f"u{x['unidad']}"] = bool(x["presente"])
+        for b in nombres:  # las bancas que la central no registró
+            por_banca.setdefault(b, False)
+        pres = sum(1 for v in por_banca.values() if v)
+        return {"presentes": pres, "ausentes": len(por_banca) - pres, "por_banca": por_banca,
+                "sin_banca": sin_banca, "central": dict(e.asistencia_total)}
 
 
 def publicar_estado() -> None:
@@ -286,7 +300,8 @@ def abrir():
     if t == "simulador":
         a, b = socket.socketpair()
         lado_ccu = SerieSimple(FlujoSocket(b)) if simple else SerieFull(FlujoSocket(b), escape=esc, latido_s=latido)
-        sim = Simulador(lado_ccu, unidades=int(c.get("simulador_unidades", 12)),
+        # Tantas unidades como bancas tenga el Cuerpo (y la de la presidencia), salvo que se pidan más.
+        sim = Simulador(lado_ccu, unidades=max(int(c.get("simulador_unidades", 12)), len(nombres) + 1),
                         actividad_s=float(c.get("simulador_actividad_s", 0)),
                         dobles=c.get("simulador_dobles", [12]))  # una DDI doble para ver las dos mitades
         sim.arrancar()
@@ -431,6 +446,10 @@ def leer_mapa() -> None:
         nombres.clear()
         nombres.update(nom)
         publicar_estado()
+    # El simulador tiene por lo menos una unidad por banca (y la de la presidencia): si el Cuerpo creció,
+    # se le «enchufan» las que faltan.
+    if sim is not None:
+        sim.crecer(len(nom) + 1)
 
 
 def asignar_aprendida(u: int) -> None:
@@ -489,7 +508,8 @@ def _estado(_a):
           "rtscts": {"type": "boolean"}, "votacion": {"type": "boolean"}, "asistencia": {"type": "boolean"},
           "host": {"type": "string"},
           "puerto_tcp": {"type": "integer"}, "solo_escuchar": {"type": "boolean"}, "escape": {"type": "string"},
-          "traza": {"type": "boolean"}})
+          "traza": {"type": "boolean"}, "simulador_unidades": {"type": "integer"},
+          "simulador_actividad_s": {"type": "number"}})
 def _conectar(a):
     claves = ("transporte", "puerto", "velocidad", "protocolo", "host", "puerto_tcp", "solo_escuchar", "escape", "traza",
               "simulador_actividad_s", "simulador_unidades", "rtscts", "tcp_fn_en_datos", "votacion", "asistencia")
@@ -817,7 +837,10 @@ def _simular_boton(a):
 def _simular_voto(a):
     if sim is None:
         raise RuntimeError("no está el simulador (transporte: simulador)")
-    sim.votar(unidad_de(a), int(a.get("voto", 0)))
+    u = unidad_de(a)
+    if u not in sim.unidades:
+        raise ValueError(f"el simulador no tiene la unidad {u} (tiene {len(sim.unidades)})")
+    sim.votar(u, int(a.get("voto", 0)))
     return {}
 
 
@@ -826,7 +849,10 @@ def _simular_voto(a):
 def _simular_presencia(a):
     if sim is None:
         raise RuntimeError("no está el simulador (transporte: simulador)")
-    sim.presente(unidad_de(a), bool(a.get("presente", True)))
+    u = unidad_de(a)
+    if u not in sim.unidades:
+        raise ValueError(f"el simulador no tiene la unidad {u} (tiene {len(sim.unidades)})")
+    sim.presente(u, bool(a.get("presente", True)))
     return {}
 
 

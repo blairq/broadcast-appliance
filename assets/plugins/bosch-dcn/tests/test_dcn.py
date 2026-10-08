@@ -236,6 +236,23 @@ class Fase2(unittest.TestCase):
         self.assertTrue(esperar(lambda: self.ccu.estado.asistencia_total.get("presentes") == 5))
         self.assertFalse(self.ccu.estado.asistencia[3]["presente"])
 
+    def test_unidad_que_no_existe_no_rompe_la_votacion(self):
+        # Antes: la presencia de una unidad inexistente quedaba anotada y al abrir la votación el
+        # simulador fallaba (KeyError) y se caía el enlace.
+        self.sim.presente(40, True)
+        self.assertNotIn(40, self.sim.presentes)
+        self.ccu.votacion_preparar(1, "Prueba", "si_no_abstencion").result(timeout=2)
+        self.ccu.votacion_abrir().result(timeout=2)
+        self.sim.votar(2, 0)
+        self.assertTrue(esperar(lambda: (self.ccu.estado.votacion.get("ultimo") or {}).get("votos", [0])[0] == 1))
+        self.ccu.votacion_cerrar().result(timeout=2)
+
+    def test_crecer(self):
+        self.sim.crecer(10)
+        self.assertTrue(esperar(lambda: len([u for u in self.ccu.estado.unidades if u <= 10]) == 10))
+        self.sim.presente(9, False)
+        self.assertTrue(esperar(lambda: self.ccu.estado.asistencia.get(9, {}).get("presente") is False))
+
     def test_tiempo(self):
         self.ccu.tiempo_palabra(5).result(timeout=2)
         self.assertEqual(self.sim.tiempo, {"minutos": 5, "reloj": True})

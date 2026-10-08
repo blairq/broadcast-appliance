@@ -93,13 +93,15 @@ class Simulador:
 
     def presente(self, u: int, si: bool) -> None:
         with self.lock:
+            if u not in self.unidades:  # una unidad que no existe no se registra (como en la sala)
+                return
             self.presentes[u] = si
             self._ntf(m.AT_C_SEND_INDIV_REGISTRATION, m.asistencia([(u, u, 1 if si else 2)]))
             pres = sum(1 for x in self.presentes.values() if x)
             self._ntf(m.AT_C_SEND_TOTAL_REGISTRATION, m.palabra(pres) + m.palabra(len(self.presentes) - pres))
 
     def _resultado(self) -> bytes:
-        presentes = [u for u, p in self.presentes.items() if p and self.unidades[u]["conectada"]]
+        presentes = [u for u, p in self.presentes.items() if p and self.unidades.get(u, {}).get("conectada")]
         votos = [0] * 25
         for _u, o in self.votos.items():
             votos[o] += 1
@@ -114,8 +116,21 @@ class Simulador:
                 return
             self.votar(u, random.choices(range(self.vt_params["opciones"]), weights=[6, 3, 1, 1][: self.vt_params["opciones"]])[0])
 
+    def crecer(self, n: int) -> None:
+        """Que haya por lo menos `n` unidades (sin contar las mitades derechas): las nuevas se «enchufan»."""
+        with self.lock:
+            propias = [u for u, d in self.unidades.items() if not d.get("mitad_derecha")]
+            for u in range(max(propias, default=0) + 1, n + 1):
+                if u in self.unidades:
+                    continue
+                self.unidades[u] = {"tipo": m.TIPO_DELEGADO, "conectada": True}
+                self.presentes[u] = True
+                self._ntf(m.SC_C_CONNECT_UNIT, m.unidad_sc(u, m.TIPO_DELEGADO))
+
     def desconectar(self, u: int, conectada: bool = False) -> None:
         with self.lock:
+            if u not in self.unidades:
+                return
             self.unidades[u]["conectada"] = conectada
             self._ntf(m.SC_C_CONNECT_UNIT if conectada else m.SC_C_DISCONNECT_UNIT,
                       m.unidad_sc(u, self.unidades[u]["tipo"]))
@@ -180,7 +195,11 @@ class Simulador:
         if msg.tipo != m.REQ:
             return
         with self.lock:
-            self._atender(msg.fn, msg.datos)
+            try:
+                self._atender(msg.fn, msg.datos)
+            except Exception as e:  # noqa: BLE001 — un pedido raro no tira abajo el enlace (como una CCU de verdad)
+                self._rsp(msg.fn, b"", error=2)
+                print(f"simulador: {msg.fn:#06x} falló: {e!r}", flush=True)
 
     def _atender(self, f: int, d: bytes) -> None:
         if f == m.SC_C_CHECK_LINK:

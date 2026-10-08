@@ -237,7 +237,11 @@ void McpService::registerDcnTools() {
                            {"solo_escuchar", {{"type", "boolean"}}},
                            {"escape", {{"type", "string"}, {"description", "Avanzado: el byte de escape (0xC8 o 0x1B)."}}},
                            {"traza", {{"type", "boolean"}}},
-                           {"simulador_actividad_s", {{"type", "number"}}}}}};
+                           {"simulador_actividad_s", {{"type", "number"}}},
+                           {"simulador_unidades",
+                            {{"type", "integer"},
+                             {"description", "Simulador: cuántas unidades (de fábrica, una por banca del Cuerpo más la "
+                                             "presidencia; crece solo si el Cuerpo crece)."}}}}}};
         t.examples = {R"({"transporte": "simulador", "solo_escuchar": false})",
                       R"({"transporte": "serie", "puerto": "/dev/cu.usbserial-1410", "velocidad": 115200, "protocolo": "full"})",
                       R"({"transporte": "tcp", "host": "192.168.0.20"})"};
