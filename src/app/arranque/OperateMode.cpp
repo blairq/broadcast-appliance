@@ -4,6 +4,7 @@
 
 #include "evento/FotosConfig.hpp"
 #include "arranque/OperateMode.hpp"
+#include "arranque/RutasPortables.hpp"
 
 
 #include <algorithm>
@@ -1176,8 +1177,19 @@ bool AppRuntime::setTransition(const std::string& type, int durationMs) {
     return true;
 }
 
+namespace {
+/// Los ajustes de una fuente con las rutas relativas a los datos resueltas (RutasPortables).
+std::string conRutasDeAhora(const std::string& ajustes) {
+    const nlohmann::json j = nlohmann::json::parse(ajustes.empty() ? "{}" : ajustes, nullptr, false);
+    return j.is_object() ? rutasAbsolutas(j).dump() : ajustes;
+}
+} // namespace
+
 bool AppRuntime::addSource(const std::string& scene, const SourceSpec& pedida) {
     SourceSpec spec = pedida; // se guarda como la creó el motor (un archivo: ba_gst_medio)
+    // Una ruta relativa a los datos («Media/x.png», también en el location= de un
+    // pipeline) es de la configuración en uso: el motor la necesita entera.
+    spec.settingsJson = conRutasDeAhora(spec.settingsJson);
     if (engine_.sourceTypeExists(inputs::kMedioType)) inputs::migrarMedio(spec);
     if (engine_.sourceTypeExists(inputs::kMicType)) {
         inputs::migrarVideoInvitado(spec);
@@ -1263,7 +1275,7 @@ bool AppRuntime::setSourceRect(const std::string& scene, const std::string& name
 }
 
 bool AppRuntime::updateSourceSettings(const std::string& name, const std::string& settingsJson) {
-    if (!engine_.updateSourceSettings(name, settingsJson)) {
+    if (!engine_.updateSourceSettings(name, conRutasDeAhora(settingsJson))) {
         lastError_ = engine_.lastError();
         return false;
     }
