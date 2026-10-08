@@ -213,6 +213,11 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         return false;
     }
     started_ = true;
+    {
+        std::lock_guard<std::mutex> l(salidasColaM_);
+        salidasSeguir_ = true;
+    }
+    hiloSalidas_ = std::thread([this]() { bucleSalidas(); });
     if (relojPublicar_ > 0) motor_->publicarReloj(relojPublicar_);
     fuentes::ponerMotorApp(this);
     // Lo que pinta la app (chat, gráficos, subtítulos) va a su entrada «app».
@@ -337,13 +342,15 @@ void BroadcastEngine::shutdown() {
         capturas_.clear();
     }
     if (!started_) return;
+    // Las capturas que están esperando un cuadro (capturarAparte) usan el motor.
+    for (int i = 0; i < 80 && capturasEnCurso_.load() > 0; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(50));
     started_ = false;
     stopAllSourceRecordings();
     stopCleanFeed();
     stopExtras();
     stopStreaming();
     stopRecording();
-    replay_.reset();
+    detenerSalidas(); // corre lo encolado (las paradas) y se apaga
     stopReturnFeeds();
     disablePreview();
     for (const auto& [canal, v] : scenePreviews_) motor_->verSoltar(v.clave);
@@ -703,6 +710,25 @@ bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<s
     return true;
 }
 
+void BroadcastEngine::capturarAparte(const std::string& name, int maxWidth, Captura listo) {
+    std::string clave;
+    int w = 0, h = 0;
+    bool esEscena = false;
+    const std::string e = prepararCaptura(name, maxWidth, clave, w, h, esEscena);
+    if (!e.empty()) {
+        listo("captura: " + e, {}, 0, 0);
+        return;
+    }
+    ++capturasEnCurso_;
+    std::thread([this, clave, w, h, esEscena, listo = std::move(listo)]() {
+        std::vector<std::uint8_t> rgba;
+        int ancho = 0, alto = 0;
+        const std::string err = capturarVista(clave, w, h, esEscena, rgba, ancho, alto);
+        listo(err.empty() ? std::string() : "captura: " + err, std::move(rgba), ancho, alto);
+        --capturasEnCurso_;
+    }).detach();
+}
+
 bool BroadcastEngine::captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
                                     int& height) {
     std::string clave;
@@ -820,18 +846,164 @@ motor::Fuentes fuentesDelPrograma(motor::Motor& m, const std::vector<int>& pista
 }
 } // namespace
 
+struct BroadcastEngine::Repeticion {
+    std::unique_ptr<motor::Repeticion> rep;
+    std::string dir;
+    mutable std::mutex mu;
+    std::string ultimo;
+    std::atomic<bool> guardando{false};
+};
+
+// ============================================================================
+// El hilo de salidas (docs/planes/PLAN-MOTOR-SIN-ESPERAS.md, S4)
+//
+// Transmisión, destinos extra, grabación (y su copia), repetición, grabaciones
+// por entrada y señal limpia viven en este hilo: arrancarlas, pararlas y
+// atenderlas (una transmisión caída se rearma probando codificadores; parar una
+// grabación espera el cierre del archivo) son cambios de estado que tardan. La
+// interfaz encola (enSalidas) y lee la foto que este hilo publica cada 100 ms.
+// Lo que no arrancó vuelve como aviso (avisarFallo → alFallarMotor).
+// ============================================================================
+
+void BroadcastEngine::enSalidas(const std::string& que, std::function<std::string()> f) {
+    {
+        std::lock_guard<std::mutex> l(salidasColaM_);
+        salidasCola_.emplace_back(que, std::move(f));
+    }
+    salidasCv_.notify_one();
+}
+
+void BroadcastEngine::avisarFallo(const std::string& texto) {
+    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "salidas", 0, texto);
+    std::function<void(const std::string&)> fn;
+    {
+        std::lock_guard<std::mutex> l(falloMotorM_);
+        fn = falloMotor_;
+    }
+    if (fn) fn(texto);
+}
+
+void BroadcastEngine::bucleSalidas() {
+    for (;;) {
+        std::deque<std::pair<std::string, std::function<std::string()>>> ordenes;
+        bool seguir = true;
+        {
+            std::unique_lock<std::mutex> l(salidasColaM_);
+            salidasCv_.wait_for(l, std::chrono::milliseconds(100),
+                                [this]() { return !salidasCola_.empty() || !salidasSeguir_; });
+            ordenes.swap(salidasCola_);
+            seguir = salidasSeguir_;
+        }
+        for (auto& [que, f] : ordenes) {
+            const std::string e = f();
+            if (!e.empty()) avisarFallo(e);
+        }
+        if (!seguir && ordenes.empty()) break;
+        ticSalidas();
+        publicarFotoSalidas();
+    }
+    publicarFotoSalidas();
+}
+
+void BroadcastEngine::detenerSalidas() {
+    if (!hiloSalidas_.joinable()) return;
+    // Lo que quede andando se para EN el hilo de salidas (después de lo encolado).
+    enSalidas("apagar", [this]() {
+        for (auto& [n, r] : sourceRecs_)
+            if (r.grab) r.grab->parar();
+        sourceRecs_.clear();
+        if (clean_) {
+            if (clean_->tx) clean_->tx->parar();
+            if (clean_->grab) clean_->grab->parar();
+            clean_.reset();
+        }
+        for (auto& [id, x] : extras_)
+            if (x.tx) x.tx->parar();
+        extras_.clear();
+        if (stream_) stream_->parar();
+        stream_.reset();
+        stopRecordingYa();
+        replay_.reset();
+        return std::string();
+    });
+    {
+        std::lock_guard<std::mutex> l(salidasColaM_);
+        salidasSeguir_ = false;
+    }
+    salidasCv_.notify_one();
+    hiloSalidas_.join();
+    std::lock_guard<std::mutex> l(pedidosM_);
+    streamPedido_ = grabacionPedida_ = limpioPedido_ = false;
+    extrasPedidos_.clear();
+    individualesPedidas_.clear();
+}
+
+nlohmann::json BroadcastEngine::fotoSalidas() const {
+    std::lock_guard<std::mutex> l(fotoSalidasM_);
+    return fotoSalidas_;
+}
+
+void BroadcastEngine::publicarFotoSalidas() {
+    json f = json::object();
+    f["principal"] = stream_ ? stream_->estado() : json::object();
+    json ex = json::object();
+    for (const auto& [id, x] : extras_) {
+        json st = x.tx ? x.tx->estado() : json::object();
+        st["destino"] = enmascarar(x.server, x.key);
+        ex[id] = std::move(st);
+    }
+    f["extras"] = std::move(ex);
+    f["grabacion"] = {{"activa", rec_ && rec_->grabando()},
+                      {"estado", rec_ ? rec_->estado() : json::object()},
+                      {"archivo", recordPath_},
+                      {"copia", recordCopyPath_},
+                      {"copia_activa", recCopia_ && recCopia_->grabando()}};
+    std::string ultimo;
+    if (replay_) {
+        std::lock_guard<std::mutex> l(replay_->mu);
+        ultimo = replay_->ultimo;
+    }
+    f["replay"] = {{"activa", replay_ && replay_->rep->andando()},
+                   {"segundos", replay_ ? replay_->rep->segundos() : 0},
+                   {"ultimo", ultimo}};
+    json ind = json::array();
+    for (const auto& [n, r] : sourceRecs_)
+        ind.push_back({{"nombre", n}, {"path", r.path}, {"audio_propio", r.audioPropio}, {"grabando", r.grab && r.grab->grabando()}});
+    f["individuales"] = std::move(ind);
+    if (clean_) {
+        const json st = clean_->tx ? clean_->tx->estado() : json::object();
+        f["limpio"] = {{"activa", clean_->tx ? st.value("andando", false) : (clean_->grab && clean_->grab->grabando())},
+                       {"reconectando", st.value("reconectando", false)},
+                       {"destino", clean_->destino},
+                       {"archivo", clean_->path},
+                       {"cuadros", st.value("cuadros", 0)},
+                       {"perdidos", st.value("perdidos", 0)}};
+    } else {
+        f["limpio"] = {{"activa", false}};
+    }
+    std::lock_guard<std::mutex> l(fotoSalidasM_);
+    fotoSalidas_ = std::move(f);
+}
+
 bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente) {
     if (!started_) {
         setError("startStreaming sin startup");
         ultimoInicio_ = Inicio::Error;
         return false;
     }
-    if (stream_ && stream_->andando()) {
-        const bool mismo = (stream.server.empty() || stream.server == activeServer_) && (stream.key.empty() || stream.key == activeKey_);
-        if (mismo) {
-            ultimoInicio_ = Inicio::YaIgual;
-            return true;
+    bool estaba = false;
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        estaba = streamPedido_;
+        if (estaba) {
+            const bool mismo = (stream.server.empty() || stream.server == activeServer_) && (stream.key.empty() || stream.key == activeKey_);
+            if (mismo) {
+                ultimoInicio_ = Inicio::YaIgual;
+                return true;
+            }
         }
+    }
+    if (estaba) {
         if (!cambiarEnCaliente) {
             ultimoInicio_ = Inicio::YaOtroDestino;
             setError("ya está transmitiendo a " + destinoActivo() + "; para cambiar a " + enmascarar(stream.server, stream.key) +
@@ -845,6 +1017,18 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
         setError("startStreaming sin servidor");
         return false;
     }
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        streamPedido_ = true;
+        activeServer_ = stream.server;
+        activeKey_ = stream.key;
+    }
+    ultimoInicio_ = Inicio::Iniciado;
+    enSalidas("startStreaming", [this, stream, enc]() { return startStreamingYa(stream, enc); });
+    return true;
+}
+
+std::string BroadcastEngine::startStreamingYa(const StreamConfig& stream, const EncoderConfig& enc) {
     motor::Transmision::Config c;
     c.url = urlConClave(stream.server, stream.key);
     c.kbps = enc.videoBitrateKbps;
@@ -855,20 +1039,24 @@ bool BroadcastEngine::startStreaming(const StreamConfig& stream, const EncoderCo
     auto tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
     const std::string e = tx->iniciar(fuentesDelPrograma(*motor_, {}));
     if (!e.empty()) {
-        setError("no se pudo iniciar la transmision: " + e);
-        return false;
+        std::lock_guard<std::mutex> l(pedidosM_);
+        streamPedido_ = false;
+        return "no se pudo iniciar la transmisión: " + e;
     }
     stream_ = std::move(tx);
-    activeServer_ = stream.server;
-    activeKey_ = stream.key;
-    ultimoInicio_ = Inicio::Iniciado;
-    return true;
+    return {};
 }
 
 void BroadcastEngine::stopStreaming() {
-    if (!stream_) return;
-    stream_->parar();
-    stream_.reset();
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        streamPedido_ = false;
+    }
+    enSalidas("stopStreaming", [this]() {
+        if (stream_) stream_->parar();
+        stream_.reset();
+        return std::string();
+    });
 }
 
 bool BroadcastEngine::startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc) {
@@ -880,9 +1068,22 @@ bool BroadcastEngine::startExtra(const std::string& id, const std::string& serve
         setError("el destino no tiene servidor");
         return false;
     }
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        if (!extrasPedidos_.insert(id).second) return true;
+    }
+    enSalidas("startExtra", [this, id, server, key, enc]() { return startExtraYa(id, server, key, enc); });
+    return true;
+}
+
+std::string BroadcastEngine::startExtraYa(const std::string& id, const std::string& server, const std::string& key,
+                                          const EncoderConfig& enc) {
     auto it = extras_.find(id);
-    if (it != extras_.end() && it->second.tx && it->second.tx->andando()) return true;
-    stopExtra(id);
+    if (it != extras_.end() && it->second.tx && it->second.tx->andando()) return {};
+    if (it != extras_.end()) {
+        if (it->second.tx) it->second.tx->parar();
+        extras_.erase(it);
+    }
     motor::Transmision::Config c;
     c.url = urlConClave(server, key);
     c.kbps = enc.videoBitrateKbps;
@@ -896,42 +1097,53 @@ bool BroadcastEngine::startExtra(const std::string& id, const std::string& serve
     x.tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
     const std::string e = x.tx->iniciar(fuentesDelPrograma(*motor_, {}));
     if (!e.empty()) {
-        setError("el destino no arrancó: " + e);
-        return false;
+        std::lock_guard<std::mutex> l(pedidosM_);
+        extrasPedidos_.erase(id);
+        return "el destino «" + id + "» no arrancó: " + e;
     }
     extras_[id] = std::move(x);
-    return true;
+    return {};
 }
 
 void BroadcastEngine::stopExtra(const std::string& id) {
-    auto it = extras_.find(id);
-    if (it == extras_.end()) return;
-    if (it->second.tx) it->second.tx->parar();
-    extras_.erase(it);
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        extrasPedidos_.erase(id);
+    }
+    enSalidas("stopExtra", [this, id]() {
+        auto it = extras_.find(id);
+        if (it == extras_.end()) return std::string();
+        if (it->second.tx) it->second.tx->parar();
+        extras_.erase(it);
+        return std::string();
+    });
 }
 
 void BroadcastEngine::stopExtras() {
-    while (!extras_.empty()) stopExtra(extras_.begin()->first);
+    std::set<std::string> ids;
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        ids = extrasPedidos_;
+    }
+    for (const auto& id : ids) stopExtra(id);
 }
 
 nlohmann::json BroadcastEngine::extrasEstado() const {
     json out = json::object();
-    for (const auto& [id, x] : extras_) {
-        const json st = x.tx ? x.tx->estado() : json::object();
+    const json ex = fotoSalidas().value("extras", json::object());
+    for (const auto& [id, st] : ex.items())
         out[id] = {{"activo", st.value("andando", false)},
                    {"reconectando", st.value("reconectando", false)},
                    {"perdidos", st.value("perdidos", 0)},
                    {"cuadros", st.value("cuadros", 0)},
                    {"bytes", st.value("bytes", std::uint64_t{0})},
                    {"kbps", st.value("kbps", 0.0)},
-                   {"destino", enmascarar(x.server, x.key)}};
-    }
+                   {"destino", st.value("destino", std::string())}};
     return out;
 }
 
 nlohmann::json BroadcastEngine::saludSalidas() const {
-    const auto de = [](const motor::Transmision* t) {
-        const json st = t != nullptr ? t->estado() : json::object();
+    const auto de = [](const json& st) {
         return json{{"activo", st.value("andando", false)},
                     {"reconectando", st.value("reconectando", false)},
                     {"bytes", st.value("bytes", std::uint64_t{0})},
@@ -939,9 +1151,11 @@ nlohmann::json BroadcastEngine::saludSalidas() const {
                     {"cuadros", st.value("cuadros", 0)},
                     {"congestion", 0.0}};
     };
+    const json f = fotoSalidas();
+    const json extras = f.value("extras", json::object()); // nunca .items() de un temporal
     json ex = json::object();
-    for (const auto& [id, x] : extras_) ex[id] = de(x.tx.get());
-    return {{"principal", de(stream_.get())}, {"extras", ex}, {"saltados_encoder", 0}, {"lag_render", 0}};
+    for (const auto& [id, st] : extras.items()) ex[id] = de(st);
+    return {{"principal", de(f.value("principal", json::object()))}, {"extras", ex}, {"saltados_encoder", 0}, {"lag_render", 0}};
 }
 
 // ============================================================================
@@ -960,7 +1174,11 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
         setError("startRecording sin startup");
         return false;
     }
-    if (rec_ && rec_->grabando()) return true;
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        if (grabacionPedida_) return true;
+        grabacionPedida_ = true;
+    }
     lastRec_ = rec;
     lastRecValido_ = true;
     const std::string pedido = rec.container.empty() ? std::string("mkv") : rec.container;
@@ -975,9 +1193,21 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
             pistasGrabacionMask_ |= 1 << (p - 1);
         }
     std::sort(pistas.begin(), pistas.end());
+    const std::string nombre = "ba-" + marcaDeTiempo();
+    enSalidas("startRecording", [this, rec, enc, pistas, nombre, remuxA = remuxA_, alTerminar = remuxAlTerminar_]() {
+        remuxSal_ = remuxA; // lo que mira stopRecordingYa, en este hilo
+        remuxAlTerminarSal_ = alTerminar;
+        return startRecordingYa(rec, enc, pistas, nombre);
+    });
+    return true;
+}
+
+std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const EncoderConfig& enc, const std::vector<int>& pistas,
+                                              const std::string& nombre) {
+    if (rec_ && rec_->grabando()) return {};
     motor::Grabacion::Config c;
     c.carpeta = rec.directory;
-    c.nombre = "ba-" + marcaDeTiempo();
+    c.nombre = nombre;
     c.tramoSeg = 0; // un archivo por grabación (como antes); el MKV ya aguanta un corte
     c.kbps = rec.calidad == "archivo" ? enc.videoBitrateKbps * 3 : enc.videoBitrateKbps;
     c.kbpsAudio = std::max(enc.audioBitrateKbps, rec.calidad == "archivo" ? 256 : 160);
@@ -988,8 +1218,9 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
     const motor::Fuentes f = fuentesDelPrograma(*motor_, pistas);
     const std::string e = g->iniciar(f);
     if (!e.empty()) {
-        setError("no se pudo iniciar la grabacion: " + e);
-        return false;
+        std::lock_guard<std::mutex> l(pedidosM_);
+        grabacionPedida_ = false;
+        return "no se pudo iniciar la grabación: " + e;
     }
     rec_ = std::move(g);
     recordPath_ = (std::filesystem::path(rec.directory) / (c.nombre + "-00000.mkv")).string();
@@ -1006,32 +1237,52 @@ bool BroadcastEngine::startRecording(const RecordConfig& rec, const EncoderConfi
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "grabacion", 0, "la copia en " + rec.copiaDir + " no arrancó");
         }
     }
-    return true;
+    return {};
 }
 
 void BroadcastEngine::stopRecording() {
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        grabacionPedida_ = false;
+    }
+    enSalidas("stopRecording", [this]() {
+        stopRecordingYa();
+        return std::string();
+    });
+}
+
+void BroadcastEngine::stopRecordingYa() {
     if (recCopia_) {
         recCopia_->parar();
         recCopia_.reset();
     }
     if (!rec_) return;
     const bool estaba = rec_->grabando();
-    rec_->parar();
+    rec_->parar(); // espera el cierre del archivo: por eso en este hilo
     const auto archivos = rec_->archivos();
     if (!archivos.empty()) recordPath_ = archivos.back();
     rec_.reset();
-    if (estaba && !remuxA_.empty() && remuxAlTerminar_ && !recordPath_.empty()) remux(recordPath_, remuxA_, true);
+    if (estaba && !remuxSal_.empty() && remuxAlTerminarSal_ && !recordPath_.empty()) remux(recordPath_, remuxSal_, true);
+}
+
+std::string BroadcastEngine::archivoGrabacion() const {
+    return fotoSalidas().value("grabacion", json::object()).value("archivo", std::string());
+}
+
+std::string BroadcastEngine::archivoCopiaGrabacion() const {
+    return fotoSalidas().value("grabacion", json::object()).value("copia", std::string());
 }
 
 nlohmann::json BroadcastEngine::grabacionEstado() const {
     json pistas = json::array({1});
     for (int i = 1; i < 6; ++i)
         if (pistasGrabacionMask_ & (1 << i)) pistas.push_back(i + 1);
-    const json st = rec_ ? rec_->estado() : json::object();
-    return {{"activa", rec_ && rec_->grabando()},
-            {"archivo", recordPath_},
-            {"copia", recordCopyPath_},
-            {"copia_activa", recCopia_ && recCopia_->grabando()},
+    const json g = fotoSalidas().value("grabacion", json::object());
+    const json st = g.value("estado", json::object());
+    return {{"activa", g.value("activa", false)},
+            {"archivo", g.value("archivo", std::string())},
+            {"copia", g.value("copia", std::string())},
+            {"copia_activa", g.value("copia_activa", false)},
             {"calidad", lastRecValido_ ? lastRec_.calidad : std::string("como_stream")},
             {"encoder", st.value("codificador", std::string())},
             {"pistas", pistas},
@@ -1039,6 +1290,7 @@ nlohmann::json BroadcastEngine::grabacionEstado() const {
 }
 
 bool BroadcastEngine::remux(const std::string& archivo, const std::string& formato, bool borrarOrigen) {
+    std::lock_guard<std::mutex> lr(remuxM_); // lo lanza también el hilo de salidas (al parar)
     if (remux_ && remux_->andando) {
         setError("ya hay un remux andando");
         return false;
@@ -1069,7 +1321,13 @@ bool BroadcastEngine::remux(const std::string& archivo, const std::string& forma
 }
 
 nlohmann::json BroadcastEngine::remuxEstado() const {
-    if (!remux_) return json::object();
+    std::shared_ptr<EstadoRemux> r;
+    {
+        std::lock_guard<std::mutex> lr(remuxM_);
+        r = remux_;
+    }
+    if (!r) return json::object();
+    const auto& remux_ = r;
     std::lock_guard<std::mutex> l(remux_->mu);
     return {{"archivo", remux_->archivo}, {"destino", remux_->destino}, {"pct", remux_->pct.load()},
             {"andando", remux_->andando.load()}, {"ok", remux_->ok.load()}, {"error", remux_->error}};
@@ -1077,21 +1335,18 @@ nlohmann::json BroadcastEngine::remuxEstado() const {
 
 // --- Repetición -----------------------------------------------------------------
 
-struct BroadcastEngine::Repeticion {
-    std::unique_ptr<motor::Repeticion> rep;
-    std::string dir;
-    mutable std::mutex mu;
-    std::string ultimo;
-    std::atomic<bool> guardando{false};
-};
-
 bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const EncoderConfig& enc) {
     if (!started_) {
         setError("el motor no está andando");
         return false;
     }
+    enSalidas("setReplay", [this, segundos, dir, enc]() { return setReplayYa(segundos, dir, enc); });
+    return true;
+}
+
+std::string BroadcastEngine::setReplayYa(int segundos, const std::string& dir, const EncoderConfig& enc) {
     replay_.reset();
-    if (segundos <= 0) return true;
+    if (segundos <= 0) return {};
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     auto r = std::make_unique<Repeticion>();
@@ -1099,49 +1354,49 @@ bool BroadcastEngine::setReplay(int segundos, const std::string& dir, const Enco
     r->rep = std::make_unique<motor::Repeticion>(motor_->reloj(), (std::filesystem::path(dir) / ".tramos").string(), segundos,
                                                  enc.videoBitrateKbps);
     const std::string e = r->rep->iniciar(fuentesDelPrograma(*motor_, {}));
-    if (!e.empty()) {
-        setError("no arrancó la repetición: " + e);
-        return false;
-    }
+    if (!e.empty()) return "no arrancó la repetición: " + e;
     replay_ = std::move(r);
-    return true;
+    return {};
 }
 
 bool BroadcastEngine::guardarReplay() {
-    if (!replay_ || !replay_->rep->andando()) {
+    if (!fotoSalidas().value("replay", json::object()).value("activa", false)) {
         setError("la repetición está apagada (replay_ajustes con segundos)");
         return false;
     }
-    if (replay_->guardando) return true;
-    Repeticion* r = replay_.get();
-    r->guardando = true;
-    const std::string destino = (std::filesystem::path(r->dir) / ("repeticion-" + marcaDeTiempo() + ".mkv")).string();
-    std::thread([r, destino]() {
-        const std::string e = r->rep->guardar(destino);
-        {
-            std::lock_guard<std::mutex> l(r->mu);
-            if (e.empty()) r->ultimo = destino;
-        }
-        if (!e.empty()) ba::diag::registro().linea(ba::diag::Nivel::Aviso, "repeticion", 0, "no se guardó: " + e);
-        r->guardando = false;
-    }).detach();
+    enSalidas("guardarReplay", [this]() {
+        if (!replay_ || !replay_->rep->andando() || replay_->guardando) return std::string();
+        Repeticion* r = replay_.get();
+        r->guardando = true;
+        const std::string destino = (std::filesystem::path(r->dir) / ("repeticion-" + marcaDeTiempo() + ".mkv")).string();
+        std::thread([r, destino]() {
+            const std::string e = r->rep->guardar(destino);
+            {
+                std::lock_guard<std::mutex> l(r->mu);
+                if (e.empty()) r->ultimo = destino;
+            }
+            if (!e.empty()) ba::diag::registro().linea(ba::diag::Nivel::Aviso, "repeticion", 0, "no se guardó: " + e);
+            r->guardando = false;
+        }).detach();
+        return std::string();
+    });
     return true;
 }
 
 std::string BroadcastEngine::ultimoReplay() const {
-    if (!replay_) return {};
-    std::lock_guard<std::mutex> l(replay_->mu);
-    return replay_->ultimo;
+    return fotoSalidas().value("replay", json::object()).value("ultimo", std::string());
 }
 
 nlohmann::json BroadcastEngine::replayEstado() const {
-    return {{"activa", replay_ && replay_->rep->andando()},
-            {"segundos", replay_ ? replay_->rep->segundos() : 0},
-            {"ultimo", ultimoReplay()}};
+    const json r = fotoSalidas().value("replay", json::object());
+    return {{"activa", r.value("activa", false)}, {"segundos", r.value("segundos", 0)}, {"ultimo", r.value("ultimo", std::string())}};
 }
 
 void BroadcastEngine::atenderEncoderCaido(bool, bool) {
-    // Las salidas del motor se rearman solas; acá se atienden sus buses.
+    // Las salidas se atienden solas en su hilo (ticSalidas, cada 100 ms).
+}
+
+void BroadcastEngine::ticSalidas() {
     if (stream_) stream_->tic();
     for (auto& [id, x] : extras_)
         if (x.tx) x.tx->tic();
@@ -1199,19 +1454,31 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
         setError("startSourceRecording sin startup");
         return false;
     }
-    if (sourceRecs_.count(source) > 0) {
-        setError("ya se esta grabando \"" + source + "\" por separado");
-        return false;
-    }
-    if (static_cast<int>(sourceRecs_.size()) >= kMaxIndividuales) {
-        setError("ya hay " + std::to_string(kMaxIndividuales) + " entradas grabandose por separado, que es el tope");
-        return false;
-    }
     if (sources_.count(source) == 0) {
         setError("no existe la fuente \"" + source + "\"");
         return false;
     }
-    const json e = estadoMotor().value("entradas", json::object()).value(source, json::object());
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        if (individualesPedidas_.count(source) > 0) {
+            setError("ya se esta grabando \"" + source + "\" por separado");
+            return false;
+        }
+        if (static_cast<int>(individualesPedidas_.size()) >= kMaxIndividuales) {
+            setError("ya hay " + std::to_string(kMaxIndividuales) + " entradas grabandose por separado, que es el tope");
+            return false;
+        }
+        individualesPedidas_.insert(source);
+    }
+    enSalidas("startSourceRecording", [this, source, dir, enc]() { return startSourceRecordingYa(source, dir, enc); });
+    return true;
+}
+
+std::string BroadcastEngine::startSourceRecordingYa(const std::string& source, const std::string& dir, const EncoderConfig& enc) {
+    if (sourceRecs_.count(source) > 0) return {};
+    // La foto del motor (no estadoMotor: ese es de la interfaz).
+    const auto foto = motor_->instantanea();
+    const json e = foto ? foto->value("entradas", json::object()).value(source, json::object()) : json::object();
     motor::Fuentes f;
     if (e.value("video", false)) {
         f.video = source + ":video";
@@ -1243,32 +1510,48 @@ bool BroadcastEngine::startSourceRecording(const std::string& source, const std:
     r.grab = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
     const std::string err = r.grab->iniciar(f);
     if (!err.empty()) {
-        setError("no arranco la grabacion de \"" + source + "\": " + err);
-        return false;
+        std::lock_guard<std::mutex> l(pedidosM_);
+        individualesPedidas_.erase(source);
+        return "no arrancó la grabación de \"" + source + "\": " + err;
     }
     r.path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
     sourceRecs_[source] = std::move(r);
-    return true;
+    return {};
 }
 
 bool BroadcastEngine::stopSourceRecording(const std::string& source) {
-    const auto it = sourceRecs_.find(source);
-    if (it == sourceRecs_.end()) {
-        setError("no se estaba grabando \"" + source + "\" por separado");
-        return false;
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        if (individualesPedidas_.erase(source) == 0) {
+            setError("no se estaba grabando \"" + source + "\" por separado");
+            return false;
+        }
     }
-    if (it->second.grab) it->second.grab->parar();
-    sourceRecs_.erase(it);
+    enSalidas("stopSourceRecording", [this, source]() {
+        const auto it = sourceRecs_.find(source);
+        if (it == sourceRecs_.end()) return std::string();
+        if (it->second.grab) it->second.grab->parar();
+        sourceRecs_.erase(it);
+        return std::string();
+    });
     return true;
 }
 
 void BroadcastEngine::stopAllSourceRecordings() {
-    while (!sourceRecs_.empty()) stopSourceRecording(sourceRecs_.begin()->first);
+    std::set<std::string> todas;
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        todas = individualesPedidas_;
+    }
+    for (const auto& s : todas) stopSourceRecording(s);
 }
 
 std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordings() const {
     std::vector<GrabacionIndividual> out;
-    for (const auto& [n, r] : sourceRecs_) out.push_back({n, r.path, r.audioPropio, r.grab && r.grab->grabando()});
+    const json ind = fotoSalidas().value("individuales", json::array());
+    for (const auto& r : ind)
+        out.push_back({r.value("nombre", std::string()), r.value("path", std::string()), r.value("audio_propio", false),
+                       r.value("grabando", false)});
     return out;
 }
 
@@ -1278,7 +1561,23 @@ bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::stri
         setError("el motor no está andando");
         return false;
     }
-    if (clean_) return true;
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        if (limpioPedido_) return true;
+        limpioPedido_ = true;
+    }
+    enSalidas("startCleanFeed", [this, destino, clave, dir, enc]() { return startCleanFeedYa(destino, clave, dir, enc); });
+    return true;
+}
+
+std::string BroadcastEngine::startCleanFeedYa(const std::string& destino, const std::string& clave, const std::string& dir,
+                                              const EncoderConfig& enc) {
+    if (clean_) return {};
+    const auto fallo = [this](const std::string& e) {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        limpioPedido_ = false;
+        return "no arrancó la señal limpia: " + e;
+    };
     auto r = std::make_unique<SourceRec>();
     const motor::Fuentes f = fuentesDelPrograma(*motor_, {}, true); // el programa SIN capas
     const int fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
@@ -1292,10 +1591,7 @@ bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::stri
         c.codificadores = {"x264enc"};
         r->tx = std::make_unique<motor::Transmision>(motor_->reloj(), c);
         const std::string e = r->tx->iniciar(f);
-        if (!e.empty()) {
-            setError("no arrancó la señal limpia: " + e);
-            return false;
-        }
+        if (!e.empty()) return fallo(e);
         r->destino = enmascarar(destino, clave);
     } else {
         motor::Grabacion::Config c;
@@ -1307,33 +1603,30 @@ bool BroadcastEngine::startCleanFeed(const std::string& destino, const std::stri
         c.codificadores = {"x264enc"};
         r->grab = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
         const std::string e = r->grab->iniciar(f);
-        if (!e.empty()) {
-            setError("no arrancó la señal limpia: " + e);
-            return false;
-        }
+        if (!e.empty()) return fallo(e);
         r->path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
         r->destino = r->path;
     }
     clean_ = std::move(r);
-    return true;
+    return {};
 }
 
 void BroadcastEngine::stopCleanFeed() {
-    if (!clean_) return;
-    if (clean_->tx) clean_->tx->parar();
-    if (clean_->grab) clean_->grab->parar();
-    clean_.reset();
+    {
+        std::lock_guard<std::mutex> l(pedidosM_);
+        limpioPedido_ = false;
+    }
+    enSalidas("stopCleanFeed", [this]() {
+        if (!clean_) return std::string();
+        if (clean_->tx) clean_->tx->parar();
+        if (clean_->grab) clean_->grab->parar();
+        clean_.reset();
+        return std::string();
+    });
 }
 
 nlohmann::json BroadcastEngine::cleanFeedEstado() const {
-    if (!clean_) return {{"activa", false}};
-    const json st = clean_->tx ? clean_->tx->estado() : json::object();
-    return {{"activa", clean_->tx ? st.value("andando", false) : (clean_->grab && clean_->grab->grabando())},
-            {"reconectando", st.value("reconectando", false)},
-            {"destino", clean_->destino},
-            {"archivo", clean_->path},
-            {"cuadros", st.value("cuadros", 0)},
-            {"perdidos", st.value("perdidos", 0)}};
+    return fotoSalidas().value("limpio", json{{"activa", false}});
 }
 
 // ============================================================================
@@ -1347,8 +1640,9 @@ EngineStatus BroadcastEngine::status() const {
     st.videoActive = true;
     st.audioActive = true;
     st.fps = static_cast<double>(video_.fpsNum) / std::max(1, video_.fpsDen);
-    if (stream_) {
-        const json t = stream_->estado();
+    const json f = fotoSalidas();
+    const json t = f.value("principal", json::object());
+    if (!t.empty()) {
         st.streaming = t.value("andando", false);
         st.droppedFrames = t.value("perdidos", 0);
         st.totalFrames = t.value("cuadros", 0);
@@ -1362,10 +1656,9 @@ EngineStatus BroadcastEngine::status() const {
                                                                         : "Se cortó la conexión con el servidor";
         }
     }
-    if (rec_) {
-        st.recording = rec_->grabando();
-        if (st.videoEncoder.empty()) st.videoEncoder = rec_->estado().value("codificador", std::string());
-    }
+    const json g = f.value("grabacion", json::object());
+    st.recording = g.value("activa", false);
+    if (st.videoEncoder.empty()) st.videoEncoder = g.value("estado", json::object()).value("codificador", std::string());
     return st;
 }
 

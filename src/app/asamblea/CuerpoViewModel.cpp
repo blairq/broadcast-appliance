@@ -87,11 +87,13 @@ void CuerpoViewModel::capturarFoto(const QString& id) {
     QPointer<CuerpoViewModel> yo(this);
     QTimer::singleShot(aviso.isEmpty() ? 2500 : 200, this, [yo, id, camara, aviso]() {
         if (!yo) return;
-        const QImage img = yo->g_.capturar(camara);
-        if (img.isNull()) return emit yo->fotoLista(id, false, "la cámara «" + camara + "» no da imagen ahora");
-        const QString e = yo->guardarFoto(id, img);
-        if (!e.isEmpty()) return emit yo->fotoLista(id, false, e);
-        emit yo->fotoLista(id, true, aviso.isEmpty() ? "foto capturada" : "capturada sin mover la cámara: " + aviso);
+        yo->g_.capturar(camara, [yo, id, camara, aviso](QImage img) {
+            if (!yo) return;
+            if (img.isNull()) return emit yo->fotoLista(id, false, "la cámara «" + camara + "» no da imagen ahora");
+            const QString e = yo->guardarFoto(id, img);
+            if (!e.isEmpty()) return emit yo->fotoLista(id, false, e);
+            emit yo->fotoLista(id, true, aviso.isEmpty() ? "foto capturada" : "capturada sin mover la cámara: " + aviso);
+        });
     });
 }
 

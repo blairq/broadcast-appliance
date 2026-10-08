@@ -2250,12 +2250,14 @@ QStringList VideoGrafos::motoresSuperres() const {
     return l;
 }
 
-bool VideoGrafos::capturarCuadro(const std::string& entrada, QImage& cuadro) const {
-    std::vector<std::uint8_t> rgba;
-    int w = 0, h = 0;
-    if (!rt_.engine().captureSource(entrada, 3840, rgba, w, h) || w <= 0 || h <= 0) return false;
-    cuadro = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
-    return !cuadro.isNull();
+void VideoGrafos::capturarCuadroAparte(const std::string& entrada, std::function<void(QImage)> listo) const {
+    rt_.engine().capturarAparte(
+        entrada, 3840, [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
+            QImage cuadro;
+            if (e.empty() && w > 0 && h > 0)
+                cuadro = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+            QMetaObject::invokeMethod(qApp, [listo = std::move(listo), cuadro]() { listo(cuadro); }, Qt::QueuedConnection);
+        });
 }
 
 std::string VideoGrafos::uriDe(const std::string& entrada) const {

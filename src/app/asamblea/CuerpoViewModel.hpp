@@ -53,10 +53,11 @@ class CuerpoViewModel : public QObject {
     /// La ruta del archivo de la foto ("" si no tiene).
     QString rutaFoto(const QString& idOBanca) const;
     /// Lo que necesita para capturar: llevar la cámara (devuelve "" o el error) y
-    /// tomar el cuadro de una entrada.
+    /// tomar el cuadro de una entrada. `capturar` no hace esperar a la interfaz:
+    /// llama a `listo` (en el hilo de la interfaz) cuando tiene el cuadro.
     struct Ganchos {
         std::function<QString(const QString& banca)> apuntar;
-        std::function<QImage(const QString& camara)> capturar;
+        std::function<void(const QString& camara, std::function<void(QImage)> listo)> capturar;
     };
     void setGanchos(Ganchos g) { g_ = std::move(g); }
 

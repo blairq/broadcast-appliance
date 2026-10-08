@@ -68,6 +68,8 @@ Rectangle {
     }
 
     function avisar(e) { page.error = e }
+    // Lo que termina después (la foto de una posición) avisa por acá.
+    Connections { target: page.cc; function onAviso(texto) { page.avisar(texto) } }
     // ui_show_page {page: "camaras", seccion: "recinto" | <entrada>}
     Connections {
         target: Studio

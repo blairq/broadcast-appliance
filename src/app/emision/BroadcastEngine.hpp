@@ -23,6 +23,9 @@
 
 #include <array>
 #include <atomic>
+#include <thread>
+#include <deque>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <future>
@@ -275,9 +278,9 @@ class BroadcastEngine {
     nlohmann::json latenciaEstudio() const;
 
     /// El archivo que se está grabando (o el último).
-    std::string archivoGrabacion() const { return recordPath_; }
+    std::string archivoGrabacion() const;
     /// La copia en el otro disco (vacío si no hay).
-    std::string archivoCopiaGrabacion() const { return recordCopyPath_; }
+    std::string archivoCopiaGrabacion() const;
     /// Pasa `archivo` (mkv) a `formato` (mp4/mov) sin recodificar, en otro hilo.
     bool remux(const std::string& archivo, const std::string& formato, bool borrarOrigen);
     /// {archivo, destino, pct, andando, ok, error}.
@@ -335,8 +338,15 @@ class BroadcastEngine {
     bool sourceSize(const std::string& name, int& width, int& height) const;
     /// Reemplaza los settings de la fuente.
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
+    /// La captura sin que espere quien llama (la interfaz nunca espera): prepara
+    /// acá —lee escenas y fuentes, que son del hilo de la interfaz—, espera el
+    /// cuadro en otro hilo y llama a `listo` DESDE ESE HILO (quien la usa en la
+    /// interfaz la vuelve a su hilo). `error` vacío = hay imagen (RGBA).
+    using Captura = std::function<void(const std::string& error, std::vector<std::uint8_t> rgba, int ancho, int alto)>;
+    void capturarAparte(const std::string& name, int maxWidth, Captura listo);
     /// Imagen actual de una fuente o escena ("" = el programa, con sus capas),
     /// con ancho de a lo sumo `maxWidth` (0 = el del lienzo). RGBA 8 bits.
+    /// ESPERA el cuadro (hasta 3 s): no desde el hilo de la interfaz (ver capturarAparte).
     bool captureSource(const std::string& name, int maxWidth, std::vector<std::uint8_t>& rgba, int& width,
                        int& height);
     /// captureSource en dos partes, para capturar desde otro hilo (las
@@ -643,7 +653,41 @@ class BroadcastEngine {
     bool ftb_ = false, ftbAudio_ = false, placa_ = false;
     std::string placaTexto_, placaImagen_;
 
-    // Salidas
+    // Salidas. stream_, extras_, rec_, recCopia_, replay_, sourceRecs_, clean_ y
+    // recordPath_/recordCopyPath_ son SOLO del hilo de salidas (ver enSalidas):
+    // arrancarlas, pararlas y atenderlas son cambios de estado de GStreamer que
+    // tardan (parar una grabación espera el cierre del archivo; una transmisión
+    // caída se rearma probando codificadores). La interfaz encola y lee la foto.
+    std::thread hiloSalidas_;
+    std::mutex salidasColaM_;
+    std::condition_variable salidasCv_;
+    std::deque<std::pair<std::string, std::function<std::string()>>> salidasCola_;
+    bool salidasSeguir_ = false; ///< bajo salidasColaM_
+    void bucleSalidas();
+    void enSalidas(const std::string& que, std::function<std::string()> f);
+    void detenerSalidas();
+    void ticSalidas();
+    void publicarFotoSalidas();
+    nlohmann::json fotoSalidas() const;
+    mutable std::mutex fotoSalidasM_;
+    nlohmann::json fotoSalidas_ = nlohmann::json::object();
+    void avisarFallo(const std::string& texto);
+    // Lo pedido (lo escribe la interfaz al pedir; el hilo de salidas lo baja si
+    // no arrancó): para contestar «ya está» o «ya hay tantas» sin esperar.
+    mutable std::mutex pedidosM_;
+    bool streamPedido_ = false, grabacionPedida_ = false, limpioPedido_ = false;
+    std::set<std::string> extrasPedidos_, individualesPedidas_;
+    std::string startStreamingYa(const StreamConfig& stream, const EncoderConfig& enc);
+    std::string startExtraYa(const std::string& id, const std::string& server, const std::string& key,
+                             const EncoderConfig& enc);
+    std::string startRecordingYa(const RecordConfig& rec, const EncoderConfig& enc, const std::vector<int>& pistas,
+                                 const std::string& nombre);
+    void stopRecordingYa();
+    std::string setReplayYa(int segundos, const std::string& dir, const EncoderConfig& enc);
+    std::string startSourceRecordingYa(const std::string& source, const std::string& dir, const EncoderConfig& enc);
+    std::string startCleanFeedYa(const std::string& destino, const std::string& clave, const std::string& dir,
+                                 const EncoderConfig& enc);
+
     std::unique_ptr<motor::Transmision> stream_;
     std::string activeServer_, activeKey_;
     Inicio ultimoInicio_ = Inicio::Iniciado;
@@ -654,12 +698,15 @@ class BroadcastEngine {
     std::map<std::string, Extra> extras_;
     std::unique_ptr<motor::Grabacion> rec_, recCopia_;
     std::string recordPath_, recordCopyPath_, remuxA_;
+    std::string remuxSal_; ///< del hilo de salidas: a qué pasar la grabación al pararla
+    bool remuxAlTerminarSal_ = true;
     bool remuxAlTerminar_ = true;
     RecordConfig lastRec_;
     bool lastRecValido_ = false;
     int pistasGrabacionMask_ = 0;
     struct EstadoRemux;
-    std::shared_ptr<EstadoRemux> remux_;
+    std::shared_ptr<EstadoRemux> remux_; ///< bajo remuxM_ (lo lanza el hilo de salidas al parar)
+    mutable std::mutex remuxM_;
     struct SourceRec {
         std::string path;
         bool audioPropio = false;
@@ -714,6 +761,7 @@ class BroadcastEngine {
     std::mutex canalesEscenaM_;
     /// Las entradas internas (fundido a negro, placa) que ya se le pidieron a este motor.
     std::set<std::string> internasPedidas_;
+    std::atomic<int> capturasEnCurso_{0};
     std::mutex falloMotorM_;
     std::function<void(const std::string&)> falloMotor_;
     void enviarEscena(int k, const motor::Cuadro& c);

@@ -38,10 +38,6 @@ using json = nlohmann::json;
 
 namespace {
 
-std::int64_t ahoraMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
-        .count();
-}
 
 /// Color de OBS (entero ABGR: 0xAABBGGRR) → "#AARRGGBB".
 std::string colorObs(const json& v, const char* def) {
@@ -1006,10 +1002,9 @@ std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() const
 }
 
 bool BroadcastEngine::outputsActive() const {
-    bool extras = false;
-    for (const auto& [id, x] : extras_)
-        if (x.tx && x.tx->andando()) extras = true;
-    return (stream_ && stream_->andando()) || (rec_ && rec_->grabando()) || extras;
+    // Lo pedido (las salidas son del hilo de salidas: ver enSalidas).
+    std::lock_guard<std::mutex> l(pedidosM_);
+    return streamPedido_ || grabacionPedida_ || !extrasPedidos_.empty();
 }
 
 bool BroadcastEngine::resetEncoders() {

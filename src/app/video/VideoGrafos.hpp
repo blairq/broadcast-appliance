@@ -252,7 +252,9 @@ class VideoGrafos : public QObject {
     std::string uriDe(const std::string& entrada) const;
     /// Un cuadro de la entrada tal como sale de su grafo (para entrenar con una cámara
     /// local, que no tiene dirección de red). false si no hay imagen.
-    bool capturarCuadro(const std::string& entrada, QImage& cuadro) const;
+    /// Un cuadro de la entrada sin que espere la interfaz: `listo` llega en el
+    /// hilo de la interfaz (imagen nula si no dio).
+    void capturarCuadroAparte(const std::string& entrada, std::function<void(QImage)> listo) const;
     /// Atrasa el audio de la entrada lo que demoran sus tarjetas de superresolución.
     void compensarAudio(const std::string& entrada);
     /// La demora medida de cada tarjeta de la entrada (ms), por id de nodo.

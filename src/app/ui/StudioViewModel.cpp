@@ -762,11 +762,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         {
             asamblea::CuerpoViewModel::Ganchos gc;
             gc.apuntar = [this](const QString& banca) { return bancas_->apuntar(banca); };
-            gc.capturar = [this](const QString& camara) {
-                std::vector<std::uint8_t> rgba;
-                int w = 0, h = 0;
-                if (!rt_.engine().captureSource(camara.toStdString(), 960, rgba, w, h) || w <= 0 || h <= 0) return QImage();
-                return QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+            gc.capturar = [this](const QString& camara, std::function<void(QImage)> listo) {
+                // Sin esperar el cuadro acá (capturarAparte): vuelve a este hilo cuando llega.
+                rt_.engine().capturarAparte(
+                    camara.toStdString(), 960,
+                    [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
+                        QImage img;
+                        if (e.empty() && w > 0 && h > 0) img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+                        QMetaObject::invokeMethod(qApp, [listo = std::move(listo), img]() { listo(img); }, Qt::QueuedConnection);
+                    });
             };
             cuerpo_->setGanchos(std::move(gc));
         }
@@ -3427,10 +3431,34 @@ QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo,
     // El programa: el cuadro que ya se rinde para los monitores (no cuesta otro render).
     if (fuente.isEmpty() && frames_->latest("program", img, serie) && !img.isNull()) {
     } else {
-        std::vector<std::uint8_t> rgba;
-        int w = 0, h = 0;
-        if (!rt_.engine().captureSource(fuente.toStdString(), 640, rgba, w, h)) return {{"error", qs(rt_.engine().lastError())}};
-        img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+        // Otra fuente: se pide aparte (capturarAparte) y se usa el último cuadro
+        // que llegó; el panel pregunta cada 200 ms, así que el próximo ya lo tiene.
+        // La interfaz no espera el cuadro.
+        if (!scopeCapturando_) {
+            scopeCapturando_ = true;
+            QPointer<const StudioViewModel> yo(this);
+            rt_.engine().capturarAparte(
+                fuente.toStdString(), 640,
+                [yo, fuente](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+                    QImage llego;
+                    if (e.empty() && w > 0 && h > 0) llego = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+                    QMetaObject::invokeMethod(
+                        qApp,
+                        [yo, fuente, llego, e]() {
+                            if (!yo) return;
+                            auto* self = const_cast<StudioViewModel*>(yo.data());
+                            self->scopeCapturando_ = false;
+                            self->scopeFuente_ = fuente;
+                            self->scopeCuadro_ = llego;
+                            self->scopeError_ = QString::fromStdString(e);
+                        },
+                        Qt::QueuedConnection);
+                });
+        }
+        if (scopeFuente_ != fuente || scopeCuadro_.isNull())
+            return scopeError_.isEmpty() || scopeFuente_ != fuente ? QVariantMap{{"esperando", true}}
+                                                                   : QVariantMap{{"error", scopeError_}};
+        img = scopeCuadro_;
     }
     const video::Legalidad l = video::medirLegalidad(img);
     const QImage s = video::dibujarScope(img, t, std::clamp(ancho, 200, 1600), std::clamp(alto, 120, 1200));

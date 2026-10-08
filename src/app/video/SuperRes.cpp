@@ -11,7 +11,9 @@
 #endif
 
 #include <QDateTime>
+#include <QCoreApplication>
 #include <QImage>
+#include <QPointer>
 #include <QFile>
 #include <QJsonDocument>
 #include <QProcessEnvironment>
@@ -261,21 +263,31 @@ std::string SuperRes::origen(const std::string& entrada, int segundos, std::func
     emit trabajoCambio();
     captura_.disconnect();
     captura_.setInterval(250);
+    pidiendoCuadro_ = false;
     connect(&captura_, &QTimer::timeout, this, [this, entrada, carpeta, listo]() {
-        QImage img;
-        if (video_->capturarCuadro(entrada, img)) {
-            img.save(QString::fromStdString((carpeta / QString("%1.jpg").arg(capturados_, 5, 10, QChar('0')).toStdString()).string()),
-                     "JPG", 95);
-            ++capturados_;
-        }
-        trabajo_["pct"] = 100 * capturados_ / std::max(1, aCapturar_);
-        trabajo_["texto"] = QString("Capturando cuadros: %1 de %2").arg(capturados_).arg(aCapturar_);
-        emit trabajoCambio();
-        if (capturados_ >= aCapturar_) {
-            captura_.stop();
-            trabajo_["corriendo"] = false;
-            listo({"--entrada", QString::fromStdString(carpeta.string())});
-        }
+        // El cuadro llega aparte (la interfaz no lo espera); uno por vez.
+        if (pidiendoCuadro_) return;
+        pidiendoCuadro_ = true;
+        QPointer<SuperRes> yo(this);
+        video_->capturarCuadroAparte(entrada, [yo, carpeta, listo](QImage img) {
+            if (!yo) return;
+            yo->pidiendoCuadro_ = false;
+            if (!yo->captura_.isActive()) return; // ya terminó o se canceló
+            if (!img.isNull()) {
+                img.save(QString::fromStdString(
+                             (carpeta / QString("%1.jpg").arg(yo->capturados_, 5, 10, QChar('0')).toStdString()).string()),
+                         "JPG", 95);
+                ++yo->capturados_;
+            }
+            yo->trabajo_["pct"] = 100 * yo->capturados_ / std::max(1, yo->aCapturar_);
+            yo->trabajo_["texto"] = QString("Capturando cuadros: %1 de %2").arg(yo->capturados_).arg(yo->aCapturar_);
+            emit yo->trabajoCambio();
+            if (yo->capturados_ >= yo->aCapturar_) {
+                yo->captura_.stop();
+                yo->trabajo_["corriendo"] = false;
+                listo({"--entrada", QString::fromStdString(carpeta.string())});
+            }
+        });
     });
     captura_.start();
     return {};

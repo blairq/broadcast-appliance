@@ -20,6 +20,7 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QFile>
+#include <QCoreApplication>
 #include <QImage>
 #include <QUrl>
 #include <QJsonArray>
@@ -487,11 +488,34 @@ QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString&
     if (c == nullptr) return error;
     Posicion* p = c->posiciones.buscar(idONombre);
     if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
-    std::vector<std::uint8_t> rgba;
-    int w = 0, h = 0;
-    if (!rt_.engine().captureSource(c->entrada, 320, rgba, w, h) || w <= 0 || h <= 0)
-        return QStringLiteral("La entrada «%1» no da imagen ahora: la posición queda sin foto").arg(entrada);
-    const QImage img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+    // El cuadro llega aparte (la interfaz no lo espera); lo que sigue, cuando llega.
+    const std::string fuente = c->entrada;
+    const QString posicion = p->id;
+    QPointer<ControlCamaras> yo(this);
+    rt_.engine().capturarAparte(
+        fuente, 320, [yo, entrada, posicion](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+            QImage img;
+            if (e.empty() && w > 0 && h > 0)
+                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+            QMetaObject::invokeMethod(
+                qApp,
+                [yo, entrada, posicion, img]() {
+                    if (!yo) return;
+                    const QString err = yo->guardarMiniatura(entrada, posicion, img);
+                    if (!err.isEmpty()) emit yo->aviso(err);
+                },
+                Qt::QueuedConnection);
+        });
+    return {};
+}
+
+QString ControlCamaras::guardarMiniatura(const QString& entrada, const QString& idONombre, const QImage& img) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return error;
+    Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) return {}; // la borraron mientras tanto
+    if (img.isNull()) return QStringLiteral("La entrada «%1» no da imagen ahora: la posición queda sin foto").arg(entrada);
     std::error_code ec;
     std::filesystem::create_directories(carpetaMiniaturas(), ec);
     const QString nombre = QString::fromStdString(nombreClave(c->entrada)) + "-" + p->id + ".jpg";

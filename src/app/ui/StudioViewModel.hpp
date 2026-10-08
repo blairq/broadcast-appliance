@@ -15,6 +15,7 @@
 #include <thread>
 #include <atomic>
 #include <QHash>
+#include <QImage>
 #include <QSet>
 #include <QObject>
 #include <QString>
@@ -794,6 +795,11 @@ class StudioViewModel : public QObject {
     std::unique_ptr<GraficoViewModel> grafico_;
     std::unique_ptr<RotuladorViewModel> rotulador_;
     std::unique_ptr<PrompterViewModel> prompter_;
+    // El scope de una fuente que no es el programa: el último cuadro que llegó
+    // (scopeUi lo pide aparte; la interfaz no espera el cuadro).
+    mutable bool scopeCapturando_ = false;
+    mutable QString scopeFuente_, scopeError_;
+    mutable QImage scopeCuadro_;
     std::unique_ptr<PantallasViewModel> pantallas_;
     std::unique_ptr<QrViewModel> qr_;
     std::unique_ptr<PersonasViewModel> personas_;

@@ -150,10 +150,13 @@ class ControlCamaras : public QObject {
    signals:
     void cambio();
     void busquedaCambio();
+    /// Lo que salió mal en algo que terminó después (la foto de una posición).
+    void aviso(const QString& texto);
 
    private:
     struct Camara;
     Camara* camara(const QString& entrada, QString* error);
+    QString guardarMiniatura(const QString& entrada, const QString& idONombre, const QImage& img);
     /// El backend que recibe el joystick y los presets.
     PtzBackend* activo(Camara& c) const;
     /// Mueve (o para, con todo en 0) sin cortar el pulso de `apuntar`.

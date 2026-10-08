@@ -174,6 +174,7 @@ class SuperRes : public QObject {
     std::string origen(const std::string& entrada, int segundos, std::function<void(QStringList)> listo);
     QTimer captura_;
     int capturados_ = 0, aCapturar_ = 0;
+    bool pidiendoCuadro_ = false; ///< hay un cuadro pedido (capturarCuadroAparte) que no llegó
 
     json catalogo_ = json::array(); ///< las recetas (del recurso)
     std::filesystem::path root_;

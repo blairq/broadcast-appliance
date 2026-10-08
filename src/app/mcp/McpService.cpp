@@ -3202,14 +3202,32 @@ void McpService::registerTools() {
                                               "Liberá espacio o que el operador lo arranque desde Salidas."));
             if (!rt.startRecording()) return done(ToolResult::error("No arranco: " + rt.lastError()));
             emit vm.statusChanged();
-            return done(ToolResult()
-                            .text("Grabando en " + rt.engine().archivoGrabacion() + ".")
-                            .data(json{{"archivo", rt.engine().archivoGrabacion()},
-                                       {"contenedor_real", std::filesystem::path(rt.engine().archivoGrabacion()).extension().string()},
-                                       {"contenedor_pedido", rt.config().rec.container},
-                                       {"horas_restantes", d.value("horas", -1.0)}}));
-            emit vm.statusChanged();
-            done(ToolResult::ok("Grabando en " + rt.carpetaGrabacion() + "."));
+            // La grabación arranca en el hilo de salidas (la interfaz no espera el
+            // codificador): se mira cada 200 ms, sin trabar nada, hasta que tiene archivo.
+            auto mirar = std::make_shared<std::function<void(int)>>();
+            *mirar = [&rt, d, done, mirar](int n) {
+                const json g = rt.engine().grabacionEstado();
+                const std::string archivo = g.value("archivo", std::string());
+                if (g.value("activa", false) && !archivo.empty()) {
+                    QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
+                    return done(ToolResult()
+                                    .text("Grabando en " + archivo + ".")
+                                    .data(json{{"archivo", archivo},
+                                               {"contenedor_real", std::filesystem::path(archivo).extension().string()},
+                                               {"contenedor_pedido", rt.config().rec.container},
+                                               {"horas_restantes", d.value("horas", -1.0)}}));
+                }
+                if (n >= 25 || !rt.engine().outputsActive()) {
+                    QTimer::singleShot(0, [mirar]() { *mirar = nullptr; });
+                    return done(rt.engine().outputsActive()
+                                    ? ToolResult::ok("Pedido: la grabación está arrancando (todavía sin archivo).")
+                                    : ToolResult::error("La grabación no arrancó: mirá el aviso en la interfaz."));
+                }
+                QTimer::singleShot(200, [mirar, n]() {
+                    if (*mirar) (*mirar)(n + 1);
+                });
+            };
+            (*mirar)(0);
         };
         core_.addTool(std::move(t));
     }
