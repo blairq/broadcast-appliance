@@ -15,7 +15,7 @@ PtzDigital::PtzDigital(std::string fuente, QObject* parent) : PtzBackend(parent)
 Capacidades PtzDigital::capacidades() const {
     Capacidades c;
     c.panTilt = c.zoom = c.home = true;
-    c.presets = 16;
+    c.presets = 256;
     return c;
 }
 

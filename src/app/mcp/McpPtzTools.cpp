@@ -288,7 +288,7 @@ void McpService::registerPtzTools() {
                          {"required", {"entrada", "numero"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"maximum", 128}}},
+                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"maximum", 256}}},
                            {"accion", {{"type", "string"}, {"enum", {"ir", "guardar"}}}}}}};
         t.examples = {R"({"entrada": "Cámara 1", "numero": 2})",
                       R"({"entrada": "Cámara 1", "numero": 3, "accion": "guardar"})"};

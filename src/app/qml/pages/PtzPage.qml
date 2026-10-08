@@ -45,15 +45,29 @@ Rectangle {
     readonly property var caps: cam === null ? ({}) : (mueveDigital ? cam.capacidadesDigital : cam.capacidades)
     property real velocidad: 0.6
     property bool guardando: false
+    // Las fotos de los presets de lo que mueve el joystick (n -> url).
+    readonly property var fotosPresets: cam === null ? ({}) : ((mueveDigital ? cam.fotosPresetsDigitales : cam.fotosPresetsCamara) || ({}))
+    // Los presets se muestran de a 16: el bloque siguiente aparece cuando se
+    // usa el último del anterior (o con «16 más»), hasta lo que admite.
+    property int presetsExtra: 0
+    readonly property int presetsVisibles: {
+        const max = page.caps.presets || 0
+        let usado = 0
+        if (page.cam && page.mueveDigital)
+            for (const n of page.cam.presetsDigitales) usado = Math.max(usado, n)
+        for (const k in page.fotosPresets) usado = Math.max(usado, parseInt(k))
+        return Math.min(max, (Math.floor(usado / 16) + 1 + page.presetsExtra) * 16)
+    }
     property string error: ""
     property var pos: ({})
     // La grilla del recinto en lugar del control de una cámara.
     property bool verRecinto: false
 
-    onVisibleChanged: inp.setActive(visible)
+    onVisibleChanged: { inp.setActive(visible); mirar() }
     Component.onCompleted: {
         if (visible) inp.setActive(true) // creada oculta no apaga a Entradas, que comparte `inp`
         if (cc && cc.camaras.length > 0) sel = cc.camaras[0].entrada
+        mirar()
     }
     Connections {
         target: page.cc
@@ -80,7 +94,18 @@ Rectangle {
             page.verRecinto = false
         }
     }
-    onSelChanged: { page.ptzMsg = ""; page.redTick++ }
+    onSelChanged: { page.ptzMsg = ""; page.redTick++; page.presetsExtra = 0; mirar() }
+    // La imagen en vivo de la elegida, solo mientras se ve la página (renderizarla cuesta).
+    property string mirando: ""
+    function mirar() {
+        const quiero = page.visible && !page.verRecinto ? page.sel : ""
+        if (quiero === page.mirando) return
+        if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
+        if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
+        page.mirando = quiero
+    }
+    onVerRecintoChanged: mirar()
+    Component.onDestruction: if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
     Connections {
         target: Studio.red
         function onPtzListo(entrada, ok, texto) {
@@ -179,15 +204,74 @@ Rectangle {
                         id: vistaFila
                         anchors.fill: parent
                         spacing: 14
+                        // La imagen en vivo: clic apunta ahí, arrastrar encuadra ese cuadro
+                        // (lo mismo que la ventana de la tarjeta PTZ: ControlCamaras::apuntar).
                         Rectangle {
+                            id: vista
                             Layout.fillWidth: true
                             Layout.preferredHeight: width * 9 / 16
                             Layout.maximumHeight: 340
                             radius: 10; color: "black"; clip: true
-                            Image { anchors.fill: parent; fillMode: Image.PreserveAspectFit; cache: false
-                                    source: page.cam ? "image://inputs/" + encodeURIComponent(page.sel) + "?" + page.inp.stamp : "" }
+                            VideoItem { id: video; anchors.fill: parent; source: page.cam ? "entrada:" + page.sel : ""; fillMode: VideoItem.Fit }
+                            Text { visible: !video.hasFrame; anchors.centerIn: parent
+                                   text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 13 }
+                            // Donde cae la imagen dentro del rectángulo (Fit deja bandas).
+                            readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
+                            readonly property real iw: Math.min(width, height * aspecto)
+                            readonly property real ih: iw / aspecto
+                            readonly property real ix: (width - iw) / 2
+                            readonly property real iy: (height - ih) / 2
+                            function u(x) { return Math.max(0, Math.min(1, (x - ix) / iw)) }
+                            function v(y) { return Math.max(0, Math.min(1, (y - iy) / ih)) }
+                            Rectangle {
+                                id: cuadro
+                                visible: false
+                                color: Qt.rgba(1, 0.42, 0.17, 0.15)
+                                border { color: Theme.accent; width: 2 }
+                            }
+                            // La mira en el centro: ahí va lo que se toque.
+                            Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
+                            Rectangle { anchors.centerIn: parent; width: 1; height: 18; color: Qt.rgba(1, 1, 1, 0.35) }
                             StatusPill { anchors { left: parent.left; top: parent.top; margins: 8 }
                                          text: page.mueveDigital ? "DIGITAL" : "ÓPTICO"; dot: page.cam && page.cam.listo ? Theme.ok : Theme.warn }
+                            Text {
+                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
+                                horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
+                                text: "Clic: apuntar · arrastrar: encuadrar ese cuadro" + (page.mueveDigital ? " · rueda: zoom · doble clic: cuadro completo" : "")
+                                color: Qt.rgba(1, 1, 1, 0.55); font.pixelSize: 10
+                                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: page.cam !== null
+                                preventStealing: true // que el ScrollView no se lleve el arrastre
+                                cursorShape: Qt.CrossCursor
+                                property point desde
+                                onPressed: (m) => { desde = Qt.point(m.x, m.y); cuadro.visible = false }
+                                onPositionChanged: (m) => {
+                                    if (!pressed) return
+                                    if (Math.abs(m.x - desde.x) < 6 && Math.abs(m.y - desde.y) < 6) return
+                                    cuadro.x = Math.min(m.x, desde.x); cuadro.y = Math.min(m.y, desde.y)
+                                    cuadro.width = Math.abs(m.x - desde.x); cuadro.height = Math.abs(m.y - desde.y)
+                                    cuadro.visible = true
+                                }
+                                onReleased: (m) => {
+                                    let u = vista.u(m.x), v = vista.v(m.y), an = 0, al = 0
+                                    if (cuadro.visible) {
+                                        cuadro.visible = false
+                                        u = vista.u(cuadro.x + cuadro.width / 2); v = vista.v(cuadro.y + cuadro.height / 2)
+                                        an = cuadro.width / vista.iw; al = cuadro.height / vista.ih
+                                    }
+                                    page.siNoAlAire(function() { page.avisar(page.cc.apuntar(page.sel, u, v, an, al)) })
+                                }
+                                onDoubleClicked: if (page.mueveDigital) page.siNoAlAire(function() { page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) })
+                                onWheel: (w) => {
+                                    if (!page.mueveDigital) return
+                                    const z = page.pos.zoom || 1
+                                    page.avisar(page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
+                                                                 Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                                }
+                            }
                         }
                         // Mapa: el cuadro entero y la ventana del recorte. Clic = centrar ahí.
                         ColumnLayout {
@@ -430,6 +514,8 @@ Rectangle {
                             spacing: 8
                             Text { text: page.mueveDigital ? "Presets digitales" : "Presets de la cámara"; color: Theme.textDim; font.pixelSize: 12 }
                             Item { Layout.fillWidth: true }
+                            GlassButton { compact: true; text: "16 más"; visible: page.presetsVisibles < (page.caps.presets || 0)
+                                          onClicked: page.presetsExtra++ }
                             GlassButton { compact: true; text: page.guardando ? "Tocá un número para guardar" : "Guardar…"
                                           active: page.guardando; onClicked: page.guardando = !page.guardando }
                         }
@@ -438,17 +524,24 @@ Rectangle {
                             columns: 8
                             rowSpacing: 6; columnSpacing: 6
                             Repeater {
-                                model: Math.min(16, page.caps.presets || 0)
+                                model: page.presetsVisibles
                                 delegate: Rectangle {
                                     required property int index
                                     readonly property int numero: index + 1
-                                    readonly property bool lleno: !page.mueveDigital || (page.cam && page.cam.presetsDigitales.indexOf(numero) >= 0)
-                                    width: 52; height: 40; radius: 10
+                                    readonly property string foto: page.fotosPresets[String(numero)] || ""
+                                    readonly property bool lleno: foto !== "" || !page.mueveDigital || (page.cam && page.cam.presetsDigitales.indexOf(numero) >= 0)
+                                    width: 64; height: 40; radius: 8; clip: true
                                     color: pm.pressed ? Theme.accent : page.guardando ? Qt.rgba(1, 0.42, 0.17, 0.14)
                                                                                      : lleno ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.03)
                                     border.color: page.guardando ? Theme.accent : Qt.rgba(1, 1, 1, lleno ? 0.22 : 0.08)
-                                    Text { anchors.centerIn: parent; text: numero; color: lleno || page.guardando ? Theme.text : Theme.textFaint
-                                           font { pixelSize: 15; weight: Font.DemiBold } }
+                                    // La foto del lugar, sacada al guardar.
+                                    Image { anchors.fill: parent; anchors.margins: 1; visible: foto !== ""; source: foto
+                                            fillMode: Image.PreserveAspectCrop; asynchronous: true; opacity: pm.pressed ? 0.5 : 1 }
+                                    Text { anchors { centerIn: foto === "" ? parent : undefined; left: foto !== "" ? parent.left : undefined
+                                                     bottom: foto !== "" ? parent.bottom : undefined; margins: 3 }
+                                           text: numero; color: lleno || page.guardando ? Theme.text : Theme.textFaint
+                                           font { pixelSize: foto !== "" ? 11 : 15; weight: Font.DemiBold }
+                                           style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, foto !== "" ? 0.8 : 0) }
                                     MouseArea {
                                         id: pm
                                         anchors.fill: parent

@@ -22,6 +22,7 @@
 #include <QFile>
 #include <QCoreApplication>
 #include <QImage>
+#include <QFileInfo>
 #include <QUrl>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -174,6 +175,8 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
                                          : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
             {"presetsDigitales", presetsDig},
+            {"fotosPresetsDigitales", fotosPresets(c, true)},
+            {"fotosPresetsCamara", fotosPresets(c, false)},
             {"posiciones", posiciones(qs(c.entrada))}};
 }
 
@@ -359,6 +362,8 @@ QString ControlCamaras::guardarPreset(const QString& entrada, int n) {
     if (n < 1 || n > b->capacidades().presets)
         return QStringLiteral("Preset %1 fuera de rango (1-%2)").arg(n).arg(b->capacidades().presets);
     b->guardarPreset(n);
+    // La foto del lugar: el recorte digital ya está ahí; la cabeza, quieta donde se guarda.
+    fotoPreset(entrada, b == c->dig.get(), n);
     guardarPronto();
     emit cambio();
     return {};
@@ -526,6 +531,60 @@ QString ControlCamaras::guardarMiniatura(const QString& entrada, const QString& 
     guardarPronto();
     emit cambio();
     return {};
+}
+
+QString ControlCamaras::nombreFotoPreset(const Camara& c, bool digital, int n) const {
+    return QString::fromStdString(nombreClave(c.entrada)) + (digital ? "-preset-dig-" : "-preset-cam-") +
+           QString::number(n) + ".jpg";
+}
+
+QVariantMap ControlCamaras::fotosPresets(const Camara& c, bool digital) const {
+    QVariantMap out;
+    const QString prefijo = QString::fromStdString(nombreClave(c.entrada)) + (digital ? "-preset-dig-" : "-preset-cam-");
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(carpetaMiniaturas(), ec), fin; !ec && it != fin; it.increment(ec)) {
+        const QString f = QString::fromStdWString(it->path().filename().wstring());
+        if (!f.startsWith(prefijo) || !f.endsWith(".jpg")) continue;
+        bool ok = false;
+        const int n = f.mid(prefijo.size(), f.size() - prefijo.size() - 4).toInt(&ok);
+        if (!ok || n < 1) continue;
+        const QString ruta = QString::fromStdWString(it->path().wstring());
+        // La fecha en la URL: si se regraba, QML no muestra la foto vieja del caché.
+        out[QString::number(n)] = QUrl::fromLocalFile(ruta).toString() + "?v=" +
+                                  QString::number(QFileInfo(ruta).lastModified().toMSecsSinceEpoch());
+    }
+    return out;
+}
+
+void ControlCamaras::fotoPreset(const QString& entrada, bool digital, int n) {
+    Camara* c = camara(entrada, nullptr);
+    if (c == nullptr) return;
+    const QString ruta =
+        QString::fromStdWString((carpetaMiniaturas() / nombreFotoPreset(*c, digital, n).toStdWString()).wstring());
+    QPointer<ControlCamaras> yo(this);
+    rt_.engine().capturarAparte(
+        c->entrada, 320, [yo, entrada, ruta, n](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+            QImage img;
+            if (e.empty() && w > 0 && h > 0)
+                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+            QMetaObject::invokeMethod(
+                qApp,
+                [yo, entrada, ruta, img, n]() {
+                    if (!yo) return;
+                    if (img.isNull()) {
+                        emit yo->aviso(QStringLiteral("La entrada «%1» no da imagen ahora: el preset %2 queda sin foto")
+                                           .arg(entrada)
+                                           .arg(n));
+                        return;
+                    }
+                    std::error_code ec;
+                    std::filesystem::create_directories(yo->carpetaMiniaturas(), ec);
+                    if (!img.save(ruta, "JPG", 82))
+                        emit yo->aviso(QStringLiteral("No se pudo guardar la foto en %1").arg(ruta));
+                    emit yo->cambio();
+                },
+                Qt::QueuedConnection);
+        });
 }
 
 void ControlCamaras::miniaturaPronto(const QString& entrada, const QString& id) {

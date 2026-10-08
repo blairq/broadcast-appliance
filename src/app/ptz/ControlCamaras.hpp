@@ -175,6 +175,12 @@ class ControlCamaras : public QObject {
     /// La foto, un rato después (el recorte digital tarda en llegar).
     void miniaturaPronto(const QString& entrada, const QString& id);
     std::filesystem::path carpetaMiniaturas() const;
+    /// La foto de un preset (de la cámara o digital): Miniaturas/ptz/<clave>-preset-<cam|dig>-<n>.jpg.
+    QString nombreFotoPreset(const Camara& c, bool digital, int n) const;
+    /// Saca la foto del preset `n` (lo que muestra la entrada ahora).
+    void fotoPreset(const QString& entrada, bool digital, int n);
+    /// n -> url de la foto de cada preset que tiene una.
+    QVariantMap fotosPresets(const Camara& c, bool digital) const;
 
     bool interlockActivo_ = true;
     bool seguirSuavePermitido_ = true;
