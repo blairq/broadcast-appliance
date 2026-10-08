@@ -183,6 +183,8 @@ async function prenderCamara() {
     for (const t of local.getAudioTracks()) t.enabled = false;
     $("propia").srcObject = new MediaStream(local.getVideoTracks());
     $("sinCamara").classList.add("oculto");
+    // Con el permiso dado, la lista de cámaras ya es la de verdad (antes algunos navegadores dicen una sola).
+    navigator.mediaDevices.enumerateDevices().then((l) => { camaras = l.filter((d) => d.kind === "videoinput").length; pintarCompartir(); }).catch(() => {});
   } else {
     $("sinCamara").classList.remove("oculto");
   }
@@ -242,6 +244,7 @@ async function iniciarSala() {
   pc.onicecandidate = (ev) => {
     if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "medios-ice", candidate: ev.candidate }));
   };
+  pintarCompartir();
   pc.onconnectionstatechange = () => {
     $("aSala").classList.toggle("oculto", pc.connectionState !== "connected");
     if (pc.connectionState === "failed" && pcSala === pc) setTimeout(() => { if (pcSala === pc) iniciarSala(); }, 2000);
@@ -252,9 +255,69 @@ async function iniciarSala() {
 }
 
 function cerrarSala() {
+  dejarDeCompartir(false);
   if (pcSala) { try { pcSala.close(); } catch (e) {} }
   pcSala = null;
   $("aSala").classList.add("oculto");
+  pintarCompartir();
+}
+
+// --- Mostrar algo mientras tiene la palabra ------------------------------------------------
+// Un segundo video en la misma conexión hacia la sala: en la app es la entrada «Remoto con la
+// palabra — contenido». En una compu, su pantalla; en el celular (que no deja compartir la
+// pantalla), la otra cámara, para mostrar un papel o un objeto.
+let contenido = null;   // {track, transceptor}
+let camaras = 0;
+navigator.mediaDevices && navigator.mediaDevices.enumerateDevices &&
+  navigator.mediaDevices.enumerateDevices().then((l) => { camaras = l.filter((d) => d.kind === "videoinput").length; pintarCompartir(); }).catch(() => {});
+
+function pintarCompartir() {
+  const puede = !!pcSala;
+  $("compartir").classList.toggle("oculto", !puede);
+  const pantalla = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+  $("compartirPantalla").classList.toggle("oculto", !puede || !!contenido || !pantalla);
+  $("compartirCamara").classList.toggle("oculto", !puede || !!contenido || camaras < 2);
+  $("dejarDeCompartir").classList.toggle("oculto", !contenido);
+}
+
+async function renegociar() {
+  if (!pcSala || !ws || ws.readyState !== 1) return;
+  const oferta = await pcSala.createOffer();
+  await pcSala.setLocalDescription(oferta);
+  ws.send(JSON.stringify({ type: "medios-oferta", sdp: oferta.sdp }));
+}
+
+async function compartir(cual) {
+  if (!pcSala || contenido) return;
+  let flujo;
+  try {
+    flujo = cual === "pantalla"
+      ? await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 15 }, audio: false })
+      : await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: "environment" }, width: 1280, height: 720 }, audio: false });
+  } catch (e) {
+    if (cual !== "pantalla") {
+      try { flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false }); } catch (e2) {}
+    }
+    if (!flujo) { error(cual === "pantalla" ? "No se pudo compartir la pantalla." : "No se pudo abrir la otra cámara."); return; }
+  }
+  const track = flujo.getVideoTracks()[0];
+  if (!track || !pcSala) { for (const t of flujo.getTracks()) t.stop(); return; }
+  track.onended = () => dejarDeCompartir(true); // «Dejar de compartir» del navegador
+  contenido = { track, transceptor: pcSala.addTransceiver(track, { direction: "sendonly", streams: [flujo] }) };
+  pintarCompartir();
+  await renegociar();
+}
+
+function dejarDeCompartir(avisar) {
+  if (!contenido) return;
+  const c = contenido;
+  contenido = null;
+  try { c.track.stop(); } catch (e) {}
+  if (pcSala && avisar !== false) {
+    try { c.transceptor.sender.replaceTrack(null); c.transceptor.direction = "inactive"; } catch (e) {}
+    renegociar();
+  }
+  pintarCompartir();
 }
 
 // --- Lo que mira (WebRTC que solo recibe): su cámara, la salida principal u otra escena ---
@@ -513,6 +576,9 @@ $("pedir").addEventListener("click", () => {
 });
 $("cerrarResultado").addEventListener("click", () => $("resultado").classList.add("oculto"));
 $("sonido").addEventListener("click", () => ponerSonido(!sonidoPrendido));
+$("compartirPantalla").addEventListener("click", () => compartir("pantalla"));
+$("compartirCamara").addEventListener("click", () => compartir("camara"));
+$("dejarDeCompartir").addEventListener("click", () => dejarDeCompartir(true));
 document.addEventListener("pointerdown", activarSonido, { passive: true });
 $("reintentar").addEventListener("click", () => {
   mostrar("entrar");

@@ -1836,6 +1836,8 @@ bool SignalingServer::ofertaRemoto(const std::string& id, const std::string& sdp
         if (pump_ != nullptr) {
             cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
             cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+            // Lo que comparte (pantalla u otra cámara): el segundo video de la misma conexión.
+            cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardScreen(idx, p, b, w, h); };
         }
         sess->configure(cb, hub_.rtcFactory());
     }

@@ -546,6 +546,7 @@ int main(int argc, char** argv) {
     // R3: el remoto con la palabra (un canal; [0] reservado como los demás).
     pumpCfg.remotoAudioNames = {std::wstring(), toWide("BA.Audio.Remoto.1")};
     pumpCfg.remotoVideoNames = {std::wstring(), toWide("BA.Remoto.1")};
+    pumpCfg.remotoContenidoNames = {std::wstring(), toWide("BA.RemotoContenido.1")};
     for (int k = 1; k <= cfg.lobbySlots; ++k) {
         pumpCfg.lobbyAudioNames.push_back(toWide("BA.Audio.Lobby." + std::to_string(k)));
         pumpCfg.lobbyVideoNames.push_back(toWide("BA.Lobby." + std::to_string(k)));

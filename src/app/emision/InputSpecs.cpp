@@ -103,8 +103,12 @@ std::string tipoLogico(const std::string& type, const json& settings) {
 }
 
 std::string ajustesVideoInvitado(int slot, const std::string& channel) {
-    const std::string c = (channel == "share" || channel == "remoto") ? channel : "guest";
-    const std::string canal = (c == "share" ? "BA.GuestShare." : c == "remoto" ? "BA.Remoto." : "BA.Guest.") + std::to_string(slot);
+    const std::string c = (channel == "share" || channel == "remoto" || channel == "remoto_contenido") ? channel : "guest";
+    const std::string canal = (c == "share"              ? "BA.GuestShare."
+                               : c == "remoto"           ? "BA.Remoto."
+                               : c == "remoto_contenido" ? "BA.RemotoContenido."
+                                                         : "BA.Guest.") +
+                              std::to_string(slot);
     // Sin normalizar (llega BGRA a los cuadros que lleguen: sin videorate ni
     // conversión) y fuera de la compensación del estudio, como su audio
     // (baanillo): los dos van por la hora que les pone el gateway.

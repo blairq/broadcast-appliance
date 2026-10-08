@@ -250,9 +250,12 @@ void MediaPump::start() {
     remotoAudio_.clear();
     remotoVideo_.emplace_back();
     remotoAudio_.emplace_back();
+    remotoContenido_.clear();
+    remotoContenido_.emplace_back();
     const size_t remotos = cfg_.remotoVideoNames.empty() ? 0 : cfg_.remotoVideoNames.size() - 1;
     for (size_t k = 1; k <= remotos; ++k) {
         remotoVideo_.push_back(makeVideo(name(cfg_.remotoVideoNames, k), cfg_.programW, cfg_.programH));
+        remotoContenido_.push_back(makeVideo(name(cfg_.remotoContenidoNames, k), cfg_.programW, cfg_.programH));
         remotoAudio_.push_back(makeAudio(name(cfg_.remotoAudioNames, k)));
     }
     {
@@ -787,20 +790,27 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
 void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);
-    // Solo los de adentro comparten pantalla hacia el programa.
+    // Solo los de adentro comparten pantalla hacia el programa (y el remoto con la palabra).
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
         r.index < static_cast<int>(shareVideo_.size())) {
         publishVideo(*shareVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 &&
+               r.index < static_cast<int>(remotoContenido_.size()) && remotoContenido_[static_cast<size_t>(r.index)]) {
+        publishVideo(*remotoContenido_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
 }
 
 void MediaPump::apagarRemoto(int canal) {
     if (canal < 1 || canal >= static_cast<int>(remotoVideo_.size()) || !remotoVideo_[static_cast<size_t>(canal)]) return;
-    VideoOut& out = *remotoVideo_[static_cast<size_t>(canal)];
-    if (out.w <= 0 || out.h <= 0) return;
-    std::vector<uint8_t> negro(static_cast<size_t>(out.w) * out.h * 4u, 0);
-    for (size_t i = 3; i < negro.size(); i += 4) negro[i] = 0xFF;
-    publishVideo(out, negro.data(), out.w, out.h, false);
+    const auto negro = [this](VideoOut& out) {
+        if (out.w <= 0 || out.h <= 0) return;
+        std::vector<uint8_t> px(static_cast<size_t>(out.w) * out.h * 4u, 0);
+        for (size_t i = 3; i < px.size(); i += 4) px[i] = 0xFF;
+        publishVideo(out, px.data(), out.w, out.h, false);
+    };
+    negro(*remotoVideo_[static_cast<size_t>(canal)]);
+    if (canal < static_cast<int>(remotoContenido_.size()) && remotoContenido_[static_cast<size_t>(canal)])
+        negro(*remotoContenido_[static_cast<size_t>(canal)]);
 }
 
 void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real) {

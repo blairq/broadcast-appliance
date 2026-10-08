@@ -305,10 +305,23 @@ void AppRuntime::addGuests() {
         }
         if (!engine_.addGlobalAudio(a))
             std::printf("ba-app: el audio del remoto con la palabra no entró: %s\n", engine_.lastError().c_str());
-        bool hayVideo = false;
+        bool hayVideo = false, hayContenido = false;
         for (const auto& sc : cfg_.scenes)
-            for (const auto& s : sc.sources)
-                hayVideo = hayVideo || (inputs::esVideoInvitado(s.id, s.settingsJson) && s.settingsJson.find("remoto") != std::string::npos);
+            for (const auto& s : sc.sources) {
+                if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
+                hayVideo = hayVideo || s.settingsJson.find("\"remoto\"") != std::string::npos;
+                hayContenido = hayContenido || s.settingsJson.find("\"remoto_contenido\"") != std::string::npos;
+            }
+        // Lo que comparte (su pantalla o la otra cámara del celular), oculto como la pantalla de un invitado.
+        if (!hayContenido && !cfg_.scenes.empty()) {
+            SourceSpec v;
+            v.id = "ba_guest_video";
+            v.name = "Remoto con la palabra — contenido";
+            v.settingsJson = R"({"slot":1,"channel":"remoto_contenido"})";
+            v.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+            v.visible = false;
+            cfg_.scenes.front().sources.push_back(v);
+        }
         if (!hayVideo && !cfg_.scenes.empty()) {
             SourceSpec v;
             v.id = "ba_guest_video";
