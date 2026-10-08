@@ -134,6 +134,7 @@ class SignalingServer {
         /// preguntas la llene cualquiera que pase por el tunel.
         std::string publicoKey;
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
+        std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
         std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
     };
 

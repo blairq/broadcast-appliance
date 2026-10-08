@@ -202,6 +202,24 @@
     ajustarTextos();
   }
 
+  // --- Caras animadas ----------------------------------------------------------------
+  function urlCuadro(id, n) { return "caras/" + encodeURIComponent(id) + "/" + String(n).padStart(4, "0") + ".jpg"; }
+  const precargadas = new Set();
+  function precargar(k) {
+    if (precargadas.has(k.id)) return;
+    precargadas.add(k.id);
+    for (let i = 0; i < k.cuadros; ++i) { const im = new Image(); im.src = urlCuadro(k.id, i); }
+  }
+  // Un solo reloj para todas: cada cara muestra el cuadro de este momento.
+  setInterval(() => {
+    const ahora = Date.now();
+    for (const im of document.querySelectorAll("img.cara[data-anim]")) {
+      const [id, n, fps] = im.dataset.anim.split("|");
+      const src = urlCuadro(id, Math.floor(ahora * Number(fps) / 1000) % Number(n));
+      if (im.getAttribute("src") !== src) im.setAttribute("src", src);
+    }
+  }, 1000 / 16);
+
   function estilo(el, c) {
     el.style.background = c.fondo || "#2b2f3a";
     el.style.color = c.color || "#fff";
@@ -209,19 +227,34 @@
     el.classList.toggle("activo", !!c.activo);
     // La cara (data: URL que viene con la celda), el borde que puede titilar solo,
     // la insignia de la esquina (turno, «P») y el atenuado (sin unidad, sin central).
+    // Una cara propia (c.cara = {id, cuadros, fps}: foto o video corto) se trae
+    // por URL en 288 px (el navegador la guarda: no cambia nunca); si no, la
+    // data: URL chica de c.imagen.
     let cara = el.querySelector(":scope > img.cara");
-    if (c.imagen) {
+    const propia = c.cara && /^[\w-]+$/.test(c.cara.id || "") ? c.cara : null;
+    const src = propia ? urlCuadro(propia.id, 0) : c.imagen;
+    if (src) {
       if (!cara) {
         cara = document.createElement("img");
         cara.className = "cara";
         cara.alt = "";
         el.prepend(cara);
       }
-      if (cara.getAttribute("src") !== c.imagen) cara.src = c.imagen;
+      if (!propia || (propia.cuadros || 1) <= 1) {
+        delete cara.dataset.anim;
+        if (cara.getAttribute("src") !== src) cara.src = src;
+      } else {
+        const anim = propia.id + "|" + propia.cuadros + "|" + (propia.fps || 8);
+        if (cara.dataset.anim !== anim) {
+          cara.dataset.anim = anim;
+          precargar(propia);
+          cara.src = src;
+        }
+      }
     } else if (cara) {
       cara.remove();
     }
-    el.classList.toggle("con-cara", !!c.imagen);
+    el.classList.toggle("con-cara", !!src);
     el.style.setProperty("--borde", c.borde || "transparent");
     el.classList.toggle("con-borde", !!c.borde);
     el.classList.toggle("borde-titila", !!c.borde_titilar);

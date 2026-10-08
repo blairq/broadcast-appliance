@@ -126,6 +126,32 @@ bool BotoneraBorde::servir(long long fd, const std::string& rel) {
     return true;
 }
 
+bool BotoneraBorde::servirCara(long long fd, const std::string& rel) {
+    // Solo <id>/NNNN.jpg: letras, números y guiones en el id; nada de rutas.
+    const auto barra = rel.find('/');
+    const std::string id = barra == std::string::npos ? std::string() : rel.substr(0, barra);
+    const std::string f = barra == std::string::npos ? std::string() : rel.substr(barra + 1);
+    const auto valido = [](const std::string& s, bool cuadro) {
+        if (s.empty() || s.size() > 64) return false;
+        if (cuadro)
+            return s.size() == 8 && std::all_of(s.begin(), s.begin() + 4, [](char c) { return c >= '0' && c <= '9'; }) &&
+                   s.compare(4, 4, ".jpg") == 0;
+        return std::all_of(s.begin(), s.end(), [](char c) {
+            return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '-' || c == '_';
+        });
+    };
+    if (caras_.empty() || !valido(id, false) || !valido(f, true))
+        return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    std::ifstream in(std::filesystem::path(caras_) / id / f, std::ios::binary);
+    if (!in) return http::sendResponse(fd, 404, "text/plain", "no encontrado\n"), true;
+    std::ostringstream ss;
+    ss << in.rdbuf();
+    http::sendResponse(fd, 200, "image/jpeg", ss.str(),
+                       "Cache-Control: public, max-age=31536000, immutable\r\n"
+                       "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n");
+    return true;
+}
+
 bool BotoneraBorde::emparejarPermitido(std::uint32_t ip) {
     std::lock_guard<std::mutex> l(mu_);
     auto& v = intentos_[ip];
@@ -227,6 +253,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
         if (path == "/botonera") return http::sendResponse(fd, 301, "text/plain", "", "Location: /botonera/\r\n"), true;
         std::string rel = path.substr(std::string("/botonera/").size());
         if (rel.empty()) rel = "index.html";
+        if (rel.rfind("caras/", 0) == 0) return servirCara(fd, rel.substr(6));
         return servir(fd, rel);
     }
     if (api && method == "POST") {

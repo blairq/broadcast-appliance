@@ -109,6 +109,7 @@ class SatelliteServidor : public QObject {
     bool permitida(const std::string& ip) const;
 
     std::filesystem::path archivo_;
+    std::filesystem::path datos_; // las caras propias: Media/botonera/<id>/
     Botonera& bot_;
     bool activo_ = false;
     int puerto_ = 16622;
@@ -118,6 +119,7 @@ class SatelliteServidor : public QObject {
     std::unique_ptr<QTcpServer> srv_;
     std::map<QTcpSocket*, Cliente> clientes_;
     QTimer titilar_;
+    QTimer animar_; // las caras de video corto, a 8 cuadros/s
     bool fase_ = true;
 };
 

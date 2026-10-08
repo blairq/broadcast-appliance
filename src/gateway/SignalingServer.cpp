@@ -102,6 +102,7 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     sinks.toHosts = [this](const std::string& ev, const json& data) { broadcastToHosts(ev, data); };
     botonera_ = std::make_unique<BotoneraBorde>(cfg_.botoneraWebroot, log_,
                                                 [this](const json& d) { broadcastToHosts("botonera", d); });
+    botonera_->setCaras(cfg_.carasBotonera);
     sesion_ = std::make_unique<SesionBorde>(cfg_.sesionWebroot, log_,
                                             [this](const json& d) { broadcastToHosts("sesion", d); });
     // R3: el micrófono y la cámara del remoto con la palabra van a la app por el

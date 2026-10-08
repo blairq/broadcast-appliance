@@ -82,6 +82,7 @@ class FotosConfig;
 namespace ba::app::control {
 class BusEventos;
 class Botonera;
+class CarasBotonera;
 class SatelliteServidor;
 class Dsk;
 class Acciones;
@@ -161,6 +162,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* botonera READ botoneraQml CONSTANT)
     /// Companion Satellite manejando la botonera (control/SatelliteServidor).
     Q_PROPERTY(QObject* satellite READ satelliteQml CONSTANT)
+    /// Las caras de los botones (foto o video corto): control/CarasBotonera.
+    Q_PROPERTY(QObject* carasBotonera READ carasBotoneraQml CONSTANT)
     /// Las capas DSK encima del programa (control/Dsk): logo, intérprete LSA, zócalo fijo.
     Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
     /// Seguir al micrófono abierto: propone (o arma) la banca que pidió la palabra.
@@ -379,6 +382,7 @@ class StudioViewModel : public QObject {
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return *botonera_; }
+    control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
     Q_INVOKABLE QVariantMap apiRemotaUi() const;
     Q_INVOKABLE void setApiRemotaUi(bool activo);
@@ -388,6 +392,7 @@ class StudioViewModel : public QObject {
     QString urlApiRemota() const;
     QObject* botoneraQml() const;
     QObject* satelliteQml() const;
+    QObject* carasBotoneraQml() const;
     QObject* dskQml() const;
     QObject* seguirMicrofonoQml() const;
     asamblea::SeguirMicrofono& seguirMicrofono() { return *seguirMic_; }
@@ -867,6 +872,7 @@ class StudioViewModel : public QObject {
     };
     std::vector<Sellador> selladores_;
     std::atomic<bool> cancelarSellos_{false};
+    std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;

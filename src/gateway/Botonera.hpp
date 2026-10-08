@@ -62,6 +62,10 @@ class BotoneraBorde {
                  const std::string& headers, const std::string& body, std::uint32_t clientIp);
     /// Rutas /api/v1/botonera/* de la API de control.
     bool admin(long long fd, const std::string& method, const std::string& path, const std::string& body);
+    /// Donde están las caras propias de los botones (<datos>/Media/botonera):
+    /// GET /botonera/caras/<id>/NNNN.jpg, con caché para siempre (cada toma
+    /// tiene un id nuevo y sus archivos no cambian).
+    void setCaras(std::string dir) { caras_ = std::move(dir); }
     /// Cierra todo (al apagar).
     void cerrar();
 
@@ -89,12 +93,14 @@ class BotoneraBorde {
     void wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp);
     void enviar(const std::shared_ptr<Conn>& c, const nlohmann::json& msg);
     bool servir(long long fd, const std::string& rel);
+    bool servirCara(long long fd, const std::string& rel);
     bool emparejarPermitido(std::uint32_t ip);
     std::string autenticar(const std::string& token, bool soloHttp = false) const;
     bool apiRemota(long long fd, const std::string& method, const std::string& path, const std::string& headers,
                    std::uint32_t clientIp);
 
     std::string webroot_;
+    std::string caras_;
     Log& log_;
     Evento alApp_;
     mutable std::mutex mu_;

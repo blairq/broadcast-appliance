@@ -24,7 +24,10 @@ con el perfil del aparato: el plugin nunca llama herramientas por su cuenta desd
 
 El estado (``{"type": "estado", "pagina": {"columnas", "filas", …}, "paginas": [...], "celdas": [...],
 "confirmar": "x,y"?}``) trae por celda: ``x, y, ancho, alto, tipo, texto, icono, color, fondo,
-titilar, activo, valor, min, max, nivel``. Si una celda cambia el aire estando al aire, la app pide
+titilar, activo, valor, min, max, nivel``, y ``imagen`` (data: URL chica) o ``cara`` (``{id, cuadros, fps}``:
+una foto o un video corto propio, en cuadros de 288 px en la carpeta de datos; ``render_tecla`` la lee
+sola, en el cuadro de ese momento, así que para animarla alcanza con redibujar cada 1/fps s las celdas
+que tengan ``cara_animada(celda)``). Si una celda cambia el aire estando al aire, la app pide
 confirmación: ``estado["confirmar"]`` dice cuál, y apretarla de nuevo (dentro de 5 s) confirma
 (``presionar`` lo hace solo).
 """
@@ -152,11 +155,17 @@ class Superficies:
 
     # --- Dibujar una tecla -----------------------------------------------------------------
 
+    @staticmethod
+    def cara_animada(celda: dict | None) -> bool:
+        """¿La celda tiene de cara un video corto? (hay que redibujarla cada ``1 / celda["cara"]["fps"]`` s)."""
+        return bool(celda) and isinstance(celda.get("cara"), dict) and int(celda["cara"].get("cuadros", 1)) > 1
+
     def render_tecla(self, celda: dict | None, tamano: int = 72, fase_titilar: bool | None = None,
-                     esperando: bool = False):
-        """Una imagen PIL (RGB, `tamano`×`tamano`) con el fondo, el texto ajustado y el borde de tally o
-        de «activo». `fase_titilar`: si es ``False`` y la celda titila, se dibuja apagada (alterná cada
-        medio segundo). `esperando`: borde amarillo (confirmación de aire pendiente)."""
+                     esperando: bool = False, cuadro: int | None = None):
+        """Una imagen PIL (RGB, `tamano`×`tamano`) con el fondo, la cara, el texto ajustado y el borde de
+        tally o de «activo». `fase_titilar`: si es ``False`` y la celda titila, se dibuja apagada (alterná
+        cada medio segundo). `esperando`: borde amarillo (confirmación de aire pendiente). `cuadro`: el de
+        una cara animada (por defecto, el de este momento)."""
         from PIL import Image, ImageDraw, ImageFont  # pillow viene en el Python del programa
 
         img = Image.new("RGB", (tamano, tamano), "#000000")
@@ -167,7 +176,9 @@ class Superficies:
         if celda.get("titilar") and fase_titilar is False:
             fondo = tuple(int(c * 0.35) for c in fondo)
         d.rounded_rectangle((0, 0, tamano - 1, tamano - 1), radius=max(4, tamano // 10), fill=fondo)
-        cara = _cara(celda.get("imagen"), tamano, Image)
+        cara = _cara_propia(celda.get("cara"), tamano, Image, cuadro)
+        if cara is None:
+            cara = _cara(celda.get("imagen"), tamano, Image)
         if cara is not None:  # la cara apagada, para que se lea el texto encima
             img = Image.blend(img, cara, 0.6)
             d = ImageDraw.Draw(img)
@@ -221,6 +232,32 @@ def _cara(url: Any, tamano: int, Image) -> Any:
         except Exception:  # noqa: BLE001
             im = None
         if len(_caras) > 200:
+            _caras.clear()
+        _caras[clave] = im
+    return _caras[clave]
+
+
+def _cara_propia(cara: Any, tamano: int, Image, cuadro: int | None) -> Any:
+    """La cara propia (``Media/botonera/<id>/NNNN.jpg`` en los datos, 288 px) a la medida, con caché."""
+    if not isinstance(cara, dict):
+        return None
+    import os
+    import time
+    id_ = str(cara.get("id", ""))
+    raiz = os.environ.get("BA_DATA_ROOT", "")
+    if not id_ or not raiz or "/" in id_ or "\\" in id_ or ".." in id_:
+        return None
+    n = max(1, int(cara.get("cuadros", 1)))
+    fps = max(1, int(cara.get("fps", 8)))
+    i = (int(time.time() * fps) % n) if cuadro is None else int(cuadro) % n
+    clave = (id_, i, tamano)
+    if clave not in _caras:
+        try:
+            im = Image.open(os.path.join(raiz, "Media", "botonera", id_, f"{i:04d}.jpg")).convert("RGB")
+            im = im.resize((tamano, tamano), Image.LANCZOS)
+        except Exception:  # noqa: BLE001
+            im = None
+        if len(_caras) > 800:
             _caras.clear()
         _caras[clave] = im
     return _caras[clave]

@@ -78,6 +78,10 @@ class Botonera : public QObject {
         /// Una referencia de imagen («cuerpo:<banca>», «ptz:<cámara>/<posición>») como
         /// miniatura chica en data: URL ("" si no hay). Se llama al dibujar: con caché.
         std::function<std::string(const std::string& ref)> imagen;
+        /// Si la referencia es una cara propia («medio:<id>», CarasBotonera):
+        /// {id, cuadros, fps} para que cada superficie traiga los cuadros a su
+        /// medida (null si no).
+        std::function<json(const std::string& ref)> cara;
         /// Las bancas que son de presidente (la central), para pedir confirmación.
         std::function<std::set<std::string>()> presidentes;
         /// Nombres de herramientas que existen (para validar y el selector).

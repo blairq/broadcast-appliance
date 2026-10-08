@@ -91,6 +91,19 @@ Rectangle {
         running: page.visible && page.pestana === "editor"
         onTriggered: page.render = page.perfilId !== "" ? page.bot.paginaUi(page.perfilId, page.paginaId) : ({})
     }
+    // Las caras animadas (video corto) de la grilla, a 8 cuadros/s.
+    function urlCuadro(cara, ahora) {
+        const n = Math.max(1, cara.cuadros || 1)
+        const i = n > 1 ? Math.floor(ahora * (cara.fps || 8) / 1000) % n : 0
+        return Studio.carasBotonera.raizUrl + cara.id + "/" + String(i).padStart(4, "0") + ".jpg"
+    }
+    Timer {
+        id: animReloj
+        property double ahora: Date.now()
+        interval: 125; repeat: true
+        running: page.visible && page.pestana === "editor" && (page.render.celdas || []).some(c => c.cara && c.cara.cuadros > 1)
+        onTriggered: ahora = Date.now()
+    }
     Timer {
         id: reloj
         property double ahora: Date.now()
@@ -333,9 +346,12 @@ Rectangle {
                             border.width: sel || modelData.activo || bordeVisible ? 3 : 1
                             opacity: modelData.atenuar ? 0.4 : (modelData.titilar && reloj.ahora % 1000 < 500 ? 0.45 : 1)
                             clip: true
-                            // La cara (data: URL de la celda), apagada para que se lea el texto.
-                            Image { anchors.fill: parent; anchors.margins: parent.border.width; source: modelData.imagen || ""
-                                    visible: !!modelData.imagen; fillMode: Image.PreserveAspectCrop; opacity: 0.55 }
+                            // La cara, apagada para que se lea el texto: la propia (foto o video
+                            // corto, del disco, en el cuadro de este momento) o la data: URL de la celda.
+                            readonly property var cara: modelData.cara || null
+                            Image { anchors.fill: parent; anchors.margins: parent.border.width
+                                    source: parent.cara ? page.urlCuadro(parent.cara, animReloj.ahora) : (modelData.imagen || "")
+                                    visible: !!parent.cara || !!modelData.imagen; fillMode: Image.PreserveAspectCrop; opacity: 0.55 }
                             Rectangle {
                                 visible: !!modelData.insignia
                                 anchors { right: parent.right; top: parent.top; margins: 4 }
@@ -383,6 +399,8 @@ Rectangle {
                     spacing: 8
                     property string modo: "celda"   // celda | perfil (importar/exportar)
                     property var actual: ({})
+                    property string caraRef: ""      // estilo.imagen: «medio:<id>», «ptz:…», «cuerpo:…»
+                    readonly property var caraInfo: caraRef.startsWith("medio:") ? Studio.carasBotonera.info(caraRef.substring(6)) : ({})
                     function cargar(txt) {
                         editor.modo = "celda"
                         let c = {}
@@ -393,6 +411,7 @@ Rectangle {
                         textoF.text = est.texto || ""
                         fondoF.text = est.fondo || ""
                         colorF.text = est.color || ""
+                        editor.caraRef = est.imagen || ""
                         const a = c.accion || {}
                         herrF.text = a.herramienta || ""
                         argsF.text = a.args ? JSON.stringify(a.args) : ""
@@ -406,6 +425,8 @@ Rectangle {
                         c.estilo = Object.assign({}, c.estilo || {}, { texto: textoF.text })
                         if (fondoF.text !== "") c.estilo.fondo = fondoF.text
                         if (colorF.text !== "") c.estilo.color = colorF.text
+                        if (editor.caraRef !== "") c.estilo.imagen = editor.caraRef
+                        else delete c.estilo.imagen
                         if (herrF.text.trim() !== "") {
                             let args = {}
                             if (argsF.text.trim() !== "") args = JSON.parse(argsF.text)
@@ -433,6 +454,40 @@ Rectangle {
                         TextField { id: fondoF; Layout.fillWidth: true; color: Theme.text; placeholderText: "#2b2f3a" }
                         Text { text: "Letra"; color: Theme.textDim; font.pixelSize: 12 }
                         TextField { id: colorF; Layout.fillWidth: true; color: Theme.text; placeholderText: "#ffffff" }
+                        Text { text: "Cara"; color: Theme.textDim; font.pixelSize: 12 }
+                        // Una foto o un video de hasta 5 s (archivo o cámara): EditorCara.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Rectangle {
+                                width: 40; height: 40; radius: 6; color: Qt.rgba(1, 1, 1, 0.05); clip: true
+                                border.color: Theme.glassBorder
+                                Image { anchors.fill: parent; anchors.margins: 1; fillMode: Image.PreserveAspectCrop
+                                        source: editor.caraInfo.url || ""; visible: !!editor.caraInfo.url }
+                                Text { anchors.centerIn: parent; visible: !editor.caraInfo.url
+                                       text: editor.caraRef !== "" ? "✓" : "—"; color: Theme.textFaint; font.pixelSize: 12 }
+                                Text { anchors { right: parent.right; bottom: parent.bottom; margins: 2 }
+                                       visible: !!editor.caraInfo.video; text: "▶"; color: "white"; font.pixelSize: 10
+                                       style: Text.Outline; styleColor: "black" }
+                            }
+                            GlassButton { compact: true; text: "Archivo…"; onClicked: editorCara.abrir(false) }
+                            GlassButton { compact: true; text: "Cámara…"; onClicked: editorCara.abrir(true) }
+                            GlassButton { compact: true; text: "✕"; visible: editor.caraRef !== ""; onClicked: editor.caraRef = "" }
+                            Item { Layout.fillWidth: true }
+                        }
+                        Item { width: 1; height: 1; visible: !!editor.caraInfo.medio }
+                        CheckBox {
+                            id: alAireCara
+                            visible: !!editor.caraInfo.medio
+                            text: "Al tocar, poner este medio en la escena al aire"
+                            function usa() { return herrF.text.trim() === "media_use" && argsF.text.indexOf(editor.caraInfo.medio || "\u0000") >= 0 }
+                            checked: usa()
+                            onToggled: {
+                                if (checked) { herrF.text = "media_use"; argsF.text = JSON.stringify({ path: editor.caraInfo.medio, loop: !!editor.caraInfo.video }) }
+                                else if (herrF.text.trim() === "media_use") { herrF.text = ""; argsF.text = "" }
+                                checked = Qt.binding(usa)
+                            }
+                        }
                         Text { text: "Herramienta"; color: Theme.textDim; font.pixelSize: 12 }
                         // El nombre se puede escribir; «Elegir…» abre el catálogo con
                         // secciones, explicaciones y búsqueda (SelectorHerramientas).
@@ -1004,6 +1059,20 @@ Rectangle {
                 running: page.visible && page.pestana === "auditoria"
                 onTriggered: audLista.model = page.bot.auditoriaUi()
             }
+        }
+    }
+
+    // La cara del botón: foto o video corto, de un archivo o de una cámara.
+    EditorCara {
+        id: editorCara
+        onElegida: (id) => {
+            editor.caraRef = "medio:" + id
+            // Se guarda ya (si no, cerrar el editor la perdía).
+            let c
+            try { c = editor.armar() } catch (e) { return }
+            const e = page.bot.setCeldaUi(page.perfilId, page.paginaId, JSON.stringify(c))
+            if (e !== "") Studio.notify(e, "error")
+            else editor.cargar(page.bot.celdaJsonUi(page.perfilId, page.paginaId, page.selX, page.selY))
         }
     }
 

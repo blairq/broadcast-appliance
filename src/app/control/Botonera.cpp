@@ -927,6 +927,10 @@ json Botonera::renderCelda(const json& c, const std::string& claveValor) const {
     // La imagen es una referencia («cuerpo:5», «ptz:Cámara 1/Atril»): la app la
     // convierte en una miniatura (data: URL) que viaja con la celda.
     r["imagen"] = !imagen.empty() && g_.imagen ? g_.imagen(imagen) : std::string();
+    // Una cara propia (foto o video corto): la referencia liviana; los cuadros
+    // los trae cada superficie a su medida (ver CarasBotonera).
+    if (!imagen.empty() && g_.cara)
+        if (json c = g_.cara(imagen); c.is_object()) r["cara"] = std::move(c);
     return r;
 }
 

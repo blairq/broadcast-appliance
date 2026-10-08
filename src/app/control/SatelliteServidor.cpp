@@ -2,8 +2,10 @@
 #include "control/SatelliteServidor.hpp"
 
 #include "control/Botonera.hpp"
+#include "control/CarasBotonera.hpp"
 
 #include <QColor>
+#include <QDateTime>
 #include <QFont>
 #include <QFontMetrics>
 #include <QHostAddress>
@@ -76,7 +78,7 @@ std::map<std::string, std::string> SatelliteServidor::argumentos(const std::stri
 }
 
 SatelliteServidor::SatelliteServidor(const fs::path& datos, Botonera& botonera, QObject* parent)
-    : QObject(parent), archivo_(datos / "Config" / "botonera-satellite.json"), bot_(botonera) {
+    : QObject(parent), archivo_(datos / "Config" / "botonera-satellite.json"), datos_(datos), bot_(botonera) {
     cargar();
     connect(&titilar_, &QTimer::timeout, this, [this]() {
         fase_ = !fase_;
@@ -84,6 +86,15 @@ SatelliteServidor::SatelliteServidor(const fs::path& datos, Botonera& botonera, 
             for (auto& [id, a] : c.aparatos) dibujar(c, a, false);
     });
     titilar_.start(500);
+    connect(&animar_, &QTimer::timeout, this, [this]() {
+        for (auto& [s, c] : clientes_)
+            for (auto& [id, a] : c.aparatos)
+                if (a.ultimo.contains("celdas") &&
+                    std::any_of(a.ultimo["celdas"].begin(), a.ultimo["celdas"].end(),
+                                [](const json& cel) { return cel.contains("cara") && cel["cara"].value("cuadros", 1) > 1; }))
+                    dibujar(c, a, false);
+    });
+    animar_.start(125);
     if (activo_) abrir();
 }
 
@@ -376,15 +387,36 @@ QByteArray SatelliteServidor::tecla(const json& cel, int lado, bool esperando, b
     p.setBrush(fondo);
     p.setPen(Qt::NoPen);
     p.drawRoundedRect(QRectF(0, 0, lado, lado), lado / 10.0, lado / 10.0);
-    // La cara (data: URL de la celda), apagada para que se lea el texto encima.
-    if (const std::string im = cel.value("imagen", std::string()); im.rfind("data:", 0) == 0) {
+    // La cara propia (Media/botonera/<id>/<n>.jpg, 288 px) escalada a esta tecla
+    // y guardada así; si no, la data: URL de la celda. Apagada para que se lea el texto.
+    if (cel.contains("cara") && cel["cara"].is_object()) {
+        const std::string id = cel["cara"].value("id", std::string());
+        const int n = cel.value("cara_cuadro", 0);
+        const std::string clave = id + "/" + std::to_string(n) + "@" + std::to_string(lado);
+        auto it = caras_.find(clave);
+        if (it == caras_.end()) {
+            QImage cara;
+            if (!id.empty() && id.find("..") == std::string::npos && id.find('/') == std::string::npos) {
+                const fs::path f = datos_ / "Media" / "botonera" / fs::u8path(id) / CarasBotonera::archivoCuadro(n);
+                if (cara.load(QString::fromStdWString(f.wstring())))
+                    cara = cara.scaled(lado, lado, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            }
+            if (caras_.size() > 800) caras_.clear();
+            it = caras_.emplace(clave, cara).first;
+        }
+        if (!it->second.isNull()) {
+            p.setOpacity(0.6);
+            p.drawImage(QRectF(0, 0, lado, lado), it->second);
+            p.setOpacity(1.0);
+        }
+    } else if (const std::string im = cel.value("imagen", std::string()); im.rfind("data:", 0) == 0) {
         auto it = caras_.find(im);
         if (it == caras_.end()) {
             const auto coma = im.find(',');
             QImage cara;
             if (coma != std::string::npos)
                 cara.loadFromData(QByteArray::fromBase64(QByteArray::fromStdString(im.substr(coma + 1))));
-            if (caras_.size() > 200) caras_.clear();
+            if (caras_.size() > 800) caras_.clear();
             it = caras_.emplace(im, cara).first;
         }
         if (!it->second.isNull()) {
@@ -467,6 +499,13 @@ void SatelliteServidor::dibujar(Cliente& c, Aparato& a, bool forzar) {
                 cel = cc;
                 break;
             }
+        }
+        // Cara propia (foto o video corto): el cuadro de este momento; la firma
+        // cambia con él y tecla() lo lee del disco a la medida de la tecla.
+        if (cel.contains("cara") && cel["cara"].is_object()) {
+            const json& k = cel["cara"];
+            const int n = std::max(1, k.value("cuadros", 1)), fps = std::max(1, k.value("fps", 8));
+            cel["cara_cuadro"] = n > 1 ? static_cast<int>((QDateTime::currentMSecsSinceEpoch() * fps / 1000) % n) : 0;
         }
         const bool esperando = !cel.is_null() && conf == std::to_string(cel.value("x", 0)) + "," + std::to_string(cel.value("y", 0));
         const bool titila = esperando || (!cel.is_null() && (cel.value("titilar", false) || cel.value("borde_titilar", false)));

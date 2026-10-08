@@ -45,6 +45,7 @@
 #include "agent/Vocabulario.hpp"
 #include "agent/Notificador.hpp"
 #include "control/Botonera.hpp"
+#include "control/CarasBotonera.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"
 #include "control/Acciones.hpp"
@@ -928,7 +929,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         g.imagen = [this](const std::string& ref) -> std::string {
             QString ruta;
             const QString r = QString::fromStdString(ref);
-            if (r.startsWith("cuerpo:")) {
+            if (r.startsWith("medio:")) {
+                ruta = QString::fromStdString(carasBotonera_->rutaPoster(ref.substr(6)));
+            } else if (r.startsWith("cuerpo:")) {
                 ruta = cuerpo_->rutaFoto(r.mid(7));
             } else if (r.startsWith("ptz:") && camaras_) {
                 const QString resto = r.mid(4);
@@ -960,6 +963,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             imagenesBotonera_[clave] = url;
             return url;
         };
+        g.cara = [this](const std::string& ref) -> nlohmann::json {
+            if (ref.rfind("medio:", 0) != 0) return nullptr;
+            return carasBotonera_->cara(ref.substr(6));
+        };
         g.presidentes = [this]() {
             std::set<std::string> out;
             if (dcn_)
@@ -968,6 +975,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                         out.insert(u.value("banca", std::string()));
             return out;
         };
+        carasBotonera_ = std::make_unique<control::CarasBotonera>(rt, rt.dataRoot());
         botonera_ = std::make_unique<control::Botonera>(rt.dataRoot(), *bus_, std::move(g));
         // El Cuerpo cambió (nombres, fotos, unidades de la central): al bus, así se
         // redibuja la botonera y el plugin de la central relee su mapa.
@@ -2869,6 +2877,7 @@ namespace ba::app {
 
 QObject* StudioViewModel::botoneraQml() const { return botonera_.get(); }
 QObject* StudioViewModel::satelliteQml() const { return satellite_.get(); }
+QObject* StudioViewModel::carasBotoneraQml() const { return carasBotonera_.get(); }
 QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
 QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
 double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }

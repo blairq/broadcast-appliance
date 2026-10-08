@@ -22,6 +22,7 @@
 
 #include "control/Botonera.hpp"
 #include "control/BusEventos.hpp"
+#include "control/CarasBotonera.hpp"
 #include "control/Dsk.hpp"
 #include "control/Acciones.hpp"
 #include "control/SatelliteServidor.hpp"
@@ -384,6 +385,82 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
                             "» no esta en las herramientas del perfil; hasta que una persona la sume, el boton avisa y no "
                             "hace nada.";
             done(ToolResult::ok("Listo." + aviso));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "botonera_cara";
+        t.title = "Poner la cara de un botón (foto o video corto)";
+        t.category = "botonera";
+        t.description =
+            "Le pone de cara al botón en (`x`, `y`) una foto o un video de hasta 5 s, que se ve en la tablet, en el "
+            "Stream Deck y en la grilla de la app (el video se repite a 8 cuadros/s). De `archivo` (imagen, GIF o video: "
+            "los primeros 5 s) o de la cámara `entrada` (lo que muestra ahora: apuntala antes con ptz_apuntar o "
+            "ptz_encuadre); con `segundos` (1-5) graba un video, si no saca una foto. `al_tocar`: además, al tocar el "
+            "botón pone ese medio en la escena al aire (media_use; el perfil tiene que permitirla). La celda tiene que "
+            "existir (botonera_celda_set). Tarda lo que dura la toma; devuelve el id (estilo.imagen = «medio:<id>»).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"perfil", "pagina", "x", "y"}},
+                         {"properties",
+                          {{"perfil", {{"type", "string"}}},
+                           {"pagina", {{"type", "string"}}},
+                           {"x", {{"type", "integer"}, {"minimum", 0}}},
+                           {"y", {{"type", "integer"}, {"minimum", 0}}},
+                           {"archivo", {{"type", "string"}, {"description", "Ruta de una imagen, GIF o video."}}},
+                           {"entrada", {{"type", "string"}, {"description", "La cámara (ptz_camaras)."}}},
+                           {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 5}}},
+                           {"al_tocar", {{"type", "boolean"}}}}}};
+        t.examples = {R"({"perfil": "operador", "pagina": "principal", "x": 0, "y": 0, "entrada": "Cámara 1", "segundos": 3})",
+                      R"({"perfil": "operador", "pagina": "principal", "x": 1, "y": 0, "archivo": "/Users/yo/logo.png"})"};
+        t.run = [&bot, &vm](const json& a, Done done) {
+            const std::string perfil = a.value("perfil", std::string()), pagina = a.value("pagina", std::string());
+            const int x = a.value("x", 0), y = a.value("y", 0);
+            if (bot.celdaJsonUi(QString::fromStdString(perfil), QString::fromStdString(pagina), x, y).isEmpty())
+                return done(ToolResult::error("No hay celda en (" + std::to_string(x) + ", " + std::to_string(y) +
+                                              "): creala antes con botonera_celda_set"));
+            control::CarasBotonera& caras = vm.carasBotonera();
+            const QString archivo = QString::fromStdString(a.value("archivo", std::string()));
+            const QString entrada = QString::fromStdString(a.value("entrada", std::string()));
+            if (archivo.isEmpty() == entrada.isEmpty()) return done(ToolResult::error("Pasá `archivo` o `entrada` (uno)"));
+            QVariantMap r;
+            if (!archivo.isEmpty())
+                r = caras.importar(archivo);
+            else if (a.contains("segundos"))
+                r = caras.grabar(entrada, a.value("segundos", 5.0));
+            else
+                r = caras.capturarFoto(entrada);
+            if (r.contains("error")) return done(ToolResult::error(r.value("error").toString().toStdString()));
+            // Cuando termina ESTA toma: la cara en la celda (y la acción, si se pidió).
+            auto con = std::make_shared<QMetaObject::Connection>();
+            *con = QObject::connect(
+                &caras, &control::CarasBotonera::lista, &caras,
+                [&bot, &caras, con, mia = r.value("id").toString(), perfil, pagina, x, y, al = a.value("al_tocar", false),
+                 done](const QString& id, const QString& error) {
+                    if (id != mia) return;
+                    QObject::disconnect(*con);
+                    if (!error.isEmpty()) return done(ToolResult::error(error.toStdString()));
+                    json c = json::parse(bot.celdaJsonUi(QString::fromStdString(perfil), QString::fromStdString(pagina), x, y)
+                                             .toStdString(),
+                                         nullptr, false);
+                    if (!c.is_object()) return done(ToolResult::error("La celda ya no está"));
+                    if (!c.contains("estilo") || !c["estilo"].is_object()) c["estilo"] = json::object();
+                    c["estilo"]["imagen"] = "medio:" + id.toStdString();
+                    const QVariantMap info = caras.info(id);
+                    if (al && !info.value("medio").toString().isEmpty())
+                        c["accion"] = {{"tipo", "herramienta"},
+                                       {"herramienta", "media_use"},
+                                       {"args", {{"path", info.value("medio").toString().toStdString()},
+                                                 {"loop", info.value("video").toBool()}}}};
+                    const std::string e = bot.setCelda(perfil, pagina, c);
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    done(ToolResult::ok("Listo: cara «medio:" + id.toStdString() + "» (" +
+                                        std::to_string(info.value("cuadros").toInt()) + " cuadro(s)" +
+                                        (al && info.value("medio").toString().isEmpty()
+                                             ? "; un video de cámara no se puede poner al aire, solo se ve en el botón"
+                                             : "") +
+                                        ")."));
+                });
         };
         core.addTool(std::move(t));
     }

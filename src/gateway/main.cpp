@@ -600,6 +600,8 @@ int main(int argc, char** argv) {
     sigCfg.maxGuests = cfg.guests;
     sigCfg.adminPort = cfg.adminPort;
     sigCfg.adminWebroot = cfg.adminWebroot;
+    // Las caras propias de los botones (fotos y videos cortos): <datos>/Media/botonera.
+    sigCfg.carasBotonera = (pathFromUtf8(cfg.configDir).parent_path() / "Media" / "botonera").string();
     {
         std::filesystem::path guestRoot(cfg.webroot);
         if (!guestRoot.has_filename()) guestRoot = guestRoot.parent_path(); // "Web/guest/"
