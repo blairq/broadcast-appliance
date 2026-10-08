@@ -78,6 +78,13 @@ const Fila kFamilias[] = {
     {"monitors", "monitor pantalla fisica display escritorio"},
     {"input_", "entrada dispositivo camara microfono captura"},
     {"output_", "salida ventana proyeccion monitor"},
+    {"historico_", "historico archivo de eventos eventos anteriores pasados sesiones viejas bitacora "
+                   "lo que paso antes historial"},
+    {"superres_", "superresolucion superres agrandar escalar mejorar resolucion nitidez upscale x2 4k "
+                  "imagen chica borrosa"},
+    {"plugin_", "plugin complemento extension python programa propio script"},
+    {"dcn_", "central de conferencia bosch dcn ccu microfonos de banca unidades consola delegados"},
+    {"glosario_", "glosario terminos traduccion vocabulario palabras del evento como se dice"},
 };
 
 /// Lo propio de cada herramienta: lo que la distingue de sus hermanas.
@@ -279,7 +286,8 @@ const Fila kPropias[] = {
     {"scene_switch", "corta cortala corte pasa poné pone cambiar poner al aire pasar a cortar a programa "
                      "activa corte directo urgencia "
                      "cortar a camara pasar a camara ir a camara poner la camara "
-                     "pone al aire la pone al aire poner al aire la escena arranca con"},
+                     "pone al aire la pone al aire poner al aire la escena arranca con "
+                     "escena siguiente la escena que sigue pasar de escena otra escena"},
     {"scene_preview", "dejar preparada dejala lista preparar la proxima armar la que sigue armar preparar el "
                       "proximo plano bus de preview previo antes de sacarlo "
                       "cuear siguiente escena mesa switcher"},
@@ -382,7 +390,8 @@ const Fila kPropias[] = {
     {"capture_multiview", "todas las escenas de una grilla multiview"},
     {"capture_feed", "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una "
                      "señal entrante feed camara"},
-    {"capture_person", "ver a una persona invitado camara de alguien cara"},
+    {"capture_person", "ver a una persona invitado invitada camara de alguien cara como esta saliendo "
+                       "como sale como se ve el invitado mostrame al invitado mostrame a la invitada"},
     {"capture_people",
      "ver a todos los invitados grilla de personas toda la gente que hay quienes estan en la sala"},
     {"capture_sequence", "varias capturas seguidas ver que cambia movimiento"},
@@ -862,6 +871,48 @@ const Fila kPropias[] = {
                             "pantallas cual es cada monitor numero nombre "
                             "cual es el de la izquierda mostrar el numero"},
     {"monitors", "monitores conectados resolucion cuantas pantallas hay segundo monitor"},
+
+    // --- Las que no tenían ninguna (revisado contra tools/list el 2026-10-08) ---------
+    {"botonera_cara", "cara del boton foto del boton video en un boton imagen del boton icono tecla "
+                      "stream deck capturar de una camara foto de la camara gif animado"},
+    {"historico_buscar", "buscar en todos los eventos cuando se dijo quien hablo de que tema buscar en las "
+                         "transcripciones buscar una votacion vieja"},
+    {"historico_restaurar", "volver a la configuracion de un evento restaurar como estaba deshacer cambios "
+                            "configuracion vieja dejarlo como en la sesion anterior"},
+    {"historico_traer_del_dia", "asignar grabaciones viejas a un evento juntar las grabaciones del dia "
+                                "grabaciones sueltas"},
+    {"historico_retencion", "espacio en disco borrar grabaciones viejas cuanto disco queda limpieza "
+                            "liberar espacio retencion"},
+    {"historico_exportar", "exportar un evento copiar un evento a un disco llevarse la sesion entregar "
+                           "las grabaciones pendrive"},
+    {"historico_ajustes", "que se registra que se guarda en la bitacora jornada automatica privacidad"},
+    {"traduccion_bajar", "bajar idioma descargar paquetes de traduccion agregar un idioma ingles portugues "
+                         "frances aleman ruso chino sin internet"},
+    {"glosario_ver", "ver el glosario que terminos respeta la traduccion"},
+    {"glosario_agregar", "agregar un termino corregir una traduccion se traduce mal nombre propio sigla "
+                         "como se dice en ingles"},
+    {"glosario_quitar", "sacar un termino apagar un grupo de terminos"},
+    {"motor_mapa", "gpu cpu donde pasa el video copias memoria rendimiento lento placa de video "
+                   "pipelines del motor diagnostico de video"},
+    {"superres_estado", "que motores de superresolucion hay modelos instalados progreso del entrenamiento"},
+    {"superres_tarjeta", "poner superresolucion en una camara agrandar una entrada mejorar una camara "
+                         "de baja resolucion tarjeta de superresolucion"},
+    {"superres_aplicar", "superresolucion en un stream de red agrandar una entrada de red"},
+    {"superres_modelo", "bajar un modelo de superresolucion span esrgan real esrgan convertir a onnx"},
+    {"superres_entrenar", "entrenar una red para esta camara aprender de la camara mejorar a medida "
+                          "entrenamiento"},
+    {"plugin_ver", "ver el codigo de un plugin leer un ejemplo manifiesto archivos del plugin"},
+    {"plugin_desde_ejemplo", "copiar un ejemplo empezar un plugin desde un ejemplo plantilla de plugin"},
+    {"plugin_reiniciar", "reiniciar un plugin recargar despues de cambiar el codigo no responde"},
+    {"plugin_registro", "errores de un plugin que imprimio log del plugin por que falla traceback"},
+    {"plugin_borrar", "borrar un plugin sacar un plugin desinstalar"},
+    {"dcn_simular_prioridad", "simular el boton de prioridad del presidente prueba sin central"},
+    {"dcn_funciones", "funciones sin documentar de la central open interface lo que no esta en el manual"},
+    {"dcn_funcion", "llamar una funcion sin documentar de la central comando especial"},
+    {"dcn_proximo", "quien sigue el proximo en hablar a quien le toca votar siguiente orador de la central"},
+    {"dcn_cerrar_tras_siguiente", "cerrar los microfonos al pasar al siguiente apagar el que hablaba"},
+    {"dcn_llamado_nominal", "orden del llamado nominal votacion nominal en que orden votan las bancas"},
+    {"dcn_simular_aviso", "simular un aviso de la central probar votacion pedida desde la consola"},
 
     {"settings_list", "que se puede configurar opciones disponibles"},
     {"settings_set", "cambiar una configuracion ajustar opcion"},
