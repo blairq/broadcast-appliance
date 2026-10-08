@@ -71,7 +71,9 @@ bool BroadcastEngine::ftb(bool activar, int ms, bool bajarAudio) {
         setError("el motor no está andando");
         return false;
     }
-    if (activar && !motor_->estado()["entradas"].contains(kFtb))
+    // Las internas se recuerdan acá: el motor las arma en su cola (ver
+    // Motor::orden), así que preguntarle si ya está no sirve recién pedida.
+    if (activar && internasPedidas_.insert(kFtb).second)
         motor_->agregarEntrada(kFtb, json{{"tipo", "color"}, {"color", "#FF000000"}, {"ancho", 64}, {"alto", 36}},
                                json{{"interna", true}, {"audio", false}});
     ftb_ = activar;
@@ -92,19 +94,18 @@ bool BroadcastEngine::placa(bool activar, const std::string& texto, const std::s
         placaTexto_ = texto.empty() ? std::string("Volvemos enseguida") : texto;
         placaImagen_ = imagen;
         const int H = video_.baseHeight, W = video_.baseWidth;
-        const json estado = motor_->estado()["entradas"];
-        if (!estado.contains(kPlacaFondo))
+        if (internasPedidas_.insert(kPlacaFondo).second)
             motor_->agregarEntrada(kPlacaFondo, json{{"tipo", "color"}, {"color", "#FF1C1C22"}, {"ancho", 64}, {"alto", 36}},
                                    json{{"interna", true}, {"audio", false}});
         const json t{{"tipo", "texto"}, {"texto", placaTexto_}, {"tamano", std::max(12, H / 22)}, {"color", "#FFFFFFFF"},
                      {"ancho", W}, {"alto", imagen.empty() ? H : H / 3}};
-        if (estado.contains(kPlacaTexto))
+        if (!internasPedidas_.insert(kPlacaTexto).second)
             motor_->actualizarEntrada(kPlacaTexto, t);
         else
             motor_->agregarEntrada(kPlacaTexto, t, json{{"interna", true}, {"audio", false}});
         if (!imagen.empty()) {
             const json im{{"tipo", "imagen"}, {"archivo", imagen}};
-            if (estado.contains(kPlacaImagen))
+            if (!internasPedidas_.insert(kPlacaImagen).second)
                 motor_->actualizarEntrada(kPlacaImagen, im);
             else
                 motor_->agregarEntrada(kPlacaImagen, im, json{{"interna", true}, {"audio", false}});

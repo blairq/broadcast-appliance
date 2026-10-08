@@ -195,6 +195,17 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     c.relojPuerto = relojPuerto_;
     c.relojDominio = relojDominio_;
     motor_ = std::make_unique<motor::Motor>(c);
+    internasPedidas_.clear();
+    // Lo que se le encargó y falló después (las órdenes van en cola: ver
+    // Motor::orden). Llega desde el hilo del motor.
+    motor_->alFallar([this](const std::string& que, const std::string& error) {
+        std::function<void(const std::string&)> fn;
+        {
+            std::lock_guard<std::mutex> l(falloMotorM_);
+            fn = falloMotor_;
+        }
+        if (fn) fn("el motor no pudo hacer «" + que + "»: " + error);
+    });
     const std::string e = motor_->iniciar();
     if (!e.empty()) {
         setError(e);
@@ -437,6 +448,11 @@ void BroadcastEngine::retornoEnUso(bool si) {
         motor_->verSoltar("programa@gateway");
     }
     retornoPausado_ = !si;
+}
+
+void BroadcastEngine::alFallarMotor(std::function<void(const std::string&)> fn) {
+    std::lock_guard<std::mutex> l(falloMotorM_);
+    falloMotor_ = std::move(fn);
 }
 
 bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {

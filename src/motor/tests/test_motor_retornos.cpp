@@ -102,11 +102,22 @@ int main() {
     cfg.sinkEscucha = "fakesink sync=true"; // nada por los parlantes
     Motor motor(cfg);
     CHECK(motor.iniciar().empty(), "el motor arranca");
+    // Las órdenes del motor van en cola (Motor::orden): su error llega por
+    // alFallar. `falla` corre una, espera la cola y dice si falló.
+    std::string fallo;
+    motor.alFallar([&fallo](const std::string&, const std::string& e) { fallo = e; });
+    auto falla = [&]() {
+        motor.esperarCola();
+        const bool f = !fallo.empty();
+        fallo.clear();
+        return f;
+    };
 
     CHECK(motor.agregarEntrada("invitado1", tono(440), {{"global", true}}).empty(), "el invitado");
     CHECK(motor.agregarEntrada("mic", tono(1000), {{"global", true}}).empty(), "el micrófono");
     CHECK(motor.agregarEntrada("video", tono(2000), {{"global", false}}).empty(), "una de escena");
-    CHECK(!motor.agregarEntrada("mic", tono(1), {}).empty(), "no dos con el mismo id");
+    motor.agregarEntrada("mic", tono(1), {});
+    CHECK(falla(), "no dos con el mismo id");
     esperar(1500);
     auto rms = [&]() { return motor.estado()["programa"].value("rms_db", -120.0); };
     std::printf("programa (invitado + mic): %.2f dBFS\n", rms());
@@ -148,7 +159,8 @@ int main() {
     const json ps = motor.estado()["pistas"];
     std::printf("pista 2: %.2f dBFS\n", ps.contains("2") ? ps["2"].value("rms_db", -120.0) : 99.0);
     CHECK(ps.contains("2") && cerca(ps["2"].value("rms_db", -120.0), -15.05, 1.0), "la pista 2 lleva solo el micrófono");
-    CHECK(!motor.ponerPistas("mic", {7}).empty(), "pista 7 no existe");
+    motor.ponerPistas("mic", {7});
+    CHECK(falla(), "pista 7 no existe");
     std::int64_t latPista = 0;
     CHECK(motor.productorDeBus("pista2", &latPista) == "bus:pista2", "el productor de la pista");
 
@@ -166,7 +178,8 @@ int main() {
     esperar(1000);
     std::printf("escucha directo: pico %.2f dBFS\n", picoEscucha());
     CHECK(picoEscucha() > -12, "directo: las globales suenan");
-    CHECK(!motor.escuchar("pfl", "nadie").empty(), "PFL de una que no existe avisa");
+    motor.escuchar("pfl", "nadie");
+    CHECK(falla(), "PFL de una que no existe avisa");
     CHECK(motor.escuchar("apagado").empty(), "apagar la escucha");
 
     // Escenas: armar y take. El audio de las capas sigue al take.
@@ -177,7 +190,8 @@ int main() {
     CHECK(motor.agregarEntrada("cam", cam, {}).empty(), "una cámara con su micrófono (de escena)");
     CHECK(motor.definirEscena({{"nombre", "Cámara"}, {"capas", {{{"entrada", "cam"}}}}}).empty(), "definir la escena");
     CHECK(motor.definirEscena({{"nombre", "Vacía"}, {"capas", json::array()}}).empty(), "y otra vacía");
-    CHECK(!motor.take().empty(), "take sin nada armado avisa");
+    motor.take();
+    CHECK(falla(), "take sin nada armado avisa");
     CHECK(motor.armar("Cámara").empty(), "armar en el preview");
     esperar(500);
     CHECK(rms() < -11.0 && rms() > -13.0, "armada no suena (solo las globales)");
@@ -196,7 +210,8 @@ int main() {
     CHECK(st["entradas"]["mic"].value("global", false), "el estado sabe cuáles son globales");
     CHECK(motor.retorno(1, "programa", "").empty(), "volver a programa");
     CHECK(motor.quitarEntrada("cam").empty(), "sacar una entrada");
-    CHECK(!motor.quitarEntrada("cam").empty(), "sacarla dos veces avisa");
+    motor.quitarEntrada("cam");
+    CHECK(falla(), "sacarla dos veces avisa");
 
     motor.detener();
     std::printf("== test_motor_retornos: %s ==\n", fallos == 0 ? "OK" : "FALLOS");

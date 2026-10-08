@@ -47,15 +47,19 @@ Agravantes que encontró el inventario:
    lugar exacto; y cada tramo lento del bucle con su nombre. Con `--test`, una
    espera de la interfaz es un error en el registro.
 
-## Por pasos (de más impacto y menos riesgo a menos)
+## Por pasos
+
+El orden cambió al hacerlo: S3 va antes que S2, porque es la garantía (con la
+interfaz encolando, ningún bloqueo del motor la alcanza); S2 hace que el motor
+no se atrase.
 
 | | qué | estado |
 |---|---|---|
 | S0 | Vigía del candado y de los tramos del bucle (`Candado`, `Tramo`). Composiciones de escena desarmadas aparte (`desarmarAparte`). | hecho |
-| S1 | **Instantánea**: el bucle publica `estado()` (y lo que leen los vúmetros) en un `shared_ptr` atómico; `estadoMotor()` la lee sin candado. | |
-| S2 | **El bucle sin bloqueos**: los cambios de estado del `tic` de las entradas (reposo, rearmar, reintentos, sin datos, errores) y de `actualizarUso` pasan a un trabajador de estados; `origen_red` desarma fuera de su candado. | |
-| S3 | **Cola de órdenes**: `Motor::encolar` y versiones asincrónicas de las escrituras que bloquean (`agregarEntrada`, `actualizarEntrada`, `quitarEntrada`, `definirEscena`, `alAire`, `armar`, `dsk`, `verPedir`/`verSoltar`, `escucharEntrada`, `retorno`, `escuchar`), con la respuesta por evento de Qt. `BroadcastEngine` y sus llamadores pasan a esa forma (el MCP ya es por continuación: `Tool::run(args, done)`). | |
-| S4 | **Salidas y capturas**: parar grabación/transmisión/limpio en el trabajador con estado «parando…»; `capturarVista` por continuación en vez de dormir. | |
+| S1 | **Foto**: el bucle publica `estado()` en `Motor::instantanea()`; `estadoMotor()`, la Matriz, `medio` y `tbarHacia` la leen sin candado. | hecho |
+| S3 | **Cola de órdenes**: `Motor::orden` encola lo que escribe (entradas, escenas, aire, T-bar, DSK, vistas, retornos, escucha, tomas) y vuelve; los errores llegan por `alFallar` → aviso en la interfaz. Las tomas de audio nacen «en camino» (`tomaViva`). `verAvisar(nullptr)` es inmediato. Los cuadros de la app van a un **buzón** y los entrega el hilo de cuadros. `propiedadesEntrada` por un índice propio y sin esperar a una entrada ocupada. `esperarCola()` para los tests. | hecho (falta `iniciar`/`detener`, que corren al arrancar y al cerrar) |
+| S2 | **El bucle sin bloqueos**: los cambios de estado del `tic` de las entradas (reposo, rearmar, reintentos, sin datos, errores) y de `actualizarUso` a un trabajador; `origen_red` desarma fuera de su candado; armar una entrada nueva (≈560 ms) sin tener el candado. Hecho ya: escenas y entradas que se sacan se desarman aparte (`desarmarAparte`, `soltarEntrada`), y una nueva con el mismo id espera a la vieja. | parcial |
+| S4 | **Salidas y capturas** (fuera del motor, en `BroadcastEngine`): parar grabación/transmisión/limpio en el trabajador con estado «parando…»; `capturarVista` por continuación en vez de dormir hasta 3 s. | |
 | S5 | **Que no vuelva**: con `--test`, una espera de la interfaz en el candado o un `gst_element_set_state` en el hilo de la interfaz queda como error; un test que lo ejercita. | |
 
 Cada paso se prueba con la app en `--test` (escenas a las pantallas, la Axis

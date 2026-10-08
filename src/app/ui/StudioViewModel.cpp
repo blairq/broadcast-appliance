@@ -168,6 +168,16 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                       std::to_string(ahora - ultimaMarca) + " ms");
         ultimaMarca = ahora;
     };
+    // Lo que el motor no pudo hacer: sus órdenes van en cola y la interfaz no
+    // espera el resultado, así que el error llega después, desde su hilo.
+    rt_.engine().alFallarMotor([vm = QPointer<StudioViewModel>(this)](const std::string& texto) {
+        QMetaObject::invokeMethod(
+            qApp,
+            [vm, t = QString::fromStdString(texto)]() {
+                if (vm) emit vm->notify(t, "error");
+            },
+            Qt::QueuedConnection);
+    });
     // Modo seguro (el circuit breaker del launcher, tras varias caidas
     // seguidas): NADA que venga del disco. Aquel apaga todo; el diario apaga al
     // culpable. Juntos cubren los dos casos: el que rompe una cosa y el que
@@ -1208,6 +1218,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 }
 
 StudioViewModel::~StudioViewModel() {
+    rt_.engine().alFallarMotor(nullptr);
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.
     rt_.setCarpetaDelEvento(nullptr);

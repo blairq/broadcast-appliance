@@ -108,6 +108,8 @@ class Entrada {
     /// Se recuerda (se suma a lo anterior): una cadena rearmada lo recibe de nuevo.
     void control(const nlohmann::json& campos);
 
+    /// tipo=app: los cuadros los empuja la app (Motor::empujarCuadro).
+    bool deApp() const { return deApp_; }
     bool daVideo() const;
     /// ¿La está mostrando alguien (una composición o una vista)? Si no, deja pasar
     /// 2 cuadros por segundo antes de los filtros (ver Motor::actualizarUso) y, al
@@ -161,7 +163,10 @@ class Entrada {
     Reloj& reloj_;
     Lienzo lienzo_;
     std::string id_;
-    mutable std::mutex mu_;
+    /// timed: leerPropiedades no espera más de un instante (ver ahí).
+    mutable std::timed_mutex mu_;
+    mutable std::mutex propiedadesM_;
+    mutable std::map<std::string, nlohmann::json> propiedadesLeidas_; ///< bajo propiedadesM_
 
     // Lo pedido
     std::string uri_, descripcion_, descripcionAudio_, camara_, camaraModo_, microfono_, rack_;

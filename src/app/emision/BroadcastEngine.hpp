@@ -24,11 +24,13 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <functional>
 #include <future>
 #include <chrono>
 #include <map>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 
 #include <nlohmann/json.hpp>
@@ -449,6 +451,10 @@ class BroadcastEngine {
     /// Proceso B mientras esté ahí; vacía, lo suelta. La escena se compone aparte
     /// y sigue andando aunque no esté al aire. Dos pantallas con la misma escena
     /// comparten canal: eso lo decide quien reparte los canales (Pantallas).
+    /// Lo que se le encargó al motor y falló después: las órdenes que pueden
+    /// tardar van en cola y vuelven enseguida (la interfaz no espera), así que
+    /// su error llega por acá, desde el hilo del motor.
+    void alFallarMotor(std::function<void(const std::string&)> fn);
     bool escenaACanal(int k, const std::string& escena);
     std::string escenaDeCanal(int k) const;
 
@@ -706,6 +712,10 @@ class BroadcastEngine {
     std::array<CanalEscena, ba::ipc::kCanalesEscena> canalesEscena_;
     /// El hilo del motor manda mientras la interfaz cambia la escena de un canal.
     std::mutex canalesEscenaM_;
+    /// Las entradas internas (fundido a negro, placa) que ya se le pidieron a este motor.
+    std::set<std::string> internasPedidas_;
+    std::mutex falloMotorM_;
+    std::function<void(const std::string&)> falloMotor_;
     void enviarEscena(int k, const motor::Cuadro& c);
 
     mutable nlohmann::json estadoCache_;

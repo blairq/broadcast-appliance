@@ -114,6 +114,16 @@ int main() {
     cfg.sinkEscucha = "fakesink";
     Motor motor(cfg);
     CHECK(motor.iniciar().empty(), "el motor arranca");
+    // Las órdenes del motor van en cola (Motor::orden): su error llega por
+    // alFallar. `falla` espera la cola y dice si la última falló.
+    std::string fallo;
+    motor.alFallar([&fallo](const std::string&, const std::string& e) { fallo = e; });
+    auto falla = [&]() {
+        motor.esperarCola();
+        const bool f = !fallo.empty();
+        fallo.clear();
+        return f;
+    };
     const json cam = {{"pipeline", "videotestsrc is-live=true do-timestamp=true pattern=ball ! video/x-raw,width=640,height=360,framerate=30/1"},
                       {"pipeline_audio", "audiotestsrc is-live=true wave=sine volume=0.25 freq=440"}};
     CHECK(motor.agregarEntrada("cam", cam, json{{"pistas", {1, 2}}}).empty(), "la cámara");
@@ -125,7 +135,8 @@ int main() {
     {
         CHECK(motor.verPedir("programa", 160, 90).empty(), "pedir la vista del programa");
         CHECK(motor.verPedir("entrada:cam", 320, 180).empty(), "pedir la vista de una entrada");
-        CHECK(!motor.verPedir("entrada:nadie", 160, 90).empty(), "una entrada que no existe avisa");
+        motor.verPedir("entrada:nadie", 160, 90);
+        CHECK(falla(), "una entrada que no existe avisa");
         motor.verSoltar("entrada:nadie");
         esperar(1000);
         Cuadro c;
@@ -141,6 +152,7 @@ int main() {
         CHECK(motor.verUltimo("entrada:cam", e, se) && e.ancho == 320, "la entrada a su tamaño");
         motor.verSoltar("programa");
         motor.verSoltar("entrada:cam");
+        motor.esperarCola();
         CHECK(motor.estado()["vistas"].empty(), "soltadas, se desarman");
     }
 

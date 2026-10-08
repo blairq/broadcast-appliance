@@ -131,6 +131,7 @@ int main() {
         esperar(800);
         CHECK(igual(mirar(m, "escena:App", 160, 90), 0, 255, 0), "la vista de la escena sigue sus cambios");
         m.verSoltar("escena:App");
+        m.esperarCola();
         CHECK(m.estado()["vistas"].count("escena:App") == 0, "soltada");
     }
 

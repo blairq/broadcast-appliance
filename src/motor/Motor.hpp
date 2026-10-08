@@ -45,6 +45,8 @@
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <functional>
 #include <future>
 #include <map>
@@ -190,6 +192,13 @@ class Motor {
     /// 100 ms; con `estado()` cualquier espera del candado congelaba la app).
     /// Vacía (json nulo) hasta la primera vuelta del bucle.
     std::shared_ptr<const nlohmann::json> instantanea() const;
+    /// Las órdenes que se encolaron y fallaron (ver orden): `que` es la función.
+    /// Se llama desde el hilo del motor.
+    void alFallar(std::function<void(const std::string& que, const std::string& error)> fn);
+    /// Espera a que el hilo del motor corra todo lo que se encoló hasta ahora.
+    /// Para los tests y para hilos que no son la interfaz: la interfaz NUNCA
+    /// espera (si lo hace, queda en el registro).
+    void esperarCola();
     /// Que la próxima vuelta del bucle (20 ms) publique la foto, sin esperar las
     /// 10 vueltas de siempre: lo pide quien acaba de cambiar algo.
     void pedirFoto() { fotoPedida_.store(true); }
@@ -204,7 +213,7 @@ class Motor {
 
    private:
     struct Canal {
-        std::unique_ptr<Entrada> entrada;
+        std::shared_ptr<Entrada> entrada; ///< compartida con el buzón de cuadros (ver empujarCuadro)
         bool global = false, enEscena = false, interna = false;
         double nivel = 1.0;
         bool mute = false;
@@ -253,8 +262,76 @@ class Motor {
     void publicarInstantanea();
     /// Las composiciones que se están desarmando aparte (ver soltarEscena).
     std::mutex desarmesM_;
-    std::vector<std::future<void>> desarmes_;
+    std::vector<std::shared_future<void>> desarmes_;
     void desarmarAparte(std::unique_ptr<Composicion> c);
+    std::shared_future<void> desarmarAparte(std::function<void()> f);
+    /// Entradas que se están desarmando aparte, por id: una nueva con el mismo id
+    /// espera a que termine (sus productores inter llevan el mismo nombre).
+    std::mutex desarmandoM_;
+    std::map<std::string, std::shared_future<void>> desarmando_;
+
+    // --- El buzón de cuadros de la app (ver empujarCuadro) ---
+    struct Buzon {
+        std::vector<std::uint8_t> px; ///< BGRA, filas pegadas
+        int ancho = 0, alto = 0;
+        bool hay = false;
+    };
+    std::mutex buzonesM_;
+    std::condition_variable buzonesCv_;
+    std::map<std::string, Buzon> buzones_;
+    std::map<std::string, std::shared_ptr<Entrada>> deApp_; ///< bajo buzonesM_: las que reciben cuadros
+    std::set<std::string> noDeApp_; ///< bajo buzonesM_: las que existen y no reciben cuadros
+    std::map<std::string, std::shared_ptr<Entrada>> todas_; ///< bajo buzonesM_: índice para leer sin mu_
+    std::thread hiloCuadros_;
+    void cuadros();
+    void indexarDeApp(const std::string& id, const std::shared_ptr<Entrada>& e);
+    /// Suelta una referencia a una entrada: si era la última, se desarma en otro
+    /// hilo (su destructor pasa sus pipelines a NULL: ni la interfaz ni el bucle).
+    void soltarEntrada(std::shared_ptr<Entrada>&& e);
+
+    // --- La cola de órdenes (ver orden en Motor.cpp) ---
+    std::mutex colaM_;
+    std::condition_variable colaCv_;
+    std::deque<std::pair<const char*, std::function<std::string()>>> cola_;
+    std::function<void(const std::string&, const std::string&)> alFallar_; ///< bajo colaM_
+    std::atomic<std::thread::id> hiloId_{};
+    bool enHiloDelMotor() const;
+    /// Encola `f` para el hilo del motor (o la corre ya, desde ese hilo o con el
+    /// motor parado). Devuelve su error solo si la corrió ya.
+    std::string orden(const char* que, std::function<std::string()> f);
+    void correrOrdenes();
+    // Lo que hacen de verdad las funciones públicas que se encolan.
+    std::string agregarEntradaYa(const std::string& id, const nlohmann::json& ajustes, const nlohmann::json& opciones);
+    std::string actualizarEntradaYa(const std::string& id, const nlohmann::json& ajustes);
+    std::string quitarEntradaYa(const std::string& id);
+    std::string propiedadEntradaYa(const std::string& id, const std::string& elemento, const std::string& prop,
+                                   const std::string& valor);
+    std::string controlEntradaYa(const std::string& id, const nlohmann::json& campos);
+    std::string ponerNivelYa(const std::string& id, double lineal);
+    std::string ponerMuteYa(const std::string& id, bool mute);
+    std::string ponerPistasYa(const std::string& id, const std::vector<int>& pistas);
+    void escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs);
+    std::string controlMedioYa(const std::string& id, const std::string& accion, std::int64_t ms);
+    nlohmann::json medioYa(const std::string& id) const;
+    std::string definirEscenaYa(const nlohmann::json& escena);
+    std::string quitarEscenaYa(const std::string& nombre);
+    std::string armarYa(const std::string& nombre);
+    std::string takeYa(const std::string& transicion, int ms);
+    std::string alAireYa(const std::string& nombre, const std::string& transicion, int ms);
+    std::string dskYa(const nlohmann::json& capas, int fundidoMs);
+    bool tbarYa(const std::string& nombre, double t, bool soltar, std::string* error);
+    std::string usarEscenaYa(const std::string& nombre);
+    void soltarEscenaYa(const std::string& nombre);
+    std::string retornoYa(int n, const std::string& modo, const std::string& propia);
+    std::string escucharYa(const std::string& modo, const std::string& id);
+    std::string ponerEscuchaYa(const std::string& id, bool on);
+    void escuchaDispositivoYa(const std::string& id);
+    void escuchaNivelYa(double lineal);
+    void masterVolumenYa(double lineal, int ms);
+    bool ponerLimitadorYa(bool activo, double techoDb);
+    std::string multiviewYa(bool activo, int ancho, int alto);
+    std::string verPedirYa(const std::string& clave, int ancho, int alto);
+    void verSoltarYa(const std::string& clave);
     std::set<std::string> dskEscenas_;
     // La toma de audio del programa
     GstElement* tomaAudio_ = nullptr;
@@ -263,8 +340,15 @@ class Motor {
         std::string id;
         std::atomic<bool> mute{false}; ///< la entrada está silenciada: llegan ceros
         std::function<void(const float*, std::size_t)> fn;
+        std::mutex fnM;       ///< se tiene mientras se llama a fn
+        bool apagada = false; ///< bajo fnM: ya no se llama a fn
     };
-    std::map<int, std::unique_ptr<TomaEntrada>> tomasEntrada_; ///< bajo mu_ (fn se llama sin él)
+    std::map<int, std::shared_ptr<TomaEntrada>> tomasEntrada_; ///< bajo mu_ (fn se llama sin él)
+    /// Las vivas, para tomaViva y dejarDeEscucharEntrada sin el candado del motor.
+    mutable std::mutex tomasVivasM_;
+    std::map<int, std::shared_ptr<TomaEntrada>> tomasVivas_;
+    void armarTomaAudio();
+    void escucharEntradaYa(int n, const std::string& id, std::function<void(const float*, std::size_t)> fn);
     std::mutex tomaMu_;
     std::map<int, std::function<void(const float*, std::size_t)>> oyentes_;
     int proximoOyente_ = 1;

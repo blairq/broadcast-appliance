@@ -206,14 +206,14 @@ std::string conComillas(const std::string& v) {
 
 Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json& ajustes)
     : reloj_(reloj), lienzo_(lienzo), id_(std::move(id)) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     leer(ajustes);
     armarSalida();
     armar();
 }
 
 Entrada::~Entrada() {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     desarmar();
     desarmarSalida();
     reloj_.olvidar(id_);
@@ -323,7 +323,7 @@ void Entrada::armarSalida() {
 
 void Entrada::ponerEnUso(bool si) {
     enUso_ = si;
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (!si) {
         if (sinUsoDesdeUs_ == 0) sinUsoDesdeUs_ = g_get_monotonic_time();
         return;
@@ -337,7 +337,7 @@ void Entrada::ponerEnUso(bool si) {
 }
 
 bool Entrada::enPlaca() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     return enPlacaSinLock();
 }
 
@@ -471,7 +471,7 @@ bool Entrada::daVideo() const { return !camara_.empty() || !descripcion_.empty()
 bool Entrada::daAudio() const { return conAudio_ && (!descripcionAudio_.empty() || !uri_.empty()); }
 
 void Entrada::actualizar(const json& ajustes) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     const std::string firmaAntes = firma_;
     const auto vAntes = filtrosV_;
     const auto aAntes = filtrosA_;
@@ -1090,7 +1090,7 @@ void Entrada::vigilarDatos() {
 }
 
 void Entrada::tic() {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (!controlEnviado_ && !control_.empty() && pipeline_ != nullptr) {
         std::uint64_t c = 0;
         {
@@ -1301,7 +1301,7 @@ void Entrada::procesarMensaje(GstMessage* m) {
 }
 
 bool Entrada::empujar(const std::uint8_t* bgra, int ancho, int alto, int stride) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (!deApp_ || pipeline_ == nullptr || bgra == nullptr || ancho <= 0 || alto <= 0) return false;
     GstElement* src = gst_bin_get_by_name(GST_BIN(pipeline_), "ba_app");
     if (src == nullptr) return false;
@@ -1339,7 +1339,7 @@ void Entrada::irANs(std::int64_t ns) {
 }
 
 std::string Entrada::controlMedio(const std::string& accion) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (!medio_) return "no es un medio";
     if (accion == "play" || accion == "pausa") {
         const bool pausar = accion == "pausa";
@@ -1375,7 +1375,7 @@ std::string Entrada::controlMedio(const std::string& accion) {
 }
 
 void Entrada::irA(std::int64_t ms) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     const std::int64_t ns = std::max<std::int64_t>(0, ms) * static_cast<std::int64_t>(GST_MSECOND);
     if (pipeline_ == nullptr) {
         armar();
@@ -1391,14 +1391,14 @@ void Entrada::irA(std::int64_t ms) {
 }
 
 std::string Entrada::estadoMedio() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (pipeline_ == nullptr && !error_.empty()) return "error";
     if (pipeline_ == nullptr && estadoMedio_ != "stopped") return "none";
     return estadoMedio_;
 }
 
 std::int64_t Entrada::tiempoMs() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (buscarNs_ >= 0) return buscarNs_ / static_cast<std::int64_t>(GST_MSECOND);
     gint64 pos = 0;
     if (pipeline_ == nullptr || !gst_element_query_position(pipeline_, GST_FORMAT_TIME, &pos)) return 0;
@@ -1406,14 +1406,14 @@ std::int64_t Entrada::tiempoMs() const {
 }
 
 std::int64_t Entrada::duracionMs() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     gint64 dur = 0;
     if (pipeline_ == nullptr || !gst_element_query_duration(pipeline_, GST_FORMAT_TIME, &dur)) return 0;
     return dur / static_cast<gint64>(GST_MSECOND);
 }
 
 json Entrada::estado() const {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     json j{{"id", id_},
            {"nombre", nombre_.empty() ? id_ : nombre_},
            {"anda", pipeline_ != nullptr},
@@ -1458,7 +1458,7 @@ json Entrada::estado() const {
 }
 
 void Entrada::control(const json& campos) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (!campos.is_object()) return;
     for (auto it = campos.begin(); it != campos.end(); ++it) control_[it.key()] = *it;
     controlEnviado_ = enviarControl();
@@ -1599,7 +1599,7 @@ json Entrada::estadoFiltros() const {
 }
 
 std::string Entrada::propiedad(const std::string& elemento, const std::string& prop, const std::string& valor) {
-    std::lock_guard<std::mutex> l(mu_);
+    std::lock_guard<std::timed_mutex> l(mu_);
     if (pipeline_ == nullptr) return "la entrada no está andando";
     GstElement* el = gst_bin_get_by_name(GST_BIN(pipeline_), elemento.c_str());
     if (el == nullptr) return "no hay un elemento «" + elemento + "» en la entrada";
@@ -1613,7 +1613,15 @@ std::string Entrada::propiedad(const std::string& elemento, const std::string& p
 }
 
 json Entrada::leerPropiedades(const std::string& elemento) const {
-    std::lock_guard<std::mutex> l(mu_);
+    // Lo lee la interfaz (los paneles de propiedades). Si la entrada está ocupada
+    // (rearmándose: cambios de estado con el candado tomado) no se espera: van
+    // los últimos valores leídos.
+    std::unique_lock<std::timed_mutex> l(mu_, std::chrono::milliseconds(10));
+    if (!l.owns_lock()) {
+        std::lock_guard<std::mutex> lp(propiedadesM_);
+        auto it = propiedadesLeidas_.find(elemento);
+        return it != propiedadesLeidas_.end() ? it->second : json::object();
+    }
     json o = json::object();
     if (pipeline_ == nullptr) return o;
     GstElement* el = gst_bin_get_by_name(GST_BIN(pipeline_), elemento.c_str());
@@ -1642,6 +1650,10 @@ json Entrada::leerPropiedades(const std::string& elemento) const {
     }
     g_free(pss);
     gst_object_unref(el);
+    {
+        std::lock_guard<std::mutex> lp(propiedadesM_);
+        propiedadesLeidas_[elemento] = o;
+    }
     return o;
 }
 
