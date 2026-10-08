@@ -370,6 +370,7 @@ int runGui(int argc, char** argv) {
                 return out;
             };
             g.catalogo = [&mcpService]() { return mcpService.core().catalogo(); };
+            g.buscar = [&mcpService](const std::string& q) { return mcpService.core().buscarHerramientas(q); };
         }
         // Los atajos de teclado: una persona apretando una tecla (como la botonera).
         vm.acciones().ganchos().ejecutar = [&mcpService, &vm](const std::string& h, const nlohmann::json& args,

@@ -253,6 +253,9 @@ class McpCore {
     /// comentario en el .cpp —contestarle a un rol herramientas que le van a
     /// rebotar le gasta el lugar a las que si puede usar—.
     json search(const std::string& query, const std::string& rol = {}) const;
+    /// Solo herramientas, con el mismo índice y hasta `tope`: [{nombre, puntaje, porque}].
+    /// Lo usa el selector de la Botonera (que busca igual que el asistente).
+    json buscarHerramientas(const std::string& query, std::size_t tope = 80) const;
 
     const std::vector<Tool>& tools() const { return tools_; }
     /// (id, titulo) de cada categoria, en orden.

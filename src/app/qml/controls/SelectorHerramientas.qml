@@ -7,7 +7,12 @@
 // nombre, el título, la explicación y las palabras con que la gente la pide
 // («que baje la música», «poner al aire»), sin importar acentos ni mayúsculas.
 //
-// Fuente: Studio.botonera.catalogoUi() (McpCore::catalogo).
+// La búsqueda es LA MISMA que la del asistente (help_search: el índice con pesos,
+// etiquetas y prefijos), no una propia: lo que encuentra uno lo encuentra el
+// otro, en el mismo orden. Con una sección elegida, busca adentro de esa.
+//
+// Fuente: Studio.botonera.catalogoUi() (McpCore::catalogo) y buscarUi()
+// (McpCore::buscarHerramientas).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -23,6 +28,7 @@ Popup {
     property var catalogo: []
     property string seccion: ""     // "" = todas
     property var filas: []          // lo que se ve: [{sec, secTitulo, ..., nombre, titulo, descripcion}]
+    property var enSeccion: ({})    // buscando: cuántas coinciden en cada sección
     readonly property var porSeccion: {
         const m = {}
         for (const c of sel.catalogo) m[c.titulo] = c
@@ -68,40 +74,62 @@ Popup {
     }
 
     function filtrar() {
-        const palabras = plano(buscar.text).split(/\s+/).filter(p => p.length > 0)
+        const texto = buscar.text.trim()
+        // Buscando: el índice del asistente dice cuáles y en qué orden (y por qué).
+        let hallados = null
+        if (texto !== "" && Studio.botonera.buscarUi) {
+            hallados = {}
+            const r = Studio.botonera.buscarUi(texto)
+            for (let i = 0; i < r.length; ++i)
+                hallados[r[i].nombre] = { puntos: r[i].puntaje, porque: (r[i].porque || []).join(", ") }
+        }
+        // Si no está (o no devolvió nada), la búsqueda simple: todas las palabras, sin tildes.
+        const palabras = hallados === null || Object.keys(hallados).length === 0
+                         ? plano(texto).split(/\s+/).filter(p => p.length > 0) : []
         const out = []
+        const cuenta = {}
         for (const c of catalogo) {
-            if (seccion !== "" && c.id !== seccion && palabras.length === 0) continue
             for (const h of c.herramientas) {
-                let puntos = 0
-                if (palabras.length > 0) {
-                    const cabeza = plano(h.titulo + " " + h.nombre)
-                    const todo = cabeza + " " + plano(h.descripcion + " " + h.etiquetas + " " + c.titulo)
-                    let todas = true
-                    for (const p of palabras) {
-                        if (todo.indexOf(p) < 0) { todas = false; break }
-                        puntos += cabeza.indexOf(p) >= 0 ? 3 : 1
+                let puntos = 0, porque = ""
+                if (texto !== "") {
+                    if (palabras.length === 0) {
+                        const e = hallados[h.nombre]
+                        if (!e) continue
+                        puntos = e.puntos
+                        porque = e.porque
+                    } else {
+                        const cabeza = plano(h.titulo + " " + h.nombre)
+                        const todo = cabeza + " " + plano(h.descripcion + " " + h.etiquetas + " " + c.titulo)
+                        let todas = true
+                        for (const p of palabras) {
+                            if (todo.indexOf(p) < 0) { todas = false; break }
+                            puntos += cabeza.indexOf(p) >= 0 ? 3 : 1
+                        }
+                        if (!todas) continue
                     }
-                    if (!todas) continue
+                    cuenta[c.id] = (cuenta[c.id] || 0) + 1
                 }
+                // La sección elegida filtra siempre (también buscando).
+                if (seccion !== "" && c.id !== seccion) continue
                 out.push({ sec: c.id, secTitulo: c.titulo, nombre: h.nombre, titulo: h.titulo,
-                           descripcion: h.descripcion, ejemplo: h.ejemplo || "",
+                           descripcion: h.descripcion, ejemplo: h.ejemplo || "", porque: porque,
                            soloLectura: !!h.solo_lectura, destructiva: !!h.destructiva, puntos: puntos })
             }
         }
-        // Buscando: lo que engancha en el título primero, sin perder las secciones.
-        if (palabras.length > 0) {
+        // Buscando: la sección con la mejor primero y adentro por puntos (una
+        // sección no se puede partir en dos: el encabezado saldría repetido).
+        if (texto !== "") {
             const mejor = {}
             for (const f of out) mejor[f.secTitulo] = Math.max(mejor[f.secTitulo] || 0, f.puntos)
-            // Ordenadas por sección (la mejor primero) y adentro por puntos: una
-            // sección no se puede partir en dos (el encabezado saldría repetido).
             out.sort((x, y) => (mejor[y.secTitulo] - mejor[x.secTitulo]) ||
                                x.secTitulo.localeCompare(y.secTitulo) || (y.puntos - x.puntos))
         }
+        enSeccion = cuenta
         filas = out
     }
 
     function cuantasEn(id) {
+        if (buscar.text.trim() !== "") return enSeccion[id] || 0
         for (const c of catalogo) if (c.id === id) return c.herramientas.length
         return 0
     }
@@ -122,7 +150,8 @@ Popup {
                 id: buscar
                 Layout.fillWidth: true
                 color: Theme.text
-                placeholderText: "Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…"
+                placeholderText: sel.seccion === "" ? "Buscar en todo: «poner al aire», «música», «grabar», «cámara 2»…"
+                                                    : "Buscar en «" + ((sel.catalogo.find(c => c.id === sel.seccion) || {}).titulo || sel.seccion) + "» (o elegí «Todas»)"
                 onTextChanged: sel.filtrar()
                 Keys.onDownPressed: { lista.forceActiveFocus(); if (lista.currentIndex < 0) lista.currentIndex = 0 }
                 Keys.onReturnPressed: if (sel.filas.length > 0) {
@@ -156,7 +185,9 @@ Popup {
                     width: secciones.width
                     height: 34
                     radius: 8
-                    readonly property bool activa: sel.seccion === modelData.id && buscar.text === ""
+                    readonly property bool activa: sel.seccion === modelData.id
+                    // Buscando, las secciones sin coincidencias quedan apagadas.
+                    opacity: buscar.text.trim() !== "" && modelData.id !== "" && sel.cuantasEn(modelData.id) === 0 ? 0.4 : 1
                     color: activa ? Qt.rgba(1, 0.42, 0.17, 0.22) : maSec.containsMouse ? Theme.glassHighlight : "transparent"
                     RowLayout {
                         anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
@@ -179,7 +210,7 @@ Popup {
                         anchors.fill: parent
                         hoverEnabled: true
                         onClicked: {
-                            buscar.text = ""
+                            // Lo escrito se queda: la sección acota la búsqueda.
                             sel.seccion = modelData.id
                             sel.filtrar()
                             lista.positionViewAtBeginning()
@@ -301,6 +332,13 @@ Popup {
                                 color: Theme.accentSoft
                                 font.pixelSize: 10
                             }
+                        }
+                        // Por qué salió (las palabras que engancharon): para corregir la búsqueda, no probar a ciegas.
+                        Text {
+                            visible: (modelData.porque || "") !== ""
+                            text: "por: " + modelData.porque
+                            color: Theme.textFaint
+                            font.pixelSize: 10
                         }
                         Text {
                             Layout.fillWidth: true

@@ -1620,6 +1620,11 @@ QVariantList Botonera::catalogoUi() const {
     return QJsonDocument::fromJson(QByteArray::fromStdString(cat.dump())).array().toVariantList();
 }
 
+QVariantList Botonera::buscarUi(const QString& texto) const {
+    if (!g_.buscar) return {};
+    return QJsonDocument::fromJson(QByteArray::fromStdString(g_.buscar(texto.toStdString()).dump())).array().toVariantList();
+}
+
 QStringList Botonera::herramientasUi(const QString& filtro) const {
     QStringList out;
     if (!g_.herramientas) return out;

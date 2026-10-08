@@ -88,6 +88,8 @@ class Botonera : public QObject {
         std::function<std::set<std::string>()> herramientas;
         /// El catálogo por categorías con sus explicaciones (McpCore::catalogo), para el selector.
         std::function<json()> catalogo;
+        /// La búsqueda del asistente (McpCore::buscarHerramientas): [{nombre, puntaje, porque}].
+        std::function<json(const std::string&)> buscar;
     };
 
     Botonera(const std::filesystem::path& datos, BusEventos& bus, Ganchos g, QObject* parent = nullptr);
@@ -197,6 +199,8 @@ class Botonera : public QObject {
     Q_INVOKABLE QStringList herramientasUi(const QString& filtro) const;
     /// El catálogo por categorías para el selector de herramientas (ver Ganchos::catalogo).
     Q_INVOKABLE QVariantList catalogoUi() const;
+    /// Las herramientas que encuentra el buscador del asistente para `texto`, mejores primero.
+    Q_INVOKABLE QVariantList buscarUi(const QString& texto) const;
 
    signals:
     void cambio();

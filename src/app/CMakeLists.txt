@@ -998,6 +998,12 @@ endif()
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_qml_carga COMMAND test_qml_carga)
+    # El selector de herramientas de la Botonera: busca y filtra por sección.
+    add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp)
+    target_link_libraries(test_selector_herramientas PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_compile_definitions(test_selector_herramientas PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+    set_target_properties(test_selector_herramientas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_selector_herramientas COMMAND test_selector_herramientas)
     # La interfaz parsea: qmllint sobre todos los QML (ver cmake/tests).
     find_program(BA_QMLLINT qmllint PATHS "${BA_QT_PREFIX}/bin" NO_DEFAULT_PATH)
     if(BA_QMLLINT)

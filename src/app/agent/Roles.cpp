@@ -346,7 +346,12 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         // abren o cierran micrófonos pasan por las guardas de aire.
         "conferencia",
         // La banca virtual (integrantes desde el navegador, en la sala o afuera).
-        "sesion"};
+        "sesion",
+        // La asamblea (revisar que esté lista, sus escenas), las configuraciones con
+        // nombre (crear, cambiar, la demo) y el histórico de los eventos. Faltaban
+        // y no fallaba nada: no existían para el asistente (ni en help_search).
+        // McpCore::verificarJuegos avisa en el registro si queda otra afuera.
+        "asamblea", "configuraciones", "historico"};
     return c;
 }
 

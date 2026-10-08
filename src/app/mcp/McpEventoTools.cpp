@@ -440,6 +440,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         core.addTool(std::move(t));
     }
     // --- historico_*: el archivo de todos los eventos (página Histórico) -----------
+    // (Sin registrar, sus herramientas caían en «Otras»: fuera del mapa del
+    // asistente, de su juego y de las secciones de la Botonera.)
+    core.addCategory("historico", "Histórico",
+                     "El archivo de todos los eventos: buscar en sus bitácoras y volver a su configuración.");
     {
         Tool t;
         t.name = "historico_buscar";

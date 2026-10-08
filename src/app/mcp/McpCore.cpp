@@ -337,6 +337,26 @@ void McpCore::verificarJuegos() const {
     std::set<std::string> reales;
     for (const Tool& t : tools_)
         reales.insert(t.category);
+    // Una categoria que usan herramientas pero nadie registro: caen en «Otras»,
+    // fuera del mapa del asistente y de las secciones de la Botonera.
+    std::set<std::string> registradas;
+    for (const Category& c : categories_) registradas.insert(c.id);
+    for (const std::string& c : reales)
+        if (registradas.count(c) == 0)
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                       "la categoria '" + c + "' la usan herramientas pero no esta registrada "
+                                       "(falta addCategory)");
+    // El asistente interactivo ve todo lo que se opera: una categoria nueva que no
+    // esta en su juego no existe para el (ni en help_search). Ver Roles::juegoDelAsistente.
+    if (const auto as = roles_.find("asistente"); as != roles_.end())
+        for (const std::string& c : reales)
+            if (as->second.count(c) == 0 && comunes_.count(c) == 0) {
+                int n = 0;
+                for (const Tool& t : tools_) n += t.category == c ? 1 : 0;
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                           "el asistente no ve la categoria '" + c + "' (" + std::to_string(n) +
+                                               " herramientas): sumarla a Roles::juegoDelAsistente si se opera");
+            }
     for (const auto& [rol, cats] : roles_)
         for (const std::string& c : cats)
             if (reales.count(c) == 0)
@@ -1052,6 +1072,18 @@ json McpCore::search(const std::string& query, const std::string& rol) const {
                            {"title", d.titulo},
                            {"score", static_cast<int>(r.puntaje * 10)},
                            {"porque", r.porque}});
+    }
+    return out;
+}
+
+json McpCore::buscarHerramientas(const std::string& query, std::size_t tope) const {
+    if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
+    json out = json::array();
+    for (const Resultado& r : indice_->buscar(query, tope + topics_.size())) {
+        const Documento& d = indice_->doc(r.doc);
+        if (d.clase != "herramienta") continue;
+        out.push_back({{"nombre", d.id}, {"puntaje", r.puntaje}, {"porque", r.porque}});
+        if (out.size() >= tope) break;
     }
     return out;
 }
