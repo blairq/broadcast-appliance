@@ -118,6 +118,7 @@ def foto() -> dict:
             oradores = [list(o) for o in e.oradores]
             pedidos = list(e.pedidos)
             unidades = {u: dict(x) for u, x in e.unidades.items()}
+            prio = dict(e.prioridad)
         modo = aj.get("modo")
         out.update({
             "ccu": {"version": e.version},
@@ -125,6 +126,11 @@ def foto() -> dict:
             "modo": m.MODO_NOMBRE.get(modo, str(modo) if modo is not None else ""),
             "modo_operador": modo in m.MODOS_OPERADOR,
             "max_abiertos": aj.get("max_abiertos"), "max_pedidos": aj.get("max_pedidos"),
+            # Todos los ajustes globales (los que se pueden cambiar con «ajustes»).
+            "ajustes": {k: v for k, v in aj.items() if not k.startswith("_")},
+            # El botón de prioridad del presidente: mientras está apretado, todos callados.
+            "prioridad": con_banca(prio.get("unidad", 0), {"activa": bool(prio.get("activa"))}) if prio.get("unidad")
+                         else {"activa": bool(prio.get("activa"))},
             "unidades": [foto_unidad(u, d) for u, d in sorted(unidades.items())],
             "abiertos": [banca_de(u) or f"u{u}" for u, on in oradores if on],
             "abiertos_unidades": [u for u, on in oradores if on],
@@ -238,6 +244,8 @@ def al_cambio(que: str, d: dict) -> None:
             plugin.evento("conferencia/siguiente", con_banca(d["primero"]))
     elif que == "modo":
         plugin.evento("conferencia/modo", foto().get("modo"))
+    elif que == "prioridad":
+        plugin.evento("conferencia/prioridad", con_banca(d.get("unidad", 0), {"activa": bool(d.get("activa"))}))
     elif que == "votacion" and ccu is not None:
         plugin.evento("votacion/resultado" if d.get("final") else "votacion/parcial", foto_votacion(ccu.estado))
     elif que == "asistencia" and ccu is not None:
@@ -638,6 +646,35 @@ def _modo(a):
     esperar(k.modo(a.get("modo"), a.get("max_abiertos"), a.get("max_pedidos")))
     f = foto()
     return {"modo": f.get("modo"), "max_abiertos": f.get("max_abiertos"), "max_pedidos": f.get("max_pedidos")}
+
+
+@control("ajustes", "Los ajustes globales de la CCU, leídos de ella: modo, max_abiertos, max_pedidos, "
+         "cancelar_pedidos, apagar_micro, tono, ambiente y prio_cancela_todo (si la prioridad del presidente "
+         "también borra los pedidos). Con alguno de esos campos, los cambia (los demás quedan).",
+         {"modo": {"type": "string", "enum": list(m.MODOS)}, "max_abiertos": {"type": "integer"},
+          "max_pedidos": {"type": "integer"}, "cancelar_pedidos": {"type": "boolean"},
+          "apagar_micro": {"type": "boolean"}, "tono": {"type": "integer"}, "ambiente": {"type": "boolean"},
+          "prio_cancela_todo": {"type": "boolean"}})
+def _ajustes(a):
+    k = requiere_ccu()
+    cambios = {x: a[x] for x in Ccu.AJUSTABLES if x in a}
+    if "modo" in cambios:
+        cambios["modo"] = m.MODOS[cambios["modo"]]
+    if cambios:
+        esperar(k.ajustar(cambios))
+    aj = esperar(k.leer_ajustes())
+    out = {x: v for x, v in aj.items() if not x.startswith("_")}
+    out["modo"] = m.MODO_NOMBRE.get(out.get("modo"), str(out.get("modo")))
+    return out
+
+
+@control("simular_prioridad", "Solo con el simulador: el presidente aprieta (activa=true) o suelta el botón de prioridad.",
+         {"activa": {"type": "boolean"}})
+def _simular_prioridad(a):
+    if sim is None:
+        raise RuntimeError("no está el simulador (transporte: simulador)")
+    sim.prioridad(None, bool(a.get("activa", True)))
+    return {}
 
 
 @control("tiempo", "Tiempo de uso de la palabra en las unidades: {limite_min, reloj} lo configura (el reloj de "

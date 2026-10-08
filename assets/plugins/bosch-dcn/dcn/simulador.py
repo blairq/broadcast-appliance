@@ -116,6 +116,23 @@ class Simulador:
                 return
             self.votar(u, random.choices(range(self.vt_params["opciones"]), weights=[6, 3, 1, 1][: self.vt_params["opciones"]])[0])
 
+    def prioridad(self, u: int | None = None, on: bool = True) -> None:
+        """El botón de prioridad del presidente: calla a los delegados (y con prio_cancela_todo
+        también vacía los pedidos) y abre el micrófono del presidente."""
+        with self.lock:
+            if u is None:
+                u = next((x for x in self.unidades if self._es_presidente(x)), 1)
+            self._ntf(m.MM_C_CHAIR_MICS_ON, m.prioridad(u, on))
+            if not on:
+                return
+            for o in list(self.spk):
+                if o[1] and not self._es_presidente(o[0]):
+                    self._micro(o[0], False)
+            if self.ajustes.get("prio_cancela_todo") and self.rts:
+                self.rts = []
+                self._ntf(m.MM_C_RTS_CLEAR_ON_PC, b"")
+            self._micro(u, True)
+
     def crecer(self, n: int) -> None:
         """Que haya por lo menos `n` unidades (sin contar las mitades derechas): las nuevas se «enchufan»."""
         with self.lock:

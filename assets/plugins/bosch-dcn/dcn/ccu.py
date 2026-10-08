@@ -103,6 +103,7 @@ class Estado:
         self.oradores: list[list] = []            # [[unidad, microfono_prendido]] en orden (SPK)
         self.pedidos: list[tuple[int, int]] = []  # [(unidad, delegado)] en orden (RTS)
         self.ajustes: dict = {}
+        self.prioridad: dict = {"activa": False, "unidad": 0, "desde": 0.0}  # el botón de prioridad del presidente
         self.version = ""
         self.sincronizado = False
         # Fase 2.
@@ -486,17 +487,39 @@ class Ccu:
     def modo(self, nombre: str | None = None, max_abiertos: int | None = None, max_pedidos: int | None = None) -> Future:
         if nombre is not None and nombre not in m.MODOS:
             return _fallado(ErrorCcu(0, "modo: " + ", ".join(m.MODOS)))
+        cambios: dict = {}
+        if nombre is not None:
+            cambios["modo"] = m.MODOS[nombre]
+        if max_abiertos is not None:
+            cambios["max_abiertos"] = int(max_abiertos)
+        if max_pedidos is not None:
+            cambios["max_pedidos"] = int(max_pedidos)
+        return self.ajustar(cambios)
+
+    AJUSTABLES = ("modo", "max_abiertos", "max_pedidos", "cancelar_pedidos", "apagar_micro", "tono", "ambiente",
+                  "prio_cancela_todo")
+
+    def leer_ajustes(self) -> Future:
+        """Los ajustes globales de la CCU, leídos ahora (no lo guardado)."""
+        def hecho(d: bytes) -> dict:
+            a = m.leer_ajustes(d)
+            with self.estado.lock:
+                self.estado.ajustes = a
+            return a
+        return luego(self.pedir(m.MM_C_GET_SETTINGS, cambia=False), hecho)
+
+    def ajustar(self, cambios: dict) -> Future:
+        """Cambia algunos ajustes globales (los demás quedan como los tiene la CCU)."""
         if self.solo_escuchar:
             return self.pedir(m.MM_C_SET_SETTINGS)  # falla con el mensaje de «solo escuchar»
+        raros = [k for k in cambios if k not in self.AJUSTABLES]
+        if raros:
+            return _fallado(ErrorCcu(0, "no se puede ajustar: " + ", ".join(raros)))
 
         def poner(d: bytes) -> Future:
             a = m.leer_ajustes(d)
-            if nombre is not None:
-                a["modo"] = m.MODOS[nombre]
-            if max_abiertos is not None:
-                a["max_abiertos"] = int(max_abiertos)
-            if max_pedidos is not None:
-                a["max_pedidos"] = int(max_pedidos)
+            for k, v in cambios.items():
+                a[k] = int(v) if k in ("modo", "max_abiertos", "max_pedidos", "tono") else bool(v)
 
             def hecho(_d) -> None:
                 self.estado.ajustes = a
@@ -598,6 +621,12 @@ class Ccu:
         elif f == m.MM_C_SET_SETTINGS_ON_PC:
             e.ajustes = m.leer_ajustes(d)
             cambio("modo", {})
+        elif f == m.MM_C_CHAIR_MICS_ON:
+            # El presidente apretó prioridad: la CCU calla a todos y abre el suyo.
+            u, on = m.leer_prioridad(d)
+            with e.lock:
+                e.prioridad = {"activa": on, "unidad": u, "desde": time.time() if on else 0.0}
+            cambio("prioridad", {"unidad": u, "activa": on})
         elif f in (m.SC_C_CONNECT_UNIT, m.SC_C_DISCONNECT_UNIT):
             u, tipo = m.leer_unidad_sc(d)
             e.poner_unidad(u, tipo, f == m.SC_C_CONNECT_UNIT)

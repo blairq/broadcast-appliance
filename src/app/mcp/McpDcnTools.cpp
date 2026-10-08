@@ -77,6 +77,25 @@ void McpService::registerDcnTools() {
           {"max_abiertos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}},
           {"max_pedidos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}}},
          false, false},
+        {"dcn_ajustes", "ajustes", "Ajustes de la central",
+         "Lee de la central todos sus ajustes globales (modo, max_abiertos, max_pedidos, cancelar_pedidos, "
+         "apagar_micro, tono, ambiente y prio_cancela_todo: si el botón de prioridad del presidente también borra los "
+         "pedidos). Con alguno de esos campos, lo cambia; los demás quedan como estaban.",
+         {{"modo",
+           {{"type", "string"},
+            {"enum", {"operador", "delegado_lista", "reemplazo", "voz", "operador_replicas", "pulsar",
+                      "operador_sin_ac", "voz_sin_ac"}}}},
+          {"max_abiertos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 25}}},
+          {"max_pedidos", {{"type", "integer"}, {"minimum", 1}, {"maximum", 100}}},
+          {"cancelar_pedidos", {{"type", "boolean"}}},
+          {"apagar_micro", {{"type", "boolean"}}},
+          {"tono", {{"type", "integer"}}},
+          {"ambiente", {{"type", "boolean"}}},
+          {"prio_cancela_todo", {{"type", "boolean"}}}},
+         false, false},
+        {"dcn_simular_prioridad", "simular_prioridad", "Simular la prioridad del presidente",
+         "Solo con el simulador: el presidente aprieta (`activa: true`) o suelta su botón de prioridad.",
+         {{"activa", {{"type", "boolean"}}}}, false, false},
         {"dcn_tiempo", "tiempo", "Tiempo de uso de la palabra",
          "`{limite_min, reloj}` configura el reloj de las unidades (cuenta para atrás); `{banca, aviso}` muestra en la "
          "unidad de esa banca «queda un minuto» (ultimo_minuto) o «se terminó el tiempo» (terminado). La fila de "

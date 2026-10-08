@@ -247,6 +247,34 @@ class Fase2(unittest.TestCase):
         self.assertTrue(esperar(lambda: (self.ccu.estado.votacion.get("ultimo") or {}).get("votos", [0])[0] == 1))
         self.ccu.votacion_cerrar().result(timeout=2)
 
+    def test_prioridad_del_presidente(self):
+        # Dos delegados hablando; el presidente (unidad 1) aprieta prioridad: todos callados y él abierto.
+        for u in (2, 3):
+            self.ccu.microfono(u, True).result(timeout=2)
+        self.assertTrue(esperar(lambda: set(self.ccu.estado.abiertos()) >= {2, 3}))
+        self.sim.prioridad(1, True)
+        self.assertTrue(esperar(lambda: self.ccu.estado.prioridad.get("activa") and self.ccu.estado.prioridad.get("unidad") == 1))
+        self.assertTrue(esperar(lambda: set(self.ccu.estado.abiertos()) == {1}))
+        self.assertIn(("prioridad", {"unidad": 1, "activa": True}), self.cambios)
+        self.sim.prioridad(1, False)
+        self.assertTrue(esperar(lambda: not self.ccu.estado.prioridad.get("activa")))
+
+    def test_prioridad_cancela_pedidos(self):
+        self.ccu.ajustar({"modo": 0, "prio_cancela_todo": True}).result(timeout=2)
+        self.assertTrue(self.sim.ajustes["prio_cancela_todo"])
+        self.sim.apretar(4)
+        self.assertTrue(esperar(lambda: any(p[0] == 4 for p in self.ccu.estado.pedidos)))
+        self.sim.prioridad(1, True)
+        self.assertTrue(esperar(lambda: not self.ccu.estado.pedidos))
+
+    def test_ajustes_no_pisan_el_byte_reservado(self):
+        self.sim.ajustes["_reservado"] = 7
+        self.ccu.ajustar({"tono": 2}).result(timeout=2)
+        self.assertEqual(self.sim.ajustes.get("_reservado"), 7)
+        self.assertEqual(self.ccu.leer_ajustes().result(timeout=2)["tono"], 2)
+        with self.assertRaises(ErrorCcu):
+            self.ccu.ajustar({"inventado": 1}).result(timeout=2)
+
     def test_crecer(self):
         self.sim.crecer(10)
         self.assertTrue(esperar(lambda: len([u for u in self.ccu.estado.unidades if u <= 10]) == 10))

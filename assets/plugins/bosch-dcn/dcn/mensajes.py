@@ -258,12 +258,15 @@ AJUSTES = struct.Struct("<HHHBBHBBB")  # MM_T_CCU_GLOBAL_SETTINGS
 def leer_ajustes(d: bytes) -> dict:
     v = AJUSTES.unpack_from(d, 0)
     return {"modo": v[0], "max_abiertos": v[1], "max_pedidos": v[2], "cancelar_pedidos": bool(v[3]),
-            "apagar_micro": bool(v[4]), "tono": v[5], "ambiente": bool(v[6]), "prio_cancela_todo": bool(v[8])}
+            "apagar_micro": bool(v[4]), "tono": v[5], "ambiente": bool(v[6]), "prio_cancela_todo": bool(v[8]),
+            # El byte sin nombre del manual: se devuelve tal cual (antes se escribía 0 y se pisaba lo de la CCU).
+            "_reservado": v[7]}
 
 
 def ajustes(a: dict) -> bytes:
     return AJUSTES.pack(a["modo"], a["max_abiertos"], a["max_pedidos"], int(a.get("cancelar_pedidos", True)),
-                        int(a.get("apagar_micro", True)), a.get("tono", 0), int(a.get("ambiente", False)), 0,
+                        int(a.get("apagar_micro", True)), a.get("tono", 0), int(a.get("ambiente", False)),
+                        int(a.get("_reservado", 0)) & 0xFF,
                         int(a.get("prio_cancela_todo", False)))
 
 
@@ -450,3 +453,15 @@ def tiempo_palabra(minutos: int, reloj: bool = True, pausa_prioridad: bool = Tru
 
 
 _NOMBRES.update({v: k for k, v in globals().items() if k.startswith(("VT_C_", "AT_C_")) and isinstance(v, int)})
+
+
+def leer_prioridad(d: bytes) -> tuple[int, bool]:
+    """MM_C_CHAIR_MICS_ON: el formato no está en el manual [A VERIFICAR con la CCU]. Se lee lo que venga:
+    {wUnitId; bOn} si llegan 3 bytes, solo la unidad si llegan 2, y sin datos «prioridad prendida»."""
+    u = struct.unpack_from("<H", d, 0)[0] if len(d) >= 2 else 0
+    on = bool(d[2]) if len(d) >= 3 else True
+    return u, on
+
+
+def prioridad(u: int, on: bool) -> bytes:
+    return struct.pack("<HB", u, 1 if on else 0)
