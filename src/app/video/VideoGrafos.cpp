@@ -1087,6 +1087,35 @@ std::string decimal(double v) {
         if (*c == ',') *c = '.';
     return b;
 }
+
+/// La tarjeta Vista 360: de una imagen equirectangular a lo que ve una cámara que
+/// mira hacia yaw/pitch con un campo vertical fov (grados); aspect = ancho/alto de la salida.
+constexpr const char* kShader360 = R"(#version 100
+#ifdef GL_ES
+precision highp float;
+#endif
+varying vec2 v_texcoord;
+uniform sampler2D tex;
+uniform float yaw;
+uniform float pitch;
+uniform float fov;
+uniform float aspect;
+void main () {
+  vec2 p = v_texcoord * 2.0 - 1.0;
+  p.y = -p.y;
+  float t = tan(radians(fov) * 0.5);
+  vec3 d = normalize(vec3(p.x * t * aspect, p.y * t, 1.0));
+  float cp = cos(radians(pitch));
+  float sp = sin(radians(pitch));
+  d = vec3(d.x, d.y * cp + d.z * sp, -d.y * sp + d.z * cp);
+  float cy = cos(radians(yaw));
+  float sy = sin(radians(yaw));
+  d = vec3(d.x * cy + d.z * sy, d.y, -d.x * sy + d.z * cy);
+  float lon = atan(d.x, d.z);
+  float lat = asin(clamp(d.y, -1.0, 1.0));
+  gl_FragColor = texture2D(tex, vec2(lon / 6.2831853 + 0.5, 0.5 - lat / 3.1415927));
+}
+)";
 } // namespace
 
 json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
@@ -1309,6 +1338,13 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             pr["espejo-h"] = p.value("espejoH", false) ? "true" : "false";
             pr["espejo-v"] = p.value("espejoV", false) ? "true" : "false";
             alfa = alfa || recorta;
+        } else if (tipo == "vista360") {
+            // En la placa: glshader con el shader de la 360 (el motor le pone la subida a GL).
+            f["elemento"] = "glshader";
+            pr["fragment"] = kShader360;
+            pr["uniforms"] = "u, yaw=(float)" + decimal(p.value("yaw", 0.0)) + ", pitch=(float)" +
+                             decimal(p.value("pitch", 0.0)) + ", fov=(float)" + decimal(p.value("fov", 90.0)) +
+                             ", aspect=(float)" + decimal(std::max(0.1, p.value("proporcion", 2.0)));
         } else if (tipo == "gst") {
             const std::string el = p.value("elemento", std::string());
             if (el.empty()) break;

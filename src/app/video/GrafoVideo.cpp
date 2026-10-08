@@ -21,7 +21,7 @@ constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
     return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" ||
-           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres" || t == "ptz" || t == "seguir";
+           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres" || t == "ptz" || t == "seguir" || t == "vista360";
 }
 
 json fabrica(const std::string& tipo) {
@@ -32,6 +32,10 @@ json fabrica(const std::string& tipo) {
         return {{"izquierda", 0.0}, {"arriba", 0.0},    {"derecha", 0.0},
                 {"abajo", 0.0},     {"espejoH", false}, {"espejoV", false}};
     if (tipo == "salida") return {{"nombre", ""}};
+    // Una imagen 360 (equirectangular) vista como una cámara común: hacia dónde mira
+    // (`yaw` -180..180, `pitch` -90..90, en grados), cuánto abre (`fov`, el campo
+    // vertical) y la `proporcion` (ancho/alto) del cuadro que sale (2 = el de la 360).
+    if (tipo == "vista360") return {{"yaw", 0.0}, {"pitch", 0.0}, {"fov", 90.0}, {"proporcion", 2.0}};
     // `ms` (lo que se mide) manda sobre `cuadros` si es > 0.
     if (tipo == "retardo") return {{"cuadros", 0}, {"ms", 0}};
     // Una fuente que declara mal su color o su entrelazado: lo que dice
@@ -104,6 +108,7 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "color") return "Color";
     if (tipo == "croma") return "Croma";
     if (tipo == "recorte") return "Recorte y espejo";
+    if (tipo == "vista360") return "Vista 360";
     if (tipo == "salida") return "Salida";
     if (tipo == "retardo") return "Retardo";
     if (tipo == "normalizar") return "Normalizar";
@@ -244,6 +249,11 @@ json GrafoVideo::parametrosDe(const std::string& tipo) {
             l.push_back(param(k, "numero", "Cuánto se recorta de ese lado (fracción del cuadro; queda transparente).", {{"min", 0}, {"max", 0.5}}));
         l.push_back(param("espejoH", "si_no", "Espejo horizontal."));
         l.push_back(param("espejoV", "si_no", "Espejo vertical."));
+    } else if (tipo == "vista360") {
+        l.push_back(param("yaw", "numero", "Hacia dónde mira, de costado (grados).", {{"min", -180}, {"max", 180}}));
+        l.push_back(param("pitch", "numero", "Hacia arriba o abajo (grados).", {{"min", -90}, {"max", 90}}));
+        l.push_back(param("fov", "numero", "Cuánto abre (grados, vertical): menos es más zoom.", {{"min", 20}, {"max", 150}}));
+        l.push_back(param("proporcion", "numero", "Ancho/alto del cuadro que sale (2 = el de una 360).", {{"min", 0.5}, {"max", 4}}));
     } else if (tipo == "retardo") {
         l.push_back(param("cuadros", "entero", "Cuadros de atraso.", {{"min", 0}, {"max", 120}}));
         l.push_back(param("ms", "entero", "Milisegundos de atraso (manda sobre `cuadros` si es > 0)."));
@@ -313,6 +323,10 @@ json GrafoVideo::catalogo() {
         {"color", "Brillo, contraste, saturación y gamma.", "entrada"},
         {"croma", "Saca un fondo de color (verde de fábrica): queda transparente.", "entrada"},
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
+        {"vista360",
+         "Una cámara 360 (imagen equirectangular) vista como una cámara común: hacia dónde mira y cuánto abre. "
+         "Corre en la placa de video (glshader de GStreamer, OpenGL).",
+         "entrada"},
         {"rostros",
          "Encuentra, sigue y reconoce caras (elemento barostros): mira la toma entera de la cámara, sin demorar "
          "la imagen. Con «marcar», un overlay sobre cada cara (recuadro, esquinas, relleno, tapar o pixelar) con "

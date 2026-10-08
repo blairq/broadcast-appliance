@@ -281,7 +281,7 @@ void McpService::registerVideoTools() {
             "`cuadros` "
             "(0..120, para sincronizar). Rostros: `fps`, `reconocer`, `detector`, `marcar`, `estilo`, `color`, "
             "`texto` (plantilla {nombre} {cargo} {id} {confianza} {n}); la pone sola Personas al elegir una "
-            "cámara (`entrada:<camara>`), `uso` dice para qué. Seguir: `objetivo`, `zoom`, `aire`… Salida: `nombre`. Compositor: "
+            "cámara (`entrada:<camara>`), `uso` dice para qué. Seguir: `objetivo`, `zoom`, `aire`… Salida: `nombre`. Vista 360 (una cámara 360 vista como una común, en la placa): `yaw`, `pitch`, `fov` (grados), `proporcion`. Compositor: "
             "`ancho`, `alto`, `fondo` (0xAARRGGBB), "
             "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, "
             "ajuste "
@@ -297,7 +297,7 @@ void McpService::registerVideoTools() {
                {{"type", "string"},
                 {"enum",
                  {"color", "croma", "recorte", "gst", "plugin", "retardo", "normalizar", "rostros",
-                  "seguir", "salida", "compositor", "superres"}}}},
+                  "seguir", "salida", "compositor", "superres", "vista360"}}}},
               {"plugin",
                {{"type", "string"},
                 {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},

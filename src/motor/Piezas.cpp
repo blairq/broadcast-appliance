@@ -173,6 +173,33 @@ bool tieneLasPropiedades(const std::string& fabrica, const std::vector<std::pair
     g_type_class_unref(k);
     return todas;
 }
+/// La memoria de placa que pide un elemento que no acepta la de sistema (glshader:
+/// GLMemory; d3d12…: D3D12Memory). "" si acepta la de sistema (o no se sabe).
+std::string memoriaPropia(const std::string& fabrica) {
+    GstElementFactory* f = gst_element_factory_find(fabrica.c_str());
+    if (f == nullptr) return {};
+    bool sistema = false;
+    std::string placa;
+    for (const GList* l = gst_element_factory_get_static_pad_templates(f); l != nullptr; l = l->next) {
+        auto* t = static_cast<GstStaticPadTemplate*>(l->data);
+        if (t->direction != GST_PAD_SINK) continue;
+        GstCaps* c = gst_static_caps_get(&t->static_caps);
+        if (gst_caps_is_any(c)) sistema = true;
+        for (guint i = 0; i < gst_caps_get_size(c); ++i) {
+            GstCapsFeatures* ft = gst_caps_get_features(c, i);
+            bool esPlaca = false;
+            for (const char* m : {"GLMemory", "D3D12Memory", "D3D11Memory", "CUDAMemory"})
+                if (ft != nullptr && gst_caps_features_contains(ft, (std::string("memory:") + m).c_str())) {
+                    esPlaca = true;
+                    if (placa.empty()) placa = m;
+                }
+            if (!esPlaca) sistema = true;
+        }
+        gst_caps_unref(c);
+    }
+    gst_object_unref(f);
+    return sistema ? std::string() : placa;
+}
 } // namespace
 
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
@@ -206,6 +233,8 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
                 f.memoria = memMotor;
             }
         }
+        // Uno que solo trabaja en la placa (una tarjeta «gst» con glshader): con su memoria.
+        if (f.memoria.empty()) f.memoria = memoriaPropia(f.elemento);
         // Un elemento que trabaja en la placa: subir antes y bajar después (si ya
         // viene en esa memoria, la subida pasa de largo: sin copias).
         static const std::map<std::string, std::pair<const char*, const char*>> kMemorias{

@@ -63,6 +63,7 @@ Rectangle {
         if (tipo === "croma") return "#22c55e"
         if (tipo === "color") return "#f59e0b"
         if (tipo === "recorte") return "#38bdf8"
+        if (tipo === "vista360") return "#818cf8"
         if (tipo === "salida") return "#a78bfa"
         if (tipo === "retardo") return "#94a3b8"
         if (tipo === "rostros") return "#f43f5e"
@@ -95,6 +96,7 @@ Rectangle {
             if (p.espejoV) partes.push("espejo ↕")
             return partes.length ? partes.join(" · ") : "sin cambios"
         }
+        if (n.tipo === "vista360") return "mira " + Math.round(p.yaw || 0) + "° · " + Math.round(p.pitch || 0) + "° · abre " + Math.round(p.fov || 90) + "°"
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
         if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
         if (n.tipo === "ptz") return p.activo === false ? "Apagado" : "Pan, tilt y zoom digital (Cámaras PTZ)"
@@ -595,6 +597,11 @@ Rectangle {
                                     { k: "suavidad", t: "Suavidad del movimiento (s)", min: 0.1, max: 3 },
                                     { k: "zona_muerta", t: "Zona muerta (no tiembla)", min: 0, max: 0.2 },
                                     { k: "perdida_s", t: "Espera si la pierde (s)", min: 0, max: 15 }]
+                                if (t === "vista360") return [
+                                    { k: "yaw", t: "Hacia dónde mira, de costado (°)", min: -180, max: 180 },
+                                    { k: "pitch", t: "Hacia arriba o abajo (°)", min: -90, max: 90 },
+                                    { k: "fov", t: "Cuánto abre (°; menos es más zoom)", min: 20, max: 150 },
+                                    { k: "proporcion", t: "Ancho/alto del cuadro (2 = el de una 360)", min: 0.5, max: 4 }]
                                 if (t === "retardo") return [
                                     { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
