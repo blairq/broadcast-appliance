@@ -65,6 +65,7 @@
 #endif
 
 // ba_core (frozen headers).
+#include "ipc/CanalesEscena.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "security/CredentialStore.hpp"
@@ -528,6 +529,7 @@ int main(int argc, char** argv) {
     // puesto (el slot 1 publicaria en BA.Audio.Guest.2) y deja al ultimo sin
     // canal. Ver MediaPump::Cfg.
     pumpCfg.operatorVideoName = toWide("BA.Operator");
+    for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) pumpCfg.escenaVideoNames.push_back(ba::ipc::nombreCanalEscena(k));
     pumpCfg.operatorAudioName = toWide("BA.Audio.Operator");
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,

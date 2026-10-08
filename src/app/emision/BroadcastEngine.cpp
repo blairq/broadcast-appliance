@@ -439,7 +439,91 @@ void BroadcastEngine::retornoEnUso(bool si) {
     retornoPausado_ = !si;
 }
 
+bool BroadcastEngine::escenaACanal(int k, const std::string& nombre) {
+    if (k < 0 || k >= ba::ipc::kCanalesEscena) {
+        setError("canal de escena fuera de rango");
+        return false;
+    }
+    CanalEscena& c = canalesEscena_[static_cast<std::size_t>(k)];
+    if (c.escena == nombre) return true;
+    if (!c.clave.empty() && motor_) {
+        motor_->verAvisar(c.clave, nullptr);
+        motor_->verSoltar(c.clave);
+    }
+    {
+        std::lock_guard<std::mutex> l(canalesEscenaM_);
+        c.escena.clear();
+        c.clave.clear();
+    }
+    if (nombre.empty()) return true;
+    if (!started_ || !motor_) {
+        setError("escena para pantallas: el motor no arranco");
+        return false;
+    }
+    if (escena(nombre) == nullptr) {
+        setError("escena para pantallas: no existe '" + nombre + "'");
+        return false;
+    }
+    // Lo que el gateway le manda a un televisor es a lo sumo 1280x720 (ver
+    // MediaPump::Cfg::programVideoW): componer más grande solo gasta.
+    const int w = std::min(1280, video_.baseWidth);
+    const int h = std::max(2, (w * video_.baseHeight / std::max(1, video_.baseWidth)) & ~1);
+    if (!c.sender || c.ancho != w || c.alto != h) {
+        // Un canal publicado no cambia de tamaño (ver SpoutSender::publish):
+        // con otro lienzo se rehace, y el gateway se vuelve a suscribir solo.
+        auto s = std::make_unique<ba::ipc::SpoutSender>();
+        if (!s->publish(ba::ipc::nombreCanalEscena(k).c_str(), ba::ipc::SlotConfig{w, h})) {
+            setError("no se pudo publicar el canal de escena " + std::to_string(k));
+            return false;
+        }
+        std::lock_guard<std::mutex> l(canalesEscenaM_);
+        c.sender = std::move(s);
+        c.ancho = w;
+        c.alto = h;
+    }
+    const std::string clave = "escena:" + nombre + "@pantallas" + std::to_string(k);
+    const std::string e = motor_->verPedir(clave, w, h);
+    if (!e.empty()) {
+        setError("escena para pantallas: " + e);
+        return false;
+    }
+    {
+        std::lock_guard<std::mutex> l(canalesEscenaM_);
+        c.escena = nombre;
+        c.clave = clave;
+    }
+    motor_->verAvisar(clave, [this, k](const motor::Cuadro& q) { enviarEscena(k, q); });
+    diag::registro().linea(diag::Nivel::Info, "pantallas", 0,
+                           "escena «" + nombre + "» en el canal " + std::to_string(k) + " (" + std::to_string(w) +
+                               "x" + std::to_string(h) + ")");
+    return true;
+}
+
+std::string BroadcastEngine::escenaDeCanal(int k) const {
+    if (k < 0 || k >= ba::ipc::kCanalesEscena) return {};
+    return canalesEscena_[static_cast<std::size_t>(k)].escena;
+}
+
+void BroadcastEngine::enviarEscena(int k, const motor::Cuadro& q) {
+    std::lock_guard<std::mutex> l(canalesEscenaM_);
+    CanalEscena& c = canalesEscena_[static_cast<std::size_t>(k)];
+    if (c.escena.empty() || !c.sender || q.ancho != c.ancho || q.alto != c.alto) return;
+    const std::size_t fila = static_cast<std::size_t>(q.ancho) * 4;
+    const std::uint8_t* px = q.bgra.data();
+    if (static_cast<std::size_t>(q.stride) != fila) {
+        c.filas.resize(fila * static_cast<std::size_t>(q.alto));
+        for (int y = 0; y < q.alto; ++y)
+            std::memcpy(c.filas.data() + fila * y, q.bgra.data() + static_cast<std::size_t>(q.stride) * y, fila);
+        px = c.filas.data();
+    }
+    ba::ipc::FrameMeta meta;
+    meta.frameIndex = ++c.cuadros;
+    meta.qpc = ba::ipc::HealthBlock::nowQpc();
+    c.sender->send(px, fila * static_cast<std::size_t>(q.alto), meta);
+}
+
 void BroadcastEngine::stopReturnFeeds() {
+    for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) escenaACanal(k, "");
     if (!returnFeedsActive_ || !motor_) return;
     if (!retornoPausado_) {
         motor_->verAvisar("programa@gateway", nullptr);

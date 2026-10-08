@@ -263,6 +263,13 @@ void MediaPump::start() {
     stop_.store(false);
     threads_.emplace_back(&MediaPump::returnAudioThread, this);
     threads_.emplace_back(&MediaPump::returnVideoThread, this);
+    for (size_t k = 0; k < cfg_.escenaVideoNames.size(); ++k) {
+        const int canal = static_cast<int>(k);
+        threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.escenaVideoNames[k],
+                              "escena " + std::to_string(canal), [canal](const MediaRoute& r) {
+                                  return r.kind == MediaRoute::Kind::Escena && r.index == canal;
+                              });
+    }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
@@ -383,7 +390,8 @@ void MediaPump::returnAudioThread() {
             const int prueba = pruebaSesion_.load();
             std::vector<float> mezcla;
             for (int s : sessionsWhere([](const MediaRoute& r) {
-                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage ||
+                            r.kind == MediaRoute::Kind::Escena;
                  })) {
                 const MediaRoute r = route(s);
                 const float* fuente = blk.samples;
@@ -433,6 +441,13 @@ void MediaPump::returnAudioThread() {
 constexpr int kMiradaMs = 4;
 
 void MediaPump::returnVideoThread() {
+    videoBajadaThread(cfg_.programVideoName, "retorno video", [](const MediaRoute& r) {
+        return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+    });
+}
+
+void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
+                                  std::function<bool(const MediaRoute&)> para) {
     SpoutReceiver receiver;
     bool sub = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
@@ -454,7 +469,7 @@ void MediaPump::returnVideoThread() {
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
                 lastRetry = now;
                 // El tamaño lo fija A al publicar (su salida), no la config de B.
-                if (receiver.subscribe(cfg_.programVideoName.c_str())) {
+                if (receiver.subscribe(nombre.c_str())) {
                     sub = true;
                     srcW = receiver.width();
                     srcH = receiver.height();
@@ -466,7 +481,7 @@ void MediaPump::returnVideoThread() {
                         outH = srcH;
                     }
                     scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
-                    log_.info("retorno video: suscrito a BA.Program (" + std::to_string(srcW) + "x" +
+                    log_.info(etiqueta + ": suscrito (" + std::to_string(srcW) + "x" +
                               std::to_string(srcH) + ") -> " + std::to_string(outW) + "x" +
                               std::to_string(outH));
                 }
@@ -479,15 +494,13 @@ void MediaPump::returnVideoThread() {
             sub = false;
             outW = 0;
             outH = 0;
-            log_.info("retorno video: A cambio o se cerro; resuscribiendo");
+            log_.info(etiqueta + ": A cambio o se cerro; resuscribiendo");
             continue;
         }
         if (receiver.hasData()) {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
-                const auto targets = sessionsWhere([](const MediaRoute& r) {
-                    return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
-                });
+                const auto targets = sessionsWhere(para);
                 if (!targets.empty() && outW > 0 && outH > 0) {
                     const auto t0 = std::chrono::steady_clock::now();
                     scaleBgra(src.data(), srcW, srcH, scaled.data(), outW, outH);
@@ -523,7 +536,7 @@ void MediaPump::returnVideoThread() {
                 const double fps = cuadros / seg;
                 const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
                 log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
-                         "retorno video: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", fps, medioMs,
+                         "%s: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", etiqueta.c_str(), fps, medioMs,
                          edadMs, medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
             }
             trabajoUs = 0;

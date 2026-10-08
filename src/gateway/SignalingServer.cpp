@@ -23,6 +23,7 @@
 #include <system_error>
 
 #include "HttpIo.hpp"
+#include "ipc/CanalesEscena.hpp"
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
 #include "MediaPump.hpp"
@@ -1265,7 +1266,7 @@ bool SignalingServer::esPantalla(const std::string& pid) const {
     return pantallas_.find(pid) != pantallas_.end();
 }
 
-std::string SignalingServer::altaPantalla(std::string& claveOut) {
+std::string SignalingServer::altaPantalla(std::string& claveOut, int canal) {
     std::string hex, clave;
     if (!ba::security::randomSecretHex(16, hex)) return {};
     if (!ba::security::randomSecretHex(16, clave)) return {};
@@ -1290,7 +1291,7 @@ std::string SignalingServer::altaPantalla(std::string& claveOut) {
         if (peor == pantallas_.end()) return {}; // todas conectadas: no hay lugar
         pantallas_.erase(peor);
     }
-    pantallas_[id] = Pantalla{clave, 0};
+    pantallas_[id] = Pantalla{clave, canal, 0};
     claveOut = clave;
     return id;
 }
@@ -1301,13 +1302,20 @@ std::string SignalingServer::claveDePantalla(const std::string& pid) const {
     return it == pantallas_.end() ? std::string() : it->second.clave;
 }
 
-bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave) {
+int SignalingServer::canalDePantalla(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    return it == pantallas_.end() ? -1 : it->second.canal;
+}
+
+bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave, int canal) {
     if (pid.empty() || clave.empty()) return false;
     std::lock_guard<std::mutex> lock(pantallasLock_);
     const auto it = pantallas_.find(pid);
     if (it == pantallas_.end()) return false;
     if (it->second.clave != clave) return false;
     it->second.sueltaMs = 0;
+    it->second.canal = canal;
     return true;
 }
 
@@ -1402,8 +1410,19 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         // USO, asi que sin el reenganche una pantalla que pierde la conexion
         // no podria volver jamas.
         const bool vuelve = !arg("resume").empty();
+        // `canal`: la escena que muestra (BA.Escena.<k>, la elige la app al
+        // pedir el enlace); sin él, el programa.
+        int canal = -1;
+        if (!arg("canal").empty()) {
+            try {
+                canal = std::stoi(arg("canal"));
+            } catch (...) {
+                canal = -1;
+            }
+            if (canal < 0 || canal >= ba::ipc::kCanalesEscena) canal = -1;
+        }
         if (vuelve) {
-            if (!reengancharPantalla(arg("resume"), arg("key"))) {
+            if (!reengancharPantalla(arg("resume"), arg("key"), canal)) {
                 http::sendResponse(fd, 401, "text/plain", "reenganche invalido\n");
                 return {};
             }
@@ -1422,13 +1441,14 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         http::setSocketTimeout(fd, 0);
         std::string id = arg("resume"), clave;
         if (!vuelve) {
-            id = altaPantalla(clave);
+            id = altaPantalla(clave, canal);
             if (id.empty()) {
                 http::writeWsFrame(fd, 0x8, "");
                 return {};
             }
         }
-        log_.info("ws: pantalla " + id + (vuelve ? " volvio" : " conectada") + " (solo mira)");
+        log_.info("ws: pantalla " + id + (vuelve ? " volvio" : " conectada") + " (solo mira" +
+                  (canal >= 0 ? ", escena del canal " + std::to_string(canal) : std::string()) + ")");
         return id;
     }
 
@@ -1619,7 +1639,10 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         dropGuest(pid);
         return;
     }
-    const MediaRoute route = pantalla ? MediaRoute::backstage(0) : room_.routeOf(pid);
+    const int canalEscena = pantalla ? canalDePantalla(pid) : -1;
+    const MediaRoute route = !pantalla          ? room_.routeOf(pid)
+                             : canalEscena >= 0 ? MediaRoute::escena(canalEscena)
+                                                : MediaRoute::backstage(0);
     if (route.kind == MediaRoute::Kind::None) {
         log_.warn("ws: offer de " + pid + " sin ruta de medios (sin lugar); se ignora", -1);
         return;

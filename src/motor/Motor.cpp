@@ -91,6 +91,12 @@ std::string Motor::iniciar() {
 void Motor::detener() {
     seguir_ = false;
     if (hilo_.joinable()) hilo_.join();
+    {
+        // Las composiciones que se estaban desarmando usan el reloj del motor.
+        std::lock_guard<std::mutex> l(desarmesM_);
+        for (auto& f : desarmes_) f.wait();
+        desarmes_.clear();
+    }
     std::lock_guard<std::recursive_mutex> l(mu_);
     if (relojPublicado_ != nullptr) {
         gst_object_unref(relojPublicado_);
@@ -661,7 +667,29 @@ void Motor::soltarEscena(const std::string& nombre) {
     std::lock_guard<std::recursive_mutex> l(mu_);
     auto it = vEscenas_.find(nombre);
     if (it == vEscenas_.end()) return;
-    if (--it->second.pedidos <= 0) vEscenas_.erase(it);
+    if (--it->second.pedidos > 0) return;
+    std::unique_ptr<Composicion> comp = std::move(it->second.comp);
+    vEscenas_.erase(it);
+    desarmarAparte(std::move(comp));
+}
+
+// SE DESARMA EN OTRO HILO, sin el candado del motor. Pasarla a NULL espera a que
+// el mezclador suelte su hilo, y el mezclador de GL puede estar soltando un
+// buffer que le pide algo al contexto de GL; en macOS eso corre en el hilo
+// PRINCIPAL. Si quien la desarma es el hilo principal (la interfaz: una pantalla
+// que deja de mostrar una escena), se esperan los dos para siempre. Pasó: la app
+// colgada hasta que el launcher la mató. Aparte, el hilo principal queda libre
+// para contestarle a GL y el desarme termina solo.
+void Motor::desarmarAparte(std::unique_ptr<Composicion> c) {
+    if (!c) return;
+    std::lock_guard<std::mutex> l(desarmesM_);
+    desarmes_.erase(std::remove_if(desarmes_.begin(), desarmes_.end(),
+                                   [](std::future<void>& f) {
+                                       return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+                                   }),
+                    desarmes_.end());
+    std::shared_ptr<Composicion> s(std::move(c));
+    desarmes_.push_back(std::async(std::launch::async, [s]() mutable { s.reset(); }));
 }
 
 bool Motor::tbar(const std::string& nombre, double t, bool soltar, std::string* error) {

@@ -160,6 +160,48 @@ túnel** (Configuración → Gateway), que da un origen con certificado real. Si
 él, la app lo dice y no manda nada, en vez de dejar el televisor colgado.
 Casting de páginas de afuera (`https://…`) funciona igual.
 
+## Una escena cualquiera, en varias pantallas a la vez
+
+Además de «lo que sale al aire», una pantalla puede mostrar **cualquier escena
+armada**, esté o no al aire: la cámara del recinto en el hall mientras el
+programa muestra otra cosa, la tanda en el televisor de la cabina. Cada
+pantalla con la suya. En la página es «Qué mostrar → Una escena» con la lista de
+escenas; por MCP, `pantalla_mostrar {"tipo": "escena", "escena": "…"}`. Se puede
+fijar como cualquier otro contenido.
+
+Viaja igual que el programa (WebRTC, el enlace lo acuña el gateway, `/cast/`),
+pero por un **canal de escena** propio:
+
+1. La app pone la escena en un canal libre, `BA.Escena.<k>`
+   (`BroadcastEngine::escenaACanal`). El motor la compone aparte
+   (`verPedir("escena:<n>@pantallas<k>")`): sigue andando aunque no esté al
+   aire. Sale a lo sumo a 1280×720, que es lo que el gateway le manda a un
+   televisor.
+2. Pide `/api/v1/cast-link?canal=k`; la URL de `/cast/` lleva `&canal=k` y la
+   página lo repite al entrar por `/ws` (también al reengancharse).
+3. El gateway guarda el canal con la pantalla y le da la ruta
+   `MediaRoute::escena(k)`: le baja `BA.Escena.<k>` en vez del programa (el
+   audio es el retorno del programa, como siempre).
+
+**Dos pantallas con la misma escena comparten canal**: la escena se compone una
+sola vez. Hay **4 canales** (`ipc::kCanalesEscena`), o sea hasta 4 escenas
+distintas a la vez; la quinta dice que no hay lugar. Cada canal ocupado es una
+composición más en el motor y una codificación por pantalla en el gateway.
+
+**Un canal se suelta solo** en cuanto ninguna pantalla lo usa —pasó a otra cosa,
+se paró, se apagó o se la tomó otra aplicación—: una composición entera
+andando de gusto calienta la máquina (`PantallasViewModel::revisarCanales`, en
+cada cambio de estado).
+
+Lo que va en vivo (el programa o una escena) **no entra en un carrusel**: entra
+con un permiso de un solo uso que acuña el gateway al mandarlo, y un paso de
+carrusel es una URL fija.
+
+Y un detalle que salió de acá: una pantalla con el programa también es alguien
+que mira. La vista que baja el programa al gateway descansa si nadie la mira
+hace 10 s (`retornoEnUso`), y solo contaba invitados e integrantes remotos: un
+televisor solo con el programa se congelaba a los 10 s.
+
 ## Lo que falta
 
 - **El programa en vivo ya está**, con una salvedad. `/cast/` es la página del

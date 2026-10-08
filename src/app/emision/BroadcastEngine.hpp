@@ -21,6 +21,7 @@
 // ============================================================================
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <future>
@@ -36,6 +37,7 @@
 #include <utility>
 #include <vector>
 
+#include "ipc/CanalesEscena.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
 
@@ -442,6 +444,14 @@ class BroadcastEngine {
     /// queda publicado); con alguien, vuelve.
     void retornoEnUso(bool si);
 
+    /// Una escena que no es el programa, para las pantallas de la sala: la pone
+    /// en el canal `k` (BA.Escena.<k>, 0..ipc::kCanalesEscena-1) y la manda al
+    /// Proceso B mientras esté ahí; vacía, lo suelta. La escena se compone aparte
+    /// y sigue andando aunque no esté al aire. Dos pantallas con la misma escena
+    /// comparten canal: eso lo decide quien reparte los canales (Pantallas).
+    bool escenaACanal(int k, const std::string& escena);
+    std::string escenaDeCanal(int k) const;
+
     /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada
     /// (ultimoInicio = YaIgual); a OTRO destino falla (YaOtroDestino), salvo
     /// `cambiarEnCaliente`, que corta y arranca al nuevo.
@@ -685,6 +695,18 @@ class BroadcastEngine {
     void enviarRetorno(const motor::Cuadro& c);
     std::uint64_t programFrameIndex_ = 0;
     std::vector<std::uint8_t> programPacked_;
+    struct CanalEscena {
+        std::unique_ptr<ba::ipc::SpoutSender> sender; ///< se rehace si cambia el tamaño
+        std::string escena; ///< vacía: libre
+        std::string clave;  ///< la vista del motor ("escena:<n>@pantallas<k>")
+        int ancho = 0, alto = 0;
+        std::uint64_t cuadros = 0;
+        std::vector<std::uint8_t> filas;
+    };
+    std::array<CanalEscena, ba::ipc::kCanalesEscena> canalesEscena_;
+    /// El hilo del motor manda mientras la interfaz cambia la escena de un canal.
+    std::mutex canalesEscenaM_;
+    void enviarEscena(int k, const motor::Cuadro& c);
 
     mutable nlohmann::json estadoCache_;
     mutable std::int64_t estadoCacheMs_ = 0;

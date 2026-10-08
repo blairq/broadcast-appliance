@@ -431,8 +431,24 @@ Rectangle {
                             Layout.fillWidth: true
                             spacing: 2
                             Text { text: modelData.etiqueta; color: Theme.textDim; font.pixelSize: 11 }
+                            // Una lista en vez de texto libre: las escenas
+                            // armadas (las mismas de la tarjeta Escenas).
+                            ComboBox {
+                                id: lista
+                                visible: modelData.opciones === "escenas"
+                                Layout.fillWidth: true
+                                model: visible ? Studio.scenes : null
+                                textRole: "name"
+                                function anotar() {
+                                    if (!visible || currentText === "") return
+                                    let d = page.datos; d[modelData.clave] = currentText; page.datos = d
+                                }
+                                onActivated: anotar()
+                                onCountChanged: anotar()
+                                Component.onCompleted: anotar()
+                            }
                             TextArea {
-                                visible: modelData.largo
+                                visible: modelData.largo && modelData.opciones === ""
                                 Layout.fillWidth: true
                                 Layout.preferredHeight: 90
                                 placeholderText: modelData.ejemplo
@@ -442,7 +458,7 @@ Rectangle {
                                 background: Rectangle { color: Theme.field; radius: 8 }
                             }
                             TextField {
-                                visible: !modelData.largo
+                                visible: !modelData.largo && modelData.opciones === ""
                                 Layout.fillWidth: true
                                 placeholderText: modelData.ejemplo
                                 color: Theme.text; font.pixelSize: 13

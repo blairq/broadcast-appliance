@@ -239,11 +239,13 @@ class SignalingServer {
     bool esPantalla(const std::string& pid) const;
     /// Registra una pantalla nueva y devuelve su id. `claveOut` recibe la
     /// clave de reenganche, que se le manda en el "hello".
-    std::string altaPantalla(std::string& claveOut);
+    std::string altaPantalla(std::string& claveOut, int canal = -1);
     /// La clave de reenganche de esa pantalla (vacia si no existe).
     std::string claveDePantalla(const std::string& pid) const;
     /// Valida un reenganche. true si ese id existe y la clave coincide.
-    bool reengancharPantalla(const std::string& pid, const std::string& clave);
+    bool reengancharPantalla(const std::string& pid, const std::string& clave, int canal = -1);
+    /// El canal de escena de una pantalla (-1: el programa).
+    int canalDePantalla(const std::string& pid) const;
     void bajaPantalla(const std::string& pid);
 
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
@@ -369,6 +371,7 @@ class SignalingServer {
     /// "reconectando" hasta que alguien lo vuelva a castear a mano.
     struct Pantalla {
         std::string clave;
+        int canal = -1; ///< canal de escena que muestra (BA.Escena.<k>); -1: el programa
         std::int64_t sueltaMs = 0; ///< cuando se desconecto (0: conectada)
     };
     static constexpr std::int64_t kPantallaTtlMs = 12LL * 60 * 60 * 1000;

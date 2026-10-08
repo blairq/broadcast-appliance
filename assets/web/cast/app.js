@@ -32,6 +32,9 @@
   const q = new URLSearchParams(location.search);
   const token = q.get("token") || "";
   const nombre = q.get("nombre") || "Pantalla";
+  // Una escena que no es el programa: el canal que le dio la app (vacío: el
+  // programa). Va también al reengancharse, para seguir en la misma escena.
+  const canal = /^\d{1,2}$/.test(q.get("canal") || "") ? q.get("canal") : "";
   const conAudio = q.get("audio") !== "0";
   // 0 por defecto: lo menos que el navegador acepte retener. Era 80 ms, que
   // en una red cableada ya es holgado, pero «holgado» no es gratis: son 80 ms
@@ -91,9 +94,9 @@
     // El token de ingreso es de UN SOLO USO. Despues de entrar la primera vez
     // se vuelve con el id y la clave que mando el servidor en el "hello": si
     // no, un corte de un segundo dejaria al televisor afuera para siempre.
-    const args = st.id
+    const args = (st.id
       ? `pantalla=1&resume=${encodeURIComponent(st.id)}&key=${encodeURIComponent(st.key)}`
-      : `pantalla=1&token=${encodeURIComponent(token)}`;
+      : `pantalla=1&token=${encodeURIComponent(token)}`) + (canal ? `&canal=${canal}` : "");
     const ws = new WebSocket(`${proto}://${location.host}/ws?${args}`);
     // Los mensajes del canal van envueltos en un frame binario (ver
     // ../comun/trama.js): sin esto llegan como Blob y no se leen.
@@ -288,7 +291,8 @@
   // colgada en «conectando» —que es justo lo que pasó—.
   if (window.BACanal) {
     window.BACanal.abrir({
-      tipo: "programa",
+      // Con canal es una escena (no el programa): así figura en las superficies.
+      tipo: canal ? "escena" : "programa",
       que: () => {
         const cs = st.pc ? st.pc.connectionState : "sin conexión";
         const v = $("video");

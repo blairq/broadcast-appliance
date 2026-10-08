@@ -46,6 +46,7 @@
 
 #include <atomic>
 #include <functional>
+#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -238,6 +239,10 @@ class Motor {
         int pedidos = 0;
     };
     std::map<std::string, CompEscena> vEscenas_;
+    /// Las composiciones que se están desarmando aparte (ver soltarEscena).
+    std::mutex desarmesM_;
+    std::vector<std::future<void>> desarmes_;
+    void desarmarAparte(std::unique_ptr<Composicion> c);
     std::set<std::string> dskEscenas_;
     // La toma de audio del programa
     GstElement* tomaAudio_ = nullptr;

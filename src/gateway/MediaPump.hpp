@@ -37,6 +37,7 @@
 #include <deque>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -65,6 +66,9 @@ class MediaPump {
         std::vector<std::wstring> returnSlotNames; // BA.Audio.Return.<n>
         std::wstring programVideoName;  // BA.Program (A->B)
         std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
+        // Escenas que no son el programa, para las pantallas de la sala (A->B):
+        // [k] = BA.Escena.<k>. Qué escena va en cada canal lo decide A.
+        std::vector<std::wstring> escenaVideoNames;
         std::wstring operatorAudioName; // BA.Audio.Operator (A->B, para el lobby)
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
@@ -154,6 +158,10 @@ class MediaPump {
 
     void returnAudioThread();
     void returnVideoThread();
+    /// Un canal de video A->B hacia las sesiones que cumplen `para` (escalado a
+    /// lo sumo a programVideoW x programVideoH). El retorno del programa y cada
+    /// canal de escena son esto mismo con otro nombre y otro filtro.
+    void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
     void operatorAudioThread();
     void operatorVideoThread();
     void plateThread();

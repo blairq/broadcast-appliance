@@ -773,6 +773,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const std::string nombre = q.count("nombre") ? http::urlDecode(q.at("nombre")) : "Pantalla";
+        // `canal`: una ESCENA en vez del programa (BA.Escena.<k>, la que la app
+        // puso en ese canal). La pantalla lo repite al entrar por /ws.
+        std::string canal;
+        if (q.count("canal")) {
+            canal = http::urlDecode(q.at("canal"));
+            if (canal.empty() || canal.size() > 2 ||
+                !std::all_of(canal.begin(), canal.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
+                sendJson(fd, 200, json{{"ok", false}, {"message", "canal de escena invalido"}});
+                return;
+            }
+        }
         if (room_.snapshot().value("locked", false)) {
             sendJson(fd, 200,
                      json{{"ok", false},
@@ -809,7 +820,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         sendJson(fd, 200,
                  json{{"ok", true},
-                      {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre)},
+                      {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre) +
+                                  (canal.empty() ? std::string() : "&canal=" + canal)},
                       {"token", token}});
         return;
     }
