@@ -206,13 +206,43 @@ std::string conComillas(const std::string& v) {
 
 Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json& ajustes)
     : reloj_(reloj), lienzo_(lienzo), id_(std::move(id)) {
-    std::lock_guard<std::timed_mutex> l(mu_);
-    leer(ajustes);
-    armarSalida();
-    armar();
+    {
+        std::lock_guard<std::timed_mutex> l(mu_);
+        leer(ajustes);
+    }
+    // Armarla (cientos de ms; segundos con una cámara de red) va al trabajador:
+    // quien la crea (el hilo del motor) no espera.
+    trabajar([this]() {
+        armarSalida();
+        armar();
+    });
+}
+
+void Entrada::trabajar(std::function<void()> f) {
+    std::lock_guard<std::mutex> l(trabajoM_);
+    ++ocupadas_;
+    std::shared_future<void> antes = trabajo_;
+    trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f)]() {
+                   if (antes.valid()) antes.wait(); // en orden: de a uno por entrada
+                   {
+                       std::lock_guard<std::timed_mutex> lm(mu_);
+                       f();
+                   }
+                   --ocupadas_;
+               }).share();
+}
+
+void Entrada::esperarTrabajos() {
+    std::shared_future<void> f;
+    {
+        std::lock_guard<std::mutex> l(trabajoM_);
+        f = trabajo_;
+    }
+    if (f.valid()) f.wait();
 }
 
 Entrada::~Entrada() {
+    esperarTrabajos();
     std::lock_guard<std::timed_mutex> l(mu_);
     desarmar();
     desarmarSalida();
@@ -323,7 +353,17 @@ void Entrada::armarSalida() {
 
 void Entrada::ponerEnUso(bool si) {
     enUso_ = si;
-    std::lock_guard<std::timed_mutex> l(mu_);
+    // Lo llama el bucle del motor: con la entrada ocupada no se espera, lo hace tic.
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) {
+        usoPendiente_ = true;
+        return;
+    }
+    ponerEnUsoYa();
+}
+
+void Entrada::ponerEnUsoYa() {
+    const bool si = enUso_.load();
     if (!si) {
         if (sinUsoDesdeUs_ == 0) sinUsoDesdeUs_ = g_get_monotonic_time();
         return;
@@ -470,8 +510,14 @@ void Entrada::leer(const json& a) {
 bool Entrada::daVideo() const { return !camara_.empty() || !descripcion_.empty() || (!uri_.empty()); }
 bool Entrada::daAudio() const { return conAudio_ && (!descripcionAudio_.empty() || !uri_.empty()); }
 
-void Entrada::actualizar(const json& ajustes) {
-    std::lock_guard<std::timed_mutex> l(mu_);
+void Entrada::actualizar(const json& ajustes, std::function<void()> despues) {
+    trabajar([this, ajustes, despues = std::move(despues)]() {
+        actualizarYa(ajustes);
+        if (despues) despues();
+    });
+}
+
+void Entrada::actualizarYa(const json& ajustes) {
     const std::string firmaAntes = firma_;
     const auto vAntes = filtrosV_;
     const auto aAntes = filtrosA_;
@@ -1068,8 +1114,8 @@ void Entrada::medirLatencia() {
     }
 }
 
-void Entrada::vigilarDatos() {
-    if (medio_ || pipeline_ == nullptr || esperaDispositivo_) return;
+bool Entrada::vigilarDatos() {
+    if (medio_ || pipeline_ == nullptr || esperaDispositivo_) return false;
     const std::uint64_t ahora = ahoraNs();
     std::uint64_t datos = 0;
     {
@@ -1080,17 +1126,28 @@ void Entrada::vigilarDatos() {
         if (datos > 0) reintentos_ = 0; // llegan datos: la espera vuelve a empezar
         vistosDatos_ = datos;
         datosDesdeNs_ = ahora;
-        return;
+        return false;
     }
-    if (vistosDatos_ == 0 || ahora - datosDesdeNs_ < 10'000'000'000ULL) return;
+    if (vistosDatos_ == 0 || ahora - datosDesdeNs_ < 10'000'000'000ULL) return false;
     registrar(Nivel::Aviso, id_ + ": no llegan datos hace 10 s sin error: se rearma");
     error_ = "no llegaban datos (se rearma)";
-    desarmar();
-    programarReintento();
+    vistosDatos_ = 0;
+    // Desarmar una cámara de red que no contesta puede tardar decenas de segundos:
+    // al trabajador, no en el bucle del motor.
+    trabajar([this]() {
+        desarmar();
+        programarReintento();
+    });
+    return true;
 }
 
 void Entrada::tic() {
-    std::lock_guard<std::timed_mutex> l(mu_);
+    // EL BUCLE DEL MOTOR NO ESPERA A UNA ENTRADA OCUPADA (rearmándose, con un
+    // ajuste nuevo): la saltea esta vuelta. Lo que tarda, acá se encarga al
+    // trabajador (trabajar) y no se hace.
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock() || ocupadas_.load() > 0) return;
+    if (usoPendiente_.exchange(false)) ponerEnUsoYa();
     if (!controlEnviado_ && !control_.empty() && pipeline_ != nullptr) {
         std::uint64_t c = 0;
         {
@@ -1105,9 +1162,12 @@ void Entrada::tic() {
     // mira. La cadena sigue andando (a 2 cuadros/s): la alarma de «sin señal» la
     // mira a ella. Rearmarla tarda ~2 ms (ponerEnUso).
     if (salidaV_ != nullptr && !enUso_ && sinUsoDesdeUs_ != 0 && g_get_monotonic_time() - sinUsoDesdeUs_ > 15'000'000) {
-        const std::int64_t t0 = g_get_monotonic_time();
-        desarmarSalida();
-        registrar(Nivel::Info, id_ + ": placa en reposo (nadie la usa) en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+        trabajar([this]() {
+            const std::int64_t t0 = g_get_monotonic_time();
+            desarmarSalida();
+            registrar(Nivel::Info, id_ + ": placa en reposo (nadie la usa) en " + std::to_string((g_get_monotonic_time() - t0) / 1000) + " ms");
+        });
+        return;
     }
     if (salidaV_ != nullptr) {
         GstBus* bus = gst_element_get_bus(salidaV_);
@@ -1133,7 +1193,8 @@ void Entrada::tic() {
     if (deDispositivo) Vigia::el().revisar();
     if (pipeline_ == nullptr && esperaDispositivo_) {
         // Esperando su dispositivo: se arma cuando el vigía avisa (o cada 15 s, de respaldo).
-        if (Vigia::el().generacion() != genVista_ || ahoraNs() - esperaDesdeNs_ > 15'000'000'000ULL) armar();
+        if (Vigia::el().generacion() != genVista_ || ahoraNs() - esperaDesdeNs_ > 15'000'000'000ULL)
+            trabajar([this]() { armar(); });
         return;
     }
     // Lo está usando y se fue: a esperar que vuelva.
@@ -1141,30 +1202,29 @@ void Entrada::tic() {
         genVista_ = Vigia::el().generacion();
         const bool esta = !camara_.empty() ? Vigia::el().hay(true, camara_) : Vigia::el().hay(false, microfono_);
         if (!esta) {
-            armar(); // queda esperando
+            trabajar([this]() { armar(); }); // queda esperando
             return;
         }
     }
     if (pipeline_ == nullptr) {
         if (reintentoNs_ != 0 && ahoraNs() >= reintentoNs_) {
             reintentoNs_ = 0;
-            armar();
+            trabajar([this]() { armar(); });
         }
         return;
     }
-    vigilarDatos();
-    if (pipeline_ == nullptr) return;
+    if (vigilarDatos()) return; // se rearma (en el trabajador)
     medirLatencia();
     if (pipeline_ == nullptr) return;
     if (rearmarEntrelazada_.exchange(false)) {
         registrar(Nivel::Info, id_ + ": la señal llega entrelazada: se desentrelaza en la GPU");
-        armar();
+        trabajar([this]() { armar(); });
         return;
     }
     // Se armó sin el rack: cada segundo se mira si ya está.
     if (rackFaltaDesde_ != 0 && ahoraNs() - rackFaltaDesde_ > 1'000'000'000ULL) {
         if (hayFabrica("barack")) {
-            armar();
+            trabajar([this]() { armar(); });
             return;
         }
         rackFaltaDesde_ = ahoraNs();
@@ -1196,7 +1256,7 @@ void Entrada::tic() {
     GstBus* bus = gst_element_get_bus(pipeline_);
     if (bus == nullptr) return;
     GstElement* esta = pipeline_;
-    while (pipeline_ == esta) {
+    while (pipeline_ == esta && ocupadas_.load() == 0) { // si un mensaje encargó algo, el resto después
         GstMessage* m = gst_bus_pop(bus);
         if (m == nullptr) break;
         procesarMensaje(m);
@@ -1242,8 +1302,11 @@ void Entrada::procesarMensaje(GstMessage* m) {
         }
         case GST_MESSAGE_LATENCY: recalcularLatenciaAparte(pipeline_); return;
         case GST_MESSAGE_CLOCK_LOST:
-            gst_element_set_state(pipeline_, GST_STATE_PAUSED);
-            gst_element_set_state(pipeline_, GST_STATE_PLAYING);
+            trabajar([this]() { // cambios de estado: al trabajador
+                if (pipeline_ == nullptr) return;
+                gst_element_set_state(pipeline_, GST_STATE_PAUSED);
+                gst_element_set_state(pipeline_, GST_STATE_PLAYING);
+            });
             return;
         case GST_MESSAGE_ASYNC_DONE:
             if (medio_) corregirOffset();
@@ -1271,12 +1334,16 @@ void Entrada::procesarMensaje(GstMessage* m) {
                     return;
                 }
                 estadoMedio_ = "ended";
-                gst_element_set_state(pipeline_, GST_STATE_PAUSED);
+                trabajar([this]() {
+                    if (pipeline_ != nullptr) gst_element_set_state(pipeline_, GST_STATE_PAUSED);
+                });
                 return;
             }
             error_ = "terminó (EOS)";
-            desarmar();
-            programarReintento();
+            trabajar([this]() {
+                desarmar();
+                programarReintento();
+            });
             return;
         case GST_MESSAGE_ERROR: {
             GError* e = nullptr;
@@ -1292,8 +1359,11 @@ void Entrada::procesarMensaje(GstMessage* m) {
                 errorAnotadoNs_ = ahora;
             }
             if (medio_) estadoMedio_ = "error";
-            desarmar();
-            programarReintento();
+            // Desarmar puede tardar (una cámara de red que no contesta): al trabajador.
+            trabajar([this]() {
+                desarmar();
+                programarReintento();
+            });
             return;
         }
         default: return;
@@ -1339,8 +1409,15 @@ void Entrada::irANs(std::int64_t ns) {
 }
 
 std::string Entrada::controlMedio(const std::string& accion) {
-    std::lock_guard<std::timed_mutex> l(mu_);
     if (!medio_) return "no es un medio";
+    if (accion != "play" && accion != "pausa" && accion != "reiniciar" && accion != "parar")
+        return "acción: play, pausa, reiniciar o parar";
+    // Pausar, seguir y saltar son cambios de estado: al trabajador.
+    trabajar([this, accion]() { controlMedioYa(accion); });
+    return {};
+}
+
+std::string Entrada::controlMedioYa(const std::string& accion) {
     if (accion == "play" || accion == "pausa") {
         const bool pausar = accion == "pausa";
         if (pipeline_ == nullptr) {
@@ -1375,7 +1452,10 @@ std::string Entrada::controlMedio(const std::string& accion) {
 }
 
 void Entrada::irA(std::int64_t ms) {
-    std::lock_guard<std::timed_mutex> l(mu_);
+    trabajar([this, ms]() { irAYa(ms); });
+}
+
+void Entrada::irAYa(std::int64_t ms) {
     const std::int64_t ns = std::max<std::int64_t>(0, ms) * static_cast<std::int64_t>(GST_MSECOND);
     if (pipeline_ == nullptr) {
         armar();
@@ -1391,29 +1471,54 @@ void Entrada::irA(std::int64_t ms) {
 }
 
 std::string Entrada::estadoMedio() const {
-    std::lock_guard<std::timed_mutex> l(mu_);
-    if (pipeline_ == nullptr && !error_.empty()) return "error";
-    if (pipeline_ == nullptr && estadoMedio_ != "stopped") return "none";
-    return estadoMedio_;
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) {
+        std::lock_guard<std::mutex> la(anteriorM_);
+        return medioAnterior_; // ocupada: lo último que se supo
+    }
+    const std::string e = pipeline_ == nullptr && !error_.empty()                ? std::string("error")
+                          : pipeline_ == nullptr && estadoMedio_ != "stopped" ? std::string("none")
+                                                                              : estadoMedio_;
+    std::lock_guard<std::mutex> la(anteriorM_);
+    medioAnterior_ = e;
+    return e;
 }
 
 std::int64_t Entrada::tiempoMs() const {
-    std::lock_guard<std::timed_mutex> l(mu_);
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) return tiempoAnteriorMs_.load(); // ocupada: lo último que se supo
     if (buscarNs_ >= 0) return buscarNs_ / static_cast<std::int64_t>(GST_MSECOND);
     gint64 pos = 0;
     if (pipeline_ == nullptr || !gst_element_query_position(pipeline_, GST_FORMAT_TIME, &pos)) return 0;
-    return pos / static_cast<gint64>(GST_MSECOND);
+    tiempoAnteriorMs_ = pos / static_cast<gint64>(GST_MSECOND);
+    return tiempoAnteriorMs_.load();
 }
 
 std::int64_t Entrada::duracionMs() const {
-    std::lock_guard<std::timed_mutex> l(mu_);
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) return duracionAnteriorMs_.load();
     gint64 dur = 0;
     if (pipeline_ == nullptr || !gst_element_query_duration(pipeline_, GST_FORMAT_TIME, &dur)) return 0;
-    return dur / static_cast<gint64>(GST_MSECOND);
+    duracionAnteriorMs_ = dur / static_cast<gint64>(GST_MSECOND);
+    return duracionAnteriorMs_.load();
 }
 
 json Entrada::estado() const {
-    std::lock_guard<std::timed_mutex> l(mu_);
+    // Lo arma el bucle del motor para la foto: ocupada, va lo último que se supo.
+    std::unique_lock<std::timed_mutex> l(mu_, std::try_to_lock);
+    if (!l.owns_lock()) {
+        std::lock_guard<std::mutex> la(anteriorM_);
+        json e = estadoAnterior_.is_object() ? estadoAnterior_ : json{{"id", id_}, {"anda", false}};
+        e["ocupada"] = true;
+        return e;
+    }
+    json e = estadoYa();
+    std::lock_guard<std::mutex> la(anteriorM_);
+    estadoAnterior_ = e;
+    return e;
+}
+
+json Entrada::estadoYa() const {
     json j{{"id", id_},
            {"nombre", nombre_.empty() ? id_ : nombre_},
            {"anda", pipeline_ != nullptr},
@@ -1458,8 +1563,11 @@ json Entrada::estado() const {
 }
 
 void Entrada::control(const json& campos) {
-    std::lock_guard<std::timed_mutex> l(mu_);
     if (!campos.is_object()) return;
+    trabajar([this, campos]() { controlYa(campos); });
+}
+
+void Entrada::controlYa(const json& campos) {
     for (auto it = campos.begin(); it != campos.end(); ++it) control_[it.key()] = *it;
     controlEnviado_ = enviarControl();
 }
@@ -1599,7 +1707,15 @@ json Entrada::estadoFiltros() const {
 }
 
 std::string Entrada::propiedad(const std::string& elemento, const std::string& prop, const std::string& valor) {
-    std::lock_guard<std::timed_mutex> l(mu_);
+    // Al trabajador (con la entrada ocupada no se espera); si falla, queda en el registro.
+    trabajar([this, elemento, prop, valor]() {
+        const std::string e = propiedadYa(elemento, prop, valor);
+        if (!e.empty()) registrar(Nivel::Aviso, id_ + ": " + e);
+    });
+    return {};
+}
+
+std::string Entrada::propiedadYa(const std::string& elemento, const std::string& prop, const std::string& valor) {
     if (pipeline_ == nullptr) return "la entrada no está andando";
     GstElement* el = gst_bin_get_by_name(GST_BIN(pipeline_), elemento.c_str());
     if (el == nullptr) return "no hay un elemento «" + elemento + "» en la entrada";

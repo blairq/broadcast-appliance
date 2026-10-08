@@ -7,9 +7,12 @@
 #include "Reloj.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdlib>
 #include <map>
+#include <memory>
 #include <mutex>
+#include <thread>
 
 namespace ba::motor::origen_red {
 
@@ -26,6 +29,9 @@ struct Origen {
     gint64 sinUsoDesde = 0;   ///< µs (monotónico) desde que nadie lo usa
     gint64 reintentoEn = 0;   ///< µs: cuándo volver a conectar (0 = no hace falta)
     gint64 esperaMs = 1000;   ///< crece con cada caída seguida (hasta 10 s)
+    /// El pipeline anterior se está desarmando aparte (ver desarmar): hasta que
+    /// termine no se arma otro (los productores inter llevan el mismo nombre).
+    std::shared_ptr<std::atomic<bool>> desarmando;
 };
 
 // Nunca se destruyen: un estático que se destruye al salir con otro hilo usándolo mata el proceso.
@@ -51,15 +57,31 @@ std::string conComillasGst(const std::string& s) {
     return out + "\"";
 }
 
+// SE DESARMA APARTE. Pasar a NULL un RTSP que no contesta tarda lo que tarde la
+// conexión en rendirse (decenas de segundos): con el candado de los orígenes
+// tomado, y en el bucle del motor, trababa el motor entero. Un hilo suelto (no
+// std::async: su futuro espera al destruirse) y una bandera de «terminó».
 void desarmar(Origen& o) {
     if (o.pipeline == nullptr) return;
-    gst_element_set_state(o.pipeline, GST_STATE_NULL);
-    gst_object_unref(o.pipeline);
+    GstElement* p = o.pipeline;
     o.pipeline = nullptr;
+    auto listo = std::make_shared<std::atomic<bool>>(false);
+    o.desarmando = listo;
+    std::thread([p, listo]() {
+        gst_element_set_state(p, GST_STATE_NULL);
+        gst_object_unref(p);
+        listo->store(true);
+    }).detach();
 }
 
 void armar(Origen& o) {
     desarmar(o);
+    if (o.desarmando && !o.desarmando->load()) {
+        // El anterior todavía se está desarmando: se arma en un rato (sin esperar acá).
+        o.reintentoEn = g_get_monotonic_time() + 300'000;
+        return;
+    }
+    o.desarmando.reset();
     // Con la GPU del motor, lo decodificado se sube UNA vez y se publica la
     // textura: el decodificador se la da a la subida sin copiar (en la Mac,
     // vtdec → GL) y cada entrada la toma tal cual (su cadena arranca con la

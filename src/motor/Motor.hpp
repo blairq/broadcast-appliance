@@ -299,6 +299,8 @@ class Motor {
     /// Encola `f` para el hilo del motor (o la corre ya, desde ese hilo o con el
     /// motor parado). Devuelve su error solo si la corrió ya.
     std::string orden(const char* que, std::function<std::string()> f);
+    /// A la cola siempre, sin correrla nunca directo (desde los trabajadores).
+    void encolar(const char* que, std::function<std::string()> f);
     void correrOrdenes();
     // Lo que hacen de verdad las funciones públicas que se encolan.
     std::string agregarEntradaYa(const std::string& id, const nlohmann::json& ajustes, const nlohmann::json& opciones);

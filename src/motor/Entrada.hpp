@@ -63,6 +63,8 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <functional>
+#include <future>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -95,7 +97,16 @@ class Entrada {
 
     const std::string& id() const { return id_; }
     /// Cambia los ajustes: rearma solo si hace falta (las propiedades vivas de los filtros, en vivo).
-    void actualizar(const nlohmann::json& ajustes);
+    /// Ajustes nuevos. Rearmar va al trabajador (ver trabajar); `despues` se llama
+    /// desde ese hilo al terminar (el motor lo usa para aplicar lo que cambió).
+    void actualizar(const nlohmann::json& ajustes, std::function<void()> despues = {});
+    /// LO QUE TARDA (armar, desarmar, ajustes, controles) va a un trabajador, en
+    /// orden y con el candado de la entrada: el bucle del motor no espera a una
+    /// entrada ocupada, la saltea (tic) o usa lo último que supo (estado).
+    void trabajar(std::function<void()> f);
+    bool ocupada() const { return ocupadas_.load() > 0; }
+    /// Espera los trabajos pendientes (al morir: no desde el hilo del motor).
+    void esperarTrabajos();
     /// Lo llama el motor seguido (~20 veces por segundo): bus, reintentos, vigías, latencia.
     void tic();
     nlohmann::json estado() const;
@@ -149,7 +160,8 @@ class Entrada {
     void programarReintento();
     void procesarMensaje(GstMessage* m);
     void medirLatencia();
-    void vigilarDatos();
+    /// true: no llegan datos y se encargó rearmarla.
+    bool vigilarDatos();
     void irANs(std::int64_t ns);
     void corregirOffset();
     void armarSalida();
@@ -165,6 +177,21 @@ class Entrada {
     std::string id_;
     /// timed: leerPropiedades no espera más de un instante (ver ahí).
     mutable std::timed_mutex mu_;
+    std::mutex trabajoM_;
+    std::shared_future<void> trabajo_;
+    std::atomic<int> ocupadas_{0};
+    std::atomic<bool> usoPendiente_{false}; ///< ponerEnUso llegó con la entrada ocupada: lo hace tic
+    void ponerEnUsoYa();                     ///< con mu_ tomado
+    std::string controlMedioYa(const std::string& accion);
+    void irAYa(std::int64_t ms);
+    nlohmann::json estadoYa() const;
+    void controlYa(const nlohmann::json& campos);
+    std::string propiedadYa(const std::string& elemento, const std::string& prop, const std::string& valor);
+    void actualizarYa(const nlohmann::json& ajustes); ///< con mu_ tomado
+    mutable std::mutex anteriorM_;
+    mutable nlohmann::json estadoAnterior_;  ///< bajo anteriorM_: el último estado (para cuando está ocupada)
+    mutable std::string medioAnterior_ = "none";
+    mutable std::atomic<std::int64_t> tiempoAnteriorMs_{0}, duracionAnteriorMs_{0};
     mutable std::mutex propiedadesM_;
     mutable std::map<std::string, nlohmann::json> propiedadesLeidas_; ///< bajo propiedadesM_
 

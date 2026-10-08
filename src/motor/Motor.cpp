@@ -323,9 +323,19 @@ std::string Motor::actualizarEntradaYa(const std::string& id, const json& ajuste
     BA_CANDADO(mu_);
     auto it = canales_.find(id);
     if (it == canales_.end()) return "no hay una entrada «" + id + "»";
-    it->second.entrada->actualizar(ajustes);
-    indexarDeApp(id, it->second.entrada); // pudo dejar de ser (o pasar a ser) de la app
-    aplicar(id, 0); // pudo pasar a tener (o dejar de tener) audio
+    // El rearmado va al trabajador de la entrada; lo que depende de los ajustes
+    // nuevos (si es de la app, si tiene audio) vuelve a la cola del motor al terminar.
+    it->second.entrada->actualizar(ajustes, [this, id]() {
+        // Siempre a la cola (nunca directo): al apagar, detener tiene mu_ y espera
+        // a este trabajo; la cola la descarta.
+        encolar("actualizarEntrada (aplicar)", [this, id]() {
+            auto e = canales_.find(id);
+            if (e == canales_.end()) return std::string();
+            indexarDeApp(id, e->second.entrada); // pudo dejar de ser (o pasar a ser) de la app
+            aplicar(id, 0);                      // pudo pasar a tener (o dejar de tener) audio
+            return std::string();
+        });
+    });
     return {};
 }
 
@@ -1340,6 +1350,14 @@ std::string Motor::orden(const char* que, std::function<std::string()> f) {
     }
     colaCv_.notify_one();
     return {};
+}
+
+void Motor::encolar(const char* que, std::function<std::string()> f) {
+    {
+        std::lock_guard<std::mutex> l(colaM_);
+        cola_.emplace_back(que, std::move(f));
+    }
+    colaCv_.notify_one();
 }
 
 void Motor::alFallar(std::function<void(const std::string& que, const std::string& error)> fn) {
