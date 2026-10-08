@@ -1284,11 +1284,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                         QVariantMap campos{{"texto", QString::fromStdString(c.value("texto", std::string()))},
                                            {"duracionSeg", c.value("duracionSeg", 0)},
                                            {"automatico", c.value("automatico", false)}};
-                        if (c.contains("datos") && c["datos"].is_object())
-                            for (auto it = c["datos"].begin(); it != c["datos"].end(); ++it)
-                                campos[QString::fromStdString(it.key())] =
-                                    it->is_string() ? QVariant(QString::fromStdString(it->get<std::string>()))
-                                                    : QVariant(QString::fromStdString(it->dump()));
+                        // Como evento_cue: lo propio del tipo va en `datos` (antes se
+                        // mezclaba con los campos del cue y la escena quedaba sin nombre).
+                        if (c.contains("datos") && c["datos"].is_object()) campos["datos"] = aVariantMap(c["datos"]);
                         ev.editarCue(bi, ci++, campos);
                         ++nCues;
                     }
