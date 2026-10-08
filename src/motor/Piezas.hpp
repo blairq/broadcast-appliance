@@ -117,6 +117,14 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
 
 /// Un GstDeviceMonitor de todo el proceso: qué micrófonos y cámaras hay, y una
 /// generación que cambia cuando se conecta o se va uno.
+/// Los proveedores de dispositivos que no avisan cuando se enchufa o se
+/// desenchufa algo (el de macOS, avfdeviceprovider, en 1.28) se quedan con la
+/// lista de cuando arrancaron mientras alguien los tenga prendidos (el Vigía, siempre):
+/// una capturadora enchufada con la app abierta no aparecía nunca. Esto los
+/// vuelve a sondear y, si cambió algo, les carga la lista nueva (avisa
+/// DEVICE_REMOVED/ADDED a todos los monitores). Barato; se llama antes de listar.
+void resondearSinAviso();
+
 class Vigia {
    public:
     static Vigia& el();
@@ -131,6 +139,7 @@ class Vigia {
     void arrancar();
     std::mutex mu_;
     GstDeviceMonitor* mon_ = nullptr;
+    std::uint64_t ultimoSondeo_ = 0;
     std::set<std::string> audio_, video_;
     std::atomic<std::uint64_t> generacion_{1};
 };

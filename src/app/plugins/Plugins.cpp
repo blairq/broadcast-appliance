@@ -1,6 +1,7 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "Piezas.hpp" // motor::resondearSinAviso
 #include "control/BusEventos.hpp"
 #include "plugins/Hijo.hpp"
 
@@ -1328,6 +1329,7 @@ json camarasGstImpl() {
         gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
         gst_device_monitor_add_filter(mon, "Audio/Source", nullptr);
         if (gst_device_monitor_start(mon)) {
+            ba::motor::resondearSinAviso(); // lo enchufado con la app abierta (macOS no avisa)
             GList* lista = gst_device_monitor_get_devices(mon);
             for (GList* l = lista; l != nullptr; l = l->next) {
                 auto* dev = GST_DEVICE(l->data);

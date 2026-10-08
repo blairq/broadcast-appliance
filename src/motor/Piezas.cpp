@@ -345,6 +345,7 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
     GstDeviceMonitor* mon = gst_device_monitor_new();
     gst_device_monitor_add_filter(mon, "Video/Source", nullptr);
     if (gst_device_monitor_start(mon)) {
+        resondearSinAviso(); // lo enchufado con la app abierta
         GList* lista = gst_device_monitor_get_devices(mon);
         for (GList* l = lista; l != nullptr && o.empty(); l = l->next) {
             auto* dev = GST_DEVICE(l->data);
@@ -382,6 +383,62 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
 
 // --- Vigía de dispositivos ----------------------------------------------------------
 
+namespace {
+std::string claveDeDispositivo(GstDevice* d) {
+    std::string k;
+    if (gchar* c = gst_device_get_device_class(d)) {
+        k += c;
+        g_free(c);
+    }
+    k += '|';
+    if (gchar* n = gst_device_get_display_name(d)) {
+        k += n;
+        g_free(n);
+    }
+    k += '|';
+    if (GstStructure* p = gst_device_get_properties(d)) {
+        gchar* t = gst_structure_to_string(p);
+        k += t;
+        g_free(t);
+        gst_structure_free(p);
+    }
+    return k;
+}
+} // namespace
+
+void resondearSinAviso() {
+    static std::mutex mu;
+    std::lock_guard<std::mutex> l(mu);
+    GList* fabricas = gst_device_provider_factory_list_get_device_providers(GST_RANK_NONE);
+    for (GList* f = fabricas; f != nullptr; f = f->next) {
+        GstDeviceProvider* p = gst_device_provider_factory_get(GST_DEVICE_PROVIDER_FACTORY(f->data));
+        if (p == nullptr) continue;
+        GstDeviceProviderClass* k = GST_DEVICE_PROVIDER_GET_CLASS(p);
+        // Solo los que no vigilan solos y están prendidos (si no, ya sondean al listar).
+        if (gst_device_provider_can_monitor(p) || k->probe == nullptr || !gst_device_provider_is_started(p)) {
+            gst_object_unref(p);
+            continue;
+        }
+        GList* viejos = gst_device_provider_get_devices(p); // la lista guardada
+        GList* nuevos = k->probe(p);
+        std::set<std::string> kv, kn;
+        for (GList* d = viejos; d != nullptr; d = d->next) kv.insert(claveDeDispositivo(GST_DEVICE(d->data)));
+        for (GList* d = nuevos; d != nullptr; d = d->next) kn.insert(claveDeDispositivo(GST_DEVICE(d->data)));
+        if (kv != kn) {
+            // Se reemplaza entera: el índice (device-index) de las que siguen puede haber corrido.
+            for (GList* d = viejos; d != nullptr; d = d->next) gst_device_provider_device_remove(p, GST_DEVICE(d->data));
+            for (GList* d = nuevos; d != nullptr; d = d->next) gst_device_provider_device_add(p, GST_DEVICE(d->data));
+            g_list_free(nuevos); // device_add se quedó con la referencia (flotante)
+        } else {
+            for (GList* d = nuevos; d != nullptr; d = d->next) gst_object_ref_sink(d->data);
+            g_list_free_full(nuevos, gst_object_unref);
+        }
+        g_list_free_full(viejos, gst_object_unref);
+        gst_object_unref(p);
+    }
+    gst_plugin_feature_list_free(fabricas);
+}
+
 Vigia& Vigia::el() {
     static Vigia* v = new Vigia(); // vive lo que el proceso
     return *v;
@@ -416,6 +473,12 @@ void Vigia::revisar() {
     if (!l.owns_lock()) return;
     arrancar();
     if (mon_ == nullptr) return;
+    // Lo que se enchufó con la app abierta, en los proveedores que no avisan (cada 3 s).
+    const std::uint64_t ahora = g_get_monotonic_time();
+    if (ahora - ultimoSondeo_ > 3'000'000) {
+        ultimoSondeo_ = ahora;
+        resondearSinAviso();
+    }
     GstBus* bus = gst_device_monitor_get_bus(mon_);
     bool cambio = false;
     while (GstMessage* m = gst_bus_pop(bus)) {
