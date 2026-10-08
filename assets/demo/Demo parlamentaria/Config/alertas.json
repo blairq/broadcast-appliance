@@ -1,0 +1,346 @@
+{
+  "fabricaOfrecida": [
+    "audio_silence",
+    "audio_peak",
+    "stream_health",
+    "stream_down",
+    "disk",
+    "input_signal",
+    "guest_drop",
+    "guest_quality",
+    "superres_tarde",
+    "loudness",
+    "program_black",
+    "program_frozen",
+    "record_down"
+  ],
+  "ruleSeq": 13,
+  "rules": [
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:21",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a1",
+      "message": "",
+      "name": "Silencio al aire (programa)",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "belowDb": -50,
+        "forSec": 8,
+        "onlyWhenLive": true,
+        "source": "Programa"
+      },
+      "permitir_aire": [],
+      "reconocer": true,
+      "sonido": "critico",
+      "type": "audio_silence"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 20,
+      "createdAt": "2026-10-08T13:28:21",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a2",
+      "message": "",
+      "name": "Saturación del programa",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "holdMs": 500,
+        "source": "Programa",
+        "thresholdDb": -1
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "audio_peak"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:21",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a3",
+      "message": "",
+      "name": "La transmisión pierde cuadros",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "droppedPct": 2,
+        "windowSec": 30
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "stream_health"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a4",
+      "message": "",
+      "name": "La transmisión se cayó",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "forSec": 10
+      },
+      "permitir_aire": [],
+      "reconocer": true,
+      "sonido": "critico",
+      "type": "stream_down"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 600,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a5",
+      "message": "",
+      "name": "Poco disco (menos de 30 min)",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "minGb": 5,
+        "minMinutos": 30,
+        "siempre": true
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "disk"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 30,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a6",
+      "message": "",
+      "name": "Entrada sin señal",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "entrada": "*",
+        "forSec": 3
+      },
+      "permitir_aire": [],
+      "reconocer": true,
+      "sonido": "critico",
+      "type": "input_signal"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 0,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a7",
+      "message": "",
+      "name": "Un invitado se cayó",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {},
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "guest_drop"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a8",
+      "message": "",
+      "name": "Invitado con mala conexión",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "forSec": 5,
+        "nivel": "rojo",
+        "soloAlAire": true
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "guest_quality"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a9",
+      "message": "",
+      "name": "La superresolución no llega",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "entrada": "*"
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "superres_tarde"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 120,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a10",
+      "message": "",
+      "name": "Loudness fuera de objetivo",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "forSec": 30,
+        "soloAlAire": true,
+        "toleranciaLU": 2
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "ninguno",
+      "type": "loudness"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a11",
+      "message": "",
+      "name": "Programa en negro",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "forSec": 3,
+        "onlyWhenLive": true,
+        "umbral": 16
+      },
+      "permitir_aire": [],
+      "reconocer": true,
+      "sonido": "critico",
+      "type": "program_black"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 120,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a12",
+      "message": "",
+      "name": "Programa congelado",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "forSec": 30,
+        "onlyWhenLive": true
+      },
+      "permitir_aire": [],
+      "reconocer": false,
+      "sonido": "aviso",
+      "type": "program_frozen"
+    },
+    {
+      "actions": [],
+      "cooldownSec": 60,
+      "createdAt": "2026-10-08T13:28:22",
+      "enabled": true,
+      "fabrica": true,
+      "fired": 0,
+      "id": "a13",
+      "message": "",
+      "name": "La grabación se cortó",
+      "notificar": [],
+      "notify": [
+        "ui",
+        "llm"
+      ],
+      "once": false,
+      "params": {
+        "forSec": 5
+      },
+      "permitir_aire": [],
+      "reconocer": true,
+      "sonido": "critico",
+      "type": "record_down"
+    }
+  ]
+}

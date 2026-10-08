@@ -1,0 +1,150 @@
+{
+ "grupos": {
+  "asamblea": {
+   "activo": true,
+   "terminos": [
+    {
+     "termino": "Asamblea",
+     "variantes": []
+    },
+    {
+     "termino": "quórum",
+     "variantes": []
+    },
+    {
+     "termino": "cuarto intermedio",
+     "variantes": []
+    },
+    {
+     "termino": "orden del día",
+     "variantes": []
+    },
+    {
+     "termino": "expediente",
+     "variantes": []
+    },
+    {
+     "termino": "despacho",
+     "variantes": []
+    },
+    {
+     "termino": "moción",
+     "variantes": []
+    },
+    {
+     "termino": "sesión ordinaria",
+     "variantes": []
+    },
+    {
+     "termino": "sesión extraordinaria",
+     "variantes": []
+    },
+    {
+     "termino": "comisión",
+     "variantes": []
+    },
+    {
+     "termino": "presidencia",
+     "variantes": []
+    },
+    {
+     "termino": "vicepresidencia",
+     "variantes": []
+    },
+    {
+     "termino": "bloque",
+     "variantes": []
+    },
+    {
+     "termino": "dictamen",
+     "variantes": []
+    },
+    {
+     "termino": "resolución",
+     "variantes": []
+    },
+    {
+     "termino": "declaración",
+     "variantes": []
+    },
+    {
+     "termino": "votación nominal",
+     "variantes": []
+    },
+    {
+     "termino": "a mano alzada",
+     "variantes": []
+    },
+    {
+     "termino": "unanimidad",
+     "variantes": []
+    }
+   ]
+  },
+  "cuerpo": {
+   "activo": true,
+   "terminos": []
+  },
+  "localidades": {
+   "activo": true,
+   "terminos": [
+    {
+     "termino": "Puerto Ejemplo",
+     "variantes": []
+    },
+    {
+     "termino": "Villa Serena",
+     "variantes": []
+    },
+    {
+     "termino": "Bahía Quieta",
+     "variantes": []
+    },
+    {
+     "termino": "Cerro Alto",
+     "variantes": []
+    },
+    {
+     "termino": "Laguna Clara",
+     "variantes": []
+    },
+    {
+     "termino": "Los Molinos",
+     "variantes": []
+    },
+    {
+     "termino": "Arroyo Manso",
+     "variantes": []
+    },
+    {
+     "termino": "Punta Brava",
+     "variantes": []
+    },
+    {
+     "termino": "Valle Hondo",
+     "variantes": []
+    },
+    {
+     "termino": "San Telmo del Sur",
+     "variantes": []
+    },
+    {
+     "termino": "Barrio Puerto",
+     "variantes": []
+    },
+    {
+     "termino": "Barrio Norte",
+     "variantes": []
+    },
+    {
+     "termino": "Costanera",
+     "variantes": []
+    }
+   ]
+  },
+  "operador": {
+   "activo": true,
+   "terminos": []
+  }
+ }
+}

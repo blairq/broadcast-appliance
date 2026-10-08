@@ -1,0 +1,412 @@
+{
+  "cables": [
+    {
+      "desde": "invitado-1.ptz",
+      "entrada": "in",
+      "hacia": "invitado-1.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-1.entrada",
+      "entrada": "in",
+      "hacia": "invitado-1.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-1-pantalla.ptz",
+      "entrada": "in",
+      "hacia": "invitado-1-pantalla.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-1-pantalla.entrada",
+      "entrada": "in",
+      "hacia": "invitado-1-pantalla.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-2.ptz",
+      "entrada": "in",
+      "hacia": "invitado-2.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-2.entrada",
+      "entrada": "in",
+      "hacia": "invitado-2.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-2-pantalla.ptz",
+      "entrada": "in",
+      "hacia": "invitado-2-pantalla.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "invitado-2-pantalla.entrada",
+      "entrada": "in",
+      "hacia": "invitado-2-pantalla.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra.ptz",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra.entrada",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra-2.ptz",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra-2.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra-2.entrada",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra-2.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra-2-contenido.ptz",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra-2-contenido.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra-2-contenido.entrada",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra-2-contenido.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra-contenido.ptz",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra-contenido.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "remoto-con-la-palabra-contenido.entrada",
+      "entrada": "in",
+      "hacia": "remoto-con-la-palabra-contenido.ptz",
+      "salida": "out"
+    },
+    {
+      "desde": "camara-del-recinto.ptz",
+      "entrada": "in",
+      "hacia": "camara-del-recinto.escena",
+      "salida": "out"
+    },
+    {
+      "desde": "camara-del-recinto.entrada",
+      "entrada": "in",
+      "hacia": "camara-del-recinto.ptz",
+      "salida": "out"
+    }
+  ],
+  "nodos": [
+    {
+      "etiqueta": "Invitado 1",
+      "grupo": "Invitado 1",
+      "id": "invitado-1.entrada",
+      "params": {
+        "fuente": "Invitado 1"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 0
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Invitado 1",
+      "id": "invitado-1.escena",
+      "params": {
+        "fuente": "Invitado 1"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 0
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Invitado 1",
+      "id": "invitado-1.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 0
+    },
+    {
+      "etiqueta": "Invitado 1 — pantalla",
+      "grupo": "Invitado 1 — pantalla",
+      "id": "invitado-1-pantalla.entrada",
+      "params": {
+        "fuente": "Invitado 1 — pantalla"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 200
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Invitado 1 — pantalla",
+      "id": "invitado-1-pantalla.escena",
+      "params": {
+        "fuente": "Invitado 1 — pantalla"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 200
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Invitado 1 — pantalla",
+      "id": "invitado-1-pantalla.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 200
+    },
+    {
+      "etiqueta": "Invitado 2",
+      "grupo": "Invitado 2",
+      "id": "invitado-2.entrada",
+      "params": {
+        "fuente": "Invitado 2"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 400
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Invitado 2",
+      "id": "invitado-2.escena",
+      "params": {
+        "fuente": "Invitado 2"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 400
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Invitado 2",
+      "id": "invitado-2.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 400
+    },
+    {
+      "etiqueta": "Invitado 2 — pantalla",
+      "grupo": "Invitado 2 — pantalla",
+      "id": "invitado-2-pantalla.entrada",
+      "params": {
+        "fuente": "Invitado 2 — pantalla"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 600
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Invitado 2 — pantalla",
+      "id": "invitado-2-pantalla.escena",
+      "params": {
+        "fuente": "Invitado 2 — pantalla"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 600
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Invitado 2 — pantalla",
+      "id": "invitado-2-pantalla.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 600
+    },
+    {
+      "etiqueta": "Remoto con la palabra",
+      "grupo": "Remoto con la palabra",
+      "id": "remoto-con-la-palabra.entrada",
+      "params": {
+        "fuente": "Remoto con la palabra"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 800
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Remoto con la palabra",
+      "id": "remoto-con-la-palabra.escena",
+      "params": {
+        "fuente": "Remoto con la palabra"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 800
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Remoto con la palabra",
+      "id": "remoto-con-la-palabra.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 800
+    },
+    {
+      "etiqueta": "Remoto con la palabra 2",
+      "grupo": "Remoto con la palabra 2",
+      "id": "remoto-con-la-palabra-2.entrada",
+      "params": {
+        "fuente": "Remoto con la palabra 2"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 1000
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Remoto con la palabra 2",
+      "id": "remoto-con-la-palabra-2.escena",
+      "params": {
+        "fuente": "Remoto con la palabra 2"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 1000
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Remoto con la palabra 2",
+      "id": "remoto-con-la-palabra-2.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 1000
+    },
+    {
+      "etiqueta": "Remoto con la palabra 2 — contenido",
+      "grupo": "Remoto con la palabra 2 — contenido",
+      "id": "remoto-con-la-palabra-2-contenido.entrada",
+      "params": {
+        "fuente": "Remoto con la palabra 2 — contenido"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 1200
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Remoto con la palabra 2 — contenido",
+      "id": "remoto-con-la-palabra-2-contenido.escena",
+      "params": {
+        "fuente": "Remoto con la palabra 2 — contenido"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 1200
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Remoto con la palabra 2 — contenido",
+      "id": "remoto-con-la-palabra-2-contenido.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 1200
+    },
+    {
+      "etiqueta": "Remoto con la palabra — contenido",
+      "grupo": "Remoto con la palabra — contenido",
+      "id": "remoto-con-la-palabra-contenido.entrada",
+      "params": {
+        "fuente": "Remoto con la palabra — contenido"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 1400
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Remoto con la palabra — contenido",
+      "id": "remoto-con-la-palabra-contenido.escena",
+      "params": {
+        "fuente": "Remoto con la palabra — contenido"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 1400
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Remoto con la palabra — contenido",
+      "id": "remoto-con-la-palabra-contenido.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 1400
+    },
+    {
+      "etiqueta": "Cámara del recinto",
+      "grupo": "Cámara del recinto",
+      "id": "camara-del-recinto.entrada",
+      "params": {
+        "fuente": "Cámara del recinto"
+      },
+      "tipo": "entrada",
+      "x": 0,
+      "y": 1600
+    },
+    {
+      "etiqueta": "A la escena",
+      "grupo": "Cámara del recinto",
+      "id": "camara-del-recinto.escena",
+      "params": {
+        "fuente": "Cámara del recinto"
+      },
+      "tipo": "escena",
+      "x": 660,
+      "y": 1600
+    },
+    {
+      "etiqueta": "PTZ",
+      "grupo": "Cámara del recinto",
+      "id": "camara-del-recinto.ptz",
+      "params": {
+        "activo": true
+      },
+      "tipo": "ptz",
+      "x": 220,
+      "y": 1600
+    }
+  ],
+  "version": 2
+}

@@ -1,0 +1,9 @@
+{
+ "directo": false,
+ "escenas": {
+  "remoto_remoto": "Asamblea · Debate remotos",
+  "sala_remoto": "Asamblea · Debate sala y remoto",
+  "sala_sala": "Asamblea · Debate sala"
+ },
+ "turno_s": 120
+}
