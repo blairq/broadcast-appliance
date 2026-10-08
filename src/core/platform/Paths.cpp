@@ -4,6 +4,9 @@
 
 #include "platform/Paths.hpp"
 
+#include <fstream>
+#include <iterator>
+
 #include <cstdlib>
 #ifndef _WIN32
 #include <stdlib.h>
@@ -114,15 +117,54 @@ void redirectUserDirs() {
     setEnv("__GL_SHADER_DISK_CACHE_PATH", cache / "nvidia");
 }
 
+std::string configActiva(const std::filesystem::path& datos) {
+    std::ifstream f(datos / "configuraciones.json");
+    if (!f) return {};
+    std::string txt((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    // {"activa": "nombre"} sin depender de una biblioteca de JSON en el núcleo.
+    const auto k = txt.find("\"activa\"");
+    if (k == std::string::npos) return {};
+    const auto a = txt.find('"', txt.find(':', k) + 1);
+    if (a == std::string::npos) return {};
+    std::string nombre;
+    for (std::size_t i = a + 1; i < txt.size() && txt[i] != '"'; ++i) {
+        if (txt[i] == '\\' && i + 1 < txt.size()) ++i;
+        nombre += txt[i];
+    }
+    return nombre;
+}
+
+std::filesystem::path configRootFor(const std::filesystem::path& datos) {
+    const std::string n = configActiva(datos);
+    std::error_code ec;
+    if (!n.empty() && n.find("..") == std::string::npos && n.find('/') == std::string::npos &&
+        n.find('\\') == std::string::npos) {
+        const auto dir = datos / "Configuraciones" / std::filesystem::path(std::u8string(n.begin(), n.end()));
+        if (std::filesystem::is_directory(dir, ec)) return dir;
+    }
+    return datos;
+}
+
+std::filesystem::path configRoot() {
+    if (const char* e = std::getenv(kConfigRootEnv); e != nullptr && *e != '\0') {
+        const std::string s(e);
+        return std::filesystem::path(std::u8string(s.begin(), s.end()));
+    }
+    return configRootFor(dataRoot());
+}
+
 std::string rutaGuardable(const std::filesystem::path& p) {
     if (p.empty()) return {};
     std::error_code ec;
-    const auto raiz = std::filesystem::weakly_canonical(dataRoot(), ec);
     const auto abs = std::filesystem::weakly_canonical(p, ec);
-    const auto rel = abs.lexically_relative(raiz);
-    if (!ec && !rel.empty() && *rel.begin() != "..") {
-        const std::u8string u = rel.generic_u8string();
-        return std::string(u.begin(), u.end());
+    // Primero la configuración (lo suyo), después la máquina (Modelos/, Herramientas/…).
+    for (const auto& base : {configRoot(), dataRoot()}) {
+        const auto raiz = std::filesystem::weakly_canonical(base, ec);
+        const auto rel = abs.lexically_relative(raiz);
+        if (!ec && !rel.empty() && *rel.begin() != "..") {
+            const std::u8string u = rel.generic_u8string();
+            return std::string(u.begin(), u.end());
+        }
     }
     const std::u8string u = p.u8string();
     return std::string(u.begin(), u.end());
@@ -131,8 +173,18 @@ std::string rutaGuardable(const std::filesystem::path& p) {
 std::filesystem::path rutaDeDatos(const std::string& guardada) {
     if (guardada.empty()) return {};
     const std::filesystem::path p(std::u8string(guardada.begin(), guardada.end()));
-    if (p.is_relative()) return dataRoot() / p;
     std::error_code ec;
+    if (p.is_relative()) {
+        // De la configuración si está ahí (o si es una carpeta suya); si no, de la máquina.
+        const auto enConfig = configRoot() / p;
+        if (std::filesystem::exists(enConfig, ec)) return enConfig;
+        const auto enMaquina = dataRoot() / p;
+        if (std::filesystem::exists(enMaquina, ec)) return enMaquina;
+        const std::string primera = p.begin() != p.end() ? p.begin()->string() : std::string();
+        for (const char* c : kCarpetasDeConfiguracion)
+            if (primera == c) return enConfig;
+        return enMaquina;
+    }
     if (std::filesystem::exists(p, ec)) return p;
     // La carpeta de datos se movió: desde la primera carpeta conocida de los datos.
     static const char* const kCarpetas[] = {"Modelos", "Media", "Graficos", "Eventos", "Recordings", "Plugins",
@@ -146,8 +198,10 @@ std::filesystem::path rutaDeDatos(const std::string& guardada) {
         if (desde) resto /= parte;
     }
     if (desde) {
-        const auto nueva = dataRoot() / resto;
-        if (std::filesystem::exists(nueva, ec)) return nueva;
+        for (const auto& base : {configRoot(), dataRoot()}) {
+            const auto nueva = base / resto;
+            if (std::filesystem::exists(nueva, ec)) return nueva;
+        }
     }
     return p;
 }

@@ -57,7 +57,7 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
     // carga en vez del del programa (variable BA_ORT_GPU, antes de que
     // GStreamer abra una red).
     if (qEnvironmentVariableIsEmpty("BA_ORT_GPU")) {
-        const fs::path base = root_ / "Herramientas" / "onnxruntime-gpu" / "lib";
+        const fs::path base = ba::platform::dataRoot() / "Herramientas" / "onnxruntime-gpu" / "lib";
 #if defined(_WIN32)
         const fs::path lib = base / "onnxruntime.dll";
 #else
@@ -92,8 +92,8 @@ SuperRes::~SuperRes() {
     }
 }
 
-fs::path SuperRes::carpetaModelos() const { return root_ / "Modelos" / "superres"; }
-fs::path SuperRes::libs() const { return root_ / "Herramientas" / "superres-libs"; }
+fs::path SuperRes::carpetaModelos() const { return ba::platform::dataRoot() / "Modelos" / "superres"; }
+fs::path SuperRes::libs() const { return ba::platform::dataRoot() / "Herramientas" / "superres-libs"; }
 
 fs::path SuperRes::python() const {
 #if defined(_WIN32)
@@ -688,7 +688,7 @@ std::string placaDeVideo() {
 
 json SuperRes::runtimeGpu() const {
     json out{{"placa", placaDeVideo()}};
-    const fs::path dir = root_ / "Herramientas" / "onnxruntime-gpu";
+    const fs::path dir = ba::platform::dataRoot() / "Herramientas" / "onnxruntime-gpu";
     std::ifstream f(dir / "runtime.json");
     if (f) {
         const json r = json::parse(f, nullptr, false);
@@ -724,7 +724,7 @@ std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool con
         return "no hay un runtime de GPU para bajar acá (tipo: nvidia, amd o intel)";
     const fs::path script = ba::platform::bundleRoot() / "superres" / "runtime_gpu.py";
     QStringList args{q8(script), "--tipo", QString::fromStdString(tipo), "--salida",
-                     q8(root_ / "Herramientas" / "onnxruntime-gpu")};
+                     q8(ba::platform::dataRoot() / "Herramientas" / "onnxruntime-gpu")};
     if (!conTensorRt) args << "--sin-tensorrt";
     return correr("Bajar el ONNX Runtime de GPU (" + QString::fromStdString(tipo) + ")", {}, args, [](bool) {});
 #endif

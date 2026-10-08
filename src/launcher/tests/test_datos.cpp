@@ -14,12 +14,15 @@
 #include "Datos.hpp"
 
 #include <cstdio>
+
+#include "platform/Paths.hpp"
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <string>
 
 namespace fs = std::filesystem;
+using ba::launcher::prepararConfiguraciones;
 using ba::launcher::prepararDatos;
 
 namespace {
@@ -64,19 +67,42 @@ int main() {
           "Config se muda");
     CHECK(leer(datos / "Modelos" / "m" / "model.safetensors") == "pesos", "Modelos se muda");
     CHECK(!fs::exists(datos / "Logs"), "una carpeta vacía del bundle no se muda");
-    CHECK(leer(datos / "Graficos" / "zocalo.json") == "fabrica" &&
-              fs::exists(bundle / "Graficos" / "zocalo.json"),
-          "Graficos se siembra (y queda en el bundle)");
+
+    // Las configuraciones: lo de la configuración se MUDA a Configuraciones/Principal (sin copiar),
+    // launcher.json queda en la máquina y las semillas van a la configuración activa.
+    escribir(datos / "Config" / "launcher.json", "{\"shadowCopy\":true}");
+    escribir(datos / "Media" / "logo.png", "png");
+    avisos.clear();
+    const fs::path principal = prepararConfiguraciones(bundle, datos, avisos);
+    CHECK(principal == datos / "Configuraciones" / "Principal", "la activa es Principal");
+    CHECK(leer(principal / "Config" / "app.json") == "{\"a\":1}" && !fs::exists(datos / "Config"),
+          "Config se muda a Principal");
+    CHECK(leer(principal / "Media" / "logo.png") == "png", "Media también (es de la configuración)");
+    CHECK(leer(datos / "launcher.json") == "{\"shadowCopy\":true}" && !fs::exists(principal / "Config" / "launcher.json"),
+          "launcher.json queda en la máquina");
+    CHECK(leer(datos / "Modelos" / "m" / "model.safetensors") == "pesos", "Modelos queda en la máquina");
+    CHECK(leer(principal / "Graficos" / "zocalo.json") == "fabrica" && fs::exists(bundle / "Graficos" / "zocalo.json"),
+          "Graficos se siembra en la configuración (y queda en el bundle)");
+    CHECK(ba::platform::configRootFor(datos) == principal, "configuraciones.json dice la activa");
 
     // 3. y 4.
     escribir(bundle / "Config" / "app.json", "{\"viejo\":true}"); // reaparece adentro (otra versión)
-    escribir(datos / "Graficos" / "zocalo.json", "editado");
+    escribir(principal / "Graficos" / "zocalo.json", "editado");
     escribir(bundle / "Graficos" / "nuevo.json", "fabrica");
     avisos.clear();
     prepararDatos(bundle, datos, avisos);
-    CHECK(leer(datos / "Config" / "app.json") == "{\"a\":1}", "con datos en la carpeta nueva, no se pisan");
-    CHECK(leer(datos / "Graficos" / "zocalo.json") == "editado", "lo editado de Graficos no se pisa");
-    CHECK(leer(datos / "Graficos" / "nuevo.json") == "fabrica", "lo nuevo de fábrica se siembra");
+    prepararConfiguraciones(bundle, datos, avisos);
+    CHECK(leer(principal / "Config" / "app.json") == "{\"a\":1}", "la segunda vez no se muda ni se pisa nada");
+    CHECK(leer(principal / "Graficos" / "zocalo.json") == "editado", "lo editado de Graficos no se pisa");
+    CHECK(leer(principal / "Graficos" / "nuevo.json") == "fabrica", "lo nuevo de fábrica se siembra");
+
+    // La activa que ya no está: la primera que haya.
+    fs::create_directories(datos / "Configuraciones" / "Demo");
+    escribir(datos / "configuraciones.json", "{\"activa\": \"Borrada\"}");
+    avisos.clear();
+    const fs::path otra = prepararConfiguraciones(bundle, datos, avisos);
+    CHECK(otra.parent_path() == datos / "Configuraciones" && !avisos.empty(), "sin la activa: la primera que haya, y se avisa");
+    CHECK(ba::platform::configRootFor(datos) == otra, "y queda anotada");
 
     // 5. (Como root —Docker, CI— los permisos no frenan nada: no se prueba.)
 #ifndef _WIN32

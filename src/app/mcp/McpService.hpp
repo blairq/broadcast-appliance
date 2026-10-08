@@ -88,6 +88,7 @@ class McpService : public QObject {
     void registerDcnTools();
     void registerSesionTools();
     void registerAsambleaTools();
+    void registerConfiguracionesTools();
     void registerEquiposTools();
     void registerPrompterTools();
     void registerPantallaTools();

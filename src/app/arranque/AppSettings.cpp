@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "arranque/AppSettings.hpp"
+#include "platform/Paths.hpp"
+#include "arranque/RutasPortables.hpp"
 #include "emision/InputSpecs.hpp"
 
 #include <nlohmann/json.hpp>
@@ -115,7 +117,8 @@ SourceSpec sourceFromJson(const json& s) {
     SourceSpec spec;
     spec.id = get<std::string>(s, "id", "");
     spec.name = get<std::string>(s, "name", spec.id);
-    spec.settingsJson = s.value("settings", json::object()).dump();
+    // Lo guardado tiene las rutas relativas a los datos (portable): las de ahora.
+    spec.settingsJson = rutasAbsolutas(s.value("settings", json::object())).dump();
     spec.visible = get(s, "visible", true);
     spec.volume = get(s, "volume", 1.0f);
     spec.muted = get(s, "muted", false);
@@ -137,7 +140,7 @@ json sourceToJson(const SourceSpec& s) {
     }
     json j{{"id", s.id},
            {"name", s.name},
-           {"settings", settings},
+           {"settings", rutasRelativas(settings)}, // portable: rutas relativas a los datos
            {"visible", s.visible},
            {"volume", s.volume},
            {"muted", s.muted},
@@ -156,7 +159,15 @@ std::string relativeToRoot(const fs::path& p, const fs::path& root) {
 
 fs::path appConfigPath(const fs::path& dataRoot) { return dataRoot / "Config" / "app.json"; }
 fs::path gatewayConfigPath(const fs::path& dataRoot) { return dataRoot / "Config" / "gateway.json"; }
-fs::path launcherConfigPath(const fs::path& dataRoot) { return dataRoot / "Config" / "launcher.json"; }
+fs::path launcherConfigPath(const fs::path&) {
+    // Es de la MÁQUINA (no de la configuración): <datos>/launcher.json; una instalación
+    // vieja todavía sin mudar lo tiene en Config/.
+    const fs::path maquina = ba::platform::dataRoot();
+    std::error_code ec;
+    if (!fs::exists(maquina / "launcher.json", ec) && fs::exists(maquina / "Config" / "launcher.json", ec))
+        return maquina / "Config" / "launcher.json";
+    return maquina / "launcher.json";
+}
 
 AppConfig defaultAppConfig(const fs::path& dataRoot) {
     AppConfig c;

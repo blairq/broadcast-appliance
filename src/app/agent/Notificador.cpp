@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/Notificador.hpp"
+#include "platform/Paths.hpp"
 
 #include "security/CredentialStore.hpp"
 
@@ -34,7 +35,7 @@ const std::set<std::string> kTipos{"webhook", "telegram", "smtp"};
 } // namespace
 
 Notificador::Notificador(const fs::path& datos, QObject* parent)
-    : QObject(parent), archivo_(datos / "Config" / "notificadores.json"), credenciales_(datos / "Credenciales") {
+    : QObject(parent), archivo_(datos / "Config" / "notificadores.json"), credenciales_(ba::platform::credentialsDir()) {
     std::ifstream f(archivo_);
     const json j = json::parse(f, nullptr, false);
     if (j.is_array()) lista_ = j;

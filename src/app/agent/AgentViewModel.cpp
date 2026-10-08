@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AgentViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -354,7 +355,7 @@ void AgentViewModel::setModel(const QString& model) {
 bool AgentViewModel::hasKey() const {
     const Provider* p = findProvider(provider_);
     if (p == nullptr || QString(p->keyName).isEmpty()) return true;
-    return cred::exists(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()), p->keyName);
+    return cred::exists(QString::fromStdWString((ba::platform::credentialsDir()).wstring()), p->keyName);
 }
 
 QVariantMap AgentViewModel::modeloPropio() const {
@@ -381,7 +382,7 @@ void AgentViewModel::probarModeloPropio() {
         return;
     }
     QByteArray clave;
-    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
     cred::read(root + "/Credenciales", "modelo-propio-api-key", clave);
 
     // `/models` es lo que toda API compatible con OpenAI contesta, y no gasta
@@ -474,7 +475,7 @@ QString AgentViewModel::saveKey(const QString& key) {
     if (p == nullptr || QString(p->keyName).isEmpty()) return "Este proveedor no usa clave.";
     const QString k = key.trimmed();
     if (k.size() < 20) return "La clave parece incompleta.";
-    if (!cred::write(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()), p->keyName,
+    if (!cred::write(QString::fromStdWString((ba::platform::credentialsDir()).wstring()), p->keyName,
                      k.toUtf8()))
         return "No se pudo guardar la clave.";
     emit configChanged();
@@ -484,7 +485,7 @@ QString AgentViewModel::saveKey(const QString& key) {
 void AgentViewModel::clearKey() {
     const Provider* p = findProvider(provider_);
     if (p == nullptr || QString(p->keyName).isEmpty()) return;
-    cred::remove(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()), p->keyName);
+    cred::remove(QString::fromStdWString((ba::platform::credentialsDir()).wstring()), p->keyName);
     emit configChanged();
 }
 
@@ -521,7 +522,7 @@ json AgentViewModel::pinnedPins() const {
 }
 
 QString AgentViewModel::chosenFile() const {
-    return QString::fromStdWString((rt_.dataRoot() / "Agentes" / "versiones.json").wstring());
+    return QString::fromStdWString((ba::platform::dataRoot() / "Agentes" / "versiones.json").wstring());
 }
 
 json AgentViewModel::pins() const {
@@ -674,14 +675,14 @@ nlohmann::json AgentViewModel::platformPin(const json& pin) const {
 
 QString AgentViewModel::installDir(const QString& runtime) const {
     const json pin = pins().value(runtime.toStdString(), json::object());
-    return QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring()) + "/" + runtime + "/" +
+    return QString::fromStdWString((ba::platform::dataRoot() / "Agentes").wstring()) + "/" + runtime + "/" +
            QString::fromStdString(pin.value("version", std::string("?")));
 }
 
 QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const {
     if (runtime.isEmpty()) return {};
     const json pin = pins().value(runtime.toStdString(), json::object());
-    const QString base = QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring()) + "/" + runtime;
+    const QString base = QString::fromStdWString((ba::platform::dataRoot() / "Agentes").wstring()) + "/" + runtime;
     const QString fijada = QString::fromStdString(pin.value("version", std::string()));
 
     // El `.ok` guarda {version, exe} desde esta version; los viejos tenian solo
@@ -946,7 +947,7 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
 }
 
 QString AgentViewModel::prepareWorkspace(QString* error) {
-    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
     // Con su juego de herramientas (ver Roles::juegoDelAsistente) y CON
     // consola: es el asistente del operador, no un agente de un tiro.
@@ -957,7 +958,7 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
                                            const QStringList& bridgeArgs, const QString& prompt,
                                            QString* error, bool consola) {
-    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
     QDir().mkpath(ws);
     QByteArray p = prompt.toUtf8();
     // Lo que este modelo en particular necesita que le digan, al final del
@@ -1100,7 +1101,7 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     // sistema), no la que fija esta version.
     QString exeInstalado;
     const QString dir = usableDir(runtime, &exeInstalado);
-    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
     // Las credenciales son POR MOTOR, no por rol: un solo login sirve para el
     // interactivo y para todos los roles que usen ese motor.
     const QString profile = root + "/Credenciales/agentes/" + runtime;
@@ -1211,7 +1212,7 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
         if (error != nullptr) *error = "Proveedor desconocido: " + proveedor;
         return {};
     }
-    const QString root = QString::fromStdWString(rt_.dataRoot().wstring());
+    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
     const QString ws =
         // La consola (y con ella los archivos y la red) la decide EL ROL, no
         // esta linea: antes iba `false` fijo para todos.
@@ -1410,7 +1411,7 @@ void AgentViewModel::flushAlerts() {
 
 void AgentViewModel::openAgentsFolder() const {
     QDesktopServices::openUrl(
-        QUrl::fromLocalFile(QString::fromStdWString((rt_.dataRoot() / "Agentes").wstring())));
+        QUrl::fromLocalFile(QString::fromStdWString((ba::platform::dataRoot() / "Agentes").wstring())));
 }
 
 // --- Limpieza ----------------------------------------------------------------------
@@ -1457,7 +1458,7 @@ QString AgentViewModel::ocupadoParaLimpiar() const {
 
 void AgentViewModel::revisarLimpieza() {
     QVariantList out;
-    const fs::path root = rt_.dataRoot();
+    const fs::path root = ba::platform::dataRoot(); // de la máquina
     for (const char* rt : kMotores) {
         const fs::path prog = root / "Agentes" / rt;
         const fs::path perfil = root / "Credenciales" / "agentes" / rt;
@@ -1495,7 +1496,7 @@ void AgentViewModel::revisarLimpieza() {
 QVariantMap AgentViewModel::borrarChats(const QString& runtime) {
     const QString ocupado = ocupadoParaLimpiar();
     if (!ocupado.isEmpty()) return {{"ok", false}, {"error", ocupado}};
-    const fs::path root = rt_.dataRoot();
+    const fs::path root = ba::platform::dataRoot(); // de la máquina
     double bytes = 0;
     const auto borrar = [&](const fs::path& p) {
         std::error_code ec;
@@ -1525,7 +1526,7 @@ QVariantMap AgentViewModel::borrarVersionesViejas(const QString& runtime) {
         const QString enUso = QDir::cleanPath(usableDir(rt));
         if (enUso.isEmpty()) continue; // sin una que ande no se borra nada: podría ser la única
         std::error_code ec;
-        for (const fs::directory_entry& d : fs::directory_iterator(rt_.dataRoot() / "Agentes" / rt, ec)) {
+        for (const fs::directory_entry& d : fs::directory_iterator(ba::platform::dataRoot() / "Agentes" / rt, ec)) {
             if (!d.is_directory(ec) || QDir::cleanPath(QString::fromStdWString(d.path().wstring())) == enUso) continue;
             bytes += static_cast<double>(bytesDe(d.path()));
             std::error_code e2;
@@ -1543,7 +1544,7 @@ QString AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
     bool conocido = false;
     for (const char* rt : kMotores) conocido = conocido || runtime == rt;
     if (!conocido) return "Motor desconocido: " + runtime;
-    const fs::path root = rt_.dataRoot();
+    const fs::path root = ba::platform::dataRoot(); // de la máquina
     std::error_code ec;
     fs::remove_all(root / "Agentes" / runtime.toStdString(), ec);
     if (deCero) {

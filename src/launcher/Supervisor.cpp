@@ -143,10 +143,15 @@ bool Supervisor::inStartupGrace(bool isA) const {
 
 int Supervisor::run() {
     std::string err;
-    if (!ba::platform::SingleInstance::acquire("launcher", instance_, &err)) {
-        // Segunda ejecucion (spec 3.1.1): la primera sigue a cargo.
-        BA_LOG_INFO("instance", 0, "no se inicia: " + err);
-        return 0;
+    // --reiniciar (cambiar de configuración): el anterior se está cerrando; se lo espera.
+    const auto hasta = std::chrono::steady_clock::now() + std::chrono::milliseconds(cfg_.esperarInstanciaMs);
+    while (!ba::platform::SingleInstance::acquire("launcher", instance_, &err)) {
+        if (std::chrono::steady_clock::now() >= hasta) {
+            // Segunda ejecucion (spec 3.1.1): la primera sigue a cargo.
+            BA_LOG_INFO("instance", 0, "no se inicia: " + err);
+            return 0;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 
     ba::platform::suppressCrashDialogs(); // spec 3.1.4; los hijos lo heredan

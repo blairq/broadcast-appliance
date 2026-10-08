@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "emision/LatidoAire.hpp"
+#include "platform/Paths.hpp"
 
 #include "diag/Registro.hpp"
 
@@ -101,8 +102,8 @@ void LatidoAire::bucle() {
 
 void LatidoAire::escribirEstadoUi(bool trabada, std::uint64_t ms) const {
     std::error_code ec;
-    fs::create_directories(datos_ / "Runtime", ec);
-    std::ofstream o(datos_ / "Runtime" / "estado-ui.json");
+    fs::create_directories(ba::platform::dataRoot() / "Runtime", ec);
+    std::ofstream o(ba::platform::dataRoot() / "Runtime" / "estado-ui.json");
     o << json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}.dump();
 }
 

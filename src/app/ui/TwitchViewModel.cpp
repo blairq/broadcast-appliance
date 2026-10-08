@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/TwitchViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDesktopServices>
 #include <QPointer>
@@ -29,7 +30,7 @@ QJsonArray withUid(const QJsonArray& in) {
 
 TwitchViewModel::TwitchViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<TwitchClient>(
-                                    QString::fromStdString((rt.dataRoot() / "Credenciales").string()))),
+                                    QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "url", "thumb", "views", "created_at", "duration", "type"})),
       chat_(std::make_unique<JsonListModel>(

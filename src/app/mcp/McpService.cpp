@@ -139,7 +139,8 @@ bool puedeVerImagenes(McpCore& core) { return core.contextoEnCurso().rol == "vis
 /// nombre que no se repite. (Declarada en el header: la usa `imagen_analizar`.)
 QString guardarCaptura(const QImage& img, const std::filesystem::path& raiz, const json& args,
                        int defaultWidth) {
-    const QString dir = QString::fromStdWString((raiz / "Runtime" / "capturas").wstring());
+    (void)raiz; // las capturas son de la máquina (Runtime/), no de la configuración
+    const QString dir = QString::fromStdWString((ba::platform::dataRoot() / "Runtime" / "capturas").wstring());
     QDir().mkpath(dir);
     const int maxW = args.value("maxWidth", defaultWidth);
     QImage e = img;
@@ -546,6 +547,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     registerDcnTools();
     registerSesionTools();
     registerAsambleaTools();
+    registerConfiguracionesTools();
     registerEquiposTools();
     registerPrompterTools();
     registerPantallaTools();
@@ -693,10 +695,10 @@ McpService::~McpService() = default;
 bool McpService::start(quint16 port) {
     // La traza completa arranca con el servidor: lo que pase antes no existe
     // todavia para nadie de afuera.
-    Traza::la().abrir(rt_.dataRoot() / "Logs");
+    Traza::la().abrir(ba::platform::dataRoot() / "Logs");
     // T47: de fábrica, un token nuevo en cada arranque (el puente ba-mcp lo lee de
     // Credenciales/ en cada pedido; un cliente HTTP directo lo vuelve a pedir con `ba-mcp --token`).
-    const QString cred = QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring());
+    const QString cred = QString::fromStdWString((ba::platform::credentialsDir()).wstring());
     bool rotar = true;
     {
         std::ifstream f(rt_.dataRoot() / "Config" / "seguridad.json");
@@ -2209,7 +2211,7 @@ void McpService::registerTools() {
         t.description = "Cambia ya el token del servidor MCP (el viejo deja de valer). El puente ba-mcp lo relee solo; un "
                         "cliente HTTP directo lo vuelve a pedir con `ba-mcp --token`.";
         t.run = [this](const json&, Done done) {
-            const QString nuevo = rotarToken(QString::fromStdWString((rt_.dataRoot() / "Credenciales").wstring()));
+            const QString nuevo = rotarToken(QString::fromStdWString((ba::platform::credentialsDir()).wstring()));
             if (nuevo.isEmpty() || !http_) return done(ToolResult::error("no se pudo guardar el token nuevo"));
             http_->setToken(nuevo);
             done(ToolResult::ok("Token rotado."));

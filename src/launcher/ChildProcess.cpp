@@ -222,6 +222,9 @@ bool ChildProcess::start(const Config& cfg) {
     // aunque el binario corra desde la copia sombra.
     const std::u8string root = cfg.workDir.u8string();
     o.envSet[ba::platform::kDataRootEnv] = std::string(root.begin(), root.end());
+    // La configuración activa, leída AHORA (cambiar de configuración = reiniciar los hijos).
+    const std::u8string conf = ba::platform::configRootFor(cfg.workDir).u8string();
+    o.envSet[ba::platform::kConfigRootEnv] = std::string(conf.begin(), conf.end());
 
     // Salida del hijo (stdout+stderr) a su archivo de Logs/. Se prepara aca,
     // con el hijo todavia sin lanzar: es el unico momento en que se puede

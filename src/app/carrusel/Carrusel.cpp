@@ -2,10 +2,16 @@
 // src/app/carrusel/Carrusel.cpp — ver Carrusel.hpp
 // ============================================================================
 #include "carrusel/Carrusel.hpp"
+#include "platform/Paths.hpp"
 
 #include <algorithm>
 
 namespace ba::carrusel {
+
+namespace {
+std::filesystem::path fs_ruta(const std::string& s) { return std::filesystem::path(std::u8string(s.begin(), s.end())); }
+} // namespace
+
 namespace {
 
 using nlohmann::json;
@@ -117,7 +123,7 @@ const Lamina* Carrusel::proximaSinAnalizar() const {
 json Carrusel::aJson() const {
     json ls = json::array();
     for (const Lamina& l : laminas_)
-        ls.push_back(json{{"archivo", l.archivo},
+        ls.push_back(json{{"archivo", ba::platform::rutaGuardable(fs_ruta(l.archivo))}, // portable: relativa a los datos
                           {"titulo", l.titulo},
                           {"etiquetas", l.etiquetas},
                           {"analizada", l.analizada}});
@@ -139,6 +145,10 @@ Carrusel Carrusel::deJson(const json& j) {
             if (!jl.is_object()) continue;
             Lamina l;
             l.archivo = textoDe(jl, "archivo");
+            if (!l.archivo.empty()) {
+                const std::u8string u = ba::platform::rutaDeDatos(l.archivo).u8string();
+                l.archivo.assign(u.begin(), u.end());
+            }
             l.titulo = textoDe(jl, "titulo");
             l.etiquetas = textoDe(jl, "etiquetas");
             l.analizada = jl.contains("analizada") && jl["analizada"].is_boolean()

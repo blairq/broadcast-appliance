@@ -11,6 +11,7 @@
 #include <algorithm>
 
 #include "arranque/AppRuntime.hpp"
+#include "platform/Paths.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"
@@ -83,7 +84,7 @@ void McpService::registerRegistroTools() {
                 f.desdeMs = ahora - static_cast<std::int64_t>(a["ultimosMin"].get<int>()) * 60000LL;
             }
 
-            const auto dir = rt.dataRoot() / "Logs";
+            const auto dir = ba::platform::dataRoot() / "Logs";
             json lineas = json::array();
             for (const auto& r : ba::diag::leerLogs(dir, f))
                 lineas.push_back(json{{"ms", r.ms},

@@ -406,11 +406,11 @@ nlohmann::json processUsage(const WebrtcHub* hub) {
 int main(int argc, char** argv) {
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
-    ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
+    ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot());
     Config cfg;
     // Config/gateway.json (lo escribe la interfaz de A); la linea de comandos
     // lo pisa.
-    cfg.loadFile((ba::platform::dataRoot() / "Config" / "gateway.json").string());
+    cfg.loadFile((ba::platform::configRoot() / "Config" / "gateway.json").string());
     cfg.parseArgs(argc, argv);
     cfg.derivePaths();
     Log log;

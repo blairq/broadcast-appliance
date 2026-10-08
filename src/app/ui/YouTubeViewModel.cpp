@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/YouTubeViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <QClipboard>
 #include <QCoreApplication>
@@ -40,7 +41,7 @@ QJsonArray withUid(const QJsonArray& in, const QString& key = "id") {
 
 YouTubeViewModel::YouTubeViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<YouTubeClient>(
-                                    QString::fromStdString((rt.dataRoot() / "Credenciales").string()))),
+                                    QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "privacy", "publishedAt", "thumb", "views", "likes",
                       "comments", "duration", "url", "live", "uploadStatus"})),

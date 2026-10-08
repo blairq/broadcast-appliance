@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/FacebookViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <algorithm>
 #include <QClipboard>
@@ -34,7 +35,7 @@ QJsonArray withUid(const QJsonArray& in) {
 
 FacebookViewModel::FacebookViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<FacebookClient>(
-                                    QString::fromStdString((rt.dataRoot() / "Credenciales").string()))),
+                                    QString::fromStdString((ba::platform::credentialsDir()).string()))),
       lives_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "status", "url", "views", "created"})),
       videos_(std::make_unique<JsonListModel>(

@@ -767,7 +767,7 @@ endif()
     add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp
                    carrusel/CarruselStore.cpp)
     target_include_directories(test_carrusel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_carrusel COMMAND test_carrusel)
 
     # De un .pptx a laminas, corriendo el LibreOffice vendoreado de verdad: es
@@ -1074,6 +1074,16 @@ if(BA_APP_QT_OK AND WIN32)
         set(BA_CRT_REDIST_DIR \"${CMAKE_SOURCE_DIR}/extern/msvc/redist\")
     " COMPONENT bundle)
     install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeployWin.cmake" COMPONENT bundle)
+endif()
+
+# --- Demos ------------------------------------------------------------------
+# Configuraciones de ejemplo completas (assets/demo/<nombre>/): se crean como una
+# configuración nueva desde Configuración → Configuraciones (o configuracion_crear
+# {desde: "demo:<nombre>"}). Ver src/app/arranque/Configuraciones.hpp.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/demo")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/demo/"
+        DESTINATION Demos COMPONENT bundle
+    )
 endif()
 
 # --- Extensiones de ejemplo -------------------------------------------------

@@ -160,7 +160,7 @@ int dispatch(int argc, char** argv) {
     // morir en el mismo lugar. Ver diag/DiarioDeArranque.hpp.
     ba::diag::abrirDiario(ba::platform::dataRoot() / "Runtime" / "arranque.json");
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
-    ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
+    ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot()); // lee Config/ (las viejas en claro)
     // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
     const bool restore = hasFlag(argc, argv, "--restore");
     if (hasFlag(argc, argv, "--headless-selftest")) {

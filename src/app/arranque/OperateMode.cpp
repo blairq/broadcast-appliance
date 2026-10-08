@@ -179,7 +179,10 @@ std::uint32_t AppRuntime::pid() const { return currentPid(); }
 void AppRuntime::configure(int argc, char** argv) {
     // Binarios de la raiz del bundle; datos del disco real (BA_DATA_ROOT).
     bin_ = ba::platform::bundleRoot();
-    root_ = ba::platform::dataRoot();
+    // La configuración activa (Configuraciones/<nombre>/): todo lo de la app sale de acá;
+    // lo de la máquina (Modelos/, Herramientas/, Logs/, Runtime/, Credenciales/) se pide
+    // aparte con ba::platform::dataRoot().
+    root_ = ba::platform::configRoot();
     if (bin_.empty()) {
         bin_ = fs::current_path();
     }

@@ -2,6 +2,7 @@
 // src/app/ui/RegistroViewModel.cpp — ver RegistroViewModel.hpp
 // ============================================================================
 #include "ui/RegistroViewModel.hpp"
+#include "platform/Paths.hpp"
 
 #include <algorithm>
 
@@ -45,7 +46,7 @@ struct RegistroViewModel::Impl {
 
     explicit Impl(AppRuntime& r) : rt(r) { filtro.cuantas = kTope; }
 
-    QString carpeta() const { return QString::fromStdString((rt.dataRoot() / "Logs").string()); }
+    QString carpeta() const { return QString::fromStdString((ba::platform::dataRoot() / "Logs").string()); }
 };
 
 RegistroViewModel::RegistroViewModel(AppRuntime& rt, QObject* parent)
@@ -215,7 +216,7 @@ void RegistroViewModel::refrescar() {
             rs.push_back(r);
         }
     } else {
-        rs = ba::diag::leerLogs(d_->rt.dataRoot() / "Logs", d_->filtro);
+        rs = ba::diag::leerLogs(ba::platform::dataRoot() / "Logs", d_->filtro);
     }
 
     QVariantList out;
@@ -235,7 +236,7 @@ void RegistroViewModel::refrescar() {
     d_->lineas = out;
 
     QStringList mods;
-    for (const std::string& m : ba::diag::componentesEnLogs(d_->rt.dataRoot() / "Logs"))
+    for (const std::string& m : ba::diag::componentesEnLogs(ba::platform::dataRoot() / "Logs"))
         mods << QString::fromStdString(m);
     for (const QVariant& v : out) {
         const QString m = v.toMap().value("modulo").toString();

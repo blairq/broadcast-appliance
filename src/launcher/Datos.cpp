@@ -2,7 +2,10 @@
 
 #include "Datos.hpp"
 
+#include <fstream>
 #include <system_error>
+
+#include "platform/Paths.hpp"
 
 namespace ba::launcher {
 
@@ -50,15 +53,63 @@ fs::path prepararDatos(const fs::path& bundle, const fs::path& datos, std::vecto
         avisos.push_back(e2 ? "no se pudo mudar " + std::string(d) + ": " + e2.message()
                             : "datos mudados: " + std::string(d) + " -> " + u8(a));
     }
+    // Las semillas van en la configuración activa (prepararConfiguraciones).
+    return datos;
+}
+
+fs::path prepararConfiguraciones(const fs::path& bundle, const fs::path& datos, std::vector<std::string>& avisos) {
+    std::error_code ec;
+    const fs::path confs = datos / "Configuraciones";
+    if (!fs::is_directory(confs, ec)) {
+        // La primera vez: lo de la configuración se muda a «Principal» (renombrar: nada se copia).
+        const fs::path principal = confs / "Principal";
+        fs::create_directories(principal, ec);
+        if (ec) {
+            avisos.push_back("no se pudo crear " + u8(principal) + ": " + ec.message() + " (sigue sin configuraciones)");
+            return datos;
+        }
+        // launcher.json es de la máquina (el que arranca todo): sale de Config/ antes de mudarla.
+        if (fs::exists(datos / "Config" / "launcher.json", ec) && !fs::exists(datos / "launcher.json", ec)) {
+            fs::rename(datos / "Config" / "launcher.json", datos / "launcher.json", ec);
+            if (ec) avisos.push_back("no se pudo mover launcher.json: " + ec.message());
+        }
+        for (const char* d : ba::platform::kCarpetasDeConfiguracion) {
+            const fs::path de = datos / d;
+            if (!fs::exists(de, ec)) continue;
+            std::error_code e2;
+            fs::rename(de, principal / d, e2);
+            avisos.push_back(e2 ? "no se pudo mudar " + std::string(d) + " a la configuración Principal: " + e2.message()
+                                : std::string(d) + " -> Configuraciones/Principal");
+        }
+        std::ofstream(datos / "configuraciones.json") << "{\n \"activa\": \"Principal\"\n}\n";
+    }
+    fs::path activa = ba::platform::configRootFor(datos);
+    if (activa == datos) {
+        // configuraciones.json roto o apuntando a una que no está: la primera que haya.
+        for (const auto& e : fs::directory_iterator(confs, ec))
+            if (e.is_directory()) {
+                const std::u8string n = e.path().filename().u8string();
+                std::ofstream(datos / "configuraciones.json")
+                    << "{\n \"activa\": \"" << std::string(n.begin(), n.end()) << "\"\n}\n";
+                avisos.push_back("la configuración activa no estaba: se usa " + u8(e.path().filename()));
+                activa = e.path();
+                break;
+            }
+        if (activa == datos) {
+            fs::create_directories(confs / "Principal", ec);
+            std::ofstream(datos / "configuraciones.json") << "{\n \"activa\": \"Principal\"\n}\n";
+            activa = confs / "Principal";
+        }
+    }
     // Las semillas: lo de fábrica que falta (sin pisar lo que el usuario cambió).
     for (const char* d : kSemillas) {
         const fs::path de = bundle / d;
         if (vacia(de)) continue;
         std::error_code e2;
-        fs::copy(de, datos / d, fs::copy_options::recursive | fs::copy_options::skip_existing, e2);
+        fs::copy(de, activa / d, fs::copy_options::recursive | fs::copy_options::skip_existing, e2);
         if (e2) avisos.push_back("no se pudo copiar " + std::string(d) + " de fábrica: " + e2.message());
     }
-    return datos;
+    return activa;
 }
 
 } // namespace ba::launcher

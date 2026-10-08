@@ -284,8 +284,10 @@ struct Config {
             std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";
         if (webroot.empty()) webroot = utf8(web / "guest");
         if (adminWebroot.empty()) adminWebroot = utf8(web / "admin");
-        if (sharesDir.empty()) sharesDir = utf8(root / "Shares");
-        if (configDir.empty()) configDir = utf8(root / "Config");
+        // Lo de la configuración activa (Configuraciones/<nombre>/): su Config/ y lo que comparten los invitados.
+        const std::filesystem::path conf = ba::platform::configRoot().empty() ? root : ba::platform::configRoot();
+        if (sharesDir.empty()) sharesDir = utf8(conf / "Shares");
+        if (configDir.empty()) configDir = utf8(conf / "Config");
         return ok;
     }
 

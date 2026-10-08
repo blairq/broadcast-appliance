@@ -56,6 +56,8 @@ int runLauncher(const std::vector<std::string>& args) {
     // .app (escribir adentro rompe su firma). La primera vez se mudan.
     std::vector<std::string> mudados;
     const std::filesystem::path datos = ba::launcher::prepararDatos(root, ba::platform::dataRoot(), mudados);
+    // Cada configuración con lo suyo (Configuraciones/<nombre>/): la primera vez se muda la de ahora.
+    ba::launcher::prepararConfiguraciones(root, datos, mudados);
     // Todo el launcher (y sus hijos) usa esta raíz: las caches, Runtime/, Logs/.
     {
         const std::u8string d = datos.u8string();
@@ -114,17 +116,22 @@ int runLauncher(const std::vector<std::string>& args) {
     }
 
     ba::launcher::Supervisor::Config cfg;
+    // --reiniciar: lo pide la app al cambiar de configuración (espera que se cierre el anterior).
+    for (const std::string& a : args)
+        if (a == "--reiniciar") cfg.esperarInstanciaMs = 60000;
     cfg.root = root;
     cfg.dataRoot = datos;
     cfg.appExe = bin / (std::string("ba-app") + kExeSuffix);
     cfg.gatewayExe = bin / (std::string("ba-gateway") + kExeSuffix);
     cfg.logsDir = datos / "Logs";
 
-    // Config/launcher.json (lo escribe la interfaz de A): copia sombra,
+    // launcher.json (lo escribe la interfaz de A): copia sombra,
     // dialogo de recuperacion y argumentos extra de A y B. La linea de
     // comandos, mas abajo, lo pisa.
     {
-        std::ifstream in(datos / "Config" / "launcher.json");
+        // Es de la máquina: <datos>/launcher.json (antes, Config/launcher.json).
+        std::ifstream in(std::filesystem::exists(datos / "launcher.json") ? datos / "launcher.json"
+                                                                          : datos / "Config" / "launcher.json");
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
         if (in && j.is_object()) {
             cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);

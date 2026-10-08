@@ -2,6 +2,7 @@
 // src/app/agent/ModelosLocales.cpp — ver ModelosLocales.hpp
 // ============================================================================
 #include "agent/ModelosLocales.hpp"
+#include "platform/Paths.hpp"
 
 #include "agent/ArgumentosLocales.hpp"
 
@@ -194,7 +195,7 @@ ModelosLocales::~ModelosLocales() {
     }
 }
 
-fs::path ModelosLocales::carpetaModelos() const { return raiz_ / "Modelos"; }
+fs::path ModelosLocales::carpetaModelos() const { return ba::platform::dataRoot() / "Modelos"; }
 
 fs::path ModelosLocales::carpetaDe(const QString& repo) const {
     return carpetaModelos() / carpetaDeRepo(repo.toStdString());

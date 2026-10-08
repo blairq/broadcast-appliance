@@ -27,6 +27,7 @@
 #include <memory>
 
 #include "agent/Despachador.hpp"
+#include "platform/Paths.hpp"
 #include "agent/ModeloPropio.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "arranque/AppRuntime.hpp"
@@ -138,7 +139,7 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
         return {};
     }
     QByteArray clave;
-    const QString cred = QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring());
+    const QString cred = QString::fromStdWString((ba::platform::credentialsDir()).wstring());
     if (!ba::app::cred::read(cred, "modelo-propio-api-key", clave)) {
         error = "falta la clave del modelo propio";
         return {};

@@ -42,6 +42,8 @@ class Supervisor {
    public:
     /// Configuracion del supervisor.
     struct Config {
+        /// --reiniciar: esperar (hasta tanto) a que se cierre el launcher anterior en vez de no arrancar.
+        int esperarInstanciaMs = 0;
         std::filesystem::path root;           // raiz del bundle (ba::platform::bundleRoot)
         std::filesystem::path dataRoot;       // raiz de los datos (ba::platform::dataRoot; vacia = root)
         std::filesystem::path appExe;         // bin/64bit/ba-app(.exe)

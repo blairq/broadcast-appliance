@@ -1226,6 +1226,8 @@ Rectangle {
                 spacing: 16
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 13
                        text: "Todo el sistema vive en una sola carpeta (sirve desde un pendrive): " + sys.dataRoot }
+                // Configuraciones con nombre (cada una con lo suyo).
+                PanelConfiguraciones { Layout.fillWidth: true }
                 Text { Layout.fillWidth: true; color: Theme.textDim; font.pixelSize: 13; visible: sys.version !== ""
                        text: "Versión instalada: " + sys.version }
                 // Los elementos de GStreamer que faltan (P0.3): que no sean silencio o negro sin explicación.

@@ -70,6 +70,30 @@ inline constexpr const char* kDataRootEnv = "BA_DATA_ROOT";
 /// bundle (`dataRootFor(bundleRoot())`: en macOS, la carpeta al lado de la .app).
 std::filesystem::path dataRoot();
 
+// --- Configuraciones (cada una con lo suyo) -----------------------------------
+//
+// La carpeta de datos es de la MÁQUINA (Modelos/, Herramientas/, Agentes/, Cache/,
+// Runtime/, Logs/, Credenciales/ y launcher.json); cada CONFIGURACIÓN es una carpeta propia,
+// `<datos>/Configuraciones/<nombre>/`, con todo lo suyo: Config/, Media/,
+// Graficos/, Plugins/, Fotos/, Miniaturas/, Eventos/, Recordings/, Shares/,
+// Exportado/ y Extensiones/. Credenciales/ es de la máquina (su clave de cifrado, el
+// token del MCP, el certificado TLS, las claves de las cámaras). Nada más se comparte (un cambio en una no
+// toca a otra) y cambiar de configuración no copia nada: se arranca con otra
+// carpeta. La activa la dice `<datos>/configuraciones.json` ({"activa": nombre});
+// el launcher se la pasa a los hijos en BA_CONFIG_ROOT. Sin Configuraciones/
+// (una instalación vieja, antes de mudarla) es la carpeta de datos misma.
+inline constexpr const char* kConfigRootEnv = "BA_CONFIG_ROOT";
+/// Las carpetas que son de cada configuración (no de la máquina).
+inline constexpr const char* kCarpetasDeConfiguracion[] = {"Config",  "Media",      "Graficos",  "Plugins",
+                                                           "Fotos",   "Miniaturas", "Eventos",   "Recordings",
+                                                           "Shares",  "Exportado",  "Extensiones"};
+/// La carpeta de la configuración activa para esa carpeta de datos (función pura de lo que hay en disco).
+std::filesystem::path configRootFor(const std::filesystem::path& datos);
+/// La configuración activa: BA_CONFIG_ROOT si está; si no, configRootFor(dataRoot()).
+std::filesystem::path configRoot();
+/// El nombre de la activa ("" en una instalación sin configuraciones).
+std::string configActiva(const std::filesystem::path& datos);
+
 /// Una ruta para GUARDAR en la configuración: si está dentro de los datos, relativa
 /// a ellos («Modelos/superres/x.onnx»); si no, tal cual. Así la carpeta se puede
 /// mover (o copiar a otra máquina) y lo guardado sigue apuntando bien.
@@ -90,7 +114,8 @@ std::filesystem::path stateDir();
 /// Caches de librerias DENTRO del bundle: `<datos>/Cache/`.
 std::filesystem::path cacheDir();
 
-/// Credenciales del equipo DENTRO del bundle: `<datos>/Credenciales/`.
+/// Credenciales del equipo DENTRO del bundle: `<datos>/Credenciales/` (de la máquina,
+/// no de cada configuración: ahí está su clave de cifrado).
 /// Carpeta propia, aparte de Config/ y del programa: una actualizacion
 /// (`BroadcastAppliance --update`) nunca la toca y la respalda antes. Ver
 /// security/CredentialStore.hpp.

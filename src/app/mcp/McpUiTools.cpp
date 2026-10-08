@@ -16,6 +16,7 @@
 #include <deque>
 
 #include "arranque/AppRuntime.hpp"
+#include "platform/Paths.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/DashboardModel.hpp"
@@ -475,7 +476,7 @@ void McpService::registerUiTools() {
               {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
               {"grep", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
-            const QString dir = QString::fromStdString((rt.dataRoot() / "Logs").string());
+            const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
             const QString name = QString::fromStdString(a.value("log", std::string("ba.log")));
             if (name.contains('/') || name.contains('\\') || name.contains(".."))
                 return done(ToolResult::error("Solo nombres de archivo de Logs/."));

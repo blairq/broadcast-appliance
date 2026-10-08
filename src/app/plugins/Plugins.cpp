@@ -155,9 +155,9 @@ Plugins::Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras*
                  OperatorMessages* mensajes, QObject* parent)
     : QObject(parent), rt_(rt), video_(video), camaras_(camaras), mensajes_(mensajes) {
     carpeta_ = rt.dataRoot() / "Plugins";
-    logs_ = rt.dataRoot() / "Logs" / "plugins";
+    logs_ = ba::platform::dataRoot() / "Logs" / "plugins";
     config_ = rt.dataRoot() / "Config" / "plugins.json";
-    credenciales_ = q(rt.dataRoot() / "Credenciales");
+    credenciales_ = q(ba::platform::credentialsDir());
     std::error_code ec;
     fs::create_directories(carpeta_, ec);
     fs::create_directories(logs_, ec);

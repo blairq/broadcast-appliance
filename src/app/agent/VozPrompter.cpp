@@ -1,6 +1,7 @@
 // src/app/agent/VozPrompter.cpp — ver VozPrompter.hpp
 
 #include "agent/VozPrompter.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDateTime>
 #include <QDir>
@@ -231,7 +232,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
     audio::MonitorVoz* m = monitor_.get();
     auto pps = naturalPps_;
     const double objetivoSeg = n * 60.0 / std::max(1, est_.ppm);
-    const QString log = QString::fromStdString((rt_.dataRoot() / "Logs" / "voz-teleprompter.jsonl").string());
+    const QString log = QString::fromStdString((ba::platform::dataRoot() / "Logs" / "voz-teleprompter.jsonl").string());
     const nlohmann::json base{{"desde", desde},
                               {"hasta", hasta},
                               {"ppm", est_.ppm},

@@ -2,6 +2,7 @@
 // src/app/agent/Voz.cpp — ver Voz.hpp
 // ============================================================================
 #include "agent/Voz.hpp"
+#include "platform/Paths.hpp"
 
 #include "agent/FlujosTexto.hpp"
 
@@ -370,7 +371,7 @@ void Voz::borrarTranscripcion() {
 // --- Contestar hablando ----------------------------------------------------------
 
 namespace {
-QString archivoAjustes(const std::filesystem::path& raiz) { return deRuta(raiz / "Modelos" / "voz.json"); }
+QString archivoAjustes(const std::filesystem::path& raiz) { return deRuta(ba::platform::dataRoot() / "Modelos" / "voz.json"); }
 } // namespace
 
 // --- Lo dictado, por el modelo local ------------------------------------------------------
@@ -837,7 +838,7 @@ void Voz::alAsistente() {
 }
 
 void Voz::bitacora(int id, const std::string& evento, nlohmann::json datos) const {
-    const QString dir = QString::fromStdString((rt_.dataRoot() / "Logs").string());
+    const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
     QDir().mkpath(dir);
     const QString ruta = dir + "/voz-modelo.jsonl";
     // Un archivo por vez, de hasta 20 MB; el anterior queda como .1.

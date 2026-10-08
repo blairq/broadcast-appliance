@@ -47,13 +47,15 @@ class SystemViewModel : public QObject {
     /// Abre una carpeta de datos en el explorador ("" = la raiz).
     Q_INVOKABLE void openFolder(const QString& sub) const;
 
+    /// Lanza el launcher con `args` y cierra la app (actualizar, volver atrás, cambiar de configuración).
+    QString launch(const QStringList& args);
+
    signals:
     void changed();
     /// La app tiene que cerrarse para que el launcher actualice.
     void quitForUpdate();
 
    private:
-    QString launch(const QStringList& args);
 };
 
 /// Ruta local desde una URL file:// o una ruta.

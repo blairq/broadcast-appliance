@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/AlarmaSonora.hpp"
+#include "platform/Paths.hpp"
 
 #include <QAudioDevice>
 #include <QMediaDevices>
@@ -58,8 +59,8 @@ void escribirWav(const fs::path& ruta, const std::vector<std::pair<double, int>>
 
 AlarmaSonora::AlarmaSonora(fs::path datos, QObject* parent) : QObject(parent), datos_(std::move(datos)) {
     std::error_code ec;
-    fs::create_directories(datos_ / "Runtime", ec);
-    const fs::path a = datos_ / "Runtime" / "alarma-aviso.wav", c = datos_ / "Runtime" / "alarma-critica.wav";
+    fs::create_directories(ba::platform::dataRoot() / "Runtime", ec);
+    const fs::path a = ba::platform::dataRoot() / "Runtime" / "alarma-aviso.wav", c = ba::platform::dataRoot() / "Runtime" / "alarma-critica.wav";
     escribirWav(a, {{880, 140}, {0, 80}, {1175, 180}});
     escribirWav(c, {{988, 220}, {0, 60}, {740, 220}, {0, 500}});
     {

@@ -129,6 +129,7 @@ class YouTubeViewModel;
 class TwitchViewModel;
 class FacebookViewModel;
 class SystemViewModel;
+class Configuraciones;
 class OperatorMessages;
 class InputsViewModel;
 class ChatOverlayRenderer;
@@ -154,6 +155,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* bancas READ bancasQml CONSTANT)
     /// El debate entre dos (de la sala o remotos): asamblea/Debate.
     Q_PROPERTY(QObject* debate READ debateQml CONSTANT)
+    /// Las configuraciones con nombre (cada una con lo suyo): arranque/Configuraciones.
+    Q_PROPERTY(QObject* configuraciones READ configuracionesQml CONSTANT)
     /// La central de conferencia Bosch DCN (micrófonos de banca): asamblea/ConferenciaDcn.
     Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
     /// La banca virtual (sesión remota, en la sala o afuera): asamblea/SesionRemota.
@@ -364,6 +367,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
     QObject* bancasQml() const;
     QObject* debateQml() const;
+    QObject* configuracionesQml() const;
+    Configuraciones* configuraciones() { return configuraciones_.get(); }
     asamblea::Debate* debate() { return debate_.get(); }
     QObject* dcnQml() const;
     QObject* sesionRemotaQml() const;
@@ -874,6 +879,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<TwitchViewModel> twitch_;
     std::unique_ptr<FacebookViewModel> facebook_;
     std::unique_ptr<SystemViewModel> system_;
+    std::unique_ptr<Configuraciones> configuraciones_;
     std::unique_ptr<agent::AlertEngine> alerts_;
     std::unique_ptr<agent::AlarmaSonora> alarma_;
     std::unique_ptr<asamblea::CuerpoViewModel> cuerpo_;

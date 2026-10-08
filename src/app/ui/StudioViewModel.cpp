@@ -7,6 +7,7 @@
 #include <fstream>
 #include <QClipboard>
 #include <QDateTime>
+#include <QQmlEngine>
 #include <QTimer>
 #include <QElapsedTimer>
 
@@ -114,6 +115,7 @@
 #include "ui/Seguidor.hpp"
 #include "ui/SettingsModel.hpp"
 #include "ui/SystemViewModel.hpp"
+#include "arranque/Configuraciones.hpp"
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 #include "video/SuperRes.hpp"
@@ -347,6 +349,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("facebook");
     connect(facebook_.get(), &FacebookViewModel::notify, this, &StudioViewModel::notify);
     system_ = std::make_unique<SystemViewModel>();
+    // Cambiar de configuración = anotarla y reiniciar por el launcher (como una actualización).
+    configuraciones_ = std::make_unique<Configuraciones>([this]() {
+        // Los modos de esta corrida (--test / --debug) siguen después del reinicio.
+        QStringList args{"--reiniciar"};
+        for (const QString& a : QCoreApplication::arguments())
+            if (a == "--test" || a == "--debug") args << a;
+        return system_->launch(args);
+    });
     marca("system");
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
         emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");
@@ -509,7 +519,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         settings_->setCupoEnCaliente([this](int n) { return cupoUi(n).toStdString(); });
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
         {
-            const auto archivo = rt.dataRoot() / "Runtime" / "ultima-caida.json";
+            const auto archivo = ba::platform::dataRoot() / "Runtime" / "ultima-caida.json";
             std::ifstream f(archivo);
             nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
             const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
@@ -946,7 +956,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Los equipos de video de la red: la biblioteca de marcas y la base OUI
     // vienen con el programa (data/red).
     red_ = std::make_unique<red::Red>(ba::platform::bundleRoot() / "data" / "red",
-                                      QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring()),
+                                      QString::fromStdWString((ba::platform::credentialsDir()).wstring()),
                                       video_.get(), camaras_.get());
     marca("red");
     // Los plugins de Python: en los datos (Plugins/), con el Python del programa.
@@ -1470,7 +1480,7 @@ void StudioViewModel::cerrarEnHistorico(const std::string& carpeta) {
     if (desde == 0) desde = QDateTime(QDate::currentDate(), QTime(0, 0)).toMSecsSinceEpoch();
     const int asamblea = evento::CierreEvento::copiarAsamblea(rt_.dataRoot() / "Config", dir);
     const nlohmann::json registro =
-        evento::CierreEvento::recortarRegistros(rt_.dataRoot() / "Logs", desde, ahora, dir / "registro");
+        evento::CierreEvento::recortarRegistros(ba::platform::dataRoot() / "Logs", desde, ahora, dir / "registro");
     {
         evento::Bitacora b;
         b.setArchivo(dir / "bitacora.jsonl");
@@ -2583,7 +2593,13 @@ bool StudioViewModel::silenciarAlarmaUi(const QString& disparador, bool silencia
     return !r.contains("error");
 }
 
-QObject* StudioViewModel::alarmaSonora() const { return alarma_.get(); }
+QObject* StudioViewModel::alarmaSonora() const {
+    // Devuelto por un Q_INVOKABLE y sin padre, QML se lo queda (JavaScriptOwnership) y su
+    // recolector lo borraba: al cerrar la app se borraba dos veces (cierre con SIGSEGV, y el
+    // launcher lo tomaba por una caída). Es de acá.
+    if (alarma_) QQmlEngine::setObjectOwnership(alarma_.get(), QQmlEngine::CppOwnership);
+    return alarma_.get();
+}
 
 bool StudioViewModel::focoEnTexto() const {
     QObject* f = QGuiApplication::focusObject();
@@ -2609,14 +2625,14 @@ void guardarPlaca(const std::filesystem::path& datos, const nlohmann::json& esta
 
 QString StudioViewModel::ftbUi(bool activar, int ms, const QString& audio) {
     if (!rt_.engine().ftb(activar, ms, audio != "mantener")) return qs(rt_.engine().lastError());
-    guardarPlaca(rt_.dataRoot(), rt_.engine().estadoPlaca());
+    guardarPlaca(ba::platform::dataRoot(), rt_.engine().estadoPlaca()); // Runtime/ es de la máquina
     emit placaChanged();
     return {};
 }
 
 QString StudioViewModel::placaUi(bool activar, const QString& texto, const QString& imagen, int ms) {
     if (!rt_.engine().placa(activar, texto.toStdString(), imagen.toStdString(), ms)) return qs(rt_.engine().lastError());
-    guardarPlaca(rt_.dataRoot(), rt_.engine().estadoPlaca());
+    guardarPlaca(ba::platform::dataRoot(), rt_.engine().estadoPlaca()); // Runtime/ es de la máquina
     emit placaChanged();
     return {};
 }
@@ -2634,7 +2650,7 @@ QStringList StudioViewModel::textosPlaca() const {
 }
 
 void StudioViewModel::restaurarPlaca() {
-    std::ifstream f(rt_.dataRoot() / "Runtime" / "placa.json");
+    std::ifstream f(ba::platform::dataRoot() / "Runtime" / "placa.json");
     const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
     if (!j.is_object()) return;
     if (j.value("placa", false))
@@ -2693,6 +2709,7 @@ QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
 
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }
 QObject* StudioViewModel::debateQml() const { return debate_.get(); }
+QObject* StudioViewModel::configuracionesQml() const { return configuraciones_.get(); }
 QObject* StudioViewModel::dcnQml() const { return dcn_.get(); }
 QObject* StudioViewModel::sesionRemotaQml() const { return sesionRemota_.get(); }
 
@@ -3872,7 +3889,7 @@ namespace ba::app {
 std::filesystem::path StudioViewModel::datosRaiz() const { return rt_.dataRoot(); }
 
 nlohmann::json StudioViewModel::caidas(int n) const {
-    std::ifstream f(rt_.dataRoot() / "Runtime" / "caidas.jsonl");
+    std::ifstream f(ba::platform::dataRoot() / "Runtime" / "caidas.jsonl");
     std::vector<nlohmann::json> todas;
     std::string l;
     while (std::getline(f, l)) {

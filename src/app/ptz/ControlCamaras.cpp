@@ -1,6 +1,7 @@
 // src/app/ptz/ControlCamaras.cpp — ver ControlCamaras.hpp
 
 #include "ptz/ControlCamaras.hpp"
+#include "platform/Paths.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/BroadcastEngine.hpp"
@@ -64,7 +65,7 @@ struct ControlCamaras::Camara {
 
 ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent)
     : QObject(parent), rt_(rt), archivo_(dataRoot / "Config" / "camaras.json"),
-      credenciales_(QString::fromStdString((dataRoot / "Credenciales").string())),
+      credenciales_(QString::fromStdString((ba::platform::credentialsDir()).string())),
       busqueda_(std::make_unique<OnvifBusqueda>()) {
     connect(busqueda_.get(), &OnvifBusqueda::cambio, this, &ControlCamaras::busquedaCambio);
     leer();
