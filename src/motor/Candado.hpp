@@ -21,6 +21,12 @@ namespace ba::motor {
 void marcarHiloInterfaz();
 /// ¿Es este el hilo de la interfaz?
 bool enHiloInterfaz();
+/// Cuántas veces la interfaz tomó el candado del motor fuera de arrancarlo y
+/// apagarlo (iniciar/detener). Tiene que ser cero: lo mira el test.
+int tomasDeLaInterfaz();
+/// Estricto (la app con --test): cada toma de la interfaz queda como ERROR en el
+/// registro, aunque sea de un instante.
+void vigiaEstricto(bool si);
 
 class Candado {
    public:

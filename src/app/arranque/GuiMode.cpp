@@ -195,6 +195,10 @@ int runGui(int argc, char** argv) {
     // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
     // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
     ba::motor::marcarHiloInterfaz();
+    // Con --test, cada vez que la interfaz tome el candado del motor (no tiene que
+    // tomarlo nunca) queda como ERROR en el registro, aunque sea de un instante.
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "--test" || std::string(argv[i]) == "--debug") ba::motor::vigiaEstricto(true);
 
     QGuiApplication::setApplicationName("Broadcast Appliance");
     // El logo en la barra de tareas, el Dock y el selector de ventanas. Varios

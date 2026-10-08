@@ -352,6 +352,31 @@ int AppRuntime::start() {
         health_.setState(kHealthSlot, ba::ipc::ProcessState::Running);
         health_.beat(kHealthSlot);
     }
+    // EL LATIDO DEL ARRANQUE: arrancar no es estar colgado. El primer arranque
+    // después de compilar o actualizar, GStreamer vuelve a leer sus plugins y el
+    // motor tarda 15 s o más; sin latir, el launcher lo daba por colgado a los 20 s
+    // y lo mataba en pleno arranque (pasó). Late desde su hilo hasta que el latido
+    // de los cuadros toma la posta, con un tope de 2 minutos: un arranque colgado
+    // de verdad se sigue viendo.
+    struct LatidoArranque {
+        std::atomic<bool> seguir{true};
+        std::thread hilo;
+        ~LatidoArranque() { parar(); }
+        void parar() {
+            seguir = false;
+            if (hilo.joinable()) hilo.join();
+        }
+    } latidoArranque;
+    if (health_.valid())
+        latidoArranque.hilo = std::thread([this, &latidoArranque]() {
+            for (int i = 0; i < 240 && latidoArranque.seguir.load(); ++i) {
+                {
+                    std::lock_guard<std::mutex> l(healthMu_);
+                    health_.beat(kHealthSlot);
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+        });
 
     EnginePaths paths;
     paths.moduleBinDir = (bin_ / "obs-plugins" / "64bit").string();
@@ -411,7 +436,8 @@ int AppRuntime::start() {
         if (j.is_object()) engine_.loudness().ponerObjetivo(j);
     }
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
-    // interfaz ya no hace que el supervisor corte el aire.
+    // interfaz ya no hace que el supervisor corte el aire. Desde acá late él.
+    latidoArranque.parar();
     if (health_.valid())
         latido_.iniciar(
             root_,
