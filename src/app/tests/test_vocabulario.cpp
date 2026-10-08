@@ -24,6 +24,8 @@ int main() {
     {
         Vocabulario v(dir / "vocabulario.json");
         CHECK(fs::exists(dir / "vocabulario.json"), "siembra el archivo");
+        // Las localidades vienen vacías de fábrica (son de cada lugar): las de la prueba.
+        v.ponerGrupo("localidades", {"Comodoro Rivadavia", "Trelew", "Cholila"});
         CHECK(Vocabulario::fonetica("Rivadavia") == Vocabulario::fonetica("ribadabia"), "b y v suenan igual");
         CHECK(Vocabulario::fonetica("Cholila") == Vocabulario::fonetica("chollila") ||
                   Vocabulario::fonetica("Cholila") != Vocabulario::fonetica("Chubut"),

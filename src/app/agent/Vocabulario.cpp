@@ -121,15 +121,8 @@ void Vocabulario::sembrar() {
         return json{{"activo", true}, {"terminos", t}};
     };
     datos_ = {{"grupos",
-               {{"localidades",
-                 grupo({"Chubut", "Rawson", "Trelew", "Puerto Madryn", "Comodoro Rivadavia", "Esquel", "Gaiman",
-                        "Dolavon", "Rada Tilly", "Sarmiento", "Trevelin", "Lago Puelo", "El Hoyo", "Epuyén",
-                        "El Maitén", "Cholila", "Corcovado", "Gobernador Costa", "José de San Martín", "Río Mayo",
-                        "Alto Río Senguer", "Puerto Pirámides", "Camarones", "Gastre", "Telsen", "Paso de Indios",
-                        "Tecka", "Río Pico", "Gualjaina", "Cushamen", "Gan Gan", "Las Plumas", "Los Altares",
-                        "Paso del Sapo", "Carrenleufú", "Playa Unión", "Facundo", "Lago Blanco", "Ricardo Rojas",
-                        "Aldea Epulef", "Colan Conhué", "Dique Florentino Ameghino", "Veintiocho de Julio",
-                        "Buenos Aires Chico", "Lago Rosario", "Atilio Viglione"})},
+               // Las localidades son de cada lugar: vacías de fábrica (cada configuración pone las suyas).
+               {{"localidades", json{{"activo", true}, {"terminos", json::array()}}},
                 {"asamblea",
                  grupo({"Asamblea", "quórum", "cuarto intermedio", "orden del día", "expediente", "despacho",
                         "moción", "sesión ordinaria", "sesión extraordinaria", "comisión",
