@@ -320,7 +320,8 @@ bool Plugins::aprobadoVigente(const std::string& id) const {
 
 json Plugins::aprobados() const {
     json out = json::object();
-    for (const auto& [id, d] : leerAprobados().items()) {
+    const json todos = leerAprobados(); // en un local: .items() de un temporal queda colgado
+    for (const auto& [id, d] : todos.items()) {
         std::vector<std::string> ahora;
         const bool existe = fs::exists(carpetaDe(id) / "plugin.json");
         const int v = d.value("v", 1);
@@ -569,7 +570,8 @@ json Plugins::actualizarEjemplos() {
             }
             json nuevoMan = leerJson(desde / "plugin.json");
             json conf = nuevoMan.value("config", json::object());
-            for (const auto& [k, v] : man.value("config", json::object()).items()) conf[k] = v; // lo del operador gana
+            const json suya = man.value("config", json::object()); // en un local: .items() de un temporal queda colgado
+            for (const auto& [k, v] : suya.items()) conf[k] = v; // lo del operador gana
             nuevoMan["config"] = conf;
             nuevoMan["id"] = id;
             man = nuevoMan;
