@@ -282,7 +282,9 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 8. **El debate** (si va a haber): `debate_config` con la escena de cada tipo y el tiempo de cada turno.
 9. **El guion** (`evento_armar`) para lo que sí tiene orden: apertura, himno, cierre. El cuerpo de la sesión lo maneja la fila de oradores (`banca_*`), no los cues.
 
-Durante la sesión: `banca_al_aire` / `banca_terminar` (la palabra), `presidencia_silenciar` y `presidencia_hablar`, `debate_iniciar` / `debate_turno`, votación con `dcn_votacion` o `sesion_votacion`.)md"},
+Durante la sesión: `banca_al_aire` / `banca_terminar` (la palabra), `presidencia_silenciar` y `presidencia_hablar`, `debate_iniciar` / `debate_turno`, votación con `dcn_votacion` o `sesion_votacion`.
+
+Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un consejo con 15 integrantes, recinto, central simulada, escenas y debate): `configuracion_crear {"nombre": "Demo", "desde": "demo:Demo parlamentaria"}` y `configuracion_cambiar` (ver `help {"topic": "configuraciones"}`).md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
 
@@ -305,7 +307,22 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
      R"md(- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
 - `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.
 - Alcance: `live` (en el momento), `gateway` (reinicia la sala: los invitados se reconectan), `restart` (al proximo arranque).
-- Secciones: Video, Codificación, Grabación, Transmisión, Invitados, Escena, Gateway, Sala, Acceso directo, Sistema, Asistente (MCP).)md"},
+- Secciones: Video, Codificación, Grabación, Transmisión, Invitados, Escena, Gateway, Sala, Acceso directo, Sistema, Asistente (MCP).
+- Para tener VARIAS configuraciones enteras (una por cliente, una de prueba, la demo) y pasar de una a otra: `help {"topic": "configuraciones"}`.)md"},
+    {"configuraciones", "Configuraciones con nombre",
+     "Varias configuraciones enteras (escenas, medios, plugins, botonera, Cuerpo, eventos), la demo, y pasar de una a otra sin copiar nada.",
+     R"md(Cada configuración es una carpeta con TODO lo suyo: escenas y ajustes (Config), medios, gráficos, plugins, fotos de los integrantes, miniaturas, eventos y grabaciones. **Nada se comparte**: tocar un plugin o una escena en una no rompe otra. De la máquina (de todas) quedan los modelos, las credenciales, los logs y el caché.
+
+- `configuraciones_listar`: cuáles hay, la activa, su descripción, tamaño y de dónde salió; y las demos que trae el programa.
+- `configuracion_crear {"nombre", "desde", "descripcion"}` crea una (no la activa). `desde`: `vacia` (de fábrica), `actual` (copia de la que está en uso), el nombre de otra, `demo:<nombre>` (una demo del programa) o `evento:<carpeta>/<inicio|cierre|ultima>` (la configuración con la que se hizo un evento: su foto de ajustes y los medios de la actual). Las grabaciones no se copian salvo `con_grabaciones`.
+- `configuracion_cambiar {"nombre"}` pasa a otra: **la app se reinicia** con esa carpeta (no copia nada). Corta lo que esté andando (transmisión, grabación, sala): nunca lo hagas en vivo sin que lo pida el operador.
+- `configuracion_editar {"nombre", "renombrar_a"|"descripcion"|"borrar": true}`: renombrar, describir o mandar a la papelera (`Configuraciones/.papelera`). La activa no se renombra ni se borra.
+
+**La demo**: `demo:Demo parlamentaria` es un sistema parlamentario genérico listo para probar: el Consejo de la Ciudad de Puerto Ejemplo (15 integrantes y presidencia con nombres inventados), recinto, cámaras, central de conferencia simulada, escenas de asamblea y de debate, botonera y orden del día.
+
+**Portable**: todas las rutas se guardan relativas a la configuración (`Media/logo.png`, también dentro de un pipeline: `location=Media/x.png`). La carpeta de datos entera se puede copiar a otra máquina tal cual. Al crear una fuente con una ruta relativa, se resuelve contra la configuración en uso.
+
+En la interfaz: Ajustes › Sistema › Configuraciones (usar, duplicar, renombrar, borrar, crear desde una demo).)md"},
     {"interfaz", "Interfaz y ventanas", "Paginas, avisos, dashboard, ventanas de salida.",
      R"md(- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`, `ui_notify {"message"}`.
 - `dashboard_list`: tarjetas, fondo, ventanas de salida y monitores.
@@ -473,7 +490,7 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 - Latencia baja por defecto; `latency: "normal"` para señales inestables (mas colchon). Reconecta sola.)md"},
     {"video", "Grafo de video",
      "Armar pipelines de video: correccion compartida entre camaras, modulos de GStreamer, compositor, "
-     "entradas de red, relojes y sincronia.",
+     "unir camaras (panoramica, 360), entradas de red, relojes y sincronia.",
      R"md(Un solo grafo para todo el video del estudio, como un pipeline de GStreamer. Cada entrada (camara, red, virtual) es un sub-grafo: `<entrada>.entrada` -> tarjetas -> `<entrada>.escena` (lo que ven las escenas). Las tarjetas de imagen corren en la cadena de GStreamer de cada entrada; las que el motor todavia no corre (salida, toma, compositor) lo dicen en su estado. Todas las entradas marchan con el reloj de video del estudio (`status`: lienzo y fps).
 
 ## Como trabajar (siempre en este orden)
@@ -490,6 +507,13 @@ La API de Facebook solo transmite y administra videos de **Paginas** (no del per
 **Entrelazada / mal declarada** (`video_estado` lo dice): `{"tipo": "normalizar", "params": {"desentrelazar": "yadif"}}` (desentrelaza en la fuente, donde estan los campos); colores corridos en HD que declara 601: `{"matriz_declarada": "601", "matriz_real": "709"}`. Los cuadros por segundo distintos al lienzo los convierte la entrada sola (repite o salta cuadros): no hace falta tarjeta.
 
 **Mosaico / imagen en imagen / lado a lado**: `video_mosaico {"escena", "entradas": [...], "disposicion": "mosaico|pip|lado", "nombre"}` en UNA llamada (toma cada entrada con sus tarjetas y oculta las sueltas en esa escena: el mosaico las sigue recibiendo). Para retocar: `video_tarjeta_ajustar` sobre el compositor con `capas.in_N` {x, y, ancho, alto 0..1, opacidad, orden}.
+
+**Unir cámaras: panorámica o 360** (todo en la placa de video): `video_panoramica {"camaras": [...], "preset": "fila"|"360", "campo", "escena", "nombre"}` en UNA llamada. Une hasta 8 cámaras (un stream cada una; la primera es la lente 1) lado a lado en su lienzo y corrige la deformación de cada una y cómo encajan. `preset: "fila"`: cámaras comunes de `campo` grados repartidas con un 10% que se pisa; sale la **tira** (panorámica cilíndrica) del tamaño de la suma de las resoluciones (4 de 1080p = 7680x1080; máximo 16384 de ancho). `preset: "360"`: dos ojos de pez de 190° espalda con espalda; sale la **vista**, una cámara común que es un PTZ virtual (`yaw`, `pitch`, `fov` = pan, tilt, zoom). Una 360 que manda todo en UN stream (equirectangular o los dos círculos juntos): tarjeta `vista360` en su cadena (`modo`).
+Calibrar a mano con `video_tarjeta_ajustar` sobre la tarjeta (`estudio.panoramica`), mirando con `capture_source`:
+1. `ver: "entrada"`: lo crudo con los círculos de los ojos de pez y los límites de cada cámara; mover `lenteN_x`, `lenteN_y`, `lenteN_radio` hasta que los círculos encajen.
+2. `ver: "tira"` (o `"panorama"`) con `guia: "esfera"` (paralelos y meridianos cada 15°): cómo encaja cada una (`lenteN_yaw`, `_pitch`, `_roll`) y su `_campo`, hasta que el horizonte quede derecho y no se noten las costuras (`mezcla`: el ancho de la unión, en grados).
+3. Una guía `rectangulo` o `circulo` (`guia_x`, `guia_y`, `guia_ancho`, `guia_alto` en fracciones de la salida) encima de algo que lo sea (una puerta, un reloj): la deformación (`lenteN_k1`, `_k2`; barril < 0 < cojín) hasta que coincida. `lenteN_tipo`: `ojo` (ojo de pez) o `normal`.
+Los parámetros, uno por uno: `video_tarjeta_ayuda {"tipo": "panoramica"}`. En la interfaz: página Video, la tarjeta, con atajos para cada paso.
 
 **Streams de red** (SRT, RTMP, RTSP): `video_entrada_red {"nombre", "uri", "escena", "latencia_ms"}` (nunca `network_input_add` para esto: esa no se sincroniza). Cada cuadro sale a su hora de captura + latencia (un colchon propio). Mas latencia = mas tolerancia a la red y mas retraso.
 
