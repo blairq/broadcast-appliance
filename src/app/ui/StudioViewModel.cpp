@@ -909,7 +909,18 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         return quorum_->cargarOficial(r);
     });
     // La votación de la central también en los celulares (abrir, pausar, cerrar).
-    connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, this, [this]() { seguirVotacionCentral(); });
+    connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, this, [this]() {
+        seguirVotacionCentral();
+        // El presidente apretó prioridad en su unidad: la central ya calló a los suyos; los
+        // remotos también se callan (si no, el que habla por el celular seguía sonando).
+        const bool prio = dcn_->estado().value("prioridad", nlohmann::json::object()).value("activa", false);
+        if (prio && !prioridadCentral_) {
+            silenciarRemotos();
+            emit notify("Prioridad del presidente: todos callados (también los remotos)", "info");
+            bus_->publicar("presidencia/silencio", {{"origen", "prioridad"}}, false);
+        }
+        prioridadCentral_ = prio;
+    });
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
@@ -1114,6 +1125,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             };
             connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, programar);
             connect(bancas_.get(), &asamblea::Bancas::cambio, this, programar);
+            connect(this, &StudioViewModel::presidenciaHablaChanged, this, programar);
             connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, programar);
             if (quorum_) connect(quorum_.get(), &asamblea::Quorum::cambio, this, programar);
             connect(sesionRemota_.get(), &asamblea::SesionRemota::consolaConexion, this,
@@ -2962,6 +2974,8 @@ nlohmann::json StudioViewModel::estadoConsola() const {
     e["cuerpo"] = cuerpo_->cuerpo().nombre();
     e["recinto"] = cuerpo_->cuerpo().recinto(true);
     e["remotos"] = sesionRemota_->participantes();
+    e["presidencia_habla"] = presidenciaHabla_;
+    e["con_central"] = dcn_ && dcn_->conectada();
     // La fila: cada uno con si habla desde el navegador.
     const json b = bancas_->estadoJson();
     const auto remotoDe = [this](const std::string& id) {
@@ -3046,6 +3060,10 @@ void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json
         error = bancas_->alAire(QString::fromStdString(id), "armar", m.value("segundos", -1)).toStdString();
     } else if (t == "terminar") {
         bancas_->terminar();
+    } else if (t == "silenciar_todos") {
+        error = silenciarTodos(QString::fromStdString(quien)).toStdString();
+    } else if (t == "hablar_presidencia") {
+        error = hablaPresidencia(m.value("activo", true), QString::fromStdString(quien)).toStdString();
     } else if (t == "quitar_fila") {
         bancas_->quitar(QString::fromStdString(id));
     } else if (t == "siguiente") {
@@ -3195,6 +3213,54 @@ QString StudioViewModel::hablarARemoto(const QString& integrante, bool activo) {
                         [](bool, const QJsonObject&) {});
     // Su celular muestra «Te están hablando» y abre el sonido aunque esté en la sala.
     sesionRemota_->ptt(id, activo, "operador");
+    return {};
+}
+
+int StudioViewModel::unidadPresidente() const {
+    if (!dcn_) return 0;
+    for (const auto& u : dcn_->estado().value("unidades", nlohmann::json::array()))
+        if (u.value("tipo", std::string()) == "presidente") return u.value("unidad", 0);
+    return 0;
+}
+
+void StudioViewModel::silenciarRemotos() {
+    if (!sesionRemota_) return;
+    // El orador al aire, si habla por el celular, termina (eso le suelta los medios).
+    if (bancas_) {
+        const nlohmann::json aa = bancas_->estadoJson().value("al_aire", nlohmann::json());
+        if (aa.is_object() && sesionRemota_->tienePalabra(aa.value("id", std::string()))) bancas_->terminar();
+    }
+    for (const auto& id : sesionRemota_->conPalabraTodos()) sesionRemota_->darPalabra(id, false, 0);
+}
+
+QString StudioViewModel::silenciarTodos(const QString& quien) {
+    if (bancas_) bancas_->terminar();
+    silenciarRemotos();
+    if (dcn_ && dcn_->conectada())
+        dcn_->control("cerrar_todos", {{"incluir_presidente", false}}, [this](bool ok, const nlohmann::json&, const std::string& e) {
+            if (!ok) emit notify(QString::fromStdString("Central: " + e), "error");
+        });
+    bus_->publicar("presidencia/silencio", {{"origen", quien.toStdString()}}, false);
+    return {};
+}
+
+QString StudioViewModel::hablaPresidencia(bool activo, const QString& quien) {
+    if (!dcn_ || !dcn_->conectada()) return "Sin la central no hay micrófono de la presidencia que abrir.";
+    const int u = unidadPresidente();
+    if (u == 0) return "La central no tiene una unidad de presidente.";
+    if (activo) silenciarTodos(quien);
+    QPointer<StudioViewModel> yo(this);
+    dcn_->control("microfono", {{"unidad", u}, {"abierto", activo}, {"confirmar", true}},
+                  [yo, activo](bool ok, const nlohmann::json&, const std::string& e) {
+                      if (!yo) return;
+                      if (!ok) {
+                          emit yo->notify(QString::fromStdString("Central: " + e), "error");
+                          return;
+                      }
+                      yo->presidenciaHabla_ = activo;
+                      emit yo->presidenciaHablaChanged();
+                  });
+    bus_->publicar("presidencia/habla", {{"activa", activo}, {"origen", quien.toStdString()}}, false);
     return {};
 }
 

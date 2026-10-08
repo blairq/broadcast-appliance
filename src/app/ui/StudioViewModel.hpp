@@ -344,6 +344,14 @@ class StudioViewModel : public QObject {
     /// «Apretar para hablar» desde la app: mientras `activo`, el remoto oye la voz del
     /// operador (su micrófono de la sala) mezclada en el sonido de su celular. "" o el error.
     Q_INVOKABLE QString hablarARemoto(const QString& integrante, bool activo);
+    /// La presidencia calla a todos: los micrófonos de la central (menos el suyo), el orador
+    /// que está al aire y los remotos que tienen la palabra (también los de un debate).
+    Q_INVOKABLE QString silenciarTodos(const QString& quien = QStringLiteral("operador"));
+    /// «Hablo yo»: calla a todos y abre el micrófono de la presidencia en la central;
+    /// con false lo cierra. "" o el error.
+    Q_INVOKABLE QString hablaPresidencia(bool activo, const QString& quien = QStringLiteral("operador"));
+    Q_PROPERTY(bool presidenciaHabla READ presidenciaHabla NOTIFY presidenciaHablaChanged)
+    bool presidenciaHabla() const { return presidenciaHabla_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
     QStringList sinSenal() const { return sinSenal_; }
@@ -499,6 +507,11 @@ class StudioViewModel : public QObject {
     /// (toma sus canales mientras haya alguien conectado). `forzar`: aunque no cambió nada.
     void aplicarVistasRemotas(bool forzar = false);
     std::string firmaVistas_;
+    bool presidenciaHabla_ = false;
+    bool prioridadCentral_ = false; ///< el botón de prioridad del presidente, como lo vio la última vez
+    /// Los remotos que tienen la palabra (y el orador remoto al aire) dejan de hablar.
+    void silenciarRemotos();
+    int unidadPresidente() const;
     void seguirVotacionCentral();
     nlohmann::json estadoConsola() const;
     void mandarEstadoConsola();
@@ -752,6 +765,7 @@ class StudioViewModel : public QObject {
     void refreshModels();
 
    signals:
+    void presidenciaHablaChanged();
     void saludChanged();
     void tallyChanged();
     void mediosChanged();

@@ -70,7 +70,8 @@ const std::set<std::string> kTipos{"hola", "palabra", "voto"};
 // Lo que manda la consola de la presidencia (la app lo valida y lo hace).
 const std::set<std::string> kTiposConsola{"hola",      "habilitar",  "deshabilitar", "expulsar", "dar_palabra",
                                           "terminar",  "quitar_fila", "sumar_tiempo", "siguiente", "votacion",
-                                          "ptt",       "cast",        "foto_cuerpo",  "tiempo"};
+                                          "ptt",       "cast",        "foto_cuerpo",  "tiempo",
+                                          "silenciar_todos", "hablar_presidencia", "debate"};
 
 } // namespace
 

@@ -78,6 +78,21 @@ ColumnLayout {
                       onClicked: ApplicationWindow.window.confirm({ title: "¿Cerrar todos los micrófonos?",
                           text: "Menos el del presidente.", accept: "Cerrar", reject: "Cancelar",
                           action: function() { pc.pedir("cerrar", "cerrar_todos") } }) }
+        // La presidencia sobre todos (también los remotos): Studio.silenciarTodos / hablaPresidencia.
+        GlassButton { text: "🔇 Silenciar a todos"; activeColor: Theme.live
+                      onClicked: { const e = Studio.silenciarTodos("operador"); if (e !== "") Studio.notify(e, "error") }
+                      ToolTip.visible: hovered; ToolTip.delay: 400
+                      ToolTip.text: "Cierra los micrófonos de la central (menos el del presidente), termina al orador y les saca la palabra a los remotos" }
+        GlassButton { text: Studio.presidenciaHabla ? "🎙 Presidencia hablando" : "🎙 Habla la presidencia"
+                      active: Studio.presidenciaHabla; activeColor: Theme.live; enabled: pc.ok
+                      onClicked: { const e = Studio.hablaPresidencia(!Studio.presidenciaHabla, "operador"); if (e !== "") Studio.notify(e, "error") }
+                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Calla a todos y abre el micrófono de la presidencia" }
+    }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+        visible: pc.ok && !!(pc.e.prioridad && pc.e.prioridad.activa)
+        color: Theme.live
+        text: "Prioridad del presidente: todos callados (también los remotos)."
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12

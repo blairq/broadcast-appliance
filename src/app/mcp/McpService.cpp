@@ -2614,6 +2614,36 @@ void McpService::registerTools() {
     }
     {
         Tool t;
+        t.name = "presidencia_silenciar";
+        t.title = "Silenciar a todos";
+        t.category = "oradores";
+        t.description = "Lo que hace la presidencia sobre todos: cierra los micrófonos de la central (menos el de la "
+                        "presidencia), termina al orador que está al aire y les saca la palabra a los remotos (también a "
+                        "los de un debate). Lo mismo que el botón de prioridad del presidente en su unidad.";
+        t.run = [&vm](const json&, Done done) {
+            const QString e = vm.silenciarTodos("mcp");
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Todos callados."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "presidencia_hablar";
+        t.title = "Hablo yo (la presidencia)";
+        t.category = "oradores";
+        t.description = "`activo: true` calla a todos (como presidencia_silenciar) y abre el micrófono de la unidad de "
+                        "presidente de la central; false lo cierra. Hace falta la central conectada.";
+        t.inputSchema = {{"type", "object"}, {"required", {"activo"}}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            const QString e = vm.hablaPresidencia(a.value("activo", true), "mcp");
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok(a.value("activo", true) ? "Todos callados; habla la presidencia." : "La presidencia cerró su micrófono."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "cuerpo_listar";
         t.title = "Integrantes del cuerpo";
         t.category = "evento";

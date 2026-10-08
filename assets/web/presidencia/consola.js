@@ -138,6 +138,10 @@ function pintar() {
   $("central").textContent = est.central && est.central.conectada ? "Central conectada" : "Sin central";
   $("central").className = "chip " + (est.central && est.central.conectada ? "bien" : "");
   if (document.activeElement !== $("asignado")) $("asignado").value = (est.fila || {}).asignado_fabrica_s || 180;
+  $("hablaYo").textContent = est.presidencia_habla ? "🎙 Hablando (soltar)" : "🎙 Hablo yo";
+  $("hablaYo").classList.toggle("rojo", !!est.presidencia_habla);
+  $("hablaYo").disabled = !est.con_central;
+  $("hablaYo").title = est.con_central ? "Calla a todos y abre el micrófono de la presidencia" : "Hace falta la central";
   if (document.activeElement !== $("votSegundos")) $("votSegundos").value = est.voto_s ?? 60;
   pintarRecinto();
   pintarEsperan();
@@ -304,6 +308,8 @@ for (const b of document.querySelectorAll("[data-accion]")) {
     if (a === "sumar") mandar({ type: "sumar_tiempo", segundos: Number(b.dataset.s) });
     else if (a === "terminar") mandar({ type: "terminar" });
     else if (a === "siguiente") mandar({ type: "siguiente" });
+    else if (a === "silenciar") mandar({ type: "silenciar_todos" });
+    else if (a === "hablo") mandar({ type: "hablar_presidencia", activo: !(est && est.presidencia_habla) });
   });
 }
 $("asignado").addEventListener("change", () => {
