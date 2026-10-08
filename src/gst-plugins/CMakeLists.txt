@@ -6,7 +6,7 @@
 # programa y también `gst-launch-1.0` con su entorno.
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
-#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz, bamejora (tarjetas de imagen, legalizador, PTZ digital, mejorar imagen).
+#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz, bamejora, ba360 (tarjetas de imagen, legalizador, PTZ digital, mejorar imagen, vista 360).
 #   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
@@ -28,8 +28,13 @@ function(ba_plugin_gst target)
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp)
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp filtros/vista360.cpp)
 ba_plugin_gst(gstbafiltros)
+if(WIN32)
+    # ba360d3d12: la biblioteca D3D12 de GStreamer (de plugins-bad: API «inestable»).
+    target_link_libraries(gstbafiltros PRIVATE "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstd3d12-1.0.lib")
+    target_compile_definitions(gstbafiltros PRIVATE GST_USE_UNSTABLE_API)
+endif()
 
 # El DSP del núcleo va compilado adentro (sin enlazar todo ba_core).
 add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitador.cpp "${CMAKE_SOURCE_DIR}/src/core/dsp/Automixer.cpp"
