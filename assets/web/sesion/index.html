@@ -44,7 +44,7 @@
     </div>
     <div id="aSala" class="ptt oculto">● Se te escucha en la sala</div>
     <div id="pttAviso" class="ptt oculto">
-      <strong>La presidencia te está hablando</strong>
+      <strong id="pttTitulo">La presidencia te está hablando</strong>
       <span class="tenue">Tu micrófono está abierto para ella.</span>
     </div>
     <audio id="presidencia" autoplay></audio>
@@ -57,10 +57,19 @@
       <button id="pedir" type="button" disabled>Pedir la palabra</button>
       <span id="turno" class="turno"></span>
     </div>
+    <!-- Qué mira: su cámara, la salida principal u otra escena (lo arma la secretaría).
+         Mirando un canal, su propia imagen queda en un recuadro: siempre sabe qué muestra. -->
+    <div id="vistas" class="vistas oculto">
+      <div id="botonesVista" class="botones-vista"></div>
+      <button id="sonido" type="button" class="sonido">🔇 Sonido de la sala</button>
+    </div>
     <div class="medio">
+      <video id="canal" class="canal oculto" autoplay muted playsinline></video>
       <video id="propia" class="propia" autoplay muted playsinline></video>
+      <p id="sinCanal" class="aviso oculto">Conectando…</p>
       <p id="sinCamara" class="aviso oculto">No hay cámara: sin ella no te pueden habilitar. Revisá los permisos del navegador.</p>
     </div>
+    <audio id="sonidoSala" autoplay></audio>
     <div class="info">
       <div><span class="tenue">Punto del orden del día</span><div id="punto">—</div></div>
       <div><span class="tenue">Tiene la palabra</span><div id="hablando">—</div></div>

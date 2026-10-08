@@ -387,6 +387,15 @@ function menuBanca(ev, b, i, remoto) {
   if (remoto && remoto.estado === "habilitado") {
     op("Deshabilitar", "", () => mandar({ type: "deshabilitar", id: i.id }));
   }
+  if (remoto && remoto.conectado) {
+    // Apretar para hablar desde la banca (no solo desde la fila): el menú queda abierto
+    // mientras se usa, así se puede hablar más de una vez.
+    const p = botonPtt(i.id, i.nombre);
+    p.textContent = "🎙 Mantené apretado para hablarle";
+    p.classList.remove("chico");
+    p.addEventListener("click", (e) => e.stopPropagation());
+    m.appendChild(p);
+  }
   if (remoto && remoto.conectado) op("Sacar de la sesión", "rojo", () => { if (confirm("¿Sacar a " + i.nombre + " de la sesión?")) mandar({ type: "expulsar", id: i.id }); });
   const r = ev.currentTarget.getBoundingClientRect();
   m.style.left = Math.min(window.innerWidth - 230, r.right + 6) + "px";

@@ -68,6 +68,7 @@ void SesionRemota::cargar() {
     if (j.value("consolas", json()).is_object()) consolas_ = j["consolas"];
     graciaS_ = std::clamp(j.value("gracia_s", 120), 0, 3600);
     votoSegundos_ = std::clamp(j.value("voto_s", 60), 0, 3600);
+    if (j.value("vistas", json()).is_array()) vistas_ = j["vistas"];
 }
 
 void SesionRemota::guardar() const {
@@ -77,7 +78,7 @@ void SesionRemota::guardar() const {
     {
         std::ofstream f(tmp);
         f << json{{"credenciales", credenciales_}, {"consolas", consolas_}, {"gracia_s", graciaS_},
-                  {"voto_s", votoSegundos_}}.dump(1);
+                  {"voto_s", votoSegundos_}, {"vistas", vistas_}}.dump(1);
     }
     std::filesystem::rename(tmp, archivo_, ec);
 }
@@ -469,6 +470,39 @@ void SesionRemota::fila(const std::vector<std::string>& cola, const std::string&
                        (i.value("banca", std::string()).empty() ? "" : " · Banca " + i.value("banca", std::string()));
     }
     info({{"hablando", hablando}});
+}
+
+std::string SesionRemota::setVistas(const json& vistas) {
+    if (!vistas.is_array()) return "las vistas van en una lista";
+    if (vistas.size() > 2) return "hasta dos canales (además de su propia cámara)";
+    json limpio = json::array();
+    const char* ids[] = {"a", "b"};
+    for (size_t i = 0; i < vistas.size(); ++i) {
+        const json& v = vistas[i];
+        const std::string fuente = v.is_object() ? v.value("fuente", std::string()) : std::string();
+        if (fuente.empty()) return "a cada canal le falta la fuente: «programa» o el nombre de una escena";
+        std::string nombre = v.value("nombre", std::string());
+        if (nombre.empty()) nombre = fuente == "programa" ? "Salida principal" : fuente;
+        if (nombre.size() > 40) nombre.resize(40);
+        limpio.push_back({{"id", ids[i]}, {"nombre", nombre}, {"fuente", fuente}});
+    }
+    vistas_ = limpio;
+    guardar();
+    anotar("vistas", "", {{"vistas", vistas_}});
+    emit cambio();
+    return {};
+}
+
+QVariantList SesionRemota::vistasUi() const { return aQv(vistas()).toList(); }
+
+QString SesionRemota::setVistasUi(const QVariantList& vistas) {
+    const json j = json::parse(QJsonDocument::fromVariant(vistas).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    return QString::fromStdString(setVistas(j));
+}
+
+json SesionRemota::vistas() const {
+    if (!vistas_.empty()) return vistas_;
+    return json::array({{{"id", "a"}, {"nombre", "Salida principal"}, {"fuente", "programa"}}});
 }
 
 void SesionRemota::ptt(const std::string& id, bool activo, const std::string& consola) {

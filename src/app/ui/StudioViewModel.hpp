@@ -341,6 +341,9 @@ class StudioViewModel : public QObject {
     void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
+    /// «Apretar para hablar» desde la app: mientras `activo`, el remoto oye la voz del
+    /// operador (su micrófono de la sala) mezclada en el sonido de su celular. "" o el error.
+    Q_INVOKABLE QString hablarARemoto(const QString& integrante, bool activo);
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
     QStringList sinSenal() const { return sinSenal_; }
@@ -492,6 +495,10 @@ class StudioViewModel : public QObject {
     /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
     void sincronizarBotonera();
     void sincronizarSesion();
+    /// Las vistas del celular de los remotos al gateway: el programa o las escenas
+    /// (toma sus canales mientras haya alguien conectado). `forzar`: aunque no cambió nada.
+    void aplicarVistasRemotas(bool forzar = false);
+    std::string firmaVistas_;
     void seguirVotacionCentral();
     nlohmann::json estadoConsola() const;
     void mandarEstadoConsola();

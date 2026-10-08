@@ -346,6 +346,16 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     // Volvió el que tiene la palabra (se le cortó la red, recargó la página): se le
     // vuelve a pedir el micrófono y la cámara.
     if (tieneMedios) enviar(c, {{"type", "medios"}, {"activo", true}});
+    if (!consola) {
+        json lista;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            lista = listaVistas();
+        }
+        enviar(c, {{"type", "vistas"}, {"lista", lista}});
+        // Su vista de la conexión vieja (si la había) era de esa página: la nueva ofrece otra.
+        if (vieja && medios_.vistaCerrar) medios_.vistaCerrar(c->id);
+    }
     // 2. El lazo.
     std::vector<std::int64_t> ventana;
     while (true) {
@@ -394,6 +404,34 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             } else if (medios_.ice) {
                 const json& cand = m.contains("candidate") ? m["candidate"] : json();
                 medios_.ice(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump());
+            }
+            continue;
+        }
+        // Lo que mira en su celular: un WebRTC que solo recibe, y el canal que elige.
+        if (!consola && (t == "vista-oferta" || t == "vista-ice" || t == "vista")) {
+            if (t == "vista-ice") {
+                const json& cand = m.contains("candidate") ? m["candidate"] : json();
+                if (medios_.vistaIce) medios_.vistaIce(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump());
+                continue;
+            }
+            int canal;
+            bool habla;
+            {
+                std::lock_guard<std::mutex> l(mu_);
+                std::string v = m.value("vista", std::string("yo"));
+                if (v.size() > 16) v = "yo";
+                vistaDe_[c->id] = v;
+                canal = canalDeVista(v);
+                habla = hablando_[c->id];
+            }
+            if (t == "vista") {
+                if (medios_.vistaRuta) medios_.vistaRuta(c->id, canal, habla);
+            } else if (medios_.vistaOferta) {
+                std::weak_ptr<Conn> w = c;
+                const bool ok = medios_.vistaOferta(c->id, m.value("sdp", std::string()), canal, habla, [this, w](const json& r) {
+                    if (auto cc = w.lock()) enviar(cc, r);
+                });
+                if (!ok) enviar(c, {{"type", "vista-error"}, {"error", "La sala no tiene lugar para mandarte la imagen ahora."}});
             }
             continue;
         }
@@ -476,6 +514,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
         if (tenia) medios_.cerrar(c->id); // su WebRTC hacia la sala no sigue sin él
     }
+    if (eraLaActual && !consola && medios_.vistaCerrar) medios_.vistaCerrar(c->id);
     if (eraLaActual) {
         alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", false}, {"ip", c->ip}});
         log_.info("sesion: " + c->id + " desconectado");
@@ -529,6 +568,45 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump());
         return true;
     }
+    if (que == "vistas") {
+        json lista;
+        std::vector<std::pair<std::string, std::pair<int, bool>>> rutas;
+        std::vector<std::shared_ptr<Conn>> a;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            vistas_ = json::array();
+            for (const auto& v : r.value("vistas", json::array()))
+                if (v.is_object() && !v.value("id", std::string()).empty())
+                    vistas_.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())},
+                                       {"canal", v.value("canal", -1)}});
+            lista = listaVistas();
+            for (const auto& [id, v] : vistaDe_) rutas.push_back({id, {canalDeVista(v), hablando_[id]}});
+            for (const auto& [cid, c] : conns_)
+                if (cid.rfind("consola:", 0) != 0) a.push_back(c);
+        }
+        for (const auto& [id, ru] : rutas)
+            if (medios_.vistaRuta) medios_.vistaRuta(id, ru.first, ru.second);
+        for (const auto& c : a) enviar(c, {{"type", "vistas"}, {"lista", lista}});
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"vistas", lista}}.dump());
+        return true;
+    }
+    if (que == "hablar") {
+        const std::string id = r.value("id", std::string());
+        const bool on = r.value("activo", false);
+        int canal = -2;
+        bool conVista = false;
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            hablando_[id] = on;
+            if (!on) hablando_.erase(id);
+            auto it = vistaDe_.find(id);
+            conVista = it != vistaDe_.end();
+            if (conVista) canal = canalDeVista(it->second);
+        }
+        if (conVista && medios_.vistaRuta) medios_.vistaRuta(id, canal, on);
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"con_vista", conVista}}.dump());
+        return true;
+    }
     if (que == "medios") {
         ponerMediosDe(r.value("id", std::string()));
         http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"id", r.value("id", std::string())}}.dump());
@@ -572,6 +650,19 @@ void SesionBorde::cerrar() {
         std::lock_guard<std::mutex> l(c->sendLock);
         if (c->fd >= 0) http::shutdownFd(c->fd);
     }
+}
+
+int SesionBorde::canalDeVista(const std::string& vista) const {
+    if (vista == "programa") return -1;
+    for (const auto& v : vistas_)
+        if (v.value("id", std::string()) == vista) return v.value("canal", -1);
+    return -2; // "yo" o una que ya no está: sin imagen, con el sonido
+}
+
+json SesionBorde::listaVistas() const {
+    json out = json::array();
+    for (const auto& v : vistas_) out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}});
+    return out;
 }
 
 void SesionBorde::ponerMediosDe(const std::string& id) {

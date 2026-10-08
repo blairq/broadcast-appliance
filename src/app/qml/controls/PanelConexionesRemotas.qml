@@ -76,6 +76,64 @@ ColumnLayout {
         Item { Layout.fillWidth: true }
     }
 
+    // --- Lo que ven en el celular: su cámara (siempre, en un recuadro) y hasta dos canales ---
+    RowLayout {
+        id: vistasFila
+        Layout.fillWidth: true
+        spacing: 8
+        property int tick: 0
+        Connections {
+            target: Studio.scenes
+            function onRowsInserted() { vistasFila.tick++ }
+            function onRowsRemoved() { vistasFila.tick++ }
+            function onModelReset() { vistasFila.tick++ }
+            function onDataChanged() { vistasFila.tick++ }
+        }
+        readonly property var escenas: {
+            vistasFila.tick
+            const m = Studio.scenes, l = []
+            if (!m) return l
+            for (let i = 0; i < m.rowCount(); ++i) l.push(m.data(m.index(i, 0), 257)) // NameRole
+            return l
+        }
+        readonly property var opciones: ["—", "Salida principal"].concat(vistasFila.escenas)
+        function guardar() {
+            const l = []
+            for (const f of [vA, vB]) {
+                if (f.combo.currentIndex <= 0) continue
+                l.push({ nombre: f.campo.text.trim(), fuente: f.combo.currentIndex === 1 ? "programa" : f.combo.currentText })
+            }
+            const e = cr.s.setVistasUi(l)
+            if (e !== "") Studio.notify(e, "error")
+        }
+        Text { color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; text: "En el celular ven" }
+        Text { color: Theme.textDim; font.pixelSize: 12; text: "su cámara +" }
+        component CanalVista: RowLayout {
+            property int indice: 0
+            property alias campo: nombreV
+            property alias combo: fuenteV
+            readonly property var v: cr.s && cr.s.vistasUi.length > indice ? cr.s.vistasUi[indice] : null
+            spacing: 4
+            TextField { id: nombreV; Layout.preferredWidth: 130; color: Theme.text; placeholderText: "Nombre del canal"
+                        text: parent.v ? parent.v.nombre : ""; onEditingFinished: vistasFila.guardar() }
+            ComboBox {
+                id: fuenteV
+                Layout.preferredWidth: 170
+                model: vistasFila.opciones
+                currentIndex: !parent.v ? 0 : parent.v.fuente === "programa" ? 1 : Math.max(0, vistasFila.opciones.indexOf(parent.v.fuente))
+                onActivated: vistasFila.guardar()
+            }
+        }
+        CanalVista { id: vA; indice: 0 }
+        CanalVista { id: vB; indice: 1 }
+        Item { Layout.fillWidth: true }
+    }
+    Text {
+        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+        text: "Cada uno elige en su celular qué mirar: su cámara, la salida principal u otra escena; su propia imagen queda siempre en un recuadro. " +
+              "Las escenas usan los canales de las pantallas de la sala (4 entre todas)."
+    }
+
     // --- Encabezado de la tabla ---------------------------------------------------------
     RowLayout {
         Layout.fillWidth: true

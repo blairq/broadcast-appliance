@@ -445,6 +445,48 @@ ColumnLayout {
     }
     Item { Layout.fillHeight: true }
 
+    // «Apretar para hablar» a un remoto conectado: mientras se mantiene apretado, oye
+    // tu micrófono de la sala en su celular (Studio.hablarARemoto; por MCP sesion_hablar).
+    Popup {
+        id: ptt
+        property var i: null
+        property bool hablando: false
+        function abrir(integrante) { ptt.i = integrante; ptt.hablando = false; open() }
+        function poner(on) {
+            if (!ptt.i || on === ptt.hablando) return
+            const e = Studio.hablarARemoto(ptt.i.id, on)
+            if (e !== "") { rec.aviso = e; ptt.hablando = false; return }
+            ptt.hablando = on
+        }
+        onClosed: poner(false)
+        modal: true
+        anchors.centerIn: Overlay.overlay
+        padding: 18
+        background: Rectangle { color: Theme.panel; radius: 14; border.color: Theme.glassBorder }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Text { text: ptt.i ? "Hablarle a " + ptt.i.nombre : ""; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                width: 200; height: 200; radius: 100
+                color: ptt.hablando ? Theme.live : Qt.rgba(1, 1, 1, 0.08)
+                border.color: ptt.hablando ? "white" : Theme.glassBorder; border.width: 3
+                Text { anchors.centerIn: parent; horizontalAlignment: Text.AlignHCenter; color: "white"
+                       font { pixelSize: 16; weight: Font.Bold }
+                       text: ptt.hablando ? "🎙\nTE ESTÁ\nESCUCHANDO" : "🎙\nMANTENÉ\nAPRETADO" }
+                MouseArea {
+                    anchors.fill: parent
+                    onPressed: ptt.poner(true)
+                    onReleased: ptt.poner(false)
+                    onCanceled: ptt.poner(false)
+                }
+            }
+            Text { Layout.preferredWidth: 260; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                   text: "Te oye con tu micrófono de la sala (el de hablarle a los invitados), mezclado con el sonido que recibe en su celular." }
+            GlassButton { Layout.alignment: Qt.AlignRight; compact: true; text: "Cerrar"; onClicked: ptt.close() }
+        }
+    }
+
     Menu {
         id: menu
         property var l: null
@@ -458,6 +500,8 @@ ColumnLayout {
                    onTriggered: rec.sr.habilitarUi(menu.i.id, false) }
         MenuItem { text: "Sacar de la sesión remota"; visible: !!menu.rem && menu.rem.conectado; height: visible ? implicitHeight : 0
                    onTriggered: rec.sr.expulsarUi(menu.i.id, "") }
+        MenuItem { text: "🎙 Hablarle (apretar para hablar)…"; visible: !!menu.rem && menu.rem.conectado; height: visible ? implicitHeight : 0
+                   onTriggered: ptt.abrir(menu.i) }
         MenuItem { text: "Abrir el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0
                    onTriggered: rec.microfono(menu.l.banca, true, false) }
         MenuItem { text: "Cerrar el micrófono (central)"; visible: rec.conCentral; height: visible ? implicitHeight : 0

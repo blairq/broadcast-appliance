@@ -30,6 +30,13 @@
 //   POST /api/v1/sesion/medios       {id | ""}: quién manda audio y video a la sala (R3): al
 //        que entra se le dice {type:"medios", activo:true} y su celular ofrece
 //        ({type:"medios-oferta", sdp}, {type:"medios-ice", candidate}); al que sale, false.
+//   POST /api/v1/sesion/vistas       {vistas:[{id, nombre, canal}]}: los canales que el integrante
+//        puede mirar en su celular (canal -1 = el programa, k = BA.Escena.<k>); se les manda
+//        {type:"vistas", lista:[{id, nombre}]}. Su celular abre un WebRTC que solo recibe
+//        ({type:"vista-oferta", sdp, vista}, {type:"vista-ice", candidate}) y cambia de canal
+//        con {type:"vista", vista} ("yo" = ninguno: solo el sonido) sin reconectar.
+//   POST /api/v1/sesion/hablar       {id, activo}: el operador le habla («apretar para hablar»
+//        desde la app): su voz (BA.Audio.Operator) le llega mezclada en el sonido de su vista.
 //   y por el SSE de siempre, evento "sesion": {tipo: conexion|entrada|intento|bloqueo, …}
 //
 // Presidencia (la consola web, docs/funciones/SESION-REMOTA.md §8):
@@ -84,6 +91,14 @@ class SesionBorde {
             oferta;
         std::function<void(const std::string& id, const std::string& candidato)> ice;
         std::function<void(const std::string& id)> cerrar;
+        // Lo que mira en su celular (un WebRTC que solo recibe): canal -1 = programa,
+        // k >= 0 = BA.Escena.<k>, -2 = nada (solo el sonido). `hablar`: le llega la voz del operador.
+        std::function<bool(const std::string& id, const std::string& sdp, int canal, bool hablar,
+                           std::function<void(const nlohmann::json&)> enviar)>
+            vistaOferta;
+        std::function<void(const std::string& id, const std::string& candidato)> vistaIce;
+        std::function<void(const std::string& id, int canal, bool hablar)> vistaRuta;
+        std::function<void(const std::string& id)> vistaCerrar;
     };
     void setMedios(Medios m) { medios_ = std::move(m); }
 
@@ -126,6 +141,11 @@ class SesionBorde {
     Medios medios_;
     std::string mediosDe_; ///< quién puede mandar audio y video a la sala (el que tiene la palabra)
     void ponerMediosDe(const std::string& id);
+    nlohmann::json vistas_ = nlohmann::json::array(); ///< [{id, nombre, canal}]
+    std::map<std::string, std::string> vistaDe_;       ///< integrante -> la vista que eligió
+    std::map<std::string, bool> hablando_;             ///< a quién le habla el operador
+    int canalDeVista(const std::string& vista) const;  ///< con mu_ tomado
+    nlohmann::json listaVistas() const;                ///< con mu_ tomado
 };
 
 } // namespace ba::gateway

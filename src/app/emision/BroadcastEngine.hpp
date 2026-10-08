@@ -467,6 +467,12 @@ class BroadcastEngine {
     void alFallarMotor(std::function<void(const std::string&)> fn);
     bool escenaACanal(int k, const std::string& escena);
     std::string escenaDeCanal(int k) const;
+    /// Los que no son Pantallas (las vistas de la sesión remota) toman un canal con
+    /// dueño: el que ya tiene esa escena o uno libre (-1 si no hay). Pantallas no
+    /// suelta un canal con dueños; el último dueño que lo suelta, lo apaga.
+    int tomarCanalEscena(const std::string& escena, const std::string& dueno);
+    void soltarCanalesEscena(const std::string& dueno);
+    bool canalEscenaConDuenos(int k) const;
 
     /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada
     /// (ultimoInicio = YaIgual); a OTRO destino falla (YaOtroDestino), salvo
@@ -757,6 +763,7 @@ class BroadcastEngine {
         std::vector<std::uint8_t> filas;
     };
     std::array<CanalEscena, ba::ipc::kCanalesEscena> canalesEscena_;
+    std::array<std::set<std::string>, ba::ipc::kCanalesEscena> duenosEscena_;
     /// El hilo del motor manda mientras la interfaz cambia la escena de un canal.
     std::mutex canalesEscenaM_;
     /// Las entradas internas (fundido a negro, placa) que ya se le pidieron a este motor.

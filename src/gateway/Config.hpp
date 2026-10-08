@@ -25,6 +25,8 @@
 // ============================================================================
 #pragma once
 
+#include <algorithm>
+
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -84,6 +86,7 @@ struct Config {
     bool lobby = true;         // el operador admite a cada invitado
     int lobbySlots = 4;        // cuantos del lobby muestran su camara al operador
     int maxBackstage = 12;     // modo oradores: cuantos en la fila ven el programa
+    int vistasRemotas = 16;    // sesión remota: cuántos integrantes miran a la vez un canal en su celular
     int backstagePreviews = 6; // de la fila, cuantos (los primeros) muestran su camara al operador
     int maxUploadMB = 2048;    // tope por archivo compartido
     std::string adminWebroot;  // Web/admin (consola web del operador)
@@ -146,6 +149,7 @@ struct Config {
         lobby = j.value("lobby", lobby);
         lobbySlots = j.value("lobbySlots", lobbySlots);
         maxBackstage = j.value("maxBackstage", maxBackstage);
+        vistasRemotas = j.value("vistasRemotas", vistasRemotas);
         backstagePreviews = j.value("backstagePreviews", backstagePreviews);
         https = j.value("https", https);
         httpsPort = j.value("httpsPort", httpsPort);
@@ -237,6 +241,7 @@ struct Config {
         if (lobbySlots > 8) lobbySlots = 8;
         if (maxBackstage < 0) maxBackstage = 0;
         if (maxBackstage > 32) maxBackstage = 32;
+        vistasRemotas = std::clamp(vistasRemotas, 0, 64);
         if (backstagePreviews < 0) backstagePreviews = 0;
         if (backstagePreviews > 8) backstagePreviews = 8; // A se suscribe a BA.Backstage.1..8
         if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;

@@ -24,6 +24,7 @@ let vot = null;         // la votación abierta (o pausada)
 let timerVot = null;
 let desfase = 0;        // reloj del servidor - reloj de acá (para la cuenta regresiva)
 let timerPing = null;
+let lugar = "afuera";    // "sala" (red local) o "afuera": en la sala, el sonido arranca apagado (acople)
 
 function mostrar(id) {
   for (const s of ["entrar", "sala", "cortado"]) $(s).classList.toggle("oculto", s !== id);
@@ -48,6 +49,8 @@ function ponerEstado(nuevo, texto) {
     : "La presidencia te va a ver por la cámara y te habilita. Hasta entonces no contás para el quórum.");
   programarFotos();
   $("pedir").disabled = !hab;
+  // Lo que mira en el celular: solo habilitado (no gasta un lugar de la sala mientras espera).
+  if (hab) iniciarVista(); else cerrarVista();
 }
 
 // --- La palabra ---------------------------------------------------------------------
@@ -254,6 +257,100 @@ function cerrarSala() {
   $("aSala").classList.add("oculto");
 }
 
+// --- Lo que mira (WebRTC que solo recibe): su cámara, la salida principal u otra escena ---
+// El gateway le manda el canal elegido; cambiar de canal no reconecta. «Yo» = su cámara grande
+// (sigue llegando el sonido, por si la presidencia u operador le hablan). Mirando un canal, su
+// cámara queda en un recuadro.
+let vistas = [];          // [{id, nombre}] que armó la secretaría
+let vista = leerVista();  // la elegida: "yo" | id
+let pcVista = null;
+let sonidoPrendido = false;
+let sonidoAntesPtt = null;
+
+function leerVista() { try { return localStorage.getItem("ba-sesion-vista") || ""; } catch (e) { return ""; } }
+function guardarVista(v) { try { localStorage.setItem("ba-sesion-vista", v); } catch (e) {} }
+
+function ponerVistas(lista) {
+  vistas = Array.isArray(lista) ? lista : [];
+  if (vista !== "yo" && !vistas.some((v) => v.id === vista)) vista = vistas.length ? vistas[0].id : "yo";
+  const caja = $("botonesVista");
+  caja.textContent = "";
+  for (const v of [{ id: "yo", nombre: "Yo" }].concat(vistas)) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = v.nombre || v.id;
+    b.dataset.vista = v.id;
+    b.addEventListener("click", () => elegirVista(v.id));
+    caja.appendChild(b);
+  }
+  $("vistas").classList.toggle("oculto", vistas.length === 0);
+  pintarVista();
+  if (pcVista && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "vista", vista }));
+}
+
+function elegirVista(v) {
+  vista = v;
+  guardarVista(v);
+  pintarVista();
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "vista", vista: v }));
+  activarSonido(); // tocar es el gesto que deja sonar al navegador
+}
+
+function pintarVista() {
+  for (const b of $("botonesVista").children) b.classList.toggle("elegida", b.dataset.vista === vista);
+  const viendoCanal = vista !== "yo" && vistas.length > 0;
+  $("canal").classList.toggle("oculto", !viendoCanal);
+  $("propia").classList.toggle("recuadro", viendoCanal);
+  const conImagen = $("canal").srcObject && pcVista && pcVista.connectionState === "connected";
+  $("sinCanal").classList.toggle("oculto", !viendoCanal || !!conImagen);
+}
+
+async function iniciarVista() {
+  if (pcVista || !ws || ws.readyState !== 1) return;
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  pcVista = pc;
+  pc.addTransceiver("video", { direction: "recvonly" });
+  pc.addTransceiver("audio", { direction: "recvonly" });
+  const flujo = new MediaStream();
+  pc.ontrack = (ev) => {
+    flujo.addTrack(ev.track);
+    $("canal").srcObject = flujo;
+    $("sonidoSala").srcObject = flujo;
+    pintarVista();
+  };
+  pc.onicecandidate = (ev) => {
+    if (ev.candidate && ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "vista-ice", candidate: ev.candidate }));
+  };
+  pc.onconnectionstatechange = () => {
+    pintarVista();
+    if ((pc.connectionState === "failed" || pc.connectionState === "closed") && pcVista === pc) {
+      pcVista = null;
+      if (estado === "habilitado") setTimeout(iniciarVista, 3000);
+    }
+  };
+  const oferta = await pc.createOffer();
+  await pc.setLocalDescription(oferta);
+  ws.send(JSON.stringify({ type: "vista-oferta", sdp: oferta.sdp, vista }));
+}
+
+function cerrarVista() {
+  if (pcVista) { try { pcVista.close(); } catch (e) {} }
+  pcVista = null;
+  $("canal").srcObject = null;
+  $("sonidoSala").srcObject = null;
+  pintarVista();
+}
+
+function ponerSonido(on) {
+  sonidoPrendido = on;
+  $("sonidoSala").muted = !on;
+  if (on) $("sonidoSala").play().catch(() => {});
+  $("sonido").textContent = on ? "🔊 Sonido de la sala" : "🔇 Sonido de la sala";
+  $("sonido").classList.toggle("prendido", on);
+}
+// El navegador no deja sonar nada hasta que la persona toca la página: el primer toque lo destraba.
+function activarSonido() { if (sonidoPrendido || pttActivo) $("sonidoSala").play().catch(() => {}); }
+
 function mandarFoto() {
   const v = $("propia");
   if (!ws || ws.readyState !== 1 || !v.videoWidth) return;
@@ -283,6 +380,7 @@ function conectar() {
   };
   ws.onclose = () => {
     conexion(false);
+    cerrarVista();
     clearInterval(timerPing);
     if (cortadoAProposito || !pin) return;
     setTimeout(conectar, reintento);
@@ -304,6 +402,9 @@ function recibir(m) {
       reintento = 1000;
       conexion(true);
       $("quien").textContent = (m.nombre || "") + (m.banca ? " · Banca " + m.banca : "");
+      lugar = m.lugar || "afuera";
+      cerrarVista(); // la de la conexión anterior no sigue
+      ponerSonido(lugar !== "sala"); // en la sala, el sonido apagado: el celular acoplaría
       mostrar("sala");
       prenderCamara().then(programarFotos);
       clearInterval(timerPing);
@@ -335,11 +436,32 @@ function recibir(m) {
     case "medios-ice":
       if (pcSala && m.candidate) pcSala.addIceCandidate(m.candidate).catch(() => {});
       break;
-    case "ptt":
+    case "ptt": {
       pttActivo = !!m.activo;
       $("pttAviso").classList.toggle("oculto", !pttActivo);
-      microfono(pttActivo || palabraHasta > 0);
+      // El operador desde la app le habla por el sonido de su vista (sin abrirle el micrófono);
+      // la presidencia, por la conexión directa (y él le contesta).
+      const delOperador = m.consola === "operador";
+      $("pttTitulo").textContent = delOperador ? "Te están hablando desde la cabina" : "La presidencia te está hablando";
+      if (!delOperador) microfono(pttActivo || palabraHasta > 0);
+      if (delOperador) {
+        if (pttActivo) { sonidoAntesPtt = sonidoPrendido; ponerSonido(true); }
+        else if (sonidoAntesPtt !== null) { ponerSonido(sonidoAntesPtt); sonidoAntesPtt = null; }
+      }
       if (pttActivo && navigator.vibrate) navigator.vibrate(200);
+      break;
+    }
+    case "vistas":
+      ponerVistas(m.lista);
+      break;
+    case "vista-respuesta":
+      if (pcVista) pcVista.setRemoteDescription({ type: "answer", sdp: m.sdp }).catch(() => {});
+      break;
+    case "vista-ice":
+      if (pcVista && m.candidate) pcVista.addIceCandidate(m.candidate).catch(() => {});
+      break;
+    case "vista-error":
+      $("sinCanal").textContent = m.error || "No llega la imagen.";
       break;
     case "votacion":
       ponerVotacion(m);
@@ -390,6 +512,8 @@ $("pedir").addEventListener("click", () => {
   if (pidio) $("turno").textContent = "Pedido enviado";
 });
 $("cerrarResultado").addEventListener("click", () => $("resultado").classList.add("oculto"));
+$("sonido").addEventListener("click", () => ponerSonido(!sonidoPrendido));
+document.addEventListener("pointerdown", activarSonido, { passive: true });
 $("reintentar").addEventListener("click", () => {
   mostrar("entrar");
   $("botonEntrar").disabled = false;

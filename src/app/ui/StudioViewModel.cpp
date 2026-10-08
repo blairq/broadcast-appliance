@@ -1097,6 +1097,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             connect(sesionRemota_.get(), &asamblea::SesionRemota::credencialesCambio, this, [this]() { sincronizarSesion(); });
             connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, [this]() {
                 if (quorum_) emit quorum_->cambio();
+                aplicarVistasRemotas();
             });
             connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
                 if (on) sincronizarSesion();
@@ -3127,6 +3128,7 @@ void StudioViewModel::sincronizarSesion() {
     const nlohmann::json body{{"participantes", sesionRemota_->paraGateway()}};
     cli.post("/api/v1/sesion/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
              [](bool, const QJsonObject&) {});
+    aplicarVistasRemotas(true);
     // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
     cli.post("/api/v1/sesion/medios",
              QJsonObject{{"id", QString::fromStdString(sesionRemota_->conPalabra())}}, [](bool, const QJsonObject&) {});
@@ -3143,6 +3145,52 @@ void StudioViewModel::sincronizarSesion() {
                 yo->sesionRemota_->setOrigen(r2.value("origen").toString().toStdString());
         });
     });
+}
+
+void StudioViewModel::aplicarVistasRemotas(bool forzar) {
+    if (!conference_ || !sesionRemota_) return;
+    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
+    if (!cli.online()) return;
+    // Las escenas se componen solo mientras haya algún remoto conectado.
+    const bool alguien = sesionRemota_->conectados() > 0;
+    const nlohmann::json vistas = sesionRemota_->vistas();
+    const std::string firma = (alguien ? "1" : "0") + vistas.dump();
+    if (!forzar && firma == firmaVistas_) return;
+    firmaVistas_ = firma;
+    BroadcastEngine& eng = rt_.engine();
+    eng.soltarCanalesEscena("sesion-remota");
+    nlohmann::json out = nlohmann::json::array();
+    for (const auto& v : vistas) {
+        const std::string fuente = v.value("fuente", std::string());
+        int canal = -2;
+        if (fuente == "programa") {
+            canal = -1;
+        } else if (alguien) {
+            canal = eng.tomarCanalEscena(fuente, "sesion-remota");
+            if (canal < 0)
+                emit notify(QString::fromStdString("No hay canal libre para mandarles la escena «" + fuente +
+                                                   "» a los remotos (las pantallas usan los 4)"),
+                            "warning");
+        }
+        out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}, {"canal", canal}});
+    }
+    cli.post("/api/v1/sesion/vistas",
+             QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"vistas", out}}.dump())).object(),
+             [](bool, const QJsonObject&) {});
+}
+
+QString StudioViewModel::hablarARemoto(const QString& integrante, bool activo) {
+    if (!sesionRemota_ || !conference_) return "La sesión remota no está andando.";
+    auto* conf = static_cast<ConferenceViewModel*>(conference_.get());
+    if (activo && conf->operatorAudio().isEmpty())
+        return "Para hablarle hace falta tu micrófono: elegilo en Sala → Tu cámara y micrófono.";
+    if (activo && !conf->client().online()) return "La sala (el gateway) no está andando.";
+    const std::string id = integrante.toStdString();
+    conf->client().post("/api/v1/sesion/hablar", QJsonObject{{"id", integrante}, {"activo", activo}},
+                        [](bool, const QJsonObject&) {});
+    // Su celular muestra «Te están hablando» y abre el sonido aunque esté en la sala.
+    sesionRemota_->ptt(id, activo, "operador");
+    return {};
 }
 
 void StudioViewModel::sincronizarBotonera() {

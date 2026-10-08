@@ -279,6 +279,10 @@ class SignalingServer {
     void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
     /// R3: la oferta del celular de un integrante remoto con la palabra -> ruta Remoto 1.
     bool ofertaRemoto(const std::string& id, const std::string& sdp, std::function<void(const nlohmann::json&)> enviar);
+    /// Lo que mira un integrante en su celular (sesión del pool que solo recibe, pid «vista:<id>»).
+    bool ofertaVista(const std::string& id, const std::string& sdp, int canal, bool hablar,
+                     std::function<void(const nlohmann::json&)> enviar);
+    static MediaRoute rutaDeVista(int canal, bool hablar);
 
     struct WsConn {
         long long fd = -1;

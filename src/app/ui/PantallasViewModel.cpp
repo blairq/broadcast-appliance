@@ -1198,7 +1198,7 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
 void PantallasViewModel::revisarCanales() {
     BroadcastEngine& eng = d_->rt->engine();
     for (int k = 0; k < ipc::kCanalesEscena; ++k) {
-        if (eng.escenaDeCanal(k).empty()) continue;
+        if (eng.escenaDeCanal(k).empty() || eng.canalEscenaConDuenos(k)) continue; // las vistas de los remotos
         bool usado = false;
         for (const Destino& d : d_->destinos)
             if (d.canalEscena == k && (d.trabajando || (d.contenido == "escena" && d.estado == "mostrando")))

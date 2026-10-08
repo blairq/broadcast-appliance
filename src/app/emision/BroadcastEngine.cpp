@@ -527,6 +527,30 @@ std::string BroadcastEngine::escenaDeCanal(int k) const {
     return canalesEscena_[static_cast<std::size_t>(k)].escena;
 }
 
+int BroadcastEngine::tomarCanalEscena(const std::string& escena, const std::string& dueno) {
+    if (escena.empty()) return -1;
+    int canal = -1;
+    for (int k = 0; k < ba::ipc::kCanalesEscena && canal < 0; ++k)
+        if (escenaDeCanal(k) == escena) canal = k;
+    for (int k = 0; k < ba::ipc::kCanalesEscena && canal < 0; ++k)
+        if (escenaDeCanal(k).empty()) canal = k;
+    if (canal < 0) return -1;
+    if (escenaDeCanal(canal).empty() && !escenaACanal(canal, escena)) return -1;
+    duenosEscena_[static_cast<std::size_t>(canal)].insert(dueno);
+    return canal;
+}
+
+void BroadcastEngine::soltarCanalesEscena(const std::string& dueno) {
+    for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) {
+        auto& d = duenosEscena_[static_cast<std::size_t>(k)];
+        if (d.erase(dueno) > 0 && d.empty()) escenaACanal(k, ""); // Pantallas lo vuelve a pedir si lo usa
+    }
+}
+
+bool BroadcastEngine::canalEscenaConDuenos(int k) const {
+    return k >= 0 && k < ba::ipc::kCanalesEscena && !duenosEscena_[static_cast<std::size_t>(k)].empty();
+}
+
 void BroadcastEngine::enviarEscena(int k, const motor::Cuadro& q) {
     std::lock_guard<std::mutex> l(canalesEscenaM_);
     CanalEscena& c = canalesEscena_[static_cast<std::size_t>(k)];

@@ -516,7 +516,8 @@ int main(int argc, char** argv) {
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby
     // o en la fila de oradores, que ve el programa).
-    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 1 /* el remoto con la palabra */, cfg.guestVideoW, cfg.guestVideoH,
+    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 1 /* el remoto con la palabra */ +
+                      cfg.vistasRemotas /* lo que miran los integrantes en su celular */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).

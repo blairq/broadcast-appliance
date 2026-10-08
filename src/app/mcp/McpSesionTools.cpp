@@ -6,6 +6,7 @@
 // BANCAS (o del id o el nombre del integrante, como en el Cuerpo).
 // ============================================================================
 
+#include "arranque/AppRuntime.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
 #include "asamblea/Quorum.hpp"
@@ -13,6 +14,8 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
+
+#include <algorithm>
 
 namespace ba::app::mcp {
 
@@ -252,6 +255,64 @@ void McpService::registerSesionTools() {
             if (acc == "revocar" && !s->revocarConsola(a.value("id", std::string())))
                 return done(ToolResult::error("no hay una consola con ese id"));
             done(ToolResult().data({{"consolas", s->consolas()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sesion_vistas";
+        t.title = "Lo que ven los remotos en su celular";
+        t.category = "sesion";
+        t.description = "Además de su propia cámara (siempre, en un recuadro), el integrante remoto puede mirar en "
+                        "su celular hasta dos canales por WebRTC y cambiar entre ellos: `canales` = [{nombre, fuente}] "
+                        "con fuente «programa» (la salida principal) o el nombre de una escena. Sin argumentos dice "
+                        "cuáles hay. Las escenas usan los canales de las pantallas de la sala (4 entre todos) y se "
+                        "componen solo mientras haya algún remoto conectado.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"canales",
+                            {{"type", "array"},
+                             {"maxItems", 2},
+                             {"items",
+                              {{"type", "object"},
+                               {"required", {"fuente"}},
+                               {"properties", {{"nombre", {{"type", "string"}}}, {"fuente", {{"type", "string"}}}}}}}}}}}};
+        t.examples = {R"({"canales": [{"nombre": "Salida principal", "fuente": "programa"}, {"nombre": "Plano general", "fuente": "Cámara del frente"}]})"};
+        AppRuntime* rt = &rt_;
+        t.run = [s, rt](const json& a, Done done) {
+            if (a.contains("canales")) {
+                for (const auto& c : a["canales"]) {
+                    const std::string f = c.is_object() ? c.value("fuente", std::string()) : std::string();
+                    if (f.empty() || f == "programa") continue;
+                    const auto n = rt->engine().sceneNames();
+                    if (std::find(n.begin(), n.end(), f) == n.end())
+                        return done(ToolResult::error("no hay ninguna escena «" + f + "» (scene_list)"));
+                }
+                const std::string e = s->setVistas(a["canales"]);
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            done(ToolResult().data({{"canales", s->vistas()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sesion_hablar";
+        t.title = "Hablarle a un remoto (apretar para hablar)";
+        t.category = "sesion";
+        t.description = "Con `activo: true` el integrante remoto (`banca`) oye tu voz (tu micrófono de la sala, el "
+                        "mismo con el que le hablás a los invitados) mezclada en el sonido de su celular y ve «Te están "
+                        "hablando»; con false se corta. Es para hablarle un momento: no lo dejes prendido.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"banca", quien}, {"activo", {{"type", "boolean"}}}}},
+                         {"required", {"banca", "activo"}}};
+        t.run = [vm = &vm_, idDe](const json& a, Done done) {
+            std::string e;
+            const std::string id = idDe(a, e);
+            if (id.empty()) return done(ToolResult::error(e));
+            const QString r = vm->hablarARemoto(QString::fromStdString(id), a.value("activo", false));
+            if (!r.isEmpty()) return done(ToolResult::error(r.toStdString()));
+            done(ToolResult::ok(a.value("activo", false) ? "Le estás hablando." : "Listo, ya no le hablás."));
         };
         core_.addTool(std::move(t));
     }

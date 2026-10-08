@@ -100,6 +100,13 @@ class SesionRemota : public QObject {
     /// «Apretar para hablar» desde la consola: le avisa al integrante que la presidencia
     /// le habla (su navegador contesta la conexión directa de la consola).
     void ptt(const std::string& integrante, bool activo, const std::string& consola);
+
+    // --- Lo que ve el remoto en su celular -------------------------------------------------
+    /// Además de su propia cámara, hasta dos canales por WebRTC que elige en el celular:
+    /// [{id: "a"|"b", nombre, fuente: "programa" | <nombre de escena>}]. Vacío = solo el
+    /// programa. Queda guardado. "" o el error.
+    std::string setVistas(const json& vistas);
+    json vistas() const;
     /// Mandarle algo a todos los conectados (el punto del orden del día, por ejemplo).
     void info(const json& campos);
 
@@ -168,6 +175,10 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);
     Q_INVOKABLE bool revocarConsolaUi(const QString& id) { return revocarConsola(id.toStdString()); }
     Q_INVOKABLE QString fotoUrl(const QString& integrante) const;
+    /// Los canales que el remoto puede mirar en su celular (ver setVistas).
+    Q_PROPERTY(QVariantList vistasUi READ vistasUi NOTIFY cambio)
+    QVariantList vistasUi() const;
+    Q_INVOKABLE QString setVistasUi(const QVariantList& vistas);
     void ponerFoto(const QString& integrante, const QByteArray& jpeg);
 
    signals:
@@ -216,6 +227,7 @@ class SesionRemota : public QObject {
     int votoSegundos_ = 60;
     std::map<QString, QByteArray> fotos_;
     std::string conPalabra_;
+    json vistas_ = json::array();
     int palabraSeg_ = 0;          ///< lo que se le dio (para reenviárselo si vuelve)
     long long palabraDesdeMs_ = 0;
     json consolas_ = json::object();          // id -> {nombre, sal, hash_token, hash_pin, creado_ms}
