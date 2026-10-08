@@ -794,6 +794,15 @@ void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, 
     }
 }
 
+void MediaPump::apagarRemoto(int canal) {
+    if (canal < 1 || canal >= static_cast<int>(remotoVideo_.size()) || !remotoVideo_[static_cast<size_t>(canal)]) return;
+    VideoOut& out = *remotoVideo_[static_cast<size_t>(canal)];
+    if (out.w <= 0 || out.h <= 0) return;
+    std::vector<uint8_t> negro(static_cast<size_t>(out.w) * out.h * 4u, 0);
+    for (size_t i = 3; i < negro.size(); i += 4) negro[i] = 0xFF;
+    publishVideo(out, negro.data(), out.w, out.h, false);
+}
+
 void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real) {
     if (!out.sender.published()) return;
     if (out.minIntervalNs != 0) {

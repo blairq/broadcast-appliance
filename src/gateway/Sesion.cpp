@@ -331,10 +331,21 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         std::lock_guard<std::mutex> l(vieja->sendLock);
         if (vieja->fd >= 0) http::shutdownFd(vieja->fd);
     }
+    bool tieneMedios;
+    {
+        std::lock_guard<std::mutex> l(mu_);
+        tieneMedios = !consola && c->id == mediosDe_;
+    }
+    // Si tenía la palabra, su WebRTC hacia la sala era de la conexión vieja (las
+    // respuestas iban a ella): se cierra para que la oferta nueva arranque limpia.
+    if (tieneMedios && vieja && medios_.cerrar) medios_.cerrar(c->id);
     enviar(c, {{"type", "auth"}, {"ok", true}, {"id", c->id}, {"nombre", datos.value("nombre", std::string())},
                {"banca", datos.value("banca", std::string())}, {"lugar", c->lugar}});
     log_.info("sesion: " + c->id + " conectado desde " + c->ip);
     alApp_({{"tipo", "conexion"}, {"id", c->id}, {"conectado", true}, {"ip", c->ip}, {"lugar", c->lugar}});
+    // Volvió el que tiene la palabra (se le cortó la red, recargó la página): se le
+    // vuelve a pedir el micrófono y la cámara.
+    if (tieneMedios) enviar(c, {{"type", "medios"}, {"activo", true}});
     // 2. El lazo.
     std::vector<std::int64_t> ventana;
     while (true) {

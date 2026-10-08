@@ -216,6 +216,8 @@ class SesionRemota : public QObject {
     int votoSegundos_ = 60;
     std::map<QString, QByteArray> fotos_;
     std::string conPalabra_;
+    int palabraSeg_ = 0;          ///< lo que se le dio (para reenviárselo si vuelve)
+    long long palabraDesdeMs_ = 0;
     json consolas_ = json::object();          // id -> {nombre, sal, hash_token, hash_pin, creado_ms}
     std::set<std::string> consolasConectadas_;
     std::map<std::string, int> turnos_; // lo último que se le dijo a cada uno

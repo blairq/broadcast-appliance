@@ -300,6 +300,16 @@ void SesionRemota::evento(const json& ev) {
             auto tu = turnos_.find(id);
             if (tu != turnos_.end()) emit enviar(QString::fromStdString(id), json{{"type", "fila"}, {"turno", tu->second}});
             if (vot_.estado == "abierta" || vot_.estado == "pausada") emit enviar(QString::fromStdString(id), mensajeVotacion(id));
+            // Tenía la palabra y se le cortó (o recargó): la sigue teniendo, con el
+            // mismo reloj; el gateway le vuelve a pedir el micrófono y la cámara.
+            if (id == conPalabra_) {
+                // Lo que le queda (el celular cuenta desde que le llega, con su reloj);
+                // sin límite (0) sigue sin límite.
+                const long long pasados = (ahoraMs() - palabraDesdeMs_) / 1000;
+                const int queda = palabraSeg_ > 0 ? static_cast<int>(std::max<long long>(1, palabraSeg_ - pasados)) : 0;
+                emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", true}, {"segundos", queda},
+                                                             {"desde_ms", palabraDesdeMs_}});
+            }
             return;
         }
         if (t == "palabra" && e.habilitado && e.conectado) {
@@ -424,13 +434,15 @@ std::vector<std::string> SesionRemota::presentesBancas() const {
 void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos) {
     if (palabra) {
         conPalabra_ = id;
+        palabraSeg_ = segundos;
+        palabraDesdeMs_ = ahoraMs();
         anotar("palabra", id, {{"segundos", segundos}});
     } else if (conPalabra_ == id) {
         conPalabra_.clear();
         anotar("fin_palabra", id);
     }
     emit enviar(QString::fromStdString(id), json{{"type", "palabra"}, {"activa", palabra}, {"segundos", segundos},
-                                                 {"desde_ms", ahoraMs()}});
+                                                 {"desde_ms", palabra ? palabraDesdeMs_ : ahoraMs()}});
     // R3: su micrófono y su cámara entran a la app mientras tenga la palabra.
     emit mediosA(QString::fromStdString(conPalabra_));
     emit cambio();

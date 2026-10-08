@@ -749,6 +749,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         // La fila única: los que hablan desde el navegador (sesión remota) también.
         g.esRemoto = [this](const std::string& id) {
             if (!sesionRemota_) return false;
+            // El que tiene la palabra remota sigue siendo remoto aunque se le haya
+            // cortado la red: si no, terminar no le soltaba los medios.
+            if (id == sesionRemota_->conPalabra()) return true;
             const auto v = sesionRemota_->presentesIds();
             return std::find(v.begin(), v.end(), id) != v.end();
         };
@@ -3124,6 +3127,9 @@ void StudioViewModel::sincronizarSesion() {
     const nlohmann::json body{{"participantes", sesionRemota_->paraGateway()}};
     cli.post("/api/v1/sesion/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
              [](bool, const QJsonObject&) {});
+    // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
+    cli.post("/api/v1/sesion/medios",
+             QJsonObject{{"id", QString::fromStdString(sesionRemota_->conPalabra())}}, [](bool, const QJsonObject&) {});
     // El origen de los links: el del túnel si hay; si no, el de la red local (HTTPS).
     QPointer<StudioViewModel> yo(this);
     cli.get("/api/v1/sesion/origen?target=remote", [yo, &cli](bool ok, const QJsonObject& r) {

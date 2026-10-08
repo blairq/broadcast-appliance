@@ -114,6 +114,10 @@ class MediaPump {
     void forwardAudio(int session, const float* samples, size_t n, int rate);
     void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
+    /// El remoto del canal `canal` dejó de mandar (se le sacó la palabra o se fue):
+    /// un cuadro negro en su video, para que la entrada no se quede con la cara del
+    /// anterior (a los 3 s el motor pone «sin señal»).
+    void apagarRemoto(int canal);
 
     /// Prueba técnica de un invitado admitido (T33): durante `ms` le suma al retorno un
     /// tono de 1 kHz cortado (250 ms sí, 250 no) y mira cuánto de ese tono vuelve por su

@@ -108,6 +108,27 @@ int main(int argc, char** argv) {
           "un voto por integrante: vale el del celular");
     CHECK(comb.value("observaciones", json::array()).size() == 1, "queda la observación del doble voto");
     s.cerrarVotacion();
+
+    // La palabra: si se le corta y vuelve («hola»), la sigue teniendo con lo que le queda.
+    std::vector<QString> medios;
+    QObject::connect(&s, &asamblea::SesionRemota::mediosA, [&](const QString& id) { medios.push_back(id); });
+    s.darPalabra(juan, true, 120);
+    CHECK(!medios.empty() && medios.back().toStdString() == juan, "con la palabra, sus medios van a la sala");
+    enviados.clear();
+    s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "hola"}}}});
+    bool volvio = false;
+    for (const json& m : enviados)
+        if (m.value("type", std::string()) == "palabra" && m.value("activa", false) && m.value("segundos", 0) > 0 &&
+            m.value("segundos", 0) <= 120)
+            volvio = true;
+    CHECK(volvio, "al volver le llega la palabra de nuevo, con el tiempo que le queda");
+    enviados.clear();
+    s.evento({{"tipo", "entrada"}, {"id", ana}, {"msg", {{"type", "hola"}}}});
+    bool aOtro = false;
+    for (const json& m : enviados) aOtro = aOtro || m.value("type", std::string()) == "palabra";
+    CHECK(!aOtro, "a otro que vuelve no le llega la palabra");
+    s.darPalabra(juan, false, 0);
+    CHECK(medios.back().isEmpty(), "sin la palabra, nadie manda medios");
     s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "voto"}, {"votacion", 4}, {"opcion", "afirmativo"}}}});
     CHECK(!enviados.back().value("ok", true), "cerrada: no se vota más");
 

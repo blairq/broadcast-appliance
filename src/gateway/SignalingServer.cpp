@@ -121,7 +121,10 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
             }
             if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
         };
-        m.cerrar = [this](const std::string& id) { releaseSession("remoto:" + id, 0, true); };
+        m.cerrar = [this](const std::string& id) {
+            releaseSession("remoto:" + id, 0, true);
+            if (pump_ != nullptr) pump_->apagarRemoto(1); // que no quede su último cuadro
+        };
         sesion_->setMedios(std::move(m));
     }
     sinks.dropGuest = [this](const std::string& pid) { dropGuest(pid); };
@@ -1751,7 +1754,10 @@ bool SignalingServer::ofertaRemoto(const std::string& id, const std::string& sdp
             const int vi = sessionOf_[otro];
             sessionOwner_.erase(vi);
             sessionOf_.erase(otro);
-            if (pump_ != nullptr) pump_->setRoute(vi, MediaRoute{});
+            if (pump_ != nullptr) {
+                pump_->setRoute(vi, MediaRoute{});
+                pump_->apagarRemoto(1); // el nuevo no arranca con la cara del anterior
+            }
             if (WebrtcSession* s = hub_.session(vi)) s->close();
         }
         const auto it = sessionOf_.find(pid);
