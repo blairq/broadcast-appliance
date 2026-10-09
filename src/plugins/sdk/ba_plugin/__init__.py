@@ -650,6 +650,9 @@ def _coincide_tema(patron: str, tema: str) -> bool:
 
 def _salida_stdio():
     """El stdout de verdad queda para hablar con la app; ``print`` va al registro (stderr)."""
+    # El registro en UTF-8: en Windows stderr sale en la página de códigos del
+    # sistema (cp1252) y un carácter que no está (chino, emojis) tiraba una excepción.
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     fd = os.dup(1)
     os.dup2(2, 1)
     sys.stdout = sys.stderr

@@ -14,8 +14,9 @@
 //     de git en el resto. Nada se usa sin verificar, y una descarga a medias
 //     nunca pisa un modelo que andaba (se baja aparte y se cambia al final).
 //   * Lanzar el motor y hablarle: `ba-modelo` en la Mac (MLX, con la cabeza
-//     MTP si el repo la trae; src/modelo-mac). En Linux y Windows el motor
-//     es llama.cpp y todavía no está: se dice así, no se finge.
+//     MTP si el repo la trae; src/modelo-mac). En Linux y Windows, el
+//     `ba-modelo` de C++ con llama.cpp (src/modelo-llama, Vulkan), que habla
+//     el mismo protocolo.
 //
 // POR QUE UN PROCESO APARTE. El motor tiene su propia memoria (gigas) y su
 // propio hilo de GPU; si se cae, que se caiga él y no la app al aire. Le
@@ -197,6 +198,8 @@ class ModelosLocales : public QObject {
     /// v2: quien arma el estado del aparato y llama (Voz). Con esto, `probar`
     /// y `probarFrase` muestran la llamada entera, no solo el nombre.
     using Probador = std::function<void(const QString& frase, Respuesta r)>;
+    /// Anota una prueba en la lista de la página (la del MCP, sin preguntar dos veces).
+    void anotarPrueba(const QString& frase, const nlohmann::json& respuesta);
     void setProbadorTc(Probador p) { probadorTc_ = std::move(p); }
     /// Lo que haría el modelo con la frase, SIN hacerlo. v1: {herramienta,
     /// derivar, prob, ms}. v2: además {tipo, crudo, resumen («audio_set(name:

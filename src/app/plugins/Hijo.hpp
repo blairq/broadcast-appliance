@@ -17,6 +17,13 @@
 //     a lo que él lance (el rastreador de memoria de Python, por ejemplo);
 //   - la salida se lee con un aviso del sistema Y con una revisión periódica,
 //     y que terminó se sabe con waitpid: nada depende de un solo aviso.
+//
+// EN WINDOWS no hay fork: QProcess crea el hijo con CreateProcess y el problema
+// de arriba no existe. Se usa QProcess, sin ventana de consola, y el hijo va en
+// un Job Object (lo que el grupo de procesos es en POSIX): matar() termina el
+// job entero, y si la app se cae, Windows lo cierra y se lleva a los hijos.
+// terminar() cierra su entrada (los motores salen al ver EOF) y, si a los 3 s
+// sigue, lo mata.
 // ============================================================================
 #pragma once
 
@@ -28,6 +35,7 @@
 
 #include <functional>
 
+class QProcess;
 class QSocketNotifier;
 class QTimer;
 
@@ -77,6 +85,8 @@ class Hijo : public QObject {
     QTimer* revision_ = nullptr;
     QByteArray bufOut_, bufErr_;
     bool termino_ = false;
+    QProcess* proc_ = nullptr; ///< Windows
+    void* job_ = nullptr;      ///< Windows: el Job Object del hijo
 };
 
 } // namespace ba::app::plugins

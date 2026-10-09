@@ -402,7 +402,7 @@ void Traductor::arrancarMotor() {
     std::error_code ec;
     if (!fs::exists(python, ec) || !fs::exists(script, ec)) {
         motor_ = "error: el programa no trae el Python o el traductor";
-        emit cambio();
+        fallarCola();
         return;
     }
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -415,10 +415,20 @@ void Traductor::arrancarMotor() {
     if (!hijo_->iniciar(q(python), {"-I", "-B", q(script)}, env, q(raiz), false, &err)) {
         motor_ = "error: " + err;
         hijo_.reset();
-        emit cambio();
+        fallarCola();
         return;
     }
     motor_ = "arrancando";
+    emit cambio();
+}
+
+void Traductor::fallarCola() {
+    // Si el motor no arranca, lo pedido se contesta con el error: antes quedaba
+    // esperando para siempre (y el MCP `traducir` no volvía).
+    auto cola = std::move(cola_);
+    cola_.clear();
+    for (auto& p : cola)
+        p.listo({{"error", motor_.toStdString()}});
     emit cambio();
 }
 

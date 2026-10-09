@@ -1070,14 +1070,16 @@ void ModelosLocales::probarFrase(const QString& frase, Respuesta r) {
 void ModelosLocales::probar(const QString& frase) {
     const QString f = frase.trimmed();
     if (f.isEmpty()) return;
-    probarFrase(f, [this, f](const json& j) {
-        QVariantMap v = aVariant(j);
-        v["frase"] = f;
-        pruebas_.prepend(v);
-        while (pruebas_.size() > kPruebasGuardadas)
-            pruebas_.removeLast();
-        emit pruebasCambio();
-    });
+    probarFrase(f, [this, f](const json& j) { anotarPrueba(f, j); });
+}
+
+void ModelosLocales::anotarPrueba(const QString& frase, const json& j) {
+    QVariantMap v = aVariant(j);
+    v["frase"] = frase;
+    pruebas_.prepend(v);
+    while (pruebas_.size() > kPruebasGuardadas)
+        pruebas_.removeLast();
+    emit pruebasCambio();
 }
 
 } // namespace ba::app::agent

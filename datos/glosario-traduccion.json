@@ -5,6 +5,62 @@
   {
    "grupo": "general",
    "es": [
+    "se abre la sesión ordinaria",
+    "queda abierta la sesión ordinaria",
+    "damos inicio a la sesión ordinaria"
+   ],
+   "en": "the regular session is open",
+   "pt": "está aberta a sessão ordinária",
+   "fr": "la séance ordinaire est ouverte",
+   "de": "die ordentliche Sitzung ist eröffnet",
+   "ru": "очередное заседание открыто",
+   "zh": "例会现在开始"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "se abre la sesión extraordinaria",
+    "queda abierta la sesión extraordinaria",
+    "damos inicio a la sesión extraordinaria"
+   ],
+   "en": "the special session is open",
+   "pt": "está aberta a sessão extraordinária",
+   "fr": "la séance extraordinaire est ouverte",
+   "de": "die außerordentliche Sitzung ist eröffnet",
+   "ru": "внеочередное заседание открыто",
+   "zh": "特别会议现在开始"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "se levanta la sesión",
+    "queda levantada la sesión",
+    "levantamos la sesión"
+   ],
+   "en": "the session is adjourned",
+   "pt": "a sessão está encerrada",
+   "fr": "la séance est levée",
+   "de": "die Sitzung ist geschlossen",
+   "ru": "заседание закрыто",
+   "zh": "现在休会"
+  },
+  {
+   "grupo": "general",
+   "es": [
+    "se abre la sesión",
+    "queda abierta la sesión",
+    "damos inicio a la sesión"
+   ],
+   "en": "the session is open",
+   "pt": "está aberta a sessão",
+   "fr": "la séance est ouverte",
+   "de": "die Sitzung ist eröffnet",
+   "ru": "заседание открыто",
+   "zh": "现在开会"
+  },
+  {
+   "grupo": "general",
+   "es": [
     "cuarto intermedio",
     "un cuarto intermedio"
    ],

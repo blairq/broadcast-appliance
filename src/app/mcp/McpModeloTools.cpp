@@ -316,8 +316,10 @@ void McpService::registerModeloTools() {
             if (!ml.listo())
                 return done(
                     ToolResult::error("No hay un modelo local cargado (" + ml.estado().toStdString() + ")."));
-            ml.probar(frase); // que se vea en la pagina
-            ml.probarFrase(frase, [done](const json& j) {
+            // Una sola pregunta al modelo: lo mismo se anota en la página (antes
+            // se preguntaba dos veces y la segunda esperaba a la primera).
+            ml.probarFrase(frase, [&ml, frase, done](const json& j) {
+                ml.anotarPrueba(frase, j);
                 if (j.contains("error")) return done(ToolResult::error(j.value("error", std::string())));
                 json out{{"herramienta", j.value("herramienta", std::string())},
                          {"derivar", j.value("derivar", false)},

@@ -39,6 +39,10 @@ import sentencepiece as spm
 
 _ORACIONES = re.compile(r"(?<=[.!?\u2026])\s+")
 
+# En UTF-8 siempre: en Windows Python usa la página de códigos del sistema
+# (cp1252) para stdin y stderr, y -I ignora PYTHONUTF8; «Pérez» llegaba «PÃ©rez».
+sys.stdin.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 _salida = os.fdopen(os.dup(1), "w", encoding="utf-8", buffering=1)
 os.dup2(2, 1)  # un print() de una biblioteca no rompe el protocolo
 
@@ -145,6 +149,7 @@ def traducir(m: dict) -> dict:
         return {"texto": ""}
     glosario = m.get("glosario") or []
     final = m.get("a", "")
+    mayuscula = texto[:1].isupper()
     for p in m.get("pasos") or []:
         # Al ir a un idioma intermedio, el término va directo en el idioma FINAL
         # si el modelo lo deja pasar tal cual; si no hay, en el intermedio.
@@ -152,6 +157,10 @@ def traducir(m: dict) -> dict:
         texto = paquete(p).traducir(texto)
     if final and m.get("pasos") and m["pasos"][-1]["a"] != final:
         return {"error": "la cadena no termina en el idioma pedido"}
+    # El glosario reemplaza en minúscula: si la frase empezaba con un término
+    # («Se levanta la sesión»), la traducción salía «the session is adjourned».
+    if mayuscula and texto[:1].islower():
+        texto = texto[:1].upper() + texto[1:]
     return {"texto": texto, "ms": round((time.time() - t0) * 1000), "pasos": [f"{p['de']}>{p['a']}" for p in m.get("pasos") or []]}
 
 

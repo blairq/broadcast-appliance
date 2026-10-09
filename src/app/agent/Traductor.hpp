@@ -174,6 +174,7 @@ class Traductor : public QObject {
     void leerGlosario();
     void guardarGlosario() const;
     void arrancarMotor();
+    void fallarCola(); ///< el motor no arrancó: contesta lo pedido con el error
     void alSalir();
     void leerSalida();
     void mandar();

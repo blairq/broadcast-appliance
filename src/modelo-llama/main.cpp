@@ -1,7 +1,7 @@
 // ============================================================================
 // ba-modelo (llama.cpp) — el modelo local en Windows y Linux
 //
-//   ba-modelo --modelo <carpeta> [--mtp no|auto|fp16|q8] [--prueba] [--cpu]
+//   ba-modelo --modelo <carpeta> [--mtp no|auto|fp16|q8] [--prueba] [--cpu] [--fa]
 //
 // El MISMO protocolo que el de la Mac (src/modelo-mac, MLX): una línea JSON por
 // pedido en stdin, una por respuesta en stdout. Así ModelosLocales no distingue
@@ -508,15 +508,23 @@ int main(int argc, char** argv) {
 #endif
     std::string carpeta, modoMtp = "no";
     bool prueba = false, cpu = std::getenv("BA_MODELO_GPU") != nullptr && std::string(std::getenv("BA_MODELO_GPU")) == "0";
+    // FLASH ATTENTION, APAGADA. llama.cpp la prende sola («auto») y con este
+    // modelo (híbrido, qwen35) el estado se lee DESPUÉS de un prefijo de ~8000
+    // fichas: medido con llama-bench b11255 en una RX 5700 XT (Vulkan), leer
+    // a esa profundidad va a 585 fichas/s sin ella y a 100 con ella —el estado
+    // de cada frase tardaba 4,7 s en vez de menos de uno—. Generar pierde poco
+    // (67 contra 77 fichas/s). En placas donde sí conviene: --fa o BA_MODELO_FA=1.
+    bool fa = std::getenv("BA_MODELO_FA") != nullptr && std::string(std::getenv("BA_MODELO_FA")) == "1";
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--modelo" && i + 1 < argc) carpeta = argv[++i];
         else if (a == "--mtp" && i + 1 < argc) modoMtp = argv[++i];
         else if (a == "--prueba") prueba = true;
         else if (a == "--cpu") cpu = true;
+        else if (a == "--fa") fa = true;
         else morir("argumento desconocido: " + a);
     }
-    if (carpeta.empty()) morir("uso: ba-modelo --modelo <carpeta> [--mtp no|auto|fp16|q8] [--prueba] [--cpu]");
+    if (carpeta.empty()) morir("uso: ba-modelo --modelo <carpeta> [--mtp no|auto|fp16|q8] [--prueba] [--cpu] [--fa]");
     const fs::path dir = fs::u8path(carpeta);
     leerPrompt(dir);
     const auto [gguf, mmproj] = archivos(dir);
@@ -544,6 +552,7 @@ int main(int argc, char** argv) {
     cp.n_batch = 2048;
     cp.n_ubatch = 512;
     cp.n_seq_max = 1;
+    cp.flash_attn_type = fa ? LLAMA_FLASH_ATTN_TYPE_ENABLED : LLAMA_FLASH_ATTN_TYPE_DISABLED;
     const int hilos = static_cast<int>(std::max(1u, std::min(8u, std::thread::hardware_concurrency() / 2)));
     cp.n_threads = hilos;
     cp.n_threads_batch = hilos;
@@ -562,8 +571,16 @@ int main(int argc, char** argv) {
     // El prefijo: del disco si está (mismo prompt, mismos pesos), si no se calcula.
     const auto tPrefijo = Reloj::now();
     const fs::path archivoPrefijo =
-        dir / (".prefijo-" + (prompt.huella.empty() ? std::string("sin-huella") : prompt.huella) + "-llama.bin");
+        dir / (".prefijo-" + (prompt.huella.empty() ? std::string("sin-huella") : prompt.huella) +
+              (fa ? "-llama-fa.bin" : "-llama-sinfa.bin")); // el KV se guarda distinto con y sin FA
     const fs::path firmaPrefijo = fs::path(archivoPrefijo).concat(".json");
+    {
+        // El de antes (sin la marca de FA, calculado con FA): ya no se usa, son cientos de MB.
+        std::error_code e;
+        const fs::path viejo = dir / (".prefijo-" + (prompt.huella.empty() ? std::string("sin-huella") : prompt.huella) + "-llama.bin");
+        fs::remove(viejo, e);
+        fs::remove(fs::path(viejo).concat(".json"), e);
+    }
     const json datosPrefijo{{"huella", prompt.huella}, {"tokens", idsCabeza.size()}, {"pesos", firmaDe(gguf)}};
     bool deDisco = false;
     if (std::getenv("BA_PREFIJO_SIN_DISCO") == nullptr && fs::exists(archivoPrefijo) && fs::exists(firmaPrefijo)) {

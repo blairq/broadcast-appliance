@@ -5,7 +5,10 @@
 #include <QSocketNotifier>
 #include <QTimer>
 
-#if !defined(_WIN32)
+#if defined(_WIN32)
+#include <QProcess>
+#include <windows.h>
+#else
 #include <cerrno>
 #include <csignal>
 #include <fcntl.h>
@@ -23,7 +26,14 @@ namespace ba::app::plugins {
 Hijo::Hijo(QObject* parent) : QObject(parent) {}
 
 Hijo::~Hijo() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+    if (proc_ != nullptr) {
+        proc_->disconnect(this);
+        if (job_ != nullptr) TerminateJobObject(job_, 1);
+        proc_->kill();
+        proc_->waitForFinished(2000);
+    }
+#else
     if (corriendo()) {
         ::kill(-static_cast<pid_t>(pid_), SIGKILL);
         ::kill(static_cast<pid_t>(pid_), SIGKILL);
@@ -35,7 +45,12 @@ Hijo::~Hijo() {
 }
 
 void Hijo::cerrarTodo() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+    if (job_ != nullptr) {
+        CloseHandle(job_);
+        job_ = nullptr;
+    }
+#else
     delete nOut_;
     delete nErr_;
     nOut_ = nErr_ = nullptr;
@@ -50,13 +65,54 @@ void Hijo::cerrarTodo() {
 bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProcessEnvironment& env,
                    const QString& carpeta, bool unirErrores, QString* error) {
 #if defined(_WIN32)
-    (void)programa;
-    (void)args;
-    (void)env;
-    (void)carpeta;
-    (void)unirErrores;
-    if (error) *error = "los plugins todavía no andan en Windows";
-    return false;
+    proc_ = new QProcess(this);
+    proc_->setProgram(programa);
+    proc_->setArguments(args);
+    proc_->setProcessEnvironment(env);
+    if (!carpeta.isEmpty()) proc_->setWorkingDirectory(carpeta);
+    proc_->setProcessChannelMode(unirErrores ? QProcess::MergedChannels : QProcess::SeparateChannels);
+    // Sin ventana de consola.
+    proc_->setCreateProcessArgumentsModifier(
+        [](QProcess::CreateProcessArguments* a) { a->flags |= CREATE_NO_WINDOW; });
+    connect(proc_, &QProcess::readyReadStandardOutput, this, [this]() {
+        bufOut_ += proc_->readAllStandardOutput();
+        emit salida();
+    });
+    connect(proc_, &QProcess::readyReadStandardError, this, [this]() {
+        bufErr_ += proc_->readAllStandardError();
+        emit errores();
+    });
+    connect(proc_, &QProcess::finished, this, [this](int codigo, QProcess::ExitStatus st) {
+        if (termino_) return;
+        bufOut_ += proc_->readAllStandardOutput();
+        bufErr_ += proc_->readAllStandardError();
+        termino_ = true;
+        if (!bufOut_.isEmpty()) emit salida();
+        if (!bufErr_.isEmpty()) emit errores();
+        emit termino(st == QProcess::NormalExit ? codigo : -1, st != QProcess::NormalExit);
+    });
+    proc_->start(QIODevice::ReadWrite | QIODevice::Unbuffered);
+    if (!proc_->waitForStarted(10000)) {
+        if (error) *error = QStringLiteral("no se pudo lanzar «%1»: %2").arg(programa, proc_->errorString());
+        delete proc_;
+        proc_ = nullptr;
+        return false;
+    }
+    // Al job: lo que lance nace adentro, y matar() o que se caiga la app se lleva a todos.
+    job_ = CreateJobObjectW(nullptr, nullptr);
+    if (job_ != nullptr) {
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION li{};
+        li.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        SetInformationJobObject(job_, JobObjectExtendedLimitInformation, &li, sizeof li);
+        HANDLE hp = OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, FALSE, static_cast<DWORD>(proc_->processId()));
+        if (hp != nullptr) {
+            AssignProcessToJobObject(job_, hp);
+            CloseHandle(hp);
+        }
+    }
+    pid_ = proc_->processId();
+    termino_ = false;
+    return true;
 #else
     int pin[2], pout[2], perr[2] = {-1, -1};
     if (::pipe(pin) != 0) {
@@ -222,12 +278,16 @@ void Hijo::escribir(const QByteArray& datos) {
         break; // cerrado
     }
 #else
-    (void)datos;
+    if (proc_ != nullptr && proc_->state() == QProcess::Running) {
+        proc_->write(datos);
+    }
 #endif
 }
 
 void Hijo::cerrarEntrada() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+    if (proc_ != nullptr) proc_->closeWriteChannel();
+#else
     if (in_ >= 0) {
         ::close(in_);
         in_ = -1;
@@ -236,7 +296,12 @@ void Hijo::cerrarEntrada() {
 }
 
 void Hijo::terminar() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+    if (corriendo()) {
+        cerrarEntrada();
+        QTimer::singleShot(3000, this, [this]() { matar(); });
+    }
+#else
     if (corriendo()) {
         ::kill(-static_cast<pid_t>(pid_), SIGTERM);
         ::kill(static_cast<pid_t>(pid_), SIGTERM);
@@ -245,7 +310,12 @@ void Hijo::terminar() {
 }
 
 void Hijo::matar() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+    if (corriendo()) {
+        if (job_ != nullptr) TerminateJobObject(job_, 1);
+        if (proc_ != nullptr) proc_->kill();
+    }
+#else
     if (corriendo()) {
         ::kill(-static_cast<pid_t>(pid_), SIGKILL);
         ::kill(static_cast<pid_t>(pid_), SIGKILL);
