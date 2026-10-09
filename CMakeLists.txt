@@ -283,6 +283,8 @@ if(BA_HAVE_GST)
 endif()
 add_subdirectory(src/app)
 add_subdirectory(src/grafico)
+# El modelo local fuera de la Mac (llama.cpp): ver src/modelo-llama.
+add_subdirectory(src/modelo-llama)
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
 # Layout portable (spec §5.1). Las rutas de destino son relativas a

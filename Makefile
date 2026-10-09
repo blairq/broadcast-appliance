@@ -55,7 +55,7 @@ PIP       ?= .venv/bin/pip
         clean clean-all \
         deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
-        deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
+        deps-msitools mcp-inventario deps-llamacpp deps-llamacpp-win deps-llamacpp-linux bateria-local corpus-entrenamiento \
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
         modelo-corpus modelo-inventario modelo-etiquetas \
         corpus-descubrir \
@@ -244,7 +244,7 @@ deps-webrtc-win:
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
           deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
-          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
@@ -295,7 +295,8 @@ dist-win: release-win
 # y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
 # compartidas...).
 deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
+            deps-llamacpp-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
@@ -1116,6 +1117,13 @@ mcp-inventario:
 # del script: la GPU no esta libre, se la come el motor de video.
 deps-llamacpp:
 	tools/deps/llamacpp.sh
+
+# llama.cpp como BIBLIOTECA para el ba-modelo de Windows y Linux (el modelo local
+# fuera de la Mac, src/modelo-llama): los binarios oficiales con Vulkan.
+deps-llamacpp-win: deps-win-toolchain
+	tools/deps/llamacpp-lib.sh win
+deps-llamacpp-linux:
+	tools/deps/llamacpp-lib.sh linux
 
 # Cuanto tarda y cuanto acierta ese modelo chico, con el prefijo cacheado.
 # Hace falta un .gguf en extern/modelos (no viaja en el repo: son gigas).

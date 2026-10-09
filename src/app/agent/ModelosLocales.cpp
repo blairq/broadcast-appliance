@@ -241,11 +241,24 @@ QVariantList ModelosLocales::catalogo() const {
     return out;
 }
 
-bool ModelosLocales::hayMotor() const {
-#if defined(__APPLE__)
-    return QFileInfo(dirBinarios_ + "/ba-modelo").isExecutable();
+namespace {
+/// El ejecutable del motor: el mismo nombre y el mismo protocolo en las tres
+/// plataformas (MLX en la Mac, src/modelo-mac; llama.cpp en Windows y Linux,
+/// src/modelo-llama).
+QString exeMotor(const QString& dir) {
+#if defined(_WIN32)
+    return dir + "/ba-modelo.exe";
 #else
-    return false;
+    return dir + "/ba-modelo";
+#endif
+}
+} // namespace
+
+bool ModelosLocales::hayMotor() const {
+#if defined(_WIN32)
+    return QFileInfo::exists(exeMotor(dirBinarios_));
+#else
+    return QFileInfo(exeMotor(dirBinarios_)).isExecutable();
 #endif
 }
 
@@ -253,7 +266,7 @@ QString ModelosLocales::motor() const {
 #if defined(__APPLE__)
     return hayMotor() ? "MLX (ba-modelo)" : "falta ba-modelo en bin/64bit (make modelo-mac)";
 #else
-    return "llama.cpp: todavía no viaja en el bundle de esta plataforma";
+    return hayMotor() ? "llama.cpp (ba-modelo)" : "falta ba-modelo en bin/64bit (tools/deps/llamacpp-lib.sh)";
 #endif
 }
 
@@ -887,7 +900,7 @@ void ModelosLocales::activar(const QString& repo) {
     setEstado("cargando", "Cargando el modelo y leyendo las fichas…");
 
     proc_ = new QProcess(this);
-    proc_->setProgram(dirBinarios_ + "/ba-modelo");
+    proc_->setProgram(exeMotor(dirBinarios_));
     proc_->setArguments({"--modelo", deRuta(carpetaDe(repo)), "--mtp", mtp_});
     connect(proc_, &QProcess::readyReadStandardOutput, this, [this]() {
         pendiente_ += proc_->readAllStandardOutput();
