@@ -5,6 +5,7 @@
 //  Interfaz y sistema: McpUiTools.cpp · Ayuda: McpHelp.cpp)
 // ============================================================================
 
+#include "diag/Perfil.hpp"
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
 #include "asamblea/Debate.hpp"
@@ -794,6 +795,32 @@ void McpService::registerTools() {
         {"description", "Ubicacion: preset (full, left, right, top, bottom, center, top-left, top-right, "
                         "bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, "
                         "grid-<n>-<i>) u objeto {x,y,w,h} en fracciones del lienzo (0..1)."}};
+
+    // --- Perfil (solo en un build con BA_PERFILAR: ver diag/Perfil) ----------------
+    if (ba::diag::Perfil::activo()) {
+        Tool t;
+        t.name = "perfil";
+        t.title = "Dónde se va la CPU y la GPU (build de diagnóstico)";
+        t.category = "estado";
+        t.readOnly = true;
+        t.idempotent = true;
+        t.description =
+            "La última medición (cada segundo) de la app y del gateway: CPU total en núcleos (1,0 = un núcleo "
+            "entero), memoria, los hilos que más consumen con su nombre (los de GStreamer se llaman como su "
+            "elemento: así se ve qué parte del video gasta) y, en Windows, la GPU del proceso por motor (3D, "
+            "VideoDecode, VideoEncode, Copy). El historial está en Logs/perfil-app.jsonl y "
+            "Logs/perfil-gateway.jsonl; cada 10 s un resumen en el registro (log_leer, componente perfil).";
+        t.run = [](const json&, Done done) {
+            json gw = json::object();
+            std::ifstream f(ba::platform::dataRoot() / "Logs" / "perfil-gateway.jsonl", std::ios::binary);
+            std::string linea, ultima;
+            while (std::getline(f, linea))
+                if (!linea.empty()) ultima = linea;
+            if (!ultima.empty()) gw = json::parse(ultima, nullptr, false);
+            done(ToolResult().data(json{{"app", ba::diag::Perfil::ultimo()}, {"gateway", gw}}));
+        };
+        core_.addTool(std::move(t));
+    }
 
     // --- Estado --------------------------------------------------------------------
     {

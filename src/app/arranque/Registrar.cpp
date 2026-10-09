@@ -8,6 +8,9 @@
 #include <string>
 
 #include "diag/Caidas.hpp"
+#include "diag/Perfil.hpp"
+
+#include <cstdlib>
 #include "diag/Registro.hpp"
 
 #if BA_APP_HAVE_GUI
@@ -73,6 +76,7 @@ void registrarTodo(const std::filesystem::path& dataRoot, const char* componente
     // Con el launcher, el archivo lo escribe la captura de stderr; suelto, se
     // abre uno propio. Ver Registro::abrirSegunEntorno.
     reg.abrirSegunEntorno(dataRoot / "Logs", std::string(componente) + ".log");
+    ba::diag::Perfil::arrancar(componente, dataRoot / "Logs"); // en un build normal no hace nada
 
 #if BA_REG_QT
     qInstallMessageHandler(handlerDeQt);

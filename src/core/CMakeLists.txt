@@ -71,6 +71,10 @@ else()
 endif()
 
 add_library(ba_core STATIC ${BA_CORE_SOURCES})
+# El build que mide (ver el CMakeLists raíz): solo este archivo lo sabe.
+if(BA_PERFILAR)
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/diag/Perfil.cpp" PROPERTIES COMPILE_DEFINITIONS BA_PERFILAR=1)
+endif()
 if(BA_HAVE_ROSTROS)
     target_include_directories(ba_core PUBLIC "${BA_ORT_DIR}/include")
     target_link_libraries(ba_core PUBLIC "${BA_ORT_LIB}")

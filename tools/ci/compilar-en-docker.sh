@@ -43,7 +43,7 @@ d build -q --platform linux/amd64 -t ba-compilar -f "$ROOT/tools/ci/compilar.Doc
 log "compilando $QUE en el commit $(git rev-parse --short HEAD) (la primera vez tarda horas)"
 d run --rm --platform linux/amd64 \
     -v ba-trabajo:/trabajo -v "$ROOT:/repo:ro" -v "$ROOT/dist:/salida" \
-    -e SHA="$SHA" -e QUE="$QUE" ba-compilar bash -c '
+    -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" ba-compilar bash -c '
 set -euo pipefail
 git config --global --add safe.directory "*"
 [ -d /trabajo/ba/.git ] || git clone -q /repo /trabajo/ba
@@ -52,14 +52,15 @@ git fetch -q /repo "$SHA"
 git checkout -q -f "$SHA"
 [ -x .venv/bin/python ] || python3 -m venv .venv
 J=$(nproc)
+SUF=""; [ "$PERFILAR" = 1 ] && SUF="-perfil"   # PERFILAR=1: un build que mide (diag/Perfil)
 if [ "$QUE" != win ]; then
     make deps-linux JOBS=$J
-    make build JOBS=$J
+    make build JOBS=$J PERFILAR=$PERFILAR
     make test
     .venv/bin/pip install -q -r requirements-dev.lock
     .venv/bin/pytest -q
-    make dist-linux JOBS=$J
-    cp dist/*-linux-x64.tar.gz dist/*-linux-x64.tar.gz.sha256 dist/*-linux-x64.tar.gz.commit /salida/
+    make dist-linux JOBS=$J PERFILAR=$PERFILAR
+    cp dist/*-linux-x64$SUF.tar.gz dist/*-linux-x64$SUF.tar.gz.sha256 dist/*-linux-x64$SUF.tar.gz.commit /salida/
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
@@ -68,9 +69,9 @@ if [ "$QUE" != linux ]; then
     # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el
     # .zip, pero se informa y la corrida termina con error: no es verde.
     tests_win=0
-    make test-win BA_ACCEPT_MSVC_LICENSE=1 || tests_win=$?
-    make dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
-    cp dist/*-windows-x64.zip dist/*-windows-x64.zip.sha256 dist/*-windows-x64.zip.commit /salida/
+    make test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
+    make dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    cp dist/*-windows-x64$SUF.zip dist/*-windows-x64$SUF.zip.sha256 dist/*-windows-x64$SUF.zip.commit /salida/
     if [ "$tests_win" != 0 ]; then
         echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
         exit 3

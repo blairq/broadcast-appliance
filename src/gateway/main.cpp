@@ -77,6 +77,7 @@
 #include "Log.hpp"
 
 #include "diag/Caidas.hpp"
+#include "diag/Perfil.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
 #include "net/TlsTerminator.hpp"
@@ -420,6 +421,7 @@ int main(int argc, char** argv) {
         log.openFile(cfg.logsDir);
         // Y que una caida deje la pila escrita (ver diag/Caidas.hpp).
         ba::diag::instalarManejadorDeCaidas("gateway");
+        ba::diag::Perfil::arrancar("gateway", cfg.logsDir); // solo en un build con BA_PERFILAR
     }
 
     log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +

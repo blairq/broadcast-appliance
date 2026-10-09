@@ -32,6 +32,17 @@ project(
 # opcion en ON, este mismo arbol ES ese sub-build: solo core+launcher+gateway.
 option(BA_WIN_STATIC_PART "Sub-build interno de Windows: launcher y gateway /MT" OFF)
 
+# Un build que MIDE (diag/Perfil): la CPU de cada hilo y la GPU cada segundo, en la
+# app y en el gateway, a Logs/perfil-*.jsonl y la herramienta MCP `perfil`; también
+# las mediciones del motor (BA_MEDIR_VISTAS). Para encontrar dónde se va la CPU o la
+# GPU en una máquina. `make … PERFILAR=1`. Apagado, el programa queda igual.
+# Solo diag/Perfil.cpp lo ve (src/core/CMakeLists.txt): el resto pregunta
+# Perfil::activo(), así cambiarlo recompila un archivo y no el programa entero.
+option(BA_PERFILAR "Medir CPU por hilo y GPU (diagnóstico de rendimiento)" OFF)
+if(BA_PERFILAR)
+    message(STATUS "BA_PERFILAR: build que mide CPU y GPU")
+endif()
+
 # C++20 es obligatorio en todos los targets.
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

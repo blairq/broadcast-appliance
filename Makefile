@@ -23,6 +23,13 @@
 # ============================================================================
 
 BUILD_DIR ?= build
+# PERFILAR=1: un build que mide CPU por hilo y GPU (diag/Perfil, -DBA_PERFILAR=ON);
+# los paquetes salen con «-perfil» en el nombre. Sin eso, OFF explícito: un build
+# normal no hereda el modo de medición del caché de CMake.
+PERFILAR ?= 0
+BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF)
+BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
+export PERFILAR
 JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 # Hace falta el sha256sum de GNU (coreutils): el que trae macOS 15+ es el de
 # BSD y no acepta `-c --quiet`. Si no es GNU, `shasum -a 256`, que usa el
@@ -127,20 +134,20 @@ help:
 # Build de desarrollo: configuración Debug (debug info, sin optimizar) para
 # depurar y correr los tests. ccache se activa solo vía CMakeLists.
 dev:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Debug
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 # --- Build genérico ---------------------------------------------------------
 # Configura (idempotente) y compila. Sin CMAKE_BUILD_TYPE explícito: CMake usa
 # su default (Release, fijado en el CMakeLists raíz).
 build:
-	cmake -S . -B $(BUILD_DIR)
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 # --- Producción (Release + bundle) ------------------------------------------
 # Artefacto portable: Release + instalación del layout §5.1 en release.
 prod:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@echo "Bundle portable: release/"
@@ -248,7 +255,7 @@ deps-ndi-src:
 	tools/deps/ndi-src.sh
 
 win: deps-win
-	cmake -S . -B $(WIN_BUILD_DIR) -G Ninja \
+	cmake -S . -B $(WIN_BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE=$(WIN_TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DQT_HOST_PATH=$(QT6_HOST_PATH)
@@ -273,16 +280,16 @@ release-win: win
 BA_VERSION := $(shell awk '/^project\(/,/\)/' CMakeLists.txt | awk '/VERSION/{print $$2; exit}')
 dist-win: release-win
 	@mkdir -p dist
-	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
+	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip
 	@# Con carpeta raiz (como el .tar.gz de Linux): "Extraer aqui" no desparrama
 	@# los archivos del programa en la carpeta del usuario.
 	rm -rf dist/.zip-stage && mkdir -p dist/.zip-stage
 	cp -al $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance 2>/dev/null || cp -a $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance
-	cd dist/.zip-stage && 7z a -tzip -mx=7 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64.zip BroadcastAppliance
+	cd dist/.zip-stage && 7z a -tzip -mx=7 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip BroadcastAppliance
 	rm -rf dist/.zip-stage
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip > BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.commit
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip"
 
 # Todo lo que el build completo de Linux necesita (las bibliotecas de terceros
 # y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
@@ -321,7 +328,7 @@ deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-l
 	-$(MAKE) deps-lsp-macos
 
 macos: modelo-mac
-	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
@@ -350,6 +357,7 @@ modelo-mac: deps-mlx-swift-lm
 release-macos:
 	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en
 	@# $(BUILD_DIR), y los cambios de la app no llegaban a la .app.
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
 	@# De cero: también la cache de firmas (tools/deps/firmar-macos.sh).
@@ -379,10 +387,10 @@ app-macos-rapida:
 
 dmg-macos: release-macos
 	@mkdir -p dist
-	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg"
+	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.commit
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg"
 
 # ============================================================================
 # Releases desde una maquina propia (el CI de GitHub corre solo a mano).
@@ -408,9 +416,9 @@ dmg-macos: release-macos
 # De que commit sale cada archivo de dist/ (su .commit al lado): tools/publicar.sh
 # no sube nada que no sea del commit actual. "-dirty" = habia cambios sin commitear.
 ESTE_COMMIT = $(shell git rev-parse HEAD 2>/dev/null)$(shell git status --porcelain --untracked-files=no 2>/dev/null | grep -q . && echo -dirty)
-DIST_LINUX = dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz
-DIST_WIN   = dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
-DIST_MACOS = dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
+DIST_LINUX = dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz
+DIST_WIN   = dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip
+DIST_MACOS = dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
 
 dist-linux-docker:
 	tools/ci/compilar-en-docker.sh linux
@@ -460,20 +468,20 @@ publicar-win:
 
 dist-macos: release-macos
 	@mkdir -p dist
-	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz -s ',^\.,BroadcastAppliance,' .
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz > BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz.sha256
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz"
+	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz -s ',^\.,BroadcastAppliance,' .
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz.sha256
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz"
 
 dist-linux:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
 	$(MAKE) release
 	@mkdir -p dist
-	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz --transform 's,^\.,BroadcastAppliance,' .
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz"
+	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz --transform 's,^\.,BroadcastAppliance,' .
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.commit
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz"
 
 # ============================================================================
 # Dependencias de terceros (extern/) — descarga reproducible e idempotente

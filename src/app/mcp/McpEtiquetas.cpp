@@ -914,6 +914,8 @@ const Fila kPropias[] = {
     {"dcn_llamado_nominal", "orden del llamado nominal votacion nominal en que orden votan las bancas"},
     {"dcn_simular_aviso", "simular un aviso de la central probar votacion pedida desde la consola"},
 
+    {"perfil", "rendimiento lento cpu gpu consumo que consume uso del procesador placa de video hilos "
+               "perfilar diagnostico de rendimiento por que va lento se traba"},
     {"settings_list", "que se puede configurar opciones disponibles"},
     {"settings_set", "cambiar una configuracion ajustar opcion"},
 };
