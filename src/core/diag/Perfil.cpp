@@ -23,7 +23,6 @@
 #include <pdh.h>
 #include <psapi.h>
 #include <tlhelp32.h>
-#pragma comment(lib, "pdh.lib")
 #elif defined(__APPLE__)
 #include <mach/mach.h>
 #include <pthread.h>
@@ -120,26 +119,44 @@ double memoriaMb() {
 }
 
 /// La GPU del proceso por motor (los contadores «GPU Engine», como el Administrador de tareas).
+/// pdh.dll se CARGA al medir (no se importa): este archivo se compila siempre y un
+/// build normal no tiene por qué depender de ella (check-portable-win la rechazaba).
 class Gpu {
+    using Abrir = PDH_STATUS(WINAPI*)(LPCWSTR, DWORD_PTR, PDH_HQUERY*);
+    using Agregar = PDH_STATUS(WINAPI*)(PDH_HQUERY, LPCWSTR, DWORD_PTR, PDH_HCOUNTER*);
+    using Juntar = PDH_STATUS(WINAPI*)(PDH_HQUERY);
+    using Leer = PDH_STATUS(WINAPI*)(PDH_HCOUNTER, DWORD, LPDWORD, LPDWORD, PPDH_FMT_COUNTERVALUE_ITEM_W);
+    using Cerrar = PDH_STATUS(WINAPI*)(PDH_HQUERY);
+
    public:
     Gpu() {
-        if (PdhOpenQueryW(nullptr, 0, &q_) != ERROR_SUCCESS) return;
-        if (PdhAddEnglishCounterW(q_, L"\\GPU Engine(*)\\Utilization Percentage", 0, &c_) != ERROR_SUCCESS) return;
-        PdhCollectQueryData(q_); // la primera muestra no da porcentaje
+        dll_ = LoadLibraryW(L"pdh.dll");
+        if (dll_ == nullptr) return;
+        const auto f = [this](const char* n) { return reinterpret_cast<void*>(GetProcAddress(dll_, n)); };
+        abrir_ = reinterpret_cast<Abrir>(f("PdhOpenQueryW"));
+        agregar_ = reinterpret_cast<Agregar>(f("PdhAddEnglishCounterW"));
+        juntar_ = reinterpret_cast<Juntar>(f("PdhCollectQueryData"));
+        leer_ = reinterpret_cast<Leer>(f("PdhGetFormattedCounterArrayW"));
+        cerrar_ = reinterpret_cast<Cerrar>(f("PdhCloseQuery"));
+        if (!abrir_ || !agregar_ || !juntar_ || !leer_ || !cerrar_) return;
+        if (abrir_(nullptr, 0, &q_) != ERROR_SUCCESS) return;
+        if (agregar_(q_, L"\\GPU Engine(*)\\Utilization Percentage", 0, &c_) != ERROR_SUCCESS) return;
+        juntar_(q_); // la primera muestra no da porcentaje
         ok_ = true;
     }
     ~Gpu() {
-        if (q_ != nullptr) PdhCloseQuery(q_);
+        if (q_ != nullptr && cerrar_ != nullptr) cerrar_(q_);
+        if (dll_ != nullptr) FreeLibrary(dll_);
     }
     json medir() {
         json out = json::object();
-        if (!ok_ || PdhCollectQueryData(q_) != ERROR_SUCCESS) return out;
+        if (!ok_ || juntar_(q_) != ERROR_SUCCESS) return out;
         DWORD bytes = 0, n = 0;
-        PdhGetFormattedCounterArrayW(c_, PDH_FMT_DOUBLE, &bytes, &n, nullptr);
+        leer_(c_, PDH_FMT_DOUBLE, &bytes, &n, nullptr);
         if (bytes == 0) return out;
         std::vector<unsigned char> buf(bytes);
         auto* items = reinterpret_cast<PDH_FMT_COUNTERVALUE_ITEM_W*>(buf.data());
-        if (PdhGetFormattedCounterArrayW(c_, PDH_FMT_DOUBLE, &bytes, &n, items) != ERROR_SUCCESS) return out;
+        if (leer_(c_, PDH_FMT_DOUBLE, &bytes, &n, items) != ERROR_SUCCESS) return out;
         // Instancias «pid_1234_luid_0x..._phys_0_eng_3_engtype_3D»: las de este proceso, sumadas por tipo.
         const std::string mio = "pid_" + std::to_string(GetCurrentProcessId()) + "_";
         std::map<std::string, double> suma;
@@ -156,6 +173,12 @@ class Gpu {
     }
 
    private:
+    HMODULE dll_ = nullptr;
+    Abrir abrir_ = nullptr;
+    Agregar agregar_ = nullptr;
+    Juntar juntar_ = nullptr;
+    Leer leer_ = nullptr;
+    Cerrar cerrar_ = nullptr;
     PDH_HQUERY q_ = nullptr;
     PDH_HCOUNTER c_ = nullptr;
     bool ok_ = false;
