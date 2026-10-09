@@ -552,14 +552,14 @@ class BroadcastEngine {
     /// Diagnóstico de parpadeos (BA_MEDIR_PREVIEW=1): ver medirVista en el .cpp.
     void medirVista(const std::string& clave);
     void disableScenePreview() { disableScenePreview("editor"); }
-    /// El último cuadro de ese canal (RGBA empaquetado).
-    bool renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width, int& height);
-    bool renderScenePreview(std::vector<std::uint8_t>& dst, int& width, int& height) {
-        return renderScenePreview("editor", dst, width, height);
-    }
+    /// El último cuadro de ese canal (BGRA, filas de `stride` bytes) si es más
+    /// nuevo que `serial`: `dst` se queda con el buffer (sin copias de más).
+    bool renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width, int& height,
+                            int& stride, std::uint64_t& serial);
     std::string scenePreviewName(const std::string& canal) const;
-    /// Copia el ultimo frame de vista previa (BGRA) si es mas nuevo que `serial`.
-    bool latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, std::uint64_t& serial) const;
+    /// El ultimo frame de vista previa (BGRA, filas de `stride` bytes) si es mas
+    /// nuevo que `serial`: `dst` se queda con el buffer.
+    bool latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, int& stride, std::uint64_t& serial) const;
     /// Picos del programa desde la ultima llamada, en dBFS (L, R). -100 = silencio.
     void programPeaksDb(float& left, float& right);
 

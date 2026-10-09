@@ -10,6 +10,10 @@
 //     elemento y su pad («queue12:src», «d3d12convert0:src»), los de Qt
 //     («QSGRenderThread»), los del motor; así se ve qué parte consume;
 //   - la CPU total del proceso (en núcleos: 1,0 = un núcleo entero) y la memoria;
+//   - en Windows, de los hilos SIN nombre que gastan, su pila: los módulos por
+//     los que pasa («[trabajando] Qt6Gui.dll+0x… < Qt6Core.dll+0x…»), mirada
+//     varias veces hasta agarrarlo trabajando; las direcciones se traducen con
+//     las exportaciones de cada DLL (llvm-readobj --coff-exports);
 //   - en Windows, la GPU del proceso por motor (3D, VideoDecode, VideoEncode,
 //     Copy…), de los contadores «GPU Engine» del sistema (los del Administrador
 //     de tareas).

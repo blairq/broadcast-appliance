@@ -25,6 +25,8 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QTimer>
+#include <QSGRendererInterface>
+#include <QThread>
 #include <QUrl>
 
 #include <csignal>
@@ -293,6 +295,21 @@ int runGui(int argc, char** argv) {
                     ba::diag::registro().info("arranque terminado: la interfaz dibujo");
                 },
                 Qt::QueuedConnection);
+            // Con qué dibuja Qt y dónde: el backend (D3D11, OpenGL, Metal, Vulkan…) y si
+            // el dibujo va en un hilo propio o en el principal (entonces la subida de los
+            // cuadros de video le come tiempo a la interfaz). Para diagnosticar.
+            QObject::connect(
+                w, &QQuickWindow::sceneGraphInitialized, w,
+                [w]() {
+                    static const char* kApi[] = {"desconocido", "software", "OpenVG", "OpenGL", "Direct3D 11",
+                                                 "Vulkan", "Metal", "Null", "Direct3D 12"};
+                    const int api = w->rendererInterface() ? static_cast<int>(w->rendererInterface()->graphicsApi()) : 0;
+                    const bool hiloPropio = QThread::currentThread() != qApp->thread();
+                    ba::diag::registro().info(std::string("dibujo de Qt: ") +
+                                              (api >= 0 && api < 9 ? kApi[api] : "otro") +
+                                              (hiloPropio ? ", en su hilo (QSGRenderThread)" : ", en el hilo principal"));
+                },
+                Qt::DirectConnection);
         }
 
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).

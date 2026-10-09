@@ -9,6 +9,23 @@
 
 namespace ba::app {
 
+namespace {
+/// Una QImage que se queda con el buffer (BGRA = RGB32 en memoria): sin la
+/// copia de más que hacía `.copy()` en el hilo de la interfaz.
+///
+/// RGB32 y no ARGB32: los cuadros son opacos (las composiciones tienen fondo
+/// negro; invitados y cámaras son video) y Qt Quick sube RGB32 tal cual a la GPU
+/// (BGRA8). Con ARGB32 lo convertía en CADA cuadro de CADA video a RGBA
+/// premultiplicado, repartido en su pool de hilos: en Windows eran 14 hilos
+/// despertándose sin parar (un cuarto de núcleo, visto con BA_PERFILAR).
+QImage envolver(std::vector<std::uint8_t>&& v, int w, int h, int stride) {
+    auto* p = new std::vector<std::uint8_t>(std::move(v));
+    return QImage(
+        p->data(), w, h, stride, QImage::Format_RGB32,
+        [](void* q) { delete static_cast<std::vector<std::uint8_t>*>(q); }, p);
+}
+} // namespace
+
 FrameService::FrameService(BroadcastEngine& engine, int guests, QObject* parent)
     : QObject(parent), engine_(engine) {
     slots_["program"];
@@ -73,7 +90,6 @@ void FrameService::mirarEntrada(const QString& entrada, bool mirar) {
     if (n > 0 && --n == 0) {
         engine_.disableScenePreview(canal);
         entradas_.erase(entrada);
-        entradaBufs_.erase(entrada);
         slots_.erase("entrada:" + entrada);
     }
 }
@@ -111,33 +127,29 @@ bool FrameService::latest(const QString& key, QImage& out, std::uint64_t& serial
 
 void FrameService::poll() {
     bool any = false;
-    // Programa: vista previa del motor (BGRA, ya escalada por libobs).
     int w = 0;
     int h = 0;
-    if (engine_.latestPreview(programBuf_, w, h, programSerial_)) {
-        Slot& s = slots_["program"];
-        s.image = QImage(programBuf_.data(), w, h, w * 4, QImage::Format_ARGB32).copy();
+    int stride = 0;
+    std::vector<std::uint8_t> buf;
+    // Un canal del motor: solo si trae un cuadro nuevo, y sin copiarlo de nuevo.
+    const auto tomar = [&](const QString& key) {
+        Slot& s = slots_[key];
+        s.image = envolver(std::move(buf), w, h, stride);
         ++s.serial;
         any = true;
-    }
+    };
+    // Programa: vista previa del motor (BGRA, ya escalada en la GPU).
+    if (engine_.latestPreview(buf, w, h, stride, slots_["program"].serieMotor)) tomar("program");
     // La escena ARMADA: la que va a salir con el proximo take, renderizada
     // aunque no este al aire. Canal propio del motor, aparte del editor: son
     // dos escenas distintas al mismo tiempo y con un solo canal se pisaban
     // —abrir el editor apagaba el monitor del director—.
-    if (!armada_.isEmpty() && engine_.renderScenePreview("armada", armadaBuf_, w, h)) {
-        Slot& s = slots_["armada"];
-        s.image = QImage(armadaBuf_.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-        ++s.serial;
-        any = true;
+    if (!armada_.isEmpty() && engine_.renderScenePreview("armada", buf, w, h, stride, slots_["armada"].serieMotor)) {
+        tomar("armada");
     }
     // Editor de escenas: la escena que se esta editando, renderizada aunque no
     // este al aire (la activa StudioViewModel::setScenePreview).
-    if (engine_.renderScenePreview(sceneBuf_, w, h)) {
-        Slot& s = slots_["scene"];
-        s.image = QImage(sceneBuf_.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-        ++s.serial;
-        any = true;
-    }
+    if (engine_.renderScenePreview("editor", buf, w, h, stride, slots_["scene"].serieMotor)) tomar("scene");
     ++vueltas_;
     // Entradas que pidió alguien (mirarEntrada). Si la entrada se borró y
     // volvió, el canal se vuelve a tomar.
@@ -147,13 +159,8 @@ void FrameService::poll() {
             if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
             engine_.enableScenePreview(canal, entrada.toStdString(), 960);
         }
-        auto& buf = entradaBufs_[entrada];
-        if (engine_.renderScenePreview(canal, buf, w, h)) {
-            Slot& s = slots_["entrada:" + entrada];
-            s.image = QImage(buf.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-            ++s.serial;
-            any = true;
-        }
+        const QString key = "entrada:" + entrada;
+        if (engine_.renderScenePreview(canal, buf, w, h, stride, slots_[key].serieMotor)) tomar(key);
     }
     // Canales de memoria compartida (con resuscripcion si el escritor cambia):
     // invitados y sus pantallas (B), previews del lobby (B), feed propio (A).
@@ -177,23 +184,32 @@ void FrameService::poll() {
             s.receiver = std::make_unique<ba::ipc::SpoutReceiver>();
         }
         auto& r = *s.receiver;
-        if (r.stale()) {
+        if (r.width() != 0 && r.stale()) {
             r = ba::ipc::SpoutReceiver{};
         }
         if (r.width() == 0) {
+            // Nadie publica todavía: probar dos veces por segundo, no 30 (eran
+            // ~20 canales abriendo memoria compartida en cada vuelta).
+            if (vueltas_ % 15 != 0) continue;
             const std::wstring name = channelOf(key);
             if (name.empty() || !r.subscribe(name.c_str())) {
                 continue;
             }
-            s.buf.assign(r.frameBytes(), 0);
         }
+        if (!r.hasData()) continue;
+        // Directo al buffer que se queda la imagen (sin inicializar: se pisa entero).
+        const std::size_t bytes = r.frameBytes();
+        auto* p = new std::uint8_t[bytes];
         ba::ipc::FrameMeta meta{};
-        if (r.hasData() && r.receive(s.buf.data(), s.buf.size(), meta)) {
-            s.image =
-                QImage(s.buf.data(), r.width(), r.height(), r.width() * 4, QImage::Format_ARGB32).copy();
-            ++s.serial;
-            any = true;
+        if (!r.receive(p, bytes, meta)) {
+            delete[] p;
+            continue;
         }
+        s.image = QImage(
+            p, r.width(), r.height(), r.width() * 4, QImage::Format_RGB32,
+            [](void* q) { delete[] static_cast<std::uint8_t*>(q); }, p);
+        ++s.serial;
+        any = true;
     }
     if (any) {
         emit framesUpdated();

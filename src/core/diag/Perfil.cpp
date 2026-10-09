@@ -10,6 +10,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <map>
@@ -28,6 +29,7 @@
 #include <pthread.h>
 #elif defined(__linux__)
 #include <dirent.h>
+#include <pthread.h>
 #include <unistd.h>
 #endif
 
@@ -109,6 +111,114 @@ std::vector<Hilo> hilos() {
     CloseHandle(snap);
     return out;
 }
+/// De quién es un hilo sin nombre: se lo frena un instante, se recorre su pila
+/// (con la información de desenrollado de cada módulo, sin dbghelp) y se dan los
+/// módulos por los que pasa, del más adentro al más afuera
+/// («ntdll+0x… < amdxc64+0x… < kernel32+0x…»). Mientras está frenado no se pide
+/// memoria ni se toma el lock del cargador: solo se juntan direcciones.
+#if defined(_M_X64) || defined(__x86_64__)
+/// Las direcciones de la pila de un hilo (frenado un instante). Mientras está
+/// frenado no se pide memoria ni se toma el lock del cargador.
+int direcciones(HANDLE h, DWORD64* dirs, int max) {
+    int n = 0;
+    if (SuspendThread(h) == static_cast<DWORD>(-1)) return 0;
+    alignas(16) CONTEXT ctx{};
+    ctx.ContextFlags = CONTEXT_FULL;
+    if (GetThreadContext(h, &ctx)) {
+        while (n < max && ctx.Rip != 0) {
+            dirs[n++] = ctx.Rip;
+            DWORD64 base = 0;
+            PRUNTIME_FUNCTION f = RtlLookupFunctionEntry(ctx.Rip, &base, nullptr);
+            const DWORD64 rsp = ctx.Rsp;
+            if (f == nullptr) {
+                // Sin información (código generado al vuelo, o una hoja): solo
+                // se confía en el primer marco; después se para.
+                if (n > 1) break;
+                ctx.Rip = *reinterpret_cast<DWORD64*>(ctx.Rsp);
+                ctx.Rsp += 8;
+            } else {
+                PVOID datos = nullptr;
+                DWORD64 marco = 0;
+                RtlVirtualUnwind(UNW_FLAG_NHANDLER, base, ctx.Rip, f, &ctx, &datos, &marco, nullptr);
+            }
+            if (ctx.Rsp <= rsp) break;
+        }
+    }
+    ResumeThread(h);
+    return n;
+}
+HMODULE moduloDe(DWORD64 dir) {
+    HMODULE m = nullptr;
+    return GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                              reinterpret_cast<LPCWSTR>(dir), &m)
+               ? m
+               : nullptr;
+}
+#endif
+
+/// De quién es un hilo sin nombre: se recorre su pila (con la información de
+/// desenrollado de cada módulo, sin dbghelp) y se dan los módulos por los que
+/// pasa, del más adentro al más afuera, con hasta 4 direcciones por módulo
+/// («ntdll+0x… < Qt6Core+0x…,0x… < kernel32+0x…»). Un hilo que gasta pero casi
+/// siempre está esperando se mira varias veces seguidas hasta agarrarlo
+/// trabajando: esa pila dice qué hace (la de espera, solo de quién es).
+std::string pila(std::uint64_t tid) {
+#if defined(_M_X64) || defined(__x86_64__)
+    if (tid == GetCurrentThreadId()) return {};
+    HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION, FALSE,
+                          static_cast<DWORD>(tid));
+    if (h == nullptr) return {};
+    static const HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+    static const HMODULE win32u = GetModuleHandleW(L"win32u.dll");
+    DWORD64 dirs[48];
+    int n = 0;
+    bool trabajando = false;
+    for (int intento = 0; intento < 60 && !trabajando; ++intento) {
+        DWORD64 otra[48];
+        const int k = direcciones(h, otra, 48);
+        if (k == 0) continue;
+        const HMODULE m = moduloDe(otra[0]);
+        trabajando = m != ntdll && m != win32u;
+        if (trabajando || n == 0) {
+            std::copy(otra, otra + k, dirs);
+            n = k;
+        }
+        if (!trabajando) Sleep(2);
+    }
+    CloseHandle(h);
+    std::string out;
+    HMODULE ultimo = nullptr;
+    int mods = 0, enModulo = 0;
+    for (int i = 0; i < n && mods < 12; ++i) {
+        const HMODULE m = moduloDe(dirs[i]);
+        char off[32];
+        std::snprintf(off, sizeof off, "0x%llx",
+                      static_cast<unsigned long long>(dirs[i] - reinterpret_cast<DWORD64>(m)));
+        if (m != nullptr && m == ultimo) {
+            if (++enModulo < 4) out += std::string(",") + off;
+            continue;
+        }
+        ultimo = m;
+        enModulo = 0;
+        ++mods;
+        if (!out.empty()) out += " < ";
+        if (m == nullptr) {
+            out += "?";
+            continue;
+        }
+        wchar_t ruta[MAX_PATH] = {};
+        GetModuleFileNameW(m, ruta, MAX_PATH);
+        const wchar_t* nom = ruta;
+        for (const wchar_t* c = ruta; *c != 0; ++c)
+            if (*c == L'\\' || *c == L'/') nom = c + 1;
+        out += utf8(nom) + "+" + off;
+    }
+    return trabajando ? "[trabajando] " + out : out;
+#else
+    (void)tid;
+    return {};
+#endif
+}
 double cpuProceso() {
     FILETIME c, e, k, u;
     return GetProcessTimes(GetCurrentProcess(), &c, &e, &k, &u) ? segundos(k) + segundos(u) : 0;
@@ -185,6 +295,7 @@ class Gpu {
 };
 
 #elif defined(__APPLE__)
+std::string pila(std::uint64_t) { return {}; }
 std::vector<Hilo> hilos() {
     std::vector<Hilo> out;
     thread_act_array_t lista = nullptr;
@@ -226,6 +337,7 @@ struct Gpu {
 };
 
 #elif defined(__linux__)
+std::string pila(std::uint64_t) { return {}; }
 std::vector<Hilo> hilos() {
     std::vector<Hilo> out;
     const double tick = static_cast<double>(sysconf(_SC_CLK_TCK));
@@ -271,6 +383,7 @@ struct Gpu {
     json medir() { return json::object(); }
 };
 #else
+std::string pila(std::uint64_t) { return {}; }
 std::vector<Hilo> hilos() { return {}; }
 double cpuProceso() { return 0; }
 double memoriaMb() { return 0; }
@@ -296,6 +409,7 @@ void medir(std::string proceso, std::filesystem::path logs) {
     std::ofstream out(archivo, std::ios::app);
     Gpu gpu;
     std::map<std::uint64_t, double> antes;
+    std::map<std::uint64_t, std::string> pilas;
     double cpuAntes = cpuProceso();
     auto tAntes = Reloj::now();
     int vuelta = 0;
@@ -317,10 +431,20 @@ void medir(std::string proceso, std::filesystem::path logs) {
         }
         antes = std::move(ahora);
         std::sort(orden.begin(), orden.end(), [](const auto& x, const auto& y) { return x.first > y.first; });
-        for (size_t i = 0; i < orden.size() && i < 25; ++i)
-            lista.push_back({{"nombre", orden[i].second->nombre.empty() ? "(sin nombre)" : limpio(orden[i].second->nombre)},
-                             {"tid", orden[i].second->id},
-                             {"cpu", std::round(orden[i].first * 1000) / 1000}});
+        // La pila de los sin nombre que gastan, una vez por hilo y de nuevo cada 30 s.
+        if (vuelta % 30 == 0) pilas.clear();
+        for (size_t i = 0; i < orden.size() && i < 25; ++i) {
+            const Hilo& h = *orden[i].second;
+            json fila{{"nombre", h.nombre.empty() ? "(sin nombre)" : limpio(h.nombre)},
+                      {"tid", h.id},
+                      {"cpu", std::round(orden[i].first * 1000) / 1000}};
+            if (h.nombre.empty() && orden[i].first >= 0.015) {
+                auto p = pilas.find(h.id);
+                if (p == pilas.end()) p = pilas.emplace(h.id, limpio(pila(h.id))).first;
+                if (!p->second.empty()) fila["pila"] = p->second;
+            }
+            lista.push_back(std::move(fila));
+        }
         json m{{"t", std::chrono::duration_cast<std::chrono::milliseconds>(
                          std::chrono::system_clock::now().time_since_epoch())
                          .count()},
@@ -375,6 +499,18 @@ void Perfil::arrancar(const std::string& proceso, const std::filesystem::path& l
     registro().linea(Nivel::Aviso, "perfil", 0,
                      "build con BA_PERFILAR: se mide la CPU por hilo y la GPU cada segundo (Logs/perfil-" + proceso +
                          ".jsonl)");
+    // El hilo que llama (el principal del proceso: arrancar se llama desde main) con
+    // nombre: Qt no se lo pone y salía «(sin nombre)», que es justo el que importa.
+#if defined(_WIN32)
+    using Poner = HRESULT(WINAPI*)(HANDLE, PCWSTR);
+    if (const auto poner = reinterpret_cast<Poner>(reinterpret_cast<void*>(
+            GetProcAddress(GetModuleHandleW(L"kernel32.dll"), "SetThreadDescription"))))
+        poner(GetCurrentThread(), L"principal");
+#elif defined(__APPLE__)
+    pthread_setname_np("principal");
+#elif defined(__linux__)
+    pthread_setname_np(pthread_self(), "principal");
+#endif
     gHilo = std::thread(medir, proceso, logsDir);
     // Mide hasta que el proceso termina: un std::thread estático unido al salir haría abortar.
     gHilo.detach();

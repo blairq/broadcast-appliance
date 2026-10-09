@@ -605,15 +605,15 @@ void BroadcastEngine::disablePreview() {
     previewActive_ = false;
 }
 
-bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, std::uint64_t& serial) const {
+bool BroadcastEngine::latestPreview(std::vector<std::uint8_t>& dst, int& width, int& height, int& stride,
+                                    std::uint64_t& serial) const {
     if (!previewActive_ || !motor_) return false;
     motor::Cuadro c;
     if (!motor_->verUltimo("programa@ui", c, serial)) return false;
-    const std::size_t fila = static_cast<std::size_t>(c.ancho) * 4;
-    dst.resize(fila * static_cast<std::size_t>(c.alto));
-    for (int y = 0; y < c.alto; ++y) std::memcpy(dst.data() + fila * y, c.bgra.data() + static_cast<std::size_t>(c.stride) * y, fila);
+    dst = std::move(c.bgra);
     width = c.ancho;
     height = c.alto;
+    stride = c.stride;
     return true;
 }
 
@@ -722,15 +722,19 @@ std::string BroadcastEngine::scenePreviewName(const std::string& canal) const {
     return it == scenePreviews_.end() ? std::string() : it->second.name;
 }
 
-bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width, int& height) {
+bool BroadcastEngine::renderScenePreview(const std::string& canal, std::vector<std::uint8_t>& dst, int& width,
+                                         int& height, int& stride, std::uint64_t& serial) {
     auto it = scenePreviews_.find(canal);
     if (it == scenePreviews_.end() || !motor_) return false;
+    // Solo si hay uno nuevo: antes daba siempre el último y la interfaz lo
+    // copiaba y le daba vuelta los colores 30 veces por segundo aunque fuera el
+    // mismo (la serie de las vistas es una sola y solo crece).
     motor::Cuadro c;
-    std::uint64_t s = 0; // siempre el último (el que llama lo pide cuando dibuja)
-    if (!motor_->verUltimo(it->second.clave, c, s)) return false;
-    aRgba(c, dst);
+    if (!motor_->verUltimo(it->second.clave, c, serial)) return false;
+    dst = std::move(c.bgra);
     width = c.ancho;
     height = c.alto;
+    stride = c.stride;
     return true;
 }
 
