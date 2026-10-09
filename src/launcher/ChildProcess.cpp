@@ -110,6 +110,11 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
     for (const char* n : kDropAlways) {
         o.envRemove.emplace_back(n);
     }
+    // Python no escribe .pyc: el Python del bundle (plugins, GStreamer, traductor)
+    // reescribía los de adentro del programa (una escritura que el antivirus mira,
+    // y en el arranque siguiente un «hash distinto» en la integridad). Los .pyc ya
+    // vienen en el bundle.
+    o.envSet["PYTHONDONTWRITEBYTECODE"] = "1";
 #if defined(_WIN32)
     // Entorno minimo (spec 3.1.3): nada heredado salvo lo imprescindible.
     o.inheritEnv = false;

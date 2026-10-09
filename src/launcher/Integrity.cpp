@@ -10,6 +10,7 @@
 #include "Sha256.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <execution>
 #include <fstream>
 #include <mutex>
@@ -133,6 +134,12 @@ bool estado(const std::wstring& full, std::uintmax_t& tamano, long long& fecha) 
 std::unordered_map<std::wstring, Visto> leerCache(const std::filesystem::path& cachePath) {
     std::unordered_map<std::wstring, Visto> out;
     if (cachePath.empty()) return out;
+    // Uno de más de una semana no se usa: todo se vuelve a leer (en el fondo).
+    {
+        std::error_code ec;
+        const auto cuando = std::filesystem::last_write_time(cachePath, ec);
+        if (!ec && std::filesystem::file_time_type::clock::now() - cuando > std::chrono::hours(24 * 7)) return out;
+    }
     std::ifstream in(cachePath, std::ios::binary);
     if (!in) return out;
     std::string linea;
@@ -151,9 +158,6 @@ std::unordered_map<std::wstring, Visto> leerCache(const std::filesystem::path& c
         }
         out[fromUtf8Path(ruta)] = std::move(v);
     }
-    in.close();
-    std::error_code ec;
-    std::filesystem::remove(cachePath, ec); // se consume: ver Integrity.hpp
     return out;
 }
 
@@ -195,7 +199,8 @@ void Integrity::guardarCache(const std::filesystem::path& cachePath) {
     std::filesystem::rename(tmp, cachePath, ec);
 }
 
-IntegrityReport Integrity::verify(const std::wstring& root, const std::filesystem::path& cachePath, int workers) {
+IntegrityReport Integrity::verify(const std::wstring& root, const std::filesystem::path& cachePath, int workers,
+                                  Modo modo, const std::atomic<bool>* parar, bool bajaPrioridad) {
     IntegrityReport report;
     const std::unordered_map<std::wstring, Visto> cache = leerCache(cachePath);
     std::vector<std::pair<std::wstring, Visto>> visto;
@@ -231,16 +236,28 @@ IntegrityReport Integrity::verify(const std::wstring& root, const std::filesyste
             continue;
         }
         pool.emplace_back([&, begin, end]() {
+#ifdef _WIN32
+            // De fondo: el sistema le baja la prioridad de CPU y de disco al hilo.
+            if (bajaPrioridad) SetThreadPriority(GetCurrentThread(), THREAD_MODE_BACKGROUND_BEGIN);
+#endif
             for (std::size_t i = begin; i < end; ++i) {
+                if (parar != nullptr && parar->load()) break;
                 const std::wstring full = join(root, entries[i].path);
                 Visto v;
                 const bool hayEstado = estado(full, v.tamano, v.fecha);
                 const auto c = hayEstado ? cache.find(entries[i].path) : cache.end();
                 const bool igual = c != cache.end() && c->second.sha256 == entries[i].sha256 &&
                                    c->second.tamano == v.tamano && c->second.fecha == v.fecha;
-                const int rc = igual ? 0 : verifyOne(full, entries[i].sha256);
+                // Rapida: lo que no coincide con el caché no se lee acá (queda pendiente);
+                // si no está, es un fallo ya.
+                const bool pendiente = modo == Modo::Rapida && !igual && hayEstado;
+                const int rc = igual || pendiente ? 0 : (hayEstado ? verifyOne(full, entries[i].sha256) : -1);
                 std::lock_guard<std::mutex> lock(mu);
                 report.checked += 1;
+                if (pendiente) {
+                    report.pendientes += 1;
+                    continue;
+                }
                 if (!igual) report.hashed += 1;
                 if (rc == 0 && hayEstado) {
                     v.sha256 = entries[i].sha256;

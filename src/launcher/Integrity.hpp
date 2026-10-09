@@ -22,6 +22,7 @@
 #pragma once
 
 #include <cstdint>
+#include <atomic>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -35,6 +36,7 @@ struct IntegrityReport {
     std::size_t missing = 0;            // archivos ausentes.
     std::size_t mismatch = 0;           // hashes que no coinciden.
     std::size_t hashed = 0;             // los que hubo que leer enteros (el resto salió del caché).
+    std::size_t pendientes = 0;         // Rapida: los que no estaban en el caché (quedan para el fondo).
     std::vector<std::wstring> failures; // archivos con problema (ausente o mismatch).
 };
 
@@ -53,14 +55,24 @@ class Integrity {
     /// hash en el manifest, no se vuelve a leer. Hashear el bundle entero
     /// (~2 GB, ~20.000 archivos) eran 4 s de cada arranque.
     ///
-    /// El caché se CONSUME al leerlo (se borra): solo vuelve a existir si se
-    /// llama a `guardarCache` al cerrar bien. Después de un corte de luz o de
-    /// un launcher que se cayó —justo cuando el disco pudo quedar mal— la
-    /// verificación es completa. Si falla algo, tampoco se guarda nada.
+    /// El caché ya NO se consume al leerlo: antes se borraba y solo volvía a
+    /// existir tras un cierre ordenado, así que después de un apagado de Windows
+    /// con la app abierta, un corte o un cuelgue se releían los ~13.000 archivos
+    /// (37 s medidos en la PC de pruebas, con el antivirus escaneando cada .dll)
+    /// antes de mostrar la app. Ahora un caché de más de 7 días no se usa (todo
+    /// se vuelve a leer, en el fondo): un archivo que se corrompe sin cambiar
+    /// ni tamaño ni fecha se encuentra a la semana como mucho.
     ///
     /// :param cachePath: archivo del caché (vacío = sin caché).
+    /// :param modo: Completa lee lo que no está en el caché; Rapida no lee nada:
+    ///              solo que exista y coincida con el caché (lo demás queda en
+    ///              `pendientes`, para hacerlo en el fondo con la app andando).
+    /// :param parar: si se pone en true, se deja de leer (cierre de la app).
+    /// :param bajaPrioridad: los hilos con prioridad de fondo (E/S y CPU).
+    enum class Modo { Completa, Rapida };
     static IntegrityReport verify(const std::wstring& root, const std::filesystem::path& cachePath,
-                                  int workers = 0);
+                                  int workers = 0, Modo modo = Modo::Completa,
+                                  const std::atomic<bool>* parar = nullptr, bool bajaPrioridad = false);
 
     /// Escribe el caché de la última verificación correcta (al cierre ordenado).
     static void guardarCache(const std::filesystem::path& cachePath);

@@ -11,6 +11,7 @@
 #include "Log.hpp"
 #include "RecoveryUi.hpp"
 #include "ShadowCopy.hpp"
+#include "Sha256.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -127,7 +128,10 @@ void writeMinidump(std::uint32_t pid, const std::filesystem::path& path) {
 
 Supervisor::Supervisor(Config cfg) : cfg_(std::move(cfg)) {}
 
-Supervisor::~Supervisor() = default;
+Supervisor::~Supervisor() {
+    pararFondo_ = true;
+    if (fondo_.joinable()) fondo_.join();
+}
 
 void Supervisor::requestStop() { stopRequested_.store(true); }
 
@@ -192,7 +196,12 @@ int Supervisor::run() {
     BA_LOG_INFO("health", 0, "BA.Health listo con " + std::to_string(slotCount) + " slots");
 
     launchChildren();
+    // Lo que la verificación rápida no leyó (archivos nuevos o cambiados, o todo la
+    // primera vez), con la app ya andando y a prioridad de fondo.
+    fondo_ = std::thread([this]() { verificarEnElFondo(); });
     watchdogLoop();
+    pararFondo_ = true;
+    if (fondo_.joinable()) fondo_.join();
     return 0;
 }
 
@@ -217,18 +226,54 @@ std::filesystem::path Supervisor::cacheIntegridad() const {
     return (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Cache" / "integridad.txt";
 }
 
+std::filesystem::path Supervisor::marcaFallo() const {
+    return cacheIntegridad().parent_path() / "integridad-fallo.txt";
+}
+
 IntegrityReport Supervisor::verifyIntegrity() {
-    const IntegrityReport report = Integrity::verify(cfg_.root.wstring(), cacheIntegridad());
+    // ANTES DE ARRANCAR, SOLO LO BARATO: que cada archivo esté y coincida en tamaño y
+    // fecha con el caché, sin leer contenido (el antivirus no escanea, la app aparece
+    // ya). Lo demás, en el fondo (verificarEnElFondo). Si la vez anterior el fondo
+    // encontró algo, esta vez es completa: el diálogo aparece antes de arrancar.
+    std::error_code ec;
+    const bool huboFallo = std::filesystem::exists(marcaFallo(), ec);
+    const IntegrityReport report =
+        Integrity::verify(cfg_.root.wstring(), huboFallo ? std::filesystem::path() : cacheIntegridad(), 0,
+                          huboFallo ? Integrity::Modo::Completa : Integrity::Modo::Rapida);
+    if (huboFallo && report.ok) std::filesystem::remove(marcaFallo(), ec);
     if (report.ok) {
         BA_LOG_INFO("integrity", 0,
-                    "integridad OK (" + std::to_string(report.checked) + " archivos, " +
-                        std::to_string(report.hashed) + " leídos enteros; el resto sin cambios desde el último cierre)");
+                    "integridad OK antes de arrancar (" + std::to_string(report.checked) + " archivos, " +
+                        std::to_string(report.hashed) + " leídos, " + std::to_string(report.pendientes) +
+                        " para leer en el fondo)");
     } else {
         BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
                      "integridad: " + std::to_string(report.missing) + " ausentes, " +
                          std::to_string(report.mismatch) + " con hash distinto");
     }
     return report;
+}
+
+void Supervisor::verificarEnElFondo() {
+    const auto t0 = std::chrono::steady_clock::now();
+    const IntegrityReport r =
+        Integrity::verify(cfg_.root.wstring(), cacheIntegridad(), 2, Integrity::Modo::Completa, &pararFondo_, true);
+    if (pararFondo_) return; // se cerró antes de terminar: queda para la próxima
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+    if (r.ok) {
+        // El caché, YA: no depende de un cierre ordenado.
+        Integrity::guardarCache(cacheIntegridad());
+        BA_LOG_INFO("integrity", 0,
+                    "integridad en el fondo OK (" + std::to_string(r.hashed) + " leídos en " + std::to_string(ms) + " ms)");
+        return;
+    }
+    BA_LOG_ERROR("integrity", static_cast<int>(r.failures.size()),
+                 "integridad en el fondo: " + std::to_string(r.missing) + " ausentes, " + std::to_string(r.mismatch) +
+                     " con hash distinto (el próximo arranque lo muestra)");
+    std::error_code ec;
+    std::filesystem::create_directories(marcaFallo().parent_path(), ec);
+    std::ofstream m(marcaFallo());
+    for (const auto& f : r.failures) m << toUtf8Path(f) << "\n";
 }
 
 void Supervisor::launchChildren() {

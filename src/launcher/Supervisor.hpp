@@ -23,6 +23,7 @@
 #pragma once
 
 #include <atomic>
+#include <thread>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -78,6 +79,10 @@ class Supervisor {
     /// Dónde vive el caché de la verificación (en los datos, nunca adentro de la .app).
     std::filesystem::path cacheIntegridad() const;
     IntegrityReport verifyIntegrity();
+    /// Lo que la verificación rápida dejó pendiente, en el fondo y con la app andando;
+    /// guarda el caché apenas termina (si falla algo, deja la marca para el próximo arranque).
+    void verificarEnElFondo();
+    std::filesystem::path marcaFallo() const;
 
     // --- Hijos --------------------------------------------------------------
     void launchChildren();
@@ -126,6 +131,9 @@ class Supervisor {
     std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
     std::uint64_t lastFailureMs_ = 0;          // ultima caida/cuelgue de A o B
     int recentFailures_ = 0;                   // fallas dentro de la ventana (decide el dialogo)
+
+    std::thread fondo_;                   ///< la verificación de fondo
+    std::atomic<bool> pararFondo_{false}; ///< se cierra: dejar de leer
 
     // Cache del reporte de integridad para la UI de recuperacion.
     std::uint64_t lastIntegrityCheckMs_ = 0;
