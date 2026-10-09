@@ -116,6 +116,37 @@ int main() {
         fs::permissions(ro, fs::perms::owner_all);
     }
 #endif
+    // 6. Programa y datos en la MISMA carpeta (Windows). La 2.0.0 del 2026-10-08 mudaba
+    //    a la configuración las carpetas del programa que se llaman como las de datos:
+    //    `plugins/lsp` (sin distinguir mayúsculas era «Plugins»: la integridad daba sus
+    //    archivos por ausentes y una instalación nueva arrancaba con la pantalla de
+    //    recuperación) y las semillas Graficos/Extensiones.
+    {
+        const fs::path w = base / "windows";
+        escribir(w / "plugins" / "lsp" / "lsp-plugins.clap", "clap");
+        escribir(w / "plugins" / "mi-plugin" / "plugin.json", "{}"); // uno del usuario (instalaciones viejas)
+        escribir(w / "Graficos" / "zocalo.json", "fabrica");
+        escribir(w / "Config" / "app.json", "{\"b\":2}");
+        avisos.clear();
+        const fs::path p = prepararConfiguraciones(w, w, avisos);
+        CHECK(leer(w / "plugins" / "lsp" / "lsp-plugins.clap") == "clap", "juntos: plugins/lsp queda en el programa");
+        CHECK(!fs::exists(p / "Plugins" / "lsp"), "juntos: plugins/lsp no se muda");
+        CHECK(leer(p / "Plugins" / "mi-plugin" / "plugin.json") == "{}", "juntos: lo del usuario de plugins/ sí");
+        CHECK(leer(w / "Graficos" / "zocalo.json") == "fabrica" && leer(p / "Graficos" / "zocalo.json") == "fabrica",
+              "juntos: la semilla se copia y queda");
+        CHECK(leer(p / "Config" / "app.json") == "{\"b\":2}", "juntos: Config se muda");
+
+        // Una instalación que ya quedó rota (lo mudó la versión anterior): se repara.
+        const fs::path r = base / "rota";
+        escribir(r / "Configuraciones" / "Principal" / "Plugins" / "lsp" / "lsp-plugins.clap", "clap");
+        escribir(r / "Configuraciones" / "Principal" / "Graficos" / "zocalo.json", "fabrica");
+        escribir(r / "configuraciones.json", "{\"activa\": \"Principal\"}");
+        avisos.clear();
+        prepararConfiguraciones(r, r, avisos);
+        CHECK(leer(r / "plugins" / "lsp" / "lsp-plugins.clap") == "clap", "rota: plugins/lsp vuelve al programa");
+        CHECK(leer(r / "Graficos" / "zocalo.json") == "fabrica", "rota: la semilla vuelve al programa");
+    }
+
     fs::remove_all(base);
     std::printf(g_fallos == 0 ? "test_datos: OK\n" : "test_datos: %d fallos\n", g_fallos);
     return g_fallos == 0 ? 0 : 1;

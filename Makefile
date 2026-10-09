@@ -278,7 +278,7 @@ dist-win: release-win
 	@# los archivos del programa en la carpeta del usuario.
 	rm -rf dist/.zip-stage && mkdir -p dist/.zip-stage
 	cp -al $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance 2>/dev/null || cp -a $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance
-	cd dist/.zip-stage && 7z a -tzip -mx=7 -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64.zip BroadcastAppliance
+	cd dist/.zip-stage && 7z a -tzip -mx=7 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64.zip BroadcastAppliance
 	rm -rf dist/.zip-stage
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.commit

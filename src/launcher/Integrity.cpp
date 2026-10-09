@@ -63,7 +63,7 @@ struct ManifestEntry {
 
 std::vector<ManifestEntry> parseManifest(const std::wstring& manifestPath) {
     std::vector<ManifestEntry> entries;
-    std::ifstream in(toUtf8Path(manifestPath), std::ios::binary);
+    std::ifstream in = abrirParaLeer(manifestPath);
     if (!in) {
         return entries;
     }
@@ -78,7 +78,7 @@ std::vector<ManifestEntry> parseManifest(const std::wstring& manifestPath) {
         std::string path, sha;
         if (extractString(json, obj, "path", path) && extractString(json, obj, "sha256", sha)) {
             ManifestEntry e;
-            e.path = std::wstring(path.begin(), path.end());
+            e.path = fromUtf8Path(path);
             e.sha256 = toLower(sha);
             entries.push_back(std::move(e));
         }
@@ -149,7 +149,7 @@ std::unordered_map<std::wstring, Visto> leerCache(const std::filesystem::path& c
         } catch (...) {
             continue;
         }
-        out[std::wstring(ruta.begin(), ruta.end())] = std::move(v);
+        out[fromUtf8Path(ruta)] = std::move(v);
     }
     in.close();
     std::error_code ec;
@@ -187,7 +187,7 @@ void Integrity::guardarCache(const std::filesystem::path& cachePath) {
         if (!out) return;
         for (const auto& [ruta, v] : gVisto) {
             out << v.sha256 << '\t' << v.tamano << '\t' << v.fecha << '\t';
-            for (wchar_t c : ruta) out.put(static_cast<char>(c)); // como vino del manifest (bytes)
+            out << toUtf8Path(ruta); // en UTF-8, como en el manifest
             out << '\n';
         }
         if (!out) return;

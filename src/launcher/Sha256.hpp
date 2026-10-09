@@ -21,6 +21,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <string>
 
@@ -56,6 +57,36 @@ inline std::string toUtf8Path(const std::wstring& p) {
         out.push_back(static_cast<char>(c));
     }
     return out;
+#endif
+}
+
+// La inversa: una ruta en UTF-8 (el manifest, el caché) a la forma ancha que
+// usan Integrity y hashFile. En Windows hay que DECODIFICAR el UTF-8: copiar
+// byte por byte (lo que se hacía) deja «Sesión» como «SesiÃ³n» y el archivo
+// «no existe»: una instalación nueva arrancaba con la pantalla de integridad.
+// En el resto es la ida y vuelta de toUtf8Path (byte a byte).
+inline std::wstring fromUtf8Path(const std::string& s) {
+#ifdef _WIN32
+    if (s.empty()) return std::wstring();
+    const int n = MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), nullptr, 0);
+    std::wstring out;
+    if (n > 0) {
+        out.resize(static_cast<std::size_t>(n));
+        MultiByteToWideChar(CP_UTF8, 0, s.data(), static_cast<int>(s.size()), out.data(), n);
+    }
+    return out;
+#else
+    return std::wstring(s.begin(), s.end());
+#endif
+}
+
+/// Abre para leer una ruta ancha. En Windows con la ruta ancha: un char* se lee
+/// en la página ANSI y una carpeta con tilde («C:\Users\Martín») no se encuentra.
+inline std::ifstream abrirParaLeer(const std::wstring& p) {
+#ifdef _WIN32
+    return std::ifstream(std::filesystem::path(p), std::ios::binary);
+#else
+    return std::ifstream(toUtf8Path(p), std::ios::binary);
 #endif
 }
 } // namespace
@@ -134,7 +165,7 @@ class Sha256 {
     /// :param path: ruta del archivo (UTF-16).
     /// :returns: hex en minuscula; cadena vacia si el archivo no se pudo leer.
     static std::string hashFile(const std::wstring& path) {
-        std::ifstream in(toUtf8Path(path), std::ios::binary);
+        std::ifstream in = abrirParaLeer(path);
         if (!in) {
             return std::string();
         }
