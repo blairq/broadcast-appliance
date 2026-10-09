@@ -115,7 +115,8 @@ class Entrada:
     """Una entrada de video y/o audio que aporta el plugin."""
 
     def __init__(self, plugin: "Plugin", nombre: str, video: bool, audio: bool, gst: str | None, gst_audio: str | None,
-                 escena: str | None, latencia_ms: int | None, normalizar: bool | None):
+                 escena: str | None, latencia_ms: int | None, normalizar: bool | None,
+                 camara: str | None = None, camara_modo: str | None = None):
         self.plugin = plugin
         self.nombre = nombre
         self.video = video or bool(gst)
@@ -125,12 +126,14 @@ class Entrada:
         self.escena = escena
         self.latencia_ms = latencia_ms
         self.normalizar = normalizar
+        self.camara = camara
+        self.camara_modo = camara_modo
         self._canal_video = _medios.CanalEntrada(nombre, "video")
         self._canal_audio = _medios.CanalEntrada(nombre, "audio")
 
     def declaracion(self) -> dict:
         d = {"t": "entrada", "nombre": self.nombre, "video": self.video, "audio": self.audio}
-        for k in ("gst", "gst_audio", "escena", "latencia_ms", "normalizar"):
+        for k in ("gst", "gst_audio", "escena", "latencia_ms", "normalizar", "camara", "camara_modo"):
             v = getattr(self, k)
             if v is not None:
                 d[k] = v
@@ -275,11 +278,18 @@ class Plugin:
 
     def entrada(self, nombre: str, video: bool = False, audio: bool = False, gst: str | None = None,
                 gst_audio: str | None = None, escena: str | None = None, latencia_ms: int | None = None,
-                normalizar: bool | None = None) -> Entrada:
+                normalizar: bool | None = None, camara: str | None = None, camara_modo: str | None = None) -> Entrada:
         """Declara una entrada. Con `gst` (y/o `gst_audio`) la app corre ESE pipeline de GStreamer como
-        origen (p. ej. ``"avfvideosrc device-index=1 ! videocrop right=1920"``); si no, los cuadros los manda
-        el plugin con ``enviar_video`` / ``enviar_audio``. `escena`: dónde ponerla la primera vez."""
-        e = Entrada(self, nombre, video, audio, gst, gst_audio, escena, latencia_ms, normalizar)
+        origen (p. ej. ``"videotestsrc ! videocrop right=1920"``); si no, los cuadros los manda
+        el plugin con ``enviar_video`` / ``enviar_audio``. `escena`: dónde ponerla la primera vez.
+
+        `camara`: una cámara USB o capturadora del equipo, por su id (el de la app: Entradas → Cámaras,
+        o ``""`` para la primera). La abre la app como cualquier cámara, con lo de cada sistema
+        (Media Foundation, AVFoundation, V4L2): no hace falta escribir un pipeline que solo anda en uno.
+        `camara_modo`: ``"1920x1080@30"`` (sin él, el que mejor va con el lienzo)."""
+        if camara is not None:
+            video = True
+        e = Entrada(self, nombre, video, audio, gst, gst_audio, escena, latencia_ms, normalizar, camara, camara_modo)
         if not (e.video or e.audio):
             raise ValueError("una entrada tiene video, audio o las dos")
         self._entradas[nombre] = e

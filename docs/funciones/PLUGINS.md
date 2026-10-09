@@ -91,6 +91,8 @@ copias.
 Está en `src/plugins/sdk/ba_plugin/__init__.py`, con el docstring completo. En resumen:
 
 - `plugin.entrada(nombre, gst=…, gst_audio=…)` o `entrada(nombre, video=True, audio=True)` + `enviar_video(arr)` / `enviar_audio(muestras)`.
+- `plugin.entrada(nombre, camara="")`: una cámara USB o capturadora del equipo (su id, o `""` para la primera), que la app abre como cualquier cámara y en cada sistema con lo suyo (Media Foundation, AVFoundation, V4L2). Mejor que un `gst` con `avfvideosrc`/`mfvideosrc`, que anda en un solo sistema. `camara_modo="1920x1080@30"` opcional.
+- En la configuración (`config` de plugin.json), una clave `escena` (o `…_escena`) se elige de la lista de escenas y una `dispositivo` (o `…_dispositivo`) de las cámaras del equipo.
 - `@plugin.tarjeta(nombre, medio="video"|"audio", parametros={…})`: `cuadro.array()` es (alto, ancho, 4) RGBA en memoria compartida y se cambia en el lugar.
 - `@plugin.ptz(entrada)` sobre una clase con `mover/parar/home/ir_a_preset/guardar_preset/enfocar/auto_foco` y `capacidades`.
 - `plugin.panel([...])`: **la interfaz del plugin para el operador**, descripta y dibujada por la app (página Plugins → «Usar»; el asistente la maneja con `plugin_panel`). Controles: `ba.seccion`, `ba.deslizador`, `ba.interruptor`, `ba.opcion`, `ba.texto`, `ba.numero`, `ba.boton` (lo que mueve el operador) y `ba.indicador`, `ba.medidor` (lo que muestra el plugin con `plugin.mostrar(clave, valor)`, a lo sumo 10 veces por segundo). Lo del operador queda en `plugin.valores` y llega a `@plugin.al_cambiar(clave)`; se guarda en `Plugins/<id>/.panel.json` y vuelve al reiniciar. No hay QML propio de un plugin a propósito: correría adentro de la app, y un plugin no puede colgar nada.
@@ -160,7 +162,7 @@ También `video_pipeline` / `video_tarjeta_agregar` aceptan `{"tipo": "plugin", 
 
 ## Los casos que dieron origen a esto
 
-- **PTZ raro por USB** (`ejemplo-ptz-uvc`): la imagen es una entrada `gst` (avfvideosrc) y el PTZ, `@plugin.ptz` con UVC estándar o las XU de la marca. La cámara queda como cualquier PTZ: botonera, posiciones con nombre, `ptz_*`.
+- **PTZ raro por USB** (`ejemplo-ptz-uvc`): la imagen es una entrada `camara` (la de «dispositivo» en la configuración; vacío = la primera) y el PTZ, `@plugin.ptz` con UVC estándar o las XU de la marca. La cámara queda como cualquier PTZ: botonera, posiciones con nombre, `ptz_*`.
 - **Cámara 360** (`ejemplo-360`):
   - para partir una imagen en varias entradas, tarjetas `recorte` + `salida` en el grafo;
   - para desdoblar el ojo de pez, una tarjeta de plugin (numpy, 3 ms por cuadro a 1080p) que puede seguir la voz con los eventos `hablando` (`angulo`).

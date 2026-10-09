@@ -109,6 +109,15 @@ std::string entreComillas(const std::string& v);
 
 /// El id estable de un dispositivo de video (el que guarda `camara`).
 std::string idDeCamara(GstDevice* dev, GstElement* e);
+/// ¿Se abre esta cámara con lo que usa el programa? En Windows, solo las de Media
+/// Foundation (mfvideosrc): el monitor también da la MISMA cámara por Kernel
+/// Streaming (ksvideosrc, otra ruta), y esa abierta con mfvideosrc no negocia.
+/// La lista la mostraba dos veces con el mismo nombre y una no andaba.
+bool camaraUsable(GstElement* e);
+/// ¿Son la misma cámara? En Windows la ruta es «\\?\usb#<instancia>#{categoría}\…»:
+/// la misma cámara tiene una ruta por categoría (KS y Media Foundation); se
+/// compara la instancia. Así una guardada con la ruta de KS abre por MF.
+bool mismaCamara(const std::string& a, const std::string& b);
 /// El id estable de un micrófono (el que guarda `microfono`).
 std::string idDeMicrofono(GstElement* e);
 /// La parte de origen de la cámara `id` como está enchufada AHORA ("" si no está).

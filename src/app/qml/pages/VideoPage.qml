@@ -1316,7 +1316,12 @@ Rectangle {
         width: 520
         padding: 18
         property string preset: "barras-hd"
-        onOpened: { nombreVirtual.text = ""; pipelineVirtual.text = ""; preset = "barras-hd"; nombreVirtual.forceActiveFocus() }
+        onOpened: {
+            nombreVirtual.text = ""; pipelineVirtual.text = ""; preset = "barras-hd"
+            escenaVirtual.model = Studio.inputs.scenes
+            escenaVirtual.currentIndex = Math.max(0, Studio.inputs.scenes.indexOf(Studio.currentScene))
+            nombreVirtual.forceActiveFocus()
+        }
         background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
         ColumnLayout {
             anchors.fill: parent
@@ -1355,16 +1360,23 @@ Rectangle {
                 font.family: "Menlo"
                 placeholderText: "rtspsrc location=rtsp://… latency=200 ! decodebin"
             }
+            // En qué escena (de la lista, no escrita a mano): de fábrica, la que está al aire.
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "En la escena"; color: Theme.textDim; font.pixelSize: 12 }
+                ComboBox { id: escenaVirtual; Layout.fillWidth: true }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
                 GlassButton { compact: true; text: "Cancelar"; onClicked: virtualPop.close() }
                 GlassButton {
-                    compact: true; text: "Crear en la escena al aire"; active: true
+                    compact: true; text: "Crear"; active: true
                     enabled: nombreVirtual.text.trim() !== "" && (virtualPop.preset !== "pipeline" || pipelineVirtual.text.trim() !== "")
                     onClicked: {
                         const e = page.vg.crearVirtual(nombreVirtual.text.trim(),
-                                                       virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset, "")
+                                                       virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset,
+                                                       escenaVirtual.currentText)
                         page.avisar(e)
                         if (e === "") { page.vg.entrada = nombreVirtual.text.trim(); virtualPop.close() }
                     }

@@ -101,7 +101,9 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         }
         if (w != v->ancho || h != v->alto) {
             GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w,
-                                                "height", G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1, nullptr);
+                                                "height", G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1,
+                                                // sin el píxel cuadrado, d3d12upload fija 1/2147483647 y no negocia
+                                                "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
             const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
             gst_caps_unref(caps);
             if (!ok) return GST_FLOW_NOT_NEGOTIATED;

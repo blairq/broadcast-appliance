@@ -8,6 +8,10 @@
 #include <cmath>
 
 #include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
+#include "video/Camaras.hpp"
+
+#include <nlohmann/json.hpp>
 
 namespace ba::app {
 
@@ -201,6 +205,11 @@ QString SourcesModel::add(const QString& typeId, const QString& baseName) {
     spec.id = typeId.toStdString();
     spec.name = name;
     spec.rect = CanvasRect{0.1f, 0.1f, 0.8f, 0.8f};
+    if (spec.id == inputs::kVideoType) {
+        // Una cámara: la primera conectada ya elegida (en Propiedades se cambia).
+        const auto camaras = video::camarasDelEquipo(rt_.engine());
+        spec.settingsJson = nlohmann::json{{inputs::kVideoProp, camaras.empty() ? std::string() : camaras.front().value}}.dump();
+    }
     if (!rt_.addSource(scene_.toStdString(), spec)) {
         emit error(qs(rt_.lastError()));
         return {};

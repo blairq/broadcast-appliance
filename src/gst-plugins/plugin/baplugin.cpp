@@ -29,6 +29,12 @@
 // a mano (pruebas).
 // ============================================================================
 
+#if defined(_WIN32)
+// Antes que GStreamer: winsock2 tiene que ir antes que cualquier windows.h.
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#endif
 #include <gst/audio/audio.h>
 #include <gst/base/gstbasesrc.h>
 #include <gst/base/gstbasetransform.h>
@@ -77,25 +83,43 @@ gint64 ahoraMs() { return g_get_monotonic_time() / 1000; }
 // --- El canal con el plugin -----------------------------------------------------------
 
 /// Un socket con líneas JSON y la memoria compartida del plugin.
+///
+/// EN WINDOWS: el socket es de Winsock y la memoria, un mapeo con nombre
+/// (OpenFileMapping/MapViewOfFile): es lo que crea `multiprocessing.shared_memory`
+/// del lado del plugin ("wnsm_…", en el espacio de la sesión). Antes esto no
+/// estaba y los plugins no podían mandar ni recibir video ni audio en Windows.
 class CanalPlugin {
    public:
+#if defined(_WIN32)
+    using Sock = SOCKET;
+    static constexpr Sock kSin = INVALID_SOCKET;
+#else
+    using Sock = int;
+    static constexpr Sock kSin = -1;
+#endif
+
     ~CanalPlugin() { cerrar(); }
 
-    bool abierto() const { return fd_ >= 0; }
+    bool abierto() const { return fd_ != kSin; }
 
     bool conectar(int puerto, std::string& error) {
         cerrar();
-#if defined(_WIN32)
-        (void)puerto;
-        error = "los plugins todavía no andan en Windows";
-        return false;
-#else
         if (puerto <= 0) {
             error = "el plugin no está corriendo";
             return false;
         }
+#if defined(_WIN32)
+        static const bool winsock = []() {
+            WSADATA w;
+            return WSAStartup(MAKEWORD(2, 2), &w) == 0;
+        }();
+        if (!winsock) {
+            error = "no arrancó Winsock";
+            return false;
+        }
+#endif
         fd_ = ::socket(AF_INET, SOCK_STREAM, 0);
-        if (fd_ < 0) {
+        if (fd_ == kSin) {
             error = "no se pudo abrir un socket";
             return false;
         }
@@ -109,28 +133,25 @@ class CanalPlugin {
             return false;
         }
         int uno = 1;
-        setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, &uno, sizeof uno);
+        setsockopt(fd_, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&uno), sizeof uno);
 #if defined(SO_NOSIGPIPE)
         setsockopt(fd_, SOL_SOCKET, SO_NOSIGPIPE, &uno, sizeof uno);
 #endif
         buf_.clear();
         return true;
-#endif
     }
 
     bool enviar(const json& m) {
-#if defined(_WIN32)
-        (void)m;
-        return false;
-#else
-        if (fd_ < 0) return false;
+        if (fd_ == kSin) return false;
         const std::string s = m.dump() + "\n";
         size_t hecho = 0;
         while (hecho < s.size()) {
 #if defined(MSG_NOSIGNAL)
-            const ssize_t r = ::send(fd_, s.data() + hecho, s.size() - hecho, MSG_NOSIGNAL);
+            const auto r = ::send(fd_, s.data() + hecho, s.size() - hecho, MSG_NOSIGNAL);
+#elif defined(_WIN32)
+            const int r = ::send(fd_, s.data() + hecho, static_cast<int>(s.size() - hecho), 0);
 #else
-            const ssize_t r = ::send(fd_, s.data() + hecho, s.size() - hecho, 0);
+            const auto r = ::send(fd_, s.data() + hecho, s.size() - hecho, 0);
 #endif
             if (r <= 0) {
                 cerrar();
@@ -139,16 +160,10 @@ class CanalPlugin {
             hecho += static_cast<size_t>(r);
         }
         return true;
-#endif
     }
 
     /// 1: una línea en `out`; 0: no llegó nada en `timeoutMs`; -1: se cortó.
     int leer(json& out, int timeoutMs) {
-#if defined(_WIN32)
-        (void)out;
-        (void)timeoutMs;
-        return -1;
-#else
         const gint64 fin = ahoraMs() + timeoutMs;
         for (;;) {
             const size_t nl = buf_.find('\n');
@@ -162,29 +177,53 @@ class CanalPlugin {
                 }
                 return 1;
             }
-            if (fd_ < 0) return -1;
+            if (fd_ == kSin) return -1;
             const gint64 resta = fin - ahoraMs();
+#if defined(_WIN32)
+            WSAPOLLFD p = {fd_, POLLRDNORM, 0};
+            const int r = ::WSAPoll(&p, 1, static_cast<int>(resta > 0 ? resta : 0));
+#else
             pollfd p = {fd_, POLLIN, 0};
             const int r = ::poll(&p, 1, static_cast<int>(resta > 0 ? resta : 0));
-            if (r == 0) return 0;
-            if (r < 0) return 0;
+#endif
+            if (r <= 0) return 0;
             char tmp[65536];
-            const ssize_t n = ::recv(fd_, tmp, sizeof tmp, 0);
+            const auto n = ::recv(fd_, tmp, sizeof tmp, 0);
             if (n <= 0) {
                 cerrar();
                 return -1;
             }
             buf_.append(tmp, static_cast<size_t>(n));
         }
-#endif
     }
 
     bool mapear(const std::string& nombre, std::string& error) {
         soltarMemoria();
 #if defined(_WIN32)
-        (void)nombre;
-        error = "sin memoria compartida en Windows todavía";
-        return false;
+        HANDLE h = OpenFileMappingA(FILE_MAP_ALL_ACCESS, FALSE, nombre.c_str());
+        if (h == nullptr) {
+            error = "no se pudo abrir la memoria compartida «" + nombre + "»";
+            return false;
+        }
+        void* m = MapViewOfFile(h, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+        if (m == nullptr) {
+            CloseHandle(h);
+            error = "no se pudo mapear la memoria compartida";
+            return false;
+        }
+        // El tamaño: el de la región mapeada (Windows lo redondea a páginas; lo que
+        // vale de cada cuadro lo dice su cabecera, «tam»).
+        MEMORY_BASIC_INFORMATION info = {};
+        if (VirtualQuery(m, &info, sizeof info) == 0 || info.RegionSize == 0) {
+            UnmapViewOfFile(m);
+            CloseHandle(h);
+            error = "la memoria compartida está vacía";
+            return false;
+        }
+        mapeo_ = h;
+        mem_ = static_cast<uint8_t*>(m);
+        tam_ = info.RegionSize;
+        return true;
 #else
         const int fd = ::shm_open(nombre.c_str(), O_RDWR, 0);
         if (fd < 0) {
@@ -213,27 +252,38 @@ class CanalPlugin {
     size_t tam() const { return tam_; }
 
     void cerrar() {
-#if !defined(_WIN32)
-        if (fd_ >= 0) ::close(fd_);
+        if (fd_ != kSin) {
+#if defined(_WIN32)
+            ::closesocket(fd_);
+#else
+            ::close(fd_);
 #endif
-        fd_ = -1;
+        }
+        fd_ = kSin;
         buf_.clear();
         soltarMemoria();
     }
 
    private:
     void soltarMemoria() {
-#if !defined(_WIN32)
+#if defined(_WIN32)
+        if (mem_ != nullptr) UnmapViewOfFile(mem_);
+        if (mapeo_ != nullptr) CloseHandle(mapeo_);
+        mapeo_ = nullptr;
+#else
         if (mem_ != nullptr) ::munmap(mem_, tam_);
 #endif
         mem_ = nullptr;
         tam_ = 0;
     }
 
-    int fd_ = -1;
+    Sock fd_ = kSin;
     std::string buf_;
     uint8_t* mem_ = nullptr;
     size_t tam_ = 0;
+#if defined(_WIN32)
+    HANDLE mapeo_ = nullptr;
+#endif
 };
 
 namespace {

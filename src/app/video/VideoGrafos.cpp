@@ -1689,7 +1689,9 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
                                               const std::string& audio, const std::string& escena,
                                               int latenciaMs, int normalizar, const json& extra) {
     if (nombre.empty()) return "falta el nombre";
-    if (video.empty() && audio.empty()) return "falta el pipeline (de video y/o de audio)";
+    // Una cámara del equipo (`camara` en extra) no necesita pipeline: la abre el motor.
+    const bool conCamara = extra.is_object() && extra.contains("camara");
+    if (video.empty() && audio.empty() && !conCamara) return "falta el pipeline (de video y/o de audio)";
     json ajustes = extra.is_object() ? extra : json::object();
     ajustes["uri"] = "";
     ajustes["pipeline"] = video;

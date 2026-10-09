@@ -331,6 +331,32 @@ std::string idDeCamara(GstDevice* dev, GstElement* e) {
     return id;
 }
 
+bool camaraUsable(GstElement* e) {
+    if (e == nullptr) return false;
+#if defined(_WIN32)
+    GstElementFactory* f = gst_element_get_factory(e);
+    return f != nullptr && std::string(GST_OBJECT_NAME(f)) == "mfvideosrc";
+#else
+    return true;
+#endif
+}
+
+bool mismaCamara(const std::string& a, const std::string& b) {
+    if (a == b) return true;
+#if defined(_WIN32)
+    // Hasta el último «#{» (la categoría), sin distinguir mayúsculas.
+    const auto instancia = [](const std::string& s) {
+        const auto p = s.rfind("#{");
+        std::string r = p == std::string::npos ? s : s.substr(0, p);
+        for (char& c : r) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return r;
+    };
+    return a.rfind("#{") != std::string::npos && instancia(a) == instancia(b);
+#else
+    return false;
+#endif
+}
+
 std::string idDeMicrofono(GstElement* e) {
     if (e == nullptr) return {};
 #if defined(__APPLE__)
@@ -347,25 +373,69 @@ std::string idDeMicrofono(GstElement* e) {
 }
 
 namespace {
+/// Los cuadros por segundo más altos de un framerate (fijo, lista o rango) que no pasen de `tope`.
+double mejorFps(const GValue* v, double tope) {
+    if (v == nullptr) return 0;
+    if (GST_VALUE_HOLDS_FRACTION(v)) {
+        const int n = gst_value_get_fraction_numerator(v), d = gst_value_get_fraction_denominator(v);
+        const double f = d > 0 ? static_cast<double>(n) / d : 0;
+        return f <= tope + 0.01 ? f : 0;
+    }
+    if (GST_VALUE_HOLDS_FRACTION_RANGE(v)) {
+        const double mx = mejorFps(gst_value_get_fraction_range_max(v), 1e9);
+        return std::min(mx, tope);
+    }
+    if (GST_VALUE_HOLDS_LIST(v)) {
+        double m = 0;
+        for (guint i = 0; i < gst_value_list_get_size(v); ++i) m = std::max(m, mejorFps(gst_value_list_get_value(v, i), tope));
+        return m;
+    }
+    return 0;
+}
+
 /// Sin modo pedido: el de la cámara que mejor va con el lienzo (su tamaño si lo
-/// tiene; si no, el más grande con su proporción; si no, que negocie GStreamer).
+/// tiene; si no, el más grande con su proporción; si no, que negocie GStreamer),
+/// con los cuadros por segundo más altos que tenga ese tamaño sin pasar los del
+/// lienzo. Solo video crudo (es lo que se le pide): una cámara USB 2 da 1080p a 30
+/// en MJPEG y crudo a 5; sin cuadros pedidos, Media Foundation tomaba el primero
+/// de su lista (1080p a 5).
 std::string modoParaElLienzo(GstCaps* caps, const Lienzo& l) {
     if (caps == nullptr || l.ancho <= 0 || l.alto <= 0) return {};
     const double prop = static_cast<double>(l.ancho) / l.alto;
+    const double tope = l.fpsD > 0 ? static_cast<double>(l.fpsN) / l.fpsD : 30.0;
     int mejorW = 0, mejorH = 0;
-    for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
+    bool exacto = false;
+    for (guint i = 0; i < gst_caps_get_size(caps) && !exacto; ++i) {
         GstCapsFeatures* ft = gst_caps_get_features(caps, i);
         if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
-        int w = 0, h = 0;
         const GstStructure* st = gst_caps_get_structure(caps, i);
+        if (!gst_structure_has_name(st, "video/x-raw")) continue;
+        int w = 0, h = 0;
         if (!gst_structure_get_int(st, "width", &w) || !gst_structure_get_int(st, "height", &h) || h == 0) continue;
-        if (w == l.ancho && h == l.alto) return std::to_string(w) + "x" + std::to_string(h);
-        if (std::abs(static_cast<double>(w) / h - prop) < 0.02 && w * h > mejorW * mejorH) {
+        if (w == l.ancho && h == l.alto) {
+            mejorW = w;
+            mejorH = h;
+            exacto = true;
+        } else if (std::abs(static_cast<double>(w) / h - prop) < 0.02 && w * h > mejorW * mejorH) {
             mejorW = w;
             mejorH = h;
         }
     }
-    return mejorW > 0 ? std::to_string(mejorW) + "x" + std::to_string(mejorH) : std::string();
+    if (mejorW == 0) return {};
+    // Los cuadros: el más alto de ese tamaño (entre todos sus formatos crudos).
+    double fps = 0;
+    for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
+        GstCapsFeatures* ft = gst_caps_get_features(caps, i);
+        if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
+        const GstStructure* st = gst_caps_get_structure(caps, i);
+        int w = 0, h = 0;
+        if (!gst_structure_has_name(st, "video/x-raw") || !gst_structure_get_int(st, "width", &w) ||
+            !gst_structure_get_int(st, "height", &h) || w != mejorW || h != mejorH)
+            continue;
+        fps = std::max(fps, mejorFps(gst_structure_get_value(st, "framerate"), tope));
+    }
+    const int f = static_cast<int>(std::lround(fps));
+    return std::to_string(mejorW) + "x" + std::to_string(mejorH) + (f > 0 ? "@" + std::to_string(f) : std::string());
 }
 } // namespace
 
@@ -379,7 +449,7 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
         for (GList* l = lista; l != nullptr && o.empty(); l = l->next) {
             auto* dev = GST_DEVICE(l->data);
             GstElement* e = gst_device_create_element(dev, nullptr);
-            const bool es = (id.empty() || id == "default") || idDeCamara(dev, e) == id;
+            const bool es = camaraUsable(e) && ((id.empty() || id == "default") || mismaCamara(idDeCamara(dev, e), id));
             if (es && e != nullptr) {
 #if defined(__APPLE__)
                 gint indice = -1;
@@ -405,8 +475,10 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
     if (o.empty()) return {};
     int w = 0, h = 0, fps = 0;
     if (!modo.empty() && std::sscanf(modo.c_str(), "%dx%d@%d", &w, &h, &fps) >= 2 && w > 0 && h > 0)
+        // Los cuadros, con medio de margen: «30» tiene que aceptar 30000/1001 (29,97).
         o += " ! video/x-raw,width=" + std::to_string(w) + ",height=" + std::to_string(h) +
-             (fps > 0 ? ",framerate=" + std::to_string(fps) + "/1" : std::string());
+             (fps > 0 ? ",framerate=[" + std::to_string(2 * fps - 1) + "/2," + std::to_string(2 * fps + 1) + "/2]"
+                      : std::string());
     return o;
 }
 
@@ -476,7 +548,7 @@ Vigia& Vigia::el() {
 void Vigia::anotar(GstDevice* dev, bool esta) {
     GstElement* e = gst_device_create_element(dev, nullptr);
     const bool esVideo = gst_device_has_classes(dev, "Video/Source");
-    const std::string id = esVideo ? idDeCamara(dev, e) : idDeMicrofono(e);
+    const std::string id = esVideo ? (camaraUsable(e) ? idDeCamara(dev, e) : std::string()) : idDeMicrofono(e);
     if (e != nullptr) gst_object_unref(e);
     if (id.empty()) return;
     auto& conjunto = esVideo ? video_ : audio_;
@@ -532,7 +604,10 @@ bool Vigia::hay(bool esVideo, const std::string& id) {
     std::lock_guard<std::mutex> l(mu_);
     arrancar();
     if (mon_ == nullptr) return true;
-    return (esVideo ? video_ : audio_).count(id) > 0;
+    if (!esVideo) return audio_.count(id) > 0;
+    for (const auto& v : video_)
+        if (mismaCamara(v, id)) return true;
+    return false;
 }
 
 // --- Archivos ------------------------------------------------------------------------

@@ -607,7 +607,14 @@ Rectangle {
                                         id: cf
                                         required property string modelData
                                         readonly property var v: page.configForm[modelData]
-                                        readonly property string clase: typeof v === "boolean" ? "si_no" : typeof v === "number" ? "numero" : typeof v === "string" ? "texto" : "json"
+                                        // «escena» y «dispositivo» se eligen de una lista (las escenas, las cámaras del
+                                        // equipo): escribirlos a mano era adivinar el nombre exacto.
+                                        readonly property string clase: (modelData === "escena" || modelData.endsWith("_escena")) && (typeof v === "string" || v === null) ? "escena"
+                                                                      : (modelData === "dispositivo" || modelData.endsWith("_dispositivo")) && (typeof v === "string" || v === null) ? "dispositivo"
+                                                                      : typeof v === "boolean" ? "si_no" : typeof v === "number" ? "numero" : typeof v === "string" ? "texto" : "json"
+                                        readonly property var opciones: clase === "escena" ? Studio.inputs.scenes.map(e => ({ value: e, label: e }))
+                                                                      : clase === "dispositivo" ? [{ value: "", label: "La primera que haya" }].concat(Studio.inputs.devices.map(d => ({ value: d.value, label: d.name })))
+                                                                      : []
                                         Layout.fillWidth: true
                                         spacing: 8
                                         Text { text: cf.modelData; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 200; elide: Text.ElideRight }
@@ -616,8 +623,21 @@ Rectangle {
                                             checked: cf.v === true
                                             onToggled: (quiero) => { const c = page.configForm; c[cf.modelData] = quiero; page.configForm = Object.assign({}, c) }
                                         }
+                                        ComboBox {
+                                            visible: cf.clase === "escena" || cf.clase === "dispositivo"
+                                            Layout.fillWidth: true
+                                            model: cf.opciones
+                                            textRole: "label"
+                                            valueRole: "value"
+                                            currentIndex: {
+                                                const i = cf.opciones.findIndex(o => o.value === (cf.v || ""))
+                                                return i
+                                            }
+                                            displayText: currentIndex >= 0 ? currentText : (cf.v ? cf.v + " (no está)" : "Elegir…")
+                                            onActivated: { const c = page.configForm; c[cf.modelData] = currentValue; page.configForm = Object.assign({}, c) }
+                                        }
                                         TextField {
-                                            visible: cf.clase !== "si_no"
+                                            visible: cf.clase !== "si_no" && cf.clase !== "escena" && cf.clase !== "dispositivo"
                                             Layout.fillWidth: true
                                             color: Theme.text; font { pixelSize: 12; family: cf.clase === "json" ? Theme.mono : Theme.font }
                                             text: cf.clase === "json" ? JSON.stringify(cf.v) : String(cf.v)

@@ -99,6 +99,11 @@ void recorrer(F&& fn) {
         GList* lista = gst_device_monitor_get_devices(mon);
         for (GList* l = lista; l != nullptr; l = l->next) {
             auto* dev = GST_DEVICE(l->data);
+            // En Windows, solo las de Media Foundation (ver motor::camaraUsable).
+            GstElement* e = gst_device_create_element(dev, nullptr);
+            const bool usable = ba::motor::camaraUsable(e);
+            if (e != nullptr) gst_object_unref(e);
+            if (!usable) continue;
             const std::string id = idDe(dev);
             if (!id.empty()) fn(dev, id);
         }
@@ -147,7 +152,7 @@ std::vector<ModoCamara> modosDeCamara(const std::string& id) {
 #if defined(BA_HAVE_GST)
     std::set<std::tuple<int, int, int>> vistos;
     recorrer([&](GstDevice* dev, const std::string& cual) {
-        if (cual != id) return;
+        if (!ba::motor::mismaCamara(cual, id)) return;
         GstCaps* caps = gst_device_get_caps(dev);
         if (caps == nullptr) return;
         for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
@@ -155,6 +160,9 @@ std::vector<ModoCamara> modosDeCamara(const std::string& id) {
             GstCapsFeatures* ft = gst_caps_get_features(caps, i);
             if (ft != nullptr && !gst_caps_features_is_equal(ft, GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) continue;
             const GstStructure* st = gst_caps_get_structure(caps, i);
+            // Solo video crudo: es lo que el motor le pide a la cámara (motor::origenDeCamara).
+            // Un modo que la cámara da solo en MJPEG (1080p a 30 en una USB 2) no negociaba.
+            if (!gst_structure_has_name(st, "video/x-raw")) continue;
             int w = 0, h = 0;
             if (!gst_structure_get_int(st, "width", &w) || !gst_structure_get_int(st, "height", &h)) continue;
             const int fps = maxFps(gst_structure_get_value(st, "framerate"));

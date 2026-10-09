@@ -1,7 +1,7 @@
 """Ejemplo: una cámara USB (UVC) con PTZ.
 
-La imagen la toma la app con GStreamer (la entrada `gst`: sin copias, como cualquier
-cámara). El PTZ va por USB con los controles UVC: los ESTÁNDAR (pan/tilt/zoom de la
+La imagen la toma la app como cualquier cámara (`camara`: en cada sistema con lo suyo,
+sin copias); `video`, si se lo pone, es un pipeline de GStreamer propio en su lugar. El PTZ va por USB con los controles UVC: los ESTÁNDAR (pan/tilt/zoom de la
 Terminal de Cámara) o, si la marca los esconde, los de sus UNIDADES DE EXTENSIÓN (XU),
 que se descubren con el control «explorar».
 """
@@ -14,8 +14,12 @@ plugin = ba.Plugin()
 cfg = plugin.config
 nombre = cfg.get("entrada", "Cámara USB")
 
-# La imagen: el pipeline que corre la app (dispositivos_listar da el device-index).
-plugin.entrada(nombre, gst=cfg.get("video", "avfvideosrc device-index=0"))
+# La imagen: la cámara del equipo que se eligió en la configuración («dispositivo»; vacío =
+# la primera), o un pipeline propio («video»). Antes era «avfvideosrc», que solo anda en la Mac.
+if cfg.get("video"):
+    plugin.entrada(nombre, gst=cfg["video"])
+else:
+    plugin.entrada(nombre, camara=cfg.get("dispositivo", ""))
 
 uvc = None
 lock = threading.Lock()

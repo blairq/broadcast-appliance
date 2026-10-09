@@ -96,7 +96,8 @@ GstBuffer* textoDibujado(const Rotulo& r) {
         GstElement* rotulo = gst_bin_get_by_name(GST_BIN(dibujante), "rotulo");
         GstElement* sale = gst_bin_get_by_name(GST_BIN(dibujante), "sale");
         GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, r.ancho,
-                                            "height", G_TYPE_INT, r.alto, "framerate", GST_TYPE_FRACTION, 1, 1, nullptr);
+                                            "height", G_TYPE_INT, r.alto, "framerate", GST_TYPE_FRACTION, 1, 1,
+                                            "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
         g_object_set(entra, "caps", caps, nullptr);
         gst_caps_unref(caps);
         g_object_set(rotulo, "text", r.texto.c_str(), "font-desc", r.fuente.c_str(), "draw-outline", r.contorno, nullptr);
@@ -279,7 +280,10 @@ void Entrada::armarSalida() {
     // Un cuadro (ya rotulado: placaDibujada) que se congela: antes rotulaba 30
     // cuadros por segundo por entrada aunque nadie la mirara (docs/desarrollo/MAPA-GPU-CPU.md).
     const std::string placa = "appsrc name=placa format=time caps=video/x-raw,format=BGRA,width=" + std::to_string(kPlacaAncho) +
-                              ",height=" + std::to_string(kPlacaAlto) + ",framerate=" + fps + " ! " +
+                              ",height=" + std::to_string(kPlacaAlto) + ",framerate=" + fps +
+                              // CON el píxel cuadrado: sin él, d3d12upload fijaba 1/2147483647
+                              // y d3d12convert no negociaba (en Windows la placa nunca anduvo).
+                              ",pixel-aspect-ratio=1/1 ! " +
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
                               " ! imagefreeze name=congela is-live=true ! fs.sink_1";
@@ -474,7 +478,8 @@ void Entrada::leer(const json& a) {
         rotulo_->alto = std::max(2, h);
         rotulo_->fondo = 0x00000000;
         descripcion_ = "appsrc name=ba_texto format=time caps=video/x-raw,format=BGRA" + tam + ",framerate=" +
-                       std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) + " ! imagefreeze is-live=true";
+                       std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
+                       ",pixel-aspect-ratio=1/1 ! imagefreeze is-live=true"; // sin el píxel cuadrado, d3d12 no negocia
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "app") {
@@ -770,6 +775,12 @@ void Entrada::armar() {
         if (!descripcionAudio_.empty() && conAudio_)
             completo += std::string(completo.empty() ? "" : " ") + descripcionAudio_ + " ! queue ! " + cadenaA +
                         "audioconvert ! audioresample ! " + kAudio + " ! " + salida("a");
+    }
+    // La cadena entera al registro, una vez por cambio (con los reintentos no se repite):
+    // es lo primero que hace falta cuando una entrada no anda.
+    if (completo != cadenaRegistrada_) {
+        cadenaRegistrada_ = completo;
+        registrar(Nivel::Info, id_ + ": cadena: " + completo);
     }
     GError* err = nullptr;
     GstElement* p = gst_parse_launch(completo.c_str(), &err);

@@ -222,6 +222,7 @@ class Entrada {
     int revisarTareas_ = 0;          ///< vueltas en que todavía se buscan fuentes terminadas (soltarTareasTerminadas)
     std::string nombre_;
     std::string error_, errorAnotado_;
+    std::string cadenaRegistrada_; ///< la última cadena que se anotó en el registro
     std::uint64_t errorAnotadoNs_ = 0;
     std::vector<std::string> avisos_;
     bool esperaDispositivo_ = false;

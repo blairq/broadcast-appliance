@@ -9,6 +9,8 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/FuentesApp.hpp"
+#include "emision/InputSpecs.hpp"
+#include "video/Camaras.hpp"
 
 #include <nlohmann/json.hpp>
 
@@ -103,6 +105,55 @@ void PropertiesModel::rebuild() {
     const std::string tipo = e.sourceTypeId(nombre);
     const json ajustes = fuentes::conDefectos(tipo, json::parse(e.sourceSettingsJson(nombre), nullptr, false));
     fuentes::Tipo t;
+    // Una cámara, o una «Entrada por GStreamer» recién agregada (sin nada): la
+    // cámara y su formato en una lista. Antes no tenía ninguna fila (los ajustes
+    // estaban vacíos) y GStreamer mostraba su video de prueba: «aparece algo pero
+    // no anda». Sin cámara, también el pipeline propio.
+    const auto vaciaGst = [&]() {
+        if (!ajustes.is_object()) return true;
+        for (const char* k : {"microfono", "anillo", "pipeline_audio", "video_invitado", "virtual", "fisica", "ndi", "voz", "uri"})
+            if (ajustes.contains(k)) return false;
+        return ajustes.value("pipeline", std::string()).empty();
+    };
+    if (tipo == inputs::kMicType && (inputs::esCamara(tipo, ajustes) || vaciaGst())) {
+        const std::string cam = ajustes.is_object() ? ajustes.value("camara", std::string()) : std::string();
+        BroadcastEngine& motor = rt_.engine();
+        Row c;
+        c.name = "camara";
+        c.label = "Cámara o capturadora";
+        c.kind = "list";
+        c.help = "Las cámaras USB y capturadoras conectadas a esta máquina.";
+        bool esta = false;
+        for (const auto& d : video::camarasDelEquipo(motor)) {
+            c.options << QVariantMap{{"value", qs(d.value)}, {"label", qs(d.name)}};
+            esta = esta || d.value == cam;
+        }
+        if (!cam.empty() && !esta) c.options << QVariantMap{{"value", qs(cam)}, {"label", "(no está conectada)"}};
+        if (c.options.isEmpty()) c.help = "No se encontró ninguna cámara ni capturadora conectada.";
+        c.value = qs(cam);
+        rows_.push_back(c);
+        if (!cam.empty() || inputs::esCamara(tipo, ajustes)) {
+            Row m;
+            m.name = "camara_modo";
+            m.label = "Formato";
+            m.kind = "list";
+            m.help = "Tamaño y cuadros por segundo. Automático: el que mejor va con el lienzo.";
+            m.options << QVariantMap{{"value", QString()}, {"label", "Automático"}};
+            for (const auto& mo : video::modosDeCamara(cam)) m.options << QVariantMap{{"value", qs(mo.valor())}, {"label", qs(mo.etiqueta())}};
+            m.value = qs(ajustes.value("camara_modo", std::string()));
+            rows_.push_back(m);
+        } else {
+            Row pl;
+            pl.name = "pipeline";
+            pl.label = "O un pipeline de GStreamer";
+            pl.kind = "text";
+            pl.help = "Cualquier origen: «rtspsrc location=rtsp://… ! decodebin», «videotestsrc»…";
+            pl.value = QString();
+            rows_.push_back(pl);
+        }
+        endResetModel();
+        return;
+    }
     if (fuentes::tipo(tipo, t) && t.props) {
         for (const auto& p : t.props(ajustes)) {
             Row r;

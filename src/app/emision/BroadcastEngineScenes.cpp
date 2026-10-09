@@ -737,7 +737,8 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
 }
 
 std::vector<SourceType> BroadcastEngine::inputTypes() const {
-    return {{inputs::kMicType, "Entrada por GStreamer (cámara, micrófono, red)", true, true},
+    return {{inputs::kVideoType, "Cámara o capturadora (USB, HDMI)", true, true},
+            {inputs::kMicType, "Entrada por GStreamer (pipeline propio)", true, true},
             {inputs::kMedioType, "Archivo de video o audio", true, true},
             {"ffmpeg_source", "Video de red (URL)", true, true},
             {"color_source_v3", "Color", true, false},

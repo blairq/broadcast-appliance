@@ -1228,18 +1228,27 @@ void Plugins::declararEntrada(const std::string& id, const json& d) {
         }
         return o + "\"";
     };
-    if (pv.empty() && conVideo)
+    // Una cámara del equipo (`camara`: su id, o "" para la primera): la abre el motor
+    // como cualquier cámara (en cada sistema con lo suyo), sin pipeline escrito.
+    json extra{{"ba_plugin", id}};
+    if (d.contains("camara")) {
+        const std::string c = d.value("camara", std::string());
+        extra["camara"] = c.empty() ? std::string("default") : c;
+        if (d.contains("camara_modo")) extra["camara_modo"] = d.value("camara_modo", std::string());
+        pv.clear();
+    } else if (pv.empty() && conVideo) {
         pv = "bapluginsrc plugin=" + comillas(id) + " entrada=" + comillas(nombre) + " medio=video";
+    }
     if (pa.empty() && conAudio && !d.contains("gst_audio"))
         pa = "bapluginsrc plugin=" + comillas(id) + " entrada=" + comillas(nombre) + " medio=audio";
-    const bool propio = d.contains("gst");
+    const bool propio = d.contains("gst") || d.contains("camara");
     const int normalizar =
         d.contains("normalizar") ? (d.value("normalizar", false) ? 1 : 0) : (propio ? 1 : 0);
     const int latencia = d.value("latencia_ms", propio ? 100 : 60);
     const json man = leerJson(carpetaDe(id) / "plugin.json");
     const std::string escena = d.value("escena", man.value("escena", std::string("Plugins")));
     const std::string e =
-        video_->crearEntradaPipeline(nombre, pv, pa, escena, latencia, normalizar, json{{"ba_plugin", id}});
+        video_->crearEntradaPipeline(nombre, pv, pa, escena, latencia, normalizar, extra);
     if (!e.empty()) {
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "plugins", 0, id + ": entrada «" + nombre + "»: " + e);
         auto it = procesos_.find(id);

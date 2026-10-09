@@ -62,6 +62,9 @@ endif()
 
 add_library(gstbaplugins MODULE plugin/baplugin.cpp)
 target_link_libraries(gstbaplugins PRIVATE nlohmann_json::nlohmann_json)
+if(WIN32)
+    target_link_libraries(gstbaplugins PRIVATE ws2_32) # el socket con el plugin
+endif()
 ba_plugin_gst(gstbaplugins)
 
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).

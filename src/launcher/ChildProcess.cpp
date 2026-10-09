@@ -139,7 +139,10 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
     if (LPCH env = GetEnvironmentStringsA()) {
         for (const char* e = env; *e != '\0'; e += std::strlen(e) + 1) {
             const char* eq = std::strchr(e, '=');
-            if (eq != nullptr && std::strncmp(e, "BA_", 3) == 0) {
+            // También el diagnóstico de GStreamer (GST_DEBUG, GST_DEBUG_FILE,
+            // GST_DEBUG_DUMP_DOT_DIR...): sin eso no había forma de ver por qué
+            // una cadena no negocia en una máquina del cliente.
+            if (eq != nullptr && (std::strncmp(e, "BA_", 3) == 0 || std::strncmp(e, "GST_DEBUG", 9) == 0)) {
                 o.envSet[std::string(e, eq)] = std::string(eq + 1);
             }
         }
