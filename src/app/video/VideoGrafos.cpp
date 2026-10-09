@@ -1675,6 +1675,20 @@ std::string VideoGrafos::agregarTarjetaGst(const std::string& entrada, const std
     std::string id;
     const std::string e = editar([&](GrafoVideo& g) {
         std::string err;
+        // La MISMA tarjeta de un plugin (mismo plugin y tarjeta) en esa entrada se
+        // ajusta, no se agrega otra: antes cada plugin_tarjeta (p. ej. para cambiar
+        // un parámetro) sumaba una copia más a la cadena.
+        if (elemento == "baplugin" && propiedades.is_object())
+            for (const auto& n : g.nodos()) {
+                if (n.grupo != entrada || n.tipo != "gst" || n.params.value("elemento", std::string()) != "baplugin") continue;
+                const json pr = n.params.value("propiedades", json::object());
+                if (!pr.is_object() || pr.value("plugin", std::string()) != propiedades.value("plugin", std::string()) ||
+                    pr.value("tarjeta", std::string()) != propiedades.value("tarjeta", std::string()))
+                    continue;
+                id = n.id;
+                g.ajustar(n.id, json{{"propiedades", propiedades}}, &err);
+                return err;
+            }
         id = agregarModuloEn(g, elemento, entrada, "", propiedades, &err);
         return err;
     });
