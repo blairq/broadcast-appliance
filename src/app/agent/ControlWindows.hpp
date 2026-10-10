@@ -28,6 +28,7 @@ struct ControlWindows {
     bool preguntar = true;
     bool pantalla = true, mouse = true, teclado = true, ejecutar = true, ejecutar_admin = false, buscar = true,
          ventanas = true, portapapeles = true, procesos = true, comandos = true, sistema = true;
+    bool archivos = true, archivos_escribir = true, navegador = true, registro = false, avisos = true;
 
     /// Las capacidades, en orden, con su etiqueta (para Configuración y el MCP).
     static const std::vector<std::pair<std::string, std::string>>& capacidades();

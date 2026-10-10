@@ -20,7 +20,12 @@ const std::vector<std::pair<std::string, std::string>>& ControlWindows::capacida
         {"portapapeles", "Leer y escribir el portapapeles"},
         {"procesos", "Ver los procesos y cerrar uno (por su número)"},
         {"comandos", "Correr comandos (cmd o PowerShell) y leer lo que contestan"},
-        {"sistema", "Ver los datos del equipo (memoria, discos, Windows)"}};
+        {"sistema", "Ver los datos del equipo (memoria, discos, Windows) y leer el registro"},
+        {"archivos", "Leer y listar archivos"},
+        {"archivos_escribir", "Escribir, copiar, mover y borrar archivos (a la papelera)"},
+        {"navegador", "Chrome y Edge: la consola, JavaScript, navegar (un navegador con perfil propio)"},
+        {"registro", "Escribir y borrar valores del registro de Windows"},
+        {"avisos", "Mostrar avisos de Windows"}};
     return c;
 }
 
@@ -36,6 +41,11 @@ bool* ControlWindows::capacidad(const std::string& k) {
     if (k == "procesos") return &procesos;
     if (k == "comandos") return &comandos;
     if (k == "sistema") return &sistema;
+    if (k == "archivos") return &archivos;
+    if (k == "archivos_escribir") return &archivos_escribir;
+    if (k == "navegador") return &navegador;
+    if (k == "registro") return &registro;
+    if (k == "avisos") return &avisos;
     return nullptr;
 }
 

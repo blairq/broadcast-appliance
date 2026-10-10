@@ -34,6 +34,8 @@
 // solo para Windows (el control nativo es Win32).
 // ============================================================================
 
+#include "escritorio/control.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
@@ -72,20 +74,9 @@
 #include <io.h>
 #endif
 
-namespace {
+namespace bactl {
 
-using json = nlohmann::json;
-
-// --- Configuración de permisos --------------------------------------------------------
-
-/// Las capacidades, con su valor de fábrica: APAGADO todo (se prende en
-/// Configuración). Prendido el interruptor general, cada capacidad viene
-/// habilitada salvo `ejecutar_admin`, que hay que prender aparte.
-struct Permisos {
-    bool habilitado = false;
-    bool pantalla = true, mouse = true, teclado = true, ejecutar = true, ejecutar_admin = false, buscar = true,
-         ventanas = true, portapapeles = true, procesos = true, comandos = true, sistema = true;
-};
+// --- Configuración de permisos (Permisos: control.hpp) ---------------------------------
 
 std::string dataRoot() {
     const char* r = std::getenv("BA_DATA_ROOT");
@@ -115,6 +106,11 @@ Permisos permisos() {
     leer("procesos", p.procesos);
     leer("comandos", p.comandos);
     leer("sistema", p.sistema);
+    leer("archivos", p.archivos);
+    leer("archivos_escribir", p.archivos_escribir);
+    leer("navegador", p.navegador);
+    leer("registro", p.registro);
+    leer("avisos", p.avisos);
     return p;
 }
 
@@ -128,20 +124,20 @@ void escribir(const json& j) {
     std::cout.flush();
 }
 
-json resultadoTexto(const json& id, const std::string& texto, bool error = false) {
+json resultadoTexto(const json& id, const std::string& texto, bool error) {
     return json{{"jsonrpc", "2.0"},
                 {"id", id},
                 {"result", {{"content", json::array({{{"type", "text"}, {"text", texto}}})}, {"isError", error}}}};
 }
 
-[[maybe_unused]] json resultadoImagen(const json& id, const std::string& base64, const std::string& texto) {
+json resultadoImagen(const json& id, const std::string& base64, const std::string& texto) {
     json content = json::array();
     if (!texto.empty()) content.push_back({{"type", "text"}, {"text", texto}});
     content.push_back({{"type", "image"}, {"data", base64}, {"mimeType", "image/png"}});
     return json{{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"content", content}, {"isError", false}}}};
 }
 
-[[maybe_unused]] json resultadoDatos(const json& id, const json& datos) {
+json resultadoDatos(const json& id, const json& datos) {
     return json{{"jsonrpc", "2.0"},
                 {"id", id},
                 {"result",
@@ -150,7 +146,7 @@ json resultadoTexto(const json& id, const std::string& texto, bool error = false
                   {"isError", false}}}};
 }
 
-[[maybe_unused]] std::string base64(const unsigned char* d, size_t n) {
+std::string base64(const unsigned char* d, size_t n) {
     static const char* t = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     std::string o;
     o.reserve((n + 2) / 3 * 4);
@@ -166,15 +162,28 @@ json resultadoTexto(const json& id, const std::string& texto, bool error = false
 
 // --- El catálogo de herramientas ------------------------------------------------------
 
+json esquema(json props, std::vector<std::string> req) {
+    // Sin argumentos, `{}` llega acá como null: los clientes (Claude) exigen un
+    // objeto en `properties`, aunque esté vacío, y con null no cargaban el servidor.
+    if (!props.is_object()) props = json::object();
+    json j{{"type", "object"}, {"properties", props}};
+    if (!req.empty()) j["required"] = req;
+    return j;
+}
+
+json herramienta(const char* nombre, const char* descripcion, json esq) {
+    return {{"name", nombre}, {"description", descripcion}, {"inputSchema", std::move(esq)}};
+}
+
+json sinPermiso(const json& id, const char* que) {
+    return resultadoTexto(id,
+                          std::string("El control de Windows no tiene permiso para «") + que +
+                              "» (Configuración → Control de Windows, o control_configurar).",
+                          true);
+}
+
 json catalogo() {
-    const auto obj = [](json props, std::vector<std::string> req = {}) {
-        // Sin argumentos, `{}` llega acá como null: los clientes (Claude) exigen un
-        // objeto en `properties`, aunque esté vacío, y con null no cargaban el servidor.
-        if (!props.is_object()) props = json::object();
-        json j{{"type", "object"}, {"properties", props}};
-        if (!req.empty()) j["required"] = req;
-        return j;
-    };
+    const auto obj = [](json props, std::vector<std::string> req = {}) { return esquema(std::move(props), std::move(req)); };
     json tools = json::array();
     const auto tool = [&](const char* name, const char* desc, json schema) {
         tools.push_back({{"name", name}, {"description", desc}, {"inputSchema", schema}});
@@ -227,7 +236,8 @@ json catalogo() {
               {"carpeta", {{"type", "string"}}},
               {"max", {{"type", "integer"}}}},
              {"patron"}));
-    tool("windows_ventanas", "Lista las ventanas visibles: título, id, proceso y posición. Permiso: ventanas.",
+    tool("windows_ventanas", "Lista las ventanas visibles: título, id, aplicación (el ejecutable), si es un navegador "
+         "(Chrome, Edge…: ver windows_chrome), proceso y posición. Permiso: ventanas.",
          obj({}));
     tool("windows_ventana",
          "Acciona una ventana. `id` (de windows_ventanas) o `titulo` (parte del título). `accion`: activar, "
@@ -247,8 +257,9 @@ json catalogo() {
          "Lee o escribe el portapapeles de texto. Sin `texto`: lo lee. Con `texto`: lo pone. Permiso: portapapeles.",
          obj({{"texto", {{"type", "string"}}}}));
     tool("windows_cursor",
-         "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado). Sin "
-         "argumentos. Para comprobar antes de escribir o hacer clic. Permiso: pantalla.",
+         "Dónde está el mouse, qué ventana tiene abajo y cuál tiene el foco (la que recibe el teclado), y si la "
+         "persona está usando la máquina (`inactivo_s`: hace cuánto tocó mouse o teclado; `usandola` si fue hace "
+         "menos de 5 s: esperar antes de mover el mouse). Sin argumentos. Permiso: pantalla.",
          obj({}));
     tool("windows_procesos",
          "Lista los procesos: pid, nombre, memoria (MB) y si tienen ventana. `nombre`: filtrar (parte del nombre "
@@ -276,6 +287,9 @@ json catalogo() {
          "Espera `ms` milisegundos (hasta 30000), o hasta que aparezca una ventana cuyo título contenga "
          "`titulo` (con `ms` como límite). Para dar tiempo a que abra un programa antes de seguir.",
          obj({{"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 30000}}}, {"titulo", {{"type", "string"}}}}));
+    // Las otras partes: UI Automation, Chrome, archivos y registro.
+    for (const json& parte : {herramientasUia(), herramientasChrome(), herramientasArchivos()})
+        for (const auto& t : parte) tools.push_back(t);
     return tools;
 }
 
@@ -485,12 +499,6 @@ void escribirTexto(const std::wstring& w) {
 }
 
 // -- Ventanas --
-struct Ventana {
-    HWND hwnd;
-    std::string titulo;
-    DWORD pid;
-    RECT rect;
-};
 std::vector<Ventana> ventanas() {
     std::vector<Ventana> out;
     EnumWindows(
@@ -511,6 +519,40 @@ std::vector<Ventana> ventanas() {
         reinterpret_cast<LPARAM>(&out));
     return out;
 }
+std::string ejecutableDe(DWORD pid) {
+    std::string out;
+    if (HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)) {
+        wchar_t ruta[MAX_PATH];
+        DWORD n = MAX_PATH;
+        if (QueryFullProcessImageNameW(h, 0, ruta, &n)) out = aU(PathFindFileNameW(ruta));
+        CloseHandle(h);
+    }
+    return out;
+}
+
+bool mandarTeclas(const std::string& combo) {
+    std::vector<WORD> vks;
+    std::string parte;
+    bool ok = true;
+    const auto empujar = [&]() {
+        if (parte.empty()) return;
+        bool bien;
+        const WORD vk = teclaVk(parte, bien);
+        parte.clear();
+        if (bien) vks.push_back(vk);
+        else ok = false;
+    };
+    for (char c : combo) {
+        if (c == '+') empujar();
+        else parte.push_back(c);
+    }
+    empujar();
+    if (!ok || vks.empty()) return false;
+    for (WORD vk : vks) tecla(vk, true);
+    for (auto it = vks.rbegin(); it != vks.rend(); ++it) tecla(*it, false);
+    return true;
+}
+
 std::string tituloDe(HWND h) {
     wchar_t t[512];
     const int n = h != nullptr ? GetWindowTextW(h, t, 512) : 0;
@@ -813,6 +855,9 @@ json datosSistema() {
 
 // --- Despacho en Windows --
 json ejecutarHerramienta(const json& id, const std::string& nombre, const json& a, const Permisos& p) {
+    json out;
+    if (atenderUia(id, nombre, a, p, out) || atenderChrome(id, nombre, a, p, out) || atenderArchivos(id, nombre, a, p, out))
+        return out;
     const auto noPermiso = [&](const char* que) {
         return resultadoTexto(id,
                               std::string("El control de Windows no tiene permiso para «") + que +
@@ -890,28 +935,8 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "windows_teclado") {
         if (!p.teclado) return noPermiso("teclado");
         if (a.contains("texto")) escribirTexto(aW(a.value("texto", std::string())));
-        if (a.contains("teclas")) {
-            const std::string combo = a.value("teclas", std::string());
-            std::vector<WORD> vks;
-            std::string parte;
-            const auto empujar = [&]() {
-                if (parte.empty()) return true;
-                bool ok;
-                const WORD vk = teclaVk(parte, ok);
-                parte.clear();
-                if (ok) vks.push_back(vk);
-                return ok;
-            };
-            bool ok = true;
-            for (char c : combo) {
-                if (c == '+') ok = empujar() && ok;
-                else parte.push_back(c);
-            }
-            ok = empujar() && ok;
-            if (!ok || vks.empty()) return resultadoTexto(id, "no entendí la combinación de teclas", true);
-            for (WORD vk : vks) tecla(vk, true);
-            for (auto it = vks.rbegin(); it != vks.rend(); ++it) tecla(*it, false);
-        }
+        if (a.contains("teclas") && !mandarTeclas(a.value("teclas", std::string())))
+            return resultadoTexto(id, "no entendí la combinación de teclas", true);
         return resultadoTexto(id, "Hecho, " + donde(GetForegroundWindow()) + ".");
     }
     if (nombre == "windows_ejecutar") {
@@ -960,14 +985,21 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     if (nombre == "windows_ventanas") {
         if (!p.ventanas) return noPermiso("ventanas");
         json out = json::array();
-        for (const auto& w : ventanas())
+        for (const auto& w : ventanas()) {
+            const std::string app = ejecutableDe(w.pid);
+            std::string al;
+            for (char c : app) al.push_back(static_cast<char>(tolower(static_cast<unsigned char>(c))));
+            const bool nav = al == "chrome.exe" || al == "msedge.exe" || al == "brave.exe" || al == "firefox.exe" || al == "opera.exe";
             out.push_back({{"id", reinterpret_cast<long long>(w.hwnd)},
                            {"titulo", w.titulo},
+                           {"app", app},
+                           {"navegador", nav},
                            {"pid", static_cast<long long>(w.pid)},
                            {"x", w.rect.left},
                            {"y", w.rect.top},
                            {"ancho", w.rect.right - w.rect.left},
                            {"alto", w.rect.bottom - w.rect.top}});
+        }
         return resultadoDatos(id, {{"ventanas", out}});
     }
     if (nombre == "windows_ventana") {
@@ -1021,7 +1053,13 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
             if (pt.x >= m.x && pt.x < m.x + m.w && pt.y >= m.y && pt.y < m.y + m.h) monitor = i;
             ++i;
         }
+        // Si la persona está usando la máquina (hace cuánto tocó mouse o teclado): para no
+        // pelearle el mouse.
+        LASTINPUTINFO li{sizeof(li), 0};
+        const double inactivo = GetLastInputInfo(&li) ? (GetTickCount() - li.dwTime) / 1000.0 : -1;
         return resultadoDatos(id, {{"x", pt.x}, {"y", pt.y}, {"monitor", monitor},
+                                   {"inactivo_s", std::round(inactivo * 10) / 10},
+                                   {"usandola", inactivo >= 0 && inactivo < 5},
                                    {"debajo", {{"id", reinterpret_cast<long long>(raiz)}, {"titulo", tituloDe(raiz)}}},
                                    {"foco", {{"id", reinterpret_cast<long long>(foco)}, {"titulo", tituloDe(foco)}}}});
     }
@@ -1088,7 +1126,9 @@ json llamarHerramienta(const json& id, const std::string& nombre, const json& re
     }
 }
 
-} // namespace
+} // namespace bactl
+
+using namespace bactl;
 
 int main() {
 #if defined(_WIN32)
@@ -1096,6 +1136,8 @@ int main() {
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
     SetProcessDPIAware(); // coordenadas en píxeles reales
+    // UI Automation (control_uia) habla COM: el hilo principal, en un departamento múltiple.
+    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     Gdiplus::GdiplusStartupInput gsi;
     ULONG_PTR gdiTok = 0;
     Gdiplus::GdiplusStartup(&gdiTok, &gsi, nullptr);
