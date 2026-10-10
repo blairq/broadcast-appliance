@@ -62,6 +62,11 @@ class SuperRes : public QObject {
 
     /// Baja las bibliotecas del laboratorio. "" o el error (si ya hay un trabajo).
     std::string prepararLaboratorio();
+    /// El laboratorio (las bibliotecas de Python: PyTorch, spandrel, onnx):
+    /// {listo, directml, carpeta, mb, bibliotecas}.
+    json laboratorio() const;
+    /// Borra sus bibliotecas (~800 MB; se vuelven a bajar cuando hagan falta). "" o el error.
+    std::string borrarLaboratorio();
     /// Convierte un modelo de terceros: "span" o "esrgan". Prepara el laboratorio si hace falta.
     std::string convertir(const std::string& cual);
     /// Entrena la red chica mirando la entrada `entrada` (graba `segundos` y entrena

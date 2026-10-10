@@ -700,6 +700,9 @@ const Fila kPropias[] = {
     // --- QR -----------------------------------------------------------------------
     {"qr_listar", "que codigos qr hay guardados tipos iconos"},
     {"ui_abrir_panel", "abrir panel dialogo ventana superresolucion entrada virtual catalogo modulos mostrar"},
+    {"superres_laboratorio", "superresolucion laboratorio bibliotecas python pytorch paquetes bajar instalar borrar espacio directml"},
+    {"superres_modelo_borrar", "borrar modelo superresolucion red onnx espacio"},
+    {"superres_trabajo", "superresolucion trabajo avance progreso cancelar esperar descarga entrenamiento"},
     {"control_estado", "puede el asistente manejar la pc mouse captura permisos del control de windows"},
     {"control_configurar", "habilitar prender apagar control de windows permitir administrador mouse teclado"},
     {"qr_generar", "generar codigo qr crear sin guardar probar"},

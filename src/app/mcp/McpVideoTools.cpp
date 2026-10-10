@@ -19,7 +19,9 @@
 #include "video/SuperRes.hpp"
 #include "video/VideoGrafos.hpp"
 
+#include <QDateTime>
 #include <QJsonDocument>
+#include <QTimer>
 #include <QPointer>
 
 #include <cctype>
@@ -1696,6 +1698,112 @@ void McpService::registerVideoTools() {
                 const std::string e = srp->convertir(a.value("cual", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
                 done(ToolResult().text("Empezó (superres_estado muestra el avance)."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_laboratorio";
+            t.title = "El laboratorio de superresolución (las bibliotecas de Python)";
+            t.category = "video";
+            t.description =
+                "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
+                "~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en "
+                "la placa—, dónde y cuánto ocupa), instalar (las baja ya, sin esperar a bajar un modelo) o borrar "
+                "(libera el espacio; se vuelven a bajar cuando hagan falta). Instalar corre en segundo plano: "
+                "superres_trabajo {esperar} para seguirlo.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"accion", {{"type", "string"}, {"enum", {"estado", "instalar", "borrar"}}}}}}};
+            t.examples = {R"({"accion": "estado"})", R"({"accion": "instalar"})"};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string ac = a.value("accion", std::string("estado"));
+                if (ac == "instalar") {
+                    if (srp->laboratorioListo()) return done(ToolResult().data(srp->laboratorio()));
+                    const std::string e = srp->prepararLaboratorio();
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    return done(ToolResult().text("Bajando el laboratorio (superres_trabajo muestra el avance)."));
+                }
+                if (ac == "borrar") {
+                    const std::string e = srp->borrarLaboratorio();
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    return done(ToolResult().text("Laboratorio borrado."));
+                }
+                done(ToolResult().data(srp->laboratorio()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_modelo_borrar";
+            t.title = "Borrar un modelo de superresolución";
+            t.category = "video";
+            t.destructive = true;
+            t.description = "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
+                            "el nombre, como los lista superres_estado.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"modelo"}},
+                             {"properties", {{"modelo", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string pedido = a.value("modelo", std::string());
+                std::string archivo;
+                for (const auto& m : srp->modelos())
+                    if (m.value("archivo", std::string()) == pedido || m.value("nombre", std::string()) == pedido ||
+                        m.value("ruta", std::string()) == pedido)
+                        archivo = m.value("archivo", std::string());
+                if (archivo.empty()) return done(ToolResult::error("no hay un modelo «" + pedido + "» (superres_estado los lista)"));
+                const QString e = srp->borrarModelo(QString::fromStdString(archivo));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                done(ToolResult().text("Borrado «" + archivo + "»."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_trabajo";
+            t.title = "El trabajo del laboratorio: ver, cancelar o esperar";
+            t.category = "video";
+            t.description =
+                "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
+                "destilar, instalar un plugin, variantes, runtime de GPU). `accion`: estado (de fábrica), cancelar, "
+                "o esperar (vuelve cuando termina, o a los `segundos`, de fábrica 600: para encadenar pasos sin "
+                "preguntar cada rato).";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"accion", {{"type", "string"}, {"enum", {"estado", "cancelar", "esperar"}}}},
+                               {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 3600}}}}}};
+            t.examples = {R"({"accion": "esperar", "segundos": 900})"};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const auto estado = [srp]() {
+                    return json::parse(QJsonDocument::fromVariant(srp->trabajo()).toJson(QJsonDocument::Compact).toStdString(),
+                                       nullptr, false);
+                };
+                const std::string ac = a.value("accion", std::string("estado"));
+                if (ac == "cancelar") {
+                    srp->cancelar();
+                    return done(ToolResult().text("Cancelado."));
+                }
+                if (ac != "esperar" || !srp->trabajo().value("corriendo").toBool())
+                    return done(ToolResult().data(estado()));
+                // Esperar sin trabar la app: se mira cada medio segundo.
+                const qint64 hasta = QDateTime::currentMSecsSinceEpoch() +
+                                     static_cast<qint64>(a.value("segundos", 600.0) * 1000);
+                auto mirar = std::make_shared<std::function<void()>>();
+                *mirar = [srp, done, hasta, estado, mirar]() {
+                    const bool corre = srp->trabajo().value("corriendo").toBool();
+                    if (!corre || QDateTime::currentMSecsSinceEpoch() >= hasta) {
+                        json d = estado();
+                        if (corre) d["espera"] = "se cumplió el tiempo: sigue trabajando";
+                        done(ToolResult().data(d));
+                        *mirar = nullptr; // corta el ciclo de la captura
+                        return;
+                    }
+                    QTimer::singleShot(500, *mirar);
+                };
+                QTimer::singleShot(500, *mirar);
             };
             core_.addTool(std::move(t));
         }

@@ -234,6 +234,30 @@ void SuperRes::linea(const QByteArray& l) {
     emit trabajoCambio();
 }
 
+json SuperRes::laboratorio() const {
+    std::error_code ec;
+    std::uintmax_t bytes = 0;
+    if (fs::is_directory(libs(), ec))
+        for (auto it = fs::recursive_directory_iterator(libs(), fs::directory_options::skip_permission_denied, ec);
+             it != fs::recursive_directory_iterator(); it.increment(ec))
+            if (!ec && it->is_regular_file(ec)) bytes += it->file_size(ec);
+    json bib = json::array();
+    for (const QString& b : bibliotecas()) bib.push_back(b.toStdString());
+    return {{"listo", laboratorioListo()},
+            {"directml", conDirectml()},
+            {"carpeta", libs().string()},
+            {"mb", static_cast<double>(bytes / 1048576)},
+            {"bibliotecas", bib}};
+}
+
+std::string SuperRes::borrarLaboratorio() {
+    if (hijo_ && hijo_->corriendo()) return "hay un trabajo andando: cancelalo primero";
+    std::error_code ec;
+    fs::remove_all(libs(), ec);
+    emit cambio();
+    return ec ? "no se pudo borrar: " + ec.message() : std::string();
+}
+
 std::string SuperRes::prepararLaboratorio() {
     if (laboratorioListo()) return {};
     std::error_code ec;
