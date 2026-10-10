@@ -51,7 +51,24 @@ else()
         # Linux: en bin/64bit/llama, con su rpath (portable: nada del sistema).
         set_target_properties(${_ba_nombre} PROPERTIES INSTALL_RPATH "$ORIGIN/llama")
         install(TARGETS ${_ba_nombre} RUNTIME DESTINATION bin/64bit COMPONENT bundle)
-        install(DIRECTORY "${_ba_llama}/lib/" DESTINATION bin/64bit/llama COMPONENT bundle USE_SOURCE_PERMISSIONS)
+        # Solo lo que carga el modelo, como en Windows: las de las herramientas de línea
+        # de comandos de la release (llama-common, llama-server-impl, ggml-rpc) piden
+        # libssl/libcrypto del sistema y no viajan.
+        file(GLOB _ba_sos "${_ba_llama}/lib/libllama.so*" "${_ba_llama}/lib/libmtmd.so*" "${_ba_llama}/lib/libggml.so*"
+             "${_ba_llama}/lib/libggml-base.so*" "${_ba_llama}/lib/libggml-vulkan.so*" "${_ba_llama}/lib/libggml-cpu-*.so*")
+        install(FILES ${_ba_sos} DESTINATION bin/64bit/llama COMPONENT bundle)
+        # Los backends de la CPU usan OpenMP: libgomp del compilador, al lado (portable).
+        execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libgomp.so.1 OUTPUT_VARIABLE _ba_gomp
+                        OUTPUT_STRIP_TRAILING_WHITESPACE)
+        if(NOT IS_ABSOLUTE "${_ba_gomp}" OR NOT EXISTS "${_ba_gomp}")
+            find_file(_ba_gomp libgomp.so.1 PATHS /usr/lib/x86_64-linux-gnu /usr/lib64 /usr/lib NO_DEFAULT_PATH)
+        endif()
+        if(_ba_gomp AND EXISTS "${_ba_gomp}")
+            get_filename_component(_ba_gomp_real "${_ba_gomp}" REALPATH)
+            install(FILES "${_ba_gomp_real}" DESTINATION bin/64bit/llama RENAME libgomp.so.1 COMPONENT bundle)
+        else()
+            message(WARNING "ba-modelo: no encontré libgomp.so.1; los backends de la CPU de llama.cpp no van a cargar")
+        endif()
     endif()
 endif()
 message(STATUS "ba-modelo (llama.cpp): ${_ba_llama}")
