@@ -129,7 +129,8 @@ void McpService::registerPantallaTools() {
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
               {"qr",
                {{"type", "string"},
-                {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
+                {"description", "con tipo=qr: \"aparato:publico\" (la pagina del publico, con su clave), "
+                                "\"aparato:sala\", \"aparato:prompter\", \"aparato:rotulos\", o el id de uno GUARDADO (qr_listar los da), que sale "
                                 "con el estilo con el que se diseño. Sin esto se usa `texto` y "
                                 "sale con el estilo de fabrica."}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
@@ -178,7 +179,11 @@ void McpService::registerPantallaTools() {
             if (tipo == "qr" && a.contains("qr") && a["qr"].is_string()) {
                 auto* qvm = static_cast<QrViewModel*>(vm_.qr());
                 const QString qid = QString::fromStdString(a["qr"].get<std::string>());
-                const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectar(qid);
+                const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectarElegido(qid);
+                if (guardado.value("pendiente").toBool()) {
+                    done(ToolResult::error("La sala todavia no dio ese enlace (¿esta andando?): proba de nuevo en un momento."));
+                    return;
+                }
                 if (guardado.isEmpty()) {
                     done(ToolResult::error("No tengo guardado un codigo QR con id '" + qid.toStdString() +
                                            "'. qr_listar los da."));

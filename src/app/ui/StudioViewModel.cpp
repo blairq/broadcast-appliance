@@ -89,6 +89,7 @@
 #include "red/Red.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
+#include "ui/FuenteQrPintor.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/DashboardModel.hpp"
@@ -293,6 +294,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(this, &StudioViewModel::escenasCambiaron, carruseles_.get(), &CarruselViewModel::revisarEscena);
     carruseles_->revisarEscena();
     connect(qr_.get(), &QrViewModel::notify, this, &StudioViewModel::notify);
+    fuenteQr_ = std::make_unique<FuenteQrPintor>(*qr_);
     connect(rotulador_.get(), &RotuladorViewModel::notify, this, &StudioViewModel::notify);
     connect(this, &StudioViewModel::sceneChanged, rotulador_.get(), &RotuladorViewModel::refrescar);
 

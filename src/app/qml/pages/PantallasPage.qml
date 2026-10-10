@@ -447,6 +447,30 @@ Rectangle {
                                 onCountChanged: anotar()
                                 Component.onCompleted: anotar()
                             }
+                            // Un QR: los del aparato (Público, Sala…) y los guardados; al
+                            // elegir uno se llenan su texto, su estilo y el pie.
+                            ComboBox {
+                                id: listaQr
+                                visible: modelData.opciones === "qrs"
+                                Layout.fillWidth: true
+                                property var opciones: visible ? [{ value: "", label: "Escribirlo a mano (abajo)" }].concat(Studio.qr.paraElegir()) : []
+                                model: opciones
+                                textRole: "label"
+                                valueRole: "value"
+                                onActivated: {
+                                    let d = page.datos
+                                    d.guardado = currentValue
+                                    if (currentValue === "") { delete d.estilo; page.datos = d; return }
+                                    const q = Studio.qr.paraProyectarElegido(currentValue)
+                                    if (q.pendiente) {
+                                        Studio.notify("La sala todavía no dio ese enlace: probá de nuevo en un momento (¿está andando la sala?).", "warning")
+                                        return
+                                    }
+                                    d.texto = q.texto; d.estilo = q.estilo
+                                    if (!d.pie) d.pie = q.nombre
+                                    page.datos = d
+                                }
+                            }
                             TextArea {
                                 visible: modelData.largo && modelData.opciones === ""
                                 Layout.fillWidth: true

@@ -287,8 +287,13 @@ struct QrViewModel::Impl {
     }
 };
 
+namespace {
+QrViewModel* gElDeLaApp = nullptr; ///< ver elDeLaApp
+}
+
 QrViewModel::QrViewModel(AppRuntime& rt, EventoViewModel* evento, ConferenceViewModel* sala, QObject* parent)
     : QObject(parent), d_(std::make_unique<Impl>()) {
+    gElDeLaApp = this;
     d_->rt = &rt;
     d_->evento = evento;
     d_->sala = sala;
@@ -297,7 +302,9 @@ QrViewModel::QrViewModel(AppRuntime& rt, EventoViewModel* evento, ConferenceView
     resolver();
 }
 
-QrViewModel::~QrViewModel() = default;
+QrViewModel::~QrViewModel() {
+    if (gElDeLaApp == this) gElDeLaApp = nullptr;
+}
 
 // --- Lo que ve la interfaz -----------------------------------------------------
 
@@ -648,6 +655,60 @@ QVariantMap QrViewModel::paraProyectar(const QString& id) const {
                            {"estilo", QString::fromStdString(qr::aConsulta(aEstilo(estilo)))}};
     }
     return {};
+}
+
+namespace {
+struct DelAparato {
+    const char* tipo;
+    const char* etiqueta;
+};
+const DelAparato kDelAparato[] = {{"publico", "Público: preguntar y votar (con la clave adentro)"},
+                                  {"sala", "Sala: entrar como invitado (con el PIN adentro)"},
+                                  {"prompter", "Prompter: la vista del orador"},
+                                  {"rotulos", "Rótulos: cargarlos desde el teléfono"}};
+} // namespace
+
+QrViewModel* QrViewModel::elDeLaApp() { return gElDeLaApp; }
+
+QVariantList QrViewModel::paraElegir() const {
+    QVariantList out;
+    for (const auto& x : kDelAparato)
+        out << QVariantMap{{"value", QString("aparato:") + x.tipo}, {"label", QString::fromUtf8(x.etiqueta)}};
+    for (const QVariant& v : todos()) {
+        const QVariantMap m = v.toMap();
+        out << QVariantMap{{"value", m.value("id")}, {"label", m.value("nombre").toString() + " (guardado)"}};
+    }
+    return out;
+}
+
+QVariantMap QrViewModel::paraProyectarElegido(const QString& elegido) {
+    if (!elegido.startsWith("aparato:")) return paraProyectar(elegido);
+    const QString tipo = elegido.mid(8);
+    const QString texto = d_->delAparato.value(tipo);
+    QString etiqueta;
+    for (const auto& x : kDelAparato)
+        if (tipo == x.tipo) etiqueta = QString::fromUtf8(x.etiqueta).section(':', 0, 0);
+    if (texto.isEmpty()) {
+        resolver(); // la sala lo da en un momento
+        return QVariantMap{{"pendiente", true}, {"nombre", etiqueta}};
+    }
+    return QVariantMap{{"texto", texto},
+                       {"nombre", etiqueta},
+                       {"estilo", QString::fromStdString(qr::aConsulta(aEstilo(estiloDeFabrica())))}};
+}
+
+QString QrViewModel::svgElegido(const QString& elegido, const QString& textoLibre) {
+    if (elegido.startsWith("aparato:")) {
+        const QString texto = d_->delAparato.value(elegido.mid(8));
+        if (texto.isEmpty()) {
+            resolver();
+            return {};
+        }
+        return QString::fromStdString(qr::svg(texto.toStdString(), aEstilo(estiloDeFabrica())));
+    }
+    if (!elegido.isEmpty()) return svgDe(elegido);
+    if (textoLibre.trimmed().isEmpty()) return {};
+    return QString::fromStdString(qr::svg(textoLibre.trimmed().toStdString(), aEstilo(estiloDeFabrica())));
 }
 
 QVariantList QrViewModel::todos() const {

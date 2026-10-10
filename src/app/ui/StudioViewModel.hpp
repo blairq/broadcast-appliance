@@ -133,6 +133,7 @@ class Configuraciones;
 class OperatorMessages;
 class InputsViewModel;
 class ChatOverlayRenderer;
+class FuenteQrPintor;
 class DashboardModel;
 class FrameService;
 class MixerModel;
@@ -989,6 +990,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<OperatorMessages> messages_;
     std::unique_ptr<InputsViewModel> inputs_;
     std::unique_ptr<ChatOverlayRenderer> chatOverlay_;
+    std::unique_ptr<FuenteQrPintor> fuenteQr_; ///< pinta las fuentes «Código QR» de las escenas
     QTimer tick_;
     QTimer frameTick_;
 

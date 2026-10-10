@@ -515,15 +515,45 @@ Rectangle {
                     // la imagen a esta fuente, y si la escena esta al aire, sale
                     // al aire. La tarjeta de control del dashboard pasa a
                     // manejar este carrusel cuando esta escena esta al aire.
+                    // Un código QR (el del Público, el de la Sala, uno guardado…).
+                    GlassButton {
+                        text: "Agregar código QR"; icon: "▦"; compact: true
+                        onClicked: qrMenu.popup()
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Un QR en esta escena: el de la página del Público, el de la Sala, o uno de «Códigos QR». Se mantiene al día solo."
+                        Menu {
+                            id: qrMenu
+                            property var opciones: []
+                            onAboutToShow: opciones = Studio.qr.paraElegir()
+                            Repeater {
+                                model: qrMenu.opciones
+                                delegate: MenuItem {
+                                    required property var modelData
+                                    text: modelData.label
+                                    onTriggered: {
+                                        const n = Studio.sources.addConAjustes("ba_qr", "QR · " + modelData.label.split(":")[0].replace(" (guardado)", ""),
+                                                                               { qr: modelData.value, fondo: true, tamano: 720 })
+                                        if (n) page.selected = n
+                                    }
+                                }
+                            }
+                        }
+                    }
                     GlassButton {
                         text: "Agregar carrusel"; icon: "▦"; compact: true
-                        visible: Studio.carruseles.carruseles.length > 0
+                        // Siempre a la vista: sin carruseles todavía, el menú dice dónde se arman.
                         onClicked: carruselMenu.popup()
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Poner en esta escena una tira de imágenes armada en Medios"
+                        ToolTip.text: "Poner en esta escena una tira de imágenes (se arman en Medios → Carruseles: con imágenes, un PDF o un PowerPoint)"
                         Menu {
                             id: carruselMenu
+                            MenuItem {
+                                visible: Studio.carruseles.carruseles.length === 0
+                                height: visible ? implicitHeight : 0
+                                text: "No hay carruseles: armar uno en Medios → Carruseles…"
+                                onTriggered: ApplicationWindow.window.page = Studio.riel.paginaDeId("medios")
+                            }
                             Repeater {
                                 model: Studio.carruseles.carruseles
                                 delegate: MenuItem {

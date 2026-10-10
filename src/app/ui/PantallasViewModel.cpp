@@ -48,7 +48,8 @@ struct Campo {
     const char* ejemplo;
     bool largo; ///< si va en un cuadro de varias líneas
     /// De dónde salen las opciones, si es una lista y no texto libre:
-    /// "escenas" = las escenas armadas (la interfaz las tiene en Studio.scenes).
+    /// "escenas" = las escenas armadas (la interfaz las tiene en Studio.scenes);
+    /// "qrs" = los QR para elegir (Studio.qr.paraElegir: los del aparato y los guardados).
     const char* opciones = "";
 };
 struct Contenido {
@@ -71,8 +72,10 @@ const std::vector<Contenido>& catalogo() {
          ""},
         {"qr",
          "Un código QR",
-         "El QR ocupa la pantalla entera: se escanea desde lejos.",
-         {{"texto", "Qué codifica", "https://…", false},
+         "El QR ocupa la pantalla entera: se escanea desde lejos. Uno del aparato (el del Público, el de "
+         "la Sala…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba.",
+         {{"guardado", "Qué QR", "", false, "qrs"},
+          {"texto", "Qué codifica (si es a mano)", "https://…", false},
           {"pie", "Abajo, más chico", "Escaneá para entrar a la sala", false}},
          true,
          ""},
@@ -542,6 +545,7 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     }
     QString url = base + "/pantalla/?tipo=" + tipo;
     for (const Campo& f : c->campos) {
+        if (std::string(f.opciones) == "qrs") continue; // lo elegido ya se volvió texto y estilo
         const QString v = datos.value(QString::fromUtf8(f.clave)).toString();
         if (v.isEmpty()) continue;
         url += "&" + QString::fromUtf8(f.clave) + "=" + QString::fromUtf8(QUrl::toPercentEncoding(v));

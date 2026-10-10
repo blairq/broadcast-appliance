@@ -322,6 +322,21 @@ Rectangle {
                                 GlassButton { compact: true; text: "Guardar SVG"; icon: "↓"
                                               onClicked: page.q.exportar("svg") }
                             }
+                            // Al aire: una fuente «Código QR» con ESTE código (guardado), en la
+                            // escena que está abierta en el editor de escenas. Se mantiene al día:
+                            // si se cambia el código o su estilo, cambia en la escena.
+                            GlassButton {
+                                Layout.alignment: Qt.AlignHCenter
+                                compact: true; icon: "▦"
+                                visible: page.q.abierto !== ""
+                                text: "Agregar a la escena «" + Studio.sources.scene + "»"
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: "Pone este código en la escena (abajo a la derecha; se mueve y se achica en Escenas). Para una pantalla externa: Pantallas → «Un código QR»."
+                                onClicked: {
+                                    const n = Studio.sources.addConAjustes("ba_qr", "QR · " + (page.q.actual.nombre || "código"), { qr: page.q.abierto, fondo: true, tamano: 720 })
+                                    if (n) Studio.notify("«" + n + "» está en la escena «" + Studio.sources.scene + "».", "info")
+                                }
+                            }
                         }
                     }
                 }

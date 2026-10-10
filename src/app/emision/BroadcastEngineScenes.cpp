@@ -80,7 +80,7 @@ const std::string kPrefijoCompositor = "__compositor:";
 
 /// Lo que pinta la app (QImage → cuadros al motor).
 bool esDeApp(const std::string& id) {
-    return id == "ba_subtitulos" || id == "ba_chat_overlay" || id == "ba_grafico" || id == "ba_app" ||
+    return id == "ba_subtitulos" || id == "ba_chat_overlay" || id == "ba_grafico" || id == "ba_app" || id == "ba_qr" ||
            id == "ba_video_compositor" || id == "ba_placeholder";
 }
 
@@ -845,6 +845,7 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
             {"image_source", "Imagen", true, false},
             {"screen_capture", "Captura de pantalla", true, false},
             {video::kTipoVentana, "Captura de una aplicación", true, false},
+            {"ba_qr", "Código QR (Público, Sala, uno guardado…)", true, false},
             {"ba_app", "Lo que pinta la app", true, false}};
 }
 

@@ -241,6 +241,23 @@ QString SourcesModel::add(const QString& typeId, const QString& baseName) {
     return qs(name);
 }
 
+QString SourcesModel::addConAjustes(const QString& typeId, const QString& baseName, const QVariantMap& ajustes) {
+    std::string name = baseName.trimmed().isEmpty() ? typeId.toStdString() : baseName.trimmed().toStdString();
+    const std::string base = name;
+    for (int i = 2; !rt_.engine().sourceTypeId(name).empty(); ++i) name = base + " " + std::to_string(i);
+    SourceSpec spec;
+    spec.id = typeId.toStdString();
+    spec.name = name;
+    spec.rect = CanvasRect{0.7f, 0.55f, 0.25f, 0.4f}; // abajo a la derecha: se mueve con el mouse
+    spec.settingsJson = QJsonDocument(QJsonObject::fromVariantMap(ajustes)).toJson(QJsonDocument::Compact).toStdString();
+    if (!rt_.addSource(scene_.toStdString(), spec)) {
+        emit error(qs(rt_.lastError()));
+        return {};
+    }
+    reload();
+    return qs(name);
+}
+
 int SourcesModel::guestSlots() const { return rt_.config().guests; }
 
 QVariantList SourcesModel::otherSources() const {
