@@ -556,6 +556,10 @@ endif()
         target_link_options(ba-control PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-control RUNTIME DESTINATION bin/64bit)
+    add_test(NAME test_ba_control_esquemas
+             COMMAND ${CMAKE_COMMAND} -DBIN=$<TARGET_FILE:ba-control>
+                     -DPEDIDO=${CMAKE_CURRENT_SOURCE_DIR}/tests/ba_control_tools_list.jsonl
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/ba_control_esquemas.cmake)
     add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
                    mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

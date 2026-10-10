@@ -27,7 +27,7 @@ struct ControlWindows {
     /// El cliente (Claude, Gemini) le pregunta al operador antes de cada herramienta.
     bool preguntar = true;
     bool pantalla = true, mouse = true, teclado = true, ejecutar = true, ejecutar_admin = false, buscar = true,
-         ventanas = true, portapapeles = true;
+         ventanas = true, portapapeles = true, procesos = true, comandos = true, sistema = true;
 
     /// Las capacidades, en orden, con su etiqueta (para Configuración y el MCP).
     static const std::vector<std::pair<std::string, std::string>>& capacidades();

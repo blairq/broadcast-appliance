@@ -29,7 +29,8 @@ void McpService::registerControlTools() {
         t.category = "agentes";
         t.readOnly = true;
         t.description = "Si el asistente puede manejar el escritorio de esta máquina (servidor MCP `control`: "
-                        "mouse, teclado, capturas, abrir programas, buscar, ventanas, portapapeles) y con qué "
+                        "mouse, teclado, capturas, abrir programas, buscar, ventanas, portapapeles, procesos, "
+                        "comandos, datos del equipo) y con qué "
                         "permisos. `preguntar`: el asistente pide permiso al operador antes de cada acción.";
         t.run = [this](const json&, Done done) {
             json d = ControlWindows::leer(ba::platform::dataRoot()).comoJson();
@@ -53,7 +54,7 @@ void McpService::registerControlTools() {
         t.description = "Prende o apaga el control del escritorio de Windows y sus permisos. `habilitado`: el "
                         "interruptor general. `preguntar`: que el asistente pida permiso antes de cada acción. "
                         "`permisos`: {pantalla, mouse, teclado, ejecutar, ejecutar_admin, buscar, ventanas, "
-                        "portapapeles} en true/false. Lo que no se manda queda como estaba.";
+                        "portapapeles, procesos, comandos, sistema} en true/false. Lo que no se manda queda como estaba.";
         t.details = "Los permisos valen en la llamada siguiente. Prender o apagar el control entero, o cambiar "
                     "`preguntar`, vale al relanzar el asistente (es cuando se le arma la lista de servidores).";
         t.inputSchema = {{"type", "object"},

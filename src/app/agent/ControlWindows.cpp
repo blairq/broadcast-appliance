@@ -17,7 +17,10 @@ const std::vector<std::pair<std::string, std::string>>& ControlWindows::capacida
         {"ejecutar_admin", "Ejecutar como administrador (pide UAC)"},
         {"buscar", "Buscar archivos"},
         {"ventanas", "Listar, activar, minimizar y cerrar ventanas"},
-        {"portapapeles", "Leer y escribir el portapapeles"}};
+        {"portapapeles", "Leer y escribir el portapapeles"},
+        {"procesos", "Ver los procesos y cerrar uno (por su número)"},
+        {"comandos", "Correr comandos (cmd o PowerShell) y leer lo que contestan"},
+        {"sistema", "Ver los datos del equipo (memoria, discos, Windows)"}};
     return c;
 }
 
@@ -30,6 +33,9 @@ bool* ControlWindows::capacidad(const std::string& k) {
     if (k == "buscar") return &buscar;
     if (k == "ventanas") return &ventanas;
     if (k == "portapapeles") return &portapapeles;
+    if (k == "procesos") return &procesos;
+    if (k == "comandos") return &comandos;
+    if (k == "sistema") return &sistema;
     return nullptr;
 }
 
