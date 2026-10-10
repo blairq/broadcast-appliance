@@ -29,6 +29,7 @@ file(GLOB_RECURSE BA_APP_SOURCES CONFIGURE_DEPENDS
 
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/mcp/bridge/.*") # ba-mcp es otro binario
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/escritorio/.*") # ba-control es otro binario
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas con su propio main
 
 # WIN32 en MSVC: subsistema GUI (sin consola). En Linux es un ejecutable normal.
@@ -545,6 +546,16 @@ endif()
         target_link_options(ba-mcp PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-mcp RUNTIME DESTINATION bin/64bit)
+    # Control del escritorio de Windows (mouse, teclado, captura, programas…)
+    # como un segundo servidor MCP para los asistentes. Sin Qt, como ba-mcp.
+    add_executable(ba-control escritorio/ba_control_main.cpp)
+    target_link_libraries(ba-control PRIVATE ba_core)
+    if(WIN32)
+        target_link_libraries(ba-control PRIVATE user32 gdi32 gdiplus shell32 shlwapi ole32)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_options(ba-control PRIVATE -static-libstdc++ -static-libgcc)
+    endif()
+    install(TARGETS ba-control RUNTIME DESTINATION bin/64bit)
     add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
                    mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

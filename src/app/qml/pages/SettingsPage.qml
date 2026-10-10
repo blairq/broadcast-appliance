@@ -22,6 +22,7 @@ Rectangle {
     readonly property string modelosSection: "Modelos locales"
     readonly property string vozSection: "Audio y voz"
     readonly property string traduccionSection: "Traducción"
+    readonly property string controlSection: "Control de Windows"
     readonly property var ml: Studio.modelos
     readonly property var sys: Studio.system
     property string updateError: ""
@@ -73,7 +74,7 @@ Rectangle {
             ListView {
                 anchors.fill: parent
                 spacing: 4
-                model: Studio.settings.sections.concat([page.rielSection, page.vozSection, page.traduccionSection, page.modelosSection, page.systemSection])
+                model: Studio.settings.sections.concat([page.rielSection, page.vozSection, page.traduccionSection, page.modelosSection, page.controlSection, page.systemSection])
                 delegate: Rectangle {
                     required property string modelData
                     width: ListView.view.width
@@ -97,7 +98,7 @@ Rectangle {
                 contentWidth: availableWidth
                 visible: page.section !== page.systemSection && page.section !== page.rielSection
                          && page.section !== page.modelosSection && page.section !== page.vozSection
-                         && page.section !== page.traduccionSection
+                         && page.section !== page.traduccionSection && page.section !== page.controlSection
                 ColumnLayout {
                     width: parent.width
                     spacing: 14
@@ -179,6 +180,93 @@ Rectangle {
                 anchors.fill: parent
                 active: page.section === page.traduccionSection
                 sourceComponent: traduccionComp
+            }
+            Loader {
+                anchors.fill: parent
+                active: page.section === page.controlSection
+                sourceComponent: controlComp
+            }
+        }
+    }
+
+    // --- Control de Windows --------------------------------------------------------
+    // ba-control (src/app/escritorio): el servidor MCP con el que el asistente
+    // maneja el escritorio de esta máquina. Los permisos viven en
+    // Config/control-windows.json (agent/ControlWindows) y se aplican en la
+    // llamada siguiente; prender o apagar todo, o «preguntar», al relanzar.
+    Component {
+        id: controlComp
+        ScrollView {
+            clip: true
+            contentWidth: availableWidth
+            ColumnLayout {
+                id: ctl
+                width: parent.width
+                spacing: 12
+                property var estado: Studio.agent.controlWindows()
+                function cambiar(c) {
+                    const e = Studio.agent.setControlWindows(c)
+                    if (e !== "") Studio.notify(e, "error")
+                    ctl.estado = Studio.agent.controlWindows()
+                }
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                    text: "Le permite al asistente (Claude, Gemini, opencode) manejar el escritorio de esta máquina: ver la pantalla, "
+                          + "mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado."
+                }
+                Text {
+                    visible: !ctl.estado.windows
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: 12
+                    text: "Este sistema no es Windows: estos permisos se guardan pero el control no hace nada acá."
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; text: "Permitir el control de Windows"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Toggle { checked: ctl.estado.habilitado === true; onToggled: (quiero) => ctl.cambiar({ habilitado: quiero }) }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    enabled: ctl.estado.habilitado === true
+                    opacity: enabled ? 1 : 0.5
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Text { text: "Preguntar antes de cada acción"; color: Theme.text; font.pixelSize: 13 }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                            text: "El asistente le pide permiso al operador en su consola antes de cada clic, tecla o programa. "
+                                  + "Apagado, actúa solo (opencode solo recibe el control si esto está apagado: no sabe preguntar)."
+                        }
+                    }
+                    Toggle { checked: ctl.estado.preguntar === true; onToggled: (quiero) => ctl.cambiar({ preguntar: quiero }) }
+                }
+                Text {
+                    Layout.topMargin: 6
+                    text: "Qué puede hacer"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                }
+                Repeater {
+                    model: ctl.estado.capacidades || []
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        enabled: ctl.estado.habilitado === true
+                        opacity: enabled ? 1 : 0.5
+                        Text { Layout.fillWidth: true; text: modelData.etiqueta; color: Theme.text; font.pixelSize: 13; wrapMode: Text.WordWrap }
+                        Toggle {
+                            checked: ctl.estado.permisos !== undefined && ctl.estado.permisos[modelData.clave] === true
+                            onToggled: (quiero) => { const p = {}; p[modelData.clave] = quiero; ctl.cambiar({ permisos: p }) }
+                        }
+                    }
+                }
+                Text {
+                    Layout.topMargin: 6
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                    text: "Los permisos valen enseguida. Prender o apagar el control, o «preguntar», vale al relanzar el asistente."
+                }
+                GlassButton {
+                    compact: true; text: "Relanzar el asistente"
+                    onClicked: Studio.agent.restart()
+                }
             }
         }
     }

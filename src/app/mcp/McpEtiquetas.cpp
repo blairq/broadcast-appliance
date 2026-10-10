@@ -56,6 +56,8 @@ const Fila kFamilias[] = {
                  "slide placa volver atras saltar"},
     {"superficie_", "superficie pagina pantalla web canal control telemetria viva"},
     {"qr_", "qr codigo escanear celular enlace wifi contacto vcard"},
+    {"control_", "control windows escritorio mouse teclado captura pantalla programa ejecutar administrador "
+                 "permisos computadora maquina pc"},
     {"media_", "medio archivo video musica audio cancion tema clip pelicula reproducir"},
     {"rostro_", "rostro cara persona quien es reconocer identificar nombre cargo libreta "
                 "caras conocidas quien llego quien esta"},
@@ -697,6 +699,8 @@ const Fila kPropias[] = {
 
     // --- QR -----------------------------------------------------------------------
     {"qr_listar", "que codigos qr hay guardados tipos iconos"},
+    {"control_estado", "puede el asistente manejar la pc mouse captura permisos del control de windows"},
+    {"control_configurar", "habilitar prender apagar control de windows permitir administrador mouse teclado"},
     {"qr_generar", "generar codigo qr crear sin guardar probar"},
     {"qr_guardar", "guardar codigo qr en la biblioteca"},
     {"qr_borrar", "borrar codigo qr"},

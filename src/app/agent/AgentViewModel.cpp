@@ -11,6 +11,7 @@
 #include <thread>
 
 #include "agent/Actualizacion.hpp"
+#include "agent/ControlWindows.hpp"
 #include "agent/ModeloPropio.hpp"
 
 #if defined(_WIN32)
@@ -927,6 +928,36 @@ QString AgentViewModel::bridgePath() const {
 #endif
 }
 
+QString AgentViewModel::controlPath() const {
+#ifdef _WIN32
+    return QCoreApplication::applicationDirPath() + "/ba-control.exe";
+#else
+    return QCoreApplication::applicationDirPath() + "/ba-control";
+#endif
+}
+
+QVariantMap AgentViewModel::controlWindows() const {
+    const ControlWindows c = ControlWindows::leer(ba::platform::dataRoot());
+    QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(c.comoJson().dump())).object().toVariantMap();
+    QVariantList caps;
+    for (const auto& [k, etiqueta] : ControlWindows::capacidades())
+        caps << QVariantMap{{"clave", QString::fromStdString(k)}, {"etiqueta", QString::fromStdString(etiqueta)}};
+    m["capacidades"] = caps;
+#ifdef _WIN32
+    m["windows"] = true;
+#else
+    m["windows"] = false;
+#endif
+    return m;
+}
+
+QString AgentViewModel::setControlWindows(const QVariantMap& cambios) {
+    ControlWindows c = ControlWindows::leer(ba::platform::dataRoot());
+    c.aplicar(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false));
+    if (!c.guardar(ba::platform::dataRoot())) return "No se pudo guardar la configuración.";
+    return {};
+}
+
 QString AgentViewModel::runtimeDe(const QString& proveedor) {
     const Provider* p = findProvider(proveedor);
     return p == nullptr ? QString() : QString(p->runtime);
@@ -951,13 +982,15 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
     // Con su juego de herramientas (ver Roles::juegoDelAsistente) y CON
     // consola: es el asistente del operador, no un agente de un tiro.
+    // El control de Windows solo para el asistente del operador (los roles
+    // automáticos corren solos, sin nadie que apruebe cada paso).
     return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"}, prompt,
-                              error, true);
+                              error, true, true);
 }
 
 QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
                                            const QStringList& bridgeArgs, const QString& prompt,
-                                           QString* error, bool consola) {
+                                           QString* error, bool consola, bool conControl) {
     const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring()); // de la máquina
     QDir().mkpath(ws);
     QByteArray p = prompt.toUtf8();
@@ -982,13 +1015,26 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
     for (const QString& a : bridgeArgs)
         args.push_back(a.toStdString());
     const json mcpStdio{{"command", bridge}, {"args", args}, {"env", {{"BA_DATA_ROOT", root.toStdString()}}}};
+    // El control del escritorio (ba-control): solo si está prendido en
+    // Configuración y es el asistente del operador. Con `preguntar`, el cliente
+    // le pide permiso al operador antes de cada acción (no va en las permitidas).
+    const ControlWindows ctl = ControlWindows::leer(ba::platform::dataRoot());
+    const bool control = conControl && ctl.habilitado && QFile::exists(controlPath());
+    const json mcpControl{{"command", controlPath().toStdString()},
+                          {"args", json::array()},
+                          {"env", {{"BA_DATA_ROOT", root.toStdString()}}}};
     const QString runtime = runtimeOf(proveedor);
     const Provider* prov = findProvider(proveedor);
     if (runtime == "claude") {
         json m = mcpStdio;
         m["type"] = "stdio";
-        writeText(ws + "/mcp.json",
-                  QByteArray::fromStdString(json{{"mcpServers", {{"broadcast", m}}}}.dump(2)));
+        json servidores{{"broadcast", m}};
+        if (control) {
+            json c = mcpControl;
+            c["type"] = "stdio";
+            servidores["control"] = c;
+        }
+        writeText(ws + "/mcp.json", QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2)));
     } else if (runtime == "opencode") {
         json cmd = json::array({bridge});
         for (const auto& a : args)
@@ -1010,6 +1056,15 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                  // la consola de rebote, sin que nadie lo pidiera ni lo notara.
                  {"permission", {{"edit", "deny"}, {"bash", consola ? "allow" : "deny"}}},
                  {"instructions", json::array({"AGENTS.md"})}};
+        if (control && !ctl.preguntar) {
+            // opencode no le pregunta al operador antes de una herramienta MCP: el
+            // control del escritorio va solo si en Configuración apagaron «preguntar».
+            json ccmd = json::array({controlPath().toStdString()});
+            cfg["mcp"]["control"] = {{"type", "local"},
+                                     {"command", ccmd},
+                                     {"environment", {{"BA_DATA_ROOT", root.toStdString()}}},
+                                     {"enabled", true}};
+        }
         if (!modelo.isEmpty()) cfg["model"] = modelo.toStdString();
         // El modelo de la casa: se le arma a opencode el proveedor compatible
         // con OpenAI y se le dice que use ESE. Ver ModeloPropio.hpp —este
@@ -1081,6 +1136,13 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         }
         s["mcpServers"]["broadcast"] = mcpStdio;
         s["mcpServers"]["broadcast"]["trust"] = true;
+        // El control del escritorio: `trust` false hace que Gemini pregunte antes de cada acción.
+        if (control) {
+            s["mcpServers"]["control"] = mcpControl;
+            s["mcpServers"]["control"]["trust"] = !ctl.preguntar;
+        } else if (s["mcpServers"].contains("control")) {
+            s["mcpServers"].erase("control");
+        }
         s["security"]["auth"]["selectedType"] =
             prov != nullptr && QString(prov->auth) == "api" ? "gemini-api-key" : "oauth-personal";
         s["tools"]["exclude"] = json::array({"run_shell_command", "write_file", "replace"});
@@ -1164,16 +1226,23 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // herramienta PowerShell; Bash es la de Linux (y la de Git Bash).
         // El limite lo pone el prompt del sistema: con el aire encendido, todo
         // lo que pueda afectarlo se consulta antes (ver McpHelp.cpp).
-        // Edit/Write siguen fuera: los archivos se tocan por consola, que es
-        // donde el operador ve el comando exacto.
-        // EN VIVO, sin consola: un comando del sistema no pasa por las guardas
+        // Write y Edit también (pedido del dueño): el asistente arregla archivos
+        // de configuración y scripts de la máquina directamente.
+        // EN VIVO, sin consola ni archivos: un comando del sistema no pasa por las guardas
         // de aire del MCP (ver McpAire). Al terminar el aire se relanza con ella.
         conConsola_ = !(hayAire_ && hayAire_());
+        // El control del escritorio (mcp__control): permitido de antemano solo si
+        // en Configuración apagaron «preguntar»; si no, Claude le pide permiso al
+        // operador en su consola antes de cada acción.
+        const ControlWindows ctl = ControlWindows::leer(ba::platform::dataRoot());
+        QStringList permitidas{"mcp__broadcast"};
+        if (ctl.habilitado && !ctl.preguntar) permitidas << "mcp__control";
+        // Fuera del aire: consola (PowerShell, Bash) y archivos (Write, Edit).
         if (conConsola_)
-            o.args << "--allowedTools" << "mcp__broadcast" << "Bash" << "PowerShell" << "--disallowedTools"
-                   << "Edit" << "Write" << "NotebookEdit";
+            o.args << "--allowedTools" << permitidas << "Bash" << "PowerShell" << "Write" << "Edit"
+                   << "--disallowedTools" << "NotebookEdit";
         else
-            o.args << "--allowedTools" << "mcp__broadcast" << "--disallowedTools" << "Bash" << "PowerShell"
+            o.args << "--allowedTools" << permitidas << "--disallowedTools" << "Bash" << "PowerShell"
                    << "Edit" << "Write" << "NotebookEdit";
     }
     return o;

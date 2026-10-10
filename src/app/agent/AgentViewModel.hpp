@@ -206,6 +206,10 @@ class AgentViewModel : public QObject {
     /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.
     Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
+    /// Control de Windows (agent/ControlWindows): {habilitado, preguntar, permisos{}, capacidades[]}.
+    Q_INVOKABLE QVariantMap controlWindows() const;
+    /// Aplica {habilitado?, preguntar?, permisos?{}} y guarda. "" o el error.
+    Q_INVOKABLE QString setControlWindows(const QVariantMap& cambios);
 
     // --- Limpieza -----------------------------------------------------------------
     QVariantList limpieza() const { return limpieza_; }
@@ -236,6 +240,8 @@ class AgentViewModel : public QObject {
     void avisarMcpCambio() { emit mcpReadyChanged(); }
     /// Ruta del puente ba-mcp (junto a ba-app).
     QString bridgePath() const;
+    /// ba-control: el servidor MCP del escritorio de Windows (src/app/escritorio).
+    QString controlPath() const;
     /// Carpeta de trabajo del agente con su configuracion (para los tests).
     QString prepareWorkspace(QString* error);
     /// Programa, argumentos y entorno con los que se lanza (para los tests).
@@ -281,7 +287,7 @@ class AgentViewModel : public QObject {
     /// configuracion del MCP (con los argumentos del puente).
     QString prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
                                const QStringList& bridgeArgs, const QString& prompt, QString* error,
-                               bool consola);
+                               bool consola, bool conControl = false);
     /// Programa, entorno y credenciales de un proveedor, sin los argumentos
     /// del modo (interactivo o de un tiro): eso lo agrega quien la llama.
     term::Pty::Options baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
