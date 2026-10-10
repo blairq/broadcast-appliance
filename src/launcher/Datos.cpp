@@ -2,6 +2,8 @@
 
 #include "Datos.hpp"
 
+#include <cctype>
+
 #include <fstream>
 #include <system_error>
 
@@ -68,6 +70,23 @@ fs::path exacta(const fs::path& dir, const char* nombre) {
     return {};
 }
 
+/// La carpeta de `dir` que se llama como `nombre` con OTRA grafía de mayúsculas
+/// ("" si no hay): `plugins` para "Plugins". En Windows y la Mac `dir / nombre`
+/// ya la encontraba (no distinguen); en Linux no, y lo del usuario no se mudaba.
+fs::path otraGrafia(const fs::path& dir, const char* nombre) {
+    const auto bajar = [](std::string t) {
+        for (char& c : t) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        return t;
+    };
+    const std::string buscado = bajar(nombre);
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(dir, ec)) {
+        const std::string n = e.path().filename().string();
+        if (n != nombre && bajar(n) == buscado && e.is_directory(ec)) return e.path();
+    }
+    return {};
+}
+
 /// Lo que es del programa adentro de una carpeta que se llama como una de datos
 /// (con los datos en la misma carpeta que el programa, Windows): no es del usuario.
 bool esDelPrograma(const fs::path& hijo) {
@@ -105,8 +124,8 @@ fs::path prepararConfiguraciones(const fs::path& bundle, const fs::path& datos, 
             const fs::path de = exacta(datos, d);
             if (de.empty()) {
                 // Con otra grafía (Windows: `plugins`, la del programa): se muda solo lo del usuario.
-                const fs::path otra = datos / d;
-                if (!juntos || !fs::is_directory(otra, ec)) continue;
+                const fs::path otra = otraGrafia(datos, d);
+                if (!juntos || otra.empty()) continue;
                 for (const auto& h : fs::directory_iterator(otra, ec)) {
                     if (esDelPrograma(h.path())) continue;
                     fs::create_directories(principal / d, e2);
