@@ -32,7 +32,9 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_composicion tests/test_composicion.cpp)
     target_link_libraries(test_composicion PRIVATE ba_motor)
     ba_gst_rpath(test_composicion "")
-    target_compile_definitions(test_composicion PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_composicion PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_composicion gstbafiltros) # basombra
     add_test(NAME test_composicion COMMAND test_composicion)
     set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 

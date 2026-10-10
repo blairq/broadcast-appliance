@@ -12,6 +12,17 @@ Rectangle {
     property string selected: ""
     readonly property string editScene: Studio.sources.scene
 
+    // ui_abrir_panel {page: "escenas", panel: "efectos", fuente}: elige la fuente y
+    // muestra sus efectos (transparencia, borde difuso, sombra) en Propiedades.
+    Connections {
+        target: Studio
+        function onAbrirPanel(pagina, panel) {
+            if (pagina !== "escenas") return
+            if (panel === "cerrar") { page.selected = ""; return }
+            if (panel.startsWith("efectos:")) page.selected = panel.substring(8)
+        }
+    }
+
     // --- Carpetas de escenas --------------------------------------------------
     // Solo ordenan la lista (el motor no las usa). El arbol se arma leyendo el
     // modelo de escenas, que informa la carpeta de cada una.
@@ -564,6 +575,13 @@ Rectangle {
                         width: parent.width
                         spacing: 10
                         Text { visible: !page.selected; text: "Elegí una fuente para ver sus propiedades."; color: Theme.textFaint; font.pixelSize: 12 }
+                        // Transparencia, borde difuso y sombra del elemento EN ESTA escena.
+                        PanelEfectos {
+                            Layout.fillWidth: true
+                            visible: page.selected !== ""
+                            fuente: page.selected
+                        }
+                        Rectangle { visible: page.selected !== ""; Layout.fillWidth: true; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
                         Repeater {
                             model: Studio.properties
                             delegate: FormField {

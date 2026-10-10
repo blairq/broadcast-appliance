@@ -106,22 +106,26 @@ void McpService::registerUiTools() {
         // Los paneles y diálogos que se abren con un botón: sin esto no había
         // forma de mostrarlos (ni de verlos con capture_ui) sin tocar la pantalla.
         static const std::map<std::string, std::vector<std::string>> kPaneles{
-            {"video", {"superresolucion", "entrada_virtual", "catalogo"}}};
+            {"video", {"superresolucion", "entrada_virtual", "catalogo"}}, {"escenas", {"efectos"}}};
         Tool t;
         t.name = "ui_abrir_panel";
         t.title = "Abrir un panel o diálogo de una página";
         t.category = "interfaz";
         t.description = "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo "
                         "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
-                        "entrenar), entrada_virtual, catalogo (módulos de GStreamer). Para mirarlo, capture_ui.";
+                        "entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con "
+                        "`fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde "
+                        "difuso y sombra). Para mirarlo, capture_ui.";
         json enumPaginas = json::array();
         for (const auto& [p, l] : kPaneles) enumPaginas.push_back(p);
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"page", {{"type", "string"}, {"enum", enumPaginas}}},
-                           {"panel", {{"type", "string"}, {"description", "uno de los de esa página, o \"cerrar\""}}}}},
+                           {"panel", {{"type", "string"}, {"description", "uno de los de esa página, o \"cerrar\""}}},
+                           {"fuente", {{"type", "string"}, {"description", "escenas → efectos: la fuente a elegir"}}}}},
                          {"required", {"page", "panel"}}};
-        t.examples = {R"({"page": "video", "panel": "superresolucion"})", R"({"page": "video", "panel": "cerrar"})"};
+        t.examples = {R"({"page": "video", "panel": "superresolucion"})", R"({"page": "video", "panel": "cerrar"})",
+                      R"({"page": "escenas", "panel": "efectos", "fuente": "Zócalo"})"};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
             if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
@@ -135,8 +139,14 @@ void McpService::registerUiTools() {
             }
             const int pagina = paginaDeId(vm, pag);
             if (pagina < 0) return done(ToolResult::error("No conozco la pagina \"" + pag + "\"."));
+            std::string pedido = panel;
+            if (pag == "escenas" && panel == "efectos") {
+                const std::string f = a.value("fuente", std::string());
+                if (f.empty()) return done(ToolResult::error("escenas → efectos: falta `fuente` (source_list las muestra)."));
+                pedido = "efectos:" + f;
+            }
             w->setProperty("page", pagina);
-            emit vm.abrirPanel(QString::fromStdString(pag), QString::fromStdString(panel));
+            emit vm.abrirPanel(QString::fromStdString(pag), QString::fromStdString(pedido));
             done(ToolResult::ok(panel == "cerrar" ? "Paneles de " + pag + " cerrados." : "Abierto: " + pag + " → " + panel));
         };
         core_.addTool(std::move(t));

@@ -31,6 +31,42 @@ std::string nombreSeguro(const std::string& s) {
 constexpr std::int64_t kEsperaCorteNs = 700 * GST_MSECOND; ///< corte: lo más que se espera el primer cuadro de la nueva
 } // namespace
 
+// --- Sombra -----------------------------------------------------------------------------
+
+int SombraCapa::margen() const {
+    if (alfa <= 0) return 0;
+    const double m = std::max(0.0, difuminado) + std::max(0.0, distancia) + std::max(0.0, tamano) + 2;
+    return (static_cast<int>(std::ceil(m)) + 7) / 8 * 8;
+}
+
+SombraCapa SombraCapa::desdeJson(const nlohmann::json& j) {
+    SombraCapa s;
+    if (!j.is_object()) return s;
+    s.alfa = std::clamp(j.value("alfa", 0.0), 0.0, 1.0);
+    if (j.contains("color") && j["color"].is_number_unsigned()) {
+        s.color = j["color"].get<std::uint32_t>();
+    } else if (j.contains("color") && j["color"].is_string()) {
+        // "#RRGGBB" o "#AARRGGBB"
+        std::string h = j["color"].get<std::string>();
+        if (!h.empty() && h[0] == '#') h.erase(0, 1);
+        char* fin = nullptr;
+        const unsigned long v = std::strtoul(h.c_str(), &fin, 16);
+        if (fin != nullptr && *fin == '\0' && (h.size() == 6 || h.size() == 8))
+            s.color = static_cast<std::uint32_t>(h.size() == 6 ? (0xFF000000UL | v) : v);
+    }
+    s.difuminado = std::clamp(j.value("difuminado", 20.0), 0.0, 500.0);
+    s.distancia = std::clamp(j.value("distancia", 10.0), 0.0, 1000.0);
+    s.angulo = j.value("angulo", 45.0);
+    s.tamano = std::clamp(j.value("tamano", 0.0), -500.0, 500.0);
+    s.borde = std::clamp(j.value("borde", 0.0), 0.0, 1000.0);
+    return s;
+}
+
+nlohmann::json SombraCapa::aJson() const {
+    return {{"alfa", alfa}, {"color", color}, {"difuminado", difuminado}, {"distancia", distancia},
+            {"angulo", angulo}, {"tamano", tamano}, {"borde", borde}};
+}
+
 // --- Escena ---------------------------------------------------------------------------
 
 Escena Escena::desdeJson(const nlohmann::json& j) {
@@ -54,6 +90,7 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
         k.recAba = r.value("aba", 0);
         k.visible = c.value("visible", true);
         k.contener = c.value("contener", false);
+        k.sombra = SombraCapa::desdeJson(c.value("sombra", json::object()));
         if (!k.entrada.empty()) e.capas.push_back(k);
     }
     const json l = j.value("lienzo", json::object());
@@ -67,7 +104,7 @@ Escena Escena::desdeJson(const nlohmann::json& j) {
 
 nlohmann::json Escena::aJson() const {
     nlohmann::json capas = nlohmann::json::array();
-    for (const auto& c : this->capas)
+    for (const auto& c : this->capas) {
         capas.push_back({{"entrada", c.entrada},
                          {"x", c.x},
                          {"y", c.y},
@@ -78,6 +115,8 @@ nlohmann::json Escena::aJson() const {
                          {"recorte", {{"izq", c.recIzq}, {"arr", c.recArr}, {"der", c.recDer}, {"aba", c.recAba}}},
                          {"visible", c.visible},
                          {"contener", c.contener}});
+        if (c.sombra.hace()) capas.back()["sombra"] = c.sombra.aJson();
+    }
     nlohmann::json out{{"nombre", nombre}, {"capas", capas}};
     if (lienzoAncho > 0 && lienzoAlto > 0) out["lienzo"] = {{"ancho", lienzoAncho}, {"alto", lienzoAlto}};
     if (!filtros.empty()) out["filtros"] = filtros;
@@ -248,6 +287,21 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         registrar(Nivel::Error, "composición " + nombre_ + ": " + error_);
         return nullptr;
     }
+    if (c.sombra.hace()) {
+        // La sombra (y el borde difuso): después del recorte, con su par de la GPU. En GL
+        // dibuja, así que también obliga a gltransformation a dibujar: el glshader sobra.
+        const char* fab = gl_ ? "basombragl" : gpu_ ? "basombrad3d12" : "basombra";
+        r->sombra = gst_element_factory_make(fab, ("som_" + n).c_str());
+        if (r->sombra != nullptr && !gpu_) r->aRgba = gst_element_factory_make("videoconvert", ("rgba_" + n).c_str());
+        if (r->sombra == nullptr || (!gpu_ && r->aRgba == nullptr)) {
+            registrar(Nivel::Aviso, "composición " + nombre_ + ": falta " + fab + " (la capa " + c.entrada + " va sin sombra)");
+            for (GstElement** e : {&r->sombra, &r->aRgba})
+                if (*e != nullptr) gst_object_unref(*e), *e = nullptr;
+        } else if (r->fijar != nullptr) {
+            gst_object_unref(r->fijar);
+            r->fijar = nullptr;
+        }
+    }
     if (gl_) g_object_set(r->recorte, "ortho", TRUE, nullptr);
     g_object_set(r->src, "producer-name", r->productor.c_str(), nullptr);
     // Sin demora propia: si se atrasa, se tira lo viejo (el compositor espera la
@@ -259,6 +313,10 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         // intersrc → subir a D3D12 (si ya está, pasa) → (marca) → d3d12convert aplica el recorte.
         gst_bin_add(GST_BIN(pipeline_), r->subir);
         gst_element_link_many(r->src, r->subir, r->recorte, nullptr);
+        if (r->sombra != nullptr) {
+            gst_bin_add(GST_BIN(pipeline_), r->sombra);
+            gst_element_link(r->recorte, r->sombra);
+        }
         if (GstPad* p = gst_element_get_static_pad(r->recorte, "sink")) {
             gst_pad_add_probe(p, static_cast<GstPadProbeType>(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
                               &Composicion::marcarRecorte, r, nullptr);
@@ -266,31 +324,48 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
         }
     } else if (gpu_) {
         // intersrc → subir a GL (si ya es GL, pasa) → RGBA → recorte en GL.
-        gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, r->fijar, nullptr);
-        gst_element_link_many(r->src, r->subir, r->conv, r->recorte, r->fijar, nullptr);
+        GstElement* ultimo = r->sombra != nullptr ? r->sombra : r->fijar;
+        gst_bin_add_many(GST_BIN(pipeline_), r->subir, r->conv, ultimo, nullptr);
+        gst_element_link_many(r->src, r->subir, r->conv, r->recorte, ultimo, nullptr);
+    } else if (r->sombra != nullptr) {
+        // CPU: la sombra necesita alfa (RGBA o BGRA); el mezclador lo toma así.
+        gst_bin_add_many(GST_BIN(pipeline_), r->aRgba, r->sombra, nullptr);
+        gst_element_link_many(r->src, r->recorte, r->aRgba, r->sombra, nullptr);
     } else {
         gst_element_link_many(r->src, r->recorte, nullptr);
     }
     r->mx = mx;
     r->pad = gst_element_request_pad_simple(mx, "sink_%u");
-    GstPad* sale = gst_element_get_static_pad(r->fijar != nullptr ? r->fijar : r->recorte, "src");
+    GstPad* sale = gst_element_get_static_pad(r->sombra != nullptr ? r->sombra : r->fijar != nullptr ? r->fijar : r->recorte, "src");
     gst_pad_link(sale, r->pad);
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
     gst_object_unref(sale);
-    for (GstElement* e : {r->fijar, r->recorte, r->conv, r->subir, r->src})
+    for (GstElement* e : {r->sombra, r->aRgba, r->fijar, r->recorte, r->conv, r->subir, r->src})
         if (e != nullptr) gst_element_sync_state_with_parent(e);
     if (mx == mezclador_) ramas_[std::to_string(gen) + "/" + c.entrada] = r;
     return r;
 }
 
+void Composicion::ponerSombra(Rama& r, const SombraCapa& s, int margen, int cajaAncho, int cajaAlto, bool contener) {
+    if (r.sombra == nullptr) return;
+    g_object_set(r.sombra, "caja-ancho", cajaAncho, "caja-alto", cajaAlto, "contener", contener ? TRUE : FALSE, "margen", margen,
+                 "alfa", s.alfa, "color", static_cast<guint>(s.color), "difuminado", s.difuminado, "distancia", s.distancia,
+                 "angulo", s.angulo, "tamano", s.tamano, "borde", s.borde, nullptr);
+}
+
 void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {
     const int w = c.ancho > 0 ? c.ancho : lienzo_.ancho;
     const int h = c.alto > 0 ? c.alto : lienzo_.alto;
-    // Las nuevas (generación más alta) van arriba de las viejas: así la mezcla
-    // pasa por encima.
-    const guint zorder = static_cast<guint>(std::clamp(r.generacion % 1000, 0, 999) * 1000 + std::clamp(c.orden, 0, 999));
-    g_object_set(r.pad, "xpos", c.x, "ypos", c.y, "width", w, "height", h, "alpha", c.visible ? alfa : 0.0, "zorder",
-                 zorder, nullptr);
+    // Con sombra, la caja crece `m` de cada lado: la imagen queda donde estaba y la sombra, afuera.
+    const int m = r.sombra != nullptr ? c.sombra.margen() : 0;
+    r.margen = m;
+    ponerSombra(r, c.sombra, m, w, h, c.contener);
+    // Las de la escena que entra van arriba de las de la que sale (así la mezcla pasa
+    // por encima): 5000 + orden; al cambiar de escena las viejas bajan a su orden (ver
+    // bajarViejas). glvideomixer no acepta un zorder de más de 10000.
+    const guint zorder = static_cast<guint>((r.generacion == generacion_ && r.generacion > 0 ? 5000 : 0) + std::clamp(c.orden, 0, 999));
+    g_object_set(r.pad, "xpos", c.x - m, "ypos", c.y - m, "width", w + 2 * m, "height", h + 2 * m, "alpha",
+                 c.visible ? alfa : 0.0, "zorder", zorder, nullptr);
     gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", c.contener ? "keep-aspect-ratio" : "none");
     if (gpu_)
         recorteGl(r, c, 0, w, h);
@@ -343,7 +418,11 @@ void Composicion::recorteGl(Rama& r, const Capa& c, int extraDer, int ancho, int
             w = static_cast<int>(std::lround(alto * aspecto));
         }
         gst_util_set_object_arg(G_OBJECT(r.pad), "sizing-policy", "none");
-        g_object_set(r.pad, "xpos", c.x + (ancho - w) / 2, "ypos", c.y + (alto - h) / 2, "width", w, "height", h, nullptr);
+        // La sombra, en la caja que queda (la imagen llega estirada a todo el cuadro).
+        const int m = r.margen;
+        ponerSombra(r, c.sombra, m, w, h, false);
+        g_object_set(r.pad, "xpos", c.x + (ancho - w) / 2 - m, "ypos", c.y + (alto - h) / 2 - m, "width", w + 2 * m, "height",
+                     h + 2 * m, nullptr);
     }
 }
 
@@ -400,9 +479,9 @@ void Composicion::animar(double t) {
             if (nueva) g_object_set(r->pad, "alpha", r->alfaHacia * t, nullptr);
         } else if (transicion_ == "empuje") {
             const int dx = static_cast<int>(std::lround((nueva ? (1.0 - t) : -t) * W));
-            g_object_set(r->pad, "xpos", c.x + dx, nullptr);
-        } else if (transicion_ == "cortina" && nueva && c.contener) {
-            // Una capa que entra sin deformarse no se puede recortar a medida: se funde.
+            g_object_set(r->pad, "xpos", c.x - r->margen + dx, nullptr);
+        } else if (transicion_ == "cortina" && nueva && (c.contener || r->sombra != nullptr)) {
+            // Una capa que entra sin deformarse (o con sombra) no se puede recortar a medida: se funde.
             g_object_set(r->pad, "alpha", r->alfaHacia * t, nullptr);
         } else if (transicion_ == "cortina" && nueva) {
             const double borde = t * W;
@@ -424,7 +503,7 @@ void Composicion::animar(double t) {
 }
 
 void Composicion::soltar(Rama& r) {
-    for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar})
+    for (GstElement* e : {r.src, r.recorte, r.subir, r.conv, r.fijar, r.aRgba, r.sombra})
         if (e != nullptr) gst_element_set_state(e, GST_STATE_NULL);
     if (r.pad != nullptr) {
         gst_element_release_request_pad(r.mx != nullptr ? r.mx : mezclador_, r.pad);
@@ -435,6 +514,13 @@ void Composicion::soltar(Rama& r) {
     if (r.subir != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.subir);
     if (r.conv != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.conv);
     if (r.fijar != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.fijar);
+    if (r.aRgba != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.aRgba);
+    if (r.sombra != nullptr) gst_bin_remove(GST_BIN(pipeline_), r.sombra);
+}
+
+void Composicion::bajarViejas() {
+    for (auto& [k, r] : ramas_)
+        if (r->pad != nullptr) g_object_set(r->pad, "zorder", static_cast<guint>(std::clamp(r->orden, 0, 999)), nullptr);
 }
 
 void Composicion::sacarGeneracion(int gen) {
@@ -476,7 +562,10 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
             auto n = nuevas.find(it->second->entrada);
             const std::string prodNuevo =
                 n == nuevas.end() ? std::string() : (n->second->productor.empty() ? n->second->entrada + ":video" : n->second->productor);
-            if (n == nuevas.end() || prodNuevo != it->second->productor) { // se fue, o ahora lee otra cosa
+            // Se fue, ahora lee otra cosa, o le hace falta la sombra y su rama no la tiene
+            // (se rearma una vez; después la rama la lleva aunque se apague).
+            const bool sinSombra = n != nuevas.end() && n->second->sombra.hace() && it->second->sombra == nullptr;
+            if (n == nuevas.end() || prodNuevo != it->second->productor || sinSombra) {
                 soltar(*it->second);
                 delete it->second;
                 it = ramas_.erase(it);
@@ -497,6 +586,7 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
         genVieja_ = -1;
     }
     const int vieja = generacion_;
+    bajarViejas();
     ++generacion_;
     const bool animada = (transicion == "mezcla" || transicion == "empuje" || transicion == "cortina") && ms > 0 && vieja > 0;
     for (const auto& c : e.capas)
@@ -523,6 +613,7 @@ bool Composicion::manual(const Escena& e, double t, bool soltar) {
         }
         escenaAntes_ = escena_;
         const int vieja = generacion_;
+        bajarViejas();
         ++generacion_;
         for (const auto& c : e.capas)
             if (Rama* r = crearRama(c, generacion_)) ponerCapa(*r, c, 0.0);
@@ -577,6 +668,12 @@ bool Composicion::ponerDsk(const std::vector<Capa>& capas, int ms) {
         }
     for (const auto& [k, c] : nuevas) {
         Rama* r = nullptr;
+        if (auto it = dsk_.find(k); it != dsk_.end() && c->sombra.hace() && it->second->sombra == nullptr) {
+            // Le hace falta la sombra: se rearma la rama (una vez).
+            soltar(*it->second);
+            delete it->second;
+            dsk_.erase(it);
+        }
         if (auto it = dsk_.find(k); it != dsk_.end()) {
             r = it->second;
         } else {

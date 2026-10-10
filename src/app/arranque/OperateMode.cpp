@@ -1235,6 +1235,15 @@ bool AppRuntime::setSourceCrop(const std::string& scene, const std::string& name
     return true;
 }
 
+bool AppRuntime::setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos) {
+    if (!engine_.setSourceEfectos(scene, name, efectos)) {
+        lastError_ = "no existe la fuente '" + name + "' en '" + scene + "'";
+        return false;
+    }
+    if (SourceSpec* s = findSpec(scene, name)) s->efectos = efectos;
+    return true;
+}
+
 bool AppRuntime::moveSource(const std::string& scene, const std::string& name, int delta) {
     if (!engine_.moveSource(scene, name, delta)) {
         return false;

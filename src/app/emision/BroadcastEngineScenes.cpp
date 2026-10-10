@@ -27,6 +27,7 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -85,6 +86,69 @@ bool esDeApp(const std::string& id) {
 } // namespace
 
 // ============================================================================
+// Efectos de una capa (transparencia, borde difuso, sombra)
+// ============================================================================
+
+bool EfectosCapa::aplicar(const json& j, std::string* error) {
+    if (!j.is_object()) {
+        if (error) *error = "efectos: tiene que ser un objeto";
+        return false;
+    }
+    const auto num = [&](const json& o, const char* k, float& v, float mn, float mx) {
+        if (!o.contains(k)) return true;
+        if (!o[k].is_number()) {
+            if (error) *error = std::string("efectos: «") + k + "» tiene que ser un número";
+            return false;
+        }
+        v = std::clamp(o[k].get<float>(), mn, mx);
+        return true;
+    };
+    if (!num(j, "opacidad", opacidad, 0, 1) || !num(j, "borde", borde, 0, 1000)) return false;
+    if (j.contains("sombra")) {
+        const json& s = j["sombra"];
+        if (s.is_boolean()) {
+            sombra = s.get<bool>();
+            return true;
+        }
+        if (!s.is_object()) {
+            if (error) *error = "efectos.sombra: tiene que ser un objeto (o true/false)";
+            return false;
+        }
+        if (s.contains("activa")) sombra = s.value("activa", sombra);
+        else sombra = true; // pedir una sombra con sus números la prende
+        if (s.contains("color")) {
+            const std::string c = s["color"].is_string() ? s["color"].get<std::string>() : std::string();
+            const std::string h = !c.empty() && c[0] == '#' ? c.substr(1) : c;
+            const bool hex = (h.size() == 6 || h.size() == 8) &&
+                             std::all_of(h.begin(), h.end(), [](char x) { return std::isxdigit(static_cast<unsigned char>(x)) != 0; });
+            if (!hex) {
+                if (error) *error = "efectos.sombra.color: \"#RRGGBB\" o \"#AARRGGBB\"";
+                return false;
+            }
+            color = "#" + h;
+        }
+        if (!num(s, "alfa", alfa, 0, 1) || !num(s, "difuminado", difuminado, 0, 500) || !num(s, "distancia", distancia, 0, 1000) ||
+            !num(s, "angulo", angulo, -360, 360) || !num(s, "tamano", tamano, -500, 500))
+            return false;
+    }
+    return true;
+}
+
+json EfectosCapa::aJson() const {
+    return {{"opacidad", opacidad},
+            {"borde", borde},
+            {"sombra",
+             {{"activa", sombra}, {"color", color}, {"alfa", alfa}, {"difuminado", difuminado}, {"distancia", distancia},
+              {"angulo", angulo}, {"tamano", tamano}}}};
+}
+
+json EfectosCapa::sombraMotor() const {
+    if (!sombra && borde <= 0) return nullptr;
+    return {{"alfa", sombra ? alfa : 0.0f}, {"color", color},          {"difuminado", difuminado}, {"distancia", distancia},
+            {"angulo", angulo},             {"tamano", tamano},        {"borde", borde}};
+}
+
+// ============================================================================
 // Escenas y transicion
 // ============================================================================
 
@@ -136,6 +200,14 @@ json BroadcastEngine::escenaCompositor(const std::string& nombre, const json& co
                              {"visible", true},
                              {"contener", k.value("ajuste", std::string("encajar")) != "llenar"}};
             if (!k.value("productor", std::string()).empty()) capa["productor"] = k["productor"];
+            // Los efectos de la capa del compositor (como los de un elemento de la escena).
+            if (k.contains("efectos")) {
+                EfectosCapa ef;
+                if (ef.aplicar(k["efectos"])) {
+                    if (const json s = ef.sombraMotor(); !s.is_null()) capa["sombra"] = s;
+                    if (k["efectos"].contains("opacidad")) capa["alfa"] = ef.opacidad;
+                }
+            }
             capas.push_back(capa);
         }
     json e{{"nombre", kPrefijoCompositor + nombre}, {"capas", capas}};
@@ -160,6 +232,8 @@ json BroadcastEngine::escenaMotor(const EscenaApp& e) const {
                {"orden", static_cast<int>(i)},
                {"visible", it.visible},
                {"contener", true}};
+        if (it.efectos.opacidad < 1.0f) c["alfa"] = it.efectos.opacidad;
+        if (const json s = it.efectos.sombraMotor(); !s.is_null()) c["sombra"] = s;
         if (comp) c["productor"] = fu->second.compProductor; // la composición del compositor
         // Traer: lo que se ve de esta entrada viene de otra parte.
         if (const auto t = traer_.find(it.fuente); !comp && t != traer_.end()) {
@@ -503,6 +577,7 @@ bool BroadcastEngine::addSource(const std::string& sceneName, const SourceSpec& 
     it.rect = spec.rect;
     it.visible = spec.visible;
     std::copy(std::begin(spec.recorte), std::end(spec.recorte), std::begin(it.recorte));
+    it.efectos = spec.efectos;
     e->items.push_back(it);
     if (it.recorte[0] + it.recorte[1] + it.recorte[2] + it.recorte[3] > 0) recortesPendientes_.push_back({sceneName, spec.name});
     publicarEscena(*e);
@@ -594,6 +669,25 @@ bool BroadcastEngine::setSourceCrop(const std::string& sceneName, const std::str
             return true;
         }
     return false;
+}
+
+bool BroadcastEngine::setSourceEfectos(const std::string& sceneName, const std::string& name, const EfectosCapa& efectos) {
+    EscenaApp* e = escena(sceneName);
+    if (e == nullptr) return false;
+    for (auto& i : e->items)
+        if (i.fuente == name) {
+            i.efectos = efectos;
+            publicarEscena(*e);
+            return true;
+        }
+    return false;
+}
+
+EfectosCapa BroadcastEngine::sourceEfectos(const std::string& sceneName, const std::string& name) const {
+    if (const EscenaApp* e = escena(sceneName))
+        for (const auto& i : e->items)
+            if (i.fuente == name) return i.efectos;
+    return {};
 }
 
 void BroadcastEngine::aplicarRecortesPendientes() {

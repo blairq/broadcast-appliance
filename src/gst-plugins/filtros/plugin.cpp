@@ -15,6 +15,9 @@
 //                 (la tarjeta Salida en el medio)
 //     ba360       una cámara 360 vista como una común         vista360.cpp
 //                 (+ ba360gl, ba360d3d12 en la GPU)
+//     basombra    sombra (o resplandor) y borde difuso de     sombra.cpp
+//                 un elemento de la escena (+ basombragl,
+//                 basombrad3d12 en la GPU)
 //     bacolorgl, barecortegl, baptzgl: lo mismo en la GPU     gl.cpp, ptz.cpp
 //
 //   Ejemplo:  gst-launch-1.0 videotestsrc ! videoconvert ! bacolor saturacion=0 !
@@ -33,13 +36,14 @@ gboolean ba_registrar_mejora(GstPlugin* p);
 gboolean ba_registrar_gl(GstPlugin* p);
 gboolean ba_registrar_salida(GstPlugin* p);
 gboolean ba_registrar_vista360(GstPlugin* p);
+gboolean ba_registrar_sombra(GstPlugin* p);
 }
 
 static gboolean plugin_init(GstPlugin* p) {
-    return ba_registrar_color(p) && ba_registrar_croma(p) && ba_registrar_recorte(p) && ba_registrar_legal(p) && ba_registrar_ptz(p) && ba_registrar_mejora(p) && ba_registrar_gl(p) && ba_registrar_salida(p) && ba_registrar_vista360(p);
+    return ba_registrar_color(p) && ba_registrar_croma(p) && ba_registrar_recorte(p) && ba_registrar_legal(p) && ba_registrar_ptz(p) && ba_registrar_mejora(p) && ba_registrar_gl(p) && ba_registrar_salida(p) && ba_registrar_vista360(p) && ba_registrar_sombra(p);
 }
 
 #define PACKAGE "bafiltros"
 GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, bafiltros,
-                  "Filtros de imagen de Broadcast Appliance: color, croma, recorte, espejo, legalizador, PTZ digital, mejorar imagen y vista 360", plugin_init, "1.0",
+                  "Filtros de imagen de Broadcast Appliance: color, croma, recorte, espejo, legalizador, PTZ digital, mejorar imagen, vista 360 y sombra", plugin_init, "1.0",
                   "GPL", "Broadcast Appliance", "Broadcast Appliance")

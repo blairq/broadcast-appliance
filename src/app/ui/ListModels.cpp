@@ -7,6 +7,9 @@
 #include <algorithm>
 #include <cmath>
 
+#include <QJsonDocument>
+#include <QJsonObject>
+
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"
 #include "video/Camaras.hpp"
@@ -192,6 +195,26 @@ bool SourcesModel::setRect(const QString& name, double x, double y, double w, do
         emit dataChanged(index(row), index(row), {RectXRole, RectYRole, RectWRole, RectHRole});
     }
     return ok;
+}
+
+QVariantMap SourcesModel::efectos(const QString& name) const {
+    const EfectosCapa ef = rt_.engine().sourceEfectos(scene_.toStdString(), name.toStdString());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(ef.aJson().dump())).object().toVariantMap();
+}
+
+bool SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
+    EfectosCapa ef = rt_.engine().sourceEfectos(scene_.toStdString(), name.toStdString());
+    const QByteArray j = QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson(QJsonDocument::Compact);
+    std::string err;
+    if (!ef.aplicar(nlohmann::json::parse(j.toStdString(), nullptr, false), &err)) {
+        emit error(qs(err));
+        return false;
+    }
+    if (!rt_.setSourceEfectos(scene_.toStdString(), name.toStdString(), ef)) {
+        emit error(qs(rt_.lastError()));
+        return false;
+    }
+    return true;
 }
 
 QString SourcesModel::add(const QString& typeId, const QString& baseName) {

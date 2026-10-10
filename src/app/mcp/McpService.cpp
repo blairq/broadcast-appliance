@@ -1604,6 +1604,7 @@ void McpService::registerTools() {
                 if (SourceSpec* spec = rt.findSpec(scene, n))
                     s["layout"] = {
                         {"x", spec->rect.x}, {"y", spec->rect.y}, {"w", spec->rect.w}, {"h", spec->rect.h}};
+                if (const EfectosCapa ef = rt.engine().sourceEfectos(scene, n); !ef.vacio()) s["efectos"] = ef.aJson();
                 out.push_back(s);
             }
             done(ToolResult().data(json{{"scene", scene}, {"sources", out}}));
@@ -1678,9 +1679,9 @@ void McpService::registerTools() {
         t.category = "fuentes";
         t.description =
             "Cambia una fuente: mostrar/ocultar, mover o cambiar tamaño (layout), orden (order), cambiar "
-            "el texto de un titulo o zocalo, la imagen, etc. De una vez lo que se indique: visibilidad, "
-            "ubicacion (layout), orden (order), "
-            "settings (se MEZCLAN con los actuales), volumen, silencio o nombre.";
+            "el texto de un titulo o zocalo, la imagen, transparencia, borde difuso o sombra (efectos), etc. "
+            "De una vez lo que se indique: visibilidad, ubicacion (layout), orden (order), "
+            "settings (se MEZCLAN con los actuales), efectos (se MEZCLAN), volumen, silencio o nombre.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1705,9 +1706,33 @@ void McpService::registerTools() {
                  {{"izquierda", {{"type", "number"}}},
                   {"arriba", {{"type", "number"}}},
                   {"derecha", {{"type", "number"}}},
-                  {"abajo", {{"type", "number"}}}}}}}}},
+                  {"abajo", {{"type", "number"}}}}}}},
+              {"efectos",
+               {{"type", "object"},
+                {"description",
+                 "Efectos de la fuente en ESTA escena (solo lo que se indique; lo demas queda). Medidas en pixeles "
+                 "del lienzo. opacidad 0..1 (transparencia de todo el elemento); borde: borde difuso (pixeles que se "
+                 "funden a transparente); sombra: {activa, color \"#RRGGBB\", alfa 0..1 (su opacidad), difuminado "
+                 "(radio), distancia, angulo (hacia donde cae: 0 derecha, 90 abajo, 45 abajo a la derecha), tamano "
+                 "(mas grande o mas chica que el elemento)}. Pasar numeros de la sombra la prende; "
+                 "{\"sombra\": false} la apaga. Resplandor: distancia 0, color claro, difuminado grande."},
+                {"properties",
+                 {{"opacidad", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                  {"borde", {{"type", "number"}, {"minimum", 0}}},
+                  {"sombra",
+                   {{"type", json::array({"object", "boolean"})},
+                    {"properties",
+                     {{"activa", {{"type", "boolean"}}},
+                      {"color", {{"type", "string"}}},
+                      {"alfa", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                      {"difuminado", {{"type", "number"}, {"minimum", 0}}},
+                      {"distancia", {{"type", "number"}, {"minimum", 0}}},
+                      {"angulo", {{"type", "number"}}},
+                      {"tamano", {{"type", "number"}}}}}}}}}}}}},
             {"required", {"name"}}};
         t.examples = {R"({"name": "Logo", "layout": "pip-br", "visible": true})",
+                      R"({"name": "Camara", "efectos": {"sombra": {"alfa": 0.7, "difuminado": 25, "distancia": 12, "angulo": 45}}})",
+                      R"({"name": "Zocalo", "efectos": {"opacidad": 0.85, "borde": 20}})",
                       R"({"name": "Titulo principal", "settings": {"text": "Ultimo momento"}})",
                       R"({"name": "Camara", "order": "top"})"};
         t.run = [&rt, persist, sceneOr](const json& a, Done done) {
@@ -1736,6 +1761,14 @@ void McpService::registerTools() {
                      ? did
                      : failed)
                     .push_back("recorte");
+            }
+            if (a.contains("efectos")) {
+                EfectosCapa ef = rt.engine().sourceEfectos(scene, name);
+                std::string err;
+                if (!ef.aplicar(a["efectos"], &err))
+                    failed.push_back("efectos (" + err + ")");
+                else
+                    (rt.setSourceEfectos(scene, name, ef) ? did : failed).push_back("efectos");
             }
             if (a.contains("order")) {
                 const json& o = a["order"];

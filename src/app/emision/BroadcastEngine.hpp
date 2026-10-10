@@ -113,6 +113,28 @@ struct CanvasRect {
 
 /// Fuente generica de libobs para la escena (camara, captura, imagen, texto,
 /// media...). Es lo que hace a la escena configurable sin recompilar.
+/// Efectos de un elemento EN LA ESCENA: transparencia, borde difuso y sombra (o
+/// resplandor: distancia 0 y un color claro). Medidas en píxeles del lienzo; el
+/// ángulo, hacia dónde cae la sombra (0 = derecha, 90 = abajo, 45 = abajo a la derecha).
+/// En JSON (guardado y MCP):
+///   {"opacidad": 1, "borde": 0,
+///    "sombra": {"activa": true, "color": "#000000", "alfa": 0.6, "difuminado": 20,
+///               "distancia": 10, "angulo": 45, "tamano": 0}}
+struct EfectosCapa {
+    float opacidad = 1.0f; ///< de todo el elemento (y su sombra)
+    float borde = 0;       ///< borde difuso: cuántos píxeles del borde se funden
+    bool sombra = false;
+    std::string color = "#000000"; ///< de la sombra: "#RRGGBB" o "#AARRGGBB"
+    float alfa = 0.6f;             ///< opacidad de la sombra
+    float difuminado = 20, distancia = 10, angulo = 45, tamano = 0;
+    bool vacio() const { return opacidad >= 1.0f && borde <= 0 && !sombra; }
+    /// Cambia lo que traiga `j` (lo demás queda); false + `error` si algo no sirve.
+    bool aplicar(const nlohmann::json& j, std::string* error = nullptr);
+    nlohmann::json aJson() const;
+    /// Lo que entiende el motor en la capa (`sombra`, ver ba::motor::SombraCapa); null si no hay.
+    nlohmann::json sombraMotor() const;
+};
+
 struct SourceSpec {
     std::string id;                  ///< id de libobs: "v4l2_input", "image_source", ...
     std::string name;                ///< nombre unico en la escena
@@ -123,6 +145,7 @@ struct SourceSpec {
     bool muted = false;
     /// Recorte en la escena: izquierda, arriba, derecha, abajo (fracciones de su tamaño).
     float recorte[4] = {0, 0, 0, 0};
+    EfectosCapa efectos; ///< en la escena
 };
 
 /// Tipo de fuente disponible en esta libobs (para "Agregar fuente").
@@ -307,6 +330,9 @@ class BroadcastEngine {
     /// Recorta la fuente EN LA ESCENA: izquierda, arriba, derecha, abajo (fracciones, 0..1).
     bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
                        float abajo);
+    /// Transparencia, borde difuso y sombra de la fuente EN LA ESCENA.
+    bool setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos);
+    EfectosCapa sourceEfectos(const std::string& scene, const std::string& name) const;
     /// Los recortes que esperan que su fuente tenga tamaño: se aplican apenas lo tiene.
     void aplicarRecortesPendientes();
     /// Renombra una fuente (en todas las escenas).
@@ -598,6 +624,7 @@ class BroadcastEngine {
         CanvasRect rect;
         bool visible = true;
         float recorte[4] = {0, 0, 0, 0};
+        EfectosCapa efectos;
     };
     struct EscenaApp {
         std::string nombre;

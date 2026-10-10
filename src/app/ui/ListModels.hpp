@@ -83,6 +83,10 @@ class SourcesModel : public QAbstractListModel {
     Q_INVOKABLE bool move(const QString& name, int delta);
     Q_INVOKABLE bool remove(const QString& name);
     Q_INVOKABLE bool setRect(const QString& name, double x, double y, double w, double h);
+    /// Transparencia, borde difuso y sombra de la fuente en esta escena (ver EfectosCapa::aJson).
+    Q_INVOKABLE QVariantMap efectos(const QString& name) const;
+    /// Cambia solo lo que traiga `cambios` (las mismas claves; la sombra, anidada).
+    Q_INVOKABLE bool setEfectos(const QString& name, const QVariantMap& cambios);
     /// Agrega una fuente nueva de tipo `typeId` con nombre unico derivado de
     /// `baseName`. :returns: el nombre final ("" si fallo).
     Q_INVOKABLE QString add(const QString& typeId, const QString& baseName);

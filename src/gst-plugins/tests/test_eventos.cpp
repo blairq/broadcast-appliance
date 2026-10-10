@@ -151,6 +151,7 @@ int main(int argc, char** argv) {
         {"bavtsuperres", Tipo::Video},     {"baglsl", Tipo::Gl},
         {"baplugin", Tipo::Video},         {"balimitador", Tipo::Audio},
         {"baautomixer", Tipo::Audio},
+        {"basombra", Tipo::Video, "margen=16 alfa=0.6 borde=4"}, {"basombragl", Tipo::Gl, "margen=16 alfa=0.6 borde=4"},
     };
     int fallas = 0;
     for (const Caso& k : casos) {

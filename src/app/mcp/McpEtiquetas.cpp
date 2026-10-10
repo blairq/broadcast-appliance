@@ -315,7 +315,8 @@ const Fila kPropias[] = {
      "la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
     {"source_remove", "quitar sacar borrar fuente"},
     {"source_update",
-     "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano"},
+     "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano "
+     "sombra paralela resplandor brillo borde difuso desvanecido transparencia opacidad efectos"},
     {"source_properties", "propiedades opciones parametros de una fuente"},
     {"source_set_property",
      "cambiar una propiedad valor ajuste de fuente refrescar la lista de dispositivos apretar un boton"},

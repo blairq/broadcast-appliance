@@ -6,7 +6,7 @@
 # programa y también `gst-launch-1.0` con su entorno.
 #
 #   superres/  basuperres (+ bafsr, baonnxsr, bavtsuperres, bacoremlsr): superresolución x2.
-#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz, bamejora, ba360 (tarjetas de imagen, legalizador, PTZ digital, mejorar imagen, vista 360).
+#   filtros/   bafiltros: bacolor, bacroma, barecorte, balegal, baptz, bamejora, ba360, basombra (tarjetas de imagen, legalizador, PTZ digital, mejorar imagen, vista 360, sombra).
 #   audio/     baaudio: baautomixer (mesa redonda por grupo), balimitador (limitador true peak del máster).
 #   ipc/       baipc: baanillo y bavideoanillo (el audio y el video de los invitados que deja el gateway en memoria compartida)
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
@@ -28,7 +28,7 @@ function(ba_plugin_gst target)
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
 
-add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp filtros/vista360.cpp)
+add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp filtros/vista360.cpp filtros/sombra.cpp)
 ba_plugin_gst(gstbafiltros)
 if(WIN32)
     # ba360d3d12: la biblioteca D3D12 de GStreamer (de plugins-bad: API «inestable»).
@@ -173,3 +173,13 @@ if(TARGET gstbarostros)
     add_dependencies(test_eventos gstbarostros)
 endif()
 add_test(NAME test_eventos COMMAND test_eventos)
+
+# basombra: dónde cae la sombra, el borde difuso, el margen, y CPU = GPU.
+add_executable(test_sombra tests/test_sombra.cpp)
+target_link_libraries(test_sombra PRIVATE ba::gstreamer)
+if(DEFINED BA_GST_LIBDIR)
+    set_target_properties(test_sombra PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
+endif()
+target_compile_definitions(test_sombra PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(test_sombra gstbafiltros)
+add_test(NAME test_sombra COMMAND test_sombra)

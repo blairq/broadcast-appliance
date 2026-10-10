@@ -130,6 +130,7 @@ SourceSpec sourceFromJson(const json& s) {
     if (rc.is_array() && rc.size() == 4)
         for (int i = 0; i < 4; ++i)
             spec.recorte[i] = rc[i].is_number() ? rc[i].get<float>() : 0.0f;
+    if (s.contains("efectos")) spec.efectos.aplicar(s["efectos"]);
     return spec;
 }
 
@@ -147,6 +148,7 @@ json sourceToJson(const SourceSpec& s) {
            {"rect", {s.rect.x, s.rect.y, s.rect.w, s.rect.h}}};
     if (s.recorte[0] + s.recorte[1] + s.recorte[2] + s.recorte[3] > 0)
         j["recorte"] = {s.recorte[0], s.recorte[1], s.recorte[2], s.recorte[3]};
+    if (!s.efectos.vacio()) j["efectos"] = s.efectos.aJson();
     return j;
 }
 

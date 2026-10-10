@@ -6,7 +6,8 @@
 //   - corte a otra escena: la nueva enseguida y la vieja se va;
 //   - la misma escena con una capa movida: se mueve andando (sin rearmar);
 //   - mezcla de 1 s: a mitad de camino los colores se mezclan; al final, la nueva;
-//   - recorte y alfa de una capa.
+//   - recorte y alfa de una capa;
+//   - sombra y borde difuso de una capa (basombra): la caja crece, la imagen no se mueve.
 
 #include "Composicion.hpp"
 #include "Piezas.hpp"
@@ -101,6 +102,9 @@ void esperar(std::vector<Entrada*>& es, Composicion& c, int ms) {
 int main() {
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
+#endif
+#if defined(BA_TEST_GST_PLUGINS)
+    g_setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, FALSE); // los nuestros (basombra), sin instalar
 #endif
     std::string err;
     if (!iniciarGStreamer(&err)) {
@@ -280,6 +284,44 @@ int main() {
         es.pop_back();
         prog.mostrar(Escena{"vacia", {}}, "corte");
         esperar(es, prog, 300);
+    }
+    // Sombra: el verde en el medio sobre el rojo; primero sin sombra, después la MISMA
+    // escena con sombra a la derecha (la rama se rearma una vez), y el borde difuso.
+    if (hayFabrica("basombra") || hayFabrica("basombragl")) {
+        Escena s;
+        s.nombre = "S";
+        s.capas.push_back({"rojo", 0, 0, 0, 0});
+        Capa kv{"verde", 200, 100, 240, 160};
+        kv.orden = 1;
+        s.capas.push_back(kv);
+        prog.mostrar(s, "corte");
+        esperar(es, prog, 800);
+        CHECK(igual(v.en(450, 180), 255, 0, 0), "sin sombra: a la derecha del verde, rojo");
+        s.capas[1].sombra.alfa = 1;
+        s.capas[1].sombra.difuminado = 4;
+        s.capas[1].sombra.distancia = 20;
+        s.capas[1].sombra.angulo = 0;
+        prog.mostrar(s);
+        esperar(es, prog, 1200);
+        const Rgb centro = v.en(320, 180), der = v.en(450, 180), izq = v.en(190, 180), borde = v.en(205, 180);
+        std::printf("sombra: centro %s, a la derecha %s, a la izquierda %s, borde izq %s\n", txt(centro).c_str(), txt(der).c_str(),
+                    txt(izq).c_str(), txt(borde).c_str());
+        CHECK(igual(centro, 0, 255, 0), "la imagen sigue en su lugar");
+        CHECK(igual(borde, 0, 255, 0), "y del mismo tamaño (su borde izquierdo no se movió)");
+        CHECK(igual(der, 0, 0, 0, 60), "la sombra cae a la derecha (negra)");
+        CHECK(igual(izq, 255, 0, 0), "a la izquierda no hay sombra");
+        // Borde difuso de 40 sin sombra: el borde del verde deja ver el rojo; el centro, verde.
+        s.capas[1].sombra.alfa = 0;
+        s.capas[1].sombra.borde = 40;
+        prog.mostrar(s);
+        esperar(es, prog, 800);
+        const Rgb fundido = v.en(204, 180), medio = v.en(320, 180);
+        std::printf("borde difuso: en el borde %s, en el medio %s\n", txt(fundido).c_str(), txt(medio).c_str());
+        CHECK(fundido.r > 150 && fundido.g < 110, "en el borde se ve casi el rojo de abajo");
+        CHECK(igual(medio, 0, 255, 0), "el medio, verde");
+        CHECK(igual(v.en(450, 180), 255, 0, 0), "sin sombra otra vez, a la derecha rojo");
+    } else {
+        std::printf("sin basombra: no se prueba la sombra\n");
     }
     // DSK y clean feed: un programa con DSK; la capa del DSK (un recuadro azul) se ve en
     // el programa pero no en el limpio, y sigue arriba aunque cambie la escena.

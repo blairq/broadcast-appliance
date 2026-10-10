@@ -22,6 +22,11 @@
 //             pad juntos: no se deforma).
 //   Mostrar la MISMA escena otra vez (mismo nombre) actualiza las capas en el
 //   lugar: posición, tamaño, recorte y alfa cambian andando, sin rearmar.
+// - SOMBRA y BORDE DIFUSO de una capa (Capa::sombra): basombra (o su par de GL o
+//   D3D12) después del recorte; sale un cuadro más grande (un margen alrededor
+//   para la sombra) y la caja de la capa en el mezclador se agranda lo mismo,
+//   así la imagen queda donde estaba. La rama lo lleva desde que alguna vez lo
+//   necesitó (sacarlo sería rearmarla: un parpadeo).
 // - Una capa cuya entrada no da video no se ve (el pad no tiene datos): la placa
 //   «sin señal» la pone la entrada (M5).
 // ============================================================================
@@ -45,6 +50,21 @@ namespace ba::motor {
 
 class Reloj;
 
+/// Sombra (o resplandor) y borde difuso de una capa, en píxeles del lienzo (ver basombra).
+struct SombraCapa {
+    double alfa = 0;            ///< opacidad de la sombra (0 = sin sombra)
+    std::uint32_t color = 0xFF000000; ///< ARGB
+    double difuminado = 20, distancia = 10, angulo = 45, tamano = 0;
+    double borde = 0;           ///< borde difuso de la imagen (aparte de la sombra)
+    bool hace() const { return alfa > 0 || borde > 0; }
+    /// Lo que se agranda la caja de cada lado para que la sombra entre (de a 8: que
+    /// mover un deslizador no renegocie en cada paso).
+    int margen() const;
+    bool operator==(const SombraCapa&) const = default;
+    static SombraCapa desdeJson(const nlohmann::json& j);
+    nlohmann::json aJson() const;
+};
+
 struct Capa {
     std::string entrada;           ///< la entrada del motor (lee <entrada>:video); también el nombre de la capa
     int x = 0, y = 0;
@@ -57,6 +77,7 @@ struct Capa {
     /// false: se estira al recuadro.
     bool contener = false;
     std::string productor;         ///< si no está vacío, lee este productor (p. ej. «video:programa» en el multiview)
+    SombraCapa sombra;
 };
 
 struct Escena {
@@ -132,6 +153,9 @@ class Composicion {
         GstElement* subir = nullptr;   ///< glupload / d3d12upload (gpu)
         GstElement* conv = nullptr;    ///< glcolorconvert (gl)
         GstElement* fijar = nullptr;   ///< glshader (gl: obliga a gltransformation a dibujar, ver crearRama)
+        GstElement* sombra = nullptr;  ///< basombra / basombragl / basombrad3d12 (si la capa tiene sombra o borde)
+        GstElement* aRgba = nullptr;   ///< videoconvert antes de basombra (CPU)
+        int margen = 0;                ///< lo que se agrandó la caja de cada lado (la sombra)
         // D3D12: la ventana que se marca en cada cuadro (meta de recorte, en píxeles de la
         // fuente) y el tamaño de la fuente (lo escribe el hilo de datos).
         std::atomic<int> recIzq{0}, recArr{0}, recDer{0}, recAba{0}, fuenteW{0}, fuenteH{0};
@@ -149,6 +173,8 @@ class Composicion {
     };
     void aplicarLatencia();
     void ponerCapa(Rama& r, const Capa& c, double alfa);
+    /// Los números de la sombra a su elemento, con la caja (en el lienzo) donde se ve la imagen.
+    static void ponerSombra(Rama& r, const SombraCapa& s, int margen, int cajaAncho, int cajaAlto, bool contener);
     /// GPU: el recorte (y lo que saca la cortina por la derecha) con gltransformation (GL)
     /// o con la meta de recorte que aplica d3d12convert (D3D12), y la caja en el lienzo
     /// (con «contener» y recorte, la calcula a mano).
@@ -156,6 +182,8 @@ class Composicion {
     /// D3D12: marca en cada cuadro la ventana de la rama (y anota el tamaño de la fuente).
     static GstPadProbeReturn marcarRecorte(GstPad* pad, GstPadProbeInfo* info, gpointer d);
     Rama* crearRama(const Capa& c, int gen, GstElement* mx = nullptr);
+    /// Antes de una escena nueva: las capas de la actual bajan a su orden (las nuevas van en 5000 + orden).
+    void bajarViejas();
     void soltar(Rama& r);
     void sacarGeneracion(int gen);
     /// La transición en curso en el punto `t` (0…1).

@@ -128,6 +128,8 @@ class AppRuntime {
     bool moveSource(const std::string& scene, const std::string& name, int delta);
     bool setSourceVisible(const std::string& scene, const std::string& name, bool visible);
     bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect);
+    /// Transparencia, borde difuso y sombra de la fuente en la escena (y se guarda en la config).
+    bool setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos);
     bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
                        float abajo);
     bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
