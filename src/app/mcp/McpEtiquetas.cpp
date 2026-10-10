@@ -699,6 +699,7 @@ const Fila kPropias[] = {
 
     // --- QR -----------------------------------------------------------------------
     {"qr_listar", "que codigos qr hay guardados tipos iconos"},
+    {"ui_abrir_panel", "abrir panel dialogo ventana superresolucion entrada virtual catalogo modulos mostrar"},
     {"control_estado", "puede el asistente manejar la pc mouse captura permisos del control de windows"},
     {"control_configurar", "habilitar prender apagar control de windows permitir administrador mouse teclado"},
     {"qr_generar", "generar codigo qr crear sin guardar probar"},

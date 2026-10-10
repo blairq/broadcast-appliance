@@ -1906,15 +1906,29 @@ void VideoGrafos::evaluarSuperres() {
                      {"forzado", forzado}};
         const bool seVe = ap > 0 || av > 0;
         quiero[e] = activo ? "reposo" : "activo";
-        if (!activo) continue;
+        // Por qué queda como queda, en palabras (lo muestra la tarjeta): antes
+        // quedaba en reposo o barata sin decir nada y parecía que no andaba.
+        char ax[32];
+        std::snprintf(ax, sizeof ax, "%.2f", aumento);
+        if (!activo) {
+            estado[e]["motivo"] = "el programador está apagado: trabaja siempre";
+            continue;
+        }
         if (forzado == "siempre") {
             candidatos.push_back({e, 100.0}); // primero, consuma lo que consuma
+            estado[e]["motivo"] = "forzada a trabajar siempre";
         } else if (forzado != "nunca" && seVe && aumento > umbral) {
             double pr = (ap > 0 ? 2.0 : 0.0) + (av > 0 ? 1.0 : 0.0) + std::min(aumento, 4.0) / 4.0;
             if (modoSr_.count(e) && modoSr_[e] == "activo") pr += 0.05; // estabilidad
             candidatos.push_back({e, pr});
-        } else if (forzado == "nunca" && seVe && aumento > umbral) {
-            quiero[e] = sinTurno;
+            estado[e]["motivo"] = std::string(ap > 0 ? "al aire" : "en preview") + ", agrandada x" + ax;
+        } else if (forzado == "nunca") {
+            if (seVe && aumento > umbral) quiero[e] = sinTurno;
+            estado[e]["motivo"] = "forzada a no trabajar";
+        } else if (!seVe) {
+            estado[e]["motivo"] = "no está al aire ni en preview: se prende sola cuando se vea (o elegí «Siempre»)";
+        } else {
+            estado[e]["motivo"] = std::string("en pantalla casi no se agranda (x") + ax + "): no hace falta";
         }
     }
     std::sort(candidatos.begin(), candidatos.end(), [](const Cand& a, const Cand& b) { return a.prioridad > b.prioridad; });
@@ -1968,6 +1982,9 @@ void VideoGrafos::evaluarSuperres() {
                 ++activas;
             } else {
                 quiero[c.entrada] = sinTurno;
+                estado[c.entrada]["motivo"] = activas >= tope
+                                                  ? "ya trabajan " + std::to_string(tope) + " (el tope)"
+                                                  : std::string("no le alcanza la placa al lado de las otras");
             }
         }
     // La alarma «no llega»: una red activa que tarda más que el umbral (de fábrica, el
@@ -2000,8 +2017,21 @@ void VideoGrafos::evaluarSuperres() {
             emit superresTarde(QString::fromStdString(e), ms, cuadroMs, bypassAuto);
         }
         if (!lenta && ahora >= t.bypassHasta) t.avisado = false;
-        const bool enBypass = bypassAuto && ahora < t.bypassHasta;
+        // Forzada a «siempre» no se saca sola aunque no llegue: es para ver de
+        // verdad lo que hace (una red de 1 cuadro por segundo se ve a 1 cuadro por
+        // segundo). Antes se pasaba a barata a los 2 s y nunca se veía nada.
+        const bool siempre = forzar.value(e, std::string("auto")) == "siempre";
+        const bool enBypass = bypassAuto && !siempre && ahora < t.bypassHasta;
         if (enBypass && quiero[e] == "activo") quiero[e] = sinTurno;
+        if (lenta) {
+            char m[160];
+            std::snprintf(m, sizeof m, "no llega: %.0f ms por cuadro (un cuadro dura %.0f ms)%s", ms, cuadroMs,
+                          enBypass ? "; pasada a barata, vuelve a probar sola" : "");
+            estado[e]["motivo"] = m;
+        } else if (enBypass) {
+            estado[e]["motivo"] = "no llegaba a tiempo: barata un rato, vuelve a probar en " +
+                                  std::to_string((t.bypassHasta - ahora + 999) / 1000) + " s (o elegí «Siempre»)";
+        }
         estado[e]["tarde"] = (t.desde != 0 && ahora - t.desde >= 2000) || enBypass;
         if (enBypass) estado[e]["bypass_s"] = (t.bypassHasta - ahora + 999) / 1000;
     }

@@ -799,6 +799,9 @@ class StudioViewModel : public QObject {
     void seccionConfigChanged();
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
+    /// Pide a una página que abra (o cierre: "cerrar") un panel o diálogo suyo
+    /// (ui_abrir_panel {page, panel}): lo que el operador abre con un botón.
+    void abrirPanel(const QString& pagina, const QString& panel);
     void canvasChanged();
     void medicionSincroLista(const QVariantMap& resultado);
     void balisticaChanged();

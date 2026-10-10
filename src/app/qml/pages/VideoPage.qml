@@ -131,6 +131,14 @@ Rectangle {
             page.vg.entrada = partes[0]
             if (partes.length > 1) page.elegir(partes.slice(1).join("/"))
         }
+        // ui_abrir_panel: los diálogos de esta página (los mismos de sus botones).
+        function onAbrirPanel(pagina, panel) {
+            if (pagina !== "video") return
+            if (panel === "cerrar") { superresPop.close(); virtualPop.close(); catalogo.close(); return }
+            if (panel === "superresolucion") { panelSr.maestroPedido = ""; superresPop.open() }
+            else if (panel === "entrada_virtual") virtualPop.open()
+            else if (panel === "catalogo") catalogo.open()
+        }
     }
 
     // LOS EVENTOS ENTRE TARJETAS (ba/rostros, ba/ptz, ba/encuadre, ba/control…):
@@ -901,6 +909,60 @@ Rectangle {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
                                 text: "Agranda x2: lo que sigue trabaja al doble y la escena la recibe grande. Elegí el método; la demora se mide y el audio de la entrada se atrasa lo mismo (solo)."
+                            }
+                            // El error de la tarjeta (el mismo que se ve en el grafo) y lo que
+                            // decidió el programador, con el motivo: antes no se veía nada acá y
+                            // parecía que prender o apagar no hacía efecto.
+                            Text {
+                                visible: !!page.nodo && !!page.nodo.error
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: page.nodo && page.nodo.error ? "⚠ " + page.nodo.error : ""
+                                color: Theme.live; font.pixelSize: 12
+                            }
+                            Item {
+                                id: srEstado
+                                Layout.fillWidth: true
+                                implicitHeight: srEstadoTxt.implicitHeight
+                                readonly property string entrada: page.nodo && page.nodo.grupo ? page.nodo.grupo : (page.vg ? String(page.vg.entrada || "") : "")
+                                property var e: ({})
+                                function leer() {
+                                    const p = page.vg ? page.vg.programadorUi() : ({})
+                                    e = (p.entradas || {})[entrada] || ({})
+                                }
+                                Timer { interval: 1000; running: srPanel.visible; repeat: true; triggeredOnStart: true; onTriggered: srEstado.leer() }
+                                Text {
+                                    id: srEstadoTxt
+                                    width: parent.width; wrapMode: Text.WordWrap
+                                    readonly property string modo: srEstado.e.modo || ""
+                                    text: modo === "" ? "Ahora: todavía sin estado (la entrada está arrancando)"
+                                        : "Ahora: " + (modo === "activo" ? "trabajando" : modo === "barato" ? "barata (agrandado común)" : "en reposo (pasa sin tocar)") +
+                                          (srEstado.e.ms > 0 ? " · " + Number(srEstado.e.ms).toFixed(0) + " ms por cuadro" : "") +
+                                          (srEstado.e.motivo ? " — " + srEstado.e.motivo : "")
+                                    color: modo === "activo" ? Theme.ok : modo === "" ? Theme.textFaint : Theme.amber
+                                    font.pixelSize: 12
+                                }
+                            }
+                            RowLayout {
+                                visible: srEstado.entrada !== ""
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Text { text: "Cuándo trabaja"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    id: srCuando
+                                    Layout.fillWidth: true
+                                    readonly property var opciones: [
+                                        { t: "Automático: cuando se ve grande (al aire o en preview) y llega a tiempo", v: "auto" },
+                                        { t: "Siempre (para probar: aunque no se vea o no llegue)", v: "siempre" },
+                                        { t: "Nunca", v: "nunca" } ]
+                                    model: opciones.map(o => o.t)
+                                    currentIndex: Math.max(0, opciones.findIndex(o => o.v === (srEstado.e.forzado || "auto")))
+                                    onActivated: (i) => {
+                                        const f = {}
+                                        f[srEstado.entrada] = opciones[i].v
+                                        page.avisar(page.vg.configurarProgramadorUi({ forzar: f }))
+                                        srEstado.leer()
+                                    }
+                                }
                             }
                             RowLayout {
                                 Layout.fillWidth: true

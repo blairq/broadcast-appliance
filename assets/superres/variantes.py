@@ -34,6 +34,16 @@ import time
 VERSION = 1
 
 
+# Los mensajes a la app, en UTF-8 siempre: en Windows stdout sale en la página de
+# códigos del sistema (cp1252) y la app no podía leer «Convirtiendo a ONNX…» (lo
+# mostraba crudo, en JSON, y el avance no se veía).
+for _f in (sys.stdout, sys.stderr):
+    try:
+        _f.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
+
+
 def decir(**m) -> None:
     print(json.dumps(m, ensure_ascii=False), flush=True)
 

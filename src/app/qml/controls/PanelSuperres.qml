@@ -147,16 +147,40 @@ ColumnLayout {
         GlassButton { compact: true; text: "Cancelar"; visible: !!panel.tr.corriendo; onClicked: panel.sr.cancelarUi() }
         Item { Layout.fillWidth: true }
     }
-    ColumnLayout {
-        visible: !!panel.tr.que
+    /// El avance del trabajo del laboratorio, donde se lo pidió: cada sección
+    /// muestra el suyo (`de`: con qué empieza el nombre del trabajo; vacío = todos).
+    /// Antes se veía solo arriba, en «Entrenar»: al bajar un modelo desde abajo
+    /// no se veía nada.
+    component Avance: ColumnLayout {
+        property var de: []
+        readonly property string que: String(panel.tr.que || "")
+        readonly property bool mio: que !== "" && (de.length === 0 || de.some(p => que.indexOf(p) === 0))
+        visible: mio
         Layout.fillWidth: true
         spacing: 4
-        Text { text: panel.tr.que || ""; color: Theme.text; font.pixelSize: 12 }
-        ProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: panel.tr.pct || 0; visible: !!panel.tr.corriendo }
+        Text { text: parent.que; color: Theme.text; font { pixelSize: 12; weight: Font.DemiBold } }
         Text {
+            // Bajar un modelo sin el laboratorio: primero las bibliotecas (una sola vez).
+            visible: parent.que.indexOf("Preparar el laboratorio") === 0 && !!panel.tr.corriendo
             Layout.fillWidth: true; wrapMode: Text.WordWrap
-            text: panel.tr.error ? "✕ " + panel.tr.error : (panel.tr.texto || "")
-            color: panel.tr.error ? Theme.live : Theme.textDim; font.pixelSize: 11
+            text: "Paso 1 de 2: las bibliotecas de Python del laboratorio (una sola vez, ~800 MB). Después se baja y se convierte el modelo."
+            color: Theme.textDim; font.pixelSize: 11
+        }
+        ProgressBar {
+            Layout.fillWidth: true; from: 0; to: 100
+            // Sin porcentaje (pip, una descarga), una barra que se mueve: que se vea que trabaja.
+            indeterminate: !!panel.tr.corriendo && !(panel.tr.pct > 0)
+            value: panel.tr.pct || 0
+            visible: !!panel.tr.corriendo
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: panel.tr.error ? "✕ " + panel.tr.error : (panel.tr.texto || (panel.tr.corriendo ? "Arrancando…" : ""))
+                color: panel.tr.error ? Theme.live : Theme.textDim; font.pixelSize: 11
+            }
+            GlassButton { compact: true; text: "Cancelar"; visible: !!panel.tr.corriendo; onClicked: panel.sr.cancelarUi() }
         }
         Text {
             visible: panel.tr.psnr_red !== undefined
@@ -166,6 +190,7 @@ ColumnLayout {
             color: (panel.tr.psnr_red || 0) > (panel.tr.psnr_bicubico || 0) ? Theme.ok : Theme.amber; font.pixelSize: 12
         }
     }
+    Avance {}
 
     // --- El banco de pruebas: qué puede usar esta máquina -----------------------------------
     ColumnLayout {
@@ -313,18 +338,28 @@ ColumnLayout {
         spacing: 8
         ComboBox {
             id: tipoGpu
-            Layout.preferredWidth: 240
-            model: [ { t: "NVIDIA (CUDA + TensorRT)", v: "nvidia" }, { t: "AMD en Linux (ROCm/MIGraphX)", v: "amd" }, { t: "Intel (OpenVINO)", v: "intel" } ]
+            Layout.preferredWidth: 320
+            // En Windows, AMD e Intel usan DirectML, que ya viene en el programa
+            // (no se baja nada). Antes la lista solo ofrecía «AMD en Linux» y con
+            // una AMD en Windows quedaba elegida NVIDIA.
+            readonly property bool enWindows: Qt.platform.os === "windows"
+            model: enWindows
+                   ? [ { t: "AMD o Intel: DirectML (ya incluido)", v: "directml" }, { t: "NVIDIA (CUDA + TensorRT)", v: "nvidia" },
+                       { t: "Intel (OpenVINO)", v: "intel" } ]
+                   : [ { t: "NVIDIA (CUDA + TensorRT)", v: "nvidia" }, { t: "AMD en Linux (ROCm/MIGraphX)", v: "amd" }, { t: "Intel (OpenVINO)", v: "intel" } ]
             textRole: "t"
-            currentIndex: Math.max(0, model.findIndex(o => o.v === panel.gpu.sugerido))
+            currentIndex: enWindows && (panel.gpu.placa === "amd" || (panel.gpu.placa === "intel" && !panel.gpu.sugerido))
+                          ? 0 : Math.max(0, model.findIndex(o => o.v === panel.gpu.sugerido))
+            readonly property bool directml: currentIndex >= 0 && model[currentIndex].v === "directml"
         }
         CheckBox {
             id: conTrt
-            visible: tipoGpu.currentIndex === 0
+            visible: tipoGpu.model[tipoGpu.currentIndex] !== undefined && tipoGpu.model[tipoGpu.currentIndex].v === "nvidia"
             text: "Con TensorRT (compila la red para la placa; ~2 GB más)"
             checked: true
         }
         GlassButton {
+            visible: !tipoGpu.directml
             compact: true; active: true
             text: panel.tr.corriendo ? "Trabajando…" : "Bajar el runtime de GPU"
             enabled: !panel.tr.corriendo
@@ -332,6 +367,15 @@ ColumnLayout {
         }
         Item { Layout.fillWidth: true }
     }
+    Text {
+        visible: tipoGpu.directml && tipoGpu.visible
+        Layout.fillWidth: true; wrapMode: Text.WordWrap
+        color: Theme.textDim; font.pixelSize: 12
+        text: "Con AMD o Intel en Windows no hace falta bajar nada: las redes (SPAN, Real-ESRGAN, la red chica) corren en la placa con " +
+              "DirectML, que ya viene en el programa, y el laboratorio entrena en la placa con PyTorch para DirectML (se instala solo " +
+              "con él la primera vez que se baja un modelo o se entrena). FSR corre siempre en la placa, con cualquier marca."
+    }
+    Avance { de: ["Bajar el ONNX Runtime"] }
 
     // --- Destilar ---------------------------------------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
@@ -649,6 +693,7 @@ ColumnLayout {
             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Real-ESRGAN compacto x4 (BSD-3): limpia ruido y compresión; pesado (~290 ms en una Mac)"
         }
     }
+    Avance { de: ["Preparar el laboratorio", "Convertir"] }
     Text {
         visible: panel.sr && panel.sr.modelos.length === 0
         text: "Todavía no hay modelos: entrená uno con una cámara o bajá SPAN / Real-ESRGAN."

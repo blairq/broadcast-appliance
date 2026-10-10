@@ -13,6 +13,7 @@
 #include <QVariant>
 
 #include <algorithm>
+#include <map>
 #include <deque>
 
 #include "arranque/AppRuntime.hpp"
@@ -98,6 +99,45 @@ void McpService::registerUiTools() {
                 else emit vm.mostrarSeccion(QString::fromStdString(a["page"].get<std::string>()), s);
             }
             done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        // Los paneles y diálogos que se abren con un botón: sin esto no había
+        // forma de mostrarlos (ni de verlos con capture_ui) sin tocar la pantalla.
+        static const std::map<std::string, std::vector<std::string>> kPaneles{
+            {"video", {"superresolucion", "entrada_virtual", "catalogo"}}};
+        Tool t;
+        t.name = "ui_abrir_panel";
+        t.title = "Abrir un panel o diálogo de una página";
+        t.category = "interfaz";
+        t.description = "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo "
+                        "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
+                        "entrenar), entrada_virtual, catalogo (módulos de GStreamer). Para mirarlo, capture_ui.";
+        json enumPaginas = json::array();
+        for (const auto& [p, l] : kPaneles) enumPaginas.push_back(p);
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"page", {{"type", "string"}, {"enum", enumPaginas}}},
+                           {"panel", {{"type", "string"}, {"description", "uno de los de esa página, o \"cerrar\""}}}}},
+                         {"required", {"page", "panel"}}};
+        t.examples = {R"({"page": "video", "panel": "superresolucion"})", R"({"page": "video", "panel": "cerrar"})"};
+        t.run = [self, &vm](const json& a, Done done) {
+            QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
+            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            const std::string pag = a.value("page", std::string()), panel = a.value("panel", std::string());
+            const auto it = kPaneles.find(pag);
+            if (it == kPaneles.end()) return done(ToolResult::error("Esa página no tiene paneles para abrir por acá."));
+            if (panel != "cerrar" && std::find(it->second.begin(), it->second.end(), panel) == it->second.end()) {
+                std::string l;
+                for (const auto& x : it->second) l += (l.empty() ? "" : ", ") + x;
+                return done(ToolResult::error("«" + panel + "» no es un panel de " + pag + ": " + l + " o cerrar."));
+            }
+            const int pagina = paginaDeId(vm, pag);
+            if (pagina < 0) return done(ToolResult::error("No conozco la pagina \"" + pag + "\"."));
+            w->setProperty("page", pagina);
+            emit vm.abrirPanel(QString::fromStdString(pag), QString::fromStdString(panel));
+            done(ToolResult::ok(panel == "cerrar" ? "Paneles de " + pag + " cerrados." : "Abierto: " + pag + " → " + panel));
         };
         core_.addTool(std::move(t));
     }
