@@ -1399,7 +1399,24 @@ bool AppRuntime::restartGateway() {
     ba::ipc::Message m;
     m.type = ba::ipc::Type::Shutdown;
     m.payload = "{}";
-    return ep.sendRequest(m);
+    if (!ep.sendRequest(m)) {
+        lastError_ = "no se pudo mandar el pedido al gateway";
+        return false;
+    }
+    // La conexión queda abierta hasta que el gateway la cierre al salir: B mira
+    // su canal cada 250 ms y, en Windows, un pipe cuyo cliente ya se fue pierde
+    // lo que tenía sin leer. Antes se cerraba enseguida y el pedido no llegaba
+    // nunca: decía «reiniciándose» y el gateway seguía igual.
+    ba::ipc::Message r;
+    for (int i = 0; i < 60 && ep.connected(); ++i) {
+        ep.poll(r);
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    if (ep.connected()) {
+        lastError_ = "el gateway no contestó al pedido de reinicio";
+        return false;
+    }
+    return true;
 }
 
 CanvasRect guestRect(int slot, int count) {

@@ -576,9 +576,9 @@ int main(int argc, char** argv) {
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;
     Room room(roomCfg);
-    const std::string guestUrl = "http://" +
-                                 std::string(cfg.bindAddress == "0.0.0.0" ? "127.0.0.1" : cfg.bindAddress) +
-                                 ":" + std::to_string(cfg.port) + "/";
+    // La señalización siempre se alcanza en 127.0.0.1 (con «red local» escucha
+    // en todas; con una IP elegida, en 127.0.0.1: ver sigCfg).
+    const std::string guestUrl = "http://127.0.0.1:" + std::to_string(cfg.port) + "/";
     // El enlace que copia el operador lleva la sala en el fragmento (#room=),
     // igual que el QR: el invitado no tiene que tipear un dato que no conoce.
     room.setHostInfo(roomPin, guestUrl + "#room=" + cfg.room);
@@ -599,7 +599,11 @@ int main(int argc, char** argv) {
     // --- Servidor HTTP + WS (invitados) y API de control (operador).
     SignalingServer::Cfg sigCfg;
     sigCfg.port = cfg.port;
-    sigCfg.bindAddress = cfg.bindAddress;
+    // Con UNA IP elegida, esa IP la atiende el HTTPS (por donde entran los de la
+    // red local: sin HTTPS el navegador no da cámara); la señalización queda en
+    // 127.0.0.1, que es adonde le reenvían el HTTPS y el túnel de Cloudflare.
+    const bool unaInterfaz = cfg.bindAddress != "127.0.0.1" && cfg.bindAddress != "0.0.0.0";
+    sigCfg.bindAddress = unaInterfaz ? std::string("127.0.0.1") : cfg.bindAddress;
     sigCfg.webroot = cfg.webroot;
     sigCfg.room = cfg.room;
     sigCfg.maxGuests = cfg.guests;
@@ -760,6 +764,9 @@ int main(int argc, char** argv) {
         bestUrl = (tls ? "https://" : "http://") + publicHost + "/";
     } else if (tls && cfg.bindAddress == "0.0.0.0" && !lanIps.empty()) {
         bestUrl = "https://" + lanIps.front() + ":" + std::to_string(tls->port()) + "/";
+    } else if (tls && cfg.bindAddress != "127.0.0.1" && cfg.bindAddress != "0.0.0.0") {
+        // Escucha en UNA interfaz: el enlace es por esa IP.
+        bestUrl = "https://" + cfg.bindAddress + ":" + std::to_string(tls->port()) + "/";
     } else if (tls) {
         bestUrl = "https://127.0.0.1:" + std::to_string(tls->port()) + "/";
     }

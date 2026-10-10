@@ -77,10 +77,15 @@ ColumnLayout {
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: field.badge === "gateway" ? "reinicia gateway" : "al reiniciar"
+                text: field.badge === "gateway" ? "reinicia la sala al aplicar" : "al volver a abrir el programa"
                 color: Theme.textFaint
                 font.pixelSize: 10
             }
+            MouseArea { id: badgeMa; anchors.fill: parent; hoverEnabled: true }
+            ToolTip.visible: badgeMa.containsMouse; ToolTip.delay: 300
+            ToolTip.text: field.badge === "gateway"
+                ? "Al aplicar se reinicia solo el servidor de la sala (gateway), sin cerrar el programa: los invitados se cortan y vuelven a entrar. También se puede reiniciar a mano con «Reiniciar la sala» (acá o en la página Sala)."
+                : "Rige la próxima vez que se abra el programa."
         }
     }
     Text {

@@ -4,6 +4,7 @@
 
 #include "ui/SettingsModel.hpp"
 
+#include <QNetworkInterface>
 #include <QVariantMap>
 
 #include "arranque/AppRuntime.hpp"
@@ -19,6 +20,26 @@ QVariantList choices(std::initializer_list<std::pair<const char*, const char*>> 
     for (const auto& [v, l] : items) {
         out << QVariantMap{{"value", QString(v)}, {"label", QString(l)}};
     }
+    return out;
+}
+
+/// Dónde escucha el gateway: esta máquina, toda la red local, o UNA interfaz
+/// (una de las IPv4 que tiene la máquina ahora; la guardada aunque no esté).
+QVariantList opcionesBind(const std::string& actual) {
+    QVariantList out = choices({{"127.0.0.1", "Solo esta máquina (vía túnel)"},
+                                {"0.0.0.0", "Red local, todas las interfaces (también sin túnel)"}});
+    bool esta = actual.empty() || actual == "127.0.0.1" || actual == "0.0.0.0";
+    for (const QNetworkInterface& i : QNetworkInterface::allInterfaces()) {
+        if (!(i.flags() & QNetworkInterface::IsUp) || (i.flags() & QNetworkInterface::IsLoopBack)) continue;
+        for (const QNetworkAddressEntry& e : i.addressEntries()) {
+            const QHostAddress a = e.ip();
+            if (a.protocol() != QAbstractSocket::IPv4Protocol || a.isLinkLocal()) continue;
+            const QString ip = a.toString();
+            esta = esta || ip.toStdString() == actual;
+            out << QVariantMap{{"value", ip}, {"label", "Solo " + ip + " (" + i.humanReadableName() + ")"}};
+        }
+    }
+    if (!esta) out << QVariantMap{{"value", qs(actual)}, {"label", qs(actual) + " (esta máquina ya no la tiene)"}};
     return out;
 }
 
@@ -83,7 +104,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         // --- Gateway ---------------------------------------------------------
         {"gateway.room", "Gateway", "Sala", "text", {}, 0, 0, "", "Nombre de la sala a la que entran los invitados.", "gateway", "sala1"},
         {"gateway.port", "Gateway", "Puerto", "int", {}, 1024, 65535, "", "", "gateway", 8787},
-        {"gateway.bind", "Gateway", "Acceso", "choice", choices({{"127.0.0.1","Solo esta máquina (vía túnel)"},{"0.0.0.0","Red local (también sin túnel)"}}), 0, 0, "", "Red local expone el gateway a la LAN; el PIN y el límite de intentos siguen protegiendo.", "gateway", "127.0.0.1"},
+        {"gateway.bind", "Gateway", "Acceso (dónde escucha)", "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la sala.", "gateway", "127.0.0.1"},
         {"gateway.tunnel", "Gateway", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Necesita el token en BA_TUNNEL_TOKEN.", "gateway", true},
         {"gateway.tunnelHost", "Gateway", "Dominio público (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},
         {"gateway.videoW", "Gateway", "Video del invitado: ancho", "int", {}, 320, 3840, "px", "", "gateway", 1280},
@@ -449,8 +470,9 @@ QString SettingsModel::apply() {
         notes << "Configuracion guardada.";
     }
     if (restartB) {
-        notes << (rt_.restartGateway() ? "Gateway reiniciado con la configuracion nueva."
-                                       : "Gateway: " + qs(rt_.lastError()));
+        notes << (rt_.restartGateway() ? "Sala (gateway) reiniciada con la configuración nueva."
+                                       : "La sala no se reinició (" + qs(rt_.lastError()) +
+                                             "): apretá «Reiniciar la sala» acá abajo o en la página Sala.");
     }
     load();
     const QString summary = notes.join(" ");

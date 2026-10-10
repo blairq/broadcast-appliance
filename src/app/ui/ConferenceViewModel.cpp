@@ -498,8 +498,13 @@ QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
     }
     if (p.value("activo", false) && p.value("dominio", std::string()).empty()) return "falta el dominio";
     if (!rt_.save()) return QString::fromStdString(rt_.lastError());
-    rt_.restartGateway();
-    return {};
+    return reiniciarSala();
+}
+
+QString ConferenceViewModel::reiniciarSala() {
+    if (rt_.restartGateway()) return {};
+    return "No se pudo reiniciar la sala: " + QString::fromStdString(rt_.lastError()) +
+           ". Si sigue, cerrá y volvé a abrir el programa.";
 }
 
 QString ConferenceViewModel::recomendacionPrueba(const QJsonObject& r) {
@@ -614,8 +619,8 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
                       g.wgPublicAddress = pub.toStdString();
                       rt_.save();
                       emit serverConfigReady(r.value("config").toString(), {});
-                      emit notify(rt_.restartGateway() ? "Tunel configurado: reiniciando el gateway"
-                                                       : "Tunel configurado (reinicia el gateway)",
+                      emit notify(rt_.restartGateway() ? "Tunel configurado: reiniciando la sala"
+                                                       : "Tunel configurado, pero la sala no se reinició: apretá «Reiniciar la sala» en la página Sala",
                                   "ok");
                   });
 }

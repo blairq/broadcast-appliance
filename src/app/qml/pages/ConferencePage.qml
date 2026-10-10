@@ -421,6 +421,22 @@ Rectangle {
                         spacing: 8
                         StatusPill { text: conf.online ? "Sala " + conf.room : "Sala sin conexion"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
                         StatusPill { visible: conf.online; text: (conf.maxGuests - conf.slotsFree) + "/" + conf.maxGuests + " lugares"; dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
+                        // Reinicia SOLO la sala (el gateway): relee su configuración (IP,
+                        // puertos, túnel) sin cerrar el programa.
+                        GlassButton {
+                            compact: true; text: "Reiniciar la sala"; icon: "↻"
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Reinicia solo el servidor de la sala (gateway) con su configuración actual, sin cerrar el programa. Los invitados se cortan y vuelven a entrar."
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Reiniciar la sala?",
+                                text: "Se reinicia solo el servidor de la sala con su configuración actual. Los invitados conectados se cortan y vuelven a entrar solos.",
+                                accept: "Reiniciar", reject: "Cancelar",
+                                action: function() {
+                                    const e = conf.reiniciarSala()
+                                    Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                                }
+                            })
+                        }
                     }
                     GridView {
                         id: grid

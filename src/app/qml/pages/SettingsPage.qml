@@ -129,6 +129,30 @@ Rectangle {
                         text: "Valores por defecto de esta seccion"; compact: true
                         onClicked: Studio.settings.resetSection(page.section)
                     }
+                    // Las secciones de la sala: al aplicar se reinicia sola, y acá
+                    // también a mano (sin cerrar el programa).
+                    RowLayout {
+                        visible: page.section === "Gateway" || page.section === "Sala" || page.section === "Acceso directo"
+                        Layout.fillWidth: true
+                        Layout.topMargin: 4
+                        spacing: 10
+                        GlassButton {
+                            compact: true; text: "Reiniciar la sala ahora"; icon: "↻"
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Reiniciar la sala?",
+                                text: "Se reinicia solo el servidor de la sala (gateway) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
+                                accept: "Reiniciar", reject: "Cancelar",
+                                action: function() {
+                                    const e = Studio.conference.reiniciarSala()
+                                    Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                                }
+                            })
+                        }
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                            text: "Los cambios marcados «reinicia gateway» reinician la sala solos al aplicarlos; el resto del programa sigue andando."
+                        }
+                    }
                 }
             }
             Loader {

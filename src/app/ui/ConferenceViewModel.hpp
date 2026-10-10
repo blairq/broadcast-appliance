@@ -198,6 +198,10 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void renovarProxy(const QString& host);
     /// Cambia la configuración del proxy (activo, dominio, acme…) y reinicia la sala. "" o el error.
     Q_INVOKABLE QString configurarProxy(const QVariantMap& cambios);
+    /// Reinicia solo el gateway (la sala): relee su configuración (IP, puertos,
+    /// túnel…) sin tocar el resto del programa. Los invitados se cortan y vuelven
+    /// a entrar. "" o el error.
+    Q_INVOKABLE QString reiniciarSala();
     /// Lo que hay que decirle al operador según el resultado de la prueba.
     static QString recomendacionPrueba(const QJsonObject& r);
     /// Elegir con que fuentes te ve/oye el lobby ("" = ninguna).
