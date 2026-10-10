@@ -1289,8 +1289,14 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     marca("matriz");
-    // Una entrada de placa que trae la tarjeta «Entrada» de un rack también se abre.
-    matriz_->setUsadasPorOtros([r = racks_.get()]() { return r->fuentesDeEntradas(); });
+    // Una entrada de placa se abre si la trae la tarjeta «Entrada» de un rack, o si su
+    // propio rack tiene algo (un filtro, voz a texto): sin salida en la matriz igual
+    // tiene que llegarles el audio.
+    matriz_->setUsadasPorOtros([r = racks_.get()]() {
+        std::set<std::string> s = r->fuentesDeEntradas();
+        for (auto& f : r->fuentesConRack()) s.insert(f);
+        return s;
+    });
     // Las pistas que graba el programa (T29) quedan rotuladas en la Matriz.
     connect(this, &StudioViewModel::statusChanged, this, [this]() {
         const int mask = rt_.engine().pistasGrabacionMask();

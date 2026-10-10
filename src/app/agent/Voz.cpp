@@ -433,6 +433,7 @@ void Voz::atenderDesde(const QString& texto, const QString& quien, bool disparad
 }
 
 void Voz::atender(const QString& frase) { atenderDe(frase, "manual", nlohmann::json::object()); }
+void Voz::dictar(const QString& frase) { atenderDe(frase, "dictado", nlohmann::json{{"simulado", true}}); }
 
 void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann::json& meta) {
     const QString f = frase.trimmed();
@@ -442,6 +443,14 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
     rec["texto"] = f.toStdString();
     bitacora(id, "reconocido", rec);
     if (f.isEmpty()) return;
+    // Mirando al asistente (su página o su ventana): lo dictado es para él, tal cual,
+    // como cuando el modelo local deriva. Si no está andando, sigue el camino de siempre.
+    const bool asistenteAndando = (asistenteGrande_ && asistenteGrande_()) || (asistenteLocal_ && asistenteLocal_());
+    if (origen == "dictado" && vistaAsistente_ && asistenteAndando) {
+        bitacora(id, "al_asistente", {{"motivo", "mirando al asistente"}, {"texto", f.toStdString()}});
+        emit dictado(f);
+        return;
+    }
     // Sin modelo local (o apagado a propósito): al asistente, como siempre.
     if (!usarModeloLocal_ || !modelos_.listo() || !ficha_) {
         bitacora(id, "al_asistente",

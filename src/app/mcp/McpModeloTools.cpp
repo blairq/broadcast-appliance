@@ -808,16 +808,22 @@ void McpService::registerModeloTools() {
              {{"frase", {{"type", "string"}}},
               {"preparar",
                {{"type", "boolean"},
-                {"description", "Como con F9: el modelo v2 lee el estado antes de la frase."}}}}},
+                {"description", "Como con F9: el modelo v2 lee el estado antes de la frase."}}},
+              {"dictado",
+               {{"type", "boolean"},
+                {"description", "Como dicha por el micrófono del operador (F9): con la página o la "
+                                "ventana del Asistente a la vista, va derecho a la caja del asistente."}}}}},
             {"required", json::array({"frase"})}};
         t.run = [voz](const json& a, Done done) {
             const QString frase = QString::fromStdString(a.value("frase", std::string()));
             // `preparar`: como con F9, el estado se lee antes (mientras se habla)
             // y la frase llega despues. Para medir el camino real sin microfono.
+            const bool dicho = a.value("dictado", false);
+            const auto atender = [voz, frase, dicho]() { dicho ? voz->dictar(frase) : voz->atender(frase); };
             if (a.value("preparar", false)) {
-                voz->prepararTc([voz, frase]() { voz->atender(frase); });
+                voz->prepararTc(atender);
             } else {
-                voz->atender(frase);
+                atender();
             }
             // El modelo contesta en milisegundos: se mira la propuesta un rato despues.
             QTimer::singleShot(a.value("preparar", false) ? 2500 : 1500, voz, [voz, done]() {

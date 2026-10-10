@@ -90,7 +90,10 @@ Window {
         sourceComponent: w.contenido
         // Sin el riel de navegacion al costado, la pagina no necesita dejarle
         // lugar: gana los 92 px que en la ventana principal ocupa el riel.
-        onLoaded: if (item && item.leftInset !== undefined) item.leftInset = 14
+        onLoaded: {
+            if (item && item.leftInset !== undefined) item.leftInset = 14
+            if (item && item.enVentana !== undefined) item.enVentana = true // la página sabe que está afuera
+        }
     }
 
     Shortcut {

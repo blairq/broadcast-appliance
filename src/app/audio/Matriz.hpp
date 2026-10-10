@@ -115,6 +115,9 @@ class Matriz : public QObject {
 
     /// Para MCP: todo el estado en JSON.
     json estado() const;
+    /// Para diagnosticar: el nivel de cada fila (lo que entrega), el de cada bus, las
+    /// tomas enganchadas y el estado de los dispositivos del equipo.
+    json diagnostico() const;
     /// Dónde está cada pista ocupada por la grabación individual (lo informa el motor).
     void setUsoPista(int indice, const std::string& uso);
 
@@ -162,7 +165,7 @@ class Matriz : public QObject {
     std::vector<std::string> filas_;                                         ///< fuentes conocidas
 
     // Tomas: el audio de cada fuente con algún envío a un bus virtual.
-    std::mutex tomasLock_;
+    mutable std::mutex tomasLock_;
     std::map<std::string, std::shared_ptr<Toma>> tomas_;
 
     std::mutex planLock_;

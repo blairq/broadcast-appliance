@@ -97,7 +97,13 @@ Item {
             Layout.fillWidth: true
             spacing: 10
             Text { text: "Matriz de mezcla"; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
-            Item { Layout.fillWidth: true }
+            // Lo que no quedaba claro: la matriz elige A DÓNDE VA cada entrada (las salidas son
+            // las columnas). Lo que entra y cómo se procesa es de la entrada y de su rack.
+            Text {
+                Layout.fillWidth: true
+                text: "Filas: lo que entrega cada entrada (ya con su rack) · Columnas: las salidas · Un cruce manda esa entrada a esa salida"
+                color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
+            }
             Row {
                 spacing: 14
                 // En ventanas angostas la leyenda se esconde antes que pisar los botones.
@@ -294,11 +300,20 @@ Item {
                                     }
                                 }
                                 MouseArea {
+                                    id: maFila
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     onEntered: mx.hFila = fila.modelData.nombre
                                     onExited: if (mx.hFila === fila.modelData.nombre) mx.hFila = ""
                                 }
+                                ToolTip.visible: maFila.containsMouse
+                                ToolTip.delay: 600
+                                ToolTip.text: "«" + fila.modelData.nombre + "»\n" +
+                                              "El vúmetro mide lo que ENTREGA esta entrada: lo que sale de su rack (sus filtros, " +
+                                              "voz a texto…), antes de su volumen. Se mueve aunque no vaya a ninguna salida.\n" +
+                                              "La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el " +
+                                              "programa, las pistas, los auriculares, las salidas del equipo). Lo que entra y " +
+                                              "cómo se procesa se arma en el rack de la entrada."
                             }
                             // Los cruces
                             Repeater {

@@ -410,6 +410,9 @@ class BroadcastEngine {
     bool sourceMuted(const std::string& name) const;
     /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
     float sourcePeakDb(const std::string& name) const;
+    /// El pico de lo que ENTREGA la entrada (después de sus filtros y su rack, antes de su
+    /// volumen), vaya o no a alguna salida: el vúmetro de su fila en la matriz.
+    float sourceOutputPeakDb(const std::string& name) const;
     /// Escuchar una fuente en los auriculares, sin cambiar lo que sale. Las
     /// marcadas suenan juntas (el PFL exclusivo lo hace quien llama).
     bool setSourceMonitoring(const std::string& name, bool on);

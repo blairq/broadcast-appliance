@@ -299,6 +299,25 @@ ApplicationWindow {
     }
 
     ListModel { id: sueltas }
+    /// Cambia cada vez que se saca o se cierra una ventana de página (para los bindings de paginaAfuera).
+    property int sueltasTick: 0
+    /// Lo dictado va derecho al asistente si se lo está mirando: su página en la
+    /// principal, o su ventana propia activa (agent/Voz: vistaAsistente).
+    property bool ventanaAsistenteActiva: false
+    readonly property bool vistaAsistente: win.page === Studio.riel.paginaDeId("asistente") || ventanaAsistenteActiva
+    onVistaAsistenteChanged: if (Studio.voz) Studio.voz.vistaAsistente = vistaAsistente
+    /// ¿La página `id` (el de ui_show_page) está en su propia ventana?
+    function paginaAfuera(id) {
+        win.sueltasTick
+        for (let k = 0; k < sueltas.count; ++k)
+            if (sueltas.get(k).idPagina === id) return true
+        return false
+    }
+    /// Cierra la ventana propia de la página `id` (vuelve a la principal).
+    function traerPagina(id) {
+        for (let k = 0; k < sueltas.count; ++k)
+            if (sueltas.get(k).idPagina === id) { const v = ventanasSueltas.objectAt(k); if (v) v.close(); return }
+    }
 
     // --- Paneles sueltos -----------------------------------------------------
     // Mas fino que sacar una pagina: en un evento, la cola de preguntas en un
@@ -353,9 +372,11 @@ ApplicationWindow {
             if (sueltas.get(k).page === i) { toasts.show("«" + titulo + "» ya está en su ventana", "info"); return }
         }
         sueltas.append({ page: i, titulo: titulo, idPagina: Studio.riel.idDePagina(i) })
+        sueltasTick++
     }
 
     Instantiator {
+        id: ventanasSueltas
         model: sueltas
         delegate: PageWindow {
             required property int index
@@ -363,9 +384,11 @@ ApplicationWindow {
             titulo: sueltas.get(index) ? sueltas.get(index).titulo : ""
             idPagina: sueltas.get(index) ? sueltas.get(index).idPagina : ""
             contenido: win.componenteDePagina(page)
+            onActiveChanged: if (idPagina === "asistente") win.ventanaAsistenteActiva = active
             onCerrada: (p) => {
+                if (idPagina === "asistente") win.ventanaAsistenteActiva = false
                 for (let k = 0; k < sueltas.count; ++k)
-                    if (sueltas.get(k).page === p) { sueltas.remove(k); return }
+                    if (sueltas.get(k).page === p) { sueltas.remove(k); win.sueltasTick++; return }
             }
         }
     }

@@ -39,7 +39,11 @@ void McpService::registerMatrizTools() {
             "dispositivo, entradas que vuelven como fuente). Con los envíos y sus ajustes.";
         t.run = [m](const json&, Done done) {
             m->refrescar();
-            done(ToolResult().data(m->estado()));
+            json d = m->estado();
+            // Dónde está el audio: lo que entrega cada fila, lo que pasa por cada bus y si
+            // los dispositivos del equipo se abrieron (y si no, por qué).
+            d["diagnostico"] = m->diagnostico();
+            done(ToolResult().data(d));
         };
         core_.addTool(std::move(t));
     }

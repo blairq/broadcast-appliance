@@ -11,6 +11,8 @@
 #include <QIODevice>
 
 #include <algorithm>
+#include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <deque>
 #include <memory>
@@ -25,6 +27,10 @@ class AlDispositivo : public QIODevice {
    public:
     explicit AlDispositivo(std::shared_ptr<Ring> ring) : ring_(std::move(ring)) { open(QIODevice::ReadOnly); }
     bool isSequential() const override { return true; }
+    /// Siempre hay: si el anillo está vacío se entrega silencio. En Windows Qt (WASAPI, modo
+    /// «pull») lee solo lo que esto dice: con el 0 de QIODevice no leía NADA y la salida no
+    /// sonaba (la Mac lee igual). Un segundo, de sobra para cualquier pedido.
+    qint64 bytesAvailable() const override { return 48000 * 2 * static_cast<qint64>(sizeof(float)) + QIODevice::bytesAvailable(); }
 
    protected:
     qint64 readData(char* data, qint64 max) override {
@@ -56,6 +62,10 @@ class AlDispositivoMulti : public QIODevice {
         open(QIODevice::ReadOnly);
     }
     bool isSequential() const override { return true; }
+    /// Ver AlDispositivo::bytesAvailable (Windows no leía nada).
+    qint64 bytesAvailable() const override {
+        return 48000 * static_cast<qint64>(canales_) * static_cast<qint64>(sizeof(float)) + QIODevice::bytesAvailable();
+    }
 
    protected:
     qint64 readData(char* data, qint64 max) override {
@@ -74,9 +84,18 @@ class AlDispositivoMulti : public QIODevice {
                 if (c1 < canales_) out[static_cast<std::size_t>(i) * canales_ + c1] = r_[i];
             }
         }
+        leidos += n;
+        float p = 0;
+        for (std::size_t i = 0; i < static_cast<std::size_t>(n) * canales_; ++i) p = std::max(p, std::fabs(out[i]));
+        pico.store(p);
         return static_cast<qint64>(n) * canales_ * static_cast<qint64>(sizeof(float));
     }
     qint64 writeData(const char*, qint64) override { return -1; }
+
+   public:
+    /// Lo que ya leyó el dispositivo (cuadros) y el pico del último pedido: para ver si suena.
+    std::atomic<std::uint64_t> leidos{0};
+    std::atomic<float> pico{0};
 
    private:
     std::vector<std::shared_ptr<Ring>> pares_;

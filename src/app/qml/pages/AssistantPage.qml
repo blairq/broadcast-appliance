@@ -16,6 +16,13 @@ Rectangle {
     readonly property var cur: ag.current
     readonly property color termBg: "#0d1016"
     property string keyError: ""
+    /// true en la copia que está en su propia ventana (la pone PageWindow).
+    property bool enVentana: false
+    /// En la ventana principal, cuando el asistente está afuera: la terminal vive en
+    /// esa ventana (dos vistas de la misma terminal se pelearían por su tamaño).
+    readonly property var principal: ApplicationWindow.window
+    readonly property bool afuera: !enVentana && principal !== null && principal.paginaAfuera !== undefined
+                                   && principal.paginaAfuera("asistente")
 
     function stateText() {
         if (ag.running) return "en linea"
@@ -60,6 +67,16 @@ Rectangle {
                            color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text { text: page.cur.name || ""; color: Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                     StatusPill { text: page.stateText(); dot: ag.running ? Theme.ok : (ag.installing ? Theme.warn : Theme.textFaint); pulse: ag.running }
+                    GlassButton {
+                        compact: true; icon: page.enVentana ? "⇲" : "⧉"
+                        text: page.enVentana ? "Volver" : "Sacar a una ventana"
+                        visible: !page.afuera
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: page.enVentana ? "Vuelve el asistente a la ventana principal"
+                                                     : "Abre el asistente en su propia ventana (para otro monitor)"
+                        onClicked: page.enVentana ? Window.window.close()
+                                                  : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), "Asistente")
+                    }
                     GlassButton { compact: true; text: "A−"; onClicked: ag.setFontSize(ag.fontSize - 1) }
                     GlassButton { compact: true; text: "A+"; onClicked: ag.setFontSize(ag.fontSize + 1) }
                     GlassButton { compact: true; visible: term.hasSelection; text: "Copiar"; onClicked: term.copySelection() }
@@ -84,20 +101,32 @@ Rectangle {
                 }
             }
 
+            // Afuera: la terminal está en su ventana.
+            CapaTerminal {
+                anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
+                visible: page.afuera
+                z: 5
+                Text { Layout.alignment: Qt.AlignHCenter; text: "⧉"; color: Theme.accent; font.pixelSize: 40 }
+                Text { Layout.alignment: Qt.AlignHCenter; text: "El asistente está en su propia ventana"
+                       color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
+                GlassButton { Layout.alignment: Qt.AlignHCenter; text: "Traer de vuelta"; icon: "⇲"; active: true
+                              onClicked: page.principal.traerPagina("asistente") }
+            }
+
             TerminalView {
                 id: term
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom; margins: 4 }
-                session: ag.session
+                session: page.afuera ? null : ag.session
                 fontSize: ag.fontSize
                 fontFamily: "JetBrains Mono"
-                visible: ag.installed
+                visible: ag.installed && !page.afuera
                 Component.onCompleted: if (ag.running) forceActiveFocus()
             }
 
             // Sin instalar: tarjeta de instalacion
             CapaTerminal {
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
-                visible: !ag.installed
+                visible: !ag.installed && !page.afuera
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 44 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: "Instalar " + (page.cur.agentName || "el agente")
                        color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold } }
@@ -115,7 +144,7 @@ Rectangle {
 
             // MCP apagado
             Rectangle {
-                visible: ag.installed && !ag.mcpReady
+                visible: ag.installed && !ag.mcpReady && !page.afuera
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
                 height: 44; radius: 12
                 color: Qt.rgba(0.96, 0.72, 0.24, 0.16); border.color: Theme.warn
@@ -125,7 +154,7 @@ Rectangle {
             // Arrancar (instalado y detenido)
             CapaTerminal {
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
-                visible: ag.installed && !ag.running && ag.mcpReady
+                visible: ag.installed && !ag.running && ag.mcpReady && !page.afuera
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 32 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: page.cur.agentName || ""; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap

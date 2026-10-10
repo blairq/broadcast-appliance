@@ -74,6 +74,9 @@ class Voz : public QObject {
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
     /// Modelos cargados: se puede hablar.
     Q_PROPERTY(bool lista READ lista NOTIFY cambio)
+    /// El operador está mirando al asistente (su página, o su ventana activa): lo
+    /// dictado va derecho a la caja del asistente, sin pasar por el modelo local.
+    Q_PROPERTY(bool vistaAsistente READ vistaAsistente WRITE setVistaAsistente NOTIFY cambio)
     Q_PROPERTY(bool grabando READ grabando NOTIFY cambio)
     Q_PROPERTY(bool transcribiendo READ transcribiendo NOTIFY cambio)
     /// Qué falta o qué pasó, para mostrarlo tal cual.
@@ -198,6 +201,12 @@ class Voz : public QObject {
 
     QVariantMap propuesta() const { return propuesta_; }
     bool usarModeloLocal() const { return usarModeloLocal_; }
+    bool vistaAsistente() const { return vistaAsistente_; }
+    void setVistaAsistente(bool on) {
+        if (on == vistaAsistente_) return;
+        vistaAsistente_ = on;
+        emit cambio();
+    }
     void setUsarModeloLocal(bool on);
     QVariantList automaticas() const;
     bool contestarConVoz() const { return contestarConVoz_; }
@@ -218,6 +227,8 @@ class Voz : public QObject {
     Q_INVOKABLE void setAutomatica(const QString& herramienta, bool on);
     /// Lo que hace con una frase dictada (también sirve para probar escribiendo).
     Q_INVOKABLE void atender(const QString& frase);
+    /// Lo mismo que lo dicho por el micrófono del operador (para probar sin hablar).
+    void dictar(const QString& frase);
     /// Modelo v2: que lea ya el estado del aparato (lo hace solo al apretar
     /// F9), así el pedido que sigue solo procesa la frase. `listo` cuando
     /// terminó (o enseguida si no corresponde).
@@ -301,6 +312,7 @@ class Voz : public QObject {
     std::string sistemaArgs_; ///< las reglas para completar argumentos (datos/voz-argumentos.txt)
     QVariantMap propuesta_;
     bool usarModeloLocal_ = true;
+    bool vistaAsistente_ = false;
     bool contestarConVoz_ = true;
     double cortePausa_ = 0.35, corteMaximo_ = 6.0, corteUmbral_ = 0.5;
     QVariantList oido_;

@@ -1196,6 +1196,19 @@ std::set<std::string> RackManager::fuentesDeEntradas() const {
     return out;
 }
 
+std::set<std::string> RackManager::fuentesConRack() const {
+    std::set<std::string> out;
+    for (const auto& [nombre, f] : filters_) {
+        if (!f->rack) continue;
+        for (const auto& id : f->rack->nodeIds())
+            if (id != "in" && id != "out") {
+                out.insert(nombre);
+                break;
+            }
+    }
+    return out;
+}
+
 void RackManager::sincronizarEntradas() {
     BroadcastEngine* eng = motorApp();
     if (eng == nullptr || eng->motor() == nullptr) return;

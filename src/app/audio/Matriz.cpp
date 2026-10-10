@@ -122,6 +122,9 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
     connect(&timer_, &QTimer::timeout, this, [this]() { leerMedidores(); });
     // Un invitado que entra después: si tiene envíos, se le engancha la toma.
     connect(&lento_, &QTimer::timeout, this, [this]() {
+        // Entradas que aparecieron o se fueron (al arrancar, el motor las crea después):
+        // filas, tomas y lo que se abre del equipo, sin esperar a que alguien mire la matriz.
+        if (motor() != nullptr && fuentesConAudio() != filas_) refrescar();
         bool falta = false;
         {
             std::lock_guard<std::mutex> l(tomasLock_);
@@ -188,9 +191,13 @@ const Matriz::Bus* Matriz::buscar(const std::string& id) const {
 
 void Matriz::refrescar() {
     if (motor() == nullptr) return;
+    const std::vector<std::string> antes = filas_;
     filas_ = fuentesConAudio();
     sincronizarTomas();
     armarPlan();
+    // Las entradas de placa se abren según lo que las usa; al arrancar la matriz decide
+    // antes de que existan en el motor (y quedaban cerradas con sus envíos guardados).
+    if (filas_ != antes) usarEquipo();
     emit cambio();
 }
 
@@ -738,10 +745,12 @@ void Matriz::setActiva(bool on) {
 void Matriz::leerMedidores() {
     BroadcastEngine* eng = motor();
     if (eng == nullptr) return;
-    // El pico de cada fila (después de su cadena, como lo que suena): lo mide el motor.
+    // El pico de cada fila: lo que ENTREGA la entrada (después de sus filtros y su rack),
+    // vaya o no a alguna salida. Antes era su nivel en el programa: sin la pista 1, una
+    // entrada con señal quedaba en −100 y parecía muda. Lo mide el motor.
     std::map<std::string, double> picos;
     for (const auto& f : filas_)
-        picos[f] = eng->sourcePeakDb(f);
+        picos[f] = eng->sourceOutputPeakDb(f);
     QVariantMap m;
     for (const auto& [n, p] : picos)
         m["fila:" + QString::fromStdString(n)] = p;
@@ -801,6 +810,19 @@ Matriz::json Matriz::estado() const {
             {"buses", buses},
             {"envios", envios},
             {"fuentes", filas}};
+}
+
+Matriz::json Matriz::diagnostico() const {
+    json filas = json::object(), buses = json::object(), tomas = json::array();
+    if (BroadcastEngine* eng = motor())
+        for (const auto& f : filas_) filas[f] = std::round(eng->sourceOutputPeakDb(f) * 10) / 10;
+    for (const auto& b : buses_) buses[b->id] = std::round(linealADb(b->pico->load()) * 10) / 10;
+    for (const auto& [id, pk] : picosEquipo_) buses[id] = std::round(linealADb(pk->load()) * 10) / 10;
+    {
+        std::lock_guard<std::mutex> l(tomasLock_);
+        for (const auto& [n, t] : tomas_) tomas.push_back(n);
+    }
+    return {{"filas_db", filas}, {"buses_db", buses}, {"tomas", tomas}, {"equipo", equipo_->estadoDispositivos()}};
 }
 
 void Matriz::guardar() const {

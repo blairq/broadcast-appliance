@@ -142,6 +142,9 @@ class RackManager : public QObject {
     /// Las fuentes de las que algún rack trae audio (la Matriz abre las
     /// entradas de placa que se usen así).
     std::set<std::string> fuentesDeEntradas() const;
+    /// Las fuentes cuyo rack tiene algo (un filtro, voz a texto, una voz…): la
+    /// Matriz abre su entrada de placa aunque no vaya a ninguna salida.
+    std::set<std::string> fuentesConRack() const;
 
     // --- Texto a voz (tarjeta «habla») ------------------------------------------
     /// Agrega una tarjeta TEXTO A VOZ al rack de `source`. Opciones: {flujo,

@@ -79,6 +79,9 @@ class EquipoAudio : public QObject {
     void setVisible(const std::string& dispositivoId, bool visible);
     /// [{id, nombre, tipo: salida|entrada, canales, visible, abierto}]
     QVariantList dispositivos() const;
+    /// Para diagnosticar (audio_matriz): cada dispositivo, si se pidió, si se abrió
+    /// (y si no, por qué) y cuánto audio pasó.
+    nlohmann::json estadoDispositivos() const;
 
     nlohmann::json guardado() const;
     /// CoreAudio contestó (en otro hilo) cuántos canales tiene un dispositivo.

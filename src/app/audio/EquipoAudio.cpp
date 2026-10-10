@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cmath>
 #include <mutex>
 #include <thread>
 
@@ -185,6 +186,8 @@ struct EquipoAudio::Salida {
         std::unique_ptr<anillo::AlDispositivoMulti> io;
         std::unique_ptr<QAudioSink> sink;
         std::atomic<bool> abierta{false};
+        std::mutex mu;
+        std::string error; ///< por qué no se abrió (bajo mu)
     };
     std::shared_ptr<Hilo> h = std::make_shared<Hilo>();
     bool pedida = false;
@@ -197,14 +200,26 @@ struct EquipoAudio::Salida {
             trabajador(),
             [hh = h, d = dev, p = pares, c = canales, n = nombre]() {
                 if (hh->sink) return;
+                const auto poner = [&](const std::string& e) {
+                    std::lock_guard<std::mutex> l(hh->mu);
+                    hh->error = e;
+                };
                 if (!d.isFormatSupported(formato(c))) {
                     std::printf("ba-app: la salida '%s' no acepta %d canales a 48 kHz\n", n.c_str(), c);
+                    poner("no acepta " + std::to_string(c) + " canales a 48 kHz (float)");
                     return;
                 }
                 hh->io = std::make_unique<anillo::AlDispositivoMulti>(p, c);
                 hh->sink = std::make_unique<QAudioSink>(d, formato(c));
                 hh->sink->setBufferSize(static_cast<qsizetype>(anillo::kColchon * c * sizeof(float) * 2));
                 hh->sink->start(hh->io.get());
+                if (hh->sink->error() != QAudio::NoError) {
+                    poner("no se pudo abrir (error de Qt " + std::to_string(static_cast<int>(hh->sink->error())) + ")");
+                    hh->sink.reset();
+                    hh->io.reset();
+                    return;
+                }
+                poner("");
                 hh->abierta = true;
             },
             Qt::QueuedConnection);
@@ -239,6 +254,7 @@ struct EquipoAudio::Entrada {
         std::vector<std::string> fuentes;
         int canales = 1;
         std::atomic<bool> abierta{false};
+        std::atomic<std::uint64_t> leidos{0}; ///< cuadros que llegaron del dispositivo
     };
     std::shared_ptr<Hilo> h = std::make_shared<Hilo>();
     bool pedida = false;
@@ -294,6 +310,7 @@ struct EquipoAudio::Entrada {
         const auto frames =
             static_cast<std::uint32_t>(b.size() / static_cast<qsizetype>(canales * sizeof(float)));
         if (frames == 0) return;
+        x.leidos += frames;
         const auto* m = reinterpret_cast<const float*>(b.constData());
         x.uno.resize(frames);
         const std::uint64_t ts = ba::app::ahoraNs() + kAdelanteNs;
@@ -505,6 +522,29 @@ void EquipoAudio::setMostrar(bool on) {
 void EquipoAudio::setVisible(const std::string& id, bool v) {
     visibles_[id] = v;
     refrescar();
+}
+
+nlohmann::json EquipoAudio::estadoDispositivos() const {
+    nlohmann::json sal = nlohmann::json::array(), ent = nlohmann::json::array();
+    for (const auto& [id, s] : salidas_) {
+        std::string error;
+        {
+            std::lock_guard<std::mutex> l(s->h->mu);
+            error = s->h->error;
+        }
+        nlohmann::json j{{"id", id}, {"nombre", s->nombre}, {"canales", s->canales}, {"pedida", s->pedida},
+                         {"abierta", s->abierta()}, {"error", error}};
+        if (s->h->io) {
+            j["leidos"] = s->h->io->leidos.load();
+            const float p = s->h->io->pico.load();
+            j["pico_db"] = p > 1e-5f ? 20.0 * std::log10(p) : -100.0;
+        }
+        sal.push_back(j);
+    }
+    for (const auto& [id, e] : entradas_)
+        ent.push_back({{"id", id}, {"nombre", e->nombre}, {"canales", e->canales}, {"pedida", e->pedida},
+                       {"abierta", e->abierta()}, {"leidos", e->h->leidos.load()}, {"fuentes", e->fuentes}});
+    return {{"salidas", sal}, {"entradas", ent}};
 }
 
 QVariantList EquipoAudio::dispositivos() const {

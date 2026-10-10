@@ -989,6 +989,20 @@ GstPadProbeReturn Entrada::alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer 
         }
     } else {
         ++e->bloques_;
+        // El nivel de lo que entrega (F32 intercalado: así lo deja la cadena antes del intersink),
+        // sin importar a qué salida vaya: el vúmetro de la fila en la matriz.
+        GstMapInfo mi;
+        if (gst_buffer_map(b, &mi, GST_MAP_READ)) {
+            const auto* s = reinterpret_cast<const float*>(mi.data);
+            float pico = 0;
+            for (gsize i = 0; i < mi.size / sizeof(float); ++i) pico = std::max(pico, std::fabs(s[i]));
+            gst_buffer_unmap(b, &mi);
+            const std::uint64_t ahora = ahoraNs();
+            if (pico >= e->picoAudio_ || ahora - e->picoAudioNs_ > 300'000'000ULL) {
+                e->picoAudio_ = pico;
+                e->picoAudioNs_ = ahora;
+            }
+        }
         if (edad > -1e8) {
             e->edadesA_.push_back(edad);
             while (e->edadesA_.size() > 300) e->edadesA_.pop_front();
@@ -1574,6 +1588,9 @@ json Entrada::estadoYa() const {
         std::lock_guard<std::mutex> lm(medMu_);
         j["cuadros"] = cuadros_;
         j["bloques_audio"] = bloques_;
+        // El pico de lo que entrega (dB; −100 sin audio o si hace más de 1 s que no llega nada).
+        const bool fresco = picoAudioNs_ != 0 && ahoraNs() - picoAudioNs_ < 1'000'000'000ULL;
+        j["pico_audio_db"] = fresco && picoAudio_ > 1e-5f ? 20.0 * std::log10(picoAudio_) : -100.0;
         j["edad_p50_ms"] = edadP50_;
         j["edad_p95_ms"] = edadP95_;
         j["origen"] = origen_;

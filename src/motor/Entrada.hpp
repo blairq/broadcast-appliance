@@ -256,6 +256,10 @@ class Entrada {
     std::map<std::string, std::string> estados_; ///< elemento → su `estado` (sobrevive al rearmado)
     bool controlEnviado_ = false;
     std::uint64_t ultimoDatoNs_ = 0;
+    /// El pico del audio que entrega la entrada (después de su cadena: filtros y rack),
+    /// lineal, el más alto de los últimos 300 ms. Bajo medMu_.
+    float picoAudio_ = 0;
+    std::uint64_t picoAudioNs_ = 0;
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;

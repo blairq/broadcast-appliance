@@ -968,6 +968,12 @@ float BroadcastEngine::sourcePeakDb(const std::string& name) const {
     return static_cast<float>(std::max(-100.0, e[name].value("pico_db", -100.0)));
 }
 
+float BroadcastEngine::sourceOutputPeakDb(const std::string& name) const {
+    const json& es = estadoMotor().value("entradas", json::object());
+    if (!es.is_object() || !es.contains(name)) return -100.0f;
+    return static_cast<float>(std::max(-100.0, es[name].value("pico_audio_db", -100.0)));
+}
+
 bool BroadcastEngine::setSourceMonitoring(const std::string& name, bool on) {
     auto it = sources_.find(name);
     if (it == sources_.end()) return false;
