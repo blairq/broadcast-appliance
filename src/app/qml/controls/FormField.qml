@@ -5,7 +5,7 @@
 // options, minimum, maximum, suffix). Este componente elige el control.
 //
 // kind: bool int float text textarea password secret path choice list color
-//       font button info header
+//       font button info header combo (se escribe, o se elige de la lista)
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -60,6 +60,7 @@ ColumnLayout {
                 case "bool": return boolC
                 case "int": case "float": return numC
                 case "choice": case "list": return choiceC
+                case "combo": return comboC
                 case "color": return colorC
                 case "font": return fontC
                 case "button": return buttonC
@@ -158,6 +159,33 @@ ColumnLayout {
                     function onValueChanged() { combo.currentIndex = combo.indexOfValue(field.value) }
                 }
             }
+        }
+    }
+    // Se escribe a mano o se elige de la lista (lo elegido queda escrito): una dirección,
+    // un nombre de equipo… Vacío = el primero de la lista (normalmente «automático»).
+    Component {
+        id: comboC
+        RowLayout {
+            spacing: 6
+            TextField {
+                id: escrito
+                Layout.preferredWidth: 260
+                text: field.value !== undefined && field.value !== null ? String(field.value) : ""
+                placeholderText: field.options.length > 0 ? String(field.options[0].label) : ""
+                enabled: field.enabled
+                onEditingFinished: if (text !== String(field.value || "")) field.edited(text.trim())
+            }
+            ComboBox {
+                id: lista
+                Layout.preferredWidth: 160
+                textRole: "label"
+                valueRole: "value"
+                model: field.options
+                enabled: field.enabled
+                displayText: "Elegir…"
+                onActivated: { escrito.text = String(currentValue); field.edited(currentValue) }
+            }
+            Item { Layout.fillWidth: true }
         }
     }
     Component {

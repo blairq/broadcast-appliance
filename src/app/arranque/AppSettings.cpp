@@ -414,6 +414,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.guestsReserva = get(j, "guestsReserva", s.guestsReserva);
     s.port = get(j, "port", s.port);
     s.bindAddress = get<std::string>(j, "bindAddress", s.bindAddress);
+    s.urlHost = get<std::string>(j, "urlHost", s.urlHost);
     s.room = get<std::string>(j, "room", s.room);
     s.tunnel = get(j, "tunnel", s.tunnel);
     s.tunnelHostname = get<std::string>(j, "tunnelHostname", s.tunnelHostname);
@@ -450,6 +451,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"guestsReserva", std::max(s.guestsReserva, s.guests)},
                           {"port", s.port},
                           {"bindAddress", s.bindAddress},
+                          {"urlHost", s.urlHost},
                           {"room", s.room},
                           {"tunnel", s.tunnel},
                           {"tunnelHostname", s.tunnelHostname},

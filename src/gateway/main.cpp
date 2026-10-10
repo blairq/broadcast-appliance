@@ -669,6 +669,18 @@ int main(int argc, char** argv) {
         server.setPublicAddress(publicIp);
     }
     const std::vector<std::string> lanIps = net::localIPv4s();
+    // Lo que va en el QR y el enlace por la red local: lo elegido en Configuración; si
+    // no, la IP de la interfaz donde escucha; si no, la primera de la red (localIPv4s
+    // las ordena: la de verdad antes que las virtuales).
+    const std::string hostLocal = !cfg.urlHost.empty()                                          ? cfg.urlHost
+                                  : (cfg.bindAddress != "0.0.0.0" && cfg.bindAddress != "127.0.0.1") ? cfg.bindAddress
+                                  : !lanIps.empty()                                             ? lanIps.front()
+                                                                                                : std::string();
+    log.info("red: IP de la máquina " + [&] {
+        std::string l;
+        for (const auto& x : lanIps) l += (l.empty() ? "" : ", ") + x;
+        return l.empty() ? std::string("(ninguna)") : l;
+    }() + "; en el QR: " + (hostLocal.empty() ? std::string("(ninguna)") : hostLocal));
 
     std::unique_ptr<net::TlsTerminator> tls;
     if (cfg.https) {
@@ -678,6 +690,8 @@ int main(int argc, char** argv) {
         tc.backendPort = cfg.port;
         tc.credentialsDir = ba::platform::credentialsDir().string();
         tc.names = lanIps;
+        if (!cfg.urlHost.empty() && std::find(tc.names.begin(), tc.names.end(), cfg.urlHost) == tc.names.end())
+            tc.names.push_back(cfg.urlHost); // el certificado también para el nombre elegido
         if (!publicHost.empty()) tc.names.push_back(publicHost);
         if (!publicIp.empty() && publicIp != publicHost) tc.names.push_back(publicIp);
         tls = std::make_unique<net::TlsTerminator>(tc, logLine);
@@ -762,11 +776,8 @@ int main(int argc, char** argv) {
     std::string bestUrl = guestUrl;
     if (!publicHost.empty() && wg) {
         bestUrl = (tls ? "https://" : "http://") + publicHost + "/";
-    } else if (tls && cfg.bindAddress == "0.0.0.0" && !lanIps.empty()) {
-        bestUrl = "https://" + lanIps.front() + ":" + std::to_string(tls->port()) + "/";
-    } else if (tls && cfg.bindAddress != "127.0.0.1" && cfg.bindAddress != "0.0.0.0") {
-        // Escucha en UNA interfaz: el enlace es por esa IP.
-        bestUrl = "https://" + cfg.bindAddress + ":" + std::to_string(tls->port()) + "/";
+    } else if (tls && cfg.bindAddress != "127.0.0.1" && !hostLocal.empty()) {
+        bestUrl = "https://" + hostLocal + ":" + std::to_string(tls->port()) + "/";
     } else if (tls) {
         bestUrl = "https://127.0.0.1:" + std::to_string(tls->port()) + "/";
     }
@@ -848,12 +859,17 @@ int main(int argc, char** argv) {
                 {"message",
                  "Falta el dominio del tunel de Cloudflare (Configuracion > Gateway > Dominio publico)."}};
         }
-        if (cfg.bindAddress == "127.0.0.1" || lanIps.empty()) {
+        if (cfg.bindAddress == "127.0.0.1") {
             return {{"error", "local"},
-                    {"message", "El gateway solo escucha en esta maquina: elegi 'Red local' en Configuracion "
-                                "> Gateway > Acceso."}};
+                    {"message", "El gateway solo escucha en esta maquina: elegi 'Red local' o una IP en "
+                                "Configuracion > Gateway > Acceso."}};
         }
-        const std::string ip = cfg.bindAddress == "0.0.0.0" ? lanIps.front() : cfg.bindAddress;
+        if (hostLocal.empty()) {
+            return {{"error", "local"},
+                    {"message", "No encontre ninguna IP de red en esta maquina: elegila o escribila en "
+                                "Configuracion > Gateway > Direccion para el QR."}};
+        }
+        const std::string& ip = hostLocal;
         if (tls) return {{"url", "https://" + ip + ":" + std::to_string(tls->port()) + "/" + frag}};
         return {{"url", "http://" + ip + ":" + std::to_string(cfg.port) + "/" + frag},
                 {"warning", "Sin HTTPS el navegador no da camara ni microfono por la red local."}};
@@ -865,15 +881,18 @@ int main(int argc, char** argv) {
         urls.push_back(guestUrl);
         if (tls) {
             urls.push_back("https://127.0.0.1:" + std::to_string(tls->port()) + "/");
+            if (!hostLocal.empty() && cfg.bindAddress != "127.0.0.1")
+                urls.push_back("https://" + hostLocal + ":" + std::to_string(tls->port()) + "/");
             if (cfg.bindAddress == "0.0.0.0") {
                 for (const auto& ip : lanIps)
-                    urls.push_back("https://" + ip + ":" + std::to_string(tls->port()) + "/");
+                    if (ip != hostLocal) urls.push_back("https://" + ip + ":" + std::to_string(tls->port()) + "/");
             }
         }
         if (!publicHost.empty() && wg) urls.push_back((tls ? "https://" : "http://") + publicHost + "/");
         st["urls"] = urls;
         st["bestUrl"] = bestUrl;
         st["lan"] = lanIps;
+        st["urlHost"] = hostLocal;
         // El origen con certificado DE VERDAD, si lo hay. Importa para los
         // televisores: un receptor de Chromecast es una pagina HTTPS y el
         // navegador le prohibe cargar contenido http (mixed content), asi que

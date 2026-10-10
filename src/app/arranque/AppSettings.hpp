@@ -134,6 +134,9 @@ struct GatewaySettings {
     nlohmann::json proxy = nlohmann::json::object();
     std::uint16_t port = 8787;
     std::string bindAddress = "127.0.0.1"; ///< "0.0.0.0" = accesible en la red local
+    /// La dirección que va en el QR y en el enlace de los invitados (una IP o un nombre);
+    /// vacío = automática (la IP de la interfaz elegida, o la primera de la red).
+    std::string urlHost;
     std::string room = "sala1";
     bool tunnel = true;         ///< usar cloudflared si hay token
     std::string tunnelHostname; ///< dominio publico del tunel de Cloudflare

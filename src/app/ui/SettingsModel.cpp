@@ -4,6 +4,7 @@
 
 #include "ui/SettingsModel.hpp"
 
+#include <QHostInfo>
 #include <QNetworkInterface>
 #include <QVariantMap>
 
@@ -40,6 +41,24 @@ QVariantList opcionesBind(const std::string& actual) {
         }
     }
     if (!esta) out << QVariantMap{{"value", qs(actual)}, {"label", qs(actual) + " (esta máquina ya no la tiene)"}};
+    return out;
+}
+
+/// Lo que va en el QR y el enlace: automática, las IPv4 de la máquina (con su
+/// interfaz) o el nombre del equipo. También se escribe a mano.
+QVariantList opcionesUrlHost(const std::string& actual) {
+    QVariantList out = choices({{"", "Automática (la de la red)"}});
+    for (const QNetworkInterface& i : QNetworkInterface::allInterfaces()) {
+        if (!(i.flags() & QNetworkInterface::IsUp) || (i.flags() & QNetworkInterface::IsLoopBack)) continue;
+        for (const QNetworkAddressEntry& e : i.addressEntries()) {
+            const QHostAddress a = e.ip();
+            if (a.protocol() != QAbstractSocket::IPv4Protocol || a.isLinkLocal()) continue;
+            out << QVariantMap{{"value", a.toString()}, {"label", a.toString() + " (" + i.humanReadableName() + ")"}};
+        }
+    }
+    const QString equipo = QHostInfo::localHostName();
+    if (!equipo.isEmpty()) out << QVariantMap{{"value", equipo}, {"label", equipo + " (el nombre del equipo, si la red lo resuelve)"}};
+    (void)actual;
     return out;
 }
 
@@ -105,6 +124,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"gateway.room", "Gateway", "Sala", "text", {}, 0, 0, "", "Nombre de la sala a la que entran los invitados.", "gateway", "sala1"},
         {"gateway.port", "Gateway", "Puerto", "int", {}, 1024, 65535, "", "", "gateway", 8787},
         {"gateway.bind", "Gateway", "Acceso (dónde escucha)", "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la sala.", "gateway", "127.0.0.1"},
+        {"gateway.urlHost", "Gateway", "Dirección para el QR y el enlace", "combo", opcionesUrlHost(rt.gateway().urlHost), 0, 0, "", "Lo que va en el QR de la sala y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la sala.", "gateway", ""},
         {"gateway.tunnel", "Gateway", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Necesita el token en BA_TUNNEL_TOKEN.", "gateway", true},
         {"gateway.tunnelHost", "Gateway", "Dominio público (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},
         {"gateway.videoW", "Gateway", "Video del invitado: ancho", "int", {}, 320, 3840, "px", "", "gateway", 1280},
@@ -192,6 +212,7 @@ QVariantMap SettingsModel::current() const {
         {"gateway.room", qs(g.room)},
         {"gateway.port", g.port},
         {"gateway.bind", qs(g.bindAddress)},
+        {"gateway.urlHost", qs(g.urlHost)},
         {"gateway.tunnel", g.tunnel},
         {"gateway.tunnelHost", qs(g.tunnelHostname)},
         {"gateway.videoW", g.videoW},
@@ -430,6 +451,11 @@ QString SettingsModel::apply() {
         g.room = s("gateway.room");
         g.port = static_cast<std::uint16_t>(i("gateway.port"));
         g.bindAddress = s("gateway.bind");
+        g.urlHost = s("gateway.urlHost");
+        // Una dirección de la red para el QR con el gateway escuchando solo en esta máquina:
+        // nadie podría entrar. Pasa a la red local.
+        if (g.bindAddress == "127.0.0.1" && !g.urlHost.empty() && g.urlHost != "localhost" && g.urlHost.rfind("127.", 0) != 0)
+            g.bindAddress = "0.0.0.0";
         g.tunnel = b("gateway.tunnel");
         g.tunnelHostname = s("gateway.tunnelHost");
         g.videoW = i("gateway.videoW");

@@ -86,7 +86,7 @@ endif()
 # El servidor de señalización usa sockets. En Windows es winsock2 (ws2_32);
 # en POSIX el stack ya está en libc.
 if(WIN32)
-    target_link_libraries(ba-gateway PRIVATE ws2_32)
+    target_link_libraries(ba-gateway PRIVATE ws2_32 iphlpapi) # iphlpapi: las IP de la máquina (net/NetUtil)
 endif()
 
 # --- libwebrtc (solo Windows, solo si el SDK está presente) ------------------
@@ -284,7 +284,7 @@ foreach(test_source ${BA_GATEWAY_TESTS})
         target_compile_definitions(${test_name} PRIVATE BA_HAVE_LWIP=1)
     endif()
     if(WIN32)
-        target_link_libraries(${test_name} PRIVATE ws2_32)
+        target_link_libraries(${test_name} PRIVATE ws2_32 iphlpapi)
     endif()
     add_test(NAME ${test_name} COMMAND ${test_name})
     # 77 = saltado (ver src/core/CMakeLists.txt).

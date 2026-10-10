@@ -60,6 +60,7 @@ struct Config {
     uint16_t port = 8787;                  // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
     std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
+    std::string urlHost;                   // lo que va en el QR y el enlace (IP o nombre); vacio = automatico
     bool tunnel = true;                    // lanzar cloudflared si hay token
     std::string tunnelHostname;            // dominio publico del tunel de Cloudflare (sala.midominio.com)
     std::string room = "sala1";            // sala por defecto
@@ -135,6 +136,7 @@ struct Config {
         if (j.contains("proxy") && j["proxy"].is_object()) proxy = j["proxy"];
         port = j.value("port", port);
         bindAddress = j.value("bindAddress", bindAddress);
+        urlHost = j.value("urlHost", urlHost);
         room = j.value("room", room);
         tunnel = j.value("tunnel", tunnel);
         tunnelHostname = j.value("tunnelHostname", tunnelHostname);
