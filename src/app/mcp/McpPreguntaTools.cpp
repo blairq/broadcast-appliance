@@ -67,8 +67,16 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     "No pude hablar con la sala (gateway). Fijate `room_status`: si esta caida, las "
                     "preguntas del publico no llegan a ningun lado."));
             ToolResult res;
-            if (!textoOk.empty()) res.text(textoOk);
             res.structured = aJson(r);
+            if (!textoOk.empty()) {
+                res.text(textoOk);
+            } else {
+                // Sin texto, el asistente que solo lee `content` no veía nada (el enlace del
+                // QR, por ejemplo). La matriz del QR no: es para dibujarlo.
+                nlohmann::json d = res.structured;
+                if (d.is_object()) d.erase("modules");
+                res.text(d.dump(2));
+            }
             done(res);
         };
         if (metodo == "GET")

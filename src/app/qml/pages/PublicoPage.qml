@@ -132,6 +132,14 @@ Rectangle {
                     }
                 }
             }
+            // Sin QR: por qué (y dónde se arregla).
+            Text {
+                visible: !!page.pub.enlace && page.pub.enlace.ok === false
+                Layout.preferredWidth: 300
+                wrapMode: Text.WordWrap
+                color: Theme.warn; font.pixelSize: 12
+                text: (page.pub.enlace && page.pub.enlace.mensaje) || "No hay enlace."
+            }
             RowLayout {
                 Layout.preferredWidth: 300
                 spacing: 6
