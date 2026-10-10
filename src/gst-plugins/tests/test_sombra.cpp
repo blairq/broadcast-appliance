@@ -10,6 +10,7 @@
 #include <gst/app/gstappsrc.h>
 #include <gst/gst.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
