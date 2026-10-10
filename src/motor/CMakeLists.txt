@@ -6,9 +6,17 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
+# Capturas: las ventanas de cada sistema (ver Capturas.hpp).
+if(APPLE)
+    target_sources(ba_motor PRIVATE Capturas_mac.mm)
+    set_source_files_properties(Capturas_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    target_link_libraries(ba_motor PUBLIC "-framework CoreGraphics" "-framework Foundation")
+elseif(WIN32)
+    target_link_libraries(ba_motor PUBLIC dwmapi)
+endif()
 
 if(BUILD_TESTING OR TRUE)
     add_executable(test_motor tests/test_motor.cpp)
@@ -37,6 +45,17 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_composicion gstbafiltros) # basombra
     add_test(NAME test_composicion COMMAND test_composicion)
     set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_capturas tests/test_capturas.cpp)
+    target_link_libraries(test_capturas PRIVATE ba_motor)
+    ba_gst_rpath(test_capturas "")
+    target_compile_definitions(test_capturas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    if(TARGET gstbacaptura)
+        add_dependencies(test_capturas gstbacaptura)
+    endif()
+    add_test(NAME test_capturas COMMAND test_capturas)
+    set_tests_properties(test_capturas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
     add_executable(test_salidas tests/test_salidas.cpp)
     target_link_libraries(test_salidas PRIVATE ba_motor)

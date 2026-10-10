@@ -105,7 +105,8 @@ Solo localhost, token obligatorio, y se rechazan pedidos con Origin de otra pagi
 | `macos-avcapture` (macOS) | camara: `device` (ver source_properties) |
 | `coreaudio_output_capture` (macOS) | audio del sistema: `device_id` |
 | microfonos (todos los sistemas) | entran por GStreamer: `audio_input_add` (no `source_add`); `ba_gst_fuente` con `pipeline_audio` y `microfono`. Filtros: `entrada_filtros_audio`; mesa redonda: `automixer` |
-| `screen_capture` (macOS) | pantalla o ventana (ScreenCaptureKit; pide permiso de grabacion de pantalla) |
+| `screen_capture` | una pantalla: `monitor` (su nombre: las opciones salen en source_properties; vacio = la principal), `show_cursor` |
+| `window_capture` | la ventana de una aplicacion, aunque este tapada: `ventana` = "aplicacion\ntitulo" (las abiertas salen en source_properties), `show_cursor`. Se recuerda la aplicacion: si se cierra y se abre, sigue sola. En la Mac pide permiso de grabacion de pantalla |
 | `dshow_input` (Windows) | camara |
 | `ba_guest_video` | invitado: `slot` (1..N), `channel` guest (camara) o share (pantalla compartida) |
 | `slideshow` | `files`, `slide_time` |

@@ -4,6 +4,7 @@
 #include "Entrada.hpp"
 #include "diag/Utf8.hpp"
 
+#include "Capturas.hpp"
 #include "OrigenRed.hpp"
 #include "Reloj.hpp"
 #include "platform/Paths.hpp"
@@ -404,6 +405,8 @@ void Entrada::leer(const json& a) {
     descripcion_ = a.value("pipeline", std::string());
     descripcionAudio_ = a.value("pipeline_audio", std::string());
     camara_ = a.value("camara", std::string());
+    ventanaApp_.clear();
+    ventanaTitulo_.clear();
     camaraModo_ = a.value("camara_modo", std::string());
     microfono_ = a.value("microfono", std::string());
     rack_ = a.value("rack", std::string());
@@ -496,17 +499,15 @@ void Entrada::leer(const json& a) {
             descripcion_.insert(i, subirGpu() + " ! " + texturaGpu() + " ! ");
     }
     if (tipo == "pantalla") {
-        const int i = a.value("indice", 0);
-#if defined(__APPLE__)
-        descripcion_ = "avfvideosrc capture-screen=true capture-screen-cursor=" + std::string(a.value("cursor", true) ? "true" : "false") +
-                       " device-index=" + std::to_string(i);
-#elif defined(_WIN32)
-        descripcion_ = std::string(hayFabrica("d3d12screencapturesrc") ? "d3d12screencapturesrc" : "d3d11screencapturesrc") +
-                       " monitor-index=" + std::to_string(i) + " show-cursor=" + (a.value("cursor", true) ? "true" : "false");
-#else
-        descripcion_ = hayFabrica("pipewiresrc") ? "pipewiresrc" : "ximagesrc use-damage=false show-pointer=" +
-                                                                       std::string(a.value("cursor", true) ? "true" : "false");
-#endif
+        // La pantalla elegida (por su nombre y su recuadro): Capturas.
+        descripcion_ = origenPantalla(a);
+        conAudio_ = false;
+    } else if (tipo == "ventana") {
+        // La ventana de una aplicación: se busca viva en cada armado (armar).
+        ventanaApp_ = a.value("app", std::string());
+        ventanaTitulo_ = a.value("titulo", std::string());
+        ventanaCursor_ = a.value("cursor", true);
+        descripcion_.clear();
         conAudio_ = false;
     }
     const json fl = comoJson(a.value("filtros", json()));
@@ -517,7 +518,9 @@ void Entrada::leer(const json& a) {
         filtrosA_.push_back(std::move(f));
 }
 
-bool Entrada::daVideo() const { return !camara_.empty() || !descripcion_.empty() || (!uri_.empty()); }
+bool Entrada::daVideo() const {
+    return !camara_.empty() || !descripcion_.empty() || !uri_.empty() || !ventanaApp_.empty() || !ventanaTitulo_.empty();
+}
 bool Entrada::daAudio() const { return conAudio_ && (!descripcionAudio_.empty() || !uri_.empty()); }
 
 void Entrada::actualizar(const json& ajustes, std::function<void()> despues) {
@@ -533,7 +536,8 @@ void Entrada::actualizarYa(const json& ajustes) {
     const auto aAntes = filtrosA_;
     leer(ajustes);
     // La firma de lo que obliga a rearmar (todo menos las propiedades vivas de los filtros).
-    const std::string firma = uri_ + "|" + descripcion_ + "|" + descripcionAudio_ + "|" + camara_ + "|" +
+    const std::string firma = uri_ + "|" + descripcion_ + "|" + descripcionAudio_ + "|" + camara_ + "|" + ventanaApp_ + "/" +
+                              ventanaTitulo_ + (ventanaCursor_ ? "+c" : "") + "|" +
                               camaraModo_ + "|" + microfono_ + "|" + rack_ + "|" + (normalizar_ ? "n" : "") +
                               colorReal_ + "/" + desentrelazar_ + "/" + campo_ + "|" +
                               (conAudio_ ? "a" : "") + (medio_ ? "m" : "") + "|" + std::to_string(latenciaMs_) + "|" +
@@ -607,11 +611,13 @@ void Entrada::armar() {
     segmentoListo_ = false;
     avisos_.clear();
     error_.clear();
-    if (uri_.empty() && descripcion_.empty() && descripcionAudio_.empty() && camara_.empty()) return;
+    if (uri_.empty() && descripcion_.empty() && descripcionAudio_.empty() && camara_.empty() && ventanaApp_.empty() &&
+        ventanaTitulo_.empty())
+        return;
     // Un dispositivo del equipo que no está: a esperar que aparezca (el vigía avisa).
-    const auto esperar = [this](const std::string& que) {
-        if (!esperaDispositivo_) registrar(Nivel::Aviso, id_ + ": " + que + ": se espera a que se conecte");
-        error_ = que + ": esperando que se conecte";
+    const auto esperar = [this](const std::string& que, const char* verbo = "se conecte") {
+        if (!esperaDispositivo_) registrar(Nivel::Aviso, id_ + ": " + que + ": se espera a que " + verbo);
+        error_ = que + ": esperando que " + verbo;
         esperaDispositivo_ = true;
         genVista_ = Vigia::el().generacion();
         esperaDesdeNs_ = ahoraNs();
@@ -628,7 +634,16 @@ void Entrada::armar() {
             return;
         }
     }
-    if (esperaDispositivo_) registrar(Nivel::Info, id_ + ": apareció el dispositivo, se conecta");
+    if (!ventanaApp_.empty() || !ventanaTitulo_.empty()) {
+        origenV = origenVentana(ventanaApp_, ventanaTitulo_, ventanaCursor_);
+        if (origenV.empty()) {
+            esperar("la ventana de «" + (ventanaApp_.empty() ? ventanaTitulo_ : ventanaApp_) + "»", "se abra");
+            return;
+        }
+    }
+    if (esperaDispositivo_)
+        registrar(Nivel::Info, id_ + (ventanaApp_.empty() && ventanaTitulo_.empty() ? ": apareció el dispositivo, se conecta"
+                                                                                   : ": se abrió la ventana, se captura"));
     esperaDispositivo_ = false;
 
     // NORMALIZAR (de fábrica): desentrelaza si hace falta, lleva a los cuadros
@@ -1208,8 +1223,10 @@ void Entrada::tic() {
     const bool deDispositivo = !camara_.empty() || (!microfono_.empty() && microfono_ != "default");
     if (deDispositivo) Vigia::el().revisar();
     if (pipeline_ == nullptr && esperaDispositivo_) {
-        // Esperando su dispositivo: se arma cuando el vigía avisa (o cada 15 s, de respaldo).
-        if (Vigia::el().generacion() != genVista_ || ahoraNs() - esperaDesdeNs_ > 15'000'000'000ULL)
+        // Esperando su dispositivo: se arma cuando el vigía avisa (o cada 15 s, de respaldo). Una
+        // ventana que no está abierta no la avisa nadie: se mira cada 2 s.
+        const std::uint64_t cada = (!ventanaApp_.empty() || !ventanaTitulo_.empty()) ? 2'000'000'000ULL : 15'000'000'000ULL;
+        if (Vigia::el().generacion() != genVista_ || ahoraNs() - esperaDesdeNs_ > cada)
             trabajar([this]() { armar(); });
         return;
     }

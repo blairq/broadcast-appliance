@@ -20,6 +20,7 @@
 #include "emision/BroadcastEngine.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
+#include "video/FuentesCaptura.hpp"
 
 #include "Motor.hpp"
 #include "Salidas.hpp"
@@ -469,7 +470,11 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
         return true;
     }
     if (esPantalla(id)) {
-        a = {{"tipo", "pantalla"}, {"indice", in.value("display", in.value("monitor", 0))}, {"cursor", in.value("show_cursor", true)}};
+        a = video::ajustesPantalla(in); // la pantalla elegida (video/FuentesCaptura)
+        return true;
+    }
+    if (id == video::kTipoVentana) {
+        a = video::ajustesVentana(in);
         return true;
     }
     if (esDeApp(id)) {
@@ -839,6 +844,7 @@ std::vector<SourceType> BroadcastEngine::inputTypes() const {
             {"text_ft2_source_v2", "Texto", true, false},
             {"image_source", "Imagen", true, false},
             {"screen_capture", "Captura de pantalla", true, false},
+            {video::kTipoVentana, "Captura de una aplicación", true, false},
             {"ba_app", "Lo que pinta la app", true, false}};
 }
 

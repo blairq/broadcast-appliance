@@ -12,6 +12,7 @@
 #              y baanillosink (el programa y los mix-minus que el motor le escribe al gateway).
 #   plugin/    baplugins: baplugin (tarjeta de un plugin de Python) y bapluginsrc (su entrada).
 #   rostros/   barostros (+ barostrosgl, barostrosd3d12): caras en la cadena de una entrada.
+#   captura/   bacaptura (Mac): bacapturaventana, la ventana de una aplicación (ScreenCaptureKit).
 # ============================================================================
 
 # Lo que comparten todos: nombre libgst<x> y rutas para hallar GStreamer en el bundle.
@@ -27,6 +28,16 @@ function(ba_plugin_gst target)
     endif()
     install(TARGETS ${target} LIBRARY DESTINATION gst-plugins RUNTIME DESTINATION gst-plugins COMPONENT bundle)
 endfunction()
+
+# bacaptura (solo la Mac): bacapturaventana, la ventana de una aplicación con ScreenCaptureKit
+# (en Windows y Linux lo hacen d3d12screencapturesrc y ximagesrc: ver src/motor/Capturas).
+if(APPLE)
+    add_library(gstbacaptura MODULE captura/ventana_mac.mm)
+    set_source_files_properties(captura/ventana_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    ba_plugin_gst(gstbacaptura)
+    target_link_libraries(gstbacaptura PRIVATE "-framework ScreenCaptureKit" "-framework CoreMedia" "-framework CoreVideo"
+                                               "-framework Foundation")
+endif()
 
 add_library(gstbafiltros MODULE filtros/plugin.cpp filtros/color.cpp filtros/croma.cpp filtros/recorte.cpp filtros/legal.cpp filtros/ptz.cpp filtros/mejora.cpp filtros/gl.cpp filtros/salida.cpp filtros/vista360.cpp filtros/sombra.cpp)
 ba_plugin_gst(gstbafiltros)

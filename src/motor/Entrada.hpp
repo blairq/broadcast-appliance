@@ -198,6 +198,9 @@ class Entrada {
     // Lo pedido
     std::string uri_, descripcion_, descripcionAudio_, camara_, camaraModo_, microfono_, rack_;
     std::string filtrosJson_, superresMotor_, superresModelo_;
+    /// tipo=ventana: la aplicación y el título (la ventana viva se busca en cada armado, Capturas).
+    std::string ventanaApp_, ventanaTitulo_;
+    bool ventanaCursor_ = true;
     /// La tarjeta Normalizar (una fuente que declara mal su color o su entrelazado):
     /// `colorReal_` es la colorimetría de verdad ("R:M:T:P", la de GstVideoColorimetry),
     /// que se impone en las caps ANTES de convertir o subir a la GPU; `desentrelazar_`
