@@ -2,6 +2,7 @@
 // src/motor/Entrada.cpp — ver Entrada.hpp
 // ============================================================================
 #include "Entrada.hpp"
+#include "diag/Utf8.hpp"
 
 #include "OrigenRed.hpp"
 #include "Reloj.hpp"
@@ -295,7 +296,7 @@ void Entrada::armarSalida() {
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        registrar(Nivel::Aviso, id_ + ": la placa no se pudo armar (" + e->message + "): sin placa");
+        registrar(Nivel::Aviso, id_ + ": la placa no se pudo armar (" + ba::diag::utf8Valido(e->message) + "): sin placa");
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return;
@@ -785,7 +786,7 @@ void Entrada::armar() {
     GError* err = nullptr;
     GstElement* p = gst_parse_launch(completo.c_str(), &err);
     if (err != nullptr) {
-        error_ = err->message;
+        error_ = ba::diag::utf8Valido(err->message);
         g_error_free(err);
         if (p != nullptr) gst_object_unref(p);
         registrar(Nivel::Aviso, id_ + ": " + error_);
@@ -1190,7 +1191,7 @@ void Entrada::tic() {
             if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
                 GError* e = nullptr;
                 gst_message_parse_error(m, &e, nullptr);
-                registrar(Nivel::Aviso, id_ + " (placa): " + (e != nullptr ? e->message : "error"));
+                registrar(Nivel::Aviso, id_ + " (placa): " + (e != nullptr ? ba::diag::utf8Valido(e->message) : "error"));
                 if (e != nullptr) g_error_free(e);
             }
             gst_message_unref(m);
@@ -1330,7 +1331,7 @@ void Entrada::procesarMensaje(GstMessage* m) {
             GError* e = nullptr;
             gst_message_parse_warning(m, &e, nullptr);
             if (e != nullptr) {
-                registrar(Nivel::Info, id_ + " (aviso de " + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + e->message);
+                registrar(Nivel::Info, id_ + " (aviso de " + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + ba::diag::utf8Valido(e->message));
                 g_error_free(e);
             }
             return;
@@ -1363,7 +1364,7 @@ void Entrada::procesarMensaje(GstMessage* m) {
         case GST_MESSAGE_ERROR: {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? e->message : "error";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             if (e != nullptr) g_error_free(e);
             // Al registro: el error nuevo enseguida; el mismo, a lo sumo una vez por minuto.
             const std::uint64_t ahora = ahoraNs();
@@ -1678,7 +1679,9 @@ json Entrada::estadoFiltros() const {
                 g_object_get_property(G_OBJECT(el), ps->name, &v);
                 if (G_VALUE_HOLDS_STRING(&v)) {
                     const char* t = g_value_get_string(&v);
-                    if (t != nullptr && *t != '\0') info[ps->name] = t;
+                    // UTF-8 válido: el error de una red (ONNX Runtime en Windows) viene en
+                    // cp1252 y metido así en el JSON tiraba una excepción que colgaba la app.
+                    if (t != nullptr && *t != '\0') info[ps->name] = ba::diag::utf8Valido(t);
                 } else if (G_VALUE_HOLDS_DOUBLE(&v)) {
                     info[ps->name] = g_value_get_double(&v);
                 } else if (G_VALUE_HOLDS_INT(&v)) {
@@ -1769,7 +1772,7 @@ json Entrada::leerPropiedades(const std::string& elemento) const {
         g_object_get_property(G_OBJECT(el), ps->name, &v);
         if (G_VALUE_HOLDS_STRING(&v)) {
             const char* t = g_value_get_string(&v);
-            o[ps->name] = t != nullptr ? t : "";
+            o[ps->name] = ba::diag::utf8Valido(t); // ver arriba: cp1252 de terceros
         } else if (G_VALUE_HOLDS_DOUBLE(&v)) {
             o[ps->name] = g_value_get_double(&v);
         } else if (G_VALUE_HOLDS_INT(&v)) {

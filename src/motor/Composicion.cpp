@@ -2,6 +2,7 @@
 // src/motor/Composicion.cpp — ver Composicion.hpp
 // ============================================================================
 #include "Composicion.hpp"
+#include "diag/Utf8.hpp"
 
 #include "Mezcla.hpp" // kMargenMezclaNs
 #include "Reloj.hpp"
@@ -119,7 +120,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     GError* e = nullptr;
     pipeline_ = gst_parse_launch(completo.c_str(), &e);
     if (e != nullptr) {
-        error_ = e->message;
+        error_ = ba::diag::utf8Valido(e->message);
         g_error_free(e);
         if (pipeline_ != nullptr) gst_object_unref(pipeline_);
         pipeline_ = nullptr;
@@ -644,7 +645,7 @@ void Composicion::tic() {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? e->message : "error";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             registrar(Nivel::Error, "composición " + nombre_ + " (" + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + error_);
             if (e != nullptr) g_error_free(e);
         } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_LATENCY) {

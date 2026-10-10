@@ -2,6 +2,7 @@
 // src/motor/OrigenRed.cpp — ver OrigenRed.hpp
 // ============================================================================
 #include "OrigenRed.hpp"
+#include "diag/Utf8.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -100,7 +101,7 @@ void armar(Origen& o) {
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        registrar(Nivel::Aviso, "origen " + o.uri + ": " + e->message);
+        registrar(Nivel::Aviso, "origen " + o.uri + ": " + ba::diag::utf8Valido(e->message));
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         o.reintentoEn = g_get_monotonic_time() + o.esperaMs * 1000;
@@ -189,7 +190,7 @@ void tic() {
                 if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
                     GError* e = nullptr;
                     gst_message_parse_error(m, &e, nullptr);
-                    registrar(Nivel::Aviso, "origen " + o.uri + ": " + (e != nullptr ? e->message : "error") +
+                    registrar(Nivel::Aviso, "origen " + o.uri + ": " + (e != nullptr ? ba::diag::utf8Valido(e->message) : "error") +
                                                 " (se reconecta en " + std::to_string(o.esperaMs / 1000) + " s)");
                     if (e != nullptr) g_error_free(e);
                     caido = true;

@@ -2,6 +2,7 @@
 // src/motor/Escucha.cpp — ver Escucha.hpp
 // ============================================================================
 #include "Escucha.hpp"
+#include "diag/Utf8.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -56,7 +57,7 @@ void Escucha::armar() {
         const std::string sink = sinkPrueba_.empty() ? sinkDe(disp) : sinkPrueba_ + " name=sale";
         GstElement* p = gst_parse_launch((cola + sink).c_str(), &e);
         if (e != nullptr) {
-            error_ = e->message;
+            error_ = ba::diag::utf8Valido(e->message);
             g_error_free(e);
             if (p != nullptr) gst_object_unref(p);
             continue;
@@ -142,7 +143,7 @@ void Escucha::tic(std::int64_t latenciaNs) {
         } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? e->message : "error";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             if (e != nullptr) g_error_free(e);
             registrar(Nivel::Aviso, "escucha: " + error_);
         }

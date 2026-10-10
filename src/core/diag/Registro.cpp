@@ -2,6 +2,7 @@
 // src/core/diag/Registro.cpp — ver Registro.hpp
 // ============================================================================
 #include "diag/Registro.hpp"
+#include "diag/Utf8.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -195,7 +196,9 @@ void Registro::linea(Nivel n, const std::string& componente, int codigo, const s
     r.ms = ahoraMs();
     r.nivel = n;
     r.codigo = codigo;
-    r.texto = enUnaLinea(texto);
+    // En UTF-8 válido: lo leen el visor y el MCP como JSON, y un mensaje de un
+    // tercero en cp1252 (Windows) hacía tirar una excepción (ver diag/Utf8.hpp).
+    r.texto = enUnaLinea(utf8Valido(texto));
 
     std::function<void(const Registrado&)> oyente;
     std::vector<std::function<void(const Registrado&)>> otros;

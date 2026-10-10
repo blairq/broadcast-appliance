@@ -2,6 +2,7 @@
 // src/motor/Motor.cpp — ver Motor.hpp
 // ============================================================================
 #include "Motor.hpp"
+#include "diag/Utf8.hpp"
 #include "Candado.hpp"
 #include "OrigenRed.hpp"
 
@@ -73,7 +74,7 @@ std::string Motor::iniciar() {
         GError* e = nullptr;
         puente_ = gst_parse_launch(d.c_str(), &e);
         if (e != nullptr) {
-            registrar(Nivel::Aviso, std::string("el programa para el gateway: ") + e->message);
+            registrar(Nivel::Aviso, std::string("el programa para el gateway: ") + ba::diag::utf8Valido(e->message));
             g_error_free(e);
             if (puente_ != nullptr) gst_object_unref(puente_);
             puente_ = nullptr;

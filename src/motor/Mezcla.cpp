@@ -2,6 +2,7 @@
 // src/motor/Mezcla.cpp — ver Mezcla.hpp
 // ============================================================================
 #include "Mezcla.hpp"
+#include "diag/Utf8.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -65,7 +66,7 @@ Mezcla::Mezcla(Reloj& reloj, std::string nombre, Opciones op)
     GError* e = nullptr;
     pipeline_ = gst_parse_launch(desc.c_str(), &e);
     if (e != nullptr) {
-        error_ = e->message;
+        error_ = ba::diag::utf8Valido(e->message);
         g_error_free(e);
         if (pipeline_ != nullptr) gst_object_unref(pipeline_);
         pipeline_ = nullptr;
@@ -284,7 +285,7 @@ void Mezcla::tic() {
             case GST_MESSAGE_ERROR: {
                 GError* e = nullptr;
                 gst_message_parse_error(m, &e, nullptr);
-                error_ = e != nullptr ? e->message : "error";
+                error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
                 registrar(Nivel::Error, "mezcla " + nombre_ + " (" + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + error_);
                 if (e != nullptr) g_error_free(e);
                 break;
@@ -293,7 +294,7 @@ void Mezcla::tic() {
                 GError* e = nullptr;
                 gst_message_parse_warning(m, &e, nullptr);
                 if (e != nullptr) {
-                    registrar(Nivel::Info, "mezcla " + nombre_ + " (aviso de " + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + e->message);
+                    registrar(Nivel::Info, "mezcla " + nombre_ + " (aviso de " + GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) + "): " + ba::diag::utf8Valido(e->message));
                     g_error_free(e);
                 }
                 break;

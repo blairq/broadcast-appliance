@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <fstream>
 #include <chrono>
+#include <vector>
+#include <filesystem>
+#include <ctime>
 #include <thread>
 
 #ifdef _WIN32
@@ -429,7 +432,29 @@ void Supervisor::handleHang(bool isA) {
     const std::string name = isA ? "A" : "B";
     BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
     anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt);
-    writeMinidump(child(isA).pid(), cfg_.logsDir / "dumps" / (name + ".dmp"));
+    // Uno por cuelgue, con la hora (A-20261010-023635.dmp), y se quedan los
+    // últimos 5: antes era siempre A.dmp y el segundo cuelgue borraba el
+    // primero (pasó el 2026-10-10: del primero no quedó nada para mirar).
+    {
+        const std::time_t ahora = std::time(nullptr);
+        std::tm tm{};
+#if defined(_WIN32)
+        localtime_s(&tm, &ahora);
+#else
+        localtime_r(&ahora, &tm);
+#endif
+        char hora[32];
+        std::strftime(hora, sizeof hora, "%Y%m%d-%H%M%S", &tm);
+        const std::filesystem::path dir = cfg_.logsDir / "dumps";
+        writeMinidump(child(isA).pid(), dir / (name + "-" + hora + ".dmp"));
+        std::error_code ec;
+        std::vector<std::filesystem::path> viejos;
+        for (const auto& e : std::filesystem::directory_iterator(dir, ec))
+            if (e.path().extension() == ".dmp" && e.path().filename().string().rfind(name + "-", 0) == 0)
+                viejos.push_back(e.path());
+        std::sort(viejos.begin(), viejos.end()); // por nombre = por hora
+        for (size_t i = 0; i + 5 < viejos.size(); ++i) std::filesystem::remove(viejos[i], ec);
+    }
     child(isA).kill();
     child(isA).waitExit(kTerminateMs);
     health_.setState(slot, ba::ipc::ProcessState::Hung);

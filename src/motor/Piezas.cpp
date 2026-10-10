@@ -2,6 +2,7 @@
 // src/motor/Piezas.cpp — ver Piezas.hpp
 // ============================================================================
 #include "Piezas.hpp"
+#include "diag/Utf8.hpp"
 
 #include <thread>
 #include "Reloj.hpp"
@@ -617,7 +618,7 @@ bool queTieneElArchivo(const std::string& uri, bool& video, bool& audio, std::st
     GError* e = nullptr;
     GstDiscoverer* d = gst_discoverer_new(5 * GST_SECOND, &e);
     if (d == nullptr) {
-        error = e != nullptr ? e->message : "no se pudo mirar el archivo";
+        error = e != nullptr ? ba::diag::utf8Valido(e->message) : "no se pudo mirar el archivo";
         if (e != nullptr) g_error_free(e);
         return false;
     }
@@ -633,7 +634,7 @@ bool queTieneElArchivo(const std::string& uri, bool& video, bool& audio, std::st
         ok = video || audio;
         if (!ok) error = "el archivo no tiene video ni audio";
     } else {
-        error = e != nullptr ? e->message : "no se pudo leer el archivo";
+        error = e != nullptr ? ba::diag::utf8Valido(e->message) : "no se pudo leer el archivo";
     }
     if (e != nullptr) g_error_free(e);
     if (info != nullptr) gst_discoverer_info_unref(info);
@@ -817,7 +818,7 @@ bool glListo() {
     if (gDisplay == nullptr) return false;
     GError* e = nullptr;
     if (!gst_gl_display_create_context(gDisplay, nullptr, &gContexto, &e)) {
-        registrar(Nivel::Aviso, std::string("sin contexto GL para el video: ") + (e != nullptr ? e->message : "?") +
+        registrar(Nivel::Aviso, std::string("sin contexto GL para el video: ") + (e != nullptr ? ba::diag::utf8Valido(e->message) : "?") +
                                     " (se compone en la CPU)");
         if (e != nullptr) g_error_free(e);
         return false;
@@ -838,7 +839,7 @@ bool d3d12Listo() {
         "d3d12compositor name=mx ! video/x-raw(memory:D3D12Memory),format=RGBA ! d3d12download ! appsink name=s sync=false",
         &e);
     if (e != nullptr) {
-        registrar(Nivel::Aviso, std::string("D3D12: la autoprueba no se arma: ") + e->message);
+        registrar(Nivel::Aviso, std::string("D3D12: la autoprueba no se arma: ") + ba::diag::utf8Valido(e->message));
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return false;
@@ -863,7 +864,7 @@ bool d3d12Listo() {
             } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR && error.empty()) {
                 GError* ge = nullptr;
                 gst_message_parse_error(m, &ge, nullptr);
-                error = ge != nullptr ? ge->message : "error";
+                error = ge != nullptr ? ba::diag::utf8Valido(ge->message) : "error";
                 if (ge != nullptr) g_error_free(ge);
             }
             gst_message_unref(m);

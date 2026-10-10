@@ -70,13 +70,15 @@ ba_plugin_gst(gstbaplugins)
 # El ONNX Runtime de esta plataforma (cmake/BaOnnxRuntime.cmake).
 set(_ba_ort "${BA_ORT_LIB}")
 
-set(_srs superres/plugin.cpp superres/fsr.cpp superres/onnxsr.cpp superres/glsl.cpp)
+# diag/Utf8.cpp: los mensajes de ONNX Runtime en Windows vienen en cp1252.
+set(_srs superres/plugin.cpp superres/fsr.cpp superres/onnxsr.cpp superres/glsl.cpp "${CMAKE_SOURCE_DIR}/src/core/diag/Utf8.cpp")
 if(APPLE)
     list(APPEND _srs superres/vtsuperres_mac.mm superres/coremlsr_mac.mm superres/cvmemoria_mac.mm)
     set_source_files_properties(superres/vtsuperres_mac.mm superres/coremlsr_mac.mm superres/cvmemoria_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 endif()
 add_library(gstbasuperres MODULE ${_srs})
 ba_plugin_gst(gstbasuperres)
+target_include_directories(gstbasuperres PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
 if(WIN32)
     # GL/glext.h y KHR/khrplatform.h (Khronos, MIT): gstglfuncs.h los pide y el
     # SDK de Windows no los trae (baglsl).

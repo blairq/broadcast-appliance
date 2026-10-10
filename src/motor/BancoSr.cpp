@@ -2,6 +2,7 @@
 // src/motor/BancoSr.cpp — ver BancoSr.hpp
 // ============================================================================
 #include "BancoSr.hpp"
+#include "diag/Utf8.hpp"
 
 #include <gst/gst.h>
 
@@ -109,7 +110,7 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
     GError* err = nullptr;
     GstElement* p = gst_parse_launch(desc.c_str(), &err);
     if (err != nullptr) {
-        m.error = err->message;
+        m.error = ba::diag::utf8Valido(err->message);
         g_error_free(err);
         if (p != nullptr) gst_object_unref(p);
         return m;
@@ -126,7 +127,7 @@ MedidaSr medirSuperRes(const CandidatoSr& c, int ancho, int alto, int fpsN, int 
         while (GstMessage* msg = gst_bus_pop_filtered(bus, static_cast<GstMessageType>(GST_MESSAGE_ERROR))) {
             GError* e = nullptr;
             gst_message_parse_error(msg, &e, nullptr);
-            m.error = e != nullptr ? e->message : "error";
+            m.error = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             if (e != nullptr) g_error_free(e);
             gst_message_unref(msg);
             return true;

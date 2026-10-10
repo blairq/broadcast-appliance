@@ -2,6 +2,7 @@
 // src/motor/Salidas.cpp — ver Salidas.hpp
 // ============================================================================
 #include "Salidas.hpp"
+#include "diag/Utf8.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
@@ -83,7 +84,7 @@ std::string remuxar(const std::string& origen, const std::string& destino, const
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        std::string m = e->message;
+        std::string m = ba::diag::utf8Valido(e->message);
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return m;
@@ -143,7 +144,7 @@ std::string remuxar(const std::string& origen, const std::string& destino, const
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* er = nullptr;
             gst_message_parse_error(m, &er, nullptr);
-            error = er != nullptr ? er->message : "error";
+            error = er != nullptr ? ba::diag::utf8Valido(er->message) : "error";
             if (er != nullptr) g_error_free(er);
         }
         gst_message_unref(m);
@@ -212,7 +213,7 @@ std::string correrHastaElFinal(GstElement* p) {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* er = nullptr;
             gst_message_parse_error(m, &er, nullptr);
-            error = er != nullptr ? er->message : "error";
+            error = er != nullptr ? ba::diag::utf8Valido(er->message) : "error";
             if (er != nullptr) g_error_free(er);
         }
         gst_message_unref(m);
@@ -331,7 +332,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        error_ = e->message;
+        error_ = ba::diag::utf8Valido(e->message);
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return error_;
@@ -425,7 +426,7 @@ void Grabacion::tic() {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) {
             GError* e = nullptr;
             gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? e->message : "error";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
             registrar(Nivel::Error, "grabación (" + std::string(GST_OBJECT_NAME(GST_MESSAGE_SRC(m))) + "): " + error_);
             if (e != nullptr) g_error_free(e);
         }
@@ -500,7 +501,7 @@ std::string Transmision::armar() {
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
-        std::string m = e->message;
+        std::string m = ba::diag::utf8Valido(e->message);
         g_error_free(e);
         if (p != nullptr) gst_object_unref(p);
         return m;
@@ -646,7 +647,7 @@ void Transmision::tic() {
         if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR || GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS) {
             GError* e = nullptr;
             if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_ERROR) gst_message_parse_error(m, &e, nullptr);
-            error_ = e != nullptr ? e->message : "se cortó";
+            error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "se cortó";
             if (e != nullptr) g_error_free(e);
             caida = true;
         }

@@ -59,6 +59,7 @@
 #include <gst/video/video.h>
 
 #include "comun.hpp"
+#include "diag/Utf8.hpp"
 
 #if defined(BA_HAVE_ORT)
 #define ORT_API_MANUAL_INIT
@@ -503,7 +504,11 @@ static GstStaticPadTemplate srcTpl =
 
 static bool hayModelo(BaOnnxSr* s) { return s->modelo != nullptr && *s->modelo != '\0'; }
 
-static void ponerError(BaOnnxSr* s, const std::string& e) {
+static void ponerError(BaOnnxSr* s, const std::string& crudo) {
+    // En UTF-8: ONNX Runtime da el mensaje del sistema en su página de códigos
+    // (cp1252 en un Windows en castellano: «operación» con un byte suelto) y la app
+    // lo mete en JSON. Ver diag/Utf8.hpp.
+    const std::string e = ba::diag::utf8Valido(crudo);
     std::lock_guard<std::mutex> l(*s->errorMu);
     g_free(s->error);
     s->error = e.empty() ? nullptr : g_strdup(e.c_str());

@@ -2,6 +2,7 @@
 // src/motor/Reloj.cpp — ver Reloj.hpp
 // ============================================================================
 #include "Reloj.hpp"
+#include "diag/Utf8.hpp"
 #include "Mapa.hpp"
 #include "Piezas.hpp"
 
@@ -34,7 +35,7 @@ bool iniciarGStreamer(std::string* error) {
         }
         GError* e = nullptr;
         ok = gst_init_check(nullptr, nullptr, &e);
-        if (!ok) err = e != nullptr ? e->message : "gst_init falló";
+        if (!ok) err = e != nullptr ? ba::diag::utf8Valido(e->message) : "gst_init falló";
         if (e != nullptr) g_error_free(e);
     });
     if (!ok && error != nullptr) *error = err;
