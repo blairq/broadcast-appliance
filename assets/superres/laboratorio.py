@@ -65,6 +65,29 @@ def ffprobe() -> str:
     return os.environ.get("BA_FFPROBE") or shutil.which("ffprobe") or "ffprobe"
 
 
+def ceder_a_la_app(en_gpu: bool) -> None:
+    """Que el laboratorio no le gane a la emisión: prioridad baja y pocos hilos.
+
+    Medido en la PC con AMD (RX 5700 XT, DirectML): entrenando usaba 21,7 de 24
+    núcleos (PyTorch toma todos de fábrica y algunas operaciones caen a la CPU).
+    Con la app al aire en la misma máquina eso traba el programa. En la GPU,
+    la CPU solo prepara datos y hace lo que la GPU no: con un cuarto alcanza."""
+    import torch
+
+    n = os.cpu_count() or 4
+    torch.set_num_threads(max(2, n // 4 if en_gpu else n // 2))
+    try:
+        if sys.platform == "win32":
+            import ctypes
+
+            BELOW_NORMAL_PRIORITY_CLASS = 0x4000
+            ctypes.windll.kernel32.SetPriorityClass(ctypes.windll.kernel32.GetCurrentProcess(), BELOW_NORMAL_PRIORITY_CLASS)
+        else:
+            os.nice(10)
+    except Exception:  # noqa: BLE001  (sin prioridad baja se sigue igual)
+        pass
+
+
 def dispositivo():
     import torch
 
@@ -459,11 +482,13 @@ def juntar_cuadros(args, tmp: str):
     if not entrada:
         raise SystemExit("falta --uri (una cámara) o --entrada (un video o una carpeta de imágenes)")
     origen = ["-rtsp_transport", "tcp"] if entrada.startswith("rtsp") else []
+    primera = None  # con una carpeta, su primera imagen (de ahí sale el tamaño)
     if os.path.isdir(entrada):
         # Una carpeta de imágenes: una lista para ffmpeg (concat), una por cuadro.
         fotos = sorted(f for f in os.listdir(entrada) if f.lower().endswith((".png", ".jpg", ".jpeg")))
         if not fotos:
             raise SystemExit("la carpeta no tiene imágenes (.png, .jpg)")
+        primera = os.path.join(os.path.abspath(entrada), fotos[0])
         lista = os.path.join(tmp, "lista.txt")
         with open(lista, "w", encoding="utf-8") as f:
             for n in fotos:
@@ -481,9 +506,15 @@ def juntar_cuadros(args, tmp: str):
     # El tamaño: lo dice ffprobe de un cuadro.
     w, h = args.ancho, args.alto
     if not (w and h):
-        info = subprocess.run([ffprobe(), "-v", "error", *origen, "-select_streams", "v:0", "-show_entries",
-                               "stream=width,height,sample_aspect_ratio", "-of", "json", args.uri or args.entrada],
-                              capture_output=True, text=True, timeout=60) if args.uri or not os.path.isdir(args.entrada) else None
+        # De una carpeta (una cámara local: la app guarda cuadros), el tamaño de su
+        # primera imagen. Antes no se preguntaba nada en ese caso y fallaba con
+        # «'NoneType' object has no attribute 'stdout'».
+        objetivo = primera or args.uri or args.entrada
+        info = subprocess.run([ffprobe(), "-v", "error", *([] if primera else origen), "-select_streams", "v:0",
+                               "-show_entries", "stream=width,height,sample_aspect_ratio", "-of", "json", objetivo],
+                              capture_output=True, text=True, timeout=60)
+        if info.returncode != 0 or not info.stdout.strip():
+            raise SystemExit("no se pudo saber el tamaño de los cuadros: " + (info.stderr or "ffprobe no contestó").strip()[:200])
         st = json.loads(info.stdout)["streams"][0]
         sar = st.get("sample_aspect_ratio", "1:1")
         a, b = (int(x) for x in sar.split(":")) if ":" in sar and sar != "0:1" else (1, 1)
@@ -515,6 +546,7 @@ def entrenar_chica(args) -> None:
     except subprocess.CalledProcessError as e:
         raise SystemExit(f"ffmpeg no pudo leer la cámara ({e.returncode})")
     dev, nombre_dev = dispositivo()
+    ceder_a_la_app(nombre_dev != "cpu")
     decir(ev="progreso", texto=f"Entrenando en {nombre_dev} ({len(altas)} cuadros)…", pct=10)
     torch.manual_seed(0)
     modelo = red_chica(args.canales, args.capas).to(dev)
@@ -632,6 +664,7 @@ def destilar(args) -> None:
             raise SystemExit("llegaron muy pocos cuadros")
         cuadros = datos[: n * w * h * 3].reshape(n, h, w, 3)
         dev, nombre_dev = (torch.device("cpu"), "cpu") if args.cpu else dispositivo()
+        ceder_a_la_app(nombre_dev != "cpu")
         # El maestro: su x4 de cada cuadro, achicado a x2 (promedio 2x2).
         decir(ev="progreso", texto=f"El maestro ({receta.get('nombre', receta['id'])}) mira {n} cuadros…", pct=10)
         import spandrel

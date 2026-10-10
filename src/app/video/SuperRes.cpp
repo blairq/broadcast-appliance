@@ -17,9 +17,12 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QProcessEnvironment>
+
+#include "platform/Herramientas.hpp"
 #include <QTimer>
 
 #include <fstream>
+#include <iterator>
 #include <algorithm>
 #include <set>
 
@@ -39,6 +42,27 @@ QVariant qv(const json& j) {
 // Lo que baja el laboratorio: versiones fijas (CPU/MPS; en Windows con NVIDIA
 // se puede cambiar por la de CUDA a mano).
 const QStringList kBibliotecas{"torch==2.14.1", "spandrel==0.4.2", "onnx==1.23.1"};
+
+std::string placaDeVideo(); // más abajo
+
+/// En Windows con AMD o Intel, PyTorch entrena en la GPU con DirectML
+/// (torch-directml): no hay ROCm ni CUDA ahí. torch-directml exige SU versión de
+/// PyTorch (medido en la RX 5700 XT: 2.4.1 con torch-directml 0.2.5), así que
+/// torch no se fija: lo trae pip con la que pide. Sin esto el laboratorio
+/// entrenaba en la CPU (inusable) y la sección de AMD no andaba en Windows.
+bool conDirectml() {
+#if defined(_WIN32)
+    const std::string p = placaDeVideo();
+    return p == "amd" || p == "intel";
+#else
+    return false;
+#endif
+}
+
+QStringList bibliotecas() {
+    if (conDirectml()) return {"torch-directml", "spandrel==0.4.2", "onnx==1.23.1"};
+    return kBibliotecas;
+}
 } // namespace
 
 SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
@@ -105,7 +129,12 @@ fs::path SuperRes::python() const {
 
 bool SuperRes::laboratorioListo() const {
     std::error_code ec;
-    return fs::exists(libs() / ".ok", ec);
+    if (!fs::exists(libs() / ".ok", ec)) return false;
+    if (!conDirectml()) return true;
+    // Uno armado antes sin DirectML (entrenaba en la CPU) se rehace.
+    std::ifstream f(libs() / ".ok");
+    const std::string marca((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    return marca.find("torch-directml") != std::string::npos;
 }
 
 QStringList SuperRes::motores() const {
@@ -143,6 +172,12 @@ std::string SuperRes::correr(const QString& que, const QString& entrada, const Q
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     for (const QString& k : env.keys())
         if (k.startsWith("PYTHON")) env.remove(k);
+    // El ffmpeg y el ffprobe del programa (herramientas/): el laboratorio los busca
+    // en el PATH si no se los dicen, y en Windows ese PATH no los tiene.
+    for (const auto& [var, nombre] : {std::pair{"BA_FFMPEG", "ffmpeg"}, std::pair{"BA_FFPROBE", "ffprobe"}}) {
+        const fs::path h = ba::platform::herramienta(nombre);
+        if (!h.empty()) env.insert(var, q8(h));
+    }
     hijo_ = std::make_unique<plugins::Hijo>();
     connect(hijo_.get(), &plugins::Hijo::salida, this, [this]() {
         pendiente_ += hijo_->leerSalida();
@@ -202,14 +237,20 @@ void SuperRes::linea(const QByteArray& l) {
 std::string SuperRes::prepararLaboratorio() {
     if (laboratorioListo()) return {};
     std::error_code ec;
+    // Si había uno a medias o de otra combinación (p. ej. sin DirectML), de cero:
+    // pip --target no desinstala lo que pisa y quedaban dos PyTorch mezclados.
+    if (fs::exists(libs(), ec)) fs::remove_all(libs(), ec);
     fs::create_directories(libs(), ec);
-    return correr("Preparar el laboratorio (PyTorch, ~800 MB)", {},
+    const QStringList bib = bibliotecas();
+    return correr(conDirectml() ? "Preparar el laboratorio (PyTorch con DirectML para la GPU, ~800 MB)"
+                                : "Preparar el laboratorio (PyTorch, ~800 MB)",
+                  {},
                   QStringList{"-m", "pip", "install", "--disable-pip-version-check",
                               "--no-warn-script-location", "--progress-bar", "off", "--target", q8(libs())} +
-                      kBibliotecas,
-                  [this](bool ok) {
+                      bib,
+                  [this, bib](bool ok) {
                       if (ok) {
-                          std::ofstream(libs() / ".ok") << "listo\n";
+                          std::ofstream(libs() / ".ok") << "listo\n" << bib.join(" ").toStdString() << "\n";
                           trabajo_["texto"] = "Laboratorio listo";
                           emit trabajoCambio();
                           emit cambio();

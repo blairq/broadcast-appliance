@@ -59,9 +59,14 @@ Item {
         anchors.fill: parent
         spacing: 14
 
-        // Programa (mezcla final)
+        // Programa (mezcla final). Ancho FIJO: el botón de balística de abajo
+        // ocupa el ancho de la columna (fillWidth) y, sin tope, la columna se
+        // estiraba a toda la tarjeta y empujaba los canales afuera por la derecha.
         ColumnLayout {
             Layout.fillHeight: true
+            Layout.fillWidth: false
+            Layout.preferredWidth: 58
+            Layout.maximumWidth: 58
             spacing: 6
             RowLayout {
                 Layout.fillHeight: true
@@ -93,7 +98,10 @@ Item {
             Timer { interval: 300; running: ld.visible; repeat: true; onTriggered: ld.l = Studio.loudnessUi() }
             readonly property var ob: l.objetivo || ({ lufs: -23, tp: -1, perfil: "r128" })
             Layout.fillHeight: true
+            Layout.fillWidth: false
             Layout.preferredWidth: 96
+            Layout.maximumWidth: 110
+            clip: true
             spacing: 2
             Text { text: "LOUDNESS"; color: Theme.textFaint; font { pixelSize: 9; weight: Font.Bold; letterSpacing: 1 } }
             RowLayout {
@@ -119,12 +127,17 @@ Item {
         Rectangle { width: 1; Layout.fillHeight: true; color: Qt.rgba(1, 1, 1, 0.1) }
 
         ListView {
+            id: canales
             Layout.fillWidth: true
             Layout.fillHeight: true
+            // Al menos un canal entero a la vista; los demás, desplazando.
+            Layout.minimumWidth: 84
             orientation: ListView.Horizontal
             spacing: 14
             clip: true
             model: Studio.mixer
+            // Si no entran todos, que se vea que hay más (y se puedan arrastrar).
+            ScrollBar.horizontal: ScrollBar { policy: canales.contentWidth > canales.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
             delegate: ColumnLayout {
                 required property int index
                 required property string name
