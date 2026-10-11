@@ -185,6 +185,17 @@ if(TARGET gstbarostros)
 endif()
 add_test(NAME test_eventos COMMAND test_eventos)
 
+# La superresolución cambiada ANDANDO desde otro hilo (las caídas del 2026-10-10).
+add_executable(test_superres_vivo tests/test_superres_vivo.cpp)
+target_link_libraries(test_superres_vivo PRIVATE ba::gstreamer)
+if(DEFINED BA_GST_LIBDIR)
+    set_target_properties(test_superres_vivo PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR};${BA_ORT_DIR}/lib")
+endif()
+target_compile_definitions(test_superres_vivo PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}"
+                                                      BA_TEST_REPO="${CMAKE_SOURCE_DIR}")
+add_dependencies(test_superres_vivo gstbasuperres)
+add_test(NAME test_superres_vivo COMMAND test_superres_vivo)
+
 # basombra: dónde cae la sombra, el borde difuso, el margen, y CPU = GPU.
 add_executable(test_sombra tests/test_sombra.cpp)
 target_link_libraries(test_sombra PRIVATE ba::gstreamer)

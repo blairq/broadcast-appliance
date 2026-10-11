@@ -43,6 +43,7 @@
 #include <cmath>
 #include <fstream>
 #include <map>
+#include <mutex>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -234,6 +235,9 @@ struct _BaGlsl {
     gboolean activo;
     gchar* error;
     std::vector<Pasada>* pasadas;
+    /// `pasadas` se cambia desde la propiedad (otro hilo, andando) mientras el
+    /// hilo de GL dibuja con ellas: las dos cosas, bajo este candado.
+    std::mutex* pasadasMu;
     int factor; ///< lo que agranda el shader (1 o 2)
     // GL (solo en el hilo de GL)
     GstGLShader* luma;
@@ -279,33 +283,45 @@ static int factorDe(const std::vector<Pasada>& ps, int w, int h) {
 }
 
 static void cargarShader(BaGlsl* s) {
-    s->pasadas->clear();
-    s->factor = 1;
-    std::string texto;
+    // Se arma en una lista nueva y se cambia de una (bajo pasadasMu): el hilo de
+    // GL nunca ve la lista a medio armar.
+    std::vector<Pasada> nuevas;
+    int factor = 1;
+    std::string texto, e;
+    bool ok = true;
     if (s->codigo != nullptr && *s->codigo != '\0') {
         texto = s->codigo;
-    } else {
-        if (s->archivo == nullptr || *s->archivo == '\0') return;
+    } else if (s->archivo != nullptr && *s->archivo != '\0') {
         std::ifstream f(s->archivo);
         if (!f) {
-            ponerError(s, std::string("no se pudo leer ") + s->archivo);
-            return;
+            e = std::string("no se pudo leer ") + s->archivo;
+            ok = false;
+        } else {
+            std::stringstream ss;
+            ss << f.rdbuf();
+            texto = ss.str();
         }
-        std::stringstream ss;
-        ss << f.rdbuf();
-        texto = ss.str();
     }
-    std::string e;
-    if (!leerShader(texto, *s->pasadas, e)) {
-        s->pasadas->clear();
-        ponerError(s, e);
-        return;
+    if (ok && !texto.empty()) {
+        if (!leerShader(texto, nuevas, e)) {
+            nuevas.clear();
+            ok = false;
+        } else {
+            // Una estimación hasta que llegue el tamaño de verdad (las caps): con el
+            // lienzo del estudio, si se sabe. Al negociar se calcula con la entrada real.
+            factor = factorDe(nuevas, 1280, 720);
+        }
     }
-    // Una estimación hasta que llegue el tamaño de verdad (las caps): con el
-    // lienzo del estudio, si se sabe. Al negociar se calcula con la entrada real.
-    s->factor = factorDe(*s->pasadas, 1280, 720);
-    ponerError(s, "");
-    GST_INFO_OBJECT(s, "%s: %zu pasadas, x%d", s->codigo ? "(código)" : s->archivo, s->pasadas->size(), s->factor);
+    {
+        std::lock_guard<std::mutex> l(*s->pasadasMu);
+        for (auto& p : *s->pasadas)
+            if (p.programa != nullptr) gst_object_unref(p.programa); // GstGLShader se borra en su hilo de GL
+        s->pasadas->swap(nuevas);
+        s->factor = factor;
+    }
+    ponerError(s, ok ? "" : e);
+    if (ok && !texto.empty())
+        GST_INFO_OBJECT(s, "%s: %zu pasadas, x%d", s->codigo ? "(código)" : s->archivo, s->pasadas->size(), factor);
 }
 
 // --- Caps ----------------------------------------------------------------------------
@@ -317,10 +333,8 @@ static int factorCon(BaGlsl* s, GstPadDirection dir, GstCaps* caps) {
     if (dir == GST_PAD_SINK && caps != nullptr && gst_caps_get_size(caps) > 0) {
         const GstStructure* st = gst_caps_get_structure(caps, 0);
         if (gst_structure_get_int(st, "width", &w) && gst_structure_get_int(st, "height", &h) && w > 0 && h > 0) {
-            GST_OBJECT_LOCK(s);
-            const int f = s->pasadas->empty() ? 1 : factorDe(*s->pasadas, w, h);
-            GST_OBJECT_UNLOCK(s);
-            return f;
+            std::lock_guard<std::mutex> l(*s->pasadasMu);
+            return s->pasadas->empty() ? 1 : factorDe(*s->pasadas, w, h);
         }
     }
     return s->factor;
@@ -387,6 +401,7 @@ static gboolean glArrancar(GstGLBaseFilter* bf) {
 static void glParar(GstGLBaseFilter* bf) {
     auto* s = BA_GLSL(bf);
     const GstGLFuncs* gl = bf->context->gl_vtable;
+    std::lock_guard<std::mutex> lp(*s->pasadasMu);
     for (auto& p : *s->pasadas)
         if (p.programa != nullptr) {
             gst_object_unref(p.programa);
@@ -463,6 +478,7 @@ static void dibujar(BaGlsl* s, GstGLShader* sh, guint destino, int w, int h,
 
 static gboolean filtrar(GstGLFilter* f, GstGLMemory* in, GstGLMemory* out) {
     auto* s = BA_GLSL(f);
+    std::lock_guard<std::mutex> lp(*s->pasadasMu); // la propiedad puede cambiarlas andando
     GstGLContext* ctx = GST_GL_BASE_FILTER(f)->context;
     const int w = static_cast<int>(gst_gl_memory_get_texture_width(in));
     const int h = static_cast<int>(gst_gl_memory_get_texture_height(in));
@@ -578,7 +594,11 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
             break;
         case PROP_ACTIVO: g_value_set_boolean(v, s->activo); break;
         case PROP_FACTOR: g_value_set_int(v, s->factor); break;
-        case PROP_PASADAS: g_value_set_int(v, static_cast<gint>(s->pasadas->size())); break;
+        case PROP_PASADAS: {
+            std::lock_guard<std::mutex> l(*s->pasadasMu);
+            g_value_set_int(v, static_cast<gint>(s->pasadas->size()));
+            break;
+        }
         case PROP_ERROR:
             GST_OBJECT_LOCK(s);
             g_value_set_string(v, s->error);
@@ -595,6 +615,7 @@ static void finalizar(GObject* o) {
     if (s->uniformes != nullptr) gst_structure_free(s->uniformes);
     g_free(s->error);
     delete s->pasadas;
+    delete s->pasadasMu;
     delete s->propias;
     G_OBJECT_CLASS(ba_glsl_parent_class)->finalize(o);
 }
@@ -650,6 +671,7 @@ static void ba_glsl_init(BaGlsl* s) {
     s->activo = TRUE;
     s->error = nullptr;
     s->pasadas = new std::vector<Pasada>();
+    s->pasadasMu = new std::mutex;
     s->factor = 1;
     s->luma = s->salida = nullptr;
     s->fbo = s->vbo = s->vao = 0;

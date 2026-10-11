@@ -432,6 +432,15 @@ struct Trabajo {
     std::future<bool> listo;
 };
 
+/// Lo que el hilo que prepara la red lee: una COPIA de las propiedades, hecha
+/// en el hilo de streaming antes de lanzarlo (las propiedades se pueden cambiar
+/// andando, desde otro hilo: leerlas directo era leer memoria liberada).
+struct ConfRed {
+    std::string proveedor = "auto", cache;
+    int dispositivo = 0;
+    bool fp16 = true;
+};
+
 struct _BaOnnxSr {
     GstBaseTransform parent;
     GstVideoInfo in, out;
@@ -464,6 +473,15 @@ struct _BaOnnxSr {
 #endif
     gboolean activo;
     ba::sr::Demora* demora;
+    // CAMBIOS ANDANDO (2026-10-10, dos caídas en la PC de pruebas al tocar los
+    // filtros con la superresolución andando): las propiedades las cambia otro
+    // hilo. Antes el setter soltaba la red ahí mismo (borraba la red en uso y
+    // tocaba la cola de pendientes del hilo de streaming). Ahora solo la PIDE;
+    // la suelta el hilo de streaming, que es el único que la usa.
+    std::mutex* propMu;               ///< modelo, variantes, proveedor, cache, dispositivo, fp16
+    std::atomic<bool>* soltarPedido;  ///< soltar la red en el próximo cuadro
+    std::mutex* redMu;                ///< `red` (la lee leerPropiedad desde otro hilo)
+    ConfRed* conf;                    ///< la copia para el hilo que prepara
 };
 
 G_DEFINE_TYPE(BaOnnxSr, ba_onnxsr, GST_TYPE_BASE_TRANSFORM)
@@ -502,7 +520,10 @@ static GstStaticPadTemplate sinkTpl =
 static GstStaticPadTemplate srcTpl =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
 
-static bool hayModelo(BaOnnxSr* s) { return s->modelo != nullptr && *s->modelo != '\0'; }
+static bool hayModelo(BaOnnxSr* s) {
+    std::lock_guard<std::mutex> l(*s->propMu);
+    return s->modelo != nullptr && *s->modelo != '\0';
+}
 
 static void ponerError(BaOnnxSr* s, const std::string& crudo) {
     // En UTF-8: ONNX Runtime da el mensaje del sistema en su página de códigos
@@ -530,6 +551,7 @@ static void soltarRed(BaOnnxSr* s) {
         s->preparando = nullptr;
     }
     delete s->lista->exchange(nullptr);
+    std::lock_guard<std::mutex> l(*s->redMu);
     delete s->red;
     s->red = nullptr;
 #endif
@@ -547,11 +569,12 @@ static std::unique_ptr<Ort::Session> sesionCon(BaOnnxSr* s, Ort::Env& env, const
          {std::pair{"alto", h}, {"ancho", w}, {"height", h}, {"width", w}, {"alto_c", h / 2}})
         Ort::ThrowOnError(Ort::GetApi().AddFreeDimensionOverrideByName(op, nombre, valor));
     const std::string& modelo = *s->rutaRed;
-    std::string cache = s->cache != nullptr && *s->cache != '\0' ? s->cache : modelo + ".cache";
-    cache = (std::filesystem::path(cache) / (p + "-" + std::to_string(s->dispositivo) + "-" + std::to_string(w) +
+    const ConfRed& c = *s->conf;
+    std::string cache = !c.cache.empty() ? c.cache : modelo + ".cache";
+    cache = (std::filesystem::path(cache) / (p + "-" + std::to_string(c.dispositivo) + "-" + std::to_string(w) +
                                             "x" + std::to_string(h)))
                 .string();
-    ba::ort::agregarProveedor(op, p, s->dispositivo, s->fp16, cache);
+    ba::ort::agregarProveedor(op, p, c.dispositivo, c.fp16, cache);
 #if defined(_WIN32)
     const std::wstring ruta = std::filesystem::path(modelo).wstring();
     return std::make_unique<Ort::Session>(env, ruta.c_str(), op);
@@ -647,7 +670,7 @@ static bool abrirNcnn(BaOnnxSr* s, Red& r, int w, int h, std::string& error) {
         param = modelo;
         bin = modelo.substr(0, modelo.size() - 6) + ".bin";
     } else {
-        const std::string cache = s->cache != nullptr && *s->cache != '\0' ? s->cache : modelo + ".cache";
+        const std::string cache = !s->conf->cache.empty() ? s->conf->cache : modelo + ".cache";
         const auto base = std::filesystem::path(cache) / ("vulkan-" + std::to_string(r.canales));
         param = base.string() + ".ncnn.param";
         bin = base.string() + ".ncnn.bin";
@@ -664,9 +687,9 @@ static bool abrirNcnn(BaOnnxSr* s, Red& r, int w, int h, std::string& error) {
     }
     auto net = std::make_unique<ncnn::Net>();
     net->opt.use_vulkan_compute = true;
-    net->opt.use_fp16_packed = net->opt.use_fp16_storage = s->fp16 != FALSE;
+    net->opt.use_fp16_packed = net->opt.use_fp16_storage = s->conf->fp16;
     net->opt.use_fp16_arithmetic = false; // como realesrgan-ncnn-vulkan: guarda en FP16, cuenta en FP32
-    net->set_vulkan_device(std::clamp(static_cast<int>(s->dispositivo), 0, gpus - 1));
+    net->set_vulkan_device(std::clamp(s->conf->dispositivo, 0, gpus - 1));
     if (net->load_param(param.c_str()) != 0 || net->load_model(bin.c_str()) != 0) {
         error = "ncnn no pudo cargar " + param;
         return false;
@@ -715,7 +738,7 @@ static bool abrirNcnn(BaOnnxSr* s, Red& r, int w, int h, std::string& error) {
 static Red* abrirCon(BaOnnxSr* s, int w, int h, std::string& motivos) {
     const auto& rt = ba::ort::runtime();
     if (rt.api == nullptr) throw std::runtime_error(rt.error);
-    const std::string pedido = s->proveedor != nullptr && *s->proveedor ? s->proveedor : "auto";
+    const std::string pedido = !s->conf->proveedor.empty() ? s->conf->proveedor : "auto";
     std::vector<std::string> probar = pedido == "auto" ? ba::ort::ordenAuto() : std::vector<std::string>{pedido};
     if (pedido != "auto" && pedido != "cpu") probar.push_back("cpu"); // si el pedido no anda, igual hay imagen
     auto r = std::make_unique<Red>();
@@ -1286,12 +1309,23 @@ static void quizasPreparar(BaOnnxSr* s) {
 #if defined(BA_HAVE_ORT)
     if (s->red != nullptr) return;
     if (Red* r = s->lista->exchange(nullptr)) {
-        s->red = r;
+        {
+            std::lock_guard<std::mutex> l(*s->redMu);
+            s->red = r;
+        }
         if (s->preparando != nullptr) g_thread_join(s->preparando), s->preparando = nullptr;
     } else if (s->preparando == nullptr && !hayError(s) && hayModelo(s)) {
         s->pw = GST_VIDEO_INFO_WIDTH(&s->in);
         s->ph = GST_VIDEO_INFO_HEIGHT(&s->in);
-        *s->rutaRed = ba::sr::rutaVariante(s->modelo, s->variantes, s->pw, s->ph);
+        {
+            // La copia para el hilo que prepara (ver ConfRed).
+            std::lock_guard<std::mutex> l(*s->propMu);
+            *s->rutaRed = ba::sr::rutaVariante(s->modelo, s->variantes, s->pw, s->ph);
+            s->conf->proveedor = s->proveedor != nullptr ? s->proveedor : "auto";
+            s->conf->cache = s->cache != nullptr ? s->cache : "";
+            s->conf->dispositivo = s->dispositivo;
+            s->conf->fp16 = s->fp16 != FALSE;
+        }
         s->preparando = g_thread_new(
             "baonnxsr-preparar",
             [](gpointer d) -> gpointer {
@@ -1324,6 +1358,7 @@ static constexpr size_t kEnVuelo = 1;
 static GstFlowReturn generar(GstBaseTransform* bt, GstBuffer** outbuf) {
     auto* s = BA_ONNXSR(bt);
     *outbuf = nullptr;
+    if (s->soltarPedido->exchange(false)) soltarRed(s); // la pidió un setter (otro hilo)
     if (!s->procesa && s->pendientes->empty())
         return GST_BASE_TRANSFORM_CLASS(ba_onnxsr_parent_class)->generate_output(bt, outbuf);
     if (GstBuffer* in = bt->queued_buf) {
@@ -1385,36 +1420,42 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
 
 static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps) {
     auto* s = BA_ONNXSR(o);
+    // Se puede llamar andando, desde cualquier hilo: se guarda (bajo propMu) y,
+    // si cambia la red, se PIDE soltarla (la suelta el hilo de streaming).
+    std::unique_lock<std::mutex> l(*s->propMu);
     switch (id) {
         case PROP_MODELO:
             g_free(s->modelo);
             s->modelo = g_value_dup_string(v);
+            l.unlock();
             ponerError(s, "");
-            soltarRed(s);
+            s->soltarPedido->store(true);
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
             break;
         case PROP_VARIANTES:
             g_free(s->variantes);
             s->variantes = g_value_dup_string(v);
-            soltarRed(s); // se vuelve a abrir con la del tamaño
+            s->soltarPedido->store(true); // se vuelve a abrir con la del tamaño
             break;
         case PROP_ACTIVO:
             s->activo = g_value_get_boolean(v);
+            l.unlock();
             gst_base_transform_reconfigure_src(GST_BASE_TRANSFORM(s));
             break;
         case PROP_PROVEEDOR:
             g_free(s->proveedor);
             s->proveedor = g_value_dup_string(v);
+            l.unlock();
             ponerError(s, "");
-            soltarRed(s);
+            s->soltarPedido->store(true);
             break;
         case PROP_DISPOSITIVO:
             s->dispositivo = g_value_get_int(v);
-            soltarRed(s);
+            s->soltarPedido->store(true);
             break;
         case PROP_FP16:
             s->fp16 = g_value_get_boolean(v);
-            soltarRed(s);
+            s->soltarPedido->store(true);
             break;
         case PROP_CACHE:
             g_free(s->cache);
@@ -1429,12 +1470,28 @@ static void ponerPropiedad(GObject* o, guint id, const GValue* v, GParamSpec* ps
 static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_ONNXSR(o);
     switch (id) {
-        case PROP_MODELO: g_value_set_string(v, s->modelo); break;
-        case PROP_VARIANTES: g_value_set_string(v, s->variantes); break;
-        case PROP_PROVEEDOR: g_value_set_string(v, s->proveedor); break;
+        case PROP_MODELO: {
+            std::lock_guard<std::mutex> l(*s->propMu);
+            g_value_set_string(v, s->modelo);
+            break;
+        }
+        case PROP_VARIANTES: {
+            std::lock_guard<std::mutex> l(*s->propMu);
+            g_value_set_string(v, s->variantes);
+            break;
+        }
+        case PROP_PROVEEDOR: {
+            std::lock_guard<std::mutex> l(*s->propMu);
+            g_value_set_string(v, s->proveedor);
+            break;
+        }
         case PROP_DISPOSITIVO: g_value_set_int(v, s->dispositivo); break;
         case PROP_FP16: g_value_set_boolean(v, s->fp16); break;
-        case PROP_CACHE: g_value_set_string(v, s->cache); break;
+        case PROP_CACHE: {
+            std::lock_guard<std::mutex> l(*s->propMu);
+            g_value_set_string(v, s->cache);
+            break;
+        }
         case PROP_MODO: g_value_set_enum(v, s->modo->load()); break;
         case PROP_TRANSICION: g_value_set_int(v, s->transicionMs->load()); break;
         case PROP_MEZCLA: g_value_set_double(v, s->mezcla.valor); break;
@@ -1449,7 +1506,10 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         }
         case PROP_PROVEEDOR_USADO:
 #if defined(BA_HAVE_ORT)
+        {
+            std::lock_guard<std::mutex> l(*s->redMu);
             g_value_set_string(v, s->red != nullptr ? s->red->proveedor.c_str() : "");
+        }
 #else
             g_value_set_string(v, "");
 #endif
@@ -1544,6 +1604,10 @@ static void ba_onnxsr_finalize(GObject* o) {
     g_free(s->error);
     delete s->errorMu;
     delete s->demora;
+    delete s->propMu;
+    delete s->soltarPedido;
+    delete s->redMu;
+    delete s->conf;
 #if defined(BA_HAVE_GST_CUDA)
     if (s->cuda != nullptr) gst_object_unref(s->cuda);
 #endif
@@ -1675,6 +1739,10 @@ static void ba_onnxsr_init(BaOnnxSr* s) {
     s->cuadros = 0;
     s->activo = TRUE;
     s->demora = new ba::sr::Demora();
+    s->propMu = new std::mutex;
+    s->soltarPedido = new std::atomic<bool>(false);
+    s->redMu = new std::mutex;
+    s->conf = new ConfRed();
     gst_base_transform_set_qos_enabled(GST_BASE_TRANSFORM(s), TRUE);
 }
 
