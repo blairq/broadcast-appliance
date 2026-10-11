@@ -58,6 +58,8 @@
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
 #include "ui/PropertiesModel.hpp"
+#include "video/FuentesCaptura.hpp"
+#include "Capturas.hpp" // del motor: hayCapturaDeVentana
 #include "ui/SettingsModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -1632,7 +1634,11 @@ void McpService::registerTools() {
                            {"name", {{"type", "string"}}},
                            {"settings", {{"type", "object"}}},
                            {"layout", layoutProp},
-                           {"visible", {{"type", "boolean"}, {"default", true}}}}},
+                           {"visible", {{"type", "boolean"}, {"default", true}}},
+                           {"efectos",
+                            {{"type", "object"},
+                             {"description", "transparencia, borde difuso, esquinas y sombra de entrada (lo mismo que "
+                                             "source_update {efectos})."}}}}},
                          {"required", {"type", "name"}}};
         t.examples = {
             R"({"type": "image_source", "name": "Logo", "settings": {"file": "/home/yo/logo.png"}, "layout": "pip-tr"})"};
@@ -1649,9 +1655,39 @@ void McpService::registerTools() {
             if (a.contains("layout") &&
                 !parseLayout(a["layout"], spec.rect.x, spec.rect.y, spec.rect.w, spec.rect.h, err))
                 return done(ToolResult::error(err));
+            if (a.contains("efectos")) {
+                std::string e;
+                if (!spec.efectos.aplicar(a["efectos"], &e)) return done(ToolResult::error(e));
+            }
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             persist();
             done(ToolResult::ok("Agregada '" + spec.name + "' a '" + scene + "'."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "captura_opciones";
+        t.title = "Qué pantallas y qué aplicaciones se pueden capturar";
+        t.category = "fuentes";
+        t.readOnly = true;
+        t.description =
+            "Las PANTALLAS conectadas (para screen_capture: su `monitor`) y las VENTANAS de aplicaciones abiertas "
+            "(para window_capture: su `ventana`, que es «aplicación\\ntítulo»), y si este sistema puede capturar "
+            "una ventana sola. Para elegir antes de source_add.";
+        t.examples = {R"({})"};
+        t.run = [](const json&, Done done) {
+            json ps = json::array(), vs = json::array();
+            for (const auto& p : video::pantallasDelEquipo())
+                ps.push_back({{"monitor", p.nombre}, {"etiqueta", p.etiqueta}, {"principal", p.principal},
+                              {"ancho", p.pxAncho}, {"alto", p.pxAlto}});
+            for (const auto& w : video::ventanasParaElegir()) vs.push_back(w);
+            std::string porque;
+            const bool hay = ba::motor::hayCapturaDeVentana(&porque);
+            json d{{"pantallas", ps}, {"ventanas", vs}, {"captura_de_ventana", hay}};
+            if (!hay) d["por_que_no"] = porque;
+            d["como"] = "source_add {type: screen_capture, settings: {monitor}} o {type: window_capture, settings: {ventana}}";
+            done(ToolResult().data(d));
         };
         core_.addTool(std::move(t));
     }

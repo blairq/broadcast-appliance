@@ -172,7 +172,8 @@ void McpService::registerUiTools() {
                {{"type", "string"},
                 {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
                                 "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+                                "navegacion\"). Sin esto queda la que estaba."}}},
+              {"cerrar", {{"type", "boolean"}, {"description", "true: cierra su ventana (vuelve a la principal)"}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
@@ -183,6 +184,12 @@ void McpService::registerUiTools() {
                     ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
             auto* riel = static_cast<RielConfig*>(vm.riel());
             const QString titulo = riel->tituloDePagina(idx);
+            // `cerrar`: la ventana se cierra y la página queda en la principal (el Asistente
+            // vuelve a mostrar su terminal ahí).
+            if (a.value("cerrar", false)) {
+                QMetaObject::invokeMethod(w, "traerPagina", Q_ARG(QVariant, QString::fromStdString(a["page"].get<std::string>())));
+                return done(ToolResult::ok("\"" + titulo.toStdString() + "\" vuelve a la ventana principal."));
+            }
             QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx), Q_ARG(QVariant, titulo));
             done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierta en su propia ventana."));
         };

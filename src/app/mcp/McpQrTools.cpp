@@ -70,7 +70,10 @@ void McpService::registerQrTools() {
                         "generar con sus campos, y los iconos que pueden ir al centro.";
         t.details = "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
                     "contenido lo arma el sistema con la clave que corresponda en ese momento. Por eso se "
-                    "guardan sin texto y salen siempre al dia.";
+                    "guardan sin texto y salen siempre al dia.\n\n`para_elegir`: lo que acepta `qr` en "
+                    "pantalla_mostrar y en una fuente «Código QR» (source_add {type: ba_qr, settings: {qr}}): los del "
+                    "aparato SIEMPRE (\"aparato:publico\", \"aparato:sala\", \"aparato:prompter\", "
+                    "\"aparato:rotulos\"), aunque no esten guardados, y los guardados por su id.";
         t.run = [q](const json&, Done done) {
             json guardados = json::array();
             for (const QVariant& v : q->todos()) {
@@ -95,7 +98,14 @@ void McpService::registerQrTools() {
             json ic = json::array();
             for (const qr::Icono& i : qr::iconos())
                 ic.push_back(i.id);
-            done(ToolResult().data(json{{"guardados", guardados}, {"tipos", tipos}, {"iconos", ic}}));
+            // Para elegir en una pantalla (pantalla_mostrar {qr}) o en una escena (fuente ba_qr):
+            // los del aparato siempre («aparato:publico»…) y los guardados.
+            json elegir = json::array();
+            for (const QVariant& v : q->paraElegir()) {
+                const QVariantMap m = v.toMap();
+                elegir.push_back(json{{"qr", m.value("value").toString().toStdString()}, {"que_es", m.value("label").toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"guardados", guardados}, {"para_elegir", elegir}, {"tipos", tipos}, {"iconos", ic}}));
         };
         core_.addTool(std::move(t));
     }

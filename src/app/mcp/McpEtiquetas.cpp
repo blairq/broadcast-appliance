@@ -312,11 +312,16 @@ const Fila kPropias[] = {
                     "listar fuentes de una escena que hay adentro"},
     {"source_add",
      "agrega la camara agrega a esta escena sumar una camara agregar a la escena sumar a la escena meter en "
-     "la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador"},
+     "la escena poner en la escena agregar poner sumar fuente camara imagen texto navegador codigo qr "
+     "captura de pantalla capturar una aplicacion ventana"},
+    {"captura_opciones",
+     "que pantallas hay que monitores que ventanas que aplicaciones se pueden capturar captura de pantalla "
+     "capturar una ventana una aplicacion elegir monitor"},
     {"source_remove", "quitar sacar borrar fuente"},
     {"source_update",
      "cambiar editar modificar fuente correr mover el titulo o el zocalo de lugar posicion tamano "
-     "sombra paralela resplandor brillo borde difuso desvanecido transparencia opacidad efectos"},
+     "sombra paralela resplandor brillo borde difuso desvanecido transparencia opacidad efectos redondear "
+     "esquinas redondeadas bordes redondos"},
     {"source_properties", "propiedades opciones parametros de una fuente"},
     {"source_set_property",
      "cambiar una propiedad valor ajuste de fuente refrescar la lista de dispositivos apretar un boton"},
@@ -699,7 +704,7 @@ const Fila kPropias[] = {
     {"superficie_mostrar", "cambiar lo que muestra sin recastear empujar url recargar"},
 
     // --- QR -----------------------------------------------------------------------
-    {"qr_listar", "que codigos qr hay guardados tipos iconos"},
+    {"qr_listar", "que codigos qr hay guardados tipos iconos qr del publico qr de la sala para elegir"},
     {"ui_abrir_panel", "abrir panel dialogo ventana superresolucion entrada virtual catalogo modulos mostrar"},
     {"superres_laboratorio", "superresolucion laboratorio bibliotecas python pytorch paquetes bajar instalar borrar espacio directml"},
     {"superres_modelo_borrar", "borrar modelo superresolucion red onnx espacio"},
