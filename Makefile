@@ -392,6 +392,7 @@ dmg-macos: release-macos
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.sha256
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.commit
+	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg"
 
 # ============================================================================
