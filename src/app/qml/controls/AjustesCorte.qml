@@ -1,7 +1,7 @@
 // Cuándo corta una frase la transcripción continua (Studio.voz.cortes): la pausa
 // que la termina, lo más que dura y cuán seguro tiene que estar el detector de
 // que es voz. Con el indicador en vivo de cada transcripción, para encontrar el
-// punto justo hablando. Lo usan Configuración → Audio y voz y la tarjeta «Voz a
+// punto justo hablando. Lo usan Configuración → Voz del operador y la tarjeta «Voz a
 // texto» (con `flujo`: su indicador solo).
 import QtQuick
 import QtQuick.Controls

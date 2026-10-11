@@ -62,7 +62,7 @@ ColumnLayout {
         color: Theme.textFaint; font.pixelSize: 11
         readonly property var c: Studio.voz ? Studio.voz.cortes : ({ pausa: 0.35, maximo: 6 })
         text: "Cuándo corta la transcripción (pausa " + Number(c.pausa).toFixed(2).replace(".", ",") + " s, largo máximo " +
-              Number(c.maximo).toFixed(1).replace(".", ",") + " s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Audio y voz. " +
+              Number(c.maximo).toFixed(1).replace(".", ",") + " s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Voz del operador. " +
               "Lo de abajo es de cada traducción."
     }
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }

@@ -233,7 +233,7 @@ QVariantList Matriz::columnas() const {
             {"tipo", "pista"},
             {"indice", i},
             {"uso", QString::fromStdString(i == 0 ? std::string("emisión y grabación") : usoPista_[i])}});
-    // Los auriculares del operador (Configuración → Audio y voz → salida de auriculares).
+    // Los auriculares del operador (Configuración → Voz del operador → salida de auriculares).
     out.push_back(QVariantMap{{"id", "escucha"},
                               {"nombre", "Escucha"},
                               {"tipo", "escucha"},

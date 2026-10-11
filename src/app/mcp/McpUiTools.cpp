@@ -74,8 +74,8 @@ void McpService::registerUiTools() {
               {"seccion",
                {{"type", "string"},
                 {"description", "Con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                                "navegacion\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
+                                "muestra la lista, p. ej. \"Video\", \"Red de la sala\", "
+                                "\"Apariencia\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
                                 "o el nombre de una entrada. Con page=audio: \"estudio\" (todo el audio, "
                                 "cada fuente con su cadena), \"racks\", \"matriz\", \"mesa\" (automixer) o el "
                                 "nombre de una fuente (abre su rack). Con page=video: \"<entrada>[/<tarjeta>]\". Con "
@@ -171,8 +171,8 @@ void McpService::registerUiTools() {
               {"seccion",
                {{"type", "string"},
                 {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                                "navegacion\"). Sin esto queda la que estaba."}}},
+                                "muestra la lista, p. ej. \"Video\", \"Red de la sala\", "
+                                "\"Apariencia\"). Sin esto queda la que estaba."}}},
               {"cerrar", {{"type", "boolean"}, {"description", "true: cierra su ventana (vuelve a la principal)"}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
@@ -434,7 +434,7 @@ void McpService::registerUiTools() {
         core_.addTool(std::move(t));
     }
     // --- La barra de navegacion ---------------------------------------------
-    // Tiene vista (Configuracion -> Barra de navegacion), asi que se puede
+    // Tiene vista (Configuracion -> Apariencia), asi que se puede
     // publicar: la regla es que no se expone un setter que no se vea en
     // ningun lado (ver docs/funciones/EXTENSIONES.md).
     {

@@ -1,5 +1,7 @@
-// Configuracion completa: secciones a la izquierda, formulario generado desde
-// el esquema (SettingsModel), barra de Aplicar/Revertir cuando hay cambios.
+// Configuracion completa: secciones a la izquierda (agrupadas: Imagen, Salida,
+// Sala de invitados, Asistente, Sistema), formulario generado desde el esquema
+// (SettingsModel) y, en las que lo necesitan, una vista propia. Barra de
+// Aplicar/Revertir cuando hay cambios.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -14,15 +16,38 @@ Rectangle {
     // La seccion abierta vive en Studio: asi el asistente puede llevar al
     // operador derecho a una ("andá a la de audio") en vez de explicarle donde
     // hacer clic. Vacio = la primera.
-    property string section: Studio.seccionConfig !== ""
-        ? Studio.seccionConfig
-        : (Studio.settings.sections.length > 0 ? Studio.settings.sections[0] : "")
+    property string section: Studio.seccionConfig !== "" ? Studio.seccionConfig : "Video"
     readonly property string systemSection: "Sistema y datos"
-    readonly property string rielSection: "Barra de navegación"
+    readonly property string aparienciaSection: "Apariencia"
     readonly property string modelosSection: "Modelos locales"
-    readonly property string vozSection: "Audio y voz"
+    readonly property string vozSection: "Voz del operador"
     readonly property string traduccionSection: "Traducción"
     readonly property string controlSection: "Control de Windows"
+    /// El orden de la lista de la izquierda. Las secciones del esquema
+    /// (SettingsModel) y las de vista propia, juntas por tema.
+    readonly property var grupos: [
+        { titulo: "Imagen", secciones: ["Video", "Cámaras y entradas", page.traduccionSection] },
+        { titulo: "Salida", secciones: ["Transmisión", "Grabación", "Codificación"] },
+        { titulo: "Sala de invitados", secciones: ["Invitados", "Sala", "Red de la sala", "Acceso remoto"] },
+        { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
+        { titulo: "Sistema", secciones: [page.aparienciaSection, page.systemSection] }
+    ]
+    /// Las que tienen vista propia (el formulario del esquema, si tienen campos, va adentro).
+    readonly property var propias: [page.systemSection, page.aparienciaSection, page.modelosSection,
+                                    page.vozSection, page.traduccionSection, page.controlSection]
+    /// Las que reinician la sala al aplicar (y ofrecen reiniciarla a mano).
+    readonly property var deLaSala: ["Invitados", "Sala", "Red de la sala", "Acceso remoto"]
+    /// Subtítulos dentro de una sección: van arriba del campo con esa clave.
+    readonly property var subtitulos: ({
+        "video.width": "Lienzo y salida", "video.formato": "Color", "transition.type": "Transiciones",
+        "mejora.activa": "Mejorar imagen", "video.legalizar": "Entradas",
+        "record.dir": "Archivo", "record.calidad": "Calidad y pistas", "record.copiaDir": "Copia y repetición",
+        "encoder.video": "Video", "encoder.audioBitrate": "Audio",
+        "guests.count": "Lugares", "guests.video": "Qué mandan", "gateway.videoW": "Calidad del video",
+        "gateway.room": "Entrada", "room.maxBackstage": "Modo oradores", "room.maxUploadMB": "Archivos",
+        "gateway.port": "Dónde escucha", "direct.https": "Conexión directa (HTTPS y WebRTC)", "room.adminPort": "Control",
+        "gateway.tunnel": "Cloudflare", "wg.enabled": "Servidor propio (WireGuard)",
+    })
     readonly property var ml: Studio.modelos
     readonly property var sys: Studio.system
     property string updateError: ""
@@ -73,17 +98,39 @@ Rectangle {
             title: "Configuración"
             ListView {
                 anchors.fill: parent
-                spacing: 4
-                model: Studio.settings.sections.concat([page.rielSection, page.vozSection, page.traduccionSection, page.modelosSection, page.controlSection, page.systemSection])
-                delegate: Rectangle {
-                    required property string modelData
+                clip: true
+                spacing: 2
+                // [{grupo}|{seccion}] en el orden de `grupos`.
+                model: {
+                    const out = []
+                    for (const g of page.grupos) {
+                        out.push({ grupo: g.titulo })
+                        for (const s of g.secciones) out.push({ seccion: s })
+                    }
+                    return out
+                }
+                delegate: Item {
+                    required property var modelData
+                    required property int index
+                    readonly property bool esGrupo: modelData.grupo !== undefined
                     width: ListView.view.width
-                    height: 42
-                    radius: 12
-                    color: modelData === page.section ? Qt.rgba(1, 0.42, 0.17, 0.25) : (sectMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
-                    Text { anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                           text: modelData; color: Theme.text; font.pixelSize: 13 }
-                    MouseArea { id: sectMa; anchors.fill: parent; hoverEnabled: true; onClicked: Studio.seccionConfig = modelData }
+                    height: esGrupo ? (index === 0 ? 18 : 24) : 30
+                    Text {
+                        visible: parent.esGrupo
+                        anchors { left: parent.left; leftMargin: 8; bottom: parent.bottom; bottomMargin: 4 }
+                        text: (modelData.grupo || "").toUpperCase()
+                        color: Theme.textFaint
+                        font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1.0 }
+                    }
+                    Rectangle {
+                        visible: !parent.esGrupo
+                        anchors.fill: parent
+                        radius: 10
+                        color: modelData.seccion === page.section ? Qt.rgba(1, 0.42, 0.17, 0.25) : (sectMa.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : "transparent")
+                        Text { anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
+                               text: modelData.seccion || ""; color: Theme.text; font.pixelSize: 13 }
+                        MouseArea { id: sectMa; anchors.fill: parent; hoverEnabled: true; onClicked: Studio.seccionConfig = modelData.seccion }
+                    }
                 }
             }
         }
@@ -96,44 +143,20 @@ Rectangle {
                 anchors.fill: parent
                 clip: true
                 contentWidth: availableWidth
-                visible: page.section !== page.systemSection && page.section !== page.rielSection
-                         && page.section !== page.modelosSection && page.section !== page.vozSection
-                         && page.section !== page.traduccionSection && page.section !== page.controlSection
+                visible: page.propias.indexOf(page.section) < 0
                 ColumnLayout {
                     width: parent.width
                     spacing: 14
-                    Repeater {
-                        model: Studio.settings
-                        delegate: FormField {
-                            required property string key
-                            required property string section
-                            required label
-                            required kind
-                            required value
-                            required options
-                            required minimum
-                            required maximum
-                            required suffix
-                            required help
-                            required modified
-                            required property string scope
-                            badge: scope
-                            visible: section === page.section
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: visible ? implicitHeight : 0
-                            onEdited: (v) => Studio.settings.setValue(key, v)
-                        }
-                    }
+                    CamposDeSeccion { Layout.fillWidth: true; seccion: page.section }
                     GlassButton {
-                        visible: page.section !== page.systemSection && page.section !== page.rielSection
                         Layout.topMargin: 10
-                        text: "Valores por defecto de esta seccion"; compact: true
+                        text: "Valores por defecto de esta sección"; compact: true
                         onClicked: Studio.settings.resetSection(page.section)
                     }
                     // Las secciones de la sala: al aplicar se reinicia sola, y acá
                     // también a mano (sin cerrar el programa).
                     RowLayout {
-                        visible: page.section === "Gateway" || page.section === "Sala" || page.section === "Acceso directo"
+                        visible: page.deLaSala.indexOf(page.section) >= 0
                         Layout.fillWidth: true
                         Layout.topMargin: 4
                         spacing: 10
@@ -151,7 +174,7 @@ Rectangle {
                         }
                         Text {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                            text: "Los cambios marcados «reinicia gateway» reinician la sala solos al aplicarlos; el resto del programa sigue andando."
+                            text: "Los cambios marcados «reinicia la sala» la reinician solos al aplicarlos; el resto del programa sigue andando."
                         }
                     }
                 }
@@ -163,7 +186,7 @@ Rectangle {
             }
             Loader {
                 anchors.fill: parent
-                active: page.section === page.rielSection
+                active: page.section === page.aparienciaSection
                 sourceComponent: rielComp
             }
             Loader {
@@ -185,6 +208,60 @@ Rectangle {
                 anchors.fill: parent
                 active: page.section === page.controlSection
                 sourceComponent: controlComp
+            }
+        }
+    }
+
+    // --- Los campos del esquema de una sección (con sus subtítulos) -------------------
+    // El formulario genérico; lo usan las secciones del esquema y las de vista
+    // propia que además tienen campos (Apariencia: el tema; Sistema y datos: el arranque).
+    component CamposDeSeccion: ColumnLayout {
+        id: campos
+        property string seccion: ""
+        spacing: 14
+        Repeater {
+            model: Studio.settings
+            delegate: ColumnLayout {
+                id: fila
+                required property string key
+                required property string section
+                required property string label
+                required property string kind
+                required property var value
+                required property var options
+                required property var minimum
+                required property var maximum
+                required property string suffix
+                required property string help
+                required property bool modified
+                required property string scope
+                required property int index
+                visible: section === campos.seccion
+                Layout.fillWidth: true
+                Layout.preferredHeight: visible ? implicitHeight : 0
+                spacing: 8
+                Text {
+                    visible: page.subtitulos[fila.key] !== undefined
+                    Layout.fillWidth: true
+                    Layout.topMargin: 6
+                    text: page.subtitulos[fila.key] || ""
+                    color: Theme.text
+                    font { pixelSize: 15; weight: Font.DemiBold }
+                }
+                FormField {
+                    Layout.fillWidth: true
+                    label: fila.label
+                    kind: fila.kind
+                    value: fila.value
+                    options: fila.options
+                    minimum: fila.minimum
+                    maximum: fila.maximum
+                    suffix: fila.suffix
+                    help: fila.help
+                    modified: fila.modified
+                    badge: fila.scope
+                    onEdited: (v) => Studio.settings.setValue(fila.key, v)
+                }
             }
         }
     }
@@ -757,7 +834,7 @@ Rectangle {
         }
     }
 
-    // --- Audio y voz -----------------------------------------------------------------
+    // --- Voz del operador (micrófono, auriculares, voz del asistente) -----------------
     // El micrófono del operador (lo que oye el lobby y de donde se le dicta al
     // asistente), dónde hay voz a texto, la voz que contesta y lo transcripto.
     Component {
@@ -802,6 +879,39 @@ Rectangle {
                     text: "Se elige entre las entradas con audio (se agregan en Entradas). Es lo que te oye quien " +
                           "espera en el lobby y, si no hay otra fuente con «Voz a texto» en dictado, de donde se " +
                           "le dicta al asistente. Mientras apretás " + Studio.voz.tecla + ", el lobby no te oye."
+                }
+
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
+                Text { text: "Salida de auriculares del operador"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                Text {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: Theme.textDim; font.pixelSize: 12
+                    text: "Por acá suenan la voz del asistente y la escucha de los racks (nunca al aire). Es una sola " +
+                          "para toda la app: cambiarla acá la cambia también en Audio."
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 6
+                    GlassButton {
+                        compact: true; text: "La del sistema"
+                        active: Studio.voz.auriculares === ""
+                        onClicked: Studio.voz.setAuriculares("")
+                    }
+                    Repeater {
+                        model: Studio.voz.salidasAudio
+                        delegate: Repeater {
+                            required property var modelData
+                            model: modelData.salidas
+                            delegate: GlassButton {
+                                required property var modelData
+                                compact: true; text: modelData.nombre
+                                active: Studio.voz.auriculares === modelData.id
+                                onClicked: Studio.voz.setAuriculares(modelData.id)
+                            }
+                        }
+                    }
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
@@ -853,44 +963,6 @@ Rectangle {
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
-                // Lo dictado, por el modelo local: qué se hace sin preguntar
-                // Los auriculares del operador: la escucha de toda la app.
-                // Subtítulos y traducción: cuándo corta una frase la transcripción continua.
-                AjustesCorte { Layout.fillWidth: true }
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-
-                Text { text: "Salida de auriculares del operador"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
-                Text {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: Theme.textDim; font.pixelSize: 12
-                    text: "Por acá suenan la voz del asistente y la escucha de los racks (nunca al aire). Es una sola " +
-                          "para toda la app: cambiarla acá la cambia también en Audio."
-                }
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 6
-                    GlassButton {
-                        compact: true; text: "La del sistema"
-                        active: Studio.voz.auriculares === ""
-                        onClicked: Studio.voz.setAuriculares("")
-                    }
-                    Repeater {
-                        model: Studio.voz.salidasAudio
-                        delegate: Repeater {
-                            required property var modelData
-                            model: modelData.salidas
-                            delegate: GlassButton {
-                                required property var modelData
-                                compact: true; text: modelData.nombre
-                                active: Studio.voz.auriculares === modelData.id
-                                onClicked: Studio.voz.setAuriculares(modelData.id)
-                            }
-                        }
-                    }
-                }
-
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
                 Text { text: "Lo dictado y el modelo local"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
@@ -1051,6 +1123,10 @@ Rectangle {
 
 
                 // Lo transcripto en continuo
+                // Subtítulos y traducción: cuándo corta una frase la transcripción continua.
+                AjustesCorte { Layout.fillWidth: true }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+
                 Text {
                     visible: Studio.voz.transcripcion.length > 0
                     text: "Transcripción"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
@@ -1090,6 +1166,13 @@ Rectangle {
                 width: parent.width
                 spacing: 14
 
+                CamposDeSeccion { Layout.fillWidth: true; seccion: page.aparienciaSection }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                Text {
+                    text: "Barra de navegación"
+                    color: Theme.text
+                    font { pixelSize: 17; weight: Font.DemiBold }
+                }
                 Text {
                     text: "Dónde va"
                     color: Theme.text
@@ -1342,18 +1425,13 @@ Rectangle {
                 spacing: 16
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 13
                        text: "Todo el sistema vive en una sola carpeta (sirve desde un pendrive): " + sys.dataRoot }
-                // Configuraciones con nombre (cada una con lo suyo).
-                PanelConfiguraciones { Layout.fillWidth: true }
                 Text { Layout.fillWidth: true; color: Theme.textDim; font.pixelSize: 13; visible: sys.version !== ""
                        text: "Versión instalada: " + sys.version }
-                // Los elementos de GStreamer que faltan (P0.3): que no sean silencio o negro sin explicación.
-                Text {
-                    readonly property var faltan: sys.elementosQueFaltan()
-                    Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
-                    color: faltan.filter(e => e.imprescindible).length > 0 ? Theme.live : Theme.textDim
-                    text: faltan.length === 0 ? "GStreamer: están todos los elementos que usa el aparato."
-                          : "GStreamer: faltan " + faltan.map(e => e.elemento + " (" + e.para + ")").join(", ")
-                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                // Configuraciones con nombre (cada una con lo suyo).
+                PanelConfiguraciones { Layout.fillWidth: true }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                Text { text: "Arranque y recuperación"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 // Volver solo después de un corte de luz.
                 ColumnLayout {
                     id: inicioBox
@@ -1377,6 +1455,10 @@ Rectangle {
                     }
                     Text { visible: inicioBox.error !== ""; text: inicioBox.error; color: Theme.live; font.pixelSize: 12 }
                 }
+                // Los del esquema (copia sombra, diálogo de recuperación): van con Aplicar.
+                CamposDeSeccion { Layout.fillWidth: true; seccion: page.systemSection }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                Text { text: "Carpetas"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: 2
@@ -1385,11 +1467,11 @@ Rectangle {
                     Repeater {
                         model: [
                             { n: "Config", d: "Configuración (escenas, ajustes, tablero)" },
-                            { n: "Credenciales", d: "Tokens y claves, cifrados (AES-256-GCM). Una actualizacion nunca los toca." },
+                            { n: "Credenciales", d: "Tokens y claves, cifrados (AES-256-GCM). Una actualización nunca los toca." },
                             { n: "Recordings", d: "Grabaciones" },
                             { n: "Shares", d: "Archivos que comparten los invitados" },
-                            { n: "Respaldos", d: "Copias de Config/ y Credenciales/ antes de cada actualizacion (quedan 5)" },
-                            { n: "Logs", d: "Registros para diagnostico" }
+                            { n: "Respaldos", d: "Copias de Config/ y Credenciales/ antes de cada actualización (quedan 5)" },
+                            { n: "Logs", d: "Registros para diagnóstico" }
                         ]
                         delegate: RowLayout {
                             required property var modelData
@@ -1415,10 +1497,10 @@ Rectangle {
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
                 Text { text: "Actualizar"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                       text: "Descomprimi la version nueva en cualquier carpeta (fuera de esta) y elegila. Se reemplaza solo el programa; Config/, Credenciales/, Recordings/, Shares/ y Logs/ quedan como estan." }
+                       text: "Descomprimí la versión nueva en cualquier carpeta (fuera de esta) y elegila. Se reemplaza solo el programa; Config/, Credenciales/, Recordings/, Shares/ y Logs/ quedan como están." }
                 RowLayout {
                     GlassButton { text: "Actualizar desde una carpeta…"; icon: "⇪"; active: true; onClicked: updateDlg.open() }
-                    GlassButton { text: "Volver a la version anterior"; visible: sys.canRollback; onClicked: page.confirmRollback() }
+                    GlassButton { text: "Volver a la versión anterior"; visible: sys.canRollback; onClicked: page.confirmRollback() }
                 }
                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.live; font.pixelSize: 12; text: page.updateError; visible: text !== "" }
                 Text { visible: sys.backups.length > 0; text: "Respaldos"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
@@ -1429,6 +1511,16 @@ Rectangle {
                         Text { text: modelData.name; color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
                         GlassButton { compact: true; text: "Abrir"; onClicked: sys.openFolder("Respaldos/" + modelData.name) }
                     }
+                }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                Text { text: "Diagnóstico"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
+                // Los elementos de GStreamer que faltan (P0.3): que no sean silencio o negro sin explicación.
+                Text {
+                    readonly property var faltan: sys.elementosQueFaltan()
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+                    color: faltan.filter(e => e.imprescindible).length > 0 ? Theme.live : Theme.textDim
+                    text: faltan.length === 0 ? "GStreamer: están todos los elementos que usa el aparato."
+                          : "GStreamer: faltan " + faltan.map(e => e.elemento + " (" + e.para + ")").join(", ")
                 }
             }
         }

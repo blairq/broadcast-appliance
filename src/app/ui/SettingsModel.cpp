@@ -77,7 +77,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
 
     // clang-format off
     fields_ = {
-        // --- Video -----------------------------------------------------------
+        // --- Video -----------------------------------------------------------------
         {"video.width", "Video", "Ancho del lienzo", "int", {}, 320, 7680, "px", "Resolución de composición.", "live", 1920},
         {"video.height", "Video", "Alto del lienzo", "int", {}, 240, 4320, "px", "", "live", 1080},
         {"video.outputWidth", "Video", "Ancho de salida", "int", {}, 320, 7680, "px", "Resolución que se codifica (se escala desde el lienzo).", "live", 1920},
@@ -86,20 +86,20 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"video.formato", "Video", "Formato de salida", "choice", choices({{"nv12","NV12 (8 bits 4:2:0, el de siempre)"},{"i420","I420 (8 bits 4:2:0)"},{"i444","I444 (8 bits 4:4:4)"},{"p010","P010 (10 bits 4:2:0, HDR)"},{"i010","I010 (10 bits 4:2:0)"}}), 0, 0, "", "Lo que reciben los codificadores. HDR necesita 10 bits (y un codificador que lo acepte: HEVC/AV1).", "live", "nv12"},
         {"video.color", "Video", "Espacio de color", "choice", choices({{"709","Rec. 709 (HD)"},{"601","Rec. 601 (SD)"},{"srgb","sRGB"},{"2100pq","Rec. 2100 PQ (HDR)"},{"2100hlg","Rec. 2100 HLG (HDR)"}}), 0, 0, "", "Las entradas que se normalizan se llevan a este espacio de color.", "live", "709"},
         {"video.rango", "Video", "Rango", "choice", choices({{"limitado","Limitado (16-235, broadcast)"},{"completo","Completo (0-255)"}}), 0, 0, "", "", "live", "limitado"},
-        {"entradas.placaReposo", "Video", "Placa de entradas sin uso", "int", {}, 5, 3600, "s", "Una entrada que ninguna escena usa desarma su placa («sin señal») pasado este tiempo, para no gastar hilos. Rearmarla es una negociación de la GPU: con poco tiempo, cada cambio de escena la rearma.", "live", 120},
-        {"video.legalizar", "Video", "Legalizar para TV", "choice", choices({{"no","No"},{"pal","Sí, PAL (+133 %)"},{"ntsc","Sí, estricto (+120 %)"},{"rango","Solo el rango (luma y croma)"}}), 0, 0, "", "Pasa cada entrada por el legalizador (balegal, en GStreamer): luma y croma en rango legal y, si se pasa la gama compuesta, menos saturación en ese punto. Para entregas a un canal.", "live", "no"},
-        {"mejora.activa", "Video", "Mejorar imagen de las cámaras", "bool", {}, 0, 0, "", "Limpia el ruido, pega el color a los bordes (el LED del micrófono, la corbata) y afila, en la GPU y sin demora. Cada entrada puede seguir esto, forzarlo o apagarlo en Cámaras PTZ.", "live", false},
-        {"mejora.ruido", "Video", "Mejorar imagen: ruido", "int", {}, 0, 100, "%", "Cuánto se mezcla con el cuadro anterior donde no hay movimiento.", "live", 60},
-        {"mejora.color", "Video", "Mejorar imagen: color pegado al brillo", "int", {}, 0, 100, "%", "Saca el color corrido alrededor de los bordes.", "live", 70},
-        {"mejora.nitidez", "Video", "Mejorar imagen: nitidez", "int", {}, 0, 100, "%", "Enfoque adaptativo (sin halos).", "live", 50},
-        // --- Codificacion ----------------------------------------------------
-        {"encoder.video", "Codificación", "Codificador de video", "choice", encoders, 0, 0, "", "Si el elegido no está o falla al arrancar, se usa el siguiente disponible y al final x264.", "live", "auto"},
-        {"encoder.bitrate", "Codificación", "Bitrate de video", "int", {}, 500, 50000, "kbps", "", "live", 6000},
-        {"encoder.rateControl", "Codificación", "Control de tasa", "choice", choices({{"CBR","CBR (constante, para transmitir)"},{"VBR","VBR (variable)"},{"CQP","CQP (calidad fija, para grabar)"}}), 0, 0, "", "", "live", "CBR"},
-        {"encoder.keyint", "Codificación", "Intervalo de keyframe", "int", {}, 1, 10, "s", "Las plataformas de streaming piden 2 s.", "live", 2},
-        {"encoder.preset", "Codificación", "Preset de x264", "choice", choices({{"ultrafast","ultrafast"},{"superfast","superfast"},{"veryfast","veryfast"},{"faster","faster"},{"fast","fast"},{"medium","medium"}}), 0, 0, "", "Solo aplica a x264: más lento = mejor calidad y más CPU.", "live", "veryfast"},
-        {"encoder.audioBitrate", "Codificación", "Bitrate de audio", "choice", choices({{"96","96"},{"128","128"},{"160","160"},{"192","192"},{"256","256"},{"320","320"}}), 0, 0, "kbps", "", "live", "160"},
-        // --- Grabacion -------------------------------------------------------
+        {"transition.type", "Video", "Transición", "choice", choices({{"cut","Corte"},{"fade","Fundido"},{"swipe","Barrido"},{"slide","Deslizar"},{"fade_to_color","Fundido a color"}}), 0, 0, "", "", "live", "fade"},
+        {"transition.ms", "Video", "Duración de la transición", "int", {}, 0, 5000, "ms", "", "live", 300},
+        // --- Cámaras y entradas ----------------------------------------------------
+        {"mejora.activa", "Cámaras y entradas", "Mejorar imagen de las cámaras", "bool", {}, 0, 0, "", "Limpia el ruido, pega el color a los bordes (el LED del micrófono, la corbata) y afila, en la GPU y sin demora. Cada entrada puede seguir esto, forzarlo o apagarlo en Cámaras PTZ.", "live", false},
+        {"mejora.ruido", "Cámaras y entradas", "Mejorar imagen: ruido", "int", {}, 0, 100, "%", "Cuánto se mezcla con el cuadro anterior donde no hay movimiento.", "live", 60},
+        {"mejora.color", "Cámaras y entradas", "Mejorar imagen: color pegado al brillo", "int", {}, 0, 100, "%", "Saca el color corrido alrededor de los bordes.", "live", 70},
+        {"mejora.nitidez", "Cámaras y entradas", "Mejorar imagen: nitidez", "int", {}, 0, 100, "%", "Enfoque adaptativo (sin halos).", "live", 50},
+        {"video.legalizar", "Cámaras y entradas", "Legalizar para TV", "choice", choices({{"no","No"},{"pal","Sí, PAL (+133 %)"},{"ntsc","Sí, estricto (+120 %)"},{"rango","Solo el rango (luma y croma)"}}), 0, 0, "", "Pasa cada entrada por el legalizador (balegal, en GStreamer): luma y croma en rango legal y, si se pasa la gama compuesta, menos saturación en ese punto. Para entregas a un canal.", "live", "no"},
+        {"entradas.placaReposo", "Cámaras y entradas", "Placa de entradas sin uso", "int", {}, 5, 3600, "s", "Una entrada que ninguna escena usa desarma su placa («sin señal») pasado este tiempo, para no gastar hilos. Rearmarla es una negociación de la GPU: con poco tiempo, cada cambio de escena la rearma.", "live", 120},
+        // --- Transmisión -----------------------------------------------------------
+        {"stream.server", "Transmisión", "Servidor RTMP", "text", {}, 0, 0, "", "p. ej. rtmp://a.rtmp.youtube.com/live2", "live", ""},
+        {"stream.keyEnv", "Transmisión", "Variable con la clave", "text", {}, 0, 0, "", "La clave no se guarda en disco: se lee de esta variable de entorno o se escribe al transmitir.", "live", "BA_STREAM_KEY"},
+        {"stream.onStart", "Transmisión", "Transmitir al arrancar", "bool", {}, 0, 0, "", "", "live", false},
+        // --- Grabación -------------------------------------------------------------
         {"record.dir", "Grabación", "Carpeta", "path", {}, 0, 0, "", "Relativa al bundle o absoluta.", "live", "Recordings"},
         {"record.container", "Grabación", "Formato", "choice", choices({{"mkv","MKV (sobrevive a un corte de energía)"},{"mp4","MP4"},{"mov","MOV"},{"flv","FLV"}}), 0, 0, "", "MP4 y MOV se graban en MKV (un corte no los arruina) y se pasan al formato al terminar.", "live", "mkv"},
         {"record.remux", "Grabación", "Pasar a MP4/MOV al terminar", "bool", {}, 0, 0, "", "Con MP4 o MOV elegidos: al detener, el MKV se pasa al formato sin recodificar y se borra si salió bien.", "live", true},
@@ -109,56 +109,57 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"record.pistas", "Grabación", "Pistas de audio extra", "text", {}, 0, 0, "", "Números de pista de la Matriz (2 a 6) separados por coma: cada una se graba aparte con lo que le cruces en la Matriz. La 1 (el programa) va siempre.", "live", ""},
         {"record.copiaDir", "Grabación", "Copia en otro disco", "path", {}, 0, 0, "", "Una segunda grabación igual, en otra carpeta (otro disco). Vacío = sin copia.", "live", ""},
         {"record.replay", "Grabación", "Repetición: últimos segundos", "int", {}, 0, 600, "s", "Guarda en memoria los últimos N segundos del programa para el botón «Repetir». 0 = apagada.", "live", 0},
-        // --- Transmision -----------------------------------------------------
-        {"stream.server", "Transmisión", "Servidor RTMP", "text", {}, 0, 0, "", "p. ej. rtmp://a.rtmp.youtube.com/live2", "live", ""},
-        {"stream.keyEnv", "Transmisión", "Variable con la clave", "text", {}, 0, 0, "", "La clave no se guarda en disco: se lee de esta variable de entorno o se escribe al transmitir.", "live", "BA_STREAM_KEY"},
-        {"stream.onStart", "Transmisión", "Transmitir al arrancar", "bool", {}, 0, 0, "", "", "live", false},
-        // --- Invitados -------------------------------------------------------
+        // --- Codificación (transmisión y grabación) --------------------------------
+        {"encoder.video", "Codificación", "Codificador de video", "choice", encoders, 0, 0, "", "Si el elegido no está o falla al arrancar, se usa el siguiente disponible y al final x264.", "live", "auto"},
+        {"encoder.bitrate", "Codificación", "Bitrate de video", "int", {}, 500, 50000, "kbps", "", "live", 6000},
+        {"encoder.rateControl", "Codificación", "Control de tasa", "choice", choices({{"CBR","CBR (constante, para transmitir)"},{"VBR","VBR (variable)"},{"CQP","CQP (calidad fija, para grabar)"}}), 0, 0, "", "", "live", "CBR"},
+        {"encoder.keyint", "Codificación", "Intervalo de keyframe", "int", {}, 1, 10, "s", "Las plataformas de streaming piden 2 s.", "live", 2},
+        {"encoder.preset", "Codificación", "Preset de x264", "choice", choices({{"ultrafast","ultrafast"},{"superfast","superfast"},{"veryfast","veryfast"},{"faster","faster"},{"fast","fast"},{"medium","medium"}}), 0, 0, "", "Solo aplica a x264: más lento = mejor calidad y más CPU.", "live", "veryfast"},
+        {"encoder.audioBitrate", "Codificación", "Bitrate de audio", "choice", choices({{"96","96"},{"128","128"},{"160","160"},{"192","192"},{"256","256"},{"320","320"}}), 0, 0, "kbps", "", "live", "160"},
+        // --- Invitados -------------------------------------------------------------
         {"guests.count", "Invitados", "Cantidad de invitados", "int", {}, 0, 16, "", "Lugares en el programa. Cada invitado es una conexión de video que hay que decodificar: mirá el panel «Uso de la sala» antes de subirlo mucho. Hasta los reservados cambia en caliente; más, reinicia el gateway.", "live", 2},
         {"guests.reserva", "Invitados", "Lugares reservados", "int", {}, 1, 16, "", "Los que la sala prepara al arrancar: el cupo se puede cambiar sin cortar a nadie hasta este número. Cambiarlo reinicia el gateway.", "gateway", 4},
         {"guests.video", "Invitados", "Video de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audio", "Invitados", "Audio de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audioPreset", "Invitados", "Procesamiento de voz", "choice", choices({{"podium","Podio"},{"lavalier","Corbatero"},{"handheld","De mano"},{"","Sin procesar"}}), 0, 0, "", "Channel strip nativo: HPF, EQ, de-esser, gate, compresor y limitador.", "restart", "podium"},
-        // --- Escena ----------------------------------------------------------
-        {"transition.type", "Escena", "Transición", "choice", choices({{"cut","Corte"},{"fade","Fundido"},{"swipe","Barrido"},{"slide","Deslizar"},{"fade_to_color","Fundido a color"}}), 0, 0, "", "", "live", "fade"},
-        {"transition.ms", "Escena", "Duración de la transición", "int", {}, 0, 5000, "ms", "", "live", 300},
-        // --- Gateway ---------------------------------------------------------
-        {"gateway.room", "Gateway", "Sala", "text", {}, 0, 0, "", "Nombre de la sala a la que entran los invitados.", "gateway", "sala1"},
-        {"gateway.port", "Gateway", "Puerto", "int", {}, 1024, 65535, "", "", "gateway", 8787},
-        {"gateway.bind", "Gateway", "Acceso (dónde escucha)", "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la sala.", "gateway", "127.0.0.1"},
-        {"gateway.urlHost", "Gateway", "Dirección para el QR y el enlace", "combo", opcionesUrlHost(rt.gateway().urlHost), 0, 0, "", "Lo que va en el QR de la sala y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la sala.", "gateway", ""},
-        {"gateway.tunnel", "Gateway", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Necesita el token en BA_TUNNEL_TOKEN.", "gateway", true},
-        {"gateway.tunnelHost", "Gateway", "Dominio público (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},
-        {"gateway.videoW", "Gateway", "Video del invitado: ancho", "int", {}, 320, 3840, "px", "", "gateway", 1280},
-        {"gateway.videoH", "Gateway", "Video del invitado: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
-        {"gateway.returnW", "Gateway", "Retorno al invitado: ancho", "int", {}, 320, 1920, "px", "", "gateway", 640},
-        {"gateway.returnH", "Gateway", "Retorno al invitado: alto", "int", {}, 180, 1080, "px", "", "gateway", 360},
-        // --- Sala --------------------------------------------------------------
+        {"gateway.videoW", "Invitados", "Video del invitado: ancho", "int", {}, 320, 3840, "px", "", "gateway", 1280},
+        {"gateway.videoH", "Invitados", "Video del invitado: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
+        {"gateway.returnW", "Invitados", "Retorno al invitado: ancho", "int", {}, 320, 1920, "px", "", "gateway", 640},
+        {"gateway.returnH", "Invitados", "Retorno al invitado: alto", "int", {}, 180, 1080, "px", "", "gateway", 360},
+        // --- Sala ------------------------------------------------------------------
+        {"gateway.room", "Sala", "Nombre de la sala", "text", {}, 0, 0, "", "Nombre de la sala a la que entran los invitados.", "gateway", "sala1"},
         {"room.lobby", "Sala", "Lobby de admisión", "bool", {}, 0, 0, "", "Cada invitado espera a que lo hagas pasar (y mientras espera solo te ve a vos).", "gateway", true},
         {"room.lobbySlots", "Sala", "Previews del lobby", "int", {}, 0, 8, "", "Cuántos de los que esperan pueden mostrarte su cámara a la vez.", "gateway", 4},
         {"room.maxBackstage", "Sala", "Fila de oradores", "int", {}, 0, 32, "", "Modo oradores: cuántos en la fila pueden ver el programa a la vez (cada uno usa una sesión de video).", "gateway", 12},
         {"room.backstagePreviews", "Sala", "Previews de la fila", "int", {}, 0, 8, "", "Modo oradores: cuántos de la fila (los primeros) te muestran su cámara en la app.", "gateway", 6},
         {"room.maxUploadMB", "Sala", "Tope por archivo compartido", "int", {}, 1, 20480, "MB", "", "gateway", 2048},
-        {"room.adminPort", "Sala", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: consola web y esta interfaz.", "gateway", 8788},
-        // --- Acceso directo ------------------------------------------------------
-        {"direct.https", "Acceso directo", "HTTPS propio", "bool", {}, 0, 0, "", "Los navegadores solo dan cámara y micrófono en paginas seguras: sin HTTPS, un invitado por la red local o por IP pública no puede usarlos.", "gateway", true},
-        {"direct.httpsPort", "Acceso directo", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).", "gateway", 8789},
-        {"direct.rtcMin", "Acceso directo", "WebRTC: primer puerto UDP", "int", {}, 1024, 65000, "", "Rango fijo para el firewall y la redirección del servidor.", "gateway", 40000},
-        {"direct.rtcMax", "Acceso directo", "WebRTC: último puerto UDP", "int", {}, 1024, 65535, "", "", "gateway", 40099},
-        {"wg.enabled", "Acceso directo", "Túnel WireGuard", "bool", {}, 0, 0, "", "Conecta a un servidor propio con IP pública: los invitados entran directo, sin Cloudflare. Sin permisos de administrador ni drivers.", "gateway", false},
-        {"wg.endpoint", "Acceso directo", "Servidor WireGuard", "text", {}, 0, 0, "", "host:puerto (p. ej. vps.midominio.com:51820).", "gateway", ""},
-        {"wg.serverKey", "Acceso directo", "Clave pública del servidor", "text", {}, 0, 0, "", "La que muestra 'wg show' en el servidor (base64).", "gateway", ""},
-        {"wg.address", "Acceso directo", "Dirección en el túnel", "text", {}, 0, 0, "", "La que el servidor le asigna a este equipo (AllowedIPs).", "gateway", "10.99.0.2/24"},
-        {"wg.publicAddress", "Acceso directo", "IP o dominio público", "text", {}, 0, 0, "", "Por donde entran los invitados; también es la que se anuncia para WebRTC.", "gateway", ""},
-        {"wg.keepalive", "Acceso directo", "Keepalive", "int", {}, 0, 120, "s", "Mantiene abierto el NAT del lado de este equipo.", "gateway", 25},
-        // --- Sistema ---------------------------------------------------------
-        {"launcher.shadow", "Sistema", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
-        {"launcher.recoveryUi", "Sistema", "Diálogo de recuperación", "bool", {}, 0, 0, "", "Si está apagado, el supervisor reinicia solo sin preguntar.", "restart", true},
-        {"ui.theme", "Sistema", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
-        // --- Asistente de IA (MCP) ---------------------------------------------
+        // --- Red de la sala --------------------------------------------------------
+        {"gateway.port", "Red de la sala", "Puerto de la sala", "int", {}, 1024, 65535, "", "", "gateway", 8787},
+        {"gateway.bind", "Red de la sala", "Acceso (dónde escucha)", "choice", opcionesBind(rt.gateway().bindAddress), 0, 0, "", "Red local expone el gateway a la LAN; una IP sola, solo a esa interfaz (la página y la conexión de los invitados). El PIN y el límite de intentos siguen protegiendo. Al aplicar se reinicia solo la sala.", "gateway", "127.0.0.1"},
+        {"gateway.urlHost", "Red de la sala", "Dirección para el QR y el enlace", "combo", opcionesUrlHost(rt.gateway().urlHost), 0, 0, "", "Lo que va en el QR de la sala y en el enlace para los invitados de la red local: elegila de la lista (las IP de esta máquina) o escribila (una IP o un nombre). Vacía, la elige sola (la de la interfaz de «Acceso», o la de la red). Si «Acceso» está en «Solo esta máquina», pasa a «Red local» para que se pueda entrar. Al aplicar se reinicia solo la sala.", "gateway", ""},
+        {"direct.https", "Red de la sala", "HTTPS propio", "bool", {}, 0, 0, "", "Los navegadores solo dan cámara y micrófono en paginas seguras: sin HTTPS, un invitado por la red local o por IP pública no puede usarlos.", "gateway", true},
+        {"direct.httpsPort", "Red de la sala", "Puerto HTTPS", "int", {}, 1024, 65535, "", "Un certificado propio evita el aviso del navegador: deja cert.pem + key.pem en Credenciales/ y al reiniciar se importan (cifrados).", "gateway", 8789},
+        {"direct.rtcMin", "Red de la sala", "WebRTC: primer puerto UDP", "int", {}, 1024, 65000, "", "Rango fijo para el firewall y la redirección del servidor.", "gateway", 40000},
+        {"direct.rtcMax", "Red de la sala", "WebRTC: último puerto UDP", "int", {}, 1024, 65535, "", "", "gateway", 40099},
+        {"room.adminPort", "Red de la sala", "Puerto de la API de control", "int", {}, 1024, 65535, "", "Solo en 127.0.0.1: consola web y esta interfaz.", "gateway", 8788},
+        // --- Acceso remoto ---------------------------------------------------------
+        {"gateway.tunnel", "Acceso remoto", "Túnel de Cloudflare", "bool", {}, 0, 0, "", "Necesita el token en BA_TUNNEL_TOKEN.", "gateway", true},
+        {"gateway.tunnelHost", "Acceso remoto", "Dominio público (Cloudflare)", "text", {}, 0, 0, "", "El hostname que apunta al túnel en el panel de Cloudflare (p. ej. sala.midominio.com). Lo usa el QR remoto.", "gateway", ""},
+        {"wg.enabled", "Acceso remoto", "Túnel WireGuard", "bool", {}, 0, 0, "", "Conecta a un servidor propio con IP pública: los invitados entran directo, sin Cloudflare. Sin permisos de administrador ni drivers.", "gateway", false},
+        {"wg.endpoint", "Acceso remoto", "Servidor WireGuard", "text", {}, 0, 0, "", "host:puerto (p. ej. vps.midominio.com:51820).", "gateway", ""},
+        {"wg.serverKey", "Acceso remoto", "Clave pública del servidor", "text", {}, 0, 0, "", "La que muestra 'wg show' en el servidor (base64).", "gateway", ""},
+        {"wg.address", "Acceso remoto", "Dirección en el túnel", "text", {}, 0, 0, "", "La que el servidor le asigna a este equipo (AllowedIPs).", "gateway", "10.99.0.2/24"},
+        {"wg.publicAddress", "Acceso remoto", "IP o dominio público", "text", {}, 0, 0, "", "Por donde entran los invitados; también es la que se anuncia para WebRTC.", "gateway", ""},
+        {"wg.keepalive", "Acceso remoto", "Keepalive", "int", {}, 0, 120, "s", "Mantiene abierto el NAT del lado de este equipo.", "gateway", 25},
+        // --- Asistente de IA (MCP) -------------------------------------------------
         {"mcp.enabled", "Asistente (MCP)", "Servidor MCP", "bool", {}, 0, 0, "", "Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta máquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra).", "restart", true},
         {"mcp.port", "Asistente (MCP)", "Puerto MCP", "int", {}, 1024, 65535, "", "http://127.0.0.1:<puerto>/mcp. Para clientes que lanzan un proceso: bin/64bit/ba-mcp.", "restart", 8790},
         {"mcp.approval", "Asistente (MCP)", "Aprobar acciones del asistente", "choice", choices({{"invitados","Si leyó mensajes/datos de invitados o del público (recomendado)"},{"siempre","Siempre"},{"nunca","Nunca: aprobación automática (bajo tu responsabilidad)"}}), 0, 0, "", "Salvaguarda determinista: cuando el asistente leyo algo escrito por invitados o por el publico (chat, nombres, archivos, su video), toda accion que modifica algo espera tu click de aprobacion en la barra de abajo. Asi un invitado no puede hacer que el asistente cambie nada. Con «Nunca» se aprueba todo solo: un invitado podria escribir en el chat algo que el asistente termine haciendo. Solo se cambia desde aca (el asistente no puede).", "live", "invitados"},
+        // --- Apariencia ------------------------------------------------------------
+        {"ui.theme", "Apariencia", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
+        // --- Sistema y datos -------------------------------------------------------
+        {"launcher.shadow", "Sistema y datos", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
+        {"launcher.recoveryUi", "Sistema y datos", "Diálogo de recuperación", "bool", {}, 0, 0, "", "Si está apagado, el supervisor reinicia solo sin preguntar.", "restart", true},
     };
     // clang-format on
     load();

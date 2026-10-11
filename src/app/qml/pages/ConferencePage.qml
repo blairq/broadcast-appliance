@@ -879,7 +879,7 @@ Rectangle {
                                 onPressedChanged: if (pressed) conf.refreshSources()
                             }
                         }
-                        // El micrófono del operador se elige en Configuración -> Audio y voz:
+                        // El micrófono del operador se elige en Configuración -> Voz del operador:
                         // es el mismo para el lobby y para dictarle al asistente.
                         RowLayout {
                             Layout.fillWidth: true
@@ -892,7 +892,7 @@ Rectangle {
                             }
                             GlassButton {
                                 compact: true; text: "Cambiar…"
-                                onClicked: { Studio.seccionConfig = "Audio y voz"; ApplicationWindow.window.showPage(6) }
+                                onClicked: { Studio.seccionConfig = "Voz del operador"; ApplicationWindow.window.showPage(6) }
                             }
                         }
                         GlassButton { text: "Abrir consola web"; icon: "↗"; compact: true; enabled: conf.online; onClicked: conf.openWebConsole() }

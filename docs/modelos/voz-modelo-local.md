@@ -24,7 +24,7 @@ lo que se midió con el aparato andando.
 5. **Proponer o hacer** — la barra del asistente muestra exactamente qué se va
    a hacer (`name: Música · volumeDb: -16`) con *Hacer*, *Hacer y no volver a
    preguntar*, *Al asistente*, *No*. Lo que el operador dejó «sin volver a
-   preguntar» (Configuración → Audio y voz) se hace solo, siempre que no haya
+   preguntar» (Configuración → Voz del operador) se hace solo, siempre que no haya
    bloqueos.
 6. **Registrar** — `Logs/voz-modelo.jsonl`: cada paso con el mismo `id` (lo
    reconocido, el prompt, la respuesta cruda, los argumentos validados, la
@@ -204,7 +204,7 @@ quedó en -3,0. «silenciá el micrófono» → silenciado. Todo en
 
 ### Contestar con voz
 
-La voz contesta por los auriculares del operador (Configuración → Audio y voz
+La voz contesta por los auriculares del operador (Configuración → Voz del operador
 → «Salida de auriculares del operador»; nunca al aire): «Listo.» cuando hizo
 algo, «No pude…» o «No me quedó claro…» con el motivo, y **la respuesta** a
 una pregunta: una herramienta de lectura se hace sin pedir confirmación (no

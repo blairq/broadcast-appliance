@@ -640,7 +640,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.idempotent = true;
         t.description =
-            "Mejorar imagen en las cámaras que siguen lo general (Configuración → Video): `activa`, y la "
+            "Mejorar imagen en las cámaras que siguen lo general (Configuración → Cámaras y entradas): `activa`, y la "
             "intensidad "
             "de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin "
             "argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.";

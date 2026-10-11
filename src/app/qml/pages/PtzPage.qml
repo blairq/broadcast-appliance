@@ -825,7 +825,7 @@ Rectangle {
                                 spacing: 2
                                 Text { text: "Mejorar imagen"; color: Theme.text; font.pixelSize: 13 }
                                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                                       text: "Limpia el ruido, pega el color a los bordes y afila. Lo general (y la intensidad) está en Configuración → Video." }
+                                       text: "Limpia el ruido, pega el color a los bordes y afila. Lo general (y la intensidad) está en Configuración → Cámaras y entradas." }
                             }
                             ComboBox {
                                 Layout.preferredWidth: 220

@@ -67,6 +67,8 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "net/Descargas.hpp"
+
+#include <QHash>
 #include "agent/Roles.hpp"
 #include "agent/Subtitulos.hpp"
 #include "agent/Traductor.hpp"
@@ -2047,7 +2049,19 @@ QObject* StudioViewModel::registro() const { return registro_.get(); }
 QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }
 
-void StudioViewModel::setSeccionConfig(const QString& s) {
+void StudioViewModel::setSeccionConfig(const QString& pedida) {
+    // Los nombres de antes de reordenar Configuración (2026-10-11), por si el
+    // asistente o una guía los usan todavía.
+    static const QHash<QString, QString> kAntes{{"Escena", "Video"},
+                                                {"Gateway", "Red de la sala"},
+                                                {"Red", "Red de la sala"},
+                                                {"Acceso directo", "Acceso remoto"},
+                                                {"Sistema", "Sistema y datos"},
+                                                {"Barra de navegación", "Apariencia"},
+                                                {"Barra de navegacion", "Apariencia"},
+                                                {"Audio y voz", "Voz del operador"},
+                                                {"Audio", "Voz del operador"}};
+    const QString s = kAntes.value(pedida, pedida);
     if (s == seccionConfig_) return;
     seccionConfig_ = s;
     emit seccionConfigChanged();
@@ -3438,7 +3452,7 @@ void StudioViewModel::emparejarTablet(const QString& perfil, const QString& nomb
         if (https.value("enabled").toBool()) out["huella"] = https.value("fingerprint").toString();
         if (r.value("bindAddress").toString() == "127.0.0.1")
             out["aviso"] = "El gateway escucha solo en esta máquina (127.0.0.1): una tablet no llega. Cambiá la "
-                           "dirección de la sala a la red local en Configuración → Red (cualquiera en la red podría "
+                           "dirección de la sala a la red local en Configuración → Red de la sala (cualquiera en la red podría "
                            "ver las páginas públicas; la botonera igual pide su token).";
         // El gateway escucha solo en esta máquina: la URL igual se arma con la IP
         // de la red (anda en cuanto se abra el gateway a la red; el aviso lo dice).
@@ -3596,7 +3610,7 @@ QVariantMap StudioViewModel::apiRemotaUi() const {
     QVariantMap out{{"activo", botonera_->apiRemotaActiva()}, {"accesos", accesos}, {"url", urlApiRemota()}};
     if (rt_.gateway().bindAddress == "127.0.0.1")
         out["aviso"] = "La sala escucha solo en esta máquina: Companion en otra no llega. Abrila a la red local en "
-                       "Configuración → Red.";
+                       "Configuración → Red de la sala.";
     return out;
 }
 

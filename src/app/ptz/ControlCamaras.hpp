@@ -12,7 +12,7 @@
 //     dice que puede (capacidades).
 //   * Con los dos, el joystick mueve uno u otro («modo»: optico | digital).
 //   * «Mejorar imagen» (filtro ba_mejora_imagen) también es por entrada:
-//     sigue lo general (Configuración → Video), o se fuerza, o se apaga.
+//     sigue lo general (Configuración → Cámaras y entradas), o se fuerza, o se apaga.
 //
 // Se guarda en Config/camaras.json (por nombre de entrada: si la entrada se
 // borra y se vuelve a agregar con el mismo nombre, recupera su PTZ). Las
@@ -58,7 +58,7 @@ class ControlCamaras : public QObject {
     Q_PROPERTY(bool buscando READ buscando NOTIFY busquedaCambio)
     /// Cámaras ONVIF encontradas en la red: [{direccion, host, nombre, modelo}]
     Q_PROPERTY(QVariantList encontradas READ encontradas NOTIFY busquedaCambio)
-    /// «Mejorar imagen» general (Configuración → Video).
+    /// «Mejorar imagen» general (Configuración → Cámaras y entradas).
     Q_PROPERTY(bool mejoraGeneral READ mejoraGeneral NOTIFY cambio)
 
    public:

@@ -315,7 +315,7 @@ Si un encoder no arranca, prueba el siguiente. El audio es `ffmpeg_aac`. Stream 
   - las salidas físicas del equipo, una columna por par de canales.
 - **Entradas físicas:** una fila por canal de cada interfaz, con detección de lo que se enchufa y desenchufa.
 
-**Cómo se usa.** **Audio → Matriz** (`MatrizAudio.qml`): clic para prender o apagar un cruce, clic derecho para nivel, pan y mute. Los auriculares del operador se eligen en Configuración → Audio y voz.
+**Cómo se usa.** **Audio → Matriz** (`MatrizAudio.qml`): clic para prender o apagar un cruce, clic derecho para nivel, pan y mute. Los auriculares del operador se eligen en Configuración → Voz del operador.
 
 **MCP.** `audio_matriz`, `audio_matriz_cruce`, `audio_bus_agregar`, `audio_bus_quitar`, `audio_bus_renombrar`, `audio_bus_dispositivo`, `audio_dispositivos`, `audio_matriz_equipo`, `audio_devices`, `audio_input_add`.
 
@@ -537,7 +537,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
   - **Tarjeta «Texto a voz»:** lee una salida de texto y se puede rutear al aire.
   - **Voz del teleprompter:** sincronizada con la posición del prompter.
 
-**Cómo se usa.** En el rack: "+ Texto a voz", con voz, velocidad y "Decir". En Configuración → Audio y voz. En la página Prompter.
+**Cómo se usa.** En el rack: "+ Texto a voz", con voz, velocidad y "Decir". En Configuración → Voz del operador. En la página Prompter.
 
 **MCP.** `texto_a_voz`, `voces`, `voz_ajustes`, `voz_decir`, `voz_teleprompter`.
 
@@ -719,7 +719,7 @@ Hay dos lugares donde ponerla: como tarjeta del grafo en cualquier entrada, o de
 - Página **Asistente** (`AssistantPage.qml`): terminal, proveedor y modelo, instalación y disparadores.
 - Página **Agentes** (`AgentesPage.qml`): roles, motor, corridas paso a paso y encargo manual.
 - `BarraAsistente.qml`: zócalo global para escribirle al asistente.
-- Configuración → Modelos locales / Audio y voz.
+- Configuración → Modelos locales / Voz del operador.
 
 **MCP.**
 - Asistente: `assistant_status`, `assistant_config`, `assistant_install`, `assistant_run`, `assistant_send`.

@@ -65,7 +65,7 @@ referencia más usada (obs-ptz) es «GPLv2» sin «o posterior», incompatible.
 
 ## Configuración
 
-- **Configuración → Video → «Mejorar imagen de las cámaras»** y sus tres intensidades (ruido, color, nitidez,
+- **Configuración → Cámaras y entradas → «Mejorar imagen de las cámaras»** y sus tres intensidades (ruido, color, nitidez,
   0-100): lo general. En `Config/app.json`, `video.mejora`.
 - **Cámaras PTZ → Digital e imagen**: el PTZ digital de cada entrada y Mejorar imagen por entrada (*como lo
   general*, *siempre*, *nunca*).

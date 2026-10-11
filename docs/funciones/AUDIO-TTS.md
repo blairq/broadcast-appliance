@@ -159,7 +159,7 @@ no controla el aparato. Es otra cosa que lo de arriba y no lo reemplaza.
 | `src/app/OperatorFeed` | push-to-talk: con la tecla apretada, el micrófono va al dictado y el lobby recibe silencio |
 | `src/app/agent/Voz` | F9 y el botón: carga los modelos bajados, junta todo, manda el texto a la barra |
 | nodo «Voz a texto» del rack | en Audio, en cualquier fuente, como una salida: **dictado** (F9 al asistente; si hay varias, la que más habló) o **continuo** (subtítulos, acta; frase por frase con VAD, 1–3 s). Sin ninguno, F9 se lo pone al micrófono del operador |
-| Configuración → Audio y voz | el micrófono del operador (antes en Sala), dónde hay voz a texto, la voz que contesta y lo transcripto |
+| Configuración → Voz del operador | el micrófono del operador (antes en Sala), dónde hay voz a texto, la voz que contesta y lo transcripto |
 | `audio/Habla` + `audio/MonitorVoz` | contesta hablando: piper frase por frase, solo al monitoreo (fuente privada MONITOR_ONLY) |
 | MCP | `voz_microfono`, `voz_texto`, `voz_transcripcion`, `voz_decir`, `voz_ajustes` |
 | `datos/modelos-catalogo.json` | Parakeet (fijado por commit) y Silero VAD (por URL y sha256), tipos `voz` y `vad` |
