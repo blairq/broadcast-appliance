@@ -32,6 +32,8 @@
 
 namespace ba::launcher {
 
+namespace caida = ba::diag::caida;
+
 namespace {
 
 [[maybe_unused]] std::string horaLocal(const char* formato) {
