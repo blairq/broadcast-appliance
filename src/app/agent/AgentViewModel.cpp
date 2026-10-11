@@ -46,7 +46,12 @@
 #include "agent/AlertEngine.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "net/Credentials.hpp"
+#include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"
+
+#include <QPointer>
+#include <chrono>
+#include <set>
 
 namespace ba::app::agent {
 
@@ -238,6 +243,8 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
     : QObject(parent), rt_(rt), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()) {
     g_raiz = rt.dataRoot(); // ver g_raiz: `modelosDe` es estatica
     loadConfig();
+    connect(&net::Descargas::la(), &net::Descargas::cambio, this, &AgentViewModel::seguirInstalacion);
+    registrarActualizaciones();
     connect(session_.get(), &term::TerminalSession::runningChanged, this, &AgentViewModel::runningChanged);
     connect(session_.get(), &term::TerminalSession::finished, this, [this](int code) {
         const bool expected = expectedStop_;
@@ -253,8 +260,13 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
 }
 
 AgentViewModel::~AgentViewModel() {
-    cancelInstall_ = true;
-    if (installThread_.joinable()) installThread_.join();
+    // Las instalaciones en la cola se cortan y se espera a que suelten.
+    cancelInstall();
+    for (int i = 0; i < 100 && std::any_of(instalando_.begin(), instalando_.end(), [](const std::string& id) {
+                        return net::Descargas::la().ocupado(id);
+                    });
+         ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     if (checkThread_.joinable()) checkThread_.join();
     session_->stop();
     pararServidorLocal(); // que el llama-server no quede andando al cerrar la app
@@ -789,7 +801,6 @@ else:
 } // namespace
 
 void AgentViewModel::install() {
-    if (installing_) return;
     const QString runtime = runtimeOf(provider_);
     const json pin = pins().value(runtime.toStdString(), json::object());
     const json plat = platformPin(pin);
@@ -824,13 +835,6 @@ void AgentViewModel::install() {
                              ? (dir + "/" + QString::fromStdString(plat.value("exe", ""))).toStdString()
                              : dir.toStdString()});
     }
-    installing_ = true;
-    installProgress_ = 0;
-    installText_ = "Descargando " + QString::fromStdString(pin.value("nombre", "")) + " " +
-                   QString::fromStdString(pin.value("version", "")) + "…";
-    cancelInstall_ = false;
-    emit installChanged();
-    if (installThread_.joinable()) installThread_.join();
     const QString exeName = QString::fromStdString(plat.value("exe", ""));
     // Gemini y pi corren un script de su paquete de npm: si una version nueva lo
     // movio, que falle la instalacion (y quede la anterior) y no el arranque.
@@ -842,48 +846,51 @@ void AgentViewModel::install() {
     // cancela), la instalacion que YA andaba queda intacta. Antes el camino de
     // error borraba `dir`, que podia ser una instalacion buena.
     const QString staging = QFileInfo(dir).absolutePath() + "/.instalando-" + QFileInfo(dir).fileName();
-    installThread_ = std::thread([this, items, dir, staging, runtime, exeName, geminiScript]() {
+    // Lo bajado, aparte y hasta que se instala: una descarga cortada sigue donde
+    // quedó (la cola de descargas, con Range).
+    const QString bajado = QFileInfo(dir).absolutePath() + "/.bajando-" + QFileInfo(dir).fileName();
+    const std::string version = pin.value("version", std::string());
+    net::Descargas::Pedido p;
+    p.id = "agente:" + runtime.toStdString() + "@" + version;
+    p.tipo = "agente";
+    p.titulo = pin.value("nombre", runtime.toStdString()) + " " + version;
+    p.version = version;
+    p.yaEsta = [dir]() { return QFileInfo::exists(dir + "/.ok"); };
+    QPointer<AgentViewModel> yo(this);
+    p.trabajo = [yo, items, dir, staging, bajado, runtime, exeName, geminiScript](
+                    net::Descargas::Contexto& ctx) -> std::string {
         QString err;
         QDir(staging).removeRecursively(); // restos de un intento anterior
         QDir().mkpath(staging);
+        const auto aviso = [&ctx, yo](const QString& t) {
+            ctx.avance(0.97, t.toStdString());
+            if (yo)
+                QMetaObject::invokeMethod(yo.data(), [yo, t]() {
+                    if (!yo) return;
+                    yo->installText_ = t;
+                    emit yo->installChanged();
+                });
+        };
         const int n = static_cast<int>(items.size());
         for (int i = 0; i < n && err.isEmpty(); ++i) {
             const Item& it = items[static_cast<std::size_t>(i)];
-            const QString tmp = staging + QString("/.descarga-%1").arg(i);
+            const QString tmp = bajado + QString("/descarga-%1").arg(i);
             // Los destinos se armaron sobre `dir`: van a la carpeta de staging.
             const auto enStaging = [&dir, &staging](const std::string& p) {
                 QString d = QString::fromStdString(p);
                 if (d.startsWith(dir)) d.replace(0, dir.size(), staging);
                 return d;
             };
-            net::HttpRequest req;
-            req.url = it.url;
-            req.responseFile = tmp.toStdString();
-            req.timeoutMs = 60000;
-            req.cancel = &cancelInstall_;
-            req.downloadProgress = [this, i, n](std::uint64_t got, std::uint64_t total) {
-                const double frac = total > 0 ? static_cast<double>(got) / static_cast<double>(total) : 0.0;
-                const double overall = (i + frac * 0.95) / n;
-                const QString mb = QString::number(static_cast<double>(got) / 1048576.0, 'f', 0);
-                const QString tot =
-                    total > 0 ? " / " + QString::number(static_cast<double>(total) / 1048576.0, 'f', 0)
-                              : QString();
-                QMetaObject::invokeMethod(this, [this, overall, mb, tot]() {
-                    installProgress_ = overall;
-                    installText_ = "Descargando… " + mb + tot + " MB";
-                    emit installChanged();
-                });
-            };
-            const net::HttpResponse res = net::HttpsClient::download(req);
-            if (!res.error.empty()) {
-                err = cancelInstall_ ? "Instalacion cancelada."
-                                     : "No se pudo descargar: " + QString::fromStdString(res.error);
-                break;
+            // Ya bajado y verificado en un intento anterior: no se rebaja.
+            if (!QFileInfo::exists(tmp)) {
+                const std::string e = ctx.bajar(it.url, tmp.toStdString(), 0, 0,
+                                                QString("%1 (%2/%3)").arg(runtime).arg(i + 1).arg(n).toStdString());
+                if (!e.empty()) {
+                    err = ctx.cancelado() ? "Instalacion cancelada." : "No se pudo descargar: " + QString::fromStdString(e);
+                    break;
+                }
             }
-            QMetaObject::invokeMethod(this, [this]() {
-                installText_ = "Verificando (SHA-256)…";
-                emit installChanged();
-            });
+            aviso("Verificando (SHA-256)…");
             // SHA-256 (agentes.json, GitHub, Claude) o SHA-512 (npm). Sin
             // ninguno no se instala: nunca un archivo sin verificar.
             bool coincide = false;
@@ -907,10 +914,7 @@ void AgentViewModel::install() {
                 QFile(dest).setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
                                            QFile::ReadGroup | QFile::ExeGroup);
             } else {
-                QMetaObject::invokeMethod(this, [this]() {
-                    installText_ = "Descomprimiendo…";
-                    emit installChanged();
-                });
+                aviso("Descomprimiendo…");
                 const bool npm = it.kind == "npm";
                 const QString dest = npm ? enStaging(it.dest) + ".tmp" : enStaging(it.dest);
                 QDir().mkpath(dest);
@@ -959,27 +963,107 @@ void AgentViewModel::install() {
         if (!err.isEmpty()) {
             QDir(staging).removeRecursively(); // nunca se toca `dir`
         } else {
+            QDir(bajado).removeRecursively();
             // Versiones viejas del mismo agente: afuera (liberan cientos de MB).
             QDir parent(QFileInfo(dir).absolutePath());
             for (const QString& v : parent.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
                 if (parent.absoluteFilePath(v) != QFileInfo(dir).absoluteFilePath())
                     QDir(parent.absoluteFilePath(v)).removeRecursively();
         }
-        QMetaObject::invokeMethod(this, [this, err]() {
-            installing_ = false;
-            installProgress_ = err.isEmpty() ? 1.0 : 0.0;
-            installText_ = err.isEmpty() ? "Instalado." : err;
-            emit installChanged();
-            emit latestChanged(); // newerAvailable mira la version instalada
-            if (!err.isEmpty())
-                setError(err);
-            else
-                emit notify("Agente instalado en la carpeta portable.", "ok");
+        return err.toStdString();
+    };
+    const std::string id = p.id;
+    p.alTerminar = [yo, id](bool ok, const std::string& error) {
+        if (!yo) return;
+        yo->instalando_.erase(id);
+        yo->installing_ = !yo->instalando_.empty();
+        const QString e = error == "cancelada" ? QString("Instalacion cancelada.") : QString::fromStdString(error);
+        yo->installProgress_ = ok ? 1.0 : 0.0;
+        yo->installText_ = ok ? "Instalado." : e;
+        emit yo->installChanged();
+        emit yo->latestChanged(); // newerAvailable mira la version instalada
+        emit yo->configChanged();
+        if (!ok)
+            yo->setError(e);
+        else
+            emit yo->notify("Agente instalado en la carpeta portable.", "ok");
+    };
+    const auto r = net::Descargas::la().pedir(std::move(p));
+    if (r == net::Descargas::Resultado::Encolada) {
+        instalando_.insert(id);
+        installing_ = true;
+        installProgress_ = 0;
+        installText_ = "En la cola de descargas: " + QString::fromStdString(pin.value("nombre", "")) + " " +
+                       QString::fromStdString(version) + "…";
+        emit installChanged();
+    } else if (r == net::Descargas::Resultado::YaEsta) {
+        emit notify("Esa versión ya está instalada.", "ok");
+    }
+}
+
+void AgentViewModel::registrarActualizaciones() {
+    // El agente elegido (Claude Code, OpenCode, Gemini): si se publicó una versión
+    // nueva con hash para esta plataforma. Actualizar = lo de «Instalar la última».
+    QPointer<AgentViewModel> yo(this);
+    net::Descargas::la().registrarBuscador("agente", [yo]() {
+        std::vector<net::Descargas::Actualizacion> out;
+        QString runtime, usada, nombre;
+        json base;
+        const auto enInterfaz = [&yo](auto f) {
+            if (yo) QMetaObject::invokeMethod(yo.data(), f, Qt::BlockingQueuedConnection);
+        };
+        enInterfaz([&]() {
+            if (!yo) return;
+            runtime = yo->runtimeOf(yo->provider_);
+            if (runtime.isEmpty() || !yo->installed()) return;
+            base = yo->pinnedPins().value(runtime.toStdString(), json::object());
+            usada = yo->installedVersion();
+            nombre = QString::fromStdString(base.value("nombre", runtime.toStdString()));
         });
+        if (base.empty() || usada.isEmpty()) return out;
+        QString err;
+        const json nueva = fetchLatest(runtime, base, &err);
+        const std::string v = nueva.is_object() ? nueva.value("version", std::string()) : std::string();
+        if (v.empty() || QString::fromStdString(v) == usada) return out;
+        bool hayPin = false;
+        enInterfaz([&]() { hayPin = yo && !yo->platformPin(nueva).empty(); });
+        if (!hayPin) return out;
+        net::Descargas::Actualizacion a;
+        a.actual = usada.toStdString();
+        a.detalle = "Hay una versión nueva de " + nombre.toStdString();
+        a.pedido.id = "agente:" + runtime.toStdString() + "@" + v;
+        a.pedido.tipo = "agente";
+        a.pedido.titulo = nombre.toStdString() + " " + v;
+        a.pedido.version = v;
+        a.aplicar = [yo, runtime, nueva]() {
+            if (!yo || yo->runtimeOf(yo->provider_) != runtime) return;
+            yo->latest_[runtime] = nueva;
+            yo->installLatest();
+        };
+        out.push_back(std::move(a));
+        return out;
     });
 }
 
-void AgentViewModel::cancelInstall() { cancelInstall_ = true; }
+void AgentViewModel::cancelInstall() {
+    for (const std::string& id : std::set<std::string>(instalando_)) net::Descargas::la().cancelar(QString::fromStdString(id));
+}
+
+void AgentViewModel::seguirInstalacion() {
+    // El avance de la instalación (la cola de descargas lo lleva) para la tarjeta del Asistente.
+    for (const std::string& id : instalando_) {
+        double f = 0;
+        std::string t;
+        if (net::Descargas::la().avanceDe(id, &f, &t)) {
+            if (f != installProgress_ || QString::fromStdString(t) != installText_) {
+                installProgress_ = f;
+                installText_ = QString::fromStdString(t);
+                emit installChanged();
+            }
+            return;
+        }
+    }
+}
 
 // --- Lanzar ---------------------------------------------------------------------------
 

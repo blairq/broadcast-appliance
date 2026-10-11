@@ -46,6 +46,11 @@
 
 #include <nlohmann/json.hpp>
 
+#include "net/Descargas.hpp"
+
+#include <optional>
+#include <set>
+
 class QProcess;
 
 namespace ba::app::agent {
@@ -101,6 +106,8 @@ class ModelosLocales : public QObject {
     Q_PROPERTY(bool descargando READ descargando NOTIFY descargaCambio)
     Q_PROPERTY(double progreso READ progreso NOTIFY descargaCambio)
     Q_PROPERTY(QString textoDescarga READ textoDescarga NOTIFY descargaCambio)
+    /// Los repos en la cola de descargas o bajándose (ver net::Descargas).
+    Q_PROPERTY(QStringList enCola READ enCola NOTIFY descargaCambio)
     /// Lo que informó el motor al quedar listo: tiempos, MTP, frases de prueba.
     Q_PROPERTY(QVariantMap info READ info NOTIFY cambio)
     /// El dial de derivar (se suma al logit de `derivar`): + deriva más.
@@ -143,6 +150,7 @@ class ModelosLocales : public QObject {
     bool descargando() const { return descargando_; }
     double progreso() const { return progreso_; }
     QString textoDescarga() const { return textoDescarga_; }
+    QStringList enCola() const;
     QVariantMap info() const { return info_; }
     double sesgo() const { return sesgo_; }
     void setSesgo(double s);
@@ -152,12 +160,16 @@ class ModelosLocales : public QObject {
     void setAlArrancar(bool on);
     QVariantList pruebas() const { return pruebas_; }
 
-    Q_INVOKABLE void descargar(const QString& repo);
-    Q_INVOKABLE void cancelarDescarga();
+    /// Lo pone en la cola de descargas (net::Descargas): si ya está en la cola,
+    /// bajándose o instalado (esa versión), no hace nada. Devuelve qué pasó
+    /// («encolada», «ya está bajado», …).
+    Q_INVOKABLE QString descargar(const QString& repo);
+    /// Corta la de ese repo; sin repo, todas las de modelos.
+    Q_INVOKABLE void cancelarDescarga(const QString& repo = {});
     Q_INVOKABLE void borrar(const QString& repo);
     QVariantList instalados() const { return instalados_; }
     QVariantMap restos() const { return restos_; }
-    /// Recorre Modelos/ y actualiza `instalados` y `restos`.
+    /// Recorre Modelos/ (en otro hilo) y actualiza `instalados` y `restos` (discoCambio).
     Q_INVOKABLE void revisarDisco();
     /// Borra una carpeta de Modelos/ por su nombre (la de un modelo, esté o no en
     /// el catálogo, o una descarga cortada). false si no es una de esas.
@@ -285,8 +297,18 @@ class ModelosLocales : public QObject {
     QVariantList instalados_;
     QVariantMap restos_;
 
-    std::thread hiloDescarga_;
-    std::atomic<bool> cancelar_{false};
+    /// El pedido para la cola (el trabajo es el de siempre: staging, verificar,
+    /// recién al final reemplaza). `actualizacion`: sin «ya está».
+    std::optional<net::Descargas::Pedido> pedidoDe(const QString& repo, bool actualizacion);
+    void registrarActualizaciones();
+    std::string errorPedido_;
+    std::set<QString> enCurso_;
+    /// revisarDisco, fuera del hilo de la interfaz.
+    std::pair<QVariantList, QVariantMap> calcularDisco(const std::set<std::string>& bajando,
+                                                       const QString& activo) const;
+    std::thread hiloDisco_;
+    bool discoAndando_ = false;
+    bool discoOtraVez_ = false;
     bool descargando_ = false;
     double progreso_ = 0.0;
     QString textoDescarga_;

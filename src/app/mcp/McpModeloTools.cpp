@@ -22,6 +22,7 @@
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
 #include "mcp/McpService.hpp"
+#include "net/Descargas.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -67,6 +68,7 @@ json estado(agent::ModelosLocales& ml, agent::Voz* voz) {
            {"al_arrancar", ml.alArrancar()},
            {"descarga",
             {{"en_curso", ml.descargando()},
+             {"en_cola", ml.enCola().join(",").toStdString()},
              {"progreso", ml.progreso()},
              {"texto", ml.textoDescarga().toStdString()}}},
            {"catalogo", catalogo}};
@@ -137,16 +139,16 @@ void McpService::registerModeloTools() {
                         "verificando cada archivo. Si ya esta, lo actualiza (lo verificado no se rebaja). "
                         "Vuelve enseguida: el avance se ve en modelo_local_estado (descarga).";
         t.details = "Los modelos de lenguaje pesan 2-3 GB y los de voz ~0,6 GB: la red del estudio se usa "
-                    "mientras baja. Una descarga a la vez. Nada se usa sin verificar, y una descarga a "
+                    "mientras baja. Va a la cola de descargas (descargas_estado): si ya esta en la cola, bajandose o bajado, no se repite; una cortada sigue donde quedo. Nada se usa sin verificar, y una descarga a "
                     "medias nunca pisa el modelo que andaba.";
         t.inputSchema = esquemaRepo("el repo, tal cual aparece en el catalogo");
         t.run = [&ml](const json& a, Done done) {
             const std::string repo = a.value("repo", std::string());
             if (!enCatalogo(ml, repo))
                 return done(ToolResult::error("`" + repo + "` no esta en el catalogo de esta plataforma."));
-            if (ml.descargando()) return done(ToolResult::error("Ya hay una descarga en curso."));
-            ml.descargar(QString::fromStdString(repo));
-            done(ToolResult::ok("Bajando `" + repo + "`: el avance, en modelo_local_estado."));
+            const QString r = ml.descargar(QString::fromStdString(repo));
+            done(ToolResult::ok("`" + repo + "`: " + r.toStdString() +
+                                ". El avance, en descargas_estado (o modelo_local_estado)."));
         };
         core_.addTool(std::move(t));
     }
@@ -156,9 +158,12 @@ void McpService::registerModeloTools() {
         t.title = "Cancelar la descarga";
         t.category = "agentes";
         t.idempotent = true;
-        t.description = "Corta la descarga en curso. Lo que estaba instalado queda como estaba.";
-        t.run = [&ml](const json&, Done done) {
-            ml.cancelarDescarga();
+        t.description = "Corta la descarga de un modelo (sin repo: todas las de modelos). Lo que estaba "
+                        "instalado queda como estaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"repo", {{"type", "string"}, {"description", "el repo (opcional)"}}}}}};
+        t.run = [&ml](const json& a, Done done) {
+            ml.cancelarDescarga(QString::fromStdString(a.value("repo", std::string())));
             done(ToolResult::ok(ml.descargando() ? "Cancelando." : "No habia ninguna descarga."));
         };
         core_.addTool(std::move(t));
@@ -896,6 +901,114 @@ void McpService::registerModeloTools() {
                                         {"contestar_con_voz", voz->contestarConVoz()},
                                         {"auriculares", voz->auriculares().toStdString()},
                                         {"automaticas", lista}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- La cola única de descargas (net/Descargas): todo lo que el programa baja ---
+    net::Descargas* dl = &net::Descargas::la();
+    const json esquemaId = {{"type", "object"},
+                            {"properties", {{"id", {{"type", "string"}, {"description", "el id, como lo da descargas_estado"}}}}},
+                            {"required", json::array({"id"})}};
+    {
+        Tool t;
+        t.name = "descargas_estado";
+        t.title = "Descargas: la cola, lo que baja y lo que terminó";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.description = "Todo lo que el programa baja (modelos, agentes): lo que se esta bajando (avance, MB, "
+                        "KB/s), lo que espera en la cola, lo que termino (listo, error, cancelado) y las "
+                        "actualizaciones encontradas.";
+        t.details = "Una sola cola para todo: corre de a dos. Lo que ya esta en la cola, "
+                    "bajandose o bajado no se vuelve a bajar. Una descarga cortada sigue donde quedo.";
+        t.run = [dl](const json&, Done done) { done(ToolResult().data(dl->estado())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descarga_cancelar";
+        t.title = "Cancelar una descarga";
+        t.category = "agentes";
+        t.idempotent = true;
+        t.description = "Corta una descarga (o la saca de la cola). Lo instalado queda como estaba; lo bajado "
+                        "a medias se conserva para seguir despues.";
+        t.inputSchema = esquemaId;
+        t.run = [dl](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            if (!dl->ocupado(id)) return done(ToolResult::error("`" + id + "` no esta en la cola ni bajandose."));
+            dl->cancelar(QString::fromStdString(id));
+            done(ToolResult::ok("Cancelando `" + id + "`."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descarga_reintentar";
+        t.title = "Reintentar una descarga";
+        t.category = "agentes";
+        t.openWorld = true;
+        t.description = "Vuelve a poner en la cola una descarga que fallo o se cancelo (sigue donde quedo).";
+        t.inputSchema = esquemaId;
+        t.run = [dl](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            done(dl->reintentar(QString::fromStdString(id))
+                     ? ToolResult::ok("`" + id + "` otra vez en la cola.")
+                     : ToolResult::error("No se puede reintentar `" + id +
+                                         "` (no fallo, o es de una sesion anterior: pedila de nuevo desde su lugar)."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descargas_limpiar";
+        t.title = "Limpiar el historial de descargas";
+        t.category = "agentes";
+        t.idempotent = true;
+        t.description = "Saca de la lista lo que ya termino (no borra nada instalado).";
+        t.run = [dl](const json&, Done done) {
+            dl->limpiarTerminadas();
+            done(ToolResult::ok("Listo."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descargas_buscar_actualizaciones";
+        t.title = "Buscar actualizaciones de lo bajado";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.openWorld = true;
+        t.description = "Se fija si hay versiones nuevas de lo instalado (modelos del catalogo, el agente "
+                        "elegido) y las devuelve. No baja nada: para eso, descarga_actualizar.";
+        t.run = [dl](const json&, Done done) {
+            dl->buscarActualizaciones();
+            auto* timer = new QTimer(dl);
+            auto elapsed = std::make_shared<int>(0);
+            QObject::connect(timer, &QTimer::timeout, dl, [dl, timer, elapsed, done]() {
+                *elapsed += 500;
+                if (dl->buscando() && *elapsed < 90 * 1000) return;
+                timer->deleteLater();
+                done(ToolResult().data({{"actualizaciones", dl->estado()["actualizaciones"]},
+                                        {"terminado", !dl->buscando()}}));
+            });
+            timer->start(500);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descarga_actualizar";
+        t.title = "Bajar una actualización";
+        t.category = "agentes";
+        t.openWorld = true;
+        t.description = "Pone en la cola una actualizacion que encontro descargas_buscar_actualizaciones. Lo "
+                        "instalado sigue andando hasta que la nueva este bajada y verificada.";
+        t.inputSchema = esquemaId;
+        t.run = [dl](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            done(dl->actualizar(QString::fromStdString(id))
+                     ? ToolResult::ok("`" + id + "`: actualizando. El avance, en descargas_estado.")
+                     : ToolResult::error("No hay una actualizacion `" + id +
+                                         "` (primero descargas_buscar_actualizaciones)."));
         };
         core_.addTool(std::move(t));
     }

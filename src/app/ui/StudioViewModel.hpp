@@ -279,6 +279,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* agent READ agent CONSTANT)
     /// El modelo local (Configuración -> Modelos locales): ver agent/ModelosLocales.hpp.
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
+    /// La cola única de descargas (Descargas, arriba a la derecha): ver net/Descargas.hpp.
+    Q_PROPERTY(QObject* descargas READ descargas CONSTANT)
     /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
     Q_PROPERTY(QObject* voz READ voz CONSTANT)
     /// «Voz del teleprompter»: el guion dicho en voz alta, siguiendo al teleprompter.
@@ -621,6 +623,7 @@ class StudioViewModel : public QObject {
     QObject* system() const;
     QObject* agent() const;
     QObject* modelos() const;
+    QObject* descargas() const;
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;

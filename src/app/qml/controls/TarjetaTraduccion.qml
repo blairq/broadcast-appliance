@@ -75,7 +75,7 @@ ColumnLayout {
     }
     GlassButton {
         visible: (panel.t.faltan || []).length > 0
-        enabled: panel.ml && !panel.ml.descargando
+        enabled: !!panel.ml
         compact: true; icon: "⇩"
         text: "Bajar " + panel.nombreIdioma(panel.t.idioma_desde) + " → " + panel.nombreIdioma(panel.t.a) +
               " (" + (panel.t.faltan || []).length + " paquete" + ((panel.t.faltan || []).length === 1 ? "" : "s") + ")"

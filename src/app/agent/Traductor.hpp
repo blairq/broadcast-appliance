@@ -179,7 +179,6 @@ class Traductor : public QObject {
     void leerSalida();
     void mandar();
     void alFrase(const QString& flujo, const QString& texto);
-    void seguirBajando();
 
     std::filesystem::path root_;
     ModelosLocales& modelos_;
@@ -201,7 +200,6 @@ class Traductor : public QObject {
     long long n_ = 0;
     int caidas_ = 0;
     std::map<std::string, json> ultima_; ///< id de traducción -> {texto, ms, hora}
-    std::deque<std::string> porBajar_;
     /// Lo que llegó de cada traducción y todavía no cierra una oración (la
     /// transcripción corta en cada pausa, a veces a mitad de idea).
     struct Junta {

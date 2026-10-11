@@ -95,10 +95,7 @@ Traductor::Traductor(fs::path dataRoot, ModelosLocales& modelos, FlujosTexto& fl
     leerGlosario();
     connect(&flujos_, &FlujosTexto::frase, this, &Traductor::alFrase);
     connect(&modelos_, &ModelosLocales::descargaCambio, this, [this]() {
-        if (!modelos_.descargando()) {
-            emit cambio();
-            seguirBajando();
-        }
+        if (!modelos_.descargando()) emit cambio();
     });
 }
 
@@ -369,23 +366,9 @@ std::string Traductor::bajar(const std::string& de, const std::string& a) {
     std::string err;
     pasos(de, a, &err);
     if (!err.empty()) return err;
-    for (const auto& r : faltan(de, a))
-        if (std::find(porBajar_.begin(), porBajar_.end(), r.get<std::string>()) == porBajar_.end())
-            porBajar_.push_back(r);
-    if (porBajar_.empty()) return {};
-    seguirBajando();
+    // A la cola de descargas: la que ya está en la cola o bajada no se repite.
+    for (const auto& r : faltan(de, a)) modelos_.descargar(q(r.get<std::string>()));
     return {};
-}
-
-void Traductor::seguirBajando() {
-    if (modelos_.descargando()) return;
-    while (!porBajar_.empty()) {
-        const std::string r = porBajar_.front();
-        porBajar_.pop_front();
-        if (!modelos_.carpetaInstalada(q(r)).empty()) continue;
-        modelos_.descargar(q(r));
-        return;
-    }
 }
 
 // --- El motor -------------------------------------------------------------------------------

@@ -66,6 +66,7 @@
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
+#include "net/Descargas.hpp"
 #include "agent/Roles.hpp"
 #include "agent/Subtitulos.hpp"
 #include "agent/Traductor.hpp"
@@ -161,6 +162,9 @@ bool tieneSenal(const nlohmann::json& st) {
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+    // La cola única de descargas (modelos, agentes, …): antes que quien baja algo.
+    // Su historial es de la máquina (como Modelos/ y Agentes/), no de la configuración.
+    net::Descargas::iniciar(ba::platform::dataRoot());
     // El arranque, medido: cada etapa que tarde más de 150 ms queda en el registro
     // (la interfaz tardaba ~12 s en aparecer y no se sabía en qué).
     QElapsedTimer relojArranque;
@@ -1926,6 +1930,7 @@ QObject* StudioViewModel::facebook() const { return facebook_.get(); }
 QObject* StudioViewModel::system() const { return system_.get(); }
 QObject* StudioViewModel::agent() const { return agent_.get(); }
 QObject* StudioViewModel::modelos() const { return modelos_.get(); }
+QObject* StudioViewModel::descargas() const { return &net::Descargas::la(); }
 QObject* StudioViewModel::voz() const { return voz_.get(); }
 QObject* StudioViewModel::vozPrompter() const { return vozPrompter_.get(); }
 QObject* StudioViewModel::matriz() const {

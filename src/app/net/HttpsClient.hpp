@@ -41,6 +41,11 @@ struct HttpRequest {
     /// streaming: sirve para descargas de cientos de MB) y `body` queda vacio.
     std::string responseFile;
     std::function<void(std::uint64_t got, std::uint64_t total)> downloadProgress;
+    /// Seguir una descarga cortada: los bytes que ya hay en `responseFile`. Se pide
+    /// `Range: bytes=N-`; si el servidor contesta 206 se agrega al archivo, si
+    /// contesta 200 (no sabe de rangos) se empieza de cero. El progreso cuenta
+    /// desde N.
+    std::uint64_t resumeFrom = 0;
     /// Si se pone en true, la descarga se corta (error "cancelado").
     const std::atomic<bool>* cancel = nullptr;
 };

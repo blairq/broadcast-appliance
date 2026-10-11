@@ -477,9 +477,9 @@ Rectangle {
                             GlassButton {
                                 compact: true
                                 visible: !modelData.instalado
-                                enabled: !ml.descargando
-                                text: "Bajar"; icon: "⇩"
-                                onClicked: ml.descargar(modelData.repo)
+                                enabled: ml.enCola.indexOf(modelData.repo) < 0
+                                text: enabled ? "Bajar" : "En la cola"; icon: "⇩"
+                                onClicked: Studio.notify(modelData.repo + ": " + ml.descargar(modelData.repo), "info")
                             }
                             GlassButton {
                                 compact: true
@@ -491,9 +491,9 @@ Rectangle {
                             GlassButton {
                                 compact: true
                                 visible: modelData.instalado
-                                enabled: !ml.descargando
+                                enabled: ml.enCola.indexOf(modelData.repo) < 0
                                 text: "Actualizar"
-                                onClicked: ml.descargar(modelData.repo)
+                                onClicked: Studio.notify(modelData.repo + ": " + ml.descargar(modelData.repo), "info")
                             }
                             GlassButton {
                                 compact: true
@@ -523,6 +523,7 @@ Rectangle {
                             color: Theme.textDim; font.pixelSize: 12
                         }
                         GlassButton { compact: true; visible: ml.descargando; text: "Cancelar"; onClicked: ml.cancelarDescarga() }
+                        GlassButton { compact: true; text: "Descargas…"; onClicked: ApplicationWindow.window.abrirDescargas() }
                     }
                 }
 
@@ -980,9 +981,9 @@ Rectangle {
                             GlassButton {
                                 compact: true
                                 visible: !modelData.instalado
-                                enabled: !ml.descargando
-                                text: "Bajar"; icon: "⇩"
-                                onClicked: ml.descargar(modelData.repo)
+                                enabled: ml.enCola.indexOf(modelData.repo) < 0
+                                text: enabled ? "Bajar" : "En la cola"; icon: "⇩"
+                                onClicked: Studio.notify(modelData.repo + ": " + ml.descargar(modelData.repo), "info")
                             }
                             GlassButton {
                                 compact: true

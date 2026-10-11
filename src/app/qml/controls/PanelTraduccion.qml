@@ -95,7 +95,7 @@ ColumnLayout {
         }
         GlassButton {
             compact: true; text: "Bajar idioma"; icon: "⇩"
-            enabled: panel.ml && !panel.ml.descargando
+            enabled: !!panel.ml
             onClicked: panel.avisar(panel.tr.bajarUi("es", panel.destinos[idiomaPrueba.currentIndex].codigo), "")
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: "Baja los paquetes para traducir del castellano a este idioma (70 a 300 MB; los que no son inglés ni portugués pasan por el inglés)"
@@ -148,7 +148,7 @@ ColumnLayout {
                     GlassButton {
                         compact: true
                         visible: (fila.modelData.faltan || []).length > 0
-                        enabled: panel.ml && !panel.ml.descargando
+                        enabled: !!panel.ml
                         text: "Bajar"; icon: "⇩"
                         onClicked: panel.avisar(panel.tr.bajarUi(fila.modelData.idioma_desde, fila.modelData.a), "")
                     }

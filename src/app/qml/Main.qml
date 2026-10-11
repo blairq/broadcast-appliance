@@ -165,6 +165,8 @@ ApplicationWindow {
         else streamDlg.open()
     }
     function confirm(opts) { confirmDlg.ask(opts) }
+    /// La cola de descargas (controls/PanelDescargas.qml).
+    function abrirDescargas() { descargasDlg.open() }
     function confirmStopStream() {
         confirm({
             title: "¿Cortar la transmisión?",
@@ -722,4 +724,22 @@ ApplicationWindow {
         }
     }
     ConfirmDialog { id: confirmDlg }
+    PanelDescargas { id: descargasDlg }
+
+    // --- Lo que se está bajando, visible en todas las páginas (abre las Descargas) ----
+    StatusPill {
+        visible: Studio.descargas.activas > 0
+        anchors { top: parent.top; right: parent.right; rightMargin: 14
+                  topMargin: win.libreArr + win.libreAlarma + 1 }
+        z: 50
+        height: 16
+        dot: Theme.accent
+        pulse: true
+        text: {
+            const l = Studio.descargas.lista
+            const b = l.length > 0 && l[0].estado === "bajando" ? l[0] : null
+            return "BAJANDO " + Studio.descargas.activas + (b ? "  " + Math.round(b.progreso * 100) + "%" : "")
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.abrirDescargas() }
+    }
 }

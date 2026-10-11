@@ -678,7 +678,7 @@ endif()
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
     set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
-    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp net/Descargas.cpp
                    net/HttpsClient.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
@@ -688,6 +688,14 @@ endif()
     qt_add_resources(test_modelos_locales "ba_modelos_test" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")
     add_test(NAME test_modelos_locales COMMAND test_modelos_locales)
+
+    # La cola unica de descargas: duplicados, por tipo, cancelar y seguir una
+    # descarga cortada (contra un servidor local, sin red).
+    add_executable(test_descargas tests/test_descargas.cpp net/Descargas.cpp net/HttpsClient.cpp)
+    target_include_directories(test_descargas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_descargas PRIVATE ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto)
+    set_target_properties(test_descargas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_descargas COMMAND test_descargas)
 
     # Buscar la ultima version de los agentes en su fuente oficial (con red;
     # sin red se saltea).

@@ -45,6 +45,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <thread>
 
 #include "agent/Lanzamiento.hpp"
@@ -345,8 +346,9 @@ class AgentViewModel : public QObject {
     bool installing_ = false;
     double installProgress_ = 0;
     QString installText_;
-    std::atomic<bool> cancelInstall_{false};
-    std::thread installThread_;
+    std::set<std::string> instalando_; ///< ids en la cola de descargas
+    void seguirInstalacion();
+    void registrarActualizaciones();
     bool checking_ = false;
     std::thread checkThread_;
     std::map<QString, nlohmann::json> latest_; ///< runtime -> entrada nueva
