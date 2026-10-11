@@ -335,14 +335,15 @@ QByteArray Hijo::leerErrores() {
     return b;
 }
 
-void Hijo::correr(QObject* dueno, const QString& programa, const QStringList& args,
-                  const QProcessEnvironment& env, int topeMs,
-                  std::function<void(int, QByteArray, QByteArray)> listo) {
+QPointer<Hijo> Hijo::correr(QObject* dueno, const QString& programa, const QStringList& args,
+                            const QProcessEnvironment& env, int topeMs,
+                            std::function<void(int, QByteArray, QByteArray)> listo) {
     auto* h = new Hijo(dueno);
     QString e;
     if (!h->iniciar(programa, args, env, {}, false, &e)) {
         h->deleteLater();
-        return listo(-1, {}, e.toUtf8());
+        listo(-1, {}, e.toUtf8());
+        return nullptr;
     }
     auto out = std::make_shared<QByteArray>(), err = std::make_shared<QByteArray>();
     connect(h, &Hijo::salida, h, [h, out]() { out->append(h->leerSalida()); });
@@ -354,6 +355,7 @@ void Hijo::correr(QObject* dueno, const QString& programa, const QStringList& ar
         h->deleteLater();
         listo(caido ? -1 : codigo, *out, *err);
     });
+    return h;
 }
 
 } // namespace ba::app::plugins

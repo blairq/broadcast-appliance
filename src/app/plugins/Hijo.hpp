@@ -29,6 +29,7 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QPointer>
 #include <QProcessEnvironment>
 #include <QString>
 #include <QStringList>
@@ -63,8 +64,9 @@ class Hijo : public QObject {
     QByteArray leerErrores();
 
     /// Para comandos cortos: lo corre, junta toda la salida y avisa al final
-    /// (`codigo` -1 si no arrancó o se lo mató por `topeMs`).
-    static void correr(QObject* dueno, const QString& programa, const QStringList& args,
+    /// (`codigo` -1 si no arrancó o se lo mató por `topeMs`). Devuelve el hijo
+    /// (para cortarlo con terminar(); se anula solo al terminar), o nulo si no arrancó.
+    static QPointer<Hijo> correr(QObject* dueno, const QString& programa, const QStringList& args,
                        const QProcessEnvironment& env, int topeMs,
                        std::function<void(int codigo, QByteArray salida, QByteArray errores)> listo);
 

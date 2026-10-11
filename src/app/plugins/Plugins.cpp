@@ -695,20 +695,27 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
     p.version = std::to_string(std::hash<std::string>{}(firma) % 1000000);
     p.trabajo = [yo, args, id, firma, salida](net::Descargas::Contexto& ctx) -> std::string {
         ctx.avance(0, "pip: " + firma.substr(0, firma.find('\n')) + "…");
-        return ctx.enLaInterfaz([yo, args, id, firma, salida](std::function<void(const std::string&)> listo) {
+        // El pip que corre, para cortarlo si se cancela la descarga.
+        auto pip = std::make_shared<QPointer<Hijo>>();
+        return ctx.enLaInterfaz([yo, args, id, firma, salida, pip](std::function<void(const std::string&)> listo) {
             if (!yo) return listo("cancelada");
             yo->escribirRegistro(id, "[pip] bajando: " + QByteArray::fromStdString(firma).replace('\n', ' ') + "\n");
-            Hijo::correr(yo.data(), q(yo->python()), args, entornoPython(), 15 * 60 * 1000,
+            *pip = Hijo::correr(yo.data(), q(yo->python()), args, entornoPython(), 15 * 60 * 1000,
                          [yo, id, salida, listo](int codigo, QByteArray out, QByteArray err) {
                              *salida = (out + err).toStdString();
                              if (yo) yo->escribirRegistro(id, QByteArray::fromStdString("[pip] " + *salida));
                              listo(codigo == 0 ? std::string() : std::string("pip no pudo bajar las dependencias"));
                          });
+        }, [pip]() {
+            // Cancelada: se corta pip (y lo que lance: va en su grupo). Lo que dejó a
+            // medias en _libs no vale (no se escribe el sello) y se rehace la próxima vez.
+            if (*pip) (*pip)->terminar();
         });
     };
     p.alTerminar = [yo, id, sello, firma, salida](bool ok, const std::string& error) {
         if (!yo) return;
         if (ok) escribirTexto(sello, firma);
+        if (!ok && error == "cancelada") yo->escribirRegistro(id, "[pip] cancelado\n");
         const std::string& s = *salida;
         const std::string cola = ok ? (s.size() > 800 ? s.substr(s.size() - 800) : s)
                                     : (s.size() > 3000 ? s.substr(s.size() - 3000) : s);
