@@ -5,11 +5,13 @@
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
 #include "video/VideoGrafos.hpp"
+#include "net/Descargas.hpp"
 
 #if defined(BA_HAVE_GST)
 #include <gst/gst.h>
 #endif
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QCoreApplication>
 #include <QImage>
@@ -63,6 +65,46 @@ QStringList bibliotecas() {
     if (conDirectml()) return {"torch-directml", "spandrel==0.4.2", "onnx==1.23.1"};
     return kBibliotecas;
 }
+
+/// Los pesos de terceros que convierte el laboratorio (los mismos de su PESOS),
+/// con su sha256: los baja la cola de descargas, verificados.
+struct Pesos {
+    const char* url;
+    const char* archivo;
+    const char* sha256;
+};
+const Pesos* pesosDe(const std::string& cual) {
+    static const Pesos span{
+        "https://objectstorage.us-phoenix-1.oraclecloud.com/n/ax6ygfvpvzka/b/open-modeldb-files/o/2x-spanx2-ch48.pth",
+        "2x-spanx2-ch48.pth", "0b20caeea7af5507ec3bdc63ff5a141a28506279d2cfec909c417ecb308d3f93"};
+    static const Pesos esrgan{"https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
+                              "realesr-general-x4v3.pth",
+                              "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292"};
+    return cual == "span" ? &span : cual == "esrgan" ? &esrgan : nullptr;
+}
+
+std::string sha256De(const fs::path& p) {
+    QFile f(q8(p));
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    QCryptographicHash h(QCryptographicHash::Sha256);
+    h.addData(&f);
+    return h.result().toHex().toStdString();
+}
+
+/// En el hilo de la cola: baja `url` a `destino` (si no está ya, con ese hash) y lo verifica.
+std::string bajarVerificado(net::Descargas::Contexto& ctx, const std::string& url, const fs::path& destino,
+                            const std::string& sha) {
+    std::error_code ec;
+    if (fs::exists(destino, ec) && sha256De(destino) == sha) return {};
+    const std::string e = ctx.bajar(url, destino);
+    if (!e.empty()) return e;
+    ctx.avance(0.95, "Verificando " + destino.filename().string() + "…");
+    if (sha256De(destino) != sha) {
+        fs::remove(destino, ec);
+        return "el archivo bajado (" + destino.filename().string() + ") no coincide con el sha256 publicado";
+    }
+    return {};
+}
 } // namespace
 
 SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
@@ -110,6 +152,10 @@ SuperRes::SuperRes(fs::path dataRoot, VideoGrafos* video, QObject* parent)
 
 SuperRes::~SuperRes() {
     if (video_ != nullptr) video_->setResolverPlugin({});
+    // Lo que la cola de descargas espera de acá termina (cancelado): si no, su
+    // hilo se quedaba esperando para siempre.
+    for (auto& l : listosVivos_) l("cancelada");
+    listosVivos_.clear();
     if (hijo_) {
         hijo_->disconnect(this);
         hijo_->terminar();
@@ -223,12 +269,15 @@ void SuperRes::linea(const QByteArray& l) {
         const QString t = QString::fromUtf8(l).trimmed();
         if (!t.isEmpty()) {
             trabajo_["texto"] = t.left(200);
+            if (ctxCola_ != nullptr) ctxCola_->avance(0, t.left(200).toStdString());
             emit trabajoCambio();
         }
         return;
     }
     for (const auto& [k, v] : m.items())
         trabajo_[QString::fromStdString(k)] = qv(v);
+    if (ctxCola_ != nullptr)
+        ctxCola_->avance(trabajo_.value("pct").toDouble() / 100.0, trabajo_.value("texto").toString().toStdString());
     if (m.value("ev", "") == "error")
         trabajo_["error"] = QString::fromStdString(m.value("error", std::string("falló")));
     emit trabajoCambio();
@@ -258,49 +307,154 @@ std::string SuperRes::borrarLaboratorio() {
     return ec ? "no se pudo borrar: " + ec.message() : std::string();
 }
 
-std::string SuperRes::prepararLaboratorio() {
-    if (laboratorioListo()) return {};
-    std::error_code ec;
-    // Si había uno a medias o de otra combinación (p. ej. sin DirectML), de cero:
-    // pip --target no desinstala lo que pisa y quedaban dos PyTorch mezclados.
-    if (fs::exists(libs(), ec)) fs::remove_all(libs(), ec);
-    fs::create_directories(libs(), ec);
+// --- Lo que se baja: por la cola de descargas (net/Descargas) ------------------------------
+
+std::string SuperRes::encolar(net::Descargas::Pedido p, std::function<std::string(net::Descargas::Contexto&)> bajar,
+                              std::function<std::string(std::function<void(bool)>)> lanzar) {
+    QPointer<SuperRes> yo(this);
+    p.tipo = "superres";
+    const std::string id = p.id;
+    p.trabajo = [yo, bajar, lanzar, id](net::Descargas::Contexto& ctx) -> std::string {
+        if (bajar) {
+            const std::string e = bajar(ctx);
+            if (!e.empty()) return e;
+        }
+        if (!lanzar || ctx.cancelado()) return ctx.cancelado() ? "cancelada" : "";
+        net::Descargas::Contexto* c = &ctx;
+        return ctx.enLaInterfaz(
+            [yo, lanzar, c, id](std::function<void(const std::string&)> listo) {
+                if (!yo) return listo("cancelada");
+                // Para avisarle si esto se destruye antes (listo no avisa dos veces).
+                yo->listosVivos_.push_back(listo);
+                yo->esperarYLanzar(lanzar, listo, c, id);
+            },
+            [yo, c]() {
+                if (yo && yo->ctxCola_ == c) yo->cortarHijo(); // solo si es el suyo el que anda
+            });
+    };
+    const auto r = net::Descargas::la().pedir(std::move(p));
+    return r == net::Descargas::Resultado::Invalida ? std::string("pedido inválido") : std::string();
+}
+
+void SuperRes::esperarYLanzar(std::function<std::string(std::function<void(bool)>)> lanzar,
+                              std::function<void(const std::string&)> listo, net::Descargas::Contexto* c,
+                              const std::string& id) {
+    if (c->cancelado()) return listo("cancelada");
+    // El laboratorio corre de a un proceso: si está entrenando (u otro), espera.
+    if (hijo_ && hijo_->corriendo()) {
+        c->avance(0, "Esperando que termine «" + trabajo_.value("que").toString().toStdString() + "»");
+        QTimer::singleShot(2000, this, [this, lanzar, listo, c, id]() { esperarYLanzar(lanzar, listo, c, id); });
+        return;
+    }
+    ctxCola_ = c;
+    idCola_ = id;
+    listoCola_ = listo;
+    const std::string err = lanzar([this](bool ok) {
+        auto l = std::move(listoCola_);
+        listoCola_ = nullptr;
+        ctxCola_ = nullptr;
+        idCola_.clear();
+        const QString e = trabajo_.value("error").toString();
+        if (l) l(ok ? std::string() : (e.isEmpty() ? std::string("falló") : e.toStdString()));
+    });
+    if (!err.empty()) {
+        listoCola_ = nullptr;
+        ctxCola_ = nullptr;
+        idCola_.clear();
+        listo(err);
+    }
+}
+
+std::string SuperRes::prepararLaboratorio() { return prepararLaboratorio({}); }
+
+std::string SuperRes::prepararLaboratorio(std::function<void()> despues) {
+    if (laboratorioListo()) {
+        if (despues) QTimer::singleShot(0, this, despues);
+        return {};
+    }
+    if (despues) trasLaboratorio_.push_back(std::move(despues));
     const QStringList bib = bibliotecas();
-    return correr(conDirectml() ? "Preparar el laboratorio (PyTorch con DirectML para la GPU, ~800 MB)"
-                                : "Preparar el laboratorio (PyTorch, ~800 MB)",
-                  {},
-                  QStringList{"-m", "pip", "install", "--disable-pip-version-check",
-                              "--no-warn-script-location", "--progress-bar", "off", "--target", q8(libs())} +
-                      bib,
-                  [this, bib](bool ok) {
-                      if (ok) {
-                          std::ofstream(libs() / ".ok") << "listo\n" << bib.join(" ").toStdString() << "\n";
-                          trabajo_["texto"] = "Laboratorio listo";
-                          emit trabajoCambio();
-                          emit cambio();
-                      }
-                      if (ok && despues_) {
-                          // En la vuelta siguiente: acá todavía se está avisando el fin del proceso anterior.
-                          QTimer::singleShot(0, this, [this, d = std::move(despues_)]() { d(); });
-                      }
-                      despues_ = nullptr;
-                  });
+    const fs::path dir = libs();
+    net::Descargas::Pedido p;
+    p.id = "superres:laboratorio";
+    p.titulo = conDirectml() ? "Laboratorio de superresolución (PyTorch con DirectML, ~800 MB)"
+                             : "Laboratorio de superresolución (PyTorch, ~800 MB)";
+    p.version = bib.join(" ").toStdString();
+    QPointer<SuperRes> yo(this);
+    p.yaEsta = [yo]() { return yo && yo->laboratorioListo(); };
+    p.alTerminar = [yo](bool ok, const std::string&) {
+        if (!yo) return;
+        auto tras = std::move(yo->trasLaboratorio_);
+        yo->trasLaboratorio_.clear();
+        if (ok)
+            for (auto& f : tras) f();
+    };
+    return encolar(
+        std::move(p),
+        [dir](net::Descargas::Contexto& ctx) -> std::string {
+            // Si había uno a medias o de otra combinación (p. ej. sin DirectML), de
+            // cero: pip --target no desinstala lo que pisa y quedaban dos PyTorch
+            // mezclados. En el hilo de la cola: son cientos de MB para borrar.
+            ctx.avance(0, "Preparando la carpeta…");
+            std::error_code ec;
+            if (fs::exists(dir, ec)) fs::remove_all(dir, ec);
+            fs::create_directories(dir, ec);
+            return {};
+        },
+        [yo, bib](std::function<void(bool)> alFin) -> std::string {
+            if (!yo) return "cancelada";
+            SuperRes* s = yo.data();
+            return s->correr(conDirectml() ? "Preparar el laboratorio (PyTorch con DirectML para la GPU, ~800 MB)"
+                                           : "Preparar el laboratorio (PyTorch, ~800 MB)",
+                             {},
+                             QStringList{"-m", "pip", "install", "--disable-pip-version-check",
+                                         "--no-warn-script-location", "--progress-bar", "off", "--target",
+                                         q8(s->libs())} +
+                                 bib,
+                             [yo, bib, alFin](bool ok) {
+                                 if (yo && ok) {
+                                     std::ofstream(yo->libs() / ".ok")
+                                         << "listo\n" << bib.join(" ").toStdString() << "\n";
+                                     yo->trabajo_["texto"] = "Laboratorio listo";
+                                     emit yo->trabajoCambio();
+                                     emit yo->cambio();
+                                 }
+                                 alFin(ok);
+                             });
+        });
 }
 
 std::string SuperRes::convertir(const std::string& cual) {
-    if (cual != "span" && cual != "esrgan") return "se convierte «span» o «esrgan»";
-    const auto lanzar = [this, cual]() {
-        const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
-        return correr(cual == "span" ? "Convertir SPAN" : "Convertir Real-ESRGAN", {},
-                      {q8(lab), QString::fromStdString(cual), "--libs", q8(libs()), "--salida",
-                       q8(carpetaModelos() / (cual == "span" ? "span-x2.onnx" : "real-esrgan-x4.onnx"))},
-                      [this](bool) { emit cambio(); });
-    };
-    if (!laboratorioListo()) {
-        despues_ = [lanzar]() { lanzar(); };
-        return prepararLaboratorio();
+    const Pesos* pesos = pesosDe(cual);
+    if (pesos == nullptr) return "se convierte «span» o «esrgan»";
+    const bool hayQuePreparar = !laboratorioListo();
+    if (hayQuePreparar) {
+        const std::string e = prepararLaboratorio();
+        if (!e.empty()) return e;
     }
-    return lanzar();
+    const fs::path salida = carpetaModelos() / (cual == "span" ? "span-x2.onnx" : "real-esrgan-x4.onnx");
+    const fs::path archivo = carpetaModelos() / pesos->archivo;
+    net::Descargas::Pedido p;
+    p.id = "superres:convertir:" + cual;
+    p.titulo = cual == "span" ? "SPAN x2 (superresolución)" : "Real-ESRGAN x4 (superresolución)";
+    p.version = std::string(pesos->sha256).substr(0, 12);
+    if (hayQuePreparar) p.despuesDe = {"superres:laboratorio"};
+    QPointer<SuperRes> yo(this);
+    const std::string url = pesos->url, sha = pesos->sha256;
+    return encolar(
+        std::move(p),
+        [url, archivo, sha](net::Descargas::Contexto& ctx) { return bajarVerificado(ctx, url, archivo, sha); },
+        [yo, cual, salida](std::function<void(bool)> alFin) -> std::string {
+            if (!yo) return "cancelada";
+            if (!yo->laboratorioListo()) return "no está el laboratorio (falló su descarga): probá de nuevo";
+            const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
+            return yo->correr(cual == "span" ? "Convertir SPAN" : "Convertir Real-ESRGAN", {},
+                              {q8(lab), QString::fromStdString(cual), "--libs", q8(yo->libs()), "--salida", q8(salida)},
+                              [yo, alFin](bool ok) {
+                                  if (yo) emit yo->cambio();
+                                  alFin(ok);
+                              });
+        });
 }
 
 std::string SuperRes::origen(const std::string& entrada, int segundos, std::function<void(QStringList)> listo) {
@@ -400,8 +554,7 @@ std::string SuperRes::entrenar(const std::string& entrada, double minutos, int s
         });
     };
     if (!laboratorioListo()) {
-        despues_ = [conOrigen]() { conOrigen(); };
-        return prepararLaboratorio();
+        return prepararLaboratorio([conOrigen]() { conOrigen(); });
     }
     return conOrigen();
 }
@@ -457,14 +610,22 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
         });
     };
     if (!laboratorioListo()) {
-        despues_ = [conOrigen]() { conOrigen(); };
-        return prepararLaboratorio();
+        return prepararLaboratorio([conOrigen]() { conOrigen(); });
     }
     return conOrigen();
 }
 
 void SuperRes::cancelar() {
-    despues_ = nullptr;
+    trasLaboratorio_.clear();
+    // Si lo que anda es una descarga de la cola, se cancela en la cola (corta el proceso).
+    if (!idCola_.empty()) {
+        net::Descargas::la().cancelar(QString::fromStdString(idCola_));
+        return;
+    }
+    cortarHijo();
+}
+
+void SuperRes::cortarHijo() {
     if (hijo_ && hijo_->corriendo()) {
         trabajo_["error"] = "cancelado";
         hijo_->terminar();
@@ -583,23 +744,45 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
             const int w = o.value("ancho", 0), h = o.value("alto", 0);
             if (w > 0 && h > 0) tamanos += (tamanos.empty() ? "" : ",") + std::to_string(w) + "x" + std::to_string(h);
         }
-    const auto lanzar = [this, receta, dir, archivoReceta, tamanos]() {
-        const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
-        return correr("Instalar «" + QString::fromStdString(receta.value("nombre", std::string())) + "»", {},
-                      {q8(lab), "instalar", "--receta", q8(archivoReceta), "--salida", q8(dir), "--libs", q8(libs()),
-                       "--tamanos", QString::fromStdString(tamanos)},
-                      [this, archivoReceta](bool) {
-                          std::error_code ec;
-                          fs::remove(archivoReceta, ec);
-                          emit cambio();
-                      });
-    };
-    // Una red necesita el laboratorio (PyTorch); un shader, no.
-    if (receta.value("tipo", "") == "red" && !laboratorioListo()) {
-        despues_ = [lanzar]() { lanzar(); };
-        return prepararLaboratorio();
+    const bool hayQuePreparar = receta.value("tipo", "") == "red" && !laboratorioListo();
+    if (hayQuePreparar) { // una red necesita el laboratorio (PyTorch); un shader, no
+        const std::string e = prepararLaboratorio();
+        if (!e.empty()) return e;
     }
-    return lanzar();
+    net::Descargas::Pedido p;
+    p.id = "superres:plugin:" + id;
+    p.titulo = receta.value("nombre", id) + " (superresolución)";
+    const json origen = receta.value("origen", json::object());
+    const std::string url = origen.value("url", std::string()), sha = origen.value("sha256", std::string());
+    p.version = sha.substr(0, 12);
+    if (hayQuePreparar) p.despuesDe = {"superres:laboratorio"};
+    QPointer<SuperRes> yo(this);
+    const bool esRed = receta.value("tipo", "") == "red";
+    // El archivo de la receta lo baja la cola (verificado, sigue si se corta) donde
+    // lo busca el laboratorio: la carpeta del plugin, con el nombre de la URL.
+    const fs::path archivo = dir / url.substr(url.find_last_of('/') + 1, url.find('?') == std::string::npos
+                                                                             ? std::string::npos
+                                                                             : url.find('?') - url.find_last_of('/') - 1);
+    return encolar(
+        std::move(p),
+        [url, sha, archivo](net::Descargas::Contexto& ctx) -> std::string {
+            if (url.empty() || sha.size() != 64) return {}; // lo resuelve el laboratorio (y falla si no hay hash)
+            return bajarVerificado(ctx, url, archivo, sha);
+        },
+        [yo, receta, dir, archivoReceta, tamanos, esRed](std::function<void(bool)> alFin) -> std::string {
+            if (!yo) return "cancelada";
+            if (esRed && !yo->laboratorioListo()) return "no está el laboratorio (falló su descarga): probá de nuevo";
+            const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
+            return yo->correr("Instalar «" + QString::fromStdString(receta.value("nombre", std::string())) + "»", {},
+                              {q8(lab), "instalar", "--receta", q8(archivoReceta), "--salida", q8(dir), "--libs",
+                               q8(yo->libs()), "--tamanos", QString::fromStdString(tamanos)},
+                              [yo, archivoReceta, alFin](bool ok) {
+                                  std::error_code ec;
+                                  fs::remove(archivoReceta, ec);
+                                  if (yo) emit yo->cambio();
+                                  alFin(ok);
+                              });
+        });
 }
 
 namespace {
@@ -791,7 +974,19 @@ std::string SuperRes::instalarRuntimeGpu(const std::string& tipoPedido, bool con
     QStringList args{q8(script), "--tipo", QString::fromStdString(tipo), "--salida",
                      q8(ba::platform::dataRoot() / "Herramientas" / "onnxruntime-gpu")};
     if (!conTensorRt) args << "--sin-tensorrt";
-    return correr("Bajar el ONNX Runtime de GPU (" + QString::fromStdString(tipo) + ")", {}, args, [](bool) {});
+    net::Descargas::Pedido p;
+    p.id = "superres:runtime-gpu:" + tipo;
+    p.titulo = "ONNX Runtime de GPU (" + tipo + ")";
+    p.version = conTensorRt ? "con TensorRT" : "";
+    QPointer<SuperRes> yo(this);
+    return encolar(std::move(p), {}, [yo, tipo, args](std::function<void(bool)> alFin) -> std::string {
+        if (!yo) return "cancelada";
+        return yo->correr("Bajar el ONNX Runtime de GPU (" + QString::fromStdString(tipo) + ")", {}, args,
+                          [yo, alFin](bool ok) {
+                              if (yo) emit yo->cambio();
+                              alFin(ok);
+                          });
+    });
 #endif
 }
 

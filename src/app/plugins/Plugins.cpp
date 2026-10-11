@@ -1,6 +1,10 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+
+#include "net/Descargas.hpp"
+
+#include <QPointer>
 #include "Piezas.hpp" // motor::resondearSinAviso
 #include "control/BusEventos.hpp"
 #include "plugins/Hijo.hpp"
@@ -679,17 +683,45 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
         args << q(d);
     auto it = procesos_.find(id);
     if (it != procesos_.end() && it->second->estado == "apagado") it->second->estado = "dependencias";
-    escribirRegistro(id, "[pip] bajando: " + QByteArray::fromStdString(firma).replace('\n', ' ') + "\n");
-    Hijo::correr(this, q(python()), args, entornoPython(), 15 * 60 * 1000,
-                 [this, listo, sello, firma, id](int codigo, QByteArray out, QByteArray err) {
-                     const std::string salida = (out + err).toStdString();
-                     escribirRegistro(id, QByteArray::fromStdString("[pip] " + salida));
-                     if (codigo != 0)
-                         return listo("pip no pudo bajar las dependencias",
-                                      salida.size() > 3000 ? salida.substr(salida.size() - 3000) : salida);
-                     escribirTexto(sello, firma);
-                     listo({}, salida.size() > 800 ? salida.substr(salida.size() - 800) : salida);
-                 });
+    // Por la cola única de descargas: se ve en «Descargas» y, si otro ya pidió las
+    // mismas (el plugin al arrancar y su prueba, por ejemplo), se espera a ésa.
+    esperandoDeps_[id].push_back(std::move(listo));
+    auto salida = std::make_shared<std::string>();
+    QPointer<Plugins> yo(this);
+    net::Descargas::Pedido p;
+    p.id = "plugin:" + id;
+    p.tipo = "plugin";
+    p.titulo = "Dependencias de «" + man.value("nombre", id) + "» (pip)";
+    p.version = std::to_string(std::hash<std::string>{}(firma) % 1000000);
+    p.trabajo = [yo, args, id, firma, salida](net::Descargas::Contexto& ctx) -> std::string {
+        ctx.avance(0, "pip: " + firma.substr(0, firma.find('\n')) + "…");
+        return ctx.enLaInterfaz([yo, args, id, firma, salida](std::function<void(const std::string&)> listo) {
+            if (!yo) return listo("cancelada");
+            yo->escribirRegistro(id, "[pip] bajando: " + QByteArray::fromStdString(firma).replace('\n', ' ') + "\n");
+            Hijo::correr(yo.data(), q(yo->python()), args, entornoPython(), 15 * 60 * 1000,
+                         [yo, id, salida, listo](int codigo, QByteArray out, QByteArray err) {
+                             *salida = (out + err).toStdString();
+                             if (yo) yo->escribirRegistro(id, QByteArray::fromStdString("[pip] " + *salida));
+                             listo(codigo == 0 ? std::string() : std::string("pip no pudo bajar las dependencias"));
+                         });
+        });
+    };
+    p.alTerminar = [yo, id, sello, firma, salida](bool ok, const std::string& error) {
+        if (!yo) return;
+        if (ok) escribirTexto(sello, firma);
+        const std::string& s = *salida;
+        const std::string cola = ok ? (s.size() > 800 ? s.substr(s.size() - 800) : s)
+                                    : (s.size() > 3000 ? s.substr(s.size() - 3000) : s);
+        auto esperan = std::move(yo->esperandoDeps_[id]);
+        yo->esperandoDeps_.erase(id);
+        for (auto& l : esperan) l(ok ? std::string() : error, cola);
+    };
+    const auto r = net::Descargas::la().pedir(std::move(p));
+    if (r == net::Descargas::Resultado::Invalida) {
+        auto esperan = std::move(esperandoDeps_[id]);
+        esperandoDeps_.erase(id);
+        for (auto& l : esperan) l("no se pudo pedir la descarga", {});
+    }
 }
 
 void Plugins::probar(const std::string& id, double segundos, const json& controles, bool ptz,

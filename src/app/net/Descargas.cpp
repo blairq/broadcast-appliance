@@ -129,8 +129,16 @@ bool Descargas::avanceDe(const std::string& id, double* fraccion, std::string* t
 std::shared_ptr<Descargas::Item> Descargas::tomar() {
     // El primero en cola, si hay un obrero libre (de a dos: cada pedido tiene su
     // carpeta aparte, así que dos del mismo tipo no se pisan).
+    // Lo que espera a otro (despuesDe) sigue en la cola hasta que ése termine.
+    const auto pendiente = [this](const std::string& id) {
+        return std::any_of(items_.begin(), items_.end(), [&](const std::shared_ptr<Item>& x) {
+            return x->pedido.id == id && (x->estado == Estado::EnCola || x->estado == Estado::Bajando);
+        });
+    };
     for (auto& i : items_)
-        if (i->estado == Estado::EnCola) return i;
+        if (i->estado == Estado::EnCola &&
+            std::none_of(i->pedido.despuesDe.begin(), i->pedido.despuesDe.end(), pendiente))
+            return i;
     return nullptr;
 }
 
@@ -242,6 +250,35 @@ std::string Descargas::Contexto::bajar(const std::string& url, const fs::path& d
     fs::rename(parte, destino, ec);
     if (ec) return "no se pudo dejar " + destino.string() + ": " + ec.message();
     return {};
+}
+
+std::string Descargas::Contexto::enLaInterfaz(
+    std::function<void(std::function<void(const std::string&)>)> arrancar, std::function<void()> cortar) {
+    struct Espera {
+        std::mutex m;
+        std::condition_variable c;
+        bool fin = false;
+        std::string error;
+    };
+    auto e = std::make_shared<Espera>();
+    auto listo = [e](const std::string& err) {
+        std::lock_guard<std::mutex> l(e->m);
+        if (e->fin) return;
+        e->fin = true;
+        e->error = err;
+        e->c.notify_all();
+    };
+    QMetaObject::invokeMethod(d_, [arrancar, listo]() { arrancar(listo); });
+    bool cortado = false;
+    std::unique_lock<std::mutex> l(e->m);
+    while (!e->fin) {
+        e->c.wait_for(l, std::chrono::milliseconds(200));
+        if (!e->fin && cancelado() && !cortado) {
+            cortado = true;
+            if (cortar) QMetaObject::invokeMethod(d_, cortar);
+        }
+    }
+    return e->error;
 }
 
 void Descargas::cancelar(const QString& id) {

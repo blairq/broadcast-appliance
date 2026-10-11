@@ -281,6 +281,8 @@ class Plugins : public QObject {
     json leerAprobados() const;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Proceso>> procesos_;
+    /// Los que esperan las dependencias de un plugin (la descarga está en la cola).
+    std::map<std::string, std::vector<std::function<void(std::string, std::string)>>> esperandoDeps_;
     std::map<int, Pendiente> pendientes_;
     int n_ = 0;
     std::deque<json> eventos_; ///< los últimos (de todos)

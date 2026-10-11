@@ -1626,7 +1626,7 @@ void McpService::registerVideoTools() {
                 if (!srp) return done(ToolResult::error("no disponible"));
                 const std::string e = srp->instalarRuntimeGpu(a.value("tipo", std::string()), a.value("tensorrt", true));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Bajando: superres_estado muestra el avance; al terminar, reiniciar."));
+                done(ToolResult().text("En la cola de descargas (descargas_estado muestra el avance); al terminar, reiniciar."));
             };
             core_.addTool(std::move(t));
         }
@@ -1644,7 +1644,7 @@ void McpService::registerVideoTools() {
                 if (!srp) return done(ToolResult::error("no disponible"));
                 const std::string e = srp->instalarPlugin(a.value("id", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Instalando: superres_estado muestra el avance."));
+                done(ToolResult().text("En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance."));
             };
             core_.addTool(std::move(t));
         }
@@ -1697,7 +1697,7 @@ void McpService::registerVideoTools() {
                 if (!srp) return done(ToolResult::error("no disponible"));
                 const std::string e = srp->convertir(a.value("cual", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Empezó (superres_estado muestra el avance)."));
+                done(ToolResult().text("En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance."));
             };
             core_.addTool(std::move(t));
         }
@@ -1723,7 +1723,7 @@ void McpService::registerVideoTools() {
                     if (srp->laboratorioListo()) return done(ToolResult().data(srp->laboratorio()));
                     const std::string e = srp->prepararLaboratorio();
                     if (!e.empty()) return done(ToolResult::error(e));
-                    return done(ToolResult().text("Bajando el laboratorio (superres_trabajo muestra el avance)."));
+                    return done(ToolResult().text("El laboratorio, en la cola de descargas (descargas_estado y superres_trabajo muestran el avance)."));
                 }
                 if (ac == "borrar") {
                     const std::string e = srp->borrarLaboratorio();

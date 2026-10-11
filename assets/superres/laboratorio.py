@@ -43,11 +43,13 @@ PESOS = {
     "span": {
         "url": "https://objectstorage.us-phoenix-1.oraclecloud.com/n/ax6ygfvpvzka/b/open-modeldb-files/o/2x-spanx2-ch48.pth",
         "archivo": "2x-spanx2-ch48.pth",
+        "sha256": "0b20caeea7af5507ec3bdc63ff5a141a28506279d2cfec909c417ecb308d3f93",
         "licencia": "Apache-2.0 (SPAN, Wan et al., github.com/hongyuanyu/SPAN)",
     },
     "esrgan": {
         "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth",
         "archivo": "realesr-general-x4v3.pth",
+        "sha256": "8dc7edb9ac80ccdc30c3a5dca6616509367f05fbc184ad95b731f05bece96292",
         "licencia": "BSD-3-Clause (Real-ESRGAN, xinntao)",
     },
 }
@@ -208,22 +210,17 @@ def exportar_nv12(modelo, canales: int, escala: int, salida: str) -> None:
 # --- Modelos de terceros ----------------------------------------------------------------
 
 def bajar(clave: str, carpeta: str) -> str:
+    """Los pesos, verificados por sha256. Normalmente ya los bajó la app (la cola de
+    descargas, con el mismo hash) y acá solo se verifican."""
     p = PESOS[clave]
-    ruta = os.path.join(carpeta, p["archivo"])
-    if not os.path.exists(ruta):
-        decir(ev="progreso", texto=f"Bajando {p['archivo']}…", pct=5)
-        req = urllib.request.Request(p["url"], headers={"User-Agent": "BroadcastAppliance"})
-        with urllib.request.urlopen(req, timeout=120) as r, open(ruta + ".parte", "wb") as f:
-            shutil.copyfileobj(r, f)
-        os.replace(ruta + ".parte", ruta)
-    return ruta
+    return bajar_receta({"url": p["url"], "sha256": p["sha256"]}, carpeta)
 
 
 def convertir(clave: str, salida: str, carpeta: str) -> None:
     import spandrel
 
     ruta = bajar(clave, carpeta)
-    sha = hashlib.sha256(open(ruta, "rb").read()).hexdigest()
+    sha = PESOS[clave]["sha256"]
     decir(ev="progreso", texto="Convirtiendo a ONNX…", pct=50)
     d = spandrel.ModelLoader().load_from_file(ruta)
     canales = d.input_channels

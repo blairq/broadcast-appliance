@@ -16,6 +16,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QTimer>
 
 #include <atomic>
 #include <chrono>
@@ -116,6 +117,54 @@ int main(int argc, char** argv) {
         d.cancelar("larga");
         check(esperar([&] { return termino; }, 5000) && !okFinal && estadoDe("larga") == "cancelado",
               "cancelar la que anda: termina como cancelada (alTerminar ok=false)");
+    }
+
+    // --- despuesDe y enLaInterfaz (lo de la superresolución y los plugins) ----------------
+    {
+        std::atomic<bool> primeroTermino{false}, segundoVioAlPrimero{false};
+        Descargas::Pedido a;
+        a.id = "lab";
+        a.tipo = "x";
+        a.trabajo = [&](Descargas::Contexto& ctx) -> std::string {
+            // Un «proceso» que vive en la interfaz y avisa con un timer.
+            return ctx.enLaInterfaz([&](std::function<void(const std::string&)> listo) {
+                QTimer::singleShot(300, [&, listo]() {
+                    primeroTermino = true;
+                    listo("");
+                });
+            });
+        };
+        Descargas::Pedido b;
+        b.id = "plugin-que-usa-lab";
+        b.tipo = "y";
+        b.despuesDe = {"lab"};
+        b.trabajo = [&](Descargas::Contexto&) -> std::string {
+            segundoVioAlPrimero = primeroTermino.load();
+            return "";
+        };
+        d.pedir(b); // primero en la cola, pero espera a «lab»
+        d.pedir(a);
+        check(esperar([&] { return estadoDe("plugin-que-usa-lab") == "listo"; }, 5000) && segundoVioAlPrimero,
+              "despuesDe: espera a que termine el otro");
+        check(estadoDe("lab") == "listo", "enLaInterfaz: termina cuando avisa la interfaz");
+
+        bool cortado = false;
+        Descargas::Pedido c;
+        c.id = "proceso-largo";
+        c.tipo = "x";
+        std::function<void(const std::string&)> guardado;
+        c.trabajo = [&](Descargas::Contexto& ctx) -> std::string {
+            return ctx.enLaInterfaz([&](std::function<void(const std::string&)> listo) { guardado = listo; },
+                                    [&]() {
+                                        cortado = true;
+                                        guardado("cancelada");
+                                    });
+        };
+        d.pedir(c);
+        esperar([&] { return static_cast<bool>(guardado); }, 3000);
+        d.cancelar("proceso-largo");
+        check(esperar([&] { return estadoDe("proceso-largo") == "cancelado"; }, 3000) && cortado,
+              "enLaInterfaz: cancelar llama a cortar en la interfaz");
     }
 
     // --- Seguir una descarga cortada ------------------------------------------------------

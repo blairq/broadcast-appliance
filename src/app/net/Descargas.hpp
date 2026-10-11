@@ -70,6 +70,13 @@ class Descargas : public QObject {
         std::string bajar(const std::string& url, const std::filesystem::path& destino, std::uint64_t base = 0,
                           std::uint64_t total = 0, const std::string& nombre = {});
         const std::atomic<bool>* banderaCancelar() const { return cancelado_.get(); }
+        /// Para lo que corre un proceso que vive en el hilo de la interfaz (pip, el
+        /// laboratorio de superresolución: plugins::Hijo). `arrancar` corre en la
+        /// interfaz y llama a `listo("" o el error)` cuando termina (desde la
+        /// interfaz o de donde sea); si se cancela, `cortar` (en la interfaz). Este
+        /// hilo de la cola espera; la interfaz no.
+        std::string enLaInterfaz(std::function<void(std::function<void(const std::string&)> listo)> arrancar,
+                                 std::function<void()> cortar = {});
 
        private:
         friend class Descargas;
@@ -83,6 +90,8 @@ class Descargas : public QObject {
         std::function<bool()> yaEsta;                        ///< (en el hilo de la interfaz) ¿ya está esa versión?
         std::function<std::string(Contexto&)> trabajo;       ///< en un hilo de la cola: "" o el error
         std::function<void(bool ok, const std::string& error)> alTerminar; ///< en el hilo de la interfaz
+        /// Ids que tienen que terminar antes (si están en la cola o bajándose).
+        std::vector<std::string> despuesDe;
     };
 
     enum class Resultado { Encolada, YaEnCola, Bajando, YaEsta, Invalida };

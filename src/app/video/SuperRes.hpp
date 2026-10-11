@@ -9,8 +9,9 @@
 // El LABORATORIO (assets/superres/laboratorio.py) corre con el Python del
 // programa; sus bibliotecas (PyTorch, spandrel, onnx: ~800 MB) se bajan UNA vez
 // a Datos/Herramientas/superres-libs. Los modelos van a Datos/Modelos/superres
-// (cada .onnx con su .json: qué es, de dónde, cuánto mejora). Un trabajo a la
-// vez; su avance va a `trabajo`.
+// (cada .onnx con su .json: qué es, de dónde, cuánto mejora). Un proceso a la
+// vez; su avance va a `trabajo`. Lo que BAJA algo (el laboratorio, los pesos, los
+// plugins, el runtime de GPU) va por la cola única de descargas (net/Descargas).
 #pragma once
 
 #include <QObject>
@@ -21,6 +22,8 @@
 #include <QVariantMap>
 
 #include <nlohmann/json.hpp>
+
+#include "net/Descargas.hpp"
 
 #include <filesystem>
 #include <functional>
@@ -60,7 +63,7 @@ class SuperRes : public QObject {
     QVariantMap trabajo() const { return trabajo_; }
     std::filesystem::path carpetaModelos() const;
 
-    /// Baja las bibliotecas del laboratorio. "" o el error (si ya hay un trabajo).
+    /// Pone en la cola de descargas las bibliotecas del laboratorio. "" o el error.
     std::string prepararLaboratorio();
     /// El laboratorio (las bibliotecas de Python: PyTorch, spandrel, onnx):
     /// {listo, directml, carpeta, mb, bibliotecas}.
@@ -188,7 +191,23 @@ class SuperRes : public QObject {
     std::unique_ptr<plugins::Hijo> hijo_;
     QByteArray pendiente_;
     std::function<void(bool)> fin_;
-    std::function<void()> despues_; ///< lo que sigue cuando el laboratorio quedó listo
+    std::vector<std::function<void()>> trasLaboratorio_; ///< lo que sigue cuando el laboratorio quedó listo
+    std::string prepararLaboratorio(std::function<void()> despues);
+
+    // Lo que BAJA algo (laboratorio, pesos, plugins, runtime de GPU) va por la cola
+    // de descargas: `bajar` en el hilo de la cola (archivos verificados) y después
+    // `lanzar` (el proceso de Python) en la interfaz, cuando el laboratorio no
+    // tiene otro proceso andando. "" o el error del pedido.
+    std::string encolar(net::Descargas::Pedido p, std::function<std::string(net::Descargas::Contexto&)> bajar,
+                        std::function<std::string(std::function<void(bool)> alFin)> lanzar);
+    void esperarYLanzar(std::function<std::string(std::function<void(bool)>)> lanzar,
+                        std::function<void(const std::string&)> listo, net::Descargas::Contexto* c,
+                        const std::string& id);
+    void cortarHijo();
+    net::Descargas::Contexto* ctxCola_ = nullptr; ///< el de la descarga que corre su proceso ahora
+    std::string idCola_;
+    std::function<void(const std::string&)> listoCola_;
+    std::vector<std::function<void(const std::string&)>> listosVivos_;
 };
 
 } // namespace ba::app::video
