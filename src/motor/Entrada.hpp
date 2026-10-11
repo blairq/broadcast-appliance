@@ -85,6 +85,10 @@ using AvisoElemento = std::function<void(const std::string& entrada, const std::
 /// Devuelve un número para dejar de escuchar.
 int escucharElementos(AvisoElemento aviso);
 void dejarDeEscuchar(int id);
+/// Cuánto espera la placa de una entrada sin uso antes de desarmarse (sus hilos
+/// y su trabajo). Desarmarla y rearmarla cuesta una negociación D3D12: con poco
+/// tiempo, cada cambio de escena la rearma. Configuración: «Placa de entradas sin uso».
+void ponerReposoPlaca(int segundos);
 
 class Reloj;
 
