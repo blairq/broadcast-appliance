@@ -91,7 +91,7 @@ nlohmann::json FotosConfig::foto(std::int64_t ahoraMs) {
             json j = json::parse(ss.str(), nullptr, false);
             // Un JSON roto (se estaba escribiendo) se guarda tal cual, como texto.
             const std::string contenido =
-                j.is_discarded() ? json{{"_texto", ss.str()}}.dump() : sinSecretos(j).dump(1, '\t');
+                j.is_discarded() ? json{{"_texto", ss.str()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
             v.mtime = mt;
             v.bytes = bytes;
             v.sha = ba::crypto::sha256Hex(contenido.data(), contenido.size());
@@ -140,7 +140,7 @@ nlohmann::json FotosConfig::comparar(const json& antes, const json& despues, std
             for (std::size_t i = 0; i < std::min(tope, p.size()); ++i) {
                 json op = p[i];
                 // Un valor enorme (una escena entera) no sirve para leer el cambio.
-                if (op.contains("value") && op["value"].dump().size() > 400) op["value"] = "…(grande)";
+                if (op.contains("value") && op["value"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).size() > 400) op["value"] = "…(grande)";
                 r.push_back(std::move(op));
             }
             c["cambios"] = r;
@@ -203,7 +203,7 @@ nlohmann::json FotosConfig::prepararRestauracion(const json& foto, const std::ve
         const fs::path destino = dir / "archivos" / fs::u8path(rel);
         fs::create_directories(destino.parent_path(), ec);
         std::ofstream o(destino, std::ios::binary);
-        o << contenido.dump(2);
+        o << contenido.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
         hechos.push_back(rel);
     }
     for (const std::string& pedido : archivos)
@@ -262,7 +262,7 @@ bool FotosConfig::guardar(const fs::path& archivo, const json& foto) {
     {
         std::ofstream o(tmp, std::ios::binary);
         if (!o) return false;
-        o << foto.dump(1, '\t');
+        o << foto.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, archivo, ec);
     return !ec;

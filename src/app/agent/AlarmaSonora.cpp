@@ -122,7 +122,7 @@ void AlarmaSonora::guardar() const {
     std::error_code ec;
     fs::create_directories(datos_ / "Config", ec);
     std::ofstream o(datos_ / "Config" / "alarmas.json");
-    o << json{{"volumen", volumen_}, {"dispositivo", dispositivo_.toStdString()}}.dump(1);
+    o << json{{"volumen", volumen_}, {"dispositivo", dispositivo_.toStdString()}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace ba::app::agent

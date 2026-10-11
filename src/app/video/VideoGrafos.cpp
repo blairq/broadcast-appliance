@@ -48,7 +48,7 @@ constexpr const char* kTipoVirtual = "ba_gst_fuente";
 constexpr const char* kTipoCompositor = "ba_video_compositor";
 
 QVariant aVariant(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toMap()
         .value("v");
@@ -471,7 +471,7 @@ std::string VideoGrafos::crearEntradaVirtual(const std::string& nombre, const st
     json ajustes = relojParaFuente();
     ajustes["pipeline"] = origen;
     ajustes["latencia"] = 0; // generada acá: no hay red que esperar
-    spec.settingsJson = ajustes.dump();
+    spec.settingsJson = ajustes.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const std::string sc = escena.empty() ? rt_.engine().currentScene() : escena;
     if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
     rt_.save();
@@ -807,7 +807,7 @@ std::string VideoGrafos::ajustarEn(GrafoVideo& g, const std::string& id, json p)
             json q2 = json::object();
             if (p.contains("esperar")) q2["esperar"] = p["esperar"];
             json pr = p.value("propiedades", json::object());
-            pr["parametros"] = actuales.dump();
+            pr["parametros"] = actuales.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             q2["propiedades"] = pr;
             p = q2;
         }
@@ -892,8 +892,8 @@ std::string VideoGrafos::ponerEnEscena(const std::string& id, const std::string&
     SourceSpec spec;
     spec.id = comp ? kTipoCompositor : kTipoSalida;
     spec.name = nombre;
-    spec.settingsJson = comp ? json{{"nodo", n->id}, {"config", grafo_.configCompositor(n->id).dump()}}.dump()
-                             : json{{"fuente", n->grupo}, {"productor", productorDe(nombre)}}.dump();
+    spec.settingsJson = comp ? json{{"nodo", n->id}, {"config", grafo_.configCompositor(n->id).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)
+                             : json{{"fuente", n->grupo}, {"productor", productorDe(nombre)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const std::string sc = escena.empty() ? rt_.engine().currentScene() : escena;
     if (!rt_.addSource(sc, spec)) return rt_.lastError().empty() ? "no se pudo agregar" : rt_.lastError();
     rt_.save();
@@ -934,7 +934,7 @@ void VideoGrafos::sincronizar() {
         const json x = erroresDe(e.toStdString());
         if (!x.empty()) errores[e.toStdString()] = x;
     }
-    const std::string vistos = errores.dump();
+    const std::string vistos = errores.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (vistos != erroresVistos_) {
         erroresVistos_ = vistos;
         cambiaron = true;
@@ -954,7 +954,7 @@ json VideoGrafos::estadoLegalizador() const {
         std::string estado = "falta";
         for (const auto& f : filtrosDeEntrada(e))
             if (f.value("elemento", std::string()) == "balegal")
-                estado = f.contains("error") ? f["error"].dump() : f.value("andando", false) ? "andando" : "falta";
+                estado = f.contains("error") ? f["error"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : f.value("andando", false) ? "andando" : "falta";
         out[e] = estado;
     }
     return out;
@@ -1005,7 +1005,7 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     {
         const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
         if (actual.is_object() && actual.value("desfase_video", 0L) != retardo)
-            rt_.updateSourceSettings(entrada, json{{"desfase_video", retardo}}.dump());
+            rt_.updateSourceSettings(entrada, json{{"desfase_video", retardo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     // La tarjeta Normalizar: ajustes de la entrada (sin ella, lo de fábrica).
     {
@@ -1021,21 +1021,21 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         }
         if (!cambia.empty()) {
             ba::diag::registro().linea(ba::diag::Nivel::Info, "video-grafo", 0,
-                                       "«" + entrada + "»: normalizar: " + cambia.dump());
-            rt_.updateSourceSettings(entrada, cambia.dump());
+                                       "«" + entrada + "»: normalizar: " + cambia.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
+            rt_.updateSourceSettings(entrada, cambia.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
     }
     filtros["video"] = video;
-    const std::string js = video.empty() ? std::string() : filtros.dump();
+    const std::string js = video.empty() ? std::string() : filtros.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const auto ya = filtrosAplicados_.find(entrada);
     if (ya == filtrosAplicados_.end() || ya->second != js) {
         const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
         const json previo = actual.is_object() ? actual.value("filtros", json()) : json();
-        const std::string previoJs = previo.is_string() ? previo.get<std::string>() : previo.is_null() ? "" : previo.dump();
+        const std::string previoJs = previo.is_string() ? previo.get<std::string>() : previo.is_null() ? "" : previo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (previoJs != js) {
             ba::diag::registro().linea(ba::diag::Nivel::Info, "video-grafo", 0,
                                        "«" + entrada + "»: filtros en la entrada: " + js);
-            rt_.updateSourceSettings(entrada, json{{"filtros", js}}.dump());
+            rt_.updateSourceSettings(entrada, json{{"filtros", js}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
         filtrosAplicados_[entrada] = js;
     }
@@ -1047,7 +1047,7 @@ void VideoGrafos::aplicar(const std::string& entrada) {
         const json actual = json::parse(rt_.engine().sourceSettingsJson(nombre), nullptr, false);
         const std::string prod = productorDe(nombre);
         if (!actual.is_object() || actual.value("productor", std::string()) != prod || actual.value("fuente", std::string()) != entrada)
-            rt_.updateSourceSettings(nombre, json{{"fuente", entrada}, {"productor", prod}}.dump());
+            rt_.updateSourceSettings(nombre, json{{"fuente", entrada}, {"productor", prod}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     // TRAER: lo que llega a la escena de esta entrada desde afuera (un compositor,
     // o la toma de otra entrada, que esa entrada publica con un basalida).
@@ -1328,7 +1328,7 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
                         : v.is_boolean() ? std::string(v.get<bool>() ? "true" : "false")
                         : v.is_number_integer() ? std::to_string(v.get<long long>())
                         : v.is_number() ? decimal(v.get<double>())
-                                        : v.dump();
+                                        : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         } else if (tipo == "superres") {
             f["elemento"] = "basuperres";
             json q = p;
@@ -1490,8 +1490,8 @@ void VideoGrafos::actualizarEstudio() {
         if (rt_.engine().sourceTypeId(nombre) != kTipoCompositor) continue;
         const json s = json::parse(rt_.engine().sourceSettingsJson(nombre), nullptr, false);
         if (!s.is_object()) continue;
-        const std::string config = grafo_.configCompositor(s.value("nodo", std::string())).dump();
-        if (config != s.value("config", std::string())) rt_.updateSourceSettings(nombre, json{{"config", config}}.dump());
+        const std::string config = grafo_.configCompositor(s.value("nodo", std::string())).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        if (config != s.value("config", std::string())) rt_.updateSourceSettings(nombre, json{{"config", config}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
 }
 
@@ -1524,7 +1524,7 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
     reloj_ = r;
     QSaveFile f(QString::fromStdString((archivo_.parent_path() / "video-reloj.json").string()));
     if (f.open(QIODevice::WriteOnly)) {
-        f.write(QByteArray::fromStdString(reloj_.dump(2)));
+        f.write(QByteArray::fromStdString(reloj_.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
         f.commit();
     }
     // Todo el estudio corre con UN reloj (el del motor): cambiarlo rearma el motor.
@@ -1537,7 +1537,7 @@ std::string VideoGrafos::configurarReloj(const json& cambios) {
             const json actual = json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
             if (!actual.is_object() || actual.value("uri", std::string()).empty() || actual.value("latencia_propia", false))
                 continue;
-            rt_.updateSourceSettings(n, json{{"latencia", reloj_.value("latencia_ms", 200)}}.dump());
+            rt_.updateSourceSettings(n, json{{"latencia", reloj_.value("latencia_ms", 200)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
     rt_.save();
     return {};
@@ -1641,7 +1641,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
         if (superres >= 0) d["superres"] = superres == 1;
         if (!sincronia.empty()) d["sincronia"] = sincronia;
         // En vivo Y en la configuración guardada (si no, se perdía al reiniciar).
-        if (!rt_.updateSourceSettings(nombre, d.dump())) return rt_.lastError();
+        if (!rt_.updateSourceSettings(nombre, d.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return rt_.lastError();
         rt_.save();
         return {};
     }
@@ -1662,7 +1662,7 @@ std::string VideoGrafos::crearEntradaRed(const std::string& nombre, const std::s
     SourceSpec spec;
     spec.id = kTipoVirtual;
     spec.name = nombre;
-    spec.settingsJson = ajustes.dump();
+    spec.settingsJson = ajustes.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
     rt_.save();
     sincronizar();
@@ -1717,7 +1717,7 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
         ajustes["latencia_propia"] = true;
     }
     if (rt_.engine().sourceTypeId(nombre) == kTipoVirtual) {
-        if (!rt_.updateSourceSettings(nombre, ajustes.dump())) return rt_.lastError();
+        if (!rt_.updateSourceSettings(nombre, ajustes.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return rt_.lastError();
         rt_.save();
         return {};
     }
@@ -1735,7 +1735,7 @@ std::string VideoGrafos::crearEntradaPipeline(const std::string& nombre, const s
     SourceSpec spec;
     spec.id = kTipoVirtual;
     spec.name = nombre;
-    spec.settingsJson = todo.dump();
+    spec.settingsJson = todo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!rt_.addSource(escena, spec)) return rt_.lastError().empty() ? "no se pudo crear" : rt_.lastError();
     rt_.save();
     sincronizar();
@@ -1807,7 +1807,7 @@ std::string VideoGrafos::superresMotor(const std::string& entrada, const std::st
     if (!rt_.updateSourceSettings(entrada, json{{"superres", false},
                                                 {"superres_motor", motor},
                                                 {"superres_modelo", motor == "onnx" ? modelo : std::string()}}
-                                               .dump()))
+                                               .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         return rt_.lastError();
     rt_.save();
     return {};
@@ -2092,7 +2092,7 @@ std::string VideoGrafos::configurarProgramador(const json& cambios) {
     if (programador_.value("sin_turno", std::string("barato")) != "reposo") programador_["sin_turno"] = "barato";
     QSaveFile f(QString::fromStdString((archivo_.parent_path() / "superres-programador.json").string()));
     if (f.open(QIODevice::WriteOnly)) {
-        f.write(QByteArray::fromStdString(programador_.dump(1)));
+        f.write(QByteArray::fromStdString(programador_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
         f.commit();
     }
     modoSr_.clear(); // que vuelva a mandar todo con lo nuevo
@@ -2120,11 +2120,11 @@ std::string VideoGrafos::filtrosAudio(const std::string& entrada, const json& fi
         json x = {{"id", f.value("id", "a" + std::to_string(i++))}, {"elemento", el}};
         json pr = json::object();
         for (const auto obj_ = f.value("propiedades", json::object()); const auto& [k, v] : obj_.items())
-            pr[k] = v.is_string() ? v.get<std::string>() : v.dump();
+            pr[k] = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         x["propiedades"] = pr;
         limpios.push_back(x);
     }
-    if (!rt_.updateSourceSettings(entrada, json{{"filtros_audio", limpios.empty() ? std::string() : limpios.dump()}}.dump()))
+    if (!rt_.updateSourceSettings(entrada, json{{"filtros_audio", limpios.empty() ? std::string() : limpios.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         return rt_.lastError();
     rt_.save();
     return {};
@@ -2350,7 +2350,7 @@ std::string VideoGrafos::ajustarDesfase(const std::string& entrada, double ms, b
         const long long antes = actual.is_object() ? actual.value("desfase", 0LL) : 0LL;
         const long long ahora = relativo ? antes + std::llround(ms) : std::llround(ms);
         // En vivo Y en la configuración guardada (si no, se perdía al reiniciar).
-        if (!rt_.updateSourceSettings(entrada, json{{"desfase", ahora}}.dump())) return rt_.lastError();
+        if (!rt_.updateSourceSettings(entrada, json{{"desfase", ahora}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return rt_.lastError();
         rt_.save();
         if (hecho != nullptr)
             *hecho = {{"entrada", entrada}, {"como", "desfase de la fuente"}, {"antes_ms", antes}, {"ahora_ms", ahora}};
@@ -2746,7 +2746,7 @@ void VideoGrafos::guardar() const {
     std::filesystem::create_directories(archivo_.parent_path(), ec);
     QSaveFile f(QString::fromStdString(archivo_.string()));
     if (!f.open(QIODevice::WriteOnly)) return;
-    f.write(QByteArray::fromStdString(grafo_.aJson().dump(2)));
+    f.write(QByteArray::fromStdString(grafo_.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     f.commit();
 }
 

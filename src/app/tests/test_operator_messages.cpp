@@ -127,11 +127,11 @@ int main(int argc, char** argv) {
     CHECK(gotPlatform == "twitch" && gotValues.value("clientSecret") == "SECRETO-XYZ",
           "el sink recibe los valores");
     CHECK(m.get(c1).value("status", "") == "saved", "queda como guardado");
-    CHECK(m.get(c1).dump().find("SECRETO") == std::string::npos &&
-              m.get(c1).dump().find("abc123") == std::string::npos,
+    CHECK(m.get(c1).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find("SECRETO") == std::string::npos &&
+              m.get(c1).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find("abc123") == std::string::npos,
           "el item NO guarda los valores");
     CHECK(late.size() == 5 && late[4].value("kind", "") == "credential" &&
-              late[4].dump().find("SECRETO") == std::string::npos,
+              late[4].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find("SECRETO") == std::string::npos,
           "el asistente se entera de que se guardo, sin los datos");
     CHECK(m.submitCredential(c1, vals).contains("ya no"), "no se guarda dos veces");
     const int q3 = m.post(json{{"kind", "question"}, {"text", "?"}});

@@ -89,7 +89,7 @@ void VozPrompter::guardar() const {
     QDir().mkpath(QFileInfo(ruta).absolutePath());
     QFile f(ruta);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QByteArray::fromStdString(nlohmann::json{{"activa", activa_}}.dump(1)));
+        f.write(QByteArray::fromStdString(nlohmann::json{{"activa", activa_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
 void VozPrompter::setEstado(const QString& e) {
@@ -257,7 +257,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
                       r["margen_ms"] = margenMs; // negativo: la síntesis llegó tarde
                       QFile f(log);
                       if (f.open(QIODevice::Append | QIODevice::WriteOnly))
-                          f.write(QByteArray::fromStdString(r.dump() + "\n"));
+                          f.write(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n"));
                   });
 #else
     Q_UNUSED(desde);

@@ -98,7 +98,7 @@ int main() {
             }
         }
         const auto rep = Analyzer::report(a.snapshot());
-        std::printf("%s\n", rep.dump().c_str());
+        std::printf("%s\n", rep.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(near(rep.value("pisoDeRuidoDbfs", 0.0), -60, 1.5), "piso de ruido -60 dBFS");
         CHECK(near(rep.value("nivelActivoDbfs", 0.0), -18, 1.5), "nivel activo -18 dBFS");
     }

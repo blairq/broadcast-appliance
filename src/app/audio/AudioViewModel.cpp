@@ -25,7 +25,7 @@ using json = nlohmann::json;
 namespace {
 
 QVariant toVariant(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .object()
         .value("v")
         .toVariant();

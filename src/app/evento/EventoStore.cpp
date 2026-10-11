@@ -32,7 +32,7 @@ bool escribirJson(const fs::path& archivo, const json& j, std::string* err) {
             if (err != nullptr) *err = "no se pudo escribir " + archivo.filename().string();
             return false;
         }
-        out << j.dump(2) << "\n";
+        out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         if (!out.good()) {
             if (err != nullptr) *err = "no se pudo escribir " + archivo.filename().string() + " entero";
             return false;
@@ -422,7 +422,7 @@ bool EventoStore::guardar(const std::string& carpeta, const Evento& e, std::stri
             ponerErr(err, "no se pudo escribir en la carpeta del evento");
             return false;
         }
-        out << e.aJson().dump(2) << "\n";
+        out << e.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         if (!out.good()) {
             ponerErr(err, "no se pudo escribir el guion entero");
             return false;

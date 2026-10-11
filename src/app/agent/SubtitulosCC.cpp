@@ -41,7 +41,7 @@ void SubtitulosCC::guardar() const {
     std::ofstream o(datos_ / "Config" / "cc.json");
     o << json{{"activo", activo_}, {"flujo", flujo_.toStdString()}, {"metodo", metodo_.toStdString()},
               {"url", url_.toStdString()}}
-             .dump(1);
+             .dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 QVariantMap SubtitulosCC::estado() const {

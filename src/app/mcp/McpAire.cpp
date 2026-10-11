@@ -148,7 +148,7 @@ std::string McpAire::ajustar(const std::string& h, const std::string& c) {
         for (const auto& x : agregadas_) j["aire"].push_back(x);
     }
     std::ofstream o(archivo_);
-    o << j.dump(1);
+    o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     return o ? "" : "no se pudo guardar " + archivo_.string();
 }
 

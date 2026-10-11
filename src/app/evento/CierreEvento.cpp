@@ -99,7 +99,7 @@ int CierreEvento::copiarAsamblea(const fs::path& config, const fs::path& evento)
         if (j.is_discarded()) continue;
         fs::create_directories(evento / "asamblea", ec);
         std::ofstream o(evento / "asamblea" / a, std::ios::binary);
-        o << FotosConfig::sinSecretos(j).dump(1, '\t');
+        o << FotosConfig::sinSecretos(j).dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
         ++n;
     }
     return n;
@@ -193,7 +193,7 @@ nlohmann::json CierreEvento::sellar(const fs::path& evento, std::int64_t ahoraMs
     const fs::path tmp = evento / "sellos.json.tmp";
     {
         std::ofstream o(tmp, std::ios::binary);
-        o << s.dump(1, '\t');
+        o << s.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, evento / "sellos.json", ec);
     return s;

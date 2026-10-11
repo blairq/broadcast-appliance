@@ -202,7 +202,7 @@ int main() {
         }
         {
             const json st = g.estado();
-            std::printf("estado: %s\n", st.dump().c_str());
+            std::printf("estado: %s\n", st.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
             CHECK(st.value("bytes", 0) > 10000, "cuenta lo que va al archivo");
             CHECK(st.value("atraso_s", 99.0) < 1.0, "con el disco bien, el colchón casi vacío");
             CHECK(!st.value("pausada", true), "no está en pausa");
@@ -241,7 +241,7 @@ int main() {
         g.simularDiscoTrabado(4000);
         andar(12);
         const json durante = g.estado();
-        std::printf("disco trabado: %s\n", durante.dump().c_str());
+        std::printf("disco trabado: %s\n", durante.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(durante.value("atraso_s", 0.0) > 1.5, "con el disco trabado, lo grabado espera en el colchón");
         andar(12);
         const json despues = g.estado();
@@ -346,7 +346,7 @@ int main() {
             t.tic();
         }
         const json st = t.estado();
-        std::printf("SRT: recibidos %d cuadros y %d bloques de audio; %s\n", nv.load(), na.load(), st.dump().c_str());
+        std::printf("SRT: recibidos %d cuadros y %d bloques de audio; %s\n", nv.load(), na.load(), st.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(nv > 30, "llega el video");
         CHECK(na > 30, "llega el audio");
         CHECK(st.value("conectada", false), "conectada");
@@ -369,7 +369,7 @@ int main() {
             t.tic();
         }
         const json st = t.estado();
-        std::printf("RTMP sin servidor: %s\n", st.dump().c_str());
+        std::printf("RTMP sin servidor: %s\n", st.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(st.value("reconectando", false), "queda reconectando");
         CHECK(st.value("intentos", 0) >= 1, "reintenta");
         CHECK(st.value("url", "").find("clave-secreta") == std::string::npos, "no muestra la clave");

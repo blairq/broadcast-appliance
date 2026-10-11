@@ -476,7 +476,7 @@ void ConferenceViewModel::pruebaTecnica(const QString& id) {
 void ConferenceViewModel::refrescarProxy() {
     client_->get("/api/v1/proxy", [this](bool ok, const QJsonObject& r) {
         QVariantMap m = ok ? r.toVariantMap() : QVariantMap{{"activo", false}};
-        m["configuracion"] = QJsonDocument::fromJson(QByteArray::fromStdString(rt_.gateway().proxy.dump())).object().toVariantMap();
+        m["configuracion"] = QJsonDocument::fromJson(QByteArray::fromStdString(rt_.gateway().proxy.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
         proxy_ = m;
         emit proxyChanged();
     });

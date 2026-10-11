@@ -1234,7 +1234,7 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
         const Nodo* d = nodo(c.desde);
         if (d == nullptr) continue;
         json p = d->tipo == "compositor"
-                     ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump()}}
+                     ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}
                      : json{{"toma", d->id}, {"fuente", d->grupo}};
         ns.push_back({{"id", "traer"}, {"tipo", "traer"}, {"params", p}});
         cs.push_back({{"desde", "traer"}, {"hacia", "out"}});

@@ -36,7 +36,7 @@ nlohmann::json tarjetaDePlugin(nlohmann::json tj) {
     nlohmann::json props{{"plugin", tj.value("plugin", std::string())},
                          {"tarjeta", tj.value("tarjeta", std::string())}};
     const nlohmann::json par = tj.value("parametros", nlohmann::json::object());
-    if (par.is_object() && !par.empty()) props["parametros"] = par.dump();
+    if (par.is_object() && !par.empty()) props["parametros"] = par.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     tj["tipo"] = "gst";
     tj["elemento"] = "baplugin";
     tj["propiedades"] = props;

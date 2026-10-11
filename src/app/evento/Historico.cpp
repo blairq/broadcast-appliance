@@ -267,7 +267,7 @@ nlohmann::json Historico::traerDelDia(const fs::path& evento, const std::vector<
         const fs::path tmp = evento / "grabaciones.json.tmp";
         {
             std::ofstream o(tmp, std::ios::binary);
-            o << indice.dump(1, '\t');
+            o << indice.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
         }
         fs::rename(tmp, evento / "grabaciones.json", ec);
     }
@@ -305,7 +305,7 @@ nlohmann::json Historico::limpiarGrabaciones(const fs::path& evento, std::int64_
         const fs::path tmp = evento / "grabaciones.json.tmp";
         {
             std::ofstream o(tmp, std::ios::binary);
-            o << indice.dump(1, '\t');
+            o << indice.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
         }
         fs::rename(tmp, evento / "grabaciones.json", ec);
     }

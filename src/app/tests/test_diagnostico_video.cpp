@@ -44,7 +44,7 @@ int main() {
                         {"llegaron_tarde", 20},
                         {"latencia_ms", 100}};
     const json d = diagnosticar(mal);
-    std::printf("%s\n", d.dump(1).c_str());
+    std::printf("%s\n", d.dump(1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(hay(d, "entrelazado", "error") && hay(d, "cuadros", "aviso") && hay(d, "color", "aviso") &&
               hay(d, "reloj", "error") && hay(d, "colchón", "aviso"),
           "red con problemas: entrelazado, fps, color, reloj y colchón");

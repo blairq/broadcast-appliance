@@ -116,7 +116,7 @@ void SatelliteServidor::guardar() const {
     json ips = json::array();
     for (const auto& ip : permitidas_) ips.push_back(ip);
     std::ofstream o(archivo_);
-    o << json{{"activo", activo_}, {"puerto", puerto_}, {"ip_permitidas", ips}}.dump(1);
+    o << json{{"activo", activo_}, {"puerto", puerto_}, {"ip_permitidas", ips}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 QStringList SatelliteServidor::ipPermitidas() const {
@@ -509,7 +509,7 @@ void SatelliteServidor::dibujar(Cliente& c, Aparato& a, bool forzar) {
         }
         const bool esperando = !cel.is_null() && conf == std::to_string(cel.value("x", 0)) + "," + std::to_string(cel.value("y", 0));
         const bool titila = esperando || (!cel.is_null() && (cel.value("titilar", false) || cel.value("borde_titilar", false)));
-        const QString firma = QString::fromStdString(cel.dump()) + (esperando ? "E" : "") + (titila && !fase_ ? "0" : "1");
+        const QString firma = QString::fromStdString(cel.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + (esperando ? "E" : "") + (titila && !fase_ ? "0" : "1");
         if (!forzar && a.enviado.value(k) == firma) continue;
         a.enviado[k] = firma;
         std::string l = "KEY-STATE DEVICEID=" + a.id + " KEY=" + std::to_string(k) + " TYPE=BUTTON";

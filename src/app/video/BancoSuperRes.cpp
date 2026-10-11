@@ -29,7 +29,7 @@ namespace fs = std::filesystem;
 namespace {
 
 QVariantMap aQv(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 nlohmann::json deQv(const QVariantMap& m) {
@@ -117,7 +117,7 @@ nlohmann::json BancoSuperRes::candidatos() const {
             if (!r.value("memoria", std::string()).empty()) continue;
             json props = json::object();
             const json pr = r.value("propiedades", json::object()); // (no .items() de un temporal)
-            for (const auto& [k, v] : pr.items()) props[k] = v.is_string() ? v.get<std::string>() : v.dump();
+            for (const auto& [k, v] : pr.items()) props[k] = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             agregar(id, nombre, "propio", props, false, r.value("elemento", std::string()));
             continue;
         }
@@ -243,7 +243,7 @@ void BancoSuperRes::trabajar(json cands, std::vector<std::pair<int, int>> tamano
             cs.elemento = c.value("elemento", std::string("basuperres"));
             cs.sincronico = c.value("acelerador", std::string()) == "gl"; // FSR y los shaders
             const json pr = c.value("propiedades", json::object()); // (no .items() de un temporal)
-            for (const auto& [k, v] : pr.items()) cs.propiedades.emplace_back(k, v.is_string() ? v.get<std::string>() : v.dump());
+            for (const auto& [k, v] : pr.items()) cs.propiedades.emplace_back(k, v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             // El procesador puede tardar en dar el primer cuadro: se le da menos espera.
             const double espera = c.value("acelerador", std::string()) == "cpu" ? 30.0 : 90.0;
             const motor::MedidaSr m = motor::medirSuperRes(cs, w, h, fpsN, fpsD, segundos, espera, &cancelar_);
@@ -317,7 +317,7 @@ void BancoSuperRes::trabajar(json cands, std::vector<std::pair<int, int>> tamano
         fs::create_directories(archivo_.parent_path(), ec);
         {
             std::ofstream o(archivo_.string() + ".tmp");
-            o << res.dump(1, '\t');
+            o << res.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
         }
         fs::rename(archivo_.string() + ".tmp", archivo_, ec);
     }

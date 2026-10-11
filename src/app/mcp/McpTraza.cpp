@@ -171,7 +171,7 @@ std::string Traza::resumir(const json& j, std::size_t tope) {
     // del servidor: si algo acá lanza, una llamada buena contesta un error que
     // no tiene nada que ver. Ante la duda, se registra peor pero se registra.
     try {
-        return recortar(podar(j).dump(), tope);
+        return recortar(podar(j).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), tope);
     } catch (const std::exception& e) {
         return std::string("(no se pudo resumir: ") + e.what() + ")";
     }

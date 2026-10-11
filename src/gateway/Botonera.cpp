@@ -186,12 +186,12 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
     }
     if (partes.size() != 7 || partes[1] != "pagina" || partes[3] != "celda") return false;
     if (method != "POST" && method != "PUT") {
-        http::sendResponse(fd, 405, "application/json", json{{"error", "usá POST"}}.dump(), "Allow: POST\r\n");
+        http::sendResponse(fd, 405, "application/json", json{{"error", "usá POST"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), "Allow: POST\r\n");
         return true;
     }
     const std::string accion = partes[6];
     if (accion != "presionar" && accion != "soltar" && accion != "tocar") {
-        http::sendResponse(fd, 400, "application/json", json{{"error", "acción: presionar, soltar o tocar"}}.dump());
+        http::sendResponse(fd, 400, "application/json", json{{"error", "acción: presionar, soltar o tocar"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     int x = -1, y = -1;
@@ -201,7 +201,7 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
     } catch (...) {
     }
     if (x < 0 || y < 0 || x > 63 || y > 63) {
-        http::sendResponse(fd, 400, "application/json", json{{"error", "celda inválida"}}.dump());
+        http::sendResponse(fd, 400, "application/json", json{{"error", "celda inválida"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     std::string auth = http::getHeader(headers, "Authorization");
@@ -211,11 +211,11 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
     if (dispositivo.empty()) {
         // Un token mal puesto cuenta como intento (5 cada 10 min por IP).
         if (!emparejarPermitido(clientIp)) {
-            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump());
+            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
         log_.warn("botonera: API remota sin token válido desde " + ipTexto(clientIp), -1);
-        http::sendResponse(fd, 401, "application/json", json{{"error", "token inválido o API remota apagada"}}.dump(),
+        http::sendResponse(fd, 401, "application/json", json{{"error", "token inválido o API remota apagada"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                            "WWW-Authenticate: Bearer\r\n");
         return true;
     }
@@ -227,7 +227,7 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
             {"y", y},
             {"accion", accion},
             {"ip", ipTexto(clientIp)}});
-    http::sendResponse(fd, 202, "application/json", json{{"ok", true}}.dump());
+    http::sendResponse(fd, 202, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     return true;
 }
 
@@ -245,7 +245,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     }
     if (remota) {
         if (!apiRemota(fd, method, path, headers, clientIp))
-            http::sendResponse(fd, 404, "application/json", json{{"error", "ruta desconocida"}}.dump());
+            http::sendResponse(fd, 404, "application/json", json{{"error", "ruta desconocida"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (pagina) {
@@ -258,13 +258,13 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
     }
     if (api && method == "POST") {
         if (!emparejarPermitido(clientIp)) {
-            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump());
+            http::sendResponse(fd, 429, "application/json", json{{"error", "demasiados intentos; esperá 10 minutos"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
         const json r = json::parse(body, nullptr, false);
         const std::string codigo = r.is_object() ? r.value("codigo", std::string()) : std::string();
         if (codigo.size() != 32) {
-            http::sendResponse(fd, 400, "application/json", json{{"error", "código inválido"}}.dump());
+            http::sendResponse(fd, 400, "application/json", json{{"error", "código inválido"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
         std::string sol;
@@ -283,7 +283,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
         std::string nombre = r.value("nombre", std::string("Tablet"));
         if (nombre.size() > 60) nombre.resize(60);
         alApp_({{"tipo", "solicitud"}, {"solicitud", sol}, {"codigo", codigo}, {"nombre", nombre}, {"ip", ipTexto(clientIp)}});
-        http::sendResponse(fd, 200, "application/json", json{{"solicitud", sol}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"solicitud", sol}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (api && method == "GET") {
@@ -305,7 +305,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
                 }
             }
         }
-        http::sendResponse(fd, 200, "application/json", out.dump(), "Cache-Control: no-store\r\n");
+        http::sendResponse(fd, 200, "application/json", out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), "Cache-Control: no-store\r\n");
         return true;
     }
     if (ws) {
@@ -318,7 +318,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
 
 void BotoneraBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
     std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump());
+    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp) {
@@ -427,11 +427,11 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
         std::lock_guard<std::mutex> l(mu_);
         for (const auto& c : conns_) cs.push_back({{"dispositivo", c->dispositivo}, {"ip", c->ip}});
         http::sendResponse(fd, 200, "application/json",
-                           json{{"conexiones", cs}, {"credenciales", credenciales_.size()}, {"solicitudes", solicitudes_.size()}}.dump());
+                           json{{"conexiones", cs}, {"credenciales", credenciales_.size()}, {"solicitudes", solicitudes_.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (method != "POST" || !r.is_object()) {
-        http::sendResponse(fd, 400, "application/json", json{{"error", "bad_request"}}.dump());
+        http::sendResponse(fd, 400, "application/json", json{{"error", "bad_request"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "credenciales") {
@@ -452,21 +452,21 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
             std::lock_guard<std::mutex> l(c->sendLock);
             if (c->fd >= 0) http::shutdownFd(c->fd);
         }
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "resolver") {
         std::lock_guard<std::mutex> l(mu_);
         auto it = solicitudes_.find(r.value("solicitud", std::string()));
         if (it == solicitudes_.end()) {
-            http::sendResponse(fd, 404, "application/json", json{{"error", "not_found"}}.dump());
+            http::sendResponse(fd, 404, "application/json", json{{"error", "not_found"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return true;
         }
         it->second.estado = r.value("estado", std::string("rechazada"));
         it->second.dispositivo = r.value("dispositivo", std::string());
         it->second.token = r.value("token", std::string());
         it->second.error = r.value("error", std::string());
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "enviar") {
@@ -478,10 +478,10 @@ bool BotoneraBorde::admin(long long fd, const std::string& method, const std::st
                 if (c->dispositivo == dev) a.push_back(c);
         }
         for (const auto& c : a) enviar(c, r.value("msg", json::object()));
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"entregado", a.size()}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"entregado", a.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
-    http::sendResponse(fd, 404, "application/json", json{{"error", "not_found"}}.dump());
+    http::sendResponse(fd, 404, "application/json", json{{"error", "not_found"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     return true;
 }
 

@@ -282,7 +282,7 @@ void AgentViewModel::saveConfig() const {
     j["autoStart"] = autoStart_;
     j["fontSize"] = fontSize_;
     std::ofstream out(path, std::ios::trunc);
-    out << j.dump(2);
+    out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 QVariantList AgentViewModel::providers() const {
@@ -370,7 +370,7 @@ QVariantMap AgentViewModel::modeloPropio() const {
     // Indentado: esto se edita a mano en una caja de texto, y un JSON en una
     // sola línea no se puede leer ni corregir.
     m["extra"] =
-        QString::fromStdString(c != nullptr && c->extra.is_object() ? c->extra.dump(2) : std::string("{}"));
+        QString::fromStdString(c != nullptr && c->extra.is_object() ? c->extra.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) : std::string("{}"));
     m["instrucciones"] = QString::fromStdString(c != nullptr ? c->instrucciones : std::string());
     m["piensa"] = c != nullptr ? c->piensa : true;
     return m;
@@ -626,7 +626,7 @@ void AgentViewModel::installLatest() {
     }
     elegidas[runtime.toStdString()] = it->second;
     QDir().mkpath(QFileInfo(chosenFile()).absolutePath());
-    if (!writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2)))) {
+    if (!writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))) {
         setError("No se pudo guardar " + chosenFile());
         return;
     }
@@ -644,7 +644,7 @@ void AgentViewModel::revertToPinned() {
     f.close();
     if (!elegidas.is_object() || !elegidas.contains(runtime.toStdString())) return;
     elegidas.erase(runtime.toStdString());
-    writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2)));
+    writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     emit configChanged();
     emit latestChanged();
     install(); // la fijada: se baja y, cuando esta, reemplaza a la elegida
@@ -884,7 +884,7 @@ void AgentViewModel::install() {
             const json ok{{"version", QFileInfo(dir).fileName().toStdString()},
                           {"exe", exeName.toStdString()},
                           {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
-            writeText(staging + "/.ok", QByteArray::fromStdString(ok.dump(2)));
+            writeText(staging + "/.ok", QByteArray::fromStdString(ok.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
             // Recien ahora se reemplaza lo que hubiera: hasta aca la instalacion
             // anterior siguio entera.
             QDir(dir).removeRecursively();
@@ -938,7 +938,7 @@ QString AgentViewModel::controlPath() const {
 
 QVariantMap AgentViewModel::controlWindows() const {
     const ControlWindows c = ControlWindows::leer(ba::platform::dataRoot());
-    QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(c.comoJson().dump())).object().toVariantMap();
+    QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(c.comoJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
     QVariantList caps;
     for (const auto& [k, etiqueta] : ControlWindows::capacidades())
         caps << QVariantMap{{"clave", QString::fromStdString(k)}, {"etiqueta", QString::fromStdString(etiqueta)}};
@@ -1034,7 +1034,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
             c["type"] = "stdio";
             servidores["control"] = c;
         }
-        writeText(ws + "/mcp.json", QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2)));
+        writeText(ws + "/mcp.json", QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     } else if (runtime == "opencode") {
         json cmd = json::array({bridge});
         for (const auto& a : args)
@@ -1123,7 +1123,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
                     std::find(todos.begin(), todos.end(), pedido) != todos.end() ? pedido : todos.front();
             }
         }
-        writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2)));
+        writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     } else if (runtime == "gemini") {
         // Ajustes del usuario de Gemini (en su HOME portable), sin pisar lo que ya tenga.
         const QString home = root + "/Credenciales/agentes/gemini";
@@ -1147,7 +1147,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
             prov != nullptr && QString(prov->auth) == "api" ? "gemini-api-key" : "oauth-personal";
         s["tools"]["exclude"] = json::array({"run_shell_command", "write_file", "replace"});
         s["general"]["disableAutoUpdate"] = true;
-        writeText(path, QByteArray::fromStdString(s.dump(2)));
+        writeText(path, QByteArray::fromStdString(s.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     }
     return ws;
 }
@@ -1391,11 +1391,11 @@ void AgentViewModel::send(const QString& text) {
 // --- Alertas ------------------------------------------------------------------------------
 
 QVariantList AgentViewModel::alerts() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(alerts_.list().dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(alerts_.list().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 QVariantList AgentViewModel::events() const {
-    QVariantList out = QJsonDocument::fromJson(QByteArray::fromStdString(alerts_.events(0, 30).dump()))
+    QVariantList out = QJsonDocument::fromJson(QByteArray::fromStdString(alerts_.events(0, 30).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
                            .array()
                            .toVariantList();
     std::reverse(out.begin(), out.end());
@@ -1418,7 +1418,7 @@ void AgentViewModel::deleteAlert(const QString& id) {
 }
 
 QVariantList AgentViewModel::alertTypesUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", AlertEngine::types()}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", AlertEngine::types()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .object()
         .value("v")
         .toArray()

@@ -124,7 +124,7 @@ ToolResult& ToolResult::image(const std::string& base64, const std::string& mime
 }
 ToolResult& ToolResult::data(const json& d) {
     structured = d;
-    content.push_back(json{{"type", "text"}, {"text", d.dump(2)}});
+    content.push_back(json{{"type", "text"}, {"text", d.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)}});
     return *this;
 }
 ToolResult ToolResult::error(const std::string& message) {
@@ -422,12 +422,12 @@ std::string McpCore::validate(const json& schema, const json& args) {
             if (!ok) return "`" + it.key() + "` debe ser " + want + " (llego " + typeName(v) + ")";
         }
         if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
-            return "`" + it.key() + "` debe ser uno de " + p["enum"].dump();
+            return "`" + it.key() + "` debe ser uno de " + p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (v.is_number()) {
             if (p.contains("minimum") && v.get<double>() < p["minimum"].get<double>())
-                return "`" + it.key() + "` minimo " + p["minimum"].dump();
+                return "`" + it.key() + "` minimo " + p["minimum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             if (p.contains("maximum") && v.get<double>() > p["maximum"].get<double>())
-                return "`" + it.key() + "` maximo " + p["maximum"].dump();
+                return "`" + it.key() + "` maximo " + p["maximum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         }
     }
     return {};
@@ -541,7 +541,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
              ? ":" + params["name"].get<std::string>()
              : std::string()) +
         quien;
-    Traza::la().anotar("--> " + etiqueta + " id=" + id.dump() + " " + Traza::resumir(params));
+    Traza::la().anotar("--> " + etiqueta + " id=" + id.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " " + Traza::resumir(params));
     const auto arranque = std::chrono::steady_clock::now();
     reply = [reply, etiqueta, id, arranque](json r) {
         const auto ms =
@@ -552,7 +552,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
         // `error`, la traza diria «OK» de cada herramienta que fallo.
         const bool fallo =
             r.contains("error") || (r.contains("result") && r["result"].value("isError", false));
-        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump() + " (" +
+        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " (" +
                            std::to_string(ms) + " ms) " + Traza::resumir(r));
         reply(std::move(r));
     };
@@ -989,11 +989,11 @@ std::string McpCore::helpTool(const std::string& name) const {
             const json& p = it.value();
             const bool r = std::find(req.begin(), req.end(), it.key()) != req.end();
             o << "- `" << it.key() << "` ("
-              << (p.contains("type") ? p["type"].dump() : std::string("cualquiera"))
+              << (p.contains("type") ? p["type"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : std::string("cualquiera"))
               << (r ? ", obligatorio" : ", opcional") << ")";
             if (p.contains("description")) o << ": " << p["description"].get<std::string>();
-            if (p.contains("enum")) o << " Valores: " << p["enum"].dump() << ".";
-            if (p.contains("default")) o << " Por defecto: " << p["default"].dump() << ".";
+            if (p.contains("enum")) o << " Valores: " << p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << ".";
+            if (p.contains("default")) o << " Por defecto: " << p["default"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << ".";
             o << "\n";
         }
     } else {
@@ -1004,7 +1004,7 @@ std::string McpCore::helpTool(const std::string& name) const {
         for (const std::string& e : t->examples)
             o << "```json\n" << e << "\n```\n";
     }
-    o << "\n## Esquema JSON\n```json\n" << t->inputSchema.dump(2) << "\n```\n";
+    o << "\n## Esquema JSON\n```json\n" << t->inputSchema.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n```\n";
     return o.str();
 }
 

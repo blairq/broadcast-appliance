@@ -188,7 +188,7 @@ void McpService::registerGraficoTools() {
 
             QJsonObject par;
             if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
             QJsonObject pedido = pedidoDe(carpeta, par, &err);
             if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
 
@@ -274,7 +274,7 @@ void McpService::registerGraficoTools() {
             }
             QJsonObject par;
             if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
             // Por el emisor, no por abajo: asi queda anotado con que valores
             // salio esta fuente y la tarjeta de Rotulos muestra lo que hay al
             // aire en vez de lo anterior.
@@ -339,7 +339,7 @@ void McpService::registerGraficoTools() {
         return json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
     };
     const auto aQJson = [](const json& j) {
-        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
+        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
     };
 
     {

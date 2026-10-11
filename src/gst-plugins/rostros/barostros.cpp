@@ -537,8 +537,8 @@ GstFlowReturn alMuestra(GstAppSink* sink, gpointer d) {
         st->detectorUsado = conVision ? "vision" : "yunet";
         st->error = error;
         st->nuevas = true;
-        st->ultimoJson = comoJson(st, false).dump();
-        js = comoJson(st, true).dump();
+        st->ultimoJson = comoJson(st, false).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        js = comoJson(st, true).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         rehacerComposicion(st);
     }
     GstStructure* e = gst_structure_new("ba-rostros", "json", G_TYPE_STRING, js.c_str(), "cuadro", GST_TYPE_SAMPLE, s, nullptr);
@@ -901,7 +901,7 @@ void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
             nlohmann::json a = nlohmann::json::array();
             for (const auto& [i, e] : st->etiquetas)
                 a.push_back({{"id", i}, {"nombre", e.nombre}, {"cargo", e.cargo}, {"persona", e.persona}});
-            g_value_set_string(v, a.dump().c_str());
+            g_value_set_string(v, a.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
             break;
         }
         case PROP_CARAS: g_value_set_string(v, st->ultimoJson.c_str()); break;

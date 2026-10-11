@@ -65,7 +65,7 @@ bool escribir(const QString& ruta, const QByteArray& datos) {
 }
 
 QVariantMap aVariant(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 /// Un archivo ya bajado está bien si coincide su hash (el de LFS o el de blob).
@@ -122,7 +122,7 @@ std::string huellaEsquema(const json& inputSchema) {
     // nlohmann ordena las claves y, sin sangría, no pone espacios: lo mismo que
     // json.dumps(sort_keys=True, separators=(',', ':')) del lado de la fábrica.
     const QByteArray h =
-        QCryptographicHash::hash(QByteArray::fromStdString(inputSchema.dump()), QCryptographicHash::Sha256)
+        QCryptographicHash::hash(QByteArray::fromStdString(inputSchema.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)), QCryptographicHash::Sha256)
             .toHex();
     return h.left(16).toStdString();
 }
@@ -289,7 +289,7 @@ void ModelosLocales::guardarAjustes() const {
                  {"sesgo", sesgo_},
                  {"mtp", mtp_.toStdString()},
                  {"al_arrancar", alArrancar_}};
-    escribir(deRuta(carpetaModelos() / "ajustes.json"), QByteArray::fromStdString(j.dump(1)));
+    escribir(deRuta(carpetaModelos() / "ajustes.json"), QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
 void ModelosLocales::setSesgo(double s) {
@@ -468,7 +468,7 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
                                                     {"nota", nota},
                                                     {"de", de},
                                                     {"cuando", QDateTime::currentSecsSinceEpoch()}}
-                                                   .dump()));
+                                                   .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
             }
         }
         if (f.empty() && (mj.is_null() || !mj.is_object() || !mj.contains("endpoints")))
@@ -648,7 +648,7 @@ void ModelosLocales::descargar(const QString& repo) {
                           {"commit", repo.commit},
                           {"archivos", archivos.size()},
                           {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
-            escribir(deRuta(staging / ".ok"), QByteArray::fromStdString(ok.dump(1)));
+            escribir(deRuta(staging / ".ok"), QByteArray::fromStdString(ok.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
             // Si el commit fijado no traía modelo.json pero se validó uno con los
             // MISMOS pesos (ver revisarHerramientas), viaja con el modelo.
             if (!fs::exists(staging / "modelo.json", ec)) {
@@ -657,7 +657,7 @@ void ModelosLocales::descargar(const QString& repo) {
                     const json gj = json::parse(g.readAll().toStdString(), nullptr, false);
                     if (gj.is_object() && gj.value("modelo_json", json()).is_object())
                         escribir(deRuta(staging / "modelo.json"),
-                                 QByteArray::fromStdString(gj["modelo_json"].dump(1)));
+                                 QByteArray::fromStdString(gj["modelo_json"].dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
                 }
             }
             // Recién ahora se reemplaza el que hubiera (los enlaces duros
@@ -984,7 +984,7 @@ void ModelosLocales::pedir(json pedido, Respuesta r, std::function<void(const QS
     const std::int64_t id = proximoId_++;
     pedido["id"] = id;
     esperas_[id] = Espera{std::move(r), std::move(delta)};
-    proc_->write(QByteArray::fromStdString(pedido.dump()) + '\n');
+    proc_->write(QByteArray::fromStdString(pedido.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + '\n');
 }
 
 void ModelosLocales::fallanTodos(const QString& error) {

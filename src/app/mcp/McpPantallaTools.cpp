@@ -480,7 +480,7 @@ void McpService::registerPantallaTools() {
                     }
                     ss.push_back(o);
                 }
-                done(ToolResult::ok(json{{"superficies", ss}}.dump(2)));
+                done(ToolResult::ok(json{{"superficies", ss}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
             });
         };
         core_.addTool(std::move(t));

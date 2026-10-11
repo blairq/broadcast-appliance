@@ -329,7 +329,7 @@ void PersonasViewModel::alRostros(const QString& entrada, const std::string& js,
             if (p == nullptr || p->nombre.empty()) continue;
             etiquetas.push_back({{"id", c.value("id", 0)}, {"nombre", p->nombre}, {"cargo", p->cargo}, {"persona", q.id}});
         }
-        const std::string texto = etiquetas.dump();
+        const std::string texto = etiquetas.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (hayVectores && d_->etiquetasDe[feed] != texto) {
             d_->etiquetasDe[feed] = texto;
             d_->rt.engine().controlEntrada(entrada.toStdString(), {{"rostros_etiquetas", texto}});

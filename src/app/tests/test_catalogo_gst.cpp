@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
             x["propiedades"] = c.propiedades(m.value("elemento", ""), json::object());
             out.push_back(x);
         }
-        std::cout << out.dump(1) << "\n";
+        std::cout << out.dump(1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         return 0;
     }
     std::printf("GStreamer %s: %zu módulos de video\n", c.version().c_str(), ms.size());

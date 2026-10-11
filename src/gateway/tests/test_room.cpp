@@ -427,7 +427,7 @@ void testSpeakers() {
           "el admin edita el perfil");
     CHECK(findParticipant(room.snapshot(), c.id)["name"] == "Carolina", "nombre editado");
     const json board = room.boardSnapshot(0);
-    CHECK(board["order"].size() == 4 && board.dump().find(a.key) == std::string::npos,
+    CHECK(board["order"].size() == 4 && board.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find(a.key) == std::string::npos,
           "tablero: fila sin claves");
     Room::Participant pa;
     CHECK(room.byKey(a.key, pa) && pa.id == a.id, "buscar por clave");

@@ -59,7 +59,7 @@ std::string minusculas(std::string s) {
 }
 
 QVariant aVariant(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toMap()
         .value("v");
@@ -1040,7 +1040,7 @@ QString Red::agregarDesdeUi(const QString& ip, const QString& nombre, const QStr
 QVariantList Red::entradasDe(const QString& ip) const {
     if (video_ == nullptr) return {};
     const json e = video_->entradasDeHost(ip.toStdString());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(e.dump())).toVariant().toList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant().toList();
 }
 
 QString Red::ptzDesdeUi(const QString& ip, const QString& entrada) {

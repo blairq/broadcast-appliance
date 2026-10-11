@@ -294,7 +294,7 @@ json waitWsType(TestFd fd, const std::string& type) {
 }
 
 void sendWsJson(TestFd fd, const json& j) {
-    sendAllTest(fd, makeClientFrame(0x2, true, encodeBaFrame(j.dump())));
+    sendAllTest(fd, makeClientFrame(0x2, true, encodeBaFrame(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))));
 }
 
 /// Abre el WebSocket de sala con `query` (token nuevo o resume) y devuelve el
@@ -799,7 +799,7 @@ int main() {
         bool listed = false;
         for (const auto& o : board["order"])
             listed = listed || (o.value("id", "") == id && o.value("speaker", "") == "onair");
-        CHECK(listed && board.dump().find(key) == std::string::npos,
+        CHECK(listed && board.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find(key) == std::string::npos,
               "el tablero la muestra al aire, sin claves");
         CHECK(statusLine(httpReq(port, "GET", "/api/v1/board/avatar/" + id + "?k=" + srv.boardToken(), ""))
                       .find("200") != std::string::npos,
@@ -809,14 +809,14 @@ int main() {
 
         // Espectadores (relay): permisos y rutas (sin libwebrtc no hay RTP que
         // reenviar; el reenvio real lo cubre test_webrtc_loopback).
-        const std::string viewReq = json{{"participant", id}, {"sdp", "v=0\r\n"}}.dump();
+        const std::string viewReq = json{{"participant", id}, {"sdp", "v=0\r\n"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         CHECK(statusLine(httpReq(aport, "POST", "/api/v1/view", "", viewReq)).find("401") !=
                   std::string::npos,
               "ver un video pide credenciales");
         CHECK(statusLine(httpReq(port, "POST", "/api/v1/board/view", "", viewReq)).find("401") !=
                   std::string::npos,
               "el tablero sin clave no ve videos");
-        const std::string lobbyReq = json{{"participant", "pnoesta"}, {"sdp", "v=0\r\n"}}.dump();
+        const std::string lobbyReq = json{{"participant", "pnoesta"}, {"sdp", "v=0\r\n"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         CHECK(statusLine(httpReq(port, "POST", "/api/v1/board/view",
                                  "X-BA-Board: " + srv.boardToken() + "\r\n", lobbyReq))
                       .find("404") != std::string::npos,

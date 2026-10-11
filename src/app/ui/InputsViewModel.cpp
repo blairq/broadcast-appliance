@@ -91,7 +91,7 @@ QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, con
     SourceSpec spec;
     spec.id = ndi::kSourceId;
     spec.name = (name.trimmed().isEmpty() ? "NDI " + ndiName : name.trimmed()).toStdString();
-    spec.settingsJson = json{{"ndi_name", ndiName.toStdString()}}.dump();
+    spec.settingsJson = json{{"ndi_name", ndiName.toStdString()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());

@@ -91,7 +91,7 @@ bool writeJson(const fs::path& path, const json& j, std::string* err) {
             }
             return false;
         }
-        out << j.dump(2) << "\n";
+        out << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     }
     // La generación anterior: la que estaba (si era JSON válido) queda como .anterior.
     if (fs::exists(path, ec)) {
@@ -118,7 +118,7 @@ SourceSpec sourceFromJson(const json& s) {
     spec.id = get<std::string>(s, "id", "");
     spec.name = get<std::string>(s, "name", spec.id);
     // Lo guardado tiene las rutas relativas a los datos (portable): las de ahora.
-    spec.settingsJson = rutasAbsolutas(s.value("settings", json::object())).dump();
+    spec.settingsJson = rutasAbsolutas(s.value("settings", json::object())).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.visible = get(s, "visible", true);
     spec.volume = get(s, "volume", 1.0f);
     spec.muted = get(s, "muted", false);

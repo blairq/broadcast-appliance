@@ -302,7 +302,7 @@ json toJson(const QJsonArray& a) {
     return json::parse(QJsonDocument(a).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
 }
 QJsonObject toQt(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
 }
 
 json qvToJson(const QVariant& v) {
@@ -317,7 +317,7 @@ QVariant jsonToQv(const json& v) {
     if (v.is_number_integer()) return static_cast<qlonglong>(v.get<long long>());
     if (v.is_number()) return v.get<double>();
     if (v.is_string()) return QString::fromStdString(v.get<std::string>());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(v.dump())).toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant();
 }
 
 json modelRows(const QAbstractItemModel& m) {
@@ -676,13 +676,13 @@ void McpService::applySecurity() {
         ag->setHayAire(hayAire);
         ag->setAireInfo([this]() {
             const json j{{"hay_aire", core_.hayAire()}, {"herramientas", core_.aire().lista()}};
-            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
         });
     }
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {
             auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
-            std::string a = args.empty() ? std::string("(sin argumentos)") : args.dump(2);
+            std::string a = args.empty() ? std::string("(sin argumentos)") : args.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
             if (a.size() > 1200) a = a.substr(0, 1200) + "\n…";
             const bool deAire = reason.rfind("ACCIÓN DE AIRE", 0) == 0;
             const int id = msgs->post(json{{"kind", "question"},
@@ -1490,7 +1490,7 @@ void McpService::registerTools() {
                 SourceSpec spec;
                 spec.id = s.value("type", std::string());
                 spec.name = s.value("name", std::string());
-                spec.settingsJson = s.contains("settings") ? s["settings"].dump() : "{}";
+                spec.settingsJson = s.contains("settings") ? s["settings"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : "{}";
                 spec.visible = s.value("visible", true);
                 spec.volume = s.value("volume", 1.0f);
                 spec.muted = s.value("muted", false);
@@ -1509,7 +1509,7 @@ void McpService::registerTools() {
                         json cur = json::parse(rt.engine().sourceSettingsJson(spec.name), nullptr, false);
                         if (!cur.is_object()) cur = json::object();
                         cur.merge_patch(s["settings"]);
-                        rt.updateSourceSettings(spec.name, cur.dump());
+                        rt.updateSourceSettings(spec.name, cur.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                     }
                     if (s.contains("volume")) rt.setVolume(spec.name, spec.volume);
                     if (s.contains("muted")) rt.setMuted(spec.name, spec.muted);
@@ -1657,7 +1657,7 @@ void McpService::registerTools() {
             SourceSpec spec;
             spec.id = a["type"];
             spec.name = a["name"];
-            spec.settingsJson = a.contains("settings") ? a["settings"].dump() : "{}";
+            spec.settingsJson = a.contains("settings") ? a["settings"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : "{}";
             spec.visible = a.value("visible", true);
             spec.rect = CanvasRect{0.1f, 0.1f, 0.8f, 0.8f};
             std::string err;
@@ -1837,7 +1837,7 @@ void McpService::registerTools() {
                 json cur = json::parse(rt.engine().sourceSettingsJson(name), nullptr, false);
                 if (!cur.is_object()) cur = json::object();
                 cur.merge_patch(a["settings"]);
-                (rt.updateSourceSettings(name, cur.dump()) ? did : failed).push_back("settings");
+                (rt.updateSourceSettings(name, cur.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) ? did : failed).push_back("settings");
             }
             if (a.contains("volumeDb")) {
                 const float mul = static_cast<float>(std::pow(10.0, a["volumeDb"].get<double>() / 20.0));
@@ -1946,7 +1946,7 @@ void McpService::registerTools() {
             SourceSpec spec;
             spec.id = "ba_guest_video";
             spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
-            spec.settingsJson = json{{"slot", slot}, {"channel", share ? "share" : "guest"}}.dump();
+            spec.settingsJson = json{{"slot", slot}, {"channel", share ? "share" : "guest"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             spec.rect = share ? CanvasRect{0, 0, 1, 1} : CanvasRect{0.5f, 0.5f, 0.5f, 0.5f};
             std::string err;
             if (a.contains("layout") &&
@@ -2348,7 +2348,7 @@ void McpService::registerTools() {
                 for (const char* k : {"rotar_token_mcp", "pin_por_sesion"})
                     if (a.contains(k)) j[k] = a.value(k, true);
                 std::ofstream o(ruta);
-                o << j.dump(1);
+                o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
             }
             done(ToolResult().data({{"rotar_token_mcp", j.value("rotar_token_mcp", true)},
                                     {"pin_por_sesion", j.value("pin_por_sesion", true)},
@@ -2941,7 +2941,7 @@ void McpService::registerTools() {
                            {"dcn_unidad", {{"type", "string"}}},
                            {"persona_id", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump())).object().toVariantMap();
+            QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(a.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
             const QString e = vm.cuerpo().guardar(m);
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().data(vm.cuerpo().cuerpo().buscar(a.value("banca", a.value("nombre", a.value("id", std::string()))))));

@@ -412,12 +412,12 @@ json registro(const json& id, const json& a, const Permisos& p) {
         } else if (tipo == "multi_sz") {
             t = REG_MULTI_SZ;
             std::wstring w;
-            for (const auto& s : v.is_array() ? v : json::array({v})) w += aW(s.is_string() ? s.get<std::string>() : s.dump()) + L'\0';
+            for (const auto& s : v.is_array() ? v : json::array({v})) w += aW(s.is_string() ? s.get<std::string>() : s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + L'\0';
             w += L'\0';
             d.assign(reinterpret_cast<const BYTE*>(w.data()), reinterpret_cast<const BYTE*>(w.data() + w.size()));
         } else {
             t = tipo == "expand_sz" ? REG_EXPAND_SZ : REG_SZ;
-            const std::wstring w = aW(v.is_string() ? v.get<std::string>() : v.dump()) + L'\0';
+            const std::wstring w = aW(v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + L'\0';
             d.assign(reinterpret_cast<const BYTE*>(w.data()), reinterpret_cast<const BYTE*>(w.data() + w.size()));
         }
         e = RegSetValueExW(k, nombre.c_str(), 0, t, d.data(), static_cast<DWORD>(d.size()));

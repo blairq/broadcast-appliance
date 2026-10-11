@@ -30,8 +30,8 @@ QString q(const std::string& s) { return QString::fromStdString(s); }
 
 QVariant qv(const json& j) {
     if (j.is_array() || j.is_object())
-        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).toVariant();
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump()))
+        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toList()
         .value(0);
@@ -54,7 +54,7 @@ void escribirJson(const fs::path& p, const json& j) {
     const fs::path tmp = p.string() + ".tmp";
     {
         std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        f << j.dump(1);
+        f << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, p, ec);
 }
@@ -490,7 +490,7 @@ void Traductor::mandar() {
             cb(std::move(r));
             QTimer::singleShot(0, this, [this]() { mandar(); });
         };
-        hijo_->escribir(QByteArray::fromStdString(p.mensaje.dump() + "\n"));
+        hijo_->escribir(QByteArray::fromStdString(p.mensaje.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n"));
     }
 }
 

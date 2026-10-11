@@ -168,7 +168,7 @@ int main() {
     auto picoEscucha = [&]() { return motor.estado()["escucha"].value("pico_db", -120.0); };
     CHECK(motor.escuchar("programa").empty(), "escuchar el programa");
     esperar(1200);
-    std::printf("escucha programa: pico %.2f dBFS, %s\n", picoEscucha(), motor.estado()["escucha"].dump().c_str());
+    std::printf("escucha programa: pico %.2f dBFS, %s\n", picoEscucha(), motor.estado()["escucha"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(picoEscucha() > -12, "la escucha del programa suena");
     CHECK(motor.escuchar("pfl", "invitado1").empty(), "escuchar al invitado solo");
     esperar(1000);
@@ -197,7 +197,7 @@ int main() {
     CHECK(rms() < -11.0 && rms() > -13.0, "armada no suena (solo las globales)");
     CHECK(motor.take("mezcla", 300).empty(), "take con mezcla");
     esperar(1200);
-    std::printf("al aire la cámara: %.2f dBFS, %s\n", rms(), motor.estado()["video"]["programa"].dump().c_str());
+    std::printf("al aire la cámara: %.2f dBFS, %s\n", rms(), motor.estado()["video"]["programa"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(cerca(rms(), -10.28, 1.0), "al aire, su audio suma");
     CHECK(motor.estado()["video"].value("al_aire", "") == "Cámara", "la escena al aire");
     CHECK(motor.armar("Vacía").empty() && motor.take().empty(), "take a la vacía");

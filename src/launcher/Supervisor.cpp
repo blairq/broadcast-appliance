@@ -352,10 +352,10 @@ void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<i
                            {"hora_ms", ms}};
     {
         std::ofstream o(dir / "ultima-caida.json", std::ios::trunc);
-        o << j.dump(1);
+        o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     std::ofstream h(dir / "caidas.jsonl", std::ios::app);
-    h << j.dump() << "\n";
+    h << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
 void Supervisor::handleCrash(bool isA) {

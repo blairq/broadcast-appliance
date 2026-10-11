@@ -338,7 +338,7 @@ void McpService::registerMediaTools() {
             spec.name = a.value("name", QFileInfo(abs).completeBaseName().toStdString());
             if (kind == "image") {
                 spec.id = "image_source";
-                spec.settingsJson = json{{"file", abs.toStdString()}}.dump();
+                spec.settingsJson = json{{"file", abs.toStdString()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             } else {
                 spec.id = "ffmpeg_source";
                 spec.settingsJson = json{
@@ -346,7 +346,7 @@ void McpService::registerMediaTools() {
                     {"local_file", abs.toStdString()},
                     {"looping", a.value("loop", false)},
                     {"restart_on_activate",
-                     true}}.dump();
+                     true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             }
             spec.visible = a.value("visible", true);
             spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};

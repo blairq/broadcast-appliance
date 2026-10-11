@@ -23,7 +23,7 @@ namespace {
 std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 
 std::string recortar(std::string s) {
@@ -82,7 +82,7 @@ void OrdenDelDia::guardar() const {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
     std::ofstream o(archivo_);
-    o << json{{"puntos", puntos_}, {"tramos", tramos_}}.dump(1);
+    o << json{{"puntos", puntos_}, {"tramos", tramos_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void OrdenDelDia::publicar() {

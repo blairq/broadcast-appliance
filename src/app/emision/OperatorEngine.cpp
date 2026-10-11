@@ -407,7 +407,7 @@ void OperatorEngine::dispatchMessage(const ba::ipc::Message& m) {
     ba::ipc::Message ack;
     ack.protocolVersion = m.protocolVersion;
     ack.type = ba::ipc::Type::Response;
-    ack.payload = nlohmann::json{{"ackFor", m.type}}.dump();
+    ack.payload = nlohmann::json{{"ackFor", m.type}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     control_->sendRequest(ack);
     // El ack queda en el buffer del loopback. Lo despacha el próximo tick()
     // (su hasPending() será true y poll() lo decodificará): así el round-trip
@@ -447,7 +447,7 @@ ba::persist::StateDoc OperatorEngine::buildStateDoc() const {
         });
     }
     dsp["channels"] = std::move(channels);
-    doc.sections[kSectionDsp] = dsp.dump();
+    doc.sections[kSectionDsp] = dsp.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 
     // Sección "ipc": estado de los flujos IPC (ring abierto, control conectado,
     // watchdog).
@@ -455,7 +455,7 @@ ba::persist::StateDoc OperatorEngine::buildStateDoc() const {
     ipc["guestRingOpen"] = (guestRing_.header() != nullptr);
     ipc["controlConnected"] = (control_ != nullptr && control_->connected());
     ipc["watchedStale"] = watchedIsStale();
-    doc.sections[kSectionIpc] = ipc.dump();
+    doc.sections[kSectionIpc] = ipc.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 
     return doc;
 }

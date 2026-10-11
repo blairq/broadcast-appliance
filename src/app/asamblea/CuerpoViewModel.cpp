@@ -62,7 +62,7 @@ void CuerpoViewModel::siguienteFaltante() {
 QString CuerpoViewModel::nombre() const { return QString::fromStdString(c_->nombre()); }
 
 QVariantList CuerpoViewModel::integrantes() const {
-    QVariantList out = QJsonDocument::fromJson(QByteArray::fromStdString(c_->integrantes().dump())).array().toVariantList();
+    QVariantList out = QJsonDocument::fromJson(QByteArray::fromStdString(c_->integrantes().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
     for (QVariant& v : out) {
         QVariantMap m = v.toMap();
         const QString ruta = rutaFoto(m.value("id").toString());
@@ -194,7 +194,7 @@ QVariantMap CuerpoViewModel::recinto() const {
             const QString f = rutaFoto(QString::fromStdString(b["integrante"].value("id", std::string())));
             b["integrante"]["foto_url"] = f.isEmpty() ? std::string() : QUrl::fromLocalFile(f).toString().toStdString();
         }
-    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString CuerpoViewModel::editarRecinto(const QVariantMap& cambios) {
@@ -204,7 +204,7 @@ QString CuerpoViewModel::editarRecinto(const QVariantMap& cambios) {
 }
 
 QVariantMap CuerpoViewModel::buscar(const QString& clave) const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(c_->buscar(clave.toStdString()).dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(c_->buscar(clave.toStdString()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 } // namespace ba::app::asamblea

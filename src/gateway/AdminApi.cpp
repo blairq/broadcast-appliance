@@ -133,7 +133,7 @@ std::string cookieValue(const std::string& headers, const std::string& name) {
 }
 
 void sendJson(long long fd, int code, const json& j) {
-    http::sendResponse(fd, code, "application/json", j.dump());
+    http::sendResponse(fd, code, "application/json", j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void sendErr(long long fd, int code, const char* error) {
@@ -1115,7 +1115,7 @@ void SignalingServer::adminEvents(long long fd) {
             std::lock_guard<std::mutex> lock(sseLock_);
             sse_.push_back(conn);
         }
-        const std::string first = "retry: 2000\n\nevent: room\ndata: " + room_.snapshot().dump() + "\n\n";
+        const std::string first = "retry: 2000\n\nevent: room\ndata: " + room_.snapshot().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
         http::sendAll(fd, first.data(), first.size());
     }
 
@@ -1147,7 +1147,7 @@ void SignalingServer::broadcastToHosts(const std::string& event, const json& dat
         conns = sse_;
     }
     if (conns.empty()) return;
-    const std::string msg = "event: " + event + "\ndata: " + data.dump() + "\n\n";
+    const std::string msg = "event: " + event + "\ndata: " + data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
     for (const auto& c : conns) {
         std::lock_guard<std::mutex> lock(c->sendLock);
         if (c->fd >= 0 && !http::sendAll(c->fd, msg.data(), msg.size())) {

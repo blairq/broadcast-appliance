@@ -39,7 +39,7 @@ std::string sha256(const std::string& s) {
 }
 
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 
 json conTipo(const char* tipo, const json& campos) {
@@ -78,7 +78,7 @@ void SesionRemota::guardar() const {
     {
         std::ofstream f(tmp);
         f << json{{"credenciales", credenciales_}, {"consolas", consolas_}, {"gracia_s", graciaS_},
-                  {"voto_s", votoSegundos_}, {"vistas", vistas_}}.dump(1);
+                  {"voto_s", votoSegundos_}, {"vistas", vistas_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     std::filesystem::rename(tmp, archivo_, ec);
 }
@@ -100,7 +100,7 @@ void SesionRemota::anotar(const std::string& que, const std::string& id, const j
     registro_.push_back(e);
     std::error_code ec;
     std::filesystem::create_directories(archivoRegistro_.parent_path(), ec);
-    std::ofstream(archivoRegistro_, std::ios::app) << e.dump() << "\n";
+    std::ofstream(archivoRegistro_, std::ios::app) << e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
 // --- Credenciales ---------------------------------------------------------------------

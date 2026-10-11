@@ -880,7 +880,7 @@ void AlertEngine::save() const {
     {
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
         if (!out) return;
-        out << json{{"rules", rules_}, {"ruleSeq", ruleSeq_}, {"fabricaOfrecida", sembrados_}}.dump(2);
+        out << json{{"rules", rules_}, {"ruleSeq", ruleSeq_}, {"fabricaOfrecida", sembrados_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     std::error_code ec;
     std::filesystem::rename(tmp, storePath_, ec);

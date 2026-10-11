@@ -263,7 +263,7 @@ void McpService::registerVentanaTools() {
                     "ventana: pedir un cambio de monitor no falla y tampoco la mueve. Para mandarla de "
                     "verdad, pantalla completa (`estado: \"pantalla-completa\"` con `monitor`).";
             }
-            done(ToolResult::ok(r.dump(2)));
+            done(ToolResult::ok(r.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
         };
         core_.addTool(std::move(t));
     }

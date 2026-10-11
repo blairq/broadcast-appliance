@@ -53,7 +53,7 @@ bool escribir(AppRuntime& rt, const json& recetas) {
     QDir().mkpath(QFileInfo(archivo(rt)).absolutePath());
     QFile f(archivo(rt) + ".nuevo");
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
-    f.write(QByteArray::fromStdString(recetas.dump(2)));
+    f.write(QByteArray::fromStdString(recetas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     f.close();
     QFile::remove(archivo(rt));
     return QFile::rename(archivo(rt) + ".nuevo", archivo(rt));
@@ -68,7 +68,7 @@ json conParametros(const json& v, const json& par) {
         for (auto it = par.begin(); it != par.end(); ++it) {
             const std::string marca = "{" + it.key() + "}";
             const std::string valor =
-                it.value().is_string() ? it.value().get<std::string>() : it.value().dump();
+                it.value().is_string() ? it.value().get<std::string>() : it.value().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             for (std::size_t p = s.find(marca); p != std::string::npos; p = s.find(marca, p))
                 s.replace(p, marca.size(), valor);
         }

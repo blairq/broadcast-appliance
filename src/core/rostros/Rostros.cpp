@@ -1,6 +1,7 @@
 // ============================================================================
 // src/core/rostros/Rostros.cpp — ver Rostros.hpp
 // ============================================================================
+#include "diag/Utf8.hpp"
 #include "rostros/Rostros.hpp"
 
 #include <algorithm>
@@ -259,7 +260,7 @@ Motor::Motor() : d_(std::make_unique<Impl>()) {
         d_->opciones->SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
         d_->memoriaPtr = std::make_unique<Ort::MemoryInfo>(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault));
     } catch (const Ort::Exception& e) {
-        d_->error = std::string("ONNX Runtime: ") + e.what();
+        d_->error = std::string("ONNX Runtime: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         d_->env.reset();
     }
 }
@@ -289,7 +290,7 @@ bool Motor::abrir(const std::string& carpetaModelos) {
         for (std::size_t i = 0; i < d_->detector->GetOutputCount(); ++i)
             d_->salidasDet.emplace_back(d_->detector->GetOutputNameAllocated(i, al).get());
     } catch (const Ort::Exception& e) {
-        d_->error = std::string("no se pudieron cargar los modelos: ") + e.what();
+        d_->error = std::string("no se pudieron cargar los modelos: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         d_->detector.reset();
         d_->descriptor.reset();
         return false;
@@ -330,7 +331,7 @@ std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto,
         // SE ANOTA EL MOTIVO. Devolver «no hay caras» cuando en realidad
         // fallo la llamada es la peor forma de fallar: la interfaz muestra
         // «no reconoci a nadie» y nadie se entera de que el modelo ni corrio.
-        d_->error = std::string("al detectar: ") + e.what();
+        d_->error = std::string("al detectar: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         return {};
     }
     return caras;
@@ -359,7 +360,7 @@ std::vector<float> Motor::describir(const std::uint8_t* bgra, int ancho, int alt
         const std::size_t n = salidas[0].GetTensorTypeAndShapeInfo().GetElementCount();
         return std::vector<float>(v, v + n);
     } catch (const Ort::Exception& e) {
-        d_->error = std::string("al describir: ") + e.what();
+        d_->error = std::string("al describir: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         return {};
     }
 }

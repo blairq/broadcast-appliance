@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 
 namespace {
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 
 json herr(const std::string& id, const std::string& nombre, const std::string& grupo, const std::string& h,
@@ -106,7 +106,7 @@ void Acciones::guardar() const {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
     std::ofstream o(archivo_);
-    o << atajos_.dump(1);
+    o << atajos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void Acciones::registrarGlobales() {

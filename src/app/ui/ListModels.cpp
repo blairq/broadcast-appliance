@@ -199,7 +199,7 @@ bool SourcesModel::setRect(const QString& name, double x, double y, double w, do
 
 QVariantMap SourcesModel::efectos(const QString& name) const {
     const EfectosCapa ef = rt_.engine().sourceEfectos(scene_.toStdString(), name.toStdString());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(ef.aJson().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(ef.aJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 bool SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
@@ -231,7 +231,7 @@ QString SourcesModel::add(const QString& typeId, const QString& baseName) {
     if (spec.id == inputs::kVideoType) {
         // Una cámara: la primera conectada ya elegida (en Propiedades se cambia).
         const auto camaras = video::camarasDelEquipo(rt_.engine());
-        spec.settingsJson = nlohmann::json{{inputs::kVideoProp, camaras.empty() ? std::string() : camaras.front().value}}.dump();
+        spec.settingsJson = nlohmann::json{{inputs::kVideoProp, camaras.empty() ? std::string() : camaras.front().value}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     if (!rt_.addSource(scene_.toStdString(), spec)) {
         emit error(qs(rt_.lastError()));

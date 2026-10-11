@@ -502,7 +502,7 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
 QString Voz::estadoTc(const nlohmann::json& estado) {
     // JSON compacto, con los acentos de verdad (como se entrenó). El MISMO
     // texto en preparar y en llamar: si difiere en un byte, no se aprovecha.
-    return estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump()) : QString();
+    return estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) : QString();
 }
 
 void Voz::prepararTc(std::function<void()> listo) {
@@ -706,7 +706,7 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
                              {"frase", frase},
                              {"herramienta", h},
                              {"titulo", titulo},
-                             {"args", QString::fromStdString(args.dump())},
+                             {"args", QString::fromStdString(args.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))},
                              {"resumen", QString::fromStdString(argumentos::resumen(args))},
                              {"notas", notas.join(" · ")},
                              {"bloqueos", bloqueos.join(" · ")},
@@ -901,7 +901,7 @@ void Voz::guardarAjustes() const {
     const QString ruta = archivoAjustes(rt_.dataRoot());
     QDir().mkpath(QFileInfo(ruta).absolutePath());
     QFile f(ruta);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QByteArray::fromStdString(j.dump(1)));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
 QVariantMap Voz::cortes() const {

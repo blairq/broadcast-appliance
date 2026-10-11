@@ -283,7 +283,7 @@ struct QrViewModel::Impl {
                                {"estilo", est}});
         }
         std::ofstream f(p, std::ios::binary | std::ios::trunc);
-        f << arr.dump(2) << "\n";
+        f << arr.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     }
 };
 

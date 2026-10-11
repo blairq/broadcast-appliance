@@ -189,11 +189,11 @@ bool BroadcastEngine::textoGlobal(const std::string& nombre, const std::string& 
                  {"font", {{"face", "Helvetica"}, {"size", video_.baseHeight / 24}, {"flags", 1}}},
                  {"color1", 0xFFFFFFFF},
                  {"outline", true}};
-    if (sources_.count(nombre) > 0) return updateSourceSettings(nombre, s.dump());
+    if (sources_.count(nombre) > 0) return updateSourceSettings(nombre, s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     SourceSpec spec;
     spec.id = "text_ft2_source_v2";
     spec.name = nombre;
-    spec.settingsJson = s.dump();
+    spec.settingsJson = s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     return crearFuente(spec, true); // global: queda viva aunque no esté en ninguna escena
 }
 

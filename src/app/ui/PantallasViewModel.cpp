@@ -331,7 +331,7 @@ struct PantallasViewModel::Impl {
         std::ofstream f(archivo, std::ios::binary | std::ios::trunc);
         // Se guardan los dos juntos: las pantallas y lo que rota en ellas son
         // la misma configuración de sala.
-        f << json{{"pantallas", o}, {"carruseles", car}}.dump(2) << "\n";
+        f << json{{"pantallas", o}, {"carruseles", car}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     }
 
     void leer() {

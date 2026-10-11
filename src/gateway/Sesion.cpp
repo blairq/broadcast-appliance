@@ -260,7 +260,7 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
 
 void SesionBorde::enviar(const std::shared_ptr<Conn>& c, const json& msg) {
     std::lock_guard<std::mutex> l(c->sendLock);
-    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump());
+    if (c->fd >= 0) http::writeWsFrame(c->fd, 0x1, msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string& lugar, bool consola) {
@@ -406,7 +406,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
                 if (!ok) enviar(c, {{"type", "medios"}, {"activo", false}, {"error", "no hay lugar para el audio en la sala"}});
             } else if (medios_.ice) {
                 const json& cand = m.contains("candidate") ? m["candidate"] : json();
-                medios_.ice(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump());
+                medios_.ice(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             }
             continue;
         }
@@ -414,7 +414,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         if (!consola && (t == "vista-oferta" || t == "vista-ice" || t == "vista")) {
             if (t == "vista-ice") {
                 const json& cand = m.contains("candidate") ? m["candidate"] : json();
-                if (medios_.vistaIce) medios_.vistaIce(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump());
+                if (medios_.vistaIce) medios_.vistaIce(c->id, cand.is_string() ? cand.get<std::string>() : cand.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                 continue;
             }
             int canal;
@@ -533,7 +533,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         std::lock_guard<std::mutex> l(mu_);
         for (const auto& [id, c] : conns_)
             cs.push_back({{"id", id}, {"ip", c->ip}, {"lugar", c->lugar}, {"foto", fotos_.count(id) > 0}});
-        http::sendResponse(fd, 200, "application/json", json{{"conexiones", cs}, {"credenciales", credenciales_.size()}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"conexiones", cs}, {"credenciales", credenciales_.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (method == "GET" && que == "foto") {
@@ -551,7 +551,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
     }
     const json r = json::parse(body.empty() ? "{}" : body, nullptr, false);
     if (method != "POST" || !r.is_object()) {
-        http::sendResponse(fd, 400, "application/json", json{{"error", "bad_request"}}.dump());
+        http::sendResponse(fd, 400, "application/json", json{{"error", "bad_request"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "credenciales") {
@@ -568,7 +568,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             std::lock_guard<std::mutex> l(c->sendLock);
             if (c->fd >= 0) http::shutdownFd(c->fd);
         }
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "vistas") {
@@ -590,7 +590,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         for (const auto& [id, ru] : rutas)
             if (medios_.vistaRuta) medios_.vistaRuta(id, ru.first, ru.second);
         for (const auto& c : a) enviar(c, {{"type", "vistas"}, {"lista", lista}});
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"vistas", lista}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"vistas", lista}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "hablar") {
@@ -607,7 +607,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             if (conVista) canal = canalDeVista(it->second);
         }
         if (conVista && medios_.vistaRuta) medios_.vistaRuta(id, canal, on);
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"con_vista", conVista}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"con_vista", conVista}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "medios") {
@@ -616,7 +616,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
             const long long seq = r["seq"].get<long long>();
             std::lock_guard<std::mutex> l(mu_);
             if (seq <= ultimoSeqMedios_) {
-                http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"ignorado", "vieja"}}.dump());
+                http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"ignorado", "vieja"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                 return true;
             }
             ultimoSeqMedios_ = seq;
@@ -630,7 +630,7 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
         }
         if (static_cast<int>(ids.size()) > kCanalesRemotos) ids.resize(kCanalesRemotos);
         ponerMedios(ids);
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"ids", ids}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"ids", ids}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
     if (que == "enviar" || que == "cortar") {
@@ -654,10 +654,10 @@ bool SesionBorde::admin(long long fd, const std::string& method, const std::stri
                 if (c->fd >= 0) http::shutdownFd(c->fd);
             }
         }
-        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"entregado", a.size()}}.dump());
+        http::sendResponse(fd, 200, "application/json", json{{"ok", true}, {"entregado", a.size()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return true;
     }
-    http::sendResponse(fd, 404, "application/json", json{{"error", "not_found"}}.dump());
+    http::sendResponse(fd, 404, "application/json", json{{"error", "not_found"}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     return true;
 }
 

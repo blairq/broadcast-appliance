@@ -29,7 +29,7 @@ PuestoCorreccion::PuestoCorreccion(ConferenceClient& sala, agent::FlujosTexto& f
 
 void PuestoCorreccion::sincronizar() {
     if (!sala_.online()) return;
-    const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(flujos_.pendientes().dump()));
+    const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(flujos_.pendientes().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
     sala_.post("/api/v1/correccion/pendientes", QJsonObject{{"pendientes", d.array()}}, [](bool, const QJsonObject&) {});
 }
 

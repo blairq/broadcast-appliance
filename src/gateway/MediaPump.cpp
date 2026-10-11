@@ -767,7 +767,7 @@ std::string MediaPump::pruebaTecnica(int session, int ms) {
         if (red.is_object()) out["red"] = red;
     }
     if (bins.empty()) out["aviso"] = "no llegó audio de su micrófono durante la prueba (¿lo tiene silenciado?)";
-    return out.dump();
+    return out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h) {

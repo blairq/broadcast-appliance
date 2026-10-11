@@ -37,7 +37,7 @@ json Bancas::estadoJson() const {
 }
 
 QVariantMap Bancas::estado() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(estadoJson().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(estadoJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString Bancas::agregar(const QString& clave) {

@@ -39,7 +39,7 @@ int main() {
     bool tiro = false;
     try {
         nlohmann::json j{{"error", utf8Valido(cp1252)}};
-        (void)j.dump();
+        (void)j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     } catch (const std::exception&) {
         tiro = true;
     }

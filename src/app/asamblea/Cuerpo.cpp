@@ -78,7 +78,7 @@ void Cuerpo::guardarArchivo() const {
     const fs::path tmp = archivo_.string() + ".tmp";
     {
         std::ofstream o(tmp);
-        o << datos_.dump(1);
+        o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, archivo_, ec);
 }

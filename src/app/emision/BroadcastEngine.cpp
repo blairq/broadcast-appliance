@@ -238,7 +238,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
         if (motor_) motor_->empujarCuadro(n, d, w, h, st);
     });
     fuentes::ponerCambiar([this](const std::string& n, const json& cambios) {
-        return updateSourceSettings(n, cambios.dump());
+        return updateSourceSettings(n, cambios.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     });
     fuentes::ponerConsultas({[this]() {
                                  std::vector<std::pair<std::string, std::string>> v;
@@ -258,7 +258,7 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
                                  SourceSpec spec;
                                  spec.id = tipo;
                                  spec.name = n;
-                                 spec.settingsJson = aj.dump();
+                                 spec.settingsJson = aj.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
                                  if (!addGlobalAudio(spec)) return false;
                                  setSourcePistas(n, pistas);
                                  setSourceMonitoring(n, monitor);
@@ -1510,7 +1510,7 @@ std::string BroadcastEngine::setModoDisco(const std::string& modo) {
     std::error_code ec;
     std::filesystem::create_directories(ba::platform::configRoot() / "Config", ec);
     std::ofstream o(ba::platform::configRoot() / "Config" / "disco.json");
-    o << json{{"priorizar_programa", modo}}.dump(1);
+    o << json{{"priorizar_programa", modo}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     // En apuros y ahora «auto»: ya.
     if (modo == "auto") enSalidas("modoDisco", [this]() {
             if (discoApuros_ && !prioridad_) aplicarPrioridad(true, true);

@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     CHECK(g[0].value("hash_token", std::string()) == sha256(sal + token), "hash del token como el gateway");
     CHECK(g[0].value("hash_pin", std::string()) == sha256(sal + ":" + c.value("pin", std::string()) + ":" + token),
           "hash del PIN como el gateway");
-    CHECK(g[0].dump().find(token) == std::string::npos && g[0].dump().find(c.value("pin", std::string())) == std::string::npos,
+    CHECK(g[0].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find(token) == std::string::npos && g[0].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).find(c.value("pin", std::string())) == std::string::npos,
           "ni el token ni el PIN viajan en claro");
     // Persistencia: otra instancia lee lo mismo.
     {

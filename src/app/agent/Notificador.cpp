@@ -29,7 +29,7 @@ namespace fs = std::filesystem;
 
 namespace {
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 const std::set<std::string> kTipos{"webhook", "telegram", "smtp"};
 } // namespace
@@ -45,7 +45,7 @@ void Notificador::guardar() const {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
     std::ofstream o(archivo_);
-    o << lista_.dump(1);
+    o << lista_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 const json* Notificador::buscar(const std::string& id) const {
@@ -123,10 +123,10 @@ void Notificador::enviar(const std::string& id, const std::string& titulo, const
                                                {"text", titulo + ": " + texto}, // lo que leen Slack y compañía
                                                {"ms", QDateTime::currentMSecsSinceEpoch()},
                                                {"origen", "broadcast-appliance"}}
-                                              .dump());
+                                              .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     } else {
         req.setUrl(QUrl(QString::fromStdString("https://api.telegram.org/bot" + clave + "/sendMessage")));
-        cuerpo = QByteArray::fromStdString(json{{"chat_id", n->value("chat_id", std::string())}, {"text", titulo + "\n" + texto}}.dump());
+        cuerpo = QByteArray::fromStdString(json{{"chat_id", n->value("chat_id", std::string())}, {"text", titulo + "\n" + texto}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     if (!req.url().isValid() || (req.url().scheme() != "https" && req.url().scheme() != "http"))
         return listo(false, "la URL no es válida");

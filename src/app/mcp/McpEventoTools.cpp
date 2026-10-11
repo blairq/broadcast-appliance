@@ -52,7 +52,7 @@ json guionDe(EventoViewModel& ev) {
 }
 
 QVariantMap aVariantMap(const json& j) {
-    const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump()));
+    const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
     return d.object().toVariantMap();
 }
 

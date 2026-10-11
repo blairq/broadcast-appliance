@@ -956,7 +956,7 @@ int main(int argc, char** argv) {
                                       {"token", adminToken},
                                       {"pid", static_cast<long long>(pid)},
                                       {"guestPort", cfg.port}};
-            if (!writeAdminFile(adminFile, info.dump())) {
+            if (!writeAdminFile(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) {
                 log.warn("control: no se pudo publicar " + adminFile.string(), -1);
                 adminFile.clear();
             }

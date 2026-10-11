@@ -34,10 +34,10 @@ namespace {
 QVariant aQv(const nlohmann::json& j) {
     if (j.is_null()) return {};
     if (j.is_object() || j.is_array()) {
-        const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump()));
+        const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
         return d.isArray() ? QVariant(d.array().toVariantList()) : QVariant(d.object().toVariantMap());
     }
-    return QJsonDocument::fromJson(QByteArray::fromStdString("[" + j.dump() + "]")).array().at(0).toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString("[" + j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "]")).array().at(0).toVariant();
 }
 
 nlohmann::json deQv(const QVariant& v) {
@@ -161,8 +161,8 @@ QVariantList HistoricoViewModel::bitacora(const QString& carpeta, const QStringL
         std::string texto2 = l.value("texto", std::string());
         nlohmann::json resto = l;
         for (const char* k : {"t", "tipo", "origen", "texto"}) resto.erase(k);
-        if (texto2.empty()) texto2 = resto.dump();
-        else if (!resto.empty() && m["tipo"] != "config") texto2 += "  " + resto.dump();
+        if (texto2.empty()) texto2 = resto.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        else if (!resto.empty() && m["tipo"] != "config") texto2 += "  " + resto.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (texto2.size() > 600) texto2 = texto2.substr(0, 600) + "…";
         m["texto"] = QString::fromStdString(texto2);
         m["nivel"] = QString::fromStdString(l.value("nivel", std::string()));
@@ -250,7 +250,7 @@ QString HistoricoViewModel::contenidoConfig(const QString& carpeta, const QStrin
     const auto a = f.value("archivos", nlohmann::json::object());
     if (!a.contains(archivo.toStdString())) return {};
     evento::FotosConfig fotos(ev_.carpetaConfig(), ev_.raizEventos() / ".objetos");
-    return QString::fromStdString(fotos.leer(a[archivo.toStdString()].value("sha", std::string())).dump(2));
+    return QString::fromStdString(fotos.leer(a[archivo.toStdString()].value("sha", std::string())).dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 QVariantList HistoricoViewModel::comparar(const QString& carpeta, const QString& foto, const QString& otro,
@@ -464,7 +464,7 @@ std::string HistoricoViewModel::guardarAjustesJson(const nlohmann::json& c) {
     fs::create_directories(ruta.parent_path(), ec);
     {
         std::ofstream o(ruta.string() + ".tmp");
-        o << j.dump(2);
+        o << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(ruta.string() + ".tmp", ruta, ec);
     if (aplicarAjustes_) aplicarAjustes_(ajustesJson());

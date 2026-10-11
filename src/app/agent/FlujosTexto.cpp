@@ -133,7 +133,7 @@ void FlujosTexto::setCorreccion(bool activa, int demoraMs) {
     std::error_code ec;
     std::filesystem::create_directories(root_ / "Config", ec);
     std::ofstream o(root_ / "Config" / "correccion-subtitulos.json");
-    o << nlohmann::json{{"activa", correccionActiva_}, {"demora_ms", demoraMs_}}.dump(1);
+    o << nlohmann::json{{"activa", correccionActiva_}, {"demora_ms", demoraMs_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit pendientesCambio();
     emit cambio();
 }

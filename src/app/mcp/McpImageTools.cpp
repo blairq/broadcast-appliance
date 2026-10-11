@@ -184,7 +184,7 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
     req.url = url + "/chat/completions";
     req.headers = {{"Authorization", "Bearer " + clave.trimmed().toStdString()},
                    {"Content-Type", "application/json"}};
-    req.body = body.dump();
+    req.body = body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     req.timeoutMs = 45000;
     const net::HttpResponse r = net::HttpsClient::request(req);
     if (r.status == 0) {

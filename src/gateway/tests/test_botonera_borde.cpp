@@ -81,7 +81,7 @@ int main() {
         const auto credenciales = [&](bool http) {
             const nlohmann::json c{{"dispositivos",
                                     {{{"id", "http-1"}, {"hash", BotoneraBorde::sha256Hex(sal + token)}, {"sal", sal}, {"http", http}}}}};
-            pedir("POST", "/api/v1/botonera/credenciales", "", c.dump(), true);
+            pedir("POST", "/api/v1/botonera/credenciales", "", c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), true);
         };
         const std::string ruta = "/api/botonera/director/pagina/p1/celda/2/1/tocar";
         credenciales(true);

@@ -212,7 +212,7 @@ void EventoViewModel::setEventoAutomatico(bool si) {
     j["evento_automatico"] = si;
     std::error_code ec;
     std::filesystem::create_directories(ruta.parent_path(), ec);
-    std::ofstream(ruta) << j.dump(2) << "\n";
+    std::ofstream(ruta) << j.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     asegurarEnCurso();
     emit enCursoChanged();
 }
@@ -1488,7 +1488,7 @@ void EventoViewModel::ejecutarActual() {
             QJsonObject valores;
             if (c->datos.contains("valores"))
                 valores =
-                    QJsonDocument::fromJson(QByteArray::fromStdString(c->datos["valores"].dump())).object();
+                    QJsonDocument::fromJson(QByteArray::fromStdString(c->datos["valores"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
             const int dur = c->datos.value("duracionMs", 0);
             const bool repetir = c->datos.value("repetir", false);
             const QString err = graficos_->mostrar(grafico, valores, id, dur, repetir);
@@ -1916,7 +1916,7 @@ bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QStri
     g["nota"] = nota.toStdString();
     g["cuando"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm").toStdString();
     std::ofstream o(ruta);
-    o << j.dump(1);
+    o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!o) return false;
     emit chequeoChanged();
     return true;

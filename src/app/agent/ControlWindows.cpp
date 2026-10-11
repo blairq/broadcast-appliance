@@ -85,7 +85,7 @@ bool ControlWindows::guardar(const std::filesystem::path& datos) const {
     {
         std::ofstream f(tmp, std::ios::trunc);
         if (!f) return false;
-        f << comoJson().dump(2) << "\n";
+        f << comoJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
         if (!f) return false;
     }
     std::filesystem::rename(tmp, archivo(datos), ec);

@@ -513,7 +513,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // y lo otro es si el asistente esta atendiendo, para no pedirle al
         // invitado datos que le va a preguntar el asistente por chat.
         http::sendResponse(fd, 200, "application/json",
-                           json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump());
+                           json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return;
     }
     // --- Teleprompter -------------------------------------------------------
@@ -546,7 +546,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             prompter_.visto(campo("id"), campo("vista"), campo("nombre"), clientIp);
             // Publico: es el texto que el orador va a decir en voz alta en un
             // rato. Lo que se protege es CAMBIARLO, no verlo.
-            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -563,7 +563,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 return;
             }
             prompter_.comandar(req);
-            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -598,7 +598,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
                                    std::chrono::system_clock::now().time_since_epoch()).count();
             http::sendResponse(fd, 200, "application/json",
-                               json{{"pendientes", correccionPend_}, {"edad_ms", correccionMs_ ? ahora - correccionMs_ : 0}}.dump(),
+                               json{{"pendientes", correccionPend_}, {"edad_ms", correccionMs_ ? ahora - correccionMs_ : 0}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                                "Cache-Control: no-store\r\n");
             return;
         }
@@ -678,7 +678,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // lectura, como el resto de /pantalla/.
         if (rel == "tally.json") {
             std::lock_guard<std::mutex> lock(tallyLock_);
-            http::sendResponse(fd, 200, "application/json", tally_.dump());
+            http::sendResponse(fd, 200, "application/json", tally_.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (rel == "carrusel.json") {
@@ -689,7 +689,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 http::sendResponse(fd, 404, "application/json", R"({"error":"no existe ese carrusel"})");
                 return;
             }
-            http::sendResponse(fd, 200, "application/json", c.dump());
+            http::sendResponse(fd, 200, "application/json", c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         // El QR lo dibuja el servidor: asi la pagina no arrastra una
@@ -739,7 +739,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             return;
         }
         if (method == "GET") {
-            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -748,7 +748,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                    R"({"ok":false,"error":"falta id de fuente"})");
                 return;
             }
-            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -807,7 +807,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
         info["ok"] = true;
         if (hayFondo) info["fondo"] = "/api/publico-fondo";
-        http::sendResponse(fd, 200, "application/json", info.dump());
+        http::sendResponse(fd, 200, "application/json", info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return;
     }
     // La urna, del lado del telefono. El `codigo` solo lo manda el que esta en
@@ -839,7 +839,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         if (method == "GET") {
             http::sendResponse(
                 fd, 200, "application/json",
-                json{{"ok", true}, {"votacion", votacion_.estadoPublico(quien, codigo)}}.dump());
+                json{{"ok", true}, {"votacion", votacion_.estadoPublico(quien, codigo)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -851,7 +851,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                json{{"ok", motivo.empty()},
                                     {"error", motivo},
                                     {"votacion", votacion_.estadoPublico(quien, codigo)}}
-                                   .dump());
+                                   .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -912,7 +912,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                json{{"ok", true},
                                     {"preguntas", preguntas_.listaPublica(quien)},
                                     {"recuento", preguntas_.recuento()}}
-                                   .dump());
+                                   .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -923,7 +923,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             if (req.contains("votar")) {
                 const bool sumo = preguntas_.votar(req["votar"].get<std::string>(), quien);
                 http::sendResponse(fd, 200, "application/json",
-                                   json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
+                                   json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                 return;
             }
             const std::string id =
@@ -936,7 +936,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             }
             http::sendResponse(
                 fd, 200, "application/json",
-                json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
+                json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -1027,7 +1027,7 @@ void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32
                     {"maxGuests", cfg_.maxGuests},
                     {"ttlSec", auth_.ttlSec()},
                     {"maxUploadBytes", shares_.maxBytes()}};
-    http::sendResponse(fd, 200, "application/json", resp.dump());
+    http::sendResponse(fd, 200, "application/json", resp.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void SignalingServer::apiVerify(long long fd, const std::string& query) {
@@ -1038,7 +1038,7 @@ void SignalingServer::apiVerify(long long fd, const std::string& query) {
     if (code == 0) {
         http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
     } else {
-        http::sendResponse(fd, 401, "application/json", json{{"ok", false}, {"code", code}}.dump());
+        http::sendResponse(fd, 401, "application/json", json{{"ok", false}, {"code", code}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
 }
 
@@ -1090,7 +1090,7 @@ void SignalingServer::apiUpload(long long fd, const std::string& headers, const 
     const std::string id = room_.addShare(s, nowMs());
     log_.info("archivos: " + who.name + " compartio '" + s.name + "' (" + s.mime + ", " +
               std::to_string(res.bytes) + " bytes)");
-    http::sendResponse(fd, 201, "application/json", json{{"ok", true}, {"id", id}, {"kind", s.kind}}.dump());
+    http::sendResponse(fd, 201, "application/json", json{{"ok", true}, {"id", id}, {"kind", s.kind}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 // ============================================================================
@@ -1177,7 +1177,7 @@ void SignalingServer::apiBoard(long long fd, const std::string& method, const st
         return;
     }
     if (path == "/api/v1/board") {
-        http::sendResponse(fd, 200, "application/json", room_.boardSnapshot(nowMs()).dump(),
+        http::sendResponse(fd, 200, "application/json", room_.boardSnapshot(nowMs()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                            "Cache-Control: no-store\r\n");
         return;
     }
@@ -1253,7 +1253,7 @@ void SignalingServer::apiView(long long fd, const std::string& body, bool board)
         viewerOwners_[viewer] = board;
     }
     http::sendResponse(fd, 200, "application/json",
-                       json{{"ok", true}, {"viewer", viewer}, {"sdp", publicSdp(answer)}}.dump());
+                       json{{"ok", true}, {"viewer", viewer}, {"sdp", publicSdp(answer)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void SignalingServer::apiViewAction(long long fd, const std::string& method, const std::string& rest,
@@ -1545,7 +1545,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         const char* why = j.err == Room::kLocked      ? "locked"
                           : j.err == Room::kLobbyFull ? "lobby_full"
                                                       : "error";
-        const auto frame = Frame::encodeFrame(json{{"type", "rejected"}, {"reason", why}}.dump());
+        const auto frame = Frame::encodeFrame(json{{"type", "rejected"}, {"reason", why}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         http::writeWsFrame(fd, 0x2, std::string(frame.begin(), frame.end()));
         http::writeWsFrame(fd, 0x8, "");
         return {};
@@ -1593,7 +1593,7 @@ std::shared_ptr<SignalingServer::WsConn> SignalingServer::connFor(const std::str
 void SignalingServer::sendToGuest(const std::string& pid, const json& msg) {
     const auto conn = connFor(pid);
     if (!conn) return;
-    const auto frame = Frame::encodeFrame(msg.dump());
+    const auto frame = Frame::encodeFrame(msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     std::lock_guard<std::mutex> lock(conn->sendLock);
     if (conn->fd >= 0) http::writeWsFrame(conn->fd, 0x2, std::string(frame.begin(), frame.end()));
 }
@@ -2001,7 +2001,7 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
             }
             if (WebrtcSession* sess = idx > 0 ? hub_.session(idx) : nullptr) {
                 const json& c = msg.contains("candidate") ? msg["candidate"] : json();
-                sess->addRemoteIce(c.is_string() ? c.get<std::string>() : c.dump());
+                sess->addRemoteIce(c.is_string() ? c.get<std::string>() : c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             }
         } else if (type == "media") {
             room_.guestMedia(pid, msg);

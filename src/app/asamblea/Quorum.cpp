@@ -18,7 +18,7 @@ namespace fs = std::filesystem;
 
 namespace {
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 const std::set<std::string> kMayorias{"simple", "absoluta", "dos_tercios_presentes", "dos_tercios_miembros"};
 
@@ -70,10 +70,10 @@ void Quorum::guardar() const {
     fs::create_directories(archivoRegla_.parent_path(), ec);
     {
         std::ofstream o(archivoRegla_);
-        o << regla().dump(1);
+        o << regla().dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     std::ofstream o(archivoOficiales_);
-    o << oficiales_.dump(1);
+    o << oficiales_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 json Quorum::regla() const { return {{"miembros", miembros_}, {"minimo", minimo_}, {"mayoria", mayoria_}}; }

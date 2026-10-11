@@ -16,7 +16,7 @@ namespace fs = std::filesystem;
 
 namespace {
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 json deQv(const QVariantMap& m) {
     return json::parse(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact).toStdString(),
@@ -47,7 +47,7 @@ void Dsk::guardar() const {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
     std::ofstream o(archivo_);
-    o << json{{"capas", capas_}}.dump(1);
+    o << json{{"capas", capas_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 json* Dsk::buscar(int capa) {

@@ -71,7 +71,7 @@ ClienteAcme::Http ClienteAcme::firmado(const std::string& url, const std::string
         json prot{{"alg", "ES256"}, {"nonce", nonce_}, {"url", url}};
         if (conJwk) prot["jwk"] = json::parse(jwk());
         else prot["kid"] = kid_;
-        const std::string p64 = base64url(prot.dump());
+        const std::string p64 = base64url(prot.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         const std::string c64 = payload.empty() && !conJwk ? std::string() : base64url(payload); // POST-as-GET: ""
         std::string firma;
         if (!firmarEs256(cuenta_, p64 + "." + c64, firma)) {
@@ -83,7 +83,7 @@ ClienteAcme::Http ClienteAcme::firmado(const std::string& url, const std::string
         q.method = "POST";
         q.url = url;
         q.headers = {{"Content-Type", "application/jose+json"}};
-        q.body = jws.dump();
+        q.body = jws.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         const hn::HttpResponse r = hn::HttpsClient::request(q);
         out.status = r.status;
         out.cuerpo = r.body;
@@ -114,7 +114,7 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     // 1) La cuenta (si ya existe, la CA devuelve la misma: onlyReturnExisting no hace falta).
     json cuenta{{"termsOfServiceAgreed", true}};
     if (!email_.empty()) cuenta["contact"] = json::array({"mailto:" + email_});
-    Http r = firmado(nuevaCuenta_, cuenta.dump(), true);
+    Http r = firmado(nuevaCuenta_, cuenta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), true);
     if ((r.status != 200 && r.status != 201) || r.location.empty())
         return fallar("la CA no aceptó la cuenta (" + std::to_string(r.status) + ": " + trim(r.cuerpo.substr(0, 300)) + ")");
     kid_ = r.location;
@@ -122,7 +122,7 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     // 2) La orden.
     json ids = json::array();
     for (const auto& n : nombres) ids.push_back({{"type", "dns"}, {"value", n}});
-    r = firmado(nuevaOrden_, json{{"identifiers", ids}}.dump(), false);
+    r = firmado(nuevaOrden_, json{{"identifiers", ids}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), false);
     const json orden = json::parse(r.cuerpo, nullptr, false);
     if (r.status != 201 || !orden.is_object() || r.location.empty())
         return fallar("la CA no aceptó la orden (" + std::to_string(r.status) + ": " + trim(r.cuerpo.substr(0, 300)) + ")");
@@ -171,7 +171,7 @@ ClienteAcme::Resultado ClienteAcme::pedir(const std::vector<std::string>& nombre
     res.clave = claveNueva();
     const std::vector<unsigned char> csr = csrDer(res.clave, nombres);
     if (csr.empty()) return fallar("no se pudo armar el CSR");
-    r = firmado(finalizar, json{{"csr", base64url(csr.data(), csr.size())}}.dump(), false);
+    r = firmado(finalizar, json{{"csr", base64url(csr.data(), csr.size())}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), false);
     if (r.status != 200) return fallar("la CA no aceptó el CSR (" + std::to_string(r.status) + ": " + trim(r.cuerpo.substr(0, 300)) + ")");
     std::string urlCert;
     for (int i = 0; i < 30 && urlCert.empty(); ++i) {

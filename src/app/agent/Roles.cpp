@@ -466,7 +466,7 @@ void Roles::guardar() const {
         o[r.id] = json{
             {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo}};
     std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
-    out << o.dump(2) << "\n";
+    out << o.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
 } // namespace ba::app::agent

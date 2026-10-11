@@ -51,10 +51,10 @@ std::string textoDe(const json& content) {
 }
 
 QVariantMap aMapa(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 QVariantList aLista(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 void registrar(diag::Nivel n, const std::string& rol, const std::string& texto) {
@@ -395,7 +395,7 @@ std::string textoClave(const json& j, const char* clave) {
             v["data"]["message"].is_string())
             return v["data"]["message"].get<std::string>();
     }
-    return v.dump();
+    return v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace
@@ -507,7 +507,7 @@ void Despachador::paso(Corrida& c, json p) {
     if (p.value("tipo", "") == "herramienta")
         registrar(diag::Nivel::Depuracion, c.rol,
                   c.id + " llama " + p.value("herramienta", "") + " " +
-                      recortar(p.value("args", json::object()).dump(), 200));
+                      recortar(p.value("args", json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), 200));
     c.pasos.push_back(std::move(p));
     emit cambio();
 }

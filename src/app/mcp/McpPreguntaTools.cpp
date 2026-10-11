@@ -75,7 +75,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 // QR, por ejemplo). La matriz del QR no: es para dibujarlo.
                 nlohmann::json d = res.structured;
                 if (d.is_object()) d.erase("modules");
-                res.text(d.dump(2));
+                res.text(d.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
             }
             done(res);
         };

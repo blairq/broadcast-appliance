@@ -243,7 +243,7 @@ int main() {
             const json ev = verde.estado();
             std::printf("  directo verde:video %s edad p50 %.0f p95 %.0f lat %.0f cuadros %d\n", txt(vv->en(32, 18)).c_str(),
                         ev.value("edad_p50_ms", 0.0), ev.value("edad_p95_ms", 0.0), ev.value("latencia_ms", 0.0), ev.value("cuadros", 0));
-            std::printf("  vuelta %d: %s placa %d %s\n", i, txt(v.en(320, 180)).c_str(), verde.enPlaca(), verde.estado()["sale"].dump().c_str());
+            std::printf("  vuelta %d: %s placa %d %s\n", i, txt(v.en(320, 180)).c_str(), verde.enPlaca(), verde.estado()["sale"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         }
         esperar(es, prog, 2500);
         p1 = v.en(320, 180);
@@ -358,7 +358,7 @@ int main() {
         CHECK(igual(vp.en(570, 50), 0, 255, 0), "sin DSK, la escena");
         CHECK(pd.estado()["dsk"].empty(), "y se soltó la capa");
     }
-    std::printf("composición: %s\n", prog.estado().dump().c_str());
+    std::printf("composición: %s\n", prog.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
     return fallos == 0 ? 0 : 1;
 }

@@ -32,7 +32,7 @@ SourceSpec hardwareSpec(const std::string& device, const std::string& name, cons
     json s{{"uri", ""}, {"pipeline", ""}, {"pipeline_audio", ""}, {"audio", false}, {"normalizar", true}, {"camara", device}};
     if (opts.is_object() && opts.contains("modo") && opts["modo"].is_string() && !opts["modo"].get<std::string>().empty())
         s["camara_modo"] = opts["modo"];
-    spec.settingsJson = s.dump();
+    spec.settingsJson = s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
     return spec;
 }
@@ -67,7 +67,7 @@ SourceSpec audioInputSpec(const std::string& device, const std::string& name) {
              {"pipeline_audio", audio::pipelineDeMicrofono(device)},
              {"audio", true},
              {"microfono", device}}
-            .dump();
+            .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.rect = CanvasRect{0.0f, 0.0f, 0.0f, 0.0f}; // solo audio
     return spec;
 }
@@ -85,7 +85,7 @@ std::string ajustesAudioAnillo(const std::string& canal, int slot) {
     return json{{"pipeline", ""},     {"pipeline_audio", "baanillo canal=" + anillo},
                 {"audio", true},      {"anillo", c},
                 {"slot", slot},       {"estudio", false}}
-        .dump();
+        .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 std::string tipoLogico(const std::string& type, const json& settings) {
@@ -120,7 +120,7 @@ std::string ajustesVideoInvitado(int slot, const std::string& channel) {
                 {"video_invitado", true},
                 {"slot", slot},
                 {"channel", c}}
-        .dump();
+        .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 bool esVideoInvitado(const std::string& type, const std::string& settingsJson) {
@@ -158,7 +158,7 @@ std::string ajustesNdi(const std::string& nombre, const std::string& host, int p
                 {"ndi_name", nombre},
                 {"host", host},
                 {"port", port}}
-        .dump();
+        .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 bool migrarNdi(SourceSpec& spec) {
@@ -185,7 +185,7 @@ bool migrarMicrofono(SourceSpec& spec) {
         json s = json::parse(spec.settingsJson, nullptr, false);
         if (!s.is_object() || !s.contains("microfono") || s.contains("pipeline")) return false;
         s["pipeline"] = "";
-        spec.settingsJson = s.dump();
+        spec.settingsJson = s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         return true;
     }
     if (spec.id != kAudioInLibobs) return false;
@@ -222,7 +222,7 @@ SourceSpec networkSpec(const std::string& url, const std::string& name, const js
     SourceSpec spec;
     spec.id = "ffmpeg_source";
     spec.name = name;
-    spec.settingsJson = s.dump();
+    spec.settingsJson = s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.muted = !opts.value("audio", true);
     spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
     return spec;

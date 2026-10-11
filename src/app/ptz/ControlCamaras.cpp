@@ -990,7 +990,7 @@ void ControlCamaras::setInterlock(const QVariantMap& c) {
     if (c.contains("activo")) interlockActivo_ = c.value("activo").toBool();
     if (c.contains("seguir_suave_permitido")) seguirSuavePermitido_ = c.value("seguir_suave_permitido").toBool();
     std::ofstream o(rt_.dataRoot() / "Config" / "ptz-interlock.json");
-    o << nlohmann::json{{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}}.dump(1);
+    o << nlohmann::json{{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace ba::app::ptz

@@ -183,7 +183,7 @@ class Browser : public webrtc::PeerConnectionObserver {
         if (sendIce)
             sendIce(
                 json{{"candidate", line}, {"sdpMid", c->sdp_mid()}, {"sdpMLineIndex", c->sdp_mline_index()}}
-                    .dump());
+                    .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> t) override {
         auto track = t->receiver()->track();

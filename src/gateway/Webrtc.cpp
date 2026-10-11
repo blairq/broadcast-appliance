@@ -780,7 +780,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                              {"jitter_ms", std::lround(jit)}, {"rtt_ms", std::lround(rttMs)},
                              {"cuadros_perdidos", perdidos},   {"alto", alto},
                              {"ancho", ancho},                 {"semaforo", sem}};
-            impl_->statsJson = j.dump();
+            impl_->statsJson = j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         }
 
        private:
@@ -945,7 +945,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         if (!c->ToString(&line)) return;
         cb.onLocalIce(
             json{{"candidate", line}, {"sdpMid", c->sdp_mid()}, {"sdpMLineIndex", c->sdp_mline_index()}}
-                .dump());
+                .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
 
     void OnConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState s) override {

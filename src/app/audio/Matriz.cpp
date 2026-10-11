@@ -842,7 +842,7 @@ void Matriz::guardar() const {
     const fs::path p = root_ / "Config" / "audio-matriz.json";
     std::error_code ec;
     fs::create_directories(p.parent_path(), ec);
-    std::ofstream(p) << j.dump(1);
+    std::ofstream(p) << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void Matriz::cargar() {

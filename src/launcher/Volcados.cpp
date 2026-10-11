@@ -192,7 +192,7 @@ Volcado escribir(const std::filesystem::path& dir, const std::string& nombre, st
     j["ultimas_lineas"] = ultimasLineas(log, 80);
     {
         std::ofstream o(v.json, std::ios::trunc);
-        o << j.dump(1);
+        o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     podar(dir, nombre, 10);
     BA_LOG_WARN("dump", 0, nombre + ": " + v.causa + " → " + v.dmp.filename().string());

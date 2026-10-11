@@ -52,7 +52,7 @@ std::string sha256(const std::string& s) {
 }
 
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 
 json deQv(const QVariant& v) {
@@ -140,7 +140,7 @@ std::string comoTexto(const json& v) {
     if (v.is_string()) return v.get<std::string>();
     if (v.is_null()) return "";
     if (v.is_number_float()) return numeroTexto(v.get<double>(), 1);
-    return v.dump();
+    return v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 bool cumple(const std::string& op, const json& v, const json& ref) {
@@ -283,7 +283,7 @@ void Botonera::guardar() const {
     const fs::path tmp = archivo_.string() + ".tmp";
     {
         std::ofstream o(tmp);
-        o << datos_.dump(1);
+        o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, archivo_, ec);
 }
@@ -297,7 +297,7 @@ void Botonera::guardarDispositivos() const {
     const fs::path tmp = archivoDisp_.string() + ".tmp";
     {
         std::ofstream o(tmp);
-        o << json{{"dispositivos", solo}}.dump(1);
+        o << json{{"dispositivos", solo}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::permissions(tmp, fs::perms::owner_read | fs::perms::owner_write, fs::perm_options::replace, ec);
     fs::rename(tmp, archivoDisp_, ec);
@@ -454,7 +454,7 @@ std::string Botonera::editarPerfil(const std::string& id, const json& c, bool hu
         (*p)["puede_editar"] = v;
     }
     guardar();
-    auditar(humano ? "escritorio" : "asistente", "editar_perfil", id + " " + c.dump());
+    auditar(humano ? "escritorio" : "asistente", "editar_perfil", id + " " + c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     sucio_ = true;
     emit cambio();
     return {};
@@ -1489,7 +1489,7 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
         if (!yo || i >= pasos.size()) return;
         const std::string h = pasos[i]["herramienta"];
         const json args = pasos[i]["args"];
-        if (!esFader) yo->auditar(dev, "accion", h + " " + args.dump());
+        if (!esFader) yo->auditar(dev, "accion", h + " " + args.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         yo->g_.ejecutar(h, args, dev, perfilId, [yo, dev, h, i, espera, siguiente](bool ok, const std::string& texto) {
             if (!yo) return;
             if (!ok) {
@@ -1573,7 +1573,7 @@ bool Botonera::borrarCeldaUi(const QString& perfil, const QString& pagina, int x
 QVariantList Botonera::plantillasUi() const { return aQv(plantillas()).toList(); }
 QString Botonera::exportarUi(const QString& perfil) const {
     const json p = exportar(perfil.toStdString());
-    return p.is_null() ? QString() : QString::fromStdString(p.dump(2));
+    return p.is_null() ? QString() : QString::fromStdString(p.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 QString Botonera::importarUi(const QString& texto) {
     const json p = json::parse(texto.toStdString(), nullptr, false);
@@ -1617,12 +1617,12 @@ QVariantList Botonera::catalogoUi() const {
         const QString ruta = ":/botonera/" + QString::fromStdString(c.value("id", std::string())) + ".jpg";
         if (QFile::exists(ruta)) c["captura"] = ("qrc" + ruta).toStdString();
     }
-    return QJsonDocument::fromJson(QByteArray::fromStdString(cat.dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(cat.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 QVariantList Botonera::buscarUi(const QString& texto) const {
     if (!g_.buscar) return {};
-    return QJsonDocument::fromJson(QByteArray::fromStdString(g_.buscar(texto.toStdString()).dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(g_.buscar(texto.toStdString()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 QStringList Botonera::herramientasUi(const QString& filtro) const {

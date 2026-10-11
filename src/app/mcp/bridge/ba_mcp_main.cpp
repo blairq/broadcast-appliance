@@ -117,7 +117,7 @@ void writeLine(const std::string& line) {
 void writeError(const json& id, const std::string& message) {
     if (id.is_null()) return; // notificacion: no se contesta
     writeLine(
-        json{{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", -32000}, {"message", message}}}}.dump());
+        json{{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", -32000}, {"message", message}}}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void closeSock(socket_t s) {

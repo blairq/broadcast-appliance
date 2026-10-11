@@ -57,7 +57,7 @@ bool ModeloPropio::guardar(const std::filesystem::path& archivo) const {
                               {"limite", c.limite.is_object() ? c.limite : json::object()},
                               {"instrucciones", c.instrucciones},
                               {"piensa", c.piensa}});
-        f << json{{"url", url}, {"modelo", modelo}, {"canales", cs}}.dump(2);
+        f << json{{"url", url}, {"modelo", modelo}, {"canales", cs}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
         if (!f) return false;
     }
     std::filesystem::rename(parcial, archivo, ec);

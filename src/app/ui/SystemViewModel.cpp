@@ -91,14 +91,14 @@ bool SystemViewModel::canRollback() const {
 }
 
 QVariantMap SystemViewModel::inicioEstado() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QVariantList SystemViewModel::elementosQueFaltan() const {
     nlohmann::json faltan = nlohmann::json::array();
     for (const auto& e : video::revisarElementosGst())
         if (!e.value("esta", true)) faltan.push_back(e);
-    return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 QString SystemViewModel::inicioPoner(bool activo) { return QString::fromStdString(inicio::poner(activo)); }

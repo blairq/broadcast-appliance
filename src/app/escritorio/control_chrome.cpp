@@ -242,7 +242,7 @@ class Cdp {
     /// Llama y espera la respuesta (hasta `ms`); {} si no llegó, {"error"} si Chrome dio error.
     json llamar(const std::string& metodo, const json& params = json::object(), int ms = 15000) {
         const int id = ++id_;
-        if (!ws_.mandar(json{{"id", id}, {"method", metodo}, {"params", params}}.dump())) return {{"error", "no se pudo mandar"}};
+        if (!ws_.mandar(json{{"id", id}, {"method", metodo}, {"params", params}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return {{"error", "no se pudo mandar"}};
         ws_.tiempo(ms);
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
         std::string m;
@@ -335,7 +335,7 @@ std::string textoDeArgs(const json& args) {
     std::string out;
     for (const auto& x : args) {
         if (!out.empty()) out += ' ';
-        if (x.contains("value")) out += x["value"].is_string() ? x["value"].get<std::string>() : x["value"].dump();
+        if (x.contains("value")) out += x["value"].is_string() ? x["value"].get<std::string>() : x["value"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         else if (x.contains("description")) out += x.value("description", std::string());
         else out += x.value("type", std::string());
     }

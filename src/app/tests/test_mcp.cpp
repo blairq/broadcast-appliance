@@ -432,7 +432,7 @@ int main(int argc, char** argv) {
     CHECK(srv.listen(0), "escucha en 127.0.0.1");
     const quint16 port = srv.port();
     const QByteArray init =
-        QByteArray::fromStdString(req(30, "initialize", {{"protocolVersion", "2025-06-18"}}).dump());
+        QByteArray::fromStdString(req(30, "initialize", {{"protocolVersion", "2025-06-18"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     const QPair<QByteArray, QByteArray> auth{"Authorization", "Bearer " + token.toUtf8()};
     CHECK(http(port, "POST", "/mcp", init, {}).status == 401, "sin token -> 401");
     CHECK(http(port, "POST", "/mcp", init, {{"Authorization", "Bearer malo"}}).status == 401,
@@ -449,7 +449,7 @@ int main(int argc, char** argv) {
     CHECK(http(port, "POST", "/otra", init, {auth}).status == 404, "otra ruta -> 404");
     CHECK(http(port, "POST", "/mcp", "{roto", {auth}).status == 400, "JSON roto -> 400");
     h = http(port, "POST", "/mcp",
-             QByteArray::fromStdString(req(31, "tools/call", {{"name", "later"}}).dump()), {auth});
+             QByteArray::fromStdString(req(31, "tools/call", {{"name", "later"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)), {auth});
     CHECK(h.status == 200 && h.body.contains("structuredContent"), "herramienta asincrona por HTTP");
 
     // --- 8) puente stdio ba-mcp -----------------------------------------------------------
@@ -462,12 +462,12 @@ int main(int argc, char** argv) {
         bridge.start(BA_MCP_BRIDGE, {});
         CHECK(bridge.waitForStarted(5000), "arranca ba-mcp");
         bridge.write(
-            QByteArray::fromStdString(req(40, "initialize", {{"protocolVersion", "2025-06-18"}}).dump()) +
+            QByteArray::fromStdString(req(40, "initialize", {{"protocolVersion", "2025-06-18"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) +
             "\n");
         bridge.write(note + "\n");
         bridge.write(
             QByteArray::fromStdString(
-                req(41, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "por stdio"}}}}).dump()) +
+                req(41, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "por stdio"}}}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) +
             "\n");
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
@@ -502,7 +502,7 @@ int main(int argc, char** argv) {
         env.insert("BA_DATA_ROOT", "/nonexistent-ba-test"); // sin bundle de datos: no hay Runtime/mcp.json
         bridge.setProcessEnvironment(env);
         bridge.start(BA_MCP_BRIDGE, {});
-        bridge.write(QByteArray::fromStdString(req(50, "initialize").dump()) + "\n");
+        bridge.write(QByteArray::fromStdString(req(50, "initialize").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + "\n");
         bridge.closeWriteChannel();
         bridge.waitForFinished(5000);
         const QByteArray out = bridge.readAllStandardOutput();
@@ -554,7 +554,7 @@ int main(int argc, char** argv) {
         CHECK(iniTodo["result"]["instructions"].get<std::string>().find("**otro**") != std::string::npos,
               "sin rol, el mapa es completo");
         // Por HTTP: la cabecera.
-        const Http h = http(port, "POST", "/mcp", QByteArray::fromStdString(req(67, "tools/list").dump()),
+        const Http h = http(port, "POST", "/mcp", QByteArray::fromStdString(req(67, "tools/list").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)),
                             {auth, {"X-BA-Rol", "rec"}});
         CHECK(h.status == 200 && h.body.contains("\"echo\"") && !h.body.contains("\"ajeno\""),
               "X-BA-Rol filtra por HTTP");
@@ -566,7 +566,7 @@ int main(int argc, char** argv) {
         bridge.setProcessEnvironment(env);
         bridge.start(BA_MCP_BRIDGE, {"--rol", "rec"});
         CHECK(bridge.waitForStarted(5000), "arranca ba-mcp --rol");
-        bridge.write(QByteArray::fromStdString(req(68, "tools/list").dump()) + "\n");
+        bridge.write(QByteArray::fromStdString(req(68, "tools/list").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + "\n");
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
         QByteArray out;
@@ -595,7 +595,7 @@ int main(int argc, char** argv) {
         const std::string r = Traza::resumir(json{{"t", largo}});
         CHECK(!r.empty(), "resumir un texto con acentos no revienta");
         CHECK(r.find("no se pudo resumir") == std::string::npos, "y no cae en el camino de emergencia");
-        CHECK(json(r).dump().size() > 0, "lo que sale se puede serializar");
+        CHECK(json(r).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).size() > 0, "lo que sale se puede serializar");
     }
 
     if (g_failures == 0) {

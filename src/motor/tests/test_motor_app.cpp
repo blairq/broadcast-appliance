@@ -122,7 +122,7 @@ int main() {
         CHECK(m.verPedir("escena:App", 320, 180).empty(), "ver una escena que no está al aire (el editor)");
         esperar(1500);
         const Px p = mirar(m, "escena:App", 160, 90);
-        std::printf("escena App (no al aire): %s\nlienzo: %s\n", txt(p).c_str(), m.estado()["entradas"]["lienzo"].dump().c_str());
+        std::printf("escena App (no al aire): %s\nlienzo: %s\n", txt(p).c_str(), m.estado()["entradas"]["lienzo"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(igual(p, 0, 0, 255), "lo que pintó la app se ve");
         esperar(1500);
         CHECK(igual(mirar(m, "escena:App", 160, 90), 0, 0, 255), "y sigue viéndose (sin mandar más cuadros)");

@@ -18,7 +18,7 @@ using json = nlohmann::json;
 namespace {
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 QVariant aQv(const json& j) {
-    return QVariant::fromValue(QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant());
+    return QVariant::fromValue(QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant());
 }
 } // namespace
 
@@ -39,7 +39,7 @@ void Playlist::guardar() const {
     std::error_code ec;
     std::filesystem::create_directories(archivo_.parent_path(), ec);
     const std::filesystem::path tmp = archivo_.string() + ".tmp";
-    std::ofstream(tmp) << json{{"items", items_}, {"auto_next", autoNext_}, {"loop", loop_}}.dump(1);
+    std::ofstream(tmp) << json{{"items", items_}, {"auto_next", autoNext_}, {"loop", loop_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     std::filesystem::rename(tmp, archivo_, ec);
 }
 
@@ -55,7 +55,7 @@ void Playlist::anotarAire() const {
                                {"archivo", indice_ >= 0 && indice_ < static_cast<int>(items_.size())
                                                ? items_[static_cast<size_t>(indice_)].value("archivo", std::string())
                                                : std::string()}}
-                              .dump();
+                              .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     std::error_code ec;
     std::filesystem::rename(tmp, dest, ec);
 }
@@ -109,7 +109,7 @@ std::string Playlist::asegurarEscena() {
         SourceSpec spec;
         spec.id = "ffmpeg_source";
         spec.name = kFuente;
-        spec.settingsJson = json{{"is_local_file", true}, {"restart_on_activate", false}, {"clear_on_media_end", false}}.dump();
+        spec.settingsJson = json{{"is_local_file", true}, {"restart_on_activate", false}, {"clear_on_media_end", false}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (!rt_.addSource(kEscena, spec)) return rt_.lastError();
         rt_.save();
     }
@@ -126,7 +126,7 @@ std::string Playlist::cargarItem(int i) {
                                      {"restart_on_activate", false},
                                      {"clear_on_media_end", false},
                                      {"hw_decode", true}}
-                                    .dump();
+                                    .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!rt_.updateSourceSettings(kFuente, ajustes)) return rt_.lastError();
     // libobs no hace correr un medio que no se ve en ningún lado: si la escena no
     // está al aire, se arma en PVW (el programa no se toca).

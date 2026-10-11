@@ -550,7 +550,7 @@ void McpService::registerYouTubeTools() {
                           {"solo_destacados", a.value("modo", std::string("destacado")) != "flujo"}};
             if (a.contains("maxMessages")) settings["max_messages"] = a["maxMessages"];
             if (a.contains("fontSize")) settings["font_size"] = a["fontSize"];
-            spec.settingsJson = settings.dump();
+            spec.settingsJson = settings.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             spec.rect = CanvasRect{0.66f, 0.05f, 0.32f, 0.9f};
             std::string err;
             if (a.contains("layout") &&

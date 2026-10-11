@@ -17,7 +17,7 @@ using json = nlohmann::json;
 
 namespace {
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 json deQv(const QVariantMap& m) {
     return json::parse(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Compact).toStdString(),
@@ -77,7 +77,7 @@ void ConferenciaDcn::setPresentesDeLaCentral(bool si) {
     presentesCentral_ = si;
     std::error_code ec;
     std::filesystem::create_directories(archivo_.parent_path(), ec);
-    std::ofstream(archivo_) << json{{"presentes_de_la_central", si}}.dump(1);
+    std::ofstream(archivo_) << json{{"presentes_de_la_central", si}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit cambio();
 }
 

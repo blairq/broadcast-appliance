@@ -118,7 +118,7 @@ Permisos permisos() {
 
 std::mutex gSalida;
 void escribir(const json& j) {
-    const std::string s = j.dump();
+    const std::string s = j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     std::lock_guard<std::mutex> lk(gSalida);
     std::cout << s << "\n";
     std::cout.flush();
@@ -141,7 +141,7 @@ json resultadoDatos(const json& id, const json& datos) {
     return json{{"jsonrpc", "2.0"},
                 {"id", id},
                 {"result",
-                 {{"content", json::array({{{"type", "text"}, {"text", datos.dump(2)}}})},
+                 {{"content", json::array({{{"type", "text"}, {"text", datos.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)}}})},
                   {"structuredContent", datos},
                   {"isError", false}}}};
 }

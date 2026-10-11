@@ -24,7 +24,7 @@ std::string audioDeCanal(int canal) {
 }
 
 QVariantMap aQvm(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 } // namespace
 
@@ -48,7 +48,7 @@ void Debate::cargar() {
 void Debate::guardar() const {
     std::error_code ec;
     std::filesystem::create_directories(archivo_.parent_path(), ec);
-    std::ofstream(archivo_) << config_.dump(1);
+    std::ofstream(archivo_) << config_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 std::string Debate::configurar(const json& c) {

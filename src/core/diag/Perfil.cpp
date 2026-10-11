@@ -464,11 +464,11 @@ void medir(std::string proceso, std::filesystem::path logs) {
             out.open(archivo, std::ios::trunc);
         }
         if (++vuelta % 10 == 0) {
-            std::string resumen = "perfil " + proceso + ": " + m["cpu_nucleos"].dump() + " núcleos, " +
-                                  m["memoria_mb"].dump() + " MB";
+            std::string resumen = "perfil " + proceso + ": " + m["cpu_nucleos"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " núcleos, " +
+                                  m["memoria_mb"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " MB";
             for (size_t i = 0; i < lista.size() && i < 5; ++i)
-                resumen += " | " + lista[i]["nombre"].get<std::string>() + " " + lista[i]["cpu"].dump();
-            if (!m["gpu"].empty()) resumen += " | gpu " + m["gpu"].dump();
+                resumen += " | " + lista[i]["nombre"].get<std::string>() + " " + lista[i]["cpu"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+            if (!m["gpu"].empty()) resumen += " | gpu " + m["gpu"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             registro().linea(Nivel::Info, "perfil", 0, resumen);
         }
         std::lock_guard<std::mutex> l(gMu);

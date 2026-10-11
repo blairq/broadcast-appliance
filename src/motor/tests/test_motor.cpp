@@ -130,7 +130,7 @@ int main() {
     programa->agregar("tono1");
     banco.correr(1500);
     const json st1 = e1->estado();
-    std::printf("tono1: %s\n", st1.dump().c_str());
+    std::printf("tono1: %s\n", st1.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(st1.value("anda", false), "la entrada anda");
     CHECK(st1.value("bloques_audio", 0) > 20, "da audio");
     std::printf("programa con un tono: %.2f dBFS (latencia %.0f ms)\n", banco.rms(), programa->estado().value("latencia_ms", 0.0));
@@ -234,7 +234,7 @@ int main() {
         programa->agregar("fuerte");
         banco.correr(1500);
         const json pe2 = programa->estado();
-        std::printf("limitador: %s; loudness: %s\n", pe2["limitador"].dump().c_str(), pe2["loudness"].dump().c_str());
+        std::printf("limitador: %s; loudness: %s\n", pe2["limitador"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str(), pe2["loudness"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(pe2["loudness"].value("true_peak_db", 0.0) <= -0.95, "+6 dBFS sale a <= -1 dBTP");
         CHECK(pe2["loudness"].value("true_peak_db", -120.0) > -2.0, "y no baja de más");
         CHECK(pe2["limitador"].value("reduccion_db", 0.0) < -5.0, "el limitador está bajando");
@@ -260,7 +260,7 @@ int main() {
     }
     banco.correr(1200);
     const json sv = v->estado();
-    std::printf("video: %s\n", sv["sale"].dump().c_str());
+    std::printf("video: %s\n", sv["sale"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(sv.value("cuadros", 0) > 20, "da cuadros");
     // En la GPU la entrada publica una textura RGBA (la composición la convierte).
     CHECK(sv["sale"].value("formato", "") == (gpuVideo() ? "RGBA" : "NV12"), "sale en el formato del lienzo");
@@ -288,7 +288,7 @@ int main() {
         banco.entradas.push_back(img.get());
         banco.correr(1200);
         const json si = img->estado();
-        std::printf("imagen: %d cuadros, sale %s\n", si.value("cuadros", 0), si["sale"].dump().c_str());
+        std::printf("imagen: %d cuadros, sale %s\n", si.value("cuadros", 0), si["sale"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(si.value("cuadros", 0) > 15, "la imagen da cuadros");
         CHECK(si["sale"].value("formato", "") == (gpuVideo() ? "RGBA" : "BGRA"), "con su alfa (BGRA, o RGBA en la GPU)");
         banco.entradas.pop_back();

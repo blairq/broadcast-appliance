@@ -101,7 +101,7 @@ void LatidoAire::bucle() {
 }
 
 void LatidoAire::escribirEstadoUi(bool trabada, std::uint64_t ms) const {
-    std::string s = json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}.dump();
+    std::string s = json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const std::shared_ptr<EscritorEstado> e = escritor_;
     {
         std::lock_guard<std::mutex> l(e->m);
@@ -154,7 +154,7 @@ void LatidoAire::guardar() const {
     std::error_code ec;
     fs::create_directories(datos_ / "Config", ec);
     std::ofstream o(datos_ / "Config" / "supervisor.json");
-    o << json{{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}}.dump(1);
+    o << json{{"espera_ui_s", p.esperaUiS}, {"matar_si_ui_trabada_sin_aire", p.matarSiUiTrabadaSinAire}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 json LatidoAire::estado() const {

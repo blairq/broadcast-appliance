@@ -93,7 +93,7 @@ void vivo(const char* binarios, const char* repo) {
     m.elegir("dale take", [&](const nlohmann::json& j) { eleccion = j; });
     esperar([&] { return !eleccion.is_null(); }, 60000);
     CHECK(eleccion.value("herramienta", std::string()) == "scene_take", "elegir: «dale take» -> scene_take");
-    std::printf("   %s\n", eleccion.dump().c_str());
+    std::printf("   %s\n", eleccion.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
 
     nlohmann::json fin;
     QString texto;
@@ -103,7 +103,7 @@ void vivo(const char* binarios, const char* repo) {
         false, 16, [&](const QString& d) { texto += d; }, [&](const nlohmann::json& j) { fin = j; });
     esperar([&] { return !fin.is_null(); }, 60000);
     CHECK(fin.value("fin", false) && !texto.isEmpty(), "generar: llegan los delta y el fin");
-    std::printf("   «%s» %s\n", texto.toUtf8().constData(), fin.dump().c_str());
+    std::printf("   «%s» %s\n", texto.toUtf8().constData(), fin.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     m.apagar();
     CHECK(m.estado() == "apagado", "apagar");
 }

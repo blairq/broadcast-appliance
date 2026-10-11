@@ -820,7 +820,7 @@ bool BroadcastEngine::updateSourceSettings(const std::string& name, const std::s
     json todo = json::parse(it->second.spec.settingsJson.empty() ? "{}" : it->second.spec.settingsJson, nullptr, false);
     if (!todo.is_object()) todo = json::object();
     todo.update(nuevos);
-    it->second.spec.settingsJson = todo.dump();
+    it->second.spec.settingsJson = todo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!it->second.compProductor.empty()) {
         motor_->definirEscena(escenaCompositor(name, configDe(it->second.spec.id, todo)));
         return true;
@@ -1040,7 +1040,7 @@ bool BroadcastEngine::playMedia(const std::string& name, const std::string& file
     const json s{{"local_file", file}, {"is_local_file", true}, {"looping", loop}, {"clear_on_media_end", true}};
     if (sources_.count(name) > 0) {
         // Ya existe: se le cambia el archivo y arranca de nuevo (otra fuente dejaría la anterior sonando).
-        updateSourceSettings(name, s.dump());
+        updateSourceSettings(name, s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         setSourceVolume(name, volume);
         setSourceMuted(name, false);
         return restartMedia(name);
@@ -1048,7 +1048,7 @@ bool BroadcastEngine::playMedia(const std::string& name, const std::string& file
     SourceSpec spec;
     spec.id = inputs::kMedioType;
     spec.name = name;
-    spec.settingsJson = s.dump();
+    spec.settingsJson = s.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     spec.volume = volume;
     return addGlobalAudio(spec);
 }

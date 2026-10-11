@@ -247,7 +247,7 @@ void PropertiesModel::setValue(const QString& prop, const QVariant& value) {
         cambio[key] = value.toString().toStdString();
     }
     // Aplica y sincroniza la configuracion (todas las escenas que la usan).
-    rt_.updateSourceSettings(nombre, cambio.dump());
+    rt_.updateSourceSettings(nombre, cambio.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     // Las filas pueden depender de los valores (listas que cambian): se rehacen.
     rebuild();
 }

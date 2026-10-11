@@ -47,7 +47,7 @@ void SeguirMicrofono::guardar() const {
     std::ofstream o(archivo_);
     o << json{{"activo", activo_}, {"modo", modo_}, {"fuente", fuente_}, {"umbral_db", umbralDb_}, {"sostener_ms", sostenerMs_},
               {"soltar_ms", soltarMs_}}
-             .dump(1);
+             .dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 json SeguirMicrofono::estado() const {
@@ -200,7 +200,7 @@ void SeguirMicrofono::mirar() {
 }
 
 QVariantMap SeguirMicrofono::estadoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(estado().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString SeguirMicrofono::configurarUi(const QVariantMap& c) {

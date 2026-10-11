@@ -229,7 +229,7 @@ void McpService::registerInputTools() {
             spec.settingsJson = json{{"ndi_name", a.value("ndiName", "")},
                                      {"host", a.value("host", "")},
                                      {"port", a.value("port", 0)}}
-                                    .dump();
+                                    .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             std::string err;
             if (!layoutOf(a, spec, err)) return done(ToolResult::error(err));
             const std::string scene = a.value("scene", rt.engine().currentScene());

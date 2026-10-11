@@ -456,7 +456,7 @@ void RackManager::saveMonitor() const {
     std::error_code ec;
     fs::create_directories(file.parent_path(), ec);
     std::ofstream out(file, std::ios::binary);
-    if (out) out << json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2);
+    if (out) out << json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void RackManager::restoreMonitor() {
@@ -951,7 +951,7 @@ void RackManager::guardarPlantillas() const {
     {
         std::ofstream out(tmp, std::ios::binary);
         if (!out) return;
-        out << plantillas_.dump(2);
+        out << plantillas_.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, file, ec);
 }
@@ -1042,7 +1042,7 @@ void RackManager::saveNow() {
     {
         std::ofstream out(tmp, std::ios::binary);
         if (!out) return;
-        out << all.dump(2);
+        out << all.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, file, ec);
 }

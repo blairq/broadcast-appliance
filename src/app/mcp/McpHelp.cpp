@@ -908,7 +908,7 @@ Siempre con una linea que empiece con `RESUMEN:`: que paso, que quedo hecho, que
 
 std::string settingsJson(SettingsModel& s) {
     s.revert();
-    return modelRows(s).dump(2);
+    return modelRows(s).dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace
@@ -1046,17 +1046,17 @@ void McpService::registerHelp() {
                                  {"fps", st.fps},
                                  {"droppedFrames", st.droppedFrames},
                                  {"videoEncoder", st.videoEncoder}}
-                         .dump(2);
+                         .dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
                  }});
     core_.addResource(
         Resource{"ba://escenas", "escenas", "Escenas y fuentes (JSON).", "application/json", [&rt]() {
                      json out = json::array();
                      for (const auto& n : rt.engine().sceneNames())
                          out.push_back(json{{"name", n}, {"sources", rt.engine().sceneSources(n)}});
-                     return json{{"current", rt.engine().currentScene()}, {"scenes", out}}.dump(2);
+                     return json{{"current", rt.engine().currentScene()}, {"scenes", out}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
                  }});
     core_.addResource(Resource{"ba://sala", "sala", "Estado de la sala (JSON).", "application/json",
-                               [&vm]() { return roomSnapshot(vm).dump(2); }});
+                               [&vm]() { return roomSnapshot(vm).dump(2, ' ', false, nlohmann::json::error_handler_t::replace); }});
     core_.addResource(Resource{"ba://config", "config", "Todos los ajustes (JSON).", "application/json",
                                [settings]() { return settingsJson(*settings); }});
 

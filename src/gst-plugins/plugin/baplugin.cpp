@@ -143,7 +143,7 @@ class CanalPlugin {
 
     bool enviar(const json& m) {
         if (fd_ == kSin) return false;
-        const std::string s = m.dump() + "\n";
+        const std::string s = m.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n";
         size_t hecho = 0;
         while (hecho < s.size()) {
 #if defined(MSG_NOSIGNAL)
@@ -591,7 +591,7 @@ void filtroLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case P_ESTADO: {
             const json e{{"conectado", f.conectado.load()},   {"error", f.error}, {"cuadros", f.cuadros.load()},
                          {"procesados", f.procesados.load()}, {"tarde", f.tarde.load()}, {"sin_procesar", f.pasados.load()}};
-            g_value_set_string(v, e.dump().c_str());
+            g_value_set_string(v, e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
             break;
         }
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
@@ -881,7 +881,7 @@ void fuenteLeer(GObject* o, guint id, GValue* v, GParamSpec* ps) {
         case F_ESTADO:
             g_value_set_string(
                 v, json{{"conectado", f.conectado}, {"error", f.error}, {"recibidos", f.recibidos.load()}}
-                       .dump()
+                       .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)
                        .c_str());
             break;
         default: G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);

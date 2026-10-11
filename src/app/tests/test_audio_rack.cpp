@@ -87,7 +87,7 @@ int main() {
     const std::string an = rack.addAnalyzer("", comp);
     CHECK(!an.empty(), "agrega un analizador despues");
     auto d = rack.describe();
-    std::printf("%s\n", d["cables"].dump().c_str());
+    std::printf("%s\n", d["cables"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(d["cables"].size() == 3, "in -> compresor -> analizador -> out");
 
     // Umbral bajo, ratio alto: comprime.
@@ -100,7 +100,7 @@ int main() {
     }
     const float wet = feed(rack, 0.5f, 2);
     const json m = rack.meters(comp);
-    std::printf("pico %.3f -> %.3f, medidores del compresor %s\n", dry, wet, m.dump().c_str());
+    std::printf("pico %.3f -> %.3f, medidores del compresor %s\n", dry, wet, m.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(wet < dry * 0.5f, "comprime");
     CHECK(m.value("cambioDb", 0.0) < -6, "el medidor muestra la reduccion");
     CHECK(rack.analyzer(an)->snapshot().seconds > 1, "el analizador midio");
@@ -127,7 +127,7 @@ int main() {
     for (const auto& p : c->params()) // el resto de la prueba, sin lookahead
         if (p.name.find("ookahead") != std::string::npos) c->setValue(p.id, p.min);
     feed(rack, 0.5f, 1);
-    std::printf("colgado tras el lookahead: %s\n", rack.describe()["colgado"].dump().c_str());
+    std::printf("colgado tras el lookahead: %s\n", rack.describe()["colgado"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     rack.rearmar(comp); // cambiar el lookahead re-arma el compresor (tarda): el vigía lo pudo marcar
     CHECK(rack.disconnect("in", "out", "out", "in"), "se saca");
     CHECK(!rack.connect(an, "out", comp, "in", &err), "un ciclo se rechaza");

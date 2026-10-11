@@ -301,7 +301,7 @@ void CarruselViewModel::empujar(const carrusel::Carrusel& c) {
     // Se le cambia el archivo a la fuente que ya está en la escena. NO se la
     // vuelve a crear: recrearla en cada salto haría un parpadeo al aire y
     // perdería la ubicación que el operador le dio.
-    rt_.updateSourceSettings(c.fuente(), nlohmann::json{{"file", l->archivo}}.dump());
+    rt_.updateSourceSettings(c.fuente(), nlohmann::json{{"file", l->archivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& escena) {
@@ -322,7 +322,7 @@ bool CarruselViewModel::aplicarAEscena(const QString& carrusel, const QString& e
         SourceSpec spec;
         spec.id = "image_source";
         spec.name = fuente;
-        spec.settingsJson = nlohmann::json{{"file", c->laminas().front().archivo}}.dump();
+        spec.settingsJson = nlohmann::json{{"file", c->laminas().front().archivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f}; // pantalla completa; se acomoda en Escenas
         spec.visible = true;
         if (!rt_.addSource(escena.toStdString(), spec)) {

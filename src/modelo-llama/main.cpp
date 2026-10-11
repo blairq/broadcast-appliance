@@ -602,7 +602,7 @@ int main(int argc, char** argv) {
             pos = 0;
             adelante(idsCabeza);
             if (llama_state_seq_save_file(ctx, archivoPrefijo.string().c_str(), 0, idsCabeza.data(), idsCabeza.size()) > 0)
-                std::ofstream(firmaPrefijo) << datosPrefijo.dump();
+                std::ofstream(firmaPrefijo) << datosPrefijo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             else
                 emitir({{"ev", "aviso"}, {"aviso", "no se pudo guardar el prefijo calculado"}});
         }

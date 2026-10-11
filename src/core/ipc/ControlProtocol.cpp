@@ -170,7 +170,7 @@ std::string Message::toJson() const {
         }
     }
     j["payload"] = std::move(payloadObj);
-    return j.dump();
+    return j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 bool Message::fromJson(const std::string& json, Message& out) {

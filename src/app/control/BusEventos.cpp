@@ -26,7 +26,7 @@ std::vector<std::string> niveles(const std::string& s) {
 }
 
 QVariant aQv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump())).object().value("v").toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().value("v").toVariant();
 }
 
 constexpr std::size_t kRecientes = 400;
@@ -124,7 +124,7 @@ QVariantList BusEventos::recientesUi(const QString& filtro) const {
         if (!f.empty() && t.find(f) == std::string::npos && !coincide(f, t)) continue;
         out.append(QVariantMap{
             {"tema", QString::fromStdString(t)},
-            {"valor", QString::fromStdString((*it)["valor"].dump())},
+            {"valor", QString::fromStdString((*it)["valor"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))},
             {"hora", QDateTime::fromMSecsSinceEpoch(it->value("ms", 0LL)).toString("HH:mm:ss.zzz")}});
     }
     return out;
@@ -137,7 +137,7 @@ QVariantList BusEventos::temasUi(const QString& filtro) const {
     for (const auto& [t, e] : ultimos_) {
         if (!f.empty() && t.find(f) == std::string::npos && !coincide(f, t)) continue;
         out.append(QVariantMap{{"tema", QString::fromStdString(t)},
-                               {"valor", QString::fromStdString(e.valor.dump())},
+                               {"valor", QString::fromStdString(e.valor.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))},
                                {"datos", aQv(e.valor)}});
     }
     return out;

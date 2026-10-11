@@ -70,7 +70,7 @@ int main() {
             }
         for (auto it = t.presets.begin(); it != t.presets.end(); ++it) {
             const json r = applyModule(*inst, &t, it.value());
-            std::printf("%s/%s: %s\n", t.key.c_str(), it.key().c_str(), r.dump().c_str());
+            std::printf("%s/%s: %s\n", t.key.c_str(), it.key().c_str(), r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
             CHECK(r["errores"].empty(), "el preset se aplica sin errores");
         }
     }
@@ -103,7 +103,7 @@ int main() {
     // Un error claro ante una opcion que no existe.
     const json bad =
         applyModule(*rack.plugin(eq), findModule("eq"), {{"bandas", {{{"banda", 3}, {"tipo", "Campana"}}}}});
-    std::printf("error esperado: %s\n", bad["errores"].dump().c_str());
+    std::printf("error esperado: %s\n", bad["errores"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(!bad["errores"].empty(), "opcion invalida -> error con las validas");
 
     if (g_failures == 0) std::printf("test_audio_modules: OK\n");

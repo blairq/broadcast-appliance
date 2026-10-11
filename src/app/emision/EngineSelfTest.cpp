@@ -169,7 +169,7 @@ int runEngineSelfTest(int argc, char** argv) {
         if (okFa) {
             std::this_thread::sleep_for(std::chrono::seconds(6));
             const nlohmann::json g = eng.grabacionEstado();
-            std::printf("         %s\n", g.dump().c_str());
+            std::printf("         %s\n", g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
             ok("la copia en otro disco esta activa", g.value("copia_activa", false));
             ok("graba las pistas 1 y 2", g["pistas"].size() == 2);
             if (okReplay) {

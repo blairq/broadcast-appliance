@@ -33,7 +33,7 @@ namespace {
 using json = nlohmann::json;
 
 QVariant aV(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toMap()
         .value("v");

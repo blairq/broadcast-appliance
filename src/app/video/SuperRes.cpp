@@ -34,7 +34,7 @@ namespace {
 using json = nlohmann::json;
 QString q8(const fs::path& p) { return QString::fromStdWString(p.wstring()); }
 QVariant qv(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toList()
         .value(0);
@@ -420,7 +420,7 @@ std::string SuperRes::destilar(const std::string& entrada, const std::string& ma
         seguro += (std::isalnum(static_cast<unsigned char>(c)) || c == '-') ? c : '_';
     const fs::path salida = carpetaModelos() / ("destilada-" + seguro + ".onnx");
     const fs::path archivoReceta = carpetaModelos() / (".maestro-" + seguro + ".json");
-    std::ofstream(archivoReceta) << receta.dump(1);
+    std::ofstream(archivoReceta) << receta.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     const int segundos = 60;
     const auto lanzar = [=, this](const QStringList& desde) {
         const fs::path lab = ba::platform::bundleRoot() / "superres" / "laboratorio.py";
@@ -571,7 +571,7 @@ std::string SuperRes::instalarPlugin(const std::string& id) {
     if (receta.value("tipo", "") == "integrado") return "«" + id + "» viene con el programa: no hace falta instalarlo";
     const fs::path dir = carpetaModelos() / id;
     const fs::path archivoReceta = carpetaModelos() / (".receta-" + id + ".json");
-    std::ofstream(archivoReceta) << receta.dump(1);
+    std::ofstream(archivoReceta) << receta.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     // Los tamaños de las cámaras del estudio (lo que llega de cada una, antes de
     // los filtros): CoreML compila la red para tamaños fijos, y se suman estos
     // a los comunes. Una cámara que se agregue después: volver a instalar.
@@ -667,7 +667,7 @@ json SuperRes::resolverPlugin(const std::string& id, std::string* error) const {
 #endif
         json props = json::object();
         for (const auto obj_ = p.value("propiedades", json::object()); const auto& [k, v] : obj_.items()) {
-            std::string t = v.is_string() ? v.get<std::string>() : v.dump();
+            std::string t = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             for (size_t i = 0; (i = t.find("{dir}", i)) != std::string::npos;) t.replace(i, 5, dir.string());
             props[k] = t;
         }
@@ -819,7 +819,7 @@ std::string SuperRes::guardarPluginElemento(const json& p) {
     json props = json::object();
     const json propsIn = p.value("propiedades", json::object()); // en una variable: items() no alarga la vida del temporal
     for (const auto& [k, v] : propsIn.items())
-        props[k] = v.is_string() ? v.get<std::string>() : v.dump();
+        props[k] = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     json out{{"id", id},
              {"nombre", p.value("nombre", id)},
              {"tipo", "elemento"},
@@ -837,7 +837,7 @@ std::string SuperRes::guardarPluginElemento(const json& p) {
     fs::create_directories(dir / "gst", ec);
     std::ofstream f(dir / "plugin.json");
     if (!f) return "no se pudo escribir " + (dir / "plugin.json").string();
-    f << out.dump(1);
+    f << out.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     f.close();
     // Que ande acá ya (si el elemento no está, lo dice: puede faltar su biblioteca en gst/).
     std::string err;
@@ -992,7 +992,7 @@ std::string SuperRes::editarVariante(const std::string& plugin, const std::strin
     for (const char* k : {"para", "descripcion", "nombre"})
         if (cambios.contains(k) && cambios[k].is_string()) v[k] = cambios[k];
     std::ofstream o(j);
-    o << v.dump(1);
+    o << v.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!o) return "no se pudo guardar " + j.string();
     emit cambio();
     return {};

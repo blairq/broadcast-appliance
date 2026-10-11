@@ -537,7 +537,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 j["vista"] = true; // el cartel sale una sola vez
                 f.close();
                 std::ofstream o(archivo);
-                o << j.dump(1);
+                o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
             }
         }
         if (!configRecuperada().empty())
@@ -561,7 +561,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                          });
             {
                 const nlohmann::json& rid = ev["ruleId"];
-                bus_->publicar("alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump()),
+                bus_->publicar("alarma/" + (rid.is_string() ? rid.get<std::string>() : rid.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)),
                                {{"nombre", ev.value("ruleName", std::string())},
                                 {"tipo", ev.value("type", std::string())},
                                 {"texto", ev.value("llmText", std::string())},
@@ -1085,7 +1085,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         });
         auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
         const auto aQt = [](const nlohmann::json& j) {
-            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
+            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
         };
         connect(cli, &ConferenceClient::botoneraEvento, this, [this, cli, aQt](const QJsonObject& o) {
             const nlohmann::json ev = nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(),
@@ -1414,7 +1414,7 @@ void guardarLista(const std::filesystem::path& p, const nlohmann::json& j) {
     const auto tmp = std::filesystem::path(p.string() + ".tmp");
     {
         std::ofstream o(tmp);
-        o << j.dump(1, '\t');
+        o << j.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
     }
     std::error_code ec;
     std::filesystem::rename(tmp, p, ec);
@@ -1717,7 +1717,7 @@ void StudioViewModel::uiGuardar(const QString& clave, const QVariant& valor) {
     }
     std::error_code ec;
     std::filesystem::create_directories(archivoInterfaz(rt_).parent_path(), ec);
-    std::ofstream(archivoInterfaz(rt_)) << j.dump(1) << "\n";
+    std::ofstream(archivoInterfaz(rt_)) << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
 void StudioViewModel::tiemposCentral() {
@@ -1953,7 +1953,7 @@ QObject* StudioViewModel::audio() const {
 
 QVariantMap StudioViewModel::accountGuide(const QString& platform) const {
     const nlohmann::json g = accounts::guide(platform.toStdString(), facebook_->redirectUri().toStdString());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString StudioViewModel::saveAccountCredential(const QString& platform, const QVariantMap& v) {
@@ -2109,7 +2109,7 @@ QJsonObject StudioViewModel::contextoDeVinculos() const {
     if (bancas_) {
         const nlohmann::json b = bancas_->oradorParaZocalo();
         if (!b.empty())
-            ctx["orador"] = QJsonDocument::fromJson(QByteArray::fromStdString(b.dump())).object();
+            ctx["orador"] = QJsonDocument::fromJson(QByteArray::fromStdString(b.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
     }
 
     // El guion: qué bloque va y qué dice el cue. Si el cue que corre es de
@@ -2204,7 +2204,7 @@ void StudioViewModel::grabarIgual() {
 }
 
 QVariantMap StudioViewModel::loudnessUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().loudness().json().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().loudness().json().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 void StudioViewModel::resetLoudnessUi() { rt_.engine().loudness().reiniciar(); }
@@ -2215,7 +2215,7 @@ QString StudioViewModel::objetivoLoudnessUi(const QVariantMap& o) {
     if (e.empty()) {
         const auto ob = rt_.engine().loudness().objetivo();
         std::ofstream f(rt_.dataRoot() / "Config" / "loudness.json");
-        f << nlohmann::json{{"perfil", ob.perfil}, {"lufs", ob.lufs}, {"tp", ob.tp}}.dump(1);
+        f << nlohmann::json{{"perfil", ob.perfil}, {"lufs", ob.lufs}, {"tp", ob.tp}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     return qs(e);
 }
@@ -2234,16 +2234,16 @@ QString StudioViewModel::setRetornoInvitadoUi(int slot, const QString& modo) {
     }
     j[std::to_string(slot)] = modo.toStdString();
     std::ofstream o(rt_.dataRoot() / "Config" / "retornos.json");
-    o << j.dump(1);
+    o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     return {};
 }
 
 QVariantMap StudioViewModel::discoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.discoGrabacion().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.discoGrabacion().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QVariantMap StudioViewModel::remuxUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().remuxEstado().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().remuxEstado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 void StudioViewModel::startStreaming(const QString& server, const QString& key) {
@@ -2273,7 +2273,7 @@ void StudioViewModel::cambiarDestinoStream(const QString& server, const QString&
 }
 
 QVariantList StudioViewModel::destinosUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.destinos().dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.destinos().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 QString StudioViewModel::guardarDestinoUi(const QVariantMap& d) {
@@ -2574,7 +2574,7 @@ void StudioViewModel::setScenePreview(const QString& name) {
 }
 
 QVariantMap StudioViewModel::latidoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.latido().estado().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.latido().estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
@@ -2584,7 +2584,7 @@ QString StudioViewModel::latidoPoliticaUi(const QVariantMap& cambios) {
 }
 
 QVariantList StudioViewModel::alarmasActivasUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(alerts_->activas().dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(alerts_->activas().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 int StudioViewModel::reconocerAlarmaUi(qint64 id) { return alerts_->reconocer(static_cast<std::uint64_t>(id)); }
@@ -2618,7 +2618,7 @@ void StudioViewModel::setCorteDirectoEditor(bool si) {
     if (si == corteDirectoEditor_) return;
     corteDirectoEditor_ = si;
     std::ofstream o(rt_.dataRoot() / "Config" / "escenas.json");
-    o << nlohmann::json{{"corte_directo_editor", si}}.dump(1);
+    o << nlohmann::json{{"corte_directo_editor", si}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit escenasAjustesChanged();
 }
 
@@ -2627,7 +2627,7 @@ void guardarPlaca(const std::filesystem::path& datos, const nlohmann::json& esta
     std::error_code ec;
     std::filesystem::create_directories(datos / "Runtime", ec);
     std::ofstream o(datos / "Runtime" / "placa.json");
-    o << estado.dump(1);
+    o << estado.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 } // namespace
 
@@ -2646,7 +2646,7 @@ QString StudioViewModel::placaUi(bool activar, const QString& texto, const QStri
 }
 
 QVariantMap StudioViewModel::estadoPlacaUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().estadoPlaca().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().estadoPlaca().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QStringList StudioViewModel::textosPlaca() const {
@@ -2731,7 +2731,7 @@ nlohmann::json leerRespaldos(const std::filesystem::path& datos) {
 
 QVariantMap StudioViewModel::respaldoEntrada(const QString& entrada) const {
     const nlohmann::json r = leerRespaldos(rt_.dataRoot()).value(entrada.toStdString(), nlohmann::json::object());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString StudioViewModel::setRespaldoEntrada(const QString& entrada, const QVariantMap& r) {
@@ -2742,7 +2742,7 @@ QString StudioViewModel::setRespaldoEntrada(const QString& entrada, const QVaria
                                     {"al_perder_aire", modo.toStdString()},
                                     {"ms", std::clamp(r.value("ms", 1000).toInt(), 200, 60000)}};
     std::ofstream o(rt_.dataRoot() / "Config" / "respaldo-entradas.json");
-    o << todos.dump(1);
+    o << todos.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     return {};
 }
 
@@ -2801,7 +2801,7 @@ namespace ba::app {
 
 namespace {
 QVariant vocabQv(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .object()
         .value("v")
         .toVariant();
@@ -3123,7 +3123,7 @@ void StudioViewModel::mandarEstadoConsola() {
     auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
     if (!cli.online()) return;
     const nlohmann::json body{{"id", "consolas"}, {"msg", estadoConsola()}};
-    cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+    cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
              [](bool, const QJsonObject&) {});
 }
 
@@ -3136,7 +3136,7 @@ void StudioViewModel::enlaceProgramaConsola(const QString& consola) {
         if (!yo || !ok || !r.value("ok").toBool()) return;
         const QString url = r.value("url").toString();
         const nlohmann::json body{{"id", consola.toStdString()}, {"msg", {{"type", "cast"}, {"url", url.toStdString()}}}};
-        cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+        cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
                  [](bool, const QJsonObject&) {});
     });
 }
@@ -3235,7 +3235,7 @@ void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json
             auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
             const json body{{"id", consola.toStdString()},
                             {"msg", {{"type", "foto_cuerpo"}, {"id", id}, {"jpeg", f.readAll().toBase64().toStdString()}}}};
-            cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+            cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
                      [](bool, const QJsonObject&) {});
         }
     } else if (t == "cast") {
@@ -3244,7 +3244,7 @@ void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json
     if (!error.empty()) {
         auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
         const json body{{"id", consola.toStdString()}, {"msg", {{"type", "error"}, {"texto", error}}}};
-        cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+        cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
                  [](bool, const QJsonObject&) {});
     }
     if (!consolaTimer_.isActive()) consolaTimer_.start();
@@ -3255,7 +3255,7 @@ void StudioViewModel::sincronizarSesion() {
     auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
     if (!cli.online()) return;
     const nlohmann::json body{{"participantes", sesionRemota_->paraGateway()}};
-    cli.post("/api/v1/sesion/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+    cli.post("/api/v1/sesion/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
              [](bool, const QJsonObject&) {});
     aplicarVistasRemotas(true);
     // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
@@ -3293,7 +3293,7 @@ void StudioViewModel::aplicarVistasRemotas(bool forzar) {
         const std::string esc = debate_->estadoJson().value("escena", std::string());
         if (!esc.empty()) vistas.push_back({{"id", "debate"}, {"nombre", "Debate"}, {"fuente", esc}});
     }
-    const std::string firma = (alguien ? "1" : "0") + vistas.dump();
+    const std::string firma = (alguien ? "1" : "0") + vistas.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!forzar && firma == firmaVistas_) return;
     firmaVistas_ = firma;
     BroadcastEngine& eng = rt_.engine();
@@ -3314,7 +3314,7 @@ void StudioViewModel::aplicarVistasRemotas(bool forzar) {
         out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}, {"canal", canal}});
     }
     cli.post("/api/v1/sesion/vistas",
-             QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"vistas", out}}.dump())).object(),
+             QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"vistas", out}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
              [](bool, const QJsonObject&) {});
 }
 
@@ -3389,7 +3389,7 @@ void StudioViewModel::sincronizarBotonera() {
     auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
     if (!cli.online()) return;
     const nlohmann::json body{{"dispositivos", botonera_->credencialesParaGateway()}};
-    cli.post("/api/v1/botonera/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+    cli.post("/api/v1/botonera/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
              [](bool, const QJsonObject&) {});
 }
 
@@ -3481,7 +3481,7 @@ void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
     auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
     // Primero las credenciales (para que el token ya valga) y después el token a la tablet.
     sincronizarBotonera();
-    cli.post("/api/v1/botonera/resolver", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump())).object(),
+    cli.post("/api/v1/botonera/resolver", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
              [](bool, const QJsonObject&) {});
     emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
 }
@@ -3491,7 +3491,7 @@ void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
 namespace ba::app {
 
 QVariantMap StudioViewModel::apurosDiscoUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().discoEstado().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().discoEstado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 void StudioViewModel::priorizarProgramaUi(bool si) { rt_.engine().priorizarPrograma(si); }
@@ -3545,7 +3545,7 @@ QString StudioViewModel::fuenteDeInvitado(const QString& participante) const {
 }
 
 QVariantMap StudioViewModel::limpiaUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().cleanFeedEstado().dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().cleanFeedEstado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
@@ -3647,7 +3647,7 @@ QString StudioViewModel::medirSincro(int segundos, std::function<void(const nloh
 
 QString StudioViewModel::medirSincroUi(int segundos) {
     return medirSincro(segundos, [this](const nlohmann::json& r) {
-        emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump())).object().toVariantMap());
+        emit medicionSincroLista(QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap());
     });
 }
 
@@ -3682,7 +3682,7 @@ QObject* StudioViewModel::puestoCorreccionQml() const { return puestoCorreccion_
 QVariantMap StudioViewModel::grabacionUi() const {
     nlohmann::json j = rt_.engine().grabacionEstado();
     j["replay"] = rt_.engine().replayEstado();
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QVariantMap StudioViewModel::scopeUi(const QString& fuente, const QString& tipo, int ancho, int alto) const {
@@ -3773,7 +3773,7 @@ QString StudioViewModel::armarRepeticion(const QString& archivo) {
     const std::string ajustes =
         nlohmann::json{{"is_local_file", true}, {"local_file", archivo.toStdString()}, {"looping", false},
                        {"restart_on_activate", true}, {"close_when_inactive", true}}
-            .dump();
+            .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     const auto fuentes = e.sceneSources(kEscena);
     if (std::find(fuentes.begin(), fuentes.end(), kFuente) == fuentes.end()) {
         SourceSpec spec;
@@ -3843,7 +3843,7 @@ void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& ori
 void StudioViewModel::setRotuloTraduccion(bool activo) {
     rotuloTraduccion_ = activo;
     std::ofstream o(rt_.dataRoot() / "Config" / "rotulo-traduccion.json");
-    o << nlohmann::json{{"activo", activo}, {"capa", rotuloCapa_}}.dump(1);
+    o << nlohmann::json{{"activo", activo}, {"capa", rotuloCapa_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     if (!activo && dsk_) dsk_->mostrar(rotuloCapa_, false, true);
 }
 
@@ -3893,7 +3893,7 @@ std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {
     nlohmann::json p = nlohmann::json::array();
     for (const QString& x : paginasProtegidas_) p.push_back(x.toStdString());
     std::ofstream o(rt_.dataRoot() / "Config" / "modo-vivo.json");
-    o << nlohmann::json{{"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_}, {"paginas", p}}.dump(1);
+    o << nlohmann::json{{"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_}, {"paginas", p}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit statusChanged();
     return {};
 }
@@ -3979,7 +3979,7 @@ void StudioViewModel::guardarTransiciones() const {
     nlohmann::json afv = nlohmann::json::array();
     for (const QString& f : afv_) afv.push_back(f.toStdString());
     std::ofstream o(rt_.dataRoot() / "Config" / "transiciones.json");
-    o << nlohmann::json{{"entrada", transicionesEntrada_}, {"afv", afv}}.dump(1);
+    o << nlohmann::json{{"entrada", transicionesEntrada_}, {"afv", afv}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void StudioViewModel::tbar(double t, bool soltar) {
@@ -4065,7 +4065,7 @@ void StudioViewModel::muestrearSalud() {
 }
 
 QVariantList StudioViewModel::saludSalidasUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", saludActual_}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"v", saludActual_}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .object()
         .value("v")
         .toArray()

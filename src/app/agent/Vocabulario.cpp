@@ -137,7 +137,7 @@ void Vocabulario::guardar() const {
     std::error_code ec;
     fs::create_directories(archivo_.parent_path(), ec);
     std::ofstream o(archivo_);
-    o << datos_.dump(1);
+    o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void Vocabulario::reindexar() {

@@ -202,7 +202,7 @@ void AppRuntime::configure(int argc, char** argv) {
         if (!r.is_null())
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "historico", 0,
                                        "se volvió a la configuración de «" + r.value("desde", std::string()) + "»: " +
-                                           r.value("aplicados", nlohmann::json::array()).dump() + " (lo de antes en Config/.restaurar/" +
+                                           r.value("aplicados", nlohmann::json::array()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " (lo de antes en Config/.restaurar/" +
                                            r.value("respaldo", std::string()) + ")");
     }
     const fs::path cfgPath = argValue(argc, argv, "--config", appConfigPath(root_).string());
@@ -454,7 +454,7 @@ int AppRuntime::start() {
     started_ = true;
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
     // gráficos) pasan por acá: así quedan también en la configuración.
-    fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump()); });
+    fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
     {
         std::ifstream f(root_ / "Config" / "loudness.json");
         const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
@@ -757,7 +757,7 @@ void AppRuntime::writeOnAirState() const {
     {
         std::ofstream out(tmp, std::ios::trunc);
         if (!out) return;
-        out << j.dump();
+        out << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     std::error_code ec;
     std::filesystem::rename(tmp, dest, ec);
@@ -817,7 +817,7 @@ bool AppRuntime::startStreaming(const std::string& server, const std::string& ke
     streamStopWanted_ = false;
     if (!sc.key.empty()) {
         ba::security::CredentialStore::bundle().write(
-            kStreamCredential, nlohmann::json{{"server", sc.server}, {"key", sc.key}}.dump());
+            kStreamCredential, nlohmann::json{{"server", sc.server}, {"key", sc.key}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         keySaved_ = 1;
     }
     writeOnAirState();
@@ -840,7 +840,7 @@ void escribirDestinos(const std::filesystem::path& root, const nlohmann::json& d
     std::error_code ec;
     std::filesystem::create_directories(root / "Config", ec);
     std::ofstream o(root / "Config" / "destinos.json");
-    o << d.dump(1);
+    o << d.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 } // namespace
 
@@ -1185,7 +1185,7 @@ namespace {
 /// Los ajustes de una fuente con las rutas relativas a los datos resueltas (RutasPortables).
 std::string conRutasDeAhora(const std::string& ajustes) {
     const nlohmann::json j = nlohmann::json::parse(ajustes.empty() ? "{}" : ajustes, nullptr, false);
-    return j.is_object() ? rutasAbsolutas(j).dump() : ajustes;
+    return j.is_object() ? rutasAbsolutas(j).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : ajustes;
 }
 } // namespace
 

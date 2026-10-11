@@ -48,7 +48,7 @@ QVariantList OperatorMessages::items() const {
     std::stable_sort(open.begin(), open.end(), [&](const json& a, const json& b) {
         return rank(a) != rank(b) ? rank(a) < rank(b) : a.value("id", 0) > b.value("id", 0);
     });
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json(open).dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json(open).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 int OperatorMessages::count() const {

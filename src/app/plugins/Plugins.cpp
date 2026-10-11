@@ -53,8 +53,8 @@ QString q(const std::string& s) { return QString::fromStdString(s); }
 QVariant qv(const json& j) {
     if (j.is_null()) return {};
     if (j.is_array() || j.is_object())
-        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).toVariant();
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump()))
+        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toList()
         .value(0);
@@ -221,7 +221,7 @@ void Plugins::guardarActivos() const {
     json activos = json::array();
     for (const auto& [id, pr] : procesos_)
         if (pr->estado != "apagado") activos.push_back(id);
-    escribirTexto(config_, json{{"activos", activos}}.dump(1));
+    escribirTexto(config_, json{{"activos", activos}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 // --- Aprobados para el aire ----------------------------------------------------------------
@@ -263,7 +263,7 @@ std::string hashCarpeta(const fs::path& dir, std::vector<std::string>* archivos,
         if (v >= 2 && r == "plugin.json") {
             json man = leerJson(dir / r);
             for (const char* k : kNoEsCodigo) man.erase(k);
-            h.addData(QByteArray::fromStdString(man.dump()));
+            h.addData(QByteArray::fromStdString(man.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
         } else {
             QFile f(q(dir / r));
             if (f.open(QIODevice::ReadOnly)) h.addData(&f);
@@ -296,7 +296,7 @@ json Plugins::aprobar(const std::string& id, const std::string& quien) {
     const fs::path f = rt_.dataRoot() / "Config" / "plugins-aprobados.json";
     std::error_code ec;
     fs::create_directories(f.parent_path(), ec);
-    std::ofstream(f) << a.dump(1);
+    std::ofstream(f) << a.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit cambio();
     return {{"id", id}, {"hash", h}, {"archivos", archivos.size()}};
 }
@@ -305,7 +305,7 @@ std::string Plugins::desaprobar(const std::string& id) {
     json a = leerAprobados();
     if (!a.contains(id)) return "«" + id + "» no estaba aprobado";
     a.erase(id);
-    std::ofstream(rt_.dataRoot() / "Config" / "plugins-aprobados.json") << a.dump(1);
+    std::ofstream(rt_.dataRoot() / "Config" / "plugins-aprobados.json") << a.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     emit cambio();
     return {};
 }
@@ -491,7 +491,7 @@ std::string Plugins::escribir(const std::string& id, const json& archivos, const
             escritos.push_back(ruta);
         }
     }
-    if (!escribirTexto(dir / "plugin.json", man.dump(2))) return "no se pudo escribir plugin.json";
+    if (!escribirTexto(dir / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) return "no se pudo escribir plugin.json";
     std::error_code ec;
     fs::create_directories(dir / "datos", ec);
     if (hecho != nullptr)
@@ -517,7 +517,7 @@ std::string Plugins::desdeEjemplo(const std::string& ejemplo, const std::string&
     // De dónde salió: así se actualiza con la app (actualizarEjemplos).
     man["ejemplo"] = ejemplo;
     man["ejemplo_huella"] = hashCarpeta(desde, nullptr);
-    escribirTexto(carpetaDe(id) / "plugin.json", man.dump(2));
+    escribirTexto(carpetaDe(id) / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
     emit cambio();
     return {};
 }
@@ -578,7 +578,7 @@ json Plugins::actualizarEjemplos() {
         }
         man["ejemplo"] = ejemplo;
         man["ejemplo_huella"] = nueva;
-        escribirTexto(d.path() / "plugin.json", man.dump(2));
+        escribirTexto(d.path() / "plugin.json", man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
         if (instalada != nueva) {
             // Si estaba aprobado para el aire, el código nuevo viene con la app: se re-aprueba y queda anotado.
             if (aprobadosAntes.contains(id)) aprobar(id, "la app (ejemplo actualizado)");
@@ -714,7 +714,7 @@ void Plugins::probar(const std::string& id, double segundos, const json& control
         if (controles.is_array())
             for (const auto& c : controles)
                 args << "--control" << q(c.value("nombre", std::string()))
-                     << q(c.value("args", json::object()).dump());
+                     << q(c.value("args", json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         if (ptz) args << "--ptz";
         Hijo::correr(this, q(python()), args, entornoPython(), static_cast<int>((segundos + 60) * 1000),
                      [listo](int codigo, QByteArray out, QByteArray err) {
@@ -1025,7 +1025,7 @@ void Plugins::alLeer(const std::string& id) {
 void Plugins::enviar(const std::string& id, const json& m) {
     auto it = procesos_.find(id);
     if (it == procesos_.end() || !it->second->p || !it->second->p->corriendo()) return;
-    it->second->p->escribir(QByteArray::fromStdString(m.dump() + "\n"));
+    it->second->p->escribir(QByteArray::fromStdString(m.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n"));
 }
 
 void Plugins::avisarCambio() {
@@ -1162,7 +1162,7 @@ void Plugins::recibir(const std::string& id, const json& m) {
             }
             if (error) {
                 out["ok"] = false;
-                out["error"] = res.is_string() ? res.get<std::string>() : res.dump();
+                out["error"] = res.is_string() ? res.get<std::string>() : res.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             } else {
                 out["ok"] = true;
                 out["resultado"] = res;
@@ -1297,7 +1297,7 @@ void Plugins::publicarEvento(const std::string& id, const json& m) {
                 break;
             }
     }
-    emit evento(q(id), q(canal), q(ev["datos"].dump()));
+    emit evento(q(id), q(canal), q(ev["datos"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
     emit eventosCambio();
     if (alPublicar_) alPublicar_("plugin/" + id + "/" + canal, ev["datos"]);
 }
@@ -1392,7 +1392,7 @@ std::string Plugins::ponerTarjeta(const std::string& id, const std::string& tarj
     if (!todos.is_object()) todos = json::object();
     if (parametros.is_object()) todos.update(parametros);
     json props{{"plugin", id}, {"tarjeta", tarjeta}};
-    if (!todos.empty()) props["parametros"] = todos.dump();
+    if (!todos.empty()) props["parametros"] = todos.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     return video_->agregarTarjetaGst(entrada, "baplugin", props, hecho);
 }
 
@@ -1415,8 +1415,8 @@ std::string Plugins::ponerFiltroAudio(const std::string& id, const std::string& 
                      {"propiedades",
                       {{"plugin", id},
                        {"tarjeta", tarjeta},
-                       {"parametros", (parametros.is_object() ? parametros : json::object()).dump()}}}});
-    if (!rt_.updateSourceSettings(fuente, json{{"filtros_audio", lista.dump()}}.dump())) return rt_.lastError();
+                       {"parametros", (parametros.is_object() ? parametros : json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}}});
+    if (!rt_.updateSourceSettings(fuente, json{{"filtros_audio", lista.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) return rt_.lastError();
     rt_.save();
     if (hecho != nullptr)
         *hecho = {{"fuente", fuente}, {"filtro", fid}, {"plugin", id}, {"tarjeta", tarjeta}};
@@ -1527,7 +1527,7 @@ void Plugins::dispositivosPython(json gst, std::function<void(json)> listo) {
         escribirTexto(
             herr / "plugin.json",
             json{{"id", ".herramientas"}, {"dependencias", {"pyusb", "libusb-package", "hidapi", "pyserial"}}}
-                .dump(2));
+                .dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
     const std::string script = R"PY(import json, sys
 sys.path[:0] = [sys.argv[1], sys.argv[2]]
 from ba_plugin import dispositivos as d
@@ -1610,7 +1610,7 @@ QString Plugins::copiarEjemplo(const QString& ejemplo, const QString& id) {
 QString Plugins::borrarUi(const QString& id) { return q(borrar(id.toStdString())); }
 
 QString Plugins::configTexto(const QString& id) const {
-    return q(leerJson(carpetaDe(id.toStdString()) / "plugin.json").value("config", json::object()).dump(2));
+    return q(leerJson(carpetaDe(id.toStdString()) / "plugin.json").value("config", json::object()).dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 QString Plugins::guardarConfig(const QString& id, const QString& texto) {
@@ -1620,7 +1620,7 @@ QString Plugins::guardarConfig(const QString& id, const QString& texto) {
     json man = leerJson(arch);
     if (man.empty()) return "No existe el plugin";
     man["config"] = c;
-    if (!escribirTexto(arch, man.dump(2))) return "No se pudo guardar";
+    if (!escribirTexto(arch, man.dump(2, ' ', false, nlohmann::json::error_handler_t::replace))) return "No se pudo guardar";
     enviar(id.toStdString(), {{"t", "config"}, {"config", c}});
     emit cambio();
     return {};
@@ -1641,7 +1641,7 @@ void Plugins::controlUi(const QString& id, const QString& control, const QString
             const bool ok = r.value("ok", false);
             emit yo->respuesta(
                 id, control,
-                q(ok ? (r.contains("resultado") ? r["resultado"].dump(2) : std::string("hecho"))
+                q(ok ? (r.contains("resultado") ? r["resultado"].dump(2, ' ', false, nlohmann::json::error_handler_t::replace) : std::string("hecho"))
                      : r.value("error", std::string())),
                 ok);
         },
@@ -1701,14 +1701,14 @@ std::string Plugins::ponerValor(const std::string& id, const std::string& clave,
             : v.is_string() ? (v == "true" || v == "si" || v == "sí" || v == "1")
                             : v.is_number() && v.get<double>() != 0;
     } else if (tipo == "opcion") {
-        const std::string o = v.is_string() ? v.get<std::string>() : v.dump();
+        const std::string o = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         bool hay = false;
         for (const auto& x : c.value("opciones", json::array()))
             hay = hay || x == o;
         if (!hay) return "«" + o + "» no es una opción de «" + clave + "»";
         v = o;
     } else if (tipo == "texto") {
-        v = v.is_string() ? v.get<std::string>() : v.dump();
+        v = v.is_string() ? v.get<std::string>() : v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     } else if (tipo == "boton") {
         v = true;
     }
@@ -1741,7 +1741,7 @@ void Plugins::guardarValores() {
                 v.contains(k))
                 g[k] = v[k];
         }
-        escribirTexto(carpetaDe(id) / ".panel.json", g.dump(2));
+        escribirTexto(carpetaDe(id) / ".panel.json", g.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     valoresSucios_.clear();
 }
@@ -1933,14 +1933,14 @@ void Plugins::correrPython(const QString& codigo, const QStringList& args, std::
         escribirTexto(
             herr / "plugin.json",
             json{{"id", ".herramientas"}, {"dependencias", {"pyusb", "libusb-package", "hidapi", "pyserial"}}}
-                .dump(2));
+                .dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
     QPointer<Plugins> yo(this);
     dependencias(".herramientas", [yo, herr, codigo, args, listo](std::string err, std::string) {
         if (!yo) return;
         if (!err.empty()) return listo(json{{"error", err}});
         const QString pre =
             QString("import sys; sys.path[:0] = [%1, %2]\n")
-                .arg(q(json(yo->sdk().string()).dump()), q(json((herr / "_libs").string()).dump()));
+                .arg(q(json(yo->sdk().string()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)), q(json((herr / "_libs").string()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
         Hijo::correr(yo, q(yo->python()), QStringList{"-I", "-B", "-c", pre + codigo} + args, entornoPython(),
                      60000, [listo](int, QByteArray out, QByteArray errb) {
                          json r = json::parse(out.trimmed().toStdString(), nullptr, false);

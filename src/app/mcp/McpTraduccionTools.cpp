@@ -258,7 +258,7 @@ void McpService::registerTraduccionTools() {
             json out = json::array();
             for (const auto& e : t->glosario()) {
                 if (!g.empty() && e.value("grupo", "") != g) continue;
-                if (!b.isEmpty() && !QString::fromStdString(e.dump()).toLower().contains(b)) continue;
+                if (!b.isEmpty() && !QString::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)).toLower().contains(b)) continue;
                 out.push_back(e);
             }
             done(ToolResult().data(

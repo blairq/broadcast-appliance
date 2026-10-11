@@ -210,7 +210,7 @@ void alCaras(BaSeguir* self, const char* texto) {
                 st->estado = "libre";
                 ev = gst_event_new_custom(GST_EVENT_CUSTOM_DOWNSTREAM,
                                           gst_structure_new("ba/encuadre", "soltar", G_TYPE_BOOLEAN, TRUE, nullptr));
-                js = nlohmann::json{{"estado", "libre"}, {"objetivo", st->objetivo}}.dump();
+                js = nlohmann::json{{"estado", "libre"}, {"objetivo", st->objetivo}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
                 st->ultimo = js;
             }
         } else {
@@ -258,7 +258,7 @@ void alCaras(BaSeguir* self, const char* texto) {
                                               gst_structure_new("ba/encuadre", "soltar", G_TYPE_BOOLEAN, TRUE, nullptr));
                 }
             }
-            js = out.dump();
+            js = out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             st->ultimo = js;
         }
     }
