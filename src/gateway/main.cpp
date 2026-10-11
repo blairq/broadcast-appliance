@@ -78,6 +78,7 @@
 
 #include "diag/Caidas.hpp"
 #include "diag/Perfil.hpp"
+#include "diag/SalidaAsincrona.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
 #include "net/TlsTerminator.hpp"
@@ -405,6 +406,9 @@ nlohmann::json processUsage(const WebrtcHub* hub) {
 } // namespace
 
 int main(int argc, char** argv) {
+    // Que escribir a Logs/gateway.log nunca trabe un hilo (diag/SalidaAsincrona.hpp).
+    ba::diag::desacoplarSalidaEstandar();
+    std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
     ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot());

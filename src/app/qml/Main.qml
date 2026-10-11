@@ -20,6 +20,12 @@ ApplicationWindow {
         Text { id: avisoTest; anchors.centerIn: parent; color: "white"; font.pixelSize: 11; font.bold: true
                text: "MODO PRUEBA (--test): el asistente actúa SIN pedir aprobación, ni siquiera en el aire" }
     }
+    // El disco en apuros (controls/AvisoDisco.qml): arriba y a la vista desde cualquier página.
+    AvisoDisco {
+        z: 99999
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 64 }
+        width: Math.min(760, parent.width - 160)
+    }
     objectName: "ba:principal" // ver PageWindow.qml
     visible: true
     width: 1600

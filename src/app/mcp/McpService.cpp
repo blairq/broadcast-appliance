@@ -3118,7 +3118,43 @@ void McpService::registerTools() {
         t.description = "Cuanto disco queda en la carpeta de grabacion y para cuantas horas alcanza al bitrate "
                         "configurado; y el estado del ultimo pase a MP4 (remux).";
         t.run = [&rt](const json&, Done done) {
-            done(ToolResult().data(json{{"disco", rt.discoGrabacion()}, {"remux", rt.engine().remuxEstado()}}));
+            done(ToolResult().data(json{{"disco", rt.discoGrabacion()}, {"remux", rt.engine().remuxEstado()},
+                                        {"apuros", rt.engine().discoEstado()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "disco_prioridad";
+        t.title = "El disco, para la grabacion del programa";
+        t.category = "salidas";
+        t.description = "Cuando el disco no da abasto (lo grabado espera en memoria para entrar, o el registro no puede "
+                        "escribir): `priorizar` true le da el disco a la grabacion del programa (pausa las ISO, la "
+                        "repeticion, la copia si va al mismo disco y la senal limpia a disco; el registro se junta en "
+                        "memoria); false sigue con todo. Cuando el disco anda bien 30 s, todo sigue solo. `modo`: "
+                        "preguntar (avisa y ofrece, de fabrica), auto (lo hace solo) o nunca (solo avisa). Sin "
+                        "argumentos: el estado {apuros, atraso_s, registro_trabado_ms, prioridad, automatica, modo, pausadas}.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"priorizar", {{"type", "boolean"}}},
+                           {"modo", {{"type", "string"}, {"enum", {"preguntar", "auto", "nunca"}}}}}}};
+        if (rt.config().modoPrueba)
+            t.inputSchema["properties"]["probar_trabado_ms"] = {
+                {"type", "integer"}, {"description", "Solo con --test: la grabación del programa, como con el disco trabado tantos ms."}};
+        t.run = [&rt](const json& a, Done done) {
+            if (a.contains("probar_trabado_ms") && rt.config().modoPrueba)
+                rt.engine().simularDiscoTrabado(std::clamp(a.value("probar_trabado_ms", 0), 0, 120000));
+            if (a.contains("modo")) {
+                const std::string e = rt.engine().setModoDisco(a.value("modo", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            json out{{"disco", rt.engine().discoEstado()}};
+            if (a.contains("priorizar")) {
+                rt.engine().priorizarPrograma(a.value("priorizar", false));
+                // Se aplica en el hilo de salidas (sin esperar): el estado nuevo, en la próxima consulta.
+                out["pedido"] = a.value("priorizar", false) ? "darle el disco al programa" : "seguir con todo";
+            }
+            done(ToolResult().data(out));
         };
         core_.addTool(std::move(t));
     }

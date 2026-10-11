@@ -101,10 +101,33 @@ void LatidoAire::bucle() {
 }
 
 void LatidoAire::escribirEstadoUi(bool trabada, std::uint64_t ms) const {
-    std::error_code ec;
-    fs::create_directories(ba::platform::dataRoot() / "Runtime", ec);
-    std::ofstream o(ba::platform::dataRoot() / "Runtime" / "estado-ui.json");
-    o << json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}.dump();
+    std::string s = json{{"ui_trabada", trabada}, {"ms", ms}, {"motor_vivo", motorVivo_.load()}, {"aire", hayAire_.load()}}.dump();
+    const std::shared_ptr<EscritorEstado> e = escritor_;
+    {
+        std::lock_guard<std::mutex> l(e->m);
+        e->pendiente = std::move(s);
+        if (e->activo) return; // el anterior sigue escribiendo (disco trabado): escribe este al terminar
+        e->activo = true;
+    }
+    std::thread([e] {
+        const fs::path dir = ba::platform::dataRoot() / "Runtime";
+        for (;;) {
+            std::string t;
+            {
+                std::lock_guard<std::mutex> l(e->m);
+                if (e->pendiente.empty()) {
+                    e->activo = false;
+                    return;
+                }
+                t = std::move(e->pendiente);
+                e->pendiente.clear();
+            }
+            std::error_code ec;
+            fs::create_directories(dir, ec);
+            std::ofstream o(dir / "estado-ui.json");
+            o << t;
+        }
+    }).detach();
 }
 
 LatidoAire::Politica LatidoAire::politica() const {

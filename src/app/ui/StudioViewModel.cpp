@@ -179,7 +179,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QMetaObject::invokeMethod(
             qApp,
             [vm, t = QString::fromStdString(texto)]() {
-                if (vm) emit vm->notify(t, "error");
+                if (vm) emit vm->notify(t, t.startsWith("El disco anda bien") ? "ok" : "error");
             },
             Qt::QueuedConnection);
     });
@@ -3490,17 +3490,25 @@ void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
 
 namespace ba::app {
 
+QVariantMap StudioViewModel::apurosDiscoUi() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().discoEstado().dump())).object().toVariantMap();
+}
+
+void StudioViewModel::priorizarProgramaUi(bool si) { rt_.engine().priorizarPrograma(si); }
+
+QString StudioViewModel::modoDiscoUi(const QString& modo) { return qs(rt_.engine().setModoDisco(modo.toStdString())); }
+
 QVariantList StudioViewModel::isosUi() const {
     QVariantList out;
-    for (const auto& g : rt_.engine().sourceRecordings()) {
-        std::error_code ec;
-        const auto bytes = std::filesystem::file_size(g.path, ec);
+    // El tamaño, de lo que contó el motor: preguntarle al disco desde la
+    // interfaz (cada segundo) la trababa con el disco trabado.
+    for (const auto& g : rt_.engine().sourceRecordings())
         out.append(QVariantMap{{"fuente", qs(g.source)},
                                {"archivo", qs(g.path)},
-                               {"mb", ec ? 0.0 : static_cast<double>(bytes) / 1e6},
+                               {"mb", static_cast<double>(g.bytes) / 1e6},
                                {"audioPropio", g.audioPropio},
-                               {"activa", g.activa}});
-    }
+                               {"activa", g.activa},
+                               {"pausada", g.pausada}});
     return out;
 }
 

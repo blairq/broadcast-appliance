@@ -126,6 +126,7 @@ const Fila kPropias[] = {
     {"stream_destino_editar", "editar destino transmision"},
     {"stream_destino_borrar", "borrar destino transmision"},
     {"record_disco", "disco espacio grabacion horas alcanza remux"},
+    {"disco_prioridad", "disco lento trabado apuros usb prioridad grabacion programa pausar iso repeticion registro"},
     {"record_remux", "remux pasar mkv a mp4 mov grabacion convertir sin recodificar"},
     {"record_ajustes", "grabacion contenedor formato mkv mp4 remux ajustes"},
     {"audio_loudness", "loudness lufs r128 integrado true peak lra programa sonoridad volumen salida"},

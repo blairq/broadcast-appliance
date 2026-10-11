@@ -16,6 +16,7 @@
 
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "diag/SalidaAsincrona.hpp"
 #include "emision/OperatorEngine.hpp"
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
@@ -182,6 +183,11 @@ int dispatch(int argc, char** argv) {
 #else
     std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
 #endif
+    // Y que escribir al archivo nunca trabe a nadie: un disco que se traba
+    // (un SSD por USB reseteándose) dejaba al motor, a la interfaz y al latido
+    // esperando la escritura, y el supervisor mataba la app (SalidaAsincrona.hpp).
+    ba::diag::desacoplarSalidaEstandar();
+    std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
     instalarFinPorExcepcion();
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
     ba::platform::redirectUserDirs();

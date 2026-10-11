@@ -18,6 +18,8 @@
 #include "Salidas.hpp"
 #include "camaras/SincroLabios.hpp"
 #include "diag/Registro.hpp"
+#include "diag/SalidaAsincrona.hpp"
+#include "platform/Paths.hpp"
 #include "ipc/HealthBlock.hpp" // nowQpc() para los timestamps del IPC
 
 #include <algorithm>
@@ -27,9 +29,14 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 #include <string>
 #include <thread>
 #include <vector>
+
+#if !defined(_WIN32)
+#include <sys/stat.h>
+#endif
 
 namespace ba::app {
 
@@ -216,6 +223,12 @@ bool BroadcastEngine::startup(const EnginePaths& paths, const VideoConfig& video
     {
         std::lock_guard<std::mutex> l(salidasColaM_);
         salidasSeguir_ = true;
+    }
+    {
+        std::ifstream fd(ba::platform::configRoot() / "Config" / "disco.json");
+        const json j = json::parse(fd, nullptr, false);
+        const std::string m = j.is_object() ? j.value("priorizar_programa", std::string("preguntar")) : "preguntar";
+        modoDisco_ = m == "auto" ? 1 : m == "nunca" ? 2 : 0;
     }
     hiloSalidas_ = std::thread([this]() { bucleSalidas(); });
     if (relojPublicar_ > 0) motor_->publicarReloj(relojPublicar_);
@@ -996,7 +1009,9 @@ void BroadcastEngine::publicarFotoSalidas() {
                    {"ultimo", ultimo}};
     json ind = json::array();
     for (const auto& [n, r] : sourceRecs_)
-        ind.push_back({{"nombre", n}, {"path", r.path}, {"audio_propio", r.audioPropio}, {"grabando", r.grab && r.grab->grabando()}});
+        ind.push_back({{"nombre", n}, {"path", r.path}, {"audio_propio", r.audioPropio}, {"grabando", r.grab && r.grab->grabando()},
+                       {"bytes", r.grab ? r.grab->estado().value("bytes", std::uint64_t{0}) : std::uint64_t{0}},
+                       {"pausada", r.grab && r.grab->pausada()}});
     f["individuales"] = std::move(ind);
     if (clean_) {
         const json st = clean_->tx ? clean_->tx->estado() : json::object();
@@ -1009,6 +1024,15 @@ void BroadcastEngine::publicarFotoSalidas() {
     } else {
         f["limpio"] = {{"activa", false}};
     }
+    f["disco"] = {{"apuros", discoApuros_},
+                  {"atraso_s", atrasoDisco_},
+                  {"registro_trabado_ms", registroTrabadoMs_},
+                  {"prioridad", prioridad_},
+                  {"automatica", prioridadAuto_},
+                  {"modo", modoDisco()},
+                  {"pausadas", pausadas_},
+                  {"graba_programa", rec_ && rec_->grabando()},
+                  {"desde_s", discoApuros_ ? (ahoraMs() - apurosDesdeMs_) / 1000 : 0}};
     std::lock_guard<std::mutex> l(fotoSalidasM_);
     fotoSalidas_ = std::move(f);
 }
@@ -1383,6 +1407,7 @@ std::string BroadcastEngine::setReplayYa(int segundos, const std::string& dir, c
                                                  enc.videoBitrateKbps);
     const std::string e = r->rep->iniciar(fuentesDelPrograma(*motor_, {}));
     if (!e.empty()) return "no arrancó la repetición: " + e;
+    if (prioridad_) r->rep->pausar(true);
     replay_ = std::move(r);
     return {};
 }
@@ -1438,6 +1463,157 @@ void BroadcastEngine::ticSalidas() {
     if (clean_) {
         if (clean_->grab) clean_->grab->tic();
         if (clean_->tx) clean_->tx->tic();
+    }
+    vigilarDisco();
+}
+
+// --- El disco en apuros ---------------------------------------------------------------------
+
+namespace {
+/// ¿Las dos carpetas están en el mismo disco? (Si no se sabe: sí, para no dejar de cuidarlo.)
+bool mismoDisco(const std::string& a, const std::string& b) {
+    namespace fs = std::filesystem;
+#if defined(_WIN32)
+    auto raiz = [](const std::string& p) {
+        std::string r = fs::path(p).root_name().string();
+        for (char& c : r) c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+        return r;
+    };
+    return raiz(a) == raiz(b);
+#else
+    auto disp = [](fs::path p) -> long long {
+        std::error_code ec;
+        while (!p.empty() && !fs::exists(p, ec)) p = p.parent_path();
+        struct stat st {};
+        return ::stat(p.string().c_str(), &st) == 0 ? static_cast<long long>(st.st_dev) : -1;
+    };
+    const long long da = disp(a), db = disp(b);
+    return da < 0 || db < 0 || da == db;
+#endif
+}
+
+// Umbrales: entra en apuros con 3 s esperando al disco (o el registro trabado
+// 3 s escribiendo); sale con todo al día durante 30 s.
+constexpr double kAtrasoApurosS = 3.0, kAtrasoBienS = 0.5;
+constexpr std::int64_t kRegistroTrabadoMs = 3000, kBienDuranteMs = 30000;
+} // namespace
+
+std::string BroadcastEngine::modoDisco() const {
+    const int m = modoDisco_.load();
+    return m == 1 ? "auto" : m == 2 ? "nunca" : "preguntar";
+}
+
+std::string BroadcastEngine::setModoDisco(const std::string& modo) {
+    if (modo != "preguntar" && modo != "auto" && modo != "nunca") return "modo: preguntar, auto o nunca";
+    modoDisco_ = modo == "auto" ? 1 : modo == "nunca" ? 2 : 0;
+    std::error_code ec;
+    std::filesystem::create_directories(ba::platform::configRoot() / "Config", ec);
+    std::ofstream o(ba::platform::configRoot() / "Config" / "disco.json");
+    o << json{{"priorizar_programa", modo}}.dump(1);
+    // En apuros y ahora «auto»: ya.
+    if (modo == "auto") enSalidas("modoDisco", [this]() {
+            if (discoApuros_ && !prioridad_) aplicarPrioridad(true, true);
+            return std::string();
+        });
+    return {};
+}
+
+void BroadcastEngine::priorizarPrograma(bool si) {
+    enSalidas("priorizarPrograma", [this, si]() {
+        aplicarPrioridad(si, false);
+        return std::string();
+    });
+}
+
+void BroadcastEngine::simularDiscoTrabado(int ms) {
+    enSalidas("simularDiscoTrabado", [this, ms]() {
+        if (rec_) rec_->simularDiscoTrabado(ms);
+        return std::string();
+    });
+}
+
+nlohmann::json BroadcastEngine::discoEstado() const {
+    return fotoSalidas().value("disco", json::object());
+}
+
+void BroadcastEngine::aplicarPrioridad(bool si, bool automatica) {
+    if (si == prioridad_) return;
+    prioridad_ = si;
+    prioridadAuto_ = si && automatica;
+    pausadas_.clear();
+    const std::string dirProg = recordPath_.empty() ? std::string() : std::filesystem::path(recordPath_).parent_path().string();
+    auto pausar = [&](motor::Grabacion* g, const std::string& nombre) {
+        if (g == nullptr || !g->grabando()) return;
+        g->pausar(si);
+        if (si) pausadas_.push_back(nombre);
+    };
+    for (auto& [n, r] : sourceRecs_) pausar(r.grab.get(), "ISO " + n);
+    if (replay_ && replay_->rep) {
+        replay_->rep->pausar(si);
+        if (si && replay_->rep->andando()) pausadas_.push_back("repetición");
+    }
+    // La copia, solo si va al mismo disco (en otro no molesta, y es el respaldo).
+    if (recCopia_ && (!si || dirProg.empty() || mismoDisco(dirProg, std::filesystem::path(recordCopyPath_).parent_path().string())))
+        pausar(recCopia_.get(), "copia de la grabación");
+    if (clean_ && clean_->grab) pausar(clean_->grab.get(), "señal limpia a disco");
+    ba::diag::retenerSalidaEstandar(si);
+    if (si) pausadas_.push_back("registro (en memoria)");
+    std::string lista;
+    for (const auto& p : pausadas_) lista += (lista.empty() ? "" : ", ") + p;
+    ba::diag::registro().linea(ba::diag::Nivel::Aviso, "disco", 0,
+                              si ? std::string("el disco, para la grabación del programa") + (automatica ? " (solo)" : "") +
+                                       ": en pausa " + lista
+                                 : "el disco vuelve a ser de todos: siguen las grabaciones pausadas y el registro");
+}
+
+void BroadcastEngine::vigilarDisco() {
+    const std::int64_t ahora = ahoraMs();
+    double atraso = 0;
+    auto mirar = [&](const motor::Grabacion* g) {
+        if (g != nullptr && g->grabando() && !g->pausada()) atraso = std::max(atraso, g->atrasoS());
+    };
+    mirar(rec_.get());
+    mirar(recCopia_.get());
+    for (auto& [n, r] : sourceRecs_) mirar(r.grab.get());
+    if (clean_) mirar(clean_->grab.get());
+    if (replay_ && replay_->rep) atraso = std::max(atraso, replay_->rep->atrasoS());
+    const ba::diag::EstadoSalida reg = ba::diag::estadoSalidaEstandar();
+    atrasoDisco_ = atraso;
+    registroTrabadoMs_ = reg.escribiendoMs;
+    const bool mal = atraso > kAtrasoApurosS || reg.escribiendoMs > kRegistroTrabadoMs;
+    const bool bien = atraso < kAtrasoBienS && reg.escribiendoMs < 500;
+    if (!discoApuros_ && mal) {
+        discoApuros_ = true;
+        apurosDesdeMs_ = ahora;
+        discoBienDesdeMs_ = 0;
+        char t[64];
+        std::snprintf(t, sizeof t, "%.0f s", atraso);
+        const std::string causa = atraso > kAtrasoApurosS ? std::string("lo grabado espera ") + t + " para entrar al disco"
+                                                          : "el registro no puede escribir";
+        const bool grabaPrograma = rec_ && rec_->grabando();
+        if (modoDisco_.load() == 1 && grabaPrograma) {
+            aplicarPrioridad(true, true);
+            avisarFallo("El disco no da abasto (" + causa + "): se le dio el disco a la grabación del programa. "
+                        "Las ISO, la repetición y el registro siguen cuando el disco se recupere.");
+        } else {
+            avisarFallo("El disco no da abasto (" + causa + ")." +
+                        (grabaPrograma && modoDisco_.load() == 0
+                             ? " Conviene darle el disco a la grabación del programa (pausar ISO, repetición y registro): "
+                               "el botón está en el aviso de arriba."
+                             : ""));
+        }
+    } else if (discoApuros_) {
+        if (!bien) {
+            discoBienDesdeMs_ = 0;
+        } else if (discoBienDesdeMs_ == 0) {
+            discoBienDesdeMs_ = ahora;
+        } else if (ahora - discoBienDesdeMs_ > kBienDuranteMs) {
+            discoApuros_ = false;
+            const bool habia = prioridad_;
+            aplicarPrioridad(false, false);
+            avisarFallo(habia ? "El disco anda bien de nuevo: siguen las ISO, la repetición y el registro."
+                              : "El disco anda bien de nuevo.");
+        }
     }
 }
 
@@ -1543,6 +1719,7 @@ std::string BroadcastEngine::startSourceRecordingYa(const std::string& source, c
         return "no arrancó la grabación de \"" + source + "\": " + err;
     }
     r.path = (std::filesystem::path(dir) / (c.nombre + "-00000.mkv")).string();
+    if (prioridad_) r.grab->pausar(true); // el disco es del programa: arranca en pausa
     sourceRecs_[source] = std::move(r);
     return {};
 }
@@ -1579,7 +1756,7 @@ std::vector<BroadcastEngine::GrabacionIndividual> BroadcastEngine::sourceRecordi
     const json ind = fotoSalidas().value("individuales", json::array());
     for (const auto& r : ind)
         out.push_back({r.value("nombre", std::string()), r.value("path", std::string()), r.value("audio_propio", false),
-                       r.value("grabando", false)});
+                       r.value("grabando", false), r.value("bytes", std::uint64_t{0}), r.value("pausada", false)});
     return out;
 }
 

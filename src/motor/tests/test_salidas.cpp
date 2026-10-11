@@ -200,6 +200,13 @@ int main() {
             esperar(200);
             g.tic();
         }
+        {
+            const json st = g.estado();
+            std::printf("estado: %s\n", st.dump().c_str());
+            CHECK(st.value("bytes", 0) > 10000, "cuenta lo que va al archivo");
+            CHECK(st.value("atraso_s", 99.0) < 1.0, "con el disco bien, el colchón casi vacío");
+            CHECK(!st.value("pausada", true), "no está en pausa");
+        }
         CHECK(g.parar(), "parar cierra el archivo (EOS)");
         const auto ar = g.archivos();
         CHECK(ar.size() == 1, "un solo archivo");
@@ -212,6 +219,79 @@ int main() {
             CHECK(i.videos == 1 && i.codecV == "video/x-h264", "video H.264");
             CHECK(i.audios == 2, "dos pistas de audio (programa y pista 2)");
             CHECK(i.seg > 2.0 && i.seg < 4.0, "dura lo grabado (~3 s)");
+        }
+    }
+    {
+        // El disco se traba 4 s: lo que llega se junta en el colchón y después
+        // entra todo (sin perder cuadros: el archivo dura lo que duró la grabación).
+        Grabacion::Config gc;
+        gc.carpeta = dir;
+        gc.nombre = "trabado";
+        gc.tramoSeg = 0;
+        gc.kbps = 2000;
+        Grabacion g(motor.reloj(), gc);
+        CHECK(g.iniciar(f).empty(), "la grabación (disco trabado) arranca");
+        auto andar = [&](int n) {
+            for (int i = 0; i < n; ++i) {
+                esperar(200);
+                g.tic();
+            }
+        };
+        andar(5);
+        g.simularDiscoTrabado(4000);
+        andar(12);
+        const json durante = g.estado();
+        std::printf("disco trabado: %s\n", durante.dump().c_str());
+        CHECK(durante.value("atraso_s", 0.0) > 1.5, "con el disco trabado, lo grabado espera en el colchón");
+        andar(12);
+        const json despues = g.estado();
+        std::printf("disco de vuelta: atraso %.2f s, desbordes %d\n", despues.value("atraso_s", 0.0), despues.value("desbordes", 0));
+        CHECK(despues.value("atraso_s", 99.0) < 0.5, "cuando el disco vuelve, el colchón se vacía");
+        CHECK(despues.value("desbordes", 1) == 0, "no se perdió ningún cuadro");
+        CHECK(g.parar(), "cierra");
+        const auto ar = g.archivos();
+        if (!ar.empty()) {
+            const Info i = mirar(ar[0]);
+            std::printf("con el disco trabado: %.2f s grabados (~5.8 s)\n", i.seg);
+            CHECK(i.seg > 5.0, "el archivo tiene todo (también lo del trabón)");
+        }
+    }
+    {
+        // En pausa no escribe; al soltarla sigue en el mismo archivo; parar en pausa cierra igual.
+        Grabacion::Config gc;
+        gc.carpeta = dir;
+        gc.nombre = "pausa";
+        gc.tramoSeg = 0;
+        gc.kbps = 2000;
+        Grabacion g(motor.reloj(), gc);
+        CHECK(g.iniciar(f).empty(), "la grabación con pausa arranca");
+        auto andar = [&](int n) {
+            for (int i = 0; i < n; ++i) {
+                esperar(200);
+                g.tic();
+            }
+        };
+        andar(8);
+        g.pausar(true);
+        CHECK(g.pausada(), "en pausa");
+        andar(2); // lo que estaba en camino
+        const std::uint64_t antes = g.estado().value("bytes", std::uint64_t{0});
+        andar(5);
+        const std::uint64_t durante = g.estado().value("bytes", std::uint64_t{0});
+        std::printf("pausa: %llu bytes al pausar, %llu un segundo después\n", static_cast<unsigned long long>(antes),
+                    static_cast<unsigned long long>(durante));
+        CHECK(durante - antes < 20000, "en pausa no escribe (casi nada)");
+        g.pausar(false);
+        andar(8);
+        CHECK(g.estado().value("bytes", std::uint64_t{0}) > durante + 50000, "al soltarla sigue escribiendo");
+        g.pausar(true);
+        CHECK(g.parar(), "parar en pausa cierra el archivo");
+        const auto ar = g.archivos();
+        CHECK(ar.size() == 1, "un solo archivo con la pausa adentro");
+        if (!ar.empty()) {
+            const Info i = mirar(ar[0]);
+            std::printf("con pausa: %.2f s\n", i.seg);
+            CHECK(i.ok && i.videos == 1, "se abre, con su video");
         }
     }
     {

@@ -69,6 +69,11 @@ class Grabacion {
         int maxTramos = 0;       ///< > 0: se guardan solo los últimos N (los viejos se borran: la repetición)
         int kbps = 8000, kbpsAudio = 192, gopSeg = 2, fps = 30;
         std::vector<std::string> codificadores; ///< preferidos (vacío = los de la placa)
+        /// El colchón en memoria entre el codificador y el archivo (ya comprimido:
+        /// un minuto a 8 Mb/s son 60 MB). Si el disco se traba, se junta acá y no
+        /// se pierde nada mientras entre; pasado eso se pierden cuadros (antes de
+        /// codificar) y la grabación sigue.
+        int colchonSeg = 30;
     };
     Grabacion(Reloj& reloj, Config cfg);
     ~Grabacion();
@@ -81,15 +86,31 @@ class Grabacion {
     bool parar(int esperaMs = 5000);
     bool grabando() const;
     void tic();
+    /// {grabando, error, codificador, segundos, archivos, atraso_s (lo que espera
+    /// al disco en el colchón), desbordes (veces que se perdieron cuadros), bytes, pausada}
     nlohmann::json estado() const;
     /// Los archivos (tramos) que se escribieron.
     std::vector<std::string> archivos() const;
+    /// Lo que espera al disco en el colchón, en segundos (el más atrasado).
+    double atrasoS() const;
+    /// Pausada no entra nada nuevo (una válvula al principio): el archivo sigue
+    /// abierto y no escribe, así el disco queda para otra. Al soltarla sigue
+    /// en el mismo archivo (con el salto). No espera a nadie.
+    void pausar(bool si);
+    bool pausada() const { return pausada_.load(); }
+    /// Para las pruebas: el próximo cuadro que sale del colchón de video espera
+    /// `ms` (como un disco trabado: lo que viene se junta en el colchón).
+    void simularDiscoTrabado(int ms);
 
    private:
     Reloj& reloj_;
     Config cfg_;
     mutable std::mutex mu_;
     GstElement* pipeline_ = nullptr;
+    std::vector<GstElement*> colchones_, valvulas_; ///< del pipeline (con ref)
+    guint64 atrasoNs() const; ///< con mu_ tomado
+    std::atomic<std::uint64_t> desbordes_{0}, bytes_{0};
+    std::atomic<bool> pausada_{false};
     std::string error_, codificador_;
     mutable std::mutex arMu_; ///< archivos_ (lo toca el hilo de datos de splitmuxsink)
     std::vector<std::string> archivos_;
@@ -151,6 +172,10 @@ class Repeticion {
     bool andando() const;
     void tic();
     int segundos() const { return segundos_; }
+    void pausar(bool si) {
+        if (grab_) grab_->pausar(si);
+    }
+    double atrasoS() const { return grab_ ? grab_->atrasoS() : 0.0; }
 
    private:
     std::string carpeta_;

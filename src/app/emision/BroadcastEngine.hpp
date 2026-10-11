@@ -538,6 +538,22 @@ class BroadcastEngine {
     std::string ultimoReplay() const;
     nlohmann::json replayEstado() const;
 
+    // --- El disco en apuros: el disco, para la grabación del programa --------
+    // Si el disco no da abasto (lo que espera en el colchón de una grabación, o
+    // el registro trabado escribiendo), se avisa y se ofrece darle el disco a la
+    // grabación del programa: se pausan las ISO, la repetición, la copia si va
+    // al mismo disco y la señal limpia a disco, y el registro se junta en memoria.
+    // Cuando el disco anda bien de nuevo (30 s), todo sigue solo.
+    /// "preguntar" (avisa y ofrece), "auto" (lo hace solo) o "nunca" (solo avisa).
+    std::string modoDisco() const;
+    std::string setModoDisco(const std::string& modo); ///< "" o el error (se guarda en Config/disco.json)
+    /// Darle (o devolverle) el disco al programa ahora.
+    void priorizarPrograma(bool si);
+    /// {apuros, atraso_s, registro_trabado_ms, prioridad, automatica, modo, pausadas[], desde_s}
+    nlohmann::json discoEstado() const;
+    /// Para probar (modo --test): la grabación del programa, como con el disco trabado `ms`.
+    void simularDiscoTrabado(int ms);
+
     /// Compatibilidad: las salidas del motor se rearman solas. No hace nada.
     void atenderEncoderCaido(bool stream, bool record);
     bool encoderRespaldoActivo() const { return false; }
@@ -558,6 +574,8 @@ class BroadcastEngine {
         std::string path;
         bool audioPropio = false;
         bool activa = false;
+        std::uint64_t bytes = 0; ///< lo que ya fue al archivo (sin preguntarle al disco)
+        bool pausada = false;    ///< el disco, para el programa
     };
     static constexpr int kMaxIndividuales = 8;
     bool startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc);
@@ -756,6 +774,15 @@ class BroadcastEngine {
     // Repetición: un anillo de tramos chicos en una carpeta; guardar junta los últimos.
     struct Repeticion;
     std::unique_ptr<Repeticion> replay_;
+    // El disco en apuros (todo del hilo de salidas, menos el modo).
+    void vigilarDisco();
+    void aplicarPrioridad(bool si, bool automatica);
+    std::atomic<int> modoDisco_{0}; ///< 0 preguntar, 1 auto, 2 nunca
+    bool discoApuros_ = false, prioridad_ = false, prioridadAuto_ = false;
+    std::int64_t apurosDesdeMs_ = 0, discoBienDesdeMs_ = 0;
+    double atrasoDisco_ = 0;
+    std::int64_t registroTrabadoMs_ = 0;
+    std::vector<std::string> pausadas_;
 
     // Lo que llega de los hilos del motor
     std::unique_ptr<audio::LoudnessPrograma> loudness_ = std::make_unique<audio::LoudnessPrograma>(48000);

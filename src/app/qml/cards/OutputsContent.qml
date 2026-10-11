@@ -186,7 +186,7 @@ Item {
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: isos.lista.length === 0 ? "ISO: ninguna entrada se graba aparte"
-                      : "ISO: " + isos.lista.length + " grabando · " + isos.lista.map(g => g.fuente + " " + Math.round(g.mb) + " MB").join(", ")
+                      : "ISO: " + isos.lista.length + " grabando · " + isos.lista.map(g => g.fuente + " " + Math.round(g.mb) + " MB" + (g.pausada ? " (en pausa)" : "")).join(", ")
                 color: isos.lista.length > 0 ? Theme.live : Theme.textFaint
                 font.pixelSize: 10
             }

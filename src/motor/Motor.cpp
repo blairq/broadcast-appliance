@@ -173,7 +173,8 @@ void Motor::bucle() {
                 actualizarUso();
             }
             for (auto& [id, c] : canales_) {
-                Tramo t("tic de las entradas");
+                const std::string donde = "tic de la entrada «" + id + "»"; // si tarda, cuál
+                Tramo t(donde.c_str());
                 c.entrada->tic();
             }
             {

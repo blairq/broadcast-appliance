@@ -455,7 +455,14 @@ class StudioViewModel : public QObject {
     control::Dsk& dsk() { return *dsk_; }
     /// Lo que se puede poner en una capa DSK: escenas y fuentes, por nombre.
     Q_INVOKABLE QStringList nombresParaDsk() const;
-    /// Grabación ISO (cada entrada a su archivo): [{fuente, archivo, mb, audioPropio, activa}].
+    /// El disco en apuros (BroadcastEngine::discoEstado): {apuros, atraso_s, registro_trabado_ms,
+    /// prioridad, automatica, modo, pausadas, graba_programa, desde_s}.
+    Q_INVOKABLE QVariantMap apurosDiscoUi() const;
+    /// Darle el disco a la grabación del programa (pausa ISO, repetición, registro) o devolverlo.
+    Q_INVOKABLE void priorizarProgramaUi(bool si);
+    /// "preguntar", "auto" o "nunca". "" o el error.
+    Q_INVOKABLE QString modoDiscoUi(const QString& modo);
+    /// Grabación ISO (cada entrada a su archivo): [{fuente, archivo, mb, audioPropio, activa, pausada}].
     Q_INVOKABLE QVariantList isosUi() const;
     /// Graba o deja de grabar una fuente aparte (chequea el disco y el tope). "" o el error.
     Q_INVOKABLE QString isoUi(const QString& fuente, bool grabar);

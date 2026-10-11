@@ -320,15 +320,19 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     std::string d = "splitmuxsink name=mux async-finalize=true muxer-factory=matroskamux location=" + entreComillas(patron) +
                     (cfg_.maxTramos > 0 ? " max-files=" + std::to_string(cfg_.maxTramos) : std::string()) + " max-size-time=" +
                     std::to_string(static_cast<guint64>(std::max(0, cfg_.tramoSeg)) * GST_SECOND) + " ";
+    // Cada rama: válvula (pausar sin cerrar) ! cola cruda ! codificador ! colchón
+    // comprimido (lo que aguanta un disco trabado) ! mux.
+    const std::string colchon = " max-size-time=" + std::to_string(static_cast<guint64>(std::max(1, cfg_.colchonSeg)) * GST_SECOND) +
+                                " max-size-buffers=0 max-size-bytes=" + std::to_string(512u << 20) + " ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
-             " ! queue name=cv max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! " + aCodificador(elegirCodificador(cfg_.codificadores)) +
-             " ! identity name=antes_cod ";
+             " ! valve name=pausa_v ! queue name=cv leaky=downstream max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! " +
+             aCodificador(elegirCodificador(cfg_.codificadores)) + " ! identity name=antes_cod ";
     for (std::size_t i = 0; i < f.audios.size(); ++i)
-        d += "intersrc producer-name=" + entreComillas(f.audios[i]) +
-             " ! queue max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
-             "avenc_aac bitrate=" + std::to_string(std::max(64, cfg_.kbpsAudio) * 1000) + " ! aacparse ! mux.audio_" +
-             std::to_string(i) + " ";
+        d += "intersrc producer-name=" + entreComillas(f.audios[i]) + " ! valve name=pausa_a" + std::to_string(i) +
+             " ! queue leaky=downstream max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
+             "avenc_aac bitrate=" + std::to_string(std::max(64, cfg_.kbpsAudio) * 1000) + " ! aacparse ! queue name=colchon_a" +
+             std::to_string(i) + colchon + "! mux.audio_" + std::to_string(i) + " ";
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
     if (e != nullptr) {
@@ -343,18 +347,22 @@ std::string Grabacion::iniciar(const Fuentes& f) {
         GstElement* cod = crearCodificador(codificador_, cfg_.kbps, cfg_.gopSeg * std::max(1, cfg_.fps));
         GstElement* parse = gst_element_factory_make("h264parse", nullptr);
         GstElement* antes = gst_bin_get_by_name(GST_BIN(p), "antes_cod");
-        if (cod == nullptr || parse == nullptr || antes == nullptr) {
+        GstElement* colV = gst_element_factory_make("queue", "colchon_v");
+        if (colV != nullptr)
+            g_object_set(colV, "max-size-time", static_cast<guint64>(std::max(1, cfg_.colchonSeg)) * GST_SECOND, "max-size-buffers", 0u,
+                         "max-size-bytes", 512u << 20, nullptr);
+        if (cod == nullptr || parse == nullptr || antes == nullptr || colV == nullptr) {
             error_ = "no hay codificador de video (" + codificador_ + ")";
-            for (GstElement* x : {cod, parse, antes})
+            for (GstElement* x : {cod, parse, antes, colV})
                 if (x != nullptr) gst_object_unref(x);
             gst_object_unref(mux);
             gst_object_unref(p);
             return error_;
         }
-        gst_bin_add_many(GST_BIN(p), cod, parse, nullptr);
+        gst_bin_add_many(GST_BIN(p), cod, parse, colV, nullptr);
         GstPad* vpad = gst_element_request_pad_simple(mux, "video");
-        GstPad* sale = gst_element_get_static_pad(parse, "src");
-        const bool ok = gst_element_link_many(antes, cod, parse, nullptr) && gst_pad_link(sale, vpad) == GST_PAD_LINK_OK;
+        GstPad* sale = gst_element_get_static_pad(colV, "src");
+        const bool ok = gst_element_link_many(antes, cod, parse, colV, nullptr) && gst_pad_link(sale, vpad) == GST_PAD_LINK_OK;
         gst_object_unref(sale);
         gst_object_unref(vpad);
         gst_object_unref(antes);
@@ -363,6 +371,44 @@ std::string Grabacion::iniciar(const Fuentes& f) {
             gst_object_unref(mux);
             gst_object_unref(p);
             return error_;
+        }
+    }
+    // Las válvulas y los colchones: para pausar, medir el atraso y contar lo escrito.
+    desbordes_ = 0;
+    bytes_ = 0;
+    pausada_ = false;
+    {
+        std::vector<std::string> valv, colch;
+        if (!f.video.empty()) {
+            valv.push_back("pausa_v");
+            colch.push_back("colchon_v");
+        }
+        for (std::size_t i = 0; i < f.audios.size(); ++i) {
+            valv.push_back("pausa_a" + std::to_string(i));
+            colch.push_back("colchon_a" + std::to_string(i));
+        }
+        for (const auto& n : valv)
+            if (GstElement* v = gst_bin_get_by_name(GST_BIN(p), n.c_str())) {
+                // Que pausada deje pasar el EOS y los segmentos (si no, al parar no cierra).
+                if (tiene(v, "drop-mode")) gst_util_set_object_arg(G_OBJECT(v), "drop-mode", "forward-sticky-events");
+                valvulas_.push_back(v);
+            }
+        for (const auto& n : colch)
+            if (GstElement* q = gst_bin_get_by_name(GST_BIN(p), n.c_str())) {
+                GstPad* sp = gst_element_get_static_pad(q, "src");
+                gst_pad_add_probe(sp, GST_PAD_PROBE_TYPE_BUFFER,
+                                  +[](GstPad*, GstPadProbeInfo* i, gpointer d) -> GstPadProbeReturn {
+                                      static_cast<Grabacion*>(d)->bytes_ += gst_buffer_get_size(GST_PAD_PROBE_INFO_BUFFER(i));
+                                      return GST_PAD_PROBE_OK;
+                                  },
+                                  this, nullptr);
+                gst_object_unref(sp);
+                colchones_.push_back(q);
+            }
+        // La cola cruda llena = el codificador o el disco no dan abasto: se pierden cuadros.
+        if (GstElement* cv = gst_bin_get_by_name(GST_BIN(p), "cv")) {
+            g_signal_connect(cv, "overrun", G_CALLBACK(+[](GstElement*, gpointer d) { ++static_cast<Grabacion*>(d)->desbordes_; }), this);
+            gst_object_unref(cv);
         }
     }
     // Cada tramo nuevo: anotarlo.
@@ -398,6 +444,8 @@ std::string Grabacion::iniciar(const Fuentes& f) {
 bool Grabacion::parar(int esperaMs) {
     std::lock_guard<std::mutex> l(mu_);
     if (pipeline_ == nullptr) return true;
+    for (GstElement* v : valvulas_) g_object_set(v, "drop", FALSE, nullptr); // pausada: que pase el EOS
+    pausada_ = false;
     // EOS por todas las ramas: splitmuxsink cierra el tramo (índice incluido).
     gst_element_send_event(pipeline_, gst_event_new_eos());
     GstBus* bus = gst_element_get_bus(pipeline_);
@@ -408,9 +456,39 @@ bool Grabacion::parar(int esperaMs) {
     gst_object_unref(bus);
     if (!ok) registrar(Nivel::Aviso, "grabación: no cerró a tiempo (el último tramo puede quedar sin índice)");
     gst_element_set_state(pipeline_, GST_STATE_NULL);
+    for (GstElement* e : valvulas_) gst_object_unref(e);
+    for (GstElement* e : colchones_) gst_object_unref(e);
+    valvulas_.clear();
+    colchones_.clear();
     gst_object_unref(pipeline_);
     pipeline_ = nullptr;
     return ok;
+}
+
+double Grabacion::atrasoS() const {
+    std::lock_guard<std::mutex> l(mu_);
+    return static_cast<double>(atrasoNs()) / 1e9;
+}
+
+void Grabacion::simularDiscoTrabado(int ms) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (colchones_.empty()) return;
+    GstPad* sp = gst_element_get_static_pad(colchones_.front(), "src");
+    gst_pad_add_probe(sp, GST_PAD_PROBE_TYPE_BUFFER,
+                      +[](GstPad*, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
+                          g_usleep(static_cast<gulong>(GPOINTER_TO_INT(d)) * 1000);
+                          return GST_PAD_PROBE_REMOVE;
+                      },
+                      GINT_TO_POINTER(ms), nullptr);
+    gst_object_unref(sp);
+}
+
+void Grabacion::pausar(bool si) {
+    std::lock_guard<std::mutex> l(mu_);
+    if (pipeline_ == nullptr || pausada_.load() == si) return;
+    for (GstElement* v : valvulas_) g_object_set(v, "drop", si ? TRUE : FALSE, nullptr);
+    pausada_ = si;
+    registrar(Nivel::Info, std::string("grabación ") + cfg_.nombre + (si ? ": en pausa (el disco, para otra)" : ": sigue"));
 }
 
 bool Grabacion::grabando() const {
@@ -441,7 +519,21 @@ json Grabacion::estado() const {
             {"error", error_},
             {"codificador", codificador_},
             {"segundos", pipeline_ != nullptr ? static_cast<double>(ahoraNs() - desdeNs_) / 1e9 : 0.0},
-            {"archivos", archivos()}};
+            {"archivos", archivos()},
+            {"atraso_s", static_cast<double>(atrasoNs()) / 1e9},
+            {"desbordes", desbordes_.load()},
+            {"bytes", bytes_.load()},
+            {"pausada", pausada_.load()}};
+}
+
+guint64 Grabacion::atrasoNs() const {
+    guint64 max = 0;
+    for (GstElement* q : colchones_) {
+        guint64 t = 0;
+        g_object_get(q, "current-level-time", &t, nullptr);
+        max = std::max(max, t);
+    }
+    return max;
 }
 
 std::vector<std::string> Grabacion::archivos() const {
