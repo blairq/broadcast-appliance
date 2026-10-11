@@ -1266,6 +1266,7 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
     c.gopSeg = std::max(1, enc.keyintSec);
     c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     c.codificadores = videoEncoderCandidates(enc);
+    c.colchonSeg = 60; // lo que más importa: un minuto de disco trabado sin perder nada
     auto g = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
     const motor::Fuentes f = fuentesDelPrograma(*motor_, pistas);
     const std::string e = g->iniciar(f);
@@ -1711,6 +1712,7 @@ std::string BroadcastEngine::startSourceRecordingYa(const std::string& source, c
     c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     // Las sesiones de codificación de la placa quedan para el programa: x264.
     c.codificadores = {"x264enc"};
+    c.colchonSeg = 10; // hasta 8 a la vez: menos memoria (con el disco en apuros se pausan)
     r.grab = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
     const std::string err = r.grab->iniciar(f);
     if (!err.empty()) {

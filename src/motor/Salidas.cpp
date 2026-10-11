@@ -265,6 +265,7 @@ Repeticion::Repeticion(Reloj& reloj, std::string carpetaTramos, int segundos, in
     c.gopSeg = 1; // un tramo empieza siempre en un cuadro clave
     c.maxTramos = segundos_ / 2 + 2;
     c.kbps = kbps;
+    c.colchonSeg = 10;
     grab_ = std::make_unique<Grabacion>(reloj, c);
 }
 
