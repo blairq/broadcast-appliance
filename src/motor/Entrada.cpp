@@ -1202,11 +1202,14 @@ void Entrada::tic() {
         if (c > 0) controlEnviado_ = enviarControl();
     }
 
-    // LA PLACA SE DESARMA si hace 15 s que nadie usa la entrada: sus hilos
+    // LA PLACA SE DESARMA si hace 2 minutos que nadie usa la entrada: sus hilos
     // (intersrc, imagefreeze, el fallbackswitch) y su trabajo, por entrada que nadie
     // mira. La cadena sigue andando (a 2 cuadros/s): la alarma de «sin señal» la
     // mira a ella. Rearmarla tarda ~2 ms (ponerEnUso).
-    if (salidaV_ != nullptr && !enUso_ && sinUsoDesdeUs_ != 0 && g_get_monotonic_time() - sinUsoDesdeUs_ > 15'000'000) {
+    // Eran 15 s: cada ida y vuelta entre dos escenas la desarmaba y rearmaba (con
+    // su negociación D3D12), y justo ahí se rompía el heap el 2026-10-10 21:14 en
+    // la PC de pruebas. Con 2 minutos, cambiar de escena no la toca.
+    if (salidaV_ != nullptr && !enUso_ && sinUsoDesdeUs_ != 0 && g_get_monotonic_time() - sinUsoDesdeUs_ > 120'000'000) {
         trabajar([this]() {
             const std::int64_t t0 = g_get_monotonic_time();
             desarmarSalida();
