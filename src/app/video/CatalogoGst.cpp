@@ -70,6 +70,12 @@ bool iniciarGst() {
         g_ok = gst_init_check(nullptr, nullptr, &e);
         if (!g_ok) g_err = e != nullptr ? e->message : "gst_init falló";
         if (e != nullptr) g_error_free(e);
+        // Lo mismo que motor::quitarPluginsDelSistema (este catálogo no enlaza el motor).
+        if (g_ok)
+            if (GstPlugin* p = gst_registry_find_plugin(gst_registry_get(), "directshow")) {
+                gst_registry_remove_plugin(gst_registry_get(), p);
+                gst_object_unref(p);
+            }
     });
     return g_ok;
 }

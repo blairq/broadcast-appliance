@@ -37,9 +37,20 @@ bool iniciarGStreamer(std::string* error) {
         ok = gst_init_check(nullptr, nullptr, &e);
         if (!ok) err = e != nullptr ? ba::diag::utf8Valido(e->message) : "gst_init falló";
         if (e != nullptr) g_error_free(e);
+        if (ok) quitarPluginsDelSistema();
     });
     if (!ok && error != nullptr) *error = err;
     return ok;
+}
+
+void quitarPluginsDelSistema() {
+    GstRegistry* reg = gst_registry_get();
+    for (const char* n : {"directshow"}) {
+        if (GstPlugin* p = gst_registry_find_plugin(reg, n)) {
+            gst_registry_remove_plugin(reg, p);
+            gst_object_unref(p);
+        }
+    }
 }
 
 void ponerRegistro(std::function<void(Nivel, const std::string&)> f) {

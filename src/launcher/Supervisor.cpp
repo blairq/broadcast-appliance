@@ -78,58 +78,10 @@ void sleepInterruptible(int ms, const std::atomic<bool>& stop) {
     }
 }
 
-void writeMinidump(std::uint32_t pid, const std::filesystem::path& path) {
-#ifdef _WIN32
-    // dbghelp.dll se carga a runtime (sin import lib). MinGW no define los
-    // tipos de minidump en su dbghelp.h, por eso se declaran aca.
-    typedef DWORD MINIDUMP_TYPE;
-    typedef BOOL(WINAPI * MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, void*, void*, void*);
-    HMODULE dbghelp = LoadLibraryW(L"dbghelp.dll");
-    if (!dbghelp) {
-        BA_LOG_WARN("dump", 0, "dbghelp.dll no disponible; sin minidump");
-        return;
-    }
-    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(
-        reinterpret_cast<void*>(GetProcAddress(dbghelp, "MiniDumpWriteDump")));
-    HANDLE proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
-    if (!fn || !proc) {
-        if (proc) {
-            CloseHandle(proc);
-        }
-        FreeLibrary(dbghelp);
-        BA_LOG_WARN("dump", 0, "no se pudo preparar el minidump");
-        return;
-    }
-    std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
-    HANDLE file = CreateFileW(path.wstring().c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-                              FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) {
-        CloseHandle(proc);
-        FreeLibrary(dbghelp);
-        BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "no se pudo abrir el destino del minidump");
-        return;
-    }
-    // MiniDumpNormal | MiniDumpWithThreadInfo, como literales (MinGW).
-    const BOOL ok = fn(proc, pid, file, 0x00000000 | 0x00001000, nullptr, nullptr, nullptr);
-    CloseHandle(file);
-    CloseHandle(proc);
-    FreeLibrary(dbghelp);
-    if (ok) {
-        BA_LOG_INFO("dump", 0, "minidump escrito: " + path.string());
-    } else {
-        BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "MiniDumpWriteDump fallo");
-    }
-#else
-    (void)pid;
-    (void)path;
-    BA_LOG_INFO("dump", 0, "sin volcado de memoria en esta plataforma todavia (Crashpad: fase 9)");
-#endif
-}
 
 } // namespace
 
-Supervisor::Supervisor(Config cfg) : cfg_(std::move(cfg)) {}
+Supervisor::Supervisor(Config cfg) : cfg_(std::move(cfg)), volcados_(std::make_unique<Volcados>(cfg_.logsDir)) {}
 
 Supervisor::~Supervisor() {
     pararFondo_ = true;
@@ -323,9 +275,12 @@ bool Supervisor::startChild(bool isA) {
     // Un archivo por proceso, con el nombre del proceso: es lo que el visor
     // usa para saber de donde salio cada linea.
     c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway.log");
+    // El canal para que avise si se cae (y el volcado salga con la excepción).
+    c.env = volcados_->canalPara(c.name, c.outputFile);
     if (!child(isA).start(c)) {
         return false;
     }
+    volcados_->lanzado(c.name, child(isA).pid());
     launchedAtMs_[isA ? 1 : 0] = nowMs();
     health_.setIdentity(slot, child(isA).pid(), kProcVersion);
     latidoAlLanzar_[isA ? 1 : 0] = health_.read(slot).lastBeatQpc;
@@ -381,7 +336,7 @@ std::string causaDe(std::optional<int> code) {
 }
 } // namespace
 
-void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code) {
+void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado) {
     // Runtime/ultima-caida.json lo lee la app al volver (el cartel con la causa);
     // Runtime/caidas.jsonl queda como historial (supervisor_caidas).
     const std::filesystem::path dir = (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Runtime";
@@ -393,6 +348,7 @@ void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<i
     const nlohmann::json j{{"componente", isA ? "app" : "gateway"},
                            {"causa", causa},
                            {"codigo", code ? nlohmann::json(*code) : nlohmann::json()},
+                           {"volcado", volcado.empty() ? nlohmann::json() : nlohmann::json(volcado.filename().string())},
                            {"hora_ms", ms}};
     {
         std::ofstream o(dir / "ultima-caida.json", std::ios::trunc);
@@ -423,37 +379,26 @@ void Supervisor::handleCrash(bool isA) {
         return;
     }
     BA_LOG_WARN("sup", code.value_or(-1), name + " termino inesperadamente; reiniciando con backoff");
-    anotarCaida(isA, causaDe(code), code);
+    // Si avisó la caída, la causa sale del volcado (qué excepción y en qué módulo).
+    const std::optional<Volcado> v = volcados_->tomarCaida(name);
+    anotarCaida(isA, v ? v->causa : causaDe(code), code, v ? v->dmp : std::filesystem::path());
     restartChild(isA);
 }
 
 void Supervisor::handleHang(bool isA) {
     const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
     const std::string name = isA ? "A" : "B";
-    BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
-    anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt);
-    // Uno por cuelgue, con la hora (A-20261010-023635.dmp), y se quedan los
-    // últimos 5: antes era siempre A.dmp y el segundo cuelgue borraba el
-    // primero (pasó el 2026-10-10: del primero no quedó nada para mirar).
-    {
-        const std::time_t ahora = std::time(nullptr);
-        std::tm tm{};
-#if defined(_WIN32)
-        localtime_s(&tm, &ahora);
-#else
-        localtime_r(&ahora, &tm);
-#endif
-        char hora[32];
-        std::strftime(hora, sizeof hora, "%Y%m%d-%H%M%S", &tm);
-        const std::filesystem::path dir = cfg_.logsDir / "dumps";
-        writeMinidump(child(isA).pid(), dir / (name + "-" + hora + ".dmp"));
-        std::error_code ec;
-        std::vector<std::filesystem::path> viejos;
-        for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-            if (e.path().extension() == ".dmp" && e.path().filename().string().rfind(name + "-", 0) == 0)
-                viejos.push_back(e.path());
-        std::sort(viejos.begin(), viejos.end()); // por nombre = por hora
-        for (size_t i = 0; i + 5 < viejos.size(); ++i) std::filesystem::remove(viejos[i], ec);
+    if (volcados_->hayCaida(name)) {
+        // No es un cuelgue: se cayó (ya avisó y está volcado) y Windows lo
+        // retiene mientras arma su informe. Se lo trata como la caída que es.
+        const std::optional<Volcado> v = volcados_->tomarCaida(name);
+        BA_LOG_WARN("sup", 0, name + " se cayó (" + (v ? v->causa : std::string("?")) + "); terminar y relanzar");
+        anotarCaida(isA, v ? v->causa : "se cayó", std::nullopt, v ? v->dmp : std::filesystem::path());
+    } else {
+        BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
+        // Uno por cuelgue, con la hora y un .json que dice qué pasó (Volcados.hpp).
+        const Volcado v = volcados_->porCuelgue(name, child(isA).pid(), cfg_.logsDir / (isA ? "app.log" : "gateway.log"));
+        anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt, v.dmp);
     }
     child(isA).kill();
     child(isA).waitExit(kTerminateMs);

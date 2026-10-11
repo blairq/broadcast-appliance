@@ -34,6 +34,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -53,6 +54,8 @@ class ChildProcess {
         // Archivo que recibe stdout+stderr del hijo (vacio = los hereda del
         // launcher). Si no se puede escribir, el hijo se lanza igual.
         std::filesystem::path outputFile;
+        // Variables de entorno extra para el hijo (p. ej. el canal de caídas).
+        std::map<std::string, std::string> env;
     };
 
     /// Lanza el hijo con el entorno saneado.

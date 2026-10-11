@@ -226,6 +226,7 @@ bool ChildProcess::start(const Config& cfg) {
     o.killWithParent = false; // A y B sobreviven a un crash del launcher (3.1.9)
     o.hideWindow = true;
     applyEnvPolicy(o, cfg.exePath.parent_path());
+    for (const auto& [k, v] : cfg.env) o.envSet[k] = v;
     // Los datos (Config/, Logs/, Recordings/, Web/) viven en la raiz REAL
     // aunque el binario corra desde la copia sombra.
     const std::u8string root = cfg.workDir.u8string();

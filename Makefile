@@ -243,7 +243,7 @@ deps-webrtc-win:
 # las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
           deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
+          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
@@ -374,6 +374,7 @@ release-macos:
 app-macos: release-macos
 	@mkdir -p dist
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app
+	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
 
 # Para probar mientras se programa: lo mismo que app-macos, pero sin borrar
 # release/ ni la .app. Solo se copia, firma, revisa y hashea lo que cambió
@@ -479,6 +480,7 @@ dist-linux:
 	rm -rf release
 	$(MAKE) release
 	@mkdir -p dist
+	tools/caidas/simbolos-linux.sh release dist/simbolos/linux
 	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz --transform 's,^\.,BroadcastAppliance,' .
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.sha256
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.commit
@@ -1414,6 +1416,21 @@ deps-gstreamer-win:
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_RT)" URL="$(GST_WIN_URL)/$(GST_WIN_RT)" SHA="$(GST_WIN_RT_SHA)" QUE="GStreamer (Windows)" && \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_DEV)" URL="$(GST_WIN_URL)/$(GST_WIN_DEV)" SHA="$(GST_WIN_DEV_SHA)" QUE="GStreamer (Windows, cabeceras)" && \
 	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win"
+
+# Los símbolos (.pdb) del GStreamer de Windows, del .msi de desarrollo, aparte:
+# no van en el aparato, van al almacén de símbolos (tools/caidas/simbolos.py)
+# para leer las pilas de los volcados.
+.PHONY: deps-gstreamer-win-pdb
+deps-gstreamer-win-pdb: deps-gstreamer-win
+	@if [ "$$(cat $(EXTERNS_DIR)/gstreamer-win-pdb/.version 2>/dev/null)" = "$(GST_WIN_VER)" ]; then \
+		echo "Símbolos de GStreamer (Windows) ya están"; exit 0; fi; \
+	t="$$(mktemp -d)"; trap 'rm -rf "$$t"' EXIT; \
+	for m in "$(DL_DIR)/$(GST_WIN_RT)" "$(DL_DIR)/$(GST_WIN_DEV)"; do \
+		(cd "$$t" && "$(CURDIR)/$(EXTERNS_DIR)/msitools/msiextract" "$(CURDIR)/$$m" >/dev/null); done; \
+	rm -rf "$(EXTERNS_DIR)/gstreamer-win-pdb" && mkdir -p "$(EXTERNS_DIR)/gstreamer-win-pdb" && \
+	find "$$t" -iname '*.pdb' -exec cp -n {} "$(EXTERNS_DIR)/gstreamer-win-pdb/" \; && \
+	echo "$(GST_WIN_VER)" >"$(EXTERNS_DIR)/gstreamer-win-pdb/.version" && \
+	echo "Símbolos de GStreamer (Windows): $$(ls $(EXTERNS_DIR)/gstreamer-win-pdb/*.pdb | wc -l) .pdb, $$(du -sh $(EXTERNS_DIR)/gstreamer-win-pdb | cut -f1)"
 
 # Los bindings de Python de GStreamer para el Python 3.12 del bundle (macOS).
 .PHONY: deps-gst-python-mac

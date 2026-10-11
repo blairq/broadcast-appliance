@@ -41,4 +41,10 @@ struct EstadoSalida {
 };
 EstadoSalida estadoSalidaEstandar();
 
+/// Adonde iba stderr antes de desacoplarlo (el archivo de Logs/): el manejador
+/// de caídas escribe AHÍ, directo, porque el proceso muere antes de que la
+/// cola llegue al archivo. Sin desacoplar, el stderr de siempre.
+/// POSIX: un descriptor. Windows: un HANDLE (como entero).
+std::intptr_t salidaOriginal();
+
 } // namespace ba::diag

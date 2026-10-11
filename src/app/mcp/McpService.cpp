@@ -30,6 +30,9 @@
 #include <QQuickWindow>
 
 #include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
 #include <cmath>
 #include <cstring>
 #include <memory>
@@ -3155,6 +3158,40 @@ void McpService::registerTools() {
                 out["pedido"] = a.value("priorizar", false) ? "darle el disco al programa" : "seguir con todo";
             }
             done(ToolResult().data(out));
+        };
+        core_.addTool(std::move(t));
+    }
+    if (rt.config().modoPrueba) {
+        // Solo con --test: para probar que una caída deja su volcado bien hecho
+        // (diag/Caidas.cpp + launcher/Volcados.cpp). Tira la app abajo.
+        Tool t;
+        t.name = "diag_probar_caida";
+        t.title = "Probar una caida (solo --test)";
+        t.category = "sistema";
+        t.description = "SOLO EN MODO PRUEBA. Tira la app abajo a proposito para probar los volcados: "
+                        "`tipo` acceso (violacion de acceso), heap (corrupcion del heap) o abort. "
+                        "El launcher la relanza; el volcado y su .json quedan en Logs/dumps.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"tipo", {{"type", "string"}, {"enum", {"acceso", "heap", "abort"}}}}}},
+                         {"required", {"tipo"}}};
+        t.run = [](const json& a, Done done) {
+            const std::string tipo = a.value("tipo", std::string());
+            done(ToolResult().data(json{{"cayendo", tipo}}));
+            // En otro hilo y un momento después: que la respuesta llegue.
+            std::thread([tipo]() {
+                std::this_thread::sleep_for(std::chrono::milliseconds(500));
+                if (tipo == "acceso") {
+                    volatile int* p = nullptr;
+                    *p = 1;
+                } else if (tipo == "heap") {
+                    char* p = static_cast<char*>(std::malloc(32));
+                    std::memset(p - 16, 0x41, 96); // pisa la cabecera del bloque
+                    std::free(p);
+                    std::free(p);
+                } else {
+                    std::abort();
+                }
+            }).detach();
         };
         core_.addTool(std::move(t));
     }

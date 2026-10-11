@@ -84,7 +84,13 @@ elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-
     install(DIRECTORY "${_g}/" DESTINATION bin/64bit/gstreamer COMPONENT bundle
             PATTERN "bin" EXCLUDE PATTERN "include" EXCLUDE PATTERN "*.lib" EXCLUDE PATTERN "*.def" EXCLUDE
             PATTERN "*.a" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "duplicadas.txt" EXCLUDE
-            PATTERN "*.pdb" EXCLUDE) # símbolos de depuración (231 MB): no hacen nada en el aparato
+            PATTERN "*.pdb" EXCLUDE # símbolos de depuración (231 MB): no hacen nada en el aparato
+            # DirectShow: sus envoltorios (dshowvdec_*/dshowadec_*) le ofrecen a decodebin
+            # CUALQUIER códec instalado en el sistema. Así entraban al proceso los LAV
+            # Filters del K-Lite Codec Pack (en los 7 volcados de la PC de pruebas,
+            # 2026-10-10): código de afuera, adentro de la app. La captura va por Media
+            # Foundation y el audio por WASAPI: no se usa para nada.
+            PATTERN "gstdirectshow.dll" EXCLUDE)
     # gstpython.dll para el Python 3.12 del bundle (tools/deps/gst-python-win.sh).
     file(GLOB _ba_gstpy "${CMAKE_SOURCE_DIR}/extern/gst-python-win/gstpython*.dll")
     if(_ba_gstpy)

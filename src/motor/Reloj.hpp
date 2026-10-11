@@ -30,6 +30,10 @@ namespace ba::motor {
 
 /// Inicia GStreamer con el entorno del bundle (una vez). false + motivo si no hay.
 bool iniciarGStreamer(std::string* error = nullptr);
+/// Saca del registro los plugins que meten código del sistema en el proceso
+/// (DirectShow: le ofrece a decodebin cualquier códec instalado, como los LAV
+/// del K-Lite). Por si quedó el .dll de una versión vieja. Después de gst_init.
+void quitarPluginsDelSistema();
 
 enum class Nivel { Info, Aviso, Error };
 /// Adónde van los avisos del motor (de fábrica, stderr). La app pone su registro.

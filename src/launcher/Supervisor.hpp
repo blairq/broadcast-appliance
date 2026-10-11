@@ -23,6 +23,7 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
 #include <thread>
 #include <cstdint>
 #include <filesystem>
@@ -35,6 +36,7 @@
 #include "ipc/HealthBlock.hpp"
 #include "platform/SingleInstance.hpp"
 #include "RecoveryUi.hpp"
+#include "Volcados.hpp"
 
 namespace ba::launcher {
 
@@ -91,7 +93,7 @@ class Supervisor {
     void restartChild(bool isA); // backoff + relanzamiento (comun a crash/hang)
     void handleCrash(bool isA);
     /// Deja escrita la causa de la caída (Runtime/ultima-caida.json y caidas.jsonl).
-    void anotarCaida(bool isA, const std::string& causa, std::optional<int> code);
+    void anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado = {});
     void handleHang(bool isA);
 
     // --- Recuperacion (UI) --------------------------------------------------
@@ -120,6 +122,7 @@ class Supervisor {
     // periodo de gracia de arranque no se evalua el heartbeat (libobs tarda en
     // cargar modulos y el proceso todavia no late).
     std::uint64_t launchedAtMs_[2] = {0, 0};
+    std::unique_ptr<Volcados> volcados_; ///< los volcados de A y B, con su .json (Volcados.hpp)
     std::uint64_t latidoAlLanzar_[2] = {0, 0}; ///< el latido que había al lanzarlo (para saber si ya latió)
     bool inStartupGrace(bool isA) const;
 

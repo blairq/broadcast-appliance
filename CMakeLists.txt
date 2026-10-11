@@ -210,6 +210,10 @@ if(MSVC)
     # /Zi garantiza PDBs en todos los configurados; PDBs de enlace siempre.
     add_compile_options(/Zi)
     add_link_options(/DEBUG)
+    # /DEBUG apaga por defecto /OPT:REF y /OPT:ICF (sacar lo que nadie usa y
+    # juntar funciones idénticas): se vuelven a prender fuera de Debug, así el
+    # código queda igual que sin símbolos. Los .pdb van aparte (dist/simbolos).
+    add_link_options($<$<NOT:$<CONFIG:Debug>>:/OPT:REF> $<$<NOT:$<CONFIG:Debug>>:/OPT:ICF>)
     # Windows 10+ (ConPTY, WinRT...) y sin min/max de windows.h. NOMINMAX y
     # WIN32_LEAN_AND_MEAN van VACIOS: identicos al `#define` que ya tienen
     # varios archivos (redefinirlos igual no es un aviso).
@@ -218,8 +222,10 @@ if(MSVC)
 else()
     # Linux (gcc/clang): advertencias estrictas razonables.
     add_compile_options(-Wall -Wextra)
-    # Debug info por defecto para poder correr los unit tests con sanitizers.
-    add_compile_options($<$<CONFIG:Debug>:-g>)
+    # Símbolos siempre (también en Release): -g no cambia el código que se
+    # genera, solo agrega la información para leer una pila. En macOS queda en
+    # los .o y dsymutil la junta en un .dSYM; en Linux va aparte (dist/simbolos).
+    add_compile_options(-g)
     # macOS: el equivalente del --as-needed que Ubuntu usa por defecto. Sin
     # esto, todo lo que enlaza ba_core arrastra las dylibs de sus dependencias
     # opcionales (ONNX Runtime) aunque no las use, y el launcher, que no tiene

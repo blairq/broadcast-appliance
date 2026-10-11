@@ -61,6 +61,7 @@ if [ "$QUE" != win ]; then
     .venv/bin/pytest -q
     make dist-linux JOBS=$J PERFILAR=$PERFILAR
     cp dist/*-linux-x64$SUF.tar.gz dist/*-linux-x64$SUF.tar.gz.sha256 dist/*-linux-x64$SUF.tar.gz.commit /salida/
+    mkdir -p /salida/simbolos && cp -rn dist/simbolos/linux /salida/simbolos/ 2>/dev/null || true
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
@@ -72,6 +73,10 @@ if [ "$QUE" != linux ]; then
     make test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
     make dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     cp dist/*-windows-x64$SUF.zip dist/*-windows-x64$SUF.zip.sha256 dist/*-windows-x64$SUF.zip.commit /salida/
+    # Los binarios y los .pdb de este build, al almacén de dist/simbolos (en la
+    # Mac): para leer después las pilas de sus volcados (tools/caidas/analizar.py).
+    python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
+        --destino /salida/simbolos --commit "$SHA" || echo "ATENCION: no se guardaron los símbolos" >&2
     if [ "$tests_win" != 0 ]; then
         echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
         exit 3

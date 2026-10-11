@@ -30,6 +30,8 @@ namespace ba::diag {
 
 namespace {
 
+std::intptr_t g_original = -1; // ver salidaOriginal()
+
 struct Cola {
     std::mutex mu;
     std::condition_variable hay, vacia;
@@ -134,6 +136,15 @@ EstadoSalida estadoSalidaEstandar() {
     return e;
 }
 
+std::intptr_t salidaOriginal() {
+    if (g_original != -1) return g_original;
+#if defined(_WIN32)
+    return reinterpret_cast<std::intptr_t>(GetStdHandle(STD_ERROR_HANDLE));
+#else
+    return 2;
+#endif
+}
+
 #if defined(_WIN32)
 
 void desacoplarSalidaEstandar(std::size_t maxBytes) {
@@ -160,6 +171,7 @@ void desacoplarSalidaEstandar(std::size_t maxBytes) {
     SetStdHandle(STD_ERROR_HANDLE, reinterpret_cast<HANDLE>(_get_osfhandle(2)));
     c.max = maxBytes;
     c.activa = true;
+    g_original = reinterpret_cast<std::intptr_t>(destino);
     std::thread([leer]() {
         char buf[16384];
         DWORD n = 0;
@@ -202,6 +214,7 @@ void desacoplarSalidaEstandar(std::size_t maxBytes) {
     fcntl(destino, F_SETFD, FD_CLOEXEC);
     c.max = maxBytes;
     c.activa = true;
+    g_original = destino;
     const int leer = p[0];
     std::thread([leer]() {
         char buf[16384];
