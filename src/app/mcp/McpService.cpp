@@ -30,6 +30,12 @@
 #include <QQuickWindow>
 
 #include <algorithm>
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h> // diag_probar_caida: HeapCreate
+#endif
 #include <cstdlib>
 #include <chrono>
 #include <thread>
@@ -3184,10 +3190,18 @@ void McpService::registerTools() {
                     volatile int* p = nullptr;
                     *p = 1;
                 } else if (tipo == "heap") {
+#if defined(_WIN32)
+                    // Un heap propio de Windows: el doble HeapFree lo detecta siempre
+                    // (0xC0000374, como la caída real); el del CRT a veces no se entera.
+                    HANDLE h = HeapCreate(0, 0, 0);
+                    void* p = HeapAlloc(h, 0, 64);
+                    HeapFree(h, 0, p);
+                    HeapFree(h, 0, p);
+#else
                     char* p = static_cast<char*>(std::malloc(32));
-                    std::memset(p - 16, 0x41, 96); // pisa la cabecera del bloque
                     std::free(p);
                     std::free(p);
+#endif
                 } else {
                     std::abort();
                 }
