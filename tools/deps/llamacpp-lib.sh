@@ -47,7 +47,8 @@ bajar() { # archivo url sha
     fi
 }
 
-if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$VER" ]; then log "ya estaba ($PLAT, $VER)"; exit 0; fi
+# "+servidor": desde 2026-10-11 también va llama-server (el chat del modelo local con pi).
+if [ "$(cat "$OUT/.version" 2>/dev/null)" = "$VER+servidor" ]; then log "ya estaba ($PLAT, $VER)"; exit 0; fi
 mkdir -p "$DL"
 bajar "$ARCH" "https://github.com/ggml-org/llama.cpp/releases/download/$VER/$ARCH" "$SHA"
 bajar "$FUENTE" "https://github.com/ggml-org/llama.cpp/archive/refs/tags/$VER.tar.gz" "$SHA_FUENTE"
@@ -70,8 +71,10 @@ esac
 raiz="$tmp/bin"; [ "$(find "$raiz" -maxdepth 1 -mindepth 1 | wc -l | tr -d " ")" = 1 ] && raiz="$(find "$raiz" -maxdepth 1 -mindepth 1 -type d | head -1)"
 case "$PLAT" in
     win)
-        # Solo las DLL (las herramientas llama-*.exe no viajan): las de llama, ggml y mtmd.
+        # Las DLL (llama, ggml, mtmd) y llama-server.exe: el chat del modelo local
+        # (pi) le habla por HTTP, con el protocolo de OpenAI. Las otras llama-*.exe no viajan.
         find "$raiz" -maxdepth 1 -iname "*.dll" -exec cp {} "$OUT/bin/" \;
+        cp "$raiz/llama-server.exe" "$OUT/bin/" || morir "la release no trae llama-server.exe"
         # Bibliotecas de importación desde las exportaciones de cada DLL.
         LLVM="$ROOT/extern/toolchain/llvm/bin"
         [ -x "$LLVM/llvm-dlltool" ] || morir "falta llvm-dlltool (tools/deps/win-toolchain.sh)"
@@ -84,11 +87,13 @@ case "$PLAT" in
         ;;
     linux)
         find "$raiz" -maxdepth 1 \( -name "*.so" -o -name "*.so.*" \) -exec cp -a {} "$OUT/lib/" \;
+        cp "$raiz/llama-server" "$OUT/bin/" || morir "la release no trae llama-server"
         ;;
     mac)
         find "$raiz" -maxdepth 1 -name "*.dylib" -exec cp -a {} "$OUT/lib/" \;
+        cp "$raiz/llama-server" "$OUT/bin/" || morir "la release no trae llama-server"
         ;;
 esac
 [ -n "$(ls "$OUT/lib")" ] || morir "no quedó ninguna biblioteca en $OUT/lib"
-echo "$VER" > "$OUT/.version"
+echo "$VER+servidor" > "$OUT/.version"
 log "listo: extern/llamacpp-$PLAT ($VER): $(ls "$OUT/lib" | wc -l | tr -d ' ') en lib, $(ls "$OUT/bin" | wc -l | tr -d ' ') en bin"

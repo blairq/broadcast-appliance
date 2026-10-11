@@ -168,6 +168,11 @@ class ModelosLocales : public QObject {
     Q_INVOKABLE QVariantMap limpiarRestos();
     /// Carga el modelo (y apaga el que hubiera).
     Q_INVOKABLE void activar(const QString& repo);
+    /// El .gguf para el CHAT del modelo local (pi + llama-server, pestaña
+    /// Asistente): el del modelo activo si es GGUF (Windows, Linux); si es MLX
+    /// (Mac), el de su versión GGUF del catálogo. Vacío si no está: `falta` dice
+    /// por qué y `repoParaBajar`, cuál bajar (si hay uno).
+    QString ggufParaChat(QString* falta = nullptr, QString* repoParaBajar = nullptr) const;
     Q_INVOKABLE void apagar();
     /// Elegir con una frase, para ver qué hace: el resultado va a `pruebas`.
     Q_INVOKABLE void probar(const QString& frase);

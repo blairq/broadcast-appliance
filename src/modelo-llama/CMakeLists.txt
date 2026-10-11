@@ -71,4 +71,21 @@ else()
         endif()
     endif()
 endif()
+# llama-server: el chat del modelo local (pi, la pestaña Asistente) le habla por
+# HTTP con el protocolo de OpenAI (agent/ServidorLocal). Va con TODAS las
+# bibliotecas de la release (además de las de ba-modelo usa llama-server-impl y
+# llama-common), en Windows al lado de las otras DLL y en Linux/macOS en
+# bin/64bit/llama (su rpath es la carpeta donde está).
+if(WIN32 AND EXISTS "${_ba_llama}/bin/llama-server.exe")
+    file(GLOB _ba_dlls_todas "${_ba_llama}/bin/*.dll")
+    install(FILES "${_ba_llama}/bin/llama-server.exe" ${_ba_dlls_todas} DESTINATION bin/64bit COMPONENT bundle)
+elseif(NOT WIN32 AND EXISTS "${_ba_llama}/bin/llama-server")
+    install(PROGRAMS "${_ba_llama}/bin/llama-server" DESTINATION bin/64bit/llama COMPONENT bundle)
+    if(APPLE)
+        file(GLOB _ba_libs_todas "${_ba_llama}/lib/*.dylib")
+    else()
+        file(GLOB _ba_libs_todas "${_ba_llama}/lib/*.so*")
+    endif()
+    install(FILES ${_ba_libs_todas} DESTINATION bin/64bit/llama COMPONENT bundle)
+endif()
 message(STATUS "ba-modelo (llama.cpp): ${_ba_llama}")

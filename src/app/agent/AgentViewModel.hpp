@@ -50,6 +50,8 @@
 #include "agent/Lanzamiento.hpp"
 #include "term/TerminalSession.hpp"
 
+class QProcess;
+
 namespace ba::app {
 class AppRuntime;
 }
@@ -142,6 +144,13 @@ class AgentViewModel : public QObject {
     /// viene de un disparador (se dice en voz alta y nunca se hace solo).
     using Local = std::function<void(const QString& rol, const QString& texto, bool disparador)>;
     void setLocal(Local l) { local_ = std::move(l); }
+    /// El chat del modelo local (pi): qué .gguf cargar en llama-server
+    /// (ModelosLocales::ggufParaChat) y cómo pedir que se baje el que falta.
+    void setModeloChat(std::function<QString(QString* falta, QString* repoParaBajar)> gguf,
+                       std::function<void(const QString& repo)> bajar) {
+        ggufChat_ = std::move(gguf);
+        bajarModelo_ = std::move(bajar);
+    }
     bool mcpReady() const { return mcpReady_ ? mcpReady_() : false; }
     QString lastError() const { return lastError_; }
     QVariantList alerts() const;
@@ -317,6 +326,16 @@ class AgentViewModel : public QObject {
     AlertEngine& alerts_;
     std::unique_ptr<term::TerminalSession> session_;
     Local local_;
+    std::function<QString(QString*, QString*)> ggufChat_;
+    std::function<void(const QString&)> bajarModelo_;
+    // El llama-server del chat del modelo local (pi): lo levanta start(), lo baja stop().
+    QProcess* servidor_ = nullptr;
+    quint16 puertoServidor_ = 0;
+    QString ggufActual_; ///< el .gguf que cargó el servidor (su carpeta trae el prompt.json)
+    QString rutaServidorLocal() const;
+    void arrancarServidorLocal(std::function<void()> listo);
+    void pararServidorLocal();
+    void lanzarSesion();
     bool localActivo_ = false; ///< el asistente es el modelo local y está «andando»
     QString provider_ = "claude-cuenta";
     QString model_;

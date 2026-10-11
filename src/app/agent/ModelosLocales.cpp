@@ -2,6 +2,8 @@
 // src/app/agent/ModelosLocales.cpp — ver ModelosLocales.hpp
 // ============================================================================
 #include "agent/ModelosLocales.hpp"
+
+#include <QRegularExpression>
 #include "platform/Paths.hpp"
 
 #include "agent/ArgumentosLocales.hpp"
@@ -214,6 +216,55 @@ nlohmann::json ModelosLocales::entradaCatalogo(const QString& repo) const {
 
 std::filesystem::path ModelosLocales::carpetaInstalada(const QString& repo) const {
     return instalado(repo) ? carpetaDe(repo) : fs::path();
+}
+
+QString ModelosLocales::ggufParaChat(QString* falta, QString* repoParaBajar) const {
+    const auto archivoDe = [this](const QString& repo) -> QString {
+        const json e = entradaCatalogo(repo);
+        if (e.value("formato", std::string()) != "gguf" || !e.value("archivo", json()).is_string() || !instalado(repo))
+            return {};
+        const fs::path f = carpetaDe(repo) / e["archivo"].get<std::string>();
+        std::error_code ec;
+        return fs::exists(f, ec) ? QString::fromStdWString(f.wstring()) : QString();
+    };
+    // El activo, o (sin activo) el primer reactivo instalado de esta plataforma.
+    QString repo = activo_;
+    if (repo.isEmpty()) repo = instaladoDeTipo("reactivo");
+    if (repo.isEmpty()) {
+        if (falta != nullptr) *falta = "No hay un modelo local: bajalo en Configuración → Modelos locales.";
+        return {};
+    }
+    if (const QString f = archivoDe(repo); !f.isEmpty()) return f;
+    // MLX (la Mac): su versión GGUF, si el catálogo la tiene.
+    QString hermano = repo;
+    hermano.replace(QRegularExpression("-mlx-q4$"), "-GGUF");
+    if (hermano != repo && !entradaCatalogo(hermano).empty()) {
+        if (const QString f = archivoDe(hermano); !f.isEmpty()) return f;
+        if (falta != nullptr)
+            *falta = "El chat del modelo local usa su versión GGUF (" + hermano + "), que todavía no está: se baja ahora.";
+        if (repoParaBajar != nullptr) *repoParaBajar = hermano;
+        return {};
+    }
+    // Sin versión GGUF del activo: un GGUF que ya esté, o el más nuevo de 4B del catálogo.
+    QString elegido;
+    int mejor = -1;
+    for (const json& m : catalogo_.value("modelos", json::array())) {
+        if (m.value("formato", std::string()) != "gguf" || m.value("tipo", std::string("reactivo")) != "reactivo") continue;
+        const QString r = QString::fromStdString(m.value("repo", std::string()));
+        if (const QString f = archivoDe(r); !f.isEmpty()) return f;
+        if (!r.contains("-4b-")) continue;
+        const QRegularExpressionMatch v = QRegularExpression("-v(\\d+)-").match(r);
+        const int n = v.hasMatch() ? v.captured(1).toInt() : 1;
+        if (n > mejor) mejor = n, elegido = r;
+    }
+    if (!elegido.isEmpty()) {
+        if (falta != nullptr)
+            *falta = "El chat del modelo local usa un modelo GGUF (" + elegido + "), que todavía no está: se baja ahora.";
+        if (repoParaBajar != nullptr) *repoParaBajar = elegido;
+        return {};
+    }
+    if (falta != nullptr) *falta = "El modelo local activo (" + repo + ") no tiene versión GGUF para el chat.";
+    return {};
 }
 
 QString ModelosLocales::instaladoDeTipo(const QString& tipo) const {

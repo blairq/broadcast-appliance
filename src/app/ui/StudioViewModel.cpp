@@ -611,6 +611,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             agent_->setLocal([v](const QString& quien, const QString& texto, bool disparador) {
                 v->atenderDesde(texto, quien, disparador);
             });
+            // El chat del modelo local (pi + llama-server): qué .gguf y cómo bajar el que falta.
+            agent_->setModeloChat(
+                [m = modelos_.get()](QString* falta, QString* repo) { return m->ggufParaChat(falta, repo); },
+                [m = modelos_.get()](const QString& repo) { m->descargar(repo); });
             v->setAsistenteGrande([a = agent_.get()]() { return a->asistenteGrande(); });
             v->setAsistenteLocal([a = agent_.get()]() { return a->asistenteLocal(); });
         }

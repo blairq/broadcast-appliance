@@ -33,6 +33,9 @@
 #include <QJsonDocument>
 #include <QMetaObject>
 #include <QProcess>
+#include <QNetworkReply>
+#include <QNetworkAccessManager>
+#include <QTcpServer>
 #include <QSysInfo>
 #include <QTimer>
 #include <QUrl>
@@ -176,16 +179,16 @@ const std::vector<Provider>& providerTable() {
         // —son tuyos y se configuran— sino en Config/modelo-propio.json; ver
         // ModeloPropio.hpp. Aca solo queda dicho que existe y que usa clave.
         {"local",
-         "local",
+         "pi",
          "Modelo local (en esta máquina, sin internet)",
          "cuenta",
          "",
          "",
          "",
-         "El modelo de Configuración → Modelos locales. No abre una terminal: lo que se le pide (escrito, "
-         "dictado o un disparador) pasa por el mismo camino que la voz: elige la acción, completa los "
-         "datos con el estado del aparato y la propone en la barra del asistente (o la hace, si la dejaste "
-         "automática). Rápido para lo sencillo; para lo complejo, mejor un asistente grande.",
+         "El modelo de Configuración → Modelos locales, con chat: pi (un agente de consola, como "
+         "opencode) le habla al llama-server del programa y maneja el aparato por el MCP. Los "
+         "encargos y los disparadores siguen por el camino de la voz (elige la acción y la propone en "
+         "la barra). Rápido para lo sencillo; para lo complejo, mejor un asistente grande.",
          {}},
         {"propio",
          "opencode",
@@ -240,6 +243,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
         const bool expected = expectedStop_;
         expectedStop_ = false;
         if (!expected && code != 0) setError(QString("El agente termino (codigo %1).").arg(code));
+        pararServidorLocal(); // el chat del modelo local terminó: su llama-server también
     });
     connect(&alerts_, &AlertEngine::fired, this, &AgentViewModel::onAlert);
     // Arranque automatico cuando todo este listo (GuiMode conecta el MCP despues).
@@ -253,6 +257,7 @@ AgentViewModel::~AgentViewModel() {
     if (installThread_.joinable()) installThread_.join();
     if (checkThread_.joinable()) checkThread_.join();
     session_->stop();
+    pararServidorLocal(); // que el llama-server no quede andando al cerrar la app
 }
 
 // --- Configuracion -------------------------------------------------------------------
@@ -720,8 +725,8 @@ QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const
 }
 
 bool AgentViewModel::installed() const {
-    // El modelo local no se instala acá: se baja en Configuración → Modelos locales.
-    if (runtimeOf(provider_) == "local") return static_cast<bool>(local_);
+    // El modelo local: lo que se instala acá es su chat (pi); el modelo se baja en
+    // Configuración → Modelos locales.
     return !usableDir(runtimeOf(provider_)).isEmpty();
 }
 
@@ -793,12 +798,15 @@ void AgentViewModel::install() {
     };
     std::vector<Item> items;
     const QString dir = installDir(runtime);
-    if (runtime == "gemini") {
+    // Los que son un paquete de npm (Gemini, pi): el Node fijado de la plataforma
+    // más el paquete, en <dir>/node y <dir>/<motor>.
+    const bool conPaquete = pin.contains("paquete");
+    if (conPaquete) {
         items.push_back(
             {plat.value("url", ""), plat.value("sha256", ""), "archivo", (dir + "/node").toStdString()});
         const json pkg = pin.value("paquete", json::object());
         items.push_back({pkg.value("url", ""), pkg.value("sha256", ""), "archivo",
-                         (dir + "/gemini").toStdString(), pkg.value("sha512", "")});
+                         (dir + "/" + runtime).toStdString(), pkg.value("sha512", "")});
     } else {
         items.push_back({plat.value("url", ""), plat.value("sha256", ""), plat.value("tipo", "archivo"),
                          plat.value("tipo", "") == "binario"
@@ -813,12 +821,11 @@ void AgentViewModel::install() {
     emit installChanged();
     if (installThread_.joinable()) installThread_.join();
     const QString exeName = QString::fromStdString(plat.value("exe", ""));
-    // Gemini corre un script del paquete de npm: si una version nueva lo movio,
-    // que falle la instalacion (y quede la anterior) y no el arranque.
+    // Gemini y pi corren un script de su paquete de npm: si una version nueva lo
+    // movio, que falle la instalacion (y quede la anterior) y no el arranque.
     const QString geminiScript =
-        runtime == "gemini"
-            ? QString::fromStdString(pin.value("paquete", json::object()).value("script", std::string()))
-            : QString();
+        conPaquete ? QString::fromStdString(pin.value("paquete", json::object()).value("script", std::string()))
+                   : QString();
     // Se baja y se descomprime en una carpeta aparte y recien al final se pone
     // en su lugar: si la descarga falla (sin red, hash que no coincide, se
     // cancela), la instalacion que YA andaba queda intacta. Antes el camino de
@@ -908,12 +915,12 @@ void AgentViewModel::install() {
             }
         }
         if (err.isEmpty() && !geminiScript.isEmpty() &&
-            !QFileInfo::exists(staging + "/gemini/" + geminiScript))
-            err = "El paquete de Gemini no trae " + geminiScript +
+            !QFileInfo::exists(staging + "/" + runtime + "/" + geminiScript))
+            err = "El paquete de " + runtime + " no trae " + geminiScript +
                   ": no se instalo (queda la version anterior).";
         if (err.isEmpty()) {
             // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
-            if (runtime != "gemini" && !QFileInfo::exists(staging + "/" + exeName)) {
+            if (geminiScript.isEmpty() && !QFileInfo::exists(staging + "/" + exeName)) {
                 const QString found = findFile(staging, exeName);
                 if (!found.isEmpty()) QFile::rename(found, staging + "/" + exeName);
             }
@@ -1162,6 +1169,33 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
             }
         }
         writeText(ws + "/opencode.json", QByteArray::fromStdString(cfg.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+    } else if (runtime == "pi") {
+        // pi lee los servidores MCP de <PI_CODING_AGENT_DIR>/mcp.json (su perfil
+        // portable), con el mismo formato que Claude.
+        json servidores{{"broadcast", mcpStdio}};
+        servidores["broadcast"]["description"] = "Maneja el aparato de emisión (escenas, audio, salidas, grabación…).";
+        // Las herramientas que el modelo local conoce (con las que se entrenó: las
+        // «funciones» del prompt.json de su carpeta) van DIRECTAS, como las suyas;
+        // el resto se encuentra con tool_search. Un modelo chico no escribe scripts
+        // de codemode para buscarlas.
+        servidores["broadcast"]["exposure"] = "deferred";
+        json directas = json::object();
+        for (const QString& carpeta : {QFileInfo(ggufActual_).absolutePath()}) {
+            QFile f(carpeta + "/prompt.json");
+            if (!f.open(QIODevice::ReadOnly)) continue;
+            const json pj = json::parse(f.readAll().toStdString(), nullptr, false);
+            if (pj.is_object())
+                for (const json& n : pj.value("funciones", json::array()))
+                    if (n.is_string()) directas[n.get<std::string>()] = "direct";
+        }
+        if (directas.empty()) // sin prompt.json: lo de todos los días
+            for (const char* n : {"status", "scene_list", "scene_switch", "source_list", "source_update", "audio_set",
+                                  "record_start", "record_stop", "stream_start", "stream_stop", "capture_program"})
+                directas[n] = "direct";
+        servidores["broadcast"]["toolExposure"] = directas;
+        if (control) servidores["control"] = mcpControl;
+        writeText(root + "/Credenciales/agentes/pi/mcp.json",
+                  QByteArray::fromStdString(json{{"mcpServers", servidores}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
     } else if (runtime == "gemini") {
         // Ajustes del usuario de Gemini (en su HOME portable), sin pisar lo que ya tenga.
         const QString home = root + "/Credenciales/agentes/gemini";
@@ -1209,8 +1243,11 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     o.workDir = ws;
     o.env["BA_DATA_ROOT"] = root;
     o.env["TERM"] = "xterm-256color";
+    // PYTHONHOME/PYTHONPATH son los del Python de los plugins: heredados, rompen
+    // cualquier python que corra el agente en su consola.
     o.unsetEnv = {"ANTHROPIC_API_KEY",  "ANTHROPIC_AUTH_TOKEN", "GEMINI_API_KEY",  "GOOGLE_API_KEY",
-                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH", "BA_MODELO_PROPIO_KEY"};
+                  "OPENROUTER_API_KEY", "CLAUDECODE",           "LD_LIBRARY_PATH", "BA_MODELO_PROPIO_KEY",
+                  "PYTHONHOME",         "PYTHONPATH"};
     if (prov != nullptr && !QString(prov->keyName).isEmpty()) {
         QByteArray key;
         if (!cred::read(root + "/Credenciales", prov->keyName, key)) {
@@ -1237,6 +1274,48 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         if (!modelo.isEmpty()) o.args << "-m" << modelo;
         o.env["HOME"] = profile;
         o.env["USERPROFILE"] = profile;
+        o.env["NO_UPDATE_NOTIFIER"] = "1";
+    } else if (runtime == "pi") {
+        // pi (el chat del modelo local) con el Node fijado; le habla al llama-server
+        // que levantó start() (ver arrancarServidorLocal). Todo en su perfil portable.
+        o.program = dir + "/node/" +
+                    (exeInstalado.isEmpty() ? QString::fromStdString(plat.value("exe", "")) : exeInstalado);
+        // El servidor es de un solo modelo (alias «local»): para pi es un endpoint
+        // compatible con OpenAI, en su models.json (el puerto cambia en cada arranque).
+        const json modelos{{"providers",
+                            {{"modelo-local",
+                              {{"baseUrl", "http://127.0.0.1:" + std::to_string(puertoServidor_) + "/v1"},
+                               {"api", "openai-completions"},
+                               {"apiKey", "local"},
+                               // Lo que recomienda Qwen sin razonar, y presence_penalty para que
+                               // no repita la misma llamada en un bucle (pasaba con tool_search).
+                               {"models", json::array({{{"id", "local"},
+                                                        {"name", "Modelo local"},
+                                                        {"contextWindow", 32768},
+                                                        {"maxTokens", 4096},
+                                                        {"samplingParams",
+                                                         {{"temperature", 0.7}, {"top_p", 0.8}, {"top_k", 20},
+                                                          {"presence_penalty", 1.5}}}}})}}}}}};
+        writeText(profile + "/models.json",
+                  QByteArray::fromStdString(modelos.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+        // El prompt propio (el de pi es para programar) y SOLO el programa: la
+        // extensión de MCP (sin ella pi no habla MCP), nada de consola ni archivos
+        // (las suyas: read, bash, edit, write; un modelo chico con consola instaló
+        // paquetes del sistema), y del MCP solo lo nuestro más tool_search.
+        QString prompt;
+        {
+            QFile f(":/agent/prompt-modelo-local.md");
+            if (f.open(QIODevice::ReadOnly)) prompt = QString::fromUtf8(f.readAll());
+        }
+        o.args = {dir + "/pi/" + QString::fromStdString(pin.value("paquete", json::object()).value("script", "")),
+                  "--provider", "modelo-local", "--model", "local", "--offline", "--approve",
+                  "--no-extensions", "-e", "builtin:mcp", "--no-context-files", "--no-skills",
+                  "--no-prompt-templates", "--tools", "tool_search,mcp__broadcast__*,mcp__control__*",
+                  "--system-prompt", prompt};
+        o.env["PI_CODING_AGENT_DIR"] = profile;
+        o.env["HOME"] = profile;
+        o.env["USERPROFILE"] = profile;
+        o.env["PI_OFFLINE"] = "1";
         o.env["NO_UPDATE_NOTIFIER"] = "1";
     } else if (runtime == "opencode") {
         o.program =
@@ -1282,6 +1361,8 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         else
             o.args << "--allowedTools" << permitidas << "--disallowedTools" << "Bash" << "PowerShell"
                    << "Edit" << "Write" << "NotebookEdit";
+    } else if (runtimeOf(provider_) == "pi") {
+        conConsola_ = false; // pi con el modelo local: nunca consola (ver baseLaunch)
     }
     return o;
 }
@@ -1290,7 +1371,7 @@ Motores AgentViewModel::motores() {
     Motores m;
     m.local = [this](const Lanzamiento& l, const std::string& origen, std::string* resumen) {
         const QString proveedor = l.proveedor.isEmpty() ? provider_ : l.proveedor;
-        if (runtimeOf(proveedor) != "local") return false;
+        if (proveedor != "local") return false; // encargos y disparadores: el camino de la voz
         if (!local_) {
             *resumen = "el modelo local no está disponible en esta versión";
             return true;
@@ -1351,16 +1432,6 @@ term::Pty::Options AgentViewModel::launchOptionsHeadless(const Lanzamiento& l, Q
 
 void AgentViewModel::start() {
     setError({});
-    // El modelo local no abre terminal: queda «andando» y atiende lo que llega por send().
-    if (runtimeOf(provider_) == "local") {
-        if (!local_) {
-            setError("El modelo local no está disponible en esta versión.");
-            return;
-        }
-        localActivo_ = true;
-        emit runningChanged();
-        return;
-    }
     if (!installed()) {
         setError("Primero instala el agente (boton Instalar).");
         return;
@@ -1370,13 +1441,127 @@ void AgentViewModel::start() {
             "El servidor MCP esta apagado: activalo en Configuracion -> Asistente (MCP) y reinicia la app.");
         return;
     }
+    // El chat del modelo local: primero su llama-server (cargar el modelo tarda);
+    // pi arranca cuando el servidor contesta.
+    if (runtimeOf(provider_) == "pi") {
+        arrancarServidorLocal([this]() { lanzarSesion(); });
+        return;
+    }
+    lanzarSesion();
+}
+
+// --- El servidor del modelo local (para pi) ---------------------------------------------
+
+QString AgentViewModel::rutaServidorLocal() const {
+#ifdef _WIN32
+    return QCoreApplication::applicationDirPath() + "/llama-server.exe";
+#else
+    return QCoreApplication::applicationDirPath() + "/llama/llama-server";
+#endif
+}
+
+void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
+    pararServidorLocal();
+    QString falta, repoParaBajar;
+    const QString gguf = ggufChat_ ? ggufChat_(&falta, &repoParaBajar) : QString();
+    ggufActual_ = gguf;
+    if (gguf.isEmpty()) {
+        setError(falta.isEmpty() ? "No hay un modelo local para el chat." : falta);
+        if (!repoParaBajar.isEmpty() && bajarModelo_) bajarModelo_(repoParaBajar);
+        return;
+    }
+    if (!QFileInfo::exists(rutaServidorLocal())) {
+        setError("Falta llama-server en el programa (" + rutaServidorLocal() + ").");
+        return;
+    }
+    // Un puerto libre de esta máquina (solo 127.0.0.1).
+    {
+        QTcpServer t;
+        t.listen(QHostAddress::LocalHost, 0);
+        puertoServidor_ = t.serverPort();
+    }
+    servidor_ = new QProcess(this);
+    const QString logs = QString::fromStdWString((ba::platform::dataRoot() / "Logs").wstring());
+    QDir().mkpath(logs);
+    servidor_->setProcessChannelMode(QProcess::MergedChannels);
+    servidor_->setStandardOutputFile(logs + "/llama-server.log", QIODevice::Truncate);
+    servidor_->setWorkingDirectory(QFileInfo(rutaServidorLocal()).absolutePath());
+    // Todas las capas a la GPU (Vulkan en Windows y Linux, Metal en la Mac). El
+    // contexto: las fichas de sus herramientas ocupan ~10k; 32k entra en una placa
+    // de 8 GB con el modelo de 4B (sus capas lineales casi no guardan contexto).
+    servidor_->start(rutaServidorLocal(), {"-m", QDir::toNativeSeparators(gguf), "--host", "127.0.0.1", "--port",
+                                           QString::number(puertoServidor_), "--jinja", "-ngl", "999", "-c", "32768",
+                                           "--alias", "local", "--no-webui",
+                                           // Se entrenó para contestar sin razonar (su prompt cierra el
+                                           // <think> vacío): razonando, se enrosca y no termina.
+                                           "--reasoning", "off"});
+    // Sin MTP, a propósito (pedido del dueño, 2026-10-11): sin --spec-type
+    // draft-mtp llama.cpp ni carga la cabeza («unused tensor … nextn: ignoring»),
+    // no gasta memoria. Medido en la Mac: con 3 borradores, +30 % en llamadas a
+    // herramientas pero MÁS LENTO en texto libre.
+    if (!servidor_->waitForStarted(10000)) {
+        setError("No arrancó llama-server: " + servidor_->errorString());
+        pararServidorLocal();
+        return;
+    }
+    installText_ = "Cargando el modelo local…";
+    emit installChanged();
+    // Listo cuando /health contesta 200 (el modelo cargado); hasta 3 minutos.
+    auto* red = new QNetworkAccessManager(servidor_);
+    auto* reloj = new QTimer(servidor_);
+    auto intentos = std::make_shared<int>(0);
+    connect(reloj, &QTimer::timeout, servidor_, [this, red, reloj, intentos, listo]() {
+        if (servidor_ == nullptr) return;
+        if (servidor_->state() == QProcess::NotRunning) {
+            reloj->stop();
+            setError("llama-server se cerró al cargar el modelo (ver Logs/llama-server.log).");
+            pararServidorLocal();
+            return;
+        }
+        if (++*intentos > 360) {
+            reloj->stop();
+            setError("El modelo local no terminó de cargar en 3 minutos (ver Logs/llama-server.log).");
+            pararServidorLocal();
+            return;
+        }
+        QNetworkReply* r = red->get(QNetworkRequest(QUrl(QString("http://127.0.0.1:%1/health").arg(puertoServidor_))));
+        connect(r, &QNetworkReply::finished, servidor_, [this, r, reloj, listo]() {
+            r->deleteLater();
+            if (r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200 || !reloj->isActive()) return;
+            reloj->stop();
+            installText_ = "Modelo local listo.";
+            emit installChanged();
+            listo();
+        });
+    });
+    reloj->start(500);
+}
+
+void AgentViewModel::pararServidorLocal() {
+    if (servidor_ == nullptr) return;
+    QProcess* p = servidor_;
+    servidor_ = nullptr;
+    p->disconnect(this);
+    if (p->state() != QProcess::NotRunning) {
+        p->terminate();
+        if (!p->waitForFinished(3000)) p->kill();
+        p->waitForFinished(2000);
+    }
+    p->deleteLater();
+}
+
+void AgentViewModel::lanzarSesion() {
     QString err;
     term::Pty::Options o = launchOptions(&err);
     if (!err.isEmpty() || o.program.isEmpty()) {
         setError(err.isEmpty() ? "No se pudo preparar el agente." : err);
+        pararServidorLocal();
         return;
     }
-    if (!session_->start(o, &err)) setError("No se pudo iniciar el agente: " + err);
+    if (!session_->start(o, &err)) {
+        setError("No se pudo iniciar el agente: " + err);
+        pararServidorLocal();
+    }
     emit runningChanged();
 }
 
@@ -1388,6 +1573,7 @@ void AgentViewModel::stop() {
     }
     if (session_->running()) expectedStop_ = true;
     session_->stop();
+    pararServidorLocal();
     emit runningChanged();
 }
 
@@ -1547,12 +1733,13 @@ std::vector<std::string> chatsDe(const std::string& runtime) {
         return {"projects", "sessions", "session-env", "shell-snapshots", "todos", "file-history", "paste-cache",
                 "debug", "backups", "history.jsonl", "statsig", "telemetry", "cache"};
     if (runtime == "gemini") return {".gemini/tmp", ".gemini/history", ".gemini/logs"};
+    if (runtime == "pi") return {"sessions", "mcp.log", "mcp.log.1"};
     if (runtime == "opencode")
         return {"data/opencode/storage", "data/opencode/log", "data/opencode/snapshot", "state"};
     return {};
 }
 
-const char* const kMotores[] = {"claude", "gemini", "opencode"};
+const char* const kMotores[] = {"claude", "gemini", "opencode", "pi"};
 
 } // namespace
 
