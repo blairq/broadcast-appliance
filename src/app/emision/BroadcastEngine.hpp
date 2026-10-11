@@ -117,17 +117,18 @@ struct CanvasRect {
 /// resplandor: distancia 0 y un color claro). Medidas en píxeles del lienzo; el
 /// ángulo, hacia dónde cae la sombra (0 = derecha, 90 = abajo, 45 = abajo a la derecha).
 /// En JSON (guardado y MCP):
-///   {"opacidad": 1, "borde": 0,
+///   {"opacidad": 1, "borde": 0, "esquinas": 0,
 ///    "sombra": {"activa": true, "color": "#000000", "alfa": 0.6, "difuminado": 20,
 ///               "distancia": 10, "angulo": 45, "tamano": 0}}
 struct EfectosCapa {
     float opacidad = 1.0f; ///< de todo el elemento (y su sombra)
     float borde = 0;       ///< borde difuso: cuántos píxeles del borde se funden
+    float esquinas = 0;    ///< radio de las esquinas redondeadas
     bool sombra = false;
     std::string color = "#000000"; ///< de la sombra: "#RRGGBB" o "#AARRGGBB"
     float alfa = 0.6f;             ///< opacidad de la sombra
     float difuminado = 20, distancia = 10, angulo = 45, tamano = 0;
-    bool vacio() const { return opacidad >= 1.0f && borde <= 0 && !sombra; }
+    bool vacio() const { return opacidad >= 1.0f && borde <= 0 && esquinas <= 0 && !sombra; }
     /// Cambia lo que traiga `j` (lo demás queda); false + `error` si algo no sirve.
     bool aplicar(const nlohmann::json& j, std::string* error = nullptr);
     nlohmann::json aJson() const;

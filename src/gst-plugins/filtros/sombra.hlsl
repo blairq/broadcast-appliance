@@ -43,9 +43,11 @@ float dentro(float2 t) {
     const float2 I = c[0].zw;
     const float2 d = min(t, I - t);
     float a = saturate(min(d.x, d.y) + 0.5);
-    if (c[5].x > 0.0) {
-        const float2 dc = d / c[1].zw;
-        a *= smoothstep(0.0, c[5].x, min(dc.x, dc.y));
+    const float2 dc = d / c[1].zw;
+    if (c[5].x > 0.0) a *= smoothstep(0.0, c[5].x, min(dc.x, dc.y));
+    if (c[5].z > 0.0) {
+        const float2 k = max(float2(c[5].z, c[5].z) - dc, float2(0.0, 0.0));
+        a *= saturate(c[5].z - length(k) + 0.5);
     }
     return a;
 }

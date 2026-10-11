@@ -56,7 +56,8 @@ struct SombraCapa {
     std::uint32_t color = 0xFF000000; ///< ARGB
     double difuminado = 20, distancia = 10, angulo = 45, tamano = 0;
     double borde = 0;           ///< borde difuso de la imagen (aparte de la sombra)
-    bool hace() const { return alfa > 0 || borde > 0; }
+    double radio = 0;           ///< esquinas redondeadas
+    bool hace() const { return alfa > 0 || borde > 0 || radio > 0; }
     /// Lo que se agranda la caja de cada lado para que la sombra entre (de a 8: que
     /// mover un deslizador no renegocie en cada paso).
     int margen() const;

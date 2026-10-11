@@ -79,6 +79,13 @@ ColumnLayout {
         valor: p.ef.borde || 0
         onCambio: (v) => p.poner({ borde: v })
     }
+    Fila {
+        Layout.fillWidth: true
+        titulo: "Esquinas"; ayuda: "Esquinas redondeadas: el radio (la sombra las sigue)"
+        desde: 0; hasta: 300
+        valor: p.ef.esquinas || 0
+        onCambio: (v) => p.poner({ esquinas: v })
+    }
 
     RowLayout {
         Layout.fillWidth: true

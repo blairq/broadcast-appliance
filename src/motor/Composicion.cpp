@@ -59,12 +59,13 @@ SombraCapa SombraCapa::desdeJson(const nlohmann::json& j) {
     s.angulo = j.value("angulo", 45.0);
     s.tamano = std::clamp(j.value("tamano", 0.0), -500.0, 500.0);
     s.borde = std::clamp(j.value("borde", 0.0), 0.0, 1000.0);
+    s.radio = std::clamp(j.value("radio", 0.0), 0.0, 2000.0);
     return s;
 }
 
 nlohmann::json SombraCapa::aJson() const {
     return {{"alfa", alfa}, {"color", color}, {"difuminado", difuminado}, {"distancia", distancia},
-            {"angulo", angulo}, {"tamano", tamano}, {"borde", borde}};
+            {"angulo", angulo}, {"tamano", tamano}, {"borde", borde}, {"radio", radio}};
 }
 
 // --- Escena ---------------------------------------------------------------------------
@@ -350,7 +351,7 @@ void Composicion::ponerSombra(Rama& r, const SombraCapa& s, int margen, int caja
     if (r.sombra == nullptr) return;
     g_object_set(r.sombra, "caja-ancho", cajaAncho, "caja-alto", cajaAlto, "contener", contener ? TRUE : FALSE, "margen", margen,
                  "alfa", s.alfa, "color", static_cast<guint>(s.color), "difuminado", s.difuminado, "distancia", s.distancia,
-                 "angulo", s.angulo, "tamano", s.tamano, "borde", s.borde, nullptr);
+                 "angulo", s.angulo, "tamano", s.tamano, "borde", s.borde, "radio", s.radio, nullptr);
 }
 
 void Composicion::ponerCapa(Rama& r, const Capa& c, double alfa) {

@@ -104,7 +104,7 @@ bool EfectosCapa::aplicar(const json& j, std::string* error) {
         v = std::clamp(o[k].get<float>(), mn, mx);
         return true;
     };
-    if (!num(j, "opacidad", opacidad, 0, 1) || !num(j, "borde", borde, 0, 1000)) return false;
+    if (!num(j, "opacidad", opacidad, 0, 1) || !num(j, "borde", borde, 0, 1000) || !num(j, "esquinas", esquinas, 0, 2000)) return false;
     if (j.contains("sombra")) {
         const json& s = j["sombra"];
         if (s.is_boolean()) {
@@ -138,15 +138,17 @@ bool EfectosCapa::aplicar(const json& j, std::string* error) {
 json EfectosCapa::aJson() const {
     return {{"opacidad", opacidad},
             {"borde", borde},
+            {"esquinas", esquinas},
             {"sombra",
              {{"activa", sombra}, {"color", color}, {"alfa", alfa}, {"difuminado", difuminado}, {"distancia", distancia},
               {"angulo", angulo}, {"tamano", tamano}}}};
 }
 
 json EfectosCapa::sombraMotor() const {
-    if (!sombra && borde <= 0) return nullptr;
+    if (!sombra && borde <= 0 && esquinas <= 0) return nullptr;
     return {{"alfa", sombra ? alfa : 0.0f}, {"color", color},          {"difuminado", difuminado}, {"distancia", distancia},
-            {"angulo", angulo},             {"tamano", tamano},        {"borde", borde}};
+            {"angulo", angulo},             {"tamano", tamano},        {"borde", borde},
+            {"radio", esquinas}};
 }
 
 // ============================================================================

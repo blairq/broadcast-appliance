@@ -1712,13 +1712,14 @@ void McpService::registerTools() {
                 {"description",
                  "Efectos de la fuente en ESTA escena (solo lo que se indique; lo demas queda). Medidas en pixeles "
                  "del lienzo. opacidad 0..1 (transparencia de todo el elemento); borde: borde difuso (pixeles que se "
-                 "funden a transparente); sombra: {activa, color \"#RRGGBB\", alfa 0..1 (su opacidad), difuminado "
+                 "funden a transparente); esquinas: radio de las esquinas redondeadas; sombra: {activa, color \"#RRGGBB\", alfa 0..1 (su opacidad), difuminado "
                  "(radio), distancia, angulo (hacia donde cae: 0 derecha, 90 abajo, 45 abajo a la derecha), tamano "
                  "(mas grande o mas chica que el elemento)}. Pasar numeros de la sombra la prende; "
                  "{\"sombra\": false} la apaga. Resplandor: distancia 0, color claro, difuminado grande."},
                 {"properties",
                  {{"opacidad", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
                   {"borde", {{"type", "number"}, {"minimum", 0}}},
+                  {"esquinas", {{"type", "number"}, {"minimum", 0}}},
                   {"sombra",
                    {{"type", json::array({"object", "boolean"})},
                     {"properties",

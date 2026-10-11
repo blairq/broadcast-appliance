@@ -160,13 +160,25 @@ int main(int argc, char** argv) {
         check(b.en(kW / 2, kH / 2)[3] == 255, "el centro, opaco");
     }
 
+    // Esquinas redondeadas de radio 12 en una imagen opaca: la esquina transparente, el
+    // centro y el medio de un lado opacos (y del mismo tamaño).
+    const Imagen r = pasar("basombra", "radio=12", true, e);
+    check(r.w == kW && r.h == kH, "con esquinas, el mismo tamaño");
+    if (r.w == kW) {
+        check(r.en(0, 0)[3] == 0 && r.en(kW - 1, kH - 1)[3] == 0, "las esquinas, transparentes");
+        check(r.en(2, 2)[3] < 40, "cerca de la esquina, casi transparente (" + std::to_string(r.en(2, 2)[3]) + ")");
+        check(r.en(0, kH / 2)[3] == 255 && r.en(kW / 2, 0)[3] == 255, "el medio de cada lado, opaco");
+        check(r.en(kW / 2, kH / 2)[3] == 255, "el centro, opaco");
+    }
+
     // Sin nada que hacer, pasa tal cual.
     const Imagen nada = pasar("basombra", "", false, e);
     check(nada.w == kW && nada.px == prueba(false), "sin sombra ni borde, la imagen pasa tal cual");
 
     // La GPU da lo mismo que la CPU.
     for (const std::string& props : {sombra, std::string("margen=12 alfa=0.7 difuminado=6 distancia=4 angulo=135 tamano=3 color=0xFF2040FF"),
-                                     std::string("borde=6 margen=8 alfa=0.6 difuminado=3 distancia=0")}) {
+                                     std::string("borde=6 margen=8 alfa=0.6 difuminado=3 distancia=0"),
+                                     std::string("radio=10 margen=8 alfa=0.8 difuminado=4 distancia=3")}) {
         std::string eg;
         const Imagen cpu = pasar("basombra", props, false, e);
         const Imagen gpu = pasar("basombragl", props, false, eg);

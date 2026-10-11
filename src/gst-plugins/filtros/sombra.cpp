@@ -11,6 +11,9 @@
 //              `distancia` hacia `angulo` (grados: 0 = a la derecha, 90 = abajo,
 //              45 = abajo a la derecha), pintada de `color` con su `alfa`. Con
 //              distancia 0 y un color claro es un resplandor.
+//   ESQUINAS   `radio`: las esquinas redondeadas (un círculo de ese radio en cada
+//              una, suavizado un píxel); la sombra las sigue. Es una cuenta más
+//              sobre el alfa en la misma pasada: no cuesta nada aparte.
 //   BORDE      `borde`: los últimos píxeles de la imagen se funden a
 //              transparente (un borde difuso, aparte de la sombra; la sombra
 //              sigue la forma ya fundida).
@@ -69,9 +72,10 @@ struct Sombra {
     double alfa = 0;                 ///< 0 = sin sombra
     double difuminado = 20, distancia = 10, angulo = 45, tamano = 0;
     double borde = 0;
+    double radio = 0; ///< esquinas redondeadas (píxeles del lienzo)
 };
 
-enum { P_0, P_CAJA_ANCHO, P_CAJA_ALTO, P_CONTENER, P_MARGEN, P_COLOR, P_ALFA, P_DIFUMINADO, P_DISTANCIA, P_ANGULO, P_TAMANO, P_BORDE };
+enum { P_0, P_CAJA_ANCHO, P_CAJA_ALTO, P_CONTENER, P_MARGEN, P_COLOR, P_ALFA, P_DIFUMINADO, P_DISTANCIA, P_ANGULO, P_TAMANO, P_BORDE, P_RADIO };
 
 void instalarPropiedades(GObjectClass* go) {
     using ba::filtros::kVivo;
@@ -95,6 +99,7 @@ void instalarPropiedades(GObjectClass* go) {
     num(P_ANGULO, "angulo", "Hacia dónde cae la sombra (grados: 0 derecha, 90 abajo)", -360, 360, 45);
     num(P_TAMANO, "tamano", "Cuánto más grande (o más chica) que la imagen es la sombra (píxeles del lienzo)", -500, 500, 0);
     num(P_BORDE, "borde", "Borde difuso: cuántos píxeles del borde de la imagen se funden (píxeles del lienzo)", 0, 1000, 0);
+    num(P_RADIO, "radio", "Esquinas redondeadas: el radio (píxeles del lienzo)", 0, 2000, 0);
 }
 
 /// Pone una propiedad; true si cambia el tamaño de lo que sale (hay que renegociar).
@@ -120,6 +125,7 @@ bool ponerSombra(GstObject* o, Sombra& s, guint id, const GValue* v) {
         case P_ANGULO: s.angulo = g_value_get_double(v); break;
         case P_TAMANO: s.tamano = g_value_get_double(v); break;
         case P_BORDE: s.borde = g_value_get_double(v); break;
+        case P_RADIO: s.radio = g_value_get_double(v); break;
         default: break;
     }
     GST_OBJECT_UNLOCK(o);
@@ -140,6 +146,7 @@ void leerSombra(GstObject* o, const Sombra& s, guint id, GValue* v) {
         case P_ANGULO: g_value_set_double(v, s.angulo); break;
         case P_TAMANO: g_value_set_double(v, s.tamano); break;
         case P_BORDE: g_value_set_double(v, s.borde); break;
+        case P_RADIO: g_value_set_double(v, s.radio); break;
         default: break;
     }
     GST_OBJECT_UNLOCK(o);
@@ -170,7 +177,7 @@ void margenes(const Sombra& s, int iw, int ih, int& mx, int& my) {
 }
 
 /// ¿Hace algo? (si no y sin margen, la CPU deja pasar el buffer tal cual).
-bool haceAlgo(const Sombra& s) { return s.alfa > 0 || s.borde > 0 || s.margen > 0; }
+bool haceAlgo(const Sombra& s) { return s.alfa > 0 || s.borde > 0 || s.radio > 0 || s.margen > 0; }
 
 GstCaps* capsDeTamano(GstObject* o, const Sombra& v, GstPadDirection dir, GstCaps* caps) {
     const Sombra s = copiaSombra(o, v);
@@ -199,7 +206,7 @@ GstCaps* capsDeTamano(GstObject* o, const Sombra& v, GstPadDirection dir, GstCap
 ///   c2   corrimiento de la sombra (x, y, píxeles de la entrada), escala de la silueta (x, y: el `tamano`)
 ///   c3   paso de la grilla (x, y, píxeles de la entrada), k (la grilla va de -k a k), 1/(2σ²) (σ en pasos)
 ///   c4   color de la sombra (rgb 0..1), su alfa
-///   c5   borde difuso (píxeles del lienzo), la suma de los pesos de una fila de la grilla
+///   c5   borde difuso (píxeles del lienzo), la suma de los pesos de una fila de la grilla, radio de las esquinas
 void empaquetar(const Sombra& s, int iw, int ih, int ow, int oh, float* c) {
     std::fill(c, c + kConstantes, 0.0f);
     double ex, ey;
@@ -234,15 +241,25 @@ void empaquetar(const Sombra& s, int iw, int ih, int ow, int oh, float* c) {
     c[19] = static_cast<float>(std::clamp(s.alfa, 0.0, 1.0) * (((s.color >> 24) & 0xFF) / 255.0));
     c[20] = static_cast<float>(std::max(0.0, s.borde));
     c[21] = static_cast<float>(suma);
+    c[22] = static_cast<float>(std::max(0.0, s.radio));
 }
 
 /// Lo que funde el borde difuso en un punto de la entrada (t, en píxeles de la entrada).
 inline float fundido(const float* c, float tx, float ty) {
-    const float b = c[20];
-    if (b <= 0) return 1;
+    const float b = c[20], radio = c[22];
+    if (b <= 0 && radio <= 0) return 1;
     const float dx = std::min(tx, c[2] - tx) / c[6], dy = std::min(ty, c[3] - ty) / c[7];
-    const float t = std::clamp(std::min(dx, dy) / b, 0.0f, 1.0f);
-    return t * t * (3 - 2 * t); // smoothstep
+    float a = 1;
+    if (b > 0) {
+        const float t = std::clamp(std::min(dx, dy) / b, 0.0f, 1.0f);
+        a = t * t * (3 - 2 * t); // smoothstep
+    }
+    if (radio > 0) {
+        // En una esquina: adentro del círculo de radio `radio` (suavizado un píxel).
+        const float kx = std::max(radio - dx, 0.0f), ky = std::max(radio - dy, 0.0f);
+        a *= std::clamp(radio - std::sqrt(kx * kx + ky * ky) + 0.5f, 0.0f, 1.0f);
+    }
+    return a;
 }
 
 const char* kShaderGl = R"glsl(
@@ -258,9 +275,11 @@ float dentro(vec2 t) {
     vec2 I = c[0].zw;
     vec2 d = min(t, I - t);
     float a = clamp(min(d.x, d.y) + 0.5, 0.0, 1.0);
-    if (c[5].x > 0.0) {
-        vec2 dc = d / c[1].zw;
-        a *= smoothstep(0.0, c[5].x, min(dc.x, dc.y));
+    vec2 dc = d / c[1].zw;
+    if (c[5].x > 0.0) a *= smoothstep(0.0, c[5].x, min(dc.x, dc.y));
+    if (c[5].z > 0.0) {
+        vec2 k = max(vec2(c[5].z) - dc, vec2(0.0));
+        a *= clamp(c[5].z - length(k) + 0.5, 0.0, 1.0);
     }
     return a;
 }
