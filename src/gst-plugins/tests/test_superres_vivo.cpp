@@ -123,9 +123,24 @@ int main(int argc, char** argv) {
                          std::to_string(n) + " cuadros)");
     }
 
-    // El shader de mpv (GL): cambiar el código andando.
-    if (gst_element_factory_find("baglsl") == nullptr || gst_element_factory_find("glupload") == nullptr) {
-        std::printf("saltea baglsl\n");
+    // El shader de mpv (GL): cambiar el código andando. Sin GL (un contenedor sin
+    // pantalla: EGL_NOT_INITIALIZED) se saltea, como los otros de la GPU.
+    const auto hayGl = []() {
+        GstElement* p = gst_parse_launch("gltestsrc num-buffers=2 ! gldownload ! fakesink", nullptr);
+        if (p == nullptr) return false;
+        gst_element_set_state(p, GST_STATE_PLAYING);
+        GstBus* bus = gst_element_get_bus(p);
+        GstMessage* m = gst_bus_timed_pop_filtered(bus, 5 * GST_SECOND,
+                                                   static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
+        const bool ok = m != nullptr && GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS;
+        if (m != nullptr) gst_message_unref(m);
+        gst_object_unref(bus);
+        gst_element_set_state(p, GST_STATE_NULL);
+        gst_object_unref(p);
+        return ok;
+    };
+    if (gst_element_factory_find("baglsl") == nullptr || gst_element_factory_find("glupload") == nullptr || !hayGl()) {
+        std::printf("saltea baglsl (sin GL)\n");
     } else {
         const char* a = "//!HOOK MAIN\n//!BIND HOOKED\n//!DESC a\nvec4 hook() { return HOOKED_tex(HOOKED_pos); }\n";
         const char* b = "//!HOOK MAIN\n//!BIND HOOKED\n//!DESC b\nvec4 hook() { return HOOKED_tex(HOOKED_pos) * 0.9; }\n";

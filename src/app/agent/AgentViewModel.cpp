@@ -737,6 +737,47 @@ bool AgentViewModel::updateAvailable() const {
     return v != QString::fromStdString(pin.value("version", std::string()));
 }
 
+namespace {
+/// El Python que trae el programa (como los plugins): ahí están zipfile y tarfile.
+std::filesystem::path pythonDelPrograma() {
+#if defined(_WIN32)
+    return ba::platform::bundleRoot() / "python" / "python.exe";
+#else
+    return ba::platform::bundleRoot() / "python" / "bin" / "python3";
+#endif
+}
+
+/// Descomprime .zip, .tgz/.tar.gz y .tar.xz en la carpeta pedida (sin dejar que un
+/// nombre del archivo se escape de ella). Los ejecutables quedan ejecutables.
+const char* kDescomprimir = R"PY(import os, sys, stat, tarfile, zipfile
+src, dst = sys.argv[1], os.path.realpath(sys.argv[2])
+def adentro(p):
+    r = os.path.realpath(os.path.join(dst, p))
+    if r != dst and not r.startswith(dst + os.sep):
+        raise SystemExit("un archivo se sale de la carpeta: " + p)
+    return r
+if zipfile.is_zipfile(src):
+    with zipfile.ZipFile(src) as z:
+        for i in z.infolist():
+            adentro(i.filename)
+            z.extract(i, dst)
+            modo = i.external_attr >> 16
+            if modo & 0o111:
+                p = os.path.join(dst, i.filename)
+                os.chmod(p, os.stat(p).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+else:
+    with tarfile.open(src) as t:
+        for m in t.getmembers():
+            adentro(m.name)
+            if m.islnk() or m.issym():
+                adentro(os.path.join(os.path.dirname(m.name), m.linkname))
+        try:
+            t.extractall(dst, filter="tar")
+        except TypeError:
+            t.extractall(dst)
+)PY";
+} // namespace
+
 void AgentViewModel::install() {
     if (installing_) return;
     const QString runtime = runtimeOf(provider_);
@@ -854,18 +895,15 @@ void AgentViewModel::install() {
                 });
                 const QString dest = enStaging(it.dest);
                 QDir().mkpath(dest);
-                QProcess tar;
-#ifdef _WIN32
-                // El bsdtar de Windows (10 1803+ / 11) abre .zip y .tgz. NUNCA el
-                // "tar" del PATH: el GNU tar de Git para Windows no abre .zip.
-                tar.start(QDir(qEnvironmentVariable("SystemRoot", "C:/Windows")).filePath("System32/tar.exe"),
-                          {"-xf", QDir::toNativeSeparators(tmp), "-C", QDir::toNativeSeparators(dest)});
-#else
-                tar.start("tar", {"-xf", tmp, "-C", dest});
-#endif
-                if (!tar.waitForFinished(600000) || tar.exitCode() != 0)
+                // Con el Python DEL PROGRAMA (zipfile/tarfile): nada de afuera de la
+                // carpeta del sistema (antes, el tar.exe de Windows o el tar del PATH).
+                QProcess py;
+                py.start(QString::fromStdString(pythonDelPrograma().string()),
+                         {"-I", "-B", "-c", kDescomprimir, QDir::toNativeSeparators(tmp), QDir::toNativeSeparators(dest)});
+                if (!py.waitForFinished(600000) || py.exitStatus() != QProcess::NormalExit || py.exitCode() != 0)
                     err = "No se pudo descomprimir: " +
-                          QString::fromLocal8Bit(tar.readAllStandardError()).trimmed();
+                          QString::fromUtf8(py.readAllStandardError()).trimmed().right(400) +
+                          (py.error() == QProcess::FailedToStart ? " (no arrancó el Python del programa)" : "");
                 QFile::remove(tmp);
             }
         }
