@@ -809,6 +809,37 @@
    "licencia": "CC-BY 4.0 (OPUS-MT, Helsinki-NLP; empaquetado por Argos Translate)",
    "tamano_gb": 0.07,
    "fecha": "2026-10-03"
+  },
+  {
+   "repo": "mradermacher/OxCoder-9B-GGUF",
+   "tipo": "chat",
+   "formato": "gguf",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "525d7144604d67d86d138cde41e93c7bb545f82a",
+   "archivo": "OxCoder-9B.Q4_K_M.gguf",
+   "base": "OrionLLM/OxCoder-9B (Qwen/Qwen3.5-9B)",
+   "nombre": "OxCoder 9B, GGUF Q4_K_M (chat sin internet)",
+   "licencia": "apache-2.0",
+   "tamano_gb": 5.63,
+   "fecha": "2026-10-11"
+  },
+  {
+   "repo": "OmAr-Kader-DeV/OxCoder-9B-mlx-4Bit",
+   "tipo": "chat",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "revision": "ae7575d8655be764ddf8478e5f04caeea74ec4ce",
+   "base": "OrionLLM/OxCoder-9B (Qwen/Qwen3.5-9B)",
+   "nombre": "OxCoder 9B, MLX 4 bits (chat sin internet, Mac)",
+   "licencia": "apache-2.0",
+   "tamano_gb": 5.04,
+   "fecha": "2026-10-11"
   }
  ]
 }

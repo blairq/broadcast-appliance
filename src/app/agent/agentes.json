@@ -169,6 +169,14 @@
         "tipo": "archivo",
         "exe": "node-v24.21.0-darwin-x64/bin/node"
       }
-    }
+    },
+    "dependencias": [
+      {
+        "nombre": "jiti",
+        "url": "https://registry.npmjs.org/jiti/-/jiti-2.7.0.tgz",
+        "sha256": "8dd0d365fb49c0e7cc42d6a00df6fb2da9056fc24492094346fc34ecdbcf28ca",
+        "_comentario": "Lo usa pi para cargar extensiones (la guarda del chat local); su cli.js empaquetado no lo trae. Sin dependencias propias."
+      }
+    ]
   }
 }

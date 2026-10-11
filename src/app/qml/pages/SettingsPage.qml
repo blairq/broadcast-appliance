@@ -376,6 +376,9 @@ Rectangle {
                                             "error en castellano " + modelData.wer_es_fleurs + "% (FLEURS) · " + modelData.licencia
                                         : modelData.tipo === "vad"
                                           ? "Detector de voz (recorta los silencios) · " + modelData.licencia
+                                        : modelData.tipo === "chat"
+                                          ? "Para el chat sin internet (Asistente → Modelo local) · " + modelData.formato.toUpperCase() +
+                                            " · " + modelData.tamano_gb + " GB · " + modelData.base + " · " + modelData.licencia
                                         : modelData.formato.toUpperCase() + " · " + modelData.tamano_gb + " GB · " +
                                           (modeloFila.ficha && modeloFila.ficha.estado === "ok" ? "" : modelData.herramientas + " herramientas (según el catálogo) · ") +
                                           (modelData.precision !== undefined

@@ -146,7 +146,7 @@ class AgentViewModel : public QObject {
     void setLocal(Local l) { local_ = std::move(l); }
     /// El chat del modelo local (pi): qué .gguf cargar en llama-server
     /// (ModelosLocales::ggufParaChat) y cómo pedir que se baje el que falta.
-    void setModeloChat(std::function<QString(QString* falta, QString* repoParaBajar)> gguf,
+    void setModeloChat(std::function<QString(const QString& repo, QString* falta, QString* repoParaBajar)> gguf,
                        std::function<void(const QString& repo)> bajar) {
         ggufChat_ = std::move(gguf);
         bajarModelo_ = std::move(bajar);
@@ -326,7 +326,7 @@ class AgentViewModel : public QObject {
     AlertEngine& alerts_;
     std::unique_ptr<term::TerminalSession> session_;
     Local local_;
-    std::function<QString(QString*, QString*)> ggufChat_;
+    std::function<QString(const QString&, QString*, QString*)> ggufChat_;
     std::function<void(const QString&)> bajarModelo_;
     // El llama-server del chat del modelo local (pi): lo levanta start(), lo baja stop().
     QProcess* servidor_ = nullptr;

@@ -218,7 +218,7 @@ std::filesystem::path ModelosLocales::carpetaInstalada(const QString& repo) cons
     return instalado(repo) ? carpetaDe(repo) : fs::path();
 }
 
-QString ModelosLocales::ggufParaChat(QString* falta, QString* repoParaBajar) const {
+QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QString* repoParaBajar) const {
     const auto archivoDe = [this](const QString& repo) -> QString {
         const json e = entradaCatalogo(repo);
         if (e.value("formato", std::string()) != "gguf" || !e.value("archivo", json()).is_string() || !instalado(repo))
@@ -227,6 +227,18 @@ QString ModelosLocales::ggufParaChat(QString* falta, QString* repoParaBajar) con
         std::error_code ec;
         return fs::exists(f, ec) ? QString::fromStdWString(f.wstring()) : QString();
     };
+    // El que se eligió en el Asistente (si está en el catálogo y es GGUF).
+    if (!pedido.isEmpty()) {
+        const json e = entradaCatalogo(pedido);
+        if (e.empty() || e.value("formato", std::string()) != "gguf") {
+            if (falta != nullptr) *falta = "«" + pedido + "» no es un modelo GGUF del catálogo.";
+            return {};
+        }
+        if (const QString f = archivoDe(pedido); !f.isEmpty()) return f;
+        if (falta != nullptr) *falta = "El modelo «" + pedido + "» todavía no está: se baja ahora.";
+        if (repoParaBajar != nullptr) *repoParaBajar = pedido;
+        return {};
+    }
     // El activo, o (sin activo) el primer reactivo instalado de esta plataforma.
     QString repo = activo_;
     if (repo.isEmpty()) repo = instaladoDeTipo("reactivo");

@@ -433,7 +433,7 @@ endif()
          "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
     qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente).
-    qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json agent/prompt-modelo-local.md)
+    qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json agent/prompt-modelo-local.md agent/pi-guarda.mjs)
     # El catalogo de filtros LSP en castellano (Audio -> filtros).
     qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")

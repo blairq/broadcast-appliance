@@ -727,7 +727,12 @@ QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const
 bool AgentViewModel::installed() const {
     // El modelo local: lo que se instala acá es su chat (pi); el modelo se baja en
     // Configuración → Modelos locales.
-    return !usableDir(runtimeOf(provider_)).isEmpty();
+    const QString dir = usableDir(runtimeOf(provider_));
+    if (dir.isEmpty()) return false;
+    // pi sin jiti (instalado antes de la guarda) no carga extensiones: a reinstalar.
+    if (runtimeOf(provider_) == "pi" && !QFileInfo::exists(dir + "/pi/package/node_modules/jiti/package.json"))
+        return false;
+    return true;
 }
 
 QString AgentViewModel::installedVersion() const {
@@ -807,6 +812,12 @@ void AgentViewModel::install() {
         const json pkg = pin.value("paquete", json::object());
         items.push_back({pkg.value("url", ""), pkg.value("sha256", ""), "archivo",
                          (dir + "/" + runtime).toStdString(), pkg.value("sha512", "")});
+        // Sus dependencias de npm que el paquete no trae empaquetadas (pi: jiti),
+        // en node_modules de su paquete. El .tgz trae una carpeta «package/».
+        for (const json& dep : pin.value("dependencias", json::array()))
+            items.push_back({dep.value("url", ""), dep.value("sha256", ""), "npm",
+                             (dir + "/" + runtime + "/package/node_modules/" +
+                              QString::fromStdString(dep.value("nombre", std::string()))).toStdString()});
     } else {
         items.push_back({plat.value("url", ""), plat.value("sha256", ""), plat.value("tipo", "archivo"),
                          plat.value("tipo", "") == "binario"
@@ -900,7 +911,8 @@ void AgentViewModel::install() {
                     installText_ = "Descomprimiendo…";
                     emit installChanged();
                 });
-                const QString dest = enStaging(it.dest);
+                const bool npm = it.kind == "npm";
+                const QString dest = npm ? enStaging(it.dest) + ".tmp" : enStaging(it.dest);
                 QDir().mkpath(dest);
                 // Con el Python DEL PROGRAMA (zipfile/tarfile): nada de afuera de la
                 // carpeta del sistema (antes, el tar.exe de Windows o el tar del PATH).
@@ -912,6 +924,12 @@ void AgentViewModel::install() {
                           QString::fromUtf8(py.readAllStandardError()).trimmed().right(400) +
                           (py.error() == QProcess::FailedToStart ? " (no arrancó el Python del programa)" : "");
                 QFile::remove(tmp);
+                if (npm && err.isEmpty()) { // <dest>.tmp/package → <dest>
+                    const QString final = enStaging(it.dest);
+                    QDir(final).removeRecursively();
+                    if (!QDir().rename(dest + "/package", final)) err = "No se pudo dejar " + final;
+                    QDir(dest).removeRecursively();
+                }
             }
         }
         if (err.isEmpty() && !geminiScript.isEmpty() &&
@@ -1016,6 +1034,24 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
         for (const auto& m :
              ModeloPropio::leer(g_raiz / "Config" / "modelo-propio.json").comoLosLlamaOpencode())
             out << QString::fromStdString(m);
+        return out;
+    }
+    // El modelo local (el chat con pi): los .gguf del catálogo (los del aparato
+    // y los de chat, como OxCoder 9B), en cualquier plataforma: llama-server los
+    // carga todos (la Mac también). Vacío = el del modelo local activo. Los MLX
+    // todavía no: hace falta un servidor de MLX que hable el protocolo de OpenAI.
+    if (proveedor == "local") {
+        QStringList out;
+        QFile f(":/agent/modelos-catalogo.json");
+        if (f.open(QIODevice::ReadOnly)) {
+            const json c = json::parse(f.readAll().toStdString(), nullptr, false);
+            if (c.is_object())
+                for (const json& m : c.value("modelos", json::array())) {
+                    const std::string tipo = m.value("tipo", std::string("reactivo"));
+                    if (m.value("formato", std::string()) == "gguf" && (tipo == "reactivo" || tipo == "chat"))
+                        out << QString::fromStdString(m.value("repo", std::string()));
+                }
+        }
         return out;
     }
     const Provider* p = findProvider(proveedor);
@@ -1174,24 +1210,16 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
         // portable), con el mismo formato que Claude.
         json servidores{{"broadcast", mcpStdio}};
         servidores["broadcast"]["description"] = "Maneja el aparato de emisión (escenas, audio, salidas, grabación…).";
-        // Las herramientas que el modelo local conoce (con las que se entrenó: las
-        // «funciones» del prompt.json de su carpeta) van DIRECTAS, como las suyas;
-        // el resto se encuentra con tool_search. Un modelo chico no escribe scripts
-        // de codemode para buscarlas.
+        // Este chat es para CONVERSAR y preguntar cómo se hace algo (el asistente
+        // rápido, el de la voz, ya maneja las ~80 de todos los días): directas,
+        // solo la ayuda y lo que mira sin tocar; las más de 400 restantes, con
+        // tool_search. Poco contexto y nada que lo tiente a actuar solo.
         servidores["broadcast"]["exposure"] = "deferred";
         json directas = json::object();
-        for (const QString& carpeta : {QFileInfo(ggufActual_).absolutePath()}) {
-            QFile f(carpeta + "/prompt.json");
-            if (!f.open(QIODevice::ReadOnly)) continue;
-            const json pj = json::parse(f.readAll().toStdString(), nullptr, false);
-            if (pj.is_object())
-                for (const json& n : pj.value("funciones", json::array()))
-                    if (n.is_string()) directas[n.get<std::string>()] = "direct";
-        }
-        if (directas.empty()) // sin prompt.json: lo de todos los días
-            for (const char* n : {"status", "scene_list", "scene_switch", "source_list", "source_update", "audio_set",
-                                  "record_start", "record_stop", "stream_start", "stream_stop", "capture_program"})
-                directas[n] = "direct";
+        for (const char* n : {"help", "help_search", "status", "scene_list", "source_list", "mixer_list",
+                              "input_status", "audio_devices", "video_devices", "stream_salud", "record_disco",
+                              "room_status", "speakers_status", "alert_list", "logs_tail", "system_info"})
+            directas[n] = "direct";
         servidores["broadcast"]["toolExposure"] = directas;
         if (control) servidores["control"] = mcpControl;
         writeText(root + "/Credenciales/agentes/pi/mcp.json",
@@ -1307,9 +1335,16 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
             QFile f(":/agent/prompt-modelo-local.md");
             if (f.open(QIODevice::ReadOnly)) prompt = QString::fromUtf8(f.readAll());
         }
+        // La guarda (agent/pi-guarda.mjs): confirma cada cambio en la terminal, corta
+        // las llamadas repetidas y los bucles. Se deja en el perfil en cada arranque.
+        const QString guarda = profile + "/guarda.mjs";
+        {
+            QFile f(":/agent/pi-guarda.mjs");
+            if (f.open(QIODevice::ReadOnly)) writeText(guarda, f.readAll());
+        }
         o.args = {dir + "/pi/" + QString::fromStdString(pin.value("paquete", json::object()).value("script", "")),
                   "--provider", "modelo-local", "--model", "local", "--offline", "--approve",
-                  "--no-extensions", "-e", "builtin:mcp", "--no-context-files", "--no-skills",
+                  "--no-extensions", "-e", "builtin:mcp", "-e", guarda, "--no-context-files", "--no-skills",
                   "--no-prompt-templates", "--tools", "tool_search,mcp__broadcast__*,mcp__control__*",
                   "--system-prompt", prompt};
         o.env["PI_CODING_AGENT_DIR"] = profile;
@@ -1463,7 +1498,7 @@ QString AgentViewModel::rutaServidorLocal() const {
 void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
     pararServidorLocal();
     QString falta, repoParaBajar;
-    const QString gguf = ggufChat_ ? ggufChat_(&falta, &repoParaBajar) : QString();
+    const QString gguf = ggufChat_ ? ggufChat_(model_, &falta, &repoParaBajar) : QString();
     ggufActual_ = gguf;
     if (gguf.isEmpty()) {
         setError(falta.isEmpty() ? "No hay un modelo local para el chat." : falta);
