@@ -897,7 +897,7 @@ void MediaPump::plateThread() {
         plates[s].assign(static_cast<size_t>(w) * h * 4u, 0);
         drawPlate(plates[s].data(), w, h, static_cast<int>(s));
     }
-    constexpr uint64_t kGuestTimeoutNs = 1000000000ULL; // sin video 1 s -> placa
+    const uint64_t kGuestTimeoutNs = cfg_.sinVideoNs; // sin video tanto tiempo -> placa
     while (!stop_.load(std::memory_order_relaxed)) {
         const uint64_t now = monoNs();
         for (size_t s = 1; s < guestVideo_.size(); ++s) {

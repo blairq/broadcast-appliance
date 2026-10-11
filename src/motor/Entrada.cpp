@@ -19,6 +19,13 @@
 
 namespace ba::motor {
 
+namespace {
+// Configuración → Cámaras y entradas (ponerAjustesEntradas).
+std::atomic<std::uint64_t> g_sinSenalNs{3'000'000'000ULL};
+std::atomic<std::uint64_t> g_rearmarSinDatosNs{10'000'000'000ULL};
+std::atomic<std::uint64_t> g_reintentoMaxNs{2'000'000'000ULL};
+} // namespace
+
 using json = nlohmann::json;
 
 namespace {
@@ -289,7 +296,7 @@ void Entrada::armarSalida() {
                               (gpuVideo() ? subirGpu() + " ! " + texturaGpu(",pixel-aspect-ratio=1/1")
                                           : "videoconvert ! " + capsColorDelLienzo(lienzo_) + ",pixel-aspect-ratio=1/1") +
                               " ! imagefreeze name=congela is-live=true ! fs.sink_1";
-    const std::string d = "fallbackswitch name=fs timeout=3000000000 immediate-fallback=" +
+    const std::string d = "fallbackswitch name=fs timeout=" + std::to_string(g_sinSenalNs.load()) + " immediate-fallback=" +
                           std::string(inmediata ? "true" : "false") + " ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
                           entreComillas(id_ + ":crudo:video") + " max-time=2500000000 ! fs.sink_0 " +
@@ -600,8 +607,11 @@ void Entrada::guardarEstados() {
 }
 
 void Entrada::programarReintento() {
+    // 0,2 / 0,5 / 1 / 2 s y después el doble, hasta el tope (Configuración: «reintentos de una entrada»).
     static const std::uint64_t kEsperas[] = {200'000'000ULL, 500'000'000ULL, 1'000'000'000ULL, 2'000'000'000ULL};
-    reintentoNs_ = ahoraNs() + kEsperas[std::min(reintentos_, 3)];
+    std::uint64_t espera = kEsperas[std::min(reintentos_, 3)];
+    for (int i = 3; i < reintentos_ && espera < g_reintentoMaxNs.load(); ++i) espera *= 2;
+    reintentoNs_ = ahoraNs() + std::min(espera, g_reintentoMaxNs.load());
     ++reintentos_;
 }
 
@@ -1173,8 +1183,9 @@ bool Entrada::vigilarDatos() {
         datosDesdeNs_ = ahora;
         return false;
     }
-    if (vistosDatos_ == 0 || ahora - datosDesdeNs_ < 10'000'000'000ULL) return false;
-    registrar(Nivel::Aviso, id_ + ": no llegan datos hace 10 s sin error: se rearma");
+    if (vistosDatos_ == 0 || ahora - datosDesdeNs_ < g_rearmarSinDatosNs.load()) return false;
+    registrar(Nivel::Aviso, id_ + ": no llegan datos hace " + std::to_string(g_rearmarSinDatosNs.load() / 1'000'000'000ULL) +
+                                " s sin error: se rearma");
     error_ = "no llegaban datos (se rearma)";
     vistosDatos_ = 0;
     // Desarmar una cámara de red que no contesta puede tardar decenas de segundos:
@@ -1191,6 +1202,11 @@ std::atomic<std::int64_t> g_reposoPlacaUs{120'000'000};
 } // namespace
 
 void ponerReposoPlaca(int segundos) { g_reposoPlacaUs = static_cast<std::int64_t>(std::clamp(segundos, 5, 3600)) * 1'000'000; }
+void ponerAjustesEntradas(int sinSenalMs, int rearmarSinDatosS, int reintentoMaxMs) {
+    g_sinSenalNs = static_cast<std::uint64_t>(std::clamp(sinSenalMs, 200, 60000)) * 1'000'000ULL;
+    g_rearmarSinDatosNs = static_cast<std::uint64_t>(std::clamp(rearmarSinDatosS, 3, 600)) * 1'000'000'000ULL;
+    g_reintentoMaxNs = static_cast<std::uint64_t>(std::clamp(reintentoMaxMs, 200, 120000)) * 1'000'000ULL;
+}
 
 void Entrada::tic() {
     // EL BUCLE DEL MOTOR NO ESPERA A UNA ENTRADA OCUPADA (rearmándose, con un

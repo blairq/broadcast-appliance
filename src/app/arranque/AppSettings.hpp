@@ -83,6 +83,19 @@ struct AppConfig {
     /// Legalizador broadcast-safe en cada entrada (balegal): no | pal | ntsc | rango.
     std::string legalizar = "no";
     int placaReposoS = 120; ///< la placa de una entrada sin uso se desarma a los N s (motor::ponerReposoPlaca)
+    // Configuración → Cámaras y entradas (motor::ponerAjustesEntradas)
+    int sinSenalMs = 3000;      ///< sin cuadros tanto tiempo: placa «sin señal»
+    int rearmarSinDatosS = 10;  ///< sin datos ni error tanto tiempo: se rearma
+    int reintentoEntradaMaxMs = 2000; ///< espera más larga entre reintentos de una entrada que no arma
+    // Configuración → Transmisión (motor::ponerReintentoTransmision)
+    int reintentoTransmisionMaxS = 10;
+    // Configuración → Grabación: el disco (BroadcastEngine::ponerUmbralesDisco)
+    double discoApurosS = 3.0;  ///< lo grabado espera tanto para entrar al disco: «apuros»
+    int discoRecuperadoS = 30;  ///< todo al día tanto tiempo: sale de «apuros»
+    // Configuración → Asistente (MCP) y Modelos locales
+    int mcpAprobacionMin = 10;  ///< una aprobación pendiente se rechaza sola a los N min
+    int modeloContexto = 32768; ///< contexto del modelo local de chat (tokens)
+    int modeloCapasGpu = 999;   ///< capas en la GPU (999 = todas; 0 = solo CPU)
     int replaySegundos = 0; ///< repetición: los últimos N s en memoria (0 = apagada)
     /// Tope de la latencia del estudio (ms; -1 = automático: 250 ms). Una entrada
     /// que pide más va con su propia demora y avisa (P0.6).
@@ -142,6 +155,12 @@ struct GatewaySettings {
     bool tunnel = true;         ///< usar cloudflared si hay token
     std::string tunnelHostname; ///< dominio publico del tunel de Cloudflare
     std::uint16_t metricsPort = 9099;
+    int programVideoW = 1280; ///< retorno del programa a las pantallas de la sala
+    int programVideoH = 720;
+    int vistasRemotas = 16;   ///< integrantes que miran un canal a la vez en su celular
+    int sinVideoPlacaMs = 1000; ///< invitado sin video tanto tiempo: su lugar muestra la placa
+    int pinIntentos = 5;        ///< PIN mal tantas veces desde una IP: bloqueo
+    int pinBloqueoS = 60;
     int videoW = 1280; ///< slot de video del invitado hacia A
     int videoH = 720;
     int guestVideoW = 640; ///< retorno de programa hacia el invitado
@@ -170,6 +189,12 @@ struct GatewaySettings {
 struct LauncherSettings {
     bool shadowCopy = false;
     bool recoveryUi = true;
+    // Arranque y recuperación (los lee el launcher al arrancar: Supervisor::Config)
+    int cuelgueS = 5;              ///< latido quieto tanto tiempo = colgado
+    int graciaArranqueS = 20;      ///< recién lanzado: todavía no se vigila
+    int maxCaidas = 5;             ///< más caídas que esto en la ventana: modo seguro
+    int ventanaCaidasMin = 2;
+    int reiniciosSinPreguntar = 2; ///< fallas seguidas que se reinician sin preguntar
 };
 
 /// Rutas de los tres archivos bajo `dataRoot`.

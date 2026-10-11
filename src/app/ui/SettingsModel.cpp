@@ -2,7 +2,8 @@
 // src/app/ui/SettingsModel.cpp — ver SettingsModel.hpp
 // ============================================================================
 
-#include "Entrada.hpp" // motor::ponerReposoPlaca
+#include "arranque/AjustesMotor.hpp"
+#include "emision/BroadcastEngine.hpp"
 #include "ui/SettingsModel.hpp"
 
 #include <QHostInfo>
@@ -94,10 +95,14 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"mejora.color", "Cámaras y entradas", "Mejorar imagen: color pegado al brillo", "int", {}, 0, 100, "%", "Saca el color corrido alrededor de los bordes.", "live", 70},
         {"mejora.nitidez", "Cámaras y entradas", "Mejorar imagen: nitidez", "int", {}, 0, 100, "%", "Enfoque adaptativo (sin halos).", "live", 50},
         {"video.legalizar", "Cámaras y entradas", "Legalizar para TV", "choice", choices({{"no","No"},{"pal","Sí, PAL (+133 %)"},{"ntsc","Sí, estricto (+120 %)"},{"rango","Solo el rango (luma y croma)"}}), 0, 0, "", "Pasa cada entrada por el legalizador (balegal, en GStreamer): luma y croma en rango legal y, si se pasa la gama compuesta, menos saturación en ese punto. Para entregas a un canal.", "live", "no"},
+        {"entradas.sinSenal", "Cámaras y entradas", "Placa «sin señal» después de", "int", {}, 200, 60000, "ms", "Una entrada que deja de mandar cuadros muestra la placa «sin señal» pasado este tiempo. Más corto, se ve antes que se cortó; más largo, aguanta cortes chicos de la red sin parpadear. Rige al armar cada entrada.", "live", 3000},
+        {"entradas.rearmarSinDatos", "Cámaras y entradas", "Rearmar si no llegan datos", "int", {}, 3, 600, "s", "Una entrada que no da error pero tampoco manda nada se desarma y se vuelve a armar pasado este tiempo.", "live", 10},
+        {"entradas.reintentoMax", "Cámaras y entradas", "Espera máxima entre reintentos", "int", {}, 200, 120000, "ms", "Una entrada que no arma se reintenta a los 0,2, 0,5, 1 y 2 s y después cada vez más espaciado, hasta este tope. Con una cámara apagada mucho rato, un tope más alto no la martilla.", "live", 2000},
         {"entradas.placaReposo", "Cámaras y entradas", "Placa de entradas sin uso", "int", {}, 5, 3600, "s", "Una entrada que ninguna escena usa desarma su placa («sin señal») pasado este tiempo, para no gastar hilos. Rearmarla es una negociación de la GPU: con poco tiempo, cada cambio de escena la rearma.", "live", 120},
         // --- Transmisión -----------------------------------------------------------
         {"stream.server", "Transmisión", "Servidor RTMP", "text", {}, 0, 0, "", "p. ej. rtmp://a.rtmp.youtube.com/live2", "live", ""},
         {"stream.keyEnv", "Transmisión", "Variable con la clave", "text", {}, 0, 0, "", "La clave no se guarda en disco: se lee de esta variable de entorno o se escribe al transmitir.", "live", "BA_STREAM_KEY"},
+        {"stream.reintentoMax", "Transmisión", "Espera máxima entre reconexiones", "int", {}, 1, 300, "s", "Si se corta la transmisión, se reconecta a los 1, 2, 4, 8… s hasta este tope.", "live", 10},
         {"stream.onStart", "Transmisión", "Transmitir al arrancar", "bool", {}, 0, 0, "", "", "live", false},
         // --- Grabación -------------------------------------------------------------
         {"record.dir", "Grabación", "Carpeta", "path", {}, 0, 0, "", "Relativa al bundle o absoluta.", "live", "Recordings"},
@@ -108,6 +113,10 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"record.crf", "Grabación", "Calidad constante (CRF)", "int", {}, 10, 35, "", "Con «Calidad de archivo»: 14 casi sin pérdida, 18 muy buena, 23 normal, 28 chico.", "live", 18},
         {"record.pistas", "Grabación", "Pistas de audio extra", "text", {}, 0, 0, "", "Números de pista de la Matriz (2 a 6) separados por coma: cada una se graba aparte con lo que le cruces en la Matriz. La 1 (el programa) va siempre.", "live", ""},
         {"record.copiaDir", "Grabación", "Copia en otro disco", "path", {}, 0, 0, "", "Una segunda grabación igual, en otra carpeta (otro disco). Vacío = sin copia.", "live", ""},
+        {"record.colchon", "Grabación", "Colchón si el disco se traba", "int", {}, 5, 600, "s", "Lo que la grabación del programa junta en memoria mientras el disco no escribe (un disco USB que se reinicia, por ejemplo). Más segundos, más memoria (a 6 Mbps, un minuto son ~45 MB; hay un tope de 512 MB).", "live", 60},
+        {"disco.prioridad", "Grabación", "Si el disco no da abasto", "choice", choices({{"preguntar","Preguntar si le doy el disco a la grabación del programa"},{"auto","Dárselo solo (pausa ISO, repetición, copia y registro)"},{"nunca","No hacer nada (solo avisar)"}}), 0, 0, "", "Cuando lo grabado espera para entrar al disco: se puede pausar todo lo demás que escribe para que la grabación del programa no pierda nada. Todo sigue solo cuando el disco vuelve a andar bien.", "live", "preguntar"},
+        {"disco.apuros", "Grabación", "El disco está en apuros con", "int", {}, 1, 60, "s", "Segundos que lo grabado espera para entrar al disco (o el registro trabado escribiendo) hasta avisar y, según lo de arriba, darle el disco al programa.", "live", 3},
+        {"disco.recuperado", "Grabación", "Vuelve a la normalidad después de", "int", {}, 5, 3600, "s", "Segundos con el disco al día hasta que se retoma lo pausado.", "live", 30},
         {"record.replay", "Grabación", "Repetición: últimos segundos", "int", {}, 0, 600, "s", "Guarda en memoria los últimos N segundos del programa para el botón «Repetir». 0 = apagada.", "live", 0},
         // --- Codificación (transmisión y grabación) --------------------------------
         {"encoder.video", "Codificación", "Codificador de video", "choice", encoders, 0, 0, "", "Si el elegido no está o falla al arrancar, se usa el siguiente disponible y al final x264.", "live", "auto"},
@@ -122,6 +131,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"guests.video", "Invitados", "Video de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audio", "Invitados", "Audio de invitados", "bool", {}, 0, 0, "", "", "restart", true},
         {"guests.audioPreset", "Invitados", "Procesamiento de voz", "choice", choices({{"podium","Podio"},{"lavalier","Corbatero"},{"handheld","De mano"},{"","Sin procesar"}}), 0, 0, "", "Channel strip nativo: HPF, EQ, de-esser, gate, compresor y limitador.", "restart", "podium"},
+        {"gateway.sinVideoPlaca", "Invitados", "Placa si un invitado no manda video", "int", {}, 200, 30000, "ms", "El lugar de un invitado que deja de mandar video muestra su placa pasado este tiempo.", "gateway", 1000},
         {"gateway.videoW", "Invitados", "Video del invitado: ancho", "int", {}, 320, 3840, "px", "", "gateway", 1280},
         {"gateway.videoH", "Invitados", "Video del invitado: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
         {"gateway.returnW", "Invitados", "Retorno al invitado: ancho", "int", {}, 320, 1920, "px", "", "gateway", 640},
@@ -132,6 +142,11 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"room.lobbySlots", "Sala", "Previews del lobby", "int", {}, 0, 8, "", "Cuántos de los que esperan pueden mostrarte su cámara a la vez.", "gateway", 4},
         {"room.maxBackstage", "Sala", "Fila de oradores", "int", {}, 0, 32, "", "Modo oradores: cuántos en la fila pueden ver el programa a la vez (cada uno usa una sesión de video).", "gateway", 12},
         {"room.backstagePreviews", "Sala", "Previews de la fila", "int", {}, 0, 8, "", "Modo oradores: cuántos de la fila (los primeros) te muestran su cámara en la app.", "gateway", 6},
+        {"room.vistasRemotas", "Sala", "Integrantes mirando a la vez", "int", {}, 1, 64, "", "Sesión remota: cuántos integrantes pueden mirar un canal a la vez en su celular (cada uno es una conexión de video).", "gateway", 16},
+        {"gateway.programaW", "Sala", "Retorno a las pantallas: ancho", "int", {}, 320, 3840, "px", "Resolución del programa que va a las pantallas de la sala y a los celulares.", "gateway", 1280},
+        {"gateway.programaH", "Sala", "Retorno a las pantallas: alto", "int", {}, 180, 2160, "px", "", "gateway", 720},
+        {"room.pinIntentos", "Sala", "PIN: intentos por dirección", "int", {}, 1, 100, "", "PIN mal tantas veces desde una misma dirección: se la bloquea un rato.", "gateway", 5},
+        {"room.pinBloqueo", "Sala", "PIN: bloqueo", "int", {}, 5, 86400, "s", "Cuánto queda bloqueada esa dirección.", "gateway", 60},
         {"room.maxUploadMB", "Sala", "Tope por archivo compartido", "int", {}, 1, 20480, "MB", "", "gateway", 2048},
         // --- Red de la sala --------------------------------------------------------
         {"gateway.port", "Red de la sala", "Puerto de la sala", "int", {}, 1024, 65535, "", "", "gateway", 8787},
@@ -155,10 +170,19 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"mcp.enabled", "Asistente (MCP)", "Servidor MCP", "bool", {}, 0, 0, "", "Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta máquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra).", "restart", true},
         {"mcp.port", "Asistente (MCP)", "Puerto MCP", "int", {}, 1024, 65535, "", "http://127.0.0.1:<puerto>/mcp. Para clientes que lanzan un proceso: bin/64bit/ba-mcp.", "restart", 8790},
         {"mcp.approval", "Asistente (MCP)", "Aprobar acciones del asistente", "choice", choices({{"invitados","Si leyó mensajes/datos de invitados o del público (recomendado)"},{"siempre","Siempre"},{"nunca","Nunca: aprobación automática (bajo tu responsabilidad)"}}), 0, 0, "", "Salvaguarda determinista: cuando el asistente leyo algo escrito por invitados o por el publico (chat, nombres, archivos, su video), toda accion que modifica algo espera tu click de aprobacion en la barra de abajo. Asi un invitado no puede hacer que el asistente cambie nada. Con «Nunca» se aprueba todo solo: un invitado podria escribir en el chat algo que el asistente termine haciendo. Solo se cambia desde aca (el asistente no puede).", "live", "invitados"},
+        {"mcp.aprobacionMin", "Asistente (MCP)", "Una aprobación espera hasta", "int", {}, 1, 240, "min", "Lo que el asistente pide aprobar se rechaza solo si nadie contesta en este tiempo.", "live", 10},
+        // --- Modelos locales (el chat sin internet) ----------------------------------
+        {"modelo.contexto", "Modelos locales", "Memoria de la charla (contexto)", "int", {}, 2048, 262144, "tokens", "Contexto del modelo local de chat (pestaña Asistente, «modelo local»). Más, recuerda más de la charla y usa más memoria de la placa. Rige al volver a arrancarlo.", "live", 32768},
+        {"modelo.capasGpu", "Modelos locales", "Capas en la GPU", "int", {}, 0, 999, "", "999 = todas (lo más rápido). Si la placa se queda sin memoria, bajalo; 0 = solo la CPU. Rige al volver a arrancarlo.", "live", 999},
         // --- Apariencia ------------------------------------------------------------
         {"ui.theme", "Apariencia", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
         // --- Sistema y datos -------------------------------------------------------
         {"launcher.shadow", "Sistema y datos", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
+        {"launcher.cuelgue", "Sistema y datos", "Colgado si no responde", "int", {}, 2, 120, "s", "Si el programa (o la sala) deja de latir este tiempo, se guarda un volcado y se reinicia solo. Más corto, vuelve antes; más largo, aguanta trabas largas sin reiniciar. Rige al volver a abrir el programa.", "restart", 5},
+        {"launcher.graciaArranque", "Sistema y datos", "Gracia al arrancar", "int", {}, 5, 600, "s", "Recién abierto, el programa todavía no late: no se lo vigila durante este tiempo.", "restart", 20},
+        {"launcher.maxCaidas", "Sistema y datos", "Caídas antes del modo seguro", "int", {}, 1, 100, "", "Si se cae más veces que esto en la ventana de abajo, arranca en modo seguro (sin restaurar lo que estaba andando).", "restart", 5},
+        {"launcher.ventanaCaidas", "Sistema y datos", "Ventana de caídas", "int", {}, 1, 120, "min", "", "restart", 2},
+        {"launcher.reiniciosSinPreguntar", "Sistema y datos", "Reinicios sin preguntar", "int", {}, 0, 100, "", "Con el diálogo de recuperación prendido: cuántas fallas seguidas se reinician solas antes de preguntar.", "restart", 2},
         {"launcher.recoveryUi", "Sistema y datos", "Diálogo de recuperación", "bool", {}, 0, 0, "", "Si está apagado, el supervisor reinicia solo sin preguntar.", "restart", true},
     };
     // clang-format on
@@ -180,6 +204,28 @@ QVariantMap SettingsModel::current() const {
         {"video.rango", qs(c.video.rango)},
         {"video.legalizar", qs(c.legalizar)},
         {"entradas.placaReposo", c.placaReposoS},
+        {"entradas.sinSenal", c.sinSenalMs},
+        {"entradas.rearmarSinDatos", c.rearmarSinDatosS},
+        {"entradas.reintentoMax", c.reintentoEntradaMaxMs},
+        {"stream.reintentoMax", c.reintentoTransmisionMaxS},
+        {"record.colchon", c.rec.colchonSeg},
+        {"disco.prioridad", QString::fromStdString(const_cast<AppRuntime&>(rt_).engine().modoDisco())},
+        {"disco.apuros", static_cast<int>(c.discoApurosS)},
+        {"disco.recuperado", c.discoRecuperadoS},
+        {"mcp.aprobacionMin", c.mcpAprobacionMin},
+        {"modelo.contexto", c.modeloContexto},
+        {"modelo.capasGpu", c.modeloCapasGpu},
+        {"gateway.sinVideoPlaca", g.sinVideoPlacaMs},
+        {"room.vistasRemotas", g.vistasRemotas},
+        {"gateway.programaW", g.programVideoW},
+        {"gateway.programaH", g.programVideoH},
+        {"room.pinIntentos", g.pinIntentos},
+        {"room.pinBloqueo", g.pinBloqueoS},
+        {"launcher.cuelgue", l.cuelgueS},
+        {"launcher.graciaArranque", l.graciaArranqueS},
+        {"launcher.maxCaidas", l.maxCaidas},
+        {"launcher.ventanaCaidas", l.ventanaCaidasMin},
+        {"launcher.reiniciosSinPreguntar", l.reiniciosSinPreguntar},
         {"mejora.activa", c.mejora.activa},
         {"mejora.ruido", c.mejora.ruido},
         {"mejora.color", c.mejora.color},
@@ -410,7 +456,19 @@ QString SettingsModel::apply() {
     c.record = b("record.onStart");
     c.legalizar = s("video.legalizar");
     c.placaReposoS = std::clamp(i("entradas.placaReposo"), 5, 3600);
-    ba::motor::ponerReposoPlaca(c.placaReposoS); // en caliente
+    // Cámaras y entradas, Transmisión y el disco (Grabación): en caliente.
+    c.sinSenalMs = i("entradas.sinSenal");
+    c.rearmarSinDatosS = i("entradas.rearmarSinDatos");
+    c.reintentoEntradaMaxMs = i("entradas.reintentoMax");
+    c.reintentoTransmisionMaxS = i("stream.reintentoMax");
+    c.rec.colchonSeg = i("record.colchon");
+    c.discoApurosS = i("disco.apuros");
+    c.discoRecuperadoS = i("disco.recuperado");
+    c.mcpAprobacionMin = i("mcp.aprobacionMin");
+    c.modeloContexto = i("modelo.contexto");
+    c.modeloCapasGpu = i("modelo.capasGpu");
+    aplicarAjustesMotor(c);
+    if (draft_.value("disco.prioridad") != saved_.value("disco.prioridad")) rt_.engine().setModoDisco(s("disco.prioridad"));
     c.rec.calidad = s("record.calidad");
     c.rec.calidadCrf = i("record.crf");
     c.rec.pistas.clear();
@@ -473,6 +531,12 @@ QString SettingsModel::apply() {
         g.maxBackstage = i("room.maxBackstage");
         g.backstagePreviews = i("room.backstagePreviews");
         g.maxUploadMB = i("room.maxUploadMB");
+        g.sinVideoPlacaMs = i("gateway.sinVideoPlaca");
+        g.vistasRemotas = i("room.vistasRemotas");
+        g.programVideoW = i("gateway.programaW");
+        g.programVideoH = i("gateway.programaH");
+        g.pinIntentos = i("room.pinIntentos");
+        g.pinBloqueoS = i("room.pinBloqueo");
         g.adminPort = static_cast<std::uint16_t>(i("room.adminPort"));
         g.https = b("direct.https");
         g.httpsPort = static_cast<std::uint16_t>(i("direct.httpsPort"));
@@ -491,6 +555,11 @@ QString SettingsModel::apply() {
     LauncherSettings& l = rt_.launcher();
     l.shadowCopy = b("launcher.shadow");
     l.recoveryUi = b("launcher.recoveryUi");
+    l.cuelgueS = i("launcher.cuelgue");
+    l.graciaArranqueS = i("launcher.graciaArranque");
+    l.maxCaidas = i("launcher.maxCaidas");
+    l.ventanaCaidasMin = i("launcher.ventanaCaidas");
+    l.reiniciosSinPreguntar = i("launcher.reiniciosSinPreguntar");
     if (changed("launcher.") || changed("guests.video") || changed("guests.audio") ||
         changed("guests.audioPreset")) {
         notes << "Algunos cambios rigen desde el proximo arranque.";

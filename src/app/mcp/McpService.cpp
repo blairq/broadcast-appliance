@@ -696,7 +696,7 @@ void McpService::applySecurity() {
                                            {"reason", reason},
                                            {"options", {"Aprobar", "Rechazar"}},
                                            {"allowText", false}});
-            msgs->waitAnswer(id, 10 * 60 * 1000, [msgs, id, decide](json item) {
+            msgs->waitAnswer(id, std::max(1, rt_.config().mcpAprobacionMin) * 60 * 1000, [msgs, id, decide](json item) { // Configuración → Asistente (MCP)
                 if (item.is_null()) msgs->dismiss(id); // vencio: la tarjeta se va y queda rechazada
                 decide(!item.is_null() && item.value("answer", "") == "Aprobar");
             });

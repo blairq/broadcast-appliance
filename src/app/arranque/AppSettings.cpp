@@ -224,6 +224,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.video.rango = get(video, "rango", c.video.rango);
     c.legalizar = get<std::string>(video, "legalizar", "no");
     c.placaReposoS = std::clamp(get(video, "placaReposoS", c.placaReposoS), 5, 3600);
+    {
+        const json en = j.value("entradas", json::object());
+        c.sinSenalMs = std::clamp(get(en, "sinSenalMs", c.sinSenalMs), 200, 60000);
+        c.rearmarSinDatosS = std::clamp(get(en, "rearmarSinDatosS", c.rearmarSinDatosS), 3, 600);
+        c.reintentoEntradaMaxMs = std::clamp(get(en, "reintentoMaxMs", c.reintentoEntradaMaxMs), 200, 120000);
+    }
     const json mej = video.value("mejora", json::object());
     c.mejora.activa = get(mej, "activa", c.mejora.activa);
     c.mejora.ruido = get(mej, "ruido", c.mejora.ruido);
@@ -255,11 +261,18 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
         c.rec.copiaDir = copia.empty() || fs::path(copia).is_absolute() ? copia : (dataRoot / copia).string();
     }
     c.replaySegundos = get(rec, "replaySegundos", 0);
+    c.rec.colchonSeg = std::clamp(get(rec, "colchonSeg", c.rec.colchonSeg), 5, 600);
+    {
+        const json d = j.value("disco", json::object());
+        c.discoApurosS = std::clamp(get(d, "apurosS", c.discoApurosS), 0.5, 60.0);
+        c.discoRecuperadoS = std::clamp(get(d, "recuperadoS", c.discoRecuperadoS), 5, 3600);
+    }
     c.estudioTopeMs = get(j.value("estudio", json::object()), "topeMs", -1);
 
     const json st = j.value("stream", json::object());
     c.stream = get(st, "enabled", false);
     c.streamCfg.server = get<std::string>(st, "server", "");
+    c.reintentoTransmisionMaxS = std::clamp(get(st, "reintentoMaxS", c.reintentoTransmisionMaxS), 1, 300);
     c.streamKeyEnv = get<std::string>(st, "keyEnv", "BA_STREAM_KEY");
 
     const json g = j.value("guests", json::object());
@@ -284,6 +297,12 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.mcpPort = std::clamp(get(mcp, "port", 8790), 1024, 65535);
     c.mcpApproval = get<std::string>(mcp, "approval", "invitados");
     if (c.mcpApproval != "siempre" && c.mcpApproval != "nunca") c.mcpApproval = "invitados";
+    c.mcpAprobacionMin = std::clamp(get(mcp, "aprobacionMin", c.mcpAprobacionMin), 1, 240);
+    {
+        const json ml = j.value("modeloLocal", json::object());
+        c.modeloContexto = std::clamp(get(ml, "contexto", c.modeloContexto), 2048, 262144);
+        c.modeloCapasGpu = std::clamp(get(ml, "capasGpu", c.modeloCapasGpu), 0, 999);
+    }
 
     if (j.contains("scenes") && j["scenes"].is_array()) {
         c.scenes.clear();
@@ -388,8 +407,17 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
           {"crf", c.rec.calidadCrf},
           {"pistas", c.rec.pistas},
           {"copiaDir", c.rec.copiaDir.empty() ? std::string() : relativeToRoot(c.rec.copiaDir, dataRoot)},
-          {"replaySegundos", c.replaySegundos}}},
-        {"stream", {{"enabled", c.stream}, {"server", c.streamCfg.server}, {"keyEnv", c.streamKeyEnv}}},
+          {"replaySegundos", c.replaySegundos},
+          {"colchonSeg", c.rec.colchonSeg}}},
+        {"disco", {{"apurosS", c.discoApurosS}, {"recuperadoS", c.discoRecuperadoS}}},
+        {"entradas",
+         {{"sinSenalMs", c.sinSenalMs}, {"rearmarSinDatosS", c.rearmarSinDatosS}, {"reintentoMaxMs", c.reintentoEntradaMaxMs}}},
+        {"modeloLocal", {{"contexto", c.modeloContexto}, {"capasGpu", c.modeloCapasGpu}}},
+        {"stream",
+         {{"enabled", c.stream},
+          {"server", c.streamCfg.server},
+          {"keyEnv", c.streamKeyEnv},
+          {"reintentoMaxS", c.reintentoTransmisionMaxS}}},
         {"estudio", {{"topeMs", c.estudioTopeMs}}},
         {"guests",
          {{"count", c.guests},
@@ -400,7 +428,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"conference", {{"operatorVideo", c.operatorVideo}, {"operatorAudio", c.operatorAudio}}},
         {"transition", {{"type", c.transition.type}, {"durationMs", c.transition.durationMs}}},
         {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}, {"balistica", c.balistica}}},
-        {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}}},
+        {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}, {"aprobacionMin", c.mcpAprobacionMin}}},
         {"scenes", scenes},
         {"audioInputs", audioIns},
         {"currentScene", c.currentScene},
@@ -421,6 +449,12 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.tunnel = get(j, "tunnel", s.tunnel);
     s.tunnelHostname = get<std::string>(j, "tunnelHostname", s.tunnelHostname);
     s.metricsPort = get(j, "metricsPort", s.metricsPort);
+    s.programVideoW = get(j, "programVideoW", s.programVideoW);
+    s.programVideoH = get(j, "programVideoH", s.programVideoH);
+    s.vistasRemotas = get(j, "vistasRemotas", s.vistasRemotas);
+    s.sinVideoPlacaMs = get(j, "sinVideoPlacaMs", s.sinVideoPlacaMs);
+    s.pinIntentos = get(j, "pinIntentos", s.pinIntentos);
+    s.pinBloqueoS = get(j, "pinBloqueoS", s.pinBloqueoS);
     s.videoW = get(j, "videoW", s.videoW);
     s.videoH = get(j, "videoH", s.videoH);
     s.guestVideoW = get(j, "guestVideoW", s.guestVideoW);
@@ -448,8 +482,13 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
 }
 
 bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::string* err) {
-    return writeJson(path,
-                     json{{"guests", s.guests},
+    // Se preserva lo que no maneja la interfaz (antes se perdía al guardar: los
+    // puertos de WireGuard, lo que se agregó a mano).
+    bool exists = false;
+    json previo = readJson(path, exists);
+    if (!previo.is_object()) previo = json::object();
+    json wgPrevio = previo.value("wireguard", json::object());
+    json nuevo = json{{"guests", s.guests},
                           {"guestsReserva", std::max(s.guestsReserva, s.guests)},
                           {"port", s.port},
                           {"bindAddress", s.bindAddress},
@@ -458,6 +497,12 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"tunnel", s.tunnel},
                           {"tunnelHostname", s.tunnelHostname},
                           {"metricsPort", s.metricsPort},
+                          {"programVideoW", s.programVideoW},
+                          {"programVideoH", s.programVideoH},
+                          {"vistasRemotas", s.vistasRemotas},
+                          {"sinVideoPlacaMs", s.sinVideoPlacaMs},
+                          {"pinIntentos", s.pinIntentos},
+                          {"pinBloqueoS", s.pinBloqueoS},
                           {"videoW", s.videoW},
                           {"videoH", s.videoH},
                           {"guestVideoW", s.guestVideoW},
@@ -480,8 +525,13 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                             {"address", s.wgAddress},
                             {"publicAddress", s.wgPublicAddress},
                             {"keepalive", s.wgKeepalive}}},
-                          {"proxy", s.proxy}},
-                     err);
+                          {"proxy", s.proxy}};
+    if (wgPrevio.is_object()) {
+        wgPrevio.update(nuevo["wireguard"]);
+        nuevo["wireguard"] = wgPrevio;
+    }
+    previo.update(nuevo);
+    return writeJson(path, previo, err);
 }
 
 LauncherSettings loadLauncherSettings(const fs::path& path) {
@@ -490,6 +540,11 @@ LauncherSettings loadLauncherSettings(const fs::path& path) {
     LauncherSettings s;
     s.shadowCopy = get(j, "shadowCopy", s.shadowCopy);
     s.recoveryUi = get(j, "recoveryUi", s.recoveryUi);
+    s.cuelgueS = get(j, "cuelgueS", s.cuelgueS);
+    s.graciaArranqueS = get(j, "graciaArranqueS", s.graciaArranqueS);
+    s.maxCaidas = get(j, "maxCaidas", s.maxCaidas);
+    s.ventanaCaidasMin = get(j, "ventanaCaidasMin", s.ventanaCaidasMin);
+    s.reiniciosSinPreguntar = get(j, "reiniciosSinPreguntar", s.reiniciosSinPreguntar);
     return s;
 }
 
@@ -499,6 +554,11 @@ bool saveLauncherSettings(const fs::path& path, const LauncherSettings& s, std::
     json j = readJson(path, exists);
     j["shadowCopy"] = s.shadowCopy;
     j["recoveryUi"] = s.recoveryUi;
+    j["cuelgueS"] = s.cuelgueS;
+    j["graciaArranqueS"] = s.graciaArranqueS;
+    j["maxCaidas"] = s.maxCaidas;
+    j["ventanaCaidasMin"] = s.ventanaCaidasMin;
+    j["reiniciosSinPreguntar"] = s.reiniciosSinPreguntar;
     return writeJson(path, j, err);
 }
 

@@ -90,6 +90,10 @@ struct Config {
     int vistasRemotas = 16;    // sesión remota: cuántos integrantes miran a la vez un canal en su celular
     int backstagePreviews = 6; // de la fila, cuantos (los primeros) muestran su camara al operador
     int maxUploadMB = 2048;    // tope por archivo compartido
+    // Configuración → Invitados / Sala (la interfaz los escribe en gateway.json).
+    int sinVideoPlacaMs = 1000; // invitado sin video tanto tiempo: su lugar muestra la placa
+    int pinIntentos = 5;        // PIN mal tantas veces desde una IP: se la bloquea
+    int pinBloqueoS = 60;       // por cuánto
     std::string adminWebroot;  // Web/admin (consola web del operador)
     // --- Acceso directo de invitados ----------------------------------------
     bool https = true;           // HTTPS propio (camara/micro exigen pagina segura)
@@ -169,6 +173,9 @@ struct Config {
             wgHttpsPort = w.value("httpsPort", wgHttpsPort);
         }
         maxUploadMB = j.value("maxUploadMB", maxUploadMB);
+        sinVideoPlacaMs = std::clamp(j.value("sinVideoPlacaMs", sinVideoPlacaMs), 200, 30000);
+        pinIntentos = std::clamp(j.value("pinIntentos", pinIntentos), 1, 100);
+        pinBloqueoS = std::clamp(j.value("pinBloqueoS", pinBloqueoS), 5, 86400);
     }
 
     void parseArgs(int argc, char** argv) {

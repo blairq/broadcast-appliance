@@ -40,13 +40,15 @@ Rectangle {
     /// Subtítulos dentro de una sección: van arriba del campo con esa clave.
     readonly property var subtitulos: ({
         "video.width": "Lienzo y salida", "video.formato": "Color", "transition.type": "Transiciones",
-        "mejora.activa": "Mejorar imagen", "video.legalizar": "Entradas",
-        "record.dir": "Archivo", "record.calidad": "Calidad y pistas", "record.copiaDir": "Copia y repetición",
+        "mejora.activa": "Mejorar imagen", "video.legalizar": "Entradas", "entradas.sinSenal": "Cortes de señal",
+        "record.dir": "Archivo", "record.calidad": "Calidad y pistas", "record.copiaDir": "Copia y repetición", "record.colchon": "Si el disco se traba",
         "encoder.video": "Video", "encoder.audioBitrate": "Audio",
         "guests.count": "Lugares", "guests.video": "Qué mandan", "gateway.videoW": "Calidad del video",
-        "gateway.room": "Entrada", "room.maxBackstage": "Modo oradores", "room.maxUploadMB": "Archivos",
+        "gateway.room": "Entrada", "room.maxBackstage": "Modo oradores", "room.vistasRemotas": "Pantallas y celulares",
+        "room.pinIntentos": "Seguridad", "room.maxUploadMB": "Archivos",
         "gateway.port": "Dónde escucha", "direct.https": "Conexión directa (HTTPS y WebRTC)", "room.adminPort": "Control",
         "gateway.tunnel": "Cloudflare", "wg.enabled": "Servidor propio (WireGuard)",
+        "mcp.approval": "Aprobaciones", "modelo.contexto": "El chat sin internet (pestaña Asistente)", "launcher.cuelgue": "Si se cuelga o se cae",
     })
     readonly property var ml: Studio.modelos
     readonly property var sys: Studio.system
@@ -694,6 +696,9 @@ Rectangle {
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
 
                 // Ajustes
+                // Los del esquema (el chat sin internet: contexto y capas en la GPU), con Aplicar.
+                CamposDeSeccion { Layout.fillWidth: true; seccion: page.modelosSection }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
                 Text { text: "Cuánto deriva"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 RowLayout {
                     Layout.fillWidth: true

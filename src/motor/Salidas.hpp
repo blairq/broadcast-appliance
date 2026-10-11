@@ -60,6 +60,10 @@ struct Fuentes {
     std::int64_t latAudioNs = 0;
 };
 
+/// Configuración → Transmisión: la espera más larga entre reconexiones (1, 2, 4,
+/// 8… s hasta este tope).
+void ponerReintentoTransmision(int maxS);
+
 class Grabacion {
    public:
     struct Config {

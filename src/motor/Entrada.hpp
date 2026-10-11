@@ -89,6 +89,10 @@ void dejarDeEscuchar(int id);
 /// y su trabajo). Desarmarla y rearmarla cuesta una negociación D3D12: con poco
 /// tiempo, cada cambio de escena la rearma. Configuración: «Placa de entradas sin uso».
 void ponerReposoPlaca(int segundos);
+/// Configuración → Cámaras y entradas: cuánto sin cuadros hasta la placa «sin
+/// señal» (rige al armar cada entrada), cuánto sin datos ni error hasta
+/// rearmarla, y la espera más larga entre reintentos de una que no arma.
+void ponerAjustesEntradas(int sinSenalMs, int rearmarSinDatosS, int reintentoMaxMs);
 
 class Reloj;
 

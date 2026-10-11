@@ -2052,7 +2052,7 @@ void SignalingServer::ipRecordFailure(std::uint32_t ip) {
     }
     auto& a = ipAttempts_[ip];
     ++a.failures;
-    if (a.failures >= kPinMaxAttemptsPerIp) a.lockedUntilUnix = now + kPinLockoutSecPerIp;
+    if (a.failures >= cfg_.pinIntentos) a.lockedUntilUnix = now + cfg_.pinBloqueoS;
 }
 
 void SignalingServer::ipRecordSuccess(std::uint32_t ip) {

@@ -8,6 +8,22 @@ la placa de entradas sin uso (`entradas.placaReposo`).
 
 Prioridad: **alta** = se nota al aire o en la confiabilidad; media; baja.
 
+## Hecho (2026-10-11)
+
+Ya están en Configuración (clave entre paréntesis):
+
+- Grabación: colchón si el disco se traba (`record.colchon`), qué hacer si el disco no da abasto (`disco.prioridad`, antes solo en `disco.json` y por MCP), cuándo entra y sale de «apuros» (`disco.apuros`, `disco.recuperado`).
+- Transmisión: espera máxima entre reconexiones (`stream.reintentoMax`; el cálculo estaba copiado dos veces, ahora es uno).
+- Cámaras y entradas: placa «sin señal» (`entradas.sinSenal`), rearmar sin datos (`entradas.rearmarSinDatos`), espera máxima entre reintentos (`entradas.reintentoMax`).
+- Invitados: placa si un invitado no manda video (`gateway.sinVideoPlaca`).
+- Sala: PIN, intentos y bloqueo (`room.pinIntentos`, `room.pinBloqueo`); integrantes mirando a la vez y retorno a las pantallas (`room.vistasRemotas`, `gateway.programaW/H`, antes solo en `gateway.json`).
+- Asistente (MCP): cuánto espera una aprobación (`mcp.aprobacionMin`).
+- Modelos locales: contexto y capas en la GPU del chat sin internet (`modelo.contexto`, `modelo.capasGpu`).
+- Sistema y datos → Arranque y recuperación: colgado si no responde, gracia al arrancar, caídas antes del modo seguro y su ventana, reinicios sin preguntar (`launcher.*`, en `launcher.json`).
+- Guardar la configuración de la sala ya no borra de `gateway.json` lo que la interfaz no maneja.
+
+No se duplicaron en la página porque ya tienen su lugar en la interfaz: la retención de grabaciones y el aviso de disco (página Histórico), la espera de la interfaz trabada (tarjeta de salud) y el tope de latencia del estudio (panel de sincronía).
+
 ## Ya configurables, pero solo en un archivo (no en la página)
 
 - `app.json`: `estudio.topeMs` (latencia del estudio, 250 ms por defecto, `src/motor/Reloj.hpp:86`), `ui.previewWidth` (960), `statusEverySec`.

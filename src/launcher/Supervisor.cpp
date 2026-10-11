@@ -36,18 +36,16 @@ namespace {
 
 constexpr int kPollMs = 250;
 constexpr std::uint32_t kProcVersion = 1;
-constexpr std::uint64_t kCircuitWindowMs = 2 * 60 * 1000; // 2 min
-constexpr int kCircuitThreshold = 5;                      // >5 crashes
-// El dialogo de recuperacion BLOQUEA el reinicio hasta que alguien hace clic:
-// una caida aislada al aire se reinicia sola; recien con fallas repetidas en
-// la ventana del circuit breaker se le pregunta al operador.
-constexpr int kRecoveryUiAfter = 2; // fallas seguidas que se reinician sin preguntar
+// La ventana y el tope del circuit breaker, el cuelgue, la gracia de arranque y
+// cuántas fallas se reinician sin preguntar van en Config (launcher.json): ver
+// Supervisor::Config. El dialogo de recuperacion BLOQUEA el reinicio hasta que
+// alguien hace clic: una caida aislada al aire se reinicia sola; recien con
+// fallas repetidas en la ventana se le pregunta al operador.
 constexpr int kGracefulMs = 5000;   // espera tras el pedido de cierre
 constexpr int kTerminateMs = 3000;  // espera tras SIGTERM antes de matar
-// Gracia de arranque: un hijo recien lanzado todavia no late. Sin esto el
-// watchdog lo declaraba colgado en el mismo milisegundo y lo mataba. Un crash
-// durante el arranque se detecta igual (el proceso sale).
-constexpr std::uint64_t kStartupGraceMs = 20000;
+// Gracia de arranque (cfg_.graciaArranqueMs): un hijo recien lanzado todavia no
+// late. Sin esto el watchdog lo declaraba colgado en el mismo milisegundo y lo
+// mataba. Un crash durante el arranque se detecta igual (el proceso sale).
 // Si todavía no latió NUNCA, se lo espera más: el primer arranque después de
 // instalar o actualizar, macOS verifica la firma de cientos de binarios antes
 // de dejarlos correr (9 s solo para cargar, comprobado) y a los 20 s se lo
@@ -94,7 +92,7 @@ bool Supervisor::inStartupGrace(bool isA) const {
     const std::uint64_t at = launchedAtMs_[isA ? 1 : 0];
     if (at == 0) return false;
     const std::uint64_t pasado = nowMs() - at;
-    if (pasado < kStartupGraceMs) return true;
+    if (pasado < cfg_.graciaArranqueMs) return true;
     const bool latio =
         health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
     return !latio && pasado < kPrimerLatidoMs;
@@ -292,11 +290,11 @@ void Supervisor::restartChild(bool isA) {
     if (isA) {
         appCrashTimes_.push_back(nowMs());
         const std::uint64_t now = nowMs();
-        const std::uint64_t cutoff = now > kCircuitWindowMs ? now - kCircuitWindowMs : 0;
+        const std::uint64_t cutoff = now > cfg_.ventanaCaidasMs ? now - cfg_.ventanaCaidasMs : 0;
         appCrashTimes_.erase(std::remove_if(appCrashTimes_.begin(), appCrashTimes_.end(),
                                             [cutoff](std::uint64_t t) { return t < cutoff; }),
                              appCrashTimes_.end());
-        if (static_cast<int>(appCrashTimes_.size()) > kCircuitThreshold && !safeMode_) {
+        if (static_cast<int>(appCrashTimes_.size()) > cfg_.maxCaidas && !safeMode_) {
             safeMode_ = true; // circuit breaker (spec 3.1.8)
             BA_LOG_WARN("sup", 0, "circuit breaker: A entra en modo seguro");
         }
@@ -462,8 +460,8 @@ void Supervisor::watchdogLoop() {
         }
         const bool appDown = !app_.alive();
         const bool gwDown = !gateway_.alive();
-        const bool appHung = !appDown && !inStartupGrace(true) && health_.isStale(cfg_.slotA);
-        const bool gwHung = !gwDown && !inStartupGrace(false) && health_.isStale(cfg_.slotB);
+        const bool appHung = !appDown && !inStartupGrace(true) && health_.isStale(cfg_.slotA, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
+        const bool gwHung = !gwDown && !inStartupGrace(false) && health_.isStale(cfg_.slotB, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
 
         // A salio con codigo 0: cierre ordenado del operador, no es un fallo.
         if (appDown && app_.exitCode() == 0) {
@@ -475,12 +473,12 @@ void Supervisor::watchdogLoop() {
         if (appDown || appHung || gwDown || gwHung) {
             RecoveryAction action = RecoveryAction::Retry;
             const std::uint64_t failAt = nowMs();
-            if (failAt - lastFailureMs_ > kCircuitWindowMs) {
+            if (failAt - lastFailureMs_ > cfg_.ventanaCaidasMs) {
                 recentFailures_ = 0;
             }
             lastFailureMs_ = failAt;
             ++recentFailures_;
-            if (cfg_.recoveryUi && recentFailures_ > kRecoveryUiAfter) {
+            if (cfg_.recoveryUi && recentFailures_ > cfg_.reiniciosSinPreguntar) {
                 action = presentRecovery(appDown, appHung, gwDown, gwHung);
             }
             if (action == RecoveryAction::Exit) {

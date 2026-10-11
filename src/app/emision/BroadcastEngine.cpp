@@ -1266,7 +1266,7 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
     c.gopSeg = std::max(1, enc.keyintSec);
     c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     c.codificadores = videoEncoderCandidates(enc);
-    c.colchonSeg = 60; // lo que más importa: un minuto de disco trabado sin perder nada
+    c.colchonSeg = std::max(5, rec.colchonSeg); // lo que más importa: el disco trabado sin perder nada (Configuración → Grabación)
     auto g = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
     const motor::Fuentes f = fuentesDelPrograma(*motor_, pistas);
     const std::string e = g->iniciar(f);
@@ -1494,10 +1494,18 @@ bool mismoDisco(const std::string& a, const std::string& b) {
 }
 
 // Umbrales: entra en apuros con 3 s esperando al disco (o el registro trabado
-// 3 s escribiendo); sale con todo al día durante 30 s.
-constexpr double kAtrasoApurosS = 3.0, kAtrasoBienS = 0.5;
-constexpr std::int64_t kRegistroTrabadoMs = 3000, kBienDuranteMs = 30000;
+// 3 s escribiendo); sale con todo al día durante 30 s. Los dos primeros se
+// ajustan en Configuración → Grabación (ponerUmbralesDisco).
+std::atomic<double> kAtrasoApurosS{3.0};
+std::atomic<std::int64_t> kRegistroTrabadoMs{3000}, kBienDuranteMs{30000};
+constexpr double kAtrasoBienS = 0.5;
 } // namespace
+
+void BroadcastEngine::ponerUmbralesDisco(double apurosS, int recuperadoS) {
+    kAtrasoApurosS = std::clamp(apurosS, 0.5, 60.0);
+    kRegistroTrabadoMs = static_cast<std::int64_t>(kAtrasoApurosS.load() * 1000);
+    kBienDuranteMs = static_cast<std::int64_t>(std::clamp(recuperadoS, 5, 3600)) * 1000;
+}
 
 std::string BroadcastEngine::modoDisco() const {
     const int m = modoDisco_.load();

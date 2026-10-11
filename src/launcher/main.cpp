@@ -136,6 +136,16 @@ int runLauncher(const std::vector<std::string>& args) {
         if (in && j.is_object()) {
             cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);
             cfg.recoveryUi = j.value("recoveryUi", cfg.recoveryUi);
+            // Configuración → Sistema y datos → Arranque y recuperación (con topes sanos).
+            const auto entre = [&j](const char* k, double def, double lo, double hi) {
+                const auto& v = j.value(k, nlohmann::json());
+                return v.is_number() ? std::clamp(v.get<double>(), lo, hi) : def;
+            };
+            cfg.cuelgueMs = static_cast<std::uint64_t>(entre("cuelgueS", 5, 2, 120) * 1000);
+            cfg.graciaArranqueMs = static_cast<std::uint64_t>(entre("graciaArranqueS", 20, 5, 600) * 1000);
+            cfg.maxCaidas = static_cast<int>(entre("maxCaidas", 5, 1, 100));
+            cfg.ventanaCaidasMs = static_cast<std::uint64_t>(entre("ventanaCaidasMin", 2, 1, 120) * 60000);
+            cfg.reiniciosSinPreguntar = static_cast<int>(entre("reiniciosSinPreguntar", 2, 0, 100));
             for (const auto& a : j.value("appArgs", nlohmann::json::array())) {
                 if (a.is_string()) cfg.appArgs.push_back(a.get<std::string>());
             }

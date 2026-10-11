@@ -59,6 +59,13 @@ class Supervisor {
         // --shadow (o "shadowCopy": true en Config/launcher.json).
         bool shadowCopy = false;
         bool recoveryUi = true;  // dialogo ante fallos (false = reinicio automatico)
+        // Lo que se ajusta en Configuración → Sistema y datos (launcher.json); los
+        // valores de acá son los de siempre. Rigen al volver a abrir el launcher.
+        std::uint64_t cuelgueMs = 5000;          // latido quieto tanto tiempo = colgado (volcado y reinicio)
+        std::uint64_t graciaArranqueMs = 20000;  // recién lanzado: todavía no se vigila el latido
+        int maxCaidas = 5;                       // más caídas que esto en la ventana: modo seguro
+        std::uint64_t ventanaCaidasMs = 120000;  // la ventana del cortacircuito
+        int reiniciosSinPreguntar = 2;           // fallas seguidas que se reinician sin preguntar
         std::uint32_t slotA = 1; // slot de A en BA.Health
         std::uint32_t slotB = 0; // slot de B en BA.Health
     };

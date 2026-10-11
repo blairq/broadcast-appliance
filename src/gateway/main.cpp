@@ -566,6 +566,7 @@ int main(int argc, char** argv) {
     pumpCfg.programW = cfg.videoW;
     pumpCfg.programH = cfg.videoH;
     pumpCfg.programVideoW = cfg.programVideoW;
+    pumpCfg.sinVideoNs = static_cast<uint64_t>(cfg.sinVideoPlacaMs) * 1000000ULL;
     pumpCfg.programVideoH = cfg.programVideoH;
     pumpCfg.guestVideoW = cfg.guestVideoW;
     pumpCfg.guestVideoH = cfg.guestVideoH;
@@ -611,6 +612,8 @@ int main(int argc, char** argv) {
     sigCfg.webroot = cfg.webroot;
     sigCfg.room = cfg.room;
     sigCfg.maxGuests = cfg.guests;
+    sigCfg.pinIntentos = cfg.pinIntentos;
+    sigCfg.pinBloqueoS = cfg.pinBloqueoS;
     sigCfg.adminPort = cfg.adminPort;
     sigCfg.adminWebroot = cfg.adminWebroot;
     // Las caras propias de los botones (fotos y videos cortos): <datos>/Media/botonera.

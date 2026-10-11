@@ -180,6 +180,9 @@ struct RecordConfig {
     std::vector<int> pistas;
     /// Segunda copia simultánea en otro disco ("" = sin copia). Mismos codificadores.
     std::string copiaDir;
+    /// Segundos de grabación que se juntan en memoria si el disco se traba
+    /// (Configuración → Grabación: «Colchón si el disco se traba»).
+    int colchonSeg = 60;
 };
 
 /// Rutas del layout portable que el motor necesita (spec §5.1/§5.3).
@@ -546,6 +549,9 @@ class BroadcastEngine {
     // Cuando el disco anda bien de nuevo (30 s), todo sigue solo.
     /// "preguntar" (avisa y ofrece), "auto" (lo hace solo) o "nunca" (solo avisa).
     std::string modoDisco() const;
+    /// Configuración → Grabación: cuánto espera lo grabado para entrar al disco
+    /// hasta «apuros», y cuánto todo al día hasta salir.
+    static void ponerUmbralesDisco(double apurosS, int recuperadoS);
     std::string setModoDisco(const std::string& modo); ///< "" o el error (se guarda en Config/disco.json)
     /// Darle (o devolverle) el disco al programa ahora.
     void priorizarPrograma(bool si);

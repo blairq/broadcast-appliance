@@ -1403,7 +1403,7 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
                                // no repita la misma llamada en un bucle (pasaba con tool_search).
                                {"models", json::array({{{"id", "local"},
                                                         {"name", "Modelo local"},
-                                                        {"contextWindow", 32768},
+                                                        {"contextWindow", rt_.config().modeloContexto},
                                                         {"maxTokens", 4096},
                                                         {"samplingParams",
                                                          {{"temperature", 0.7}, {"top_p", 0.8}, {"top_k", 20},
@@ -1609,7 +1609,8 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
     // contexto: las fichas de sus herramientas ocupan ~10k; 32k entra en una placa
     // de 8 GB con el modelo de 4B (sus capas lineales casi no guardan contexto).
     servidor_->start(rutaServidorLocal(), {"-m", QDir::toNativeSeparators(gguf), "--host", "127.0.0.1", "--port",
-                                           QString::number(puertoServidor_), "--jinja", "-ngl", "999", "-c", "32768",
+                                           QString::number(puertoServidor_), "--jinja", "-ngl", QString::number(rt_.config().modeloCapasGpu), "-c",
+                                           QString::number(rt_.config().modeloContexto), // Configuración → Modelos locales
                                            "--alias", "local", "--no-webui",
                                            // Se entrenó para contestar sin razonar (su prompt cierra el
                                            // <think> vacío): razonando, se enrosca y no termina.

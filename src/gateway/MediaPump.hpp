@@ -82,6 +82,7 @@ class MediaPump {
         std::vector<std::wstring> remotoContenidoNames; // BA.RemotoContenido.<k>: lo que comparte (pantalla, otra cámara)
         int audioRate = 48000;
         int audioChannels = 2;
+        uint64_t sinVideoNs = 1000000000ULL; // invitado sin video tanto tiempo -> placa (Configuración → Invitados)
         int programW = 1280; // tamaño de los canales del programa (camara/pantalla)
         int programH = 720;
         int lobbyW = 640; // preview del lobby

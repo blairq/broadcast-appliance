@@ -2,7 +2,7 @@
 // src/app/arranque/OperateMode.cpp — ver OperateMode.hpp
 // ============================================================================
 
-#include "Entrada.hpp" // motor::ponerReposoPlaca
+#include "arranque/AjustesMotor.hpp"
 #include "evento/FotosConfig.hpp"
 #include "arranque/OperateMode.hpp"
 #include "arranque/RutasPortables.hpp"
@@ -451,7 +451,7 @@ int AppRuntime::start() {
         return 2;
     }
     marca("el motor");
-    ba::motor::ponerReposoPlaca(cfg_.placaReposoS); // Configuración: «Placa de entradas sin uso»
+    aplicarAjustesMotor(cfg_); // placa sin uso, entradas, transmisión, disco (Configuración)
     health_.beat(kHealthSlot);
     started_ = true;
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,

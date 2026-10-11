@@ -100,6 +100,8 @@ class ShareStore;
 class SignalingServer {
    public:
     struct Cfg {
+        int pinIntentos = 5;  // PIN mal tantas veces desde una IP: bloqueo (Configuración → Sala)
+        int pinBloqueoS = 60; // por cuánto
         uint16_t port = 8787;
         std::string bindAddress = "127.0.0.1"; // "0.0.0.0" = red local (eleccion explicita)
         std::string webroot;                   // Web/guest

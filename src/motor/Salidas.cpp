@@ -8,9 +8,23 @@
 #include "Reloj.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <filesystem>
 
 namespace ba::motor {
+
+namespace {
+std::atomic<int> g_reintentoTransmisionMaxS{10};
+/// 1, 2, 4, 8… s hasta el tope (Configuración → Transmisión). Un solo lugar: estaba copiado dos veces.
+std::int64_t esperaReconexionNs(int intentos) {
+    const int tope = g_reintentoTransmisionMaxS.load();
+    int s = 1;
+    for (int i = 1; i < intentos && s < tope; ++i) s *= 2;
+    return static_cast<std::int64_t>(std::min(s, tope)) * static_cast<std::int64_t>(GST_SECOND);
+}
+} // namespace
+
+void ponerReintentoTransmision(int maxS) { g_reintentoTransmisionMaxS = std::clamp(maxS, 1, 300); }
 
 using json = nlohmann::json;
 
@@ -715,8 +729,7 @@ void Transmision::tic() {
         error_ = armar();
         if (!error_.empty()) {
             ++intentos_;
-            static const int kEsperas[] = {1, 2, 4, 8, 10};
-            reintentoNs_ = ahora + static_cast<std::int64_t>(kEsperas[std::min(intentos_ - 1, 4)]) * static_cast<std::int64_t>(GST_SECOND);
+            reintentoNs_ = ahora + esperaReconexionNs(intentos_);
         }
         return;
     }
@@ -751,8 +764,7 @@ void Transmision::tic() {
         registrar(Nivel::Aviso, "transmisión: " + error_ + " (se reconecta)");
         desarmar();
         ++intentos_;
-        static const int kEsperas[] = {1, 2, 4, 8, 10};
-        reintentoNs_ = ahora + static_cast<std::int64_t>(kEsperas[std::min(intentos_ - 1, 4)]) * static_cast<std::int64_t>(GST_SECOND);
+        reintentoNs_ = ahora + esperaReconexionNs(intentos_);
     }
 }
 
