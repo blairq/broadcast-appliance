@@ -43,7 +43,9 @@ int main() {
                 ++lecturas;
             }
         });
-    for (int i = 0; i < 2000; ++i) aj::cargar({{"k", i % 1000}});
+    // Recarga al menos 2000 veces y hasta que los hilos hayan leído: en una
+    // máquina lenta (x86 emulado) los hilos pueden no haber arrancado todavía.
+    for (int i = 0; i < 2000 || (lecturas < 1000 && i < 50000000); ++i) aj::cargar({{"k", i % 1000}});
     seguir = false;
     for (auto& t : hilos) t.join();
     check(lecturas > 0, "lecturas desde varios hilos mientras se recarga");

@@ -142,8 +142,12 @@ int main(int argc, char** argv) {
             segundoVioAlPrimero = primeroTermino.load();
             return "";
         };
-        d.pedir(b); // primero en la cola, pero espera a «lab»
+        // Como en SuperRes: primero «lab», después lo que lo espera. Al revés, un
+        // obrero libre podía tomar «b» antes de que «lab» existiera en la cola
+        // (pasaba en Linux) y el timer de «lab» quedaba escribiendo variables
+        // de este bloque ya terminado.
         d.pedir(a);
+        d.pedir(b); // hay otro obrero libre, pero espera a «lab»
         check(esperar([&] { return estadoDe("plugin-que-usa-lab") == "listo"; }, 5000) && segundoVioAlPrimero,
               "despuesDe: espera a que termine el otro");
         check(estadoDe("lab") == "listo", "enLaInterfaz: termina cuando avisa la interfaz");
