@@ -66,6 +66,27 @@ static bool esperar(BaVideoAnillo* v, int ms) {
     return !v->parar.load();
 }
 
+static GstCaps* capsDe(int w, int h) {
+    return gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w, "height",
+                               G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1,
+                               // sin el píxel cuadrado, d3d12upload fija 1/2147483647 y no negocia
+                               "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
+}
+
+// La negociación de basesrc de fábrica fija el template ([1, MAX]) en 1x1 antes
+// del primer cuadro, y vuelve a hacerlo cada vez que abajo piden renegociar (los
+// elementos D3D12 de Windows lo piden al cambiar de caps): el invitado quedaba
+// en 1x1, negro. Acá: sin cuadro todavía, nada (las fija crear con el tamaño del
+// canal); después, siempre el tamaño del canal.
+static gboolean negociar(GstBaseSrc* bs) {
+    auto* v = BA_VIDEO_ANILLO(bs);
+    if (v->ancho <= 0 || v->alto <= 0) return TRUE;
+    GstCaps* caps = capsDe(v->ancho, v->alto);
+    const gboolean ok = gst_base_src_set_caps(bs, caps);
+    gst_caps_unref(caps);
+    return ok;
+}
+
 static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
     auto* v = BA_VIDEO_ANILLO(ps);
     for (;;) {
@@ -100,10 +121,7 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             continue;
         }
         if (w != v->ancho || h != v->alto) {
-            GstCaps* caps = gst_caps_new_simple("video/x-raw", "format", G_TYPE_STRING, "BGRA", "width", G_TYPE_INT, w,
-                                                "height", G_TYPE_INT, h, "framerate", GST_TYPE_FRACTION, 0, 1,
-                                                // sin el píxel cuadrado, d3d12upload fija 1/2147483647 y no negocia
-                                                "pixel-aspect-ratio", GST_TYPE_FRACTION, 1, 1, nullptr);
+            GstCaps* caps = capsDe(w, h);
             const bool ok = gst_base_src_set_caps(GST_BASE_SRC(v), caps);
             gst_caps_unref(caps);
             if (!ok) return GST_FLOW_NOT_NEGOTIATED;
@@ -204,6 +222,7 @@ static void ba_video_anillo_class_init(BaVideoAnilloClass* k) {
     bs->unlock_stop = desbloquearFin;
     bs->stop = alParar;
     bs->query = consultar;
+    bs->negotiate = negociar;
     GST_PUSH_SRC_CLASS(k)->create = crear;
 }
 
