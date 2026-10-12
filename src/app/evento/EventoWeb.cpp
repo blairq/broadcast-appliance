@@ -63,155 +63,145 @@ std::string leerArchivo(const fs::path& p) {
     return o.str();
 }
 
-std::string mmss(int seg) {
-    if (seg <= 0) return "";
-    const int m = (seg + 59) / 60;
-    return m >= 60 ? std::to_string(m / 60) + " h " + (m % 60 ? std::to_string(m % 60) + " min" : std::string())
-                   : std::to_string(m) + " min";
-}
 
 // --- Plantillas -----------------------------------------------------------------
 // Sin nada de afuera (ni fuentes ni scripts de internet): el sitio anda aunque la
 // sala no tenga salida a internet y no le avisa a nadie quién lo mira.
 
-const char* kEstilo = R"css(/* El estilo del sitio del evento. Cambialo a gusto: es tuyo (Web/estilo.css). */
+const char* kEstilo = R"css(/* Lo propio de este evento, encima del estilo del sitio (/evento/_/sitio.css).
+   Es tuyo: cambiá el acento, el fondo, las tipografías o lo que quieras pisar. */
 :root {
-  --color: {{color}};
-  --fondo: {{fondo}};
-  --texto: #f3f4f6;
-  --tenue: #9aa0aa;
-  --tarjeta: rgba(255, 255, 255, 0.05);
-  --borde: rgba(255, 255, 255, 0.10);
+  --accent: {{color}};
+  --bg: {{fondo}};
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; }
-body { background: var(--fondo); color: var(--texto);
-  font-family: -apple-system, "SF Pro Display", "Segoe UI", Roboto, "Noto Sans", sans-serif; line-height: 1.5; }
-main { max-width: 860px; margin: 0 auto; padding: 48px 20px 64px; }
-.etiqueta { color: var(--color); font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; font-size: 13px; margin: 0 0 8px; }
-h1 { font-size: clamp(30px, 6vw, 52px); line-height: 1.1; margin: 0 0 14px; }
-h2 { font-size: 18px; margin: 36px 0 12px; color: var(--tenue); text-transform: uppercase; letter-spacing: 1px; }
-.bajada { font-size: 19px; color: var(--tenue); margin: 0 0 24px; }
-.tarjeta { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 16px; padding: 18px 20px; margin: 16px 0; }
-.cuando { font-size: 18px; }
-.cuenta { font-size: 34px; font-weight: 800; color: var(--color); font-variant-numeric: tabular-nums; }
-.agenda { list-style: none; padding: 0; margin: 0; counter-reset: s; }
-.agenda li { counter-increment: s; display: flex; gap: 14px; align-items: baseline; padding: 12px 14px; border-radius: 12px; }
-.agenda li::before { content: counter(s); min-width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center;
-  font-size: 13px; font-weight: 700; background: var(--borde); }
-.agenda li .dur { margin-left: auto; color: var(--tenue); font-size: 14px; white-space: nowrap; }
-.agenda li a { color: inherit; text-decoration: none; }
-.agenda li a:hover { color: var(--color); text-decoration: underline; }
-.agenda li.hecha { opacity: 0.5; }
-a { color: var(--color); }
-.pasos { display: flex; gap: 10px; justify-content: space-between; margin: 32px 0 0; flex-wrap: wrap; }
-.pasos a { padding: 10px 16px; border-radius: 12px; background: var(--tarjeta); border: 1px solid var(--borde);
-  color: var(--texto); text-decoration: none; }
-.pasos a:hover { border-color: var(--color); }
-nav.arriba { display: flex; gap: 16px; font-size: 14px; margin-bottom: 24px; }
-nav.arriba a { color: var(--tenue); text-decoration: none; }
-nav.arriba a:hover { color: var(--color); }
-.agenda li.actual { background: var(--tarjeta); outline: 2px solid var(--color); }
-.agenda li.actual::before { background: var(--color); color: #fff; }
-.progreso { height: 8px; border-radius: 4px; background: var(--borde); overflow: hidden; }
-.progreso > div { height: 100%; width: 0; background: var(--color); transition: width 0.6s ease; }
-.vivo { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; }
-.vivo::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--tenue); }
-.vivo.en_vivo::before { background: #ff3b30; box-shadow: 0 0 10px #ff3b30; animation: latido 1.2s infinite; }
-@keyframes latido { 50% { opacity: 0.35; } }
-.reproductor { position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #000; margin: 12px 0; }
-.reproductor iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
-.plataformas { display: flex; gap: 10px; flex-wrap: wrap; }
-.plataforma { padding: 10px 16px; border-radius: 12px; font-weight: 700; text-decoration: none; color: #fff; }
-.plataforma.youtube { background: #ff0000; }
-.plataforma.twitch { background: #9146ff; }
-.plataforma.facebook { background: #1877f2; }
-footer { margin-top: 48px; color: var(--tenue); font-size: 13px; }
-@media (prefers-reduced-motion: reduce) { .vivo.en_vivo::before { animation: none; } }
 )css";
 
-// Lo de arriba de cada página. vivo.js (lo sirve la sala) completa lo que lleva
-// data-vivo y marca la agenda; sin él la página se ve igual, con lo que dice acá.
-const char* kCabeza = R"html(<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{titulo}}</title>
-  <link rel="stylesheet" href="estilo.css" />
-  <!-- El estado en vivo (en qué sección va, si está al aire): /evento/_/vivo.js lo
-       pone en los elementos con data-vivo="…" y avisa con el evento «evento» de
-       window (detail = el estado). Ver la ayuda al final de esta página. -->
-  <script src="/evento/_/vivo.js" defer></script>
-</head>
-<body>
-)html";
-
+// Lo que va al final de cada página: la ayuda para el que la edita (el asistente o
+// una persona). No se ve en el navegador.
 const char* kAyuda = R"html(
-<!--
-  ESTA PÁGINA ES TUYA: cambiá el texto, agregá imágenes (ponelas en la carpeta Web/
-  del evento y usalas como <img src="foto.jpg">), videos, links, lo que quieras.
-  Se muestra mientras se trata esta sección y cambia sola a la siguiente.
+  <!--
+    ESTA PÁGINA ES TUYA. Cambiá el texto, agregá imágenes (ponelas en la carpeta Web/ del
+    evento y usalas como <img src="foto.jpg" alt="…" loading="lazy">), videos, links.
+    El estilo base es /evento/_/sitio.css (clases: contenedor, seccion, ceja, h1, h2, bajada,
+    boton primario/secundario, tarjeta, columnas, programa, numeros, faq, franja, cuenta…);
+    lo propio del evento va en estilo.css.
 
-  Datos en vivo (los completa vivo.js):
-    data-vivo="estado"       En vivo / Próximamente / En pausa / Terminó
-    data-vivo="seccion"      la sección que se está tratando
-    data-vivo="siguiente"    la que sigue
-    data-vivo="cuenta"       cuánto falta para empezar (en la portada)
-    data-vivo="transcurrido" cuánto lleva el evento
-    data-vivo="agenda"       una <ol> con todas las secciones (marca la actual y
-                             se rehace sola si cambia el guion)
-    data-vivo="programa"     se esconde mientras el guion no tiene secciones
-    data-vivo="vivos"        botones «Ver en YouTube / Twitch / Facebook» (los que haya)
-    data-vivo="reproductor"  el vivo embebido; data-plataforma="youtube" para elegir cuál
-    data-vivo="donde"        se esconde si no hay dónde verlo
+    Datos en vivo (los completa /evento/_/vivo.js):
+      data-vivo="estado" | seccion | siguiente | cuenta | cuenta-bloques | transcurrido
+      data-vivo="agenda"       una <ol class="programa"> con <li data-seccion="id">
+      data-vivo="reproductor"  el vivo embebido con pestañas YouTube / Twitch / Facebook
+                               (data-plataforma="youtube|twitch|facebook" elige cuál va primero)
+      data-vivo="vivos"        botones «Ver en YouTube / Twitch / Facebook»
+      data-vivo="donde" | programa   se esconden si no hay vivos / secciones
+      data-vivo="progreso" (ancho de una barra) | progreso-texto
+    Componentes: data-acordeon (preguntas con aria-expanded), data-menu (menú del celular).
 
-  Un YouTube embebido fijo, sin la API (cambiá ID_DEL_VIDEO por el del vivo):
-    <div class="reproductor"><iframe src="https://www.youtube.com/embed/ID_DEL_VIDEO?autoplay=1&mute=1"
-      allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
-  Dónde verlo, en JSON: GET /api/evento/vivos → {vivos: [{plataforma, nombre, url, embed, enVivo}]}
+    Un YouTube embebido fijo, sin la API (cambiá ID_DEL_VIDEO):
+      <div class="reproductor"><iframe src="https://www.youtube.com/embed/ID_DEL_VIDEO?autoplay=1&mute=1"
+        allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+    Twitch: https://player.twitch.tv/?channel=CANAL&parent=EL_HOST_DE_ESTA_PAGINA
+    Facebook: https://www.facebook.com/plugins/video.php?href=URL_DEL_VIVO_CODIFICADA
 
-  La API del evento, para dibujar lo que quieras en vivo (docs/funciones/EVENTO-WEB.md):
-    BAEvento.on((e) => { … })  te llama con el estado al cargar y cada vez que cambia
-    BAEvento.estado()          el último estado      BAEvento.ahora()  la hora de la sala
-    GET /api/evento            el mismo estado en JSON (para fetch)
-  El estado: { nombre, bajada, fecha, inicio, huso, inicioMs, arrancoMs, estado
-  (proximo|en_vivo|pausa|terminado), seccion {id, nombre, pagina, inicioPrevistoMs},
-  siguiente, secciones [{id, nombre, duracionSeg, pagina, inicioPrevistoMs, estado
-  (hecha|actual|pendiente)}], vivos [{plataforma, nombre, url, embed, enVivo}], pagina, color }
--->
+    La API: BAEvento.on((e) => { … }) te llama con el estado al cargar y cada vez que cambia;
+    BAEvento.estado(), BAEvento.ahora(), BAEvento.hora(ms). En JSON: GET /api/evento y
+    GET /api/evento/vivos. El estado: { nombre, bajada, fecha, inicio, huso, inicioMs, arrancoMs,
+    estado (proximo|en_vivo|pausa|terminado), seccion, siguiente, secciones [{id, nombre,
+    duracionSeg, pagina, inicioPrevistoMs, estado (hecha|actual|pendiente)}], vivos [{plataforma,
+    nombre, url, embed, enVivo}], pagina, color }. Es público: nada privado acá.
+  -->
 </body>
 </html>
 )html";
 
+const char* kMeses[] = {"ENE", "FEB", "MAR", "ABR", "MAY", "JUN", "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"};
+const char* kMesesLargos[] = {"enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
+                              "agosto", "septiembre", "octubre", "noviembre", "diciembre"};
+const char* kDias[] = {"DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"};
+const char* kDiasLargos[] = {"domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"};
+
+struct Fecha {
+    int anio = 0, mes = 0, dia = 0, diaSemana = -1;
+    bool valida() const { return mes >= 1 && mes <= 12 && dia >= 1; }
+};
+Fecha fechaDe(const std::string& f) {
+    Fecha r;
+    if (f.size() != 10) return r;
+    try {
+        r.anio = std::stoi(f.substr(0, 4));
+        r.mes = std::stoi(f.substr(5, 2));
+        r.dia = std::stoi(f.substr(8, 2));
+    } catch (...) {
+        return {};
+    }
+    // Sakamoto: el día de la semana (0 = domingo).
+    static const int t[] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+    int y = r.anio - (r.mes < 3 ? 1 : 0);
+    r.diaSemana = (y + y / 4 - y / 100 + y / 400 + t[r.mes - 1] + r.dia) % 7;
+    return r;
+}
+
+int minutosDe(const std::string& hhmm) {
+    if (hhmm.size() < 4) return -1;
+    try {
+        const auto p = hhmm.find(':');
+        if (p == std::string::npos) return -1;
+        return std::stoi(hhmm.substr(0, p)) * 60 + std::stoi(hhmm.substr(p + 1));
+    } catch (...) {
+        return -1;
+    }
+}
+std::string hhmm(int min) {
+    min = ((min % 1440) + 1440) % 1440;
+    char b[8];
+    std::snprintf(b, sizeof b, "%02d:%02d", min / 60, min % 60);
+    return b;
+}
+std::string dos(std::size_t n) {
+    char b[8];
+    std::snprintf(b, sizeof b, "%02zu", n);
+    return b;
+}
+std::string duracionTexto(int seg) {
+    if (seg <= 0) return "";
+    const int m = (seg + 59) / 60;
+    return m >= 60 ? std::to_string(m / 60) + " h" + (m % 60 ? " " + std::to_string(m % 60) + " min" : std::string())
+                   : std::to_string(m) + " min";
+}
+std::string nombreDe(const Bloque& b, std::size_t i) { return b.nombre.empty() ? "Sección " + std::to_string(i + 1) : b.nombre; }
+/// «America/Argentina/Buenos_Aires» → «Buenos Aires».
+std::string husoCorto(const std::string& h) {
+    std::string c = h.substr(h.rfind('/') == std::string::npos ? 0 : h.rfind('/') + 1);
+    for (char& ch : c) if (ch == '_') ch = ' ';
+    return c;
+}
+
+/// El programa: una <ol class="programa"> con la hora prevista de cada sección.
 std::string agendaHtml(const Evento& e) {
     std::ostringstream o;
-    o << "    <ol class=\"agenda\" data-vivo=\"agenda\">\n";
+    o << "        <ol class=\"programa\" data-vivo=\"agenda\">\n";
+    int t = minutosDe(e.inicio);
     for (std::size_t i = 0; i < e.bloques.size(); ++i) {
         const Bloque& b = e.bloques[i];
-        o << "      <li data-seccion=\"" << escapar(b.id.empty() ? std::to_string(i) : b.id) << "\"><a href=\""
-          << paginaDeBloque(b, i) << "\">" << escapar(b.nombre.empty() ? "Sección " + std::to_string(i + 1) : b.nombre)
-          << "</a>";
-        const std::string d = mmss(b.duracionSeg());
-        if (!d.empty()) o << "<span class=\"dur\">" << d << "</span>";
-        o << "</li>\n";
+        std::string meta;
+        if (t >= 0) meta = hhmm(t);
+        const std::string d = duracionTexto(b.duracionSeg());
+        if (!d.empty()) meta += (meta.empty() ? "" : " · ") + d;
+        o << "          <li data-seccion=\"" << escapar(b.id.empty() ? std::to_string(i) : b.id) << "\"><a href=\""
+          << paginaDeBloque(b, i) << "\"><span class=\"nombre\">" << escapar(nombreDe(b, i)) << "</span><span class=\"meta\">"
+          << escapar(meta) << "</span></a></li>\n";
+        if (t >= 0) t += (b.duracionSeg() + 59) / 60;
     }
-    o << "    </ol>\n";
+    o << "        </ol>\n";
     return o.str();
 }
 
 std::string cuandoTexto(const Evento& e) {
+    const Fecha f = fechaDe(e.fecha);
     std::string t;
-    if (!e.fecha.empty()) {
-        // «2026-10-15» → «15/10/2026»
-        if (e.fecha.size() == 10) t = e.fecha.substr(8, 2) + "/" + e.fecha.substr(5, 2) + "/" + e.fecha.substr(0, 4);
-        else t = e.fecha;
-    }
-    if (!e.inicio.empty()) t += (t.empty() ? "" : " · ") + e.inicio + " h";
-    if (!e.huso.empty()) t += " (" + e.huso + ")";
+    if (f.valida()) t = std::string(kDias[f.diaSemana]) + " " + std::to_string(f.dia) + " " + kMeses[f.mes - 1];
+    if (!e.inicio.empty()) t += (t.empty() ? "" : " · ") + e.inicio;
     return t;
 }
-
 } // namespace
 
 // --- sitio.json -----------------------------------------------------------------
@@ -318,92 +308,288 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
     };
     poner("estilo.css", kEstilo);
 
+    // --- Lo común ----------------------------------------------------------------------
+    const Fecha f = fechaDe(e.fecha);
     const std::string cuando = cuandoTexto(e);
-    const std::string bajada = s.bajada.empty() ? std::string() : "    <p class=\"bajada\">" + escapar(s.bajada) + "</p>\n";
-    const auto cabeza = [&](const std::string& t) {
-        std::string c = kCabeza;
-        reemplazar(c, "{{titulo}}", escapar(t));
-        return c;
+    const std::string husoTxt = e.huso.empty() ? std::string() : husoCorto(e.huso);
+    const std::size_t nSec = e.bloques.size();
+    int totalSeg = 0;
+    for (const Bloque& b : e.bloques) totalSeg += b.duracionSeg();
+    const std::string resumen = (nSec ? std::to_string(nSec) + (nSec == 1 ? " sección" : " secciones") : std::string("El programa se arma"))
+                                + (totalSeg ? " · " + duracionTexto(totalSeg) : std::string()) + " · en vivo por internet.";
+    const std::string bajada = s.bajada.empty() ? resumen : s.bajada;
+    // La palabra de fondo del hero: la primera palabra del título (o dos, si es corta).
+    std::string marca = titulo.substr(0, titulo.find(' '));
+    if (marca.size() < 5 && titulo.find(' ') != std::string::npos) {
+        const auto p2 = titulo.find(' ', titulo.find(' ') + 1);
+        marca = titulo.substr(0, p2);
+    }
+    const std::string primera = nSec ? paginaDeBloque(e.bloques[0], 0) : std::string("portada.html");
+
+    const auto cabeza = [&](const std::string& t, const std::string& desc) {
+        std::ostringstream o;
+        o << "<!doctype html>\n<html lang=\"es\">\n<head>\n"
+          << "  <meta charset=\"utf-8\" />\n"
+          << "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n"
+          << "  <title>" << escapar(t) << "</title>\n"
+          << "  <meta name=\"description\" content=\"" << escapar(desc) << "\" />\n"
+          << "  <meta name=\"theme-color\" content=\"#0b0b0c\" />\n"
+          << "  <meta property=\"og:type\" content=\"website\" />\n"
+          << "  <meta property=\"og:title\" content=\"" << escapar(t) << "\" />\n"
+          << "  <meta property=\"og:description\" content=\"" << escapar(desc) << "\" />\n"
+          << "  <!-- El estilo del sitio (lo trae la sala) y lo propio de este evento (estilo.css). -->\n"
+          << "  <link rel=\"stylesheet\" href=\"/evento/_/sitio.css\" />\n"
+          << "  <link rel=\"stylesheet\" href=\"estilo.css\" />\n"
+          << "  <script src=\"/evento/_/vivo.js\" defer></script>\n";
+        // Datos estructurados (schema.org Event): los buscadores entienden qué y cuándo.
+        json ld{{"@context", "https://schema.org"}, {"@type", "Event"}, {"name", titulo}, {"description", desc},
+                {"eventAttendanceMode", "https://schema.org/OnlineEventAttendanceMode"},
+                {"eventStatus", "https://schema.org/EventScheduled"},
+                {"location", {{"@type", "VirtualLocation"}, {"url", "/"}}}};
+        if (f.valida()) ld["startDate"] = e.fecha + (e.inicio.empty() ? std::string() : "T" + e.inicio);
+        std::string ldTxt = ld.dump(-1, ' ', false, json::error_handler_t::replace);
+        reemplazar(ldTxt, "</", "<\\/");
+        o << "  <script type=\"application/ld+json\">" << ldTxt << "</script>\n"
+          << "</head>\n<body>\n  <a class=\"saltar\" href=\"#contenido\">Saltar al contenido</a>\n";
+        return o.str();
+    };
+    // La barra de arriba. `base`: «» en la portada (anclas locales) o «portada.html».
+    const auto nav = [&](const std::string& base) {
+        std::ostringstream o;
+        o << "  <header class=\"nav\">\n    <div class=\"contenedor\">\n"
+          << "      <a class=\"marca\" href=\"portada.html\">" << escapar(titulo) << "</a>\n"
+          << "      <nav class=\"nav-links\" aria-label=\"Secciones del sitio\">\n"
+          << "        <a href=\"" << base << "#vivo\">En vivo</a>\n"
+          << "        <a href=\"" << base << "#programa\">Programa</a>\n"
+          << "        <a href=\"" << base << "#como\">Cómo seguirlo</a>\n"
+          << "        <a href=\"" << base << "#preguntas\">Preguntas</a>\n"
+          << "      </nav>\n"
+          << "      <div class=\"nav-acciones\">\n"
+          << "        <span class=\"estado\" data-vivo=\"estado\">Próximamente</span>\n"
+          << "        <a class=\"boton primario chico\" href=\"" << base << "#vivo\">Ver en vivo</a>\n"
+          << "        <button class=\"hamburguesa\" type=\"button\" data-menu aria-controls=\"menu-movil\" aria-expanded=\"false\""
+             " aria-label=\"Abrir el menú\"><span></span></button>\n"
+          << "      </div>\n    </div>\n  </header>\n"
+          << "  <nav class=\"menu-movil\" id=\"menu-movil\" hidden aria-label=\"Menú\">\n"
+          << "    <a href=\"" << base << "#vivo\">En vivo</a>\n    <a href=\"" << base << "#programa\">Programa</a>\n"
+          << "    <a href=\"" << base << "#como\">Cómo seguirlo</a>\n    <a href=\"" << base << "#preguntas\">Preguntas</a>\n"
+          << "    <a href=\"/invitados/\">Entrar a la sala</a>\n  </nav>\n";
+        return o.str();
+    };
+    // El reproductor: pestañas YouTube / Twitch / Facebook y los botones de cada una.
+    const auto reproductor = [&](const std::string& vacio) {
+        std::ostringstream o;
+        o << "        <div class=\"reproductor-caja\">\n"
+          << "          <div data-vivo=\"reproductor\" data-plataforma=\"youtube\" data-vacio=\"" << escapar(vacio) << "\"></div>\n"
+          << "          <nav class=\"plataformas\" data-vivo=\"vivos\" aria-label=\"Verlo en cada plataforma\"></nav>\n"
+          << "        </div>\n";
+        return o.str();
+    };
+    const auto pie = [&]() {
+        std::ostringstream o;
+        o << "  <footer class=\"pie\">\n    <div class=\"contenedor\">\n      <div class=\"pie-grilla\">\n"
+          << "        <div>\n          <p class=\"h3\" style=\"margin:0 0 10px\">" << escapar(titulo) << "</p>\n"
+          << "          <p>" << escapar(cuando.empty() ? std::string("En vivo por internet.") : cuando + (husoTxt.empty() ? "" : " (hora de " + husoTxt + ")"))
+          << "</p>\n          <p>Esta página se actualiza sola mientras el evento pasa.</p>\n        </div>\n"
+          << "        <div>\n          <h4>El evento</h4>\n          <ul>\n"
+          << "            <li><a href=\"portada.html#vivo\">En vivo</a></li>\n"
+          << "            <li><a href=\"portada.html#programa\">Programa</a></li>\n"
+          << "            <li><a href=\"portada.html#preguntas\">Preguntas</a></li>\n"
+          << "            <li><a href=\"cierre.html\">Cierre</a></li>\n          </ul>\n        </div>\n"
+          << "        <div>\n          <h4>Secciones</h4>\n          <ul>\n";
+        for (std::size_t i = 0; i < nSec && i < 6; ++i)
+            o << "            <li><a href=\"" << paginaDeBloque(e.bloques[i], i) << "\">" << dos(i + 1) << " · "
+              << escapar(nombreDe(e.bloques[i], i)) << "</a></li>\n";
+        o << "          </ul>\n        </div>\n"
+          << "        <div>\n          <h4>Participar</h4>\n          <ul>\n"
+          << "            <li><a href=\"/invitados/\">Entrar a la sala</a></li>\n"
+          << "            <li><a href=\"portada.html#como\">Cómo seguirlo</a></li>\n          </ul>\n        </div>\n"
+          << "      </div>\n      <div class=\"pie-final\">\n"
+          << "        <span>" << escapar(titulo) << (f.valida() ? " · " + std::to_string(f.anio) : std::string()) << "</span>\n"
+          << "        <span>En vivo. Sin vueltas.</span>\n      </div>\n    </div>\n  </footer>\n";
+        return o.str();
+    };
+    const auto programa = [&](const std::string& numero, const std::string& h2) {
+        std::ostringstream o;
+        o << "    <section class=\"seccion\" id=\"programa\" data-vivo=\"programa\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">" << numero << " / Programa</p>\n"
+          << "          <h2 class=\"h2\">" << h2 << "</h2>\n"
+          << "          <p class=\"bajada\">" << escapar(resumen) << " Tocá una sección para ver de qué se trata.</p>\n"
+          << "        </div>\n" << agendaHtml(e) << "      </div>\n    </section>\n";
+        return o.str();
     };
 
-    // Portada.
+    // --- Portada -------------------------------------------------------------------------
     {
         std::ostringstream o;
-        o << cabeza(titulo) << "  <main>\n"
-          << "    <p class=\"etiqueta\"><span class=\"vivo\" data-vivo=\"estado\">Próximamente</span></p>\n"
-          << "    <h1>" << escapar(titulo) << "</h1>\n"
-          << bajada;
-        if (!cuando.empty()) o << "    <div class=\"tarjeta\"><div class=\"cuando\">" << escapar(cuando) << "</div>\n"
-                               << "      <div class=\"cuenta\" data-vivo=\"cuenta\"></div></div>\n";
-        o     << "    <section class=\"en-vivo\" data-vivo=\"donde\">\n"
-          << "      <h2>Miralo en vivo</h2>\n"
-          << "      <!-- El reproductor del vivo (YouTube primero) y los botones de cada plataforma: los completa vivo.js. -->\n"
-          << "      <div class=\"reproductor\" data-vivo=\"reproductor\" data-plataforma=\"youtube\"></div>\n"
-          << "      <nav class=\"plataformas\" data-vivo=\"vivos\"></nav>\n"
-          << "    </section>\n";
-        o << "    <section data-vivo=\"programa\">\n    <h2>Programa</h2>\n" << agendaHtml(e) << "    </section>\n";
-        o << "    <div class=\"tarjeta\"><p>¿Te invitaron a participar? <a href=\"/invitados/\">Entrá a la sala</a>.</p></div>\n"
-          << "    <footer>Esta página se actualiza sola cuando empieza el evento.</footer>\n  </main>\n" << kAyuda;
+        o << cabeza(titulo, bajada) << nav("") << "  <main id=\"contenido\">\n"
+          // 1. Hero
+          << "    <section class=\"hero\">\n      <div class=\"hero-marca\" aria-hidden=\"true\">" << escapar(marca) << "</div>\n"
+          << "      <div class=\"contenedor\">\n"
+          << "        <p class=\"ceja\">" << (cuando.empty() ? std::string("En vivo") : escapar(cuando))
+          << (husoTxt.empty() ? std::string() : " · " + escapar(husoTxt)) << " · <span data-vivo=\"estado\">Próximamente</span></p>\n"
+          << "        <h1 class=\"h1\">" << escapar(titulo) << "</h1>\n"
+          << "        <p class=\"bajada\">" << escapar(bajada) << "</p>\n"
+          << "        <div class=\"hero-acciones\">\n"
+          << "          <a class=\"boton primario\" href=\"#vivo\">Ver en vivo</a>\n"
+          << "          <a class=\"boton secundario\" href=\"#programa\">Ver el programa</a>\n        </div>\n"
+          << "        <p class=\"micro\">En vivo por internet · Sin registrarse"
+          << (husoTxt.empty() ? std::string() : " · Hora de " + escapar(husoTxt)) << "</p>\n"
+          << "      </div>\n    </section>\n";
+        // 2. Cuenta regresiva
+        o << "    <div class=\"contenedor\">\n      <div class=\"franja\">\n";
+        if (f.valida())
+            o << "        <div style=\"display:flex;gap:16px;align-items:center\">\n"
+              << "          <div class=\"fecha-bloque\"><div class=\"mes\">" << kMeses[f.mes - 1] << "</div><div class=\"dia\">"
+              << f.dia << "</div></div>\n"
+              << "          <div><p class=\"ceja\" style=\"margin:0 0 4px\">Empieza</p><b>" << kDiasLargos[f.diaSemana] << " "
+              << f.dia << " de " << kMesesLargos[f.mes - 1] << (e.inicio.empty() ? std::string() : ", " + e.inicio + " h") << "</b></div>\n"
+              << "        </div>\n";
+        else
+            o << "        <div><p class=\"ceja\" style=\"margin:0 0 4px\">Estado</p><b data-vivo=\"estado\">Próximamente</b></div>\n";
+        o << "        <div class=\"cuenta\" data-vivo=\"cuenta-bloques\" aria-label=\"Cuenta regresiva\"></div>\n"
+          << "      </div>\n    </div>\n";
+        // 3. Marquesina con las secciones (la lista va dos veces: la animación corre la mitad).
+        if (nSec) {
+            o << "    <div class=\"marquesina\" aria-hidden=\"true\" style=\"margin-top:64px\"><div class=\"marquesina-pista\">";
+            for (int vuelta = 0; vuelta < 2; ++vuelta)
+                for (std::size_t r = 0; r < std::max<std::size_t>(1, 6 / nSec + 1); ++r)
+                    for (std::size_t i = 0; i < nSec; ++i) o << "<span>" << escapar(nombreDe(e.bloques[i], i)) << "</span>";
+            o << "</div></div>\n";
+        }
+        // 4. En vivo
+        o << "    <section class=\"seccion\" id=\"vivo\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">01 / En vivo</p>\n"
+          << "          <h2 class=\"h2\">Seguilo acá. Sin vueltas.</h2>\n"
+          << "          <p class=\"bajada\">Elegí la plataforma: YouTube, Twitch o Facebook. Arranca sin sonido; tocá el video para escucharlo.</p>\n"
+          << "        </div>\n"
+          << reproductor("El vivo aparece acá cuando empiece la transmisión.")
+          << "      </div>\n    </section>\n";
+        // 5. Programa
+        o << programa("02", "El programa, de punta a punta.");
+        // 6. Cómo seguirlo (A / B / C)
+        o << "    <section class=\"seccion\" id=\"como\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">03 / Cómo seguirlo</p>\n"
+          << "          <h2 class=\"h2\">Tres formas de estar.</h2>\n        </div>\n"
+          << "        <div class=\"columnas\">\n"
+          << "          <article class=\"tarjeta\"><span class=\"letra\">A</span><h3 class=\"h3\">Mirá el vivo</h3>"
+             "<p>En esta misma página, o en YouTube, Twitch o Facebook. Sin cuenta y desde el celular.</p>"
+             "<a class=\"enlace\" href=\"#vivo\">Ir al vivo →</a></article>\n"
+          << "          <article class=\"tarjeta\"><span class=\"letra\">B</span><h3 class=\"h3\">Seguí cada parte</h3>"
+             "<p>La página cambia sola a la sección que se está tratando. Si llegás tarde, sabés dónde estamos.</p>"
+             "<a class=\"enlace\" href=\"" << primera << "\">Ver la primera sección →</a></article>\n"
+          << "          <article class=\"tarjeta\"><span class=\"letra\">C</span><h3 class=\"h3\">Participá</h3>"
+             "<p>Si te invitaron a hablar, entrá a la sala con tu enlace y tu PIN. Te ven y te escuchan en vivo.</p>"
+             "<a class=\"enlace\" href=\"/invitados/\">Entrar a la sala →</a></article>\n"
+          << "        </div>\n      </div>\n    </section>\n";
+        // 7. En números
+        o << "    <section class=\"seccion\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">04 / En números</p>\n"
+          << "          <h2 class=\"h2\">Lo que hay que saber.</h2>\n        </div>\n"
+          << "        <div class=\"numeros\">\n"
+          << "          <div><b>" << dos(nSec) << "</b><span>Secciones</span></div>\n"
+          << "          <div><b>" << (totalSeg ? std::to_string((totalSeg + 59) / 60) : std::string("—")) << "</b><span>Minutos de programa</span></div>\n"
+          << "          <div><b>" << (e.inicio.empty() ? std::string("—") : escapar(e.inicio)) << "</b><span>Hora de inicio</span></div>\n"
+          << "          <div><b>0</b><span>Registros necesarios</span></div>\n"
+          << "        </div>\n      </div>\n    </section>\n";
+        // 8. Preguntas
+        const std::vector<std::pair<std::string, std::string>> faq = {
+            {"¿Dónde lo veo?", "Acá mismo, en «En vivo», o en YouTube, Twitch o Facebook con los botones de abajo del video. Elegí la que te quede cómoda."},
+            {"¿Hay que registrarse?", "No. Entrás y mirás. No pedimos cuenta, mail ni datos."},
+            {"¿A qué hora empieza en mi país?",
+             e.inicio.empty() ? std::string("La hora la vas a ver acá apenas esté confirmada.")
+                              : "Empieza a las " + e.inicio + (husoTxt.empty() ? "" : " (hora de " + husoTxt + ")") +
+                                    ". La cuenta regresiva de arriba ya está en tu hora."},
+            {"¿Queda grabado?", "Sí. Cuando termine, la grabación queda en el mismo lugar del vivo y en las plataformas."},
+            {"¿Cómo participo?", "Si te invitaron a hablar, entrá a la sala con tu enlace y tu PIN. Si solo querés mirar, no hace falta nada."},
+            {"¿Lo puedo ver desde el celular?", "Sí. La página está hecha para el celular y el video se adapta a la pantalla."}};
+        o << "    <section class=\"seccion\" id=\"preguntas\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">05 / Preguntas</p>\n"
+          << "          <h2 class=\"h2\">Lo que siempre se pregunta.</h2>\n        </div>\n"
+          << "        <div class=\"faq\" data-acordeon>\n";
+        for (std::size_t i = 0; i < faq.size(); ++i)
+            o << "          <h3><button type=\"button\" aria-expanded=\"false\" aria-controls=\"r" << i << "\">" << escapar(faq[i].first)
+              << "</button></h3>\n          <div class=\"respuesta\" id=\"r" << i << "\" hidden><p>" << escapar(faq[i].second) << "</p></div>\n";
+        o << "        </div>\n      </div>\n    </section>\n";
+        // 9. Cierre de la página
+        o << "    <section class=\"seccion cta\">\n      <div class=\"contenedor\">\n"
+          << "        <p class=\"ceja\">" << (cuando.empty() ? std::string("En vivo") : escapar(cuando)) << "</p>\n"
+          << "        <h2 class=\"h2\">Nos vemos ahí.</h2>\n"
+          << "        <div class=\"hero-acciones\">\n          <a class=\"boton primario\" href=\"#vivo\">Ver en vivo</a>\n"
+          << "          <a class=\"boton secundario\" href=\"#programa\">Ver el programa</a>\n        </div>\n"
+          << "      </div>\n    </section>\n  </main>\n" << pie() << kAyuda;
         poner("portada.html", o.str());
     }
-    // Una por sección.
-    for (std::size_t i = 0; i < e.bloques.size(); ++i) {
+
+    // --- Una por sección -----------------------------------------------------------------------
+    for (std::size_t i = 0; i < nSec; ++i) {
         const Bloque& b = e.bloques[i];
-        const std::string nombre = b.nombre.empty() ? "Sección " + std::to_string(i + 1) : b.nombre;
+        const std::string nombre = nombreDe(b, i);
+        const std::string sigue = i + 1 < nSec ? nombreDe(e.bloques[i + 1], i + 1) : std::string("El cierre");
         std::ostringstream o;
-        o << cabeza(titulo + " — " + nombre) << "  <main>\n"
-          << "    <nav class=\"arriba\"><a href=\"portada.html\">← Programa completo</a></nav>\n"
-          << "    <p class=\"etiqueta\"><span class=\"vivo\" data-vivo=\"estado\">En vivo</span> · Sección " << (i + 1)
-          << " de " << e.bloques.size() << "</p>\n"
-          << "    <h1>" << escapar(nombre) << "</h1>\n"
-          << "    <p class=\"bajada\">" << escapar(titulo) << "</p>\n"
-          << "    <div class=\"tarjeta\">\n"
-          << "      <!-- Contá acá de qué se trata esta parte: quién habla, el tema, links, imágenes. -->\n"
-          << "      <p>Ahora: <strong>" << escapar(nombre) << "</strong>.</p>\n"
-          << "      <p>Sigue: <span data-vivo=\"siguiente\">"
-          << escapar(i + 1 < e.bloques.size() ? (e.bloques[i + 1].nombre.empty() ? "Sección " + std::to_string(i + 2)
-                                                                                   : e.bloques[i + 1].nombre)
-                                              : std::string("el cierre"))
-          << "</span></p>\n"
-          << "    </div>\n"
-<< "    <section class=\"en-vivo\" data-vivo=\"donde\">\n"
-          << "      <h2>Miralo en vivo</h2>\n"
-          << "      <!-- El reproductor del vivo (YouTube primero) y los botones de cada plataforma: los completa vivo.js. -->\n"
-          << "      <div class=\"reproductor\" data-vivo=\"reproductor\" data-plataforma=\"youtube\"></div>\n"
-          << "      <nav class=\"plataformas\" data-vivo=\"vivos\"></nav>\n"
-          << "    </section>\n"
-          << "    <div class=\"tarjeta\"><div class=\"progreso\"><div id=\"barraProgreso\"></div></div>\n"
-          << "      <p id=\"textoProgreso\"></p></div>\n"
-          << "    <script>\n"
-          << "      // Ejemplo de la API del evento: BAEvento.on(fn) llama con el estado y en cada cambio.\n"
-          << "      window.addEventListener(\"DOMContentLoaded\", () => BAEvento.on((e) => {\n"
-          << "        const n = e.secciones.length, i = e.secciones.findIndex((s) => s.estado === \"actual\");\n"
-          << "        document.getElementById(\"barraProgreso\").style.width = (n && i >= 0 ? 100 * (i + 1) / n : 0) + \"%\";\n"
-          << "        document.getElementById(\"textoProgreso\").textContent = i >= 0 ? `Vamos por la sección ${i + 1} de ${n}` : \"\";\n"
-          << "      }));\n"
-          << "    </script>\n"
-          << "    <section data-vivo=\"programa\">\n    <h2>Programa</h2>\n" << agendaHtml(e) << "    </section>\n";
-        // Anterior / siguiente: se puede recorrer el evento aunque no esté en vivo.
-        o << "    <nav class=\"pasos\">\n";
-        o << "      <a href=\"" << (i == 0 ? std::string("portada.html") : paginaDeBloque(e.bloques[i - 1], i - 1)) << "\">← "
-          << (i == 0 ? std::string("Portada") : escapar(e.bloques[i - 1].nombre.empty() ? "Anterior" : e.bloques[i - 1].nombre))
-          << "</a>\n";
-        o << "      <a href=\"" << (i + 1 < e.bloques.size() ? paginaDeBloque(e.bloques[i + 1], i + 1) : std::string("cierre.html"))
-          << "\">" << (i + 1 < e.bloques.size() ? escapar(e.bloques[i + 1].nombre.empty() ? "Siguiente" : e.bloques[i + 1].nombre)
-                                                 : std::string("Cierre"))
-          << " →</a>\n    </nav>\n";
-        o << "    <footer>En vivo · <span data-vivo=\"transcurrido\"></span></footer>\n  </main>\n" << kAyuda;
+        o << cabeza(nombre + " — " + titulo, nombre + ". Parte de " + titulo + ".") << nav("portada.html")
+          << "  <main id=\"contenido\">\n"
+          << "    <section class=\"hero\">\n      <div class=\"hero-marca\" aria-hidden=\"true\">" << dos(i + 1) << "</div>\n"
+          << "      <div class=\"contenedor\">\n"
+          << "        <p class=\"ceja\">Sección " << dos(i + 1) << " / " << dos(nSec)
+          << (b.duracionSeg() ? " · " + duracionTexto(b.duracionSeg()) : std::string())
+          << " · <span data-vivo=\"estado\">Próximamente</span></p>\n"
+          << "        <h1 class=\"h1\">" << escapar(nombre) << "</h1>\n"
+          << "        <!-- Una línea concreta de qué pasa en esta parte: quién habla, qué se decide. -->\n"
+          << "        <p class=\"bajada\">Parte de " << escapar(titulo) << ".</p>\n"
+          << "        <div class=\"hero-acciones\">\n          <a class=\"boton primario\" href=\"#vivo\">Ver en vivo</a>\n"
+          << "          <a class=\"boton secundario\" href=\"portada.html#programa\">Todo el programa</a>\n        </div>\n"
+          << "      </div>\n    </section>\n"
+          // Ahora / sigue / lleva
+          << "    <div class=\"contenedor\">\n      <div class=\"ahora\">\n"
+          << "        <div class=\"tarjeta\"><p class=\"ceja\" style=\"margin:0\">Ahora</p><b data-vivo=\"seccion\">" << escapar(nombre) << "</b>\n"
+          << "          <div class=\"progreso\"><div data-vivo=\"progreso\"></div></div><p class=\"tenue mono\" style=\"font-size:12px;margin:8px 0 0\" data-vivo=\"progreso-texto\"></p></div>\n"
+          << "        <div class=\"tarjeta\"><p class=\"ceja\" style=\"margin:0\">Sigue</p><b data-vivo=\"siguiente\">" << escapar(sigue) << "</b></div>\n"
+          << "        <div class=\"tarjeta\"><p class=\"ceja\" style=\"margin:0\">Lleva</p><b class=\"mono\" data-vivo=\"transcurrido\">—</b></div>\n"
+          << "      </div>\n    </div>\n"
+          // En vivo
+          << "    <section class=\"seccion\" id=\"vivo\" style=\"margin-top:64px\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">01 / En vivo</p>\n"
+          << "          <h2 class=\"h2\">Está pasando ahora.</h2>\n        </div>\n"
+          << reproductor("El vivo aparece acá cuando empiece la transmisión.")
+          << "      </div>\n    </section>\n"
+          << programa("02", "Dónde estamos.");
+        // Anterior / siguiente
+        o << "    <div class=\"contenedor\" style=\"padding-bottom:96px\">\n      <nav class=\"pasos\" aria-label=\"Secciones\">\n"
+          << "        <a class=\"paso\" href=\"" << (i == 0 ? std::string("portada.html") : paginaDeBloque(e.bloques[i - 1], i - 1))
+          << "\"><p class=\"ceja\">← Anterior</p><b>" << escapar(i == 0 ? std::string("Portada") : nombreDe(e.bloques[i - 1], i - 1)) << "</b></a>\n"
+          << "        <a class=\"paso siguiente\" href=\"" << (i + 1 < nSec ? paginaDeBloque(e.bloques[i + 1], i + 1) : std::string("cierre.html"))
+          << "\"><p class=\"ceja\">Siguiente →</p><b>" << escapar(sigue) << "</b></a>\n"
+          << "      </nav>\n    </div>\n  </main>\n" << pie() << kAyuda;
         poner(paginaDeBloque(b, i), o.str());
     }
-    // Cierre.
+
+    // --- Cierre ---------------------------------------------------------------------------------
     {
         std::ostringstream o;
-        o << cabeza(titulo) << "  <main>\n"
-          << "    <p class=\"etiqueta\"><span class=\"vivo\" data-vivo=\"estado\">Terminó</span></p>\n"
-          << "    <h1>¡Gracias por acompañarnos!</h1>\n"
-          << "    <p class=\"bajada\">" << escapar(titulo) << "</p>\n";
-        o << "    <section data-vivo=\"programa\">\n    <h2>Lo que pasó</h2>\n" << agendaHtml(e) << "    </section>\n";
-        o << "  </main>\n" << kAyuda;
+        o << cabeza(titulo + " — Gracias", "Terminó " + titulo + ". La grabación y el programa completo.") << nav("portada.html")
+          << "  <main id=\"contenido\">\n"
+          << "    <section class=\"hero\">\n      <div class=\"hero-marca\" aria-hidden=\"true\">Gracias</div>\n"
+          << "      <div class=\"contenedor\">\n"
+          << "        <p class=\"ceja\">" << (cuando.empty() ? std::string("Terminó") : escapar(cuando)) << " · <span data-vivo=\"estado\">Terminó</span></p>\n"
+          << "        <h1 class=\"h1\">Gracias por estar.</h1>\n"
+          << "        <p class=\"bajada\">" << escapar(titulo) << " terminó. Acá queda la grabación y todo lo que pasó.</p>\n"
+          << "        <div class=\"hero-acciones\">\n          <a class=\"boton primario\" href=\"#vivo\">Volver a verlo</a>\n"
+          << "          <a class=\"boton secundario\" href=\"#programa\">Lo que pasó</a>\n        </div>\n"
+          << "      </div>\n    </section>\n"
+          << "    <div class=\"contenedor\">\n      <div class=\"numeros\">\n"
+          << "        <div><b>" << dos(nSec) << "</b><span>Secciones</span></div>\n"
+          << "        <div><b>" << (totalSeg ? std::to_string((totalSeg + 59) / 60) : std::string("—")) << "</b><span>Minutos</span></div>\n"
+          << "        <div><b>" << (f.valida() ? std::to_string(f.dia) + " " + kMeses[f.mes - 1] : std::string("—")) << "</b><span>Fecha</span></div>\n"
+          << "        <div><b>1</b><span>Lugar: este</span></div>\n"
+          << "      </div>\n    </div>\n"
+          << "    <section class=\"seccion\" id=\"vivo\" style=\"margin-top:64px\">\n      <div class=\"contenedor\">\n"
+          << "        <div class=\"cabeza-seccion\">\n          <p class=\"ceja\">01 / La grabación</p>\n"
+          << "          <h2 class=\"h2\">Volvé a verlo.</h2>\n        </div>\n"
+          << reproductor("La grabación va a estar acá.")
+          << "      </div>\n    </section>\n"
+          << programa("02", "Lo que pasó.")
+          << "  </main>\n" << pie() << kAyuda;
         poner("cierre.html", o.str());
     }
     s.resto["plantillas"] = huellas;

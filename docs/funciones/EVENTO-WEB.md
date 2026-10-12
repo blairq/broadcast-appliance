@@ -27,6 +27,26 @@ En la carpeta del evento, así que es parte del evento y queda en el historial
 - **La personaliza el asistente** (`evento_web`) o se edita a mano. La plantilla es la base
   y el ejemplo de la estructura (programa con enlaces, anterior/siguiente, datos en vivo).
 
+## El diseño
+
+Estilo «dark editorial» (fondo casi negro, bordes de 1px, tipografía grande, un solo acento,
+mono para fechas y metadatos), sin dependencias de afuera: anda aunque la sala no tenga
+internet. El sistema vive en el programa (`assets/web/evento/sitio.css`, servido en
+`/evento/_/sitio.css`), así que mejorarlo mejora todos los eventos; lo propio de cada uno
+(acento, fondo, lo que quiera pisar) va en su `Web/estilo.css`.
+
+La plantilla: barra de navegación (con menú de celular), hero con la palabra de marca de
+fondo, cuenta regresiva en cajas, marquesina con las secciones, «01 / En vivo» (reproductor
+con pestañas YouTube / Twitch / Facebook y botones), «02 / Programa» (lista tipográfica con
+hora prevista y duración), «03 / Cómo seguirlo» (A/B/C), «04 / En números», «05 / Preguntas»
+(acordeón accesible), cierre y pie. Cada sección: hero con su número, Ahora / Sigue / Lleva,
+el vivo, el programa y anterior/siguiente. El cierre: «Gracias», números, la grabación y lo
+que pasó. Con JSON-LD (schema.org Event), Open Graph y salto al contenido.
+
+Las páginas que siguen tal cual las escribió la plantilla (su huella queda en
+`sitio.json` → `plantillas`) se actualizan solas cuando cambian la plantilla o el guion;
+las editadas no se tocan.
+
 ## La API del evento (para el HTML)
 
 Toda página carga `<script src="/evento/_/vivo.js" defer></script>`:

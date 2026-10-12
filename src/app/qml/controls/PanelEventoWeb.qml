@@ -158,7 +158,7 @@ ScrollView {
                 RowLayout {
                     spacing: 6
                     Repeater {
-                        model: ["#ff6a2b", "#e53935", "#43a047", "#1e88e5", "#8e24aa", "#fbc02d", "#00acc1", "#ffffff"]
+                        model: ["#ff4d2e", "#e53935", "#43a047", "#1e88e5", "#8e24aa", "#fbc02d", "#00acc1", "#ffffff"]
                         delegate: Rectangle {
                             required property string modelData
                             implicitWidth: 26; implicitHeight: 26; radius: 13; color: modelData

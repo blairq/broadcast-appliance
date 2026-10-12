@@ -1,31 +1,34 @@
-/* El marco de la página del evento en vivo: la franja de arriba y la página. */
-:root { --color: #ff6a2b; }
+/* El marco de la página del evento en vivo: la franja de arriba y la página.
+   Misma estética que el sitio (/evento/_/sitio.css): fondo casi negro, bordes de 1px,
+   mono para el estado y los tiempos, un solo acento. */
+:root { --color: #ff4d2e; --bg: #0b0b0c; --borde: rgba(255, 255, 255, 0.08); --texto: #f4f4f5; --tenue: #a1a1aa;
+  --mono: "JetBrains Mono", "Geist Mono", "SF Mono", ui-monospace, Menlo, Consolas, monospace; }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; background: #0f1115; color: #f3f4f6;
-  font-family: -apple-system, "SF Pro Display", "Segoe UI", Roboto, "Noto Sans", sans-serif; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--texto);
+  font-family: "Inter", "Geist", -apple-system, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
 body { display: flex; flex-direction: column; }
 .oculto { display: none !important; }
-.barra { display: flex; align-items: center; gap: 14px; padding: 10px 16px; min-height: 48px;
-  background: rgba(15, 17, 21, 0.92); border-bottom: 2px solid var(--color); font-size: 15px; flex: none; }
-.barra strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
-.ahora { color: #f3f4f6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ahora b { color: var(--color); }
-.sigue { color: #9aa0aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 30vw; }
+.barra { display: flex; align-items: center; gap: 16px; padding: 0 16px; height: 38px; flex: none;
+  background: var(--bg); border-bottom: 1px solid var(--borde); font-size: 13px; }
+.barra strong { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28vw; }
+.ahora { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--texto); }
+.ahora b { font-family: var(--mono); font-weight: 500; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--tenue); margin-right: 6px; }
+.sigue { color: var(--tenue); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 28vw; }
 .espacio { flex: 1; }
-.reloj { font-variant-numeric: tabular-nums; color: #9aa0aa; white-space: nowrap; }
-.vivo { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
-  font-size: 12px; padding: 5px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); white-space: nowrap; }
-.vivo::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: #9aa0aa; }
-.vivo.en_vivo { background: rgba(255, 59, 48, 0.18); color: #ff6b61; }
-.vivo.en_vivo::before { background: #ff3b30; box-shadow: 0 0 10px #ff3b30; animation: latido 1.2s infinite; }
+.reloj { font-family: var(--mono); font-size: 12px; color: var(--tenue); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vivo { display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--tenue); white-space: nowrap; }
+.vivo::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tenue); }
+.vivo.en_vivo { color: var(--texto); }
+.vivo.en_vivo::before { background: #ff3b30; box-shadow: 0 0 8px #ff3b30; animation: latido 1.2s infinite; }
 .vivo.pausa::before { background: #f5b83d; }
 @keyframes latido { 50% { opacity: 0.35; } }
-.pagina { flex: 1; width: 100%; border: 0; background: #0f1115; }
-.sin-evento { margin: auto; text-align: center; padding: 24px; color: #9aa0aa; }
-.sin-evento h1 { color: #f3f4f6; font-size: 26px; }
+.pagina { flex: 1; width: 100%; border: 0; background: var(--bg); }
+.sin-evento { margin: auto; text-align: center; padding: 24px; color: var(--tenue); }
+.sin-evento h1 { color: var(--texto); font-size: clamp(1.75rem, 5vw, 3rem); letter-spacing: -0.03em; font-weight: 600; }
 @media (max-width: 640px) {
-  .barra { flex-wrap: wrap; gap: 8px; font-size: 14px; }
-  .barra strong, .sigue { max-width: 100%; }
-  .espacio { display: none; }
+  .barra { gap: 10px; }
+  .barra strong, .sigue { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .vivo.en_vivo::before { animation: none; } }

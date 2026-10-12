@@ -42,8 +42,8 @@ namespace ba::evento {
 struct SitioWeb {
     std::string titulo;     ///< vacío = el nombre del evento
     std::string bajada;     ///< una línea abajo del título
-    std::string color = "#ff6a2b";
-    std::string fondo = "#0f1115";
+    std::string color = "#ff4d2e";
+    std::string fondo = "#0b0b0c";
     std::string subdominio; ///< «entrevista-pepito» → entrevista-pepito.a.pinggy.link
     bool barra = true;      ///< la franja «en vivo» arriba de cada página
     /// Al iniciar el evento, la dirección pública pasa a ser la de su subdominio.
