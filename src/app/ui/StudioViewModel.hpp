@@ -70,6 +70,7 @@ namespace ba::app::sala {
 class CupoSala;
 class VotacionSala;
 class PreguntasSala;
+class SeguridadSala;
 }
 namespace ba::app::escenas {
 class Conmutador;
@@ -525,6 +526,8 @@ class StudioViewModel : public QObject {
     sala::VotacionSala& votacion() { return *votacion_; }
     /// La cola de preguntas de la sala (modelo).
     sala::PreguntasSala& preguntas() { return *preguntas_; }
+    /// El PIN por sesión y el token del MCP (modelo: Config/seguridad.json).
+    sala::SeguridadSala& seguridad() { return *seguridad_; }
     /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
     Q_INVOKABLE QString cupoUi(int n);
     QString balistica() const;
@@ -895,6 +898,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
     std::unique_ptr<sala::PreguntasSala> preguntas_; ///< ídem
+    std::unique_ptr<sala::SeguridadSala> seguridad_; ///< ídem
     std::unique_ptr<AccesoRemoto> accesoRemoto_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;

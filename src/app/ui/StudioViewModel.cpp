@@ -6,6 +6,7 @@
 #include "sala/CupoSala.hpp"
 #include "sala/VotacionSala.hpp"
 #include "sala/PreguntasSala.hpp"
+#include "sala/SeguridadSala.hpp"
 #include "escenas/Conmutador.hpp"
 #include "asamblea/Votaciones.hpp"
 #include "asamblea/Presidencia.hpp"
@@ -256,6 +257,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         emit notify(QString::fromStdString(texto), error ? "error" : "ok");
     });
     cupoSala_->alCambiar([this](int n) { frames_->setGuests(n); });
+    seguridad_ = std::make_unique<sala::SeguridadSala>(rt.dataRoot(), conference_->client(), [this]() { return modoVivo(); });
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
     conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
         return assistantIntake(id, name, yaAdentro);
@@ -3028,19 +3030,10 @@ void StudioViewModel::publicarEventos() {
     // si cambió el día (el PIN es uno por día: el mismo día, el mismo PIN).
     {
         const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
-        if (ev && !eventoEnVivo_ && conference_) {
-            bool pinPorSesion = true;
-            std::ifstream f(rt_.dataRoot() / "Config" / "seguridad.json");
-            const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-            if (j.is_object()) pinPorSesion = j.value("pin_por_sesion", true);
-            if (pinPorSesion)
-                static_cast<ConferenceViewModel*>(conference_.get())
-                    ->client()
-                    .post("/api/v1/pin", QJsonObject{{"si_cambio_el_dia", true}}, [this](bool ok, const QJsonObject& r) {
-                        if (ok && r.value("cambio").toBool(true))
-                            emit notify("Día nuevo: la sala tiene PIN nuevo (" + r.value("pin").toString() + ")", "info");
-                    });
-        }
+        if (ev && !eventoEnVivo_ && seguridad_)
+            seguridad_->rotarPinSiCambioElDia([this](const std::string& error, bool cambio, const std::string& pin) {
+                if (error.empty() && cambio) emit notify("Día nuevo: la sala tiene PIN nuevo (" + qs(pin) + ")", "info");
+            });
         eventoEnVivo_ = ev;
     }
     // Al terminar el vivo, lo desbloqueado vuelve a quedar protegido para la próxima.

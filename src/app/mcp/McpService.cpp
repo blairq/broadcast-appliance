@@ -7,6 +7,7 @@
 
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"
+#include "sala/SeguridadSala.hpp"
 #include "escenas/Conmutador.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "mcp/McpService.hpp"
@@ -734,13 +735,7 @@ bool McpService::start(quint16 port) {
     // T47: de fábrica, un token nuevo en cada arranque (el puente ba-mcp lo lee de
     // Credenciales/ en cada pedido; un cliente HTTP directo lo vuelve a pedir con `ba-mcp --token`).
     const QString cred = QString::fromStdWString((ba::platform::credentialsDir()).wstring());
-    bool rotar = true;
-    {
-        std::ifstream f(rt_.dataRoot() / "Config" / "seguridad.json");
-        const json j = json::parse(f, nullptr, false);
-        if (j.is_object()) rotar = j.value("rotar_token_mcp", true);
-    }
-    const QString token = rotar ? rotarToken(cred) : loadOrCreateToken(cred);
+    const QString token = vm_.seguridad().rotarTokenMcp() ? rotarToken(cred) : loadOrCreateToken(cred);
     if (token.isEmpty()) return false;
     http_ = std::make_unique<McpHttp>(core_, token);
     if (!http_->listen(port)) {
@@ -2351,20 +2346,14 @@ void McpService::registerTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"rotar_token_mcp", {{"type", "boolean"}}}, {"pin_por_sesion", {{"type", "boolean"}}}}}};
         t.run = [this](const json& a, Done done) {
-            const auto ruta = rt_.dataRoot() / "Config" / "seguridad.json";
-            json j = json::object();
-            {
-                std::ifstream f(ruta);
-                const json x = json::parse(f, nullptr, false);
-                if (x.is_object()) j = x;
-            }
-            if (a.contains("rotar_token_mcp") || a.contains("pin_por_sesion")) {
-                if (vm_.modoVivo()) return done(ToolResult::error("no se cambia en vivo"));
-                for (const char* k : {"rotar_token_mcp", "pin_por_sesion"})
-                    if (a.contains(k)) j[k] = a.value(k, true);
-                std::ofstream o(ruta);
-                o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-            }
+            auto& seg = vm_.seguridad();
+            if (a.contains("rotar_token_mcp"))
+                if (const std::string e = seg.setRotarTokenMcp(a.value("rotar_token_mcp", true)); !e.empty())
+                    return done(ToolResult::error(e));
+            if (a.contains("pin_por_sesion"))
+                if (const std::string e = seg.setPinPorSesion(a.value("pin_por_sesion", true)); !e.empty())
+                    return done(ToolResult::error(e));
+            const json j = seg.estado();
             done(ToolResult().data({{"rotar_token_mcp", j.value("rotar_token_mcp", true)},
                                     {"pin_por_sesion", j.value("pin_por_sesion", true)},
                                     {"modo_vivo", vm_.modoVivoEstado()},
