@@ -987,6 +987,14 @@ endif()
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_vocabulario COMMAND test_vocabulario)
+    # La configuración chica que se guarda en Config/ (modo en vivo, escenas, rótulo, interfaz).
+    add_executable(test_config_persistida tests/test_config_persistida.cpp arranque/ArchivoConfig.cpp
+                   arranque/ModoVivoConfig.cpp arranque/InterfazConfig.cpp escenas/AjustesEscenas.cpp
+                   agent/RotuloTraduccionConfig.cpp)
+    target_include_directories(test_config_persistida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_config_persistida PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
+    set_target_properties(test_config_persistida PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_config_persistida COMMAND test_config_persistida)
     add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp
                    arranque/ArchivoConfig.cpp)
     target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

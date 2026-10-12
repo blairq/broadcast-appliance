@@ -11,6 +11,10 @@
 #include "asamblea/Votaciones.hpp"
 #include "asamblea/Presidencia.hpp"
 #include "escenas/RespaldoEntradas.hpp"
+#include "escenas/AjustesEscenas.hpp"
+#include "arranque/ModoVivoConfig.hpp"
+#include "arranque/InterfazConfig.hpp"
+#include "agent/RotuloTraduccionConfig.hpp"
 #include "emision/RetornosInvitados.hpp"
 #include "emision/SeguridadAire.hpp"
 #include "audio/ObjetivoLoudness.hpp"
@@ -176,6 +180,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // La cola única de descargas (modelos, agentes, …): antes que quien baja algo.
     // Su historial es de la máquina (como Modelos/ y Agentes/), no de la configuración.
     net::Descargas::iniciar(ba::platform::dataRoot());
+    // La configuración chica que se guarda (modelo): se lee una vez, acá.
+    modoVivoCfg_ = std::make_unique<config::ModoVivoConfig>(rt.dataRoot());
+    rotulo_ = std::make_unique<agent::RotuloTraduccionConfig>(rt.dataRoot());
+    ajustesEscenas_ = std::make_unique<escenas::AjustesEscenas>(rt.dataRoot());
+    interfaz_ = std::make_unique<config::InterfazConfig>(rt.dataRoot());
     // El arranque, medido: cada etapa que tarde más de 150 ms queda en el registro
     // (la interfaz tardaba ~12 s en aparecer y no se sabía en qué).
     QElapsedTimer relojArranque;
@@ -801,19 +810,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         connect(twitch_.get(), &TwitchViewModel::vivo, this, alVivo);
         connect(facebook_.get(), &FacebookViewModel::vivo, this, alVivo);
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
-        {
-            std::ifstream f(rt.dataRoot() / "Config" / "modo-vivo.json");
-            const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-            if (j.is_object()) {
-                modoVivoActivo_ = j.value("activo", true);
-                modoVivoGrabando_ = j.value("incluir_grabando", false);
-                if (j.contains("paginas") && j["paginas"].is_array()) {
-                    paginasProtegidas_.clear();
-                    for (const auto& p : j["paginas"])
-                        if (p.is_string()) paginasProtegidas_ << QString::fromStdString(p.get<std::string>());
-                }
-            }
-        }
         settings_->setEnVivo([this]() { return modoVivo(); });
         settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
@@ -843,11 +839,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                 "» estaba dañada: se cargó la versión anterior (la dañada quedó como .corrupto).",
                             "warn");
             });
-        {
-            std::ifstream f(rt.dataRoot() / "Config" / "escenas.json");
-            const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-            if (j.is_object()) corteDirectoEditor_ = j.value("corte_directo_editor", false);
-        }
         connect(alerts_.get(), &agent::AlertEngine::fired, this, [this](const nlohmann::json& ev) {
             // Avisos fuera del programa (Telegram, mail, webhook) para los que miran desde lejos.
             for (const auto& n : ev.value("notificar", nlohmann::json::array()))
@@ -993,17 +984,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         return rt_.engine().enviarCaption(t.toStdString(), s);
     });
     // «Traducción automática» rotulada mientras sale una traducción (pantalla o CC).
-    {
-        std::ifstream f(rt.dataRoot() / "Config" / "rotulo-traduccion.json");
-        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object()) {
-            rotuloTraduccion_ = j.value("activo", true);
-            rotuloCapa_ = std::clamp(j.value("capa", 4), 1, 4);
-        }
-    }
     rotuloApagar_.setSingleShot(true);
     connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
-        if (dsk_) dsk_->mostrar(rotuloCapa_, false, true);
+        if (dsk_) dsk_->mostrar(rotulo_->capa(), false, true);
     });
     connect(flujos_.get(), &agent::FlujosTexto::fraseConOrigen, this,
             [this](const QString& flujo, const QString&, const QString& origen) { rotularTraduccion(flujo, origen); });
@@ -1899,39 +1882,26 @@ void StudioViewModel::armarBitacora() {
     });
 }
 
-namespace {
-std::filesystem::path archivoInterfaz(AppRuntime& rt) { return rt.dataRoot() / "Config" / "interfaz.json"; }
-nlohmann::json leerInterfaz(AppRuntime& rt) {
-    std::ifstream f(archivoInterfaz(rt));
-    const nlohmann::json j = f ? nlohmann::json::parse(f, nullptr, false) : nlohmann::json();
-    return j.is_object() ? j : nlohmann::json::object();
-}
-} // namespace
-
 QVariant StudioViewModel::uiValor(const QString& clave, const QVariant& porDefecto) const {
-    const nlohmann::json j = leerInterfaz(rt_);
-    const auto it = j.find(clave.toStdString());
-    if (it == j.end()) return porDefecto;
-    if (it->is_number_integer()) return QVariant::fromValue(it->get<long long>());
-    if (it->is_number()) return it->get<double>();
-    if (it->is_boolean()) return it->get<bool>();
-    if (it->is_string()) return QString::fromStdString(it->get<std::string>());
+    // El archivo es del modelo (config::InterfazConfig); acá solo se convierte a QVariant.
+    const nlohmann::json v = interfaz_->valor(clave.toStdString());
+    if (v.is_number_integer()) return QVariant::fromValue(v.get<long long>());
+    if (v.is_number()) return v.get<double>();
+    if (v.is_boolean()) return v.get<bool>();
+    if (v.is_string()) return QString::fromStdString(v.get<std::string>());
     return porDefecto;
 }
 
 void StudioViewModel::uiGuardar(const QString& clave, const QVariant& valor) {
-    nlohmann::json j = leerInterfaz(rt_);
-    const std::string k = clave.toStdString();
+    nlohmann::json v;
     switch (valor.typeId()) {
-        case QMetaType::Bool: j[k] = valor.toBool(); break;
+        case QMetaType::Bool: v = valor.toBool(); break;
         case QMetaType::Int:
-        case QMetaType::LongLong: j[k] = valor.toLongLong(); break;
-        case QMetaType::Double: j[k] = valor.toDouble(); break;
-        default: j[k] = valor.toString().toStdString(); break;
+        case QMetaType::LongLong: v = valor.toLongLong(); break;
+        case QMetaType::Double: v = valor.toDouble(); break;
+        default: v = valor.toString().toStdString(); break;
     }
-    std::error_code ec;
-    std::filesystem::create_directories(archivoInterfaz(rt_).parent_path(), ec);
-    std::ofstream(archivoInterfaz(rt_)) << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+    interfaz_->guardar(clave.toStdString(), v);
 }
 
 void StudioViewModel::tiemposCentral() {
@@ -2839,12 +2809,10 @@ bool StudioViewModel::focoEnTexto() const {
     return f != nullptr && (f->inherits("QQuickTextInput") || f->inherits("QQuickTextEdit"));
 }
 
+bool StudioViewModel::corteDirectoEditor() const { return ajustesEscenas_->corteDirectoEditor(); }
+
 void StudioViewModel::setCorteDirectoEditor(bool si) {
-    if (si == corteDirectoEditor_) return;
-    corteDirectoEditor_ = si;
-    std::ofstream o(rt_.dataRoot() / "Config" / "escenas.json");
-    o << nlohmann::json{{"corte_directo_editor", si}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    emit escenasAjustesChanged();
+    if (ajustesEscenas_->setCorteDirectoEditor(si)) emit escenasAjustesChanged();
 }
 
 QString StudioViewModel::ftbUi(bool activar, int ms, const QString& audio) {
@@ -3502,7 +3470,8 @@ QString StudioViewModel::isoTodasUi(bool grabar) {
 namespace ba::app {
 
 void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& origen) {
-    if (!rotuloTraduccion_ || !dsk_ || !origen.startsWith("Traducción")) return;
+    if (!rotulo_->activo() || !dsk_ || !origen.startsWith("Traducción")) return;
+    const int capa = rotulo_->capa();
     // ¿Se está mostrando? En un cuadro «Subtítulos» o en los subtítulos ocultos.
     const bool enPantalla = subtitulos_ && subtitulos_->cuadrosDe(flujo) > 0;
     const QVariantMap cc = cc_ ? cc_->estado() : QVariantMap{};
@@ -3514,30 +3483,30 @@ void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& ori
     const nlohmann::json capas = dsk_->capas();
     bool armada = false;
     for (const auto& c : capas)
-        if (c.value("capa", 0) == rotuloCapa_) {
+        if (c.value("capa", 0) == capa) {
             const auto cont = c.value("contenido", nlohmann::json::array());
             armada = cont.size() == 1 && cont[0] == nombre;
         }
     if (!armada)
-        dsk_->definir(rotuloCapa_, {{"nombre", "Traducción automática"},
+        dsk_->definir(capa, {{"nombre", "Traducción automática"},
                                     {"contenido", nlohmann::json::array({nombre})},
                                     {"recuadro", {{"posicion", "arriba_izquierda"}, {"tamano", 0.22}, {"margen", 0.03}}},
                                     {"fijo", false},
                                     {"transicion_ms", 300}});
     for (const auto& c : dsk_->capas())
-        if (c.value("capa", 0) == rotuloCapa_ && !c.value("visible", false)) dsk_->mostrar(rotuloCapa_, true, false);
+        if (c.value("capa", 0) == capa && !c.value("visible", false)) dsk_->mostrar(capa, true, false);
     rotuloApagar_.start(ba::ajustes::sAMs("traductor.rotuloApagarS", 15)); // se va después de la última frase traducida
 }
 
+bool StudioViewModel::rotuloTraduccionActivo() const { return rotulo_->activo(); }
+
 void StudioViewModel::setRotuloTraduccion(bool activo) {
-    rotuloTraduccion_ = activo;
-    std::ofstream o(rt_.dataRoot() / "Config" / "rotulo-traduccion.json");
-    o << nlohmann::json{{"activo", activo}, {"capa", rotuloCapa_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    if (!activo && dsk_) dsk_->mostrar(rotuloCapa_, false, true);
+    rotulo_->setActivo(activo);
+    if (!activo && dsk_) dsk_->mostrar(rotulo_->capa(), false, true);
 }
 
 nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
-    return {{"activo", rotuloTraduccion_}, {"capa", rotuloCapa_}, {"arriba", rotuloApagar_.isActive()}};
+    return {{"activo", rotulo_->activo()}, {"capa", rotulo_->capa()}, {"arriba", rotuloApagar_.isActive()}};
 }
 
 } // namespace ba::app
@@ -3545,13 +3514,13 @@ nlohmann::json StudioViewModel::rotuloTraduccionEstado() const {
 namespace ba::app {
 
 bool StudioViewModel::modoVivo() const {
-    if (!modoVivoActivo_) return false;
+    if (!modoVivoCfg_->activo()) return false;
     const bool evento = evento_ != nullptr && evento_->property("enVivo").toBool();
-    return streaming_ || evento || (modoVivoGrabando_ && recording_);
+    return streaming_ || evento || (modoVivoCfg_->incluirGrabando() && recording_);
 }
 
 bool StudioViewModel::paginaBloqueada(const QString& id) const {
-    return modoVivo() && paginasProtegidas_.contains(id) && !desbloqueadas_.contains(id);
+    return modoVivo() && modoVivoCfg_->paginas().contains(id) && !desbloqueadas_.contains(id);
 }
 
 void StudioViewModel::desbloquearPagina(const QString& id, const QString& motivo) {
@@ -3562,29 +3531,19 @@ void StudioViewModel::desbloquearPagina(const QString& id, const QString& motivo
 
 nlohmann::json StudioViewModel::modoVivoEstado() const {
     nlohmann::json p = nlohmann::json::array();
-    for (const QString& x : paginasProtegidas_) p.push_back(x.toStdString());
+    for (const QString& x : modoVivoCfg_->paginas()) p.push_back(x.toStdString());
     nlohmann::json d = nlohmann::json::array();
     for (const QString& x : desbloqueadas_) d.push_back(x.toStdString());
-    return {{"en_vivo", modoVivo()}, {"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_},
+    return {{"en_vivo", modoVivo()}, {"activo", modoVivoCfg_->activo()}, {"incluir_grabando", modoVivoCfg_->incluirGrabando()},
             {"paginas_protegidas", p}, {"desbloqueadas", d},
             {"que_protege", "las páginas de la lista piden escribir CONFIRMAR con un motivo; los ajustes que reinician el gateway o el programa no se aplican"}};
 }
 
 std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {
     if (modoVivo()) return "no se cambia en vivo";
-    if (a.contains("activo")) modoVivoActivo_ = a.value("activo", true);
-    if (a.contains("incluir_grabando")) modoVivoGrabando_ = a.value("incluir_grabando", false);
-    if (a.contains("paginas") && a["paginas"].is_array()) {
-        paginasProtegidas_.clear();
-        for (const auto& p : a["paginas"])
-            if (p.is_string()) paginasProtegidas_ << QString::fromStdString(p.get<std::string>());
-    }
-    nlohmann::json p = nlohmann::json::array();
-    for (const QString& x : paginasProtegidas_) p.push_back(x.toStdString());
-    std::ofstream o(rt_.dataRoot() / "Config" / "modo-vivo.json");
-    o << nlohmann::json{{"activo", modoVivoActivo_}, {"incluir_grabando", modoVivoGrabando_}, {"paginas", p}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    const std::string e = modoVivoCfg_->cambiar(a);
     emit statusChanged();
-    return {};
+    return e;
 }
 
 } // namespace ba::app

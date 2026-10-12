@@ -50,6 +50,7 @@ class FlujosTexto;
 class Traductor;
 class Subtitulos;
 class VocesRack;
+class RotuloTraduccionConfig;
 } // namespace ba::app::agent
 
 namespace ba::app::audio {
@@ -76,6 +77,11 @@ class SeguridadSala;
 namespace ba::app::escenas {
 class Conmutador;
 class RespaldoEntradas;
+class AjustesEscenas;
+}
+namespace ba::app::config {
+class ModoVivoConfig;
+class InterfazConfig;
 }
 namespace ba::app::emision {
 class RetornosInvitados;
@@ -392,7 +398,7 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void hablaPresidencia(bool activo);
     Q_PROPERTY(bool presidenciaHabla READ presidenciaHabla NOTIFY presidenciaHablaChanged)
     bool presidenciaHabla() const;
-    bool corteDirectoEditor() const { return corteDirectoEditor_; }
+    bool corteDirectoEditor() const;
     QObject* cuerpoQml() const;
     QStringList sinSenal() const;
     /// El respaldo de entradas (modelo).
@@ -426,7 +432,7 @@ class StudioViewModel : public QObject {
     /// Suma un mensaje del chat (por su key) a la cola de preguntas. "" o el error.
     Q_INVOKABLE QString preguntaDesdeChatUi(const QString& key);
     /// «Traducción automática»: mientras salga una traducción en pantalla o en CC, una capa DSK lo rotula.
-    Q_INVOKABLE bool rotuloTraduccionActivo() const { return rotuloTraduccion_; }
+    Q_INVOKABLE bool rotuloTraduccionActivo() const;
     Q_INVOKABLE void setRotuloTraduccion(bool activo);
     nlohmann::json rotuloTraduccionEstado() const;
     asamblea::CuerpoViewModel& cuerpo() { return *cuerpo_; }
@@ -997,9 +1003,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
     std::unique_ptr<agent::Notificador> notificador_;
-    bool modoVivoActivo_ = true;
-    bool modoVivoGrabando_ = false;
-    QStringList paginasProtegidas_{"configuracion", "plugins", "agentes"};
+    std::unique_ptr<config::ModoVivoConfig> modoVivoCfg_; ///< Config/modo-vivo.json (modelo)
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
     bool eventoEnVivo_ = false;
@@ -1027,8 +1031,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::SeguirMicrofono> seguirMic_;
     std::unique_ptr<asamblea::OrdenDelDia> ordenDia_;
     std::unique_ptr<asamblea::Quorum> quorum_;
-    bool rotuloTraduccion_ = true;
-    int rotuloCapa_ = 4;
+    std::unique_ptr<agent::RotuloTraduccionConfig> rotulo_; ///< Config/rotulo-traduccion.json (modelo)
     QTimer rotuloApagar_;
     void rotularTraduccion(const QString& flujo, const QString& origen);
     /// Publica en el bus lo que cambió (cada vuelta del reloj, 10 Hz).
@@ -1055,7 +1058,8 @@ class StudioViewModel : public QObject {
     int dcnAvisos_ = 0;
     int dcnTic_ = 0;
     void tiemposCentral();
-    bool corteDirectoEditor_ = false;
+    std::unique_ptr<escenas::AjustesEscenas> ajustesEscenas_; ///< Config/escenas.json (modelo)
+    std::unique_ptr<config::InterfazConfig> interfaz_;        ///< Config/interfaz.json (modelo)
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
     std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y conmutador_
