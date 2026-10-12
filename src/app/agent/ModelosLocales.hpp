@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/agent/ModelosLocales.hpp — el modelo chico que corre en la máquina
 //
-// QUE ES. El modelo reactivo (docs/modelo-local.md): una frase corta de cabina
+// QUE ES. El modelo reactivo (docs/modelos/modelo-local.md): una frase corta de cabina
 // entra y sale la herramienta que la atiende —o `derivar`, y el pedido va
 // tal cual al asistente grande—. Y, de a poco, texto corto que tiene que salir
 // al toque. Corre acá: la ida y vuelta a un modelo remoto se come el tiempo.
@@ -14,8 +14,9 @@
 //     de git en el resto. Nada se usa sin verificar, y una descarga a medias
 //     nunca pisa un modelo que andaba (se baja aparte y se cambia al final).
 //   * Lanzar el motor y hablarle: `ba-modelo` en la Mac (MLX, con la cabeza
-//     MTP si el repo la trae; src/modelo-mac). En Linux y Windows el motor
-//     es llama.cpp y todavía no está: se dice así, no se finge.
+//     MTP si el repo la trae; src/modelo-mac). En Linux y Windows, el
+//     `ba-modelo` de C++ con llama.cpp (src/modelo-llama, Vulkan), que habla
+//     el mismo protocolo.
 //
 // POR QUE UN PROCESO APARTE. El motor tiene su propia memoria (gigas) y su
 // propio hilo de GPU; si se cae, que se caiga él y no la app al aire. Le
@@ -25,7 +26,7 @@
 // del entrenamiento, y con otras fichas sería otro modelo. Su huella se
 // muestra; compararla con la del inventario actual del MCP (si cambió, el
 // modelo quedó viejo y sigue contestando a otra cosa) queda pendiente: la
-// calcula tools/lib_prompt.py y hay que portarla igual, byte a byte.
+// calcula tools/entrenar/lib_prompt.py y hay que portarla igual, byte a byte.
 // ============================================================================
 #pragma once
 
@@ -44,6 +45,11 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+
+#include "net/Descargas.hpp"
+
+#include <optional>
+#include <set>
 
 class QProcess;
 
@@ -100,6 +106,8 @@ class ModelosLocales : public QObject {
     Q_PROPERTY(bool descargando READ descargando NOTIFY descargaCambio)
     Q_PROPERTY(double progreso READ progreso NOTIFY descargaCambio)
     Q_PROPERTY(QString textoDescarga READ textoDescarga NOTIFY descargaCambio)
+    /// Los repos en la cola de descargas o bajándose (ver net::Descargas).
+    Q_PROPERTY(QStringList enCola READ enCola NOTIFY descargaCambio)
     /// Lo que informó el motor al quedar listo: tiempos, MTP, frases de prueba.
     Q_PROPERTY(QVariantMap info READ info NOTIFY cambio)
     /// El dial de derivar (se suma al logit de `derivar`): + deriva más.
@@ -113,6 +121,15 @@ class ModelosLocales : public QObject {
     /// Con qué herramientas se entrenó cada modelo (su modelo.json) comparado con
     /// las de la app de hoy: repo -> {estado: buscando|ok|sin_ficha|error, ...}.
     Q_PROPERTY(QVariantMap fichas READ fichas NOTIFY fichasCambio)
+    /// LO QUE HAY EN EL DISCO, esté o no en el catálogo (un modelo que salió del
+    /// catálogo seguía ocupando gigas sin aparecer en ningún lado):
+    /// [{carpeta, repo, tipo, bytes, enCatalogo, activo, viejo, motivo, fecha}].
+    /// `viejo`: un reactivo que no está activo y o salió del catálogo o tiene
+    /// bajada una versión más nueva de la misma familia. Se recalcula con
+    /// `revisarDisco` (recorrer gigas no va en cada cambio de estado).
+    Q_PROPERTY(QVariantList instalados READ instalados NOTIFY discoCambio)
+    /// Las descargas cortadas que quedaron (.bajando-*): {cuantas, bytes}.
+    Q_PROPERTY(QVariantMap restos READ restos NOTIFY discoCambio)
 
    public:
     using json = nlohmann::json;
@@ -133,6 +150,7 @@ class ModelosLocales : public QObject {
     bool descargando() const { return descargando_; }
     double progreso() const { return progreso_; }
     QString textoDescarga() const { return textoDescarga_; }
+    QStringList enCola() const;
     QVariantMap info() const { return info_; }
     double sesgo() const { return sesgo_; }
     void setSesgo(double s);
@@ -142,11 +160,32 @@ class ModelosLocales : public QObject {
     void setAlArrancar(bool on);
     QVariantList pruebas() const { return pruebas_; }
 
-    Q_INVOKABLE void descargar(const QString& repo);
-    Q_INVOKABLE void cancelarDescarga();
+    /// Lo pone en la cola de descargas (net::Descargas): si ya está en la cola,
+    /// bajándose o instalado (esa versión), no hace nada. Devuelve qué pasó
+    /// («encolada», «ya está bajado», …).
+    Q_INVOKABLE QString descargar(const QString& repo);
+    /// Corta la de ese repo; sin repo, todas las de modelos.
+    Q_INVOKABLE void cancelarDescarga(const QString& repo = {});
     Q_INVOKABLE void borrar(const QString& repo);
+    QVariantList instalados() const { return instalados_; }
+    QVariantMap restos() const { return restos_; }
+    /// Recorre Modelos/ (en otro hilo) y actualiza `instalados` y `restos` (discoCambio).
+    Q_INVOKABLE void revisarDisco();
+    /// Borra una carpeta de Modelos/ por su nombre (la de un modelo, esté o no en
+    /// el catálogo, o una descarga cortada). false si no es una de esas.
+    Q_INVOKABLE bool borrarCarpeta(const QString& carpeta);
+    /// Borra los `viejo` de `instalados`. {borrados: [repo], bytes}
+    Q_INVOKABLE QVariantMap limpiarViejos();
+    /// Borra las descargas cortadas (no la que está bajando ahora). {borrados, bytes}
+    Q_INVOKABLE QVariantMap limpiarRestos();
     /// Carga el modelo (y apaga el que hubiera).
     Q_INVOKABLE void activar(const QString& repo);
+    /// El .gguf para el CHAT del modelo local (pi + llama-server, pestaña
+    /// Asistente): el del modelo activo si es GGUF (Windows, Linux); si es MLX
+    /// (Mac), el de su versión GGUF del catálogo. Vacío si no está: `falta` dice
+    /// por qué y `repoParaBajar`, cuál bajar (si hay uno).
+    /// Con `pedido` (un repo del catálogo, el que se eligió en el Asistente): ese.
+    QString ggufParaChat(const QString& pedido = {}, QString* falta = nullptr, QString* repoParaBajar = nullptr) const;
     Q_INVOKABLE void apagar();
     /// Elegir con una frase, para ver qué hace: el resultado va a `pruebas`.
     Q_INVOKABLE void probar(const QString& frase);
@@ -177,6 +216,8 @@ class ModelosLocales : public QObject {
     /// v2: quien arma el estado del aparato y llama (Voz). Con esto, `probar`
     /// y `probarFrase` muestran la llamada entera, no solo el nombre.
     using Probador = std::function<void(const QString& frase, Respuesta r)>;
+    /// Anota una prueba en la lista de la página (la del MCP, sin preguntar dos veces).
+    void anotarPrueba(const QString& frase, const nlohmann::json& respuesta);
     void setProbadorTc(Probador p) { probadorTc_ = std::move(p); }
     /// Lo que haría el modelo con la frase, SIN hacerlo. v1: {herramienta,
     /// derivar, prob, ms}. v2: además {tipo, crudo, resumen («audio_set(name:
@@ -208,6 +249,7 @@ class ModelosLocales : public QObject {
     void descargaCambio();
     void pruebasCambio();
     void fichasCambio();
+    void discoCambio();
     void notify(const QString& text, const QString& kind);
 
    private:
@@ -252,8 +294,21 @@ class ModelosLocales : public QObject {
     std::vector<std::thread> hilosFicha_;
     void ponerFicha(const QString& repo, json ficha);
 
-    std::thread hiloDescarga_;
-    std::atomic<bool> cancelar_{false};
+    QVariantList instalados_;
+    QVariantMap restos_;
+
+    /// El pedido para la cola (el trabajo es el de siempre: staging, verificar,
+    /// recién al final reemplaza). `actualizacion`: sin «ya está».
+    std::optional<net::Descargas::Pedido> pedidoDe(const QString& repo, bool actualizacion);
+    void registrarActualizaciones();
+    std::string errorPedido_;
+    std::set<QString> enCurso_;
+    /// revisarDisco, fuera del hilo de la interfaz.
+    std::pair<QVariantList, QVariantMap> calcularDisco(const std::set<std::string>& bajando,
+                                                       const QString& activo) const;
+    std::thread hiloDisco_;
+    bool discoAndando_ = false;
+    bool discoOtraVez_ = false;
     bool descargando_ = false;
     double progreso_ = 0.0;
     QString textoDescarga_;

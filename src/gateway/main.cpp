@@ -11,6 +11,8 @@
 //                          WebRTC, y el uplink del invitado → BA.Guest.<n>.
 //     - SignalingServer  : HTTP + WebSocket en 127.0.0.1 (señalización + app web).
 //     - CloudflaredSupervisor : tunel cloudflared (autostart + recovery).
+//     - PinggySupervisor : tunel de pinggy.io (ba-pinggy) hacia la escucha
+//                          propia del tunel (todo externo) y el TURN de la caja.
 //     - HealthBlock      : publica su salud en BA.Health slot 0 (B).
 //
 // Modelo de threading:
@@ -40,6 +42,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include "ajustes/Ajustes.hpp"
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -65,6 +68,7 @@
 #endif
 
 // ba_core (frozen headers).
+#include "ipc/CanalesEscena.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "security/CredentialStore.hpp"
@@ -74,11 +78,18 @@
 #include "Cloudflared.hpp"
 #include "Config.hpp"
 #include "Log.hpp"
+#include "Pinggy.hpp"
+#include "BaWeb.hpp"
 
 #include "diag/Caidas.hpp"
+#include "diag/Perfil.hpp"
+#include "diag/SalidaAsincrona.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
+#include "turn/Ice.hpp"
+#include "turn/Servidor.hpp"
 #include "net/TlsTerminator.hpp"
+#include "proxy/GestorProxy.hpp"
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
 #if BA_HAVE_LWIP
@@ -147,6 +158,10 @@ constexpr const char* kEnvHmacSecret = "BA_GATEWAY_HMAC_SECRET";
 constexpr const char* kEnvRoomPin = "BA_GATEWAY_PIN";
 /// Token del tunel de Cloudflare (se pasa al hijo como TUNNEL_TOKEN).
 constexpr const char* kEnvTunnelToken = "BA_TUNNEL_TOKEN";
+
+/// Token de pinggy.io (se pasa al hijo ba-pinggy por su entorno, nunca por argv).
+/// Si no esta, la credencial "pinggy-token" (cifrada en Credenciales/).
+constexpr const char* kEnvPinggyToken = "BA_PINGGY_TOKEN";
 
 /// Token de la API de control del operador (si el launcher lo inyecta).
 constexpr const char* kEnvAdminToken = "BA_ADMIN_TOKEN";
@@ -402,13 +417,17 @@ nlohmann::json processUsage(const WebrtcHub* hub) {
 } // namespace
 
 int main(int argc, char** argv) {
+    // Que escribir a Logs/gateway.log nunca trabe un hilo (diag/SalidaAsincrona.hpp).
+    ba::diag::desacoplarSalidaEstandar();
+    std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
     ba::platform::redirectUserDirs(); // portable: nada al perfil del usuario
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
-    ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
+    ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot());
     Config cfg;
     // Config/gateway.json (lo escribe la interfaz de A); la linea de comandos
     // lo pisa.
-    cfg.loadFile((ba::platform::dataRoot() / "Config" / "gateway.json").string());
+    cfg.loadFile((ba::platform::configRoot() / "Config" / "gateway.json").string());
+    ba::ajustes::cargar(cfg.ajustes); // Configuración → avanzados de la sala
     cfg.parseArgs(argc, argv);
     cfg.derivePaths();
     Log log;
@@ -418,6 +437,7 @@ int main(int argc, char** argv) {
         log.openFile(cfg.logsDir);
         // Y que una caida deje la pila escrita (ver diag/Caidas.hpp).
         ba::diag::instalarManejadorDeCaidas("gateway");
+        ba::diag::Perfil::arrancar("gateway", cfg.logsDir); // solo en un build con BA_PERFILAR
     }
 
     log.info("arranque: guests=" + std::to_string(cfg.guests) + " port=" + std::to_string(cfg.port) +
@@ -507,14 +527,16 @@ int main(int argc, char** argv) {
     // distribuido: con el valor anterior (5) los fallos de UN solo cliente
     // cerraban /api/join para todos los invitados, que era una negacion de
     // servicio trivial contra la sala.
-    constexpr int kGlobalPinAttempts = 100;
-    constexpr int kGlobalLockoutSec = 60;
-    TokenAuth auth(std::move(hmacSecret), roomPin, kGlobalPinAttempts, kGlobalLockoutSec, 300);
+    const int kGlobalPinAttempts = ba::ajustes::entero("room.pinGlobalIntentos", 100);
+    const int kGlobalLockoutSec = ba::ajustes::entero("room.pinGlobalBloqueoS", 60);
+    TokenAuth auth(std::move(hmacSecret), roomPin, kGlobalPinAttempts, kGlobalLockoutSec,
+                   ba::ajustes::entero("room.tokenTtlS", 300));
 
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby
     // o en la fila de oradores, que ve el programa).
-    WebrtcHub hub(cfg.guests + cfg.lobbySlots + cfg.maxBackstage, cfg.guestVideoW, cfg.guestVideoH,
+    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
+                      cfg.vistasRemotas /* lo que miran los integrantes en su celular */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
     // --- Motor de medios (IPC ↔ WebRTC).
@@ -527,17 +549,24 @@ int main(int argc, char** argv) {
     // puesto (el slot 1 publicaria en BA.Audio.Guest.2) y deja al ultimo sin
     // canal. Ver MediaPump::Cfg.
     pumpCfg.operatorVideoName = toWide("BA.Operator");
+    for (int k = 0; k < ba::ipc::kCanalesEscena; ++k) pumpCfg.escenaVideoNames.push_back(ba::ipc::nombreCanalEscena(k));
     pumpCfg.operatorAudioName = toWide("BA.Audio.Operator");
     // Nombres por slot con el [0] reservado (no hay slot 0).
     for (auto* v : {&pumpCfg.guestAudioNames, &pumpCfg.guestVideoNames, &pumpCfg.shareVideoNames,
-                    &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames}) {
+                    &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {
         v->emplace_back();
     }
-    for (int s = 1; s <= cfg.guests; ++s) {
+    for (int s = 1; s <= cfg.guestsReserve; ++s) { // los reservados: el cupo cambia en caliente
         pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
+        pumpCfg.returnSlotNames.push_back(toWide("BA.Audio.Return." + std::to_string(s)));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
         pumpCfg.shareVideoNames.push_back(toWide("BA.GuestShare." + std::to_string(s)));
     }
+    // R3: el remoto con la palabra (un canal; [0] reservado como los demás).
+    // Dos canales: el que tiene la palabra y, en un debate entre remotos, el otro.
+    pumpCfg.remotoAudioNames = {std::wstring(), toWide("BA.Audio.Remoto.1"), toWide("BA.Audio.Remoto.2")};
+    pumpCfg.remotoVideoNames = {std::wstring(), toWide("BA.Remoto.1"), toWide("BA.Remoto.2")};
+    pumpCfg.remotoContenidoNames = {std::wstring(), toWide("BA.RemotoContenido.1"), toWide("BA.RemotoContenido.2")};
     for (int k = 1; k <= cfg.lobbySlots; ++k) {
         pumpCfg.lobbyAudioNames.push_back(toWide("BA.Audio.Lobby." + std::to_string(k)));
         pumpCfg.lobbyVideoNames.push_back(toWide("BA.Lobby." + std::to_string(k)));
@@ -550,6 +579,7 @@ int main(int argc, char** argv) {
     pumpCfg.programW = cfg.videoW;
     pumpCfg.programH = cfg.videoH;
     pumpCfg.programVideoW = cfg.programVideoW;
+    pumpCfg.sinVideoNs = static_cast<uint64_t>(cfg.sinVideoPlacaMs) * 1000000ULL;
     pumpCfg.programVideoH = cfg.programVideoH;
     pumpCfg.guestVideoW = cfg.guestVideoW;
     pumpCfg.guestVideoH = cfg.guestVideoH;
@@ -559,16 +589,19 @@ int main(int argc, char** argv) {
     Room::Cfg roomCfg;
     roomCfg.name = cfg.room;
     roomCfg.maxGuests = cfg.guests;
+    roomCfg.reserva = cfg.guestsReserve;
     roomCfg.lobby = cfg.lobby;
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;
     Room room(roomCfg);
-    const std::string guestUrl = "http://" +
-                                 std::string(cfg.bindAddress == "0.0.0.0" ? "127.0.0.1" : cfg.bindAddress) +
-                                 ":" + std::to_string(cfg.port) + "/";
+    // La señalización siempre se alcanza en 127.0.0.1 (con «red local» escucha
+    // en todas; con una IP elegida, en 127.0.0.1: ver sigCfg).
+    const std::string guestUrl = "http://127.0.0.1:" + std::to_string(cfg.port) + "/";
     // El enlace que copia el operador lleva la sala en el fragmento (#room=),
     // igual que el QR: el invitado no tiene que tipear un dato que no conoce.
-    room.setHostInfo(roomPin, guestUrl + "#room=" + cfg.room);
+    // Los invitados entran por /invitados/: la raíz es de la página del evento cuando
+    // hay uno con sitio (ver SignalingServer, «la página del evento en vivo»).
+    room.setHostInfo(roomPin, guestUrl + "invitados/#room=" + cfg.room);
 
     // Archivos que comparten los invitados: de B, se limpian en cada arranque
     // (A copia lo que toma a su propia carpeta de medios).
@@ -586,27 +619,41 @@ int main(int argc, char** argv) {
     // --- Servidor HTTP + WS (invitados) y API de control (operador).
     SignalingServer::Cfg sigCfg;
     sigCfg.port = cfg.port;
-    sigCfg.bindAddress = cfg.bindAddress;
+    // Con UNA IP elegida, esa IP la atiende el HTTPS (por donde entran los de la
+    // red local: sin HTTPS el navegador no da cámara); la señalización queda en
+    // 127.0.0.1, que es adonde le reenvían el HTTPS y el túnel de Cloudflare.
+    const bool unaInterfaz = cfg.bindAddress != "127.0.0.1" && cfg.bindAddress != "0.0.0.0";
+    sigCfg.bindAddress = unaInterfaz ? std::string("127.0.0.1") : cfg.bindAddress;
     sigCfg.webroot = cfg.webroot;
     sigCfg.room = cfg.room;
     sigCfg.maxGuests = cfg.guests;
+    sigCfg.pinIntentos = cfg.pinIntentos;
+    sigCfg.pinBloqueoS = cfg.pinBloqueoS;
     sigCfg.adminPort = cfg.adminPort;
     sigCfg.adminWebroot = cfg.adminWebroot;
+    // Las caras propias de los botones (fotos y videos cortos): <datos>/Media/botonera.
+    sigCfg.carasBotonera = (pathFromUtf8(cfg.configDir).parent_path() / "Media" / "botonera").string();
     {
         std::filesystem::path guestRoot(cfg.webroot);
         if (!guestRoot.has_filename()) guestRoot = guestRoot.parent_path(); // "Web/guest/"
         sigCfg.boardWebroot = (guestRoot.parent_path() / "board").string();
         sigCfg.prompterWebroot = (guestRoot.parent_path() / "prompter").string();
+        sigCfg.correccionWebroot = (guestRoot.parent_path() / "correccion").string();
         sigCfg.rotulosWebroot = (guestRoot.parent_path() / "rotulos").string();
         sigCfg.pantallaWebroot = (guestRoot.parent_path() / "pantalla").string();
         sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
         sigCfg.comunWebroot = (guestRoot.parent_path() / "comun").string();
         sigCfg.publicoWebroot = (guestRoot.parent_path() / "publico").string();
+        sigCfg.eventoWebroot = (guestRoot.parent_path() / "evento").string();
+        sigCfg.botoneraWebroot = (guestRoot.parent_path() / "botonera").string();
+        sigCfg.sesionWebroot = (guestRoot.parent_path() / "sesion").string();
     }
     // Clave del control del teleprompter: nueva en cada arranque. No hace
     // falta que sobreviva -- el operador manda el enlace (o el QR) cuando va a
     // usarlo, y una clave que no se guarda en ningun lado no se filtra.
     if (!ba::security::randomSecretHex(16, sigCfg.prompterKey)) sigCfg.prompterKey.clear();
+    // La del puesto de corrección de subtítulos (T44): también por arranque.
+    if (!ba::security::randomSecretHex(16, sigCfg.correccionKey)) sigCfg.correccionKey.clear();
     // Idem los rotulos, con su propia clave: que el que rotula desde el celular
     // no pueda ademas frenarle el texto al orador.
     if (!ba::security::randomSecretHex(16, sigCfg.rotulosKey)) sigCfg.rotulosKey.clear();
@@ -616,7 +663,14 @@ int main(int argc, char** argv) {
     // cualquiera que pase por el tunel. Nueva en cada arranque, como las otras:
     // las preguntas del evento de ayer no son las de hoy.
     if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
+    // La de ba-web (el servidor público adelante del túnel): para que pueda mandar los ids
+    // de mirada que juntó su caché. Nueva en cada arranque; le llega por el entorno.
+    if (!ba::security::randomSecretHex(16, sigCfg.webClave)) sigCfg.webClave.clear();
     sigCfg.adminToken = adminToken;
+    // La escucha propia del tunel de pinggy (127.0.0.1:8786): todo lo que entra
+    // por ahi es externo, venga con la IP que venga (ver SignalingServer.hpp).
+    sigCfg.tunel = cfg.pinggyActivo;
+    sigCfg.tunnelPort = cfg.pinggyPuertoTunel;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);
 
@@ -645,8 +699,21 @@ int main(int argc, char** argv) {
         server.setPublicAddress(publicIp);
     }
     const std::vector<std::string> lanIps = net::localIPv4s();
+    // Lo que va en el QR y el enlace por la red local: lo elegido en Configuración; si
+    // no, la IP de la interfaz donde escucha; si no, la primera de la red (localIPv4s
+    // las ordena: la de verdad antes que las virtuales).
+    const std::string hostLocal = !cfg.urlHost.empty()                                          ? cfg.urlHost
+                                  : (cfg.bindAddress != "0.0.0.0" && cfg.bindAddress != "127.0.0.1") ? cfg.bindAddress
+                                  : !lanIps.empty()                                             ? lanIps.front()
+                                                                                                : std::string();
+    log.info("red: IP de la máquina " + [&] {
+        std::string l;
+        for (const auto& x : lanIps) l += (l.empty() ? "" : ", ") + x;
+        return l.empty() ? std::string("(ninguna)") : l;
+    }() + "; en el QR: " + (hostLocal.empty() ? std::string("(ninguna)") : hostLocal));
 
     std::unique_ptr<net::TlsTerminator> tls;
+    bool httpsPorBaWeb = false;
     if (cfg.https) {
         net::TlsTerminator::Config tc;
         tc.bindAddress = cfg.bindAddress;
@@ -654,14 +721,37 @@ int main(int argc, char** argv) {
         tc.backendPort = cfg.port;
         tc.credentialsDir = ba::platform::credentialsDir().string();
         tc.names = lanIps;
+        if (!cfg.urlHost.empty() && std::find(tc.names.begin(), tc.names.end(), cfg.urlHost) == tc.names.end())
+            tc.names.push_back(cfg.urlHost); // el certificado también para el nombre elegido
         if (!publicHost.empty()) tc.names.push_back(publicHost);
         if (!publicIp.empty() && publicIp != publicHost) tc.names.push_back(publicIp);
         tls = std::make_unique<net::TlsTerminator>(tc, logLine);
-        if (!tls->start()) {
+        // El HTTPS de la red local lo atiende ba-web (gzip, caché, límites; ver más abajo) con
+        // este mismo certificado: acá solo se carga. Con WireGuard no: su puente manda la
+        // línea PROXY antes del TLS, y eso lo entiende este terminador. Si ba-web después no
+        // arranca, este terminador escucha en el mismo puerto (las URLs no cambian).
+        // web.lan (de fábrica, no en Windows: ver Config.hpp, el firewall por programa).
+        const bool webPuede = cfg.webActivo && cfg.webLan && !cfg.wgEnabled && std::filesystem::exists(cfg.webPath);
+        if (webPuede && tls->cargarCertificado()) {
+            tls->atendidoAfuera(cfg.httpsPort);
+            httpsPorBaWeb = true;
+        } else if (!tls->start()) {
             log.warn("https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)", -1);
             tls.reset();
         }
     }
+
+    // El proxy por nombre (T61): un DNS y un certificado por servicio, en el 443/80.
+    std::unique_ptr<proxy::GestorProxy> gestorProxy;
+    if (cfg.proxy.value("activo", false)) {
+        gestorProxy = std::make_unique<proxy::GestorProxy>(cfg.proxy, cfg.port, ba::platform::credentialsDir().string(),
+                                                           lanIps, logLine);
+        if (!gestorProxy->start()) {
+            log.warn("proxy: no arrancó (ver el motivo arriba)", -1);
+            gestorProxy.reset();
+        }
+    }
+    server.setProxy(gestorProxy.get());
 
     std::unique_ptr<net::WgDevice> wg;
 #if BA_HAVE_LWIP
@@ -726,12 +816,12 @@ int main(int argc, char** argv) {
     std::string bestUrl = guestUrl;
     if (!publicHost.empty() && wg) {
         bestUrl = (tls ? "https://" : "http://") + publicHost + "/";
-    } else if (tls && cfg.bindAddress == "0.0.0.0" && !lanIps.empty()) {
-        bestUrl = "https://" + lanIps.front() + ":" + std::to_string(tls->port()) + "/";
+    } else if (tls && cfg.bindAddress != "127.0.0.1" && !hostLocal.empty()) {
+        bestUrl = "https://" + hostLocal + ":" + std::to_string(tls->port()) + "/";
     } else if (tls) {
         bestUrl = "https://127.0.0.1:" + std::to_string(tls->port()) + "/";
     }
-    room.setHostInfo(roomPin, bestUrl + "#room=" + cfg.room);
+    room.setHostInfo(roomPin, bestUrl + "invitados/#room=" + cfg.room);
 
     server.setServerConfigGenerator([&](const nlohmann::json& req) {
         // Claves NUEVAS para el servidor + su wg0.conf con las redirecciones
@@ -796,25 +886,222 @@ int main(int argc, char** argv) {
         return out;
     });
 
+    // --- TURN de la caja (docs/planes/PINGGY.md, P3) ---------------------------
+    // >>> ENGANCHE DEL TURN: aca se construye y arranca el servidor TURN
+    // (ba::gateway::turn::Servidor, src/gateway/turn/) en 127.0.0.1:turnPuertoLocal,
+    // ANTES del supervisor de pinggy, y se pone turnActivo = true si arranco.
+    // Con eso pinggy suma los forwardings tlstcp/tcp (y udp) hacia el TURN, y
+    // pinggy->turnPublico() (host:puerto, tipo en pinggy->estado().turnTipo)
+    // es lo que va en los iceServers de los navegadores (turns: si es tlstcp,
+    // turn:?transport=tcp si es tcp; estado().turnUdp para turn: por UDP).
+    // Detenerlo en el cierre ordenado, despues de pinggy (ver abajo). <<<
+    bool turnActivo = false;
+    const uint16_t turnPuertoLocal = 3478;
+    // El TURN de la caja (src/gateway/turn): solo con pinggy y «TURN por el túnel».
+    // Relaya únicamente hacia las IP de esta máquina y el rango de WebRTC.
+    ba::gateway::turn::Servidor::Config turnCfg;
+    std::unique_ptr<ba::gateway::turn::Servidor> turnSrv;
+    if (cfg.pinggyActivo && cfg.pinggyTurn) {
+        turnCfg.puertoTcp = turnPuertoLocal;
+        turnCfg.puertoUdp = cfg.pinggyTurnUdp ? turnPuertoLocal : 0;
+        // También en la red local: en la sesión remota de la asamblea los navegadores
+        // se conectan ENTRE ELLOS (integrante con integrante); uno de la sala y uno de
+        // afuera solo se encuentran si los dos tienen un relay en esta caja. Pinggy
+        // sigue entrando por 127.0.0.1. La política de peers no cambia.
+        turnCfg.direccion = "0.0.0.0";
+        const std::vector<std::string> ips = ba::gateway::net::localIPv4s();
+        turnCfg.peersPermitidos = ips;
+        turnCfg.peersPermitidos.push_back("127.0.0.1");
+        turnCfg.direccionRelay = ips.empty() ? std::string("127.0.0.1") : ips.front();
+        turnCfg.bindRelay = "0.0.0.0";
+        turnCfg.rtcMin = cfg.rtcPortMin;
+        turnCfg.rtcMax = cfg.rtcPortMax;
+        turnCfg.secreto = ba::gateway::turn::secretoAleatorio();
+        turnSrv = std::make_unique<ba::gateway::turn::Servidor>(turnCfg);
+        std::string e;
+        if (turnSrv->start(&e)) {
+            turnActivo = true;
+            log.info("turn: escuchando en el puerto " + std::to_string(turnPuertoLocal) +
+                     (turnCfg.puertoUdp ? " (TCP y UDP)" : " (TCP)"));
+        } else {
+            log.warn("turn: no arrancó (" + e + "): los invitados de afuera no van a tener video", -1);
+            turnSrv.reset();
+        }
+    }
+
+    // --- Supervisor de pinggy (acceso remoto; docs/planes/PINGGY.md) ----------
+    // Precedencia para enlaces y QR remotos (setJoinUrlProvider y origenSeguro):
+    // pinggy si esta listo, si no el dominio de Cloudflare, si no WireGuard. Los
+    // dos tuneles pueden estar prendidos a la vez: cada uno llega a su escucha.
+    std::unique_ptr<PinggySupervisor> pinggy;
+    // ba-web adelante del túnel: pinggy le manda el tráfico a él y él atiende el sitio (de
+    // memoria, con gzip) y le pasa el resto a la escucha del túnel. Si no arranca, pinggy va
+    // directo a la escucha del túnel, como antes.
+    // También atiende el HTTPS de la red local (httpsPorBaWeb, más arriba): el certificado le
+    // llega por la entrada estándar (nunca a disco) y le pasa todo a la escucha local (cfg.port).
+    std::unique_ptr<WebSupervisor> baWeb;
+    if ((cfg.pinggyActivo || httpsPorBaWeb) && cfg.webActivo) {
+        WebSupervisor::Cfg wc;
+        wc.exe = cfg.webPath;
+        wc.logPath = (std::filesystem::path(cfg.logsDir) / "ba-web.log").string();
+        wc.dir = ba::platform::stateDir().string();
+        wc.webroot = cfg.webroot;
+        wc.eventoWebroot = sigCfg.eventoWebroot;
+        wc.tunel = cfg.pinggyActivo;
+        wc.puerto = cfg.webPuerto;
+        wc.upstream = cfg.pinggyPuertoTunel;
+        wc.procesos = cfg.webProcesos;
+        wc.cacheMs = ba::ajustes::entero("evento.cacheMs", 1000);
+        wc.clave = sigCfg.webClave;
+        wc.proxyProtocol = !turnActivo; // como pc.haproxy de pinggy, más abajo
+        if (httpsPorBaWeb && tls) {
+            std::string crt, key;
+            if (tls->pemParaExportar(crt, key)) {
+                wc.lanBind = cfg.bindAddress;
+                wc.lanPuerto = cfg.httpsPort;
+                wc.lanUpstream = cfg.port;
+                wc.tlsPem = crt + "\n" + key;
+                std::fill(key.begin(), key.end(), '\0');
+            }
+        }
+        if (!wc.dir.empty()) {
+            baWeb = std::make_unique<WebSupervisor>(std::move(wc), log);
+            WebSupervisor* bw = baWeb.get();
+            server.setAlCambiarEventoDir([bw](const std::string& dir) { bw->setEventoDir(dir); });
+            if (!baWeb->start()) {
+                server.setAlCambiarEventoDir(nullptr);
+                baWeb.reset();
+            }
+        }
+    }
+    // Si ba-web no arrancó (o no le llegó el certificado), el HTTPS de la red local lo atiende
+    // el terminador de siempre, en el mismo puerto.
+    if (httpsPorBaWeb && tls && !(baWeb && baWeb->atiendeLan())) {
+        log.warn("https: ba-web no lo atiende; arranca el terminador propio", -1);
+        if (!tls->start()) {
+            log.warn("https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)", -1);
+            tls.reset();
+        }
+    }
+    if (cfg.pinggyActivo) {
+        PinggySupervisor::Cfg pc;
+        pc.exe = cfg.pinggyPath;
+        pc.logPath = cfg.pinggyLog;
+        pc.region = cfg.pinggyRegion;
+        pc.host = cfg.pinggyHost;
+        pc.listaBlanca = cfg.pinggyListaBlanca;
+        pc.puertoTunel = baWeb && baWeb->atiendeTunel() ? baWeb->puerto() : cfg.pinggyPuertoTunel;
+        pc.turn = turnActivo;
+        pc.turnLocal = turnPuertoLocal;
+        pc.turnTcpPuerto = cfg.pinggyTurnTcpPuerto;
+        pc.turnUdp = cfg.pinggyTurnUdp;
+        pc.turnUdpPuerto = cfg.pinggyTurnUdpPuerto;
+        // ba-pinggy pone PROXY v1 en TODOS los forwardings (es global): con el
+        // TURN prendido va sin (el TURN no lo entiende) y la IP real sale del
+        // X-Forwarded-For que agrega pinggy (--xff). Igual es todo externo.
+        pc.haproxy = turnActivo ? "no" : "v1";
+        // Nunca por el tunel: la señalizacion comun (confia en 127.0.0.1 como red
+        // local), su HTTPS, la API de control, el MCP y las metricas.
+        pc.prohibidos.insert({cfg.port, cfg.httpsPort, cfg.adminPort, cfg.metricsPort});
+        pc.token = envOrEmpty(kEnvPinggyToken);
+        if (pc.token.empty()) {
+            std::string t;
+            if (ba::security::CredentialStore::bundle().read("pinggy-token", t)) {
+                while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+                pc.token = t;
+            }
+        }
+        pinggy = std::make_unique<PinggySupervisor>(std::move(pc), log);
+    }
+    const auto urlPinggy = [&]() { return pinggy ? pinggy->urlPublica() : std::string(); };
+
+    // GET /api/ice: los iceServers para los navegadores. Los extremos públicos del
+    // TURN cambian si pinggy reconecta: se arman en cada pedido, no al arrancar.
+    server.setIce([&](bool externo) {
+        ba::gateway::turn::ExtremosIce x;
+        if (pinggy && turnSrv) {
+            const PinggySupervisor::Estado st = pinggy->estado();
+            const auto partir = [](const std::string& hp, std::string& host, uint16_t& puerto) {
+                const auto dos = hp.rfind(':');
+                if (dos == std::string::npos) return false;
+                host = hp.substr(0, dos);
+                puerto = static_cast<uint16_t>(std::atoi(hp.c_str() + dos + 1));
+                return !host.empty() && puerto != 0;
+            };
+            std::string host;
+            uint16_t puerto = 0;
+            if (partir(st.turnPublico, host, puerto)) {
+                if (st.turnTipo == "tlstcp") {
+                    x.hostPublico = host; // turns:host:puerto (pinggy termina el TLS)
+                    x.puertoTls = puerto;
+                } else {
+                    x.tcpPublico = st.turnPublico; // turn:host:puerto?transport=tcp
+                }
+            }
+            x.udpPublico = st.turnUdp;
+        }
+        // Desde la red local: el TURN por la IP de la caja (para el P2P con los de afuera).
+        if (turnSrv && !externo && turnCfg.direccionRelay != "127.0.0.1") {
+            x.hostLan = turnCfg.direccionRelay;
+            x.puertoLanTcp = turnCfg.puertoTcp;
+            x.puertoLanUdp = turnCfg.puertoUdp;
+        }
+        return ba::gateway::turn::respuestaIce(turnCfg, turnSrv && turnSrv->activo(), x, externo);
+    });
+
+    server.setRemotoStatus([&]() {
+        nlohmann::json pg = pinggy ? pinggy->estadoJson()
+                                   : nlohmann::json{{"estado", "apagado"},
+                                                    {"urls", nlohmann::json::array()},
+                                                    {"urlPublica", ""},
+                                                    {"error", ""},
+                                                    {"turn", {{"publico", ""}, {"tipo", ""}, {"udp", ""}}}};
+        pg["activo"] = cfg.pinggyActivo; // lo configurado (el estado dice si anda)
+        pg["puertoTunel"] = server.tunnelPort();
+        pg["turnServidor"] = turnSrv ? turnSrv->estado() : nlohmann::json{{"activo", false}};
+        return nlohmann::json{
+            {"pinggy", pg},
+            {"cloudflare",
+             {{"activo", cfg.tunnel && !cfg.tunnelToken.empty()},
+              {"hostname", cfg.tunnelHostname}}},
+            // Que URL usan los enlaces y el QR remotos.
+            {"urlRemota", !urlPinggy().empty()             ? urlPinggy()
+                          : !cfg.tunnelHostname.empty() ? "https://" + cfg.tunnelHostname
+                                                        : std::string()},
+            {"precedencia", nlohmann::json::array({"pinggy", "cloudflare", "wireguard"})}};
+    });
+
     server.setJoinUrlProvider([&](const std::string& target) -> nlohmann::json {
         // La sala va en el fragmento (#room=): la app del invitado la precarga
         // y el fragmento nunca viaja al servidor. El PIN NO va en el QR.
-        const std::string frag = "#room=" + cfg.room;
+        const std::string frag = "invitados/#room=" + cfg.room;
         if (target == "remote") {
+            // pinggy primero si esta listo (ver la precedencia arriba).
+            if (const std::string pg = urlPinggy(); !pg.empty()) return {{"url", pg + "/" + frag}};
             if (!cfg.tunnelHostname.empty()) return {{"url", "https://" + cfg.tunnelHostname + "/" + frag}};
             if (wg && !publicHost.empty())
                 return {{"url", (tls ? "https://" : "http://") + publicHost + "/" + frag}};
+            if (pinggy)
+                return {{"error", "remote"},
+                        {"message", "El tunel de pinggy todavia no esta listo (" + pinggy->estado().estado +
+                                        "). Mira Configuracion > Acceso remoto."}};
             return {
                 {"error", "remote"},
                 {"message",
-                 "Falta el dominio del tunel de Cloudflare (Configuracion > Gateway > Dominio publico)."}};
+                 "Falta el acceso remoto: pinggy (Configuracion > Acceso remoto) o el dominio del tunel de "
+                 "Cloudflare (Configuracion > Gateway > Dominio publico)."}};
         }
-        if (cfg.bindAddress == "127.0.0.1" || lanIps.empty()) {
+        if (cfg.bindAddress == "127.0.0.1") {
             return {{"error", "local"},
-                    {"message", "El gateway solo escucha en esta maquina: elegi 'Red local' en Configuracion "
-                                "> Gateway > Acceso."}};
+                    {"message", "El gateway solo escucha en esta maquina: elegi 'Red local' o una IP en "
+                                "Configuracion > Gateway > Acceso."}};
         }
-        const std::string ip = cfg.bindAddress == "0.0.0.0" ? lanIps.front() : cfg.bindAddress;
+        if (hostLocal.empty()) {
+            return {{"error", "local"},
+                    {"message", "No encontre ninguna IP de red en esta maquina: elegila o escribila en "
+                                "Configuracion > Gateway > Direccion para el QR."}};
+        }
+        const std::string& ip = hostLocal;
         if (tls) return {{"url", "https://" + ip + ":" + std::to_string(tls->port()) + "/" + frag}};
         return {{"url", "http://" + ip + ":" + std::to_string(cfg.port) + "/" + frag},
                 {"warning", "Sin HTTPS el navegador no da camara ni microfono por la red local."}};
@@ -826,23 +1113,31 @@ int main(int argc, char** argv) {
         urls.push_back(guestUrl);
         if (tls) {
             urls.push_back("https://127.0.0.1:" + std::to_string(tls->port()) + "/");
+            if (!hostLocal.empty() && cfg.bindAddress != "127.0.0.1")
+                urls.push_back("https://" + hostLocal + ":" + std::to_string(tls->port()) + "/");
             if (cfg.bindAddress == "0.0.0.0") {
                 for (const auto& ip : lanIps)
-                    urls.push_back("https://" + ip + ":" + std::to_string(tls->port()) + "/");
+                    if (ip != hostLocal) urls.push_back("https://" + ip + ":" + std::to_string(tls->port()) + "/");
             }
         }
         if (!publicHost.empty() && wg) urls.push_back((tls ? "https://" : "http://") + publicHost + "/");
+        if (const std::string pg = urlPinggy(); !pg.empty()) urls.push_back(pg + "/");
         st["urls"] = urls;
         st["bestUrl"] = bestUrl;
         st["lan"] = lanIps;
+        st["urlHost"] = hostLocal;
         // El origen con certificado DE VERDAD, si lo hay. Importa para los
         // televisores: un receptor de Chromecast es una pagina HTTPS y el
         // navegador le prohibe cargar contenido http (mixed content), asi que
         // nuestro HTTPS autofirmado tampoco le sirve. Sin tunel, no hay forma
         // de mostrarle una pagina NUESTRA, y conviene decirlo que descubrirlo
         // con un televisor colgado en "cargando".
-        st["origenSeguro"] =
-            cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
+        // pinggy (si esta listo) antes que Cloudflare: los dos tienen certificado de verdad.
+        if (const std::string pg = urlPinggy(); !pg.empty())
+            st["origenSeguro"] = pg;
+        else
+            st["origenSeguro"] =
+                cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},
@@ -877,6 +1172,14 @@ int main(int argc, char** argv) {
                  -1);
     } else {
         cfg.tunnelToken = envOrEmpty(kEnvTunnelToken);
+        // Si no, el que se guarda en Configuración → Cloudflare (cifrado en Credenciales/).
+        if (cfg.tunnelToken.empty()) {
+            std::string t;
+            if (ba::security::CredentialStore::bundle().read("cloudflare-token", t)) {
+                while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+                cfg.tunnelToken = t;
+            }
+        }
     }
     CloudflaredSupervisor cloudflared(cfg.cloudflaredPath, cfg.tunnelToken, cfg.metricsPort,
                                       cfg.cloudflaredLog, log);
@@ -894,13 +1197,21 @@ int main(int argc, char** argv) {
                                       {"token", adminToken},
                                       {"pid", static_cast<long long>(pid)},
                                       {"guestPort", cfg.port}};
-            if (!writeAdminFile(adminFile, info.dump())) {
+            if (!writeAdminFile(adminFile, info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))) {
                 log.warn("control: no se pudo publicar " + adminFile.string(), -1);
                 adminFile.clear();
             }
         }
     }
     pump.start();
+    if (pinggy) {
+        if (server.tunnelPort() == 0)
+            log.error("pinggy: sin la escucha del tunel (127.0.0.1:" + std::to_string(cfg.pinggyPuertoTunel) +
+                          "); no se lanza",
+                      -1);
+        else
+            pinggy->start();
+    }
     if (cfg.tunnel) {
         cloudflared.start();
     } else {
@@ -957,6 +1268,9 @@ int main(int argc, char** argv) {
 #endif
     if (wg) wg->stop();
     if (tls) tls->stop();
+    if (pinggy) pinggy->stop(); // antes que la escucha del tunel
+    if (baWeb) baWeb->stop();   // después de pinggy (ya no le llega nada)
+    if (turnSrv) turnSrv->stop();
     server.stop();
     if (!adminFile.empty()) {
         std::error_code ec;

@@ -7,13 +7,15 @@
 # certificado propio «BA Desarrollo local» si esta (tools/firma-local.sh: la
 # identidad no cambia entre compilaciones y macOS recuerda los permisos de
 # camara y microfono), o ad-hoc ("-"). Alcanza para correr en esta Mac. Para distribuir a otras Macs hace
-# falta firma Developer ID + notarizacion (docs/MACOS.md).
+# falta firma Developer ID + notarizacion (docs/desarrollo/MACOS.md).
 # Tambien se quita la cuarentena de Gatekeeper por si el arbol vino de un zip.
 # ============================================================================
+# Las rutas del árbol de fuentes y del build, para el bloque de abajo (que va
+# entre [=[ ]=] y no expande variables de la configuración).
+install(CODE "set(_ba_src \"${CMAKE_SOURCE_DIR}\")\nset(_ba_bin \"${CMAKE_BINARY_DIR}\")" COMPONENT bundle)
 install(CODE [=[
     set(_root "${CMAKE_INSTALL_PREFIX}")
     execute_process(COMMAND xattr -dr com.apple.quarantine "${_root}" ERROR_QUIET)
-    file(GLOB_RECURSE _all LIST_DIRECTORIES false "${_root}/*")
     # Con el certificado propio (tools/firma-local.sh) la identidad de la app
     # no cambia entre compilaciones y macOS recuerda los permisos (cámara,
     # micrófono). Solo si firma SIN preguntar (si no, la compilación quedaría
@@ -31,38 +33,15 @@ install(CODE [=[
         file(REMOVE "${_prueba}")
     endif()
     message(STATUS "ba-bundle: firma ${_firma}")
-    set(_n 0)
-    foreach(_f IN LISTS _all)
-        if(IS_SYMLINK "${_f}")
-            continue()
-        endif()
-        # Lo que esta adentro de una .app (LibreOffice) se firma con ella, abajo:
-        # firmar sus archivos sueltos rompe el sello de la .app.
-        if(_f MATCHES "\\.app/")
-            continue()
-        endif()
-        # Solo Mach-O: dylibs, .so, ejecutables y binarios de frameworks/plugins.
-        execute_process(COMMAND file -b "${_f}" OUTPUT_VARIABLE _kind ERROR_QUIET)
-        if(_kind MATCHES "Mach-O")
-            execute_process(COMMAND codesign -f -s "${_firma}" "${_f}" RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
-            if(_rc EQUAL 0)
-                math(EXPR _n "${_n} + 1")
-            else()
-                message(WARNING "ba-bundle: no se pudo firmar ${_f}")
-            endif()
-        endif()
-    endforeach()
-    message(STATUS "ba-bundle: ${_n} binarios Mach-O firmados (${_firma})")
-    # Cada .app entera (con --deep: sus frameworks y dylibs de adentro).
-    file(GLOB_RECURSE _apps LIST_DIRECTORIES true "${_root}/*.app")
-    foreach(_a IN LISTS _apps)
-        if(IS_DIRECTORY "${_a}" AND _a MATCHES "\\.app$" AND NOT _a MATCHES "\\.app/.*\\.app$")
-            execute_process(COMMAND codesign --force --deep -s "${_firma}" "${_a}" RESULT_VARIABLE _rc OUTPUT_QUIET ERROR_QUIET)
-            if(NOT _rc EQUAL 0)
-                message(WARNING "ba-bundle: no se pudo firmar ${_a}")
-            else()
-                message(STATUS "ba-bundle: firmada ${_a}")
-            endif()
-        endif()
-    endforeach()
+    # Solo lo nuevo o cambiado, en paralelo, conservando la fecha de cada archivo
+    # (si no, cmake los vuelve a copiar en la instalación siguiente): ver
+    # tools/deps/firmar-macos.sh. La cache va en el build (una por destino), no en
+    # el bundle: si no, entraría en el manifest y en la .app.
+    string(MD5 _clave "${_root}")
+    execute_process(COMMAND bash "${_ba_src}/tools/deps/firmar-macos.sh" "${_root}" "${_firma}"
+                            "${_ba_bin}/firmas-${_clave}.txt" "${_ba_bin}/firmados-${_clave}.txt"
+                    RESULT_VARIABLE _rc)
+    if(NOT _rc EQUAL 0)
+        message(FATAL_ERROR "ba-bundle: falló la firma de los binarios")
+    endif()
 ]=] COMPONENT bundle)

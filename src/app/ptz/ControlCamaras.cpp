@@ -1,10 +1,11 @@
 // src/app/ptz/ControlCamaras.cpp — ver ControlCamaras.hpp
 
 #include "ptz/ControlCamaras.hpp"
+#include "platform/Paths.hpp"
 
-#include "AppRuntime.hpp"
-#include "BroadcastEngine.hpp"
-#include "InputSpecs.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/InputSpecs.hpp"
 #include "net/Credentials.hpp"
 #include "ptz/OnvifBusqueda.hpp"
 #include "ptz/Posiciones.hpp"
@@ -15,10 +16,15 @@
 #include "ptz/PtzPlugin.hpp"
 #include "ptz/PtzVisca.hpp"
 
-#include <obs.h>
+#include "emision/FuentesApp.hpp"
 
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QFile>
+#include <QCoreApplication>
+#include <QImage>
+#include <QFileInfo>
+#include <QUrl>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -28,14 +34,16 @@
 #include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <cmath>
 
 namespace ba::app::ptz {
 
 namespace {
 
-/// Nombre del filtro de Mejorar imagen en cada fuente.
-constexpr const char* kFiltroMejora = "BA · Mejorar imagen";
+/// Orden de los filtros extra en la cadena de la entrada: se limpia antes de ampliar.
+constexpr int kOrdenMejora = 10;
+constexpr int kOrdenPtz = 20;
 
 QString qs(const std::string& s) { return QString::fromStdString(s); }
 
@@ -57,10 +65,18 @@ struct ControlCamaras::Camara {
 
 ControlCamaras::ControlCamaras(AppRuntime& rt, std::filesystem::path dataRoot, QObject* parent)
     : QObject(parent), rt_(rt), archivo_(dataRoot / "Config" / "camaras.json"),
-      credenciales_(QString::fromStdString((dataRoot / "Credenciales").string())),
+      credenciales_(QString::fromStdString((ba::platform::credentialsDir()).string())),
       busqueda_(std::make_unique<OnvifBusqueda>()) {
     connect(busqueda_.get(), &OnvifBusqueda::cambio, this, &ControlCamaras::busquedaCambio);
     leer();
+    {
+        std::ifstream f(dataRoot / "Config" / "ptz-interlock.json");
+        const auto j = nlohmann::json::parse(f, nullptr, false);
+        if (j.is_object()) {
+            interlockActivo_ = j.value("activo", true);
+            seguirSuavePermitido_ = j.value("seguir_suave_permitido", true);
+        }
+    }
     revision_.setInterval(1500);
     connect(&revision_, &QTimer::timeout, this, &ControlCamaras::sincronizar);
     revision_.start();
@@ -160,7 +176,9 @@ QVariantMap ControlCamaras::fila(const Camara& c) const {
                                          : QStringLiteral("PTZ apagado"))},
             {"estadoDigital", c.dig ? c.dig->estado() : QString()},
             {"presetsDigitales", presetsDig},
-            {"posiciones", c.posiciones.json().toVariantList()}};
+            {"fotosPresetsDigitales", fotosPresets(c, true)},
+            {"fotosPresetsCamara", fotosPresets(c, false)},
+            {"posiciones", posiciones(qs(c.entrada))}};
 }
 
 QVariantList ControlCamaras::camaras() const {
@@ -195,9 +213,13 @@ void ControlCamaras::sincronizar() {
     for (const std::string& n : e.sourceNames()) {
         const std::string type = e.sourceTypeId(n);
         const auto s = nlohmann::json::parse(e.sourceSettingsJson(n), nullptr, false);
-        const bool hw = type == inputs::kVideoType;
-        const bool ndi = type == "ba_ndi_input";
-        if (!hw && !inputs::isNetworkInput(type, s)) continue;
+        // Por lo que ES, no por su tipo: con GStreamer una cámara del equipo o una
+        // NDI son `ba_gst_fuente` (con `camara` / `ndi`), y comparando contra el tipo
+        // viejo de libobs la cámara web no aparecía en el PTZ.
+        const std::string logico = inputs::tipoLogico(type, s);
+        const bool hw = logico == inputs::kVideoType;
+        const bool ndi = logico == "ba_ndi_input";
+        if (!hw && !ndi && !inputs::isNetworkInput(type, s)) continue;
         presentes[n] = hw ? QStringLiteral("hardware") : ndi ? QStringLiteral("ndi") : QStringLiteral("red");
     }
     bool cambiaron = presentes != tipoEntrada_;
@@ -224,57 +246,27 @@ void ControlCamaras::sincronizar() {
 }
 
 void ControlCamaras::aplicarFiltros(Camara& c, bool mejoraGeneral) {
-    obs_source_t* src = obs_get_source_by_name(c.entrada.c_str());
-    if (src == nullptr) return;
     const AppConfig& cfg = rt_.config();
-
     // 1) Mejorar imagen: lo más cerca de la fuente (se limpia antes de ampliar).
     const bool quiereMejora = c.mejora == "si" || (c.mejora == "general" && mejoraGeneral);
-    obs_source_t* mej = obs_source_get_filter_by_name(src, kFiltroMejora);
-    obs_data_t* ajustes = obs_data_create();
-    obs_data_set_int(ajustes, "ruido", cfg.mejora.ruido);
-    obs_data_set_int(ajustes, "color", cfg.mejora.color);
-    obs_data_set_int(ajustes, "nitidez", cfg.mejora.nitidez);
-    if (quiereMejora && mej == nullptr) {
-        obs_source_t* f = obs_source_create_private("ba_mejora_imagen", kFiltroMejora, ajustes);
-        if (f != nullptr) {
-            obs_source_filter_add(src, f);
-            // «Arriba» en la lista de libobs (el último del arreglo, cuyo
-            // destino es la fuente) = el primero en aplicarse: se limpia antes
-            // de que el PTZ digital amplíe. Un filtro nuevo entra «abajo»
-            // (índice 0, el último en aplicarse).
-            obs_source_filter_set_order(src, f, OBS_ORDER_MOVE_TOP);
-            obs_source_release(f);
-        }
-    } else if (quiereMejora && mej != nullptr) {
-        obs_data_t* actual = obs_source_get_settings(mej);
-        if (obs_data_get_int(actual, "ruido") != cfg.mejora.ruido ||
-            obs_data_get_int(actual, "color") != cfg.mejora.color ||
-            obs_data_get_int(actual, "nitidez") != cfg.mejora.nitidez)
-            obs_source_update(mej, ajustes);
-        obs_data_release(actual);
-    } else if (!quiereMejora && mej != nullptr) {
-        obs_source_filter_remove(src, mej);
-    }
-    obs_data_release(ajustes);
-    if (mej != nullptr) obs_source_release(mej);
-
+    nlohmann::json mejora = nlohmann::json::array();
+    if (quiereMejora)
+        mejora.push_back({{"id", "mejora"},
+                          {"elemento", "bamejora"},
+                          {"propiedades",
+                           {{"ruido", std::to_string(cfg.mejora.ruido)},
+                            {"color", std::to_string(cfg.mejora.color)},
+                            {"nitidez", std::to_string(cfg.mejora.nitidez)}}}});
+    fuentes::ponerFiltrosExtra(c.entrada, kOrdenMejora, mejora);
     // 2) PTZ digital.
-    obs_source_t* ptz = obs_source_get_filter_by_name(src, kFiltroPtz);
-    if (c.digital && ptz == nullptr) {
-        obs_source_t* f = obs_source_create_private("ba_ptz_digital", kFiltroPtz, nullptr);
-        if (f != nullptr) {
-            obs_source_filter_add(src, f);
-            obs_source_release(f);
-            c.filtroPuesto = false;
-        }
-    } else if (!c.digital && ptz != nullptr) {
-        obs_source_filter_remove(src, ptz);
-        c.filtroPuesto = false;
-    }
-    if (ptz != nullptr) obs_source_release(ptz);
-    obs_source_release(src);
-    // Recién puesto: vuelve al encuadre que tenía.
+    nlohmann::json ptz = nlohmann::json::array();
+    if (c.digital) ptz.push_back({{"id", kFiltroPtz}, {"elemento", "baptz"}});
+    fuentes::ponerFiltrosExtra(c.entrada, kOrdenPtz, ptz);
+    // Apagado: el elemento sigue en la cadena (no se rearma la cámara), pero vuelve
+    // al encuadre completo, quieto (y así pasa sin tocar los cuadros).
+    if (!c.digital && c.filtroPuesto && c.dig) c.dig->ir(0.5, 0.5, 1.0, 0.0);
+    if (!c.digital) c.filtroPuesto = false;
+    // Recién puesto (la cadena se rearma): vuelve al encuadre que tenía.
     if (c.digital && !c.filtroPuesto && c.dig) {
         c.filtroPuesto = c.dig->ir(c.posicion.value("x").toDouble(0.5), c.posicion.value("y").toDouble(0.5),
                                    c.posicion.value("zoom").toDouble(1.0), 0.0);
@@ -371,6 +363,8 @@ QString ControlCamaras::guardarPreset(const QString& entrada, int n) {
     if (n < 1 || n > b->capacidades().presets)
         return QStringLiteral("Preset %1 fuera de rango (1-%2)").arg(n).arg(b->capacidades().presets);
     b->guardarPreset(n);
+    // La foto del lugar: el recorte digital ya está ahí; la cabeza, quieta donde se guarda.
+    fotoPreset(entrada, b == c->dig.get(), n);
     guardarPronto();
     emit cambio();
     return {};
@@ -474,7 +468,130 @@ QVariantMap ControlCamaras::posicion(const QString& entrada) const {
 
 QVariantList ControlCamaras::posiciones(const QString& entrada) const {
     auto it = camaras_.find(entrada.toStdString());
-    return it == camaras_.end() ? QVariantList{} : it->second->posiciones.json().toVariantList();
+    if (it == camaras_.end()) return {};
+    QVariantList out = it->second->posiciones.json().toVariantList();
+    for (QVariant& v : out) {
+        QVariantMap m = v.toMap();
+        const QString f = m.value("miniatura").toString();
+        if (f.isEmpty()) continue;
+        const QString ruta = QString::fromStdWString((carpetaMiniaturas() / f.toStdWString()).wstring());
+        if (!QFile::exists(ruta)) continue;
+        m["miniatura_ruta"] = ruta;
+        // La fecha en la URL: si se regraba, QML no muestra la foto vieja del caché.
+        m["miniatura_url"] = QUrl::fromLocalFile(ruta).toString() + "?v=" + m.value("modificada").toString();
+        v = m;
+    }
+    return out;
+}
+
+std::filesystem::path ControlCamaras::carpetaMiniaturas() const {
+    return archivo_.parent_path().parent_path() / "Miniaturas" / "ptz";
+}
+
+QString ControlCamaras::capturarMiniatura(const QString& entrada, const QString& idONombre) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return error;
+    Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
+    // El cuadro llega aparte (la interfaz no lo espera); lo que sigue, cuando llega.
+    const std::string fuente = c->entrada;
+    const QString posicion = p->id;
+    QPointer<ControlCamaras> yo(this);
+    rt_.engine().capturarAparte(
+        fuente, 320, [yo, entrada, posicion](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+            QImage img;
+            if (e.empty() && w > 0 && h > 0)
+                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+            QMetaObject::invokeMethod(
+                qApp,
+                [yo, entrada, posicion, img]() {
+                    if (!yo) return;
+                    const QString err = yo->guardarMiniatura(entrada, posicion, img);
+                    if (!err.isEmpty()) emit yo->aviso(err);
+                },
+                Qt::QueuedConnection);
+        });
+    return {};
+}
+
+QString ControlCamaras::guardarMiniatura(const QString& entrada, const QString& idONombre, const QImage& img) {
+    QString error;
+    Camara* c = camara(entrada, &error);
+    if (c == nullptr) return error;
+    Posicion* p = c->posiciones.buscar(idONombre);
+    if (p == nullptr) return {}; // la borraron mientras tanto
+    if (img.isNull()) return QStringLiteral("La entrada «%1» no da imagen ahora: la posición queda sin foto").arg(entrada);
+    std::error_code ec;
+    std::filesystem::create_directories(carpetaMiniaturas(), ec);
+    const QString nombre = QString::fromStdString(nombreClave(c->entrada)) + "-" + p->id + ".jpg";
+    const QString ruta = QString::fromStdWString((carpetaMiniaturas() / nombre.toStdWString()).wstring());
+    if (!img.save(ruta, "JPG", 82)) return QStringLiteral("No se pudo guardar la foto en %1").arg(ruta);
+    p->miniatura = nombre;
+    p->modificada = Posiciones::ahora();
+    guardarPronto();
+    emit cambio();
+    return {};
+}
+
+QString ControlCamaras::nombreFotoPreset(const Camara& c, bool digital, int n) const {
+    return QString::fromStdString(nombreClave(c.entrada)) + (digital ? "-preset-dig-" : "-preset-cam-") +
+           QString::number(n) + ".jpg";
+}
+
+QVariantMap ControlCamaras::fotosPresets(const Camara& c, bool digital) const {
+    QVariantMap out;
+    const QString prefijo = QString::fromStdString(nombreClave(c.entrada)) + (digital ? "-preset-dig-" : "-preset-cam-");
+    std::error_code ec;
+    for (std::filesystem::directory_iterator it(carpetaMiniaturas(), ec), fin; !ec && it != fin; it.increment(ec)) {
+        const QString f = QString::fromStdWString(it->path().filename().wstring());
+        if (!f.startsWith(prefijo) || !f.endsWith(".jpg")) continue;
+        bool ok = false;
+        const int n = f.mid(prefijo.size(), f.size() - prefijo.size() - 4).toInt(&ok);
+        if (!ok || n < 1) continue;
+        const QString ruta = QString::fromStdWString(it->path().wstring());
+        // La fecha en la URL: si se regraba, QML no muestra la foto vieja del caché.
+        out[QString::number(n)] = QUrl::fromLocalFile(ruta).toString() + "?v=" +
+                                  QString::number(QFileInfo(ruta).lastModified().toMSecsSinceEpoch());
+    }
+    return out;
+}
+
+void ControlCamaras::fotoPreset(const QString& entrada, bool digital, int n) {
+    Camara* c = camara(entrada, nullptr);
+    if (c == nullptr) return;
+    const QString ruta =
+        QString::fromStdWString((carpetaMiniaturas() / nombreFotoPreset(*c, digital, n).toStdWString()).wstring());
+    QPointer<ControlCamaras> yo(this);
+    rt_.engine().capturarAparte(
+        c->entrada, 320, [yo, entrada, ruta, n](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) {
+            QImage img;
+            if (e.empty() && w > 0 && h > 0)
+                img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).convertToFormat(QImage::Format_RGB888);
+            QMetaObject::invokeMethod(
+                qApp,
+                [yo, entrada, ruta, img, n]() {
+                    if (!yo) return;
+                    if (img.isNull()) {
+                        emit yo->aviso(QStringLiteral("La entrada «%1» no da imagen ahora: el preset %2 queda sin foto")
+                                           .arg(entrada)
+                                           .arg(n));
+                        return;
+                    }
+                    std::error_code ec;
+                    std::filesystem::create_directories(yo->carpetaMiniaturas(), ec);
+                    if (!img.save(ruta, "JPG", 82))
+                        emit yo->aviso(QStringLiteral("No se pudo guardar la foto en %1").arg(ruta));
+                    emit yo->cambio();
+                },
+                Qt::QueuedConnection);
+        });
+}
+
+void ControlCamaras::miniaturaPronto(const QString& entrada, const QString& id) {
+    // El recorte digital se mueve en ~0,3 s; la cabeza motorizada tarda más,
+    // pero al registrar ya está quieta (se registra donde está).
+    QTimer::singleShot(600, this, [this, entrada, id]() { capturarMiniatura(entrada, id); });
 }
 
 QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
@@ -535,7 +652,7 @@ QString ControlCamaras::registrar(Camara& c, Posicion& p, QString& aviso) {
 }
 
 QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString& nombre,
-                                          const QString& comentario) {
+                                          const QString& comentario, double velocidad, double segundos) {
     QString error;
     Camara* c = camara(entrada, &error);
     if (c == nullptr) return {{"ok", false}, {"error", error}};
@@ -544,6 +661,8 @@ QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString&
     Posicion nueva;
     nueva.nombre = nombre.trimmed();
     nueva.comentario = comentario.trimmed();
+    nueva.velocidad = qBound(0.0, velocidad, 1.0);
+    nueva.segundos = segundos < 0 ? -1 : qMin(segundos, 10.0);
     Posicion& p = c->posiciones.agregar(nueva);
     QString aviso;
     error = registrar(*c, p, aviso);
@@ -554,6 +673,7 @@ QVariantMap ControlCamaras::crearPosicion(const QString& entrada, const QString&
     }
     guardarPronto();
     emit cambio();
+    miniaturaPronto(entrada, id);
     return {{"ok", true}, {"id", id}, {"aviso", aviso}};
 }
 
@@ -572,6 +692,9 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
         p->nombre = cambios["nombre"].toString().trimmed();
     }
     if (cambios.contains("comentario")) p->comentario = cambios["comentario"].toString().trimmed();
+    if (cambios.contains("velocidad")) p->velocidad = qBound(0.0, cambios["velocidad"].toDouble(), 1.0);
+    if (cambios.contains("segundos"))
+        p->segundos = cambios["segundos"].toDouble() < 0 ? -1 : qMin(cambios["segundos"].toDouble(), 10.0);
     QString aviso;
     if (cambios.value("regrabar").toBool()) {
         // Con ONVIF se borra la memoria vieja y se graba una nueva.
@@ -592,6 +715,7 @@ QVariantMap ControlCamaras::editarPosicion(const QString& entrada, const QString
     p->modificada = Posiciones::ahora();
     guardarPronto();
     emit cambio();
+    if (cambios.value("regrabar").toBool() || cambios.value("miniatura").toBool()) miniaturaPronto(entrada, p->id);
     return {{"ok", true}, {"aviso", aviso}};
 }
 
@@ -603,6 +727,10 @@ QString ControlCamaras::borrarPosicion(const QString& entrada, const QString& id
     if (p == nullptr) return QStringLiteral("No hay una posición «%1» en «%2»").arg(idONombre, entrada);
     // Libera la memoria en la cámara (si es la misma cámara que la grabó).
     if (c->hw && p->tieneCamara() && p->backend == c->backend) c->hw->borrarPosicion(p->memoria, p->token);
+    if (!p->miniatura.isEmpty()) {
+        std::error_code ec;
+        std::filesystem::remove(carpetaMiniaturas() / p->miniatura.toStdWString(), ec);
+    }
     c->posiciones.borrar(p->id);
     guardarPronto();
     emit cambio();
@@ -632,14 +760,15 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
                           .arg(p->backend, c->backend);
         } else {
             if (!c->hw->listo()) avisos << QStringLiteral("la cámara no contesta");
-            c->hw->irAPosicion(p->memoria, p->token);
+            c->hw->irAPosicionCon(p->memoria, p->token, p->velocidad);
             algo = true;
         }
     }
     if (p->digital) {
         if (!c->digital || !c->dig) {
             avisos << QStringLiteral("el PTZ digital está apagado: el recorte no se aplica");
-        } else if (c->dig->ir(p->x, p->y, p->zoom, qBound(0.0, segundos, 10.0))) {
+        } else if (c->dig->ir(p->x, p->y, p->zoom,
+                              qBound(0.0, segundos >= 0 ? segundos : (p->segundos >= 0 ? p->segundos : 1.0), 10.0))) {
             algo = true;
         }
     }
@@ -821,7 +950,7 @@ void ControlCamaras::guardar() {
     QJsonObject todas;
     for (auto& [nombre, c] : camaras_) {
         // La posición digital actual (para volver a ella al reabrir).
-        if (c->dig && tipoEntrada_.count(nombre) && obs_initialized()) {
+        if (c->dig && tipoEntrada_.count(nombre)) {
             const QVariantMap p = c->dig->posicion();
             if (!p.isEmpty())
                 c->posicion = QJsonObject{
@@ -844,6 +973,24 @@ void ControlCamaras::guardar() {
     if (!f.open(QIODevice::WriteOnly)) return;
     f.write(QJsonDocument(QJsonObject{{"camaras", todas}}).toJson(QJsonDocument::Indented));
     f.commit();
+}
+
+bool ControlCamaras::alAire(const QString& entrada) const {
+    auto ss = rt_.engine().sceneSources(rt_.engine().currentScene());
+    // Lo que muestra una capa DSK (el recuadro del intérprete de LSA) también está al aire.
+    for (const std::string& f : rt_.engine().fuentesDsk()) ss.push_back(f);
+    return std::find(ss.begin(), ss.end(), entrada.toStdString()) != ss.end();
+}
+
+QVariantMap ControlCamaras::interlock() const {
+    return {{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}};
+}
+
+void ControlCamaras::setInterlock(const QVariantMap& c) {
+    if (c.contains("activo")) interlockActivo_ = c.value("activo").toBool();
+    if (c.contains("seguir_suave_permitido")) seguirSuavePermitido_ = c.value("seguir_suave_permitido").toBool();
+    std::ofstream o(rt_.dataRoot() / "Config" / "ptz-interlock.json");
+    o << nlohmann::json{{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace ba::app::ptz

@@ -1,0 +1,327 @@
+{
+    "camaras": {
+        "Cámara del recinto": {
+            "backend": "ninguno",
+            "conf": {
+            },
+            "digital": true,
+            "mejora": "general",
+            "modo": "optico",
+            "posicion": {
+                "x": 0.5,
+                "y": 0.5,
+                "zoom": 1
+            },
+            "posiciones": [
+                {
+                    "comentario": "El recinto entero",
+                    "creada": "2026-10-08T13:30:48",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.5,
+                        "y": 0.5,
+                        "zoom": 1
+                    },
+                    "id": "1",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-1.jpg",
+                    "modificada": "2026-10-08T13:36:12",
+                    "nombre": "Plano general",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "La presidencia",
+                    "creada": "2026-10-08T13:30:50",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.5,
+                        "y": 0.8333333333333334,
+                        "zoom": 3
+                    },
+                    "id": "2",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-2.jpg",
+                    "modificada": "2026-10-08T13:36:16",
+                    "nombre": "Presidencia",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Julián Ferreyra Ocampo",
+                    "creada": "2026-10-08T13:30:51",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.2673,
+                        "y": 0.7385,
+                        "zoom": 3.6
+                    },
+                    "id": "3",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-3.jpg",
+                    "modificada": "2026-10-08T13:36:20",
+                    "nombre": "Banca 1",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Carolina Benítez Lagos",
+                    "creada": "2026-10-08T13:30:52",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.3432,
+                        "y": 0.6499,
+                        "zoom": 3.6
+                    },
+                    "id": "4",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-4.jpg",
+                    "modificada": "2026-10-08T13:36:24",
+                    "nombre": "Banca 2",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Rodolfo Quiroga Saenz",
+                    "creada": "2026-10-08T13:30:54",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.4447,
+                        "y": 0.6016,
+                        "zoom": 3.6
+                    },
+                    "id": "5",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-5.jpg",
+                    "modificada": "2026-10-08T13:36:28",
+                    "nombre": "Banca 3",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Valeria Montes Arriola",
+                    "creada": "2026-10-08T13:30:55",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.5553,
+                        "y": 0.6016,
+                        "zoom": 3.6
+                    },
+                    "id": "6",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-6.jpg",
+                    "modificada": "2026-10-08T13:36:31",
+                    "nombre": "Banca 4",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Andrés Villalba Ruiz",
+                    "creada": "2026-10-08T13:30:56",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.6568,
+                        "y": 0.6499,
+                        "zoom": 3.6
+                    },
+                    "id": "7",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-7.jpg",
+                    "modificada": "2026-10-08T13:36:35",
+                    "nombre": "Banca 5",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Silvina Paredes Olmos",
+                    "creada": "2026-10-08T13:30:58",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.7327,
+                        "y": 0.7385,
+                        "zoom": 3.6
+                    },
+                    "id": "8",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-8.jpg",
+                    "modificada": "2026-10-08T13:36:39",
+                    "nombre": "Banca 6",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Tomás Echeverría Lunes",
+                    "creada": "2026-10-08T13:30:59",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.1388888888888889,
+                        "y": 0.6867,
+                        "zoom": 3.6
+                    },
+                    "id": "9",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-9.jpg",
+                    "modificada": "2026-10-08T13:36:43",
+                    "nombre": "Banca 7",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Lucía Ferrando Bustos",
+                    "creada": "2026-10-08T13:31:00",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.2026,
+                        "y": 0.5875,
+                        "zoom": 3.6
+                    },
+                    "id": "10",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-10.jpg",
+                    "modificada": "2026-10-08T13:36:47",
+                    "nombre": "Banca 8",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Gabriel Sosa Inchausti",
+                    "creada": "2026-10-08T13:31:02",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.2887,
+                        "y": 0.5109,
+                        "zoom": 3.6
+                    },
+                    "id": "11",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-11.jpg",
+                    "modificada": "2026-10-08T13:36:51",
+                    "nombre": "Banca 9",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Natalia Correa Brizuela",
+                    "creada": "2026-10-08T13:31:03",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.3904,
+                        "y": 0.4626,
+                        "zoom": 3.6
+                    },
+                    "id": "12",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-12.jpg",
+                    "modificada": "2026-10-08T13:36:55",
+                    "nombre": "Banca 10",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Esteban Galván Moreira",
+                    "creada": "2026-10-08T13:31:04",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.5,
+                        "y": 0.4461,
+                        "zoom": 3.6
+                    },
+                    "id": "13",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-13.jpg",
+                    "modificada": "2026-10-08T13:36:59",
+                    "nombre": "Banca 11",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Inés Arrieta Pallares",
+                    "creada": "2026-10-08T13:31:06",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.6096,
+                        "y": 0.4626,
+                        "zoom": 3.6
+                    },
+                    "id": "14",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-14.jpg",
+                    "modificada": "2026-10-08T13:37:03",
+                    "nombre": "Banca 12",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Martín Lucero Tavella",
+                    "creada": "2026-10-08T13:31:07",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.7113,
+                        "y": 0.5109,
+                        "zoom": 3.6
+                    },
+                    "id": "15",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-15.jpg",
+                    "modificada": "2026-10-08T13:37:06",
+                    "nombre": "Banca 13",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Paula Domínguez Rivas",
+                    "creada": "2026-10-08T13:31:08",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.7974,
+                        "y": 0.5875,
+                        "zoom": 3.6
+                    },
+                    "id": "16",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-16.jpg",
+                    "modificada": "2026-10-08T13:37:10",
+                    "nombre": "Banca 14",
+                    "segundos": 0.8
+                },
+                {
+                    "comentario": "Ramiro Acosta Valdés",
+                    "creada": "2026-10-08T13:31:10",
+                    "definicion": {
+                        "alto": 2160,
+                        "ancho": 3840
+                    },
+                    "digital": {
+                        "x": 0.8611111111111112,
+                        "y": 0.6867,
+                        "zoom": 3.6
+                    },
+                    "id": "17",
+                    "miniatura": "ptz-35bf4e8c2ae38e7d-17.jpg",
+                    "modificada": "2026-10-08T13:37:14",
+                    "nombre": "Banca 15",
+                    "segundos": 0.8
+                }
+            ],
+            "presets": {
+            }
+        }
+    }
+}

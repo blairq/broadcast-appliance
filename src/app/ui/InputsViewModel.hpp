@@ -93,7 +93,9 @@ class InputsViewModel : public QObject {
 /// image://inputs/<nombre>?<stamp>: miniatura de una entrada.
 class InputThumbProvider : public QQuickImageProvider {
    public:
-    explicit InputThumbProvider(AppRuntime& rt) : QQuickImageProvider(QQuickImageProvider::Image), rt_(rt) {}
+    // En segundo plano: capturar espera el cuadro de la fuente (no se traba la interfaz).
+    explicit InputThumbProvider(AppRuntime& rt)
+        : QQuickImageProvider(QQuickImageProvider::Image, QQmlImageProviderBase::ForceAsynchronousImageLoading), rt_(rt) {}
     QImage requestImage(const QString& id, QSize* size, const QSize& requested) override;
 
    private:

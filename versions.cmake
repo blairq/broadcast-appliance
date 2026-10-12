@@ -6,30 +6,16 @@
 #
 # ⚠️  ESTAS SON LAS PINS FIJADAS. No cambiarlas sin una decisión registrada:
 #     cada una arrastra una versión concreta de headers/binarios en `extern/`
-#     y una superficie de compatibilidad (libobs, CEF, Spout2, libwebrtc).
+#     y una superficie de compatibilidad (GStreamer, Qt, Spout2, libwebrtc).
 #     Si hay que mover una, se documenta en el changelog y se re-valida el
 #     preflight (spec §10) contra el tag resultante.
 # ============================================================================
-
-# --- obs-studio ------------------------------------------------------------
-# Tag estable del que se compilan libobs + los plugins oficiales. El tag debe
-# seguir soportando Windows 10 22H2 (spec §2.5). De él se derivan, a su vez,
-# las versiones de Qt y CEF que OBS usa en ese tag.
-set(OBS_STUDIO_TAG "31.0.0" CACHE STRING "Tag estable de obs-studio")
-mark_as_advanced(OBS_STUDIO_TAG)
 
 # --- Qt 6 ------------------------------------------------------------------
 # Qt 6 Widgets para la UI del Proceso A. Se usa la LTS 6.6.x (estable,
 # mantenida). El runtime se despliega con windeployqt (spec §5.2).
 set(QT6_VERSION "6.6.3" CACHE STRING "Versión de Qt 6")
 mark_as_advanced(QT6_VERSION)
-
-# --- CEF (Chromium Embedded Framework) -------------------------------------
-# Versión de CEF que trae obs-browser en el tag fijado (spec §6.3, §5.1).
-# El formato es <cef>.<minor>.<patch>+<chromium>. Se fija para que la caché
-# de CEF y los .pak sean deterministas.
-set(CEF_VERSION "119.0.11+chromium-119.0.6045.105" CACHE STRING "Versión de CEF")
-mark_as_advanced(CEF_VERSION)
 
 # --- Spout2 ----------------------------------------------------------------
 # SDK de Spout2 (API DX11, clase `spoutDX`). Se enlaza estático; no hace falta
@@ -78,6 +64,12 @@ mark_as_advanced(NLOHMANN_JSON_VERSION)
 set(ARGON2_VERSION "20190702" CACHE STRING "Versión/tag de Argon2 (referencia P-H-C)")
 mark_as_advanced(ARGON2_VERSION)
 
+# libdeflate (MIT, Eric Biggers): el gzip de ba-web (src/web). C puro, rápido, sin
+# dependencias. Se baja el tarball del tag con su SHA-256 (make deps-libdeflate).
+set(LIBDEFLATE_VERSION "1.22" CACHE STRING "Versión de libdeflate")
+set(LIBDEFLATE_SHA256 "7f343c7bf2ba46e774d8a632bf073235e1fd27723ef0a12a90f8947b7fe851d6" CACHE STRING "SHA-256 del tarball de libdeflate")
+mark_as_advanced(LIBDEFLATE_VERSION LIBDEFLATE_SHA256)
+
 # --- libsamplerate (Secret Rabbit Code, MIT) --------------------------------
 # Re-muestreo de audio (cambio de frecuencia de muestreo) para la cadena DSP
 # (spec 7.4). Lib de C pura que compila en Linux y Windows; se trae por
@@ -107,15 +99,14 @@ mark_as_advanced(CLANG_FORMAT_VERSION)
 
 # --- Resumen legible en el configure ---------------------------------------
 message(STATUS "BroadcastAppliance — pins fijadas:")
-message(STATUS "  obs-studio  : ${OBS_STUDIO_TAG}")
 message(STATUS "  Qt6         : ${QT6_VERSION}")
-message(STATUS "  CEF         : ${CEF_VERSION}")
 message(STATUS "  Spout2      : ${SPOUT2_VERSION}")
 message(STATUS "  libwebrtc   : ${WEBRTC_MILESTONE} (${WEBRTC_VERSION})")
 message(STATUS "  cloudflared : ${CLOUDFLARED_VERSION}")
 message(STATUS "  mbedTLS     : ${MBEDTLS_VERSION}")
 message(STATUS "  nlohmann    : ${NLOHMANN_JSON_VERSION}")
 message(STATUS "  Argon2      : ${ARGON2_VERSION} (referencia P-H-C, KDF de secrets.json)")
+message(STATUS "  libdeflate  : ${LIBDEFLATE_VERSION} (gzip de ba-web)")
 message(STATUS "  libsamplerate: ${LIBSAMPLERATE_VERSION}")
 message(STATUS "  LSP Plugins : ${LSP_VERSION} (CLAP)")
 message(STATUS "  clang-format: ${CLANG_FORMAT_VERSION} (herramienta de lint)")

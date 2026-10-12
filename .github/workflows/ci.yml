@@ -4,7 +4,7 @@
 # Usa los MISMOS targets de make que el desarrollo local: todo lo de terceros
 # se descarga (con hash) o se compila desde fuente fijada dentro de extern/.
 # extern/ se guarda en la cache de Actions (clave = hash de los pins), asi que
-# solo la primera corrida compila FFmpeg/libobs y baja Qt/OBS/libwebrtc.
+# solo la primera corrida compila FFmpeg/GStreamer y baja Qt/libwebrtc.
 #
 # Jobs:
 #   1. lint        clang-format (version fijada en versions.cmake).
@@ -92,7 +92,7 @@ jobs:
           df -h /
 
       # Headers de la base del sistema (README, "Requisitos de build"): no
-      # viajan en el bundle; son para compilar libobs y la interfaz.
+      # viajan en el bundle; son para compilar GStreamer y la interfaz.
       - name: Install build toolchain (apt)
         run: |
           sudo apt-get update
@@ -111,7 +111,7 @@ jobs:
           python-version: "3.12"
 
       # Se guarda apenas terminan las dependencias (aunque despues falle un
-      # test): la primera corrida compila FFmpeg/libobs y tarda.
+      # test): la primera corrida compila FFmpeg/GStreamer y tarda.
       - name: Restaurar extern/ (Linux)
         id: extern-cache
         uses: actions/cache/restore@v5
@@ -119,7 +119,7 @@ jobs:
           path: |
             extern
             !extern/.build-*
-          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/obs-deps-linux.sh', 'tools/deps/libreoffice.sh') }}
+          key: extern-linux-${{ hashFiles('Makefile', 'versions.cmake', 'tools/deps/terceros-linux.sh', 'tools/deps/gstreamer-linux.sh', 'tools/deps/libreoffice.sh') }}
 
       - name: Dependencias (make deps-linux)
         run: |
@@ -151,20 +151,23 @@ jobs:
         run: make dist-linux JOBS=$(nproc)
 
       # Humo del bundle TAL CUAL se publica: extraido en otro lado y sin el
-      # libobs de extern/ (su ruta queda compilada adentro y tapaba errores
-      # de "solo anda en la maquina que compilo"). Motor completo: video por
-      # GL de software (Xvfb + llvmpipe), x264, AAC, RTMP y una grabacion.
+      # GStreamer ni las bibliotecas de terceros de extern/ (sus rutas pueden
+      # quedar compiladas adentro y tapar errores de "solo anda en la maquina
+      # que compilo"). Motor completo: video por GL de software (Xvfb +
+      # llvmpipe), x264, AAC, RTMP y una grabacion.
       - name: Humo del bundle (autotest del motor)
         run: |
           sudo apt-get install -y xvfb libgl1-mesa-dri
           d="$RUNNER_TEMP/humo" && rm -rf "$d" && mkdir -p "$d"
           tar xzf dist/*-linux-x64.tar.gz -C "$d"
-          mv extern/obs-linux extern/obs-linux.oculto
+          mv extern/gstreamer-linux extern/gstreamer-linux.oculto
+          mv extern/terceros-linux extern/terceros-linux.oculto
           cd "$d/BroadcastAppliance"
           HOME="$d/home" LIBGL_ALWAYS_SOFTWARE=1 timeout 300 \
             xvfb-run -a -s "-screen 0 1280x720x24" ./bin/64bit/ba-app --engine-selftest 2>&1 | tee "$d/humo.log" \
             | grep -E '^\s*\[|autotest del motor' || true
-          cd "$GITHUB_WORKSPACE" && mv extern/obs-linux.oculto extern/obs-linux
+          cd "$GITHUB_WORKSPACE" && mv extern/gstreamer-linux.oculto extern/gstreamer-linux
+          mv extern/terceros-linux.oculto extern/terceros-linux
           grep -q "autotest del motor: OK" "$d/humo.log" || { tail -40 "$d/humo.log"; exit 1; }
 
       - uses: actions/upload-artifact@v4
@@ -318,7 +321,7 @@ jobs:
           "BA_ZIP=$($zip.FullName)" >> $env:GITHUB_ENV
 
       # Fuera del workspace y sin nada del build al lado: el bundle tiene que
-      # bastarse solo (es el equivalente de esconder extern/obs-linux en Linux).
+      # bastarse solo (es el equivalente de esconder extern/ en Linux).
       - name: Extraer el bundle
         run: |
           $d = "$env:RUNNER_TEMP\humo"
@@ -328,7 +331,7 @@ jobs:
           "BA_DIR=$d" >> $env:GITHUB_ENV
           Get-ChildItem $d | Select-Object Name
 
-      # 1) Nucleo sin libobs: no necesita GPU.
+      # 1) Nucleo sin motor de video: no necesita GPU.
       - name: "Humo: nucleo (--headless-selftest)"
         run: |
           $log = "$env:RUNNER_TEMP\headless.log"
@@ -354,7 +357,7 @@ jobs:
           }
           if (-not (Select-String -Path $log -SimpleMatch "cierre ordenado")) { throw "no cerro ordenado" }
 
-      # 3) Motor completo: libobs, x264, AAC y una grabacion real.
+      # 3) Motor completo: GStreamer, x264, AAC y una grabacion real.
       - name: "Humo: motor (--engine-selftest)"
         run: |
           $log = "$env:RUNNER_TEMP\engine.log"

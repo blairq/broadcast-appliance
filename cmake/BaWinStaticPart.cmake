@@ -7,7 +7,7 @@
 #     el tiene que ser /MT, incluido ba_core y las libs de C.
 #   - El launcher tambien va /MT: arranca en cualquier Windows sin depender de
 #     las DLLs del CRT (esas viajan en bin/64bit, junto a A).
-#   - A (Qt, libobs) y el modulo de OBS van /MD, como Qt y OBS.
+#   - A (Qt, GStreamer) va /MD, como Qt y GStreamer.
 #   Un mismo arbol de CMake no puede tener ba_core en las dos variantes, asi
 #   que la parte /MT se configura aparte (mismo CMakeLists raiz, mismo
 #   toolchain, BA_WIN_STATIC_PART=ON) y sus ejecutables se instalan desde aca.
@@ -22,6 +22,7 @@ endif()
 set(_ba_mt_args
     -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     -DBA_WIN_STATIC_PART=ON
+    -DBA_PERFILAR=${BA_PERFILAR}
     -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
     -DBA_WEBRTC_ROOT=${BA_WEBRTC_ROOT})
 if(CMAKE_TOOLCHAIN_FILE)
@@ -54,7 +55,7 @@ install(PROGRAMS "${BA_WIN_MT_DIR}/src/gateway/ba-gateway.exe" DESTINATION bin/6
 # llegan al bundle. O sea que hay que tocar LAS DOS al agregar una vista web.
 # Ya paso: el teleprompter y los rotulos existian en Linux y en Windows no,
 # sin que nada lo avisara (la pagina simplemente daba 404).
-foreach(_web guest admin board prompter rotulos pantalla cast comun)
+foreach(_web guest admin board prompter rotulos pantalla cast comun publico botonera)
     if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/${_web}")
         install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/${_web}/" DESTINATION Web/${_web} COMPONENT bundle)
     endif()

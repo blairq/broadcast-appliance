@@ -2,14 +2,17 @@
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
 #include "ui/PersonasViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QImage>
 
 #include <QJsonObject>
+#include <QPointer>
 #include <QSet>
 #include <QTimer>
 #include <QUrl>
@@ -17,7 +20,7 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -31,6 +34,11 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/Reconocedor.hpp"
 #include "video/VideoGrafos.hpp"
+
+#include <gst/video/video.h>
+#include <nlohmann/json.hpp>
+
+#include "Entrada.hpp"
 #endif
 
 namespace ba::app {
@@ -85,6 +93,19 @@ struct PersonasViewModel::Impl {
     QSet<QString> avisadosPuerta;
     bool turnoPuerta = false; ///< alterna lobby / puerta cuando los dos están
     int lugarMirado = 0;      ///< y en qué posición de preview estaba
+    /// Quien espera lo próximo que vea la tarjeta «Rostros» de una cámara.
+    struct Espera {
+        int id = 0;
+        Analisis luego;
+    };
+    std::map<QString, std::vector<Espera>> esperas;
+    int proximaEspera = 1;
+    /// El número que la tarjeta le dio a cada cara del último resultado de
+    /// cada cámara (en el orden de las caras): para devolverle los nombres.
+    std::map<QString, std::vector<int>> idsDe;
+    /// Lo último que se le mandó a cada tarjeta como etiquetas (para no repetir).
+    std::map<QString, std::string> etiquetasDe;
+    int escucha = 0; ///< los mensajes de las tarjetas (motor::escucharElementos)
 #endif
     Impl(AppRuntime& r, StudioViewModel& v) : rt(r), vm(v) {}
 };
@@ -137,22 +158,8 @@ namespace {
 
 /// El cuadro de un feed en BGRA contiguo (lo que pide el motor) y su QImage.
 bool cuadro(StudioViewModel& vm, const QString& feed, QImage& img, std::vector<std::uint8_t>& bgra) {
-    // Una cámara del estudio: el cuadro sale de su tarjeta «Rostros» del grafo
-    // de video (en el punto del pipeline donde esté, ya corregido), no de una
-    // vista previa aparte.
-    if (feed.startsWith("entrada:")) {
-        auto* vg = vm.videoGrafos();
-        int w = 0, h = 0;
-        std::uint64_t serie = 0;
-        if (vg == nullptr || !vg->cuadroRostros(feed.mid(8).toStdString(), bgra, w, h, serie) || serie == 0 ||
-            w <= 0 || h <= 0 || bgra.size() < static_cast<std::size_t>(w) * h * 4)
-            return false;
-        img = QImage(w, h, QImage::Format_ARGB32); // BGRA en memoria
-        for (int y = 0; y < h; ++y)
-            std::memcpy(img.scanLine(y), bgra.data() + static_cast<std::size_t>(y) * w * 4,
-                        static_cast<std::size_t>(w) * 4);
-        return true;
-    }
+    // (Las cámaras del estudio no pasan por acá: las mira su tarjeta «Rostros»,
+    // ver pedirAnalisis.)
     auto* frames = static_cast<FrameService*>(vm.frames());
     std::uint64_t serial = 0;
     if (!frames->latest(feed, img, serial) || img.isNull()) return false;
@@ -164,21 +171,24 @@ bool cuadro(StudioViewModel& vm, const QString& feed, QImage& img, std::vector<s
     return true;
 }
 
-/// En una cámara del estudio, su tarjeta «Rostros» marca las caras que se
-/// vieron (si tiene «marcar»): en fracciones, la tarjeta no sabe de píxeles.
-void marcarSiCamara(StudioViewModel& vm, const QString& feed, const std::vector<Reconocedor::Visto>& vistos,
-                    const QImage& img) {
-    if (!feed.startsWith("entrada:") || img.isNull()) return;
-    auto* vg = vm.videoGrafos();
-    if (vg == nullptr) return;
-    const double w = img.width(), h = img.height();
-    nlohmann::json cajas = nlohmann::json::array();
-    for (const auto& v : vistos)
-        cajas.push_back({{"x", v.cara.x / w},
-                         {"y", v.cara.y / h},
-                         {"ancho", v.cara.ancho / w},
-                         {"alto", v.cara.alto / h}});
-    vg->marcarCaras(feed.mid(8).toStdString(), cajas);
+/// Un GstSample BGRA (el cuadro que analizó la tarjeta) como QImage.
+QImage imagenDe(GstSample* s) {
+    if (s == nullptr) return {};
+    GstVideoInfo vi;
+    GstBuffer* b = gst_sample_get_buffer(s);
+    GstVideoFrame f;
+    if (b == nullptr || !gst_video_info_from_caps(&vi, gst_sample_get_caps(s)) ||
+        !gst_video_frame_map(&f, &vi, b, GST_MAP_READ))
+        return {};
+    const int w = GST_VIDEO_FRAME_WIDTH(&f), h = GST_VIDEO_FRAME_HEIGHT(&f);
+    QImage img(w, h, QImage::Format_ARGB32); // BGRA en memoria
+    for (int y = 0; y < h; ++y)
+        std::memcpy(img.scanLine(y),
+                    static_cast<const std::uint8_t*>(GST_VIDEO_FRAME_PLANE_DATA(&f, 0)) +
+                        static_cast<std::size_t>(y) * GST_VIDEO_FRAME_PLANE_STRIDE(&f, 0),
+                    static_cast<std::size_t>(w) * 4);
+    gst_video_frame_unmap(&f);
+    return img;
 }
 
 // --- El anotado automático, y por qué estos números -------------------------
@@ -195,25 +205,25 @@ void marcarSiCamara(StudioViewModel& vm, const QString& feed, const std::vector<
 // entra y sale dan una detección suelta. Anotando la primera, la libreta se
 // llena de fichas de nada y el operador termina borrando más de lo que
 // completa. Tres pasadas seguidas ya es alguien que está ahí.
-constexpr int kVecesParaAnotar = 3;
+inline int kVecesParaAnotar() { return ba::ajustes::entero("rostros.vecesParaAnotar", 3); }
 /// Si esa cara no volvió en este rato, se olvida y empieza de nuevo.
 ///
 /// DOCE SEGUNDOS Y NO CUATRO, por el lobby: ahí la ronda rota entre las
 /// posiciones de espera, así que a la misma persona la vuelve a mirar cada
 /// varios segundos. Con cuatro, se olvidaba de ella entre vuelta y vuelta y no
 /// llegaba nunca a las tres pasadas: el anotado automático no anotaba a nadie.
-constexpr std::int64_t kOlvidoPendienteMs = 12000;
+inline std::int64_t kOlvidoPendienteMs() { return ba::ajustes::entero64("rostros.olvidoS", 12) * 1000; }
 /// Tope de la libreta para el anotado automático. Llegando acá se apaga solo y
 /// lo dice: una libreta de miles de desconocidos no la revisa nadie, y cada
 /// búsqueda las recorre a todas.
-constexpr int kMaxFichasAuto = 500;
+inline int kMaxFichasAuto() { return ba::ajustes::entero("rostros.maxFichas", 500); }
 /// Cada cuánto mira la ronda. Detectar cuesta ~30 ms; a este ritmo es ruido de
 /// fondo, y alcanza de sobra para juntar tres pasadas de quien se quedó.
-constexpr int kRondaMs = 700;
+inline int kRondaMs() { return ba::ajustes::entero("rostros.rondaMs", 700); }
 /// Cuánto parecido hace falta para ABRIRLE LA PUERTA a alguien sin preguntar.
 ///
 /// MAS QUE PARA PONERLE UN NOMBRE, y esa diferencia es la decisión. El 0.45 de
-/// `kMismaPersona` está elegido para un rótulo: si se equivoca, alguien lo ve
+/// `kMismaPersona()` está elegido para un rótulo: si se equivoca, alguien lo ve
 /// en pantalla y lo corrige. Dejar entrar a la sala no se corrige igual —ya
 /// está adentro, con cámara y micrófono, y puede quedar al aire—. Para eso se
 /// pide un margen que no deja lugar a un parecido de familia: medido, la misma
@@ -222,11 +232,11 @@ constexpr int kRondaMs = 700;
 /// Y ADEMAS la cara tiene que servir: un reconocimiento hecho sobre una cara
 /// borrosa o de perfil puede dar cualquier número, y ese número no puede ser
 /// el que abre la puerta.
-constexpr float kAbrirLaPuerta = 0.60F;
+inline float kAbrirLaPuerta() { return static_cast<float>(ba::ajustes::numero("rostros.admitirSolo", 0.60)); }
 /// «La vi recién» se guarda cada tanto, no en cada vuelta: escribir la libreta
 /// entera —vectores incluidos— dos veces por segundo es todo disco para nada.
 /// Un alta o una cara nueva sí se guardan en el acto.
-constexpr std::int64_t kGuardarVistasMs = 30000;
+inline std::int64_t kGuardarVistasMs() { return ba::ajustes::entero64("rostros.guardarVistasS", 30) * 1000; }
 
 /// El recorte de la cara, con margen, para la ficha (ver McpRostroTools).
 QString escribirFoto(const QImage& img, const ba::rostros::Cara& c, const QString& carpeta,
@@ -261,7 +271,7 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
     } else {
         d_->aviso = d_->rec.error();
     }
-    d_->ronda.setInterval(kRondaMs);
+    d_->ronda.setInterval(kRondaMs());
     connect(&d_->ronda, &QTimer::timeout, this, [this] {
         // Una sola cámara por vuelta, siempre. Mirar las cuatro posiciones del
         // lobby juntas cuadruplicaría el trabajo en la misma vuelta; rotando,
@@ -283,11 +293,110 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
             feed = d_->feedAuto;
         if (!feed.isEmpty()) analizar(feed, true, uid);
     });
+    // Lo que ven las tarjetas «Rostros» llega por el bus de cada entrada (en el
+    // bucle del motor): se pasa al hilo de la interfaz, que es quien toca la libreta.
+    QPointer<PersonasViewModel> yo(this);
+    d_->escucha = ba::motor::escucharElementos([yo](const std::string& entrada, const std::string& nombre,
+                                                    const std::string& json, GstSample* cuadro) {
+        if (nombre != "ba-rostros") return;
+        if (cuadro != nullptr) gst_sample_ref(cuadro);
+        QMetaObject::invokeMethod(
+            qApp,
+            [yo, e = QString::fromStdString(entrada), js = json, cuadro]() {
+                if (yo) yo->alRostros(e, js, cuadro);
+                if (cuadro != nullptr) gst_sample_unref(cuadro);
+            },
+            Qt::QueuedConnection);
+    });
 }
-PersonasViewModel::~PersonasViewModel() = default;
+PersonasViewModel::~PersonasViewModel() { ba::motor::dejarDeEscuchar(d_->escucha); }
+
+void PersonasViewModel::alRostros(const QString& entrada, const std::string& js, GstSample* cuadro) {
+    const QString feed = "entrada:" + entrada;
+    const nlohmann::json j = nlohmann::json::parse(js, nullptr, false);
+    // A la tarjeta, QUIÉN ES cada cara (por su número): su overlay muestra el
+    // nombre y el cargo, y el resto de la cadena los recibe en las metas y los
+    // eventos de cada cara. Con cada resultado que trae vectores, la espere
+    // alguien o no; solo si cambió.
+    if (j.is_object()) {
+        nlohmann::json etiquetas = nlohmann::json::array();
+        bool hayVectores = false;
+        for (const auto& c : j.value("caras", nlohmann::json::array())) {
+            if (!c.contains("vector") || !c["vector"].is_array()) continue;
+            hayVectores = true;
+            const auto q = d_->libreta.buscar(c["vector"].get<std::vector<float>>());
+            if (q.parecido < ba::rostros::kMismaPersona()) continue;
+            const ba::rostros::Persona* p = d_->libreta.porId(q.id);
+            if (p == nullptr || p->nombre.empty()) continue;
+            etiquetas.push_back({{"id", c.value("id", 0)}, {"nombre", p->nombre}, {"cargo", p->cargo}, {"persona", q.id}});
+        }
+        const std::string texto = etiquetas.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        if (hayVectores && d_->etiquetasDe[feed] != texto) {
+            d_->etiquetasDe[feed] = texto;
+            d_->rt.engine().controlEntrada(entrada.toStdString(), {{"rostros_etiquetas", texto}});
+        }
+    }
+    auto it = d_->esperas.find(feed);
+    if (it == d_->esperas.end() || it->second.empty()) return; // nadie la está esperando
+    QImage img = imagenDe(cuadro);
+    std::vector<Reconocedor::Visto> vistos;
+    std::vector<int> ids;
+    QString error;
+    if (j.is_object()) {
+        const nlohmann::json a = j.value("analisis", nlohmann::json::object());
+        const double W = a.value("ancho", img.width()), H = a.value("alto", img.height());
+        for (const auto& c : j.value("caras", nlohmann::json::array())) {
+            Reconocedor::Visto v;
+            v.cara.x = static_cast<int>(c.value("x", 0.0) * W);
+            v.cara.y = static_cast<int>(c.value("y", 0.0) * H);
+            v.cara.ancho = static_cast<int>(c.value("ancho", 0.0) * W);
+            v.cara.alto = static_cast<int>(c.value("alto", 0.0) * H);
+            v.cara.confianza = c.value("confianza", 0.0F);
+            if (c.contains("puntos") && c["puntos"].is_array() && c["puntos"].size() == 10)
+                for (int k = 0; k < 5; ++k) {
+                    v.cara.puntos[k * 2] = static_cast<float>(c["puntos"][k * 2].get<double>() * W);
+                    v.cara.puntos[k * 2 + 1] = static_cast<float>(c["puntos"][k * 2 + 1].get<double>() * H);
+                }
+            if (c.contains("vector") && c["vector"].is_array()) v.vector = c["vector"].get<std::vector<float>>();
+            ids.push_back(c.value("id", 0));
+            vistos.push_back(std::move(v));
+        }
+        error = QString::fromStdString(j.value("error", std::string()));
+    } else {
+        error = "La tarjeta Rostros mandó algo que no se entiende.";
+    }
+    d_->idsDe[feed] = ids;
+    std::vector<Impl::Espera> esperan = std::move(it->second);
+    d_->esperas.erase(it);
+    for (auto& e : esperan) e.luego(vistos, img, vistos.empty() ? error : QString());
+}
 
 void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Analisis luego) {
     if (!d_->listo) return luego({}, QImage(), d_->aviso);
+    if (feed.startsWith("entrada:")) {
+        // UNA CÁMARA DEL ESTUDIO: la mira su tarjeta «Rostros» (el elemento
+        // barostros, en la cadena de la entrada) y contesta por el bus con las
+        // caras, su vector y el cuadro: se espera su próximo resultado. Si
+        // todavía no la tiene, se la pone (como si la página la mirara).
+        d_->feedMirado = feed;
+        d_->miradoMs = QDateTime::currentMSecsSinceEpoch();
+        sincronizarRostros();
+        auto& lista = d_->esperas[feed];
+        if (descartable && !lista.empty()) return; // la ronda vuelve sola
+        const int id = d_->proximaEspera++;
+        lista.push_back({id, std::move(luego)});
+        QTimer::singleShot(3000, this, [this, feed, id]() {
+            auto it = d_->esperas.find(feed);
+            if (it == d_->esperas.end()) return;
+            auto& l = it->second;
+            const auto e = std::find_if(l.begin(), l.end(), [id](const Impl::Espera& x) { return x.id == id; });
+            if (e == l.end()) return;
+            Analisis f = std::move(e->luego);
+            l.erase(e);
+            f({}, QImage(), "La tarjeta Rostros de «" + etiquetaDe(feed) + "» no contestó (¿hay imagen?).");
+        });
+        return;
+    }
     // El cuadro se toma ACA: FrameService es de la interfaz y no se comparte.
     // Lo que se manda al otro hilo es una copia de los píxeles, que es barata
     // al lado de lo que cuesta mirarlos.
@@ -312,7 +421,6 @@ void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Ana
     d_->rec.pedir(std::move(bgra), w, h, descartable,
                   [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos,
                                                               const QString& error) {
-                      if (error.isEmpty()) marcarSiCamara(d_->vm, feed, vistos, *img);
                       luego(std::move(vistos), *img, error);
                   });
 }
@@ -325,7 +433,6 @@ void PersonasViewModel::reintentarAnalisis(const QString& feed, Analisis luego, 
         d_->rec.pedir(
             std::move(bgra), w, h, false,
             [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> v, const QString& e) {
-                if (e.isEmpty()) marcarSiCamara(d_->vm, feed, v, *img);
                 luego(std::move(v), *img, e);
             });
     } else if (intento < 10) {
@@ -646,7 +753,7 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     // Una sola vez por persona que espera: si el operador la rechaza a mano,
     // volver a hacerla pasar en la vuelta siguiente sería pelearle al operador.
     if (d_->yaPasaron.contains(uid)) return;
-    if (parecido < kAbrirLaPuerta || !sirve) return; // ver kAbrirLaPuerta
+    if (parecido < kAbrirLaPuerta() || !sirve) return; // ver kAbrirLaPuerta()
     auto* ev = static_cast<EventoViewModel*>(d_->vm.evento());
     auto* conf = static_cast<ConferenceViewModel*>(d_->vm.conference());
     if (ev == nullptr || conf == nullptr) return;
@@ -714,7 +821,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
         auto& ps = d_->pendientes;
         ps.erase(
             std::remove_if(ps.begin(), ps.end(),
-                           [&](const Impl::Pendiente& p) { return ahora - p.ultimoMs > kOlvidoPendienteMs; }),
+                           [&](const Impl::Pendiente& p) { return ahora - p.ultimoMs > kOlvidoPendienteMs(); }),
             ps.end());
     }
 
@@ -724,7 +831,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
     for (const auto& visto : caras) {
         const ba::rostros::Cara& c = visto.cara;
         auto q = d_->libreta.buscar(visto.vector);
-        bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+        bool seguro = q.parecido >= ba::rostros::kMismaPersona();
         if (registrar && !visto.vector.empty()) {
             if (seguro) {
                 d_->libreta.vistaAhora(q.id, ahora);
@@ -761,7 +868,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
                                {"ch", img.height()}});
     }
 
-    if (alta || (vista && ahora - d_->ultimoGuardado > kGuardarVistasMs)) {
+    if (alta || (vista && ahora - d_->ultimoGuardado > kGuardarVistasMs())) {
         d_->libreta.guardar(d_->archivo.toStdString());
         d_->ultimoGuardado = ahora;
     }
@@ -778,7 +885,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
             // misma razon: acreditar al que no es deja a dos personas mal
             // anotadas —una que no vino y otra que si— y nadie lo descubre
             // hasta que hay que contar el quorum.
-            if (v.value("parecido").toFloat() < kAbrirLaPuerta) continue;
+            if (v.value("parecido").toFloat() < kAbrirLaPuerta()) continue;
             if (!calidadDe(img, caras[i].cara).sirve) continue;
             acreditarEnLaPuerta(id, v.value("nombre").toString());
         }
@@ -839,15 +946,15 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
 QString PersonasViewModel::anotarDesconocida(const std::vector<float>& v, const QImage& img,
                                              const ba::rostros::Cara& c, std::int64_t ahora) {
     for (auto& p : d_->pendientes) {
-        if (ba::rostros::parecido(p.v, v) < ba::rostros::kMismaPersona) continue;
+        if (ba::rostros::parecido(p.v, v) < ba::rostros::kMismaPersona()) continue;
         p.v = v; // el último visto: la cara suele ir mejorando al acercarse
         p.ultimoMs = ahora;
-        if (++p.veces < kVecesParaAnotar) return {};
+        if (++p.veces < kVecesParaAnotar()) return {};
 
-        if (static_cast<int>(d_->libreta.todas().size()) >= kMaxFichasAuto) {
+        if (static_cast<int>(d_->libreta.todas().size()) >= kMaxFichasAuto()) {
             d_->aviso = QString("La libreta llegó a %1 fichas: apagué el anotado automático para "
                                 "no llenarla de desconocidos. Completá o borrá las que sobran.")
-                            .arg(kMaxFichasAuto);
+                            .arg(kMaxFichasAuto());
             setAutoalta(false);
             emit notify(d_->aviso, "aviso");
             return {};

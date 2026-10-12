@@ -94,6 +94,12 @@ class PtzBackend : public QObject {
         Q_UNUSED(token);
         irAPreset(n);
     }
+    /// Con velocidad (0..1; 0 = la de la cámara). Si el protocolo no la
+    /// admite, va a la de la cámara.
+    virtual void irAPosicionCon(int n, const QString& token, double velocidad) {
+        Q_UNUSED(velocidad);
+        irAPosicion(n, token);
+    }
     virtual void borrarPosicion(int n, const QString& token) {
         Q_UNUSED(n);
         Q_UNUSED(token);

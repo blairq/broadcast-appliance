@@ -1,7 +1,7 @@
 // src/app/ptz/PtzDigital.hpp — el PTZ que tiene cualquier entrada
 //
-// Maneja el filtro `ba_ptz_digital` (src/obs-module/ba_ptz_digital.cpp) de
-// una fuente: recorte y zoom en la GPU, con joystick y presets. Los presets
+// Maneja el elemento `baptz` (src/gst-plugins/filtros/ptz.cpp) de la cadena
+// de una entrada: recorte y zoom, con joystick y presets. Los presets
 // digitales (x, y, zoom) los guarda la app (ControlCamaras, en
 // Config/camaras.json); la cámara no se entera.
 //
@@ -18,12 +18,11 @@
 #include <map>
 #include <string>
 
-struct obs_source;
-
 namespace ba::app::ptz {
 
-/// Nombre del filtro en cada fuente (el de Mejorar imagen es otro).
-inline constexpr const char* kFiltroPtz = "BA · PTZ digital";
+/// El id del filtro en la cadena de la entrada, y el nombre de su elemento.
+inline constexpr const char* kFiltroPtz = "ptz";
+inline constexpr const char* kElementoPtz = "ba_f_ptz";
 
 class PtzDigital : public PtzBackend {
     Q_OBJECT
@@ -50,8 +49,8 @@ class PtzDigital : public PtzBackend {
     void setPresets(const QJsonObject& p) { presets_ = p; }
 
    private:
-    /// El filtro de la fuente (con referencia: hay que soltarla), o nulo.
-    obs_source* filtro() const;
+    /// Una propiedad del elemento; false (y el estado lo dice) si no está.
+    bool poner(const char* prop, const std::string& valor);
 
     std::string fuente_;
     QJsonObject presets_;

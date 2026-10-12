@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/ConferenceViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QClipboard>
 #include <QDateTime>
@@ -18,15 +19,15 @@
 #include <filesystem>
 #include <system_error>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
 #include "ui/ConferenceClient.hpp"
 
 namespace ba::app {
 
 /// Ver el uso: cuánto se espera antes de que el asistente aborde a alguien
 /// que acaba de llegar al lobby, para que el reconocimiento llegue a contestar.
-constexpr int kEsperarAlReconocimientoMs = 2500;
+inline int kEsperarAlReconocimientoMs() { return ba::ajustes::entero("asistente.esperaLobbyMs", 2500); }
 
 namespace fs = std::filesystem;
 
@@ -89,7 +90,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
           QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact"})),
       inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
                                                           "mic", "cam", "screen", "hand", "admittedMs",
-                                                          "presenter", "speaker", "info", "contact"})),
+                                                          "presenter", "speaker", "info", "contact", "talk"})),
       shares_(std::make_unique<JsonListModel>(
           QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
       chat_(std::make_unique<JsonListModel>(
@@ -123,10 +124,10 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     };
     // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s).
     connect(&avatarPoll_, &QTimer::timeout, this, &ConferenceViewModel::pollAvatars);
-    avatarPoll_.start(5000);
+    avatarPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
     connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
-    networkPoll_.start(5000);
+    networkPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
     // Si el operador lo dejo prendido, sigue prendido al arrancar: es una
     // decision del evento, no un boton que haya que volver a apretar. Si no
     // hay asistente, se apaga solo en cuanto lo intenta (ver onSnapshot).
@@ -348,7 +349,7 @@ void ConferenceViewModel::onSnapshot() {
                 // segundo después va a estar identificado—. Dos segundos y
                 // medio no los nota nadie del otro lado.
                 const QString nombre = p.value("name").toString();
-                QTimer::singleShot(kEsperarAlReconocimientoMs, this, [this, pid, nombre]() {
+                QTimer::singleShot(kEsperarAlReconocimientoMs(), this, [this, pid, nombre]() {
                     if (intakeSink_ == nullptr) return;
                     // Si mientras tanto entró sola (lista del evento), la
                     // atiende el otro camino: `marcarAtendido` lo saca de acá.
@@ -460,6 +461,67 @@ void ConferenceViewModel::participantAction(const QString& id, const QString& ac
                   body);
 }
 
+void ConferenceViewModel::pruebaTecnica(const QString& id) {
+    // Tarda ~5 s (tono por su retorno y lo que vuelve por su micrófono): timeout largo.
+    client_->post(
+        "/api/v1/participants/" + QString::fromUtf8(QUrl::toPercentEncoding(id)) + "/prueba", QJsonObject{{"ms", 4000}},
+        [this, id](bool ok, const QJsonObject& r) {
+            QVariantMap m = r.toVariantMap();
+            m["ok"] = ok;
+            m["recomendacion"] = recomendacionPrueba(r);
+            emit pruebaLista(id, m);
+        },
+        15000);
+}
+
+void ConferenceViewModel::refrescarProxy() {
+    client_->get("/api/v1/proxy", [this](bool ok, const QJsonObject& r) {
+        QVariantMap m = ok ? r.toVariantMap() : QVariantMap{{"activo", false}};
+        m["configuracion"] = QJsonDocument::fromJson(QByteArray::fromStdString(rt_.gateway().proxy.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+        proxy_ = m;
+        emit proxyChanged();
+    });
+}
+
+void ConferenceViewModel::renovarProxy(const QString& host) {
+    client_->post("/api/v1/proxy/renovar", QJsonObject{{"host", host}});
+}
+
+QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
+    nlohmann::json& p = rt_.gateway().proxy;
+    const nlohmann::json c = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false);
+    if (!c.is_object()) return "cambios inválidos";
+    for (const auto& [k, v] : c.items()) {
+        if (k == "acme" && v.is_object())
+            for (const auto& [ka, va] : v.items()) p["acme"][ka] = va;
+        else
+            p[k] = v;
+    }
+    if (p.value("activo", false) && p.value("dominio", std::string()).empty()) return "falta el dominio";
+    if (!rt_.save()) return QString::fromStdString(rt_.lastError());
+    return reiniciarSala();
+}
+
+QString ConferenceViewModel::reiniciarSala() {
+    if (rt_.restartGateway()) return {};
+    return "No se pudo reiniciar la sala: " + QString::fromStdString(rt_.lastError()) +
+           ". Si sigue, cerrá y volvé a abrir el programa.";
+}
+
+QString ConferenceViewModel::recomendacionPrueba(const QJsonObject& r) {
+    if (r.contains("error")) return r.value("error").toString();
+    QStringList out;
+    if (r.value("eco").toBool())
+        out << QString("Se escucha el retorno por su micrófono (%1 dB): que use auriculares o baje el parlante.")
+                   .arg(r.value("eco_db").toDouble(), 0, 'f', 1);
+    const QJsonObject red = r.value("red").toObject();
+    const QString sem = red.value("semaforo").toString();
+    if (sem == "rojo") out << "La red no alcanza: que se acerque al wifi o use cable (o bajarle la calidad).";
+    else if (sem == "ambar") out << "La red anda justa: puede haber cortes.";
+    if (r.contains("aviso")) out << r.value("aviso").toString();
+    return out.isEmpty() ? QString("Todo bien: sin eco y la red alcanza.") : out.join(" ");
+}
+
 void ConferenceViewModel::admit(const QString& id) { participantAction(id, "admit"); }
 void ConferenceViewModel::reject(const QString& id) { participantAction(id, "reject"); }
 void ConferenceViewModel::kick(const QString& id) { participantAction(id, "kick"); }
@@ -476,6 +538,15 @@ QVariantList ConferenceViewModel::chatTargets() const {
                            {"value", p.value("id").toString()}};
     }
     return out;
+}
+
+QVariantMap ConferenceViewModel::participanteEnSlot(int slot) const {
+    const QJsonObject snap = const_cast<ConferenceViewModel*>(this)->client().snapshot();
+    for (const QJsonValue& v : snap.value("participants").toArray()) {
+        const QJsonObject p = v.toObject();
+        if (p.value("slot").toInt() == slot) return p.toVariantMap();
+    }
+    return {};
 }
 
 QStringList ConferenceViewModel::slotNames() const {
@@ -549,8 +620,8 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
                       g.wgPublicAddress = pub.toStdString();
                       rt_.save();
                       emit serverConfigReady(r.value("config").toString(), {});
-                      emit notify(rt_.restartGateway() ? "Tunel configurado: reiniciando el gateway"
-                                                       : "Tunel configurado (reinicia el gateway)",
+                      emit notify(rt_.restartGateway() ? "Tunel configurado: reiniciando la sala"
+                                                       : "Tunel configurado, pero la sala no se reinició: apretá «Reiniciar la sala» en la página Sala",
                                   "ok");
                   });
 }
@@ -588,6 +659,28 @@ void ConferenceViewModel::newPin(const QString& pin) {
     if (!pin.trimmed().isEmpty()) body.insert("pin", pin.trimmed());
     client_->post("/api/v1/pin", body, [this](bool ok, const QJsonObject& r) {
         if (ok) emit notify("PIN nuevo: " + r.value("pin").toString(), "ok");
+    });
+}
+
+void ConferenceViewModel::pinBloqueos() {
+    client_->get("/api/v1/pin/bloqueos", [this](bool ok, const QJsonObject& r) {
+        if (!ok) return;
+        bloqueosPin_ = r.value("bloqueos").toObject().toVariantMap();
+        emit bloqueosPinChanged();
+    });
+}
+
+void ConferenceViewModel::desbloquearPin(const QString& ip) {
+    QJsonObject body;
+    if (!ip.trimmed().isEmpty()) body.insert("ip", ip.trimmed());
+    client_->post("/api/v1/pin/desbloquear", body, [this, ip](bool ok, const QJsonObject& r) {
+        if (!ok) {
+            emit notify("No se pudo desbloquear (¿la sala está conectada?)", "error");
+            return;
+        }
+        bloqueosPin_ = r.value("bloqueos").toObject().toVariantMap();
+        emit bloqueosPinChanged();
+        emit notify(ip.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + ip, "ok");
     });
 }
 
@@ -650,7 +743,7 @@ void ConferenceViewModel::takeShare(const QString& id) {
     const std::string scene = rt_.engine().currentScene();
     const QString base = share.value("participantName").toString() + " — " + shown;
     QString name = base;
-    for (int n = 2; rt_.engine().sourceHandle(name.toStdString()) != nullptr; ++n)
+    for (int n = 2; rt_.engine().sourceExists(name.toStdString()); ++n)
         name = base + QString(" (%1)").arg(n);
     spec.name = name.toStdString();
     if (!rt_.addSource(scene, spec)) {

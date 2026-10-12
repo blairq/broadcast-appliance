@@ -3,6 +3,7 @@
 // Configuración → Traducción y el botón «Traducción…» de la página Audio.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Dialogs
 import QtQuick.Layouts
 import BA
 
@@ -61,7 +62,7 @@ ColumnLayout {
         color: Theme.textFaint; font.pixelSize: 11
         readonly property var c: Studio.voz ? Studio.voz.cortes : ({ pausa: 0.35, maximo: 6 })
         text: "Cuándo corta la transcripción (pausa " + Number(c.pausa).toFixed(2).replace(".", ",") + " s, largo máximo " +
-              Number(c.maximo).toFixed(1).replace(".", ",") + " s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Audio y voz. " +
+              Number(c.maximo).toFixed(1).replace(".", ",") + " s) se ajusta en la tarjeta «Voz a texto» o en Configuración → Voz del operador. " +
               "Lo de abajo es de cada traducción."
     }
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
@@ -94,7 +95,7 @@ ColumnLayout {
         }
         GlassButton {
             compact: true; text: "Bajar idioma"; icon: "⇩"
-            enabled: panel.ml && !panel.ml.descargando
+            enabled: !!panel.ml
             onClicked: panel.avisar(panel.tr.bajarUi("es", panel.destinos[idiomaPrueba.currentIndex].codigo), "")
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: "Baja los paquetes para traducir del castellano a este idioma (70 a 300 MB; los que no son inglés ni portugués pasan por el inglés)"
@@ -147,7 +148,7 @@ ColumnLayout {
                     GlassButton {
                         compact: true
                         visible: (fila.modelData.faltan || []).length > 0
-                        enabled: panel.ml && !panel.ml.descargando
+                        enabled: !!panel.ml
                         text: "Bajar"; icon: "⇩"
                         onClicked: panel.avisar(panel.tr.bajarUi(fila.modelData.idioma_desde, fila.modelData.a), "")
                     }
@@ -228,9 +229,110 @@ ColumnLayout {
         color: Theme.textFaint; font.pixelSize: 11
     }
 
+    // --- Corrección humana antes del aire -----------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    ColumnLayout {
+        id: corr
+        Layout.fillWidth: true
+        spacing: 6
+        readonly property var fl: Studio.flujos
+        property var pend: fl ? fl.pendientesUi() : []
+        property bool activa: fl ? fl.correccionActivaUi() : false
+        Connections {
+            target: Studio.flujos
+            function onPendientesCambio() { corr.pend = Studio.flujos.pendientesUi(); corr.activa = Studio.flujos.correccionActivaUi() }
+        }
+        Timer { interval: 1000; repeat: true; running: corr.activa && corr.pend.length > 0; onTriggered: corr.pend = Studio.flujos.pendientesUi() }
+        RowLayout {
+            Text {
+                text: "Corrección antes del aire"
+                color: Theme.text
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+            Text { text: "Demora (s)"; color: Theme.textDim; font.pixelSize: 11 }
+            SpinBox {
+                id: demora; from: 1; to: 30; editable: true; Layout.preferredWidth: 96
+                value: corr.fl ? Math.max(1, Math.round(corr.fl.demoraMsUi() / 1000)) : 4
+                onValueModified: if (corr.activa) corr.fl.setCorreccionUi(true, value * 1000)
+            }
+            CheckBox {
+                text: "Prendida"
+                checked: corr.activa
+                onToggled: corr.fl.setCorreccionUi(checked, demora.value * 1000)
+            }
+            // T44: el corrector puede estar en otra máquina (o en un celular): una página con su clave.
+            GlassButton { compact: true; text: "Puesto de corrección…"; onClicked: puestoQr.open()
+                          ToolTip.visible: hovered; ToolTip.delay: 400
+                          ToolTip.text: "Un enlace (y QR) para corregir desde otra computadora o un celular: ve las frases con su cuenta regresiva, Enter aprueba, Esc descarta" }
+        }
+        QrDialog {
+            id: puestoQr
+            fuente: Studio.puestoCorreccion
+            title: "Puesto de corrección de subtítulos"
+            ofreceClave: false
+            avisoConClave: "El enlace lleva la clave del puesto (cambia en cada arranque de la sala): quien lo tenga puede corregir lo que sale al aire."
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 11
+            text: "Cada frase de la transcripción espera antes de ir a los subtítulos, el CC, la traducción y los archivos. " +
+                  "Editala y Enter para mandarla corregida, ✓ para aprobarla como está, ✕ para tirarla; si nadie la toca, sale sola."
+        }
+        Repeater {
+            model: corr.pend
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                spacing: 6
+                Text { text: modelData.resta + " s"; color: modelData.resta <= 1 ? Theme.live : Theme.amber; font.pixelSize: 12; Layout.preferredWidth: 34 }
+                TextField {
+                    Layout.fillWidth: true
+                    text: modelData.texto
+                    color: Theme.text
+                    onAccepted: corr.fl.corregirUi(modelData.id, text, false)
+                }
+                GlassButton { compact: true; text: "✓"; onClicked: corr.fl.corregirUi(modelData.id, "", false) }
+                GlassButton { compact: true; text: "✕"; onClicked: corr.fl.corregirUi(modelData.id, "", true) }
+            }
+        }
+        CheckBox {
+            text: "Rotular «Traducción automática» mientras sale una traducción (capa DSK 4)"
+            checked: Studio.rotuloTraduccionActivo()
+            onToggled: Studio.setRotuloTraduccion(checked)
+        }
+    }
+
     // --- Glosario --------------------------------------------------------------------
     Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-    Text { text: "Glosario"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+    RowLayout {
+        Layout.fillWidth: true
+        Text { text: "Glosario"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+        GlassButton {
+            compact: true; text: "Exportar para revisión"
+            onClicked: {
+                const r = panel.tr.glosarioExportarUi()
+                if (r === "") Studio.notify("No pude escribir el CSV", "error")
+                else { Studio.notify("Glosario para revisar: " + r, "info"); Qt.openUrlExternally("file://" + r.substring(0, r.lastIndexOf("/"))) }
+            }
+        }
+        TextField { id: revisor; Layout.preferredWidth: 150; placeholderText: "Revisado por"; color: Theme.text }
+        GlassButton {
+            compact: true; text: "Importar revisado…"
+            enabled: revisor.text.trim() !== ""
+            onClicked: dlgGlosario.open()
+        }
+    }
+    FileDialog {
+        id: dlgGlosario
+        title: "Glosario revisado (CSV)"
+        nameFilters: ["CSV (*.csv *.txt)"]
+        onAccepted: {
+            const e = panel.tr.glosarioImportarUi(selectedFile, revisor.text)
+            Studio.notify(e === "" ? "Glosario revisado importado" : e, e === "" ? "ok" : "error")
+        }
+    }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap
         color: Theme.textDim; font.pixelSize: 11
@@ -340,6 +442,154 @@ ColumnLayout {
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: term.modelData.origen === "operador" ? "Sacar este término" : "Apagar este término de fábrica"
             }
+        }
+    }
+
+    // --- Subtítulos ocultos (CC) en la transmisión ---------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    ColumnLayout {
+        id: ccSec
+        Layout.fillWidth: true
+        spacing: 6
+        readonly property var cc: Studio.cc
+        property var e: cc ? cc.estado() : ({})
+        Connections { target: Studio.cc; function onCambio() { ccSec.e = Studio.cc.estado() } }
+        RowLayout {
+            Text { text: "Subtítulos ocultos (CC)"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } Layout.fillWidth: true }
+            StatusPill { text: ccSec.e.activo ? "CC prendido · " + (ccSec.e.enviadas || 0) + " líneas" : "CC apagado"; dot: ccSec.e.activo ? Theme.ok : Theme.textFaint }
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 11
+            text: "El espectador los prende o apaga en su reproductor. 608: dentro del video de la transmisión (y de cada destino). " +
+                  "YouTube: por la API de subtítulos del evento (la URL de «HTTP POST» de YouTube Studio)."
+        }
+        RowLayout {
+            spacing: 6
+            Text { text: "Salida de texto"; color: Theme.textDim; font.pixelSize: 12 }
+            TextField { id: ccFlujo; Layout.preferredWidth: 160; text: ccSec.e.flujo || ""; placeholderText: "p. ej. Sala" }
+            ComboBox {
+                id: ccMetodo
+                implicitWidth: 150
+                model: [ { t: "608 en el video", v: "608" }, { t: "API de YouTube", v: "youtube_http" }, { t: "Los dos", v: "ambos" } ]
+                textRole: "t"
+                currentIndex: Math.max(0, model.findIndex(o => o.v === (ccSec.e.metodo || "608")))
+            }
+        }
+        TextField { id: ccUrl; Layout.fillWidth: true; visible: ccMetodo.currentIndex > 0
+                    placeholderText: ccSec.e.url_youtube ? "(URL guardada)" : "URL de subtítulos de YouTube (http://upload.youtube.com/closedcaption?…)" }
+        RowLayout {
+            spacing: 6
+            GlassButton {
+                compact: true; active: !ccSec.e.activo; text: ccSec.e.activo ? "Aplicar" : "Prender CC"
+                onClicked: {
+                    const cfg = { flujo: ccFlujo.text, metodo: ccMetodo.model[ccMetodo.currentIndex].v }
+                    if (ccUrl.text !== "") cfg.url = ccUrl.text
+                    const r = ccSec.cc.activar(cfg); if (r !== "") Studio.notify(r, "error")
+                }
+            }
+            GlassButton { compact: true; visible: !!ccSec.e.activo; text: "Apagar"; onClicked: ccSec.cc.desactivar() }
+            GlassButton { compact: true; text: "Probar"; onClicked: { const r = ccSec.cc.probar("Prueba de subtítulos"); if (r !== "") Studio.notify(r, "error") } }
+        }
+        Text {
+            visible: (ccSec.e.ultimas || []).length > 0
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: "Últimas: " + (ccSec.e.ultimas || []).slice(-3).join(" · ")
+            color: Theme.textFaint; font.pixelSize: 11
+        }
+    }
+
+    // --- Vocabulario de la voz a texto ---------------------------------------------
+    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+    ColumnLayout {
+        id: vocSec
+        Layout.fillWidth: true
+        spacing: 6
+        property var v: Studio.vocabularioUi()
+        property string grupo: "operador"
+        function refrescar() { v = Studio.vocabularioUi() }
+        readonly property var grupos: Object.keys((v && v.grupos) || {})
+        RowLayout {
+            Text {
+                text: "Vocabulario de la transcripción"
+                color: Theme.text
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+            GlassButton {
+                compact: true; text: "Importar del Cuerpo"
+                onClicked: { Studio.notify("Nombres del cuerpo: " + Studio.vocabularioDelCuerpoUi(), "info"); vocSec.refrescar() }
+            }
+        }
+        Text {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            color: Theme.textDim; font.pixelSize: 11
+            text: "Nombres, localidades y términos que la transcripción tiene que escribir bien. Se corrige por cómo suena " +
+                  "(b/v, s/z/c, ll/y…) y solo si es casi igual; cada reemplazo queda registrado."
+        }
+        Flow {
+            Layout.fillWidth: true; spacing: 6
+            Repeater {
+                model: vocSec.grupos
+                delegate: GlassButton {
+                    required property string modelData
+                    readonly property var g: vocSec.v.grupos[modelData]
+                    compact: true
+                    active: vocSec.grupo === modelData
+                    text: (g.activo ? "● " : "○ ") + modelData + " (" + (g.terminos || []).length + ")"
+                    onClicked: vocSec.grupo = modelData
+                }
+            }
+            GlassButton {
+                readonly property bool on: !!(((vocSec.v.grupos || {})[vocSec.grupo] || {}).activo)
+                compact: true
+                text: on ? "Apagar «" + vocSec.grupo + "»" : "Prender «" + vocSec.grupo + "»"
+                onClicked: { Studio.vocabularioGrupoUi(vocSec.grupo, !on); vocSec.refrescar() }
+            }
+        }
+        Flow {
+            Layout.fillWidth: true; spacing: 4
+            Repeater {
+                model: ((vocSec.v.grupos || {})[vocSec.grupo] || {}).terminos || []
+                delegate: GlassButton {
+                    required property var modelData
+                    compact: true
+                    text: modelData.termino + ((modelData.variantes || []).length ? " ←" + modelData.variantes.join(", ") : "") + "  ✕"
+                    onClicked: { Studio.vocabularioQuitarUi(modelData.termino); vocSec.refrescar() }
+                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sacar este término"
+                }
+            }
+        }
+        RowLayout {
+            spacing: 6
+            TextField { id: vocTerm; Layout.preferredWidth: 170; placeholderText: "Término bien escrito" }
+            TextField { id: vocVar; Layout.fillWidth: true; placeholderText: "Cómo lo escribe mal (opcional, con comas)" }
+            GlassButton {
+                compact: true; text: "Agregar a " + vocSec.grupo
+                onClicked: {
+                    const r = Studio.vocabularioAgregarUi(vocTerm.text, vocVar.text, vocSec.grupo)
+                    if (r !== "") Studio.notify(r, "error"); else { vocTerm.text = ""; vocVar.text = ""; vocSec.refrescar() }
+                }
+            }
+        }
+        RowLayout {
+            spacing: 6
+            TextField { id: vocPrueba; Layout.fillWidth: true; placeholderText: "Probar: «llegamos a comodoro ribadabia»" }
+            GlassButton {
+                compact: true; text: "Probar"
+                onClicked: {
+                    const r = Studio.vocabularioProbarUi(vocPrueba.text)
+                    vocRes.text = r.texto + ((r.reemplazos || []).length ? "   (" + r.reemplazos.map(x => x.original + " → " + x.reemplazo).join(", ") + ")" : "   (sin cambios)")
+                }
+            }
+        }
+        Text { id: vocRes; visible: text !== ""; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12 }
+        Text {
+            visible: (vocSec.v.reemplazos || []).length > 0
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: "Al aire: " + (vocSec.v.reemplazos || []).slice(-4).map(x => x.original + " → " + x.reemplazo).join(" · ")
+            color: Theme.textFaint; font.pixelSize: 11
         }
     }
 }

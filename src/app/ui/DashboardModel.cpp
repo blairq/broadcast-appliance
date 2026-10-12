@@ -32,7 +32,7 @@ struct Kind {
 };
 const Kind kKinds[] = {
     // Primera a proposito: es la que se mira todo el tiempo.
-    {"direccion", "Dirección"}, {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
+    {"direccion", "Dirección"}, {"aire", "Aire"},         {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
     {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
     {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"}, {"ptz", "Control PTZ"},
 };
@@ -132,6 +132,23 @@ void OutputWindowsModel::close(int id) {
     if (onChange_) {
         onChange_();
     }
+}
+
+int OutputWindowsModel::abrirEn(const QStringList& keys, const QString& layout, const QString& screen,
+                                const QRect& geometria, bool pantallaCompleta) {
+    Win w;
+    w.id = nextId_++;
+    w.keys = keys;
+    w.layout = layout.isEmpty() ? "grid" : layout;
+    w.screen = screen;
+    w.fullscreen = pantallaCompleta;
+    if (geometria.isValid()) w.geometry = geometria;
+    const int row = rowCount();
+    beginInsertRows({}, row, row);
+    wins_.push_back(w);
+    endInsertRows();
+    if (onChange_) onChange_();
+    return w.id;
 }
 
 void OutputWindowsModel::setScreen(int id, const QString& screenName) {
@@ -260,6 +277,8 @@ int DashboardModel::rowOf(int id) const {
 /// que acomodar antes de que sirva es una tarjeta mal nacida.
 QSizeF tamanoInicial(const QString& kind) {
     if (kind == "direccion") return {0.34, 0.34};
+    // Aire: al aire/armada/TAKE, FTB y placa, transmisión y grabación.
+    if (kind == "aire") return {0.30, 0.34};
     if (kind == "scenes") return {0.34, 0.42};
     if (kind == "mixer" || kind == "guests" || kind == "speakers") return {0.30, 0.38};
     if (kind == "monitor") return {0.28, 0.34};

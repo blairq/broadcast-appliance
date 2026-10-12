@@ -122,14 +122,17 @@ Rectangle {
         return Qt.point((a.x + 3 * (a.x + d) + 3 * (b.x - d) + b.x) / 8, (a.y + 3 * a.y + 3 * b.y + b.y) / 8)
     }
 
-    // Si el grafo no entra a lo ancho, se achica (hasta 40 %) en vez de
-    // dejar tarjetas fuera de vista; con lugar, tamaño normal.
+    // Si el grafo no entra a lo ancho, se achica hasta 75 % (más chico no se lee:
+    // a 40 % las tarjetas eran rayitas) y el resto se recorre desplazando; con
+    // lugar, tamaño normal. «Ajustar» (BarraGrafo) sigue pudiendo verlo todo junto.
     readonly property real anchoGrafo: {
         let m = 0
         for (let i = 0; i < nodos.length; ++i) m = Math.max(m, nodos[i].x + nodeW)
         return m + 40
     }
-    readonly property real escalaAjustada: Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    /// La que hace entrar todo a lo ancho, por chica que sea (la usa «Ajustar»).
+    readonly property real escalaParaTodo: Math.max(0.25, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+    readonly property real escalaAjustada: Math.max(0.75, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
     readonly property real escala: pb.zoom > 0 ? pb.zoom : pb.escalaAjustada
     function acercar(f) { pb.zoom = Math.max(0.25, Math.min(2.5, pb.escala * f)) }
 
@@ -158,13 +161,17 @@ Rectangle {
                 onPaint: {
                     const c = getContext("2d")
                     c.clearRect(0, 0, width, height)
+                    // Con fillRect y no con stroke(): en una pantalla Retina el
+                    // pintor de Qt trazaba cada línea vertical renglón por
+                    // renglón repartiéndolos a un grupo de hilos, y la grilla
+                    // trababa la interfaz varios segundos al arrancar.
                     for (let x = 0; x <= width; x += pb.grid) {
-                        c.strokeStyle = x % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
-                        c.beginPath(); c.moveTo(x + 0.5, 0); c.lineTo(x + 0.5, height); c.stroke()
+                        c.fillStyle = x % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
+                        c.fillRect(x, 0, 1, height)
                     }
                     for (let y = 0; y <= height; y += pb.grid) {
-                        c.strokeStyle = y % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
-                        c.beginPath(); c.moveTo(0, y + 0.5); c.lineTo(width, y + 0.5); c.stroke()
+                        c.fillStyle = y % 100 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.03)"
+                        c.fillRect(0, y, width, 1)
                     }
                 }
             }
@@ -201,14 +208,14 @@ Rectangle {
                 onPaint: {
                     const c = getContext("2d")
                     c.reset()
-                    c.lineWidth = 1
+                    // fillRect y no stroke(): ver la grilla de abajo de todo.
                     for (let x = 0; x < width; x += pb.grid) {
-                        c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(x / pb.grid) % 5 === 0 ? 0.10 : 0.04)
-                        c.beginPath(); c.moveTo(Math.round(x) + 0.5, 0); c.lineTo(Math.round(x) + 0.5, height); c.stroke()
+                        c.fillStyle = Qt.rgba(1, 1, 1, Math.round(x / pb.grid) % 5 === 0 ? 0.10 : 0.04)
+                        c.fillRect(Math.round(x), 0, 1, height)
                     }
                     for (let y = 0; y < height; y += pb.grid) {
-                        c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(y / pb.grid) % 5 === 0 ? 0.10 : 0.04)
-                        c.beginPath(); c.moveTo(0, Math.round(y) + 0.5); c.lineTo(width, Math.round(y) + 0.5); c.stroke()
+                        c.fillStyle = Qt.rgba(1, 1, 1, Math.round(y / pb.grid) % 5 === 0 ? 0.10 : 0.04)
+                        c.fillRect(0, Math.round(y), width, 1)
                     }
                 }
             }

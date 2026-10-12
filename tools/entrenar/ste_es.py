@@ -23,7 +23,7 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 DICC = RAIZ / "datos" / "ste-es.json"
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 PREGUNTA = ("que", "cual", "cuales", "cuanto", "cuanta", "cuantos", "cuantas", "como", "donde", "quien",

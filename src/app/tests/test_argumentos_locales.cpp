@@ -1,6 +1,6 @@
 // src/app/tests/test_argumentos_locales.cpp — validar lo que escribe el modelo local
 //
-// agent/ArgumentosLocales: los casos que mostró el banco de voz (tools/voz-banco.py).
+// agent/ArgumentosLocales: los casos que mostró el banco de voz (tools/entrenar/voz-banco.py).
 
 #include "agent/ArgumentosLocales.hpp"
 

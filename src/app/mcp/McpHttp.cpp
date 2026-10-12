@@ -75,6 +75,12 @@ QString loadOrCreateToken(const QString& credentialsDir) {
     return t;
 }
 
+QString rotarToken(const QString& credentialsDir) {
+    const QString t = randomHex(32);
+    if (!cred::write(credentialsDir, "mcp-token", t.toUtf8())) return {};
+    return t;
+}
+
 bool writePrivateJson(const QString& path, const QByteArray& data) {
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly)) return false;
@@ -196,6 +202,7 @@ void McpHttp::onReadable(QTcpSocket* s) {
     // El rol lo declara el cliente en cada pedido (el puente lo repite): no
     // hay que guardarlo por sesion, y un cliente sin rol sigue viendo todo.
     ctx.rol = headerValue(headers, "X-BA-Rol").trimmed().toStdString();
+    ctx.origen = "asistente";
     const auto isInit = [](const json& m) { return m.is_object() && m.value("method", "") == "initialize"; };
     if (isInit(msg) || (msg.is_array() && std::any_of(msg.begin(), msg.end(), isInit))) {
         const QString sid = randomHex(16);

@@ -15,13 +15,18 @@
 // ============================================================================
 
 #include "diag/DiarioDeArranque.hpp"
-#include "OperatorEngine.hpp"
+#include "diag/Registro.hpp"
+#include "diag/SalidaAsincrona.hpp"
+#include "emision/OperatorEngine.hpp"
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
-#include "Registrar.hpp"
+#include "arranque/Registrar.hpp"
 #include "security/CredentialStore.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <exception>
+#include <typeinfo>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -33,17 +38,52 @@
 #include <windows.h>
 // shellapi.h necesita windows.h antes (bloque aparte: clang-format no lo reordena).
 #include <shellapi.h>
+#else
+#include <sys/resource.h>
 #endif
 
-#if BA_HAVE_LIBOBS
-#include "EngineSelfTest.hpp"
-#include "OperateMode.hpp"
+#if BA_HAVE_MOTOR
+#include "emision/EngineSelfTest.hpp"
+#include "arranque/OperateMode.hpp"
 #endif
-#if BA_APP_HAVE_QT_OBS
-#include "GuiMode.hpp"
+#if BA_APP_HAVE_GUI
+#include "arranque/GuiMode.hpp"
 #endif
 
 namespace {
+
+/// Una excepción que nadie atajó: que quede escrito cuál fue y que el proceso
+/// TERMINE. En Windows, terminate() → abort() abría un cuadro de diálogo que
+/// nadie ve y la app quedaba congelada hasta que el launcher la mataba por
+/// latido (pasó dos veces el 2026-10-10: un mensaje de ONNX Runtime en cp1252
+/// metido en un JSON). Así el launcher la relanza enseguida y el registro dice
+/// qué pasó.
+void alTerminar() {
+    std::string que = "terminate sin excepción";
+    if (const std::exception_ptr ep = std::current_exception()) {
+        try {
+            std::rethrow_exception(ep);
+        } catch (const std::exception& e) {
+            que = std::string("excepción sin atajar (") + typeid(e).name() + "): " + e.what();
+        } catch (...) {
+            que = "excepción sin atajar (de un tipo que no es std::exception)";
+        }
+    }
+    std::fprintf(stderr, "ba-app: %s\n", que.c_str());
+    std::fflush(stderr);
+    ba::diag::registro().linea(ba::diag::Nivel::Error, "app", 0, que);
+    std::abort();
+}
+
+void instalarFinPorExcepcion() {
+    std::set_terminate(alTerminar);
+#if defined(_WIN32)
+    // Sin cuadros de diálogo que esperen un clic: ni el de abort() ni el de
+    // «el programa dejó de funcionar». Termina, y el launcher se entera ya.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
+#endif
+}
 
 int runHeadlessSelfTest(bool restore = false) {
     ba::app::OperatorEngine engine;
@@ -118,6 +158,14 @@ bool hasFlag(int argc, char** argv, const char* flag) {
 }
 
 int dispatch(int argc, char** argv) {
+#ifndef _WIN32
+    // El tope de archivos abiertos (lo sube el launcher; esto, si se lanza sola):
+    // cada pipeline del motor usa dos, y el de 256 de una app del Finder no alcanza.
+    if (struct rlimit rl{}; getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur < 8192) {
+        rl.rlim_cur = rl.rlim_max == RLIM_INFINITY ? 8192 : std::min<rlim_t>(8192, rl.rlim_max);
+        setrlimit(RLIMIT_NOFILE, &rl);
+    }
+#endif
     // El launcher manda stdout y stderr a Logs/app.log. Hacia un archivo el CRT
     // pasa stdout a buffer completo y en un crash se pierde justo lo ultimo que
     // se dijo: se vuelca por linea, y se fija aca, antes del primer printf de
@@ -135,6 +183,12 @@ int dispatch(int argc, char** argv) {
 #else
     std::setvbuf(stdout, nullptr, _IOLBF, BUFSIZ);
 #endif
+    // Y que escribir al archivo nunca trabe a nadie: un disco que se traba
+    // (un SSD por USB reseteándose) dejaba al motor, a la interfaz y al latido
+    // esperando la escritura, y el supervisor mataba la app (SalidaAsincrona.hpp).
+    ba::diag::desacoplarSalidaEstandar();
+    std::atexit([] { ba::diag::vaciarSalidaEstandar(500); });
+    instalarFinPorExcepcion();
     // Portable: caches de Qt/fontconfig/shaders al bundle (antes de Qt y libobs).
     ba::platform::redirectUserDirs();
     // ffmpeg, ffprobe, yt-dlp, deno y gst-launch del bundle, primeros en el
@@ -149,17 +203,17 @@ int dispatch(int argc, char** argv) {
     // morir en el mismo lugar. Ver diag/DiarioDeArranque.hpp.
     ba::diag::abrirDiario(ba::platform::dataRoot() / "Runtime" / "arranque.json");
     // Credenciales en claro de versiones anteriores -> Credenciales/ cifradas.
-    ba::security::CredentialStore::bundle().importLegacy(ba::platform::dataRoot());
+    ba::security::CredentialStore::bundle().importLegacy(ba::platform::configRoot()); // lee Config/ (las viejas en claro)
     // --restore (spec §3.1.8): el launcher lo pasa al relanzar A tras un crash.
     const bool restore = hasFlag(argc, argv, "--restore");
     if (hasFlag(argc, argv, "--headless-selftest")) {
         return runHeadlessSelfTest(restore);
     }
-#if BA_HAVE_LIBOBS
+#if BA_HAVE_MOTOR
     if (hasFlag(argc, argv, "--engine-selftest")) {
         return ba::app::runEngineSelfTest(argc, argv);
     }
-#if BA_APP_HAVE_QT_OBS
+#if BA_APP_HAVE_GUI
     if (!hasFlag(argc, argv, "--no-ui") && hasDisplay()) {
         return ba::app::runGui(argc, argv);
     }

@@ -3,6 +3,13 @@
 // ============================================================================
 
 #include "ui/SystemViewModel.hpp"
+#include "arranque/InicioConElSistema.hpp"
+#include "video/ElementosGst.hpp"
+
+#include <QJsonArray>
+
+#include <QJsonDocument>
+#include <QJsonObject>
 
 #include <QDesktopServices>
 #include <QDir>
@@ -72,7 +79,7 @@ QStringList SystemViewModel::credentials() const {
 
 QVariantList SystemViewModel::backups() const {
     QVariantList out;
-    QDir d(programa() + "/Respaldos");
+    QDir d(root() + "/Respaldos"); // el launcher respalda en la carpeta de datos
     const auto list = d.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot, QDir::Name | QDir::Reversed);
     for (const QFileInfo& fi : list)
         out << QVariantMap{{"name", fi.fileName()}, {"path", fi.absoluteFilePath()}};
@@ -82,6 +89,19 @@ QVariantList SystemViewModel::backups() const {
 bool SystemViewModel::canRollback() const {
     return QFileInfo(programa() + "/.actualizacion-anterior").isDir();
 }
+
+QVariantMap SystemViewModel::inicioEstado() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(inicio::estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+}
+
+QVariantList SystemViewModel::elementosQueFaltan() const {
+    nlohmann::json faltan = nlohmann::json::array();
+    for (const auto& e : video::revisarElementosGst())
+        if (!e.value("esta", true)) faltan.push_back(e);
+    return QJsonDocument::fromJson(QByteArray::fromStdString(faltan.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
+}
+
+QString SystemViewModel::inicioPoner(bool activo) { return QString::fromStdString(inicio::poner(activo)); }
 
 void SystemViewModel::refresh() { emit changed(); }
 

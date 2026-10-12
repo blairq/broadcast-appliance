@@ -227,7 +227,7 @@ Traduccion traducir(const QJsonObject& d, const QJsonObject& parametros) {
     }
 
     // La entrada y la salida se aplican al EFECTO, que es lo que se dibuja:
-    // mover el item de origen no movería nada (ver docs/GRAFICOS.md).
+    // mover el item de origen no movería nada (ver docs/funciones/GRAFICOS.md).
     const QJsonObject entrada = d.value("entrada").toObject();
     const QString efectoEntrada = entrada.value("efecto").toString("desliza-izquierda");
     const double durEntrada = num(entrada, "duracion", 450);

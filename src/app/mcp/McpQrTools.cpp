@@ -54,9 +54,9 @@ QVariantMap aMapa(const json& o) {
 } // namespace
 
 void McpService::registerQrTools() {
-    core_.addCategory("qr", "Codigos QR",
-                      "Generar codigos QR (enlace, WiFi, contacto, reunion, y los del propio aparato: "
-                      "sala, teleprompter, rotulos), guardarlos en la biblioteca y exportarlos.");
+    core_.addCategory("qr", "Códigos QR",
+                      "Generar códigos QR (enlace, WiFi, contacto, reunión, y los del propio aparato: "
+                      "sala, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos.");
     auto* q = static_cast<QrViewModel*>(vm_.qr());
     if (q == nullptr) return;
 
@@ -70,7 +70,10 @@ void McpService::registerQrTools() {
                         "generar con sus campos, y los iconos que pueden ir al centro.";
         t.details = "Los tipos con `delAparato: true` (sala, prompter, rotulos) NO llevan datos: el "
                     "contenido lo arma el sistema con la clave que corresponda en ese momento. Por eso se "
-                    "guardan sin texto y salen siempre al dia.";
+                    "guardan sin texto y salen siempre al dia.\n\n`para_elegir`: lo que acepta `qr` en "
+                    "pantalla_mostrar y en una fuente «Código QR» (source_add {type: ba_qr, settings: {qr}}): los del "
+                    "aparato SIEMPRE (\"aparato:publico\", \"aparato:sala\", \"aparato:prompter\", "
+                    "\"aparato:rotulos\"), aunque no esten guardados, y los guardados por su id.";
         t.run = [q](const json&, Done done) {
             json guardados = json::array();
             for (const QVariant& v : q->todos()) {
@@ -95,7 +98,53 @@ void McpService::registerQrTools() {
             json ic = json::array();
             for (const qr::Icono& i : qr::iconos())
                 ic.push_back(i.id);
-            done(ToolResult().data(json{{"guardados", guardados}, {"tipos", tipos}, {"iconos", ic}}));
+            // Para elegir en una pantalla (pantalla_mostrar {qr}) o en una escena (fuente ba_qr):
+            // los del aparato siempre («aparato:publico»…) y los guardados.
+            json elegir = json::array();
+            for (const QVariant& v : q->paraElegir()) {
+                const QVariantMap m = v.toMap();
+                elegir.push_back(json{{"qr", m.value("value").toString().toStdString()}, {"que_es", m.value("label").toString().toStdString()}});
+            }
+            done(ToolResult().data(json{{"guardados", guardados}, {"para_elegir", elegir}, {"tipos", tipos}, {"iconos", ic}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "qr_mostrar";
+        t.title = "Mostrarle al operador un QR (y para copiar)";
+        t.category = "qr";
+        t.readOnly = true;
+        t.description =
+            "Abre en la pantalla del operador una ventana con el código QR de `texto` (una URL, un enlace de la sala, "
+            "un PIN…), una `descripcion` grande, el texto seleccionable y los botones «Copiar al portapapeles» y "
+            "«Abrir». USALO SIEMPRE que le pases una URL o un dato largo al operador: desde el chat no lo puede copiar "
+            "cómodo; así lo escanea con el celular o lo copia con un clic. `color` (verde, azul, rojo, amarillo, "
+            "naranja, violeta, rosa, celeste, gris o #rrggbb) pinta el marco: con varios QR a la vez, poné uno de "
+            "cada color y decile «escaneá el QR verde». Cada llamada abre una ventana nueva.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"texto"}},
+            {"properties",
+             {{"texto", {{"type", "string"}, {"description", "lo que va en el QR (p. ej. la URL)"}}},
+              {"descripcion", {{"type", "string"}, {"description", "qué es, en grande (p. ej. «Enlace para los invitados»)"}}},
+              {"mensaje", {{"type", "string"}, {"description", "una línea de explicación (opcional)"}}},
+              {"color",
+               {{"type", "string"},
+                {"description", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb"}}}}}};
+        t.examples = {R"({"texto": "https://sala.ejemplo.com/invitados/#room=sala1", "descripcion": "Enlace para los invitados", "color": "verde"})",
+                      R"({"texto": "https://sala.ejemplo.com/sesion/", "descripcion": "Sesión remota", "color": "azul"})"};
+        StudioViewModel* vmp = &vm_;
+        t.run = [vmp](const json& a, Done done) {
+            const std::string texto = a.value("texto", std::string());
+            if (texto.empty()) return done(ToolResult::error("falta `texto`"));
+            if (texto.size() > 2000) return done(ToolResult::error("demasiado largo para un QR legible (más de 2000 caracteres)"));
+            std::string color = a.value("color", std::string("verde"));
+            for (auto& c : color) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            emit vmp->mostrarQr(QString::fromStdString(texto),
+                                QString::fromStdString(a.value("descripcion", a.value("titulo", std::string()))),
+                                QString::fromStdString(a.value("mensaje", std::string())), QString::fromStdString(color));
+            done(ToolResult::ok("Listo: el operador ve el QR " + color + " con el botón para copiar."));
         };
         core_.addTool(std::move(t));
     }

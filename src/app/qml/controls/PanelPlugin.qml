@@ -1,5 +1,5 @@
 // El panel de un plugin: la interfaz que el plugin DESCRIBE con plugin.panel([...])
-// y que la app dibuja con sus propios controles (ver docs/PLUGINS.md). El plugin
+// y que la app dibuja con sus propios controles (ver docs/funciones/PLUGINS.md). El plugin
 // corre en su proceso: si se cuelga, acá solo se ve «no está corriendo».
 //
 // Tipos: seccion · deslizador · interruptor · opcion · texto · numero · boton ·

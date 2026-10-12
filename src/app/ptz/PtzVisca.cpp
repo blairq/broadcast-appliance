@@ -1,6 +1,7 @@
 // src/app/ptz/PtzVisca.cpp — ver PtzVisca.hpp
 
 #include "ptz/PtzVisca.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "ptz/PtzProtocolos.hpp"
 
@@ -14,11 +15,11 @@ PtzVisca::PtzVisca(QObject* parent) : PtzBackend(parent) {
     junta_.setInterval(40);
     connect(&junta_, &QTimer::timeout, this, &PtzVisca::vaciar);
     silencio_.setSingleShot(true);
-    silencio_.setInterval(1500);
+    silencio_.setInterval(ba::ajustes::entero("ptz.sinRespuestaMs", 1500));
     connect(&silencio_, &QTimer::timeout, this,
             [this]() { setEstado(false, QStringLiteral("Sin respuesta de %1:%2").arg(host_).arg(puerto_)); });
     reconexion_.setSingleShot(true);
-    reconexion_.setInterval(3000);
+    reconexion_.setInterval(ba::ajustes::entero("ptz.reconexionMs", 3000));
     connect(&reconexion_, &QTimer::timeout, this, &PtzVisca::conectarTcp);
 }
 
@@ -204,6 +205,11 @@ void PtzVisca::autoFoco(bool automatico) { enviar(visca::focoAuto(automatico, di
 void PtzVisca::irAPreset(int n) {
     enviar(visca::preset(false, n, direccion_));
     setEstado(listo(), QStringLiteral("Yendo al preset %1").arg(n));
+}
+
+void PtzVisca::irAPosicionCon(int n, const QString&, double velocidad) {
+    if (velocidad > 0) enviar(visca::velocidadPreset(n, velocidad, direccion_));
+    irAPreset(n);
 }
 
 void PtzVisca::guardarPreset(int n) {

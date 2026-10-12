@@ -29,8 +29,55 @@ void McpService::registerAssistantTools() {
     core_.addCategory(
         "asistente", "Pestaña Asistente",
         "El agente de IA que corre en la pestaña Asistente (Claude Code, Gemini CLI u opencode): "
-        "proveedor, modelo, instalacion, arrancar/detener y mandarle pedidos.");
+        "proveedor, modelo, instalación, arrancar/detener y mandarle pedidos.");
     auto* ag = static_cast<agent::AgentViewModel*>(vm_.agent());
+    {
+        Tool t;
+        t.name = "agente_limpieza";
+        t.destructive = true; // borra (la lista sola no toca nada)
+        t.title = "Limpiar los asistentes";
+        t.category = "asistente";
+        t.description =
+            "Lo que ocupan los asistentes (Claude Code, Gemini CLI, opencode) y su limpieza: los chats guardados "
+            "que se acumulan, las versiones viejas del programa, o reinstalar si algo falla.";
+        t.details =
+            "Sin `accion` (o `ver`): por motor, las versiones instaladas (cuál se usa), lo que ocupa el "
+            "programa, los chats y el perfil entero, y los espacios de trabajo.\n"
+            "- `chats`: borra los chats guardados (`motor` vacío = de todos, y los espacios de trabajo). "
+            "El login y los ajustes quedan.\n"
+            "- `versiones`: borra las versiones del programa que no se usan.\n"
+            "- `reinstalar`: borra el programa del `motor` y lo vuelve a bajar (el login y los chats quedan).\n"
+            "- `de_cero`: además borra el perfil entero: chats, ajustes y el LOGIN (hay que volver a entrar). "
+            "Las claves de API pegadas quedan.\n"
+            "Nada de eso se puede con el asistente o un encargo de agentes corriendo.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"accion", {{"type", "string"}, {"enum", {"ver", "chats", "versiones", "reinstalar", "de_cero"}}}},
+              {"motor", {{"type", "string"}, {"enum", {"", "claude", "gemini", "opencode"}}}}}}};
+        t.run = [ag](const json& a, Done done) {
+            const std::string accion = a.value("accion", std::string("ver"));
+            const QString motor = QString::fromStdString(a.value("motor", std::string()));
+            const auto mb = [](double b) { return std::to_string(static_cast<long long>(b / 1048576.0)) + " MB"; };
+            if (accion == "chats" || accion == "versiones") {
+                const QVariantMap r = accion == "chats" ? ag->borrarChats(motor) : ag->borrarVersionesViejas(motor);
+                if (!r.value("ok").toBool()) return done(ToolResult::error(r.value("error").toString().toStdString()));
+                return done(ToolResult::ok(std::string(accion == "chats" ? "Chats borrados" : "Versiones viejas borradas") +
+                                           ": se liberaron " + mb(r.value("bytes").toDouble()) + "."));
+            }
+            if (accion == "reinstalar" || accion == "de_cero") {
+                if (motor.isEmpty()) return done(ToolResult::error("Decí qué `motor` reinstalar."));
+                const QString e = ag->reinstalar(motor, accion == "de_cero");
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                return done(ToolResult::ok("Reinstalando " + motor.toStdString() +
+                                           (accion == "de_cero" ? " desde cero (hay que volver a entrar)" : "") +
+                                           ": el avance, en assistant_status."));
+            }
+            ag->revisarLimpieza();
+            done(ToolResult().data(json{{"limpieza", qvToJson(ag->limpieza())}}));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "assistant_status";

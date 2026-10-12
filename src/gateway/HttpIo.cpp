@@ -4,6 +4,7 @@
 
 #include "HttpIo.hpp"
 
+#include <cctype>
 #include <algorithm>
 #include <cstring>
 
@@ -613,8 +614,12 @@ bool sendResponse(long long fd, int code, const std::string& contentType, const 
     std::string resp = "HTTP/1.1 " + std::to_string(code) + " " + statusText(code) + "\r\n";
     if (!contentType.empty()) resp += "Content-Type: " + contentType + "\r\n";
     resp += "Content-Length: " + std::to_string(body.size()) + "\r\n";
-    // Nada de cache para la API ni de sniffing de tipos en el navegador.
-    resp += "Cache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\n";
+    // Nada de cache para la API ni de sniffing de tipos en el navegador, salvo
+    // que quien responde diga otra cosa (dos Cache-Control: gana no-store).
+    std::string extra = extraHeaders;
+    for (char& ch : extra) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+    if (extra.find("cache-control:") == std::string::npos) resp += "Cache-Control: no-store\r\n";
+    if (extra.find("x-content-type-options:") == std::string::npos) resp += "X-Content-Type-Options: nosniff\r\n";
     resp += extraHeaders;
     resp += "Connection: close\r\n\r\n";
     resp += body;

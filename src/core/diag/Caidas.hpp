@@ -27,8 +27,14 @@
 
 namespace ba::diag {
 
-/// Instala el manejador. Idempotente. En Windows todavia no hace nada (ahi va
-/// Crashpad, que es otro trabajo).
+/// Instala el manejador. Idempotente.
+///
+/// En Windows: excepción sin atrapar, corrupción del heap (vectorizada: no
+/// llega al filtro), abort/terminate, llamada pura y parámetro inválido. Escribe
+/// la línea al archivo del registro y le pide el volcado al launcher, con la
+/// excepción (ver CaidaCompartida.hpp); sin launcher, se vuelca solo. Lo que
+/// no pasa por ningún manejador (__fastfail) lo ve WER y, si se cuelga, el
+/// launcher.
 ///
 /// :param quien: nombre del proceso, para que la linea diga cual se cayo.
 void instalarManejadorDeCaidas(const char* quien);

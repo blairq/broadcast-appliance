@@ -13,6 +13,14 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var conf: Studio.conference
+    // El resultado de una «Prueba técnica» (eco y red).
+    Connections {
+        target: page.conf
+        function onPruebaLista(id, r) {
+            Studio.notify("Prueba técnica: " + r.recomendacion + (r.red && r.red.rtt_ms !== undefined ? " (rtt " + Math.round(r.red.rtt_ms) + " ms, pérdida " + (r.red.perdida_pct || 0) + " %)" : ""),
+                          r.eco || (r.red && r.red.semaforo === "rojo") || !r.ok ? "warn" : "ok")
+        }
+    }
 
     // Reloj para los "hace N min" (sin tocar el modelo).
     property double now: Date.now()
@@ -30,8 +38,7 @@ Rectangle {
         // manda el primer mensaje, y hasta entonces se escribe desde acá.
     }
     function since(ms) {
-        const s = Math.max(0, Math.round((page.now - ms) / 1000))
-        return s < 60 ? s + " s" : Math.floor(s / 60) + " min"
+        return Theme.hace((page.now - ms) / 1000)
     }
     function mb(bytes) { return (bytes / 1048576).toFixed(1) + " MB" }
     /// kbit/s a algo que se lea de un vistazo.
@@ -414,6 +421,22 @@ Rectangle {
                         spacing: 8
                         StatusPill { text: conf.online ? "Sala " + conf.room : "Sala sin conexion"; dot: conf.online ? Theme.ok : Theme.live; pulse: !conf.online }
                         StatusPill { visible: conf.online; text: (conf.maxGuests - conf.slotsFree) + "/" + conf.maxGuests + " lugares"; dot: conf.slotsFree > 0 ? Theme.ok : Theme.amber }
+                        // Reinicia SOLO la sala (el gateway): relee su configuración (IP,
+                        // puertos, túnel) sin cerrar el programa.
+                        GlassButton {
+                            compact: true; text: "Reiniciar la sala"; icon: "↻"
+                            ToolTip.visible: hovered; ToolTip.delay: 400
+                            ToolTip.text: "Reinicia solo el servidor de la sala (gateway) con su configuración actual, sin cerrar el programa. Los invitados se cortan y vuelven a entrar."
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Reiniciar la sala?",
+                                text: "Se reinicia solo el servidor de la sala con su configuración actual. Los invitados conectados se cortan y vuelven a entrar solos.",
+                                accept: "Reiniciar", reject: "Cancelar",
+                                action: function() {
+                                    const e = conf.reiniciarSala()
+                                    Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                                }
+                            })
+                        }
                     }
                     GridView {
                         id: grid
@@ -437,6 +460,7 @@ Rectangle {
                             required property string speaker
                             required property string info
                             required property string contact
+                            required property bool talk
                             width: grid.cellWidth
                             height: grid.cellHeight
                             Rectangle {
@@ -498,6 +522,23 @@ Rectangle {
                                             compact: true
                                             text: cam ? "Apagar cámara" : "Encender cámara"
                                             onClicked: conf.request(uid, cam ? "mute-cam" : "unmute-cam")
+                                        }
+                                        // IFB: mientras lo mantenés apretado le llega tu voz (mezclada con el
+                                        // retorno, el programa baja). No sale al aire.
+                                        GlassButton {
+                                            compact: true; text: talk ? "🎙 Hablando…" : "🎙 Hablarle"
+                                            active: talk; activeColor: Theme.ok
+                                            onPressed2: conf.talk(uid, true)
+                                            onReleased2: conf.talk(uid, false)
+                                            onCanceled2: conf.talk(uid, false)
+                                            ToolTip.visible: hovered && !pressed; ToolTip.delay: 400
+                                            ToolTip.text: "Mantené apretado para hablarle (le llega tu voz por su retorno; no sale al aire)"
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "Prueba técnica"
+                                            onClicked: { conf.pruebaTecnica(uid); Studio.notify("Probando a " + name + ": un tono por su retorno durante 4 s…", "info") }
+                                            ToolTip.visible: hovered; ToolTip.delay: 400
+                                            ToolTip.text: "Le manda un tono por el retorno y mide si vuelve por su micrófono (eco), y mira su red"
                                         }
                                         GlassButton { visible: screen; compact: true; text: "Cortar pantalla"; onClicked: conf.request(uid, "stop-screen") }
                                         GlassButton { visible: hand; compact: true; text: "Bajar mano"; onClicked: conf.request(uid, "lower-hand") }
@@ -786,7 +827,7 @@ Rectangle {
                             spacing: 6
                             GlassButton {
                                 Layout.fillWidth: true
-                                text: "Invitar con QR"; icon: "⬚"; active: true
+                                text: "Invitar con QR"; icon: "⊞"; active: true
                                 onClicked: qrDlg.show("local")
                                 ToolTip.visible: hovered; ToolTip.delay: 400
                                 ToolTip.text: "Muestra el código para escanear. Adentro se elige red local o internet, y si el PIN va incluido."
@@ -805,6 +846,7 @@ Rectangle {
                             }
                             GlassButton { text: pinText.shown ? "Ocultar" : "Ver"; compact: true; onClicked: pinText.shown = !pinText.shown }
                             GlassButton { text: "Nuevo"; compact: true; onClicked: pinDlg.open() }
+                            GlassButton { text: "Bloqueos"; compact: true; onClicked: bloqueosDlg.open() }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -838,7 +880,7 @@ Rectangle {
                                 onPressedChanged: if (pressed) conf.refreshSources()
                             }
                         }
-                        // El micrófono del operador se elige en Configuración -> Audio y voz:
+                        // El micrófono del operador se elige en Configuración -> Voz del operador:
                         // es el mismo para el lobby y para dictarle al asistente.
                         RowLayout {
                             Layout.fillWidth: true
@@ -851,10 +893,82 @@ Rectangle {
                             }
                             GlassButton {
                                 compact: true; text: "Cambiar…"
-                                onClicked: { Studio.seccionConfig = "Audio y voz"; ApplicationWindow.window.showPage(6) }
+                                onClicked: { Studio.seccionConfig = "Voz del operador"; ApplicationWindow.window.showPage(6) }
                             }
                         }
                         GlassButton { text: "Abrir consola web"; icon: "↗"; compact: true; enabled: conf.online; onClicked: conf.openWebConsole() }
+                    }
+                }
+
+                // --- Proxy por nombre (T61): un DNS y un certificado por servicio ---------
+                Panel {
+                    id: proxyPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: proxyCol.implicitHeight + 56
+                    title: "Proxy por nombre (un DNS por servicio)"
+                    readonly property var px: conf.proxy || ({})
+                    readonly property var cfgp: px.configuracion || ({})
+                    readonly property var acme: px.acme || ({})
+                    Timer { interval: 5000; repeat: true; running: proxyPanel.visible && conf.online; triggeredOnStart: true; onTriggered: conf.refrescarProxy() }
+                    function fecha(s) { return s > 0 ? new Date(s * 1000).toLocaleDateString(Qt.locale("es_AR"), "d/M/yyyy") : "—" }
+                    ColumnLayout {
+                        id: proxyCol
+                        anchors.fill: parent
+                        spacing: 8
+                        RowLayout {
+                            spacing: 8
+                            StatusPill { text: proxyPanel.px.activo ? "andando en " + proxyPanel.px.puertoTls + (proxyPanel.px.puertoHttp ? "/" + proxyPanel.px.puertoHttp : "") : "apagado"
+                                         dot: proxyPanel.px.activo ? Theme.ok : Theme.textFaint }
+                            StatusPill { visible: !!proxyPanel.acme.activo
+                                         text: proxyPanel.acme.andando ? "pidiendo certificados…" : (proxyPanel.acme.ultimo_error ? "ACME: error" : "ACME al día")
+                                         dot: proxyPanel.acme.ultimo_error ? Theme.amber : Theme.ok; pulse: !!proxyPanel.acme.andando }
+                            Text { visible: !!proxyPanel.px.activo; text: (proxyPanel.px.conexiones || 0) + " conexiones"; color: Theme.textFaint; font.pixelSize: 11 }
+                        }
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                               text: "Cada servicio en su nombre: sala.<dominio>, sesion.<dominio>, botonera.<dominio>… Apuntá esos nombres a esta máquina en el DNS. Con ACME, Let's Encrypt firma cada uno (hace falta que el 80 llegue desde internet); si no, el certificado de la casa." }
+                        Text { visible: !!proxyPanel.acme.ultimo_error; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 11; text: proxyPanel.acme.ultimo_error || "" }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            CheckBox { id: pxActivo; text: "Activo"; checked: !!proxyPanel.cfgp.activo }
+                            TextField { id: pxDominio; Layout.fillWidth: true; placeholderText: "dominio (p. ej. midominio.org)"; text: proxyPanel.cfgp.dominio || "" }
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            CheckBox { id: pxAcme; text: "Certificados de Let's Encrypt"; checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.activo) }
+                            TextField { id: pxEmail; Layout.fillWidth: true; placeholderText: "email para avisos de la CA"; text: proxyPanel.cfgp.acme ? (proxyPanel.cfgp.acme.email || "") : "" }
+                            CheckBox { id: pxPruebas; text: "de prueba"; checked: !!(proxyPanel.cfgp.acme && proxyPanel.cfgp.acme.pruebas) }
+                        }
+                        RowLayout {
+                            Item { Layout.fillWidth: true }
+                            GlassButton {
+                                compact: true; text: "Guardar y reiniciar la sala"
+                                onClicked: ApplicationWindow.window.confirm({
+                                    title: "¿Reiniciar la sala con el proxy nuevo?",
+                                    text: "Los invitados conectados se cortan y vuelven a entrar.",
+                                    accept: "Reiniciar", reject: "Cancelar",
+                                    action: function() {
+                                        const e = conf.configurarProxy({ activo: pxActivo.checked, dominio: pxDominio.text.trim(),
+                                                                         acme: { activo: pxAcme.checked, email: pxEmail.text.trim(), pruebas: pxPruebas.checked } })
+                                        Studio.notify(e === "" ? "Proxy guardado: la sala se reinicia." : e, e === "" ? "ok" : "error")
+                                    }
+                                })
+                            }
+                        }
+                        Repeater {
+                            model: proxyPanel.px.servicios || []
+                            delegate: RowLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Text { text: modelData.host; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 240; elide: Text.ElideRight }
+                                Text { text: "→ :" + modelData.destino + modelData.ruta + (modelData.soloLan ? " · solo red local" : ""); color: Theme.textFaint; font.pixelSize: 11; Layout.fillWidth: true; elide: Text.ElideRight }
+                                StatusPill { text: (modelData.certificado.origen === "acme" ? "Let's Encrypt" : "de la casa") + " · vence " + proxyPanel.fecha(modelData.certificado.vence)
+                                             dot: modelData.certificado.origen === "acme" ? Theme.ok : Theme.amber }
+                                GlassButton { compact: true; text: "Renovar"; visible: !!proxyPanel.acme.activo; onClicked: { conf.renovarProxy(modelData.host); Studio.notify("Pidiendo el certificado de " + modelData.host + "…", "info") } }
+                            }
+                        }
                     }
                 }
 
@@ -1184,6 +1298,58 @@ Rectangle {
                 TextArea { readOnly: true; text: wgDlg.config; font.family: Theme.mono; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
             GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: Studio.copiar(wgDlg.config) }
+        }
+    }
+
+    // Los que quedaron bloqueados por poner mal el PIN (por IP, y el general de último
+    // recurso). Desbloquear no cambia el PIN: si alguien lo está adivinando, mejor «Nuevo».
+    Dialog {
+        id: bloqueosDlg
+        anchors.centerIn: parent
+        modal: true
+        title: "Bloqueos por PIN mal"
+        standardButtons: Dialog.Close
+        readonly property var b: conf.bloqueosPin || ({})
+        readonly property var g: b.global || ({})
+        readonly property var ips: (b.ips || []).filter(x => x.bloqueada)
+        onOpened: conf.pinBloqueos()
+        Timer { interval: 3000; running: bloqueosDlg.visible; repeat: true; onTriggered: conf.pinBloqueos() }
+        ColumnLayout {
+            spacing: 10
+            width: 420
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.Wrap
+                text: "Tras " + (bloqueosDlg.b.intentosPorIp || 5) + " PIN mal desde la misma conexión, esa conexión espera "
+                      + (bloqueosDlg.b.bloqueoS || 60) + " s. Desbloquear no cambia el PIN."
+                color: Theme.textDim; font.pixelSize: 12
+            }
+            Text {
+                visible: bloqueosDlg.g.bloqueado === true
+                Layout.fillWidth: true; wrapMode: Text.Wrap
+                text: "Bloqueo general: nadie puede entrar por " + bloqueosDlg.g.quedanS + " s más (" + bloqueosDlg.g.fallos + " fallos entre todos)."
+                color: Theme.live; font.pixelSize: 13
+            }
+            Text {
+                visible: bloqueosDlg.ips.length === 0 && bloqueosDlg.g.bloqueado !== true
+                text: "No hay nadie bloqueado."
+                color: Theme.text; font.pixelSize: 13
+            }
+            Repeater {
+                model: bloqueosDlg.ips
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Text { text: modelData.ip; color: Theme.text; font { pixelSize: 13; family: Theme.mono } Layout.fillWidth: true }
+                    Text { text: modelData.quedanS + " s"; color: Theme.textDim; font.pixelSize: 12 }
+                    GlassButton { text: "Desbloquear"; compact: true; onClicked: conf.desbloquearPin(modelData.ip) }
+                }
+            }
+            GlassButton {
+                text: "Desbloquear todos"
+                active: true; compact: true
+                enabled: bloqueosDlg.ips.length > 0 || bloqueosDlg.g.bloqueado === true
+                onClicked: conf.desbloquearPin("")
+            }
         }
     }
 

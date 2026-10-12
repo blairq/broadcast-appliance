@@ -134,6 +134,10 @@ struct TlsTerminator::Impl {
     mbedtls_pk_context key;
     mbedtls_ssl_config conf;
     const char* alpn[2] = {"http/1.1", nullptr};
+    // Los PEM en uso, para pasárselos a ba-web (por un pipe, nunca a disco). Se borran al
+    // destruirse.
+    std::string crtPem, keyPem;
+    bool cargado = false;
 
     Impl() {
         mbedtls_entropy_init(&entropy);
@@ -143,6 +147,7 @@ struct TlsTerminator::Impl {
         mbedtls_ssl_config_init(&conf);
     }
     ~Impl() {
+        mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
         mbedtls_ssl_config_free(&conf);
         mbedtls_pk_free(&key);
         mbedtls_x509_crt_free(&crt);
@@ -161,8 +166,9 @@ TlsTerminator::TlsTerminator(Config cfg, LogFn log)
 
 TlsTerminator::~TlsTerminator() { stop(); }
 
-bool TlsTerminator::start() {
+bool TlsTerminator::cargarCertificado() {
     Impl& d = *impl_;
+    if (d.cargado) return true;
     static const char kPers[] = "ba-tls";
     if (mbedtls_ctr_drbg_seed(&d.drbg, mbedtls_entropy_func, &d.entropy,
                               reinterpret_cast<const unsigned char*>(kPers), sizeof(kPers) - 1) != 0) {
@@ -181,6 +187,10 @@ bool TlsTerminator::start() {
                                       keyPem.size(), nullptr, 0, &Impl::rng, &d) == 0;
         if (loaded && log_) log_("https: certificado propio (Credenciales/tls-propio)");
         if (!loaded && log_) log_("https: el certificado propio es invalido; se usa uno autofirmado");
+        if (loaded) {
+            d.crtPem = crtPem;
+            d.keyPem = keyPem;
+        }
     }
     mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
     if (!loaded) {
@@ -202,6 +212,10 @@ bool TlsTerminator::start() {
                                             crtPem.size()) == 0 &&
                      mbedtls_pk_parse_key(&d.key, reinterpret_cast<const unsigned char*>(keyPem.data()),
                                           keyPem.size(), nullptr, 0, &Impl::rng, &d) == 0;
+            if (loaded) {
+                d.crtPem = crtPem;
+                d.keyPem = keyPem;
+            }
             mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
         }
         if (!loaded) {
@@ -271,6 +285,8 @@ bool TlsTerminator::start() {
             const bool saved = store.write("tls-autofirmado-cert", crtPem) &&
                                store.write("tls-autofirmado-clave", keyPem) &&
                                store.write("tls-autofirmado-nombres", names);
+            d.crtPem = crtPem;
+            d.keyPem = keyPem;
             mbedtls_platform_zeroize(keyPem.data(), keyPem.size());
             loaded = true;
             if (log_)
@@ -287,6 +303,22 @@ bool TlsTerminator::start() {
         fingerprint_ += hx[h[i] >> 4];
         fingerprint_ += hx[h[i] & 15];
     }
+    d.cargado = true;
+    return true;
+}
+
+bool TlsTerminator::pemParaExportar(std::string& crt, std::string& key) const {
+    const Impl& d = *impl_;
+    if (!d.cargado || d.crtPem.empty() || d.keyPem.empty()) return false;
+    // sin el NUL final que se le agrega para los parsers de mbedTLS
+    crt.assign(d.crtPem.c_str());
+    key.assign(d.keyPem.c_str());
+    return true;
+}
+
+bool TlsTerminator::start() {
+    Impl& d = *impl_;
+    if (!d.cargado && !cargarCertificado()) return false;
 
     // --- Configuracion TLS ------------------------------------------------------
     if (mbedtls_ssl_config_defaults(&d.conf, MBEDTLS_SSL_IS_SERVER, MBEDTLS_SSL_TRANSPORT_STREAM,

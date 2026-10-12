@@ -3,12 +3,12 @@
 # tools/deps/ndi-src.sh — fuentes de la recepcion NDI(R) abierta (Windows)
 #
 # libNoIDea (VideoLAN, LGPL) y libmicrodns (LGPL), fijadas por commit (los
-# mismos que tools/deps/obs-deps-linux.sh). En Windows se compilan dentro del
+# mismos que tools/deps/terceros-linux.sh). En Windows se compilan dentro del
 # build de CMake (src/app/CMakeLists.txt); en Linux las arma el script de deps.
 # ============================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-eval "$(grep -E '^(NOIDEA|MICRODNS)_(URL|COMMIT)=' "$ROOT/tools/deps/obs-deps-linux.sh")"
+eval "$(grep -E '^(NOIDEA|MICRODNS)_(URL|COMMIT)=' "$ROOT/tools/deps/terceros-linux.sh")"
 
 gitpin() { # <dir> <url> <commit>
     local d="$1"

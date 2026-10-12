@@ -62,9 +62,27 @@ Rectangle {
                         clip: true
                         spacing: 3
                         model: page.g.graficos
-                        delegate: Rectangle {
-                            required property var modelData
-                            width: ListView.view.width
+                        delegate: Item {
+                          id: filaG
+                          required property var modelData
+                          required property int index
+                          // El título de la categoría arriba del primero de cada una.
+                          readonly property bool primeroDeSuCategoria: index === 0 ||
+                              page.g.graficos[index - 1].categoria !== modelData.categoria
+                          width: ListView.view.width
+                          height: fichaG.height + (primeroDeSuCategoria ? 22 : 0)
+                          Text {
+                            visible: filaG.primeroDeSuCategoria
+                            y: 6; x: 4
+                            text: (filaG.modelData.categoria || "General").toUpperCase()
+                            color: Theme.textFaint
+                            font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1.5 }
+                          }
+                          Rectangle {
+                            id: fichaG
+                            readonly property var modelData: filaG.modelData
+                            y: filaG.primeroDeSuCategoria ? 22 : 0
+                            width: parent.width
                             height: 44
                             radius: 5
                             color: modelData.nombre === page.g.abierto ? Qt.rgba(1, 1, 1, 0.10)
@@ -79,10 +97,18 @@ Rectangle {
                                     color: Theme.text
                                     font { pixelSize: 13; weight: Font.Medium }
                                 }
+                                // Qué es (antes decía «descripción» a secas: el tipo, que parecía un texto que faltaba).
                                 Text {
-                                    text: modelData.declarativo ? "descripción" : "QML"
+                                    Layout.fillWidth: true
+                                    elide: Text.ElideRight
+                                    text: modelData.descripcion
+                                          ? modelData.descripcion
+                                          : (modelData.declarativo ? "armado con capas, sin código" : "escrito en QML")
                                     color: Theme.textFaint
                                     font.pixelSize: 10
+                                    ToolTip.visible: maDesc.containsMouse && truncated
+                                    ToolTip.text: text
+                                    MouseArea { id: maDesc; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                                 }
                             }
                             MouseArea {
@@ -92,6 +118,7 @@ Rectangle {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: page.g.abrir(modelData.nombre)
                             }
+                          }
                         }
                     }
                     RowLayout {

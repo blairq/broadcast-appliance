@@ -22,7 +22,7 @@
 #include <QTimer>
 #include <QVariantList>
 
-#include "JsonSignals.hpp"
+#include "comun/JsonSignals.hpp"
 
 #include <functional>
 #include <map>

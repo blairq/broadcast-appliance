@@ -24,14 +24,13 @@ count=0
 HAVE="$(mktemp)"
 trap 'rm -f "$HAVE"' EXIT
 {
-    find "$BUNDLE" \( -type f -o -type l \) -exec basename {} \;
-    find "$BUNDLE" -type d -name '*.framework' -exec basename {} \;
+    find "$BUNDLE" \( -type f -o -type l \) | sed 's|.*/||'
+    find "$BUNDLE" -type d -name '*.framework' | sed 's|.*/||' 
 } | sort -u >"$HAVE"
 
+# Solo lo que se carga (ejecutables, dylibs, bundles): un .o suelto (el de
+# Python de LibreOffice, para compilar extensiones) no se firma ni se carga.
 while IFS= read -r f; do
-    # Solo lo que se carga (ejecutables, dylibs, bundles): un .o suelto (el de
-    # Python de LibreOffice, para compilar extensiones) no se firma ni se carga.
-    file -b "$f" | grep -qE "Mach-O.*(executable|dynamically linked|bundle)" || continue
     count=$((count + 1))
     rel="${f#"$BUNDLE"/}"
     if ! codesign -v "$f" 2>/dev/null; then
@@ -86,7 +85,14 @@ while IFS= read -r f; do
                 ;;
         esac
     done < <(otool -arch arm64 -L "$f" 2>/dev/null | grep -v ':$' | awk '{print $1}' | grep -vxF "${self:-/}")
-done < <(find "$BUNDLE" -type f)
+done < <(
+    # Con un solo `file` por tanda (antes era uno por archivo: 20.000). Con
+    # BA_CHECK_SOLO (una lista de rutas) se revisan solo esas: lo que se acaba de
+    # firmar en una instalación incremental (make app-macos-rapida).
+    if [ -n "${BA_CHECK_SOLO:-}" ]; then tr '\n' '\0' <"$BA_CHECK_SOLO"; else find "$BUNDLE" -type f -print0; fi |
+        xargs -0 file -N -F $'\t' 2>/dev/null |
+        LC_ALL=C awk -F'\t' 'index($1, " (for architecture ") == 0 && $2 ~ /Mach-O.*(executable|dynamically linked|bundle)/ {print $1}'
+)
 
 echo "Mach-O revisados: $count"
 if [ "$fail" -ne 0 ]; then

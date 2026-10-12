@@ -20,8 +20,9 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
+#include "medios/Playlist.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "medios/Medios.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -63,7 +64,7 @@ QString resolveInside(const QString& root, const QString& p) {
 
 void McpService::registerMediaTools() {
     core_.addCategory(
-        "medios", "Medios (imagenes, videos, musica)",
+        "medios", "Medios (imágenes, videos, música)",
         "Buscar, ver y usar en escenas los archivos de las carpetas de medios del sistema: Media/ (la "
         "biblioteca), Shares/ (lo que compartieron los invitados) y Recordings/.");
     AppRuntime& rt = rt_;
@@ -71,6 +72,70 @@ void McpService::registerMediaTools() {
     const QString root = QString::fromStdWString(rt.dataRoot().wstring());
     QDir(root).mkpath("Media");
 
+    // --- La playlist (T46) -------------------------------------------------------------
+    {
+        Tool t;
+        t.name = "playlist_crear";
+        t.title = "Armar la playlist de medios";
+        t.category = "medios";
+        t.description =
+            "Reemplaza la playlist: `items` = [{path (de las carpetas de medios), nombre?, in_s?, out_s?}] "
+            "(in/out en segundos; 0 = desde el principio / hasta el final). Se pasan uno detrás del otro en "
+            "la escena «Playlist». `auto_next` (pasa solo al siguiente) y `loop` (vuelve a empezar). Para "
+            "reproducir: playlist_control.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"items"}},
+                         {"properties",
+                          {{"items", {{"type", "array"}}},
+                           {"auto_next", {{"type", "boolean"}}},
+                           {"loop", {{"type", "boolean"}}}}}};
+        t.run = [&vm, root](const json& a, Done done) {
+            json items = json::array();
+            for (const auto& it : a.value("items", json::array())) {
+                json x = it.is_string() ? json{{"path", it}} : it;
+                // `archivo` también vale (es como lo devuelve la playlist).
+                const std::string ruta = x.value("path", x.value("archivo", std::string()));
+                if (ruta.empty()) return done(ToolResult::error("a un ítem le falta `path`"));
+                const QString abs = resolveInside(root, QString::fromStdString(ruta));
+                if (abs.isEmpty()) return done(ToolResult::error("«" + ruta + "» no está en las carpetas de medios"));
+                if (QFileInfo(abs).isDir()) return done(ToolResult::error("«" + ruta + "» es una carpeta, no un archivo"));
+                x["archivo"] = abs.toStdString();
+                items.push_back(x);
+            }
+            auto& pl = vm.playlist();
+            if (const std::string e = pl.setItems(items); !e.empty()) return done(ToolResult::error(e));
+            if (a.contains("auto_next")) pl.setAutoNext(a.value("auto_next", true));
+            if (a.contains("loop")) pl.setLoop(a.value("loop", false));
+            done(ToolResult().data(json{{"items", pl.items()}, {"estado", pl.estado()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "playlist_control";
+        t.title = "Playlist: play, siguiente, anterior, parar, armar";
+        t.category = "medios";
+        t.description = "`accion`: play (desde `indice`, base 0, o el actual), next, prev, stop o armar (deja la escena "
+                        "«Playlist» armada en PVW para el take). `auto_next` y `loop` cambian el modo. Sin acción, "
+                        "informa (ítem actual y cuánto le queda).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"play", "next", "prev", "stop", "armar", "ir"}}}},
+                           {"indice", {{"type", "integer"}, {"minimum", 0}}},
+                           {"auto_next", {{"type", "boolean"}}},
+                           {"loop", {{"type", "boolean"}}}}}};
+        t.run = [&vm](const json& a, Done done) {
+            auto& pl = vm.playlist();
+            if (a.contains("auto_next")) pl.setAutoNext(a.value("auto_next", true));
+            if (a.contains("loop")) pl.setLoop(a.value("loop", false));
+            const std::string acc = a.value("accion", std::string());
+            if (acc == "armar") pl.armarUi();
+            else if (!acc.empty())
+                if (const std::string e = pl.control(acc, a.value("indice", -1)); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().data(json{{"estado", pl.estado()}, {"items", pl.items()}}));
+        };
+        core_.addTool(std::move(t));
+    }
     const auto scan = [root](const QString& folder, const QString& kind) {
         std::vector<QFileInfo> out;
         const QStringList folders = folder.isEmpty() || folder == "all" ? kFolders : QStringList{folder};
@@ -273,7 +338,7 @@ void McpService::registerMediaTools() {
             spec.name = a.value("name", QFileInfo(abs).completeBaseName().toStdString());
             if (kind == "image") {
                 spec.id = "image_source";
-                spec.settingsJson = json{{"file", abs.toStdString()}}.dump();
+                spec.settingsJson = json{{"file", abs.toStdString()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             } else {
                 spec.id = "ffmpeg_source";
                 spec.settingsJson = json{
@@ -281,7 +346,7 @@ void McpService::registerMediaTools() {
                     {"local_file", abs.toStdString()},
                     {"looping", a.value("loop", false)},
                     {"restart_on_activate",
-                     true}}.dump();
+                     true}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             }
             spec.visible = a.value("visible", true);
             spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};

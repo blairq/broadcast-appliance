@@ -4,11 +4,11 @@
 # El GStreamer.framework OFICIAL (gstreamer.freedesktop.org), relocalizable
 # desde 1.22 (usa @rpath): se desarman los .pkg SIN instalarlos (pkgutil
 # --expand-full) y se arma extern/gstreamer-macos/GStreamer.framework, que el
-# bundle lleva en bin/64bit (como libobs.framework). En ejecución, la app y el
+# bundle lleva en bin/64bit. En ejecución, la app y el
 # módulo de video usan SOLO esos plugins (ba::platform::prepararGst).
 #
 # Qué entra: TODO (núcleo, base, good, bad, ugly, libav, red, efectos,
-# análisis, códecs —incluidos los GPL: la app ya es GPL por libobs; ojo con las
+# análisis, códecs —incluidos los GPL: la app ya es GPL (LICENSE); ojo con las
 # patentes de los «restricted» si se distribuye—, gtk, devtools, edición y los
 # .typelib de la introspección). Lo único que se saca del paquete de Python son
 # sus piezas compiladas para Python 3.9 (el del sistema de Apple): el de los

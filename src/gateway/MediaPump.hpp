@@ -34,13 +34,17 @@
 #pragma once
 
 #include <atomic>
+#include <deque>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include "dsp/Resampler.hpp"
 #include "ipc/SharedAudioRing.hpp"
@@ -56,8 +60,15 @@ class MediaPump {
    public:
     struct Cfg {
         std::wstring returnAudioName;   // BA.Audio.ContentForReturn (A->B)
+        // Mix-minus por slot (A->B): el programa sin la voz de ese invitado.
+        // Indexado por slot, [0] reservado. Si el de un slot no está, ese
+        // invitado recibe el retorno común.
+        std::vector<std::wstring> returnSlotNames; // BA.Audio.Return.<n>
         std::wstring programVideoName;  // BA.Program (A->B)
         std::wstring operatorVideoName; // BA.Operator (A->B, para el lobby)
+        // Escenas que no son el programa, para las pantallas de la sala (A->B):
+        // [k] = BA.Escena.<k>. Qué escena va en cada canal lo decide A.
+        std::vector<std::wstring> escenaVideoNames;
         std::wstring operatorAudioName; // BA.Audio.Operator (A->B, para el lobby)
         // Indexados por slot, [0] reservado (tamaño guests+1 / lobbySlots+1).
         std::vector<std::wstring> guestAudioNames;     // BA.Audio.Guest.<n>
@@ -66,8 +77,12 @@ class MediaPump {
         std::vector<std::wstring> lobbyAudioNames;     // BA.Audio.Lobby.<k>
         std::vector<std::wstring> lobbyVideoNames;     // BA.Lobby.<k>
         std::vector<std::wstring> backstageVideoNames; // BA.Backstage.<k>
+        std::vector<std::wstring> remotoAudioNames;    // BA.Audio.Remoto.<k> (R3)
+        std::vector<std::wstring> remotoVideoNames;    // BA.Remoto.<k>
+        std::vector<std::wstring> remotoContenidoNames; // BA.RemotoContenido.<k>: lo que comparte (pantalla, otra cámara)
         int audioRate = 48000;
         int audioChannels = 2;
+        uint64_t sinVideoNs = 1000000000ULL; // invitado sin video tanto tiempo -> placa (Configuración → Invitados)
         int programW = 1280; // tamaño de los canales del programa (camara/pantalla)
         int programH = 720;
         int lobbyW = 640; // preview del lobby
@@ -101,6 +116,21 @@ class MediaPump {
     void forwardAudio(int session, const float* samples, size_t n, int rate);
     void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
+    /// El remoto del canal `canal` dejó de mandar (se le sacó la palabra o se fue):
+    /// un cuadro negro en su video, para que la entrada no se quede con la cara del
+    /// anterior (a los 3 s el motor pone «sin señal»).
+    void apagarRemoto(int canal);
+
+    /// Prueba técnica de un invitado admitido (T33): durante `ms` le suma al retorno un
+    /// tono de 1 kHz cortado (250 ms sí, 250 no) y mira cuánto de ese tono vuelve por su
+    /// micrófono (correlación con el patrón, a cualquier demora hasta 1 s). Bloquea `ms`.
+    /// {eco_db (cuánto más 1 kHz hay con el tono que sin), demora_ms, eco: bool, red: {…}}.
+    std::string pruebaTecnica(int session, int ms);
+    /// El código seudoaleatorio de la prueba (tramos de 250 ms): true = tono.
+    static bool codigoPrueba(long long tramo);
+    /// El análisis de la prueba: energía de 1 kHz del micrófono en trozos de 20 ms
+    /// (-1 = sin dato) contra el código, a demoras de 0 a 1 s. {eco_db, eco, demora_ms…}.
+    static nlohmann::json analizarEco(const std::vector<double>& bins, int dur);
 
    private:
     /// Canal de video B->A con tamaño fijo (el frame se ajusta adentro).
@@ -134,6 +164,10 @@ class MediaPump {
 
     void returnAudioThread();
     void returnVideoThread();
+    /// Un canal de video A->B hacia las sesiones que cumplen `para` (escalado a
+    /// lo sumo a programVideoW x programVideoH). El retorno del programa y cada
+    /// canal de escena son esto mismo con otro nombre y otro filtro.
+    void videoBajadaThread(std::wstring nombre, std::string etiqueta, std::function<bool(const MediaRoute&)> para);
     void operatorAudioThread();
     void operatorVideoThread();
     void plateThread();
@@ -156,6 +190,21 @@ class MediaPump {
     std::vector<std::unique_ptr<VideoOut>> backstageVideo_;
     std::vector<std::unique_ptr<AudioOut>> guestAudio_;
     std::vector<std::unique_ptr<AudioOut>> lobbyAudio_;
+    std::vector<std::unique_ptr<VideoOut>> remotoVideo_;
+    std::vector<std::unique_ptr<VideoOut>> remotoContenido_;
+    std::vector<std::unique_ptr<AudioOut>> remotoAudio_;
+
+    // IFB: la voz del operador para los de adentro que tienen «hablar» prendido; el
+    // hilo del retorno la mezcla con el programa (una sola fuente por sesión).
+    std::mutex ifbLock_;
+    std::deque<float> ifb_;
+    // Prueba técnica: la sesión que se prueba, la fase del tono y la energía de 1 kHz
+    // que vuelve por su micrófono, en trozos de 20 ms desde que empezó.
+    std::atomic<int> pruebaSesion_{0};
+    std::atomic<std::int64_t> pruebaDesdeNs_{0};
+    double pruebaFase_ = 0;
+    std::mutex pruebaLock_;
+    std::vector<double> pruebaBins_;
 
     mutable std::mutex routesLock_;
     std::vector<MediaRoute> routes_; // por sesion, [0] reservado

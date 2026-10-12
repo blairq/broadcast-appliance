@@ -1,9 +1,9 @@
 // ============================================================================
 // src/app/audio/RackManager.hpp — racks de audio de todas las fuentes
 //
-// Cada fuente con audio puede tener su rack (AudioRack) montado como un
-// filtro de audio de OBS ("ba_audio_rack"): OBS le pasa el audio de la
-// fuente en su hilo de audio y el rack lo devuelve procesado al mezclador.
+// Cada fuente con audio puede tener su rack (AudioRack). Corre en la cadena de
+// audio de su entrada del motor, como el elemento `barack` (audio/GstRack.hpp):
+// el ajuste `rack` de la entrada lo pone al frente del audio.
 //
 // El manager:
 //   - abre los plugins LSP del bundle (plugins/lsp/lsp-plugins.clap);
@@ -12,11 +12,11 @@
 //   - guarda el grafo y el estado de cada rack en Config/audio-racks.json
 //     (por nombre de fuente) y los restaura al arrancar;
 //   - lista las fuentes con audio (tambien videos con sonido, invitados...);
-//   - la ESCUCHA: el nodo "monitor" de un rack se manda a una salida de audio
-//     del sistema con una fuente privada de OBS en modo MONITOR_ONLY (nunca a
-//     la mezcla). El dispositivo es uno solo para toda la app (asi lo maneja
-//     libobs) y se guarda en Config/audio-escucha.json.
-// Todo en el hilo principal salvo el procesamiento (hilo de audio de OBS).
+//   - la ESCUCHA: el nodo "monitor" de un rack sale por la salida de audio de
+//     los auriculares del operador (un QAudioSink por rack; nunca a la mezcla).
+//     El dispositivo es uno solo para toda la app (también la escucha del
+//     motor) y se guarda en Config/audio-escucha.json.
+// Todo en el hilo principal salvo el procesamiento (hilo de GStreamer).
 // ============================================================================
 #pragma once
 
@@ -52,8 +52,18 @@ class RackManager : public QObject {
     std::shared_ptr<ClapLibrary> library(std::string* error = nullptr);
     /// Fuentes con audio: [{nombre, tipo, rack: bool, modulos: n}].
     json audioSources() const;
+    /// La vista general del audio (página Audio → Estudio; MCP audio_estudio):
+    /// todas las fuentes, cada una en su franja con su cadena entera de izquierda
+    /// a derecha —origen → módulos de su rack
+    /// → filtros de su cadena de GStreamer (automixer…) → la mezcla (volumen,
+    /// silencio)—, los cables entre franjas (las tarjetas «Entrada» que traen el
+    /// audio de otra fuente) y una tarjeta por mesa del automixer con sus
+    /// micrófonos. Con el formato del Patchbay: {nodos, cables, franjas}.
+    json estudio() const;
     /// El rack de la fuente; con `create` lo monta si no tiene.
     AudioRack* rack(const std::string& source, bool create, std::string* error = nullptr);
+    /// Los módulos que el vigía saltó en todos los racks ("<fuente>: <módulo>").
+    std::vector<std::string> tomarSaltados();
     /// Quita el rack de la fuente (el audio vuelve a pasar directo).
     bool removeRack(const std::string& source);
 
@@ -92,7 +102,7 @@ class RackManager : public QObject {
     /// Las fuentes con voz a texto: [{fuente, modo, flujo}] (compatibilidad).
     json fuentesConTexto() const;
     /// A dónde va el audio de esos nodos: (flujo, modo 1=dictado 2=continuo,
-    /// mono, frames, frecuencia). Se llama EN EL HILO DE AUDIO de OBS: tiene
+    /// mono, frames, frecuencia). Se llama EN EL HILO DE AUDIO (GStreamer): tiene
     /// que copiar y volver. Una sola para toda la app (la Voz).
     using TextoSink = std::function<void(const std::string& flujo, int modo, const float* mono, uint32_t n,
                                          uint32_t frecuencia)>;
@@ -117,7 +127,7 @@ class RackManager : public QObject {
     std::string aplicarPlantilla(const std::string& nombre, const std::string& source);
     std::string borrarPlantilla(const std::string& nombre);
     /// Marca (o desmarca, con `tipo` vacio) la plantilla como la que toman
-    /// solas las fuentes nuevas de ese tipo de libobs.
+    /// solas las fuentes nuevas de ese tipo.
     std::string plantillaPorDefecto(const std::string& nombre, const std::string& tipo);
 
     /// Tarjeta ENTRADA en el rack de `source`: trae el audio de `fuente`
@@ -132,6 +142,9 @@ class RackManager : public QObject {
     /// Las fuentes de las que algún rack trae audio (la Matriz abre las
     /// entradas de placa que se usen así).
     std::set<std::string> fuentesDeEntradas() const;
+    /// Las fuentes cuyo rack tiene algo (un filtro, voz a texto, una voz…): la
+    /// Matriz abre su entrada de placa aunque no vaya a ninguna salida.
+    std::set<std::string> fuentesConRack() const;
 
     // --- Texto a voz (tarjeta «habla») ------------------------------------------
     /// Agrega una tarjeta TEXTO A VOZ al rack de `source`. Opciones: {flujo,
@@ -180,7 +193,7 @@ class RackManager : public QObject {
 
     /// Servicios del hilo principal para los plugins.
     HostServices* services() const;
-    /// Uso interno del filtro de OBS.
+    /// Uso interno (el rack de cada fuente).
     struct Filter;
     void attach(Filter* f);
     void detach(Filter* f);
@@ -197,6 +210,10 @@ class RackManager : public QObject {
     std::string libError_;
     bool libTried_ = false;
     std::map<std::string, Filter*> filters_; // por fuente
+    /// Los racks de las entradas de GStreamer (los procesa `barack`): son de acá.
+    std::map<std::string, std::shared_ptr<Filter>> gstFilters_;
+    void ponerRackEnFuente(const std::string& fuente, const std::string& rack);
+    void revisarRacksGst();
     /// Prende o apaga la escucha de cada rack segun el dispositivo elegido.
     void syncMonitors();
     void saveMonitor() const;
@@ -209,11 +226,12 @@ class RackManager : public QObject {
     /// La plantilla marcada para ese tipo de fuente, o vacio.
     std::string plantillaDeTipo(const std::string& tipo) const;
     std::string monitorId_;   // "" = sin escucha aparte
-    std::string monitorName_; // el nombre que espera libobs junto al id
+    std::string monitorName_; // el nombre del dispositivo (para mostrar)
+    std::string dispositivoEscucha_; // con el que están abiertas las escuchas de los racks
     json pending_;            // racks guardados de fuentes que todavia no existen
 
-    /// La toma de audio de una tarjeta de entrada: el callback de captura de
-    /// la fuente de origen empuja a su anillo; el rack lo saca.
+    /// La toma de audio de una tarjeta de entrada: la toma del motor de la
+    /// fuente de origen empuja a su anillo; el rack lo saca.
     struct Toma;
     std::map<std::string, std::unique_ptr<Toma>> tomas_;                ///< "<rack>\n<nodo>"
     std::map<std::string, std::shared_ptr<anillo::Ring>> anillosHabla_; ///< "<rack>\n<nodo>"

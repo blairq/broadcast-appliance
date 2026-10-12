@@ -1,4 +1,5 @@
 #include "carrusel/Conversion.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -32,7 +33,7 @@ QString extension(const QString& archivo) { return QFileInfo(archivo).suffix().t
 /// Convertir tarda, pero no una hora: si LibreOffice no terminó en cinco
 /// minutos es que se quedó esperando algo que nunca va a llegar (un diálogo
 /// que en headless nadie puede contestar) y lo mejor es decirlo.
-constexpr int kLimiteOfficeMs = 5 * 60 * 1000;
+inline int kLimiteOfficeMs() { return ba::ajustes::entero("carrusel.limiteOfficeMin", 5) * 60 * 1000; }
 
 } // namespace
 
@@ -237,7 +238,7 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
         d_->limpiar();
         emit fallo("no se pudo arrancar LibreOffice");
     });
-    QTimer::singleShot(kLimiteOfficeMs, this, [this]() {
+    QTimer::singleShot(kLimiteOfficeMs(), this, [this]() {
         if (d_->corriendo && d_->proc) {
             d_->limpiar();
             emit fallo("LibreOffice tardó demasiado y lo corté");

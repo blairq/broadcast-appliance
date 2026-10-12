@@ -9,6 +9,7 @@
 // chicos, se los mira de reojo. Atrasado es rojo, adelantado es ámbar, en hora
 // no se marca —lo que está bien no tiene que llamar la atención—.
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import BA
 import "../controls"
@@ -23,16 +24,15 @@ import "../controls"
 //
 // No hace nada si no hay nada armado: un TAKE al vacio no es una operacion.
 Item {
-    id: direccion
+    id: tarjeta
     focus: true
     Keys.onPressed: (e) => {
         if ((e.key === Qt.Key_T || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) &&
-            Studio.escenaArmada !== "") {
+            Studio.escenaArmada !== "" && !Studio.focoEnTexto()) {
             Studio.take()
             e.accepted = true
         }
     }
-    id: tarjeta
     readonly property var ev: Studio.evento
     readonly property var reloj: ev ? ev.reloj : ({})
     readonly property bool corriendo: ev && ev.estado === "corriendo"
@@ -45,6 +45,53 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
+
+        // --- FTB y placa: tapar todo lo que sale a un toque ---------------------
+        BotonesSeguridad { Layout.fillWidth: true }
+        // --- Capas DSK encima del programa (logo, intérprete LSA) --------------
+        FilaDsk { Layout.fillWidth: true }
+        // --- El medio al aire: cuánto le queda (rojo en los últimos 10 s) ---------
+        Repeater {
+            model: Studio.mediosAlAire
+            delegate: RowLayout {
+                required property var modelData
+                Layout.fillWidth: true
+                Text { Layout.fillWidth: true; elide: Text.ElideRight; text: "▶ " + modelData.fuente; color: Theme.text; font.pixelSize: 12 }
+                Text {
+                    text: "−" + Math.floor(modelData.restante_s / 60) + ":" + String(modelData.restante_s % 60).padStart(2, "0")
+                    color: modelData.restante_s <= 10 ? Theme.live : Theme.text
+                    font.pixelSize: 26; font.weight: Font.Black; font.family: Theme.mono
+                }
+            }
+        }
+        // --- Back-timing del guion: lo que falta del bloque y a qué hora se termina ---
+        Text {
+            readonly property var r: Studio.evento ? Studio.evento.reloj : ({})
+            visible: !!(r && r.horaFinPrevista && r.restanteGuionSeg > 0)
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: "Bloque: faltan " + Math.floor((r.restanteBloqueSeg || 0) / 60) + " min · fin prevista " + (r.horaFinPrevista || "") +
+                  (r.horaFinPlaneada ? " (planeada " + r.horaFinPlaneada + ", " +
+                   (r.backTimingSeg >= 0 ? "sobran " : "hay que recortar ") + Math.abs(Math.round(r.backTimingSeg / 60)) + " min)" : "")
+            color: r && r.backTimingSeg < 0 ? Theme.amber : Theme.textDim
+            font.pixelSize: 11
+        }
+        // --- El punto del orden del día que se trata ------------------------------
+        RowLayout {
+            visible: Studio.ordenDelDia.puntos.length > 0
+            Layout.fillWidth: true
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: Studio.ordenDelDia.actual && Studio.ordenDelDia.actual.n
+                      ? "Punto " + Studio.ordenDelDia.actual.n + ": " + Studio.ordenDelDia.actual.titulo
+                      : "Orden del día: ningún punto en tratamiento"
+                color: Theme.text; font.pixelSize: 12
+            }
+            GlassButton {
+                compact: true; text: "Siguiente punto ▶"
+                enabled: Studio.ordenDelDia.puntos.some(p => p.estado === "pendiente")
+                onClicked: { const e = Studio.ordenDelDia.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
+            }
+        }
 
         // --- Los dos buses -----------------------------------------------------
         RowLayout {
@@ -82,9 +129,45 @@ Item {
                 }
             }
             GlassButton {
-                text: "TAKE"; active: true
+                text: "CUT"
+                enabled: Studio.escenaArmada !== ""
+                onClicked: Studio.takeCon("cut", 0)
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Corte seco a la armada (sin transición)"
+            }
+            GlassButton {
+                text: "AUTO"; active: true
                 enabled: Studio.escenaArmada !== ""
                 onClicked: Studio.take()
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "TAKE con la transición (la de entrada de la escena o la global)"
+            }
+        }
+        // --- T-bar: la transición a mano --------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            enabled: Studio.escenaArmada !== ""
+            Text { text: "T-bar"; color: Theme.textDim; font.pixelSize: 11 }
+            Slider {
+                id: tbar
+                Layout.fillWidth: true
+                from: 0; to: 1; value: 0
+                onMoved: Studio.tbar(value, false)
+                onPressedChanged: if (!pressed) { Studio.tbar(value, true); value = 0 }
+            }
+            Text { text: "Entra con"; color: Theme.textDim; font.pixelSize: 11 }
+            ComboBox {
+                id: entrada
+                implicitWidth: 120
+                readonly property var actual: Studio.escenaArmada !== "" ? Studio.transicionEntrada(Studio.escenaArmada) : ({})
+                model: [ { t: "la global", v: "" }, { t: "corte", v: "cut" }, { t: "fundido", v: "fade" },
+                         { t: "barrido", v: "swipe" }, { t: "deslizar", v: "slide" }, { t: "a color", v: "fade_to_color" } ]
+                textRole: "t"
+                currentIndex: Math.max(0, model.findIndex(o => o.v === (actual.tipo || "")))
+                onActivated: (i) => {
+                    const e = Studio.setTransicionEntrada(Studio.escenaArmada, model[i].v, model[i].v === "cut" ? 0 : -1)
+                    if (e !== "") Studio.notify(e, "error")
+                }
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La transición con la que entra la escena armada"
             }
         }
 

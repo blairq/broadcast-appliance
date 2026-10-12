@@ -71,7 +71,7 @@ Rectangle {
                 wrapMode: Text.WordWrap
                 color: Theme.textDim
                 font.pixelSize: 14
-                text: "La escena que está al aire no tiene ninguna fuente de «Gráfico animado».\n\n" +
+                text: "Ninguna escena tiene una fuente de «Gráfico animado».\n\n" +
                       "Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, " +
                       "y después volvé acá a escribir los textos."
             }
@@ -116,6 +116,12 @@ Rectangle {
                                     text: tarjeta.modelData.fuente
                                     color: Theme.text
                                     font { pixelSize: 14; weight: Font.DemiBold }
+                                }
+                                Text {
+                                    visible: !tarjeta.modelData.escenaAlAire
+                                    text: "en «" + tarjeta.modelData.escena + "» (no está al aire)"
+                                    color: Theme.textFaint
+                                    font.pixelSize: 11
                                 }
                                 Item { Layout.fillWidth: true }
                                 ComboBox {
@@ -164,10 +170,24 @@ Rectangle {
                                 Layout.fillWidth: true
                                 spacing: 8
                                 GlassButton {
+                                    visible: tarjeta.modelData.escenaAlAire
                                     text: "Al aire"; icon: "▶"
                                     onClicked: page.r.disparar(tarjeta.modelData.id, false)
                                 }
+                                // De una escena que no está al aire: se dibuja ahí y la
+                                // escena queda armada en el preview; sale con TAKE.
                                 GlassButton {
+                                    visible: !tarjeta.modelData.escenaAlAire
+                                    text: "Armar en PVW"; icon: "▷"; active: true
+                                    onClicked: {
+                                        if (page.r.disparar(tarjeta.modelData.id, false) === "")
+                                            Studio.armarEscena(tarjeta.modelData.escena)
+                                    }
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: "Lo dibuja en «" + tarjeta.modelData.escena + "» y la deja armada: sale con TAKE"
+                                }
+                                GlassButton {
+                                    visible: tarjeta.modelData.escenaAlAire
                                     text: "En bucle"; compact: true
                                     onClicked: page.r.disparar(tarjeta.modelData.id, true)
                                     ToolTip.visible: hovered

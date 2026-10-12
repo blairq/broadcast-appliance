@@ -170,6 +170,9 @@ class PantallasViewModel : public QObject {
                  std::function<void(bool, int)> luego);
 
     QVariantList carruseles() const;
+    /// ¿Alguna pantalla está mostrando el programa? Mientras tanto la vista que
+    /// lo baja al gateway no puede descansar (ver BroadcastEngine::retornoEnUso).
+    bool muestraPrograma() const;
 
    signals:
     void cambio();
@@ -186,6 +189,10 @@ class PantallasViewModel : public QObject {
     void restaurar();
     /// Abrir el canal y mandarle la URL: el final de todos los contenidos.
     void mandarUrl(const QString& id, const QString& url, const QString& tipo, const QString& que);
+    /// Una escena (no la del aire): le da un canal de escena y pide el enlace.
+    QString mostrarEscena(const QString& id, const QString& escena);
+    /// Suelta los canales de escena que ninguna pantalla está usando.
+    void revisarCanales();
 
     struct Impl;
     std::unique_ptr<Impl> d_;

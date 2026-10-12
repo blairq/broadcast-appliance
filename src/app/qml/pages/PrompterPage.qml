@@ -26,7 +26,7 @@ Rectangle {
 
     // Solo se consulta mientras esta página se ve.
     onVisibleChanged: p.mirar(visible)
-    Component.onCompleted: { p.mirar(visible); p.refrescar() }
+    Component.onCompleted: { if (visible) p.mirar(true); p.refrescar() }
     Component.onDestruction: p.mirar(false)
 
     function mmss(s) {

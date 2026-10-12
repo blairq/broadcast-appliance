@@ -20,7 +20,7 @@
 // titulo es para leer, cambia y se repite.
 // ============================================================================
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include <QGuiApplication>
 #include <QImage>
 #include <QQuickWindow>
@@ -208,7 +208,7 @@ const char* kSobreWayland =
 
 void McpService::registerVentanaTools() {
     core_.addCategory("ventanas", "Ventanas y monitores",
-                      "Donde esta cada ventana y como acomodarlas: mover, redimensionar, mandar a otro "
+                      "Dónde está cada ventana y cómo acomodarlas: mover, redimensionar, mandar a otro "
                       "monitor, pantalla completa, cerrar. Para armar el puesto del operador en varias "
                       "pantallas.");
 
@@ -263,7 +263,7 @@ void McpService::registerVentanaTools() {
                     "ventana: pedir un cambio de monitor no falla y tampoco la mueve. Para mandarla de "
                     "verdad, pantalla completa (`estado: \"pantalla-completa\"` con `monitor`).";
             }
-            done(ToolResult::ok(r.dump(2)));
+            done(ToolResult::ok(r.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
         };
         core_.addTool(std::move(t));
     }
@@ -404,6 +404,13 @@ void McpService::registerVentanaTools() {
 
             if (a.contains("estado")) {
                 const std::string e = a["estado"].get<std::string>();
+                // Las ventanas de video (salida:<n>) tienen su estado en QML y en el modelo:
+                // por sus botones, así no quedan desparejos.
+                if (w->objectName().startsWith("ba:salida:") &&
+                    QMetaObject::invokeMethod(w, "ponerEstado", Q_ARG(QVariant, QVariant(QString::fromStdString(e))))) {
+                    done(ToolResult::ok("«" + w->title().toStdString() + "»:" + hecho + " (" + e + ")."));
+                    return;
+                }
                 if (e == "pantalla-completa") {
                     // Salir y volver a entrar (ver la pausa de mas arriba): si
                     // ya estaba en pantalla completa en OTRO monitor, pedirla

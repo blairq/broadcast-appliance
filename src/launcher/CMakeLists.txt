@@ -26,7 +26,7 @@ endif()
 
 add_executable(BroadcastAppliance ${BA_LAUNCHER_SOURCES})
 include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
-ba_mac_embed_info_plist(BroadcastAppliance com.legisstudio.broadcastappliance "Broadcast Appliance")
+ba_mac_embed_info_plist(BroadcastAppliance io.github.blairq.broadcastappliance "Broadcast Appliance")
 
 # --- Ícono y datos del .exe (solo Windows) ----------------------------------
 # El .rc referencia el .ico por nombre: se le agrega assets/icons al camino de
@@ -79,6 +79,7 @@ add_test(NAME test_updater COMMAND test_updater)
 # La carpeta de datos al lado de la .app (macOS) y la mudanza.
 add_executable(test_datos tests/test_datos.cpp Datos.cpp)
 target_include_directories(test_datos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(test_datos PRIVATE ba_core)
 add_test(NAME test_datos COMMAND test_datos)
 
 add_executable(test_child_output tests/test_child_output.cpp ChildOutput.cpp)
@@ -87,7 +88,7 @@ target_link_libraries(test_child_output PRIVATE ba_core)
 add_test(NAME test_child_output COMMAND test_child_output)
 
 # SHA-256 de la verificacion de integridad, contra los vectores de FIPS 180-4.
-add_executable(test_sha256 tests/test_sha256.cpp)
+add_executable(test_sha256 tests/test_sha256.cpp Integrity.cpp Log.cpp)
 target_include_directories(test_sha256 PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 add_test(NAME test_sha256 COMMAND test_sha256)
 

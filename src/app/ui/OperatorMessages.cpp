@@ -48,7 +48,7 @@ QVariantList OperatorMessages::items() const {
     std::stable_sort(open.begin(), open.end(), [&](const json& a, const json& b) {
         return rank(a) != rank(b) ? rank(a) < rank(b) : a.value("id", 0) > b.value("id", 0);
     });
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json(open).dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json(open).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 int OperatorMessages::count() const {
@@ -74,6 +74,7 @@ int OperatorMessages::post(const json& spec) {
            {"guestText", spec.value("guestText", "")},
            {"suggestions", spec.value("suggestions", json::array())},
            {"approval", spec.value("approval", false)},
+           {"aire", spec.value("aire", false)}, // una acción que cambia el aire (banda roja)
            {"details", spec.value("details", "")},
            {"reason", spec.value("reason", "")},
            {"platform", spec.value("platform", "")},

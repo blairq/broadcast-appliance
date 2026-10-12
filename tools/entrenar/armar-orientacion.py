@@ -3,7 +3,7 @@
 
 QUE ES EL BANCO. Frases escritas por alguien que NO leyo el corpus de
 entrenamiento, con la herramienta que les corresponde. El bucle de corpus lo usa
-para saber donde se pierde el modelo (ver docs/bucle-corpus.md). Nunca se
+para saber donde se pierde el modelo (ver docs/modelos/bucle-corpus.md). Nunca se
 entrena, y la guarda del bucle impide copiarlo en una semilla.
 
 QUE HACE ESTE SCRIPT, y por que cada paso:
@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 CORPUS_EXAMEN = RAIZ / "src/app/tests/datos/preguntas.json"
 
 
@@ -41,7 +41,7 @@ def main():
     args = ap.parse_args()
 
     import lib_prompt as lp
-    spec = importlib.util.spec_from_file_location("ce", RAIZ / "tools/corpus-entrenamiento.py")
+    spec = importlib.util.spec_from_file_location("ce", RAIZ / "tools/entrenar/corpus-entrenamiento.py")
     ce = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ce)
 

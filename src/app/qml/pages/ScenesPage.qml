@@ -12,6 +12,17 @@ Rectangle {
     property string selected: ""
     readonly property string editScene: Studio.sources.scene
 
+    // ui_abrir_panel {page: "escenas", panel: "efectos", fuente}: elige la fuente y
+    // muestra sus efectos (transparencia, borde difuso, sombra) en Propiedades.
+    Connections {
+        target: Studio
+        function onAbrirPanel(pagina, panel) {
+            if (pagina !== "escenas") return
+            if (panel === "cerrar") { page.selected = ""; return }
+            if (panel.startsWith("efectos:")) page.selected = panel.substring(8)
+        }
+    }
+
     // --- Carpetas de escenas --------------------------------------------------
     // Solo ordenan la lista (el motor no las usa). El arbol se arma leyendo el
     // modelo de escenas, que informa la carpeta de cada una.
@@ -67,12 +78,27 @@ Rectangle {
 
         // --- Escenas ----------------------------------------------------------
         Panel {
-            Layout.preferredWidth: 240
+            Layout.preferredWidth: 310
+            Layout.maximumWidth: 310
             Layout.fillHeight: true
             title: "Escenas"
             ColumnLayout {
                 anchors.fill: parent
                 spacing: 8
+                // FTB y placa a un toque (encima de todo lo que sale).
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 4
+                    BotonesSeguridad { Layout.fillWidth: true; angosta: true }
+                    FilaDsk { Layout.fillWidth: true }
+                }
+                CheckBox {
+                    text: "Corte directo (sin preview)"
+                    checked: Studio.corteDirectoEditor
+                    onToggled: Studio.corteDirectoEditor = checked
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Apagado (recomendado): el botón de cada escena la ARMA en el preview y sale con TAKE. Prendido: corta directo (al aire pide confirmación)."
+                }
                 ListView {
                     id: sceneList
                     Layout.fillWidth: true
@@ -147,7 +173,27 @@ Rectangle {
                                 anchors { fill: parent; leftMargin: 12; rightMargin: 8 }
                                 Rectangle { width: 8; height: 8; radius: 4; color: parent.parent.live ? Theme.live : Theme.textFaint }
                                 Text { text: parent.parent.name; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideRight; font.pixelSize: 13 }
-                                GlassButton { visible: !parent.parent.live; text: "Al aire"; compact: true; onClicked: Studio.takeScene(parent.parent.name) }
+                                // Arma la escena en el preview (el corte va con TAKE). Con el
+                                // corte directo prendido corta, y al aire pide confirmación.
+                                GlassButton {
+                                    readonly property string esc: parent.parent.name
+                                    visible: !parent.parent.live
+                                    compact: true
+                                    text: Studio.corteDirectoEditor ? "Al aire" : (Studio.escenaArmada === esc ? "Armada" : "Armar")
+                                    active: !Studio.corteDirectoEditor
+                                    activeColor: "#16a34a"
+                                    onClicked: {
+                                        if (!Studio.corteDirectoEditor) { Studio.armarEscena(esc); return }
+                                        if (!Studio.alAire()) { Studio.takeScene(esc); return }
+                                        const n = esc
+                                        ApplicationWindow.window.confirm({
+                                            title: "¿Cortar a «" + n + "» al aire?",
+                                            text: "Es un corte directo, sin pasar por el preview.",
+                                            accept: "Cortar", reject: "Cancelar",
+                                            action: function() { Studio.takeScene(n) }
+                                        })
+                                    }
+                                }
                             }
                             // Lo que se ve mientras se lleva la escena a una carpeta.
                             // `Drag.active` va ATADO al arrastre del MouseArea y el
@@ -373,7 +419,9 @@ Rectangle {
             spacing: 12
             Panel {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 280
+                // Media columna: con 280 fijos entraban tres fuentes y
+                // Propiedades, casi siempre vacía, se quedaba con el resto.
+                Layout.preferredHeight: Math.max(280, (parent.height - 12) / 2)
                 title: "Fuentes"
                 ColumnLayout {
                     anchors.fill: parent
@@ -467,15 +515,45 @@ Rectangle {
                     // la imagen a esta fuente, y si la escena esta al aire, sale
                     // al aire. La tarjeta de control del dashboard pasa a
                     // manejar este carrusel cuando esta escena esta al aire.
+                    // Un código QR (el del Público, el de la Sala, uno guardado…).
+                    GlassButton {
+                        text: "Agregar código QR"; icon: "▦"; compact: true
+                        onClicked: qrMenu.popup()
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Un QR en esta escena: el de la página del Público, el de la Sala, o uno de «Códigos QR». Se mantiene al día solo."
+                        Menu {
+                            id: qrMenu
+                            property var opciones: []
+                            onAboutToShow: opciones = Studio.qr.paraElegir()
+                            Repeater {
+                                model: qrMenu.opciones
+                                delegate: MenuItem {
+                                    required property var modelData
+                                    text: modelData.label
+                                    onTriggered: {
+                                        const n = Studio.sources.addConAjustes("ba_qr", "QR · " + modelData.label.split(":")[0].replace(" (guardado)", ""),
+                                                                               { qr: modelData.value, fondo: true, tamano: 720 })
+                                        if (n) page.selected = n
+                                    }
+                                }
+                            }
+                        }
+                    }
                     GlassButton {
                         text: "Agregar carrusel"; icon: "▦"; compact: true
-                        visible: Studio.carruseles.carruseles.length > 0
+                        // Siempre a la vista: sin carruseles todavía, el menú dice dónde se arman.
                         onClicked: carruselMenu.popup()
                         ToolTip.visible: hovered
                         ToolTip.delay: 400
-                        ToolTip.text: "Poner en esta escena una tira de imágenes armada en Medios"
+                        ToolTip.text: "Poner en esta escena una tira de imágenes (se arman en Medios → Carruseles: con imágenes, un PDF o un PowerPoint)"
                         Menu {
                             id: carruselMenu
+                            MenuItem {
+                                visible: Studio.carruseles.carruseles.length === 0
+                                height: visible ? implicitHeight : 0
+                                text: "No hay carruseles: armar uno en Medios → Carruseles…"
+                                onTriggered: ApplicationWindow.window.page = Studio.riel.paginaDeId("medios")
+                            }
                             Repeater {
                                 model: Studio.carruseles.carruseles
                                 delegate: MenuItem {
@@ -526,7 +604,14 @@ Rectangle {
                     ColumnLayout {
                         width: parent.width
                         spacing: 10
-                        Text { visible: !page.selected; text: "Elegi una fuente para ver sus propiedades."; color: Theme.textFaint; font.pixelSize: 12 }
+                        Text { visible: !page.selected; text: "Elegí una fuente para ver sus propiedades."; color: Theme.textFaint; font.pixelSize: 12 }
+                        // Transparencia, borde difuso y sombra del elemento EN ESTA escena.
+                        PanelEfectos {
+                            Layout.fillWidth: true
+                            visible: page.selected !== ""
+                            fuente: page.selected
+                        }
+                        Rectangle { visible: page.selected !== ""; Layout.fillWidth: true; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
                         Repeater {
                             model: Studio.properties
                             delegate: FormField {

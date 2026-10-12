@@ -44,6 +44,7 @@ class PtzVisca : public PtzBackend {
     void guardarPreset(int numero) override;
     void home() override;
     void borrarPosicion(int n, const QString& token) override;
+    void irAPosicionCon(int n, const QString& token, double velocidad) override;
 
     static int puertoPorDefecto(const QString& transporte);
 

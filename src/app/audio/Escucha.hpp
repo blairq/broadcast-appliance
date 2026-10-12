@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/audio/Escucha.hpp — de la voz del operador a texto (push-to-talk)
 //
-// QUE ES. El oído del control por voz (docs/AUDIO-TTS.md): mientras el
+// QUE ES. El oído del control por voz (docs/funciones/AUDIO-TTS.md): mientras el
 // operador aprieta la tecla, su micrófono —capturado en OperatorFeed antes de
 // la mezcla, y cortado hacia el lobby en ese mismo momento— llega acá; al
 // soltar, se recorta el silencio con el VAD y se transcribe. El texto va a la
@@ -31,6 +31,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::app::audio {
 
@@ -53,7 +54,8 @@ class Escucha {
     using Listo = std::function<void(const Resultado&)>;
 
     /// Lo más que se graba en una toma: una orden, no un discurso.
-    static constexpr double kMaxSegundos = 30.0;
+    /// Largo máximo de un segmento que va a transcripción (Configuración → avanzado).
+    static double kMaxSegundosAhora() { return ajustes::numero("escucha.segmentoMaxS", 30.0); }
 
     Escucha();
     ~Escucha();

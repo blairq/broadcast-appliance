@@ -42,6 +42,10 @@ QByteArray focoAuto(bool automatico, int direccion = 1);
 QByteArray focoUnToque(int direccion = 1);
 /// Presets: 8x 01 04 3F 0a pp FF (a: 1 guardar, 2 ir). pp 0..127.
 QByteArray preset(bool guardar, int numero, int direccion = 1);
+/// Velocidad con la que se va a una memoria (Sony): 8x 01 7E 01 0B pp vv FF,
+/// vv 01..18 (velocidad 0..1). La cámara que no la conoce contesta error y
+/// va a la suya.
+QByteArray velocidadPreset(int numero, double velocidad, int direccion = 1);
 /// Borra una memoria: 8x 01 04 3F 00 pp FF.
 QByteArray borrarPreset(int numero, int direccion = 1);
 QByteArray home(int direccion = 1);
@@ -110,7 +114,7 @@ QString getProfiles();
 QString continuousMove(const QString& perfil, double pan, double tilt, double zoom);
 QString stop(const QString& perfil);
 QString getPresets(const QString& perfil);
-QString gotoPreset(const QString& perfil, const QString& preset);
+QString gotoPreset(const QString& perfil, const QString& preset, double velocidad = 0);
 /// Guarda en un preset nuevo (sin token) o pisa uno existente.
 QString setPreset(const QString& perfil, const QString& nombre, const QString& preset = {});
 QString gotoHomePosition(const QString& perfil);

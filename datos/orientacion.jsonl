@@ -920,7 +920,7 @@
 {"frase": "Siguiente, dale", "herramienta": "speaker_next"}
 {"frase": "Sacalo del aire a Gómez", "herramienta": "speaker_on_air"}
 {"frase": "Metelo al aire a Ruiz ya", "herramienta": "speaker_on_air"}
-{"frase": "Bajá del aire a la diputada, que ya terminó", "herramienta": "speaker_on_air"}
+{"frase": "Bajá del aire a la consejera, que ya terminó", "herramienta": "speaker_on_air"}
 {"frase": "Al aire Carla, arrancale el reloj", "herramienta": "speaker_on_air"}
 {"frase": "Marcá a Julián como presentador fijo", "herramienta": "speaker_presenter"}
 {"frase": "La conductora remota queda fija al aire mientras rotan los invitados", "herramienta": "speaker_presenter"}
@@ -974,7 +974,7 @@
 {"frase": "Borrá a la invitada que no viene", "herramienta": "padron_quitar"}
 {"frase": "Eliminá de la lista a Martín Sosa", "herramienta": "padron_quitar"}
 {"frase": "Ese nombre está duplicado, sacalo de la lista", "herramienta": "padron_quitar"}
-{"frase": "El diputado canceló, quitalo del padrón", "herramienta": "padron_quitar"}
+{"frase": "El consejero canceló, quitalo del padrón", "herramienta": "padron_quitar"}
 {"frase": "¿Cuántos llegaron?", "herramienta": "padron_ver"}
 {"frase": "Mostrame el padrón", "herramienta": "padron_ver"}
 {"frase": "¿Quién falta llegar?", "herramienta": "padron_ver"}

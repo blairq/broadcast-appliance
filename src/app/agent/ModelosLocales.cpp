@@ -2,6 +2,10 @@
 // src/app/agent/ModelosLocales.cpp — ver ModelosLocales.hpp
 // ============================================================================
 #include "agent/ModelosLocales.hpp"
+#include "ajustes/Ajustes.hpp"
+
+#include <QRegularExpression>
+#include "platform/Paths.hpp"
 
 #include "agent/ArgumentosLocales.hpp"
 
@@ -20,9 +24,15 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <regex>
 #include <utility>
 
+#include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"
+
+#include <chrono>
+#include <set>
+#include <thread>
 
 namespace fs = std::filesystem;
 using json = nlohmann::json;
@@ -63,7 +73,7 @@ bool escribir(const QString& ruta, const QByteArray& datos) {
 }
 
 QVariantMap aVariant(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 /// Un archivo ya bajado está bien si coincide su hash (el de LFS o el de blob).
@@ -120,7 +130,7 @@ std::string huellaEsquema(const json& inputSchema) {
     // nlohmann ordena las claves y, sin sangría, no pone espacios: lo mismo que
     // json.dumps(sort_keys=True, separators=(',', ':')) del lado de la fábrica.
     const QByteArray h =
-        QCryptographicHash::hash(QByteArray::fromStdString(inputSchema.dump()), QCryptographicHash::Sha256)
+        QCryptographicHash::hash(QByteArray::fromStdString(inputSchema.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)), QCryptographicHash::Sha256)
             .toHex();
     return h.left(16).toStdString();
 }
@@ -179,11 +189,19 @@ ModelosLocales::ModelosLocales(fs::path raizDatos, QString dirBinarios, QObject*
     if (f.open(QIODevice::ReadOnly)) catalogo_ = json::parse(f.readAll().toStdString(), nullptr, false);
     if (!catalogo_.is_object()) catalogo_ = json::object();
     leerAjustes();
+    registrarActualizaciones();
 }
 
 ModelosLocales::~ModelosLocales() {
-    cancelar_ = true;
-    if (hiloDescarga_.joinable()) hiloDescarga_.join();
+    // Las descargas de modelos se cortan y se espera a que suelten (usan carpetas
+    // de acá); lo que espera en la cola sale sin correr.
+    cancelarDescarga();
+    if (hiloDisco_.joinable()) hiloDisco_.join();
+    for (int i = 0; i < 100 && std::any_of(enCurso_.begin(), enCurso_.end(), [](const QString& r) {
+                        return net::Descargas::la().ocupado("modelo:" + r.toStdString());
+                    });
+         ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     for (auto& h : hilosFicha_)
         if (h.joinable()) h.join();
     if (proc_ != nullptr) {
@@ -193,7 +211,7 @@ ModelosLocales::~ModelosLocales() {
     }
 }
 
-fs::path ModelosLocales::carpetaModelos() const { return raiz_ / "Modelos"; }
+fs::path ModelosLocales::carpetaModelos() const { return ba::platform::dataRoot() / "Modelos"; }
 
 fs::path ModelosLocales::carpetaDe(const QString& repo) const {
     return carpetaModelos() / carpetaDeRepo(repo.toStdString());
@@ -212,6 +230,67 @@ nlohmann::json ModelosLocales::entradaCatalogo(const QString& repo) const {
 
 std::filesystem::path ModelosLocales::carpetaInstalada(const QString& repo) const {
     return instalado(repo) ? carpetaDe(repo) : fs::path();
+}
+
+QString ModelosLocales::ggufParaChat(const QString& pedido, QString* falta, QString* repoParaBajar) const {
+    const auto archivoDe = [this](const QString& repo) -> QString {
+        const json e = entradaCatalogo(repo);
+        if (e.value("formato", std::string()) != "gguf" || !e.value("archivo", json()).is_string() || !instalado(repo))
+            return {};
+        const fs::path f = carpetaDe(repo) / e["archivo"].get<std::string>();
+        std::error_code ec;
+        return fs::exists(f, ec) ? QString::fromStdWString(f.wstring()) : QString();
+    };
+    // El que se eligió en el Asistente (si está en el catálogo y es GGUF).
+    if (!pedido.isEmpty()) {
+        const json e = entradaCatalogo(pedido);
+        if (e.empty() || e.value("formato", std::string()) != "gguf") {
+            if (falta != nullptr) *falta = "«" + pedido + "» no es un modelo GGUF del catálogo.";
+            return {};
+        }
+        if (const QString f = archivoDe(pedido); !f.isEmpty()) return f;
+        if (falta != nullptr) *falta = "El modelo «" + pedido + "» todavía no está: se baja ahora.";
+        if (repoParaBajar != nullptr) *repoParaBajar = pedido;
+        return {};
+    }
+    // El activo, o (sin activo) el primer reactivo instalado de esta plataforma.
+    QString repo = activo_;
+    if (repo.isEmpty()) repo = instaladoDeTipo("reactivo");
+    if (repo.isEmpty()) {
+        if (falta != nullptr) *falta = "No hay un modelo local: bajalo en Configuración → Modelos locales.";
+        return {};
+    }
+    if (const QString f = archivoDe(repo); !f.isEmpty()) return f;
+    // MLX (la Mac): su versión GGUF, si el catálogo la tiene.
+    QString hermano = repo;
+    hermano.replace(QRegularExpression("-mlx-q4$"), "-GGUF");
+    if (hermano != repo && !entradaCatalogo(hermano).empty()) {
+        if (const QString f = archivoDe(hermano); !f.isEmpty()) return f;
+        if (falta != nullptr)
+            *falta = "El chat del modelo local usa su versión GGUF (" + hermano + "), que todavía no está: se baja ahora.";
+        if (repoParaBajar != nullptr) *repoParaBajar = hermano;
+        return {};
+    }
+    // Sin versión GGUF del activo: un GGUF que ya esté, o el más nuevo de 4B del catálogo.
+    QString elegido;
+    int mejor = -1;
+    for (const json& m : catalogo_.value("modelos", json::array())) {
+        if (m.value("formato", std::string()) != "gguf" || m.value("tipo", std::string("reactivo")) != "reactivo") continue;
+        const QString r = QString::fromStdString(m.value("repo", std::string()));
+        if (const QString f = archivoDe(r); !f.isEmpty()) return f;
+        if (!r.contains("-4b-")) continue;
+        const QRegularExpressionMatch v = QRegularExpression("-v(\\d+)-").match(r);
+        const int n = v.hasMatch() ? v.captured(1).toInt() : 1;
+        if (n > mejor) mejor = n, elegido = r;
+    }
+    if (!elegido.isEmpty()) {
+        if (falta != nullptr)
+            *falta = "El chat del modelo local usa un modelo GGUF (" + elegido + "), que todavía no está: se baja ahora.";
+        if (repoParaBajar != nullptr) *repoParaBajar = elegido;
+        return {};
+    }
+    if (falta != nullptr) *falta = "El modelo local activo (" + repo + ") no tiene versión GGUF para el chat.";
+    return {};
 }
 
 QString ModelosLocales::instaladoDeTipo(const QString& tipo) const {
@@ -239,11 +318,24 @@ QVariantList ModelosLocales::catalogo() const {
     return out;
 }
 
-bool ModelosLocales::hayMotor() const {
-#if defined(__APPLE__)
-    return QFileInfo(dirBinarios_ + "/ba-modelo").isExecutable();
+namespace {
+/// El ejecutable del motor: el mismo nombre y el mismo protocolo en las tres
+/// plataformas (MLX en la Mac, src/modelo-mac; llama.cpp en Windows y Linux,
+/// src/modelo-llama).
+QString exeMotor(const QString& dir) {
+#if defined(_WIN32)
+    return dir + "/ba-modelo.exe";
 #else
-    return false;
+    return dir + "/ba-modelo";
+#endif
+}
+} // namespace
+
+bool ModelosLocales::hayMotor() const {
+#if defined(_WIN32)
+    return QFileInfo::exists(exeMotor(dirBinarios_));
+#else
+    return QFileInfo(exeMotor(dirBinarios_)).isExecutable();
 #endif
 }
 
@@ -251,7 +343,7 @@ QString ModelosLocales::motor() const {
 #if defined(__APPLE__)
     return hayMotor() ? "MLX (ba-modelo)" : "falta ba-modelo en bin/64bit (make modelo-mac)";
 #else
-    return "llama.cpp: todavía no viaja en el bundle de esta plataforma";
+    return hayMotor() ? "llama.cpp (ba-modelo)" : "falta ba-modelo en bin/64bit (tools/deps/llamacpp-lib.sh)";
 #endif
 }
 
@@ -274,7 +366,7 @@ void ModelosLocales::guardarAjustes() const {
                  {"sesgo", sesgo_},
                  {"mtp", mtp_.toStdString()},
                  {"al_arrancar", alArrancar_}};
-    escribir(deRuta(carpetaModelos() / "ajustes.json"), QByteArray::fromStdString(j.dump(1)));
+    escribir(deRuta(carpetaModelos() / "ajustes.json"), QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
 void ModelosLocales::setSesgo(double s) {
@@ -330,8 +422,24 @@ std::map<std::string, std::string> pesosDe(const RepoHf& r, const std::string& s
 net::HttpResponse pedirHf(const std::string& url) {
     net::HttpRequest req;
     req.url = url;
-    req.timeoutMs = 20000;
-    return net::HttpsClient::request(req);
+    req.timeoutMs = ba::ajustes::sAMs("modelos.timeoutHfS", 20);
+    // Siguiendo las redirecciones: Hugging Face contesta `resolve/<commit>/…` con un
+    // 307 a /api/resolve-cache/… (desde 2026-10; antes daba el archivo directo) y,
+    // sin seguirlo, cada modelo.json parecía «no publicado».
+    net::HttpResponse res;
+    for (int salto = 0; salto < 6; ++salto) {
+        res = net::HttpsClient::request(req);
+        if (res.status < 300 || res.status >= 400) break;
+        std::string loc = res.header("Location");
+        if (loc.empty()) break;
+        if (loc.rfind("http", 0) != 0) { // relativa
+            const auto esquema = req.url.find("://");
+            const auto barra = req.url.find('/', esquema == std::string::npos ? 0 : esquema + 3);
+            loc = req.url.substr(0, barra) + (loc.front() == '/' ? "" : "/") + loc;
+        }
+        req.url = loc;
+    }
+    return res;
 }
 } // namespace
 
@@ -375,7 +483,11 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
             de = "el modelo bajado";
         } else if (!forzar && fs::exists(guardado, ec)) {
             const json g = leer(guardado);
-            if (g.is_object()) {
+            // Un «no hay» guardado vale 6 horas: el repo pudo publicarlo después (o la
+            // consulta falló por otra cosa). Lo que sí se encontró, vale siempre.
+            const std::int64_t edad =
+                QDateTime::currentSecsSinceEpoch() - (g.is_object() ? g.value("cuando", std::int64_t{0}) : 0);
+            if (g.is_object() && (!g.value("modelo_json", json()).is_null() || edad < ba::ajustes::entero("modelos.cacheFichasHoras", 6) * 3600)) {
                 mj = g.value("modelo_json", json());
                 nota = g.value("nota", std::string());
                 de = g.value("de", std::string("Hugging Face"));
@@ -429,7 +541,11 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
                 // Se guarda para mirarlo sin red la próxima vez (también el «no hay»).
                 QDir().mkpath(deRuta(guardado.parent_path()));
                 escribir(deRuta(guardado), QByteArray::fromStdString(
-                                               json{{"modelo_json", mj}, {"nota", nota}, {"de", de}}.dump()));
+                                               json{{"modelo_json", mj},
+                                                    {"nota", nota},
+                                                    {"de", de},
+                                                    {"cuando", QDateTime::currentSecsSinceEpoch()}}
+                                                   .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
             }
         }
         if (f.empty() && (mj.is_null() || !mj.is_object() || !mj.contains("endpoints")))
@@ -451,12 +567,44 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
 
 // --- descarga ----------------------------------------------------------------------
 
-void ModelosLocales::descargar(const QString& repo) {
-    if (descargando_) return;
+namespace {
+/// El commit del modelo instalado (su .ok), o "".
+std::string commitInstalado(const fs::path& carpeta) {
+    QFile f(deRuta(carpeta / ".ok"));
+    if (!f.open(QIODevice::ReadOnly)) return {};
+    const json j = json::parse(f.readAll().toStdString(), nullptr, false);
+    return j.is_object() ? j.value("commit", std::string()) : std::string();
+}
+} // namespace
+
+QStringList ModelosLocales::enCola() const {
+    QStringList out;
+    for (const QString& r : enCurso_) out << r;
+    return out;
+}
+
+QString ModelosLocales::descargar(const QString& repo) {
+    const auto p = pedidoDe(repo, false);
+    if (!p) return QString::fromUtf8(errorPedido_.c_str());
+    const auto r = net::Descargas::la().pedir(*p);
+    if (r == net::Descargas::Resultado::Encolada) {
+        enCurso_.insert(repo);
+        if (textoDescarga_.isEmpty() || !descargando_) {
+            progreso_ = 0;
+            textoDescarga_ = "En la cola: " + repo;
+        }
+        descargando_ = true;
+        emit descargaCambio();
+    }
+    return QString::fromUtf8(net::Descargas::texto(r));
+}
+
+std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& repo, bool actualizacion) {
     const json entrada = entradaCatalogo(repo);
     if (entrada.empty()) {
-        emit notify("Ese modelo no está en el catálogo.", "error");
-        return;
+        errorPedido_ = "Ese modelo no está en el catálogo.";
+        emit notify(QString::fromStdString(errorPedido_), "error");
+        return std::nullopt;
     }
     // GGUF: un repo puede traer varias cuantizaciones; se baja la del catálogo.
     const std::string archivo =
@@ -475,28 +623,42 @@ void ModelosLocales::descargar(const QString& repo) {
         directo.sha256 = entrada.value("sha256", std::string());
         directo.tamano = entrada.value("bytes", std::uint64_t{0});
         if (directo.nombre.empty() || directo.sha256.size() != 64 || directo.tamano == 0) {
-            emit notify("La entrada del catálogo no trae archivo, sha256 y bytes: no se baja.", "error");
-            return;
+            errorPedido_ = "La entrada del catálogo no trae archivo, sha256 y bytes: no se baja.";
+            emit notify(QString::fromStdString(errorPedido_), "error");
+            return std::nullopt;
         }
     }
-    descargando_ = true;
-    cancelar_ = false;
-    progreso_ = 0;
-    textoDescarga_ = "Consultando Hugging Face…";
-    emit descargaCambio();
-    if (hiloDescarga_.joinable()) hiloDescarga_.join();
     const fs::path destino = carpetaDe(repo);
     const fs::path staging = carpetaModelos() / (".bajando-" + carpetaDeRepo(repo.toStdString()));
+    const fs::path fichas = carpetaModelos() / ".fichas";
     const std::string r = repo.toStdString();
+    const std::string fijo = !directo.url.empty() ? std::string("url") : revision;
 
-    hiloDescarga_ = std::thread([this, r, soloGguf, revision, soloArchivos, directo, destino, staging]() {
-        const auto avisar = [this](double p, const QString& t) {
-            QMetaObject::invokeMethod(this, [this, p, t]() {
-                progreso_ = p;
-                textoDescarga_ = t;
-                emit descargaCambio();
-            });
+    net::Descargas::Pedido p;
+    p.id = "modelo:" + r;
+    p.tipo = "modelo";
+    p.titulo = entrada.value("nombre", r);
+    p.version = fijo.empty() ? "main" : fijo.substr(0, 12);
+    // Fijado (por commit o por URL): si el instalado es ese, ya está. Los que
+    // siguen «main» (los nuestros) se consultan: si no cambió, no se rebaja nada.
+    if (!fijo.empty() && !actualizacion)
+        p.yaEsta = [destino, fijo]() { return commitInstalado(destino) == fijo; };
+    QPointer<ModelosLocales> yo(this);
+    const QString qrepo = repo;
+    p.trabajo = [yo, r, soloGguf, revision, soloArchivos, directo, destino, staging, fichas](
+                    net::Descargas::Contexto& ctx) -> std::string {
+        // Lo que muestran Configuración y el panel de traducción (de a un modelo).
+        const auto avisar = [&ctx, yo](double p, const QString& t) {
+            ctx.avance(p, t.toStdString());
+            if (yo)
+                QMetaObject::invokeMethod(yo.data(), [yo, p, t]() {
+                    if (!yo) return;
+                    yo->progreso_ = p;
+                    yo->textoDescarga_ = t;
+                    emit yo->descargaCambio();
+                });
         };
+        avisar(0, "Consultando Hugging Face…");
         QString err;
         RepoHf repo;
         if (!directo.url.empty()) {
@@ -506,7 +668,8 @@ void ModelosLocales::descargar(const QString& repo) {
             net::HttpRequest req;
             req.url = "https://huggingface.co/api/models/" + r +
                       (revision.empty() ? "" : "/revision/" + revision) + "?blobs=true";
-            req.timeoutMs = 30000;
+            req.timeoutMs = ba::ajustes::sAMs("modelos.timeoutHfS", 20) * 3 / 2;
+            req.cancel = ctx.banderaCancelar();
             const net::HttpResponse res = net::HttpsClient::request(req);
             if (!res.error.empty())
                 err = "Sin conexión con Hugging Face: " + QString::fromStdString(res.error);
@@ -520,6 +683,13 @@ void ModelosLocales::descargar(const QString& repo) {
                 err = "No se entendió la respuesta de Hugging Face.";
             if (err.isEmpty() && !revision.empty() && repo.commit != revision)
                 err = "Hugging Face no devolvió el commit fijado en el catálogo.";
+        }
+        if (!err.isEmpty()) return err.toStdString();
+        if (ctx.cancelado()) return "cancelada";
+        // Ya está esa versión (los que siguen «main»): nada que bajar.
+        if (commitInstalado(destino) == repo.commit) {
+            avisar(1.0, "Ya estaba al día.");
+            return {};
         }
         std::vector<ArchivoHf> archivos;
         std::uint64_t total = 0;
@@ -537,110 +707,181 @@ void ModelosLocales::descargar(const QString& repo) {
             archivos.push_back(a);
             total += a.tamano;
         }
-        if (err.isEmpty())
-            for (const std::string& f : soloArchivos)
-                if (std::none_of(archivos.begin(), archivos.end(), [&f](const ArchivoHf& a) {
-                        return a.nombre == f || (!f.empty() && f.back() == '/' && a.nombre.rfind(f, 0) == 0);
-                    }))
-                    err = "Al repo le falta " + QString::fromStdString(f) + " (en el commit fijado).";
+        for (const std::string& f : soloArchivos)
+            if (std::none_of(archivos.begin(), archivos.end(), [&f](const ArchivoHf& a) {
+                    return a.nombre == f || (!f.empty() && f.back() == '/' && a.nombre.rfind(f, 0) == 0);
+                }))
+                return "Al repo le falta " + f + " (en el commit fijado).";
+        // La carpeta a medio bajar se conserva entre intentos (cada archivo sigue
+        // donde se cortó) mientras sea del MISMO commit; si es de otro, de cero.
         std::error_code ec;
-        fs::remove_all(staging, ec);
+        if (commitInstalado(staging) != repo.commit) fs::remove_all(staging, ec);
         fs::create_directories(staging, ec);
+        {
+            QFile m(deRuta(staging / ".ok"));
+            if (m.open(QIODevice::WriteOnly | QIODevice::Truncate))
+                m.write(QByteArray::fromStdString(json{{"commit", repo.commit}, {"a_medias", true}}.dump()));
+        }
+        // Dónde buscar archivos ya bajados: el modelo que se reemplaza primero y
+        // después los demás instalados (los que tienen .ok).
+        std::vector<fs::path> instalados{destino};
+        for (const fs::directory_entry& e : fs::directory_iterator(staging.parent_path(), ec)) {
+            const std::string n = e.path().filename().string();
+            if (!n.empty() && n[0] != '.' && e.path() != destino && fs::exists(e.path() / ".ok", ec))
+                instalados.push_back(e.path());
+        }
         std::uint64_t hecho = 0;
         for (const ArchivoHf& a : archivos) {
-            if (!err.isEmpty()) break;
             // Al cerrar la app (o cancelar) se corta acá, sin esperar a bajar el
             // siguiente: el cierre esperaba la bajada entera y el launcher lo
             // tomaba por un cuelgue (y reabría la app).
-            if (cancelar_) {
-                err = "Descarga cancelada.";
-                break;
-            }
+            if (ctx.cancelado()) return "cancelada";
             const fs::path final = staging / desdeUtf8(a.nombre);
+            const QString nombre = QString::fromStdString(a.nombre);
+            // Ya bajado en un intento anterior y verificado: queda.
+            if (verificado(final, a)) {
+                hecho += a.tamano;
+                continue;
+            }
             fs::create_directories(final.parent_path(), ec);
             // Lo que ya está bajado y verificado no se vuelve a bajar: se enlaza
-            // (sin copiar gigas) desde el modelo instalado.
-            const fs::path previo = destino / desdeUtf8(a.nombre);
-            if (verificado(previo, a)) {
+            // (sin copiar gigas) desde el modelo instalado o desde otro que trae el
+            // mismo archivo (las voces de piper comparten espeak-ng-data/ entera:
+            // cientos de archivos chicos que se bajaban uno por uno).
+            bool reusado = false;
+            for (const fs::path& otro : instalados) {
+                const fs::path previo = otro / desdeUtf8(a.nombre);
+                if (fs::file_size(previo, ec) != a.tamano || ec || !verificado(previo, a)) continue;
+                fs::remove(final, ec);
                 fs::create_hard_link(previo, final, ec);
                 if (ec) fs::copy_file(previo, final, fs::copy_options::overwrite_existing, ec);
                 if (!ec) {
-                    hecho += a.tamano;
-                    continue;
+                    reusado = true;
+                    break;
                 }
             }
-            net::HttpRequest req;
-            // Por commit, no por «main»: todos los archivos de la MISMA versión.
-            req.url = !a.url.empty()
-                          ? a.url
-                          : "https://huggingface.co/" + r + "/resolve/" + repo.commit + "/" + enUrl(a.nombre);
-            req.responseFile = final.string() + ".parte";
-            req.timeoutMs = 60000;
-            req.cancel = &cancelar_;
-            const std::uint64_t base = hecho;
-            const QString nombre = QString::fromStdString(a.nombre);
-            req.downloadProgress = [&avisar, base, total, nombre](std::uint64_t got, std::uint64_t) {
-                const double p = total > 0 ? static_cast<double>(base + got) / static_cast<double>(total) : 0;
-                avisar(p * 0.98, QString("Bajando %1… %2 / %3 MB")
-                                     .arg(nombre)
-                                     .arg(static_cast<double>(base + got) / 1048576.0, 0, 'f', 0)
-                                     .arg(static_cast<double>(total) / 1048576.0, 0, 'f', 0));
-            };
-            const net::HttpResponse res = net::HttpsClient::download(req);
-            if (!res.error.empty() || res.status / 100 != 2) {
-                err = cancelar_ ? "Descarga cancelada."
-                                : "No se pudo bajar " + nombre + ": " +
-                                      (res.error.empty() ? QString("HTTP %1").arg(res.status)
-                                                         : QString::fromStdString(res.error));
-                break;
+            if (reusado) {
+                hecho += a.tamano;
+                continue;
             }
-            fs::rename(final.string() + ".parte", final, ec);
-            avisar(static_cast<double>(hecho + a.tamano) /
-                       static_cast<double>(std::max<std::uint64_t>(total, 1)) * 0.98,
+            // Por commit, no por «main»: todos los archivos de la MISMA versión.
+            const std::string url = !a.url.empty()
+                                        ? a.url
+                                        : "https://huggingface.co/" + r + "/resolve/" + repo.commit + "/" + enUrl(a.nombre);
+            const std::string e = ctx.bajar(url, final, hecho, total, a.nombre);
+            if (!e.empty()) return ctx.cancelado() ? std::string("cancelada") : e;
+            avisar(static_cast<double>(hecho + a.tamano) / static_cast<double>(std::max<std::uint64_t>(total, 1)) * 0.98,
                    "Verificando " + nombre + "…");
             if (!verificado(final, a)) {
-                err = "El archivo " + nombre + " no coincide con el hash publicado. No se instaló nada.";
-                break;
+                fs::remove(final, ec); // éste sí de cero
+                return "El archivo " + a.nombre + " no coincide con el hash publicado. No se instaló nada.";
             }
             hecho += a.tamano;
         }
-        if (err.isEmpty()) {
-            const json ok{{"repo", r},
-                          {"commit", repo.commit},
-                          {"archivos", archivos.size()},
-                          {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
-            escribir(deRuta(staging / ".ok"), QByteArray::fromStdString(ok.dump(1)));
-            // Si el commit fijado no traía modelo.json pero se validó uno con los
-            // MISMOS pesos (ver revisarHerramientas), viaja con el modelo.
-            if (!fs::exists(staging / "modelo.json", ec)) {
-                QFile g(deRuta(carpetaModelos() / ".fichas" / (carpetaDeRepo(r) + ".json")));
-                if (g.open(QIODevice::ReadOnly)) {
-                    const json gj = json::parse(g.readAll().toStdString(), nullptr, false);
-                    if (gj.is_object() && gj.value("modelo_json", json()).is_object())
-                        escribir(deRuta(staging / "modelo.json"),
-                                 QByteArray::fromStdString(gj["modelo_json"].dump(1)));
-                }
+        const json ok{{"repo", r},
+                      {"commit", repo.commit},
+                      {"archivos", archivos.size()},
+                      {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
+        escribir(deRuta(staging / ".ok"),
+                 QByteArray::fromStdString(ok.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
+        // Si el commit fijado no traía modelo.json pero se validó uno con los
+        // MISMOS pesos (ver revisarHerramientas), viaja con el modelo.
+        if (!fs::exists(staging / "modelo.json", ec)) {
+            QFile g(deRuta(fichas / (carpetaDeRepo(r) + ".json")));
+            if (g.open(QIODevice::ReadOnly)) {
+                const json gj = json::parse(g.readAll().toStdString(), nullptr, false);
+                if (gj.is_object() && gj.value("modelo_json", json()).is_object())
+                    escribir(deRuta(staging / "modelo.json"),
+                             QByteArray::fromStdString(
+                                 gj["modelo_json"].dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
             }
-            // Recién ahora se reemplaza el que hubiera (los enlaces duros
-            // mantienen vivos los archivos reusados).
-            fs::remove_all(destino, ec);
-            fs::rename(staging, destino, ec);
-            if (ec) err = "No se pudo dejar el modelo en su lugar: " + QString::fromStdString(ec.message());
         }
-        if (!err.isEmpty()) fs::remove_all(staging, ec);
-        QMetaObject::invokeMethod(this, [this, err, r]() {
-            if (err.isEmpty()) revisarHerramientas(QString::fromStdString(r), true);
-            descargando_ = false;
-            progreso_ = err.isEmpty() ? 1.0 : 0.0;
-            textoDescarga_ = err.isEmpty() ? "Listo." : err;
-            emit descargaCambio();
-            emit cambio();
-            emit notify(err.isEmpty() ? "Modelo bajado y verificado." : err, err.isEmpty() ? "ok" : "error");
-        });
-    });
+        // Recién ahora se reemplaza el que hubiera (los enlaces duros
+        // mantienen vivos los archivos reusados).
+        fs::remove_all(destino, ec);
+        fs::rename(staging, destino, ec);
+        if (ec) return "No se pudo dejar el modelo en su lugar: " + ec.message();
+        return {};
+    };
+    p.alTerminar = [yo, qrepo](bool ok, const std::string& error) {
+        if (!yo) return;
+        yo->enCurso_.erase(qrepo);
+        if (ok) yo->revisarHerramientas(qrepo, true);
+        yo->descargando_ = !yo->enCurso_.empty();
+        const QString e = error == "cancelada" ? QString("Descarga cancelada.") : QString::fromStdString(error);
+        if (!yo->descargando_) {
+            yo->progreso_ = ok ? 1.0 : 0.0;
+            yo->textoDescarga_ = ok ? "Listo." : e;
+        }
+        emit yo->descargaCambio();
+        emit yo->cambio();
+        emit yo->notify(ok ? "Modelo bajado y verificado: " + qrepo : e, ok ? "ok" : "error");
+        yo->revisarDisco();
+    };
+    return p;
 }
 
-void ModelosLocales::cancelarDescarga() { cancelar_ = true; }
+void ModelosLocales::cancelarDescarga(const QString& repo) {
+    for (const QString& r : std::set<QString>(enCurso_))
+        if (repo.isEmpty() || r == repo) net::Descargas::la().cancelar("modelo:" + r);
+}
+
+void ModelosLocales::registrarActualizaciones() {
+    // Los modelos instalados que tienen algo más nuevo: los fijados, si el
+    // catálogo fija otro commit; los que siguen «main», si Hugging Face tiene otro.
+    QPointer<ModelosLocales> yo(this);
+    struct Inst {
+        QString repo;
+        std::string commit, fijo, titulo;
+        std::optional<net::Descargas::Pedido> pedido;
+    };
+    net::Descargas::la().registrarBuscador("modelo", [yo]() {
+        std::vector<Inst> lista;
+        if (!yo) return std::vector<net::Descargas::Actualizacion>{};
+        // Lo del catálogo y del disco se lee en el hilo de la interfaz.
+        QMetaObject::invokeMethod(
+            yo.data(),
+            [yo, &lista]() {
+                if (!yo) return;
+                for (const QVariant& v : yo->catalogo()) {
+                    const QVariantMap m = v.toMap();
+                    const QString repo = m["repo"].toString();
+                    const std::string c = commitInstalado(yo->carpetaDe(repo));
+                    if (c.empty()) continue;
+                    const json e = yo->entradaCatalogo(repo);
+                    Inst i{repo, c, e.contains("url") ? std::string("url") : e.value("revision", std::string()),
+                           e.value("nombre", repo.toStdString()), yo->pedidoDe(repo, true)};
+                    if (i.pedido) lista.push_back(std::move(i));
+                }
+            },
+            Qt::BlockingQueuedConnection);
+        std::vector<net::Descargas::Actualizacion> out;
+        for (auto& i : lista) {
+            std::string nueva;
+            if (!i.fijo.empty()) {
+                if (i.fijo != i.commit) nueva = i.fijo;
+            } else {
+                net::HttpRequest req;
+                req.url = "https://huggingface.co/api/models/" + i.repo.toStdString();
+                req.timeoutMs = ba::ajustes::sAMs("modelos.timeoutHfS", 20) * 3 / 4;
+                const net::HttpResponse res = net::HttpsClient::request(req);
+                const json j = json::parse(res.body, nullptr, false);
+                if (res.status == 200 && j.is_object()) {
+                    const std::string sha = j.value("sha", std::string());
+                    if (!sha.empty() && sha != i.commit) nueva = sha;
+                }
+            }
+            if (nueva.empty()) continue;
+            net::Descargas::Actualizacion a;
+            a.actual = i.commit.substr(0, 12);
+            a.detalle = "Hay una versión más nueva de " + i.titulo;
+            a.pedido = std::move(*i.pedido);
+            a.pedido.version = nueva.substr(0, 12);
+            out.push_back(std::move(a));
+        }
+        return out;
+    });
+}
 
 void ModelosLocales::borrar(const QString& repo) {
     if (repo == activo_) apagar();
@@ -651,6 +892,216 @@ void ModelosLocales::borrar(const QString& repo) {
         guardarAjustes();
     }
     emit cambio();
+    revisarDisco();
+}
+
+// --- lo que hay en el disco ------------------------------------------------------
+
+namespace {
+
+std::uintmax_t bytesDe(const fs::path& dir) {
+    std::uintmax_t total = 0;
+    std::error_code ec;
+    for (fs::recursive_directory_iterator it(dir, fs::directory_options::skip_permission_denied, ec), fin;
+         !ec && it != fin; it.increment(ec)) {
+        std::error_code e2;
+        if (it->is_regular_file(e2)) total += it->file_size(e2);
+    }
+    return total;
+}
+
+/// La familia de un repo: sin la versión («-v3»). «…-4b-mlx-q4», «…-4b-v2-mlx-q4» y
+/// «…-4b-v3-mlx-q4» son la misma; «…-4b-mtp-ud-mlx-q4» es otra.
+std::pair<std::string, int> familiaYVersion(const std::string& repo) {
+    static const std::regex v("-v([0-9]+)(?=-|$)");
+    std::smatch m;
+    if (std::regex_search(repo, m, v)) return {m.prefix().str() + m.suffix().str(), std::stoi(m[1].str())};
+    return {repo, 1};
+}
+
+std::string tipoPorNombre(const std::string& repo) {
+    if (repo.rfind("argos/", 0) == 0) return "traduccion";
+    if (repo.find("vits-piper") != std::string::npos) return "tts";
+    if (repo.find("silero") != std::string::npos) return "vad";
+    if (repo.find("sherpa") != std::string::npos || repo.find("parakeet") != std::string::npos) return "voz";
+    return "reactivo";
+}
+
+} // namespace
+
+void ModelosLocales::revisarDisco() {
+    // En un hilo aparte: recorre gigas (miles de archivos con las voces) y con un
+    // disco USB trabado colgaba la interfaz. Si ya hay una vuelta andando, se
+    // repite al terminar.
+    if (discoAndando_) {
+        discoOtraVez_ = true;
+        return;
+    }
+    discoAndando_ = true;
+    if (hiloDisco_.joinable()) hiloDisco_.join();
+    std::set<std::string> bajando; // las que están bajando ahora no son restos
+    for (const QString& r : enCurso_) bajando.insert(".bajando-" + carpetaDeRepo(r.toStdString()));
+    const QString activo = activo_;
+    QPointer<ModelosLocales> yo(this);
+    hiloDisco_ = std::thread([this, yo, bajando, activo]() {
+        auto [lista, restos] = calcularDisco(bajando, activo);
+        QMetaObject::invokeMethod(this, [yo, lista, restos]() {
+            if (!yo) return;
+            yo->instalados_ = lista;
+            yo->restos_ = restos;
+            yo->discoAndando_ = false;
+            emit yo->discoCambio();
+            if (yo->discoOtraVez_) {
+                yo->discoOtraVez_ = false;
+                yo->revisarDisco();
+            }
+        });
+    });
+}
+
+std::pair<QVariantList, QVariantMap> ModelosLocales::calcularDisco(const std::set<std::string>& bajando,
+                                                                   const QString& activo) const {
+    QVariantList lista;
+    int restos = 0;
+    std::uintmax_t bytesRestos = 0;
+    std::error_code ec;
+    const fs::path raiz = carpetaModelos();
+    struct Fila {
+        QVariantMap m;
+        std::string familia, formato;
+        int version = 1;
+    };
+    std::vector<Fila> filas;
+    for (const fs::directory_entry& d : fs::directory_iterator(raiz, ec)) {
+        if (!d.is_directory(ec)) continue;
+        const std::string nombre = d.path().filename().string();
+        if (nombre.rfind(".bajando-", 0) == 0) {
+            // La que está bajando ahora no es un resto.
+            if (bajando.count(nombre) == 0) {
+                ++restos;
+                bytesRestos += bytesDe(d.path());
+            }
+            continue;
+        }
+        // Solo las carpetas de un repo («dueño__nombre»): lo demás (superres/,
+        // .fichas) es de otros y no se toca desde acá.
+        if (nombre.empty() || nombre[0] == '.' || nombre.find("__") == std::string::npos) continue;
+        std::string repo;
+        std::string fecha;
+        bool completo = false;
+        {
+            QFile f(deRuta(d.path() / ".ok"));
+            if (f.open(QIODevice::ReadOnly)) {
+                completo = true;
+                const json j = json::parse(f.readAll().toStdString(), nullptr, false);
+                if (j.is_object()) {
+                    repo = j.value("repo", std::string());
+                    fecha = j.value("fecha", std::string());
+                }
+            }
+        }
+        if (repo.empty()) {
+            repo = nombre;
+            const auto p = repo.find("__");
+            repo.replace(p, 2, "/");
+        }
+        const json e = entradaCatalogo(QString::fromStdString(repo));
+        const bool enCatalogo = !e.empty();
+        Fila f;
+        f.m = QVariantMap{{"carpeta", QString::fromStdString(nombre)},
+                          {"repo", QString::fromStdString(repo)},
+                          {"tipo", QString::fromStdString(enCatalogo ? e.value("tipo", std::string("reactivo"))
+                                                                     : tipoPorNombre(repo))},
+                          {"bytes", static_cast<double>(bytesDe(d.path()))},
+                          {"enCatalogo", enCatalogo},
+                          {"completo", completo},
+                          {"activo", QString::fromStdString(repo) == activo},
+                          {"fecha", QString::fromStdString(fecha.substr(0, 10))}};
+        std::tie(f.familia, f.version) = familiaYVersion(repo);
+        f.formato = enCatalogo ? e.value("formato", std::string()) : std::string();
+        filas.push_back(std::move(f));
+    }
+    for (Fila& f : filas) {
+        QString motivo;
+        const bool reactivo = f.m["tipo"].toString() == "reactivo";
+        if (!f.m["completo"].toBool()) {
+            motivo = "quedó a medio instalar";
+        } else if (reactivo && !f.m["activo"].toBool()) {
+            if (!f.m["enCatalogo"].toBool()) motivo = "ya no está en el catálogo";
+            for (const Fila& o : filas)
+                if (&o != &f && o.familia == f.familia && o.version > f.version && o.m["completo"].toBool())
+                    motivo = "está bajada la v" + QString::number(o.version);
+        }
+        f.m["viejo"] = !motivo.isEmpty();
+        f.m["motivo"] = motivo;
+        lista.push_back(f.m);
+    }
+    std::sort(lista.begin(), lista.end(), [](const QVariant& a, const QVariant& b) {
+        return a.toMap()["bytes"].toDouble() > b.toMap()["bytes"].toDouble();
+    });
+    return {lista, QVariantMap{{"cuantas", restos}, {"bytes", static_cast<double>(bytesRestos)}}};
+}
+
+bool ModelosLocales::borrarCarpeta(const QString& carpeta) {
+    const std::string n = carpeta.toStdString();
+    const bool resto = n.rfind(".bajando-", 0) == 0;
+    if (n.empty() || n.find('/') != std::string::npos || n.find('\\') != std::string::npos || n == "." ||
+        n == ".." || (!resto && (n[0] == '.' || n.find("__") == std::string::npos)))
+        return false;
+    if (resto && descargando_) return false; // podría ser la que está bajando
+    std::error_code ec;
+    const fs::path dir = carpetaModelos() / n;
+    if (!fs::is_directory(dir, ec)) return false;
+    // Si es el activo, primero se apaga (el motor tiene los archivos abiertos).
+    for (const QVariant& v : instalados_) {
+        const QVariantMap m = v.toMap();
+        if (m["carpeta"].toString() == carpeta && m["repo"].toString() == activo_) {
+            apagar();
+            activo_.clear();
+            guardarAjustes();
+            emit cambio();
+        }
+    }
+    fs::remove_all(dir, ec);
+    emit cambio();
+    revisarDisco();
+    return !ec;
+}
+
+QVariantMap ModelosLocales::limpiarViejos() {
+    // Con lo de la última revisión (revisarDisco va en otro hilo).
+    QStringList borrados;
+    double bytes = 0;
+    for (const QVariant& v : QVariantList(instalados_)) {
+        const QVariantMap m = v.toMap();
+        if (!m["viejo"].toBool() || m["activo"].toBool()) continue;
+        std::error_code ec;
+        fs::remove_all(carpetaModelos() / m["carpeta"].toString().toStdString(), ec);
+        if (ec) continue;
+        borrados << m["repo"].toString();
+        bytes += m["bytes"].toDouble();
+    }
+    emit cambio();
+    revisarDisco();
+    return {{"borrados", borrados}, {"bytes", bytes}};
+}
+
+QVariantMap ModelosLocales::limpiarRestos() {
+    int borrados = 0;
+    double bytes = 0;
+    if (!descargando_) {
+        std::error_code ec;
+        for (const fs::directory_entry& d : fs::directory_iterator(carpetaModelos(), ec)) {
+            const std::string nombre = d.path().filename().string();
+            if (!d.is_directory(ec) || nombre.rfind(".bajando-", 0) != 0) continue;
+            bytes += static_cast<double>(bytesDe(d.path()));
+            std::error_code e2;
+            fs::remove_all(d.path(), e2);
+            if (!e2) ++borrados;
+        }
+    }
+    revisarDisco();
+    return {{"borrados", borrados}, {"bytes", bytes}};
 }
 
 // --- el motor -------------------------------------------------------------------
@@ -679,7 +1130,7 @@ void ModelosLocales::activar(const QString& repo) {
     setEstado("cargando", "Cargando el modelo y leyendo las fichas…");
 
     proc_ = new QProcess(this);
-    proc_->setProgram(dirBinarios_ + "/ba-modelo");
+    proc_->setProgram(exeMotor(dirBinarios_));
     proc_->setArguments({"--modelo", deRuta(carpetaDe(repo)), "--mtp", mtp_});
     connect(proc_, &QProcess::readyReadStandardOutput, this, [this]() {
         pendiente_ += proc_->readAllStandardOutput();
@@ -763,7 +1214,7 @@ void ModelosLocales::pedir(json pedido, Respuesta r, std::function<void(const QS
     const std::int64_t id = proximoId_++;
     pedido["id"] = id;
     esperas_[id] = Espera{std::move(r), std::move(delta)};
-    proc_->write(QByteArray::fromStdString(pedido.dump()) + '\n');
+    proc_->write(QByteArray::fromStdString(pedido.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + '\n');
 }
 
 void ModelosLocales::fallanTodos(const QString& error) {
@@ -849,14 +1300,16 @@ void ModelosLocales::probarFrase(const QString& frase, Respuesta r) {
 void ModelosLocales::probar(const QString& frase) {
     const QString f = frase.trimmed();
     if (f.isEmpty()) return;
-    probarFrase(f, [this, f](const json& j) {
-        QVariantMap v = aVariant(j);
-        v["frase"] = f;
-        pruebas_.prepend(v);
-        while (pruebas_.size() > kPruebasGuardadas)
-            pruebas_.removeLast();
-        emit pruebasCambio();
-    });
+    probarFrase(f, [this, f](const json& j) { anotarPrueba(f, j); });
+}
+
+void ModelosLocales::anotarPrueba(const QString& frase, const json& j) {
+    QVariantMap v = aVariant(j);
+    v["frase"] = frase;
+    pruebas_.prepend(v);
+    while (pruebas_.size() > kPruebasGuardadas)
+        pruebas_.removeLast();
+    emit pruebasCambio();
 }
 
 } // namespace ba::app::agent

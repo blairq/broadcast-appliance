@@ -4,13 +4,20 @@
 
 #include "ptz/ControlCamaras.hpp"
 #include "ui/PersonasViewModel.hpp"
+#include "video/VideoGrafos.hpp"
+
+#include "Entrada.hpp"
+
+#include <nlohmann/json.hpp>
 
 #if BA_HAVE_ROSTROS
 #include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
 #endif
 
+#include <QCoreApplication>
 #include <QDateTime>
+#include <QPointer>
 #include <QImage>
 
 #include <algorithm>
@@ -19,24 +26,32 @@
 namespace ba::app {
 
 struct Seguidor::Estado {
-    QString id; ///< persona reconocida (vacío: por posición)
+    QString id; ///< persona reconocida (vacío: por posición o regla)
     QString nombre;
-    double x = 0.5, y = 0.5; ///< dónde se la vio por última vez (0..1)
+    QString objetivo; ///< lo que se le dijo a la tarjeta Seguimiento
+    double x = 0.5, y = 0.5; ///< dónde se la vio por última vez (0..1 de la toma)
     qint64 vistaMs = 0;
     QString estado = "buscando";
-    bool enVuelo = false;
     bool parada = true;
-    QTimer timer;
 };
 
 Seguidor::Seguidor(PersonasViewModel* personas, ptz::ControlCamaras* camaras, QObject* parent)
-    : QObject(parent), personas_(personas), camaras_(camaras) {}
+    : QObject(parent), personas_(personas), camaras_(camaras) {
+    // Lo que dicen las tarjetas Seguimiento (en el bucle del motor): al hilo de la interfaz.
+    QPointer<Seguidor> yo(this);
+    escucha_ = motor::escucharElementos(
+        [yo](const std::string& entrada, const std::string& nombre, const std::string& json, GstSample*) {
+            if (nombre != "ba-seguir") return;
+            QMetaObject::invokeMethod(
+                qApp, [yo, e = QString::fromStdString(entrada), json]() { if (yo) yo->alSeguir(e, json); },
+                Qt::QueuedConnection);
+        });
+}
 
 Seguidor::~Seguidor() {
-    for (auto& [entrada, e] : seguidas_) {
-        e->timer.stop();
-        if (camaras_) camaras_->parar(entrada);
-    }
+    motor::dejarDeEscuchar(escucha_);
+    for (auto& [entrada, e] : seguidas_)
+        if (camaras_ && !e->parada) camaras_->parar(entrada);
 }
 
 bool Seguidor::disponible() const {
@@ -67,7 +82,7 @@ QVariantList describir(PersonasViewModel* p, const std::vector<Reconocedor::Vist
             {"x", v.cara.x / w}, {"y", v.cara.y / h}, {"ancho", v.cara.ancho / w}, {"alto", v.cara.alto / h}};
         if (p != nullptr && !v.vector.empty()) {
             const auto m = p->libreta().buscar(v.vector);
-            if (!m.id.empty() && m.parecido >= ba::rostros::kMismaPersona) {
+            if (!m.id.empty() && m.parecido >= ba::rostros::kMismaPersona()) {
                 c["id"] = QString::fromStdString(m.id);
                 c["nombre"] = QString::fromStdString(m.nombre);
                 c["parecido"] = m.parecido;
@@ -101,23 +116,33 @@ void Seguidor::analizar(const QString& entrada) {
 
 QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
 #if BA_HAVE_ROSTROS
-    if (!personas_ || !camaras_) return "El seguimiento no está disponible";
+    if (!personas_ || !camaras_ || !grafos_) return "El seguimiento no está disponible";
     if (camaras_->modoActivo(entrada).isEmpty())
         return "«" + entrada + "» no tiene PTZ: prendé el digital o configurá su motor";
+    QString obj;
+    if (!objetivo.value("id").toString().isEmpty())
+        obj = "persona:" + objetivo.value("id").toString();
+    else if (objetivo.contains("cara"))
+        obj = "id:" + QString::number(objetivo.value("cara").toInt());
+    else if (!objetivo.value("regla").toString().isEmpty())
+        obj = objetivo.value("regla").toString();
+    else
+        obj = QString::number(objetivo.value("x", 0.5).toDouble(), 'f', 4) + "," +
+              QString::number(objetivo.value("y", 0.5).toDouble(), 'f', 4);
     auto& e = seguidas_[entrada];
     if (!e) e = std::make_unique<Estado>();
     e->id = objetivo.value("id").toString();
     e->nombre = objetivo.value("nombre").toString();
+    e->objetivo = obj;
     e->x = objetivo.value("x", 0.5).toDouble();
     e->y = objetivo.value("y", 0.5).toDouble();
     e->vistaMs = QDateTime::currentMSecsSinceEpoch();
     e->estado = "buscando";
-    e->parada = true;
+    // La tarjeta Rostros (que reconozca: Personas pone el nombre de cada cara) y
+    // la de Seguimiento con su objetivo; el resto pasa en el pipeline.
     personas_->usarCamara(entrada, true);
-    e->timer.setInterval(300);
-    QObject::disconnect(&e->timer, nullptr, this, nullptr);
-    connect(&e->timer, &QTimer::timeout, this, [this, entrada]() { vuelta(entrada); });
-    e->timer.start();
+    const std::string err = grafos_->configurarSeguir(entrada.toStdString(), obj.toStdString());
+    if (!err.empty()) return QString::fromStdString(err);
     emit cambio();
     return {};
 #else
@@ -127,80 +152,49 @@ QString Seguidor::seguir(const QString& entrada, const QVariantMap& objetivo) {
 #endif
 }
 
+QString Seguidor::seguirPunto(const QString& entrada, double u, double v) {
+    // De lo que se VE (después del PTZ digital) a la toma entera.
+    double x = u, y = v;
+    if (camaras_) {
+        const QVariantMap p = camaras_->posicion(entrada);
+        const double z = std::max(1.0, p.value("zoom", 1.0).toDouble());
+        x = p.value("x", 0.5).toDouble() - 0.5 / z + u / z;
+        y = p.value("y", 0.5).toDouble() - 0.5 / z + v / z;
+    }
+    return seguir(entrada, QVariantMap{{"x", std::clamp(x, 0.0, 1.0)}, {"y", std::clamp(y, 0.0, 1.0)}});
+}
+
 void Seguidor::dejar(const QString& entrada) {
     auto it = seguidas_.find(entrada);
     if (it == seguidas_.end()) return;
-    it->second->timer.stop();
+    const bool estabaMoviendo = !it->second->parada;
     seguidas_.erase(it);
-    if (camaras_) camaras_->parar(entrada);
+    if (grafos_) grafos_->configurarSeguir(entrada.toStdString(), "");
+    if (camaras_ && estabaMoviendo) camaras_->parar(entrada);
     if (personas_) personas_->usarCamara(entrada, false);
     emit cambio();
 }
 
-void Seguidor::vuelta(const QString& entrada) {
-#if BA_HAVE_ROSTROS
+void Seguidor::alSeguir(const QString& entrada, const std::string& json) {
     auto it = seguidas_.find(entrada);
-    if (it == seguidas_.end() || !personas_) return;
+    if (it == seguidas_.end()) return;
     Estado& e = *it->second;
-    if (e.enVuelo) return;
-    e.enVuelo = true;
-    QPointer<Seguidor> yo(this);
-    personas_->pedirAnalisis(
-        "entrada:" + entrada, true,
-        [yo, entrada](std::vector<Reconocedor::Visto> vistos, const QImage& img, const QString& error) {
-            if (!yo) return;
-            auto it2 = yo->seguidas_.find(entrada);
-            if (it2 == yo->seguidas_.end()) return;
-            Estado& e = *it2->second;
-            e.enVuelo = false;
-            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-            const QVariantList caras =
-                error.isEmpty() ? describir(yo->personas_, vistos, img) : QVariantList{};
-            if (error.isEmpty()) yo->caras_[entrada] = caras;
-            // El objetivo: la misma persona si está reconocida; si no, la cara más cercana a donde estaba.
-            int mejor = -1;
-            double dmin = 1e9;
-            for (int i = 0; i < caras.size(); ++i) {
-                const QVariantMap c = caras[i].toMap();
-                const double cx = c["x"].toDouble() + c["ancho"].toDouble() / 2,
-                             cy = c["y"].toDouble() + c["alto"].toDouble() / 2;
-                if (!e.id.isEmpty()) {
-                    if (c.value("id").toString() == e.id) {
-                        mejor = i;
-                        break;
-                    }
-                    continue;
-                }
-                const double d = std::hypot(cx - e.x, cy - e.y);
-                if (d < dmin) {
-                    dmin = d;
-                    mejor = i;
-                }
-            }
-            // Sin nombre, una cara muy lejos de donde estaba es otra persona.
-            if (e.id.isEmpty() && mejor >= 0 && dmin > 0.35 && ahora - e.vistaMs < 1500) mejor = -1;
-            if (mejor < 0) {
-                if (!e.parada) {
-                    yo->camaras_->parar(entrada);
-                    e.parada = true;
-                }
-                e.estado = ahora - e.vistaMs > 2000 ? "perdida: esperando a que vuelva" : "buscando";
-                emit yo->cambio();
-                return;
-            }
-            const QVariantMap c = caras[mejor].toMap();
-            const double cx = c["x"].toDouble() + c["ancho"].toDouble() / 2,
-                         cy = c["y"].toDouble() + c["alto"].toDouble() / 2;
-            e.x = cx;
-            e.y = cy;
-            e.vistaMs = ahora;
-            if (e.nombre.isEmpty()) e.nombre = c.value("nombre").toString();
-            yo->corregir(entrada, e, cx, cy, c["alto"].toDouble());
-            emit yo->cambio();
-        });
-#else
-    Q_UNUSED(entrada);
-#endif
+    const nlohmann::json j = nlohmann::json::parse(json, nullptr, false);
+    if (!j.is_object()) return;
+    e.estado = QString::fromStdString(j.value("estado", std::string("buscando")));
+    if (j.contains("cara") && j["cara"].is_object()) {
+        const auto& c = j["cara"];
+        e.x = c.value("x", 0.0) + c.value("ancho", 0.0) / 2;
+        e.y = c.value("y", 0.0) + c.value("alto", 0.0) / 2;
+        e.vistaMs = QDateTime::currentMSecsSinceEpoch();
+        if (c.contains("nombre")) e.nombre = QString::fromStdString(c.value("nombre", std::string()));
+        // Una cámara motorizada no está en el pipeline: el pulso, desde acá.
+        if (camaras_ && camaras_->modoActivo(entrada) != "digital") corregir(entrada, e, e.x, e.y, c.value("alto", 0.0));
+    } else if (camaras_ && !e.parada && camaras_->modoActivo(entrada) != "digital") {
+        camaras_->parar(entrada);
+        e.parada = true;
+    }
+    emit cambio();
 }
 
 void Seguidor::corregir(const QString& entrada, Estado& e, double cx, double cy, double /*alto*/) {
@@ -217,16 +211,6 @@ void Seguidor::corregir(const QString& entrada, Estado& e, double cx, double cy,
         return;
     }
     e.estado = "siguiendo";
-    if (camaras_->modoActivo(entrada) == "digital") {
-        // El recorte: un paso hacia la cara (lo que se ve es una ventana de 1/zoom).
-        const QVariantMap p = camaras_->posicion(entrada);
-        double z = p.value("zoom", 1.0).toDouble();
-        if (z < 1.3) z = 1.8; // sin zoom, el recorte no tiene para dónde correrse
-        const double nx = std::clamp(p.value("x", 0.5).toDouble() + ex / z * 0.7, 0.5 / z, 1.0 - 0.5 / z);
-        const double ny = std::clamp(p.value("y", 0.5).toDouble() + ey / z * 0.7, 0.5 / z, 1.0 - 0.5 / z);
-        camaras_->encuadre(entrada, nx, ny, z, 0.3);
-        return;
-    }
     // Óptico: un pulso proporcional (tilt + es arriba; y crece hacia abajo).
     const auto vel = [](double err) {
         if (std::abs(err) < 0.04) return 0.0;

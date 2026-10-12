@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/ConferenceClient.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 
@@ -17,8 +18,8 @@
 namespace ba::app {
 
 namespace {
-constexpr int kMaxBackoffMs = 15000;
-constexpr int kWatchdogMs = 40000; // B late cada 15 s: 40 s sin nada = conexion muerta
+inline int kMaxBackoffMs() { return ba::ajustes::sAMs("room.reconexionMaxS", 15); }
+inline int kWatchdogMs() { return ba::ajustes::sAMs("room.salaMuertaS", 40); } // B late cada 15 s: tanto sin nada = conexion muerta
 } // namespace
 
 ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
@@ -68,11 +69,11 @@ void ConferenceClient::connectEvents() {
     sse_ = nam_.get(req);
     connect(sse_, &QNetworkReply::readyRead, this, &ConferenceClient::onEventsData);
     connect(sse_, &QNetworkReply::finished, this, &ConferenceClient::onEventsClosed);
-    watchdog_.start(kWatchdogMs);
+    watchdog_.start(kWatchdogMs());
 }
 
 void ConferenceClient::onEventsData() {
-    watchdog_.start(kWatchdogMs);
+    watchdog_.start(kWatchdogMs());
     buf_ += sse_->readAll();
     // Bloques separados por linea en blanco; lineas "event:", "data:", ":".
     for (;;) {
@@ -103,6 +104,12 @@ void ConferenceClient::dispatch(const QByteArray& event, const QByteArray& data)
         emit snapshotChanged();
     } else if (event == "chat") {
         emit chatReceived(obj);
+    } else if (event == "botonera") {
+        emit botoneraEvento(obj);
+    } else if (event == "correccion") {
+        emit correccionEvento(obj);
+    } else if (event == "sesion") {
+        emit sesionEvento(obj);
     }
 }
 
@@ -118,7 +125,7 @@ void ConferenceClient::onEventsClosed() {
 void ConferenceClient::scheduleReconnect() {
     if (retry_.isActive()) return;
     retry_.start(backoffMs_);
-    backoffMs_ = std::min(backoffMs_ * 2, kMaxBackoffMs);
+    backoffMs_ = std::min(backoffMs_ * 2, kMaxBackoffMs());
 }
 
 void ConferenceClient::setOnline(bool on) {
@@ -127,8 +134,8 @@ void ConferenceClient::setOnline(bool on) {
     emit onlineChanged(on);
 }
 
-void ConferenceClient::post(const QString& path, const QJsonObject& body, Done done) {
-    send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done));
+void ConferenceClient::post(const QString& path, const QJsonObject& body, Done done, int timeoutMs) {
+    send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), timeoutMs);
 }
 
 void ConferenceClient::del(const QString& path, Done done) { send("DELETE", path, {}, std::move(done)); }
@@ -151,7 +158,8 @@ void ConferenceClient::getRaw(const QString& path, std::function<void(bool, cons
     });
 }
 
-void ConferenceClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done) {
+void ConferenceClient::send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done,
+                            int timeoutMs) {
     if (port_ <= 0 || token_.isEmpty()) {
         emit failed("offline");
         if (done) done(false, {});
@@ -160,7 +168,7 @@ void ConferenceClient::send(const QByteArray& verb, const QString& path, const Q
     QNetworkRequest req(QUrl(QString("http://127.0.0.1:%1%2").arg(port_).arg(path)));
     req.setRawHeader("Authorization", "Bearer " + token_.toUtf8());
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setTransferTimeout(5000);
+    req.setTransferTimeout(timeoutMs);
     QNetworkReply* r = nam_.sendCustomRequest(req, verb, body);
     connect(r, &QNetworkReply::finished, this, [this, r, done]() {
         r->deleteLater();

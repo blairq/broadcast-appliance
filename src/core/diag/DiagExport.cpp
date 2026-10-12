@@ -214,7 +214,7 @@ ExportResult DiagExport::exportBundle(const std::string& logDir, const std::stri
         };
 
         writeAll(std::string(kBundleHeader) + "\n");
-        writeAll(meta.dump() + "\n");
+        writeAll(meta.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n");
 
         for (const auto& p : logs) {
             const std::string name = std::filesystem::path(p).filename().string();

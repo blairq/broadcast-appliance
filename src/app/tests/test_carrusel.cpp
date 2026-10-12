@@ -65,9 +65,9 @@ void agregar() {
     CHECK(c.tamano() == 1, "sigue habiendo una");
     CHECK(!c.agregar(lam("")), "sin archivo no entra");
 
-    for (std::size_t i = 0; i < Carrusel::kMax + 10; ++i)
+    for (std::size_t i = 0; i < Carrusel::kMax() + 10; ++i)
         c.agregar(lam("/m/relleno" + std::to_string(i) + ".png"));
-    CHECK(c.tamano() == Carrusel::kMax, "no pasa del tope");
+    CHECK(c.tamano() == Carrusel::kMax(), "no pasa del tope");
 }
 
 // --- 2) Saltar --------------------------------------------------------------

@@ -1,6 +1,7 @@
 // src/app/dispositivos/Onvif.cpp — ver Onvif.hpp
 
 #include "dispositivos/Onvif.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "ptz/PtzProtocolos.hpp"
 
@@ -26,7 +27,7 @@ void ClienteOnvif::soap(const QString& u, const QString& cuerpo, bool conClave,
     QNetworkRequest pedido{QUrl(u)};
     pedido.setHeader(QNetworkRequest::ContentTypeHeader,
                      QStringLiteral("application/soap+xml; charset=utf-8"));
-    pedido.setTransferTimeout(6000);
+    pedido.setTransferTimeout(ba::ajustes::entero("ptz.timeoutMs", 4000) * 3 / 2);
     const QByteArray datos = conClave && !usuario_.isEmpty()
                                  ? onvif::sobre(cuerpo, usuario_, clave_, desfase_)
                                  : onvif::sobre(cuerpo);

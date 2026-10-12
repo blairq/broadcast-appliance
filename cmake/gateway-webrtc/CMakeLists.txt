@@ -80,8 +80,14 @@ target_include_directories(ba_core_cr PUBLIC "${BA_SRC}/src/core"
 target_link_libraries(ba_core_cr PUBLIC ${BA_C_LIBS} Threads::Threads)
 
 # --- Gateway ------------------------------------------------------------------
-file(GLOB GW_SOURCES CONFIGURE_DEPENDS "${BA_SRC}/src/gateway/*.cpp" "${BA_SRC}/src/gateway/net/*.cpp")
+file(GLOB GW_SOURCES CONFIGURE_DEPENDS "${BA_SRC}/src/gateway/*.cpp" "${BA_SRC}/src/gateway/net/*.cpp"
+     "${BA_SRC}/src/gateway/proxy/*.cpp" "${BA_SRC}/src/gateway/turn/*.cpp")
 list(FILTER GW_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+# El cliente HTTPS propio de la app (mbedtls, sin Qt): lo usa el cliente ACME
+# del proxy (T61), igual que en src/gateway/CMakeLists.txt.
+set(BA_GW_HTTPS "${BA_SRC}/src/app/net/HttpsClient.cpp")
+list(APPEND GW_SOURCES "${BA_GW_HTTPS}")
+set_source_files_properties("${BA_GW_HTTPS}" PROPERTIES INCLUDE_DIRECTORIES "${BA_SRC}/src/app")
 # lwIP (C, sin ABI de C++): se compila aca con clang.
 set(LWIP_DIR "${BA_SRC}/extern/lwip")
 if(EXISTS "${LWIP_DIR}/src/Filelists.cmake")

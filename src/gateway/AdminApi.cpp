@@ -38,7 +38,8 @@
 //   POST   /api/v1/pin                     {pin?}  (vacio = generar)
 //   POST   /api/v1/participants/<id>/admit | reject | kick
 //   POST   /api/v1/participants/<id>/request   {what}
-//   POST   /api/v1/participants/<id>/talk      {on}  (lobby: hablarle en privado)
+//   POST   /api/v1/participants/<id>/talk      {on}  (lobby: en privado; adentro: IFB)
+//   POST   /api/v1/participants/<id>/prueba    {ms}  prueba técnica: eco y red (bloquea ms)
 //   POST   /api/v1/participants/<id>/onair     {on}  modo oradores: al aire / fuera
 //   POST   /api/v1/participants/<id>/move      {index}  lugar en la fila (0 = primero)
 //   POST   /api/v1/participants/<id>/time      {sec}  tiempo propio para hablar
@@ -50,6 +51,8 @@
 //                                           multi?, defaultSlot?}
 //   POST   /api/v1/speakers/next           al aire el siguiente de la fila
 //   GET    /api/v1/board-link?target=local|remote  enlace + QR del tablero (tablet)
+//   GET    /api/v1/sesion/origen?target=local|remote  origen para los links de la sesión remota
+//   …/api/v1/sesion/*                       la sesión remota (ver Sesion.hpp)
 //   POST   /api/v1/view                    {participant, kind?:"camera"|"screen", sdp}
 //                                          -> {viewer, sdp}: video en vivo (relay de B)
 //   POST   /api/v1/view/<id>/keyframe      la vista se congelo
@@ -72,14 +75,17 @@
 #include <system_error>
 
 #include "HttpIo.hpp"
+#include "proxy/GestorProxy.hpp"
 #include "Log.hpp"
 #include "qrcodegen.hpp"
 #include "Room.hpp"
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
+#include "MediaPump.hpp"
 
 #include "diag/Registro.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -128,7 +134,7 @@ std::string cookieValue(const std::string& headers, const std::string& name) {
 }
 
 void sendJson(long long fd, int code, const json& j) {
-    http::sendResponse(fd, code, "application/json", j.dump());
+    http::sendResponse(fd, code, "application/json", j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void sendErr(long long fd, int code, const char* error) {
@@ -169,7 +175,7 @@ std::string SignalingServer::issueLoginCode() {
     for (auto it = loginCodes_.begin(); it != loginCodes_.end();) {
         it = (it->second <= now) ? loginCodes_.erase(it) : std::next(it);
     }
-    loginCodes_[code] = now + 120000; // 2 minutos para abrir el navegador
+    loginCodes_[code] = now + ba::ajustes::sAMs("room.adminCodigoS", 120); // para abrir el navegador
     return code;
 }
 
@@ -253,6 +259,40 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         sendErr(fd, 401, "auth");
         return;
     }
+    // La botonera (superficie de control): la app le pasa credenciales y estado.
+    if (botonera_ && botonera_->admin(fd, method, path, body)) return;
+    // La sesión remota: el origen para armar los links personales (la app agrega
+    // /sesion/#i=…&t=…) y después credenciales, mensajes y fotos de la cámara.
+    if (path == "/api/v1/sesion/origen" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "remote";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        if (out.contains("url")) {
+            std::string origin = out["url"].get<std::string>();
+            if (const size_t sch = origin.find("://"); sch != std::string::npos) {
+                const size_t end = origin.find_first_of("/?#", sch + 3);
+                if (end != std::string::npos) origin.resize(end);
+            }
+            out = json{{"ok", true}, {"target", target}, {"origen", origin},
+                       {"https", origin.rfind("https://", 0) == 0}};
+        } else {
+            out["ok"] = false;
+        }
+        sendJson(fd, 200, out);
+        return;
+    }
+    // El programa en vivo para la consola de la presidencia: la misma página de los
+    // televisores (/cast/), con su token; solo la ruta (la consola la abre en su origen).
+    if (path == "/api/v1/sesion/cast" && method == "GET") {
+        const std::string token = auth_.issue(cfg_.room, room_.snapshot().value("pin", ""));
+        if (token.empty()) {
+            sendJson(fd, 200, json{{"ok", false}, {"error", "sin token"}});
+            return;
+        }
+        sendJson(fd, 200, json{{"ok", true}, {"url", "/cast/?token=" + token + "&nombre=Presidencia"}});
+        return;
+    }
+    if (sesion_ && sesion_->admin(fd, method, path, query, body)) return;
 
     const json req = body.empty() ? json::object() : json::parse(body, nullptr, false);
     if (!req.is_object()) {
@@ -272,9 +312,31 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
                 room_.setLocked(req["locked"].get<bool>());
             if (req.contains("intake") && req["intake"].is_boolean())
                 room_.setIntake(req["intake"].get<bool>());
+            if (req.contains("cupo") && req["cupo"].is_number_integer()) {
+                const int r = room_.setCupo(req["cupo"].get<int>());
+                if (r != Room::kOk) {
+                    sendJson(fd, 409, json{{"ok", false},
+                                           {"error", r == Room::kFull ? "hay invitados en lugares que se irían"
+                                                                      : "fuera de los lugares reservados (cambiar la reserva reinicia la sala)"}});
+                    return;
+                }
+            }
             sendJson(fd, 200, json{{"ok", true}});
             return;
         }
+    }
+    if (path == "/api/v1/proxy") {
+        sendJson(fd, 200, proxy_ != nullptr ? proxy_->estado() : json{{"activo", false}, {"motivo", "apagado en la configuración"}});
+        return;
+    }
+    if (path == "/api/v1/proxy/renovar" && method == "POST") {
+        if (proxy_ == nullptr) {
+            sendJson(fd, 409, json{{"ok", false}, {"error", "el proxy está apagado"}});
+            return;
+        }
+        proxy_->renovar(req.value("host", std::string()));
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
     }
     if (path == "/api/v1/network/server-config" && method == "POST") {
         if (!serverConfig_) {
@@ -535,6 +597,26 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
 
+    // La página del evento en vivo: la manda A con el evento abierto (y cada vez que
+    // el guion avanza). {activo, dir, estado}.
+    if (path == "/api/v1/evento-web" && method == "POST") {
+        setEventoWeb(req);
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+
+    // --- Los bloqueos por PIN mal (por IP y el global) ------------------------
+    if (path == "/api/v1/pin/bloqueos" && method == "GET") {
+        sendJson(fd, 200, json{{"ok", true}, {"bloqueos", bloqueosPin()}});
+        return;
+    }
+    if (path == "/api/v1/pin/desbloquear" && method == "POST") {
+        const std::string ip = req.value("ip", std::string());
+        const int n = desbloquearPin(ip);
+        sendJson(fd, 200, json{{"ok", true}, {"desbloqueadas", n}, {"bloqueos", bloqueosPin()}});
+        return;
+    }
+
     // --- La urna, del lado del operador --------------------------------------
     if (path == "/api/v1/votacion") {
         if (method == "GET") {
@@ -712,6 +794,17 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         const auto q = http::parseQuery(query);
         const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
         const std::string nombre = q.count("nombre") ? http::urlDecode(q.at("nombre")) : "Pantalla";
+        // `canal`: una ESCENA en vez del programa (BA.Escena.<k>, la que la app
+        // puso en ese canal). La pantalla lo repite al entrar por /ws.
+        std::string canal;
+        if (q.count("canal")) {
+            canal = http::urlDecode(q.at("canal"));
+            if (canal.empty() || canal.size() > 2 ||
+                !std::all_of(canal.begin(), canal.end(), [](unsigned char c) { return std::isdigit(c) != 0; })) {
+                sendJson(fd, 200, json{{"ok", false}, {"message", "canal de escena invalido"}});
+                return;
+            }
+        }
         if (room_.snapshot().value("locked", false)) {
             sendJson(fd, 200,
                      json{{"ok", false},
@@ -748,8 +841,55 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         }
         sendJson(fd, 200,
                  json{{"ok", true},
-                      {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre)},
+                      {"url", origin + "/cast/?token=" + token + "&nombre=" + porcentar(nombre) +
+                                  (canal.empty() ? std::string() : "&canal=" + canal)},
                       {"token", token}});
+        return;
+    }
+    // T44: la app le pasa las frases que esperan; y pide el enlace del puesto (con QR).
+    if (path == "/api/v1/correccion/pendientes" && method == "POST") {
+        {
+            std::lock_guard<std::mutex> l(correccionMu_);
+            correccionPend_ = req.value("pendientes", json::array());
+            correccionMs_ = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now().time_since_epoch()).count();
+        }
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+    if (path == "/api/v1/correccion-link" && method == "GET") {
+        const auto q = http::parseQuery(query);
+        const std::string target = q.count("target") ? http::urlDecode(q.at("target")) : "local";
+        json out = joinUrl_ ? joinUrl_(target) : json{{"error", "sin proveedor de URL"}};
+        std::string aviso;
+        if (!out.contains("url")) {
+            if (target != "local") {
+                out["ok"] = false;
+                sendJson(fd, 200, out);
+                return;
+            }
+            // La sala escucha solo en esta máquina: sirve igual para un corrector en
+            // esta misma computadora (otra pantalla); para otra máquina hay que abrirla.
+            out["url"] = "http://127.0.0.1:" + std::to_string(cfg_.port) + "/";
+            aviso = out.value("message", std::string("la sala escucha solo en esta máquina")) +
+                    " — este enlace sirve solo en esta computadora.";
+        }
+        std::string origin = out["url"].get<std::string>();
+        if (const size_t s = origin.find("://"); s != std::string::npos) {
+            const size_t end = origin.find_first_of("/?#", s + 3);
+            if (end != std::string::npos) origin.resize(end);
+        }
+        const std::string url = origin + "/correccion/#k=" + cfg_.correccionKey;
+        const qrcodegen::QrCode qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json rows = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string row;
+            for (int x = 0; x < qr.getSize(); ++x) row.push_back(qr.getModule(x, y) ? '1' : '0');
+            rows.push_back(row);
+        }
+        json resp{{"ok", true}, {"url", url}, {"size", qr.getSize()}, {"modules", rows}};
+        if (!aviso.empty()) resp["message"] = aviso;
+        sendJson(fd, 200, resp);
         return;
     }
     if (path == "/api/v1/prompter-link" && method == "GET") {
@@ -825,6 +965,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             return;
         }
     }
+    // Acceso remoto (pinggy; docs/planes/PINGGY.md). La lee la app (Configuración
+    // → Acceso remoto y el MCP). La forma de "pinggy" es fija: sin proveedor, apagado.
+    if ((path == "/api/remoto" || path == "/api/v1/remoto") && method == "GET") {
+        json out = remotoStatus_ ? remotoStatus_() : json::object();
+        if (!out.is_object()) out = json::object();
+        if (!out.contains("pinggy"))
+            out["pinggy"] = json{{"activo", false},
+                                 {"estado", "apagado"},
+                                 {"urls", json::array()},
+                                 {"urlPublica", ""},
+                                 {"error", ""},
+                                 {"turn", {{"publico", ""}, {"tipo", ""}, {"udp", ""}}}};
+        sendJson(fd, 200, out);
+        return;
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;
@@ -892,6 +1047,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendRoomResult(fd, room_.kick(id));
         } else if (action == "talk") {
             sendRoomResult(fd, room_.setTalk(id, req.value("on", true)));
+        } else if (action == "prueba") {
+            // Prueba técnica (T33): eco por su micrófono y estado de la red. Tarda lo
+            // que dura (2 a 8 s): este pedido queda esperando, la sala sigue.
+            int sesion = 0;
+            {
+                std::lock_guard<std::mutex> l(sessLock_);
+                const auto it = sessionOf_.find(id);
+                if (it != sessionOf_.end()) sesion = it->second;
+            }
+            if (pump_ == nullptr || sesion == 0) {
+                sendJson(fd, 409, json{{"ok", false}, {"error", "ese participante no está mandando medios"}});
+            } else {
+                const json r = json::parse(pump_->pruebaTecnica(sesion, req.value("ms", 4000)), nullptr, false);
+                sendJson(fd, r.is_object() && !r.contains("error") ? 200 : 409, r);
+            }
         } else if (action == "request") {
             sendRoomResult(fd, room_.request(id, req.value("what", "")));
         } else if (action == "onair") {
@@ -981,7 +1151,7 @@ void SignalingServer::adminEvents(long long fd) {
             std::lock_guard<std::mutex> lock(sseLock_);
             sse_.push_back(conn);
         }
-        const std::string first = "retry: 2000\n\nevent: room\ndata: " + room_.snapshot().dump() + "\n\n";
+        const std::string first = "retry: 2000\n\nevent: room\ndata: " + room_.snapshot().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
         http::sendAll(fd, first.data(), first.size());
     }
 
@@ -1013,7 +1183,7 @@ void SignalingServer::broadcastToHosts(const std::string& event, const json& dat
         conns = sse_;
     }
     if (conns.empty()) return;
-    const std::string msg = "event: " + event + "\ndata: " + data.dump() + "\n\n";
+    const std::string msg = "event: " + event + "\ndata: " + data.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\n";
     for (const auto& c : conns) {
         std::lock_guard<std::mutex> lock(c->sendLock);
         if (c->fd >= 0 && !http::sendAll(c->fd, msg.data(), msg.size())) {

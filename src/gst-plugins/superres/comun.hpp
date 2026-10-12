@@ -29,9 +29,28 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <mutex>
+#include <string>
 
 namespace ba::sr {
+
+/// Las variantes de una red compiladas para un tamaño fijo (propiedad
+/// `variantes`: "1024x576=/ruta/a;640x360=/ruta/b", la arma la app con los
+/// variante.json del plugin). La del tamaño de entrada `w`x`h` o, si no hay,
+/// `modelo` (la general).
+inline std::string rutaVariante(const char* modelo, const char* variantes, int w, int h) {
+    const std::string clave = std::to_string(w) + "x" + std::to_string(h) + "=";
+    const std::string v = variantes != nullptr ? variantes : "";
+    size_t i = 0;
+    while (i < v.size()) {
+        size_t fin = v.find(';', i);
+        if (fin == std::string::npos) fin = v.size();
+        if (v.compare(i, clave.size(), clave) == 0) return v.substr(i + clave.size(), fin - i - clave.size());
+        i = fin + 1;
+    }
+    return modelo != nullptr ? modelo : "";
+}
 
 /// Multiplica (`por` > 0) o divide (`por` < 0) un campo entero: fijo, rango o lista.
 inline bool escalarCampo(GstStructure* st, const char* campo, int por) {
@@ -86,7 +105,7 @@ inline bool escalarCampo(GstStructure* st, const char* campo, int por) {
 /// caps del otro lado: el doble (o la mitad) PRIMERO y, detrás, la misma forma (pasante).
 /// `puede(ancho, alto)` (opcional): si el motor acepta ese tamaño de ENTRADA (cuando es fijo).
 inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* filtro, bool activo,
-                                bool (*puede)(int, int) = nullptr) {
+                                bool (*puede)(int, int) = nullptr, int factor = 2) {
     GstCaps* doble = gst_caps_new_empty();
     GstCaps* igual = gst_caps_new_empty();
     for (guint i = 0; i < gst_caps_get_size(caps); ++i) {
@@ -99,10 +118,10 @@ inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* fil
         if (puede != nullptr && gst_structure_get_int(st, "width", &w) &&
             gst_structure_get_int(st, "height", &h)) {
             const bool entrada = dir == GST_PAD_SINK;
-            if (entrada ? !puede(w, h) : (w % 2 != 0 || h % 2 != 0 || !puede(w / 2, h / 2))) continue;
+            if (entrada ? !puede(w, h) : (w % factor != 0 || h % factor != 0 || !puede(w / factor, h / factor))) continue;
         }
         GstStructure* x = gst_structure_copy(st);
-        const int por = dir == GST_PAD_SINK ? 2 : -2;
+        const int por = dir == GST_PAD_SINK ? factor : -factor;
         if (escalarCampo(x, "width", por) && escalarCampo(x, "height", por))
             gst_caps_append_structure_full(doble, x, feat ? gst_caps_features_copy(feat) : nullptr);
         else
@@ -117,19 +136,25 @@ inline GstCaps* transformarCaps(GstPadDirection dir, GstCaps* caps, GstCaps* fil
     return out;
 }
 
-/// Al fijar el formato de salida: el doble exacto de la entrada si se puede.
-inline GstCaps* fijarCaps(GstBaseTransform*, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
+/// Al fijar el formato de salida: `factor` veces la entrada, exacto si se puede.
+inline GstCaps* fijarCapsPor(GstPadDirection dir, GstCaps* caps, GstCaps* otras, int factor) {
     otras = gst_caps_make_writable(otras);
     if (dir == GST_PAD_SINK && gst_caps_get_size(caps) > 0 && gst_caps_get_size(otras) > 0) {
         const GstStructure* in = gst_caps_get_structure(caps, 0);
         GstStructure* out = gst_caps_get_structure(otras, 0);
         int w = 0, h = 0;
         if (gst_structure_get_int(in, "width", &w) && gst_structure_get_int(in, "height", &h)) {
-            gst_structure_fixate_field_nearest_int(out, "width", w * 2);
-            gst_structure_fixate_field_nearest_int(out, "height", h * 2);
+            gst_structure_fixate_field_nearest_int(out, "width", w * factor);
+            gst_structure_fixate_field_nearest_int(out, "height", h * factor);
         }
     }
     return gst_caps_fixate(otras);
+}
+
+/// Al fijar el formato de salida: el doble exacto de la entrada si se puede
+/// (los elementos cuyo motor agranda x2; los que no, usan fijarCapsPor).
+inline GstCaps* fijarCaps(GstBaseTransform*, GstPadDirection dir, GstCaps* caps, GstCaps* otras) {
+    return fijarCapsPor(dir, caps, otras, 2);
 }
 
 /// Copiar un metadato a la imagen agrandada: solo si no depende del tamaño ni de la orientación.
@@ -147,17 +172,30 @@ struct Demora {
     std::array<double, 30> ms{};
     size_t n = 0;
     double promedio = 0;
+    double suma = 0;          ///< de todos los cuadros (para el resumen al parar)
     GstClockTime informada = 0; ///< la última que se declaró (para avisar si cambia)
 
     void anotar(double v) {
         std::lock_guard<std::mutex> l(mu);
         ms[n % ms.size()] = v;
         ++n;
+        suma += v;
         promedio = n == 1 ? v : promedio * 0.9 + v * 0.1;
     }
     double media() {
         std::lock_guard<std::mutex> l(mu);
         return promedio;
+    }
+    /// {cuadros, suma de ms} desde el último reinicio (para medir una ventana:
+    /// la diferencia entre dos lecturas; ver el banco de pruebas).
+    std::pair<std::uint64_t, double> totales() {
+        std::lock_guard<std::mutex> l(mu);
+        return {static_cast<std::uint64_t>(n), suma};
+    }
+    /// {cuadros, promedio exacto de todos}.
+    std::pair<size_t, double> resumen() {
+        std::lock_guard<std::mutex> l(mu);
+        return {n, n == 0 ? 0.0 : suma / static_cast<double>(n)};
     }
     /// El peor reciente, con 20 % de margen y al menos 1 ms (en tiempo de GStreamer).
     GstClockTime latencia() {
@@ -169,6 +207,7 @@ struct Demora {
     }
     void reiniciar() {
         std::lock_guard<std::mutex> l(mu);
+        suma = 0;
         n = 0;
         promedio = 0;
         ms.fill(0);
@@ -201,6 +240,78 @@ inline void quizasAvisarLatencia(GstBaseTransform* bt, Demora& d) {
     if ((a > b * 1.25 && a - b > 2.0 * GST_MSECOND) || (a < b * 0.5 && b - a > 2.0 * GST_MSECOND)) {
         d.informada = ahora;
         gst_element_post_message(GST_ELEMENT(bt), gst_message_new_latency(GST_OBJECT(bt)));
+    }
+}
+
+// --- Modos de una red: activo, reposo, barato -----------------------------------------
+// Para tener cargadas (y calientes) las redes de todas las cámaras sin gastar el
+// acelerador en las que no se ven: la app (el programador) las prende al pasar a
+// preview. En todos los modos la salida es x2 (el tamaño nunca cambia: nada se
+// renegocia ni salta en la escena) y nunca hay un cuadro en negro:
+//   activo  la red
+//   reposo  agrandado común en la GPU (décimos de ms); la red queda cargada y
+//           una pasada de mantenimiento cada tanto la tiene caliente
+//   barato  como reposo, más un afilado (para lo que se ve pero no tiene turno)
+// Al cambiar, mezcla gradual entre el agrandado común y la red en
+// `transicion-ms` (de fábrica 400 ms): la mejora entra sin saltos.
+// Se cambia con la propiedad `modo` o con el evento estándar del canal de control
+// de la entrada (GST_EVENT_CUSTOM_DOWNSTREAM_OOB «ba/control», campos `superres`
+// y `transicion_ms`), que todos los elementos dejan pasar.
+
+enum ModoSr { kActivo = 0, kReposo = 1, kBarato = 2 };
+
+inline GType tipoModoSr() {
+    static GType t = 0;
+    if (g_once_init_enter(&t)) {
+        static const GEnumValue v[] = {{kActivo, "La red", "activo"},
+                                       {kReposo, "Cargada y caliente; sale el agrandado común", "reposo"},
+                                       {kBarato, "Cargada; sale el agrandado común afilado", "barato"},
+                                       {0, nullptr, nullptr}};
+        g_once_init_leave(&t, g_enum_register_static("BaSuperResModo", v));
+    }
+    return t;
+}
+
+/// Lee un evento del canal de control. true si era «ba/control» y traía `superres`.
+inline bool leerControlSr(GstEvent* ev, int& modo, int& transicionMs) {
+    if (GST_EVENT_TYPE(ev) != GST_EVENT_CUSTOM_DOWNSTREAM_OOB && GST_EVENT_TYPE(ev) != GST_EVENT_CUSTOM_DOWNSTREAM)
+        return false;
+    const GstStructure* st = gst_event_get_structure(ev);
+    if (st == nullptr || !gst_structure_has_name(st, "ba/control")) return false;
+    gint t = 0;
+    if (gst_structure_get_int(st, "transicion_ms", &t)) transicionMs = std::clamp(t, 0, 10000);
+    const gchar* m = gst_structure_get_string(st, "superres");
+    if (m == nullptr) return false;
+    const std::string x = m;
+    modo = x == "reposo" ? kReposo : x == "barato" ? kBarato : kActivo;
+    return true;
+}
+
+/// La mezcla gradual (solo el hilo de streaming): 0 = agrandado común, 1 = la red.
+struct Mezcla {
+    double valor = 1.0;
+    /// Avanza un cuadro hacia lo que pide el modo y devuelve el valor para ese cuadro.
+    double avanzar(int modo, int transicionMs, double fps) {
+        const double objetivo = modo == kActivo ? 1.0 : 0.0;
+        const double cuadros = std::max(1.0, fps * transicionMs / 1000.0);
+        const double paso = 1.0 / cuadros;
+        if (valor < objetivo)
+            valor = std::min(objetivo, valor + paso);
+        else if (valor > objetivo)
+            valor = std::max(objetivo, valor - paso);
+        return valor;
+    }
+};
+
+/// dst = dst*(1-k) + src*k, byte a byte (cualquier formato de 8 bits por canal).
+inline void mezclarPlano(guint8* dst, int pasoDst, const guint8* src, int pasoSrc, int anchoBytes, int alto,
+                         double k) {
+    const int kk = static_cast<int>(std::lround(std::clamp(k, 0.0, 1.0) * 256.0));
+    for (int y = 0; y < alto; ++y) {
+        guint8* d = dst + static_cast<size_t>(y) * pasoDst;
+        const guint8* s = src + static_cast<size_t>(y) * pasoSrc;
+        for (int x = 0; x < anchoBytes; ++x)
+            d[x] = static_cast<guint8>((d[x] * (256 - kk) + s[x] * kk) >> 8);
     }
 }
 

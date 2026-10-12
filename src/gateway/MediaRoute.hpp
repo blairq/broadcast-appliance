@@ -16,6 +16,9 @@
 //               sube -> camara a BA.Backstage.<k> si tiene lugar de preview
 //               (chica, solo la vista del operador; nunca el programa)
 //               baja <- programa + retorno de audio
+//   Escena(k)   (una pantalla de la sala que muestra una escena que no es el
+//               programa, docs/funciones/PANTALLAS.md) no sube nada
+//               baja <- BA.Escena.<k> + retorno de audio
 //   None        nada (desconectado / sin lugar)
 //
 // Asi un invitado del lobby solo ve al operador (nunca a los demas del lobby
@@ -30,16 +33,23 @@ namespace ba::gateway {
 struct MediaRoute {
     /// Backstage: admitido en modo oradores, esperando su turno: RECIBE el
     /// programa pero lo que manda no va a ningun lado (ni al programa).
-    enum class Kind : uint8_t { None, Program, Lobby, Backstage };
+    /// Remoto: un integrante remoto con la palabra (docs/funciones/SESION-REMOTA.md R3): lo que
+    /// manda va a BA.Audio.Remoto.<n> / BA.Remoto.<n>; no recibe nada por acá (el
+    /// programa lo ve en su página).
+    /// Escena: una pantalla que muestra la escena del canal `index` (BA.Escena.<k>,
+    /// 0..) en vez del programa; no sube nada.
+    enum class Kind : uint8_t { None, Program, Lobby, Backstage, Remoto, Escena };
     Kind kind = Kind::None;
     int index = 0;     ///< slot del programa (1..guests) o del lobby (1..lobbySlots)
-    bool talk = false; ///< lobby: el operador le habla (le llega su voz)
+    bool talk = false; ///< el operador le habla (le llega su voz; adentro, mezclada con el retorno: IFB)
 
-    static MediaRoute program(int slot) { return {Kind::Program, slot, false}; }
+    static MediaRoute program(int slot, bool talk = false) { return {Kind::Program, slot, talk}; }
     static MediaRoute lobby(int slot, bool talk) { return {Kind::Lobby, slot, talk}; }
     /// `preview`: lugar de preview de la fila (1..backstageSlots) -> su camara
     /// sube a BA.Backstage.<k> (chica, solo para la vista del operador); 0 = no sube.
-    static MediaRoute backstage(int preview = 0) { return {Kind::Backstage, preview, false}; }
+    static MediaRoute backstage(int preview = 0, bool talk = false) { return {Kind::Backstage, preview, talk}; }
+    static MediaRoute remoto(int canal) { return {Kind::Remoto, canal, false}; }
+    static MediaRoute escena(int canal) { return {Kind::Escena, canal, false}; }
     bool operator==(const MediaRoute& o) const {
         return kind == o.kind && index == o.index && talk == o.talk;
     }

@@ -1,0 +1,105 @@
+{
+  "app-id": "io.github.blairq.broadcastappliance",
+  "runtime": "org.freedesktop.Platform",
+  "runtime-version": "23.08",
+  "sdk": "org.freedesktop.Sdk",
+  "version": "2.0.0",
+  "release-version": 1,
+  "base": "org.freedesktop.Platform",
+  "base-version": "23.08",
+  "finish-args": [
+    "--share=ipc",
+    "--share=network",
+    "--socket=fallback-x11",
+    "--socket=wayland",
+    "--socket=pulseaudio",
+    "--device=all",
+    "--filesystem=home"
+  ],
+  "build-options": {
+    "cflags": "-O2 -g",
+    "cppflags": "-O2 -g -std=c++20",
+    "ldflags": "-O2"
+  },
+  "modules": [
+    {
+      "name": "mbedtls",
+      "buildsystem": "cmake",
+      "cmake-args": [
+        "-DENABLE_TESTING=OFF",
+        "-DENABLE_PROGRAMS=OFF",
+        "-DUSE_SHARED_MBEDTLS_LIBRARY=OFF"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/Mbed-TLS/mbedtls.git",
+          "tag": "v3.6.2"
+        }
+      ]
+    },
+    {
+      "name": "nlohmann_json",
+      "buildsystem": "cmake",
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/nlohmann/json.git",
+          "tag": "v3.11.3"
+        }
+      ]
+    },
+    {
+      "name": "libsamplerate",
+      "buildsystem": "cmake",
+      "cmake-args": [
+        "-DBUILD_TESTING=OFF"
+      ],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/libsndfile/libsamplerate.git",
+          "tag": "0.2.2"
+        }
+      ]
+    },
+    {
+      "name": "argon2",
+      "buildsystem": "make",
+      "make-args": [
+        "CC=cc"
+      ],
+      "make-install-args": [],
+      "sources": [
+        {
+          "type": "git",
+          "url": "https://github.com/P-H-C/phc-winner-argon2.git",
+          "tag": "20190702"
+        }
+      ]
+    },
+    {
+      "name": "broadcastappliance",
+      "buildsystem": "cmake",
+      "cmake-args": [
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_INSTALL_PREFIX=/app",
+        "-DBUILD_TESTING=OFF"
+      ],
+      "post-install": [
+        "mkdir -p /app/bin/64bit",
+        "mkdir -p /app/gst-plugins",
+        "mkdir -p /app/Config",
+        "mkdir -p /app/Logs",
+        "mkdir -p /app/Recordings",
+        "mkdir -p /app/Web/guest"
+      ],
+      "sources": [
+        {
+          "type": "dir",
+          "path": "../../"
+        }
+      ]
+    }
+  ]
+}

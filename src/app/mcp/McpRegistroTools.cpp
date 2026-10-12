@@ -10,7 +10,8 @@
 // ============================================================================
 #include <algorithm>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "platform/Paths.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"
 #include "mcp/McpService.hpp"
@@ -83,7 +84,7 @@ void McpService::registerRegistroTools() {
                 f.desdeMs = ahora - static_cast<std::int64_t>(a["ultimosMin"].get<int>()) * 60000LL;
             }
 
-            const auto dir = rt.dataRoot() / "Logs";
+            const auto dir = ba::platform::dataRoot() / "Logs";
             json lineas = json::array();
             for (const auto& r : ba::diag::leerLogs(dir, f))
                 lineas.push_back(json{{"ms", r.ms},
@@ -111,7 +112,7 @@ void McpService::registerRegistroTools() {
         t.title = "Cuánto se registra";
         t.category = "registro";
         t.description = "Lee o cambia, en vivo, el nivel desde el que este proceso registra.";
-        t.details = "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (libobs solo ya es muy "
+        t.details = "Bajarlo a `depuracion` o `traza` hace que se escriba MUCHO más (GStreamer solo ya es muy "
                     "hablador). Sirve para reproducir un problema con detalle, pero no para dejarlo así: "
                     "llena el disco y hace que lo importante se pierda entre miles de líneas.\n\n"
                     "El cambio queda anotado en el propio registro, con quién lo hizo, para que mañana "
@@ -167,7 +168,7 @@ void McpService::registerRegistroTools() {
 
     // --- Extensiones: UNA familia, no una herramienta por extension ---------
     // Cien extensiones instaladas cuestan lo mismo que una en el contexto del
-    // modelo. Ver docs/EXTENSIONES.md: reflexion, no inventario.
+    // modelo. Ver docs/funciones/EXTENSIONES.md: reflexion, no inventario.
     {
         Tool t;
         t.name = "ext_listar";

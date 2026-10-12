@@ -1,0 +1,16 @@
+{
+  "id": "superficie-streamdeck",
+  "nombre": "Superficie: Elgato Stream Deck",
+  "descripcion": "Cada Stream Deck enchufado (Mini, MK.2, XL, Neo, Pedal, +) es una botonera: el operador le asigna un perfil y una página en la página Botonera y las teclas muestran el texto, el color y el tally de cada celda. Las perillas del Stream Deck + giran las celdas de la fila de abajo. Si una tecla cambia el aire estando al aire, titila en amarillo: apretala de nuevo para confirmar. Usa python-elgato-streamdeck (hidapi) y pillow, que vienen con el programa. En Linux hace falta la regla udev (ver el README de la página Plugins).",
+  "version": "1.0",
+  "principal": "plugin.py",
+  "dependencias": [
+    "streamdeck",
+    "pillow"
+  ],
+  "config": {
+    "brillo": 60,
+    "buscar_cada_s": 3,
+    "sin_aparato_s": 30
+  }
+}

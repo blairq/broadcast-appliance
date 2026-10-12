@@ -135,7 +135,7 @@ def leer_metricas(texto):
 
 
 # El contrato del formato de tool calling (v2), para la tarjeta: lo que tiene que
-# hacer quien lo sirve (ba-modelo, llama.cpp). Fuente: tools/lib_tc.py.
+# hacer quien lo sirve (ba-modelo, llama.cpp). Fuente: tools/entrenar/lib_tc.py.
 METODO_LOOP = """## Cómo se entrenó: el loop
 
 Este modelo no sale de juntar muchos ejemplos: sale de un **loop** que mide cada frase, la corrige y
@@ -210,7 +210,7 @@ modelo con los borradores en cadena, como se usan en vivo, y con texto escrito p
 
 FORMATO_TC = """## Formato (el contrato para servirlo)
 
-Todo sale de `prompt.json` (fuente: `tools/lib_tc.py` del aparato). Firma del prompt: `@HUELLA@`.
+Todo sale de `prompt.json` (fuente: `tools/entrenar/lib_tc.py` del aparato). Firma del prompt: `@HUELLA@`.
 
 **1. Cabeza fija** (`cabeza`, ~8.200 tokens, idéntica byte a byte: procesarla una vez y reusar el
 caché). Es el system nativo de tools de Qwen3.5: `# Tools … <tools>` con un JSON por línea por cada
@@ -413,7 +413,7 @@ class Fabrica:
             shutil.rmtree(self.corpus)
         shutil.copytree(RAIZ / "datos/entrenamiento", self.corpus)
         self.man["corpus_firma"] = firma(self.corpus)
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         self.man["perfil"] = {"nombre": lp.PERFIL, "categorias": lp.REACTIVAS, "entradas": lp.ENTRADAS,
                               "herramientas": lp.herramientas_reactivas(), "prompt": lp.huella()["prompt"],
@@ -433,7 +433,7 @@ class Fabrica:
             shutil.rmtree(self.corpus)
         shutil.copytree(Path(self.a.corpus_de).expanduser(), self.corpus)
         self.man["corpus_firma"] = firma(self.corpus)
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         import lib_tc as tc
         self.man["perfil"] = {"nombre": lp.PERFIL, "categorias": lp.REACTIVAS, "entradas": lp.ENTRADAS,
@@ -784,7 +784,7 @@ class Fabrica:
     def completar_datos(self):
         """Lo que la tarjeta necesita, calculado aca: no depende de que las etapas
         anteriores hayan corrido en esta corrida (una fabrica retomada las saltea)."""
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         if self.corpus.exists():
             self.man["corpus_firma"] = firma(self.corpus)
@@ -936,7 +936,7 @@ con otras fichas es otro modelo, aunque siga contestando.
 """
 
     def prompt_para_servir_tc(self):
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         import lib_tc as tc
         prueba = [{"estado": {"audio": [{"nombre": "Mic operador", "volumen_db": -6.0, "silenciada": False},
@@ -959,7 +959,7 @@ con otras fichas es otro modelo, aunque siga contestando.
         """Todo lo que necesita quien SIRVE el modelo, sin reconstruir el prompt:
         la app (C++) y el servidor MLX lo leen tal cual. Es el MISMO de
         entrenamiento: con otras fichas seria otro modelo (ver huella)."""
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         cabeza, cola = lp.partes(lp.inventario(), 0)
         nombres = lp.nombres_posibles()
@@ -1176,7 +1176,7 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
         """modelo.json: lo que la app compara al revisar un modelo, sin prosa.
         Endpoints cubiertos (con la huella de su esquema, calculable desde el
         registro MCP de la app), version de entrenamiento y formato de llamada."""
-        sys.path.insert(0, str(RAIZ / "tools"))
+        sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
         import lib_prompt as lp
         inv = lp.inventario()
         por = {h["nombre"]: h for h in inv["herramientas"]}
@@ -1370,7 +1370,7 @@ def main():
     ap.add_argument("--version", help="version de entrenamiento del modelo (va a modelo.json: la compara la app)")
     ap.add_argument("--formato", choices=["nombres", "tc"], default="nombres",
                     help="nombres: el modelo contesta solo la herramienta (lib_prompt); tc: tool calling con "
-                         "argumentos (lib_tc, docs/entrenamiento-avanzado.md)")
+                         "argumentos (lib_tc, docs/modelos/entrenamiento-avanzado.md)")
     ap.add_argument("--corpus-de", help="tc: la carpeta del corpus ya armado (tc-corpus.py / tc-bucle.py)")
     ap.add_argument("--adaptador-de", help="usar este adaptador ya entrenado en vez de entrenar")
     ap.add_argument("--curva-q4", action="store_true", help="medir el q4 en los 5 puntos del dial (si no, solo sesgo 0)")

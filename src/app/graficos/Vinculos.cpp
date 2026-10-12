@@ -238,8 +238,13 @@ void Vinculos::revisar() {
         const quint64 fuente = d_->em.fuentePorNombre(o.value("fuente").toString());
         if (fuente == 0) continue; // esa fuente no está en ninguna escena ahora
 
-        const QString e = d_->em.mostrar(o.value("grafico").toString(), valores, fuente, 0,
-                                         o.value("repetir").toBool(false));
+        // Campos vivos (T43): un vínculo «vivo» con su gráfico ya al aire en esa fuente
+        // solo se actualiza (el cuadro estable, sin volver a entrar).
+        const QString grafico = o.value("grafico").toString();
+        const bool vivo = o.value("vivo").toBool(false) && d_->ultimo.contains(id) &&
+                          d_->em.ultimoGrafico(fuente) == grafico;
+        const QString e = vivo ? d_->em.actualizar(grafico, valores, fuente)
+                               : d_->em.mostrar(grafico, valores, fuente, 0, o.value("repetir").toBool(false));
         // La firma se recuerda igual si falló: reintentar cada segundo una
         // cosa que no anda llena el registro y no arregla nada.
         d_->ultimo[id] = firma;

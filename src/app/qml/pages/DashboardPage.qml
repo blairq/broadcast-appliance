@@ -14,11 +14,33 @@ Item {
         id: bgLayer
         anchors.fill: parent
         Rectangle { anchors.fill: parent; color: Theme.bg }
+        // «multiview:<id>»: el fondo es esa multivista de la página Multiview (sus
+        // fuentes, distribución y estilo, en vivo), en 16:9 centrado como en sus ventanas.
+        // («multiview» solo, el de antes por MCP: la elegida en la página.)
+        readonly property bool esMultiview: Studio.dashboard.backgroundLayout.startsWith("multiview")
+        readonly property var mv: (Studio.multiviews, !esMultiview ? ({})
+                                   : Studio.dashboard.backgroundLayout.startsWith("multiview:") ? Studio.multiviewDe(Studio.dashboard.backgroundLayout.slice(10))
+                                   : Studio.multiview)
+        readonly property bool mvValida: esMultiview && mv.id !== undefined
+        Rectangle { anchors.fill: parent; color: "black"; visible: bgLayer.mvValida }
         VideoWall {
-            anchors.fill: parent
-            keys: Studio.dashboard.background
-            layout: Studio.dashboard.backgroundLayout
-            gap: 2
+            readonly property real ancho16: Math.min(parent.width, parent.height * 16 / 9)
+            anchors.centerIn: parent
+            width: bgLayer.mvValida ? ancho16 : parent.width
+            height: bgLayer.mvValida ? ancho16 * 9 / 16 : parent.height
+            keys: bgLayer.mvValida ? (bgLayer.mv.fuentes || []) : Studio.dashboard.background
+            layout: bgLayer.mvValida ? (bgLayer.mv.distribucion || "grid") : (bgLayer.esMultiview ? "grid" : Studio.dashboard.backgroundLayout)
+            operador: true
+            fondo: bgLayer.mvValida ? (bgLayer.mv.fondo || "transparent") : "transparent"
+            borde: bgLayer.mvValida ? (bgLayer.mv.borde || 0) : 0
+            colorBorde: bgLayer.mvValida ? (bgLayer.mv.colorBorde || "white") : "white"
+            labels: bgLayer.mvValida && bgLayer.mv.nombres === true
+            tamEtiqueta: bgLayer.mvValida ? (bgLayer.mv.tamNombres || 18) : 11
+            tally: !bgLayer.mvValida || bgLayer.mv.tally !== false
+            vumetros: !bgLayer.mvValida || bgLayer.mv.vumetros !== false
+            escala: bgLayer.mvValida ? width / 1920 : 1
+            grosorTally: bgLayer.mvValida ? (bgLayer.mv.grosorTally !== undefined ? bgLayer.mv.grosorTally : 2) : -1
+            gap: bgLayer.mvValida ? (bgLayer.mv.separacion || 0) : 2
             // ENTERO, sin recortar. La celda de la grilla casi nunca tiene la
             // proporcion del video, y `Cover` llenaba recortando: al programa
             // le comia una franja arriba y otra abajo —justo donde suelen ir
@@ -105,14 +127,33 @@ Item {
             onClicked: bgMenu.popup()
             Menu {
                 id: bgMenu
+                // Las multivistas armadas en la página Multiview: una de ellas como fondo.
+                MenuItem { text: "Multiview"; enabled: false; visible: Studio.multiviews.length > 0; height: visible ? implicitHeight : 0 }
+                Repeater {
+                    model: Studio.multiviews
+                    delegate: MenuItem {
+                        required property var modelData
+                        text: "▥  " + modelData.nombre + "  (" + (modelData.fuentes || []).length + ")"
+                        checkable: true
+                        checked: Studio.dashboard.backgroundLayout === "multiview:" + modelData.id
+                        onTriggered: Studio.dashboard.backgroundLayout = "multiview:" + modelData.id
+                    }
+                }
+                MenuSeparator { visible: Studio.multiviews.length > 0 }
+                MenuItem { text: "Fuentes"; enabled: false; height: implicitHeight }
                 Repeater {
                     model: Studio.frames.keys
                     delegate: MenuItem {
                         required property string modelData
                         text: Studio.frames.label(modelData)
                         checkable: true
-                        checked: Studio.dashboard.background.indexOf(modelData) >= 0
+                        checked: !bgLayer.esMultiview && Studio.dashboard.background.indexOf(modelData) >= 0
                         onTriggered: {
+                            // Elegir una fuente deja la multivista y vuelve a las fuentes sueltas.
+                            if (bgLayer.esMultiview) {
+                                Studio.dashboard.backgroundLayout = "grid"
+                                if (Studio.dashboard.background.indexOf(modelData) >= 0) return
+                            }
                             const bg = Studio.dashboard.background.slice()
                             const i = bg.indexOf(modelData)
                             if (i >= 0) bg.splice(i, 1); else bg.push(modelData)
@@ -127,6 +168,7 @@ Item {
                     delegate: MenuItem {
                         required property var modelData
                         text: modelData.t; checkable: true
+                        enabled: !bgLayer.esMultiview
                         checked: Studio.dashboard.backgroundLayout === modelData.id
                         onTriggered: Studio.dashboard.backgroundLayout = modelData.id
                     }
@@ -169,19 +211,11 @@ Item {
             onPaint: {
                 const c = getContext("2d")
                 c.reset()
-                c.strokeStyle = Qt.rgba(1, 1, 1, 0.10)
-                c.lineWidth = 1
+                // fillRect y no stroke(): las líneas trazadas en Retina son caras (ver AudioPage).
+                c.fillStyle = Qt.rgba(1, 1, 1, 0.10)
                 const cols = Studio.dashboard.gridCols, rows = Studio.dashboard.gridRows
-                c.beginPath()
-                for (let i = 1; i < cols; ++i) {
-                    const x = Math.round(width * i / cols) + 0.5
-                    c.moveTo(x, 0); c.lineTo(x, height)
-                }
-                for (let j = 1; j < rows; ++j) {
-                    const y = Math.round(height * j / rows) + 0.5
-                    c.moveTo(0, y); c.lineTo(width, y)
-                }
-                c.stroke()
+                for (let i = 1; i < cols; ++i) c.fillRect(Math.round(width * i / cols), 0, 1, height)
+                for (let j = 1; j < rows; ++j) c.fillRect(0, Math.round(height * j / rows), width, 1)
             }
         }
 
@@ -229,6 +263,18 @@ Item {
                 Loader {
                     id: content
                     anchors.fill: parent
+                    // T48: las extensiones se arman de a poco (no traban la interfaz) y con tiempo
+                    // máximo: si en 5 s no terminaron, se cortan y quedan apagadas.
+                    asynchronous: esExt
+                    Timer {
+                        interval: 5000
+                        running: content.esExt && content.status === Loader.Loading
+                        onTriggered: {
+                            if (content.status !== Loader.Loading) return
+                            content.source = ""
+                            Studio.extensiones.tardo(content.extId, interval)
+                        }
+                    }
                     // UN LOADER ES UN AMBITO DE FOCO: sin esto, el foco se
                     // queda en el marco y las teclas de la tarjeta no llegan
                     // NUNCA a su contenido. No falla ni avisa: simplemente no
@@ -274,6 +320,8 @@ Item {
                         if (!content.esExt) return "Esta tarjeta no se pudo cargar."
                         const f = Studio.extensiones ? Studio.extensiones.ficha(content.extId) : null
                         if (!f || !f.id) return "La extensión «" + content.extId + "» ya no está."
+                        const vivo = Studio.extensiones.motivoNoCarga(content.extId)
+                        if (vivo !== "") return "«" + f.nombre + "»: " + vivo
                         if (f.apagada)
                             return "«" + f.nombre + "» está apagada: se llevó puesto el arranque.\n" +
                                    "Se prende desde el Registro."

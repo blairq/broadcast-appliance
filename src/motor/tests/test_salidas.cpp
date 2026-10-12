@@ -1,0 +1,388 @@
+// test_salidas.cpp — la grabación del motor (codificador de la placa, MKV en tramos)
+//
+// Un motor chico (640x360) con una cámara de prueba y su audio al aire, y una
+// grabación del PROGRAMA (video + pista 1) y de la pista 2:
+//   - un solo archivo de ~3 s: tiene video H.264 y dos pistas de audio AAC, y dura lo que se grabó;
+//   - en tramos de 1 s: varios archivos, cada uno se abre;
+//   - parar cierra el archivo (EOS: el índice queda escrito).
+
+#include "Motor.hpp"
+#include "Salidas.hpp"
+
+#include <gst/gst.h>
+#include <gst/pbutils/pbutils.h>
+
+#include <array>
+#include <atomic>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <filesystem>
+#include <thread>
+#if defined(_WIN32)
+#include <process.h>
+#define getpid _getpid
+#else
+#include <unistd.h>
+#endif
+
+using namespace ba::motor;
+using json = nlohmann::json;
+
+namespace {
+int fallos = 0;
+#define CHECK(cond, msg)                                                             \
+    do {                                                                             \
+        if (!(cond)) {                                                               \
+            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);         \
+            ++fallos;                                                                \
+        }                                                                            \
+    } while (0)
+
+void esperar(int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
+
+struct Info {
+    std::string contenedor;
+    bool ok = false;
+    double seg = 0;
+    int videos = 0, audios = 0;
+    std::string codecV;
+};
+
+Info mirar(const std::string& ruta) {
+    Info r;
+    gchar* uri = gst_filename_to_uri(ruta.c_str(), nullptr);
+    GstDiscoverer* d = gst_discoverer_new(10 * GST_SECOND, nullptr);
+    GstDiscovererInfo* i = gst_discoverer_discover_uri(d, uri, nullptr);
+    if (i != nullptr && gst_discoverer_info_get_result(i) == GST_DISCOVERER_OK) {
+        r.ok = true;
+        r.seg = static_cast<double>(gst_discoverer_info_get_duration(i)) / 1e9;
+        if (GstDiscovererStreamInfo* raiz = gst_discoverer_info_get_stream_info(i)) {
+            if (GstCaps* c = gst_discoverer_stream_info_get_caps(raiz)) {
+                r.contenedor = gst_structure_get_name(gst_caps_get_structure(c, 0));
+                gst_caps_unref(c);
+            }
+            gst_discoverer_stream_info_unref(raiz);
+        }
+        GList* v = gst_discoverer_info_get_video_streams(i);
+        GList* a = gst_discoverer_info_get_audio_streams(i);
+        r.videos = static_cast<int>(g_list_length(v));
+        r.audios = static_cast<int>(g_list_length(a));
+        if (v != nullptr) {
+            GstCaps* c = gst_discoverer_stream_info_get_caps(GST_DISCOVERER_STREAM_INFO(v->data));
+            if (c != nullptr) {
+                r.codecV = gst_structure_get_name(gst_caps_get_structure(c, 0));
+                gst_caps_unref(c);
+            }
+        }
+        gst_discoverer_stream_info_list_free(v);
+        gst_discoverer_stream_info_list_free(a);
+    }
+    if (i != nullptr) gst_discoverer_info_unref(i);
+    g_object_unref(d);
+    g_free(uri);
+    return r;
+}
+} // namespace
+
+int main() {
+#if defined(BA_TEST_GST_RAIZ)
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
+#endif
+#if defined(BA_TEST_GST_PLUGINS)
+    g_setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, FALSE);
+#endif
+    std::string err;
+    if (!iniciarGStreamer(&err)) {
+        std::printf("SKIP: sin GStreamer (%s)\n", err.c_str());
+        return 77;
+    }
+    for (const char* e : {"intersink", "compositor", "splitmuxsink", "matroskamux", "avenc_aac", "h264parse"})
+        if (!hayFabrica(e)) {
+            std::printf("SKIP: falta %s\n", e);
+            return 77;
+        }
+    if (elegirCodificador().empty()) {
+        std::printf("SKIP: sin codificador H.264\n");
+        return 77;
+    }
+    Motor::Config cfg;
+    cfg.lienzo.ancho = 640;
+    cfg.lienzo.alto = 360;
+    cfg.prefijoAnillos = ""; // sin gateway
+    cfg.sinkEscucha = "fakesink";
+    Motor motor(cfg);
+    CHECK(motor.iniciar().empty(), "el motor arranca");
+    // Las órdenes del motor van en cola (Motor::orden): su error llega por
+    // alFallar. `falla` espera la cola y dice si la última falló.
+    std::string fallo;
+    motor.alFallar([&fallo](const std::string&, const std::string& e) { fallo = e; });
+    auto falla = [&]() {
+        motor.esperarCola();
+        const bool f = !fallo.empty();
+        fallo.clear();
+        return f;
+    };
+    const json cam = {{"pipeline", "videotestsrc is-live=true do-timestamp=true pattern=ball ! video/x-raw,width=640,height=360,framerate=30/1"},
+                      {"pipeline_audio", "audiotestsrc is-live=true wave=sine volume=0.25 freq=440"}};
+    CHECK(motor.agregarEntrada("cam", cam, json{{"pistas", {1, 2}}}).empty(), "la cámara");
+    CHECK(motor.definirEscena({{"nombre", "S"}, {"capas", {{{"entrada", "cam"}}}}}).empty(), "la escena");
+    CHECK(motor.alAire("S").empty(), "al aire");
+    esperar(1500);
+
+    // Imágenes para la interfaz: el programa chico (160x90) y una entrada.
+    {
+        CHECK(motor.verPedir("programa", 160, 90).empty(), "pedir la vista del programa");
+        CHECK(motor.verPedir("entrada:cam", 320, 180).empty(), "pedir la vista de una entrada");
+        motor.verPedir("entrada:nadie", 160, 90);
+        CHECK(falla(), "una entrada que no existe avisa");
+        motor.verSoltar("entrada:nadie");
+        esperar(1000);
+        Cuadro c;
+        std::uint64_t serie = 0;
+        CHECK(motor.verUltimo("programa", c, serie), "hay cuadro del programa");
+        CHECK(c.ancho == 160 && c.alto == 90 && c.bgra.size() >= 160u * 90u * 4u, "del tamaño pedido, en BGRA");
+        const std::uint64_t antes = serie;
+        CHECK(!motor.verUltimo("programa", c, serie) || serie > antes, "solo si hay uno más nuevo");
+        esperar(200);
+        CHECK(motor.verUltimo("programa", c, serie) && serie > antes, "y llegan nuevos");
+        Cuadro e;
+        std::uint64_t se = 0;
+        CHECK(motor.verUltimo("entrada:cam", e, se) && e.ancho == 320, "la entrada a su tamaño");
+        motor.verSoltar("programa");
+        motor.verSoltar("entrada:cam");
+        motor.esperarCola();
+        CHECK(motor.estado()["vistas"].empty(), "soltadas, se desarman");
+    }
+
+    // Multiview: la cámara está al aire → su recuadro con tally rojo; la fila de arriba, PREVIEW y PROGRAMA.
+    {
+        CHECK(motor.multiview(true, 640, 360).empty(), "el multiview arranca");
+        CHECK(motor.verPedir("multiview", 640, 360).empty(), "verlo");
+        esperar(2000);
+        Cuadro c;
+        std::uint64_t serie = 0;
+        CHECK(motor.verUltimo("multiview", c, serie), "hay cuadro del multiview");
+        auto px = [&](int x, int y) {
+            const std::uint8_t* p = c.bgra.data() + static_cast<std::size_t>(y) * c.stride + static_cast<std::size_t>(x) * 4;
+            return std::array<int, 3>{p[2], p[1], p[0]};
+        };
+        const auto bordeCam = px(1, 181), bordePgm = px(321, 1), bordePvw = px(1, 1);
+        std::printf("multiview: borde cam (%d,%d,%d) borde PGM (%d,%d,%d) borde PVW (%d,%d,%d)\n", bordeCam[0], bordeCam[1], bordeCam[2],
+                    bordePgm[0], bordePgm[1], bordePgm[2], bordePvw[0], bordePvw[1], bordePvw[2]);
+        CHECK(bordeCam[0] > 180 && bordeCam[1] < 80, "la cámara al aire: tally rojo");
+        CHECK(bordePgm[0] > 180 && bordePgm[1] < 80, "el recuadro del PROGRAMA: rojo");
+        CHECK(bordePvw[1] > 150 && bordePvw[0] < 100, "el del PREVIEW: verde");
+        motor.verSoltar("multiview");
+        motor.multiview(false);
+    }
+
+    const std::string dir = (std::filesystem::temp_directory_path() / ("ba_test_salidas_" + std::to_string(getpid()))).string();
+    Fuentes f;
+    f.video = motor.productorDeVideo("programa", &f.latVideoNs);
+    std::int64_t l1 = 0, l2 = 0;
+    f.audios.push_back(motor.productorDeBus("programa", &l1));
+    f.audios.push_back(motor.productorDeBus("pista2", &l2));
+    f.latAudioNs = std::max(l1, l2);
+    std::printf("fuentes: %s %.0f ms, %s / %s %.0f ms; codificador %s\n", f.video.c_str(), f.latVideoNs / 1e6,
+                f.audios[0].c_str(), f.audios[1].c_str(), f.latAudioNs / 1e6, elegirCodificador().c_str());
+
+    {
+        Grabacion::Config gc;
+        gc.carpeta = dir;
+        gc.nombre = "uno";
+        gc.tramoSeg = 0;
+        gc.kbps = 2000;
+        Grabacion g(motor.reloj(), gc);
+        CHECK(g.iniciar(f).empty(), "la grabación arranca");
+        for (int i = 0; i < 15; ++i) {
+            esperar(200);
+            g.tic();
+        }
+        {
+            const json st = g.estado();
+            std::printf("estado: %s\n", st.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+            CHECK(st.value("bytes", 0) > 10000, "cuenta lo que va al archivo");
+            CHECK(st.value("atraso_s", 99.0) < 1.0, "con el disco bien, el colchón casi vacío");
+            CHECK(!st.value("pausada", true), "no está en pausa");
+        }
+        CHECK(g.parar(), "parar cierra el archivo (EOS)");
+        const auto ar = g.archivos();
+        CHECK(ar.size() == 1, "un solo archivo");
+        if (!ar.empty()) {
+            const Info i = mirar(ar[0]);
+            std::printf("archivo: %s: %.2f s, %d video (%s), %d audio\n", ar[0].c_str(), i.seg, i.videos, i.codecV.c_str(), i.audios);
+            CHECK(i.ok, "se abre");
+            std::printf("contenedor: %s\n", i.contenedor.c_str());
+            CHECK(i.contenedor == "video/x-matroska", "es Matroska de verdad (aguanta un corte)");
+            CHECK(i.videos == 1 && i.codecV == "video/x-h264", "video H.264");
+            CHECK(i.audios == 2, "dos pistas de audio (programa y pista 2)");
+            CHECK(i.seg > 2.0 && i.seg < 4.0, "dura lo grabado (~3 s)");
+        }
+    }
+    {
+        // El disco se traba 4 s: lo que llega se junta en el colchón y después
+        // entra todo (sin perder cuadros: el archivo dura lo que duró la grabación).
+        Grabacion::Config gc;
+        gc.carpeta = dir;
+        gc.nombre = "trabado";
+        gc.tramoSeg = 0;
+        gc.kbps = 2000;
+        Grabacion g(motor.reloj(), gc);
+        CHECK(g.iniciar(f).empty(), "la grabación (disco trabado) arranca");
+        auto andar = [&](int n) {
+            for (int i = 0; i < n; ++i) {
+                esperar(200);
+                g.tic();
+            }
+        };
+        andar(5);
+        g.simularDiscoTrabado(4000);
+        andar(12);
+        const json durante = g.estado();
+        std::printf("disco trabado: %s\n", durante.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+        CHECK(durante.value("atraso_s", 0.0) > 1.5, "con el disco trabado, lo grabado espera en el colchón");
+        andar(12);
+        const json despues = g.estado();
+        std::printf("disco de vuelta: atraso %.2f s, desbordes %d\n", despues.value("atraso_s", 0.0), despues.value("desbordes", 0));
+        CHECK(despues.value("atraso_s", 99.0) < 0.5, "cuando el disco vuelve, el colchón se vacía");
+        CHECK(despues.value("desbordes", 1) == 0, "no se perdió ningún cuadro");
+        CHECK(g.parar(), "cierra");
+        const auto ar = g.archivos();
+        if (!ar.empty()) {
+            const Info i = mirar(ar[0]);
+            std::printf("con el disco trabado: %.2f s grabados (~5.8 s)\n", i.seg);
+            CHECK(i.seg > 5.0, "el archivo tiene todo (también lo del trabón)");
+        }
+    }
+    {
+        // En pausa no escribe; al soltarla sigue en el mismo archivo; parar en pausa cierra igual.
+        Grabacion::Config gc;
+        gc.carpeta = dir;
+        gc.nombre = "pausa";
+        gc.tramoSeg = 0;
+        gc.kbps = 2000;
+        Grabacion g(motor.reloj(), gc);
+        CHECK(g.iniciar(f).empty(), "la grabación con pausa arranca");
+        auto andar = [&](int n) {
+            for (int i = 0; i < n; ++i) {
+                esperar(200);
+                g.tic();
+            }
+        };
+        andar(8);
+        g.pausar(true);
+        CHECK(g.pausada(), "en pausa");
+        andar(2); // lo que estaba en camino
+        const std::uint64_t antes = g.estado().value("bytes", std::uint64_t{0});
+        andar(5);
+        const std::uint64_t durante = g.estado().value("bytes", std::uint64_t{0});
+        std::printf("pausa: %llu bytes al pausar, %llu un segundo después\n", static_cast<unsigned long long>(antes),
+                    static_cast<unsigned long long>(durante));
+        CHECK(durante - antes < 20000, "en pausa no escribe (casi nada)");
+        g.pausar(false);
+        andar(8);
+        CHECK(g.estado().value("bytes", std::uint64_t{0}) > durante + 50000, "al soltarla sigue escribiendo");
+        g.pausar(true);
+        CHECK(g.parar(), "parar en pausa cierra el archivo");
+        const auto ar = g.archivos();
+        CHECK(ar.size() == 1, "un solo archivo con la pausa adentro");
+        if (!ar.empty()) {
+            const Info i = mirar(ar[0]);
+            std::printf("con pausa: %.2f s\n", i.seg);
+            CHECK(i.ok && i.videos == 1, "se abre, con su video");
+        }
+    }
+    {
+        Grabacion::Config gc;
+        gc.carpeta = dir;
+        gc.nombre = "tramos";
+        gc.tramoSeg = 1;
+        gc.kbps = 2000;
+        gc.gopSeg = 1;
+        Grabacion g(motor.reloj(), gc);
+        CHECK(g.iniciar(f).empty(), "la grabación en tramos arranca");
+        for (int i = 0; i < 18; ++i) {
+            esperar(200);
+            g.tic();
+        }
+        g.parar();
+        const auto ar = g.archivos();
+        std::printf("tramos: %zu archivos\n", ar.size());
+        CHECK(ar.size() >= 3, "varios tramos de 1 s");
+        for (const auto& a : ar) CHECK(mirar(a).ok, "cada tramo se abre");
+    }
+    // Transmisión por SRT a esta misma máquina: el motor escucha, un receptor
+    // demultiplexa y cuenta lo que llega (video H.264 y audio AAC).
+    if (hayFabrica("srtsink") && hayFabrica("srtsrc") && hayFabrica("tsdemux")) {
+        const int puerto = 20000 + getpid() % 20000;
+        Transmision::Config tc;
+        tc.url = "srt://:" + std::to_string(puerto) + "?mode=listener";
+        tc.kbps = 1500;
+        Transmision t(motor.reloj(), tc);
+        CHECK(t.iniciar(f).empty(), "la transmisión SRT arranca");
+        const std::string rx = "srtsrc uri=srt://127.0.0.1:" + std::to_string(puerto) +
+                               "?mode=caller latency=120 ! tsdemux name=d d. ! video/x-h264 ! queue ! h264parse ! fakesink name=v sync=false "
+                               "d. ! audio/mpeg ! queue ! aacparse ! fakesink name=a sync=false";
+        // (Con el tipo en cada rama: tsdemux puede dar primero el audio.)
+        GstElement* r = gst_parse_launch(rx.c_str(), nullptr);
+        std::atomic<int> nv{0}, na{0};
+        for (auto [nom, cuenta] : {std::pair<const char*, std::atomic<int>*>{"v", &nv}, {"a", &na}}) {
+            GstElement* s = gst_bin_get_by_name(GST_BIN(r), nom);
+            GstPad* pad = gst_element_get_static_pad(s, "sink");
+            gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER,
+                              [](GstPad*, GstPadProbeInfo*, gpointer d) {
+                                  ++*static_cast<std::atomic<int>*>(d);
+                                  return GST_PAD_PROBE_OK;
+                              },
+                              cuenta, nullptr);
+            gst_object_unref(pad);
+            gst_object_unref(s);
+        }
+        gst_element_set_state(r, GST_STATE_PLAYING);
+        for (int i = 0; i < 20; ++i) {
+            esperar(200);
+            t.tic();
+        }
+        const json st = t.estado();
+        std::printf("SRT: recibidos %d cuadros y %d bloques de audio; %s\n", nv.load(), na.load(), st.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+        CHECK(nv > 30, "llega el video");
+        CHECK(na > 30, "llega el audio");
+        CHECK(st.value("conectada", false), "conectada");
+        CHECK(st.value("kbps", 0.0) > 100, "mide lo que sale");
+        gst_element_set_state(r, GST_STATE_NULL);
+        gst_object_unref(r);
+        t.parar();
+        CHECK(!t.andando(), "parada");
+    }
+    // RTMP a un puerto cerrado: queda reconectando (con espera creciente) y no muestra la clave.
+    {
+        Transmision::Config tc;
+        tc.url = "rtmp://127.0.0.1:1/live/clave-secreta";
+        Transmision t(motor.reloj(), tc);
+        CHECK(t.iniciar(f).empty(), "RTMP arranca (y reintenta)");
+        // En Windows, cada intento contra un puerto cerrado tarda varios segundos en
+        // fallar: alcanza con que quede reconectando después de un intento.
+        for (int i = 0; i < 60 && t.estado().value("intentos", 0) < 1; ++i) {
+            esperar(200);
+            t.tic();
+        }
+        const json st = t.estado();
+        std::printf("RTMP sin servidor: %s\n", st.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+        CHECK(st.value("reconectando", false), "queda reconectando");
+        CHECK(st.value("intentos", 0) >= 1, "reintenta");
+        CHECK(st.value("url", "").find("clave-secreta") == std::string::npos, "no muestra la clave");
+        t.parar();
+    }
+    {
+        Transmision t(motor.reloj(), Transmision::Config{"http://x", 1000, 128, 2, 30, {}});
+        CHECK(!t.iniciar(f).empty(), "una dirección rara avisa");
+    }
+
+    motor.detener();
+    std::error_code ec;
+    std::filesystem::remove_all(dir, ec);
+    std::printf("== test_salidas: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
+    return fallos == 0 ? 0 : 1;
+}

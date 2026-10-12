@@ -1,0 +1,18 @@
+{
+  "id": "conferencia-recinto",
+  "nombre": "Sistema de conferencia del recinto (micrófonos de banca)",
+  "descripcion": "Escucha el sistema de conferencia del recinto (qué micrófono de banca se abre) y lo publica como evento estándar «conferencia/microfono» {banca, abierto}: «Seguir al micrófono» (fuente conferencia) lo usa para proponer o armar la banca que pidió la palabra. Modos: «simulador» (para probar sin el equipo: abre y cierra bancas del cuerpo), «tcp_lineas» (un servidor que manda una línea por cambio; `patron` dice cómo leerla: el formato por defecto es «MIC <banca> ON|OFF») y «escucha_tcp» (al revés: el sistema se conecta acá). Para Bosch DICENTIS, Televic Confidea, Shure MXCW o Sennheiser hay que adaptar el modo a su protocolo (el asistente lo hace con el manual del equipo): sin probar todavía con un equipo real.",
+  "version": "1.0",
+  "principal": "plugin.py",
+  "dependencias": [],
+  "config": {
+    "modo": "simulador",
+    "host": "",
+    "puerto": 9000,
+    "patron": "MIC\\s+(?P<banca>\\w+)\\s+(?P<estado>ON|OFF|1|0)",
+    "simulador_cada_s": 12,
+    "al_abrir": "nada",
+    "conectar_s": 10,
+    "reconectar_s": 5
+  }
+}

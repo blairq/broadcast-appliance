@@ -16,8 +16,9 @@
 #include "ui/Seguidor.hpp"
 #include "ui/StudioViewModel.hpp"
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -44,6 +45,33 @@ void McpService::registerPtzTools() {
                       "zoom en la GPU) y, si la cámara es motorizada, su backend (VISCA, ONVIF, Panasonic). "
                       "Y «Mejorar imagen».");
     const QPointer<ptz::ControlCamaras> c = cc;
+    // Interlock: la cámara AL AIRE no se mueve por pedido de algo automático.
+    // Con `forzar` igual pasa por la confirmación de aire (McpAire). El
+    // `ptz_seguir` en modo suave puede seguir si el interlock lo permite.
+    const auto conInterlock = [c](Tool& t) {
+        if (t.inputSchema.contains("properties"))
+            t.inputSchema["properties"]["forzar"] = {
+                {"type", "boolean"},
+                {"description", "mover aunque la camara este al aire (igual pide confirmacion en vivo)"}};
+        auto run = t.run;
+        const std::string nombre = t.name;
+        t.run = [c, run, nombre](const json& a, Done done) {
+            if (c) {
+                const QString e = QString::fromStdString(a.value("entrada", std::string()));
+                const QVariantMap il = c->interlock();
+                const bool suave = nombre == "ptz_seguir" && a.value("modo", std::string()) == "suave" &&
+                                   il.value("seguir_suave_permitido").toBool();
+                if (!e.isEmpty() && il.value("activo").toBool() && c->alAire(e) && !a.value("forzar", false) && !suave) {
+                    ToolResult r = ToolResult::error("La camara «" + e.toStdString() +
+                                                     "» esta AL AIRE: moverla se ve. Usá otra camara, o `forzar`: true "
+                                                     "(pide confirmacion al operador).");
+                    r.structured = json{{"camara_al_aire", true}};
+                    return done(r);
+                }
+            }
+            run(a, done);
+        };
+    };
     AppRuntime& rt = rt_;
     const auto resultado = [](const QString& error, const std::string& ok) {
         return error.isEmpty() ? ToolResult::ok(ok) : ToolResult::error(error.toStdString());
@@ -65,7 +93,40 @@ void McpService::registerPtzTools() {
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             c->sincronizar();
-            done(ToolResult().data(aJson(c->estadoJson(qarg(a, "entrada")))));
+            json d = aJson(c->estadoJson(qarg(a, "entrada")));
+            // Cuáles están al aire (el interlock no las deja mover).
+            const auto marcar = [&c](json& cam) {
+                if (cam.is_object() && cam.contains("entrada"))
+                    cam["al_aire"] = c->alAire(QString::fromStdString(cam.value("entrada", std::string())));
+            };
+            if (d.is_array()) for (auto& cam : d) marcar(cam);
+            else if (d.is_object() && d.contains("camaras") && d["camaras"].is_array()) for (auto& cam : d["camaras"]) marcar(cam);
+            else marcar(d);
+            done(ToolResult().data(d));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_interlock";
+        t.title = "Interlock de PTZ (no mover la camara al aire)";
+        t.category = "camaras";
+        t.description = "Con `activo` (de fabrica true), lo automatico (asistente, plugins, disparadores) no mueve una "
+                        "camara que esta en la escena al aire: error camara_al_aire, salvo `forzar` (que pide "
+                        "confirmacion). `seguir_suave_permitido`: el seguimiento en modo suave sigue igual. Sin "
+                        "argumentos, muestra el ajuste.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}}, {"seguir_suave_permitido", {{"type", "boolean"}}}}}};
+        t.run = [c, this](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            if (a.contains("activo") && !a.value("activo", true) && core_.hayAire())
+                return done(ToolResult::error("Al aire no se apaga el interlock de PTZ."));
+            QVariantMap m;
+            if (a.contains("activo")) m["activo"] = a.value("activo", true);
+            if (a.contains("seguir_suave_permitido")) m["seguir_suave_permitido"] = a.value("seguir_suave_permitido", true);
+            if (!m.isEmpty()) c->setInterlock(m);
+            done(ToolResult().data(aJson(QJsonObject::fromVariantMap(c->interlock()))));
         };
         core_.addTool(std::move(t));
     }
@@ -114,6 +175,7 @@ void McpService::registerPtzTools() {
                 });
             });
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     if (auto* sg = vm_.seguidorPtz()) {
@@ -154,20 +216,27 @@ void McpService::registerPtzTools() {
             t.name = "ptz_seguir";
             t.title = "Seguir a una persona con el PTZ";
             t.category = "camaras";
-            t.description = "La cámara `entrada` sigue a una cara y la mantiene en el centro: con el PTZ "
-                            "real si tiene motor (pulsos de "
-                            "pan/tilt), si no con el recorte digital. `persona`: el id de alguien reconocido "
-                            "(de ptz_rostros o Personas; "
-                            "la sigue aunque se cruce con otro); o `x`, `y` (0..1): la cara sin nombre que "
-                            "está ahí. `parar: true` deja "
-                            "de seguir. El estado (siguiendo, centrada, perdida) sale en ptz_camaras… y en "
-                            "la ventana del PTZ.";
+            t.description =
+                "La cámara `entrada` sigue a una cara y la mantiene encuadrada. A quién: `persona` (el id de alguien "
+                "reconocido, de ptz_rostros o Personas: la vuelve a encontrar si se cruza con otro), `cara` (el número "
+                "que le puso la tarjeta Rostros), `regla` (\"mayor\": la más grande; \"centro\": la más cercana al "
+                "centro) o `x`, `y` (0..1 de la toma entera: la cara más cercana a ese punto). `parar: true` deja de seguir.";
+            t.details =
+                "Corre en el pipeline de la entrada, con tarjetas que se pueden ver y mover en Video › Racks: Rostros "
+                "(barostros) ve las caras, Seguimiento (baseguir) elige y decide el encuadre, y el PTZ digital (baptz) va "
+                "hacia ahí. Se hablan con eventos de GStreamer (ba/rostros, ba/encuadre, ba/ptz) en las dos direcciones, "
+                "así que anda en cualquier orden. Si faltan, las tarjetas Rostros y Seguimiento se ponen solas. Con una "
+                "cámara motorizada (VISCA, ONVIF) la app la mueve con pulsos según el mensaje «ba-seguir» de la tarjeta. "
+                "Ajustes del encuadre (zoom, tamaño de la cara, aire, suavidad, zona muerta): video_tarjeta_ajustar sobre "
+                "la tarjeta Seguimiento. El estado (siguiendo, buscando, perdida) sale en ptz_camaras y en la tarjeta.";
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada"}},
                              {"properties",
                               {{"entrada", entrada},
                                {"persona", {{"type", "string"}}},
                                {"nombre", {{"type", "string"}}},
+                               {"cara", {{"type", "integer"}, {"description", "el número de la cara (tarjeta Rostros)"}}},
+                               {"regla", {{"type", "string"}, {"enum", {"mayor", "centro"}}}},
                                {"x", {{"type", "number"}}},
                                {"y", {{"type", "number"}}},
                                {"parar", {{"type", "boolean"}}}}}};
@@ -179,6 +248,8 @@ void McpService::registerPtzTools() {
                     return done(ToolResult::ok("Dejó de seguir en «" + e.toStdString() + "»."));
                 }
                 QVariantMap obj{{"id", qarg(a, "persona")}, {"nombre", qarg(a, "nombre")}};
+                if (a.contains("cara")) obj["cara"] = a.value("cara", 0);
+                if (a.contains("regla")) obj["regla"] = qarg(a, "regla");
                 if (a.contains("x")) obj["x"] = a.value("x", 0.5);
                 if (a.contains("y")) obj["y"] = a.value("y", 0.5);
                 const QString err = seg->seguir(e, obj);
@@ -186,7 +257,8 @@ void McpService::registerPtzTools() {
                 done(ToolResult::ok("Siguiendo en «" + e.toStdString() +
                                     "». Para dejar: ptz_seguir {\"entrada\", \"parar\": true}."));
             };
-            core_.addTool(std::move(t));
+            conInterlock(t);
+        core_.addTool(std::move(t));
         }
     }
     {
@@ -216,7 +288,7 @@ void McpService::registerPtzTools() {
                          {"required", {"entrada", "numero"}},
                          {"properties",
                           {{"entrada", entrada},
-                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"maximum", 128}}},
+                           {"numero", {{"type", "integer"}, {"minimum", 1}, {"maximum", 256}}},
                            {"accion", {{"type", "string"}, {"enum", {"ir", "guardar"}}}}}}};
         t.examples = {R"({"entrada": "Cámara 1", "numero": 2})",
                       R"({"entrada": "Cámara 1", "numero": 3, "accion": "guardar"})"};
@@ -228,6 +300,7 @@ void McpService::registerPtzTools() {
             done(resultado(guardar ? c->guardarPreset(e, n) : c->irPreset(e, n),
                            (guardar ? "preset guardado: " : "yendo al preset ") + std::to_string(n)));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {
@@ -256,6 +329,7 @@ void McpService::registerPtzTools() {
                                        a.value("zoom", 1.0), a.value("segundos", 1.0)),
                            "encuadre aplicado"));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {
@@ -285,6 +359,7 @@ void McpService::registerPtzTools() {
                                       a.value("ancho", 0.0), a.value("alto", 0.0)),
                            "apuntada"));
         };
+        conInterlock(t);
         core_.addTool(std::move(t));
     }
     {
@@ -361,7 +436,9 @@ void McpService::registerPtzTools() {
         t.description =
             "Las posiciones guardadas de una cámara (o de todas): id, nombre, comentario, la definición en "
             "que se "
-            "registró, el encuadre digital (x, y, zoom) y la memoria de la cámara donde quedó grabada.";
+            "registró, el encuadre digital (x, y, zoom), la memoria de la cámara donde quedó grabada, la "
+            "velocidad y los segundos con que se va, y `miniatura_ruta` (la foto JPEG; se puede mirar con "
+            "image_view o mandarla a quien la pida).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"entrada", entrada}}}};
         t.run = [c](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
@@ -390,18 +467,32 @@ void McpService::registerPtzTools() {
             "cámara) y un "
             "`comentario`: el encuadre digital y, si la cámara es motorizada, la graba en una memoria de la "
             "cámara. "
-            "Guarda también la definición de la entrada. Primero encuadrá (ptz_mover, ptz_encuadre).";
-        t.inputSchema = {
-            {"type", "object"},
-            {"required", {"entrada", "nombre"}},
-            {"properties",
-             {{"entrada", entrada}, {"nombre", {{"type", "string"}}}, {"comentario", {{"type", "string"}}}}}};
+            "Guarda también la definición de la entrada y una FOTO (miniatura de 320 px, sale sola un "
+            "instante después). `velocidad` (0..1, 0 = la de la cámara) es la de la cabeza al volver; "
+            "`segundos` los del recorte digital. Primero encuadrá (ptz_mover, ptz_encuadre).";
+        const json velocidad = {{"type", "number"},
+                                {"minimum", 0},
+                                {"maximum", 1},
+                                {"description", "Velocidad de la cabeza al ir (0 = la de la cámara)."}};
+        const json segundos = {{"type", "number"},
+                               {"minimum", -1},
+                               {"maximum", 10},
+                               {"description", "Segundos del recorte digital al ir (-1 = sin fijar)."}};
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "nombre"}},
+                         {"properties",
+                          {{"entrada", entrada},
+                           {"nombre", {{"type", "string"}}},
+                           {"comentario", {{"type", "string"}}},
+                           {"velocidad", velocidad},
+                           {"segundos", segundos}}}};
         t.examples = {
             R"({"entrada": "Cámara 1", "nombre": "Atril", "comentario": "Plano medio del orador, con el logo"})"};
         t.run = [c, mapaAJson](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             const QVariantMap r =
-                c->crearPosicion(qarg(a, "entrada"), qarg(a, "nombre"), qarg(a, "comentario"));
+                c->crearPosicion(qarg(a, "entrada"), qarg(a, "nombre"), qarg(a, "comentario"),
+                                 a.value("velocidad", 0.0), a.value("segundos", -1.0));
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
         };
@@ -413,9 +504,9 @@ void McpService::registerPtzTools() {
         t.title = "Cambiar una posición";
         t.category = "camaras";
         t.idempotent = true;
-        t.description = "Cambia el `nombre` o el `comentario` de una posición; con `regrabar: true` la "
-                        "vuelve a registrar donde "
-                        "está ahora la cámara (encuadre, memoria y definición).";
+        t.description = "Cambia el `nombre`, el `comentario`, la `velocidad` (0..1) o los `segundos` de una "
+                        "posición; con `regrabar: true` la vuelve a registrar donde está ahora la cámara "
+                        "(encuadre, memoria, definición y foto); con `miniatura: true` solo saca la foto de nuevo.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
                          {"properties",
@@ -423,13 +514,19 @@ void McpService::registerPtzTools() {
                            {"posicion", posicion},
                            {"nombre", {{"type", "string"}}},
                            {"comentario", {{"type", "string"}}},
-                           {"regrabar", {{"type", "boolean"}}}}}};
+                           {"velocidad", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}},
+                           {"segundos", {{"type", "number"}, {"minimum", -1}, {"maximum", 10}}},
+                           {"regrabar", {{"type", "boolean"}}},
+                           {"miniatura", {{"type", "boolean"}}}}}};
         t.run = [c, mapaAJson](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             QVariantMap cambios;
             if (a.contains("nombre")) cambios["nombre"] = qarg(a, "nombre");
             if (a.contains("comentario")) cambios["comentario"] = qarg(a, "comentario");
             if (a.contains("regrabar")) cambios["regrabar"] = a.value("regrabar", false);
+            if (a.contains("miniatura")) cambios["miniatura"] = a.value("miniatura", false);
+            if (a.contains("velocidad")) cambios["velocidad"] = a.value("velocidad", 0.0);
+            if (a.contains("segundos")) cambios["segundos"] = a.value("segundos", -1.0);
             const QVariantMap r = c->editarPosicion(qarg(a, "entrada"), qarg(a, "posicion"), cambios);
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
@@ -459,7 +556,8 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.description =
             "Lleva la cámara `entrada` a la posición (id o nombre): la cabeza a su memoria y el recorte a su "
-            "encuadre, en `segundos` (0 = corte; de fábrica 1). Avisa si la definición cambió desde que se "
+            "encuadre, en `segundos` (0 = corte; si no se dice, los de la posición o 1). La cabeza va con la "
+            "velocidad de la posición. Avisa si la definición cambió desde que se "
             "registró.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"entrada", "posicion"}},
@@ -472,9 +570,39 @@ void McpService::registerPtzTools() {
         t.run = [c, mapaAJson](const json& a, Done done) {
             if (!c) return done(ToolResult::error("el PTZ no está disponible"));
             const QVariantMap r =
-                c->irAPosicion(qarg(a, "entrada"), qarg(a, "posicion"), a.value("segundos", 1.0));
+                c->irAPosicion(qarg(a, "entrada"), qarg(a, "posicion"), a.value("segundos", -1.0));
             if (!r["ok"].toBool()) return done(ToolResult::error(r["error"].toString().toStdString()));
             done(ToolResult().data(mapaAJson(r)));
+        };
+        conInterlock(t);
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "ptz_posicion_foto";
+        t.title = "La foto de una posición";
+        t.category = "camaras";
+        t.readOnly = true;
+        t.description = "La miniatura de una posición (cómo se veía cuando se registró), como imagen. Si no "
+                        "tiene, sacala con ptz_posicion_editar {miniatura: true} (la cámara tiene que estar ahí).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "posicion"}},
+                         {"properties", {{"entrada", entrada}, {"posicion", posicion}}}};
+        t.run = [c](const json& a, Done done) {
+            if (!c) return done(ToolResult::error("el PTZ no está disponible"));
+            const QString clave = qarg(a, "posicion");
+            for (const QVariant& v : c->posiciones(qarg(a, "entrada"))) {
+                const QVariantMap m = v.toMap();
+                if (m["id"].toString() != clave && m["nombre"].toString().compare(clave, Qt::CaseInsensitive) != 0) continue;
+                QFile f(m.value("miniatura_ruta").toString());
+                if (!f.open(QIODevice::ReadOnly))
+                    return done(ToolResult::error("la posición «" + m["nombre"].toString().toStdString() + "» no tiene foto"));
+                ToolResult r;
+                r.text("«" + m["nombre"].toString().toStdString() + "» (" + m.value("miniatura_ruta").toString().toStdString() + ")");
+                r.image(f.readAll().toBase64().toStdString(), "image/jpeg");
+                return done(r);
+            }
+            done(ToolResult::error("No hay una posición «" + clave.toStdString() + "» en esa entrada"));
         };
         core_.addTool(std::move(t));
     }
@@ -512,7 +640,7 @@ void McpService::registerPtzTools() {
         t.category = "camaras";
         t.idempotent = true;
         t.description =
-            "Mejorar imagen en las cámaras que siguen lo general (Configuración → Video): `activa`, y la "
+            "Mejorar imagen en las cámaras que siguen lo general (Configuración → Cámaras y entradas): `activa`, y la "
             "intensidad "
             "de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin "
             "argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.";

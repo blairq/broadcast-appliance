@@ -50,6 +50,9 @@ class Traza {
     /// :param tope: cuanto texto como mucho. Lo que sobra se resume en
     ///        «…(+N)» para que se vea que habia mas y no parezca completo.
     static std::string resumir(const nlohmann::json& j, std::size_t tope = 900);
+    /// El mismo JSON, sin secretos y con lo largo recortado (lo usa también la
+    /// bitácora del evento).
+    static nlohmann::json limpio(const nlohmann::json& j);
 
    private:
     Traza() = default;

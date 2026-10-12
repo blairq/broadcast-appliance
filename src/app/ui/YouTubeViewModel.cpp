@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ui/YouTubeViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
+#include "platform/Paths.hpp"
 
 #include <QClipboard>
 #include <QCoreApplication>
@@ -17,8 +19,8 @@
 
 #include <algorithm>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
 #include "net/HttpsClient.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
 
@@ -40,7 +42,7 @@ QJsonArray withUid(const QJsonArray& in, const QString& key = "id") {
 
 YouTubeViewModel::YouTubeViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<YouTubeClient>(
-                                    QString::fromStdString((rt.dataRoot() / "Credenciales").string()))),
+                                    QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "privacy", "publishedAt", "thumb", "views", "likes",
                       "comments", "duration", "url", "live", "uploadStatus"})),
@@ -183,12 +185,16 @@ void YouTubeViewModel::fetchThumbs(const QJsonArray& items, JsonListModel* model
     }
 }
 
-QString YouTubeViewModel::recordingsDir() const { return QString::fromStdString(rt_.config().rec.directory); }
+QString YouTubeViewModel::recordingsDir() const { return QString::fromStdString(rt_.carpetaGrabacion()); }
 
 void YouTubeViewModel::refreshRecordings() {
-    QDir d(recordingsDir());
-    const QFileInfoList files =
-        d.entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
+    // Las del evento en curso y las de Recordings/, lo más nuevo primero.
+    QFileInfoList files;
+    for (const std::string& c : rt_.carpetasDeGrabaciones())
+        files += QDir(QString::fromStdString(c))
+                     .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
+    std::sort(files.begin(), files.end(),
+              [](const QFileInfo& a, const QFileInfo& b) { return a.lastModified() > b.lastModified(); });
     QJsonArray out;
     for (const QFileInfo& f : files) {
         out.append(QJsonObject{{"id", f.absoluteFilePath()},
@@ -304,6 +310,10 @@ void YouTubeViewModel::goLive(const QString& broadcastId, YouTubeClient::Done do
         self->liveBroadcastId_ = broadcastId;
         self->setChatBroadcast(broadcastId);
         emit self->stateChanged();
+        emit self->vivo(QVariantMap{{"plataforma", "youtube"},
+                                    {"id", broadcastId},
+                                    {"url", "https://youtu.be/" + broadcastId},
+                                    {"estudio", "https://studio.youtube.com/video/" + broadcastId + "/livestreaming"}});
         done(true,
              QJsonObject{{"broadcastId", broadcastId},
                          {"server", url},
@@ -426,7 +436,7 @@ void YouTubeViewModel::pollChat() {
                                           "warn");
                         return;
                     }
-                    self->chatTimer_.start(15000);
+                    self->chatTimer_.start(ba::ajustes::sAMs("chat.reintentoS", 15));
                     return;
                 }
                 self->chatPageToken_ = d.value("nextPageToken").toString();
@@ -434,7 +444,7 @@ void YouTubeViewModel::pollChat() {
                 if (!fresh.isEmpty()) {
                     for (const QJsonValue& v : fresh)
                         self->chatItems_.append(v);
-                    while (self->chatItems_.size() > 300)
+                    while (self->chatItems_.size() > ba::ajustes::entero("chat.historial", 300))
                         self->chatItems_.removeFirst();
                     self->chat_->setItems(withUid(self->chatItems_));
                     emit self->chatChanged();
@@ -471,7 +481,7 @@ void YouTubeViewModel::pollChat() {
                          emit self->notify(
                              "YouTube: ese evento no tiene chat (todavia no empezo o esta deshabilitado).",
                              "warn");
-                         self->chatTimer_.start(20000);
+                         self->chatTimer_.start(ba::ajustes::sAMs("chat.sinChatS", 20));
                          return;
                      }
                      fetch();

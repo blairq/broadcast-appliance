@@ -44,7 +44,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 
 PEDIDO = ("Esta es una funcion de la API de un estudio de television en vivo:\n\n"
           "{desc}\n\nComo se llama la funcion? Responde solo el nombre.")

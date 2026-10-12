@@ -66,6 +66,19 @@ class AudioRack {
     AudioRack(const AudioRack&) = delete;
     AudioRack& operator=(const AudioRack&) = delete;
 
+    // --- Vigía de los módulos CLAP (corren en el hilo de audio de libobs) -------
+    // Cada process() se mide. Si un módulo tarda más del `umbralPct` % de lo que
+    // dura el bloque durante `bloques` bloques seguidos, queda en BYPASS
+    // AUTOMÁTICO (no se lo llama más; sale la entrada tal cual) hasta que alguien
+    // lo rearme. Si un process() no vuelve en 200 ms, el rack entero queda
+    // «colgado»: los bloques siguientes pasan secos sin entrar al rack.
+    static nlohmann::json vigia();
+    static std::string ponerVigia(const nlohmann::json& v); ///< {umbral_pct 10..200, bloques 1..1000}
+    /// Saca un módulo del bypass automático (y al rack de «colgado»). false si no existe.
+    bool rearmar(const std::string& nodo);
+    /// Los módulos que el vigía saltó desde la última vez que se preguntó (para avisar).
+    std::vector<std::string> tomarSaltados();
+
     // --- hilo principal --------------------------------------------------------------
     /// Agrega un modulo CLAP. `after`: insertarlo en la cadena despues de ese
     /// nodo ("" = justo antes de la salida). Devuelve el id nuevo o "".
@@ -210,6 +223,19 @@ class AudioRack {
     void rebuild();
     std::vector<std::string> mainChain() const;
 
+    std::atomic<std::int64_t> enProcesoDesde_{0}; ///< ns en que entró a un process() (0 = afuera)
+    std::atomic<bool> colgado_{false};
+    std::mutex saltadosMu_;
+    std::vector<std::string> saltados_;
+    /// Vuelve a armar el plan de todos los racks (un plugin cambió su latencia).
+   public:
+    static void rehacerTodos();
+    /// La latencia del rack de la entrada a la salida, en muestras (lo que atrasa el audio).
+    uint32_t latenciaMuestras() const { return latenciaTotal_.load(); }
+
+   private:
+    std::atomic<uint32_t> latenciaTotal_{0};
+    static void registrar(AudioRack* r, bool alta);
     std::shared_ptr<ClapLibrary> lib_;
     HostServices* services_ = nullptr;
     double sr_ = 48000;

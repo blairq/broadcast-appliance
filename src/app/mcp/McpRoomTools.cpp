@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QPainter>
+#include <QPointer>
 #include <QTimer>
 #include <QUrl>
 
@@ -19,9 +20,12 @@
 #include <memory>
 #include <set>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "net/AccesoRemoto.hpp"
+#include "ui/EventoViewModel.hpp"
+#include "ui/SettingsModel.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -182,12 +186,29 @@ void McpService::registerRoomTools() {
         t.title = "Lobby / sala cerrada";
         t.category = "sala";
         t.description =
-            "Lobby de admision (true = cada invitado espera que lo hagas pasar) y sala cerrada (nadie "
-            "nuevo puede entrar).";
+            "Lobby de admision (true = cada invitado espera que lo hagas pasar), sala cerrada (nadie "
+            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa, SIN reiniciar la sala, hasta los "
+            "lugares reservados (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).";
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"lobby", {{"type", "boolean"}}}, {"locked", {{"type", "boolean"}}}}}};
-        t.run = [post](const json& a, Done done) {
+            {"properties",
+             {{"lobby", {{"type", "boolean"}}},
+              {"locked", {{"type", "boolean"}}},
+              {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
+        t.run = [post, &vm = vm_](const json& a, Done done) {
+            if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
+                const int n = a.value("cupo", 2);
+                const QString e = vm.cupo(n, [done, n](const QString& err) {
+                    if (!err.isEmpty()) done(ToolResult::error("La sala respondio: " + err.toStdString()));
+                    else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la sala."));
+                });
+                if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
+                return;
+            }
+            if (a.contains("cupo")) {
+                const QString e = vm.cupoUi(a.value("cupo", 2));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            }
             json b = json::object();
             if (a.contains("lobby")) b["lobby"] = a["lobby"];
             if (a.contains("locked")) b["locked"] = a["locked"];
@@ -216,12 +237,69 @@ void McpService::registerRoomTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "room_pin_bloqueos";
+        t.title = "Bloqueos por PIN mal";
+        t.category = "sala";
+        t.description =
+            "Quién quedó bloqueado por poner mal el PIN y cómo destrabarlo. `accion`: «ver» (de fábrica) o "
+            "«desbloquear» (con `ip`, solo esa; sin `ip`, todas y también el bloqueo global).";
+        t.details =
+            "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
+            "puede entrar por `bloqueoS` segundos (Configuración → Sala). GLOBAL: de último recurso, si hay "
+            "muchísimos fallos entre todos (un ataque repartido) se cierra la entrada para todos un rato. "
+            "Por internet la IP es la real (la pasa ba-web desde el túnel). Desbloquear no cambia el PIN: si "
+            "alguien lo está adivinando, mejor cambiarlo (room_pin). Usalo cuando un invitado legítimo se "
+            "equivocó varias veces y no puede entrar, o cuando nadie puede entrar (global).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"ver", "desbloquear"}}}},
+                           {"ip", {{"type", "string"}, {"description", "Solo esta IP (al desbloquear)."}}}}}};
+        t.examples = {R"({})", R"({"accion": "desbloquear"})", R"({"accion": "desbloquear", "ip": "190.12.34.56"})"};
+        t.run = [client](const json& a, Done done) {
+            const auto mostrar = [done](const json& r, const std::string& antes) {
+                const json b = r.value("bloqueos", json::object());
+                std::string txt = antes;
+                const json g = b.value("global", json::object());
+                if (g.value("bloqueado", false))
+                    txt += "BLOQUEO GLOBAL activo: nadie puede entrar por " + std::to_string(g.value("quedanS", 0)) +
+                           " s más (" + std::to_string(g.value("fallos", 0)) + " fallos entre todos).\n";
+                int n = 0;
+                for (const auto& ip : b.value("ips", json::array()))
+                    if (ip.value("bloqueada", false)) {
+                        txt += "- " + ip.value("ip", std::string()) + ": bloqueada " +
+                               std::to_string(ip.value("quedanS", 0)) + " s más\n";
+                        ++n;
+                    }
+                if (!n && !g.value("bloqueado", false)) txt += "No hay nadie bloqueado.";
+                done(ToolResult::ok(txt).data(b));
+            };
+            if (a.value("accion", std::string("ver")) == "desbloquear") {
+                json b = json::object();
+                if (a.contains("ip") && a["ip"].is_string() && !a["ip"].get<std::string>().empty()) b["ip"] = a["ip"];
+                client->post("/api/v1/pin/desbloquear", toQt(b), [done, mostrar, b](bool ok, const QJsonObject& r) {
+                    const json j = fromQt(r);
+                    if (!ok) return done(ToolResult::error("La sala respondio: " + errorText(j)));
+                    mostrar(j, b.contains("ip") ? "Desbloqueada " + b["ip"].get<std::string>() + ".\n"
+                                                : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
+                                                      " IP y el bloqueo global.\n");
+                });
+                return;
+            }
+            client->get("/api/v1/pin/bloqueos", [done, mostrar](bool ok, const QJsonObject& r) {
+                if (!ok) return done(ToolResult::error("La sala (gateway) no respondió."));
+                mostrar(fromQt(r), "");
+            });
+        };
+        core_.addTool(std::move(t));
+    }
     // Volver a la fila. ESTABA EN UNA TABLA junto con admitir, rechazar y
     // sacar, y esas tres YA se registran una por una mas abajo, con su titulo,
     // sus detalles y sus ejemplos: se estaban publicando DOS VECES cada una.
     // El modelo las veia repetidas —dos fichas distintas con el mismo nombre—
     // y el listado pesaba de mas. Lo encontro el inventario del MCP
-    // (tools/mcp-inventario.py), que cuenta nombres repetidos.
+    // (tools/docs/mcp-inventario.py), que cuenta nombres repetidos.
     {
         Tool t;
         t.name = "participant_requeue";
@@ -319,11 +397,12 @@ void McpService::registerRoomTools() {
     {
         Tool t;
         t.name = "participant_talk";
-        t.title = "Hablar en privado (lobby)";
+        t.title = "Hablarle a un invitado (lobby en privado, adentro IFB)";
         t.category = "sala";
         t.description =
-            "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas); "
-            "on=false corta.";
+            "Con alguien del lobby: on=true le llega tu voz y vos lo escuchas por monitoreo (nadie mas). "
+            "Con alguien de ADENTRO (programa o fila de oradores) es IFB: le llega tu voz mezclada con su "
+            "retorno (el programa baja), sin salir al aire. on=false corta.";
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}, {"default", true}}}}},
@@ -332,6 +411,383 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             post(partPath(p, "talk"), json{{"on", a.value("on", true)}}, "Listo.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- El proxy por nombre (T61) ------------------------------------------------
+    {
+        Tool t;
+        t.name = "proxy_estado";
+        t.title = "Proxy por nombre: servicios y certificados";
+        t.category = "sala";
+        t.readOnly = true;
+        t.description = "El proxy propio (443/80): cada servicio con su nombre (sesion.<dominio>, botonera.<dominio>…), "
+                        "a qué va, si es solo de la red local, y su certificado (acme = Let's Encrypt, casa = "
+                        "autofirmado) con la fecha en que vence (segundos desde 1970). Más el estado de ACME: último "
+                        "error y si está pidiendo ahora.";
+        t.run = [client, &rt](const json&, Done done) {
+            client->get("/api/v1/proxy", [done, &rt](bool ok, const QJsonObject& r) {
+                json out = fromQt(r);
+                out["configuracion"] = rt.gateway().proxy;
+                if (!ok) return done(ToolResult::error("la sala no contestó"));
+                done(ToolResult().data(out));
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Acceso remoto por pinggy (docs/planes/PINGGY.md) ---------------------------
+    if (AccesoRemoto* ar = vm.accesoRemoto(); ar != nullptr) {
+        const QPointer<AccesoRemoto> acc = ar;
+        Tool t;
+        t.name = "acceso_remoto_estado";
+        t.title = "Acceso remoto por pinggy: estado y direcciones";
+        t.category = "sala";
+        t.readOnly = true;
+        t.openWorld = true;
+        t.description =
+            "El túnel de pinggy.io por el que entran los de afuera: `pinggy.estado` (apagado, conectando, listo, "
+            "reconectando, error), la dirección pública (`pinggy.urlPublica`) y `enlaces` (invitados, sesión remota, "
+            "público, botonera), el último `pinggy.error` y el TURN (`pinggy.turn`). `configuracion`: activo, región, "
+            "tipo de dirección (azar | pinggy = subdominio fijo | propio = dominio propio), host y destino del CNAME. "
+            "`token_tunel` dice solo si está guardado o falta: el token lo carga el operador en Configuración → Acceso "
+            "remoto, vos nunca lo pedís ni lo ves. Con dominio propio trae `instrucciones_dns` para pasarle al que "
+            "administra el DNS. Para cambiar la configuración: settings_set con las claves pinggy.* (reinicia la sala). "
+            "`disponible` false = la sala no está andando o es una versión que no informa el túnel. "
+            "SIN TOKEN (gratis): dirección al azar que cambia cada vez, 60 minutos por túnel y pinggy le muestra a cada "
+            "navegador un aviso que hay que aceptar. CON TOKEN (Pro): sin límite ni aviso, dirección fija (subdominio de "
+            "pinggy o dominio propio con CNAME), puertos fijos; un token por equipo.";
+        t.run = [acc](const json&, Done done) {
+            if (!acc) return done(ToolResult::error("no disponible"));
+            acc->consultar([done](json r) { done(ToolResult().data(r)); });
+        };
+        core_.addTool(std::move(t));
+    }
+    if (AccesoRemoto* ar = vm.accesoRemoto(); ar != nullptr) {
+        const QPointer<AccesoRemoto> acc = ar;
+        // Espera a que `campo` (dns/panel) deje de estar «verificando/consultando» (o 30 s).
+        const auto esperar = [acc](void (AccesoRemoto::*senal)(), std::function<QVariantMap()> leer, Done done) {
+            auto conn = std::make_shared<QMetaObject::Connection>();
+            auto listo = std::make_shared<bool>(false);
+            auto terminar = [conn, listo, leer, done]() {
+                if (*listo) return;
+                const QVariantMap m = leer();
+                const QString e = m.value("estado").toString();
+                if (e == "verificando" || e == "consultando" || e == "trabajando") return;
+                *listo = true;
+                QObject::disconnect(*conn);
+                done(ToolResult().data(json{{"estado", m.value("estado").toString().toStdString()},
+                                            {"texto", m.value("texto").toString().toStdString()}}));
+            };
+            *conn = QObject::connect(acc.data(), senal, acc.data(), terminar);
+            QTimer::singleShot(30000, acc.data(), [conn, listo, done]() {
+                if (*listo) return;
+                *listo = true;
+                QObject::disconnect(*conn);
+                done(ToolResult::error("pinggy/DNS no contestó en 30 s"));
+            });
+            terminar(); // por si ya terminó
+        };
+        {
+            Tool t;
+            t.name = "acceso_remoto_clave";
+            t.title = "Acceso remoto: guardar o borrar una clave (pinggy o Cloudflare)";
+            t.category = "sala";
+            t.idempotent = true;
+            t.description =
+                "Guarda CIFRADA en la bóveda (Credenciales/) la clave que te pasó el operador, o la borra. "
+                "`tipo`: \"token\" (el token del PLAN de pinggy: abre el túnel; el del comando …@pro.pinggy.io), \"api_key\" (la "
+                "API key de pinggy: control de la cuenta por API, con acceso_remoto_panel; NO abre túneles) o "
+                "\"cloudflare\" (el token del túnel de Cloudflare, Configuración → Cloudflare). Nunca se devuelve ni se escribe "
+                "en el registro: la respuesta dice solo «guardada». Con pinggy lo normal es guardar SOLO la api_key y "
+                "seguir con acceso_remoto_configurar_con_api_key (trae el token sola); el token a mano es solo si no "
+                "hay API key. Si no sabés cuál es, guardala como api_key y probá acceso_remoto_panel (si la acepta, es "
+                "la API key). El token rige al reiniciar la sala. Guía: help {\"topic\": \"acceso_remoto\"}.";
+            t.inputSchema = {
+                {"type", "object"},
+                {"properties",
+                 {{"tipo", {{"type", "string"}, {"enum", {"token", "api_key", "cloudflare"}}}},
+                  {"clave", {{"type", "string"}, {"description", "la clave (no hace falta para borrar)"}}},
+                  {"borrar", {{"type", "boolean"}, {"default", false}}}}},
+                {"required", {"tipo"}}};
+            t.run = [acc](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const std::string tipo = a.value("tipo", std::string());
+                const bool borrar = a.value("borrar", false);
+                const QString clave = QString::fromStdString(a.value("clave", std::string())).trimmed();
+                QString e;
+                if (tipo == "token") e = borrar ? acc->borrarToken() : acc->guardarToken(clave);
+                else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : acc->guardarApiKey(clave);
+                else if (tipo == "cloudflare") e = borrar ? acc->borrarTokenCloudflare() : acc->guardarTokenCloudflare(clave);
+                else return done(ToolResult::error("tipo: \"token\", \"api_key\" o \"cloudflare\""));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel de pinggy " : tipo == "cloudflare" ? "Token de Cloudflare " : "API key ") +
+                                    (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
+                                    (tipo != "api_key" && !borrar ? " Rige al reiniciar la sala (gateway_restart o "
+                                                                  "aplicar Configuración)."
+                                                                : "") +
+                                    (acc->clavesIguales()
+                                         ? " OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
+                                           "panel de pinggy: el token (el del comando del túnel, …@pro.pinggy.io) abre el túnel; la "
+                                           "API key (API keys) solo sirve para consultar la cuenta. Con la API key como token el "
+                                           "túnel no abre."
+                                         : "")));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_configurar";
+            t.title = "Acceso remoto: configurar pinggy";
+            t.category = "sala";
+            t.description =
+                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la sala (corta a los invitados un momento). "
+                "Para armarlo de cero con la API key (token, subdominio y puerto de la cuenta) usá acceso_remoto_configurar_con_api_key. "
+                "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
+                "propio: va con `host` y `cname_destino`).";
+            t.inputSchema = {
+                {"type", "object"},
+                {"properties",
+                 {{"activo", {{"type", "boolean"}}},
+                  {"region", {{"type", "string"}, {"enum", {"auto", "us", "eu", "ap"}}}},
+                  {"direccion", {{"type", "string"}, {"enum", {"azar", "pinggy", "propio"}}}},
+                  {"host", {{"type", "string"}, {"description", "subdominio fijo o dominio propio"}}},
+                  {"cname_destino", {{"type", "string"}, {"description", "lo que muestra el panel de pinggy"}}},
+                  {"turn", {{"type", "boolean"}, {"description", "video de los invitados de afuera por el túnel"}}},
+                  {"turn_udp", {{"type", "boolean"}}},
+                  {"turn_tcp_puerto", {{"type", "integer"}}},
+                  {"turn_udp_puerto", {{"type", "integer"}}},
+                  {"lista_blanca", {{"type", "string"}, {"description", "IPs o redes separadas por coma; vacío = todos"}}}}}};
+            t.examples = {R"({"activo": true, "direccion": "propio", "host": "sala.miorganismo.gob.ar", "cname_destino": "abc.a.pinggy.link"})"};
+            SettingsModel* settings = settings_.get();
+            t.run = [settings, &vm](const json& a, Done done) {
+                if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
+                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
+                                                  "(reinicia la sala). Si hace falta, lo hace el operador desde la app."));
+                static const std::vector<std::pair<const char*, const char*>> kMapa = {
+                    {"activo", "pinggy.activo"},           {"region", "pinggy.region"},
+                    {"direccion", "pinggy.dominioTipo"},   {"host", "pinggy.host"},
+                    {"cname_destino", "pinggy.cnameDestino"}, {"turn", "pinggy.turn"},
+                    {"turn_udp", "pinggy.turnUdp"},        {"turn_tcp_puerto", "pinggy.turnTcpPuerto"},
+                    {"turn_udp_puerto", "pinggy.turnUdpPuerto"}, {"lista_blanca", "pinggy.listaBlanca"}};
+                settings->revert();
+                int n = 0;
+                for (const auto& [arg, clave] : kMapa) {
+                    if (!a.contains(arg)) continue;
+                    if (!settings->value(clave).isValid()) {
+                        settings->revert();
+                        return done(ToolResult::error(std::string("esta versión no tiene ") + clave));
+                    }
+                    settings->setValue(clave, jsonToQv(a[arg]));
+                    ++n;
+                }
+                if (n == 0) return done(ToolResult::error("no mandaste nada para cambiar"));
+                const QString summary = settings->apply();
+                auto* ui = static_cast<SettingsModel*>(vm.settings());
+                if (!ui->dirty()) ui->revert();
+                vm.refreshModels();
+                done(summary.contains("EN VIVO") || summary.contains("ERROR") ? ToolResult::error(summary.toStdString())
+                                                                              : ToolResult::ok(summary.toStdString()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_dns_instrucciones";
+            t.title = "Acceso remoto: instrucciones para el DNS";
+            t.category = "sala";
+            t.readOnly = true;
+            t.description = "El texto para mandarle al que administra el DNS (registro CNAME, pasos en el panel de "
+                            "pinggy, comodín, dominio raíz). Sin argumentos, con el dominio y el destino configurados.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
+            t.run = [acc, &rt = rt_](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
+                if (host.isEmpty()) return done(ToolResult::error("falta el dominio (host)"));
+                done(ToolResult::ok(acc->instruccionesDns(host, dest).toStdString()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_dns_verificar";
+            t.title = "Acceso remoto: verificar el DNS del dominio propio";
+            t.category = "sala";
+            t.readOnly = true;
+            t.openWorld = true;
+            t.description = "Resuelve el CNAME del dominio y dice si apunta al destino de pinggy (estado: ok, otro, "
+                            "mal, error). Sin argumentos, con lo configurado.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
+            t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
+                acc->verificarDns(host, dest);
+                esperar(&AccesoRemoto::dnsChanged, [acc]() { return acc ? acc->dns() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_probar_direccion";
+            t.title = "Acceso remoto: probar si pinggy da esa dirección";
+            t.category = "sala";
+            t.readOnly = true;
+            t.openWorld = true;
+            t.description =
+                "Prueba un subdominio fijo o un dominio propio con el token guardado: abre un túnel de prueba de unos "
+                "segundos (sin desplazar a otro) y se fija si pinggy da esa dirección. ok = asignada al token y libre; "
+                "mal = no asignada (pinggy dio otra al azar) o en uso por otro túnel (con la API key también mira los "
+                "túneles activos de la cuenta); error = falta el token, el túnel de este equipo está prendido, etc. "
+                "Sin argumentos, con lo configurado.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"direccion", {{"type", "string"}, {"enum", {"pinggy", "propio"}}}},
+                               {"host", {{"type", "string"}}}}}};
+            t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const QString tipo = QString::fromStdString(a.value("direccion", rt.gateway().pinggyDominioTipo));
+                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                acc->probarDireccion(tipo, host);
+                esperar(&AccesoRemoto::pruebaChanged, [acc]() {
+                    QVariantMap m = acc ? acc->prueba() : QVariantMap{};
+                    if (m.value("estado") == "probando") m["estado"] = "consultando"; // sigue esperando
+                    return m;
+                }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_configurar_con_api_key";
+            t.title = "Acceso remoto: armar pinggy solo con la API key";
+            t.category = "sala";
+            t.openWorld = true;
+            t.description = "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
+                            "la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su "
+                            "puerto TCP fijo, y prende el túnel con eso (reinicia la sala). Con `subdominio` (solo el "
+                            "nombre, p. ej. \"sala-concejo\") primero lo cambia en la cuenta: queda "
+                            "sala-concejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
+                            "panel de pinggy.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties", {{"subdominio", {{"type", "string"}, {"description", "opcional: el nombre que se quiere"}}}}}};
+            t.run = [acc, esperar, &vm](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
+                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala)."));
+                acc->configurarConApiKey(QString::fromStdString(a.value("subdominio", std::string())));
+                esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_cortar_tuneles";
+            t.title = "Acceso remoto: cortar los túneles activos de la cuenta de pinggy";
+            t.category = "sala";
+            t.destructive = true;
+            t.openWorld = true;
+            t.description = "Con la API key, corta todos los túneles activos de la cuenta de pinggy (p. ej. otro equipo "
+                            "que quedó con el mismo token). El de este equipo, si está prendido, vuelve a conectarse solo.";
+            t.run = [acc, esperar](const json&, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                acc->cortarTunelesDeLaCuenta();
+                esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_panel";
+            t.title = "Acceso remoto: túneles activos en la cuenta de pinggy";
+            t.category = "sala";
+            t.readOnly = true;
+            t.openWorld = true;
+            t.description = "Consulta el panel de pinggy con la API key guardada (acceso_remoto_clave tipo api_key): "
+                            "qué túneles tiene activos la cuenta, con qué dominio y puertos. Los secretos que vengan "
+                            "en la respuesta salen tapados.";
+            t.run = [acc, esperar](const json&, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                acc->verEnPinggy();
+                esperar(&AccesoRemoto::panelChanged, [acc]() { return acc ? acc->panel() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+    }
+    {
+        Tool t;
+        t.name = "proxy_renovar";
+        t.title = "Proxy: pedir los certificados ya";
+        t.category = "sala";
+        t.description = "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
+                        "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"host", {{"type", "string"}}}}}};
+        t.run = [post](const json& a, Done done) {
+            post("/api/v1/proxy/renovar", json{{"host", a.value("host", std::string())}}, "Pedido: mirá proxy_estado en un rato.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "proxy_configurar";
+        t.title = "Proxy: dominio, puertos, servicios y ACME";
+        t.category = "sala";
+        t.description =
+            "Configura el proxy por nombre y REINICIA la sala (corta a los invitados): `activo`, `dominio` (los "
+            "servicios quedan en <nombre>.<dominio>: hay que apuntar esos nombres a esta máquina en el DNS), "
+            "`puertoTls` (443) y `puertoHttp` (80; en Linux los de menos de 1024 piden permiso), `servicios` "
+            "([{nombre, destino, ruta, soloLan}]; sin esto, los de siempre: sala, sesion, presidencia, botonera, "
+            "prompter, tablero) y `acme` ({activo, email, pruebas}: Let's Encrypt; `pruebas` usa su entorno de "
+            "prueba, sin límites). Lo que no se pasa queda como estaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"dominio", {{"type", "string"}}},
+                           {"puertoTls", {{"type", "integer"}}},
+                           {"puertoHttp", {{"type", "integer"}}},
+                           {"servicios", {{"type", "array"}}},
+                           {"acme", {{"type", "object"}}}}}};
+        t.run = [&rt](const json& a, Done done) {
+            json& p = rt.gateway().proxy;
+            for (const char* k : {"activo", "dominio", "puertoTls", "puertoHttp", "servicios"})
+                if (a.contains(k)) p[k] = a[k];
+            if (a.contains("acme") && a["acme"].is_object())
+                for (const auto& [k, v] : a["acme"].items()) p["acme"][k] = v;
+            if (p.value("activo", false) && p.value("dominio", std::string()).empty())
+                return done(ToolResult::error("falta `dominio`"));
+            if (!rt.save()) return done(ToolResult::error(rt.lastError()));
+            const bool ok = rt.restartGateway();
+            done(ToolResult().data(json{{"proxy", p}, {"sala_reiniciada", ok}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "invitado_prueba";
+        t.title = "Prueba técnica de un invitado: eco y red";
+        t.category = "sala";
+        t.description =
+            "Con alguien de ADENTRO (programa o fila de oradores): le manda un tono de 1 kHz cortado por su "
+            "retorno durante 4 s y mide cuánto vuelve por su micrófono (`eco_db`; más de 10 dB = se escucha el "
+            "parlante: auriculares), y lee su red (rtt, pérdida, jitter, semáforo). Mientras dura, el invitado "
+            "escucha el tono y el programa más bajo: avisale antes. Devuelve `recomendacion` en castellano.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
+        t.run = [withPerson, partPath, client](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            client->post(
+                partPath(p, "prueba"), QJsonObject{{"ms", 4000}},
+                [done](bool ok, const QJsonObject& reply) {
+                    json r = fromQt(reply);
+                    r["recomendacion"] = ConferenceViewModel::recomendacionPrueba(reply).toStdString();
+                    if (!ok) return done(ToolResult::error(r.value("error", std::string("la sala no pudo hacer la prueba"))));
+                    done(ToolResult().data(r));
+                },
+                15000);
         };
         core_.addTool(std::move(t));
     }
@@ -356,6 +812,29 @@ void McpService::registerRoomTools() {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             post(partPath(p, "request"), json{{"what", a["what"]}}, "Pedido enviado.", done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "participant_calidad";
+        t.title = "Bajar o devolver la calidad de la camara de un invitado";
+        t.category = "sala";
+        t.description =
+            "Cuando la red de un invitado no da (room_status: `red.semaforo` ambar o rojo, perdida, jitter, RTT), "
+            "le pide a su navegador que mande menos: `maximo` 720p (techo 1,5 Mbps) o 360p (0,5 Mbps); 1080p "
+            "devuelve la calidad completa. No corta nada: baja resolucion y bitrate.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"participant", personProp},
+                           {"maximo", {{"type", "string"}, {"enum", {"1080p", "720p", "360p"}}}}}},
+                         {"required", {"participant", "maximo"}}};
+        t.run = [withPerson, partPath, post](const json& a, Done done) {
+            json p;
+            if (!withPerson(a, "participant", p, done)) return;
+            const std::string m = a.value("maximo", std::string("720p"));
+            post(partPath(p, "request"), json{{"what", m == "1080p" ? "calidad-max" : "calidad-" + m}},
+                 "Pedido enviado: el navegador del invitado ajusta su camara.", done);
         };
         core_.addTool(std::move(t));
     }
@@ -583,8 +1062,10 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Enlace para entrar a la sala (target local = misma red, remote = dominio publico) con su "
-            "QR como imagen; con withPin el PIN va incluido. Con board=true, el del tablero de oradores.";
+            "Enlace para entrar a la sala (target local = misma red; remote = la dirección pública de pinggy, "
+            "Cloudflare o WireGuard, para los de afuera) con su QR como imagen; con withPin el PIN va incluido. "
+            "Con board=true, el del tablero de oradores. La imagen la ves solo vos: para que el operador vea el QR "
+            "y lo pueda copiar, después llamá a qr_mostrar con la URL.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -596,13 +1077,18 @@ void McpService::registerRoomTools() {
             const QString path = a.value("board", false) ? "/api/v1/board-link?target=" + target
                                                          : "/api/v1/qr?target=" + target +
                                                                (a.value("withPin", false) ? "&pin=1" : "");
-            client->get(path, [done](bool ok, const QJsonObject& r) {
+            client->get(path, [done, target](bool ok, const QJsonObject& r) {
                 const json j = fromQt(r);
                 if (!ok || !j.value("ok", false))
                     return done(
                         ToolResult::error(j.value("message", std::string("sin enlace: ") + errorText(j))));
                 ToolResult res;
-                res.text(j.value("url", ""));
+                const std::string url = j.value("url", "");
+                res.text(url + "\n\n(El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
+                               "qr_mostrar {\"texto\": \"" + url + "\", \"descripcion\": \"…\"}." +
+                         (target == "local" ? std::string(" Es la dirección de la red local: para alguien de afuera, "
+                                                          "room_link {\"target\": \"remote\"}.")
+                                            : std::string()) + ")");
                 const std::string png = qrPng(j.value("modules", json::array()));
                 if (!png.empty()) res.image(png, "image/png");
                 done(res);

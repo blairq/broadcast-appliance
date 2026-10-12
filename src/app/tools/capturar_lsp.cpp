@@ -10,7 +10,7 @@
 //   capturar_lsp --clap lsp-plugins.clap --id in.lsp-plug.matrix_mixer_x8_stereo \
 //                --salida captura.png [--esperar 2500] [--param "Matrix gain 1 to 2=-6"]...
 //
-// No es un test: es una herramienta (tools/lsp-matrix-mixer-doc.py la usa).
+// No es un test: es una herramienta (tools/docs/lsp-matrix-mixer-doc.py la usa).
 // (`--id` y no `--plugin`: Qt se queda con `-plugin` como opción propia.)
 
 #include "audio/ClapHost.hpp"
@@ -22,6 +22,7 @@
 #include <QTimer>
 #include <QWindow>
 
+#include <numbers>
 #include <atomic>
 #include <cmath>
 #include <cstdio>
@@ -170,9 +171,9 @@ int main(int argc, char** argv) {
                 for (size_t c = 0; c < bi[p].size(); ++c)
                     for (uint32_t i = 0; i < N; ++i) {
                         const double s = t + i / 48000.0;
-                        const double env = 0.6 + 0.4 * std::sin(2 * M_PI * (0.3 + 0.07 * p) * s + c);
+                        const double env = 0.6 + 0.4 * std::sin(2 * std::numbers::pi * (0.3 + 0.07 * p) * s + c);
                         bi[p][c][i] =
-                            static_cast<float>(nivel * env * std::sin(2 * M_PI * (220.0 * (p + 1)) * s));
+                            static_cast<float>(nivel * env * std::sin(2 * std::numbers::pi * (220.0 * (p + 1)) * s));
                     }
             }
             inst->process(vi.data(), vo.data(), N);

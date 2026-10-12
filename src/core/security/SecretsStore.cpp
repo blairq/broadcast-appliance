@@ -369,7 +369,7 @@ bool SecretsStore::save(const std::string& path, const std::string& masterPassph
     for (const auto& [k, v] : entries_) {
         plain[k] = v;
     }
-    const std::string plaintext = plain.dump();
+    const std::string plaintext = plain.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 
     // 4) Cifrar el plaintext con AES-256-GCM.
     std::vector<std::uint8_t> ciphertext, tag;
@@ -405,7 +405,7 @@ bool SecretsStore::save(const std::string& path, const std::string& masterPassph
     doc["ciphertext"] = blobB64;
 
     // 7) Escribir a disco de forma atomica y privada (temp + rename, 0600).
-    const bool written = writeFileAtomicPrivate(path, doc.dump(2));
+    const bool written = writeFileAtomicPrivate(path, doc.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
 
     // 8) Borrar el material sensible de la memoria: la clave derivada y el
     //    plaintext serializado. Ambos viven en este marco y su contenido no

@@ -21,8 +21,18 @@ Rectangle {
     // Dos vistas: los racks de filtros de cada fuente, y la matriz de mezcla
     // (que rutea la SALIDA de esos filtros).
     property string vista: "racks"
+    // ui_show_page {page: "audio", seccion: "estudio" | "racks" | "matriz" | "mesa" | <fuente>}
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina !== "audio") return
+            const v = seccion.toLowerCase()
+            if (["racks", "estudio", "matriz", "mesa"].indexOf(v) >= 0) { page.vista = v; return }
+            if (page.au) { page.au.selectSource(seccion); page.vista = "racks" }
+        }
+    }
     onVisibleChanged: if (au) au.setActive(visible)
-    Component.onCompleted: if (au) au.setActive(visible)
+    Component.onCompleted: if (au && visible) au.setActive(true)
 
     // --- Geometria de los nodos -------------------------------------------------------------
     readonly property int nodeW: 178
@@ -175,12 +185,30 @@ Rectangle {
     readonly property int franjaSelector: selectorVista.visible ? selectorVista.height + 14 + 10 : 18
     Row {
         id: selectorVista
-        visible: !!page.au && !!Studio.matriz
+        visible: !!page.au
         z: 10
         anchors { top: parent.top; right: parent.right; topMargin: 14; rightMargin: 22 }
         spacing: 4
         GlassButton { compact: true; text: "Racks"; active: page.vista === "racks"; onClicked: page.vista = "racks" }
-        GlassButton { compact: true; text: "Matriz"; icon: "▦"; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+        GlassButton { compact: true; text: "Estudio"; icon: "▦"; active: page.vista === "estudio"; onClicked: page.vista = "estudio"
+                      ToolTip.visible: hovered; ToolTip.delay: 400
+                      ToolTip.text: "Todas las fuentes, cada una con su cadena entera (origen → rack → filtros → mezcla) y los cables entre ellas" }
+        GlassButton { compact: true; text: "Matriz"; icon: "▦"; visible: !!Studio.matriz; active: page.vista === "matriz"; onClicked: page.vista = "matriz" }
+        GlassButton { compact: true; text: "Mesa"; active: page.vista === "mesa"; onClicked: page.vista = "mesa" }
+    }
+    EstudioAudio {
+        visible: !!page.au && page.vista === "estudio" && page.visible
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
+        au: page.au
+        onAbrirRack: (fuente, nodo) => {
+            page.au.selectSource(fuente)
+            if (nodo !== "") page.au.select(nodo)
+            page.vista = "racks"
+        }
+    }
+    MesaAutomixer {
+        visible: !!page.au && page.vista === "mesa" && page.visible
+        anchors { fill: parent; leftMargin: page.leftInset; margins: 18; topMargin: page.franjaSelector }
     }
     MatrizAudio {
         visible: !!page.au && !!Studio.matriz && page.vista === "matriz" && page.visible
@@ -258,6 +286,22 @@ Rectangle {
                             RowLayout {
                                 Text { text: parent.parent.parent.s.nombre || ""; color: Theme.text; font.pixelSize: 13; elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { visible: !!parent.parent.parent.s.rack; text: "🎚 " + (parent.parent.parent.s.modulos || 0); color: Theme.accent; font.pixelSize: 12 }
+                                // Dónde corre el rack: en la cadena de GStreamer de la entrada o en libobs.
+                                Text {
+                                    readonly property var s: parent.parent.parent.s
+                                    visible: !!s.rack && !!s.motor
+                                    text: s.motor === "gstreamer" ? (s.procesando ? "GST" : "GST…") : "OBS"
+                                    color: s.motor === "gstreamer" ? Theme.textDim : Theme.accentSoft
+                                    font.pixelSize: 10
+                                    MouseArea {
+                                        id: motorHover; anchors.fill: parent; hoverEnabled: true
+                                        ToolTip.visible: containsMouse; ToolTip.delay: 400
+                                        ToolTip.text: parent.s.motor === "gstreamer"
+                                                      ? (parent.s.procesando ? "El rack corre en la cadena de GStreamer de la entrada"
+                                                                             : "El rack va en GStreamer: esperando que la entrada pase audio")
+                                                      : "El rack corre como filtro de libobs (esta fuente todavía no pasó a GStreamer)"
+                                    }
+                                }
                             }
                             LevelMeter {
                                 Layout.fillWidth: true
@@ -389,7 +433,9 @@ Rectangle {
                     for (let k = 0; k < page.nodes.length; ++k) m = Math.max(m, page.nodes[k].x + page.nodeW)
                     return m + 40
                 }
-                readonly property real escala: zoom > 0 ? zoom : Math.max(0.4, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+                // Sola, no más chica que 75 % (más chico no se lee: se desplaza); «Ajustar», todo junto.
+                readonly property real escalaParaTodo: Math.max(0.25, Math.min(1, (flick.width - 8) / Math.max(1, anchoGrafo)))
+                readonly property real escala: zoom > 0 ? zoom : Math.max(0.75, escalaParaTodo)
                 function acercar(f) { zoom = Math.max(0.25, Math.min(2.5, escala * f)) }
                 function ordenar() { page.au.tidy() }
                 // Cmd/Ctrl + rueda: zoom (la rueda sola sigue desplazando).
@@ -429,15 +475,18 @@ Rectangle {
                                 const c = getContext("2d")
                                 c.reset()
                                 const g = page.grid
-                                c.lineWidth = 1
+                                // Con fillRect y no con stroke(): en una pantalla
+                                // Retina el pintor de Qt trazaba cada línea vertical
+                                // renglón por renglón repartiéndolos a un grupo de
+                                // hilos, y la grilla trababa la interfaz segundos.
                                 for (let x = 0; x < width; x += g) {
                                     // Cada 5 celdas la linea se ve un poco mas.
-                                    c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(x / g) % 5 === 0 ? 0.10 : 0.04)
-                                    c.beginPath(); c.moveTo(Math.round(x) + 0.5, 0); c.lineTo(Math.round(x) + 0.5, height); c.stroke()
+                                    c.fillStyle = Qt.rgba(1, 1, 1, Math.round(x / g) % 5 === 0 ? 0.10 : 0.04)
+                                    c.fillRect(Math.round(x), 0, 1, height)
                                 }
                                 for (let y = 0; y < height; y += g) {
-                                    c.strokeStyle = Qt.rgba(1, 1, 1, Math.round(y / g) % 5 === 0 ? 0.10 : 0.04)
-                                    c.beginPath(); c.moveTo(0, Math.round(y) + 0.5); c.lineTo(width, Math.round(y) + 0.5); c.stroke()
+                                    c.fillStyle = Qt.rgba(1, 1, 1, Math.round(y / g) % 5 === 0 ? 0.10 : 0.04)
+                                    c.fillRect(0, Math.round(y), width, 1)
                                 }
                             }
                         }
@@ -879,8 +928,10 @@ Rectangle {
         }
 
         // --- Detalle del nodo -------------------------------------------------------------
+        // Se arrastra para darle más lugar a las tarjetas o al panel (se recuerda).
+        Divisor { id: divisorPanel; clave: "audio.panel"; ancho: 360; minimo: 240; maximo: 720 }
         Panel {
-            Layout.preferredWidth: 360
+            Layout.preferredWidth: divisorPanel.ancho
             Layout.fillHeight: true
             title: page.au && page.au.detail.nodo ? (page.au.detail.etiqueta || page.au.detail.nombre || page.au.detail.nodo) : "Detalle"
             ScrollView {
@@ -907,6 +958,16 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 6
                         visible: parent.d.tipo === "plugin"
+                        // El vigía: lo que tarda por bloque, y si lo saltó por lento.
+                        Text {
+                            visible: parent.parent.d.ms_medio !== undefined
+                            text: Number(parent.parent.d.ms_medio || 0).toFixed(2) + " ms/bloque (máx " + Number(parent.parent.d.ms_max || 0).toFixed(1) +
+                                  " de " + Number(parent.parent.d.ms_bloque || 0).toFixed(1) + ")"
+                            color: (parent.parent.d.ms_medio || 0) > (parent.parent.d.ms_bloque || 99) * 0.5 ? Theme.amber : Theme.textFaint
+                            font.pixelSize: 11
+                        }
+                        StatusPill { visible: !!parent.parent.d.bypass_auto; text: "Saltado por lento"; dot: Theme.live }
+                        GlassButton { compact: true; visible: !!parent.parent.d.bypass_auto; text: "Rearmar"; onClicked: page.au.rearmar(page.au.selected) }
                         GlassButton { compact: true; text: parent.parent.d.bypass ? "Activar" : "Anular"; onClicked: page.au.setBypass(page.au.selected, !parent.parent.d.bypass) }
                         GlassButton { compact: true; text: "Interfaz LSP"; enabled: !!parent.parent.d.tieneEditor; onClicked: page.msg = page.au.openEditor(page.au.selected) }
                         Repeater {
@@ -1420,6 +1481,10 @@ Rectangle {
         anchors.centerIn: parent
         width: Math.min(parent.width - 80, 900)
         height: Math.min(parent.height - 80, 760)
+        // El tamaño es fijo: sin esto el alto implícito salía del contenido, que a su
+        // vez se estira al popup (bucle de bindings).
+        implicitWidth: width
+        implicitHeight: height
         modal: true
         padding: 18
         background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }

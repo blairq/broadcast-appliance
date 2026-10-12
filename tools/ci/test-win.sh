@@ -5,7 +5,7 @@
 # Wine portable (build de Kron4ek, fijado por hash) en extern/toolchain/wine:
 # no se instala nada en el sistema. Corre cada test_*.exe de los dos arboles
 # de Windows (el /MD y el sub-build /MT) con el PATH que tendria en el bundle
-# (Qt, OBS y el CRT de MSVC). Los tests de la parte /MT usan el CRT de
+# (Qt, GStreamer y el CRT de MSVC). Los tests de la parte /MT usan el CRT de
 # Microsoft enlazado estatico, asi que tambien atrapan diferencias del CRT
 # real que el ucrtbase propio de Wine taparia.
 #
@@ -47,8 +47,7 @@ fi
 [ "$SOLO_WINE" = 1 ] && exit 0
 
 export WINEPREFIX="$B/wineprefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=" DISPLAY=
-# (GStreamer antes que el OBS: con el mismo nombre va la de GStreamer, como en el bundle.)
-export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/obs-studio/bin/64bit;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
+export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
 # Los tests de audio cargan el LSP de Windows (tools/deps/lsp-win.sh) por ruta Windows.
 if [ -f "$ROOT/extern/lsp/windows-x86_64/lsp-plugins.clap" ]; then
     export BA_LSP_CLAP="Z:${ROOT//\//\\}\\extern\\lsp\\windows-x86_64\\lsp-plugins.clap"

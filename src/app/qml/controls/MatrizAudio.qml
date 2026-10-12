@@ -97,7 +97,13 @@ Item {
             Layout.fillWidth: true
             spacing: 10
             Text { text: "Matriz de mezcla"; color: Theme.text; font { pixelSize: 17; weight: Font.DemiBold } }
-            Item { Layout.fillWidth: true }
+            // Lo que no quedaba claro: la matriz elige A DÓNDE VA cada entrada (las salidas son
+            // las columnas). Lo que entra y cómo se procesa es de la entrada y de su rack.
+            Text {
+                Layout.fillWidth: true
+                text: "Filas: lo que entrega cada entrada (ya con su rack) · Columnas: las salidas · Un cruce manda esa entrada a esa salida"
+                color: Theme.textFaint; font.pixelSize: 11; elide: Text.ElideRight
+            }
             Row {
                 spacing: 14
                 // En ventanas angostas la leyenda se esconde antes que pisar los botones.
@@ -294,11 +300,20 @@ Item {
                                     }
                                 }
                                 MouseArea {
+                                    id: maFila
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     onEntered: mx.hFila = fila.modelData.nombre
                                     onExited: if (mx.hFila === fila.modelData.nombre) mx.hFila = ""
                                 }
+                                ToolTip.visible: maFila.containsMouse
+                                ToolTip.delay: 600
+                                ToolTip.text: "«" + fila.modelData.nombre + "»\n" +
+                                              "El vúmetro mide lo que ENTREGA esta entrada: lo que sale de su rack (sus filtros, " +
+                                              "voz a texto…), antes de su volumen. Se mueve aunque no vaya a ninguna salida.\n" +
+                                              "La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el " +
+                                              "programa, las pistas, los auriculares, las salidas del equipo). Lo que entra y " +
+                                              "cómo se procesa se arma en el rack de la entrada."
                             }
                             // Los cruces
                             Repeater {
@@ -336,6 +351,13 @@ Item {
                                         width: 8; height: parent.height
                                         color: Qt.rgba(x0.col.r, x0.col.g, x0.col.b, 0.2)
                                         Rectangle { anchors.centerIn: parent; width: 2; height: parent.height; color: x0.col }
+                                    }
+                                    // Cuánto retardo suma este cruce (los buses virtuales pasan por la mezcla propia).
+                                    Text {
+                                        visible: x0.activo && (x0.c.retardo_ms || 0) > 0
+                                        anchors { right: parent.right; top: parent.top; margins: 1 }
+                                        text: "+" + (x0.c.retardo_ms || 0)
+                                        color: Theme.amber; font.pixelSize: 8; z: 2
                                     }
                                     // La tecla
                                     Rectangle {
@@ -382,7 +404,7 @@ Item {
                                         onExited: { if (mx.hFila === x0.f) mx.hFila = ""; if (mx.hBus === x0.b) mx.hBus = "" }
                                         onClicked: (ev) => {
                                             if (ev.button === Qt.RightButton) {
-                                                if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas de OBS son nativas: prender o apagar, sin retardo."; return }
+                                                if (x0.modelData.tipo === "pista") { mx.msg = "Las pistas son nativas: prender o apagar, sin retardo."; return }
                                                 if (x0.modelData.tipo === "escucha") { mx.msg = "La escucha es prender o apagar: el volumen es el de la fuente."; return }
                                                 if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
                                                 ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
@@ -487,7 +509,7 @@ Item {
                 text: busPop.bus.tipo === "fisica"
                       ? "«" + (busPop.bus.nombre || "") + "»: lo que se le manda sale por ese dispositivo (y esos canales). Pasa por la mezcla propia (~25 ms). El dispositivo se abre solo mientras recibe algo."
                       : busPop.bus.tipo === "escucha"
-                      ? "Lo que se prende acá suena por «" + (busPop.bus.dispositivoNombre || "") + "» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Audio y voz."
+                      ? "Lo que se prende acá suena por «" + (busPop.bus.dispositivoNombre || "") + "» y nunca va al aire por esta columna. Las voces (texto a audio) vienen prendidas. El dispositivo es el mismo que en Configuración → Voz del operador."
                       : busPop.bus.tipo === "pista"
                       ? (busPop.bus.indice === 0 ? "La mezcla del programa: lo que se emite y se graba." : "Libre, o la toma una grabación individual (" + (busPop.bus.uso || "ahora libre") + ").") + " Nativa: sin retardo."
                       : busPop.bus.tipo === "salida" ? "Lo que se le manda sale por un dispositivo del equipo. Pasa por la mezcla propia (~25 ms)."

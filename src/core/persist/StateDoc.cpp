@@ -40,7 +40,7 @@ std::string StateDoc::serialize() const {
         sectionsObj[name] = blob;
     }
     j["sections"] = std::move(sectionsObj);
-    return j.dump();
+    return j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 // --- deserialize ------------------------------------------------------------

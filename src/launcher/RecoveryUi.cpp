@@ -70,19 +70,16 @@ constexpr int kIdRetry = 1;
 constexpr int kIdForceRestart = 2;
 constexpr int kIdExit = 3;
 
-// Dimensiones fijas de la ventana y de sus controles (px).
-constexpr int kWindowWidth = 520;
-constexpr int kWindowHeight = 240;
-constexpr int kMargin = 16;
-constexpr int kStatusTop = 16;
-constexpr int kStatusHeight = 120;
-constexpr int kIntegrityTop = 144;
-constexpr int kIntegrityHeight = 32;
-constexpr int kButtonTop = 190;
-constexpr int kButtonWidth = 150;
+// Medidas del ÁREA ÚTIL (px). Antes eran las de la ventana entera (520x240 con el
+// título y los bordes): el área útil quedaba en ~200 px de alto y los botones, que
+// iban de 190 a 222, salían afuera del cuadro. Ahora el texto se mide con la letra
+// de los diálogos, los botones van debajo y la ventana se agranda para contenerlo.
+constexpr int kClientWidth = 560;
+constexpr int kMargin = 18;
+constexpr int kGap = 12;
+constexpr int kButtonWidth = 160;
 constexpr int kButtonGap = 10;
 constexpr int kButtonHeight = 32;
-constexpr int kButtonsLeft = 25;
 
 // Construye el texto de estado a partir del incidente (solo presentacion).
 std::wstring buildStatus(const Incident& inc) {
@@ -180,7 +177,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     // MAKEINTRESOURCEW(32512) (ambos ids = 32512) para que compile en ambos.
     wc.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
     wc.hIcon = LoadIconW(nullptr, MAKEINTRESOURCEW(32512));
-    wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+    wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BTNFACE + 1); // el de los diálogos: los textos no quedan en una franja gris
     wc.lpszClassName = kClassName;
 
     const ATOM atom = RegisterClassW(&wc);
@@ -194,11 +191,42 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
         // proceso; la clase ya esta registrada y se puede seguir usando.
     }
 
-    // --- 2. Crear la ventana fija (sin redimensionar, sin minimizar) --------
+    // --- 2. Medir: la letra de los diálogos de Windows y el alto de cada texto ---
+    NONCLIENTMETRICSW ncm{};
+    ncm.cbSize = sizeof(ncm);
+    HFONT font = nullptr;
+    if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0)) font = CreateFontIndirectW(&ncm.lfMessageFont);
+    const bool fontPropia = font != nullptr; // la de stock no se libera
+    if (font == nullptr) font = static_cast<HFONT>(GetStockObject(DEFAULT_GUI_FONT));
+    const int contentWidth = kClientWidth - 2 * kMargin;
+    const auto altoDe = [&](const std::wstring& texto) {
+        HDC dc = GetDC(nullptr);
+        HGDIOBJ antes = SelectObject(dc, font);
+        RECT r{0, 0, contentWidth, 0};
+        DrawTextW(dc, texto.c_str(), static_cast<int>(texto.size()), &r, DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
+        SelectObject(dc, antes);
+        ReleaseDC(nullptr, dc);
+        return static_cast<int>(r.bottom - r.top) + 4;
+    };
+    const std::wstring status = buildStatus(inc);
+    const std::wstring integrityLine = inc.showIntegrity ? buildIntegrityLine(inc) : std::wstring();
+    const int statusTop = kMargin;
+    const int statusHeight = altoDe(status);
+    const int integrityTop = statusTop + statusHeight + kGap;
+    const int integrityHeight = inc.showIntegrity ? altoDe(integrityLine) : 0;
+    const int buttonTop = (inc.showIntegrity ? integrityTop + integrityHeight : statusTop + statusHeight) + kGap + 6;
+    const int clientHeight = buttonTop + kButtonHeight + kMargin;
+    const int buttonsLeft = (kClientWidth - (3 * kButtonWidth + 2 * kButtonGap)) / 2;
+
+    // --- 3. La ventana: del tamaño que pide el área útil, centrada -------------
     const DWORD style = WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU;
+    RECT marco{0, 0, kClientWidth, clientHeight};
+    AdjustWindowRectEx(&marco, style, FALSE, 0);
+    const int winW = marco.right - marco.left, winH = marco.bottom - marco.top;
+    const int x = (GetSystemMetrics(SM_CXSCREEN) - winW) / 2, y = (GetSystemMetrics(SM_CYSCREEN) - winH) / 3;
     const std::wstring title = inc.title.empty() ? std::wstring(kDefaultTitle) : inc.title;
-    HWND hwnd = CreateWindowExW(0, kClassName, title.c_str(), style, CW_USEDEFAULT, CW_USEDEFAULT,
-                                kWindowWidth, kWindowHeight, nullptr, nullptr, wc.hInstance, nullptr);
+    HWND hwnd = CreateWindowExW(0, kClassName, title.c_str(), style, x, y, winW, winH, nullptr, nullptr,
+                                wc.hInstance, nullptr);
     if (hwnd == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err), "CreateWindowExW fallo; sin UI de recuperacion");
@@ -209,13 +237,14 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     // bucle de mensajes).
     SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&action));
 
-    // --- 3. Controles hijos --------------------------------------------------
-    // Static con el texto de estado (word-wrap a lo ancho del control).
-    const int contentWidth = kWindowWidth - 2 * kMargin;
-    const std::wstring status = buildStatus(inc);
-    HWND hStatus =
-        CreateWindowExW(0, L"STATIC", status.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, kMargin, kStatusTop,
-                        contentWidth, kStatusHeight, hwnd, nullptr, wc.hInstance, nullptr);
+    // --- 4. Controles hijos, con la letra de los diálogos ----------------------
+    const auto conLetra = [font](HWND h) {
+        if (h != nullptr) SendMessageW(h, WM_SETFONT, reinterpret_cast<WPARAM>(font), TRUE);
+        return h;
+    };
+    HWND hStatus = conLetra(CreateWindowExW(0, L"STATIC", status.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX,
+                                            kMargin, statusTop, contentWidth, statusHeight, hwnd, nullptr,
+                                            wc.hInstance, nullptr));
     if (hStatus == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear el static de estado");
@@ -225,29 +254,30 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
 
     // Linea opcional de integridad (solo si procede).
     if (inc.showIntegrity) {
-        const std::wstring integrityLine = buildIntegrityLine(inc);
-        HWND hIntegrity = CreateWindowExW(
-            0, L"STATIC", integrityLine.c_str(), WS_CHILD | WS_VISIBLE | SS_LEFT, kMargin, kIntegrityTop,
-            contentWidth, kIntegrityHeight, hwnd, nullptr, wc.hInstance, nullptr);
+        HWND hIntegrity = conLetra(CreateWindowExW(0, L"STATIC", integrityLine.c_str(),
+                                                   WS_CHILD | WS_VISIBLE | SS_LEFT | SS_NOPREFIX, kMargin, integrityTop,
+                                                   contentWidth, integrityHeight, hwnd, nullptr, wc.hInstance, nullptr));
         if (hIntegrity == nullptr) {
             const DWORD err = GetLastError();
             BA_LOG_WARN("recovery", static_cast<int>(err), "no se pudo crear el static de integridad");
         }
     }
 
-    // Botones de accion (Reintentar / Forzar reinicio / Salir).
-    HWND hRetry =
-        CreateWindowExW(0, L"BUTTON", kRetryLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-                        kButtonsLeft, kButtonTop, kButtonWidth, kButtonHeight, hwnd,
-                        reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRetry)), wc.hInstance, nullptr);
-    HWND hForce = CreateWindowExW(
-        0, L"BUTTON", kForceRestartLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-        kButtonsLeft + kButtonWidth + kButtonGap, kButtonTop, kButtonWidth, kButtonHeight, hwnd,
-        reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdForceRestart)), wc.hInstance, nullptr);
-    HWND hExit = CreateWindowExW(0, L"BUTTON", kExitLabel, WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON | BS_TEXT,
-                                 kButtonsLeft + 2 * (kButtonWidth + kButtonGap), kButtonTop, kButtonWidth,
-                                 kButtonHeight, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdExit)),
-                                 wc.hInstance, nullptr);
+    // Botones de accion (Reintentar / Forzar reinicio / Salir), centrados abajo.
+    HWND hRetry = conLetra(CreateWindowExW(0, L"BUTTON", kRetryLabel,
+                                           WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON | BS_TEXT, buttonsLeft,
+                                           buttonTop, kButtonWidth, kButtonHeight, hwnd,
+                                           reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdRetry)), wc.hInstance, nullptr));
+    HWND hForce = conLetra(CreateWindowExW(0, L"BUTTON", kForceRestartLabel,
+                                           WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | BS_TEXT,
+                                           buttonsLeft + kButtonWidth + kButtonGap, buttonTop, kButtonWidth, kButtonHeight,
+                                           hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdForceRestart)),
+                                           wc.hInstance, nullptr));
+    HWND hExit = conLetra(CreateWindowExW(0, L"BUTTON", kExitLabel,
+                                          WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON | BS_TEXT,
+                                          buttonsLeft + 2 * (kButtonWidth + kButtonGap), buttonTop, kButtonWidth,
+                                          kButtonHeight, hwnd, reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdExit)),
+                                          wc.hInstance, nullptr));
     if (hRetry == nullptr || hForce == nullptr || hExit == nullptr) {
         const DWORD err = GetLastError();
         BA_LOG_ERROR("recovery", static_cast<int>(err), "no se pudo crear un boton de accion");
@@ -256,7 +286,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
     }
     SetFocus(hRetry);
 
-    // --- 4. Mostrar y correr el bucle de mensajes ----------------------------
+    // --- 5. Mostrar y correr el bucle de mensajes ----------------------------
     ShowWindow(hwnd, SW_SHOW);
     UpdateWindow(hwnd);
     BA_LOG_INFO("recovery", 0, std::string("UI de recuperacion mostrada: ") + toUtf8(status));
@@ -267,6 +297,7 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
         DispatchMessageW(&msg);
     }
 
+    if (fontPropia) DeleteObject(font); // el diálogo puede volver a aparecer: no se acumulan
     // El bucle solo termina por PostQuitMessage: boton (Retry/ForceRestart/Exit)
     // o WM_DESTROY (Dismissed). Devolvemos la decision tal cual.
     return action;
@@ -312,7 +343,20 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
             out += buf;
         ::pclose(f);
     }
-    if (out.find("button returned:Salir") != std::string::npos) return RecoveryAction::Exit;
+    if (out.find("button returned:Salir") != std::string::npos) {
+        // Salir corta la transmisión y la grabación: se confirma (por defecto, no).
+        std::string conf;
+        if (FILE* f = ::popen("osascript -e 'display dialog \"¿Cerrar todo el programa? Se corta la transmisión y la "
+                              "grabación.\" with title \"Broadcast Appliance\" buttons {\"Cerrar todo\", \"Seguir\"} "
+                              "default button \"Seguir\" with icon stop giving up after 60' 2>/dev/null", "r")) {
+            char buf[256];
+            while (std::fgets(buf, sizeof(buf), f) != nullptr)
+                conf += buf;
+            ::pclose(f);
+        }
+        if (conf.find("button returned:Cerrar todo") != std::string::npos) return RecoveryAction::Exit;
+        return RecoveryAction::Retry;
+    }
     if (out.find("button returned:Reiniciar todo") != std::string::npos) return RecoveryAction::ForceRestart;
 #endif
     return RecoveryAction::Retry;

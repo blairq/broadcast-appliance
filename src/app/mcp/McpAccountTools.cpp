@@ -19,7 +19,7 @@
 #include <algorithm>
 #include <memory>
 
-#include "AccountGuides.hpp"
+#include "net/AccountGuides.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -39,8 +39,8 @@ const json kPlatformArg{{"type", "string"}, {"enum", {"youtube", "twitch", "face
 void McpService::registerAccountTools() {
     core_.addCategory(
         "cuentas", "Cuentas (YouTube, Twitch, Facebook)",
-        "Conectar las cuentas de las plataformas: que falta, pasos guiados con enlaces, formulario "
-        "seguro para las credenciales y prueba de la conexion. Empezar por accounts_status.");
+        "Conectar las cuentas de las plataformas: qué falta, pasos guiados con enlaces, formulario "
+        "seguro para las credenciales y prueba de la conexión. Empezar por accounts_status.");
     auto* yt = static_cast<YouTubeViewModel*>(vm_.youtube());
     auto* tw = static_cast<TwitchViewModel*>(vm_.twitch());
     auto* fb = static_cast<FacebookViewModel*>(vm_.facebook());

@@ -39,6 +39,7 @@
 #include <nlohmann/json.hpp>
 
 #include "MediaRoute.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -63,9 +64,9 @@ class Room {
     /// Configuracion del modo oradores.
     struct SpeakerCfg {
         bool enabled = false;            ///< admitir = entrar a la fila (no al aire)
-        int defaultSec = 180;            ///< tiempo de cada orador al entrar
+        int defaultSec = ba::ajustes::entero("room.oradorSeg", 180); ///< tiempo de cada orador al entrar (Configuración)
         std::string carousel = "manual"; ///< "manual" | "chain" (al sacar entra el siguiente) | "time"
-        int graceSec = 10;               ///< "time": margen despues de cero antes de rotar
+        int graceSec = ba::ajustes::entero("room.oradorGraciaS", 10); ///< "time": margen despues de cero antes de rotar
         bool multi = false;              ///< varios al aire a la vez (si no, uno reemplaza al otro)
         int defaultSlot = 1;             ///< slot del programa para el orador
     };
@@ -90,6 +91,8 @@ class Room {
         std::string info;       ///< cargo, tema...
         std::string contact;    ///< telefono/email: solo produccion (nunca otros invitados)
         bool hasAvatar = false; ///< mando al menos una foto de su camara
+        nlohmann::json red = nlohmann::json::object(); ///< estadisticas de su conexion (GetStats)
+        int64_t redAvisadoMs = 0;                      ///< ultima vez que el cambio de red se publico
         // --- Modo oradores ---
         /// Presentador: se queda al aire con su lugar propio mientras los
         /// oradores rotan. No entra en la fila ni lo saca la rotacion.
@@ -128,6 +131,9 @@ class Room {
     struct Cfg {
         std::string name = "sala1";
         int maxGuests = 2;
+        /// Lugares reservados al arrancar (sesiones y canales hacia A): el cupo se puede
+        /// cambiar en caliente hasta acá (setCupo). 0 = igual a maxGuests.
+        int reserva = 0;
         bool lobby = true;      ///< true: el operador admite a cada uno
         int graceMs = 30000;    ///< cuanto se guarda el lugar de un desconectado
         int maxWaiting = 16;    ///< tope del lobby
@@ -180,6 +186,9 @@ class Room {
     /// Estado de sus medios que informa el navegador (mic, cam, screen, hand).
     void guestMedia(const std::string& id, const nlohmann::json& media);
     void setMediaUp(const std::string& id, bool up);
+    /// Las estadisticas de la conexion del participante (JSON de WebrtcSession).
+    /// Se publica si cambia el semaforo o cada ~6 s.
+    void setRed(const std::string& id, const nlohmann::json& red, int64_t nowMs);
     int chatFromGuest(const std::string& id, const std::string& text, int64_t nowMs);
 
     // --- Lado operador ------------------------------------------------------
@@ -194,6 +203,9 @@ class Room {
     /// `to`: "all" o el id de un participante.
     int chatFromHost(const std::string& to, const std::string& text, int64_t nowMs);
     void setLobby(bool on, int64_t nowMs);
+    /// El cupo del programa, sin reiniciar (1..reserva). kFull si un lugar que se
+    /// iría está ocupado; kBadState si está fuera de lo reservado.
+    int setCupo(int n);
     void setLocked(bool on);
     /// El asistente esta atendiendo el lobby: la app del invitado deja de
     /// pedirle los datos al entrar, porque se los va a preguntar el asistente

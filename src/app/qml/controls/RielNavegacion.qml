@@ -342,6 +342,14 @@ Item {
                                             border.color: riel.abierta && !celda.actual ? "transparent"
                                                                                         : Qt.rgba(1, 1, 1, 0.16)
                                             Behavior on color { ColorAnimation { duration: 150 } }
+                                            // Candado: en vivo, esta página pide confirmar para entrar.
+                                            Text {
+                                                visible: Studio.modoVivo && Studio.paginaBloqueada(Studio.riel.idDePagina(celda.modelData.page))
+                                                anchors { right: parent.right; top: parent.top; rightMargin: -2; topMargin: -2 }
+                                                text: "🔒"
+                                                font.pixelSize: Math.max(9, parent.width * 0.3)
+                                                z: 2
+                                            }
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: celda.modelData.icon

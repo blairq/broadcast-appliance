@@ -168,7 +168,10 @@ void PublicoViewModel::pedirEnlace(bool remoto) {
                             "&conClave=1",
                         [this](bool ok, const QJsonObject& r) {
                             if (!ok || !r.value("ok").toBool()) {
-                                enlace_ = QVariantMap{{"ok", false}};
+                                // Por qué no hay QR (sin red, solo esta máquina…): lo dice el gateway.
+                                enlace_ = QVariantMap{{"ok", false},
+                                                      {"mensaje", ok ? r.value("message").toString()
+                                                                     : QStringLiteral("No pude hablar con la sala (gateway).")}};
                                 emit enlaceCambio();
                                 return;
                             }

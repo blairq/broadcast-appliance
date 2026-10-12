@@ -211,7 +211,8 @@ UpdateResult runUpdate(const UpdateOptions& opt) {
 
     // 3) Respaldo de los datos.
     std::string err;
-    if (!backupData(root, r.backup, err)) {
+    // De la carpeta de DATOS (en macOS no es la del programa: antes se respaldaba nada).
+    if (!backupData(opt.datos.empty() ? root : opt.datos, r.backup, err)) {
         if (!opt.rollback) fs::remove_all(incoming, ec);
         r.message = "No se pudo respaldar Credenciales/ y Config/ (" + err + "). No se instalo nada.";
         return r;

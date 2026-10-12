@@ -16,6 +16,13 @@ Rectangle {
     readonly property var cur: ag.current
     readonly property color termBg: "#0d1016"
     property string keyError: ""
+    /// true en la copia que está en su propia ventana (la pone PageWindow).
+    property bool enVentana: false
+    /// En la ventana principal, cuando el asistente está afuera: la terminal vive en
+    /// esa ventana (dos vistas de la misma terminal se pelearían por su tamaño).
+    readonly property var principal: ApplicationWindow.window
+    readonly property bool afuera: !enVentana && principal !== null && principal.paginaAfuera !== undefined
+                                   && principal.paginaAfuera("asistente")
 
     function stateText() {
         if (ag.running) return "en linea"
@@ -60,6 +67,16 @@ Rectangle {
                            color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Text { text: page.cur.name || ""; color: Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                     StatusPill { text: page.stateText(); dot: ag.running ? Theme.ok : (ag.installing ? Theme.warn : Theme.textFaint); pulse: ag.running }
+                    GlassButton {
+                        compact: true; icon: page.enVentana ? "⇲" : "⧉"
+                        text: page.enVentana ? "Volver" : "Sacar a una ventana"
+                        visible: !page.afuera
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: page.enVentana ? "Vuelve el asistente a la ventana principal"
+                                                     : "Abre el asistente en su propia ventana (para otro monitor)"
+                        onClicked: page.enVentana ? Window.window.close()
+                                                  : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), "Asistente")
+                    }
                     GlassButton { compact: true; text: "A−"; onClicked: ag.setFontSize(ag.fontSize - 1) }
                     GlassButton { compact: true; text: "A+"; onClicked: ag.setFontSize(ag.fontSize + 1) }
                     GlassButton { compact: true; visible: term.hasSelection; text: "Copiar"; onClicked: term.copySelection() }
@@ -84,20 +101,32 @@ Rectangle {
                 }
             }
 
+            // Afuera: la terminal está en su ventana.
+            CapaTerminal {
+                anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
+                visible: page.afuera
+                z: 5
+                Text { Layout.alignment: Qt.AlignHCenter; text: "⧉"; color: Theme.accent; font.pixelSize: 40 }
+                Text { Layout.alignment: Qt.AlignHCenter; text: "El asistente está en su propia ventana"
+                       color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold } }
+                GlassButton { Layout.alignment: Qt.AlignHCenter; text: "Traer de vuelta"; icon: "⇲"; active: true
+                              onClicked: page.principal.traerPagina("asistente") }
+            }
+
             TerminalView {
                 id: term
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom; margins: 4 }
-                session: ag.session
+                session: page.afuera ? null : ag.session
                 fontSize: ag.fontSize
                 fontFamily: "JetBrains Mono"
-                visible: ag.installed
+                visible: ag.installed && !page.afuera
                 Component.onCompleted: if (ag.running) forceActiveFocus()
             }
 
             // Sin instalar: tarjeta de instalacion
             CapaTerminal {
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
-                visible: !ag.installed
+                visible: !ag.installed && !page.afuera
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 44 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: "Instalar " + (page.cur.agentName || "el agente")
                        color: Theme.text; font { pixelSize: 22; weight: Font.DemiBold } }
@@ -115,7 +144,7 @@ Rectangle {
 
             // MCP apagado
             Rectangle {
-                visible: ag.installed && !ag.mcpReady
+                visible: ag.installed && !ag.mcpReady && !page.afuera
                 anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 14 }
                 height: 44; radius: 12
                 color: Qt.rgba(0.96, 0.72, 0.24, 0.16); border.color: Theme.warn
@@ -125,7 +154,7 @@ Rectangle {
             // Arrancar (instalado y detenido)
             CapaTerminal {
                 anchors { left: parent.left; right: parent.right; top: bar.bottom; bottom: parent.bottom }
-                visible: ag.installed && !ag.running && ag.mcpReady
+                visible: ag.installed && !ag.running && ag.mcpReady && !page.afuera
                 Text { Layout.alignment: Qt.AlignHCenter; text: "✦"; color: Theme.accent; font.pixelSize: 32 }
                 Text { Layout.alignment: Qt.AlignHCenter; text: page.cur.agentName || ""; color: Theme.text; font { pixelSize: 20; weight: Font.DemiBold } }
                 Text { Layout.fillWidth: true; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
@@ -301,6 +330,167 @@ Rectangle {
                     }
                 }
 
+                // LIMPIEZA: los chats que se acumulan, las versiones viejas del
+                // programa, y reinstalar si algo falla (agent/AgentViewModel).
+                Panel {
+                    id: limpiezaPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: limpiezaCol.implicitHeight + 64
+                    title: "Limpieza"
+                    function mb(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB" }
+                    function aviso(r, hecho) {
+                        if (r.ok === false) ApplicationWindow.window.toast(r.error, "error")
+                        else ApplicationWindow.window.toast(hecho + ": se liberaron " + mb(r.bytes || 0), "ok")
+                    }
+                    Component.onCompleted: ag.revisarLimpieza()
+                    onVisibleChanged: if (visible) ag.revisarLimpieza()
+                    ColumnLayout {
+                        id: limpiezaCol
+                        anchors.fill: parent
+                        spacing: 8
+                        Text {
+                            Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
+                            text: "Cada asistente guarda sus conversaciones en su perfil y se van acumulando. Borrarlas no toca " +
+                                  "el login ni los ajustes. Si el asistente no arranca o anda raro, «Reinstalar» vuelve a bajar " +
+                                  "el programa; «Desde cero» borra también el perfil y hay que volver a entrar. Nada de esto se " +
+                                  "puede con el asistente corriendo."
+                            color: Theme.textDim; font.pixelSize: 11
+                        }
+                        Repeater {
+                            model: ag.limpieza.filter(m => m.runtime !== "espacios")
+                            delegate: ColumnLayout {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                Layout.maximumWidth: limpiezaCol.width
+                                spacing: 4
+                                Text {
+                                    text: modelData.runtime + (modelData.enUso ? "  (el que usa el asistente)" : "")
+                                    color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold }
+                                }
+                                Text {
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    color: Theme.textDim; font.pixelSize: 11
+                                    text: "Programa " + limpiezaPanel.mb(modelData.bytesPrograma) +
+                                          (modelData.versiones.length > 0
+                                           ? " (" + modelData.versiones.map(v => v.version + (v.enUso ? " en uso" : "")).join(", ") + ")" : "") +
+                                          " · chats " + limpiezaPanel.mb(modelData.bytesChats) +
+                                          " · perfil " + limpiezaPanel.mb(modelData.bytesPerfil)
+                                }
+                                Flow {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+                                    GlassButton {
+                                        compact: true; text: "Borrar chats"
+                                        enabled: !ag.running && modelData.bytesChats > 0
+                                        onClicked: ApplicationWindow.window.confirm({
+                                            title: "¿Borrar los chats de " + modelData.runtime + "?",
+                                            text: limpiezaPanel.mb(modelData.bytesChats) + " de conversaciones guardadas. El login y los ajustes quedan.",
+                                            accept: "Borrar", reject: "Cancelar",
+                                            action: function() { limpiezaPanel.aviso(ag.borrarChats(modelData.runtime), "Chats borrados") }
+                                        })
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "Versiones viejas"
+                                        visible: modelData.versiones.filter(v => !v.enUso).length > 0
+                                        enabled: !ag.running
+                                        onClicked: limpiezaPanel.aviso(ag.borrarVersionesViejas(modelData.runtime), "Versiones viejas borradas")
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "Reinstalar"
+                                        enabled: !ag.running && !ag.installing
+                                        onClicked: ApplicationWindow.window.confirm({
+                                            title: "¿Reinstalar " + modelData.runtime + "?",
+                                            text: "Se borra el programa y se vuelve a bajar" +
+                                                  (modelData.enUso ? "." : " cuando se lo elija.") + " El login y los chats quedan.",
+                                            accept: "Reinstalar", reject: "Cancelar",
+                                            action: function() {
+                                                const e = ag.reinstalar(modelData.runtime, false)
+                                                if (e !== "") ApplicationWindow.window.toast(e, "error")
+                                            }
+                                        })
+                                    }
+                                    GlassButton {
+                                        compact: true; text: "Desde cero"
+                                        enabled: !ag.running && !ag.installing
+                                        onClicked: ApplicationWindow.window.confirm({
+                                            title: "¿Reinstalar " + modelData.runtime + " desde cero?",
+                                            text: "Se borra el programa y el perfil entero: chats, ajustes y el LOGIN (hay que volver a " +
+                                                  "entrar). Las claves de API pegadas quedan.",
+                                            accept: "Borrar todo", reject: "Cancelar",
+                                            action: function() {
+                                                const e = ag.reinstalar(modelData.runtime, true)
+                                                if (e !== "") ApplicationWindow.window.toast(e, "error")
+                                            }
+                                        })
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true; Layout.maximumWidth: limpiezaCol.width; wrapMode: Text.WordWrap
+                            readonly property var esp: ag.limpieza.find(m => m.runtime === "espacios")
+                            text: "Espacios de trabajo de los agentes: " + limpiezaPanel.mb(esp ? esp.bytesChats : 0) +
+                                  " (se rehacen solos al arrancar)"
+                            color: Theme.textFaint; font.pixelSize: 11
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            GlassButton {
+                                compact: true; text: "Borrar todos los chats"
+                                enabled: !ag.running
+                                onClicked: ApplicationWindow.window.confirm({
+                                    title: "¿Borrar los chats de todos los asistentes?",
+                                    text: "Las conversaciones guardadas de todos los motores y los espacios de trabajo. Los logins y los ajustes quedan.",
+                                    accept: "Borrar", reject: "Cancelar",
+                                    action: function() { limpiezaPanel.aviso(ag.borrarChats(""), "Chats borrados") }
+                                })
+                            }
+                            GlassButton { compact: true; text: "Revisar"; onClicked: ag.revisarLimpieza() }
+                        }
+                    }
+                }
+
+                // Seguridad en vivo: lo que el asistente (y todo lo automático) no hace al aire sin preguntar.
+                Panel {
+                    id: segPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: segCol.implicitHeight + 64
+                    title: "Seguridad en vivo"
+                    property var info: ({})
+                    Timer { interval: 2000; running: page.visible; repeat: true; triggeredOnStart: true; onTriggered: segPanel.info = ag.aireUi() }
+                    ColumnLayout {
+                        id: segCol
+                        anchors.fill: parent
+                        spacing: 6
+                        RowLayout {
+                            Text { text: segPanel.info.hay_aire ? "🔒" : "🔓"; font.pixelSize: 14 }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: segPanel.info.hay_aire
+                                      ? "Al aire: consola (Bash) apagada; las acciones de aire las confirma una persona (Enter / Esc)."
+                                      : "Fuera del aire. Al transmitir o grabar, la consola se apaga y estas acciones piden confirmación."
+                                color: segPanel.info.hay_aire ? Theme.warn : Theme.textDim; font.pixelSize: 12
+                            }
+                        }
+                        Flow {
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Repeater {
+                                model: segPanel.info.herramientas || []
+                                delegate: StatusPill {
+                                    required property var modelData
+                                    text: modelData.herramienta + (modelData.clase === "aire_si" ? " *" : "")
+                                    dot: modelData.fija ? Theme.live : Theme.warn
+                                    ToolTip.visible: segHov.hovered; ToolTip.delay: 400
+                                    ToolTip.text: (modelData.por_que || "agregada") + (modelData.clase === "aire_si" ? " (según los argumentos)" : "")
+                                    HoverHandler { id: segHov }
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Panel {
                     Layout.fillWidth: true
                     Layout.preferredHeight: quickCol.implicitHeight + 64
@@ -341,8 +531,14 @@ Rectangle {
                         id: alertCol
                         anchors.fill: parent
                         spacing: 6
-                        Text { visible: ag.alerts.length === 0; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 12
-                               text: "Pedile al asistente que vigile algo (audio, oradores, fin de un tema, lobby, chat, cortes, temporizadores) y te avisa solo." }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { visible: ag.alerts.length === 0; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 12
+                                   text: "Pedile al asistente que vigile algo (audio, oradores, fin de un tema, lobby, chat, cortes, temporizadores) o armalo vos." }
+                            Item { visible: ag.alerts.length > 0; Layout.fillWidth: true }
+                            GlassButton { compact: true; text: "＋ Nuevo"; onClicked: editorDisparador.open() }
+                        }
+                        EditorDisparador { id: editorDisparador }
                         Repeater {
                             model: ag.alerts
                             delegate: RowLayout {
@@ -354,6 +550,12 @@ Rectangle {
                                     spacing: 0
                                     Text { text: modelData.name; color: modelData.enabled ? Theme.text : Theme.textFaint; font.pixelSize: 12; elide: Text.ElideRight; Layout.fillWidth: true }
                                     Text { text: modelData.type + (modelData.fired > 0 ? " · " + modelData.fired + " avisos" : ""); color: Theme.textFaint; font.pixelSize: 10 }
+                                }
+                                GlassButton {
+                                    compact: true
+                                    visible: (modelData.sonido || "ninguno") !== "ninguno"
+                                    text: modelData.silenciada ? "🔇" : "🔔"
+                                    onClicked: ag.setAlertSilenciada(modelData.id, !modelData.silenciada)
                                 }
                                 GlassButton { compact: true; text: "✕"; onClicked: ag.deleteAlert(modelData.id) }
                             }
@@ -379,6 +581,8 @@ Rectangle {
                                 GlassButton { compact: true; text: "Plugins"; onClicked: ApplicationWindow.window.page = 23 }
                             }
                         }
+                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder; Layout.topMargin: 4 }
+                        PanelNotificadores { Layout.fillWidth: true }
                         Text { visible: ag.events.length > 0; text: "Últimos avisos"; color: Theme.textDim; font { pixelSize: 12; weight: Font.DemiBold } Layout.topMargin: 6 }
                         Repeater {
                             model: ag.events.slice(0, 8)

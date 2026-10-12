@@ -1,0 +1,7 @@
+/* Lo propio de este evento, encima del estilo del sitio (/evento/_/sitio.css).
+   Es tuyo: cambiá el acento, el fondo, las tipografías o lo que quieras pisar.
+   Plantilla del sistema: assets/web/evento/plantilla/estilo.css. */
+:root {
+  --accent: {{color}};
+  --bg: {{fondo}};
+}

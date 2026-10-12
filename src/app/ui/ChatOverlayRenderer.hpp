@@ -12,6 +12,8 @@
 #include <QHash>
 #include <QImage>
 #include <QObject>
+#include <QSet>
+#include <QStringList>
 #include <QTimer>
 
 namespace ba::app {
@@ -41,6 +43,11 @@ class ChatOverlayRenderer : public QObject {
     static QImage render(const std::vector<Message>& msgs, int width, int height, int fontSize, int bgOpacity,
                          bool showNames, bool tagSource);
     std::vector<Message> collect() const;
+    /// Destacar un mensaje (por su `key`, de collect()) para que salga en los
+    /// overlays en modo «solo destacados». false si no está entre los recientes.
+    bool destacar(const QString& key);
+    void quitarDestacado(const QString& key); ///< "" = todos
+    QStringList destacados() const { return QStringList(destacados_.begin(), destacados_.end()); }
 
    private:
     void tick();
@@ -50,6 +57,7 @@ class ChatOverlayRenderer : public QObject {
     FacebookViewModel& fb_;
     QTimer timer_;
     QHash<quint64, QString> lastSig_; // instancia -> firma de lo ultimo entregado
+    QSet<QString> destacados_;        // keys de los mensajes destacados
 };
 
 } // namespace ba::app

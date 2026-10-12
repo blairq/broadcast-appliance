@@ -22,7 +22,10 @@
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
 #include "mcp/McpService.hpp"
+#include "net/Descargas.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #if defined(BA_HAVE_CLAP)
@@ -65,6 +68,7 @@ json estado(agent::ModelosLocales& ml, agent::Voz* voz) {
            {"al_arrancar", ml.alArrancar()},
            {"descarga",
             {{"en_curso", ml.descargando()},
+             {"en_cola", ml.enCola().join(",").toStdString()},
              {"progreso", ml.progreso()},
              {"texto", ml.textoDescarga().toStdString()}}},
            {"catalogo", catalogo}};
@@ -135,16 +139,16 @@ void McpService::registerModeloTools() {
                         "verificando cada archivo. Si ya esta, lo actualiza (lo verificado no se rebaja). "
                         "Vuelve enseguida: el avance se ve en modelo_local_estado (descarga).";
         t.details = "Los modelos de lenguaje pesan 2-3 GB y los de voz ~0,6 GB: la red del estudio se usa "
-                    "mientras baja. Una descarga a la vez. Nada se usa sin verificar, y una descarga a "
+                    "mientras baja. Va a la cola de descargas (descargas_estado): si ya esta en la cola, bajandose o bajado, no se repite; una cortada sigue donde quedo. Nada se usa sin verificar, y una descarga a "
                     "medias nunca pisa el modelo que andaba.";
         t.inputSchema = esquemaRepo("el repo, tal cual aparece en el catalogo");
         t.run = [&ml](const json& a, Done done) {
             const std::string repo = a.value("repo", std::string());
             if (!enCatalogo(ml, repo))
                 return done(ToolResult::error("`" + repo + "` no esta en el catalogo de esta plataforma."));
-            if (ml.descargando()) return done(ToolResult::error("Ya hay una descarga en curso."));
-            ml.descargar(QString::fromStdString(repo));
-            done(ToolResult::ok("Bajando `" + repo + "`: el avance, en modelo_local_estado."));
+            const QString r = ml.descargar(QString::fromStdString(repo));
+            done(ToolResult::ok("`" + repo + "`: " + r.toStdString() +
+                                ". El avance, en descargas_estado (o modelo_local_estado)."));
         };
         core_.addTool(std::move(t));
     }
@@ -154,9 +158,12 @@ void McpService::registerModeloTools() {
         t.title = "Cancelar la descarga";
         t.category = "agentes";
         t.idempotent = true;
-        t.description = "Corta la descarga en curso. Lo que estaba instalado queda como estaba.";
-        t.run = [&ml](const json&, Done done) {
-            ml.cancelarDescarga();
+        t.description = "Corta la descarga de un modelo (sin repo: todas las de modelos). Lo que estaba "
+                        "instalado queda como estaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"repo", {{"type", "string"}, {"description", "el repo (opcional)"}}}}}};
+        t.run = [&ml](const json& a, Done done) {
+            ml.cancelarDescarga(QString::fromStdString(a.value("repo", std::string())));
             done(ToolResult::ok(ml.descargando() ? "Cancelando." : "No habia ninguna descarga."));
         };
         core_.addTool(std::move(t));
@@ -176,6 +183,55 @@ void McpService::registerModeloTools() {
                 return done(ToolResult::error("`" + repo + "` no esta en el catalogo de esta plataforma."));
             ml.borrar(QString::fromStdString(repo));
             done(ToolResult::ok("Borrado `" + repo + "`."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "modelo_local_disco";
+        t.destructive = true; // borra (la lista sola no toca nada)
+        t.title = "Modelos en el disco y limpieza";
+        t.category = "agentes";
+        t.description = "Qué modelos hay bajados en el disco (estén o no en el catálogo), cuánto ocupa cada uno, "
+                        "cuáles son viejos, y limpiarlos.";
+        t.details =
+            "Sin `limpiar`: la lista (carpeta, repo, tipo, bytes, en el catálogo, activo, `viejo` y por qué) y "
+            "las descargas cortadas que quedaron. `viejo` es un modelo de lenguaje que no está activo y salió "
+            "del catálogo o tiene bajada una versión más nueva de su familia (v2 → v3), o uno a medio instalar.\n"
+            "- `limpiar: viejos`: borra todos los `viejo`.\n"
+            "- `limpiar: restos`: borra las descargas cortadas.\n"
+            "- `limpiar: carpeta` con `carpeta`: borra esa (sirve para uno que ya no está en el catálogo, que "
+            "modelo_local_borrar no ve). Si es el activo, lo apaga. Todo se puede volver a bajar si sigue en "
+            "el catálogo.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"limpiar", {{"type", "string"}, {"enum", {"viejos", "restos", "carpeta"}}}},
+              {"carpeta", {{"type", "string"}, {"description", "La carpeta tal cual la da la lista."}}}}}};
+        t.run = [&ml](const json& a, Done done) {
+            const std::string que = a.value("limpiar", std::string());
+            const auto gb = [](double b) {
+                char t[32];
+                std::snprintf(t, sizeof(t), "%.2f GB", b / 1073741824.0);
+                return std::string(t);
+            };
+            if (que == "viejos" || que == "restos") {
+                const QVariantMap r = que == "viejos" ? ml.limpiarViejos() : ml.limpiarRestos();
+                return done(ToolResult::ok(std::string(que == "viejos" ? "Modelos viejos" : "Descargas cortadas") +
+                                           " borrados: se liberaron " + gb(r.value("bytes").toDouble()) + "."));
+            }
+            if (que == "carpeta") {
+                const std::string c = a.value("carpeta", std::string());
+                if (!ml.borrarCarpeta(QString::fromStdString(c)))
+                    return done(ToolResult::error("No se pudo borrar `" + c + "` (no es una carpeta de un modelo)."));
+                return done(ToolResult::ok("Borrada `" + c + "`."));
+            }
+            ml.revisarDisco();
+            double total = 0;
+            for (const QVariant& v : ml.instalados()) total += v.toMap().value("bytes").toDouble();
+            done(ToolResult().data(json{{"instalados", qvToJson(ml.instalados())},
+                                        {"restos", qvToJson(ml.restos())},
+                                        {"total", gb(total)}}));
         };
         core_.addTool(std::move(t));
     }
@@ -265,8 +321,10 @@ void McpService::registerModeloTools() {
             if (!ml.listo())
                 return done(
                     ToolResult::error("No hay un modelo local cargado (" + ml.estado().toStdString() + ")."));
-            ml.probar(frase); // que se vea en la pagina
-            ml.probarFrase(frase, [done](const json& j) {
+            // Una sola pregunta al modelo: lo mismo se anota en la página (antes
+            // se preguntaba dos veces y la segunda esperaba a la primera).
+            ml.probarFrase(frase, [&ml, frase, done](const json& j) {
+                ml.anotarPrueba(frase, j);
                 if (j.contains("error")) return done(ToolResult::error(j.value("error", std::string())));
                 json out{{"herramienta", j.value("herramienta", std::string())},
                          {"derivar", j.value("derivar", false)},
@@ -470,7 +528,94 @@ void McpService::registerModeloTools() {
                                  {"frases", m.value("cantidad").toInt()},
                                  {"ultima", m.value("ultima").toString().toStdString()}});
             }
-            done(ToolResult().data(json{{"flujos", lista}, {"carpeta", fl->carpeta().toStdString()}}));
+            json archivos = json::array();
+            for (const QString& f : fl->archivosDeSesion()) archivos.push_back(f.toStdString());
+            done(ToolResult().data(json{{"flujos", lista},
+                                        {"carpeta", fl->carpeta().toStdString()},
+                                        {"archivos", archivos}, // .txt, .srt y .vtt (WebVTT) de esta sesión
+                                        {"correccion", {{"activa", fl->correccionActiva()}, {"demora_ms", fl->demoraMs()}}}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_correccion";
+        t.title = "Corrección humana de los subtitulos";
+        t.category = "agentes";
+        t.description = "Con `activa`, cada frase que transcribe la voz espera `demora_s` segundos (0 a 30) antes de "
+                        "salir a los subtitulos, el CC, la traduccion y los archivos: en ese tiempo un corrector la "
+                        "aprueba, la corrige o la descarta (subtitulos_pendientes, subtitulos_corregir). Apagarla suelta "
+                        "lo que esperaba.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activa", {{"type", "boolean"}}}, {"demora_s", {{"type", "number"}, {"minimum", 0}, {"maximum", 30}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            fl->setCorreccion(a.value("activa", fl->correccionActiva()),
+                              a.contains("demora_s") ? static_cast<int>(a.value("demora_s", 4.0) * 1000) : fl->demoraMs());
+            done(ToolResult().data({{"activa", fl->correccionActiva()}, {"demora_ms", fl->demoraMs()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_puesto";
+        t.title = "Enlace del puesto web de corrección";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.description = "El enlace de la página /correccion/ (con su clave, que cambia en cada arranque de la sala) para "
+                        "que un corrector apruebe, corrija o descarte las frases desde otra computadora o un celular. "
+                        "`remoto: true` da el de afuera (túnel), si hay. La corrección tiene que estar prendida "
+                        "(subtitulos_correccion). Quien tenga el enlace puede corregir lo que sale al aire: pasalo con cuidado.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"remoto", {{"type", "boolean"}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* conf = static_cast<ConferenceViewModel*>(vmp->conference());
+            if (conf == nullptr || !conf->client().online()) return done(ToolResult::error("la sala no está corriendo"));
+            conf->client().get(QString("/api/v1/correccion-link?target=") + (a.value("remoto", false) ? "remote" : "local"),
+                               [done](bool ok, const QJsonObject& r) {
+                                   if (!ok || !r.value("ok").toBool())
+                                       return done(ToolResult::error(r.value("message").toString("la sala no dio el enlace").toStdString()));
+                                   json out{{"url", r.value("url").toString().toStdString()}};
+                                   if (r.contains("message")) out["aviso"] = r.value("message").toString().toStdString();
+                                   done(ToolResult().data(out));
+                               });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_pendientes";
+        t.title = "Frases esperando correccion";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.untrustedOutput = true;
+        t.description = "Las frases que esperan al corrector: id, salida, texto y cuanto les falta para salir solas.";
+        t.run = [vmp = &vm_](const json&, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            done(ToolResult().data({{"pendientes", fl->pendientes()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "subtitulos_corregir";
+        t.title = "Corregir una frase antes del aire";
+        t.category = "agentes";
+        t.description = "La frase `id` sale ya con `texto` (si no se da, sale como estaba: aprobada) o se tira con "
+                        "`descartar`: true.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties",
+                          {{"id", {{"type", "integer"}}}, {"texto", {{"type", "string"}}}, {"descartar", {{"type", "boolean"}}}}}};
+        t.run = [vmp = &vm_](const json& a, Done done) {
+            auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
+            if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
+            const std::string e = fl->corregir(a.value("id", 0ULL), QString::fromStdString(a.value("texto", std::string())),
+                                               a.value("descartar", false));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok(a.value("descartar", false) ? "Descartada." : "Salió."));
         };
         core_.addTool(std::move(t));
     }
@@ -486,13 +631,19 @@ void McpService::registerModeloTools() {
                         "escrito a mano o para probar la cadena sin hablar.";
         t.inputSchema = {{"type", "object"},
                          {"required", {"flujo", "texto"}},
-                         {"properties", {{"flujo", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
+                         {"properties",
+                          {{"flujo", {{"type", "string"}}},
+                           {"texto", {{"type", "string"}}},
+                           {"como_voz", {{"type", "boolean"},
+                                         {"description", "Como si lo hubiera transcripto la voz: pasa por la cola del corrector "
+                                                         "si está prendida (para probar el puesto sin hablar)."}}}}}};
         t.run = [vmp = &vm_](const json& a, Done done) {
             auto* fl = qobject_cast<agent::FlujosTexto*>(vmp->flujos());
             if (fl == nullptr) return done(ToolResult::error("no hay salidas de texto"));
             const std::string f = a.value("flujo", std::string()), tx = a.value("texto", std::string());
             if (f.empty() || tx.empty()) return done(ToolResult::error("faltan `flujo` y `texto`"));
-            fl->publicar(QString::fromStdString(f), QString::fromStdString(tx), "Escrito a mano");
+            fl->publicar(QString::fromStdString(f), QString::fromStdString(tx),
+                         a.value("como_voz", false) ? "Voz a texto (prueba)" : "Escrito a mano");
             done(ToolResult().text("Publicado en «" + f + "»."));
         };
         core_.addTool(std::move(t));
@@ -662,16 +813,22 @@ void McpService::registerModeloTools() {
              {{"frase", {{"type", "string"}}},
               {"preparar",
                {{"type", "boolean"},
-                {"description", "Como con F9: el modelo v2 lee el estado antes de la frase."}}}}},
+                {"description", "Como con F9: el modelo v2 lee el estado antes de la frase."}}},
+              {"dictado",
+               {{"type", "boolean"},
+                {"description", "Como dicha por el micrófono del operador (F9): con la página o la "
+                                "ventana del Asistente a la vista, va derecho a la caja del asistente."}}}}},
             {"required", json::array({"frase"})}};
         t.run = [voz](const json& a, Done done) {
             const QString frase = QString::fromStdString(a.value("frase", std::string()));
             // `preparar`: como con F9, el estado se lee antes (mientras se habla)
             // y la frase llega despues. Para medir el camino real sin microfono.
+            const bool dicho = a.value("dictado", false);
+            const auto atender = [voz, frase, dicho]() { dicho ? voz->dictar(frase) : voz->atender(frase); };
             if (a.value("preparar", false)) {
-                voz->prepararTc([voz, frase]() { voz->atender(frase); });
+                voz->prepararTc(atender);
             } else {
-                voz->atender(frase);
+                atender();
             }
             // El modelo contesta en milisegundos: se mira la propuesta un rato despues.
             QTimer::singleShot(a.value("preparar", false) ? 2500 : 1500, voz, [voz, done]() {
@@ -744,6 +901,114 @@ void McpService::registerModeloTools() {
                                         {"contestar_con_voz", voz->contestarConVoz()},
                                         {"auriculares", voz->auriculares().toStdString()},
                                         {"automaticas", lista}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- La cola única de descargas (net/Descargas): todo lo que el programa baja ---
+    net::Descargas* dl = &net::Descargas::la();
+    const json esquemaId = {{"type", "object"},
+                            {"properties", {{"id", {{"type", "string"}, {"description", "el id, como lo da descargas_estado"}}}}},
+                            {"required", json::array({"id"})}};
+    {
+        Tool t;
+        t.name = "descargas_estado";
+        t.title = "Descargas: la cola, lo que baja y lo que terminó";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.description = "Todo lo que el programa baja (modelos, agentes): lo que se esta bajando (avance, MB, "
+                        "KB/s), lo que espera en la cola, lo que termino (listo, error, cancelado) y las "
+                        "actualizaciones encontradas.";
+        t.details = "Una sola cola para todo: corre de a dos. Lo que ya esta en la cola, "
+                    "bajandose o bajado no se vuelve a bajar. Una descarga cortada sigue donde quedo.";
+        t.run = [dl](const json&, Done done) { done(ToolResult().data(dl->estado())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descarga_cancelar";
+        t.title = "Cancelar una descarga";
+        t.category = "agentes";
+        t.idempotent = true;
+        t.description = "Corta una descarga (o la saca de la cola). Lo instalado queda como estaba; lo bajado "
+                        "a medias se conserva para seguir despues.";
+        t.inputSchema = esquemaId;
+        t.run = [dl](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            if (!dl->ocupado(id)) return done(ToolResult::error("`" + id + "` no esta en la cola ni bajandose."));
+            dl->cancelar(QString::fromStdString(id));
+            done(ToolResult::ok("Cancelando `" + id + "`."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descarga_reintentar";
+        t.title = "Reintentar una descarga";
+        t.category = "agentes";
+        t.openWorld = true;
+        t.description = "Vuelve a poner en la cola una descarga que fallo o se cancelo (sigue donde quedo).";
+        t.inputSchema = esquemaId;
+        t.run = [dl](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            done(dl->reintentar(QString::fromStdString(id))
+                     ? ToolResult::ok("`" + id + "` otra vez en la cola.")
+                     : ToolResult::error("No se puede reintentar `" + id +
+                                         "` (no fallo, o es de una sesion anterior: pedila de nuevo desde su lugar)."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descargas_limpiar";
+        t.title = "Limpiar el historial de descargas";
+        t.category = "agentes";
+        t.idempotent = true;
+        t.description = "Saca de la lista lo que ya termino (no borra nada instalado).";
+        t.run = [dl](const json&, Done done) {
+            dl->limpiarTerminadas();
+            done(ToolResult::ok("Listo."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descargas_buscar_actualizaciones";
+        t.title = "Buscar actualizaciones de lo bajado";
+        t.category = "agentes";
+        t.readOnly = true;
+        t.openWorld = true;
+        t.description = "Se fija si hay versiones nuevas de lo instalado (modelos del catalogo, el agente "
+                        "elegido) y las devuelve. No baja nada: para eso, descarga_actualizar.";
+        t.run = [dl](const json&, Done done) {
+            dl->buscarActualizaciones();
+            auto* timer = new QTimer(dl);
+            auto elapsed = std::make_shared<int>(0);
+            QObject::connect(timer, &QTimer::timeout, dl, [dl, timer, elapsed, done]() {
+                *elapsed += 500;
+                if (dl->buscando() && *elapsed < 90 * 1000) return;
+                timer->deleteLater();
+                done(ToolResult().data({{"actualizaciones", dl->estado()["actualizaciones"]},
+                                        {"terminado", !dl->buscando()}}));
+            });
+            timer->start(500);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "descarga_actualizar";
+        t.title = "Bajar una actualización";
+        t.category = "agentes";
+        t.openWorld = true;
+        t.description = "Pone en la cola una actualizacion que encontro descargas_buscar_actualizaciones. Lo "
+                        "instalado sigue andando hasta que la nueva este bajada y verificada.";
+        t.inputSchema = esquemaId;
+        t.run = [dl](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            done(dl->actualizar(QString::fromStdString(id))
+                     ? ToolResult::ok("`" + id + "`: actualizando. El avance, en descargas_estado.")
+                     : ToolResult::error("No hay una actualizacion `" + id +
+                                         "` (primero descargas_buscar_actualizaciones)."));
         };
         core_.addTool(std::move(t));
     }

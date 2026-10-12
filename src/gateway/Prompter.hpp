@@ -25,7 +25,7 @@
 // QUIEN ESTA CONECTADO. Las vistas piden el estado cada medio segundo, asi
 // que no hace falta un canal aparte para saber quien hay: se anota quien
 // pidio, cuando y desde donde. Un cliente "esta" si pidio hace poco (ver
-// kVivoMs). Sirve para lo unico que importa antes de un discurso: saber si la
+// kVivoMs()). Sirve para lo unico que importa antes de un discurso: saber si la
 // tablet del atril esta prendida y si alguien tiene el control en la mano.
 // ============================================================================
 #pragma once
@@ -37,6 +37,7 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -48,7 +49,7 @@ class Prompter {
 
     /// Cuanto vale una visita: las vistas piden cada 500 ms, asi que cuatro
     /// segundos aguantan un par de pedidos perdidos sin que la lista parpadee.
-    static constexpr std::int64_t kVivoMs = 4000;
+    static std::int64_t kVivoMs() { return ba::ajustes::entero64("prompter.vivoMs", 4000); }
     /// Tope de clientes recordados. Mas que esto es alguien probando URLs.
     static constexpr std::size_t kMaxClientes = 32;
 
@@ -57,7 +58,7 @@ class Prompter {
     /// escribe quien la usa ("Atril 1").
     void visto(const std::string& id, const std::string& vista, const std::string& nombre, std::uint32_t ip);
 
-    /// Los que pidieron hace menos de kVivoMs: [{id, vista, nombre, ip,
+    /// Los que pidieron hace menos de kVivoMs(): [{id, vista, nombre, ip,
     /// haceMs}], los oradores primero.
     nlohmann::json clientes() const;
 

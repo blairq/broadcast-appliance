@@ -1,0 +1,3076 @@
+{
+ "perfiles": [
+  {
+   "herramientas_permitidas": [
+    "aire_ftb",
+    "record_start",
+    "scene_preview",
+    "scene_take",
+    "stream_start"
+   ],
+   "id": "perfil-b42010c2",
+   "nombre": "Director",
+   "paginas": [
+    {
+     "celdas": [
+      {
+       "accion": {
+        "args": {
+         "name": "Principal"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Principal"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Principal"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Principal"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "scene_take",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#8e1b1b",
+        "texto": "TAKE"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {
+         "activar": true
+        },
+        "herramienta": "aire_ftb",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#000000",
+        "texto": "FTB"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {
+         "activar": false
+        },
+        "herramienta": "aire_ftb",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Volver de FTB"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "record_start",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "activo",
+         "tema": "salida/grabacion",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "titilar",
+         "op": "==",
+         "ruta": "activo",
+         "tema": "salida/grabacion",
+         "valor": true
+        },
+        {
+         "dato": "REC\n{{v}}",
+         "efecto": "texto",
+         "op": "",
+         "ruta": "tiempo",
+         "tema": "salida/grabacion"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "REC"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "stream_start",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "activo",
+         "tema": "salida/stream",
+         "valor": true
+        },
+        {
+         "dato": "AIRE\n{{v}}",
+         "efecto": "texto",
+         "op": "",
+         "ruta": "tiempo",
+         "tema": "salida/stream"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "AIRE"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 3
+      }
+     ],
+     "columnas": 6,
+     "filas": 4,
+     "id": "p1",
+     "nombre": "Director"
+    }
+   ],
+   "puede_editar": false
+  },
+  {
+   "herramientas_permitidas": [
+    "banca_al_aire",
+    "banca_terminar",
+    "scene_take"
+   ],
+   "id": "perfil-3ec850dd",
+   "nombre": "Presidencia",
+   "paginas": [
+    {
+     "celdas": [
+      {
+       "accion": {
+        "args": {
+         "banca": "P"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "P"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "P\nMarta Ibarguren"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "1"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "1"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "1\nJulián Ferreyra Ocampo"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "2"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "2"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "2\nCarolina Benítez Lagos"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "3"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "3"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "3\nRodolfo Quiroga Saenz"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "4"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "4"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "4\nValeria Montes Arriola"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "5"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "5"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "5\nAndrés Villalba Ruiz"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "6"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "6"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "6\nSilvina Paredes Olmos"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "7"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "7"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "7\nTomás Echeverría Lunes"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "8"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "8"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "8\nLucía Ferrando Bustos"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "9"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "9"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "9\nGabriel Sosa Inchausti"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "10"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "10"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "10\nNatalia Correa Brizuela"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "11"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "11"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "11\nEsteban Galván Moreira"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "12"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "12"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "12\nInés Arrieta Pallares"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "13"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "13"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "13\nMartín Lucero Tavella"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "14"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "14"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "14\nPaula Domínguez Rivas"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "15"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "15"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "15\nRamiro Acosta Valdés"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#1f5f8a",
+        "texto": "Siguiente"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "banca_terminar",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Terminar"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 3
+      },
+      {
+       "ancho": 2,
+       "estado": [
+        {
+         "dato": "{{v}}",
+         "efecto": "texto",
+         "op": "existe",
+         "ruta": "nombre",
+         "tema": "oradores/al_aire"
+        }
+       ],
+       "estilo": {
+        "color": "#fff",
+        "fondo": "#111",
+        "texto": "—"
+       },
+       "tipo": "texto",
+       "x": 2,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "scene_take",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#8e1b1b",
+        "texto": "TAKE"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 3
+      }
+     ],
+     "columnas": 6,
+     "filas": 4,
+     "id": "p1",
+     "nombre": "Asamblea"
+    }
+   ],
+   "puede_editar": false
+  },
+  {
+   "herramientas_permitidas": [
+    "banca_al_aire",
+    "banca_terminar",
+    "scene_take"
+   ],
+   "id": "perfil-8c1837ff",
+   "nombre": "Recinto",
+   "paginas": [
+    {
+     "celdas": [
+      {
+       "accion": {
+        "args": {
+         "banca": "1"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "1"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "1\nJulián Ferreyra Ocampo"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "2"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "2"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "2\nCarolina Benítez Lagos"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "3"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "3"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "3\nRodolfo Quiroga Saenz"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "4"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "4"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "4\nValeria Montes Arriola"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "5"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "5"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "5\nAndrés Villalba Ruiz"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "6"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "6"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "6\nSilvina Paredes Olmos"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "7"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "7"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "7\nTomás Echeverría Lunes"
+       },
+       "tipo": "boton",
+       "x": 6,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "8"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "8"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "8\nLucía Ferrando Bustos"
+       },
+       "tipo": "boton",
+       "x": 7,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "9"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "9"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "9\nGabriel Sosa Inchausti"
+       },
+       "tipo": "boton",
+       "x": 8,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "10"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "10"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "10\nNatalia Correa Brizuela"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "11"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "11"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "11\nEsteban Galván Moreira"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "12"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "12"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "12\nInés Arrieta Pallares"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "13"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "13"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "13\nMartín Lucero Tavella"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "14"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "14"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "14\nPaula Domínguez Rivas"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "15"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "15"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "15\nRamiro Acosta Valdés"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "banca": "P"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "banca",
+         "tema": "oradores/al_aire",
+         "valor": "P"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "P\nMarta Ibarguren"
+       },
+       "tipo": "boton",
+       "x": 6,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#1f5f8a",
+        "texto": "Siguiente"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "banca_terminar",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Terminar"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 2
+      },
+      {
+       "ancho": 6,
+       "estado": [
+        {
+         "dato": "{{v}}",
+         "efecto": "texto",
+         "op": "existe",
+         "ruta": "nombre",
+         "tema": "oradores/al_aire"
+        }
+       ],
+       "estilo": {
+        "color": "#fff",
+        "fondo": "#111",
+        "texto": "—"
+       },
+       "tipo": "texto",
+       "x": 2,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "scene_take",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#8e1b1b",
+        "texto": "TAKE"
+       },
+       "tipo": "boton",
+       "x": 8,
+       "y": 2
+      }
+     ],
+     "columnas": 9,
+     "filas": 3,
+     "id": "p1",
+     "nombre": "Recinto"
+    }
+   ],
+   "puede_editar": false
+  },
+  {
+   "herramientas_permitidas": [
+    "banca_al_aire",
+    "dcn_cerrar_todos",
+    "dcn_microfono",
+    "dcn_pedidos_limpiar",
+    "dcn_siguiente",
+    "scene_take"
+   ],
+   "id": "perfil-50e21b03",
+   "nombre": "Micrófonos",
+   "paginas": [
+    {
+     "celdas": [
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "1",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "1"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "1"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "1"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "1"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "1"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=1].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=1].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:1",
+        "texto": "1\nOcampo"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "2",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "2"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "2"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "2"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "2"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "2"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=2].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=2].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:2",
+        "texto": "2\nLagos"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "3",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "3"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "3"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "3"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "3"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "3"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=3].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=3].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:3",
+        "texto": "3\nSaenz"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "4",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "4"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "4"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "4"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "4"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "4"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=4].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=4].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:4",
+        "texto": "4\nArriola"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "5",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "5"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "5"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "5"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "5"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "5"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=5].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=5].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:5",
+        "texto": "5\nRuiz"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "6",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "6"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "6"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "6"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "6"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "6"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=6].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=6].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:6",
+        "texto": "6\nOlmos"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "7",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "7"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "7"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "7"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "7"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "7"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=7].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=7].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:7",
+        "texto": "7\nLunes"
+       },
+       "tipo": "boton",
+       "x": 6,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "8",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "8"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "8"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "8"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "8"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "8"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=8].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=8].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:8",
+        "texto": "8\nBustos"
+       },
+       "tipo": "boton",
+       "x": 7,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "9",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "9"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "9"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "9"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "9"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "9"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=9].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=9].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:9",
+        "texto": "9\nInchausti"
+       },
+       "tipo": "boton",
+       "x": 8,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "10",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "10"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "10"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "10"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "10"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "10"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=10].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=10].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:10",
+        "texto": "10\nBrizuela"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "11",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "11"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "11"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "11"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "11"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "11"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=11].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=11].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:11",
+        "texto": "11\nMoreira"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "12",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "12"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "12"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "12"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "12"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "12"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=12].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=12].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:12",
+        "texto": "12\nPallares"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "13",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "13"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "13"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "13"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "13"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "13"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=13].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=13].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:13",
+        "texto": "13\nTavella"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "14",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "14"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "14"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "14"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "14"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "14"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=14].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=14].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:14",
+        "texto": "14\nRivas"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "15",
+         "confirmar": true
+        },
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "15"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "15"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "15"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "15"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "15"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=15].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=15].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:15",
+        "texto": "15\nValdés"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {
+         "abierto": "{{no_activo}}",
+         "banca": "P",
+         "confirmar": true
+        },
+        "confirmar": true,
+        "herramienta": "dcn_microfono",
+        "tipo": "herramienta"
+       },
+       "accion_mantener": {
+        "args": {
+         "banca": "P"
+        },
+        "herramienta": "banca_al_aire",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": true,
+         "efecto": "activo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "P"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "contiene",
+         "ruta": "abiertos",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "P"
+        },
+        {
+         "dato": "#ff1744",
+         "efecto": "borde",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "P"
+        },
+        {
+         "dato": true,
+         "efecto": "borde_titilar",
+         "op": "==",
+         "ruta": "siguiente",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "P"
+        },
+        {
+         "dato": "{{v}}",
+         "efecto": "insignia",
+         "op": "existe",
+         "ruta": "pedidos[banca=P].turno",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "unidades[banca=P].conectada",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "atenuar",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "borde": "#d4af37",
+        "color": "#ffffff",
+        "fondo": "#20242d",
+        "imagen": "cuerpo:P",
+        "texto": "P\nIbarguren"
+       },
+       "tipo": "boton",
+       "x": 6,
+       "y": 1
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "dcn_siguiente",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#1f5f8a",
+        "texto": "Siguiente ▶"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "dcn_cerrar_todos",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#8e1b1b",
+        "texto": "Cerrar todos"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 2
+      },
+      {
+       "estado": [
+        {
+         "dato": "Abiertos {{v}}",
+         "efecto": "texto",
+         "op": "existe",
+         "ruta": "abiertos.#",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        },
+        {
+         "dato": "sin central",
+         "efecto": "texto",
+         "op": "!=",
+         "ruta": "enlace",
+         "tema": "plugin/bosch-dcn/dcn/estado",
+         "valor": "ok"
+        }
+       ],
+       "estilo": {
+        "color": "#fff",
+        "fondo": "#111",
+        "texto": "sin central"
+       },
+       "tipo": "texto",
+       "x": 2,
+       "y": 2
+      },
+      {
+       "ancho": 4,
+       "estado": [
+        {
+         "dato": "{{v}}",
+         "efecto": "texto",
+         "op": "existe",
+         "ruta": "hablando.0.nombre",
+         "tema": "plugin/bosch-dcn/dcn/estado"
+        }
+       ],
+       "estilo": {
+        "color": "#fff",
+        "fondo": "#111",
+        "texto": "—"
+       },
+       "tipo": "texto",
+       "x": 3,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "dcn_pedidos_limpiar",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Limpiar pedidos"
+       },
+       "tipo": "boton",
+       "x": 7,
+       "y": 2
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "scene_take",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#8e1b1b",
+        "texto": "TAKE"
+       },
+       "tipo": "boton",
+       "x": 8,
+       "y": 2
+      }
+     ],
+     "columnas": 9,
+     "filas": 3,
+     "id": "p1",
+     "nombre": "Micrófonos de bancas"
+    }
+   ],
+   "puede_editar": false
+  },
+  {
+   "herramientas_permitidas": [
+    "aire_ftb",
+    "record_start",
+    "scene_preview",
+    "scene_take",
+    "stream_start"
+   ],
+   "id": "perfil-546955c4",
+   "nombre": "Dirección",
+   "paginas": [
+    {
+     "celdas": [
+      {
+       "accion": {
+        "args": {
+         "name": "Principal"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Principal"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Principal"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Principal"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "name": "Asamblea · Plano general"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Plano general"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Plano general"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Asamblea · Plano general"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "name": "Asamblea · Remoto"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Remoto"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Remoto"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Asamblea · Remoto"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "name": "Asamblea · Debate remotos"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Debate remotos"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Debate remotos"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Asamblea · Debate remotos"
+       },
+       "tipo": "boton",
+       "x": 3,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "name": "Asamblea · Debate sala y remoto"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Debate sala y remoto"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Debate sala y remoto"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Asamblea · Debate sala y remoto"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {
+         "name": "Asamblea · Debate sala"
+        },
+        "herramienta": "scene_preview",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#1f8a3c",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "preview",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Debate sala"
+        },
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "programa",
+         "tema": "aire/tally",
+         "valor": "Asamblea · Debate sala"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Asamblea · Debate sala"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 0
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "scene_take",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#8e1b1b",
+        "texto": "TAKE"
+       },
+       "tipo": "boton",
+       "x": 0,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {
+         "activar": true
+        },
+        "herramienta": "aire_ftb",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#000000",
+        "texto": "FTB"
+       },
+       "tipo": "boton",
+       "x": 1,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {
+         "activar": false
+        },
+        "herramienta": "aire_ftb",
+        "tipo": "herramienta"
+       },
+       "estado": [],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "Volver de FTB"
+       },
+       "tipo": "boton",
+       "x": 2,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "record_start",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "activo",
+         "tema": "salida/grabacion",
+         "valor": true
+        },
+        {
+         "dato": true,
+         "efecto": "titilar",
+         "op": "==",
+         "ruta": "activo",
+         "tema": "salida/grabacion",
+         "valor": true
+        },
+        {
+         "dato": "REC\n{{v}}",
+         "efecto": "texto",
+         "op": "",
+         "ruta": "tiempo",
+         "tema": "salida/grabacion"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "REC"
+       },
+       "tipo": "boton",
+       "x": 4,
+       "y": 3
+      },
+      {
+       "accion": {
+        "args": {},
+        "herramienta": "stream_start",
+        "tipo": "herramienta"
+       },
+       "estado": [
+        {
+         "dato": "#c62828",
+         "efecto": "fondo",
+         "op": "==",
+         "ruta": "activo",
+         "tema": "salida/stream",
+         "valor": true
+        },
+        {
+         "dato": "AIRE\n{{v}}",
+         "efecto": "texto",
+         "op": "",
+         "ruta": "tiempo",
+         "tema": "salida/stream"
+        }
+       ],
+       "estilo": {
+        "color": "#ffffff",
+        "fondo": "#2b2f3a",
+        "texto": "AIRE"
+       },
+       "tipo": "boton",
+       "x": 5,
+       "y": 3
+      }
+     ],
+     "columnas": 6,
+     "filas": 4,
+     "id": "p1",
+     "nombre": "Director"
+    }
+   ],
+   "puede_editar": false
+  }
+ ]
+}

@@ -17,12 +17,17 @@
 #include <QStorageInfo>
 #include <QSysInfo>
 
+#include <algorithm>
 #include <cstdio>
 #include <map>
 #include <thread>
 
-#include "AppRuntime.hpp"
-#include "InputSpecs.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
+#include "arranque/InicioConElSistema.hpp"
+#include "video/ElementosGst.hpp"
+#include "audio/EntradasAudio.hpp"
+#include "video/Camaras.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -49,17 +54,11 @@ struct DeviceKind {
     const char* prop;
 };
 #if defined(_WIN32)
-const DeviceKind kAudioIn{"wasapi_input_capture", "device_id"};
 const DeviceKind kAudioOut{"wasapi_output_capture", "device_id"};
-const DeviceKind kVideo{"dshow_input", "video_device_id"};
 #elif defined(__APPLE__)
-const DeviceKind kAudioIn{"coreaudio_input_capture", "device_id"};
 const DeviceKind kAudioOut{"coreaudio_output_capture", "device_id"};
-const DeviceKind kVideo{"macos-avcapture", "device"};
 #else
-const DeviceKind kAudioIn{"pulse_input_capture", "device_id"};
 const DeviceKind kAudioOut{"pulse_output_capture", "device_id"};
-const DeviceKind kVideo{"v4l2_input", "device_id"};
 #endif
 
 json listToJson(const std::vector<BroadcastEngine::ListItem>& items) {
@@ -199,7 +198,7 @@ std::string cpuModel() {
 void McpService::registerSystemTools() {
     core_.addCategory(
         "equipo", "El equipo",
-        "Monitores (para repartir ventanas de salida), placas de audio, camaras y capturadoras con sus "
+        "Monitores (para repartir ventanas de salida), placas de audio, cámaras y capturadoras con sus "
         "formatos, GPU y codificadores, CPU, memoria y disco.");
     AppRuntime& rt = rt_;
     {
@@ -231,9 +230,9 @@ void McpService::registerSystemTools() {
                        {"totalGb", static_cast<double>(disk.bytesTotal()) / 1e9},
                        {"filesystem", disk.fileSystemType().toStdString()}}},
                      {"monitors", screensJson()},
-                     {"audioInputs", listToJson(e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))},
+                     {"audioInputs", listToJson(ba::app::audio::entradasDeAudio(e))},
                      {"audioOutputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
-                     {"videoDevices", listToJson(e.sourceTypeListItems(kVideo.type, kVideo.prop))},
+                     {"videoDevices", listToJson(ba::app::video::camarasDelEquipo(e))},
                      {"gpu", {{"renderer", e.graphicsDeviceName()}, {"cards", gpusJson()}}},
                      {"videoEncoders", encoders}}));
         };
@@ -269,9 +268,9 @@ void McpService::registerSystemTools() {
         t.run = [&rt](const json&, Done done) {
             BroadcastEngine& e = rt.engine();
             done(ToolResult().data(
-                json{{"inputs", listToJson(e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))},
+                json{{"inputs", listToJson(ba::app::audio::entradasDeAudio(e))},
                      {"outputs", listToJson(e.sourceTypeListItems(kAudioOut.type, kAudioOut.prop))},
-                     {"inputSourceType", kAudioIn.type},
+                     {"inputSourceType", ba::app::inputs::kMicType},
                      {"outputSourceType", kAudioOut.type}}));
         };
         core_.addTool(std::move(t));
@@ -301,7 +300,7 @@ void McpService::registerSystemTools() {
                 if (dev == "default") {
                     name = "Entrada de audio predeterminada";
                 } else {
-                    for (const auto& d : e.sourceTypeListItems(kAudioIn.type, kAudioIn.prop))
+                    for (const auto& d : ba::app::audio::entradasDeAudio(e))
                         if (d.value == dev) name = d.name;
                 }
             }
@@ -317,39 +316,86 @@ void McpService::registerSystemTools() {
     }
     {
         Tool t;
+        t.name = "gst_elementos";
+        t.title = "Elementos de GStreamer que hacen falta";
+        t.category = "equipo";
+        t.readOnly = true;
+        t.description =
+            "Si están los elementos de GStreamer que usa el aparato: los imprescindibles (sin ellos algo de hoy no anda: "
+            "invitados, racks, voces, NDI…) y los del motor que viene (mezcla, composición, robustez, subtítulos). "
+            "Para diagnosticar silencio o negro en una plataforma: un plugin que falta aparece acá.";
+        t.run = [](const json&, Done done) {
+            const json l = video::revisarElementosGst();
+            json faltan = json::array();
+            for (const auto& e : l)
+                if (!e.value("esta", true)) faltan.push_back(e);
+            done(ToolResult().data({{"faltan", faltan}, {"todos", l}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "inicio_con_el_equipo";
+        t.title = "Arrancar solo al encender el equipo";
+        t.category = "equipo";
+        t.description =
+            "Que el aparato vuelva solo después de un corte de luz. Sin argumentos: si arranca solo con el equipo y "
+            "qué falta del sistema (que la máquina se encienda al volver la luz y que la sesión se inicie sola: eso "
+            "lo hace una persona con permisos de administrador). Con `activo`: lo prende o lo apaga. Al volver, el "
+            "programa retoma solo la transmisión y la grabación que estaban andando.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
+        t.run = [](const json& a, Done done) {
+            if (a.contains("activo")) {
+                if (const std::string e = inicio::poner(a.value("activo", false)); !e.empty())
+                    return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(inicio::estado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_input_remove";
+        t.title = "Quitar un microfono o entrada de audio";
+        t.category = "equipo";
+        t.destructive = true;
+        t.description =
+            "Saca de la emision una entrada de audio del equipo (las que agrega audio_input_add; mixer_list "
+            "las muestra). Deja de sonar en todas las escenas y no vuelve al arrancar.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
+        t.run = [&rt](const json& a, Done done) {
+            const std::string name = a.value("name", "");
+            const auto& l = rt.config().audioInputs;
+            if (std::none_of(l.begin(), l.end(), [&](const SourceSpec& s) { return s.name == name; }))
+                return done(ToolResult::error("no hay una entrada de audio «" + name + "»"));
+            rt.removeAudioInput(name);
+            rt.save();
+            done(ToolResult::ok("Quitada: " + name));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "video_devices";
         t.title = "Camaras y capturadoras";
         t.category = "equipo";
         t.readOnly = true;
         t.description =
-            "Camaras USB, capturadoras (V4L2 en Linux, DirectShow en Windows, AVFoundation en macOS). Con "
-            "`device` (el value de la lista), sus entradas, formatos, resoluciones y cuadros por segundo. "
+            "Camaras USB, capturadoras (por GStreamer: V4L2 en Linux, Media Foundation en Windows, AVFoundation "
+            "en macOS). Con `device` (el value de la lista), sus `modos` (tamaño y cuadros por segundo). "
             "Para agregarla a una escena: video_input_add.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"device", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
-            json out{{"sourceType", kVideo.type},
-                     {"available", e.sourceTypeExists(kVideo.type)},
-                     {"devices", listToJson(e.sourceTypeListItems(kVideo.type, kVideo.prop))}};
+            // Por GStreamer: las cámaras y sus modos del monitor de dispositivos.
+            json out{{"sourceType", ba::app::inputs::kMicType},
+                     {"available", e.sourceTypeExists(ba::app::inputs::kMicType)},
+                     {"devices", listToJson(ba::app::video::camarasDelEquipo(e))}};
             if (a.contains("device")) {
-                const json s{{kVideo.prop, a["device"]}};
-#if !defined(_WIN32) && !defined(__APPLE__)
-                out["inputs"] = listToJson(e.sourceTypeListItems(kVideo.type, "input", s.dump()));
-                out["formats"] = listToJson(e.sourceTypeListItems(kVideo.type, "pixelformat", s.dump()));
-                json fmts = json::array();
-                for (const auto& f : out["formats"]) {
-                    json s2 = s;
-                    s2["pixelformat"] = std::stoll(f.value("value", std::string("0")));
-                    fmts.push_back({{"format", f},
-                                    {"resolutions",
-                                     listToJson(e.sourceTypeListItems(kVideo.type, "resolution", s2.dump()))},
-                                    {"framerates", listToJson(e.sourceTypeListItems(kVideo.type, "framerate",
-                                                                                    s2.dump()))}});
-                }
-                out["modes"] = fmts;
-#else
-                out["resolutions"] = listToJson(e.sourceTypeListItems(kVideo.type, "resolution", s.dump()));
-#endif
+                json modos = json::array();
+                for (const auto& m : ba::app::video::modosDeCamara(a.value("device", "")))
+                    modos.push_back({{"modo", m.valor()}, {"ancho", m.ancho}, {"alto", m.alto}, {"cps", m.fps}});
+                out["modos"] = modos;
             }
             done(ToolResult().data(out));
         };

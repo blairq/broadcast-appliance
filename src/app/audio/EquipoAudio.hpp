@@ -10,7 +10,8 @@
 //     lo alimenta el mismo hilo de mezcla que a los buses virtuales. Se abre
 //     solo mientras algo le manda audio.
 //   * ENTRADAS: cada canal de cada dispositivo es una fuente de audio
-//     («Behringer UMC · Entrada 3», tipo ba_entrada_fisica): está en la
+//     («Behringer UMC · Entrada 3», tipo lógico ba_entrada_fisica: una entrada
+//     del motor que lee lo capturado por la cola de `bavoz`): está en la
 //     Matriz como cualquier fila y en Audio con su rack. De fábrica sin
 //     pistas (no sale al aire sola). La captura del dispositivo se abre solo
 //     si alguno de sus canales se usa (una pista, la escucha, un envío): sin
@@ -36,7 +37,6 @@
 #include <string>
 #include <vector>
 
-struct obs_source;
 
 namespace ba::app::audio {
 
@@ -44,12 +44,10 @@ namespace anillo {
 struct Ring;
 }
 
-/// Registra el tipo de fuente de las entradas físicas (al arrancar libobs).
-void registrarEntradaFisica();
 /// Los dispositivos de entrada que ya son (o van a ser) una entrada de audio
 /// de la app aunque su fuente todavía no exista: con el audio del sistema
 /// trabado, la entrada del micrófono tarda en abrirse, y mientras tanto la
-/// placa tomaba el MISMO nombre («Micrófono de MacBook Pro») y libobs
+/// placa tomaba el MISMO nombre («Micrófono de MacBook Pro») y el motor
 /// renombraba la de la app a «… 2». Lo da el motor (sus entradas pendientes).
 void setDispositivosReservados(std::function<std::set<std::string>()> f);
 
@@ -81,6 +79,9 @@ class EquipoAudio : public QObject {
     void setVisible(const std::string& dispositivoId, bool visible);
     /// [{id, nombre, tipo: salida|entrada, canales, visible, abierto}]
     QVariantList dispositivos() const;
+    /// Para diagnosticar (audio_matriz): cada dispositivo, si se pidió, si se abrió
+    /// (y si no, por qué) y cuánto audio pasó.
+    nlohmann::json estadoDispositivos() const;
 
     nlohmann::json guardado() const;
     /// CoreAudio contestó (en otro hilo) cuántos canales tiene un dispositivo.

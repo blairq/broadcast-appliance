@@ -207,8 +207,23 @@ Item {
                         color: parent.border.color; font.pixelSize: 11; font.weight: Font.DemiBold
                         style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.8)
                     }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: t.elegida = index }
+                    MouseArea {
+                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: t.elegida = index
+                        // Doble clic: seguirla ya.
+                        onDoubleClicked: { t.elegida = index; t.seguirElegida() }
+                    }
                 }
+            }
+            // Cómo se usa (abajo, chico).
+            Text {
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
+                z: 3
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                text: "Clic: apuntar · arrastrar: encuadrar · clic derecho o Alt+clic: seguir a esa cara"
+                color: Qt.rgba(1, 1, 1, 0.55); font.pixelSize: 10
+                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
             }
             // La mira en el centro: ahí va lo que se toque.
             Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
@@ -217,6 +232,7 @@ Item {
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.CrossCursor
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 property point desde
                 onPressed: (m) => { desde = Qt.point(m.x, m.y); cuadro.visible = false }
                 onPositionChanged: (m) => {
@@ -227,6 +243,13 @@ Item {
                     cuadro.visible = true
                 }
                 onReleased: (m) => {
+                    // Alt+clic o clic derecho: SEGUIR a la cara más cercana a ese punto
+                    // (la tarjeta Seguimiento del pipeline la mantiene encuadrada).
+                    if (m.button === Qt.RightButton || (m.modifiers & Qt.AltModifier)) {
+                        cuadro.visible = false
+                        t.avisar(t.sg ? t.sg.seguirPunto(t.entrada, vista.u(m.x), vista.v(m.y)) : "El seguimiento no está disponible")
+                        return
+                    }
                     if (cuadro.visible) {
                         cuadro.visible = false
                         const cx = cuadro.x + cuadro.width / 2, cy = cuadro.y + cuadro.height / 2
@@ -402,9 +425,13 @@ Item {
                     required property var modelData
                     compact: true
                     text: modelData.nombre
+                    // Al aire, en gris con candado: tocarla pregunta (se vería el movimiento).
+                    opacity: t.cc && t.cc.alAire(t.entrada) ? 0.55 : 1
                     onClicked: {
-                        const r = t.cc.irAPosicion(t.entrada, modelData.id, 1.0)
-                        t.avisar(r.ok ? (r.aviso || "") : r.error)
+                        const ir = function() { const r = t.cc.irAPosicion(t.entrada, modelData.id, -1); t.avisar(r.ok ? (r.aviso || "") : r.error) }
+                        if (!t.cc.alAire(t.entrada) || !t.cc.interlock().activo) { ir(); return }
+                        ApplicationWindow.window.confirm({ title: "La cámara está al aire", text: "Moverla se ve en la transmisión. ¿Mover igual?",
+                                                           accept: "Mover igual", reject: "Cancelar", action: ir })
                     }
                     ToolTip.visible: hovered && modelData.comentario !== ""
                     ToolTip.delay: 400

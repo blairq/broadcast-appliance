@@ -13,10 +13,13 @@
 #include <QVariant>
 
 #include <algorithm>
+#include <map>
 #include <deque>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "platform/Paths.hpp"
 #include "mcp/McpService.hpp"
+#include "video/VideoGrafos.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
@@ -48,7 +51,7 @@ int paginaDeId(StudioViewModel& vm, const std::string& id) {
 void McpService::registerUiTools() {
     core_.addCategory(
         "interfaz", "Interfaz de la app",
-        "Navegar paginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
+        "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
         "(multiview en otro monitor).");
     core_.addCategory("sistema", "Sistema", "Videos disponibles, registros, salud, salir.");
     AppRuntime& rt = rt_;
@@ -57,6 +60,99 @@ void McpService::registerUiTools() {
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
     auto* windows = static_cast<OutputWindowsModel*>(dash->windows());
 
+    {
+        Tool t;
+        t.name = "multiview";
+        t.title = "Multiview: ver y armar las multivistas (y sacarlas a una ventana)";
+        t.category = "interfaz";
+        t.description =
+            "Las multivistas (pestañas de la página Multiview): varias fuentes en un muro con separación de color y "
+            "borde por cuadro. Sin argumentos devuelve todas y cuál está elegida, y qué fuentes se pueden poner. "
+            "`vista` (id o nombre) elige con cuál trabajar (si no, la elegida); `nueva` crea una con ese nombre (con "
+            "`copiar`: copia de la elegida); `renombrar` y `borrar` (siempre queda una). Lo demás cambia SOLO lo que "
+            "mandes en esa vista (se guarda y lo siguen sus ventanas en vivo). `ventana`: true abre una ventana de "
+            "salida con esa vista: en `monitor` (nombre de monitores) y, con `pantalla_completa`, ocupándolo entero. "
+            "`todas_en_ventanas`: una ventana por multivista, una por monitor (los que no son el principal) en pantalla "
+            "completa; `cerrar_ventanas`: las cierra. La respuesta trae `ventana` de cada multivista (\"salida:<n>\"): "
+            "para acomodarlas como quieras (zona, tamaño exacto, maximizada, otro monitor) usá ventana_mover con ese id. "
+            "Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", \"entrada:<nombre>\".";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"vista", {{"type", "string"}, {"description", "id o nombre de la multivista"}}},
+              {"nueva", {{"type", "string"}, {"description", "nombre de una multivista nueva (queda elegida)"}}},
+              {"copiar", {{"type", "boolean"}, {"default", false}}},
+              {"renombrar", {{"type", "string"}}},
+              {"borrar", {{"type", "boolean"}, {"default", false}}},
+              {"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
+              {"distribucion", {{"type", "string"}, {"enum", {"control", "grid", "focus", "pip", "row"}}}},
+              {"separacion", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 0-60"}}},
+              {"fondo", {{"type", "string"}, {"description", "color de la separación (#rrggbb)"}}},
+              {"borde", {{"type", "integer"}, {"description", "px por cuadro (a 1920 de ancho), 0-20"}}},
+              {"colorBorde", {{"type", "string"}, {"description", "#rrggbb"}}},
+              {"nombres", {{"type", "boolean"}}},
+              {"tamNombres", {{"type", "integer"}}},
+              {"tally", {{"type", "boolean"}}},
+              {"grosorTally", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 1-12; de fábrica 2"}}},
+              {"vumetros", {{"type", "boolean"}}},
+              {"ventana", {{"type", "boolean"}, {"default", false}}},
+              {"monitor", {{"type", "string"}, {"description", "con ventana: nombre del monitor (ver `monitores`)"}}},
+              {"pantalla_completa", {{"type", "boolean"}, {"default", false}}},
+              {"todas_en_ventanas", {{"type", "boolean"}, {"default", false}}},
+              {"cerrar_ventanas", {{"type", "boolean"}, {"default", false}}}}}};
+        t.examples = {R"({"todas_en_ventanas": true})",
+                      R"({"vista": "Invitados", "ventana": true, "monitor": "HDMI-1", "pantalla_completa": true})",
+                      R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
+                      R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
+        t.run = [&vm, windows](const json& a, Done done) {
+            QString id = vm.multiviewActual();
+            if (a.contains("vista")) {
+                const QString q = QString::fromStdString(a.value("vista", std::string()));
+                QString hallado;
+                for (const QVariant& v : vm.multiviews()) {
+                    const QVariantMap m = v.toMap();
+                    if (m.value("id").toString() == q || m.value("nombre").toString().compare(q, Qt::CaseInsensitive) == 0)
+                        hallado = m.value("id").toString();
+                }
+                if (hallado.isEmpty()) return done(ToolResult::error("no hay una multivista «" + q.toStdString() + "»"));
+                id = hallado;
+                vm.setMultiviewActual(id);
+            }
+            if (a.contains("nueva")) id = vm.nuevaMultiview(QString::fromStdString(a.value("nueva", std::string())), a.value("copiar", false));
+            if (a.value("borrar", false)) {
+                if (!vm.borrarMultiview(id)) return done(ToolResult::error("es la única multivista: siempre queda una"));
+                id = vm.multiviewActual();
+            }
+            if (a.contains("renombrar")) vm.renombrarMultiview(id, QString::fromStdString(a.value("renombrar", std::string())));
+            QVariantMap cambios;
+            for (const char* k : {"fuentes", "distribucion", "separacion", "fondo", "borde", "colorBorde", "nombres",
+                                  "tamNombres", "tally", "vumetros", "grosorTally"})
+                if (a.contains(k)) cambios[k] = jsonToQv(a[k]);
+            if (!cambios.isEmpty()) vm.setMultiviewDe(id, cambios);
+            if (a.value("cerrar_ventanas", false)) vm.cerrarVentanasMultiview();
+            if (a.value("todas_en_ventanas", false)) vm.abrirTodasLasMultiviews();
+            else if (a.value("ventana", false))
+                vm.abrirMultiviewEnVentana(id, QString::fromStdString(a.value("monitor", std::string())),
+                                           a.value("pantalla_completa", false));
+            json disp = json::array();
+            for (const QString& k : static_cast<FrameService*>(vm.frames())->keys()) disp.push_back(k.toStdString());
+            if (auto* vg = static_cast<video::VideoGrafos*>(vm.video()))
+                for (const QString& e : vg->entradas()) disp.push_back("entrada:" + e.toStdString());
+            // La ventana de cada multivista (para ventana_mover).
+            json vistas = qvToJson(vm.multiviews());
+            for (auto& v : vistas) {
+                v["ventana"] = nullptr;
+                for (const auto& w : windows->windows())
+                    if (w.layout == "multiview:" + QString::fromStdString(v.value("id", std::string())))
+                        v["ventana"] = "salida:" + std::to_string(w.id);
+            }
+            done(ToolResult().data({{"elegida", vm.multiviewActual().toStdString()},
+                                    {"multivistas", vistas},
+                                    {"monitores", qvToJson(vm.monitores())},
+                                    {"fuentes_disponibles", disp}}));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "ui_show_page";
@@ -71,9 +167,15 @@ void McpService::registerUiTools() {
              {{"page", {{"type", "string"}, {"enum", idsDePaginas()}}},
               {"seccion",
                {{"type", "string"},
-                {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+                {"description", "Con page=configuracion: a que seccion ir (el nombre tal cual lo "
+                                "muestra la lista, p. ej. \"Video\", \"Red de la sala\", "
+                                "\"Apariencia\"). Con page=camaras: \"recinto\" (la grilla de bancas) "
+                                "o el nombre de una entrada. Con page=audio: \"estudio\" (todo el audio, "
+                                "cada fuente con su cadena), \"racks\", \"matriz\", \"mesa\" (automixer) o el "
+                                "nombre de una fuente (abre su rack). Con page=video: \"<entrada>[/<tarjeta>]\". Con "
+                                "page=historico: \"<evento>[/<pestaña>]\" (resumen, tiempo, grabaciones, config, "
+                                "archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], "
+                                "recinto, orden, votacion, conexiones o debate. Sin esto queda la que estaba."}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
@@ -85,9 +187,61 @@ void McpService::registerUiTools() {
             w->setProperty("page", pagina);
             // Llevarlo a la seccion ANTES de mostrar la pagina haria que se
             // vea un salto; despues, no se nota.
-            if (a.contains("seccion") && a["seccion"].is_string())
-                vm.setSeccionConfig(QString::fromStdString(a["seccion"].get<std::string>()));
+            if (a.contains("seccion") && a["seccion"].is_string()) {
+                const QString s = QString::fromStdString(a["seccion"].get<std::string>());
+                if (a["page"] == "configuracion") vm.setSeccionConfig(s);
+                else emit vm.mostrarSeccion(QString::fromStdString(a["page"].get<std::string>()), s);
+            }
             done(ToolResult::ok("Pagina: " + a["page"].get<std::string>()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        // Los paneles y diálogos que se abren con un botón: sin esto no había
+        // forma de mostrarlos (ni de verlos con capture_ui) sin tocar la pantalla.
+        static const std::map<std::string, std::vector<std::string>> kPaneles{
+            {"video", {"superresolucion", "entrada_virtual", "catalogo"}}, {"escenas", {"efectos"}}};
+        Tool t;
+        t.name = "ui_abrir_panel";
+        t.title = "Abrir un panel o diálogo de una página";
+        t.category = "interfaz";
+        t.description = "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo "
+                        "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
+                        "entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con "
+                        "`fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde "
+                        "difuso y sombra). Para mirarlo, capture_ui.";
+        json enumPaginas = json::array();
+        for (const auto& [p, l] : kPaneles) enumPaginas.push_back(p);
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"page", {{"type", "string"}, {"enum", enumPaginas}}},
+                           {"panel", {{"type", "string"}, {"description", "uno de los de esa página, o \"cerrar\""}}},
+                           {"fuente", {{"type", "string"}, {"description", "escenas → efectos: la fuente a elegir"}}}}},
+                         {"required", {"page", "panel"}}};
+        t.examples = {R"({"page": "video", "panel": "superresolucion"})", R"({"page": "video", "panel": "cerrar"})",
+                      R"({"page": "escenas", "panel": "efectos", "fuente": "Zócalo"})"};
+        t.run = [self, &vm](const json& a, Done done) {
+            QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
+            if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+            const std::string pag = a.value("page", std::string()), panel = a.value("panel", std::string());
+            const auto it = kPaneles.find(pag);
+            if (it == kPaneles.end()) return done(ToolResult::error("Esa página no tiene paneles para abrir por acá."));
+            if (panel != "cerrar" && std::find(it->second.begin(), it->second.end(), panel) == it->second.end()) {
+                std::string l;
+                for (const auto& x : it->second) l += (l.empty() ? "" : ", ") + x;
+                return done(ToolResult::error("«" + panel + "» no es un panel de " + pag + ": " + l + " o cerrar."));
+            }
+            const int pagina = paginaDeId(vm, pag);
+            if (pagina < 0) return done(ToolResult::error("No conozco la pagina \"" + pag + "\"."));
+            std::string pedido = panel;
+            if (pag == "escenas" && panel == "efectos") {
+                const std::string f = a.value("fuente", std::string());
+                if (f.empty()) return done(ToolResult::error("escenas → efectos: falta `fuente` (source_list las muestra)."));
+                pedido = "efectos:" + f;
+            }
+            w->setProperty("page", pagina);
+            emit vm.abrirPanel(QString::fromStdString(pag), QString::fromStdString(pedido));
+            done(ToolResult::ok(panel == "cerrar" ? "Paneles de " + pag + " cerrados." : "Abierto: " + pag + " → " + panel));
         };
         core_.addTool(std::move(t));
     }
@@ -111,8 +265,9 @@ void McpService::registerUiTools() {
               {"seccion",
                {{"type", "string"},
                 {"description", "Solo con page=configuracion: a que seccion ir (el nombre tal cual lo "
-                                "muestra la lista, p. ej. \"Audio\", \"Gateway\", \"Barra de "
-                                "navegacion\"). Sin esto queda la que estaba."}}}}},
+                                "muestra la lista, p. ej. \"Video\", \"Red de la sala\", "
+                                "\"Apariencia\"). Sin esto queda la que estaba."}}},
+              {"cerrar", {{"type", "boolean"}, {"description", "true: cierra su ventana (vuelve a la principal)"}}}}},
             {"required", {"page"}}};
         t.run = [self, &vm](const json& a, Done done) {
             QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
@@ -123,6 +278,12 @@ void McpService::registerUiTools() {
                     ToolResult::error("No conozco la pagina \"" + a["page"].get<std::string>() + "\"."));
             auto* riel = static_cast<RielConfig*>(vm.riel());
             const QString titulo = riel->tituloDePagina(idx);
+            // `cerrar`: la ventana se cierra y la página queda en la principal (el Asistente
+            // vuelve a mostrar su terminal ahí).
+            if (a.value("cerrar", false)) {
+                QMetaObject::invokeMethod(w, "traerPagina", Q_ARG(QVariant, QString::fromStdString(a["page"].get<std::string>())));
+                return done(ToolResult::ok("\"" + titulo.toStdString() + "\" vuelve a la ventana principal."));
+            }
             QMetaObject::invokeMethod(w, "sacarAVentana", Q_ARG(QVariant, idx), Q_ARG(QVariant, titulo));
             done(ToolResult::ok("\"" + titulo.toStdString() + "\" abierta en su propia ventana."));
         };
@@ -270,20 +431,38 @@ void McpService::registerUiTools() {
         t.name = "dashboard_background";
         t.title = "Fondo del dashboard";
         t.category = "interfaz";
-        t.description = "Videos de fondo del dashboard (claves de feeds_list), disposicion y oscurecido.";
+        t.description = "Fondo del dashboard: videos sueltos (claves de feeds_list) con su disposición, o una de las "
+                        "multivistas de la página Multiview (`multiview`: su id o su nombre; sale con sus fuentes y su "
+                        "estilo, en vivo). `feeds` vuelve a los videos sueltos. `dim` oscurece (0..1).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"feeds", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                           {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row"}}}},
+                           {"multiview", {{"type", "string"}, {"description", "id o nombre de una multivista (ver multiview listar)"}}},
+                           {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row", "control", "multiview"}}, {"description", "multiview: sigue a la página Multiview (fuentes y estilo)"}}},
                            {"dim", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
-        t.run = [dash](const json& a, Done done) {
+        t.run = [dash, &vm](const json& a, Done done) {
             if (a.contains("feeds")) {
                 QStringList l;
                 for (const auto& k : a["feeds"])
                     l << QString::fromStdString(k.get<std::string>());
                 dash->setBackground(l);
+                if (dash->backgroundLayout().startsWith("multiview")) dash->setBackgroundLayout("grid");
             }
             if (a.contains("layout")) dash->setBackgroundLayout(QString::fromStdString(a["layout"]));
+            if (a.contains("multiview")) {
+                const QString pedida = QString::fromStdString(a.value("multiview", std::string())).trimmed();
+                QString id;
+                QStringList hay;
+                for (const QVariant& v : vm.multiviews()) {
+                    const QVariantMap m = v.toMap();
+                    hay << m.value("nombre").toString();
+                    if (m.value("id").toString() == pedida || m.value("nombre").toString().compare(pedida, Qt::CaseInsensitive) == 0)
+                        id = m.value("id").toString();
+                }
+                if (id.isEmpty())
+                    return done(ToolResult::error(("No hay ninguna multivista «" + pedida + "». Hay: " + hay.join(", ")).toStdString()));
+                dash->setBackgroundLayout("multiview:" + id);
+            }
             if (a.contains("dim")) dash->setBackgroundDim(a["dim"]);
             done(ToolResult::ok("Fondo actualizado."));
         };
@@ -367,9 +546,9 @@ void McpService::registerUiTools() {
         core_.addTool(std::move(t));
     }
     // --- La barra de navegacion ---------------------------------------------
-    // Tiene vista (Configuracion -> Barra de navegacion), asi que se puede
+    // Tiene vista (Configuracion -> Apariencia), asi que se puede
     // publicar: la regla es que no se expone un setter que no se vea en
-    // ningun lado (ver docs/EXTENSIONES.md).
+    // ningun lado (ver docs/funciones/EXTENSIONES.md).
     {
         Tool t;
         t.name = "ui_barra";
@@ -466,7 +645,7 @@ void McpService::registerUiTools() {
               {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
               {"grep", {{"type", "string"}}}}}};
         t.run = [&rt](const json& a, Done done) {
-            const QString dir = QString::fromStdString((rt.dataRoot() / "Logs").string());
+            const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
             const QString name = QString::fromStdString(a.value("log", std::string("ba.log")));
             if (name.contains('/') || name.contains('\\') || name.contains(".."))
                 return done(ToolResult::error("Solo nombres de archivo de Logs/."));

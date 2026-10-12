@@ -55,6 +55,16 @@ class TlsTerminator {
 
     bool start();
     void stop();
+    /// Carga (o genera) el certificado sin abrir la escucha. start() lo hace solo si hace
+    /// falta; se separa para que el gateway se lo pueda dar a ba-web (que hace el HTTPS de
+    /// la red local) y usar este terminador solo si ba-web no arranca.
+    bool cargarCertificado();
+    /// El certificado y la clave en PEM (después de cargarCertificado). Para pasárselos a
+    /// ba-web por su entrada estándar: nunca a disco. false si no hay.
+    bool pemParaExportar(std::string& crt, std::string& key) const;
+    /// El HTTPS de ese puerto lo atiende otro (ba-web) con este mismo certificado: port(),
+    /// fingerprint() y selfSigned() siguen valiendo para las URLs, pero acá no se escucha.
+    void atendidoAfuera(uint16_t puerto) { boundPort_ = puerto; }
     uint16_t port() const { return boundPort_; }
     /// Huella SHA-256 del certificado en uso (para mostrarla al operador).
     const std::string& fingerprint() const { return fingerprint_; }

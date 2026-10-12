@@ -404,14 +404,17 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
         return r > 0;
     };
     if (!req.responseFile.empty() && res.status >= 200 && res.status < 300 && !chunked) {
-        // Descarga a archivo, en streaming.
-        std::ofstream out(req.responseFile, std::ios::binary | std::ios::trunc);
+        // Descarga a archivo, en streaming (agregando si el servidor siguió desde
+        // donde se cortó: 206 a un pedido con rango).
+        const bool sigue = req.resumeFrom > 0 && res.status == 206;
+        std::ofstream out(req.responseFile, std::ios::binary | (sigue ? std::ios::app : std::ios::trunc));
         if (!out) {
             res.error = "no se pudo escribir " + req.responseFile;
             return res;
         }
-        const std::uint64_t total = cl.empty() ? 0 : std::strtoull(cl.c_str(), nullptr, 10);
-        std::uint64_t got = body.size();
+        const std::uint64_t ya = sigue ? req.resumeFrom : 0;
+        const std::uint64_t total = cl.empty() ? 0 : ya + std::strtoull(cl.c_str(), nullptr, 10);
+        std::uint64_t got = ya + body.size();
         out.write(body.data(), static_cast<std::streamsize>(body.size()));
         body.clear();
         auto lastReport = std::chrono::steady_clock::now();
@@ -470,6 +473,7 @@ HttpResponse HttpsClient::request(const HttpRequest& req) {
 
 HttpResponse HttpsClient::download(HttpRequest req) {
     req.method = "GET";
+    if (req.resumeFrom > 0) req.headers.emplace_back("Range", "bytes=" + std::to_string(req.resumeFrom) + "-");
     HttpResponse res;
     for (int hop = 0; hop < 6; ++hop) {
         res = request(req);

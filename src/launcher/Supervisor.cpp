@@ -6,14 +6,22 @@
 // la capa de plataforma con Crashpad (plan multiplataforma, fase 9).
 
 #include "Supervisor.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "Integrity.hpp"
 #include "Log.hpp"
 #include "RecoveryUi.hpp"
 #include "ShadowCopy.hpp"
+#include "Sha256.hpp"
+
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
+#include <fstream>
 #include <chrono>
+#include <vector>
+#include <filesystem>
+#include <ctime>
 #include <thread>
 
 #ifdef _WIN32
@@ -29,25 +37,23 @@ namespace {
 
 constexpr int kPollMs = 250;
 constexpr std::uint32_t kProcVersion = 1;
-constexpr std::uint64_t kCircuitWindowMs = 2 * 60 * 1000; // 2 min
-constexpr int kCircuitThreshold = 5;                      // >5 crashes
-// El dialogo de recuperacion BLOQUEA el reinicio hasta que alguien hace clic:
-// una caida aislada al aire se reinicia sola; recien con fallas repetidas en
-// la ventana del circuit breaker se le pregunta al operador.
-constexpr int kRecoveryUiAfter = 2; // fallas seguidas que se reinician sin preguntar
-constexpr int kGracefulMs = 5000;   // espera tras el pedido de cierre
-constexpr int kTerminateMs = 3000;  // espera tras SIGTERM antes de matar
-// Gracia de arranque: un hijo recien lanzado todavia no late. Sin esto el
-// watchdog lo declaraba colgado en el mismo milisegundo y lo mataba. Un crash
-// durante el arranque se detecta igual (el proceso sale).
-constexpr std::uint64_t kStartupGraceMs = 20000;
+// La ventana y el tope del circuit breaker, el cuelgue, la gracia de arranque y
+// cuántas fallas se reinician sin preguntar van en Config (launcher.json): ver
+// Supervisor::Config. El dialogo de recuperacion BLOQUEA el reinicio hasta que
+// alguien hace clic: una caida aislada al aire se reinicia sola; recien con
+// fallas repetidas en la ventana se le pregunta al operador.
+inline int kGracefulMs() { return ba::ajustes::entero("launcher.cierreOrdenadoMs", 5000); } // espera tras el pedido de cierre
+inline int kTerminateMs() { return ba::ajustes::entero("launcher.terminarMs", 3000); } // espera tras SIGTERM antes de matar
+// Gracia de arranque (cfg_.graciaArranqueMs): un hijo recien lanzado todavia no
+// late. Sin esto el watchdog lo declaraba colgado en el mismo milisegundo y lo
+// mataba. Un crash durante el arranque se detecta igual (el proceso sale).
 // Si todavía no latió NUNCA, se lo espera más: el primer arranque después de
 // instalar o actualizar, macOS verifica la firma de cientos de binarios antes
 // de dejarlos correr (9 s solo para cargar, comprobado) y a los 20 s se lo
 // mataba en pleno arranque. Un cuelgue de verdad al arrancar se ve igual.
-constexpr std::uint64_t kPrimerLatidoMs = 90000;
+inline std::uint64_t kPrimerLatidoMs() { return static_cast<std::uint64_t>(ba::ajustes::entero("launcher.primerLatidoS", 90)) * 1000; }
 // Espera antes de relanzar un hijo que salio con exit_code::kEnvironment.
-constexpr std::uint64_t kEnvironmentRetryMs = 60000;
+inline std::uint64_t kEnvironmentRetryMs() { return static_cast<std::uint64_t>(ba::ajustes::entero("launcher.reintentoEntornoS", 60)) * 1000; }
 
 std::uint64_t nowMs() {
     using namespace std::chrono;
@@ -61,7 +67,7 @@ int backoffSeconds(int consecutive) {
     if (consecutive >= 0 && consecutive < 4) {
         return seq[consecutive];
     }
-    return 10;
+    return std::max(5, ba::ajustes::entero("launcher.relanzarMaxS", 10));
 }
 
 /// Duerme `ms` en tramos cortos, cortando antes si se pidio parar.
@@ -71,60 +77,15 @@ void sleepInterruptible(int ms, const std::atomic<bool>& stop) {
     }
 }
 
-void writeMinidump(std::uint32_t pid, const std::filesystem::path& path) {
-#ifdef _WIN32
-    // dbghelp.dll se carga a runtime (sin import lib). MinGW no define los
-    // tipos de minidump en su dbghelp.h, por eso se declaran aca.
-    typedef DWORD MINIDUMP_TYPE;
-    typedef BOOL(WINAPI * MiniDumpWriteDumpFn)(HANDLE, DWORD, HANDLE, MINIDUMP_TYPE, void*, void*, void*);
-    HMODULE dbghelp = LoadLibraryW(L"dbghelp.dll");
-    if (!dbghelp) {
-        BA_LOG_WARN("dump", 0, "dbghelp.dll no disponible; sin minidump");
-        return;
-    }
-    auto fn = reinterpret_cast<MiniDumpWriteDumpFn>(
-        reinterpret_cast<void*>(GetProcAddress(dbghelp, "MiniDumpWriteDump")));
-    HANDLE proc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
-    if (!fn || !proc) {
-        if (proc) {
-            CloseHandle(proc);
-        }
-        FreeLibrary(dbghelp);
-        BA_LOG_WARN("dump", 0, "no se pudo preparar el minidump");
-        return;
-    }
-    std::error_code ec;
-    std::filesystem::create_directories(path.parent_path(), ec);
-    HANDLE file = CreateFileW(path.wstring().c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-                              FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) {
-        CloseHandle(proc);
-        FreeLibrary(dbghelp);
-        BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "no se pudo abrir el destino del minidump");
-        return;
-    }
-    // MiniDumpNormal | MiniDumpWithThreadInfo, como literales (MinGW).
-    const BOOL ok = fn(proc, pid, file, 0x00000000 | 0x00001000, nullptr, nullptr, nullptr);
-    CloseHandle(file);
-    CloseHandle(proc);
-    FreeLibrary(dbghelp);
-    if (ok) {
-        BA_LOG_INFO("dump", 0, "minidump escrito: " + path.string());
-    } else {
-        BA_LOG_WARN("dump", static_cast<int>(GetLastError()), "MiniDumpWriteDump fallo");
-    }
-#else
-    (void)pid;
-    (void)path;
-    BA_LOG_INFO("dump", 0, "sin volcado de memoria en esta plataforma todavia (Crashpad: fase 9)");
-#endif
-}
 
 } // namespace
 
-Supervisor::Supervisor(Config cfg) : cfg_(std::move(cfg)) {}
+Supervisor::Supervisor(Config cfg) : cfg_(std::move(cfg)), volcados_(std::make_unique<Volcados>(cfg_.logsDir)) {}
 
-Supervisor::~Supervisor() = default;
+Supervisor::~Supervisor() {
+    pararFondo_ = true;
+    if (fondo_.joinable()) fondo_.join();
+}
 
 void Supervisor::requestStop() { stopRequested_.store(true); }
 
@@ -132,18 +93,23 @@ bool Supervisor::inStartupGrace(bool isA) const {
     const std::uint64_t at = launchedAtMs_[isA ? 1 : 0];
     if (at == 0) return false;
     const std::uint64_t pasado = nowMs() - at;
-    if (pasado < kStartupGraceMs) return true;
+    if (pasado < cfg_.graciaArranqueMs) return true;
     const bool latio =
         health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
-    return !latio && pasado < kPrimerLatidoMs;
+    return !latio && pasado < kPrimerLatidoMs();
 }
 
 int Supervisor::run() {
     std::string err;
-    if (!ba::platform::SingleInstance::acquire("launcher", instance_, &err)) {
-        // Segunda ejecucion (spec 3.1.1): la primera sigue a cargo.
-        BA_LOG_INFO("instance", 0, "no se inicia: " + err);
-        return 0;
+    // --reiniciar (cambiar de configuración): el anterior se está cerrando; se lo espera.
+    const auto hasta = std::chrono::steady_clock::now() + std::chrono::milliseconds(cfg_.esperarInstanciaMs);
+    while (!ba::platform::SingleInstance::acquire("launcher", instance_, &err)) {
+        if (std::chrono::steady_clock::now() >= hasta) {
+            // Segunda ejecucion (spec 3.1.1): la primera sigue a cargo.
+            BA_LOG_INFO("instance", 0, "no se inicia: " + err);
+            return 0;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
 
     ba::platform::suppressCrashDialogs(); // spec 3.1.4; los hijos lo heredan
@@ -184,7 +150,12 @@ int Supervisor::run() {
     BA_LOG_INFO("health", 0, "BA.Health listo con " + std::to_string(slotCount) + " slots");
 
     launchChildren();
+    // Lo que la verificación rápida no leyó (archivos nuevos o cambiados, o todo la
+    // primera vez), con la app ya andando y a prioridad de fondo.
+    fondo_ = std::thread([this]() { verificarEnElFondo(); });
     watchdogLoop();
+    pararFondo_ = true;
+    if (fondo_.joinable()) fondo_.join();
     return 0;
 }
 
@@ -205,16 +176,58 @@ void Supervisor::applyExecRoot(const std::filesystem::path& execRoot) {
     BA_LOG_INFO("shadow", 0, "ejecutando desde la copia sombra: " + execRoot.string());
 }
 
+std::filesystem::path Supervisor::cacheIntegridad() const {
+    return (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Cache" / "integridad.txt";
+}
+
+std::filesystem::path Supervisor::marcaFallo() const {
+    return cacheIntegridad().parent_path() / "integridad-fallo.txt";
+}
+
 IntegrityReport Supervisor::verifyIntegrity() {
-    const IntegrityReport report = Integrity::verify(cfg_.root.wstring());
+    // ANTES DE ARRANCAR, SOLO LO BARATO: que cada archivo esté y coincida en tamaño y
+    // fecha con el caché, sin leer contenido (el antivirus no escanea, la app aparece
+    // ya). Lo demás, en el fondo (verificarEnElFondo). Si la vez anterior el fondo
+    // encontró algo, esta vez es completa: el diálogo aparece antes de arrancar.
+    std::error_code ec;
+    const bool huboFallo = std::filesystem::exists(marcaFallo(), ec);
+    const IntegrityReport report =
+        Integrity::verify(cfg_.root.wstring(), huboFallo ? std::filesystem::path() : cacheIntegridad(), 0,
+                          huboFallo ? Integrity::Modo::Completa : Integrity::Modo::Rapida);
+    if (huboFallo && report.ok) std::filesystem::remove(marcaFallo(), ec);
     if (report.ok) {
-        BA_LOG_INFO("integrity", 0, "integridad OK (" + std::to_string(report.checked) + " archivos)");
+        BA_LOG_INFO("integrity", 0,
+                    "integridad OK antes de arrancar (" + std::to_string(report.checked) + " archivos, " +
+                        std::to_string(report.hashed) + " leídos, " + std::to_string(report.pendientes) +
+                        " para leer en el fondo)");
     } else {
         BA_LOG_ERROR("integrity", static_cast<int>(report.failures.size()),
                      "integridad: " + std::to_string(report.missing) + " ausentes, " +
                          std::to_string(report.mismatch) + " con hash distinto");
     }
     return report;
+}
+
+void Supervisor::verificarEnElFondo() {
+    const auto t0 = std::chrono::steady_clock::now();
+    const IntegrityReport r =
+        Integrity::verify(cfg_.root.wstring(), cacheIntegridad(), 2, Integrity::Modo::Completa, &pararFondo_, true);
+    if (pararFondo_) return; // se cerró antes de terminar: queda para la próxima
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+    if (r.ok) {
+        // El caché, YA: no depende de un cierre ordenado.
+        Integrity::guardarCache(cacheIntegridad());
+        BA_LOG_INFO("integrity", 0,
+                    "integridad en el fondo OK (" + std::to_string(r.hashed) + " leídos en " + std::to_string(ms) + " ms)");
+        return;
+    }
+    BA_LOG_ERROR("integrity", static_cast<int>(r.failures.size()),
+                 "integridad en el fondo: " + std::to_string(r.missing) + " ausentes, " + std::to_string(r.mismatch) +
+                     " con hash distinto (el próximo arranque lo muestra)");
+    std::error_code ec;
+    std::filesystem::create_directories(marcaFallo().parent_path(), ec);
+    std::ofstream m(marcaFallo());
+    for (const auto& f : r.failures) m << toUtf8Path(f) << "\n";
 }
 
 void Supervisor::launchChildren() {
@@ -261,9 +274,12 @@ bool Supervisor::startChild(bool isA) {
     // Un archivo por proceso, con el nombre del proceso: es lo que el visor
     // usa para saber de donde salio cada linea.
     c.outputFile = cfg_.logsDir / (isA ? "app.log" : "gateway.log");
+    // El canal para que avise si se cae (y el volcado salga con la excepción).
+    c.env = volcados_->canalPara(c.name, c.outputFile);
     if (!child(isA).start(c)) {
         return false;
     }
+    volcados_->lanzado(c.name, child(isA).pid());
     launchedAtMs_[isA ? 1 : 0] = nowMs();
     health_.setIdentity(slot, child(isA).pid(), kProcVersion);
     latidoAlLanzar_[isA ? 1 : 0] = health_.read(slot).lastBeatQpc;
@@ -275,11 +291,11 @@ void Supervisor::restartChild(bool isA) {
     if (isA) {
         appCrashTimes_.push_back(nowMs());
         const std::uint64_t now = nowMs();
-        const std::uint64_t cutoff = now > kCircuitWindowMs ? now - kCircuitWindowMs : 0;
+        const std::uint64_t cutoff = now > cfg_.ventanaCaidasMs ? now - cfg_.ventanaCaidasMs : 0;
         appCrashTimes_.erase(std::remove_if(appCrashTimes_.begin(), appCrashTimes_.end(),
                                             [cutoff](std::uint64_t t) { return t < cutoff; }),
                              appCrashTimes_.end());
-        if (static_cast<int>(appCrashTimes_.size()) > kCircuitThreshold && !safeMode_) {
+        if (static_cast<int>(appCrashTimes_.size()) > cfg_.maxCaidas && !safeMode_) {
             safeMode_ = true; // circuit breaker (spec 3.1.8)
             BA_LOG_WARN("sup", 0, "circuit breaker: A entra en modo seguro");
         }
@@ -300,6 +316,47 @@ void Supervisor::restartChild(bool isA) {
     }
 }
 
+namespace {
+/// Qué quiere decir el código con que terminó un proceso (para el cartel de la app).
+std::string causaDe(std::optional<int> code) {
+    if (!code) return "terminó sin código";
+    switch (*code) {
+        case 139: return "error de memoria (SIGSEGV)";
+        case 134: return "se abortó (SIGABRT)";
+        case 138: return "error de bus (SIGBUS)";
+        case 137: return "lo mató el sistema (SIGKILL: ¿falta de memoria?)";
+        case 136: return "error aritmético (SIGFPE)";
+        case 132: return "instrucción inválida (SIGILL)";
+        default: break;
+    }
+    if (static_cast<unsigned>(*code) == 0xC0000005u) return "violación de acceso (0xC0000005)";
+    if (static_cast<unsigned>(*code) == 0xC00000FDu) return "desbordamiento de pila (0xC00000FD)";
+    return "terminó con el código " + std::to_string(*code);
+}
+} // namespace
+
+void Supervisor::anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado) {
+    // Runtime/ultima-caida.json lo lee la app al volver (el cartel con la causa);
+    // Runtime/caidas.jsonl queda como historial (supervisor_caidas).
+    const std::filesystem::path dir = (cfg_.dataRoot.empty() ? cfg_.root : cfg_.dataRoot) / "Runtime";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::system_clock::now().time_since_epoch())
+                        .count();
+    const nlohmann::json j{{"componente", isA ? "app" : "gateway"},
+                           {"causa", causa},
+                           {"codigo", code ? nlohmann::json(*code) : nlohmann::json()},
+                           {"volcado", volcado.empty() ? nlohmann::json() : nlohmann::json(volcado.filename().string())},
+                           {"hora_ms", ms}};
+    {
+        std::ofstream o(dir / "ultima-caida.json", std::ios::trunc);
+        o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+    std::ofstream h(dir / "caidas.jsonl", std::ios::app);
+    h << j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
+}
+
 void Supervisor::handleCrash(bool isA) {
     const std::optional<int> code = child(isA).exitCode();
     const std::string name = isA ? "A" : "B";
@@ -313,30 +370,59 @@ void Supervisor::handleCrash(bool isA) {
                      name +
                          " no puede funcionar en este entorno (ver su log: p. ej. sin sesion grafica); "
                          "reintento en " +
-                         std::to_string(kEnvironmentRetryMs / 1000) + " s");
-        sleepInterruptible(static_cast<int>(kEnvironmentRetryMs), stopRequested_);
+                         std::to_string(kEnvironmentRetryMs() / 1000) + " s");
+        sleepInterruptible(static_cast<int>(kEnvironmentRetryMs()), stopRequested_);
         if (!stopRequested_.load()) {
             startChild(isA);
         }
         return;
     }
+    // La sala cerrada EN ORDEN (código 0): la app la reinició a propósito para que
+    // relea gateway.json (Configuración → aplicar). No es una caída: no va al cartel
+    // «se reinició» ni cuenta para el cortacircuito; se relanza ya.
+    // Dos seguidas en menos de 10 s ya no es un reinicio pedido: camino normal.
+    if (!isA && esCierreOrdenadoB(code)) {
+        ultimoCierreOrdenadoB_ = nowMs();
+        BA_LOG_INFO("sup", 0, "B se cerró en orden (reinicio de la sala); se relanza");
+        startChild(false);
+        return;
+    }
     BA_LOG_WARN("sup", code.value_or(-1), name + " termino inesperadamente; reiniciando con backoff");
+    // Si avisó la caída, la causa sale del volcado (qué excepción y en qué módulo).
+    const std::optional<Volcado> v = volcados_->tomarCaida(name);
+    anotarCaida(isA, v ? v->causa : causaDe(code), code, v ? v->dmp : std::filesystem::path());
     restartChild(isA);
+}
+
+bool Supervisor::esCierreOrdenadoB(std::optional<int> code) {
+    if (!code) code = gateway_.exitCode();
+    return code && *code == 0 && !volcados_->hayCaida("B") && nowMs() - ultimoCierreOrdenadoB_ > 10000;
 }
 
 void Supervisor::handleHang(bool isA) {
     const std::uint32_t slot = isA ? cfg_.slotA : cfg_.slotB;
     const std::string name = isA ? "A" : "B";
-    BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
-    writeMinidump(child(isA).pid(), cfg_.logsDir / "dumps" / (name + ".dmp"));
+    if (volcados_->hayCaida(name)) {
+        // No es un cuelgue: se cayó (ya avisó y está volcado) y Windows lo
+        // retiene mientras arma su informe. Se lo trata como la caída que es.
+        const std::optional<Volcado> v = volcados_->tomarCaida(name);
+        BA_LOG_WARN("sup", 0, name + " se cayó (" + (v ? v->causa : std::string("?")) + "); terminar y relanzar");
+        anotarCaida(isA, v ? v->causa : "se cayó", std::nullopt, v ? v->dmp : std::filesystem::path());
+    } else {
+        BA_LOG_WARN("sup", 0, name + " colgado (heartbeat estancado); volcado + terminar");
+        // Uno por cuelgue, con la hora y un .json que dice qué pasó (Volcados.hpp).
+        const Volcado v = volcados_->porCuelgue(name, child(isA).pid(), cfg_.logsDir / (isA ? "app.log" : "gateway.log"));
+        anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt, v.dmp);
+    }
     child(isA).kill();
-    child(isA).waitExit(kTerminateMs);
+    child(isA).waitExit(kTerminateMs());
     health_.setState(slot, ba::ipc::ProcessState::Hung);
     child(isA).close();
     restartChild(isA);
 }
 
-RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
+void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
+    if (preguntando_->load()) return; // ya hay un cartel abierto
     Incident inc;
     inc.title = L"Broadcast Appliance — Recuperación";
     inc.childADown = appDown || appHung;
@@ -352,23 +438,24 @@ RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDo
     // Un hijo caido podria deberse a un archivo corrupto: se muestra la
     // integridad, cacheada para no re-hashear el disco en un loop de crashes.
     inc.showIntegrity = true;
-    const std::uint64_t now = nowMs();
-    if (!hasIntegrityReport_ || now - lastIntegrityCheckMs_ > 60000) {
-        inc.integrity = Integrity::verify(cfg_.root.wstring());
-        lastIntegrityReport_ = inc.integrity;
-        lastIntegrityCheckMs_ = now;
-        hasIntegrityReport_ = true;
-    } else {
-        inc.integrity = lastIntegrityReport_;
-    }
-    return RecoveryUi::present(inc);
+    // (Se verifica en el hilo del cartel: puede tardar y aquí no se frena nada.)
+    const bool verificar = true;
+    preguntando_->store(true);
+    // Desprendido: el diálogo puede quedar abierto minutos y el launcher puede cerrar
+    // antes; lo compartido va por shared_ptr.
+    std::thread([inc, verificar, root = cfg_.root, decision = decisionRecuperacion_, preg = preguntando_]() mutable {
+        if (verificar) inc.integrity = Integrity::verify(root.wstring());
+        const RecoveryAction a = RecoveryUi::present(inc);
+        if (a == RecoveryAction::Exit || a == RecoveryAction::ForceRestart) decision->store(static_cast<int>(a));
+        preg->store(false);
+    }).detach();
 }
 
 void Supervisor::forceRestart() {
     BA_LOG_WARN("sup", 0, "forzar reinicio: terminando hijos y relanzando desde 0");
     for (bool isA : {true, false}) {
         child(isA).kill();
-        child(isA).waitExit(kTerminateMs);
+        child(isA).waitExit(kTerminateMs());
         child(isA).close();
     }
     health_.setState(cfg_.slotA, ba::ipc::ProcessState::Terminated);
@@ -391,8 +478,8 @@ void Supervisor::watchdogLoop() {
         }
         const bool appDown = !app_.alive();
         const bool gwDown = !gateway_.alive();
-        const bool appHung = !appDown && !inStartupGrace(true) && health_.isStale(cfg_.slotA);
-        const bool gwHung = !gwDown && !inStartupGrace(false) && health_.isStale(cfg_.slotB);
+        const bool appHung = !appDown && !inStartupGrace(true) && health_.isStale(cfg_.slotA, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
+        const bool gwHung = !gwDown && !inStartupGrace(false) && health_.isStale(cfg_.slotB, ba::ipc::HealthBlock::nowQpc(), cfg_.cuelgueMs * 1000000ULL);
 
         // A salio con codigo 0: cierre ordenado del operador, no es un fallo.
         if (appDown && app_.exitCode() == 0) {
@@ -401,16 +488,42 @@ void Supervisor::watchdogLoop() {
             break;
         }
 
+        // La sala cerrada EN ORDEN (reinicio pedido por la app, p. ej. al aplicar la
+        // configuración o cambiar el acceso remoto) no es una falla: va directo a
+        // handleCrash, que la relanza, SIN contar para el cartel de recuperación. Antes
+        // contaba: al tercer reinicio seguido salía el diálogo de «la sala se cerró» y
+        // la sala quedaba abajo esperando que alguien contestara.
+        if (gwDown && !appDown && !appHung && esCierreOrdenadoB()) {
+            handleCrash(false);
+            sleepInterruptible(kPollMs, stopRequested_);
+            continue;
+        }
+
+        // Lo que contestaron en el cartel (si contestaron): se toma acá, sin haber frenado nada.
+        const int decision = decisionRecuperacion_->exchange(-1);
+        if (decision == static_cast<int>(RecoveryAction::Exit)) {
+            BA_LOG_INFO("sup", 0, "recuperación: el operador eligió salir");
+            orderedShutdown();
+            break;
+        }
+        if (decision == static_cast<int>(RecoveryAction::ForceRestart)) {
+            forceRestart();
+            sleepInterruptible(kPollMs, stopRequested_);
+            continue;
+        }
+
         if (appDown || appHung || gwDown || gwHung) {
             RecoveryAction action = RecoveryAction::Retry;
             const std::uint64_t failAt = nowMs();
-            if (failAt - lastFailureMs_ > kCircuitWindowMs) {
+            if (failAt - lastFailureMs_ > cfg_.ventanaCaidasMs) {
                 recentFailures_ = 0;
             }
             lastFailureMs_ = failAt;
             ++recentFailures_;
-            if (cfg_.recoveryUi && recentFailures_ > kRecoveryUiAfter) {
-                action = presentRecovery(appDown, appHung, gwDown, gwHung);
+            // Se pregunta solo si la que falla una y otra vez es la interfaz/motor (A): la
+            // sala sola (B) se relanza sin molestar (la app ya avisa en su pantalla).
+            if (cfg_.recoveryUi && recentFailures_ > cfg_.reiniciosSinPreguntar && (appDown || appHung)) {
+                presentRecovery(appDown, appHung, gwDown, gwHung);
             }
             if (action == RecoveryAction::Exit) {
                 orderedShutdown();
@@ -443,17 +556,17 @@ void Supervisor::stopChild(bool isA) {
     const std::string name = isA ? "A" : "B";
     // 1) Pedido por el canal de control. 2) SIGTERM (POSIX). 3) Matar.
     if (control_.requestShutdown(isA ? ControlChannel::kAppChannel : ControlChannel::kGatewayChannel) &&
-        c.waitExit(kGracefulMs)) {
+        c.waitExit(kGracefulMs())) {
         BA_LOG_INFO("sup", 0, name + " cerro por el canal de control");
         return;
     }
-    if (c.terminate() && c.waitExit(kTerminateMs)) {
+    if (c.terminate() && c.waitExit(kTerminateMs())) {
         BA_LOG_INFO("sup", 0, name + " cerro tras la señal de terminacion");
         return;
     }
     BA_LOG_WARN("sup", 0, name + " no cerro a tiempo; se fuerza");
     c.kill();
-    c.waitExit(kTerminateMs);
+    c.waitExit(kTerminateMs());
 }
 
 void Supervisor::orderedShutdown() {
@@ -469,6 +582,7 @@ void Supervisor::orderedShutdown() {
     // Sin PIDs publicados: un launcher futuro no debe intentar readoptar.
     health_.setIdentity(cfg_.slotA, 0, kProcVersion);
     health_.setIdentity(cfg_.slotB, 0, kProcVersion);
+    Integrity::guardarCache(cacheIntegridad());
     BA_LOG_INFO("sup", 0, "clean_shutdown marcado");
 }
 

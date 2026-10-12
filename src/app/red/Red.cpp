@@ -1,6 +1,7 @@
 // src/app/red/Red.cpp — ver Red.hpp
 
 #include "red/Red.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "net/Credentials.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -11,7 +12,8 @@
 #include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
 
-#include <obs.h>
+#include "emision/BroadcastEngine.hpp"
+#include "emision/FuentesApp.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -48,8 +50,8 @@ namespace {
 
 /// Los puertos que dicen «esto es de video»: RTSP, web, SDKs propios, RTMP, NDI.
 const std::vector<int> kPuertos = {554, 8554, 80, 88, 8080, 8000, 37777, 1935, 5960};
-constexpr int kConcurrentes = 256;
-constexpr int kEsperaConexionMs = 600;
+inline int kConcurrentes() { return ba::ajustes::entero("red.escaneoConcurrentes", 256); }
+inline int kEsperaConexionMs() { return ba::ajustes::entero("red.escaneoEsperaMs", 600); }
 
 std::string minusculas(std::string s) {
     for (auto& c : s)
@@ -58,7 +60,7 @@ std::string minusculas(std::string s) {
 }
 
 QVariant aVariant(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toMap()
         .value("v");
@@ -285,7 +287,7 @@ void Red::escanear(Listo listo) {
     auto lanzarPtr = std::make_shared<std::function<void()>>();
     *lanzarPtr = [this, lanzarPtr]() {
         if (!esc_) return;
-        while (esc_->activos < kConcurrentes && esc_->siguiente < esc_->pendientes.size()) {
+        while (esc_->activos < kConcurrentes() && esc_->siguiente < esc_->pendientes.size()) {
             const auto [host, puerto] = esc_->pendientes[esc_->siguiente++];
             ++esc_->activos;
             auto* s = new QTcpSocket(this);
@@ -315,7 +317,7 @@ void Red::escanear(Listo listo) {
                 fin();
             });
             connect(s, &QTcpSocket::errorOccurred, this, [fin](QAbstractSocket::SocketError) { fin(); });
-            QTimer::singleShot(kEsperaConexionMs, s, fin);
+            QTimer::singleShot(kEsperaConexionMs(), s, fin);
             s->connectToHost(host, static_cast<quint16>(puerto));
         }
     };
@@ -389,7 +391,7 @@ void Red::terminarBarrido() {
             continue;
         }
         QNetworkRequest pedido(QUrl(QString("http://%1:%2/").arg(QString::fromStdString(ip)).arg(web)));
-        pedido.setTransferTimeout(2500);
+        pedido.setTransferTimeout(ba::ajustes::entero("red.respuestaMs", 2500));
         pedido.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                             QNetworkRequest::NoLessSafeRedirectPolicy);
         QNetworkReply* r = http_->get(pedido);
@@ -605,7 +607,7 @@ void Red::sondearRtsp(const std::string& ip, json candidatas, Listo listo) {
             });
             connect(s, &QTcpSocket::errorOccurred, this,
                     [=](QAbstractSocket::SocketError) { terminar(rtsp::leer(*buf)); });
-            QTimer::singleShot(2500, s, [=]() { terminar(rtsp::leer(*buf)); });
+            QTimer::singleShot(ba::ajustes::entero("red.respuestaMs", 2500), s, [=]() { terminar(rtsp::leer(*buf)); });
             s->connectToHost(u.host, static_cast<quint16>(u.puerto));
         };
         (*pedir)(QString(), 1);
@@ -651,7 +653,7 @@ void Red::analizar(const QString& uri, Listo listo) {
             r = {{"error", "GStreamer: " + err}};
         } else {
             GError* e = nullptr;
-            GstDiscoverer* d = gst_discoverer_new(10 * GST_SECOND, &e);
+            GstDiscoverer* d = gst_discoverer_new(static_cast<GstClockTime>(ba::ajustes::sANs("red.analizarS", 10)), &e);
             GstDiscovererInfo* info =
                 d != nullptr ? gst_discoverer_discover_uri(d, uri.toUtf8().constData(), &e) : nullptr;
             if (e != nullptr) {
@@ -806,13 +808,9 @@ void Red::ficha(const std::string& ip, Listo listo) {
                                         : QString::fromStdString((*f)["url"]);
                 return analizar(uri, [=](json a) {
                     (*f)["analisis"] = a;
-                    obs_video_info ovi{};
-                    obs_get_video_info(&ovi);
-                    (*f)["plan"] = planDe(
-                        *f, a,
-                        {{"ancho", ovi.base_width},
-                         {"alto", ovi.base_height},
-                         {"fps", ovi.fps_den ? static_cast<double>(ovi.fps_num) / ovi.fps_den : 30.0}});
+                    int lw = 0, lh = 0;
+                    lienzoActual(lw, lh);
+                    (*f)["plan"] = planDe(*f, a, {{"ancho", lw}, {"alto", lh}, {"fps", fpsActual()}});
                     terminar();
                 });
             }
@@ -853,14 +851,10 @@ void Red::ficha(const std::string& ip, Listo listo) {
                                                            ? std::string()
                                                            : (*perfiles)[0].value("fuente", std::string());
                             const auto analizarYPlan = [=]() {
-                                obs_video_info ovi{};
-                                obs_get_video_info(&ovi);
-                                const json lienzo{{"ancho", ovi.base_width},
-                                                  {"alto", ovi.base_height},
-                                                  {"fps", ovi.fps_den
-                                                              ? static_cast<double>(ovi.fps_num) / ovi.fps_den
-                                                              : 30.0}};
-                                const int i = elegirPerfil(*perfiles, static_cast<int>(ovi.base_height));
+                                int lw = 0, lh = 0;
+                                lienzoActual(lw, lh);
+                                const json lienzo{{"ancho", lw}, {"alto", lh}, {"fps", fpsActual()}};
+                                const int i = elegirPerfil(*perfiles, lh);
                                 if (i < 0) {
                                     (*f)["plan"] = planDe(*f, json::object(), lienzo);
                                     return terminar();
@@ -1047,7 +1041,7 @@ QString Red::agregarDesdeUi(const QString& ip, const QString& nombre, const QStr
 QVariantList Red::entradasDe(const QString& ip) const {
     if (video_ == nullptr) return {};
     const json e = video_->entradasDeHost(ip.toStdString());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(e.dump())).toVariant().toList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant().toList();
 }
 
 QString Red::ptzDesdeUi(const QString& ip, const QString& entrada) {
@@ -1066,12 +1060,7 @@ QString Red::reusarDesdeUi(const QString& ip, const QString& escena) {
 
 namespace {
 std::string ipDeEntrada(const QString& entrada) {
-    obs_source_t* src = obs_get_source_by_name(entrada.toUtf8().constData());
-    if (src == nullptr) return {};
-    obs_data_t* st = obs_source_get_settings(src);
-    const QString uri = QString::fromUtf8(obs_data_get_string(st, "uri"));
-    obs_data_release(st);
-    obs_source_release(src);
+    const QString uri = QString::fromStdString(fuentes::ajustesDe(entrada.toStdString()).value("uri", std::string()));
     return QUrl(uri).host().toStdString();
 }
 } // namespace
@@ -1119,13 +1108,21 @@ void Red::activarPtz(const std::string& ip, const QString& entrada,
     QPointer<Red> yo(this);
     ficha(ip, [yo, ip, entrada, listo](json f) {
         if (!yo) return;
-        if (!f.value("onvif", false))
-            return listo(
-                false,
-                QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF"))) +
-                    ". Revisá el usuario y la clave (en una Axis: un usuario ONVIF, que se crea en la web de "
-                    "la "
-                    "cámara, Sistema → Usuarios → ONVIF) y que la cámara tenga la hora bien.");
+        if (!f.value("onvif", false)) {
+            // Lo que dice la ficha de SU marca sobre el usuario y la clave (si hay).
+            const json marca = f.value("marca", json::object());
+            const json fm = yo->biblioteca_.ficha(marca.value("id", std::string()));
+            std::string pista;
+            const json notas = fm.value("notas", json());
+            if (notas.is_string()) pista = notas.get<std::string>();
+            for (const auto& n : notas.is_array() ? notas : json::array())
+                if (n.is_string()) pista += (pista.empty() ? "" : "; ") + n.get<std::string>();
+            if (!pista.empty()) pista = " (" + pista + ")";
+            return listo(false,
+                         QString::fromStdString(f.value("error", std::string("La cámara no contestó por ONVIF")) +
+                                                ". Revisá el usuario y la clave" + pista +
+                                                " y que la cámara tenga la hora bien."));
+        }
         const json ptz = f.value("ptz", json::object());
         if (!ptz.value("tiene", false))
             return listo(false, "La cámara contestó por ONVIF pero no ofrece PTZ (o ese usuario no tiene "

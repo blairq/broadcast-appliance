@@ -17,6 +17,11 @@
     <true/>
     <key>NSCameraUsageDescription</key>
     <string>Broadcast Appliance usa la cámara como fuente de video de la emisión.</string>
+    <!-- Las «Reacciones» de macOS 14 (corazones, fuegos artificiales con gestos de la mano)
+         vienen prendidas en cada app que abre la cámara: un detector de objetos por cuadro
+         (~1/4 de núcleo) y efectos que podrían salir al aire. Arrancan apagadas. -->
+    <key>NSCameraReactionEffectGesturesEnabledDefault</key>
+    <false/>
     <key>NSMicrophoneUsageDescription</key>
     <string>Broadcast Appliance usa el micrófono como fuente de audio de la emisión.</string>
     <key>NSLocalNetworkUsageDescription</key>

@@ -110,6 +110,11 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
     for (const char* n : kDropAlways) {
         o.envRemove.emplace_back(n);
     }
+    // Python no escribe .pyc: el Python del bundle (plugins, GStreamer, traductor)
+    // reescribía los de adentro del programa (una escritura que el antivirus mira,
+    // y en el arranque siguiente un «hash distinto» en la integridad). Los .pyc ya
+    // vienen en el bundle.
+    o.envSet["PYTHONDONTWRITEBYTECODE"] = "1";
 #if defined(_WIN32)
     // Entorno minimo (spec 3.1.3): nada heredado salvo lo imprescindible.
     o.inheritEnv = false;
@@ -134,7 +139,10 @@ void applyEnvPolicy(ba::platform::ProcessOptions& o, const std::filesystem::path
     if (LPCH env = GetEnvironmentStringsA()) {
         for (const char* e = env; *e != '\0'; e += std::strlen(e) + 1) {
             const char* eq = std::strchr(e, '=');
-            if (eq != nullptr && std::strncmp(e, "BA_", 3) == 0) {
+            // También el diagnóstico de GStreamer (GST_DEBUG, GST_DEBUG_FILE,
+            // GST_DEBUG_DUMP_DOT_DIR...): sin eso no había forma de ver por qué
+            // una cadena no negocia en una máquina del cliente.
+            if (eq != nullptr && (std::strncmp(e, "BA_", 3) == 0 || std::strncmp(e, "GST_DEBUG", 9) == 0)) {
                 o.envSet[std::string(e, eq)] = std::string(eq + 1);
             }
         }
@@ -218,10 +226,14 @@ bool ChildProcess::start(const Config& cfg) {
     o.killWithParent = false; // A y B sobreviven a un crash del launcher (3.1.9)
     o.hideWindow = true;
     applyEnvPolicy(o, cfg.exePath.parent_path());
+    for (const auto& [k, v] : cfg.env) o.envSet[k] = v;
     // Los datos (Config/, Logs/, Recordings/, Web/) viven en la raiz REAL
     // aunque el binario corra desde la copia sombra.
     const std::u8string root = cfg.workDir.u8string();
     o.envSet[ba::platform::kDataRootEnv] = std::string(root.begin(), root.end());
+    // La configuración activa, leída AHORA (cambiar de configuración = reiniciar los hijos).
+    const std::u8string conf = ba::platform::configRootFor(cfg.workDir).u8string();
+    o.envSet[ba::platform::kConfigRootEnv] = std::string(conf.begin(), conf.end());
 
     // Salida del hijo (stdout+stderr) a su archivo de Logs/. Se prepara aca,
     // con el hijo todavia sin lanzar: es el unico momento en que se puede

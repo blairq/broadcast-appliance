@@ -77,8 +77,8 @@ class FrameService : public QObject {
     struct Slot {
         QImage image;
         std::uint64_t serial = 0;
+        std::uint64_t serieMotor = 0; ///< el último cuadro del motor que se tomó
         std::unique_ptr<ba::ipc::SpoutReceiver> receiver; // invitados
-        std::vector<std::uint8_t> buf;
     };
     BroadcastEngine& engine_;
     int guests_ = 0;
@@ -87,14 +87,9 @@ class FrameService : public QObject {
     QStringList names_;
     int lobbySlots_ = 4;
     static constexpr int kBackstageSlots = 8;
-    std::vector<std::uint8_t> programBuf_;
-    std::vector<std::uint8_t> sceneBuf_;  ///< vista previa del editor de escenas
-    std::vector<std::uint8_t> armadaBuf_; ///< vista previa de la escena ARMADA
     QString armada_;
     std::map<QString, int> entradas_; ///< entradas pedidas y cuántos las miran
-    std::map<QString, std::vector<std::uint8_t>> entradaBufs_;
     std::uint64_t vueltas_ = 0;
-    std::uint64_t programSerial_ = 0;
 };
 
 } // namespace ba::app

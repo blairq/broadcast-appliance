@@ -56,6 +56,8 @@ class AudioViewModel : public QObject {
     Q_INVOKABLE void setActive(bool on);
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void selectSource(const QString& name);
+    /// La vista general de todo el audio (RackManager::estudio): {nodos, cables, franjas}.
+    Q_INVOKABLE QVariantMap estudio() const;
     Q_INVOKABLE void select(const QString& node);
     /// Modulo del catalogo ("gate", "eq"...) o id LSP. "" o el error.
     Q_INVOKABLE QString addModule(const QString& moduleOrId, const QString& after = {});
@@ -111,6 +113,8 @@ class AudioViewModel : public QObject {
                                      const QString& in, int outCh = -1, int inCh = -1);
     Q_INVOKABLE void moveNode(const QString& node, double x, double y);
     Q_INVOKABLE void setBypass(const QString& node, bool bypass);
+    /// Saca un módulo del bypass automático del vigía.
+    Q_INVOKABLE void rearmar(const QString& node);
     Q_INVOKABLE QString openEditor(const QString& node);
     /// Cierra las ventanas LSP y vuelve su configuración de pantalla a la de
     /// fábrica (con copia). Para cuando una interfaz LSP no aparece.

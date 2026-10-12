@@ -17,7 +17,7 @@
 // EL GLOSARIO. Antes de traducir, los términos conocidos se reemplazan por su
 // traducción ya hecha (medido: el modelo los respeta; sin esto «cuarto
 // intermedio» sale «middle room»). El de fábrica (datos/glosario-traduccion.json:
-// cabina y Legislatura del Chubut) más el del operador, que se suma o lo pisa:
+// cabina, asamblea y localidades) más el del operador, que se suma o lo pisa:
 // Datos/Config/glosario-traduccion.json. Los grupos se pueden apagar.
 //
 // ORACIONES ENTERAS. La transcripción continua manda un pedazo en cada pausa
@@ -35,6 +35,7 @@
 #pragma once
 
 #include <QObject>
+#include <QUrl>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -127,6 +128,11 @@ class Traductor : public QObject {
     std::string glosarioQuitar(const std::string& es);
     std::string glosarioGrupo(const std::string& grupo, bool activo);
     std::filesystem::path archivoGlosario() const;
+    /// El glosario en CSV para que lo revise la institución:
+    /// «es;en;pt;fr;de;ru;zh;grupo;revisado_por» (las formas de `es` separadas por «|»).
+    std::string glosarioCsv() const;
+    /// Vuelve el CSV revisado: cada fila suma o pisa un término con la marca `revisado_por`. Devuelve cuántos o el error.
+    std::string glosarioImportarCsv(const std::string& csv, const std::string& revisadoPor, int* cuantos);
 
     // --- Para la interfaz -----------------------------------------------------------------
     QVariantList traduccionesQml() const;
@@ -146,6 +152,10 @@ class Traductor : public QObject {
     Q_INVOKABLE QString glosarioAgregarUi(const QVariantMap& entrada);
     Q_INVOKABLE QString glosarioQuitarUi(const QString& es);
     Q_INVOKABLE QString glosarioGrupoUi(const QString& grupo, bool activo);
+    /// Escribe el CSV para revisión en Datos/Config/glosario-para-revision.csv y devuelve la ruta.
+    Q_INVOKABLE QString glosarioExportarUi();
+    /// Importa el CSV revisado (`url` de un FileDialog). "" o el error.
+    Q_INVOKABLE QString glosarioImportarUi(const QUrl& url, const QString& revisadoPor);
 
    signals:
     void cambio();
@@ -164,11 +174,11 @@ class Traductor : public QObject {
     void leerGlosario();
     void guardarGlosario() const;
     void arrancarMotor();
+    void fallarCola(); ///< el motor no arrancó: contesta lo pedido con el error
     void alSalir();
     void leerSalida();
     void mandar();
     void alFrase(const QString& flujo, const QString& texto);
-    void seguirBajando();
 
     std::filesystem::path root_;
     ModelosLocales& modelos_;
@@ -190,7 +200,6 @@ class Traductor : public QObject {
     long long n_ = 0;
     int caidas_ = 0;
     std::map<std::string, json> ultima_; ///< id de traducción -> {texto, ms, hora}
-    std::deque<std::string> porBajar_;
     /// Lo que llegó de cada traducción y todavía no cierra una oración (la
     /// transcripción corta en cada pausa, a veces a mitad de idea).
     struct Junta {

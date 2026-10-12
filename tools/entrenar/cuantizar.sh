@@ -70,4 +70,4 @@ log "cuantizando a $TIPO con la matriz"
 log "listo: $SALIDA ($(du -h "$SALIDA" | cut -f1))"
 echo
 echo "Para comparar contra la misma cuantizacion SIN calibrar:"
-echo "  tools/bateria-local.py --modelo $SALIDA --solo-nombre"
+echo "  tools/entrenar/bateria-local.py --modelo $SALIDA --solo-nombre"

@@ -242,6 +242,22 @@ void Room::setMediaUp(const std::string& id, bool up) {
     flush(out);
 }
 
+void Room::setRed(const std::string& id, const json& red, int64_t nowMs) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        Participant* p = findLocked(id);
+        if (p == nullptr || !red.is_object() || red.empty()) return;
+        const bool cambioSemaforo = p->red.value("semaforo", std::string()) != red.value("semaforo", std::string());
+        p->red = red;
+        if (cambioSemaforo || nowMs - p->redAvisadoMs > 6000) {
+            p->redAvisadoMs = nowMs;
+            out.roomChanged = true;
+        }
+    }
+    flush(out);
+}
+
 int Room::chatFromGuest(const std::string& id, const std::string& text, int64_t nowMs) {
     const std::string t = cleanText(text);
     if (t.empty()) return kEmpty;
@@ -277,8 +293,27 @@ int Room::admit(const std::string& id, int64_t nowMs) {
         // Modo oradores: admitir es entrar a la fila (backstage), sin slot.
         const int slot = spk_.enabled ? 0 : freeSlotLocked();
         if (slot == 0 && !spk_.enabled) return kFull;
+        p->talk = false; // lo privado del lobby no sigue adentro
         admitLocked(*p, slot, nowMs, out);
         lobbyPositionsLocked(out);
+    }
+    flush(out);
+    return kOk;
+}
+
+int Room::setCupo(int n) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        if (n < 1 || n > std::max(cfg_.reserva, cfg_.maxGuests)) return kBadState;
+        // Bajar el cupo no saca a nadie: si un lugar que se va está ocupado, no.
+        for (const Participant& p : people_)
+            if (p.state == State::Admitted && p.slot > n) return kFull;
+        if (n == cfg_.maxGuests) return kOk;
+        cfg_.maxGuests = n;
+        out.roomChanged = true;
+        // Sin lobby, los que esperaban entran a los lugares nuevos.
+        if (!cfg_.lobby) autoAdmitLocked(lastNowMs_, out);
     }
     flush(out);
     return kOk;
@@ -318,7 +353,10 @@ int Room::setTalk(const std::string& id, bool on) {
         std::lock_guard<std::mutex> lock(m_);
         Participant* p = findLocked(id);
         if (p == nullptr) return kNotFound;
-        if (p->state != State::Waiting || p->lobbySlot == 0) return kBadState;
+        // En el lobby, en privado (con su lugar de preview). Adentro (programa o fila
+        // de oradores), IFB: la voz del operador le llega mezclada con el retorno.
+        if (p->state == State::Waiting && p->lobbySlot == 0) return kBadState;
+        if (p->state != State::Waiting && p->state != State::Admitted) return kBadState;
         if (p->talk == on) return kOk;
         p->talk = on;
         out.routes.emplace_back(p->id, routeFor(*p));
@@ -330,8 +368,9 @@ int Room::setTalk(const std::string& id, bool on) {
 }
 
 int Room::request(const std::string& id, const std::string& what) {
-    static const char* kAllowed[] = {"mute-mic",   "mute-cam",    "unmute-mic",
-                                     "unmute-cam", "stop-screen", "lower-hand"};
+    static const char* kAllowed[] = {"mute-mic",   "mute-cam",    "unmute-mic",    "unmute-cam",
+                                     "stop-screen", "lower-hand", "calidad-720p", "calidad-360p",
+                                     "calidad-max"};
     if (std::none_of(std::begin(kAllowed), std::end(kAllowed), [&](const char* a) { return what == a; })) {
         return kBadState;
     }
@@ -614,8 +653,8 @@ void Room::autoAdmitLocked(int64_t nowMs, Out& out) {
 }
 
 MediaRoute Room::routeFor(const Participant& p) {
-    if (p.state == State::Admitted && p.slot > 0) return MediaRoute::program(p.slot);
-    if (p.state == State::Admitted) return MediaRoute::backstage(p.backstageSlot);
+    if (p.state == State::Admitted && p.slot > 0) return MediaRoute::program(p.slot, p.talk);
+    if (p.state == State::Admitted) return MediaRoute::backstage(p.backstageSlot, p.talk);
     if (p.state == State::Waiting && p.lobbySlot > 0) return MediaRoute::lobby(p.lobbySlot, p.talk);
     return {};
 }
@@ -686,6 +725,7 @@ json Room::toJson(const Participant& p) {
                 {"info", p.info},
                 {"contact", p.contact},
                 {"hasAvatar", p.hasAvatar},
+                {"red", p.red},
                 {"speaker", speakerName(p.speaker)},
                 {"presenter", p.presenter},
                 {"allottedSec", p.allottedSec},
@@ -728,6 +768,7 @@ json Room::snapshotLocked() const {
                 {"locked", locked_},
                 {"intake", intake_},
                 {"maxGuests", cfg_.maxGuests},
+                {"reserva", std::max(cfg_.reserva, cfg_.maxGuests)},
                 {"slotsFree", cfg_.maxGuests - admitted},
                 {"pin", pin_},
                 {"guestUrl", guestUrl_},

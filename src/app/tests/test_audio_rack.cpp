@@ -10,6 +10,7 @@
 //      tocar el audio en vivo) y respuesta de un modulo neutro (plana).
 // ============================================================================
 
+#include <numbers>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -49,7 +50,7 @@ float feed(AudioRack& rack, float amp, double seconds) {
     for (int b = 0; b < static_cast<int>(seconds * 100); ++b) {
         for (int i = 0; i < 480; ++i) {
             l[static_cast<size_t>(i)] = r[static_cast<size_t>(i)] = amp * static_cast<float>(std::sin(ph));
-            ph += 2 * M_PI * 1000 / 48000;
+            ph += 2 * std::numbers::pi * 1000 / 48000;
         }
         rack.process(planes, 2, 480);
         peak = 0;
@@ -86,7 +87,7 @@ int main() {
     const std::string an = rack.addAnalyzer("", comp);
     CHECK(!an.empty(), "agrega un analizador despues");
     auto d = rack.describe();
-    std::printf("%s\n", d["cables"].dump().c_str());
+    std::printf("%s\n", d["cables"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(d["cables"].size() == 3, "in -> compresor -> analizador -> out");
 
     // Umbral bajo, ratio alto: comprime.
@@ -99,7 +100,7 @@ int main() {
     }
     const float wet = feed(rack, 0.5f, 2);
     const json m = rack.meters(comp);
-    std::printf("pico %.3f -> %.3f, medidores del compresor %s\n", dry, wet, m.dump().c_str());
+    std::printf("pico %.3f -> %.3f, medidores del compresor %s\n", dry, wet, m.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     CHECK(wet < dry * 0.5f, "comprime");
     CHECK(m.value("cambioDb", 0.0) < -6, "el medidor muestra la reduccion");
     CHECK(rack.analyzer(an)->snapshot().seconds > 1, "el analizador midio");
@@ -110,6 +111,24 @@ int main() {
     CHECK(rack.connect("in", "out", "out", "in", &err), "cable en paralelo");
     const float par = feed(rack, 0.5f, 1);
     CHECK(par > wet + 0.3f, "las dos ramas se suman");
+    // Compensación de latencia (T31): con lookahead el compresor atrasa la señal;
+    // el rack lo informa y atrasa la rama seca para que lleguen juntas.
+    for (const auto& p : c->params())
+        if (p.name.find("ookahead") != std::string::npos) c->setValue(p.id, p.max);
+    feed(rack, 0.5f, 1);
+    CHECK(rack.disconnect("in", "out", "out", "in") && rack.connect("in", "out", "out", "in", &err), "se rearma el paralelo");
+    std::printf("latencia del compresor: %u muestras; del rack: %u\n", c->latencia(), rack.latenciaMuestras());
+    if (c->latencia() > 0) {
+        CHECK(rack.latenciaMuestras() == c->latencia(), "el rack informa la latencia de su rama más lenta");
+        CHECK(rack.describe()["latencia_ms"].get<double>() > 0, "y en ms en describe()");
+    } else {
+        std::printf("(el compresor no declaró latencia: no se prueba la compensación)\n");
+    }
+    for (const auto& p : c->params()) // el resto de la prueba, sin lookahead
+        if (p.name.find("ookahead") != std::string::npos) c->setValue(p.id, p.min);
+    feed(rack, 0.5f, 1);
+    std::printf("colgado tras el lookahead: %s\n", rack.describe()["colgado"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+    rack.rearmar(comp); // cambiar el lookahead re-arma el compresor (tarda): el vigía lo pudo marcar
     CHECK(rack.disconnect("in", "out", "out", "in"), "se saca");
     CHECK(!rack.connect(an, "out", comp, "in", &err), "un ciclo se rechaza");
     std::printf("ciclo: %s\n", err.c_str());
@@ -271,7 +290,7 @@ int main() {
             for (int i = 0; i < 480; ++i) {
                 l[static_cast<size_t>(i)] = rr[static_cast<size_t>(i)] =
                     0.5f * static_cast<float>(std::sin(ph));
-                ph += 2 * M_PI * 1000 / 48000;
+                ph += 2 * std::numbers::pi * 1000 / 48000;
             }
             r2.process(planes, 2, 480);
         }

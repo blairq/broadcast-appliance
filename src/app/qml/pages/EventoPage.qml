@@ -127,9 +127,18 @@ Rectangle {
                     Layout.preferredWidth: 260
                     model: page.ev.eventos
                     textRole: "nombre"
-                    displayText: page.ev.abierto === "" ? "Elegí un evento…" : currentText
+                    displayText: page.ev.abierto === "" ? "Elegí un evento…" : (page.ev.guion.nombre || page.ev.abierto)
                     onActivated: (i) => page.ev.abrir(page.ev.eventos[i].carpeta)
                     Component.onCompleted: page.ev.refrescar()
+                    // Con su carpeta adelante: con el histórico hay muchos y se agrupan.
+                    delegate: ItemDelegate {
+                        required property var modelData
+                        required property int index
+                        width: selector.width
+                        text: (modelData.grupo ? modelData.grupo + " / " : "") + modelData.nombre +
+                              (modelData.enCurso ? "  ● en curso" : "")
+                        highlighted: selector.highlightedIndex === index
+                    }
                 }
                 GlassButton {
                     icon: "+"; text: "Evento"
@@ -180,6 +189,70 @@ Rectangle {
                     text: "Guardar"; compact: true
                     active: page.ev.sucio
                     onClicked: page.ev.guardar()
+                }
+            }
+        }
+
+        // --- El evento EN CURSO: el que recibe todo lo que pasa (histórico) ------
+        Panel {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 58
+            RowLayout {
+                anchors.fill: parent
+                spacing: 10
+                Rectangle {
+                    width: 10; height: 10; radius: 5
+                    color: page.ev.enCurso.carpeta ? Theme.ok : Theme.textDim
+                }
+                Text {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    color: Theme.text
+                    font.pixelSize: 13
+                    text: page.ev.enCurso.carpeta
+                          ? "En curso: " + page.ev.enCurso.nombre +
+                            (page.ev.enCurso.grupo ? "  ·  " + page.ev.enCurso.grupo : "") +
+                            (page.ev.enCurso.desdeMs ? "  ·  desde las " + Qt.formatTime(new Date(page.ev.enCurso.desdeMs), "HH:mm") : "") +
+                            (page.ev.enCurso.automatico ? "  (la jornada del día: se creó sola)" : "")
+                          : "Ningún evento en curso: lo que pase no queda en ningún evento"
+                }
+                GlassButton {
+                    compact: true
+                    visible: page.ev.abierto !== "" && page.ev.enCurso.carpeta !== page.ev.abierto
+                    text: "Poner en curso este"
+                    onClicked: page.ev.iniciarEvento(page.ev.abierto)
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Desde ahora, grabaciones, vivos y registro van a «" + (page.ev.guion.nombre || page.ev.abierto) +
+                                  "». Correr el guion de verdad lo hace solo."
+                }
+                GlassButton {
+                    compact: true
+                    visible: !!page.ev.enCurso.carpeta
+                    text: "Terminar"
+                    onClicked: page.ev.terminarEvento()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: page.ev.eventoAutomatico
+                                  ? "Queda en el histórico como terminado; lo que siga va a la jornada del día"
+                                  : "Queda en el histórico como terminado"
+                }
+                GlassButton {
+                    compact: true
+                    visible: page.ev.abierto !== ""
+                    text: "Carpeta…"
+                    onClicked: moverDlg.open()
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Llevar el evento abierto a otra carpeta (2026/Octubre, Consejo/Ordinarias…)"
+                }
+                CheckBox {
+                    text: "Jornada automática"
+                    checked: page.ev.eventoAutomatico
+                    onToggled: page.ev.eventoAutomatico = checked
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 400
+                    ToolTip.text: "Si no hay ningún evento en curso, se crea solo el del día: nada queda sin evento"
                 }
             }
         }
@@ -366,6 +439,26 @@ Rectangle {
                     return r && r.nuevas > 0 ? "Público (" + r.nuevas + ")" : "Público"
                 }
             }
+            TabButton { text: "Orden del día" }
+            TabButton { text: "Página web" }
+        }
+
+        // ---- Página web del evento en vivo -----------------------------------------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 4
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "La página web del evento en vivo"
+            PanelEventoWeb { anchors.fill: parent; onPedirAsistente: (t) => page.pedirAsistente(t) }
+        }
+
+        // ---- Orden del día ---------------------------------------------------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 3
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Orden del día y uso de la palabra"
+            PanelOrdenDelDia { anchors.fill: parent }
         }
 
         // ---- Padrón ----------------------------------------------------------
@@ -752,7 +845,19 @@ Rectangle {
                                 text: page.ev.estado === "parado" ? "Arrancar" : "Siguiente"
                                 active: page.ev.estado !== "parado"
                                 Layout.fillWidth: true
-                                onClicked: page.ev.estado === "parado" ? page.ev.arrancar() : page.ev.avanzar()
+                                onClicked: {
+                                    if (page.ev.estado !== "parado") { page.ev.avanzar(); return }
+                                    // Antes de arrancar: si la revisión encontró algo grave, se pregunta.
+                                    page.ev.revisar()
+                                    const graves = page.ev.reparos.filter(r => r.grave).length
+                                    if (graves === 0) { page.ev.arrancar(); return }
+                                    ApplicationWindow.window.confirm({
+                                        title: "¿Correr el guion igual?",
+                                        text: "La revisión encontró " + graves + " problema(s) grave(s). Mirá «Revisión» antes de salir.",
+                                        accept: "Correr igual", reject: "Revisar",
+                                        action: function() { page.ev.arrancar() }
+                                    })
+                                }
                             }
                             GlassButton {
                                 icon: "◀"; compact: true
@@ -792,6 +897,40 @@ Rectangle {
                                                      : "Ensayo apagado: los cues salen al aire de verdad"
                                 color: page.ev.ensayo ? Theme.amber : Theme.textDim
                                 font.pixelSize: 11
+                            }
+                        }
+                    }
+                }
+
+                // Antes de salir: la lista de chequeo manual (lo que no se mide solo).
+                Panel {
+                    id: chequeoPanel
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: Math.min(260, 48 + lista.length * 30)
+                    title: "Antes de salir · " + lista.filter(x => x.hecho).length + "/" + lista.length
+                    property var lista: page.ev.chequeo()
+                    Connections {
+                        target: page.ev
+                        function onChequeoChanged() { chequeoPanel.lista = page.ev.chequeo() }
+                    }
+                    ListView {
+                        anchors.fill: parent
+                        clip: true
+                        spacing: 2
+                        model: chequeoPanel.lista
+                        delegate: RowLayout {
+                            required property var modelData
+                            width: ListView.view.width
+                            spacing: 6
+                            CheckBox {
+                                checked: modelData.hecho
+                                onToggled: page.ev.marcarChequeo(modelData.item, checked, modelData.nota)
+                            }
+                            Text {
+                                Layout.fillWidth: true; elide: Text.ElideRight
+                                text: modelData.texto + (modelData.cuando ? "  · " + modelData.cuando : "")
+                                color: modelData.hecho ? Theme.textFaint : Theme.text
+                                font { pixelSize: 11; strikeout: modelData.hecho }
                             }
                         }
                     }
@@ -1185,8 +1324,8 @@ Rectangle {
         modal: true
         title: "Evento nuevo"
         standardButtons: Dialog.Ok | Dialog.Cancel
-        onAboutToShow: nombreCampo.text = ""
-        onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim())
+        onAboutToShow: { nombreCampo.text = ""; carpetaNueva.editText = "" }
+        onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim(), carpetaNueva.editText.trim())
         ColumnLayout {
             anchors.fill: parent
             spacing: 8
@@ -1204,6 +1343,47 @@ Rectangle {
                 placeholderText: "Acto del 25 de mayo"
                 color: Theme.text
                 onAccepted: nuevoDlg.accept()
+            }
+            Text { text: "En la carpeta (vacío = Eventos/; se crea si no está)"; color: Theme.textDim; font.pixelSize: 12 }
+            ComboBox {
+                id: carpetaNueva
+                Layout.fillWidth: true
+                editable: true
+                model: page.ev.carpetas
+            }
+        }
+    }
+
+    // --- Mover el evento abierto a otra carpeta ---------------------------------
+    Dialog {
+        id: moverDlg
+        anchors.centerIn: parent
+        width: 420
+        modal: true
+        title: "Llevar a otra carpeta"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAboutToShow: {
+            const c = page.ev.abierto
+            const i = c.lastIndexOf("/")
+            carpetaDestino.editText = i < 0 ? "" : c.substring(0, i)
+        }
+        onAccepted: page.ev.moverEvento(page.ev.abierto, carpetaDestino.editText.trim())
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Las carpetas ordenan el histórico como quieras («2026/Octubre», «Consejo/Ordinarias»). " +
+                      "Vacío es la raíz de Eventos/. Mover no cambia nada del evento."
+                color: Theme.textDim
+                font.pixelSize: 12
+            }
+            ComboBox {
+                id: carpetaDestino
+                Layout.fillWidth: true
+                editable: true
+                model: page.ev.carpetas
             }
         }
     }

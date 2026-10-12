@@ -189,6 +189,11 @@ class TokenService {
     ///                 inmediato).
     void resetLockout(int nowUnix);
 
+    /// Fallos de PIN en la ventana actual (para mostrar el bloqueo global).
+    int failures() const { return failures_; }
+    /// Hasta cuándo (seg Unix) dura el bloqueo global; 0 = sin bloqueo.
+    int lockedUntil() const { return lockedUntil_; }
+
    private:
     std::string secret_;
     int maxAttempts_;

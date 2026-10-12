@@ -11,7 +11,7 @@
 #include <QJsonObject>
 #include <QTimer>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
@@ -70,10 +70,23 @@ QVariantList RotuladorViewModel::fuentes() const {
     const std::string escenaActual = d_->rt.engine().currentScene();
     const std::vector<std::string> enEscena = d_->rt.engine().sceneSources(escenaActual);
 
+    // Primero las de la escena al aire; después las de las otras escenas, que
+    // no se ven y por eso se preparan ahí y se ARMAN en el preview (sale con
+    // TAKE): es el gráfico que se revisa antes de que lo vea el público.
+    std::vector<std::pair<graficos::InstanciaInfo, std::string>> lista;
+    for (const auto& i : graficos::instancias())
+        if (std::find(enEscena.begin(), enEscena.end(), i.nombre) != enEscena.end()) lista.emplace_back(i, escenaActual);
     for (const auto& i : graficos::instancias()) {
-        // Solo las de la escena que se está viendo: en vivo, lo que no se ve
-        // no se toca.
-        if (std::find(enEscena.begin(), enEscena.end(), i.nombre) == enEscena.end()) continue;
+        if (std::find(enEscena.begin(), enEscena.end(), i.nombre) != enEscena.end()) continue;
+        for (const std::string& sc : d_->rt.engine().sceneNames()) {
+            const auto ss = d_->rt.engine().sceneSources(sc);
+            if (std::find(ss.begin(), ss.end(), i.nombre) != ss.end()) {
+                lista.emplace_back(i, sc);
+                break;
+            }
+        }
+    }
+    for (const auto& [i, escena] : lista) {
 
         const QString grafico = d_->graficoDe(i);
         const QJsonObject ficha = d_->em.ficha(grafico);
@@ -121,7 +134,9 @@ QVariantList RotuladorViewModel::fuentes() const {
                                {"campos", campos},
                                {"valores", valores},
                                {"acciones", acciones},
-                               {"enAire", i.cuadros > 0},
+                               {"enAire", i.cuadros > 0 && escena == escenaActual},
+                               {"escenaAlAire", escena == escenaActual},
+                               {"escena", QString::fromStdString(escena)},
                                {"reproduciendo", i.reproduciendo}});
     }
     return out;

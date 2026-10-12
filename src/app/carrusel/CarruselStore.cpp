@@ -102,7 +102,7 @@ bool Store::persistir() {
             error_ = "no se pudo escribir " + tmp.string();
             return false;
         }
-        out << json{{"carruseles", cs}}.dump(2) << '\n';
+        out << json{{"carruseles", cs}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << '\n';
         if (!out) {
             error_ = "no se pudo terminar de escribir " + tmp.string();
             return false;

@@ -79,6 +79,43 @@ void McpService::registerAudioTools() {
 
     {
         Tool t;
+        t.name = "audio_estudio";
+        t.title = "Vista general del audio";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "TODO el audio de una vez, como la vista Estudio de la página Audio: cada fuente con su cadena "
+            "entera de izquierda a derecha — origen (micrófono, invitado, red…) → los módulos de su rack → los filtros de su cadena de GStreamer (automixer…) → la mezcla "
+            "(volumen, silencio) —, los cables entre fuentes (tarjetas «Entrada») y las mesas del automixer. "
+            "Para ver de un vistazo qué pasa por dónde; para cambiar algo, audio_rack / automixer / "
+            "entrada_filtros_audio.";
+        t.run = [mgr](const json&, Done done) {
+            const json e = mgr()->estudio();
+            // Para leer: por fuente, la cadena en orden (sin posiciones de pantalla).
+            json fuentes = json::array();
+            for (const auto& fr : e["franjas"]) {
+                const std::string titulo = fr.value("titulo", std::string());
+                json cadena = json::array();
+                for (const auto& n : e["nodos"])
+                    if (n.value("grupo", std::string()) + "  ·  GStreamer" == titulo ||
+                        n.value("grupo", std::string()) + "  ·  libobs" == titulo || n.value("grupo", std::string()) == titulo) {
+                        json x{{"tarjeta", n.value("etiqueta", std::string())}, {"tipo", n.value("tipo", std::string())}};
+                        if (n.contains("resumen")) x["detalle"] = n["resumen"];
+                        cadena.push_back(x);
+                    }
+                fuentes.push_back({{"fuente", titulo}, {"motor", fr.value("motor", std::string())}, {"cadena", cadena}});
+            }
+            json conexiones = json::array();
+            for (const auto& c : e["cables"]) {
+                const std::string a = c.value("desde", std::string()), b = c.value("hacia", std::string());
+                if (a.substr(0, a.find('|')) != b.substr(0, b.find('|'))) conexiones.push_back({{"desde", a}, {"hacia", b}});
+            }
+            done(ToolResult().data({{"fuentes", fuentes}, {"entre_fuentes", conexiones}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_sources";
         t.title = "Fuentes con audio";
         t.category = "audio_rack";
@@ -124,7 +161,7 @@ void McpService::registerAudioTools() {
               {"porDefecto", {{"type", "string"}, {"description", "Plantilla a marcar."}}},
               {"paraTipo",
                {{"type", "string"},
-                {"description", "Tipo de fuente de libobs para `porDefecto` (vacio = desmarcar)."}}},
+                {"description", "Tipo de fuente para `porDefecto` (vacio = desmarcar)."}}},
               {"source", {{"type", "string"}, {"description", "La fuente, para guardar o aplicar."}}}}}};
         t.run = [mgr](const json& a, Done done) {
             const std::string src = a.value("source", std::string());
@@ -512,6 +549,45 @@ void McpService::registerAudioTools() {
             r->layoutGrid();
             mgr()->markDirty();
             done(ToolResult().data(r->describe()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_rack_vigia";
+        t.title = "Vigia de los modulos de audio";
+        t.category = "audio_rack";
+        t.description = "Cada modulo CLAP se mide en cada bloque. Si tarda mas del `umbral_pct` % de lo que dura el "
+                        "bloque (de fabrica 50) durante `bloques` seguidos (20), queda en bypass automatico (no se lo "
+                        "llama mas; el audio pasa sin procesar) hasta audio_module_rearmar. Un modulo que no vuelve en "
+                        "200 ms deja el rack «colgado»: la fuente pasa seca. audio_rack muestra ms_ultimo, ms_medio, "
+                        "ms_max y bypass_auto de cada modulo. Sin argumentos, muestra el ajuste.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"umbral_pct", {{"type", "integer"}, {"minimum", 10}, {"maximum", 200}}},
+                           {"bloques", {{"type", "integer"}, {"minimum", 1}, {"maximum", 1000}}}}}};
+        t.run = [](const json& a, Done done) {
+            AudioRack::ponerVigia(a);
+            done(ToolResult().data(AudioRack::vigia()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "audio_module_rearmar";
+        t.title = "Rearmar un modulo saltado por lento";
+        t.category = "audio_rack";
+        t.description = "Saca un modulo del bypass automatico (el vigia lo salto por lento) y saca al rack de "
+                        "«colgado». Si sigue lento, el vigia lo vuelve a saltar.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"source", kSource}, {"node", kNode}}},
+                         {"required", {"source", "node"}}};
+        t.run = [mgr](const json& a, Done done) {
+            std::string e;
+            AudioRack* r = mgr()->rack(a.value("source", ""), false, &e);
+            if (r == nullptr) return done(ToolResult::error(e));
+            if (!r->rearmar(a.value("node", ""))) return done(ToolResult::error("no es un modulo del rack"));
+            done(ToolResult::ok("Rearmado."));
         };
         core_.addTool(std::move(t));
     }

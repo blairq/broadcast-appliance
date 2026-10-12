@@ -37,16 +37,21 @@
 #include <QVariantList>
 #include <QVariantMap>
 
-#include "JsonSignals.hpp"
+#include "comun/JsonSignals.hpp"
 
 #include <atomic>
+#include <QTimer>
+
 #include <functional>
 #include <map>
 #include <memory>
+#include <set>
 #include <thread>
 
 #include "agent/Lanzamiento.hpp"
 #include "term/TerminalSession.hpp"
+
+class QProcess;
 
 namespace ba::app {
 class AppRuntime;
@@ -92,6 +97,12 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(QString lastError READ lastError NOTIFY errorChanged)
     Q_PROPERTY(QVariantList alerts READ alerts NOTIFY alertsChanged)
     Q_PROPERTY(QVariantList events READ events NOTIFY alertsChanged)
+    /// LIMPIEZA: por cada motor de agente (claude, gemini, opencode) lo que ocupa
+    /// en el disco: [{runtime, versiones: [{version, bytes, enUso}], bytesPrograma,
+    /// bytesChats, bytesPerfil, enUso}]. Los chats se acumulan en su perfil
+    /// (Credenciales/agentes/<motor>), al lado del login. Se recalcula con
+    /// `revisarLimpieza`.
+    Q_PROPERTY(QVariantList limpieza READ limpieza NOTIFY limpiezaChanged)
    public:
     AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* parent = nullptr);
     ~AgentViewModel() override;
@@ -134,6 +145,13 @@ class AgentViewModel : public QObject {
     /// viene de un disparador (se dice en voz alta y nunca se hace solo).
     using Local = std::function<void(const QString& rol, const QString& texto, bool disparador)>;
     void setLocal(Local l) { local_ = std::move(l); }
+    /// El chat del modelo local (pi): qué .gguf cargar en llama-server
+    /// (ModelosLocales::ggufParaChat) y cómo pedir que se baje el que falta.
+    void setModeloChat(std::function<QString(const QString& repo, QString* falta, QString* repoParaBajar)> gguf,
+                       std::function<void(const QString& repo)> bajar) {
+        ggufChat_ = std::move(gguf);
+        bajarModelo_ = std::move(bajar);
+    }
     bool mcpReady() const { return mcpReady_ ? mcpReady_() : false; }
     QString lastError() const { return lastError_; }
     QVariantList alerts() const;
@@ -178,11 +196,46 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
     Q_INVOKABLE void restart();
+    /// Guardas de aire: con la transmisión o la grabación andando, el asistente
+    /// interactivo corre SIN consola (Bash/PowerShell); si estaba con consola,
+    /// se relanza sin ella.
+    void setHayAire(std::function<bool()> fn);
+    /// La consola del asistente está apagada por el aire (para el candado de la barra).
+    Q_INVOKABLE bool consolaApagadaPorAire() const { return hayAire_ && hayAire_(); }
+    /// Las herramientas de aire (para la sección Seguridad): {hay_aire, herramientas}.
+    void setAireInfo(std::function<QVariantMap()> fn) { aireInfo_ = std::move(fn); }
+    Q_INVOKABLE QVariantMap aireUi() const { return aireInfo_ ? aireInfo_() : QVariantMap{}; }
     /// Escribe un pedido en el prompt del agente y lo manda.
     Q_INVOKABLE void send(const QString& text);
     Q_INVOKABLE void setAlertEnabled(const QString& id, bool on);
     Q_INVOKABLE void deleteAlert(const QString& id);
+    /// Sin sonido (sus alarmas siguen apareciendo).
+    Q_INVOKABLE void setAlertSilenciada(const QString& id, bool silenciada);
+    /// Los tipos de disparador con sus parámetros (para el editor).
+    Q_INVOKABLE QVariantList alertTypesUi() const;
+    /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.
+    Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
+    /// Control de Windows (agent/ControlWindows): {habilitado, preguntar, permisos{}, capacidades[]}.
+    Q_INVOKABLE QVariantMap controlWindows() const;
+    /// Aplica {habilitado?, preguntar?, permisos?{}} y guarda. "" o el error.
+    Q_INVOKABLE QString setControlWindows(const QVariantMap& cambios);
+
+    // --- Limpieza -----------------------------------------------------------------
+    QVariantList limpieza() const { return limpieza_; }
+    Q_INVOKABLE void revisarLimpieza();
+    /// Borra los chats guardados de un motor ("" = de todos, y los espacios de
+    /// trabajo de Runtime/agente*). El login y los ajustes quedan.
+    /// {ok, bytes, error}. No con un agente corriendo.
+    Q_INVOKABLE QVariantMap borrarChats(const QString& runtime);
+    /// Borra las versiones del programa que no se usan (quedan de actualizaciones).
+    Q_INVOKABLE QVariantMap borrarVersionesViejas(const QString& runtime);
+    /// Si algo falla: borra el programa del motor y lo vuelve a bajar. Con
+    /// `deCero`, además el perfil entero (chats, ajustes y el LOGIN: hay que volver
+    /// a entrar; las claves de API pegadas quedan). "" si arrancó, o el motivo.
+    Q_INVOKABLE QString reinstalar(const QString& runtime, bool deCero);
+    /// Cuántos encargos de roles corren (para no borrar debajo de ellos). Lo pone la app.
+    void setCorridasEnCurso(std::function<int()> fn) { corridasEnCurso_ = std::move(fn); }
 
     /// Nota del sistema al agente (respuesta del operador, etc.): va a su chat.
     void deliverNote(const QString& text);
@@ -197,6 +250,8 @@ class AgentViewModel : public QObject {
     void avisarMcpCambio() { emit mcpReadyChanged(); }
     /// Ruta del puente ba-mcp (junto a ba-app).
     QString bridgePath() const;
+    /// ba-control: el servidor MCP del escritorio de Windows (src/app/escritorio).
+    QString controlPath() const;
     /// Carpeta de trabajo del agente con su configuracion (para los tests).
     QString prepareWorkspace(QString* error);
     /// Programa, argumentos y entorno con los que se lanza (para los tests).
@@ -224,9 +279,14 @@ class AgentViewModel : public QObject {
     void mcpReadyChanged();
     void errorChanged();
     void alertsChanged();
+    void limpiezaChanged();
     void notify(const QString& message, const QString& level);
 
    private:
+    QVariantList limpieza_;
+    std::function<int()> corridasEnCurso_;
+    /// "" si se puede tocar el disco de los agentes; si no, por qué no.
+    QString ocupadoParaLimpiar() const;
     void loadConfig();
     void saveConfig() const;
     void setError(const QString& e);
@@ -237,9 +297,12 @@ class AgentViewModel : public QObject {
     /// configuracion del MCP (con los argumentos del puente).
     QString prepareWorkspaceEn(const QString& ws, const QString& proveedor, const QString& modelo,
                                const QStringList& bridgeArgs, const QString& prompt, QString* error,
-                               bool consola);
+                               bool consola, bool conControl = false);
     /// Programa, entorno y credenciales de un proveedor, sin los argumentos
     /// del modo (interactivo o de un tiro): eso lo agrega quien la llama.
+    /// HOME, XDG, AppData y llavero: todo lo del agente adentro de la carpeta de datos.
+    static void aislarEnLaCarpetaDeDatos(term::Pty::Options& o, const QString& runtime, const QString& profile,
+                                         const QString& root);
     term::Pty::Options baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
                                   QString* error);
     /// Carpeta DESTINO de una instalacion nueva: la version que fija esta
@@ -267,6 +330,16 @@ class AgentViewModel : public QObject {
     AlertEngine& alerts_;
     std::unique_ptr<term::TerminalSession> session_;
     Local local_;
+    std::function<QString(const QString&, QString*, QString*)> ggufChat_;
+    std::function<void(const QString&)> bajarModelo_;
+    // El llama-server del chat del modelo local (pi): lo levanta start(), lo baja stop().
+    QProcess* servidor_ = nullptr;
+    quint16 puertoServidor_ = 0;
+    QString ggufActual_; ///< el .gguf que cargó el servidor (su carpeta trae el prompt.json)
+    QString rutaServidorLocal() const;
+    void arrancarServidorLocal(std::function<void()> listo);
+    void pararServidorLocal();
+    void lanzarSesion();
     bool localActivo_ = false; ///< el asistente es el modelo local y está «andando»
     QString provider_ = "claude-cuenta";
     QString model_;
@@ -276,8 +349,9 @@ class AgentViewModel : public QObject {
     bool installing_ = false;
     double installProgress_ = 0;
     QString installText_;
-    std::atomic<bool> cancelInstall_{false};
-    std::thread installThread_;
+    std::set<std::string> instalando_; ///< ids en la cola de descargas
+    void seguirInstalacion();
+    void registrarActualizaciones();
     bool checking_ = false;
     std::thread checkThread_;
     std::map<QString, nlohmann::json> latest_; ///< runtime -> entrada nueva
@@ -288,6 +362,10 @@ class AgentViewModel : public QObject {
     bool flushScheduled_ = false;
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
     std::function<bool(const nlohmann::json&)> reclamado_;
+    std::function<bool()> hayAire_;
+    bool conConsola_ = false; ///< el interactivo arrancó con Bash/PowerShell
+    QTimer* vigiaAire_ = nullptr;
+    std::function<QVariantMap()> aireInfo_;
 };
 
 } // namespace ba::app::agent

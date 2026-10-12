@@ -11,17 +11,21 @@
 // ============================================================================
 
 #include "SignalingServer.hpp"
+#include "ajustes/Ajustes.hpp"
 
+#include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <system_error>
 
 #include "HttpIo.hpp"
+#include "ipc/CanalesEscena.hpp"
 #include "ipc/ControlProtocol.hpp"
 #include "Log.hpp"
 #include "MediaPump.hpp"
@@ -98,6 +102,56 @@ SignalingServer::SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub
     Room::Sinks sinks;
     sinks.toGuest = [this](const std::string& pid, const json& msg) { sendToGuest(pid, msg); };
     sinks.toHosts = [this](const std::string& ev, const json& data) { broadcastToHosts(ev, data); };
+    botonera_ = std::make_unique<BotoneraBorde>(cfg_.botoneraWebroot, log_,
+                                                [this](const json& d) { broadcastToHosts("botonera", d); });
+    botonera_->setCaras(cfg_.carasBotonera);
+    sesion_ = std::make_unique<SesionBorde>(cfg_.sesionWebroot, log_,
+                                            [this](const json& d) { broadcastToHosts("sesion", d); });
+    // R3: el micrófono y la cámara del remoto con la palabra van a la app por el
+    // mismo WebRTC que los invitados (una sesión del pool, ruta «Remoto»).
+    {
+        SesionBorde::Medios m;
+        m.oferta = [this](const std::string& id, int canal, const std::string& sdp, std::function<void(const json&)> enviar) {
+            return ofertaRemoto(id, canal, sdp, std::move(enviar));
+        };
+        m.ice = [this](const std::string& id, const std::string& cand) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessLock_);
+                const auto it = sessionOf_.find("remoto:" + id);
+                if (it != sessionOf_.end()) idx = it->second;
+            }
+            if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
+        };
+        m.vistaOferta = [this](const std::string& id, const std::string& sdp, int canal, bool hablar,
+                               std::function<void(const json&)> enviar) {
+            return ofertaVista(id, sdp, canal, hablar, std::move(enviar));
+        };
+        m.vistaIce = [this](const std::string& id, const std::string& cand) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessLock_);
+                const auto it = sessionOf_.find("vista:" + id);
+                if (it != sessionOf_.end()) idx = it->second;
+            }
+            if (WebrtcSession* s = idx > 0 ? hub_.session(idx) : nullptr) s->addRemoteIce(cand);
+        };
+        m.vistaRuta = [this](const std::string& id, int canal, bool hablar) {
+            int idx = 0;
+            {
+                std::lock_guard<std::mutex> lock(sessLock_);
+                const auto it = sessionOf_.find("vista:" + id);
+                if (it != sessionOf_.end()) idx = it->second;
+            }
+            if (idx > 0 && pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
+        };
+        m.vistaCerrar = [this](const std::string& id) { releaseSession("vista:" + id, 0, true); };
+        m.cerrar = [this](const std::string& id, int canal) {
+            releaseSession("remoto:" + id, 0, true);
+            if (pump_ != nullptr) pump_->apagarRemoto(canal); // que no quede su último cuadro
+        };
+        sesion_->setMedios(std::move(m));
+    }
     sinks.dropGuest = [this](const std::string& pid) { dropGuest(pid); };
     // Los archivos de quien se fue quedan (el operador puede estar usandolos):
     // se borran a mano o al reiniciar B. La sesion WebRTC la cierra la ruta
@@ -129,7 +183,26 @@ bool SignalingServer::start() {
     }
     stop_.store(false);
     guestBoundPort_ = http::localPort(listenFd_);
-    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false);
+    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false);
+    // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
+    statsThread_ = std::thread([this] {
+        while (!stop_.load()) {
+            for (int i = 0; i < 20 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::vector<std::pair<std::string, int>> sesiones;
+            {
+                std::lock_guard<std::mutex> l(sessLock_);
+                for (const auto& [pid, idx] : sessionOf_) sesiones.emplace_back(pid, idx);
+            }
+            const int64_t ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      std::chrono::steady_clock::now().time_since_epoch())
+                                      .count();
+            for (const auto& [pid, idx] : sesiones)
+                if (WebrtcSession* s = hub_.session(idx)) {
+                    const nlohmann::json j = nlohmann::json::parse(s->estadisticas(), nullptr, false);
+                    if (j.is_object() && !j.empty()) room_.setRed(pid, j, ahora);
+                }
+        }
+    });
     log_.info("senalizacion: escuchando en " + cfg_.bindAddress + ":" + std::to_string(guestBoundPort_) +
               " (webroot=" + cfg_.webroot + ")");
 
@@ -143,11 +216,72 @@ bool SignalingServer::start() {
                        -1);
         } else {
             adminBoundPort_ = http::localPort(adminListenFd_);
-            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true);
+            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false);
             log_.info("control: API del operador en 127.0.0.1:" + std::to_string(adminBoundPort_));
         }
     }
+    // La escucha del tunel de pinggy: SIEMPRE loopback (solo ba-pinggy llega
+    // aca) y todo lo que entra es externo (ver el header).
+    if (cfg_.tunel) {
+        tunnelListenFd_ = http::makeListen("127.0.0.1", cfg_.tunnelPort);
+        if (tunnelListenFd_ < 0) {
+            log_.error("tunel: no se pudo abrir 127.0.0.1:" + std::to_string(cfg_.tunnelPort) +
+                           " (pinggy queda sin destino)",
+                       -1);
+        } else {
+            tunnelBoundPort_ = http::localPort(tunnelListenFd_);
+            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true);
+            log_.info("tunel: escucha de pinggy en 127.0.0.1:" + std::to_string(tunnelBoundPort_) +
+                      " (todo externo)");
+        }
+    }
     return true;
+}
+
+bool SignalingServer::ipDeTexto(const std::string& texto, std::uint32_t& ipRed) {
+    if (texto.empty() || texto.size() > 45) return false;
+    in_addr a{};
+    if (inet_pton(AF_INET, texto.c_str(), &a) == 1) {
+        ipRed = static_cast<std::uint32_t>(a.s_addr);
+        return true;
+    }
+    in6_addr a6{};
+    if (inet_pton(AF_INET6, texto.c_str(), &a6) != 1) return false;
+    const auto* b = reinterpret_cast<const unsigned char*>(&a6);
+    static const unsigned char kMapeada[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    if (std::memcmp(b, kMapeada, 12) == 0) {
+        std::memcpy(&ipRed, b + 12, 4);
+        return true;
+    }
+    // FNV-1a del /64 (lo que suele ser UN cliente) -> 240.x.y.z.
+    std::uint32_t h = 2166136261u;
+    for (int i = 0; i < 8; ++i) h = (h ^ b[i]) * 16777619u;
+    const unsigned char ip4[4] = {240, static_cast<unsigned char>(h >> 16), static_cast<unsigned char>(h >> 8),
+                                  static_cast<unsigned char>(h)};
+    std::memcpy(&ipRed, ip4, 4);
+    return true;
+}
+
+bool SignalingServer::ipDeProxyV1(const std::string& linea, std::uint32_t& ipRed) {
+    char src[64] = {0};
+    char dst[64] = {0};
+    unsigned sp = 0;
+    unsigned dp = 0;
+    if (std::sscanf(linea.c_str(), "PROXY TCP4 %63s %63s %u %u", src, dst, &sp, &dp) == 4 ||
+        std::sscanf(linea.c_str(), "PROXY TCP6 %63s %63s %u %u", src, dst, &sp, &dp) == 4)
+        return ipDeTexto(src, ipRed);
+    return false;
+}
+
+bool SignalingServer::ipDeXff(const std::string& valor, std::uint32_t& ipRed) {
+    // El ULTIMO de la lista es el que agrego pinggy; los de antes los pudo
+    // escribir el cliente.
+    const size_t coma = valor.rfind(',');
+    std::string ultimo = coma == std::string::npos ? valor : valor.substr(coma + 1);
+    const auto ini = ultimo.find_first_not_of(" \t");
+    const auto fin = ultimo.find_last_not_of(" \t");
+    if (ini == std::string::npos) return false;
+    return ipDeTexto(ultimo.substr(ini, fin - ini + 1), ipRed);
 }
 
 std::vector<std::string> SignalingServer::tomarAcreditaciones() {
@@ -167,6 +301,79 @@ nlohmann::json SignalingServer::publicoInfo() const {
     return publicoInfo_;
 }
 
+void SignalingServer::setEventoWeb(const nlohmann::json& e) {
+    {
+        std::lock_guard<std::mutex> g(eventoWebM_);
+        eventoWeb_ = e.is_object() ? e : nlohmann::json::object();
+    }
+    // ba-web sirve la carpeta Web/ del evento: se le avisa (escribe un archivo solo si cambió).
+    if (alCambiarEventoDir_) {
+        std::string dir;
+        if (!eventoWebActivo(&dir)) dir.clear();
+        alCambiarEventoDir_(dir);
+    }
+    // Dato nuevo de la app (el guion avanzó, cambió el sitio): el caché se tira ya.
+    std::lock_guard<std::mutex> g(eventoCacheM_);
+    eventoCacheMs_ = 0;
+}
+
+std::pair<std::string, std::string> SignalingServer::eventoPublicoCacheado() {
+    // EL CACHÉ DE /api/v1/evento. Con cientos de navegadores preguntando cada 2 s, armar la
+    // respuesta cada vez es consultar cientos de veces por segundo la sala (la lista de
+    // invitados), las conexiones de la sesión remota y la urna. Se arma como mucho una vez
+    // por `evento.cacheMs` (1 s) y se reparte la misma a todos; setEventoWeb la invalida.
+    const std::int64_t ahora = nowMs();
+    std::lock_guard<std::mutex> g(eventoCacheM_);
+    if (eventoCacheMs_ > 0 && ahora - eventoCacheMs_ < ba::ajustes::entero("evento.cacheMs", 1000))
+        return {eventoCache_, eventoCacheVivos_};
+    const json e = eventoWeb();
+    json out = e.value("estado", json::object());
+    out["activo"] = eventoWebActivo();
+    out["ahoraMs"] = ahora; // la hora de la sala, para los relojes de la página
+    // Cuánta gente: los que miran (vistos en los últimos 15 s) y los que están en la sala
+    // (invitados adentro e integrantes conectados desde el navegador). Solo números.
+    {
+        std::lock_guard<std::mutex> g2(eventoWebM_);
+        for (auto it = mirando_.begin(); it != mirando_.end();) it = ahora - it->second > 15000 ? mirando_.erase(it) : std::next(it);
+        out["mirando"] = static_cast<int>(mirando_.size());
+    }
+    int enSala = 0;
+    const json snap = room_.snapshot();
+    for (const auto& p : snap.value("participants", json::array()))
+        if (p.value("state", std::string()) == "admitted") ++enSala;
+    if (sesion_) enSala += sesion_->conectados();
+    out["enLaSala"] = enSala;
+    // Participar (preguntar y votar en /publico/): solo si el evento lo prendió
+    // (sitio.json → participacion). La clave del público va en el enlace, como en su QR.
+    if (out.value("participacion", false) && !cfg_.publicoKey.empty()) {
+        out["publicoUrl"] = "/publico/#k=" + cfg_.publicoKey;
+        out["votacionAbierta"] = votacion_.hayAbierta();
+    } else {
+        out.erase("publicoUrl");
+        out["votacionAbierta"] = false;
+    }
+    eventoCache_ = out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    eventoCacheVivos_ = json{{"activo", out["activo"]}, {"vivos", out.value("vivos", json::array())}}
+                            .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    eventoCacheMs_ = ahora;
+    return {eventoCache_, eventoCacheVivos_};
+}
+
+nlohmann::json SignalingServer::eventoWeb() const {
+    std::lock_guard<std::mutex> g(eventoWebM_);
+    return eventoWeb_;
+}
+
+bool SignalingServer::eventoWebActivo(std::string* dir) const {
+    std::lock_guard<std::mutex> g(eventoWebM_);
+    if (!eventoWeb_.value("activo", false)) return false;
+    const std::string d = eventoWeb_.value("dir", std::string());
+    std::error_code ec;
+    if (d.empty() || !std::filesystem::is_directory(d, ec)) return false;
+    if (dir != nullptr) *dir = d;
+    return true;
+}
+
 void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
     std::lock_guard<std::mutex> g(publicoM_);
     fondoBytes_ = std::move(bytes);
@@ -175,20 +382,26 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
 
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
-    if (listenFd_ < 0 && adminListenFd_ < 0 && activeConns_.load() == 0 && !acceptThread_.joinable() &&
-        !adminAcceptThread_.joinable()) {
+    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && activeConns_.load() == 0 &&
+        !acceptThread_.joinable() && !adminAcceptThread_.joinable() && !tunnelAcceptThread_.joinable() &&
+        !statsThread_.joinable()) {
         return;
     }
     stop_.store(true);
 
     // 1) Los threads de accept salen por `stop_` (su espera es acotada).
     if (acceptThread_.joinable()) acceptThread_.join();
+    if (statsThread_.joinable()) statsThread_.join();
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
+    if (tunnelAcceptThread_.joinable()) tunnelAcceptThread_.join();
     http::closeFd(listenFd_);
     listenFd_ = -1;
     http::closeFd(adminListenFd_);
     adminListenFd_ = -1;
     adminBoundPort_ = 0;
+    http::closeFd(tunnelListenFd_);
+    tunnelListenFd_ = -1;
+    tunnelBoundPort_ = 0;
 
     // 2) WS y SSE pueden estar en un recv sin timeout: shutdown de todos.
     closeActiveConns();
@@ -236,7 +449,7 @@ void SignalingServer::closeActiveConns() {
 // Accept + despacho
 // ============================================================================
 
-void SignalingServer::acceptLoop(long long listenFd, bool admin) {
+void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
     constexpr int kAcceptPollMs = 200;
     while (!stop_.load(std::memory_order_relaxed)) {
         const int ready = http::waitReadable(listenFd, kAcceptPollMs);
@@ -259,16 +472,16 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
 
         // Tope de concurrencia: por encima se responde 503 y se cierra, en vez
         // de lanzar threads sin limite.
-        if (activeConns_.load(std::memory_order_relaxed) >= kMaxConcurrentConns) {
+        if (activeConns_.load(std::memory_order_relaxed) >= kMaxConcurrentConns()) {
             http::sendResponse(fd, 503, "text/plain", "servidor saturado\n");
             http::closeFd(fd);
-            log_.warn("senalizacion: conexion rechazada, tope de " + std::to_string(kMaxConcurrentConns) +
+            log_.warn("senalizacion: conexion rechazada, tope de " + std::to_string(kMaxConcurrentConns()) +
                           " conexiones",
                       -1);
             continue;
         }
         http::setNoDelay(fd);
-        http::setSocketTimeout(fd, kHandshakeTimeoutMs);
+        http::setSocketTimeout(fd, kHandshakeTimeoutMs());
         activeConns_.fetch_add(1, std::memory_order_relaxed);
         trackFd(fd);
 #ifdef _WIN32
@@ -278,9 +491,9 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
 #endif
         // Ultima red: un JSON con tipos inesperados (nlohmann lanza) no debe
         // tumbar el proceso desde un thread detachado.
-        std::thread([this, fd, clientIp, admin] {
+        std::thread([this, fd, clientIp, admin, externo] {
             try {
-                handleConnection(fd, clientIp, admin);
+                handleConnection(fd, clientIp, admin, externo);
             } catch (const std::exception& e) {
                 log_.warn(std::string("conexion: excepcion ") + e.what(), -1);
             }
@@ -288,7 +501,7 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
     }
 }
 
-void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin) {
+void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo) {
     // El thread esta detachado: el contador DEBE bajar por cualquier salida.
     struct ConnGuard {
         SignalingServer* self;
@@ -303,20 +516,20 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     std::string headers;
     if (!http::readHeaders(fd, headers)) return;
 
-    // PROXY v1 (del puente del tunel WireGuard o del terminador HTTPS, ambos
-    // locales): la conexion llega desde 127.0.0.1 pero la IP que cuenta
-    // (rate-limit, registro) es la del invitado. Solo se acepta desde loopback.
+    // PROXY v1 (del puente del tunel WireGuard, del terminador HTTPS, del proxy
+    // por nombre o de ba-pinggy, todos locales): la conexion llega desde
+    // 127.0.0.1 pero la IP que cuenta (rate-limit, registro) es la del
+    // invitado. Solo se acepta desde loopback. En la escucha del tunel la IP
+    // que venga NO cambia que la conexion sea externa.
+    bool ipDeProxy = false;
     if (headers.rfind("PROXY ", 0) == 0) {
         const size_t eol = headers.find("\r\n");
         const bool fromLoopback = ntohl(clientIp) == INADDR_LOOPBACK;
         if (eol == std::string::npos || !fromLoopback) return;
-        char src[64] = {0};
-        char dst[64] = {0};
-        unsigned sp = 0;
-        unsigned dp = 0;
-        if (std::sscanf(headers.c_str(), "PROXY TCP4 %63s %63s %u %u", src, dst, &sp, &dp) == 4) {
-            in_addr a{};
-            if (inet_pton(AF_INET, src, &a) == 1) clientIp = static_cast<std::uint32_t>(a.s_addr);
+        std::uint32_t real = 0;
+        if (ipDeProxyV1(headers.substr(0, eol), real)) {
+            clientIp = real;
+            ipDeProxy = true;
         }
         headers.erase(0, eol + 2);
         // La cabecera PROXY puede haber llegado sola: se completa la peticion.
@@ -325,6 +538,14 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
             if (!http::readHeaders(fd, rest)) return;
             headers += rest;
         }
+    }
+
+    // Por el tunel de pinggy sin PROXY v1 (con el TURN prendido va sin, ver
+    // main.cpp): la IP real del X-Forwarded-For que agrega ba-pinggy (--xff).
+    // Solo en esa escucha: en la comun esa cabecera la pone cualquiera.
+    if (externo && !ipDeProxy) {
+        std::uint32_t real = 0;
+        if (ipDeXff(http::getHeader(headers, "X-Forwarded-For"), real)) clientIp = real;
     }
 
     // Linea de peticion: METHOD TARGET HTTP/1.1
@@ -373,6 +594,18 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         return;
     }
 
+    // La botonera (página, emparejamiento y su WebSocket) antes que la sala.
+    if (botonera_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
+    // La sesión remota (página y su WebSocket), también antes que la sala.
+    if (sesion_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    if (path == "/api/ice" && method == "GET" && !admin) {
+        // Los servidores ICE (TURN de la caja) para el RTCPeerConnection del
+        // navegador. Sin servidor TURN (o sin setIce): lo de siempre, sin ICE.
+        const std::string cuerpo =
+            ice_ ? ice_(externo) : std::string(R"({"iceServers":[],"politica":"all","ttl":0})");
+        http::sendResponse(fd, 200, "application/json", cuerpo, "Cache-Control: no-store\r\n");
+        return;
+    }
     std::string upgrade = http::getHeader(headers, "Upgrade");
     for (auto& ch : upgrade)
         ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));
@@ -405,7 +638,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         if (current) room_.disconnect(pid, nowMs());
         return;
     }
-    handleGuestHttp(fd, method, path, query, body, clientIp);
+    handleGuestHttp(fd, method, path, query, headers, body, clientIp);
 }
 
 // ============================================================================
@@ -413,10 +646,110 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
 // ============================================================================
 
 void SignalingServer::handleGuestHttp(long long fd, const std::string& method, const std::string& path,
-                                      const std::string& query, const std::string& body,
-                                      std::uint32_t clientIp) {
+                                      const std::string& query, const std::string& headers,
+                                      const std::string& body, std::uint32_t clientIp) {
+    // --- La página del evento en vivo (y los invitados en /invitados/) ---------
+    // Con un evento con sitio, la raíz es el marco del evento: muestra la página de
+    // la sección que se trata y la cambia sola. Los enlaces viejos de invitados
+    // («/#room=…») los manda el marco a /invitados/ (el fragmento no llega acá).
     if (path == "/" || path == "/index.html") {
-        serveStatic(fd, cfg_.webroot, "index.html");
+        if (eventoWebActivo() && !cfg_.eventoWebroot.empty()) serveStatic(fd, cfg_.eventoWebroot, "index.html");
+        else serveStatic(fd, cfg_.webroot, "index.html");
+        return;
+    }
+    if (method == "GET" && (path == "/invitados" || path.rfind("/invitados/", 0) == 0)) {
+        if (path == "/invitados") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /invitados/\r\n");
+            return;
+        }
+        std::string rel = path.substr(11);
+        if (rel.empty()) rel = "index.html";
+        serveStatic(fd, cfg_.webroot, rel);
+        return;
+    }
+    if (method == "GET" && path.rfind("/evento/", 0) == 0) {
+        // /evento/_/… lo del programa (vivo.js); el resto, la carpeta Web/ del evento.
+        if (path.rfind("/evento/_/", 0) == 0) {
+            if (!cfg_.eventoWebroot.empty() && serveStatic(fd, cfg_.eventoWebroot, path.substr(10))) return;
+            http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+            return;
+        }
+        std::string dir;
+        if (!eventoWebActivo(&dir)) {
+            http::sendResponse(fd, 404, "text/plain", "no hay evento\n");
+            return;
+        }
+        std::string rel = path.substr(8);
+        if (rel.empty()) rel = "portada.html";
+        // Una sección recién agregada al guion todavía no tiene su página en el disco (se
+        // escribe al guardar): se sirve la plantilla con su id, y vivo.js la completa.
+        {
+            std::error_code ec;
+            const std::string sinQuery = rel.substr(0, rel.find('?'));
+            if (sinQuery.rfind("seccion-", 0) == 0 && sinQuery.size() > 13 && sinQuery.ends_with(".html") &&
+                sinQuery.find('/') == std::string::npos && sinQuery.find("..") == std::string::npos &&
+                !std::filesystem::exists(std::filesystem::path(dir) / sinQuery, ec) && !cfg_.eventoWebroot.empty()) {
+                std::ifstream f(std::filesystem::path(cfg_.eventoWebroot) / "plantilla" / "seccion.html", std::ios::binary);
+                if (f) {
+                    std::ostringstream ss;
+                    ss << f.rdbuf();
+                    std::string html = ss.str(), id = sinQuery.substr(8, sinQuery.size() - 13);
+                    std::string seguro;
+                    for (char c : id)
+                        if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_') seguro += c;
+                    const auto poner = [&html](const std::string& de, const std::string& a) {
+                        for (std::size_t p = html.find(de); p != std::string::npos; p = html.find(de, p + a.size())) html.replace(p, de.size(), a);
+                    };
+                    poner("{{seccion}}", seguro);
+                    poner("{{titulo}}", "");
+                    poner("{{evento}}", "");
+                    poner("{{descripcion}}", "");
+                    http::sendResponse(fd, 200, "text/html; charset=utf-8", html, "Cache-Control: no-cache\r\n");
+                    return;
+                }
+            }
+        }
+        serveStatic(fd, dir, rel);
+        return;
+    }
+    if ((path == "/api/v1/evento" || path == "/api/v1/evento/vivos") && method == "GET") {
+        // Cada navegador manda su id al preguntar: así se cuenta cuántos miran (los de
+        // los últimos 15 s). Anotarlo es barato; lo caro va en el caché de abajo.
+        {
+            const auto q = http::parseQuery(query);
+            if (q.count("v")) {
+                const std::string v = http::urlDecode(q.at("v")).substr(0, 40);
+                std::lock_guard<std::mutex> g(eventoWebM_);
+                if (!v.empty() && (mirando_.size() < 20000 || mirando_.count(v))) mirando_[v] = nowMs();
+            }
+            // Los que atendió el caché de ba-web: los manda él, con su clave, como hashes de
+            // 8 cifras hex («h:» adelante, para no mezclarse con los ids que llegan directo).
+            const auto igualesSinFiltrar = [](const std::string& a, const std::string& b) {
+                // en tiempo constante: el tiempo de la comparación no cuenta cuánto se acertó
+                if (a.size() != b.size()) return false;
+                unsigned char d = 0;
+                for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
+                return d == 0;
+            };
+            if (!cfg_.webClave.empty() && igualesSinFiltrar(http::getHeader(headers, "X-BA-Clave"), cfg_.webClave)) {
+                const std::string vistos = http::getHeader(headers, "X-BA-Vistos");
+                const std::int64_t ahora = nowMs();
+                std::lock_guard<std::mutex> g(eventoWebM_);
+                std::size_t ini = 0;
+                while (ini < vistos.size()) {
+                    std::size_t fin = vistos.find(',', ini);
+                    if (fin == std::string::npos) fin = vistos.size();
+                    const std::string id = vistos.substr(ini, fin - ini);
+                    if (id.size() == 8 && id.find_first_not_of("0123456789abcdef") == std::string::npos &&
+                        (mirando_.size() < 20000 || mirando_.count("h:" + id)))
+                        mirando_["h:" + id] = ahora;
+                    ini = fin + 1;
+                }
+            }
+        }
+        const auto [cuerpo, vivos] = eventoPublicoCacheado();
+        http::sendResponse(fd, 200, "application/json", path == "/api/v1/evento" ? cuerpo : vivos,
+                           "Cache-Control: no-cache\r\n");
         return;
     }
     if (path == "/healthz") {
@@ -437,7 +770,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // y lo otro es si el asistente esta atendiendo, para no pedirle al
         // invitado datos que le va a preguntar el asistente por chat.
         http::sendResponse(fd, 200, "application/json",
-                           json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump());
+                           json{{"ok", true}, {"room", cfg_.room}, {"pedirDatos", !room_.intake()}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return;
     }
     // --- Teleprompter -------------------------------------------------------
@@ -470,7 +803,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             prompter_.visto(campo("id"), campo("vista"), campo("nombre"), clientIp);
             // Publico: es el texto que el orador va a decir en voz alta en un
             // rato. Lo que se protege es CAMBIARLO, no verlo.
-            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -487,9 +820,59 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 return;
             }
             prompter_.comandar(req);
-            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", prompter_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
+    }
+
+    // --- Puesto de corrección de subtítulos (T44) ------------------------------
+    // La página del corrector (/correccion/#k=<clave>) pide cada medio segundo
+    // las frases que esperan y manda las correcciones. Con clave (por arranque):
+    // corregir lo que sale al aire es poder escribir en pantalla.
+    if (method == "GET" && (path == "/correccion" || path.rfind("/correccion/", 0) == 0)) {
+        if (path == "/correccion") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /correccion/\r\n");
+            return;
+        }
+        std::string rel = path.substr(std::string("/correccion/").size());
+        if (rel.empty()) rel = "index.html";
+        if (!cfg_.correccionWebroot.empty() && serveStatic(fd, cfg_.correccionWebroot, rel)) return;
+        http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+        return;
+    }
+    if (path == "/api/correccion") {
+        const auto q = http::parseQuery(query);
+        const json req = method == "POST" ? json::parse(body, nullptr, false) : json::object();
+        const std::string clave = method == "POST" ? (req.is_object() ? req.value("k", std::string()) : std::string())
+                                                   : (q.count("k") ? http::urlDecode(q.at("k")) : std::string());
+        if (cfg_.correccionKey.empty() || clave != cfg_.correccionKey) {
+            ipRecordFailure(clientIp);
+            http::sendResponse(fd, 403, "application/json", R"({"ok":false,"error":"clave"})");
+            return;
+        }
+        if (method == "GET") {
+            std::lock_guard<std::mutex> l(correccionMu_);
+            const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::system_clock::now().time_since_epoch()).count();
+            http::sendResponse(fd, 200, "application/json",
+                               json{{"pendientes", correccionPend_}, {"edad_ms", correccionMs_ ? ahora - correccionMs_ : 0}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                               "Cache-Control: no-store\r\n");
+            return;
+        }
+        if (method == "POST" && req.is_object() && req.contains("id")) {
+            // A la app (la fuente de verdad): ella decide si la frase todavía está.
+            json ev{{"id", req["id"]}, {"descartar", req.value("descartar", false)}};
+            if (req.contains("texto") && req["texto"].is_string()) {
+                std::string t = req["texto"].get<std::string>();
+                if (t.size() > 2000) t.resize(2000);
+                ev["texto"] = t;
+            }
+            broadcastToHosts("correccion", ev);
+            http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
+            return;
+        }
+        http::sendResponse(fd, 400, "application/json", R"({"ok":false,"error":"pedido"})");
+        return;
     }
 
     // --- El latido de las superficies web -----------------------------------
@@ -552,7 +935,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         // lectura, como el resto de /pantalla/.
         if (rel == "tally.json") {
             std::lock_guard<std::mutex> lock(tallyLock_);
-            http::sendResponse(fd, 200, "application/json", tally_.dump());
+            http::sendResponse(fd, 200, "application/json", tally_.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (rel == "carrusel.json") {
@@ -563,7 +946,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 http::sendResponse(fd, 404, "application/json", R"({"error":"no existe ese carrusel"})");
                 return;
             }
-            http::sendResponse(fd, 200, "application/json", c.dump());
+            http::sendResponse(fd, 200, "application/json", c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         // El QR lo dibuja el servidor: asi la pagina no arrastra una
@@ -613,7 +996,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             return;
         }
         if (method == "GET") {
-            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -622,7 +1005,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                    R"({"ok":false,"error":"falta id de fuente"})");
                 return;
             }
-            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump());
+            http::sendResponse(fd, 200, "application/json", rotulador_.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -681,7 +1064,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
         info["ok"] = true;
         if (hayFondo) info["fondo"] = "/api/publico-fondo";
-        http::sendResponse(fd, 200, "application/json", info.dump());
+        http::sendResponse(fd, 200, "application/json", info.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         return;
     }
     // La urna, del lado del telefono. El `codigo` solo lo manda el que esta en
@@ -713,7 +1096,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         if (method == "GET") {
             http::sendResponse(
                 fd, 200, "application/json",
-                json{{"ok", true}, {"votacion", votacion_.estadoPublico(quien, codigo)}}.dump());
+                json{{"ok", true}, {"votacion", votacion_.estadoPublico(quien, codigo)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -725,7 +1108,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                json{{"ok", motivo.empty()},
                                     {"error", motivo},
                                     {"votacion", votacion_.estadoPublico(quien, codigo)}}
-                                   .dump());
+                                   .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -786,7 +1169,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                                json{{"ok", true},
                                     {"preguntas", preguntas_.listaPublica(quien)},
                                     {"recuento", preguntas_.recuento()}}
-                                   .dump());
+                                   .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
         if (method == "POST") {
@@ -797,7 +1180,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             if (req.contains("votar")) {
                 const bool sumo = preguntas_.votar(req["votar"].get<std::string>(), quien);
                 http::sendResponse(fd, 200, "application/json",
-                                   json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
+                                   json{{"ok", sumo}, {"preguntas", preguntas_.listaPublica(quien)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
                 return;
             }
             const std::string id =
@@ -810,7 +1193,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             }
             http::sendResponse(
                 fd, 200, "application/json",
-                json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump());
+                json{{"ok", true}, {"id", id}, {"preguntas", preguntas_.listaPublica(quien)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             return;
         }
     }
@@ -901,7 +1284,7 @@ void SignalingServer::apiJoin(long long fd, const std::string& body, std::uint32
                     {"maxGuests", cfg_.maxGuests},
                     {"ttlSec", auth_.ttlSec()},
                     {"maxUploadBytes", shares_.maxBytes()}};
-    http::sendResponse(fd, 200, "application/json", resp.dump());
+    http::sendResponse(fd, 200, "application/json", resp.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void SignalingServer::apiVerify(long long fd, const std::string& query) {
@@ -912,7 +1295,7 @@ void SignalingServer::apiVerify(long long fd, const std::string& query) {
     if (code == 0) {
         http::sendResponse(fd, 200, "application/json", R"({"ok":true})");
     } else {
-        http::sendResponse(fd, 401, "application/json", json{{"ok", false}, {"code", code}}.dump());
+        http::sendResponse(fd, 401, "application/json", json{{"ok", false}, {"code", code}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
 }
 
@@ -936,7 +1319,7 @@ void SignalingServer::apiUpload(long long fd, const std::string& headers, const 
         return;
     }
     // Una subida grande tarda: el timeout es por recv (sin datos 60 s = cortar).
-    http::setSocketTimeout(fd, 60000);
+    http::setSocketTimeout(fd, ba::ajustes::sAMs("room.subidaTimeoutS", 60));
     const auto res = shares_.save(static_cast<uint64_t>(total),
                                   [fd](uint8_t* buf, size_t n) { return http::recvSome(fd, buf, n); });
     if (res.err == ShareStore::kUnsupported) {
@@ -964,7 +1347,7 @@ void SignalingServer::apiUpload(long long fd, const std::string& headers, const 
     const std::string id = room_.addShare(s, nowMs());
     log_.info("archivos: " + who.name + " compartio '" + s.name + "' (" + s.mime + ", " +
               std::to_string(res.bytes) + " bytes)");
-    http::sendResponse(fd, 201, "application/json", json{{"ok", true}, {"id", id}, {"kind", s.kind}}.dump());
+    http::sendResponse(fd, 201, "application/json", json{{"ok", true}, {"id", id}, {"kind", s.kind}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 // ============================================================================
@@ -1051,7 +1434,7 @@ void SignalingServer::apiBoard(long long fd, const std::string& method, const st
         return;
     }
     if (path == "/api/v1/board") {
-        http::sendResponse(fd, 200, "application/json", room_.boardSnapshot(nowMs()).dump(),
+        http::sendResponse(fd, 200, "application/json", room_.boardSnapshot(nowMs()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
                            "Cache-Control: no-store\r\n");
         return;
     }
@@ -1127,7 +1510,7 @@ void SignalingServer::apiView(long long fd, const std::string& body, bool board)
         viewerOwners_[viewer] = board;
     }
     http::sendResponse(fd, 200, "application/json",
-                       json{{"ok", true}, {"viewer", viewer}, {"sdp", publicSdp(answer)}}.dump());
+                       json{{"ok", true}, {"viewer", viewer}, {"sdp", publicSdp(answer)}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 void SignalingServer::apiViewAction(long long fd, const std::string& method, const std::string& rest,
@@ -1167,7 +1550,7 @@ bool SignalingServer::esPantalla(const std::string& pid) const {
     return pantallas_.find(pid) != pantallas_.end();
 }
 
-std::string SignalingServer::altaPantalla(std::string& claveOut) {
+std::string SignalingServer::altaPantalla(std::string& claveOut, int canal) {
     std::string hex, clave;
     if (!ba::security::randomSecretHex(16, hex)) return {};
     if (!ba::security::randomSecretHex(16, clave)) return {};
@@ -1179,11 +1562,11 @@ std::string SignalingServer::altaPantalla(std::string& claveOut) {
     // temporizador) porque es el unico momento en que la tabla crece.
     const std::int64_t ahora = nowMs();
     for (auto it = pantallas_.begin(); it != pantallas_.end();)
-        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs) ? pantallas_.erase(it)
+        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs()) ? pantallas_.erase(it)
                                                                                         : std::next(it);
     // Con la tabla llena, se desaloja a la que hace mas que esta suelta. Una
     // conectada no se toca: esa esta mostrando algo ahora mismo.
-    while (pantallas_.size() >= kMaxPantallas) {
+    while (pantallas_.size() >= kMaxPantallas()) {
         auto peor = pantallas_.end();
         for (auto it = pantallas_.begin(); it != pantallas_.end(); ++it)
             if (it->second.sueltaMs != 0 &&
@@ -1192,7 +1575,7 @@ std::string SignalingServer::altaPantalla(std::string& claveOut) {
         if (peor == pantallas_.end()) return {}; // todas conectadas: no hay lugar
         pantallas_.erase(peor);
     }
-    pantallas_[id] = Pantalla{clave, 0};
+    pantallas_[id] = Pantalla{clave, canal, 0};
     claveOut = clave;
     return id;
 }
@@ -1203,13 +1586,20 @@ std::string SignalingServer::claveDePantalla(const std::string& pid) const {
     return it == pantallas_.end() ? std::string() : it->second.clave;
 }
 
-bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave) {
+int SignalingServer::canalDePantalla(const std::string& pid) const {
+    std::lock_guard<std::mutex> lock(pantallasLock_);
+    const auto it = pantallas_.find(pid);
+    return it == pantallas_.end() ? -1 : it->second.canal;
+}
+
+bool SignalingServer::reengancharPantalla(const std::string& pid, const std::string& clave, int canal) {
     if (pid.empty() || clave.empty()) return false;
     std::lock_guard<std::mutex> lock(pantallasLock_);
     const auto it = pantallas_.find(pid);
     if (it == pantallas_.end()) return false;
     if (it->second.clave != clave) return false;
     it->second.sueltaMs = 0;
+    it->second.canal = canal;
     return true;
 }
 
@@ -1304,8 +1694,19 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         // USO, asi que sin el reenganche una pantalla que pierde la conexion
         // no podria volver jamas.
         const bool vuelve = !arg("resume").empty();
+        // `canal`: la escena que muestra (BA.Escena.<k>, la elige la app al
+        // pedir el enlace); sin él, el programa.
+        int canal = -1;
+        if (!arg("canal").empty()) {
+            try {
+                canal = std::stoi(arg("canal"));
+            } catch (...) {
+                canal = -1;
+            }
+            if (canal < 0 || canal >= ba::ipc::kCanalesEscena) canal = -1;
+        }
         if (vuelve) {
-            if (!reengancharPantalla(arg("resume"), arg("key"))) {
+            if (!reengancharPantalla(arg("resume"), arg("key"), canal)) {
                 http::sendResponse(fd, 401, "text/plain", "reenganche invalido\n");
                 return {};
             }
@@ -1324,13 +1725,14 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         http::setSocketTimeout(fd, 0);
         std::string id = arg("resume"), clave;
         if (!vuelve) {
-            id = altaPantalla(clave);
+            id = altaPantalla(clave, canal);
             if (id.empty()) {
                 http::writeWsFrame(fd, 0x8, "");
                 return {};
             }
         }
-        log_.info("ws: pantalla " + id + (vuelve ? " volvio" : " conectada") + " (solo mira)");
+        log_.info("ws: pantalla " + id + (vuelve ? " volvio" : " conectada") + " (solo mira" +
+                  (canal >= 0 ? ", escena del canal " + std::to_string(canal) : std::string()) + ")");
         return id;
     }
 
@@ -1400,7 +1802,7 @@ std::string SignalingServer::wsOpen(long long fd, const std::string& headers, co
         const char* why = j.err == Room::kLocked      ? "locked"
                           : j.err == Room::kLobbyFull ? "lobby_full"
                                                       : "error";
-        const auto frame = Frame::encodeFrame(json{{"type", "rejected"}, {"reason", why}}.dump());
+        const auto frame = Frame::encodeFrame(json{{"type", "rejected"}, {"reason", why}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         http::writeWsFrame(fd, 0x2, std::string(frame.begin(), frame.end()));
         http::writeWsFrame(fd, 0x8, "");
         return {};
@@ -1448,7 +1850,7 @@ std::shared_ptr<SignalingServer::WsConn> SignalingServer::connFor(const std::str
 void SignalingServer::sendToGuest(const std::string& pid, const json& msg) {
     const auto conn = connFor(pid);
     if (!conn) return;
-    const auto frame = Frame::encodeFrame(msg.dump());
+    const auto frame = Frame::encodeFrame(msg.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     std::lock_guard<std::mutex> lock(conn->sendLock);
     if (conn->fd >= 0) http::writeWsFrame(conn->fd, 0x2, std::string(frame.begin(), frame.end()));
 }
@@ -1521,7 +1923,10 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         dropGuest(pid);
         return;
     }
-    const MediaRoute route = pantalla ? MediaRoute::backstage(0) : room_.routeOf(pid);
+    const int canalEscena = pantalla ? canalDePantalla(pid) : -1;
+    const MediaRoute route = !pantalla          ? room_.routeOf(pid)
+                             : canalEscena >= 0 ? MediaRoute::escena(canalEscena)
+                                                : MediaRoute::backstage(0);
     if (route.kind == MediaRoute::Kind::None) {
         log_.warn("ws: offer de " + pid + " sin ruta de medios (sin lugar); se ignora", -1);
         return;
@@ -1614,6 +2019,171 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
              pantalla ? "pantalla" : "invitado", fresh ? ", sesion nueva" : "");
 }
 
+bool SignalingServer::ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
+                                   std::function<void(const json&)> enviar) {
+    const std::string pid = "remoto:" + id;
+    int idx = 0;
+    bool fresh = false;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        // Un remoto por canal: si otro tenía este canal, se le saca la sesión.
+        std::string otro;
+        for (const auto& [p, i] : sessionOf_)
+            if (p.rfind("remoto:", 0) == 0 && p != pid && pump_ != nullptr && pump_->route(i).kind == MediaRoute::Kind::Remoto &&
+                pump_->route(i).index == canal)
+                otro = p;
+        if (!otro.empty()) {
+            const int vi = sessionOf_[otro];
+            sessionOwner_.erase(vi);
+            sessionOf_.erase(otro);
+            if (pump_ != nullptr) {
+                pump_->setRoute(vi, MediaRoute{});
+                pump_->apagarRemoto(canal); // el nuevo no arranca con la cara del anterior
+            }
+            if (WebrtcSession* s = hub_.session(vi)) s->close();
+        }
+        const auto it = sessionOf_.find(pid);
+        if (it != sessionOf_.end()) {
+            idx = it->second;
+        } else {
+            for (int s = 1; s <= hub_.sessions() && idx == 0; ++s)
+                if (sessionOwner_.count(s) == 0) idx = s;
+            fresh = idx > 0;
+        }
+        if (idx > 0) {
+            sessionOwner_[idx] = SessionOwner{pid, 0};
+            sessionOf_[pid] = idx;
+        }
+    }
+    WebrtcSession* sess = hub_.session(idx);
+    if (sess == nullptr) {
+        log_.warn("sesion: sin sesiones WebRTC libres para el remoto " + id, -1);
+        return false;
+    }
+    if (fresh) {
+        SessionCallbacks cb;
+        cb.onLocalAnswer = [this, enviar](const std::string& s) {
+            std::string out;
+            size_t pos = 0;
+            while (pos < s.size()) {
+                const size_t eol = s.find('\n', pos);
+                const std::string line = s.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos + 1);
+                if (line.rfind("a=candidate:", 0) == 0) {
+                    const std::string pub = publicCandidate(line.substr(2));
+                    if (!pub.empty()) out += "a=" + pub;
+                } else {
+                    out += line;
+                }
+                if (eol == std::string::npos) break;
+                pos = eol + 1;
+            }
+            enviar(json{{"type", "medios-respuesta"}, {"sdp", out}});
+        };
+        cb.onLocalIce = [this, enviar](const std::string& c) {
+            json cand = json::parse(c, nullptr, false);
+            if (cand.is_object() && cand.contains("candidate") && cand["candidate"].is_string()) {
+                const std::string pub = publicCandidate(cand["candidate"].get<std::string>());
+                if (pub.empty()) return;
+                cand["candidate"] = pub;
+            }
+            enviar(json{{"type", "medios-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
+        };
+        cb.onStateChange = [this, id, idx](bool up) {
+            log_.fmt("info", 0, "sesion: medios del remoto %s (sesion %d) %s", id.c_str(), idx, up ? "conectados" : "cerrados");
+            broadcastToHosts("sesion", json{{"tipo", "medios"}, {"id", id}, {"conectado", up}});
+        };
+        if (pump_ != nullptr) {
+            cb.onRemoteAudio = [this, idx](const float* s, size_t n, int rate) { pump_->forwardAudio(idx, s, n, rate); };
+            cb.onRemoteVideo = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardVideo(idx, p, b, w, h); };
+            // Lo que comparte (pantalla u otra cámara): el segundo video de la misma conexión.
+            cb.onRemoteScreen = [this, idx](const uint8_t* p, size_t b, int w, int h) { pump_->forwardScreen(idx, p, b, w, h); };
+        }
+        sess->configure(cb, hub_.rtcFactory());
+    }
+    if (pump_ != nullptr) pump_->setRoute(idx, MediaRoute::remoto(canal));
+    if (!sess->setRemoteOffer(sdp)) {
+        log_.warn("sesion: setRemoteOffer del remoto " + id + " falló", -1);
+        return false;
+    }
+    log_.fmt("info", 0, "sesion: oferta del remoto %s aceptada (sesion %d)", id.c_str(), idx);
+    return true;
+}
+
+MediaRoute SignalingServer::rutaDeVista(int canal, bool hablar) {
+    // El programa como lo ve la fila de oradores (backstage sin preview: no sube nada);
+    // una escena por su canal; «nada» es un canal de escena que no existe: llega el
+    // sonido (y la voz del operador si le habla) pero ninguna imagen.
+    if (canal == -1) return MediaRoute::backstage(0, hablar);
+    MediaRoute r = MediaRoute::escena(canal >= 0 ? canal : 1000);
+    r.talk = hablar;
+    return r;
+}
+
+bool SignalingServer::ofertaVista(const std::string& id, const std::string& sdp, int canal, bool hablar,
+                                  std::function<void(const json&)> enviar) {
+    if (!soloRecibe(sdp)) {
+        log_.warn("sesion: la vista de " + id + " quiso mandar medios; se ignora", -1);
+        return false;
+    }
+    const std::string pid = "vista:" + id;
+    // Una vista por integrante: la oferta nueva (otra página, o la PC que se rearmó)
+    // reemplaza a la anterior, con callbacks que le contestan a ESTA conexión.
+    releaseSession(pid, 0, true);
+    int idx = 0;
+    {
+        std::lock_guard<std::mutex> lock(sessLock_);
+        for (int s = 1; s <= hub_.sessions() && idx == 0; ++s)
+            if (sessionOwner_.count(s) == 0) idx = s;
+        if (idx > 0) {
+            sessionOwner_[idx] = SessionOwner{pid, 0};
+            sessionOf_[pid] = idx;
+        }
+    }
+    WebrtcSession* sess = hub_.session(idx);
+    if (sess == nullptr) {
+        log_.warn("sesion: sin sesiones WebRTC libres para la vista de " + id + " (vistasRemotas)", -1);
+        return false;
+    }
+    SessionCallbacks cb;
+    cb.onLocalAnswer = [this, enviar](const std::string& s) {
+        std::string out;
+        size_t pos = 0;
+        while (pos < s.size()) {
+            const size_t eol = s.find('\n', pos);
+            const std::string line = s.substr(pos, eol == std::string::npos ? std::string::npos : eol - pos + 1);
+            if (line.rfind("a=candidate:", 0) == 0) {
+                const std::string pub = publicCandidate(line.substr(2));
+                if (!pub.empty()) out += "a=" + pub;
+            } else {
+                out += line;
+            }
+            if (eol == std::string::npos) break;
+            pos = eol + 1;
+        }
+        enviar(json{{"type", "vista-respuesta"}, {"sdp", out}});
+    };
+    cb.onLocalIce = [this, enviar](const std::string& c) {
+        json cand = json::parse(c, nullptr, false);
+        if (cand.is_object() && cand.contains("candidate") && cand["candidate"].is_string()) {
+            const std::string pub = publicCandidate(cand["candidate"].get<std::string>());
+            if (pub.empty()) return;
+            cand["candidate"] = pub;
+        }
+        enviar(json{{"type", "vista-ice"}, {"candidate", cand.is_object() ? cand : json(c)}});
+    };
+    cb.onStateChange = [this, id, idx](bool up) {
+        log_.fmt("info", 0, "sesion: vista de %s (sesion %d) %s", id.c_str(), idx, up ? "conectada" : "cerrada");
+    };
+    sess->configure(cb, hub_.rtcFactory());
+    if (pump_ != nullptr) pump_->setRoute(idx, rutaDeVista(canal, hablar));
+    if (!sess->setRemoteOffer(sdp)) {
+        log_.warn("sesion: setRemoteOffer de la vista de " + id + " falló", -1);
+        releaseSession(pid, 0, true);
+        return false;
+    }
+    return true;
+}
+
 void SignalingServer::wsLoop(long long fd, const std::string& pid, uint64_t gen) {
     std::string payload;
     int opcode = 0;
@@ -1688,7 +2258,7 @@ void SignalingServer::handleWsMessage(const std::string& pid, uint64_t gen, cons
             }
             if (WebrtcSession* sess = idx > 0 ? hub_.session(idx) : nullptr) {
                 const json& c = msg.contains("candidate") ? msg["candidate"] : json();
-                sess->addRemoteIce(c.is_string() ? c.get<std::string>() : c.dump());
+                sess->addRemoteIce(c.is_string() ? c.get<std::string>() : c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             }
         } else if (type == "media") {
             room_.guestMedia(pid, msg);
@@ -1739,12 +2309,55 @@ void SignalingServer::ipRecordFailure(std::uint32_t ip) {
     }
     auto& a = ipAttempts_[ip];
     ++a.failures;
-    if (a.failures >= kPinMaxAttemptsPerIp) a.lockedUntilUnix = now + kPinLockoutSecPerIp;
+    if (a.failures >= cfg_.pinIntentos) a.lockedUntilUnix = now + cfg_.pinBloqueoS;
 }
 
 void SignalingServer::ipRecordSuccess(std::uint32_t ip) {
     std::lock_guard<std::mutex> lock(ipAttemptsLock_);
     ipAttempts_.erase(ip);
+}
+
+nlohmann::json SignalingServer::bloqueosPin() const {
+    const int now = static_cast<int>(ba::security::nowUnix());
+    json ips = json::array();
+    {
+        std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+        for (const auto& [ip, a] : ipAttempts_) {
+            in_addr in{};
+            in.s_addr = ip;
+            char txt[INET_ADDRSTRLEN] = {0};
+            inet_ntop(AF_INET, &in, txt, sizeof txt);
+            const bool bloqueada = a.lockedUntilUnix != 0 && now < a.lockedUntilUnix;
+            if (a.lockedUntilUnix != 0 && !bloqueada) continue; // ya venció
+            ips.push_back({{"ip", txt}, {"fallos", a.failures}, {"bloqueada", bloqueada},
+                           {"quedanS", bloqueada ? a.lockedUntilUnix - now : 0}});
+        }
+    }
+    int fallos = 0, hasta = 0;
+    auth_.bloqueoGlobal(fallos, hasta);
+    const bool global = hasta != 0 && now < hasta;
+    return json{{"global", {{"fallos", fallos}, {"bloqueado", global}, {"quedanS", global ? hasta - now : 0}}},
+                {"ips", ips},
+                {"intentosPorIp", cfg_.pinIntentos},
+                {"bloqueoS", cfg_.pinBloqueoS}};
+}
+
+int SignalingServer::desbloquearPin(const std::string& ip) {
+    int n = 0;
+    {
+        std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+        if (ip.empty()) {
+            n = static_cast<int>(ipAttempts_.size());
+            ipAttempts_.clear();
+        } else {
+            in_addr in{};
+            if (inet_pton(AF_INET, ip.c_str(), &in) == 1) n = static_cast<int>(ipAttempts_.erase(in.s_addr));
+        }
+    }
+    if (ip.empty()) auth_.desbloquear(); // el global también: si no, /api/join seguiría cerrado
+    log_.info("pin: bloqueos levantados por el operador (" + (ip.empty() ? std::string("todos") : ip) + ", " +
+              std::to_string(n) + " IP)");
+    return n;
 }
 
 } // namespace ba::gateway

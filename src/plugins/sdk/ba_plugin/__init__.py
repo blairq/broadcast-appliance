@@ -1,4 +1,4 @@
-"""ba_plugin — el SDK de los plugins de Broadcast Appliance (docs/PLUGINS.md).
+"""ba_plugin — el SDK de los plugins de Broadcast Appliance (docs/funciones/PLUGINS.md).
 
 Un plugin es un programa en Python que corre en SU PROPIO PROCESO (si se cuelga
 o se cae, la emisión sigue y la app lo vuelve a arrancar) y que le suma al
@@ -22,7 +22,10 @@ sistema cualquiera de estas cosas:
   (``@plugin.control("modo")``).
 - EVENTOS (canales de datos): ``plugin.evento("hablando", {...})`` publica;
   ``@plugin.escuchar("otro-plugin/hablando")`` recibe. Con eso un plugin
-  "director" junta lo de varios equipos.
+  "director" junta lo de varios equipos. Los eventos DE LA APP (bus de
+  eventos) se escuchan por tema: ``"aire/tally"``, ``"salida/#"``,
+  ``"audio/nivel/+"``, ``"alarma/#"``, ``"oradores/al_aire"`` (``de`` es
+  ``"app"``); la lista completa la da la herramienta ``eventos_temas``.
 - PANEL: su propia interfaz para el operador, DESCRIPTA (la dibuja la app con
   sus controles: si el plugin se cae, la app sigue). ``plugin.panel([...])``
   con ``ba.deslizador``, ``ba.interruptor``, ``ba.opcion``, ``ba.texto``,
@@ -66,6 +69,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from . import medios as _medios
+from . import superficie as _superficie
 from .medios import Cuadro, Bloque  # noqa: F401  (para los que lo importan de acá)
 
 __all__ = ["Plugin", "Cuadro", "Bloque", "Entrada", "necesita", "SDK_VERSION"]
@@ -111,7 +115,8 @@ class Entrada:
     """Una entrada de video y/o audio que aporta el plugin."""
 
     def __init__(self, plugin: "Plugin", nombre: str, video: bool, audio: bool, gst: str | None, gst_audio: str | None,
-                 escena: str | None, latencia_ms: int | None, normalizar: bool | None):
+                 escena: str | None, latencia_ms: int | None, normalizar: bool | None,
+                 camara: str | None = None, camara_modo: str | None = None):
         self.plugin = plugin
         self.nombre = nombre
         self.video = video or bool(gst)
@@ -121,12 +126,14 @@ class Entrada:
         self.escena = escena
         self.latencia_ms = latencia_ms
         self.normalizar = normalizar
+        self.camara = camara
+        self.camara_modo = camara_modo
         self._canal_video = _medios.CanalEntrada(nombre, "video")
         self._canal_audio = _medios.CanalEntrada(nombre, "audio")
 
     def declaracion(self) -> dict:
         d = {"t": "entrada", "nombre": self.nombre, "video": self.video, "audio": self.audio}
-        for k in ("gst", "gst_audio", "escena", "latencia_ms", "normalizar"):
+        for k in ("gst", "gst_audio", "escena", "latencia_ms", "normalizar", "camara", "camara_modo"):
             v = getattr(self, k)
             if v is not None:
                 d[k] = v
@@ -263,17 +270,26 @@ class Plugin:
         self._declarado = False
         self._decl: dict[tuple, dict] = {}
         self._ultimo_estado: dict | None = None
+        #: Superficies de hardware (Stream Deck, MIDI…) como botoneras: ver ``superficie.py``.
+        self.superficie = _superficie.Superficies(self)
         Plugin._actual = self
 
     # --- Declarar -----------------------------------------------------------------
 
     def entrada(self, nombre: str, video: bool = False, audio: bool = False, gst: str | None = None,
                 gst_audio: str | None = None, escena: str | None = None, latencia_ms: int | None = None,
-                normalizar: bool | None = None) -> Entrada:
+                normalizar: bool | None = None, camara: str | None = None, camara_modo: str | None = None) -> Entrada:
         """Declara una entrada. Con `gst` (y/o `gst_audio`) la app corre ESE pipeline de GStreamer como
-        origen (p. ej. ``"avfvideosrc device-index=1 ! videocrop right=1920"``); si no, los cuadros los manda
-        el plugin con ``enviar_video`` / ``enviar_audio``. `escena`: dónde ponerla la primera vez."""
-        e = Entrada(self, nombre, video, audio, gst, gst_audio, escena, latencia_ms, normalizar)
+        origen (p. ej. ``"videotestsrc ! videocrop right=1920"``); si no, los cuadros los manda
+        el plugin con ``enviar_video`` / ``enviar_audio``. `escena`: dónde ponerla la primera vez.
+
+        `camara`: una cámara USB o capturadora del equipo, por su id (el de la app: Entradas → Cámaras,
+        o ``""`` para la primera). La abre la app como cualquier cámara, con lo de cada sistema
+        (Media Foundation, AVFoundation, V4L2): no hace falta escribir un pipeline que solo anda en uno.
+        `camara_modo`: ``"1920x1080@30"`` (sin él, el que mejor va con el lienzo)."""
+        if camara is not None:
+            video = True
+        e = Entrada(self, nombre, video, audio, gst, gst_audio, escena, latencia_ms, normalizar, camara, camara_modo)
         if not (e.video or e.audio):
             raise ValueError("una entrada tiene video, audio o las dos")
         self._entradas[nombre] = e
@@ -331,7 +347,8 @@ class Plugin:
 
     def escuchar(self, canal: str):
         """Decorador: ``def f(datos, de)`` para los eventos de `canal` (``"otro-plugin/hablando"``,
-        ``"*/hablando"`` o ``"otro-plugin/*"``)."""
+        ``"*/hablando"`` o ``"otro-plugin/*"``) o un tema de la app (``"aire/tally"``,
+        ``"audio/nivel/+"``, ``"alarma/#"``; ``de`` llega como ``"app"``)."""
         def deco(fn):
             self._escuchas.setdefault(canal, []).append(fn)
             self._redeclarar({"t": "escuchar", "canal": canal})
@@ -545,7 +562,7 @@ class Plugin:
         elif t == "evento":
             canal, de = m.get("canal", ""), m.get("de", "")
             for patron, fns in self._escuchas.items():
-                if _coincide(patron, f"{de}/{canal}"):
+                if (_coincide_tema(patron, canal) if de == "app" else _coincide(patron, f"{de}/{canal}")):
                     for fn in fns:
                         self._pool.submit(self._protegido, fn, m.get("datos"), de)
         elif t == "valor":
@@ -553,6 +570,8 @@ class Plugin:
         elif t == "valores":
             for k, v in (m.get("valores") or {}).items():
                 self._valor_de_la_app(k, v)
+        elif t == "superficie_estado":
+            self.superficie._recibir(m)
         elif t == "config":
             self.config.update(m.get("config", {}))
             for fn in self._al_config:
@@ -626,8 +645,24 @@ def _coincide(patron: str, nombre: str) -> bool:
     return all(a == "*" or a == b for a, b in zip(pp, nn))
 
 
+def _coincide_tema(patron: str, tema: str) -> bool:
+    """Temas de la app (bus de eventos): «+» o «*» un nivel, «#» (o «*» al final) el resto."""
+    if patron in ("", "#", "*"):
+        return True
+    p, t = patron.split("/"), tema.split("/")
+    for i, a in enumerate(p):
+        if a == "#" or (a == "*" and i == len(p) - 1):
+            return True
+        if i >= len(t) or (a not in ("+", "*") and a != t[i]):
+            return False
+    return len(p) == len(t)
+
+
 def _salida_stdio():
     """El stdout de verdad queda para hablar con la app; ``print`` va al registro (stderr)."""
+    # El registro en UTF-8: en Windows stderr sale en la página de códigos del
+    # sistema (cp1252) y un carácter que no está (chino, emojis) tiraba una excepción.
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     fd = os.dup(1)
     os.dup2(2, 1)
     sys.stdout = sys.stderr

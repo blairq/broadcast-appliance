@@ -2,7 +2,7 @@
 """El bucle del formato de tool calling: corpus -> entrenar -> medir -> arreglar -> otra vez.
 
 Como el bucle del corpus de nombres (bucle-corpus.md), con la metodologia que
-funciono (docs/entrenamiento-avanzado.md), para el formato nuevo:
+funciono (docs/modelos/entrenamiento-avanzado.md), para el formato nuevo:
 
   1. corpus     tc-corpus.py con las anotaciones de turno.
   2. entrenar   entrenar-rapido.py (prefijo compartido: las herramientas del
@@ -37,7 +37,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[2]
 E = Path(__file__).resolve().parent
 PY = RAIZ / ".venv-entrenar/bin/python"
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(E))
 import lib_tc as tc  # noqa: E402
 

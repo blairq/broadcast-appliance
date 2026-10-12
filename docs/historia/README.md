@@ -6,10 +6,10 @@ código ni en el historial de git.
 
 **No usarlos como referencia de cómo está hoy el sistema.** Para eso:
 
-- lo que falta hacer → [`../IDEAS.md`](../IDEAS.md)
-- el plan de eventos → [`../EVENTOS.md`](../EVENTOS.md)
-- cómo se compila → [`../compilacion.rst`](../compilacion.rst)
-- el manual → [`../manual/`](../manual/)
+- lo que falta hacer → [`../IDEAS.md`](../planes/IDEAS.md)
+- el plan de eventos → [`../EVENTOS.md`](../funciones/EVENTOS.md)
+- cómo se compila → [`../compilacion.rst`](../desarrollo/compilacion.rst)
+- el manual → [`../manual/`](../manual)
 
 | Archivo | Qué era | Por qué quedó viejo |
 |---|---|---|

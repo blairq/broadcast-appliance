@@ -3,13 +3,15 @@
 // ============================================================================
 
 #include "ui/TwitchViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDesktopServices>
 #include <QPointer>
 #include <QUrl>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
 #include "net/AsyncHttp.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
 
@@ -29,7 +31,7 @@ QJsonArray withUid(const QJsonArray& in) {
 
 TwitchViewModel::TwitchViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<TwitchClient>(
-                                    QString::fromStdString((rt.dataRoot() / "Credenciales").string()))),
+                                    QString::fromStdString((ba::platform::credentialsDir()).string()))),
       videos_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "url", "thumb", "views", "created_at", "duration", "type"})),
       chat_(std::make_unique<JsonListModel>(
@@ -63,7 +65,7 @@ TwitchViewModel::TwitchViewModel(AppRuntime& rt, QObject* parent)
         if (s.contains("valida") || s.contains("no se pudo")) emit notify(s, "warn");
     });
     connect(&streamTimer_, &QTimer::timeout, this, &TwitchViewModel::pollStream);
-    streamTimer_.start(30000); // estado del vivo: cada 30 s (barato)
+    streamTimer_.start(ba::ajustes::sAMs("twitch.estadoS", 30)); // estado del vivo (barato)
     QTimer::singleShot(0, client_.get(), &TwitchClient::stateChanged);
     if (loggedIn()) QTimer::singleShot(1500, this, &TwitchViewModel::refresh);
 }
@@ -213,6 +215,8 @@ void TwitchViewModel::goLive(TwitchClient::Done done) {
                             QString::fromStdString(self->rt_.lastError()));
         self->streamingHere_ = true;
         emit self->stateChanged();
+        emit self->vivo(QVariantMap{{"plataforma", "twitch"},
+                                    {"url", "https://twitch.tv/" + self->client_->user().value("login").toString()}});
         if (!self->client_->chatRunning()) self->setChatOn(true);
         QTimer::singleShot(20000, self, [self]() {
             if (self) self->pollStream();

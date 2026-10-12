@@ -11,7 +11,14 @@ Rectangle {
     property bool compact: false
     /// El mouse esta encima (para ToolTip.visible, como en los controles de Qt).
     readonly property bool hovered: ma.containsMouse
+    /// Apretado ahora (para «mantener para hablar»).
+    readonly property bool pressed: ma.pressed
     signal clicked()
+    /// Apretar / soltar / cancelado (el mouse salió o se perdió el foco): para los
+    /// botones de «mantener».
+    signal pressed2()
+    signal released2()
+    signal canceled2()
 
     implicitHeight: compact ? 30 : 38
     implicitWidth: row.implicitWidth + (compact ? 20 : 28)
@@ -19,6 +26,10 @@ Rectangle {
     color: active ? activeColor : (ma.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07))
     border.color: active ? Qt.lighter(activeColor, 1.3) : Qt.rgba(1, 1, 1, 0.14)
     Behavior on color { ColorAnimation { duration: 140 } }
+    // Deshabilitado tiene que VERSE: si no, «Siguiente ▶» naranja sin nadie en la
+    // lista parece que anda y no hace nada.
+    opacity: enabled ? 1 : 0.38
+    Behavior on opacity { NumberAnimation { duration: 140 } }
     scale: ma.pressed ? 0.96 : 1.0
     Behavior on scale { NumberAnimation { duration: 90 } }
 
@@ -41,5 +52,11 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
         }
     }
-    MouseArea { id: ma; anchors.fill: parent; hoverEnabled: true; onClicked: btn.clicked(); cursorShape: Qt.PointingHandCursor }
+    MouseArea {
+        id: ma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        onClicked: btn.clicked()
+        onPressed: btn.pressed2()
+        onReleased: btn.released2()
+        onCanceled: btn.canceled2()
+    }
 }

@@ -22,6 +22,8 @@
 #include <QTimer>
 
 #include <functional>
+
+#include <nlohmann/json.hpp>
 #include <QJsonArray>
 #include <QVariantList>
 #include <QVariantMap>
@@ -44,6 +46,16 @@ class EventoViewModel : public QObject {
     // --- La lista de eventos --------------------------------------------------
     Q_PROPERTY(QVariantList eventos READ eventos NOTIFY listaChanged)
     Q_PROPERTY(QString abierto READ abierto NOTIFY guionChanged)
+    // --- El histórico (docs/planes/PLAN-EVENTOS-HISTORICO.md) -------------------------
+    /// El evento EN CURSO: el que recibe todo lo que pasa (no es el abierto para
+    /// editar: se puede preparar el de la semana que viene con el de hoy en curso).
+    /// {carpeta, nombre, grupo, desdeMs, automatico}; vacío si no hay ninguno.
+    Q_PROPERTY(QVariantMap enCurso READ enCurso NOTIFY enCursoChanged)
+    /// Las carpetas que agrupan eventos ("2026/Octubre"...).
+    Q_PROPERTY(QStringList carpetas READ carpetas NOTIFY listaChanged)
+    /// Si se crea solo el evento del día cuando no hay ninguno en curso
+    /// (Config/historico.json, `evento_automatico`; de fábrica, sí).
+    Q_PROPERTY(bool eventoAutomatico READ eventoAutomatico WRITE setEventoAutomatico NOTIFY enCursoChanged)
 
     // --- El guion abierto -----------------------------------------------------
     /// {nombre, inicio, nota, duracionSeg, bloques: [{id, nombre, nota,
@@ -71,6 +83,9 @@ class EventoViewModel : public QObject {
 
     // --- Revision previa ------------------------------------------------------
     Q_PROPERTY(QVariantList reparos READ reparos NOTIFY reparosChanged)
+    /// La página web del evento en vivo (evento/EventoWeb.hpp): {hay, carpeta, paginas:[…],
+    /// sitio:{titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar}}.
+    Q_PROPERTY(QVariantMap web READ web NOTIFY webChanged)
 
    public:
     /// :param sinAbrirUltimo: no abre solo el ultimo evento que se toco. Lo
@@ -82,6 +97,40 @@ class EventoViewModel : public QObject {
 
     QVariantList eventos() const;
     QString abierto() const { return abierto_; }
+    QVariantMap enCurso() const;
+    /// El bitacora.jsonl del evento en curso (vacío si no hay ninguno).
+    std::filesystem::path archivoBitacora() const;
+    /// La carpeta de un evento (vacía = el en curso; vacío si no hay).
+    std::filesystem::path carpetaEvento(const std::string& carpeta = {}) const;
+    /// Eventos/ (donde están todos).
+    std::filesystem::path raizEventos() const { return store_.raiz(); }
+    /// Config/ (lo que se fotografía).
+    std::filesystem::path carpetaConfig() const;
+    /// ficha.json de un evento (el histórico).
+    evento::DatosDelEvento datosEvento(const std::string& carpeta) const { return store_.datos(carpeta); }
+    /// La bitácora de un evento (por su carpeta; vacía = el en curso).
+    std::filesystem::path archivoBitacoraDe(const std::string& carpeta) const;
+    /// Config/historico.json (lo que se registra, el automático…).
+    nlohmann::json ajustesHistorico() const;
+    QStringList carpetas() const;
+    bool eventoAutomatico() const { return automatico_; }
+    void setEventoAutomatico(bool si);
+    /// Pone en curso un evento (termina el que estaba). Lo hace solo al correr
+    /// el guion de verdad (no en ensayo).
+    Q_INVOKABLE bool iniciarEvento(const QString& carpeta);
+    /// Termina el que está en curso. Con el automático prendido, el del día
+    /// vuelve a quedar en curso (nada pasa sin evento).
+    Q_INVOKABLE bool terminarEvento();
+    /// Lo lleva a otra carpeta (se crea si no está). Devuelve la ruta nueva.
+    Q_INVOKABLE QString moverEvento(const QString& carpeta, const QString& aCarpeta);
+    /// Crea una carpeta para agrupar ("2026/Octubre"). Devuelve la ruta limpia.
+    Q_INVOKABLE QString crearCarpeta(const QString& ruta);
+    /// La ficha del histórico de un evento (ficha.json), como mapa.
+    Q_INVOKABLE QVariantMap datosDe(const QString& carpeta) const;
+    /// Cambia lugar, etiquetas y notas de la ficha (solo las claves que vengan).
+    Q_INVOKABLE bool cambiarDatos(const QString& carpeta, const QVariantMap& campos);
+    /// Que haya uno en curso (el del día si hace falta). Corre cada minuto.
+    void asegurarEnCurso();
     QVariantMap guion() const;
     bool sucio() const { return sucio_; }
     QString estado() const;
@@ -95,7 +144,21 @@ class EventoViewModel : public QObject {
 
     // --- La lista -------------------------------------------------------------
     Q_INVOKABLE void refrescar();
-    Q_INVOKABLE QString crear(const QString& nombre);
+    /// Cómo el guion llama una herramienta del servidor (p. ej. pantalla_mostrar).
+    void setHerramienta(std::function<void(const std::string&, const nlohmann::json&,
+                                           std::function<void(bool, const std::string&)>)> fn) {
+        herramienta_ = std::move(fn);
+    }
+    /// Lo que la revisión mira del aparato (disco, destino, entradas, pantallas):
+    /// [{grave, texto}]. Lo pone la app.
+    void setChequeosAparato(std::function<QVariantList()> fn) { chequeosAparato_ = std::move(fn); }
+    /// La lista de chequeo manual del evento abierto (Eventos/<id>/chequeo.json):
+    /// [{item, texto, hecho, nota, cuando}].
+    Q_INVOKABLE QVariantList chequeo() const;
+    /// Marca un ítem (o lo agrega si no existe). false si no hay evento abierto.
+    /// `texto`: lo que ve la persona, para un ítem nuevo (de fábrica, el nombre del ítem).
+    Q_INVOKABLE bool marcarChequeo(const QString& item, bool hecho, const QString& nota, const QString& texto = {});
+    Q_INVOKABLE QString crear(const QString& nombre, const QString& enCarpeta = {});
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();
     Q_INVOKABLE bool borrar(const QString& carpeta);
@@ -105,6 +168,10 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void setInicio(const QString& hhmm);
     Q_INVOKABLE void setFecha(const QString& aaaammdd);
     Q_INVOKABLE void setHuso(const QString& iana);
+    /// Lo que usa el evento: invitados en la sala; preguntas y votos del público.
+    Q_INVOKABLE void setInvitados(bool si);
+    Q_INVOKABLE void setPreguntas(bool si);
+    Q_INVOKABLE void setAsamblea(bool si);
     /// El arranque como instante absoluto, ISO-8601 con desfasaje
     /// ("2026-09-24T19:00:00-03:00"). Vacio si falta la fecha o la hora.
     ///
@@ -187,6 +254,17 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);
     /// Los vinculos se crean despues que el guion, asi que se enchufan aparte.
     void setVinculos(graficos::Vinculos* v) { vinculos_ = v; }
+    /// Lo que se sabe de YouTube, Twitch y Facebook para «dónde verlo en vivo» de la
+    /// página web (ver evento::armarVivos). Lo pone StudioViewModel.
+    void setPlataformas(std::function<nlohmann::json()> f) { plataformas_ = std::move(f); }
+    /// Las preguntas del público ya moderadas y cuántos hay en la sala (lo pone StudioViewModel).
+    /// Lo que sabe el resto del sistema para la página (al aire, oradores, orden del día,
+    /// quórum, votación): ver evento::ExtrasVivo::sala.
+    void setSala(std::function<nlohmann::json()> f) { datosSala_ = std::move(f); }
+    void setPublico(std::function<nlohmann::json()> preguntas, std::function<int()> enLaSala) {
+        preguntas_ = std::move(preguntas);
+        enLaSala_ = std::move(enLaSala);
+    }
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
@@ -232,8 +310,12 @@ class EventoViewModel : public QObject {
     ///
     /// `votaciones` es el historial que guarda la urna (vive en el gateway).
     QString acta(const QJsonArray& votaciones) const;
+    /// Lo que se suma al acta de otro lado (orden del día y uso de la palabra).
+    void setAnexoActa(std::function<QString()> fn) { anexoActa_ = std::move(fn); }
     /// La escribe en la carpeta del evento. Devuelve la ruta, o vacío.
     QString guardarActa(const QString& texto) const;
+    /// El SHA-256 del texto del acta (el que se guarda en acta-….md.sha256).
+    static QString hashActa(const QString& texto);
 
     /// La invitación de una persona del padrón: el texto, el enlace con su
     /// código adentro y los módulos del QR. Va al gateway a pedir el enlace,
@@ -249,6 +331,25 @@ class EventoViewModel : public QObject {
     /// conectado). Se corre a pedido, no sola.
     Q_INVOKABLE void revisar();
 
+    // --- La página web del evento en vivo ------------------------------------------
+    QVariantMap web() const;
+    /// Genera el sitio en Web/ (portada, una página por sección, cierre, estilo). No
+    /// pisa lo que ya existe salvo `sobrescribir`. {escritas, salteadas, error}.
+    Q_INVOKABLE QVariantMap generarWeb(bool sobrescribir = false);
+    /// Cambia sitio.json (título, bajada, color, fondo, subdominio, barra…). "" o el error.
+    Q_INVOKABLE QString setWebSitio(const QVariantMap& campos);
+    /// Una página por nombre («portada», «cierre», el id/nombre/número de una sección,
+    /// o un .html/.css propio): leerla y escribirla. Escribir sin evento abierto: error.
+    Q_INVOKABLE QString leerPaginaWeb(const QString& pagina) const;
+    Q_INVOKABLE QString escribirPaginaWeb(const QString& pagina, const QString& contenido);
+    /// Le manda a la sala lo de la página del evento (lo hace solo al abrir, al
+    /// avanzar el guion y cada 10 s; esto es para forzarlo).
+    Q_INVOKABLE void publicarWeb();
+    /// El aviso que se ve arriba de la página del evento («Arrancamos en 5 minutos»).
+    /// `nivel`: info | urgente. Vacío lo saca. No se guarda en el evento (es del momento).
+    Q_INVOKABLE void setAvisoWeb(const QString& texto, const QString& nivel = "info");
+    Q_INVOKABLE QVariantMap avisoWeb() const;
+
    public:
     // Las dos de arriba, ademas, como propiedades: es lo que hace que la vista
     // se redibuje sola cuando alguien llega.
@@ -263,8 +364,15 @@ class EventoViewModel : public QObject {
     void relojChanged();
     void bitacoraChanged();
     void reparosChanged();
+    void chequeoChanged();
     void padronChanged();
+    void enCursoChanged();
     void notify(const QString& texto, const QString& tipo);
+    void webChanged();
+    /// Se puso en curso un evento con sitio y «dirección al iniciar»: la dirección
+    /// pública tiene que pasar a ser la de su subdominio (lo hace StudioViewModel con
+    /// la API key de pinggy).
+    void pedirDireccion(const QString& subdominio);
 
    public:
     /// La carpeta Discursos/ del evento abierto (vacía si no hay ninguno).
@@ -276,9 +384,13 @@ class EventoViewModel : public QObject {
     QString rutaDeDiscurso(const QString& rel) const { return discursoPathPriv(rel); }
 
    private:
+    std::function<QString()> anexoActa_;
     /// Ejecuta el cue donde esta parado el guion. En ensayo no toca nada.
     void ejecutarActual();
     void anotar(const QString& texto, const QString& tipo);
+    std::function<void(const std::string&, const nlohmann::json&, std::function<void(bool, const std::string&)>)>
+        herramienta_;
+    std::function<QVariantList()> chequeosAparato_;
     void marcarSucio();
     evento::Cue* cuePtr(int bloque, int cue);
     const evento::Cue* cuePtrConst(int bloque, int cue) const;
@@ -323,6 +435,22 @@ class EventoViewModel : public QObject {
     void recogerAcreditaciones();
     /// El reloj de eso. Ver `recogerAcreditaciones`.
     QTimer buzon_;
+    /// La página web del evento: el reenvío a la sala (cada 10 s, por si se reinició),
+    /// cuándo arrancó el guion, la versión del sitio (cambia al regenerar/editar) y lo
+    /// último que se mandó (para no repetir).
+    QTimer webTimer_;
+    std::function<nlohmann::json()> plataformas_;
+    std::function<nlohmann::json()> preguntas_;
+    std::function<int()> enLaSala_;
+    std::function<nlohmann::json()> datosSala_;
+    qint64 webArranqueMs_ = 0;
+    int webVersion_ = 1;
+    QByteArray webUltimo_;
+    nlohmann::json webAviso_ = nlohmann::json::object();
+    std::map<int, qint64> webInicioReal_; ///< cuándo empezó de verdad cada sección (índice → ms)
+    QString carpetaWebAbs() const;
+    /// Genera las páginas que falten del sitio (no pisa nada): al crear y al guardar.
+    void asegurarWebBase();
     std::unique_ptr<evento::Guion> guionCorriendo_;
     QString abierto_;
     bool sucio_ = false;
@@ -330,6 +458,8 @@ class EventoViewModel : public QObject {
     QVariantList bitacora_;
     std::vector<evento::Reparo> reparos_;
     QTimer reloj_;
+    QTimer vigiaEnCurso_; ///< cada minuto: el cambio de día y el evento automático
+    bool automatico_ = true;
 };
 
 } // namespace ba::app

@@ -1,6 +1,8 @@
 // src/app/agent/VozPrompter.cpp — ver VozPrompter.hpp
 
 #include "agent/VozPrompter.hpp"
+#include "ajustes/Ajustes.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDateTime>
 #include <QDir>
@@ -9,13 +11,13 @@
 #include <QJsonObject>
 
 #include <nlohmann/json.hpp>
-#include <util/platform.h>
+#include "comun/HoraMonotonica.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 #include "agent/Voz.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
@@ -29,8 +31,8 @@ namespace pv = prompter_voz;
 
 namespace {
 constexpr int kTickMs = 100;
-constexpr int kConsultaMs = 250;       ///< cada cuánto se mira el estado del gateway
-constexpr double kAnticipoMs = 6000;   ///< cuánto antes se sintetiza una frase (con 3 s llegaba tarde)
+inline int kConsultaMs() { return ba::ajustes::entero("vozPrompter.consultaMs", 250); } ///< cada cuánto se mira el estado del gateway
+inline double kAnticipoMs() { return ba::ajustes::numero("vozPrompter.anticipoMs", 6000); } ///< cuánto antes se sintetiza una frase (con 3 s llegaba tarde)
 constexpr double kSaltoPalabras = 1.5; ///< más de esto entre lo previsto y lo informado: saltó
 
 QString archivo(const std::filesystem::path& raiz) {
@@ -88,7 +90,7 @@ void VozPrompter::guardar() const {
     QDir().mkpath(QFileInfo(ruta).absolutePath());
     QFile f(ruta);
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QByteArray::fromStdString(nlohmann::json{{"activa", activa_}}.dump(1)));
+        f.write(QByteArray::fromStdString(nlohmann::json{{"activa", activa_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
 void VozPrompter::setEstado(const QString& e) {
@@ -99,7 +101,7 @@ void VozPrompter::setEstado(const QString& e) {
 
 void VozPrompter::revisarVoz() {
 #if defined(BA_HAVE_VOZ)
-    // La misma voz que la del sistema (Configuración → Audio y voz).
+    // La misma voz que la del sistema (Configuración → Voz del operador).
     const QVariantMap v = voz_.vozParaOtros();
     const QString repo = v.value("repo").toString();
     if (repo.isEmpty() || repo == vozCargada_) return;
@@ -165,7 +167,7 @@ void VozPrompter::consultar() {
 
 void VozPrompter::tick() {
     static int cuenta = 0;
-    if (++cuenta * kTickMs >= kConsultaMs) {
+    if (++cuenta * kTickMs >= kConsultaMs()) {
         cuenta = 0;
         consultar();
     }
@@ -175,7 +177,7 @@ void VozPrompter::tick() {
     }
 #if defined(BA_HAVE_VOZ)
     if (!habla_->cargada()) {
-        setEstado("Sin voz: elegí una en Configuración → Audio y voz");
+        setEstado("Sin voz: elegí una en Configuración → Voz del operador");
         return;
     }
 #endif
@@ -212,7 +214,7 @@ void VozPrompter::tick() {
     while (siguiente_ < static_cast<int>(frases_.size())) {
         const auto& f = frases_[static_cast<std::size_t>(siguiente_)];
         const double llega = pv::llegaEn(est_, f.desde);
-        if (llega - ahoraG > kAnticipoMs) break;
+        if (llega - ahoraG > kAnticipoMs()) break;
         agendar(f.desde, f.hasta, llega);
         ++siguiente_;
     }
@@ -227,11 +229,11 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
     // Del reloj del gateway al de libobs.
     const double faltaMs = inicioMs - (ahoraMs() - offsetMs_);
     const std::uint64_t inicioNs =
-        os_gettime_ns() + static_cast<std::uint64_t>(std::max(0.0, faltaMs) * 1'000'000.0);
+        ba::app::ahoraNs() + static_cast<std::uint64_t>(std::max(0.0, faltaMs) * 1'000'000.0);
     audio::MonitorVoz* m = monitor_.get();
     auto pps = naturalPps_;
     const double objetivoSeg = n * 60.0 / std::max(1, est_.ppm);
-    const QString log = QString::fromStdString((rt_.dataRoot() / "Logs" / "voz-teleprompter.jsonl").string());
+    const QString log = QString::fromStdString((ba::platform::dataRoot() / "Logs" / "voz-teleprompter.jsonl").string());
     const nlohmann::json base{{"desde", desde},
                               {"hasta", hasta},
                               {"ppm", est_.ppm},
@@ -241,7 +243,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
     habla_->decir(texto, 0, static_cast<float>(v),
                   [m, inicioNs, n, v, pps, log, base](const float* x, std::size_t k, std::uint32_t fr) {
                       // ¿Llegó a tiempo? Lo que falta para que tenga que sonar.
-                      const double margenMs = (static_cast<double>(inicioNs) - os_gettime_ns()) / 1e6;
+                      const double margenMs = (static_cast<double>(inicioNs) - ba::app::ahoraNs()) / 1e6;
                       m->reproducirEn(x, k, fr, inicioNs);
                       // Lo que tardó en decirla, llevado a velocidad 1: la voz natural.
                       const double seg = static_cast<double>(k) / fr;
@@ -256,7 +258,7 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
                       r["margen_ms"] = margenMs; // negativo: la síntesis llegó tarde
                       QFile f(log);
                       if (f.open(QIODevice::Append | QIODevice::WriteOnly))
-                          f.write(QByteArray::fromStdString(r.dump() + "\n"));
+                          f.write(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n"));
                   });
 #else
     Q_UNUSED(desde);

@@ -2,6 +2,7 @@
 // src/app/agent/Voz.cpp — ver Voz.hpp
 // ============================================================================
 #include "agent/Voz.hpp"
+#include "platform/Paths.hpp"
 
 #include "agent/FlujosTexto.hpp"
 
@@ -22,7 +23,7 @@
 
 #include "agent/ArgumentosLocales.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"
@@ -176,7 +177,7 @@ void Voz::apretar() {
             porRack = true;
     }
     if (!porRack && !feed.hayMicrofono()) {
-        emit notify("No hay micrófono del operador: elegilo en Configuración → Audio y voz.", "warn");
+        emit notify("No hay micrófono del operador: elegilo en Configuración → Voz del operador.", "warn");
         return;
     }
     callar(); // el operador habla: el asistente se calla
@@ -271,7 +272,7 @@ void Voz::alAudio(const std::string& fuente, int modo, const float* m, std::uint
     if (modo != 1 || !tomando_) return;
     std::lock_guard<std::mutex> l(tomasLock_);
     Toma& t = tomas_[fuente];
-    if (t.audio.size() > static_cast<std::size_t>(audio::Escucha::kMaxSegundos * f)) return;
+    if (t.audio.size() > static_cast<std::size_t>(audio::Escucha::kMaxSegundosAhora() * f)) return;
     t.frecuencia = f;
     t.audio.insert(t.audio.end(), m, m + n);
     for (std::uint32_t i = 0; i < n; ++i)
@@ -370,7 +371,7 @@ void Voz::borrarTranscripcion() {
 // --- Contestar hablando ----------------------------------------------------------
 
 namespace {
-QString archivoAjustes(const std::filesystem::path& raiz) { return deRuta(raiz / "Modelos" / "voz.json"); }
+QString archivoAjustes(const std::filesystem::path& raiz) { return deRuta(ba::platform::dataRoot() / "Modelos" / "voz.json"); }
 } // namespace
 
 // --- Lo dictado, por el modelo local ------------------------------------------------------
@@ -432,6 +433,7 @@ void Voz::atenderDesde(const QString& texto, const QString& quien, bool disparad
 }
 
 void Voz::atender(const QString& frase) { atenderDe(frase, "manual", nlohmann::json::object()); }
+void Voz::dictar(const QString& frase) { atenderDe(frase, "dictado", nlohmann::json{{"simulado", true}}); }
 
 void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann::json& meta) {
     const QString f = frase.trimmed();
@@ -441,6 +443,14 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
     rec["texto"] = f.toStdString();
     bitacora(id, "reconocido", rec);
     if (f.isEmpty()) return;
+    // Mirando al asistente (su página o su ventana): lo dictado es para él, tal cual,
+    // como cuando el modelo local deriva. Si no está andando, sigue el camino de siempre.
+    const bool asistenteAndando = (asistenteGrande_ && asistenteGrande_()) || (asistenteLocal_ && asistenteLocal_());
+    if (origen == "dictado" && vistaAsistente_ && asistenteAndando) {
+        bitacora(id, "al_asistente", {{"motivo", "mirando al asistente"}, {"texto", f.toStdString()}});
+        emit dictado(f);
+        return;
+    }
     // Sin modelo local (o apagado a propósito): al asistente, como siempre.
     if (!usarModeloLocal_ || !modelos_.listo() || !ficha_) {
         bitacora(id, "al_asistente",
@@ -492,7 +502,7 @@ void Voz::atenderDe(const QString& frase, const QString& origen, const nlohmann:
 QString Voz::estadoTc(const nlohmann::json& estado) {
     // JSON compacto, con los acentos de verdad (como se entrenó). El MISMO
     // texto en preparar y en llamar: si difiere en un byte, no se aprovecha.
-    return estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump()) : QString();
+    return estado.is_object() && !estado.empty() ? QString::fromStdString(estado.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) : QString();
 }
 
 void Voz::prepararTc(std::function<void()> listo) {
@@ -696,7 +706,7 @@ void Voz::decidir(int id, const QString& frase, const QString& h, const FichaHer
                              {"frase", frase},
                              {"herramienta", h},
                              {"titulo", titulo},
-                             {"args", QString::fromStdString(args.dump())},
+                             {"args", QString::fromStdString(args.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))},
                              {"resumen", QString::fromStdString(argumentos::resumen(args))},
                              {"notas", notas.join(" · ")},
                              {"bloqueos", bloqueos.join(" · ")},
@@ -837,7 +847,7 @@ void Voz::alAsistente() {
 }
 
 void Voz::bitacora(int id, const std::string& evento, nlohmann::json datos) const {
-    const QString dir = QString::fromStdString((rt_.dataRoot() / "Logs").string());
+    const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
     QDir().mkpath(dir);
     const QString ruta = dir + "/voz-modelo.jsonl";
     // Un archivo por vez, de hasta 20 MB; el anterior queda como .1.
@@ -891,7 +901,7 @@ void Voz::guardarAjustes() const {
     const QString ruta = archivoAjustes(rt_.dataRoot());
     QDir().mkpath(QFileInfo(ruta).absolutePath());
     QFile f(ruta);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QByteArray::fromStdString(j.dump(1)));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
 }
 
 QVariantMap Voz::cortes() const {

@@ -41,16 +41,23 @@ constexpr std::size_t kPrefijoMinimo = 4;
 /// que hoy distingue y mañana está en todos lados deja de contar sola.
 constexpr double kFraccionInutil = 0.4;
 
+/// Solo ASCII, a mano: `std::tolower` depende del locale, y dentro de la app (Qt
+/// pone el del sistema, UTF-8) en macOS convertía el primer byte de «ú» (0xC3,
+/// la «Ã» de Latin-1) en 0xE3: «música» dejaba de ser «musica» y no encontraba
+/// nada. En las pruebas el locale era «C» y no se veía.
 std::string minuscula(std::string s) {
     for (char& c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
     return s;
 }
 
+bool letraODigito(char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'); }
+
 /// Quita tildes y la eñe: quien busca desde un teclado apurado no las pone.
 std::string sinTildes(const std::string& s) {
-    static const std::pair<const char*, char> kMapa[] = {{"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'},
-                                                         {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'}};
+    static const std::pair<const char*, char> kMapa[] = {
+        {"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'}, {"ú", 'u'}, {"ü", 'u'}, {"ñ", 'n'},
+        {"Á", 'a'}, {"É", 'e'}, {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ü", 'u'}, {"Ñ", 'n'}};
     std::string out = minuscula(s);
     for (const auto& [de, a] : kMapa) {
         const std::string f = de;
@@ -90,7 +97,9 @@ std::vector<std::string> Indice::terminos(const std::string& s) {
     for (const char c : sinTildes(s)) {
         // El guion bajo SEPARA: "scene_switch" tiene que encontrarse buscando
         // "escena" o "switch" sueltos, que es como la nombra una persona.
-        if (std::isalnum(static_cast<unsigned char>(c)) != 0)
+        // Lo que queda fuera de ASCII («¿», «»», «—») separa: `isalnum` también
+        // depende del locale y pegaba esos bytes a las palabras.
+        if (letraODigito(c))
             cur.push_back(c);
         else
             cerrar();
@@ -163,14 +172,31 @@ std::vector<Resultado> Indice::buscar(const std::string& consulta, std::size_t t
         // 2) Por prefijo, solo si es lo bastante largo. El índice está
         //    ordenado, así que alcanza con caminar desde donde empieza.
         if (t.size() < kPrefijoMinimo) continue;
-        for (auto it = invertido_.lower_bound(t);
-             it != invertido_.end() && it->first.compare(0, t.size(), t) == 0; ++it) {
-            if (it->second.size() > dfInutil) continue;
-            const double w = idf(it->second.size()) * kDescuentoPrefijo;
-            for (const Aparicion& a : it->second) {
-                puntaje[a.doc] += a.peso * w;
-                porque[a.doc].insert(it->first);
+        const auto porPrefijo = [&](const std::string& raiz) {
+            bool alguno = false;
+            for (auto it = invertido_.lower_bound(raiz);
+                 it != invertido_.end() && it->first.compare(0, raiz.size(), raiz) == 0; ++it) {
+                if (it->second.size() > dfInutil) continue;
+                alguno = true;
+                const double w = idf(it->second.size()) * kDescuentoPrefijo;
+                for (const Aparicion& a : it->second) {
+                    puntaje[a.doc] += a.peso * w;
+                    porque[a.doc].insert(it->first);
+                }
             }
+            return alguno;
+        };
+        if (porPrefijo(t)) continue;
+        // 3) El verbo con el pronombre pegado, como se pide en cabina: «exportame»,
+        //    «poneme», «sacale», «mostrame». Sin el pronombre es el verbo
+        //    («exporta» -> «exportar»).
+        static const char* kPegados[] = {"selos", "selas", "selo", "sela", "nos", "les", "los",
+                                         "las",   "me",    "te",   "le",   "lo",  "la",  "se"};
+        for (const char* p : kPegados) {
+            const std::size_t n = std::char_traits<char>::length(p);
+            if (t.size() >= n + kPrefijoMinimo && t.compare(t.size() - n, n, p) == 0 &&
+                porPrefijo(t.substr(0, t.size() - n)))
+                break;
         }
     }
 
@@ -185,6 +211,12 @@ std::vector<Resultado> Indice::buscar(const std::string& consulta, std::size_t t
             break;
         }
     }
+    // Lo mismo con el TITULO, un poco menos: «grabar» es el título de
+    // `record_start`, y empataba con todas las que dicen «grabar» en algún lado
+    // (desempataba el orden alfabético y quedaba quinta).
+    std::set<std::size_t> tituloExacto;
+    for (std::size_t i = 0; i < docs_.size(); ++i)
+        if (!docs_[i].titulo.empty() && terminos(docs_[i].titulo) == q) tituloExacto.insert(i);
 
     std::vector<Resultado> out;
     out.reserve(puntaje.size());
@@ -201,6 +233,7 @@ std::vector<Resultado> Indice::buscar(const std::string& consulta, std::size_t t
             r.puntaje *= 1.0 + 0.35 * static_cast<double>(it->second.size() - 1);
         }
         if (doc == exacta) r.puntaje *= 100.0;
+        else if (tituloExacto.count(doc) != 0) r.puntaje *= 3.0;
         out.push_back(std::move(r));
     }
     std::sort(out.begin(), out.end(), [this](const Resultado& a, const Resultado& b) {

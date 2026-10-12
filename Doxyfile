@@ -15,7 +15,7 @@
 
 PROJECT_NAME           = "Broadcast Appliance Portable v2"
 PROJECT_NUMBER         = 2.0.0
-PROJECT_BRIEF          = "Appliance de emisión en vivo embebido (libobs + WebRTC + Supervisor)"
+PROJECT_BRIEF          = "Appliance de emisión en vivo (motor GStreamer + WebRTC + Supervisor)"
 
 # --- Entradas ----------------------------------------------------------------
 # Extraer de src/ (los headers con los docstrings). RECURSIVE para bajar por

@@ -59,6 +59,9 @@ enum class Tipo {
 };
 
 const char* nombreDeTipo(Tipo t);
+/// ¿El programa sabe ejecutar este tipo de cue? Una sola lista para el ensayo,
+/// la revisión y la ejecución (antes estaban copiadas y no coincidían).
+bool ejecutable(Tipo t);
 /// Devuelve false si el texto no nombra ningún tipo conocido.
 bool tipoDeNombre(const std::string& s, Tipo& out);
 
@@ -131,6 +134,14 @@ struct Evento {
     /// cambia con el horario de verano, así que uno escrito hoy miente para un
     /// evento de dentro de tres meses.
     std::string huso;
+    /// Lo que usa este evento (lo leen la página web, el asistente y la interfaz):
+    /// `invitados` = hay invitados en la sala de videoconferencia (la página ofrece «Entrar
+    /// a la sala»); `preguntas` = el público puede preguntar y votar (/publico/).
+    bool invitados = false;
+    bool preguntas = false;
+    /// Es una sesión de asamblea (un cuerpo con bancas): la página muestra integrantes y
+    /// presentes, quórum, orden del día y los resultados oficiales de las votaciones.
+    bool asamblea = false;
     std::string nota;
     std::vector<Bloque> bloques;
     /// A quiénes dejar pasar sin preguntar (ver `Invitado`). Vacía = a nadie,

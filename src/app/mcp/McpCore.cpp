@@ -15,6 +15,7 @@
 #include <chrono>
 
 #include <algorithm>
+#include <map>
 #include <cctype>
 #include <memory>
 #include <set>
@@ -123,7 +124,7 @@ ToolResult& ToolResult::image(const std::string& base64, const std::string& mime
 }
 ToolResult& ToolResult::data(const json& d) {
     structured = d;
-    content.push_back(json{{"type", "text"}, {"text", d.dump(2)}});
+    content.push_back(json{{"type", "text"}, {"text", d.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)}});
     return *this;
 }
 ToolResult ToolResult::error(const std::string& message) {
@@ -141,7 +142,7 @@ ToolResult ToolResult::ok(const std::string& message) {
 // --- McpCore ------------------------------------------------------------------
 
 McpCore::McpCore() {
-    addCategory("ayuda", "Ayuda", "Guia, temas y fichas de cada herramienta.");
+    addCategory("ayuda", "Ayuda", "Guía, temas y fichas de cada herramienta.");
     // La ayuda es parte del protocolo de este servidor: siempre esta.
     Tool help;
     help.name = "help";
@@ -280,6 +281,45 @@ void McpCore::setServerInfo(std::string name, std::string version, std::string i
     instructions_ = std::move(instructions);
 }
 
+json McpCore::catalogo() const {
+    json out = json::array();
+    std::map<std::string, std::size_t> donde;
+    for (const auto& c : categories_) {
+        donde[c.id] = out.size();
+        out.push_back({{"id", c.id}, {"titulo", c.title}, {"resumen", c.summary}, {"herramientas", json::array()}});
+    }
+    for (const auto& t : tools_) {
+        auto it = donde.find(t.category);
+        if (it == donde.end()) {
+            it = donde.find("");
+            if (it == donde.end()) {
+                it = donde.emplace("", out.size()).first;
+                out.push_back({{"id", ""}, {"titulo", "Otras"}, {"resumen", ""}, {"herramientas", json::array()}});
+            }
+        }
+        std::string etiquetas;
+        for (const auto& e : etiquetasDe(t.name)) etiquetas += (etiquetas.empty() ? "" : " ") + e;
+        // El primer ejemplo, si es JSON: precarga los argumentos.
+        std::string ejemplo;
+        for (const auto& e : t.examples)
+            if (json::parse(e, nullptr, false).is_object()) {
+                ejemplo = e;
+                break;
+            }
+        out[it->second]["herramientas"].push_back({{"nombre", t.name},
+                                                   {"titulo", t.title.empty() ? t.name : t.title},
+                                                   {"descripcion", t.description},
+                                                   {"etiquetas", etiquetas},
+                                                   {"ejemplo", ejemplo},
+                                                   {"solo_lectura", t.readOnly},
+                                                   {"destructiva", t.destructive}});
+    }
+    json sin = json::array();
+    for (auto& c : out)
+        if (!c["herramientas"].empty()) sin.push_back(std::move(c));
+    return sin;
+}
+
 void McpCore::addCategory(const std::string& id, const std::string& title, const std::string& summary) {
     categories_.push_back(Category{id, title, summary});
 }
@@ -297,6 +337,26 @@ void McpCore::verificarJuegos() const {
     std::set<std::string> reales;
     for (const Tool& t : tools_)
         reales.insert(t.category);
+    // Una categoria que usan herramientas pero nadie registro: caen en «Otras»,
+    // fuera del mapa del asistente y de las secciones de la Botonera.
+    std::set<std::string> registradas;
+    for (const Category& c : categories_) registradas.insert(c.id);
+    for (const std::string& c : reales)
+        if (registradas.count(c) == 0)
+            ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                       "la categoria '" + c + "' la usan herramientas pero no esta registrada "
+                                       "(falta addCategory)");
+    // El asistente interactivo ve todo lo que se opera: una categoria nueva que no
+    // esta en su juego no existe para el (ni en help_search). Ver Roles::juegoDelAsistente.
+    if (const auto as = roles_.find("asistente"); as != roles_.end())
+        for (const std::string& c : reales)
+            if (as->second.count(c) == 0 && comunes_.count(c) == 0) {
+                int n = 0;
+                for (const Tool& t : tools_) n += t.category == c ? 1 : 0;
+                ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                           "el asistente no ve la categoria '" + c + "' (" + std::to_string(n) +
+                                               " herramientas): sumarla a Roles::juegoDelAsistente si se opera");
+            }
     for (const auto& [rol, cats] : roles_)
         for (const std::string& c : cats)
             if (reales.count(c) == 0)
@@ -362,12 +422,12 @@ std::string McpCore::validate(const json& schema, const json& args) {
             if (!ok) return "`" + it.key() + "` debe ser " + want + " (llego " + typeName(v) + ")";
         }
         if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
-            return "`" + it.key() + "` debe ser uno de " + p["enum"].dump();
+            return "`" + it.key() + "` debe ser uno de " + p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         if (v.is_number()) {
             if (p.contains("minimum") && v.get<double>() < p["minimum"].get<double>())
-                return "`" + it.key() + "` minimo " + p["minimum"].dump();
+                return "`" + it.key() + "` minimo " + p["minimum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
             if (p.contains("maximum") && v.get<double>() > p["maximum"].get<double>())
-                return "`" + it.key() + "` maximo " + p["maximum"].dump();
+                return "`" + it.key() + "` maximo " + p["maximum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
         }
     }
     return {};
@@ -481,7 +541,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
              ? ":" + params["name"].get<std::string>()
              : std::string()) +
         quien;
-    Traza::la().anotar("--> " + etiqueta + " id=" + id.dump() + " " + Traza::resumir(params));
+    Traza::la().anotar("--> " + etiqueta + " id=" + id.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " " + Traza::resumir(params));
     const auto arranque = std::chrono::steady_clock::now();
     reply = [reply, etiqueta, id, arranque](json r) {
         const auto ms =
@@ -492,7 +552,7 @@ void McpCore::handleOne(const json& msg, std::function<void(json)> reply, const 
         // `error`, la traza diria «OK» de cada herramienta que fallo.
         const bool fallo =
             r.contains("error") || (r.contains("result") && r["result"].value("isError", false));
-        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump() + " (" +
+        Traza::la().anotar((fallo ? "<-- FALLO " : "<-- ok    ") + etiqueta + " id=" + id.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + " (" +
                            std::to_string(ms) + " ms) " + Traza::resumir(r));
         reply(std::move(r));
     };
@@ -591,7 +651,7 @@ json McpCore::toolListEntry(const Tool& t) const {
     // cuesta tokens en cada pedido. Con el pensamiento apagado no razona «me
     // piden hacer algo, elijo una que hace»: empareja las palabras del pedido
     // con las de la descripcion. Lo que funciona es que las descripciones NO SE
-    // PISEN, herramienta por herramienta (ver tools/bateria-modelo.py).
+    // PISEN, herramienta por herramienta (ver tools/entrenar/bateria-modelo.py).
     json e{
         {"name", t.name}, {"title", t.title}, {"description", t.description}, {"inputSchema", t.inputSchema}};
     // Las cuatro marcas van SIEMPRE, aunque repitan el valor por defecto: en
@@ -654,9 +714,22 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
                                  " `help` lista todas."));
         return;
     }
-    // Fuera del juego del rol: se niega ANTES de validar, explicando de quien
-    // es. La herramienta existe, pero no para este cliente.
-    if (!permitida(*tool, ctx.rol)) {
+    // El rol de los disparadores: todo menos lo que corta o desarma (salvo lo
+    // que la regla permita con `permitir_aire`; y en vivo igual pasa por la
+    // guarda de aire).
+    if (ctx.rol == "disparador") {
+        static const std::set<std::string> kNo{"stream_stop",      "record_stop",  "app_quit",
+                                               "gateway_restart",  "participant_kick", "settings_set",
+                                               "agente_configurar", "mcp_aire_ajustar"};
+        const bool negada = kNo.count(name) != 0 || name.rfind("plugin_", 0) == 0;
+        if (negada && ctx.permitidas.count(name) == 0) {
+            ToolResult r = ToolResult::error("El rol `disparador` no puede usar '" + name +
+                                             "'. Si la regla lo necesita, agregalo en `permitir_aire` (fuera del aire).");
+            r.structured = json{{"bloqueada_por_rol", true}};
+            finish(r);
+            return;
+        }
+    } else if (!permitida(*tool, ctx.rol)) {
         finish(
             ToolResult::error("La herramienta '" + name + "' (categoria `" + tool->category +
                               "`) no esta en el juego del rol `" + ctx.rol +
@@ -763,25 +836,53 @@ void McpCore::callTool(const json& params, std::function<void(json)> done, const
     };
     // Salvaguarda: en una sesion contaminada (o con politica "siempre"), una
     // accion que modifica algo espera la aprobacion de una persona.
+    // Guardas de aire: con la transmisión o la grabación andando, lo que cambia
+    // el aire pedido por algo automático espera SIEMPRE a una persona, sin
+    // importar política, rol ni contaminación. La voz y los disparadores, en
+    // vivo, solo leen o hacen lo reversible sin preguntar.
+    const bool enAire = !ctx.humano && hayAire();
+    const bool deAire = enAire && aire_.esDeAire(name, args);
+    const bool automaticoEnVivo = enAire && !deAire && mutating(*tool) &&
+                                  (ctx.origen == "voz" || ctx.origen == "disparador") && !reversibleEnVivo(name);
     const bool needApproval =
-        mutating(*tool) &&
-        (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
-        !intakeAllows(*tool, args);
+        deAire || automaticoEnVivo ||
+        (mutating(*tool) && !ctx.humano && // una persona apretando no es el asistente
+         (policy_ == ApprovalPolicy::Always || (policy_ == ApprovalPolicy::Untrusted && tainted(session))) &&
+         !intakeAllows(*tool, args));
     if (!needApproval) {
         execute();
         return;
     }
-    if (!approver_) {
-        finish(ToolResult::error(
-            "Accion bloqueada: esta sesion leyo contenido de invitados y no hay a quien pedirle "
-            "aprobacion. Pedile al operador que la haga el."));
+    if (sinAprobaciones_) {
+        ba::diag::registro().linea(ba::diag::Nivel::Aviso, "mcp", 0,
+                                   "MODO PRUEBA: " + name + " se ejecuta sin aprobación" +
+                                       (deAire || automaticoEnVivo ? " (acción de aire)" : ""));
+        execute();
         return;
     }
-    const std::string reason = policy_ == ApprovalPolicy::Always
-                                   ? "La politica pide aprobar toda accion del asistente."
-                                   : "El asistente leyo contenido de invitados de la sala (" +
-                                         taint_[session].source +
-                                         "): por seguridad, lo que modifica algo necesita tu aprobacion.";
+    const std::string quienPide = ctx.origen.empty() ? "el asistente" : ctx.origen;
+    if (!approver_) {
+        ToolResult r = ToolResult::error(
+            deAire || automaticoEnVivo
+                ? "Accion de AIRE bloqueada (" + name + ", pedida por " + quienPide +
+                      "): con la transmision o la grabacion andando necesita que una persona la confirme, y no "
+                      "hay a quien preguntarle. Pedile al operador que la haga el."
+                : "Accion bloqueada: esta sesion leyo contenido de invitados y no hay a quien pedirle "
+                  "aprobacion. Pedile al operador que la haga el.");
+        if (deAire || automaticoEnVivo) r.structured = json{{"necesita_confirmacion", true}, {"motivo", "de aire"}};
+        finish(r);
+        return;
+    }
+    const std::string reason =
+        deAire ? "ACCIÓN DE AIRE: «" + name + "» cambia lo que sale y la pidió " + quienPide +
+                     ". Con la transmisión o la grabación andando, siempre la confirma una persona."
+        : automaticoEnVivo
+            ? "ACCIÓN DE AIRE: en vivo, " + quienPide + " solo hace lo reversible sin preguntar; «" + name +
+                  "» necesita tu confirmación."
+        : policy_ == ApprovalPolicy::Always
+            ? "La politica pide aprobar toda accion del asistente."
+            : "El asistente leyo contenido de invitados de la sala (" + taint_[session].source +
+                  "): por seguridad, lo que modifica algo necesita tu aprobacion.";
     approver_(*tool, args, reason, [execute, finish, name](bool ok) {
         if (ok) {
             execute();
@@ -888,11 +989,11 @@ std::string McpCore::helpTool(const std::string& name) const {
             const json& p = it.value();
             const bool r = std::find(req.begin(), req.end(), it.key()) != req.end();
             o << "- `" << it.key() << "` ("
-              << (p.contains("type") ? p["type"].dump() : std::string("cualquiera"))
+              << (p.contains("type") ? p["type"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) : std::string("cualquiera"))
               << (r ? ", obligatorio" : ", opcional") << ")";
             if (p.contains("description")) o << ": " << p["description"].get<std::string>();
-            if (p.contains("enum")) o << " Valores: " << p["enum"].dump() << ".";
-            if (p.contains("default")) o << " Por defecto: " << p["default"].dump() << ".";
+            if (p.contains("enum")) o << " Valores: " << p["enum"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << ".";
+            if (p.contains("default")) o << " Por defecto: " << p["default"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) << ".";
             o << "\n";
         }
     } else {
@@ -903,7 +1004,7 @@ std::string McpCore::helpTool(const std::string& name) const {
         for (const std::string& e : t->examples)
             o << "```json\n" << e << "\n```\n";
     }
-    o << "\n## Esquema JSON\n```json\n" << t->inputSchema.dump(2) << "\n```\n";
+    o << "\n## Esquema JSON\n```json\n" << t->inputSchema.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n```\n";
     return o.str();
 }
 
@@ -971,6 +1072,18 @@ json McpCore::search(const std::string& query, const std::string& rol) const {
                            {"title", d.titulo},
                            {"score", static_cast<int>(r.puntaje * 10)},
                            {"porque", r.porque}});
+    }
+    return out;
+}
+
+json McpCore::buscarHerramientas(const std::string& query, std::size_t tope) const {
+    if (!indice_ || indiceDe_ != tools_.size() + topics_.size()) armarIndice();
+    json out = json::array();
+    for (const Resultado& r : indice_->buscar(query, tope + topics_.size())) {
+        const Documento& d = indice_->doc(r.doc);
+        if (d.clase != "herramienta") continue;
+        out.push_back({{"nombre", d.id}, {"puntaje", r.puntaje}, {"porque", r.porque}});
+        if (out.size() >= tope) break;
     }
     return out;
 }

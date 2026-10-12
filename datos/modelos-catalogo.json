@@ -2,29 +2,8 @@
  "_comentario": "Modelos que la app (Configuracion -> Modelos locales) ofrece bajar de Hugging Face. Lo actualiza tools/entrenar/fabricar-modelo.py al subir. La app muestra solo los que existen y son publicos. Los de voz (tipo voz/vad) son de terceros: fijados por commit o por URL y sha256, se agregan a mano. Los de traducción (tipo traduccion) son paquetes de Argos Translate (OPUS-MT), por URL y sha256: los usa agent/Traductor.",
  "modelos": [
   {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v2-GGUF",
-   "formato": "gguf",
-   "plataformas": [
-    "linux-x64",
-    "win-x64"
-   ],
-   "archivo": "broadcast-reactivo-qwen3.5-4b-v2-Q4_K_M.gguf",
-   "base": "Qwen/Qwen3.5-4B",
-   "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "900e34cd7e5900fb",
-   "tamano_gb": 2.59,
-   "precision": 91.6,
-   "derivado": 84.5,
-   "examen": 64.8,
-   "fecha": "2026-10-03",
-   "version": "2",
-   "formato_llamada": "qwen3.5-tool-call-xml",
-   "manifiesto": "modelo.json",
-   "revision": "87c69e602d980663d550194b671c9cd745c9d802"
-  },
-  {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v2-mlx-q4",
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-mlx-q4",
+   "revision": "9d6735987c36c0532778ad4f9d926aafc5242204",
    "formato": "mlx",
    "plataformas": [
     "mac-arm64"
@@ -33,19 +12,16 @@
    "base": "Qwen/Qwen3.5-4B",
    "perfil": "reactivo",
    "herramientas": 84,
-   "prompt": "900e34cd7e5900fb",
-   "tamano_gb": 3.19,
-   "precision": 86.5,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 3.43,
+   "precision": 91.4,
    "derivado": 87.5,
-   "examen": 63.8,
-   "fecha": "2026-10-03",
-   "version": "2",
-   "formato_llamada": "qwen3.5-tool-call-xml",
-   "manifiesto": "modelo.json",
-   "revision": "16cafa6b86204dcef56d62cf821ecd111926ecf9"
+   "examen": 64.8,
+   "fecha": "2026-10-03"
   },
   {
    "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-GGUF",
+   "revision": "20fb8f4a4aad6176eb46d5afc149775f7ed1a8e7",
    "formato": "gguf",
    "plataformas": [
     "linux-x64",
@@ -55,19 +31,16 @@
    "base": "Qwen/Qwen3.5-4B",
    "perfil": "reactivo",
    "herramientas": 84,
-   "prompt": "900e34cd7e5900fb",
-   "tamano_gb": 2.59,
+   "prompt": "3f9122d8064004c5",
+   "tamano_gb": 2.78,
    "precision": 92.7,
    "derivado": 87.9,
    "examen": 65.7,
-   "fecha": "2026-10-03",
-   "version": "3",
-   "formato_llamada": "qwen3.5-tool-call-xml",
-   "manifiesto": "modelo.json",
-   "revision": "20fb8f4a4aad6176eb46d5afc149775f7ed1a8e7"
+   "fecha": "2026-10-03"
   },
   {
-   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v3-mlx-q4",
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v4-mlx-q4",
+   "revision": "",
    "formato": "mlx",
    "plataformas": [
     "mac-arm64"
@@ -75,17 +48,20 @@
    "archivo": null,
    "base": "Qwen/Qwen3.5-4B",
    "perfil": "reactivo",
-   "herramientas": 84,
-   "prompt": "900e34cd7e5900fb",
-   "tamano_gb": 3.19,
-   "precision": 91.4,
-   "derivado": 87.5,
-   "examen": 64.8,
-   "fecha": "2026-10-03",
-   "version": "3",
-   "formato_llamada": "qwen3.5-tool-call-xml",
-   "manifiesto": "modelo.json",
-   "revision": "9d6735987c36c0532778ad4f9d926aafc5242204"
+   "nota": "todavía sin publicar: la app no lo muestra hasta que exista en Hugging Face; fabricar-modelo.py completa revision y métricas al subir"
+  },
+  {
+   "repo": "BlairQ/broadcast-reactivo-qwen3.5-4b-v4-GGUF",
+   "revision": "",
+   "formato": "gguf",
+   "plataformas": [
+    "linux-x64",
+    "win-x64"
+   ],
+   "archivo": "broadcast-reactivo-qwen3.5-4b-v4-Q4_K_M.gguf",
+   "base": "Qwen/Qwen3.5-4B",
+   "perfil": "reactivo",
+   "nota": "todavía sin publicar: la app no lo muestra hasta que exista en Hugging Face; fabricar-modelo.py completa revision y métricas al subir"
   },
   {
    "repo": "csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8",
@@ -713,6 +689,37 @@
    "licencia": "CC-BY 4.0 (OPUS-MT, Helsinki-NLP; empaquetado por Argos Translate)",
    "tamano_gb": 0.07,
    "fecha": "2026-10-03"
+  },
+  {
+   "repo": "mradermacher/OxCoder-9B-GGUF",
+   "tipo": "chat",
+   "formato": "gguf",
+   "plataformas": [
+    "mac-arm64",
+    "linux-x64",
+    "win-x64"
+   ],
+   "revision": "525d7144604d67d86d138cde41e93c7bb545f82a",
+   "archivo": "OxCoder-9B.Q4_K_M.gguf",
+   "base": "OrionLLM/OxCoder-9B (Qwen/Qwen3.5-9B)",
+   "nombre": "OxCoder 9B, GGUF Q4_K_M (chat sin internet)",
+   "licencia": "apache-2.0",
+   "tamano_gb": 5.63,
+   "fecha": "2026-10-11"
+  },
+  {
+   "repo": "OmAr-Kader-DeV/OxCoder-9B-mlx-4Bit",
+   "tipo": "chat",
+   "formato": "mlx",
+   "plataformas": [
+    "mac-arm64"
+   ],
+   "revision": "ae7575d8655be764ddf8478e5f04caeea74ec4ce",
+   "base": "OrionLLM/OxCoder-9B (Qwen/Qwen3.5-9B)",
+   "nombre": "OxCoder 9B, MLX 4 bits (chat sin internet, Mac)",
+   "licencia": "apache-2.0",
+   "tamano_gb": 5.04,
+   "fecha": "2026-10-11"
   }
  ]
 }

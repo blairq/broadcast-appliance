@@ -53,7 +53,20 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             visible: !raiz.enVentana
-            Item { Layout.fillWidth: true }
+            // El resultado OFICIAL (tablero del recinto o Secretaría): el que va al acta.
+            GlassButton {
+                compact: true
+                text: "Cargar resultado oficial"
+                onClicked: oficial.open()
+            }
+            Text {
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+                readonly property var ult: Studio.quorum.oficiales.length > 0 ? Studio.quorum.oficiales[Studio.quorum.oficiales.length - 1] : null
+                text: !ult ? "Todavía no hay resultados oficiales (los del tablero o Secretaría, para el acta)." : "Último oficial: " + ult.asunto + " — " + (ult.aprobado ? "APROBADO" : "RECHAZADO") + " " + ult.afirmativos + "-" + ult.negativos + "-" + ult.abstenciones
+                color: ult && ult.aprobado ? Theme.ok : Theme.textDim
+                font.pixelSize: 11
+            }
             GlassButton {
                 compact: true
                 text: "⧉"
@@ -206,19 +219,29 @@ Item {
         // --- Abrir una nueva --------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            implicitHeight: nueva.implicitHeight + 28
             radius: Theme.radiusSmall
             color: Qt.rgba(1, 1, 1, 0.03)
             border.color: Theme.glassBorder
 
             ColumnLayout {
-                anchors { fill: parent; margins: 14 }
+                id: nueva
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
                 spacing: 8
 
                 Text {
-                    text: raiz.abierta ? "Abrir otra (reemplaza a la que está abierta)" : "Abrir una"
+                    text: raiz.abierta ? "Abrir otra (reemplaza a la que está abierta)" : "Abrir una votación o una encuesta"
                     color: Theme.text
                     font { pixelSize: 14; weight: Font.DemiBold }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !raiz.abierta
+                    wrapMode: Text.WordWrap
+                    text: "Se vota desde el teléfono con el QR. La votación formal es la del padrón (vale para decidir); "
+                          + "la encuesta es abierta a cualquiera y solo indica. Para votar con las bancas de la central, está Conferencia → Votación y asistencia."
+                    color: Theme.textFaint
+                    font.pixelSize: 11
                 }
                 Text {
                     Layout.fillWidth: true
@@ -289,7 +312,8 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
-                        text: "Abrir"
+                        text: modo.currentValue === "formal" ? "Abrir la votación" : "Abrir la encuesta"
+                        active: true
                         enabled: campoPregunta.text.trim() !== "" &&
                                  (modo.currentValue === "encuesta" || raiz.habilitados().length > 0)
                         onClicked: {
@@ -306,6 +330,9 @@ Item {
                 }
             }
         }
+        // Lo que sobra va abajo: sin esto el layout repartía el alto
+        // entre los campos y quedaban huecos enormes.
+        Item { Layout.fillHeight: true }
     }
 
     // A que televisor. La lista es la misma de la pagina de Pantallas: el
@@ -360,5 +387,60 @@ Item {
         color: Theme.textFaint
         font.pixelSize: 12
         text: raiz.pub.enLinea ? "" : "No puedo ver la urna: la sala no responde."
+    }
+
+    Popup {
+        id: oficial
+        modal: true
+        width: 460
+        padding: 14
+        anchors.centerIn: Overlay.overlay
+        background: Rectangle { color: Theme.bg; border.color: Theme.glassBorder; radius: 12 }
+        contentItem: ColumnLayout {
+            spacing: 8
+            Text {
+                text: "Resultado oficial"
+                color: Theme.text
+                font.pixelSize: 15
+                font.weight: Font.DemiBold
+            }
+            TextField { id: ofAsunto; Layout.fillWidth: true; placeholderText: "Asunto (Expte. 123/24 – en general)"; color: Theme.text }
+            GridLayout {
+                columns: 3
+                Text { text: "Afirmativos"; color: Theme.textDim; font.pixelSize: 11 }
+                Text { text: "Negativos"; color: Theme.textDim; font.pixelSize: 11 }
+                Text { text: "Abstenciones"; color: Theme.textDim; font.pixelSize: 11 }
+                SpinBox { id: ofAf; from: 0; to: 1000; editable: true }
+                SpinBox { id: ofNe; from: 0; to: 1000; editable: true }
+                SpinBox { id: ofAb; from: 0; to: 1000; editable: true }
+            }
+            ComboBox {
+                id: ofMayoria
+                Layout.fillWidth: true
+                model: [ { t: "Mayoría de las reglas del cuerpo", v: "" }, { t: "Mayoría simple", v: "simple" },
+                         { t: "Mayoría absoluta", v: "absoluta" }, { t: "2/3 de presentes", v: "dos_tercios_presentes" },
+                         { t: "2/3 de miembros", v: "dos_tercios_miembros" } ]
+                textRole: "t"
+            }
+            Text { text: "O la votación nominal (CSV «nombre;voto», un integrante por línea):"; color: Theme.textDim; font.pixelSize: 11 }
+            ScrollView {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 90
+                TextArea { id: ofCsv; color: Theme.text; placeholderText: "Ana Pérez;afirmativo\nJuan Gómez;negativo" }
+            }
+            RowLayout {
+                GlassButton {
+                    compact: true; text: "Cargar"; active: true
+                    onClicked: {
+                        const may = ofMayoria.model[ofMayoria.currentIndex].v
+                        const e = ofCsv.text.trim() !== "" ? Studio.quorum.cargarCsvUi(ofAsunto.text, ofCsv.text, may)
+                                                           : Studio.quorum.cargarOficialUi(ofAsunto.text, ofAf.value, ofNe.value, ofAb.value, may)
+                        if (e !== "") Studio.notify(e, "error"); else { oficial.close(); ofCsv.text = ""; ofAsunto.text = "" }
+                    }
+                }
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cerrar"; onClicked: oficial.close() }
+            }
+        }
     }
 }

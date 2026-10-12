@@ -51,7 +51,7 @@ Path=$RAIZ
 Icon=$ICONO
 Terminal=false
 Categories=AudioVideo;Video;
-Keywords=transmision;streaming;obs;grabacion;conferencia;
+Keywords=transmision;streaming;grabacion;conferencia;
 StartupNotify=true
 EOF
 chmod +x "$ARCHIVO"

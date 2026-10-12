@@ -2,6 +2,7 @@
 // src/core/diag/Registro.cpp — ver Registro.hpp
 // ============================================================================
 #include "diag/Registro.hpp"
+#include "diag/Utf8.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -11,6 +12,7 @@
 #include <cstring>
 #include <ctime>
 #include <deque>
+#include <map>
 #include <mutex>
 
 #if defined(_WIN32)
@@ -124,6 +126,8 @@ struct Registro::Impl {
     std::atomic<std::uint64_t> cuenta{0};
     std::atomic<std::uint64_t> descartadas{0};
     std::function<void(const Registrado&)> oyente;
+    std::map<int, std::function<void(const Registrado&)>> oyentes;
+    int proximo = 1;
 };
 
 Registro::Registro() : d_(std::make_unique<Impl>()) {
@@ -171,6 +175,18 @@ void Registro::setOyente(std::function<void(const Registrado&)> fn) {
     d_->oyente = std::move(fn);
 }
 
+int Registro::agregarOyente(std::function<void(const Registrado&)> fn) {
+    std::lock_guard<std::mutex> g(d_->m);
+    const int id = d_->proximo++;
+    d_->oyentes[id] = std::move(fn);
+    return id;
+}
+
+void Registro::quitarOyente(int id) {
+    std::lock_guard<std::mutex> g(d_->m);
+    d_->oyentes.erase(id);
+}
+
 void Registro::linea(Nivel n, const std::string& componente, int codigo, const std::string& texto) {
     if (!registra(n)) {
         d_->descartadas.fetch_add(1);
@@ -180,9 +196,12 @@ void Registro::linea(Nivel n, const std::string& componente, int codigo, const s
     r.ms = ahoraMs();
     r.nivel = n;
     r.codigo = codigo;
-    r.texto = enUnaLinea(texto);
+    // En UTF-8 válido: lo leen el visor y el MCP como JSON, y un mensaje de un
+    // tercero en cp1252 (Windows) hacía tirar una excepción (ver diag/Utf8.hpp).
+    r.texto = enUnaLinea(utf8Valido(texto));
 
     std::function<void(const Registrado&)> oyente;
+    std::vector<std::function<void(const Registrado&)>> otros;
     {
         std::lock_guard<std::mutex> g(d_->m);
         r.componente = componente.empty() ? d_->componente : componente;
@@ -198,11 +217,13 @@ void Registro::linea(Nivel n, const std::string& componente, int codigo, const s
         d_->anillo.push_back(r);
         if (d_->anillo.size() > kEnMemoria) d_->anillo.pop_front();
         oyente = d_->oyente;
+        for (const auto& [id, fn] : d_->oyentes) otros.push_back(fn);
     }
     d_->cuenta.fetch_add(1);
     // El oyente se llama SIN el lock: si la interfaz se cuelga dibujando, no
     // puede frenar al que está registrando.
     if (oyente) oyente(r);
+    for (const auto& fn : otros) fn(r);
 }
 
 std::vector<Registrado> Registro::ultimas(std::size_t cuantas) const {

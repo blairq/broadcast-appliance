@@ -35,8 +35,8 @@ QString idDePantalla(PantallasViewModel& p, const QString& quien) {
 
 void McpService::registerPantallaTools() {
     core_.addCategory("pantallas", "Pantallas externas",
-                      "Televisores y proyectores de la sala (Chromecast): cuales hay y que mostrar en "
-                      "cada uno (un mensaje, un QR, la hora, una pagina, el teleprompter).");
+                      "Televisores y proyectores de la sala (Chromecast): cuáles hay y qué mostrar en "
+                      "cada uno (un mensaje, un QR, la hora, una página, el teleprompter).");
     auto* p = static_cast<PantallasViewModel*>(vm_.pantallas());
     if (p == nullptr) return;
 
@@ -108,7 +108,8 @@ void McpService::registerPantallaTools() {
             "MUESTRA algo (un QR, una pagina, un cartel, la votacion) en un televisor de la red. Le manda un "
             "contenido a una pantalla. `tipo`: mensaje (texto grande), qr (un QR a pantalla "
             "completa), reloj, url (una direccion cualquiera), prompter (la vista del orador), carrusel "
-            "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC) o tally (rojo "
+            "(una rotacion ya armada), programa (lo que sale al aire, en vivo por WebRTC), escena (UNA "
+            "escena cualquiera de las armadas, en vivo, este o no al aire: `escena` es su nombre) o tally (rojo "
             "si esa camara esta al aire, verde si esta armada). Los campos de cada tipo salen de "
             "pantalla_listar.";
         t.details = "Ojo con la que este `ocupada`: mostrarle algo le pisa lo que estuviera pasando. Si no "
@@ -123,17 +124,22 @@ void McpService::registerPantallaTools() {
               {"tipo",
                {{"type", "string"},
                 {"enum",
-                 {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "tally",
+                 {"mensaje", "qr", "reloj", "url", "prompter", "carrusel", "programa", "escena", "tally",
                   "votacion"}}}},
               {"carrusel", {{"type", "string"}, {"description", "su id, con tipo=carrusel"}}},
               {"qr",
                {{"type", "string"},
-                {"description", "con tipo=qr: el id de uno GUARDADO (qr_listar los da), que sale "
+                {"description", "con tipo=qr: \"aparato:publico\" (la pagina del publico, con su clave), "
+                                "\"aparato:sala\", \"aparato:prompter\", \"aparato:rotulos\", o el id de uno GUARDADO (qr_listar los da), que sale "
                                 "con el estilo con el que se diseño. Sin esto se usa `texto` y "
                                 "sale con el estilo de fabrica."}}},
               {"texto", {{"type", "string"}, {"description", "mensaje: lo que dice; qr: lo que codifica"}}},
               {"pie", {{"type", "string"}, {"description", "la linea de abajo, mas chica"}}},
               {"url", {{"type", "string"}, {"description", "solo con tipo=url"}}},
+              {"escena",
+               {{"type", "string"},
+                {"description", "con tipo=escena: el nombre de la escena (scene_list las da). Varias "
+                                "pantallas pueden mostrar escenas distintas a la vez, hasta 4 distintas"}}},
               {"fuente",
                {{"type", "string"},
                 {"description", "con tipo=tally: la camara o escena de esa pantalla (vacio = el estado "
@@ -164,7 +170,7 @@ void McpService::registerPantallaTools() {
                 return;
             }
             QVariantMap datos;
-            for (const char* k : {"texto", "pie", "url", "fuente"})
+            for (const char* k : {"texto", "pie", "url", "fuente", "escena"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
             // Un codigo GUARDADO se proyecta con su estilo. Antes solo se podia
@@ -173,7 +179,11 @@ void McpService::registerPantallaTools() {
             if (tipo == "qr" && a.contains("qr") && a["qr"].is_string()) {
                 auto* qvm = static_cast<QrViewModel*>(vm_.qr());
                 const QString qid = QString::fromStdString(a["qr"].get<std::string>());
-                const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectar(qid);
+                const QVariantMap guardado = qvm == nullptr ? QVariantMap() : qvm->paraProyectarElegido(qid);
+                if (guardado.value("pendiente").toBool()) {
+                    done(ToolResult::error("La sala todavia no dio ese enlace (¿esta andando?): proba de nuevo en un momento."));
+                    return;
+                }
                 if (guardado.isEmpty()) {
                     done(ToolResult::error("No tengo guardado un codigo QR con id '" + qid.toStdString() +
                                            "'. qr_listar los da."));
@@ -213,10 +223,11 @@ void McpService::registerPantallaTools() {
             {"properties",
              {{"pantalla", {{"type", "string"}}},
               {"tipo",
-               {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
+               {{"type", "string"}, {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa", "escena"}}}},
               {"texto", {{"type", "string"}}},
               {"pie", {{"type", "string"}}},
               {"url", {{"type", "string"}}},
+              {"escena", {{"type", "string"}, {"description", "con tipo=escena: su nombre"}}},
               {"quitar", {{"type", "boolean"}, {"description", "deja de tener algo fijo"}}}}}};
         t.run = [p](const json& a, Done done) {
             const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
@@ -236,7 +247,7 @@ void McpService::registerPantallaTools() {
                 return;
             }
             QVariantMap datos;
-            for (const char* k : {"texto", "pie", "url", "fuente"})
+            for (const char* k : {"texto", "pie", "url", "fuente", "escena"})
                 if (a.contains(k) && a[k].is_string())
                     datos[k] = QString::fromStdString(a[k].get<std::string>());
             const QString err = p->fijar(id, QString::fromStdString(a["tipo"].get<std::string>()), datos);
@@ -349,7 +360,7 @@ void McpService::registerPantallaTools() {
                   {"properties",
                    {{"tipo",
                      {{"type", "string"},
-                      {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa"}}}},
+                      {"enum", {"mensaje", "qr", "reloj", "url", "prompter", "programa", "escena"}}}},
                     {"texto", {{"type", "string"}}},
                     {"pie", {{"type", "string"}}},
                     {"url", {{"type", "string"}}},
@@ -394,7 +405,7 @@ void McpService::registerPantallaTools() {
             for (const json& paso : a.value("pasos", json::array())) {
                 if (!paso.is_object() || !paso.contains("tipo")) continue;
                 QVariantMap datos;
-                for (const char* k : {"texto", "pie", "url", "fuente"})
+                for (const char* k : {"texto", "pie", "url", "fuente", "escena"})
                     if (paso.contains(k) && paso[k].is_string())
                         datos[k] = QString::fromStdString(paso[k].get<std::string>());
                 const QString err =
@@ -469,7 +480,7 @@ void McpService::registerPantallaTools() {
                     }
                     ss.push_back(o);
                 }
-                done(ToolResult::ok(json{{"superficies", ss}}.dump(2)));
+                done(ToolResult::ok(json{{"superficies", ss}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
             });
         };
         core_.addTool(std::move(t));

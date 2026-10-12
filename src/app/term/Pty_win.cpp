@@ -80,20 +80,27 @@ bool Pty::start(const Options& opt, QString* error) {
 
     STARTUPINFOEXW si{};
     si.StartupInfo.cb = sizeof(si);
+    // LOS CANALES DEL HIJO SON LOS DE LA PSEUDOCONSOLA, a la fuerza. Sin esto, si los
+    // del padre no son una consola (la app la lanza el launcher con la salida a
+    // Logs/app.log), el hijo HEREDA esos: no ve una terminal, Claude Code entra en
+    // modo «--print» y sale («Input must be provided either through stdin…», escrito
+    // en app.log), y Gemini y opencode igual. Por eso los asistentes no andaban
+    // NUNCA en Windows. Con STARTF_USESTDHANDLES y los tres en nulo, la consola los da.
+    si.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+    si.StartupInfo.hStdInput = nullptr;
+    si.StartupInfo.hStdOutput = nullptr;
+    si.StartupInfo.hStdError = nullptr;
     SIZE_T attrSize = 0;
     InitializeProcThreadAttributeList(nullptr, 1, 0, &attrSize);
     std::vector<char> attrBuf(attrSize);
     si.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrBuf.data());
-    const BOOL initOk = InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attrSize);
-    const DWORD initErr = GetLastError();
-    const BOOL updOk = UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                                                 d_->pc, sizeof(d_->pc), nullptr, nullptr);
-    const DWORD updErr = GetLastError();
-    std::printf("BA_PTY: attrSize=%llu init=%d(err=%lu) update=%d(err=%lu) hpc=%p\n",
-                static_cast<unsigned long long>(attrSize), static_cast<int>(initOk),
-                static_cast<unsigned long>(initErr), static_cast<int>(updOk),
-                static_cast<unsigned long>(updErr), static_cast<void*>(d_->pc));
-    std::fflush(stdout);
+    if (!InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attrSize) ||
+        !UpdateProcThreadAttribute(si.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE, d_->pc,
+                                   sizeof(d_->pc), nullptr, nullptr)) {
+        if (error != nullptr) *error = QString("PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE: error %1").arg(GetLastError());
+        terminate();
+        return false;
+    }
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
     for (const QString& k : opt.unsetEnv)

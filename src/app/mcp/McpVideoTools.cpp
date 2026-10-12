@@ -10,14 +10,18 @@
 // ============================================================================
 
 #include "mcp/EsperarEntrada.hpp"
+#include "Mapa.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
 #include "video/Diagnostico.hpp"
+#include "video/BancoSuperRes.hpp"
 #include "video/SuperRes.hpp"
 #include "video/VideoGrafos.hpp"
 
+#include <QDateTime>
 #include <QJsonDocument>
+#include <QTimer>
 #include <QPointer>
 
 #include <cctype>
@@ -32,7 +36,7 @@ nlohmann::json tarjetaDePlugin(nlohmann::json tj) {
     nlohmann::json props{{"plugin", tj.value("plugin", std::string())},
                          {"tarjeta", tj.value("tarjeta", std::string())}};
     const nlohmann::json par = tj.value("parametros", nlohmann::json::object());
-    if (par.is_object() && !par.empty()) props["parametros"] = par.dump();
+    if (par.is_object() && !par.empty()) props["parametros"] = par.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
     tj["tipo"] = "gst";
     tj["elemento"] = "baplugin";
     tj["propiedades"] = props;
@@ -47,10 +51,11 @@ void McpService::registerVideoTools() {
         "video", "Grafo de video",
         "Un grafo de video para todo el estudio, como un pipeline de GStreamer: cada entrada es un sub-grafo "
         "(entrada -> tarjetas -> escena) y los cables pueden cruzar entre entradas (p. ej. a un compositor). "
-        "Tarjetas propias (color, croma, recorte, salida), cualquier filtro de video de OBS o cualquier "
+        "Tarjetas propias (color, croma, recorte, salida) o cualquier "
         "módulo de "
         "video de GStreamer (video_modulos: el catálogo documentado). Entradas virtuales (barras, negro, un "
-        "pipeline de GStreamer) con video_entrada_virtual. Lo corre la GPU.");
+        "pipeline de GStreamer) con video_entrada_virtual. Las tarjetas de imagen corren en la cadena de "
+        "cada entrada.");
     const QPointer<video::VideoGrafos> v = vg;
     const auto deQt = [](const QVariant& x) {
         return json::parse(QJsonDocument::fromVariant(x).toJson(QJsonDocument::Compact).toStdString(),
@@ -113,16 +118,13 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_filtros";
-        t.title = "Los filtros de video de OBS (y los controles de una tarjeta)";
+        t.title = "Los controles de una tarjeta";
         t.category = "video";
         t.readOnly = true;
         t.description =
-            "Sin `id`: los filtros de video de OBS que se pueden poner como tarjeta (corrección de color, "
-            "aplicar "
-            "LUT .cube, llaves de croma/color/luma, nitidez, recorte, escala, máscaras, Mejorar imagen, PTZ "
-            "digital…). Con `id` de una tarjeta de filtro de OBS o de un módulo de GStreamer: sus controles "
-            "(nombre, "
-            "tipo, valor, rango, opciones).";
+            "Con `id` de una tarjeta (un módulo de GStreamer): sus controles (nombre, tipo, valor, rango, "
+            "opciones). Sin `id`, vacío: los filtros de OBS se fueron con libobs; el catálogo de módulos "
+            "está en video_modulos.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"id", idTarjeta}}}};
         t.run = [v, deQt](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
@@ -261,7 +263,7 @@ void McpService::registerVideoTools() {
             "Agrega una tarjeta (para video, PRIMERO GStreamer: `gst` con un módulo de video_modulos). En la "
             "`entrada` "
             "(después de `despues`; vacío = justo antes de su escena): `color`, "
-            "`croma`, `recorte`, `obs` (un filtro de OBS: `filtro` = su id, de video_filtros) y `gst` (un "
+            "`croma`, `recorte` y `gst` (un "
             "módulo de "
             "GStreamer: `elemento`, de video_modulos) y `plugin` (la tarjeta de un plugin de Python: "
             "`plugin`, "
@@ -272,22 +274,21 @@ void McpService::registerVideoTools() {
             "video_cable, y se "
             "pone en una escena con video_salida_a_escena o se cablea a la escena de una entrada.";
         t.details =
-            "`params` con los de fábrica que quieras cambiar (video_grafo los lista). Croma: `clave` "
+            "`params` con los de fábrica que quieras cambiar (video_tarjeta_ayuda explica cada uno, con "
+            "rangos y opciones; el texto del overlay de Rostros también). Croma: `clave` "
             "0xRRGGBB (verde "
             "0x00B140), `similitud`, `suavidad`, `derrame`. Color: `brillo`, `contraste`, `saturacion`, "
             "`gamma`. "
             "Recorte: `izquierda`, `arriba`, `derecha`, `abajo` (0..1), `espejoH`, `espejoV`. Retardo: "
             "`cuadros` "
-            "(0..120, para sincronizar). Rostros: `cada` (ms), `marcar` (dibuja las caras); la pone sola "
-            "Personas "
-            "al elegir una camara (`entrada:<camara>`), `uso` dice para que. Salida: `nombre`. Compositor: "
+            "(0..120, para sincronizar). Rostros: `fps`, `reconocer`, `detector`, `marcar`, `estilo`, `color`, "
+            "`texto` (plantilla {nombre} {cargo} {id} {confianza} {n}); la pone sola Personas al elegir una "
+            "cámara (`entrada:<camara>`), `uso` dice para qué. Seguir: `objetivo`, `zoom`, `aire`… Salida: `nombre`. Vista 360 (una cámara 360 en un stream vista como una común, en la placa): `modo` (equirect | ojo | dos-ojos), `ver`, `yaw`, `pitch`, `fov` (grados), `ancho`, `alto` (0 = como entra), las lentes y la guía (video_tarjeta_ayuda); con un stream por cámara (varias lado a lado o una 360 de dos lentes), video_panoramica. Compositor: "
             "`ancho`, `alto`, `fondo` (0xAARRGGBB), "
             "`nombre`, y por puerto `capas.in_N` {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, "
             "ajuste "
             "(encajar|llenar)}; sin capas, mosaico; null en una capa la vuelve al mosaico. "
-            "Un filtro de OBS: sus ajustes van en `params.ajustes` (video_filtros con el id de la tarjeta "
-            "los "
-            "lista). Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
+            "Un módulo de GStreamer: sus propiedades en `params.propiedades`, con los nombres de "
             "GStreamer (video_modulos con `elemento` las lista; los enum, por su nick).";
         t.inputSchema = {
             {"type", "object"},
@@ -297,15 +298,14 @@ void McpService::registerVideoTools() {
               {"tipo",
                {{"type", "string"},
                 {"enum",
-                 {"color", "croma", "recorte", "obs", "gst", "plugin", "retardo", "normalizar", "rostros",
-                  "salida", "compositor", "superres"}}}},
+                 {"color", "croma", "recorte", "gst", "plugin", "retardo", "normalizar", "rostros",
+                  "seguir", "salida", "compositor", "superres", "vista360", "panoramica"}}}},
               {"plugin",
                {{"type", "string"},
                 {"description", "con tipo plugin: el id del plugin de Python (plugin_listar)"}}},
               {"tarjeta",
                {{"type", "string"}, {"description", "con tipo plugin: la tarjeta de video que declaró"}}},
               {"parametros", {{"type", "object"}, {"description", "con tipo plugin: sus ajustes"}}},
-              {"filtro", {{"type", "string"}, {"description", "con tipo obs: el id del filtro de OBS"}}},
               {"elemento",
                {{"type", "string"},
                 {"description", "con tipo gst: el módulo de GStreamer (p. ej. videobalance)"}}},
@@ -313,9 +313,9 @@ void McpService::registerVideoTools() {
               {"params", {{"type", "object"}}}}}};
         t.examples = {
             R"({"entrada": "Cámara 1", "tipo": "croma"})",
-            R"({"entrada": "Cámara 1", "tipo": "obs", "filtro": "clut_filter", "params": {"ajustes": {"image_path": "/ruta/look.cube"}}})",
             R"({"entrada": "Cámara 1", "tipo": "gst", "elemento": "gamma", "params": {"propiedades": {"gamma": 1.3}}})",
-            R"({"tipo": "compositor"})"};
+            R"({"tipo": "compositor"})",
+            R"({"entrada": "Cámara 1", "tipo": "rostros", "params": {"marcar": true, "estilo": "esquinas", "texto": "{nombre} — {cargo}"}})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             const json ap = tarjetaDePlugin(json{{"tipo", a.value("tipo", std::string())},
@@ -359,6 +359,64 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
+        t.name = "video_tarjeta_ayuda";
+        t.title = "Ayuda de un tipo de tarjeta";
+        t.category = "video";
+        t.readOnly = true;
+        t.description =
+            "Qué hace un tipo de tarjeta de video, cada parámetro (tipo, rango, opciones, de fábrica) y qué "
+            "eventos de GStreamer manda y escucha. Con Rostros, además, cómo se arma el texto del overlay. Sin "
+            "`tipo`: todos.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"tipo", {{"type", "string"}, {"description", "rostros, seguir, ptz, color…"}}}}}};
+        t.examples = {R"({"tipo": "rostros"})", R"({"tipo": "seguir"})"};
+        t.run = [](const json& a, Done done) {
+            const std::string tipo = a.value("tipo", std::string());
+            const json cat = video::GrafoVideo::catalogo();
+            if (tipo.empty()) return done(ToolResult().data({{"tarjetas", cat}}));
+            for (const json& c : cat) {
+                if (c.value("tipo", std::string()) != tipo) continue;
+                return done(ToolResult().data(c));
+            }
+            done(ToolResult::error("no hay una tarjeta «" + tipo + "»; sin `tipo` se listan todas"));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_tarjeta_mover";
+        t.title = "Mover una tarjeta en la cadena";
+        t.category = "video";
+        t.description =
+            "Lleva la tarjeta `id` a otro lugar de la cadena de su entrada: después de `despues` (el id de otra "
+            "tarjeta, o de la entrada para ponerla primera; vacío = justo antes de la escena), o un lugar antes "
+            "(`paso`: -1) o después (`paso`: 1).";
+        t.details =
+            "El orden importa: el PTZ antes de la superresolución le da detalle a lo que se amplía; Rostros antes "
+            "del PTZ ve la toma entera (y el seguimiento puede llevar al PTZ fuera de lo que se ve); después, ve "
+            "lo que sale del encuadre. Todas las tarjetas dejan pasar los eventos de las otras (ba/rostros, "
+            "ba/ptz, ba/encuadre, ba/control), así que cualquier orden funciona.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"id"}},
+                         {"properties",
+                          {{"id", idTarjeta},
+                           {"entrada", entrada},
+                           {"despues", {{"type", "string"}, {"description", "después de esta tarjeta"}}},
+                           {"paso", {{"type", "integer"}, {"enum", {-1, 1}}}}}}};
+        t.run = [v, hecho](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const QString id = QString::fromStdString(a.value("id", std::string()));
+            QString e;
+            if (a.contains("paso"))
+                e = v->correr(id, a.value("paso", 1));
+            else
+                e = v->reubicar(id, QString::fromStdString(a.value("despues", std::string())));
+            hecho(a.value("entrada", std::string()), e.toStdString(), done);
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "video_tarjeta_quitar";
         t.title = "Quitar una tarjeta de video";
         t.category = "video";
@@ -385,8 +443,7 @@ void McpService::registerVideoTools() {
         t.category = "video";
         t.idempotent = true;
         t.description = "Cambia `params` de la tarjeta `id` (solo los que tiene, del mismo tipo) y/o su "
-                        "`etiqueta`. Un filtro de "
-                        "OBS: `{\"ajustes\": {…}}`; un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
+                        "`etiqueta`. Un módulo de GStreamer: `{\"propiedades\": {…}}` (se "
                         "mezclan). Una tarjeta "
                         "manejada por un controlador: el ajuste va al controlador (cambia en todas); lo "
                         "propio de esa entrada, en "
@@ -663,17 +720,9 @@ void McpService::registerVideoTools() {
                             id = v->agregarModuloEn(g, tj.value("elemento", std::string()), e, despues,
                                                     tj.value("propiedades", json::object()), &error);
                         } else if (tipo == "obs") {
-                            const std::string f = tj.value("filtro", std::string());
-                            if (video::VideoGrafos::nombreFiltro(f).empty())
-                                error = "no existe el filtro de OBS «" + f + "» (video_filtros)";
-                            else
-                                id = g.agregar(
-                                    "obs", e, despues,
-                                    json{{"filtro", f}, {"ajustes", tj.value("ajustes", json::object())}},
-                                    &error);
-                            if (!id.empty())
-                                g.ajustar(id, json{{"etiqueta", video::VideoGrafos::nombreFiltro(f)}},
-                                          nullptr);
+                            // Los filtros de OBS se fueron con libobs.
+                            error = "los filtros de OBS ya no existen (no hay libobs): usá una tarjeta `gst` "
+                                    "(video_modulos), p. ej. videobalance o gamma";
                         } else {
                             id = g.agregar(tipo, e, despues, tj.value("params", json::object()), &error);
                         }
@@ -737,7 +786,7 @@ void McpService::registerVideoTools() {
                 {"description", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)"}}},
               {"ocultar_sueltas", {{"type", "boolean"}}}}}};
         t.examples = {
-            R"({"escena": "Exterior", "entradas": ["Axis Terreno", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})"};
+            R"({"escena": "Exterior", "entradas": ["Cámara 1", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             std::vector<std::string> es;
@@ -757,6 +806,55 @@ void McpService::registerVideoTools() {
     }
     {
         Tool t;
+        t.name = "video_panoramica";
+        t.title = "Unir varias cámaras en una imagen (panorámica o 360), en una llamada";
+        t.category = "video";
+        t.description =
+            "Une `camaras` (de 1 a 8 entradas, un stream cada una, en orden: la primera es la lente 1) en una "
+            "sola imagen, todo en la placa: la tarjeta Panorámica del estudio (o rearma la que se llame "
+            "`nombre`), un cable de cada cámara (lo que llega a la escena de cada una) y, con `escena`, la "
+            "fuente ahí (las cámaras sueltas se ocultan en esa escena). Las pone lado a lado en su lienzo "
+            "(`lente_ancho` x `lente_alto` cada una: 1920x1080 de fábrica; máximo 16384 de ancho) y corrige la "
+            "deformación de cada una y cómo encajan. `preset`: «fila» (cámaras comunes de `campo` grados, 60 de "
+            "fábrica, repartidas con un 10% que se pisa; sale la tira del tamaño de la suma de las "
+            "resoluciones) o «360» (dos ojos de pez de 190° espalda con espalda; sale la vista, un PTZ). "
+            "`params` (encima del preset; video_tarjeta_ayuda tipo panoramica): ver (vista | tira | panorama | "
+            "entrada), yaw, pitch, fov (pan, tilt y zoom de la vista), tira_campo, ancho, alto (0 = la suma), "
+            "mezcla; por cámara lenteN_tipo (ojo | normal), lenteN_x, _y, _radio, _campo, _yaw, _pitch, _roll "
+            "(cómo encaja), _k1, _k2 (su deformación); la guía para calibrar: guia (ninguna | rectangulo | "
+            "circulo | grilla | cruz | esfera), guia_x, guia_y, guia_ancho, guia_alto, guia_grosor, guia_color. "
+            "Para retocar: video_tarjeta_ajustar sobre la tarjeta.";
+        t.inputSchema = {
+            {"type", "object"},
+            {"required", {"camaras"}},
+            {"properties",
+             {{"camaras", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "las entradas, en orden"}}},
+              {"preset", {{"type", "string"}, {"enum", {"fila", "360"}}}},
+              {"campo", {{"type", "number"}, {"description", "con preset: el campo de cada lente (grados)"}}},
+              {"nombre", {{"type", "string"}, {"description", "el de la fuente (de fábrica, «Panorámica»)"}}},
+              {"escena", {{"type", "string"}}},
+              {"params", {{"type", "object"}}}}}};
+        t.examples = {
+            R"({"camaras": ["Cám 1", "Cám 2", "Cám 3", "Cám 4"], "preset": "fila", "campo": 70, "escena": "Panorámica"})",
+            R"({"camaras": ["360 adelante", "360 atrás"], "preset": "360", "escena": "Plano 360", "params": {"ver": "entrada"}})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            std::vector<std::string> cs;
+            for (const auto& x : a.value("camaras", json::array()))
+                if (x.is_string()) cs.push_back(x.get<std::string>());
+            json hecho;
+            const std::string err = v->armarPanoramica(cs, a.value("preset", std::string()), a.value("campo", 0.0),
+                                                       a.value("nombre", std::string()), a.value("escena", std::string()),
+                                                       a.value("params", json::object()), &hecho);
+            if (!err.empty()) return done(ToolResult::error(err));
+            hecho["verificar"] = "capture_source sobre «" + hecho.value("fuente", std::string()) +
+                                 "» (o imagen_analizar con una pregunta concreta)";
+            done(ToolResult().data(hecho));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "video_ordenar";
         t.title = "Acomodar las tarjetas del grafo de video";
         t.category = "video";
@@ -768,6 +866,50 @@ void McpService::registerVideoTools() {
             const QString e = vg->ordenar();
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult().text("Tarjetas acomodadas."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "motor_mapa";
+        t.title = "Dónde pasa el video (y el audio) de la GPU a la CPU, pipeline por pipeline";
+        t.category = "video";
+        t.readOnly = true;
+        t.description =
+            "El mapa vivo de TODOS los pipelines del motor (entradas, placas, composiciones, mezclas, vistas, "
+            "salidas): cada enlace con la memoria negociada de verdad (GLMemory, D3D11Memory, VAMemory, "
+            "CUDAMemory… o «sistema» = CPU), las TRANSICIONES (dónde se baja de la GPU a la CPU o se sube) y "
+            "el TRABAJO EN CPU (convertir, escalar, componer, filtrar video en memoria de sistema; "
+            "decodificar o codificar sin hardware). Sin `detalle`: por pipeline, qué lee y escribe, sus "
+            "trabajos en CPU y sus transiciones. Con `detalle`: también cada elemento y cada enlace.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"detalle", {{"type", "boolean"}, {"description", "cada elemento y cada enlace"}}},
+                           {"filtro", {{"type", "string"}, {"description", "solo los pipelines cuya etiqueta lo contiene"}}}}}};
+        t.run = [](const json& a, Done done) {
+            json m = motor::mapa();
+            const bool detalle = a.value("detalle", false);
+            const std::string filtro = a.value("filtro", std::string());
+            json ps = json::array();
+            for (auto& p : m["pipelines"]) {
+                if (!filtro.empty() && p.value("etiqueta", std::string()).find(filtro) == std::string::npos) continue;
+                if (!detalle) {
+                    // La cadena en una línea: fábrica[memoria] de lo que sale de cada elemento.
+                    std::string cadena;
+                    for (const auto& en : p["enlaces"]) {
+                        const std::string med = en.value("medio", std::string());
+                        if (med.rfind("video/x-raw", 0) != 0) continue;
+                        cadena += (cadena.empty() ? "" : " → ") + en.value("desde", std::string()) + "[" +
+                                  en.value("memoria", std::string()) + " " + en.value("formato", std::string()) + "]";
+                    }
+                    p.erase("elementos");
+                    p.erase("enlaces");
+                    if (!cadena.empty()) p["video"] = cadena;
+                }
+                ps.push_back(p);
+            }
+            m["pipelines"] = ps;
+            done(ToolResult().data(m));
         };
         core_.addTool(std::move(t));
     }
@@ -887,13 +1029,21 @@ void McpService::registerVideoTools() {
               {"superres",
                {{"type", "boolean"},
                 {"description",
-                 "superresolución x2 (macOS 26, cámaras de hasta 960x960: una PAL de 768x576 sale "
-                 "en 1536x1152, ~3 ms por cuadro). Para cámaras viejas o de baja definición"}}},
+                 "superresolución x2 (macOS 26, cámaras chicas: hasta el tamaño máximo que acepte el sistema, "
+                 "hoy 960x960; sale al doble de lo que entra). Para cámaras viejas o de baja definición"}}},
               {"ntp_sync",
                {{"type", "boolean"},
                 {"description",
                  "RTSP: usar la hora de captura que manda la cámara (de fábrica, sí). Si su reloj "
                  "está corrido (video_estado lo avisa), false"}}},
+              {"sincronia",
+               {{"type", "string"},
+                {"enum", {"colchon", "gstreamer"}},
+                {"description",
+                 "cómo sale a horario (de fábrica, colchon): colchon = cola propia con la hora de "
+                 "captura, el colchón y la compensación del estudio; gstreamer = appsink sincronizado "
+                 "al reloj con la latencia del estudio (gst_pipeline_set_latency: lo que declaran los "
+                 "elementos o lo medido al llegar, lo mayor). Audio y video siguen juntos en los dos"}}},
               {"esperar_seg",
                {{"type", "integer"},
                 {"description",
@@ -910,10 +1060,172 @@ void McpService::registerVideoTools() {
                 a.value("escena", std::string()), a.contains("audio") ? (a.value("audio", true) ? 1 : 0) : -1,
                 a.contains("normalizar") ? (a.value("normalizar", true) ? 1 : 0) : -1,
                 a.contains("ntp_sync") ? (a.value("ntp_sync", true) ? 1 : 0) : -1,
-                a.contains("superres") ? (a.value("superres", false) ? 1 : 0) : -1);
+                a.contains("superres") ? (a.value("superres", false) ? 1 : 0) : -1,
+                a.value("sincronia", std::string()));
             if (!err.empty()) return done(ToolResult::error(err));
             esperarEntrada(v, n, a.value("esperar_seg", 4) * 1000,
                            [done](json st) { done(ToolResult().data(st)); });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "entrada_control";
+        t.title = "Mandar un evento de control a la cadena de GStreamer de una entrada";
+        t.category = "video";
+        t.description =
+            "El canal de control de las entradas de GStreamer: `control` (un objeto plano: texto, números, sí/no) "
+            "viaja por la cadena de la entrada como evento estándar de GStreamer «ba/control» (personalizado, hacia "
+            "abajo, fuera de banda): cada elemento que lo entiende lo usa y todos lo dejan pasar; la entrada lo "
+            "recuerda y lo reenvía si la cadena se rearma. Hoy lo entiende la superresolución: {\"superres\": "
+            "\"activo\"|\"reposo\"|\"barato\", \"transicion_ms\": 400} (lo usa el programador; a mano, con el "
+            "programador apagado). Se suma a lo anterior: campos nuevos para efectos o eventos futuros.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "control"}},
+                         {"properties", {{"entrada", {{"type", "string"}}}, {"control", {{"type", "object"}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "control": {"superres": "activo", "transicion_ms": 300}})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string e = v->controlEntrada(a.value("entrada", std::string()), a.value("control", json::object()));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult().text("Mandado por la cadena de la entrada."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "superres_programador";
+        t.title = "Programador de superresolución: qué cámaras usan la red según programa y preview";
+        t.category = "video";
+        t.description =
+            "Con varias cámaras, las redes de todas quedan cargadas y calientes pero solo trabajan las que se ven "
+            "grandes: el programador mira el programa y el preview (la escena armada) y pone cada cámara en activo "
+            "(hasta `max_activas`, por prioridad: programa, preview, más grande), barato (se ve grande pero no tiene "
+            "turno: agrandado afilado) o reposo (no se ve o se ve chica). Se prende al pasar a preview, con una mezcla "
+            "gradual de `transicion_ms`: la mejora entra sin saltos ni cuadros negros. La CAPACIDAD se mide sola "
+            "(`capacidad` auto): cada acelerador (Neural Engine, GPU, CPU, CUDA, DirectML…) corre de a una red por vez, "
+            "así que entran las redes cuyo tiempo medido sume hasta `uso_pct` % de un cuadro en su acelerador "
+            "(`max_activas` es el tope); con `capacidad` fija, exactamente `max_activas`. `en_preview` false: solo lo "
+            "que está al aire. `sin_turno`: barato (afilado) o reposo. `umbral_aumento`: desde cuánto agrandada en "
+            "pantalla conviene la red (1.1 = más grande que la cámara). `forzar`: {entrada: siempre|nunca|auto}. "
+            "Sin argumentos devuelve la configuración, el estado de cada cámara (modo, ms, acelerador) y el "
+            "presupuesto usado de cada acelerador; con `activo` false, todas las redes trabajan siempre. "
+            "Si una red no llega (tarda más del `umbral_pct` % del cuadro, 80 de fábrica, durante 2 s) suena la "
+            "alarma (disparador superres_tarde, evento superres/tarde) y, con `bypass_auto` (de fábrica, sí), pasa "
+            "sola a barato y vuelve a probar a los 15 s, 30 s, 1 min, 2 min; cada entrada dice `tarde` y `bypass_s`.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"activo", {{"type", "boolean"}}},
+                           {"capacidad", {{"type", "string"}, {"enum", {"auto", "fija"}}}},
+                           {"max_activas", {{"type", "integer"}}},
+                           {"uso_pct", {{"type", "number"}}},
+                           {"transicion_ms", {{"type", "integer"}}},
+                           {"en_preview", {{"type", "boolean"}}},
+                           {"sin_turno", {{"type", "string"}, {"enum", {"barato", "reposo"}}}},
+                           {"umbral_aumento", {{"type", "number"}}},
+                           {"forzar", {{"type", "object"}}},
+                           {"bypass_auto", {{"type", "boolean"}}},
+                           {"umbral_pct", {{"type", "number"}}}}}};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            if (!a.empty()) {
+                const std::string e = v->configurarProgramador(a);
+                if (!e.empty()) return done(ToolResult::error(e));
+            }
+            done(ToolResult().data(v->programador()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "entrada_filtros_audio";
+        t.title = "Filtros de audio de una entrada (en su cadena de GStreamer)";
+        t.category = "video";
+        t.description =
+            "Pone (o saca, con una lista vacía) los filtros de AUDIO de una entrada de GStreamer (red, pipeline, "
+            "plugin): elementos de GStreamer en la cadena de su audio, en orden. Para un plugin de Python de "
+            "audio: {\"elemento\": \"baplugin\", \"propiedades\": {\"plugin\": id, \"tarjeta\": nombre, "
+            "\"parametros\": \"{...}\"}}; también cualquier elemento de audio (audiodynamic, audioecho, "
+            "audiocheblimit, volume…; gst-inspect los lista con video_modulos). La demora que agreguen se "
+            "compensa sola: el colchón de la entrada atrasa el video lo mismo. Sin `filtros`, devuelve los "
+            "que tiene.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada"}},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}}},
+                           {"filtros",
+                            {{"type", "array"},
+                             {"items",
+                              {{"type", "object"},
+                               {"properties",
+                                {{"elemento", {{"type", "string"}}}, {"propiedades", {{"type", "object"}}}}}}}}}}}};
+        t.examples = {R"({"entrada": "Cámara 1", "filtros": [{"elemento": "audiodynamic", "propiedades": {"mode": "compressor", "ratio": 0.5, "threshold": 0.3}}]})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            const std::string e = a.value("entrada", std::string());
+            if (!a.contains("filtros")) return done(ToolResult().data({{"entrada", e}, {"filtros", v->filtrosAudioDe(e)}}));
+            const std::string err = v->filtrosAudio(e, a["filtros"]);
+            if (!err.empty()) return done(ToolResult::error(err));
+            done(ToolResult().data({{"entrada", e}, {"filtros", v->filtrosAudioDe(e)}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "estudio_latencia";
+        t.title = "Latencia del estudio (y su tope)";
+        t.category = "video";
+        t.description =
+            "Cuánto atrasa el estudio para alinear las entradas entre sí (la mayor compensación que piden, hasta el "
+            "tope), el tope y qué entradas LLEGAN TARDE (piden más que el tope, p. ej. una cámara con "
+            "superresolución pesada: van con su propia demora en vez de atrasar todo). Con `tope_ms` lo cambia "
+            "(-1 = automático: 250 ms, deja afuera solo lo pesado como la superresolución); se guarda.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"tope_ms", {{"type", "integer"}, {"minimum", -1}, {"maximum", 5000}}}}}};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            done(ToolResult().data(v->estudioLatencia(a.contains("tope_ms") ? a.value("tope_ms", -1) : -2)));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "automixer";
+        t.title = "Automixer de mesa redonda (micrófonos de las bancas)";
+        t.category = "audio";
+        t.description =
+            "Automixer estilo Dugan para una mesa de micrófonos: el que habla pasa al frente, los demás bajan y "
+            "la suma queda acotada (no se suman ruido ni retorno al abrir muchos). Corre en GStreamer, en la "
+            "cadena de cada micrófono (`baautomixer`). Sin argumentos: las mesas, sus ajustes y, por "
+            "micrófono, la ganancia que aplica ahora y el nivel que entra. Con `microfono` y `grupo`: lo pone "
+            "en esa mesa (grupo \"\" lo saca). Con `grupo` y `ajustes`: cambia los de la mesa (umbral_db: "
+            "desde qué nivel cuenta como abierto; hold_ms y piso_hold_db: cuánto y a cuánto sostiene al que "
+            "acaba de hablar; max_abiertos; ataque_ms; liberacion_ms).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"microfono", {{"type", "string"}, {"description", "nombre de la entrada de audio"}}},
+                           {"microfonos", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "varios a la vez"}}},
+                           {"grupo", {{"type", "string"}, {"description", "la mesa (p. ej. bancas)"}}},
+                           {"ajustes", {{"type", "object"}}}}}};
+        t.examples = {R"({"microfonos": ["Banca 1", "Banca 2", "Banca 3"], "grupo": "bancas"})",
+                      R"({"grupo": "bancas", "ajustes": {"umbral_db": -45, "max_abiertos": 3}})", R"({})"};
+        t.run = [v](const json& a, Done done) {
+            if (!v) return done(ToolResult::error("el video no está disponible"));
+            std::vector<std::string> mics;
+            if (a.contains("microfono") && a["microfono"].is_string()) mics.push_back(a["microfono"]);
+            for (const auto& m : a.value("microfonos", json::array()))
+                if (m.is_string()) mics.push_back(m);
+            const bool hayGrupo = a.contains("grupo") && a["grupo"].is_string();
+            if (!mics.empty()) {
+                if (!hayGrupo) return done(ToolResult::error("falta `grupo` (\"\" para sacarlo de la mesa)"));
+                for (const auto& m : mics)
+                    if (const std::string e = v->automixer(m, a["grupo"]); !e.empty()) return done(ToolResult::error(e));
+            }
+            if (a.contains("ajustes")) {
+                if (!hayGrupo) return done(ToolResult::error("falta `grupo`"));
+                if (const std::string e = v->automixerAjustes(a["grupo"], a["ajustes"]); !e.empty())
+                    return done(ToolResult::error(e));
+            }
+            done(ToolResult().data({{"mesas", v->automixerEstado()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -954,37 +1266,385 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_tarjeta";
-            t.title = "Agregar una tarjeta de superresolución al grafo de una entrada";
+            t.title = "Poner una tarjeta de superresolución (con un plugin) en una entrada";
             t.category = "video";
-            t.description = "La forma de fábrica: una TARJETA del grafo de video de `entrada` (cualquier "
-                            "entrada: cámara, red, virtual) "
-                            "que duplica la resolución; lo que la sigue trabaja al doble y la escena la "
-                            "recibe grande. `motor`: apple "
-                            "(macOS 26, ~3 ms, la mejor en una Mac), fsr (FSR 1, cualquier GPU, <1 ms) u "
-                            "onnx (`modelo`: archivo de "
-                            "superres_estado, p. ej. la red chica entrenada con esa cámara). `despues`: el "
-                            "id de la tarjeta tras la que va "
-                            "(vacío: al final, antes de la escena). Es un filtro de GStreamer: se quita como "
-                            "cualquier tarjeta.";
+            t.description =
+                "Una TARJETA del grafo de video de `entrada` (cámara, red o virtual) que agranda x2; lo que la "
+                "sigue trabaja al doble y la escena la recibe grande. Lo de fábrica: `plugin`, el id de un plugin "
+                "de superresolución instalado (superres_plugins: apple, fsr, realesr-general-x4v3, la red propia…): "
+                "la app lo corre con lo mejor de ESTA máquina (CoreML en la Mac, ONNX con DirectML o TensorRT en "
+                "Windows/Linux). Si la entrada ya tiene la tarjeta, le cambia el plugin. A mano (sin plugin): "
+                "`motor` apple | fsr | onnx | coreml con `modelo` (ruta). `despues`: tras qué tarjeta (vacío: al final). "
+                "`unidades` (redes CoreML en la Mac): auto (Neural Engine), ane, gpu o cpu: con dos redes a la vez, una en "
+                "la GPU reparte la carga (la GPU también compone la imagen, así que suele ser más lenta). "
+                "`proveedor` (redes ONNX en Windows/Linux): auto, dml (DirectML), vulkan (ncnn: AMD, Intel y NVIDIA; "
+                "pasa la red a ncnn la primera vez), tensorrt, cuda, openvino, migraphx o cpu.";
             t.inputSchema = {{"type", "object"},
-                             {"required", {"entrada", "motor"}},
+                             {"required", {"entrada"}},
                              {"properties",
                               {{"entrada", {{"type", "string"}}},
-                               {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx"}}}},
+                               {"plugin", {{"type", "string"}, {"description", "id de superres_plugins"}}},
+                               {"motor", {{"type", "string"}, {"enum", {"apple", "fsr", "onnx", "coreml"}}}},
                                {"modelo", {{"type", "string"}}},
+                               {"unidades", {{"type", "string"}, {"enum", {"auto", "ane", "gpu", "cpu"}}}},
+                               {"proveedor", {{"type", "string"},
+                                              {"enum", {"auto", "dml", "vulkan", "tensorrt", "cuda", "openvino", "migraphx", "cpu"}}}},
                                {"despues", {{"type", "string"}}}}}};
+            t.examples = {R"({"entrada": "Cámara 1", "plugin": "realesr-general-x4v3"})"};
             t.run = [srp, v = vm_.videoGrafos()](const json& a, Done done) {
                 if (!srp || v == nullptr) return done(ToolResult::error("no disponible"));
+                const std::string entrada = a.value("entrada", std::string());
+                if (a.contains("plugin")) {
+                    json extra = json::object();
+                    if (a.contains("unidades")) extra["unidades"] = a.value("unidades", std::string("auto"));
+                    if (a.contains("proveedor")) extra["proveedor"] = a.value("proveedor", std::string("auto"));
+                    const std::string e = srp->tarjetaConPlugin(entrada, a.value("plugin", std::string()), extra);
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    return done(ToolResult().text("Tarjeta con el plugin «" + a.value("plugin", std::string()) +
+                                                  "». video_estado muestra el tamaño nuevo y su demora (el audio se "
+                                                  "atrasa solo) en unos segundos; la entrada tiene que estar a la vista."));
+                }
+                if (!a.contains("motor")) return done(ToolResult::error("falta `plugin` (o `motor`)"));
                 std::string modelo = a.value("modelo", std::string());
                 if (!modelo.empty() && modelo.find('/') == std::string::npos &&
                     modelo.find('\\') == std::string::npos)
                     modelo = (srp->carpetaModelos() / modelo).string();
                 const std::string e =
-                    v->agregarSuperres(a.value("entrada", std::string()), a.value("motor", std::string()),
-                                       modelo, a.value("despues", std::string()));
+                    v->agregarSuperres(entrada, a.value("motor", std::string()), modelo, a.value("despues", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text(
-                    "Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos."));
+                done(ToolResult().text("Tarjeta agregada. video_estado muestra el tamaño nuevo en unos segundos."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_plugins";
+            t.title = "Plugins de superresolución: cuáles hay, cuáles están instalados y cuáles sirven acá";
+            t.category = "video";
+            t.readOnly = true;
+            t.description =
+                "Los plugins de superresolución: los del catálogo (redes como Real-ESRGAN, LSDIR, NomosUni, "
+                "SPAN; shaders como FSRCNNX y Anime4K; los integrados apple y fsr) y los instalados que no están en "
+                "él (la red propia entrenada con una cámara). Cada uno: qué hace, escala, plataformas, `instalado`, "
+                "`aca` (si corre en esta máquina) y `ms_coreml` (lo que tarda medido). Se instalan con "
+                "superres_instalar y se ponen con superres_tarjeta {plugin}.";
+            t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+            t.run = [srp](const json&, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                done(ToolResult().data({{"plugins", srp->plugins()}}));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_plugin_elemento";
+            t.title = "Crear un plugin de superresolución propio con cualquier elemento de GStreamer";
+            t.category = "video";
+            t.description =
+                "Crea (o reemplaza) un plugin de tipo «elemento» (contrato abierto, docs/funciones/SUPERRESOLUCION.md): cualquier "
+                "elemento de GStreamer —de GStreamer o propio, con su biblioteca en Datos/Modelos/superres/<id>/gst/— "
+                "que después se elige como cualquier plugin (superres_tarjeta {plugin: id}). `memoria`: vacía "
+                "(sistema), CUDAMemory, GLMemory, D3D11Memory o D3D12Memory: la cadena de la entrada sube a esa memoria "
+                "antes y baja después, sin pasar por la CPU si el decodificador ya entrega ahí. `memoria_salida` \"\" "
+                "si el elemento ya entrega en memoria de sistema. `propiedades`: las del elemento ({dir} = la carpeta "
+                "del plugin). `escala`: lo que agranda (2).";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"id", "elemento"}},
+                             {"properties",
+                              {{"id", {{"type", "string"}}},
+                               {"nombre", {{"type", "string"}}},
+                               {"elemento", {{"type", "string"}}},
+                               {"memoria", {{"type", "string"}, {"enum", {"", "CUDAMemory", "GLMemory", "D3D11Memory", "D3D12Memory"}}}},
+                               {"memoria_salida", {{"type", "string"}}},
+                               {"propiedades", {{"type", "object"}}},
+                               {"escala", {{"type", "integer"}}},
+                               {"descripcion", {{"type", "string"}}}}}};
+            t.examples = {R"({"id": "fsrcnnx-gl", "nombre": "FSRCNNX en GL", "elemento": "baglsl", "memoria": "GLMemory", "propiedades": {"shader": "{dir}/shader.glsl"}})"};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->guardarPluginElemento(a);
+                if (!e.empty() && e.rfind("guardado", 0) != 0) return done(ToolResult::error(e));
+                done(ToolResult().text(e.empty() ? "Plugin guardado: se elige con superres_tarjeta {plugin}." : e));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_plugin_borrar";
+            t.title = "Borrar un plugin de superresolución instalado";
+            t.category = "video";
+            t.description = "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
+                            "shader o un plugin propio. Los del catálogo se pueden volver a instalar.";
+            t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->borrarPlugin(a.value("id", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Borrado."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variantes";
+            t.title = "Ver las variantes de las redes (compiladas para un tamaño fijo)";
+            t.category = "video";
+            t.description =
+                "Las variantes de una red de superresolución: la misma red compilada para un tamaño de entrada fijo "
+                "(CoreML para el Neural Engine; ONNX fijo para TensorRT/DirectML). Cada una con su variante.json: "
+                "qué es, `para` qué cámara, `entrada`/`red`/`salida` (tamaños), `archivos`, `medido` (ms y "
+                "acelerador), cuándo y con qué se hizo. El motor usa sola la del tamaño que le llega; si no hay, la "
+                "general. `faltan`: los tamaños de las cámaras del estudio sin variante de ese plugin.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"plugin", {{"type", "string"}, {"description", "id del plugin (vacío: todos)"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string p = a.value("plugin", std::string());
+                json r{{"variantes", srp->variantes(p)}};
+                if (!p.empty()) r["faltan"] = srp->tamanosSinVariante(p);
+                done(ToolResult().data(r));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variante_crear";
+            t.title = "Compilar una red de superresolución para un tamaño de entrada";
+            t.category = "video";
+            t.description =
+                "Compila la red de `plugin` para un tamaño de entrada fijo (`ancho` x `alto`, el de la cámara tal "
+                "como llega a la tarjeta), o para varios (`tamanos`: [\"1024x576\", …]), o para todas las cámaras "
+                "del estudio que todavía no tienen la suya (`faltantes`: true). Sin PyTorch (coremltools y onnx "
+                "vienen en el programa): en la Mac CoreML (el Neural Engine solo corre tamaños compilados) y en "
+                "todos un ONNX con la forma fija. Es un trabajo: superres_estado muestra cómo va. Al terminar, las "
+                "tarjetas que usan ese plugin toman la variante del tamaño que les llega. Un shader GLSL no lleva "
+                "variantes: la placa lo compila para cualquier tamaño.";
+            t.details =
+                "`para` y `descripcion` quedan en variante.json (para qué cámara o uso es). `motores`: \"auto\" (todo "
+                "lo que tenga el plugin), o \"coreml\", \"onnx\", \"onnx_nv12\" separados por coma. Un plugin "
+                "instalado antes de esta versión no guardó el paquete CoreML: avisa, y hay que reinstalarlo "
+                "(superres_instalar) para hacer variantes CoreML; las ONNX salen igual. `reemplazar`: rehacer una "
+                "que ya existe. Un ancho o alto impar se redondea para abajo.";
+            t.inputSchema = {
+                {"type", "object"},
+                {"required", {"plugin"}},
+                {"properties",
+                 {{"plugin", {{"type", "string"}}},
+                  {"ancho", {{"type", "integer"}}},
+                  {"alto", {{"type", "integer"}}},
+                  {"tamanos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                  {"faltantes", {{"type", "boolean"}, {"description", "las cámaras del estudio sin variante"}}},
+                  {"entrada", {{"type", "string"}, {"description", "el tamaño de esta entrada (como llega)"}}},
+                  {"id", {{"type", "string"}, {"description", "de fábrica, «<ancho>x<alto>»"}}},
+                  {"motores", {{"type", "string"}}},
+                  {"para", {{"type", "string"}}},
+                  {"descripcion", {{"type", "string"}}},
+                  {"reemplazar", {{"type", "boolean"}}}}}};
+            t.examples = {R"({"plugin": "lsdir-compact-x4", "faltantes": true})",
+                          R"({"plugin": "nomosuni-compact-x2", "ancho": 1024, "alto": 576, "para": "cámara del patio"})"};
+            t.run = [srp, v](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string p = a.value("plugin", std::string());
+                std::vector<std::string> tam;
+                const auto par = [](int w, int h) { return std::to_string(w - w % 2) + "x" + std::to_string(h - h % 2); };
+                if (a.value("faltantes", false)) tam = srp->tamanosSinVariante(p);
+                for (const auto& x : a.value("tamanos", json::array()))
+                    if (x.is_string()) tam.push_back(x.get<std::string>());
+                if (a.contains("ancho") && a.contains("alto")) tam.push_back(par(a.value("ancho", 0), a.value("alto", 0)));
+                if (const std::string e = a.value("entrada", std::string()); !e.empty() && v) {
+                    const json o = v->estadoEntrada(e).value("gstreamer", json::object()).value("origen", json::object());
+                    if (o.value("ancho", 0) <= 0) return done(ToolResult::error("«" + e + "» todavía no tiene imagen"));
+                    tam.push_back(par(o.value("ancho", 0), o.value("alto", 0)));
+                }
+                if (tam.empty())
+                    return done(ToolResult::error(a.value("faltantes", false)
+                                                      ? "todas las cámaras del estudio ya tienen su variante"
+                                                      : "falta el tamaño: ancho y alto, tamanos, entrada o faltantes"));
+                const std::string e = srp->crearVariantes(p, tam, a.value("id", std::string()),
+                                                          a.value("motores", std::string()), a.value("para", std::string()),
+                                                          a.value("descripcion", std::string()), a.value("reemplazar", false));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().data(json{{"trabajo", "compilando"}, {"tamanos", tam},
+                                            {"siguiente", "superres_estado para ver cómo va; después superres_variantes"}}));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variante_editar";
+            t.title = "Cambiar para qué es una variante";
+            t.category = "video";
+            t.description = "Cambia `para`, `descripcion` o `nombre` del variante.json de una variante (`plugin`, `id`). "
+                            "Lo demás (tamaños, archivos, lo medido) lo escribe la herramienta.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"plugin", "id"}},
+                             {"properties",
+                              {{"plugin", {{"type", "string"}}},
+                               {"id", {{"type", "string"}}},
+                               {"para", {{"type", "string"}}},
+                               {"descripcion", {{"type", "string"}}},
+                               {"nombre", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->editarVariante(a.value("plugin", std::string()), a.value("id", std::string()), a);
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Guardado."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_variante_borrar";
+            t.title = "Borrar una variante de una red";
+            t.category = "video";
+            t.description = "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"plugin", "id"}},
+                             {"properties", {{"plugin", {{"type", "string"}}}, {"id", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->borrarVariante(a.value("plugin", std::string()), a.value("id", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Borrada."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_destilar";
+            t.title = "Destilar una red grande en una propia chica, a medida de una cámara";
+            t.category = "video";
+            t.description =
+                "Entrena una red propia chica (luma x2: corre en vivo hasta en la CPU) que IMITA a una red grande del "
+                "catálogo (`maestro`: realesr-general-x4v3 de fábrica, lsdir-compact-x4…) en lo que ve la entrada "
+                "`entrada` (de red o cámara local): graba 60 s, el maestro procesa cada cuadro y la chica aprende a llegar a eso. Para "
+                "máquinas donde el maestro no da en vivo. `minutos` de entrenamiento; `cpu` true para no usar la GPU "
+                "(más lento, no calienta); `aplicar` la pone en la entrada al terminar. Queda como plugin "
+                "«destilada-<entrada>» (superres_plugins). El avance, en superres_estado.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"entrada"}},
+                             {"properties",
+                              {{"entrada", {{"type", "string"}}},
+                               {"maestro", {{"type", "string"}}},
+                               {"minutos", {{"type", "number"}}},
+                               {"cpu", {{"type", "boolean"}}},
+                               {"aplicar", {{"type", "boolean"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->destilar(a.value("entrada", std::string()), a.value("maestro", std::string()),
+                                                    a.value("minutos", 10.0), a.value("aplicar", false),
+                                                    a.value("cpu", false));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("Destilando: superres_estado muestra el avance."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_runtime_gpu";
+            t.title = "El ONNX Runtime de GPU de esta máquina (NVIDIA, AMD, Intel)";
+            t.category = "video";
+            t.readOnly = true;
+            t.description =
+                "Qué placa de video hay, si está bajado el ONNX Runtime de GPU (NVIDIA: CUDA + TensorRT, que "
+                "compila la red para esa placa; AMD en Linux: ROCm/MIGraphX; Intel: OpenVINO) y qué conviene. "
+                "En Windows con AMD (también las integradas Ryzen) y en la Mac no hace falta: DirectML y CoreML "
+                "vienen con el programa. Se baja con superres_runtime_gpu_instalar.";
+            t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
+            t.run = [srp](const json&, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                done(ToolResult().data(srp->runtimeGpu()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_banco";
+            t.title = "Medir qué superresolución puede usar esta máquina";
+            t.category = "video";
+            t.description =
+                "El banco de pruebas: mide cada superresolución disponible (FSR, Apple, los shaders y cada red "
+                "instalada con cada acelerador: Neural Engine y GPU en la Mac; DirectML, CUDA/TensorRT, ROCm, "
+                "OpenVINO, Vulkan y el procesador en Windows/Linux) a 540p, 720p, 1080p y al tamaño de cada cámara, y "
+                "dice cuál corre en vivo, cuál a menos cuadros y cuál solo sirve para lo grabado. `accion`: resultado "
+                "(lo último medido, de fábrica), correr, estado o cancelar.";
+            t.details =
+                "Mide lo que tarda de verdad la red por cuadro (lo que mide el propio elemento; FSR y shaders, con "
+                "sondas). Veredicto con los cuadros del lienzo: en_vivo (entra en el 85 % del cuadro, con cuántas a la "
+                "vez), reducido (hasta 2,5 cuadros), diferido, no_corre. `recomendado`: lo mejor por tamaño (entre lo "
+                "que va en vivo, una red le gana a FSR). Queda en Config/superres-banco.json y el programador lo usa "
+                "para saber cuánto va a costar una red antes de prenderla. Tarda unos minutos y calienta la máquina; "
+                "no arranca con algo al aire salvo `forzar`. Opciones: `resoluciones` [\"1280x720\"…], `metodos` "
+                "[ids de plugin], `segundos` por prueba (4).";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"accion", {{"type", "string"}, {"enum", {"resultado", "correr", "estado", "cancelar"}}}},
+                               {"resoluciones", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                               {"metodos", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                               {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 30}}},
+                               {"forzar", {{"type", "boolean"}}}}}};
+            t.examples = {R"({})", R"({"accion": "correr"})", R"({"accion": "correr", "resoluciones": ["1280x720"], "metodos": ["fsr"]})",
+                          R"({"accion": "estado"})"};
+            t.run = [this](const json& a, Done done) {
+                auto* b = vm_.bancoSr();
+                if (b == nullptr) return done(ToolResult::error("no disponible"));
+                const std::string ac = a.value("accion", std::string("resultado"));
+                if (ac == "correr") {
+                    const std::string e = b->correr(a);
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    json est = b->estado();
+                    est.erase("parciales");
+                    return done(ToolResult().text("Midiendo: superres_banco {accion: \"estado\"} muestra el avance.").data(est));
+                }
+                if (ac == "cancelar") {
+                    b->cancelar();
+                    return done(ToolResult::ok("Cancelado: lo medido hasta acá queda."));
+                }
+                if (ac == "estado") return done(ToolResult().data(b->estado()));
+                const json r = b->resultado();
+                if (r.empty()) return done(ToolResult::ok("Nunca se midió esta máquina: superres_banco {accion: \"correr\"}."));
+                done(ToolResult().data(r));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_runtime_gpu_instalar";
+            t.title = "Bajar el ONNX Runtime de GPU (NVIDIA / AMD Linux / Intel)";
+            t.category = "video";
+            t.description =
+                "Baja a Datos (portable) el ONNX Runtime de GPU para `tipo` (nvidia, amd o intel; vacío = el que "
+                "conviene para esta placa), con versiones fijas de PyPI verificadas por sha256. NVIDIA: varios GB "
+                "(CUDA 13, cuDNN, TensorRT; `tensorrt` false para bajar solo CUDA). Al terminar hay que "
+                "reiniciar el programa. El avance, en superres_estado (`trabajo`).";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"tipo", {{"type", "string"}, {"enum", {"", "nvidia", "amd", "intel"}}}},
+                               {"tensorrt", {{"type", "boolean"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->instalarRuntimeGpu(a.value("tipo", std::string()), a.value("tensorrt", true));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("En la cola de descargas (descargas_estado muestra el avance); al terminar, reiniciar."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_instalar";
+            t.title = "Instalar un plugin de superresolución del catálogo";
+            t.category = "video";
+            t.description =
+                "Baja el plugin `id` (verificado por sha256) y lo prepara para esta máquina: una red se exporta a "
+                "ONNX y, en la Mac, a CoreML para el Neural Engine (y se mide cuánto tarda); un shader se guarda. "
+                "Corre en el laboratorio (la primera vez baja PyTorch): el avance, en superres_estado (`trabajo`).";
+            t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string e = srp->instalarPlugin(a.value("id", std::string()));
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult().text("En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance."));
             };
             core_.addTool(std::move(t));
         }
@@ -993,13 +1653,15 @@ void McpService::registerVideoTools() {
             t.name = "superres_aplicar";
             t.title = "Superresolución EN LA FUENTE de una entrada de red (alternativa a la tarjeta)";
             t.category = "video";
-            t.description = "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
+            t.description = "(Forma vieja, en los ajustes de la fuente: para redes CoreML, shaders, plugins y la "
+                            "elección de placa usá superres_tarjeta {plugin}.) "
+                            "Duplica la resolución de una entrada de red (`entrada`) con `motor`: apple (la "
                             "de Apple, la mejor en una Mac con "
                             "macOS 26), fsr (FSR 1, cualquier GPU), onnx (con `modelo`: el archivo de "
                             "superres_estado, p. ej. "
-                            "chica-Axis_terreno.onnx) o vacío para sacarla. Con un motor lento la entrada "
+                            "chica-Camara_1.onnx) o vacío para sacarla. Con un motor lento la entrada "
                             "pierde cuadros: mirá superres_ms "
-                            "en video_estado (tiene que quedar bastante debajo de 33 ms a 30 fps).";
+                            "en video_estado (tiene que quedar bastante debajo de lo que dura un cuadro del lienzo: 1000/fps ms, 33 ms a 30 fps, 16 ms a 60).";
             t.inputSchema = {{"type", "object"},
                              {"required", {"entrada", "motor"}},
                              {"properties",
@@ -1035,7 +1697,113 @@ void McpService::registerVideoTools() {
                 if (!srp) return done(ToolResult::error("no disponible"));
                 const std::string e = srp->convertir(a.value("cual", std::string()));
                 if (!e.empty()) return done(ToolResult::error(e));
-                done(ToolResult().text("Empezó (superres_estado muestra el avance)."));
+                done(ToolResult().text("En la cola de descargas: descargas_estado (y superres_trabajo) muestran el avance."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_laboratorio";
+            t.title = "El laboratorio de superresolución (las bibliotecas de Python)";
+            t.category = "video";
+            t.description =
+                "Las bibliotecas con las que se bajan, convierten y entrenan las redes (PyTorch, spandrel, onnx; "
+                "~800 MB, una vez). `accion`: estado (si está, si usa DirectML —AMD/Intel en Windows: entrena en "
+                "la placa—, dónde y cuánto ocupa), instalar (las baja ya, sin esperar a bajar un modelo) o borrar "
+                "(libera el espacio; se vuelven a bajar cuando hagan falta). Instalar corre en segundo plano: "
+                "superres_trabajo {esperar} para seguirlo.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"accion", {{"type", "string"}, {"enum", {"estado", "instalar", "borrar"}}}}}}};
+            t.examples = {R"({"accion": "estado"})", R"({"accion": "instalar"})"};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string ac = a.value("accion", std::string("estado"));
+                if (ac == "instalar") {
+                    if (srp->laboratorioListo()) return done(ToolResult().data(srp->laboratorio()));
+                    const std::string e = srp->prepararLaboratorio();
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    return done(ToolResult().text("El laboratorio, en la cola de descargas (descargas_estado y superres_trabajo muestran el avance)."));
+                }
+                if (ac == "borrar") {
+                    const std::string e = srp->borrarLaboratorio();
+                    if (!e.empty()) return done(ToolResult::error(e));
+                    return done(ToolResult().text("Laboratorio borrado."));
+                }
+                done(ToolResult().data(srp->laboratorio()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_modelo_borrar";
+            t.title = "Borrar un modelo de superresolución";
+            t.category = "video";
+            t.destructive = true;
+            t.description = "Borra un modelo de la carpeta de modelos (su .onnx y sus datos). `modelo`: el archivo o "
+                            "el nombre, como los lista superres_estado.";
+            t.inputSchema = {{"type", "object"},
+                             {"required", {"modelo"}},
+                             {"properties", {{"modelo", {{"type", "string"}}}}}};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const std::string pedido = a.value("modelo", std::string());
+                std::string archivo;
+                for (const auto& m : srp->modelos())
+                    if (m.value("archivo", std::string()) == pedido || m.value("nombre", std::string()) == pedido ||
+                        m.value("ruta", std::string()) == pedido)
+                        archivo = m.value("archivo", std::string());
+                if (archivo.empty()) return done(ToolResult::error("no hay un modelo «" + pedido + "» (superres_estado los lista)"));
+                const QString e = srp->borrarModelo(QString::fromStdString(archivo));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                done(ToolResult().text("Borrado «" + archivo + "»."));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "superres_trabajo";
+            t.title = "El trabajo del laboratorio: ver, cancelar o esperar";
+            t.category = "video";
+            t.description =
+                "Lo que está haciendo el laboratorio (bajar bibliotecas o un modelo, convertir, entrenar, "
+                "destilar, instalar un plugin, variantes, runtime de GPU). `accion`: estado (de fábrica), cancelar, "
+                "o esperar (vuelve cuando termina, o a los `segundos`, de fábrica 600: para encadenar pasos sin "
+                "preguntar cada rato).";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"accion", {{"type", "string"}, {"enum", {"estado", "cancelar", "esperar"}}}},
+                               {"segundos", {{"type", "number"}, {"minimum", 1}, {"maximum", 3600}}}}}};
+            t.examples = {R"({"accion": "esperar", "segundos": 900})"};
+            t.run = [srp](const json& a, Done done) {
+                if (!srp) return done(ToolResult::error("no disponible"));
+                const auto estado = [srp]() {
+                    return json::parse(QJsonDocument::fromVariant(srp->trabajo()).toJson(QJsonDocument::Compact).toStdString(),
+                                       nullptr, false);
+                };
+                const std::string ac = a.value("accion", std::string("estado"));
+                if (ac == "cancelar") {
+                    srp->cancelar();
+                    return done(ToolResult().text("Cancelado."));
+                }
+                if (ac != "esperar" || !srp->trabajo().value("corriendo").toBool())
+                    return done(ToolResult().data(estado()));
+                // Esperar sin trabar la app: se mira cada medio segundo.
+                const qint64 hasta = QDateTime::currentMSecsSinceEpoch() +
+                                     static_cast<qint64>(a.value("segundos", 600.0) * 1000);
+                auto mirar = std::make_shared<std::function<void()>>();
+                *mirar = [srp, done, hasta, estado, mirar]() {
+                    const bool corre = srp->trabajo().value("corriendo").toBool();
+                    if (!corre || QDateTime::currentMSecsSinceEpoch() >= hasta) {
+                        json d = estado();
+                        if (corre) d["espera"] = "se cumplió el tiempo: sigue trabajando";
+                        done(ToolResult().data(d));
+                        *mirar = nullptr; // corta el ciclo de la captura
+                        return;
+                    }
+                    QTimer::singleShot(500, *mirar);
+                };
+                QTimer::singleShot(500, *mirar);
             };
             core_.addTool(std::move(t));
         }
@@ -1044,8 +1812,8 @@ void McpService::registerVideoTools() {
             t.name = "superres_entrenar";
             t.title = "Entrenar la red chica mirando una cámara (un botón)";
             t.category = "video";
-            t.description = "Graba ~1 minuto de la entrada de red `entrada` (de su dirección, sin tocar la "
-                            "imagen al aire), arma pares «la "
+            t.description = "Graba ~1 minuto de la entrada `entrada` sin tocar la imagen al aire: una de red, de su "
+                            "dirección; una cámara local, cuadros de lo que sale de su grafo (4 por segundo). Arma pares «la "
                             "imagen achicada y comprimida -> la original» y entrena una red chica (solo "
                             "luma, x2) `minutos` minutos (5 de "
                             "fábrica) para deshacer lo que hace ESA cámara. Si ya había una red de esa "
@@ -1123,8 +1891,8 @@ void McpService::registerVideoTools() {
             done(ToolResult().data(
                 {{"reloj", v->reloj()},
                  {"entradas_gstreamer", fuentes},
-                 {"nota", "las cámaras locales (USB, captura) van con el reloj de libobs; se alinean "
-                          "con video_sincronia (retardo)"}}));
+                 {"nota", "todas las entradas van con el reloj del estudio (el del motor); se alinean "
+                          "con video_desfase"}}));
         };
         core_.addTool(std::move(t));
     }

@@ -10,7 +10,7 @@
 
 #include <memory>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -35,8 +35,8 @@ TwitchClient::Done reply(Done done, const std::string& okText = {}) {
 void McpService::registerTwitchTools() {
     core_.addCategory(
         "twitch", "Twitch",
-        "Canal de Twitch: titulo y categoria, transmitir desde la app, estado del vivo, VODs y chat. "
-        "Primero twitch_status: si no esta configurado o conectado, explica que falta.");
+        "Canal de Twitch: título y categoría, transmitir desde la app, estado del vivo, VODs y chat. "
+        "Primero twitch_status: si no está configurado o conectado, explica qué falta.");
     auto* tw = static_cast<TwitchViewModel*>(vm_.twitch());
     AppRuntime& rt = rt_;
     const auto needLogin = [tw](Done& done) {

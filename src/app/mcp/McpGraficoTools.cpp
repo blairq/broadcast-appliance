@@ -17,7 +17,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
@@ -62,7 +62,15 @@ QJsonObject ficha(const QString& carpeta) {
 /// archivo.
 QJsonObject pedidoDe(const QString& carpeta, const QJsonObject& parametros, QString* err) {
     const QJsonObject f = ficha(carpeta);
-    QJsonObject p{{"parametros", parametros}};
+    // Lo que no venga sale del porDefecto de la ficha, como cuando se saca al
+    // aire (Emisor): si no, probar sin un color deja «{acento}» en el QML.
+    QJsonObject valores;
+    for (const QJsonValue& v : f.value("parametros").toArray()) {
+        const QJsonObject par = v.toObject();
+        if (par.contains("porDefecto")) valores[par.value("clave").toString()] = par.value("porDefecto");
+    }
+    for (auto it = parametros.begin(); it != parametros.end(); ++it) valores[it.key()] = it.value();
+    QJsonObject p{{"parametros", valores}};
     if (f.contains("declarativo")) {
         p["declarativo"] = f.value("declarativo");
         return p;
@@ -109,7 +117,7 @@ void McpService::registerGraficoTools() {
             "`acciones` son los botones de pedido ya escrito que ese gráfico le ofrece al operador en "
             "la pantalla de Rótulos. Cuando te llegue uno de esos pedidos vas a recibirlo con el "
             "contexto puesto (escena, fuente y gráfico). Si un gráfico no tiene ninguno, proponelos: "
-            "se escriben en su `grafico.json` y estan explicados en docs/GRAFICOS.md.";
+            "se escriben en su `grafico.json` y estan explicados en docs/funciones/GRAFICOS.md.";
         t.run = [&rt, proc](const json&, Done done) {
             json out = json::array();
             for (const QString& base : carpetas(rt)) {
@@ -118,6 +126,7 @@ void McpService::registerGraficoTools() {
                     json g{{"nombre", d.toStdString()},
                            {"titulo", f.value("nombre").toString(d).toStdString()},
                            {"descripcion", f.value("descripcion").toString().toStdString()},
+                           {"categoria", f.value("categoria").toString("General").toStdString()},
                            {"declarativo", f.contains("declarativo")}};
                     json params = json::array();
                     for (const QJsonValue& v : f.value("parametros").toArray()) {
@@ -179,7 +188,7 @@ void McpService::registerGraficoTools() {
 
             QJsonObject par;
             if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
             QJsonObject pedido = pedidoDe(carpeta, par, &err);
             if (pedido.isEmpty()) return done(ToolResult::error(err.toStdString()));
 
@@ -232,21 +241,51 @@ void McpService::registerGraficoTools() {
                 {"default", 1500},
                 {"description", "Cuánta animación dibujar."}}},
               {"fps", {{"type", "integer"}, {"minimum", 10}, {"maximum", 60}, {"default", 30}}},
-              {"repetir", {{"type", "boolean"}, {"default", false}}}}},
+              {"repetir", {{"type", "boolean"}, {"default", false}}},
+              {"armar",
+               {{"type", "boolean"},
+                {"default", false},
+                {"description", "Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al "
+                                "aire y la deja armada; sale con TAKE (scene_take)."}}}}},
             {"required", {"fuente", "nombre"}}};
-        t.run = [em](const json& a, Done done) {
+        t.run = [em, &rt, this](const json& a, Done done) {
             if (em == nullptr || !em->disponible())
                 return done(ToolResult::error("El renderizador de gráficos no está en este bundle."));
             const auto id = static_cast<std::uint64_t>(a["fuente"].get<long long>());
+            // Armar: la escena que tiene esa fuente y NO está al aire.
+            std::string escenaArmar;
+            if (a.value("armar", false)) {
+                std::string nombreFuente;
+                for (const auto& i : graficos::instancias())
+                    if (i.id == id) nombreFuente = i.nombre;
+                if (nombreFuente.empty()) return done(ToolResult::error("No hay una fuente de gráfico con ese id (grafico_en_escena)."));
+                bool alAire = false;
+                for (const std::string& sc : rt.engine().sceneNames()) {
+                    const auto ss = rt.engine().sceneSources(sc);
+                    if (std::find(ss.begin(), ss.end(), nombreFuente) == ss.end()) continue;
+                    if (sc == rt.engine().currentScene()) alAire = true;
+                    else if (escenaArmar.empty()) escenaArmar = sc;
+                }
+                if (alAire)
+                    return done(ToolResult::error("«" + nombreFuente + "» está en la escena al aire: armarlo se vería. Usá una "
+                                                  "fuente de gráfico de otra escena, o mostralo sin armar."));
+                if (escenaArmar.empty())
+                    return done(ToolResult::error("«" + nombreFuente + "» no está en ninguna escena."));
+            }
             QJsonObject par;
             if (a.contains("parametros"))
-                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump())).object();
+                par = QJsonDocument::fromJson(QByteArray::fromStdString(a["parametros"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
             // Por el emisor, no por abajo: asi queda anotado con que valores
             // salio esta fuente y la tarjeta de Rotulos muestra lo que hay al
             // aire en vez de lo anterior.
             const QString err = em->mostrar(QString::fromStdString(a["nombre"].get<std::string>()), par, id,
                                             a.value("duracionMs", 0), a.value("repetir", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+            if (!escenaArmar.empty()) {
+                vm_.armarEscena(QString::fromStdString(escenaArmar));
+                return done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» armado en el preview («" + escenaArmar +
+                                           "»): sale con TAKE."));
+            }
             done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» al aire."));
         };
         core_.addTool(std::move(t));
@@ -300,7 +339,7 @@ void McpService::registerGraficoTools() {
         return json::parse(d.toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
     };
     const auto aQJson = [](const json& j) {
-        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object();
+        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
     };
 
     {
@@ -338,7 +377,7 @@ void McpService::registerGraficoTools() {
             "    { \"fuente\": \"Zocalo\", \"grafico\": \"zocalo\",\n"
             "      \"valores\": { \"nombre\": \"{orador.nombre}\", \"cargo\": \"{orador.cargo}\" } }\n\n"
             "Lo que hay que saber:\n\n"
-            "  * La FUENTE se nombra, no se numera: el id de una fuente de escena lo asigna libobs y "
+            "  * La FUENTE se nombra, no se numera: el id interno de una fuente de escena "
             "cambia cada vez que se abre el programa. El nombre no.\n"
             "  * Un valor es TEXTO con origenes entre llaves, asi que se pueden mezclar: "
             "\"{orador.nombre} - {escena}\" o \"Nos escribe {invitado2.nombre}\".\n"
@@ -349,7 +388,11 @@ void McpService::registerGraficoTools() {
             "dejarlo escrito y probarlo antes de un evento.\n"
             "  * Mandar el mismo `id` reemplaza el vinculo entero, que es como se corrige uno.\n\n"
             "No se redispara si lo que resuelve no cambio: si no, la animacion parpadearia una vez "
-            "por segundo.";
+            "por segundo.\n\n"
+            "CAMPOS VIVOS: con `vivo: true`, cuando cambia lo que resuelve y el grafico ya esta al "
+            "aire en esa fuente, se vuelve a dibujar SOLO su cuadro estable (sin la entrada): para "
+            "un reloj con segundos ({hora_s}) o el cronometro del orador ({orador.cronometro}, "
+            "{orador.restante}: lo que le queda, o «+m:ss» pasado).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -360,6 +403,10 @@ void McpService::registerGraficoTools() {
                {{"type", "object"}, {"description", "clave del parametro -> texto con {origenes}."}}},
               {"dispara", {{"type", "boolean"}, {"description", "Si sale al aire solo. Por defecto si."}}},
               {"repetir", {{"type", "boolean"}, {"description", "En bucle (para un ticker)."}}},
+              {"vivo",
+               {{"type", "boolean"},
+                {"description", "Campos que cambian cada segundo ({hora_s}, {orador.cronometro}, {orador.restante}): "
+                                "con el gráfico al aire se actualiza sin volver a entrar."}}},
               {"id", {{"type", "string"}, {"description", "Para reemplazar uno que ya existe."}}}}},
             {"required", {"fuente", "grafico", "valores"}}};
         t.run = [vin, aQJson](const json& a, Done done) {

@@ -68,6 +68,7 @@ Rectangle {
                 text: page.pv.sinNombre + " sin nombre"
                 dot: Theme.warn
             }
+            GlassButton { compact: true; text: "Cuerpo (integrantes)…"; onClicked: panelCuerpo.open() }
             Item { Layout.fillWidth: true }
             Text {
                 text: "Se reconoce a quien ya se dio de alta. La foto es para que vos confirmes; " +
@@ -368,9 +369,7 @@ Rectangle {
                                                       ? "sin ninguna cara: no se la va a reconocer"
                                                       : fila.modelData.caras + " cara(s)" +
                                                         (fila.modelData.vistaSeg >= 0
-                                                         ? " · vista hace " + (fila.modelData.vistaSeg < 90
-                                                            ? fila.modelData.vistaSeg + " s"
-                                                            : Math.round(fila.modelData.vistaSeg / 60) + " min")
+                                                         ? " · vista hace " + Theme.hace(fila.modelData.vistaSeg)
                                                          : " · nunca vista")
                                             }
                                         }
@@ -422,4 +421,5 @@ Rectangle {
         }
     }
 
+    PanelCuerpo { id: panelCuerpo }
 }

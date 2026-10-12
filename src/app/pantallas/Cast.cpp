@@ -348,7 +348,7 @@ bool Canal::pedir(const std::string& destino, const std::string& tema, json cuer
                   json& respuesta, std::string* error) {
     const int id = d_->siguientePedido++;
     cuerpo["requestId"] = id;
-    if (!mandar(Mensaje{kYo, destino, tema, cuerpo.dump()}, error)) return false;
+    if (!mandar(Mensaje{kYo, destino, tema, cuerpo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}, error)) return false;
     const std::int64_t vence = ahoraMs() + timeoutMs;
     for (;;) {
         Mensaje m;
@@ -498,7 +498,7 @@ Estado mostrarUrl(const std::string& host, int puerto, const std::string& url, i
     if (!c.mandar(Mensaje{kYo, e.transportId, kNsConexion, R"({"type":"CONNECT"})"}, &e.error)) return e;
     const json orden{
         {"url", url}, {"force", true}, {"reload", recargarSeg > 0}, {"reload_time", recargarSeg * 1000}};
-    if (!c.mandar(Mensaje{kYo, e.transportId, kNsDashCast, orden.dump()}, &e.error)) return e;
+    if (!c.mandar(Mensaje{kYo, e.transportId, kNsDashCast, orden.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}, &e.error)) return e;
     // DashCast no contesta nada: un respiro para que el mensaje salga antes de
     // cerrar el canal.
     esperarMs(c, 800);

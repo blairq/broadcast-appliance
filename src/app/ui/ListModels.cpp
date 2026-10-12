@@ -7,7 +7,14 @@
 #include <algorithm>
 #include <cmath>
 
-#include "AppRuntime.hpp"
+#include <QJsonDocument>
+#include <QJsonObject>
+
+#include "arranque/AppRuntime.hpp"
+#include "emision/InputSpecs.hpp"
+#include "video/Camaras.hpp"
+
+#include <nlohmann/json.hpp>
 
 namespace ba::app {
 
@@ -190,6 +197,26 @@ bool SourcesModel::setRect(const QString& name, double x, double y, double w, do
     return ok;
 }
 
+QVariantMap SourcesModel::efectos(const QString& name) const {
+    const EfectosCapa ef = rt_.engine().sourceEfectos(scene_.toStdString(), name.toStdString());
+    return QJsonDocument::fromJson(QByteArray::fromStdString(ef.aJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+}
+
+bool SourcesModel::setEfectos(const QString& name, const QVariantMap& cambios) {
+    EfectosCapa ef = rt_.engine().sourceEfectos(scene_.toStdString(), name.toStdString());
+    const QByteArray j = QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson(QJsonDocument::Compact);
+    std::string err;
+    if (!ef.aplicar(nlohmann::json::parse(j.toStdString(), nullptr, false), &err)) {
+        emit error(qs(err));
+        return false;
+    }
+    if (!rt_.setSourceEfectos(scene_.toStdString(), name.toStdString(), ef)) {
+        emit error(qs(rt_.lastError()));
+        return false;
+    }
+    return true;
+}
+
 QString SourcesModel::add(const QString& typeId, const QString& baseName) {
     // Nombre unico en todo libobs: "Camara", "Camara 2", ...
     std::string name = baseName.trimmed().isEmpty() ? typeId.toStdString() : baseName.trimmed().toStdString();
@@ -201,6 +228,28 @@ QString SourcesModel::add(const QString& typeId, const QString& baseName) {
     spec.id = typeId.toStdString();
     spec.name = name;
     spec.rect = CanvasRect{0.1f, 0.1f, 0.8f, 0.8f};
+    if (spec.id == inputs::kVideoType) {
+        // Una cámara: la primera conectada ya elegida (en Propiedades se cambia).
+        const auto camaras = video::camarasDelEquipo(rt_.engine());
+        spec.settingsJson = nlohmann::json{{inputs::kVideoProp, camaras.empty() ? std::string() : camaras.front().value}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    }
+    if (!rt_.addSource(scene_.toStdString(), spec)) {
+        emit error(qs(rt_.lastError()));
+        return {};
+    }
+    reload();
+    return qs(name);
+}
+
+QString SourcesModel::addConAjustes(const QString& typeId, const QString& baseName, const QVariantMap& ajustes) {
+    std::string name = baseName.trimmed().isEmpty() ? typeId.toStdString() : baseName.trimmed().toStdString();
+    const std::string base = name;
+    for (int i = 2; !rt_.engine().sourceTypeId(name).empty(); ++i) name = base + " " + std::to_string(i);
+    SourceSpec spec;
+    spec.id = typeId.toStdString();
+    spec.name = name;
+    spec.rect = CanvasRect{0.7f, 0.55f, 0.25f, 0.4f}; // abajo a la derecha: se mueve con el mouse
+    spec.settingsJson = QJsonDocument(QJsonObject::fromVariantMap(ajustes)).toJson(QJsonDocument::Compact).toStdString();
     if (!rt_.addSource(scene_.toStdString(), spec)) {
         emit error(qs(rt_.lastError()));
         return {};
@@ -307,6 +356,12 @@ void MixerModel::refreshLevels() {
     if (!names_.empty()) {
         emit dataChanged(index(0), index(rowCount() - 1), {PeakDbRole});
     }
+}
+
+double MixerModel::picoDe(const std::string& nombre) const {
+    for (std::size_t i = 0; i < names_.size(); ++i)
+        if (names_[i] == nombre) return peaks_[i];
+    return -100.0;
 }
 
 QVariantMap MixerModel::canal(int fila) const {

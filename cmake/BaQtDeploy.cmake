@@ -22,7 +22,7 @@
 # Que bibliotecas copiar se CALCULA con GET_RUNTIME_DEPENDENCIES sobre ba-app
 # y todos los plugins que viajan: solo las que viven en el Qt vendoreado. Las
 # del sistema de escritorio (libc, GL, xcb, wayland, fontconfig) no viajan:
-# son la base del sistema grafico, como para libobs.
+# son la base del sistema grafico.
 # ============================================================================
 
 set(_bin "${CMAKE_INSTALL_PREFIX}/bin/64bit")

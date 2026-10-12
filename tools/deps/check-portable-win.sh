@@ -4,7 +4,7 @@
 #
 # Recorre TODOS los .exe/.dll del bundle y mira su tabla de importaciones
 # (llvm-objdump). Cada DLL importada tiene que estar en el bundle (junto al
-# que la importa o en bin/64bit, donde viven A, libobs y Qt) o ser parte de
+# que la importa o en bin/64bit, donde viven A, GStreamer y Qt) o ser parte de
 # Windows 10+ (tools/deps/windows-baseline.txt). Si algo depende de un
 # instalable (VC++ Redistributable, un driver, otro programa), falla.
 #

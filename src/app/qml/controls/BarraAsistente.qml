@@ -71,7 +71,7 @@ Panel {
 
         // Lo que el modelo local propone con lo dictado: nada sale al aire sin
         // un click, salvo lo que el operador dejó «sin volver a preguntar»
-        // (Configuración → Audio y voz).
+        // (Configuración → Voz del operador).
         Rectangle {
             id: propuesta
             readonly property var p: barra.voz.propuesta || ({})
@@ -121,7 +121,7 @@ Panel {
                     GlassButton {
                         compact: true; text: "Hacer y no volver a preguntar"; enabled: !!propuesta.p.puedeHacer
                         ToolTip.visible: hovered; ToolTip.delay: 400
-                        ToolTip.text: "«" + (propuesta.p.titulo || "") + "» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Audio y voz."
+                        ToolTip.text: "«" + (propuesta.p.titulo || "") + "» se va a hacer sola la próxima vez. Se puede quitar en Configuración → Voz del operador."
                         onClicked: barra.voz.confirmar(true)
                     }
                     GlassButton { compact: true; text: "Al asistente"; onClicked: barra.voz.alAsistente() }

@@ -1,6 +1,7 @@
 // ============================================================================
 // src/core/rostros/Rostros.cpp — ver Rostros.hpp
 // ============================================================================
+#include "diag/Utf8.hpp"
 #include "rostros/Rostros.hpp"
 
 #include <algorithm>
@@ -9,6 +10,11 @@
 #include <cstring>
 #include <filesystem>
 
+// La API de ONNX Runtime se pide A MANO: si el proceso cargó otro ONNX Runtime
+// (en Windows, System32 trae uno viejo que gana a PATH), la que pide este código
+// no está, y sin esto el puntero queda nulo y la primera llamada tira abajo todo
+// el proceso. Así el motor de rostros queda cerrado con un error y nada más.
+#define ORT_API_MANUAL_INIT
 #include <onnxruntime_cxx_api.h>
 
 namespace ba::rostros {
@@ -211,12 +217,26 @@ float parecido(const std::vector<float>& a, const std::vector<float>& b) {
     return static_cast<float>(punto / (std::sqrt(na) * std::sqrt(nb)));
 }
 
+namespace {
+/// La API de ONNX Runtime de este proceso, o null si la que hay es de otra versión.
+const OrtApi* apiOrt() {
+    static const OrtApi* api = [] {
+        const OrtApi* a = OrtGetApiBase()->GetApi(ORT_API_VERSION);
+        if (a != nullptr) Ort::InitApi(a);
+        return a;
+    }();
+    return api;
+}
+} // namespace
+
 struct Motor::Impl {
-    Ort::Env env{ORT_LOGGING_LEVEL_ERROR, "ba-rostros"};
-    Ort::SessionOptions opciones;
+    // Se crean solo si la API está (ver apiOrt).
+    std::unique_ptr<Ort::Env> env;
+    std::unique_ptr<Ort::SessionOptions> opciones;
     std::unique_ptr<Ort::Session> detector;
     std::unique_ptr<Ort::Session> descriptor;
-    Ort::MemoryInfo memoria = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    std::unique_ptr<Ort::MemoryInfo> memoriaPtr;
+    Ort::MemoryInfo& memoria() const { return *memoriaPtr; }
     mutable std::string error;
     // Los nombres de las entradas/salidas los dice el modelo: preguntarlos
     // evita que un modelo nuevo con otros nombres rompa en silencio.
@@ -228,8 +248,21 @@ struct Motor::Impl {
 Motor::Motor() : d_(std::make_unique<Impl>()) {
     // Un hilo: esto corre al lado del motor de video, que es quien tiene que
     // llegar a tiempo. Una cara tarda milisegundos igual.
-    d_->opciones.SetIntraOpNumThreads(1);
-    d_->opciones.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+    if (apiOrt() == nullptr) {
+        d_->error = "el ONNX Runtime cargado en el programa no es el suyo (otra versión: en Windows, el de System32): "
+                    "sin reconocimiento de caras";
+        return;
+    }
+    try {
+        d_->env = std::make_unique<Ort::Env>(ORT_LOGGING_LEVEL_ERROR, "ba-rostros");
+        d_->opciones = std::make_unique<Ort::SessionOptions>();
+        d_->opciones->SetIntraOpNumThreads(1);
+        d_->opciones->SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+        d_->memoriaPtr = std::make_unique<Ort::MemoryInfo>(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault));
+    } catch (const Ort::Exception& e) {
+        d_->error = std::string("ONNX Runtime: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
+        d_->env.reset();
+    }
 }
 Motor::~Motor() = default;
 
@@ -238,6 +271,7 @@ const std::string& Motor::error() const { return d_->error; }
 
 bool Motor::abrir(const std::string& carpetaModelos) {
     namespace fs = std::filesystem;
+    if (!d_->env) return false; // sin ONNX Runtime usable: el error ya lo dice
     const fs::path yunet = fs::path(carpetaModelos) / "yunet.onnx";
     const fs::path sface = fs::path(carpetaModelos) / "sface.onnx";
     for (const fs::path& p : {yunet, sface}) {
@@ -247,8 +281,8 @@ bool Motor::abrir(const std::string& carpetaModelos) {
         }
     }
     try {
-        d_->detector = std::make_unique<Ort::Session>(d_->env, yunet.c_str(), d_->opciones);
-        d_->descriptor = std::make_unique<Ort::Session>(d_->env, sface.c_str(), d_->opciones);
+        d_->detector = std::make_unique<Ort::Session>(*d_->env, yunet.c_str(), *d_->opciones);
+        d_->descriptor = std::make_unique<Ort::Session>(*d_->env, sface.c_str(), *d_->opciones);
         Ort::AllocatorWithDefaultOptions al;
         d_->entradaDet = d_->detector->GetInputNameAllocated(0, al).get();
         d_->entradaDes = d_->descriptor->GetInputNameAllocated(0, al).get();
@@ -256,7 +290,7 @@ bool Motor::abrir(const std::string& carpetaModelos) {
         for (std::size_t i = 0; i < d_->detector->GetOutputCount(); ++i)
             d_->salidasDet.emplace_back(d_->detector->GetOutputNameAllocated(i, al).get());
     } catch (const Ort::Exception& e) {
-        d_->error = std::string("no se pudieron cargar los modelos: ") + e.what();
+        d_->error = std::string("no se pudieron cargar los modelos: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         d_->detector.reset();
         d_->descriptor.reset();
         return false;
@@ -274,7 +308,7 @@ std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto,
         int offX = 0, offY = 0;
         encajar(bgra, ancho, alto, entrada, escala, offX, offY);
         const std::array<std::int64_t, 4> forma{1, 3, kLadoDet, kLadoDet};
-        Ort::Value t = Ort::Value::CreateTensor<float>(d_->memoria, entrada.data(), entrada.size(),
+        Ort::Value t = Ort::Value::CreateTensor<float>(d_->memoria(), entrada.data(), entrada.size(),
                                                        forma.data(), forma.size());
         std::vector<const char*> nSal;
         for (const std::string& s : d_->salidasDet)
@@ -297,7 +331,7 @@ std::vector<Cara> Motor::detectar(const std::uint8_t* bgra, int ancho, int alto,
         // SE ANOTA EL MOTIVO. Devolver «no hay caras» cuando en realidad
         // fallo la llamada es la peor forma de fallar: la interfaz muestra
         // «no reconoci a nadie» y nadie se entera de que el modelo ni corrio.
-        d_->error = std::string("al detectar: ") + e.what();
+        d_->error = std::string("al detectar: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         return {};
     }
     return caras;
@@ -317,7 +351,7 @@ std::vector<float> Motor::describir(const std::uint8_t* bgra, int ancho, int alt
             entrada[2 * plano + i] = recta[i * 3 + 2];
         }
         const std::array<std::int64_t, 4> forma{1, 3, kLadoCara, kLadoCara};
-        Ort::Value t = Ort::Value::CreateTensor<float>(d_->memoria, entrada.data(), entrada.size(),
+        Ort::Value t = Ort::Value::CreateTensor<float>(d_->memoria(), entrada.data(), entrada.size(),
                                                        forma.data(), forma.size());
         const char* nEnt[] = {d_->entradaDes.c_str()};
         const char* nSal[] = {d_->salidaDes.c_str()};
@@ -326,7 +360,7 @@ std::vector<float> Motor::describir(const std::uint8_t* bgra, int ancho, int alt
         const std::size_t n = salidas[0].GetTensorTypeAndShapeInfo().GetElementCount();
         return std::vector<float>(v, v + n);
     } catch (const Ort::Exception& e) {
-        d_->error = std::string("al describir: ") + e.what();
+        d_->error = std::string("al describir: ") + ba::diag::utf8Valido(e.what()); // ONNX Runtime da el mensaje en la página de códigos del sistema
         return {};
     }
 }

@@ -4,20 +4,39 @@
 # Proposito:
 #   Un bundle portable tiene que resolver TODAS sus bibliotecas dentro de si
 #   mismo. Los ejecutables propios ya se enlazan con rpath `$ORIGIN`, pero las
-#   bibliotecas de terceros que se copian al bundle (libobs, su modulo grafico,
-#   los plugins de OBS) traen el rpath del arbol donde se compilaron, o
-#   ninguno. Cuando libobs hace `dlopen("libobs-opengl")`, el enlazador usa el
-#   rpath de LIBOBS, no el del ejecutable: sin corregirlo, el bundle falla en
-#   una maquina de destino con "no se encontro libobs-opengl" aunque el archivo
-#   este ahi al lado.
+#   bibliotecas de terceros que se copian al bundle traen el rpath del arbol
+#   donde se compilaron, o ninguno: sin corregirlo, el bundle falla en una
+#   maquina de destino con "no se encontro libX" aunque el archivo este ahi al
+#   lado.
 #
-#   Este script reescribe el rpath de lo instalado:
-#     - bin/64bit/*.so*        -> $ORIGIN
-#     - obs-plugins/64bit/*.so -> $ORIGIN:$ORIGIN/../../bin/64bit
+#   1) Copia a bin/64bit las bibliotecas de terceros compiladas desde fuente
+#      (tools/deps/terceros-linux.sh, en extern/terceros-linux): FFmpeg, x264,
+#      libva y libv4l2 (las piden los plugins de GStreamer, que buscan en
+#      bin/64bit con su RUNPATH) y cairo, pixman, libpng y libsndfile (las
+#      piden los plugins LSP y el plugin cairo de GStreamer).
+#   2) Reescribe el rpath de lo instalado:
+#        - bin/64bit/*.so*        -> $ORIGIN
+#        - plugins/lsp/*.clap     -> $ORIGIN:$ORIGIN/../../bin/64bit
 #
 #   Se ejecuta como paso de `install`, sobre los archivos ya copiados; no toca
 #   nada en `extern/`.
 # ============================================================================
+
+set(BA_TERCEROS_LINUX "${CMAKE_SOURCE_DIR}/extern/terceros-linux")
+if(EXISTS "${BA_TERCEROS_LINUX}/lib")
+    set(_ba_terceros "")
+    foreach(_pat avcodec avdevice avfilter avformat avutil swresample swscale x264 va va-drm v4l2 v4lconvert
+                 cairo cairo-gobject pixman-1 png16 sndfile)
+        file(GLOB _dep "${BA_TERCEROS_LINUX}/lib/lib${_pat}.so.*")
+        list(APPEND _ba_terceros ${_dep})
+    endforeach()
+    if(_ba_terceros)
+        install(FILES ${_ba_terceros} DESTINATION bin/64bit)
+    endif()
+    message(STATUS "ba-bundle: bibliotecas de terceros de ${BA_TERCEROS_LINUX}")
+else()
+    message(STATUS "ba-bundle: falta extern/terceros-linux ('make deps-terceros-linux'): el bundle no va a ser portable")
+endif()
 
 find_program(BA_PATCHELF patchelf)
 
@@ -30,20 +49,13 @@ endif()
 # estan en su destino final.
 install(CODE "
     set(_bin \"\${CMAKE_INSTALL_PREFIX}/bin/64bit\")
-    set(_plug \"\${CMAKE_INSTALL_PREFIX}/obs-plugins/64bit\")
 
-    # Bibliotecas y el helper de grabacion (obs-ffmpeg-mux usa FFmpeg del bundle).
-    file(GLOB _libs \"\${_bin}/*.so\" \"\${_bin}/*.so.*\" \"\${_bin}/obs-ffmpeg-mux\")
+    file(GLOB _libs \"\${_bin}/*.so\" \"\${_bin}/*.so.*\")
     foreach(_lib IN LISTS _libs)
+        if(IS_SYMLINK \"\${_lib}\")
+            continue()
+        endif()
         execute_process(COMMAND \"${BA_PATCHELF}\" --set-rpath \"\\\$ORIGIN\" \"\${_lib}\"
-                        RESULT_VARIABLE _rc ERROR_QUIET)
-    endforeach()
-
-    # (y GStreamer del bundle: ba-sources lo usa para las tarjetas gst)
-    file(GLOB _plugins \"\${_plug}/*.so\")
-    foreach(_p IN LISTS _plugins)
-        execute_process(COMMAND \"${BA_PATCHELF}\"
-                        --set-rpath \"\\\$ORIGIN:\\\$ORIGIN/../../bin/64bit:\\\$ORIGIN/../../bin/64bit/gstreamer/lib\" \"\${_p}\"
                         RESULT_VARIABLE _rc ERROR_QUIET)
     endforeach()
 

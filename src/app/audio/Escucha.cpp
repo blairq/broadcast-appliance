@@ -2,6 +2,7 @@
 // src/app/audio/Escucha.cpp — ver Escucha.hpp
 // ============================================================================
 #include "audio/Escucha.hpp"
+#include "agent/Vocabulario.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -98,10 +99,10 @@ void Escucha::cargar(const Modelos& m, std::function<void(const std::string&)> l
             so::VadModelConfig v;
             v.silero_vad.model = m.vad;
             v.silero_vad.min_silence_duration = 0.4f;
-            v.silero_vad.max_speech_duration = static_cast<float>(kMaxSegundos);
+            v.silero_vad.max_speech_duration = static_cast<float>(kMaxSegundosAhora());
             v.sample_rate = kFrecuenciaModelo;
             v.num_threads = 1;
-            motor->vad.emplace(so::VoiceActivityDetector::Create(v, static_cast<float>(kMaxSegundos) + 5.0f));
+            motor->vad.emplace(so::VoiceActivityDetector::Create(v, static_cast<float>(kMaxSegundosAhora()) + 5.0f));
             motor->conVad = motor->vad->Get() != nullptr;
             motor->ventanaVad = v.silero_vad.window_size;
         }
@@ -128,7 +129,7 @@ void Escucha::alimentar(const float* muestras, std::size_t n, std::uint32_t frec
     if (!grabando_ || muestras == nullptr || n == 0) return;
     std::lock_guard<std::mutex> l(tomaLock_);
     frecuencia_ = frecuencia;
-    const std::size_t tope = static_cast<std::size_t>(kMaxSegundos * frecuencia);
+    const std::size_t tope = static_cast<std::size_t>(kMaxSegundosAhora() * frecuencia);
     if (toma_.size() >= tope) return;
     toma_.insert(toma_.end(), muestras, muestras + std::min(n, tope - toma_.size()));
 }
@@ -291,6 +292,8 @@ void Escucha::atenderCorrientes() {
             r.texto = motor_->reconocedor->GetResult(&s).text;
             const auto ini = r.texto.find_first_not_of(' ');
             r.texto = ini == std::string::npos ? std::string() : r.texto.substr(ini);
+            // Los nombres propios y términos del vocabulario, bien escritos.
+            if (auto* v = agent::Vocabulario::global(); v != nullptr && !r.texto.empty()) r.texto = v->corregir(r.texto);
             r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
             if (!r.texto.empty() && frase) frase(clave, r);
         }
@@ -346,6 +349,7 @@ Escucha::Resultado Escucha::transcribir(std::vector<float> audio, std::uint32_t 
     // El texto empieza con un espacio (es como tokeniza el modelo).
     const auto ini = r.texto.find_first_not_of(' ');
     r.texto = ini == std::string::npos ? std::string() : r.texto.substr(ini);
+    if (auto* v = agent::Vocabulario::global(); v != nullptr && !r.texto.empty()) r.texto = v->corregir(r.texto);
     r.ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
     if (r.texto.empty()) r.error = "no se entendió nada";
     return r;

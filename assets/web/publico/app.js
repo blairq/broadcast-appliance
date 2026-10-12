@@ -228,9 +228,12 @@
     caja.classList.remove('hidden');
 
     const formal = v.modo === 'formal';
-    $('urnaModo').textContent = formal
+    // Lo que vota el público es una CONSULTA: no reemplaza la votación del
+    // cuerpo, y tiene que decirlo siempre (salvo que el cuerpo la adopte).
+    $('urnaModo').textContent = (formal
       ? (v.abierta ? 'Votación · abierta' : 'Votación · cerrada')
-      : (v.abierta ? 'Encuesta · abierta' : 'Encuesta · cerrada');
+      : (v.abierta ? 'Encuesta · abierta' : 'Encuesta · cerrada')) +
+      (v.vinculante ? '' : ' · consulta, no vinculante');
     $('urnaModo').className = 'marca' + (v.abierta ? ' aire' : '');
     $('urnaPregunta').textContent = v.pregunta;
     // El codigo solo se pide donde hace falta.

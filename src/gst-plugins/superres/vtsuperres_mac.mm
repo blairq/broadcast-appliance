@@ -12,7 +12,8 @@
 //   Uno de los motores de `basuperres` (plugin.cpp); también se puede usar
 //   suelto: ... ! videoconvert ! video/x-raw,format=NV12 ! bavtsuperres ! ...
 //
-//   Limites de Apple: entrada entre 96x96 y 960x960, factor 2, NV12 de rango
+//   Limites de Apple: los pregunta al sistema (VTLowLatencySuperResolutionScaler-
+//   Configuration: en macOS 26, entre 96x96 y 960x960), factor 2, NV12 de rango
 //   limitado (420v). Lo que no entra (una cámara HD) pasa SIN TOCAR (modo
 //   passthrough), igual que si el sistema no lo soporta (macOS < 26).
 //
@@ -20,6 +21,8 @@
 //   `transform` corre en el hilo de streaming de GStreamer; el procesamiento
 //   es sincrónico (processWithParameters:error:), con una sesión por tamaño.
 // ============================================================================
+
+#include <algorithm>
 
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -78,7 +81,10 @@ struct _BaVtSuperRes {
 
 G_DEFINE_TYPE(BaVtSuperRes, ba_vtsuperres, GST_TYPE_BASE_TRANSFORM)
 
-enum { PROP_0, PROP_ACTIVO, PROP_MS };
+GST_DEBUG_CATEGORY_STATIC(ba_vtsuperres_debug);
+#define GST_CAT_DEFAULT ba_vtsuperres_debug
+
+enum { PROP_0, PROP_ACTIVO, PROP_MS, PROP_CUADROS_RED, PROP_MS_SUMA };
 
 static GstStaticPadTemplate sinkTpl = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
                                                               GST_STATIC_CAPS(GST_VIDEO_CAPS_MAKE("NV12")));
@@ -191,7 +197,9 @@ static GstFlowReturn transformar(GstBaseTransform* bt, GstBuffer* inbuf, GstBuff
                                 static_cast<int>(CVPixelBufferGetBytesPerRowOfPlane(pi, p)), w, p == 0 ? h : h / 2);
                 CVPixelBufferUnlockBaseAddress(pi, 0);
                 const CMTime pts = GST_BUFFER_PTS_IS_VALID(inbuf) ? CMTimeMake(static_cast<int64_t>(GST_BUFFER_PTS(inbuf)), 1000000000)
-                                                                  : CMTimeMake(static_cast<int64_t>(s->cuadros), 30);
+                                                                  : CMTimeMake(static_cast<int64_t>(s->cuadros) *
+                                                                                   std::max(GST_VIDEO_INFO_FPS_D(&s->in), 1),
+                                                                               std::max(GST_VIDEO_INFO_FPS_N(&s->in), 1));
                 VTFrameProcessorFrame* a = [[VTFrameProcessorFrame alloc] initWithBuffer:pi presentationTimeStamp:pts];
                 VTFrameProcessorFrame* b = [[VTFrameProcessorFrame alloc] initWithBuffer:po presentationTimeStamp:pts];
                 VTLowLatencySuperResolutionScalerParameters* par =
@@ -255,6 +263,8 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
     auto* s = BA_VTSUPERRES(o);
     if (id == PROP_ACTIVO) g_value_set_boolean(v, s->activo);
     else if (id == PROP_MS) g_value_set_double(v, s->demora->media());
+    else if (id == PROP_CUADROS_RED) g_value_set_uint64(v, s->demora->totales().first);
+    else if (id == PROP_MS_SUMA) g_value_set_double(v, s->demora->totales().second);
     else G_OBJECT_WARN_INVALID_PROPERTY_ID(o, id, ps);
 }
 
@@ -280,6 +290,7 @@ static void ba_vtsuperres_finalize(GObject* o) {
 }
 
 static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
+    GST_DEBUG_CATEGORY_INIT(ba_vtsuperres_debug, "bavtsuperres", 0, "Superresolución VideoToolbox");
     GObjectClass* go = G_OBJECT_CLASS(k);
     GstElementClass* ge = GST_ELEMENT_CLASS(k);
     GstBaseTransformClass* bt = GST_BASE_TRANSFORM_CLASS(k);
@@ -292,21 +303,29 @@ static void ba_vtsuperres_class_init(BaVtSuperResClass* k) {
     g_object_class_install_property(go, PROP_MS,
                                     g_param_spec_double("ms-por-cuadro", "ms por cuadro", "Lo que tarda en promedio", 0, 1000, 0,
                                                         static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_CUADROS_RED,
+                                    g_param_spec_uint64("cuadros-red", "Cuadros por la red",
+                                                        "Cuántos cuadros pasaron por la red (para medir una ventana)", 0,
+                                                        G_MAXUINT64, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(go, PROP_MS_SUMA,
+                                    g_param_spec_double("ms-suma", "ms en total",
+                                                        "Lo que tardó la red, sumado (con cuadros-red: el promedio de una ventana)",
+                                                        0, G_MAXDOUBLE, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     gst_element_class_set_static_metadata(ge, "Superresolución x2 (VideoToolbox)", "Filter/Effect/Video/Scaler",
                                           "Duplica la resolución de un video chico con la superresolución de baja latencia de Apple",
                                           "Broadcast Appliance");
     gst_element_class_add_static_pad_template(ge, &sinkTpl);
     gst_element_class_add_static_pad_template(ge, &srcTpl);
-    bt->transform_caps = transformarCaps;
-    bt->set_caps = ponerCaps;
-    bt->transform_size = tamanoSalida;
-    bt->transform = transformar;
-    bt->stop = parar;
-    bt->query = consultar;
-    bt->sink_event = eventoEntrada;
-    bt->fixate_caps = ba::sr::fijarCaps;
-    bt->transform_meta = ba::sr::transformarMeta;
-    bt->passthrough_on_same_caps = TRUE;
+    bt->transform_caps = GST_DEBUG_FUNCPTR(transformarCaps);
+    bt->set_caps = GST_DEBUG_FUNCPTR(ponerCaps);
+    bt->transform_size = GST_DEBUG_FUNCPTR(tamanoSalida);
+    bt->transform = GST_DEBUG_FUNCPTR(transformar);
+    bt->stop = GST_DEBUG_FUNCPTR(parar);
+    bt->query = GST_DEBUG_FUNCPTR(consultar);
+    bt->sink_event = GST_DEBUG_FUNCPTR(eventoEntrada);
+    bt->fixate_caps = GST_DEBUG_FUNCPTR(ba::sr::fijarCaps);
+    bt->transform_meta = GST_DEBUG_FUNCPTR(ba::sr::transformarMeta);
+    bt->passthrough_on_same_caps = GST_DEBUG_FUNCPTR(TRUE);
 }
 
 static void ba_vtsuperres_init(BaVtSuperRes* s) {

@@ -23,6 +23,9 @@
 #pragma once
 
 #include <atomic>
+#include <memory>
+#include <optional>
+#include <thread>
 #include <cstdint>
 #include <filesystem>
 #include <string>
@@ -34,6 +37,7 @@
 #include "ipc/HealthBlock.hpp"
 #include "platform/SingleInstance.hpp"
 #include "RecoveryUi.hpp"
+#include "Volcados.hpp"
 
 namespace ba::launcher {
 
@@ -42,6 +46,8 @@ class Supervisor {
    public:
     /// Configuracion del supervisor.
     struct Config {
+        /// --reiniciar: esperar (hasta tanto) a que se cierre el launcher anterior en vez de no arrancar.
+        int esperarInstanciaMs = 0;
         std::filesystem::path root;           // raiz del bundle (ba::platform::bundleRoot)
         std::filesystem::path dataRoot;       // raiz de los datos (ba::platform::dataRoot; vacia = root)
         std::filesystem::path appExe;         // bin/64bit/ba-app(.exe)
@@ -54,6 +60,13 @@ class Supervisor {
         // --shadow (o "shadowCopy": true en Config/launcher.json).
         bool shadowCopy = false;
         bool recoveryUi = true;  // dialogo ante fallos (false = reinicio automatico)
+        // Lo que se ajusta en Configuración → Sistema y datos (launcher.json); los
+        // valores de acá son los de siempre. Rigen al volver a abrir el launcher.
+        std::uint64_t cuelgueMs = 5000;          // latido quieto tanto tiempo = colgado (volcado y reinicio)
+        std::uint64_t graciaArranqueMs = 20000;  // recién lanzado: todavía no se vigila el latido
+        int maxCaidas = 5;                       // más caídas que esto en la ventana: modo seguro
+        std::uint64_t ventanaCaidasMs = 120000;  // la ventana del cortacircuito
+        int reiniciosSinPreguntar = 2;           // fallas seguidas que se reinician sin preguntar
         std::uint32_t slotA = 1; // slot de A en BA.Health
         std::uint32_t slotB = 0; // slot de B en BA.Health
     };
@@ -73,7 +86,13 @@ class Supervisor {
    private:
     // --- Ciclo de vida ------------------------------------------------------
     void applyExecRoot(const std::filesystem::path& execRoot);
+    /// Dónde vive el caché de la verificación (en los datos, nunca adentro de la .app).
+    std::filesystem::path cacheIntegridad() const;
     IntegrityReport verifyIntegrity();
+    /// Lo que la verificación rápida dejó pendiente, en el fondo y con la app andando;
+    /// guarda el caché apenas termina (si falla algo, deja la marca para el próximo arranque).
+    void verificarEnElFondo();
+    std::filesystem::path marcaFallo() const;
 
     // --- Hijos --------------------------------------------------------------
     void launchChildren();
@@ -81,10 +100,18 @@ class Supervisor {
     bool startChild(bool isA);
     void restartChild(bool isA); // backoff + relanzamiento (comun a crash/hang)
     void handleCrash(bool isA);
+    /// Deja escrita la causa de la caída (Runtime/ultima-caida.json y caidas.jsonl).
+    void anotarCaida(bool isA, const std::string& causa, std::optional<int> code, const std::filesystem::path& volcado = {});
     void handleHang(bool isA);
 
     // --- Recuperacion (UI) --------------------------------------------------
-    RecoveryAction presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung);
+    /// Muestra el cartel de recuperación EN OTRO HILO: el watchdog sigue relanzando
+    /// mientras tanto (antes esperaba hasta 5 min la respuesta con la sala abajo). La
+    /// decisión llega por `decisionRecuperacion_` y se toma en la vuelta siguiente.
+    void presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung);
+    /// -1 = sin decisión pendiente; si no, un RecoveryAction.
+    std::shared_ptr<std::atomic<int>> decisionRecuperacion_ = std::make_shared<std::atomic<int>>(-1);
+    std::shared_ptr<std::atomic<bool>> preguntando_ = std::make_shared<std::atomic<bool>>(false);
     void forceRestart();
 
     // --- Vigilancia y cierre ------------------------------------------------
@@ -96,6 +123,9 @@ class Supervisor {
 
     // --- Estado -------------------------------------------------------------
     Config cfg_;
+    /// B salió con código 0, sin volcado y no recién (dos en 10 s ya no cuentan como pedido).
+    bool esCierreOrdenadoB(std::optional<int> code = std::nullopt);
+    std::uint64_t ultimoCierreOrdenadoB_ = 0; ///< la última vez que la sala cerró en orden (reinicio pedido)
     ChildProcess app_;
     ChildProcess gateway_;
     ba::ipc::HealthBlock health_;
@@ -109,6 +139,7 @@ class Supervisor {
     // periodo de gracia de arranque no se evalua el heartbeat (libobs tarda en
     // cargar modulos y el proceso todavia no late).
     std::uint64_t launchedAtMs_[2] = {0, 0};
+    std::unique_ptr<Volcados> volcados_; ///< los volcados de A y B, con su .json (Volcados.hpp)
     std::uint64_t latidoAlLanzar_[2] = {0, 0}; ///< el latido que había al lanzarlo (para saber si ya latió)
     bool inStartupGrace(bool isA) const;
 
@@ -120,6 +151,9 @@ class Supervisor {
     std::vector<std::uint64_t> appCrashTimes_; // ms monotonicos, para el circuit breaker
     std::uint64_t lastFailureMs_ = 0;          // ultima caida/cuelgue de A o B
     int recentFailures_ = 0;                   // fallas dentro de la ventana (decide el dialogo)
+
+    std::thread fondo_;                   ///< la verificación de fondo
+    std::atomic<bool> pararFondo_{false}; ///< se cierra: dejar de leer
 
     // Cache del reporte de integridad para la UI de recuperacion.
     std::uint64_t lastIntegrityCheckMs_ = 0;

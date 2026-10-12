@@ -68,7 +68,7 @@ json pendingGuestChat(StudioViewModel& vm) {
 void McpService::registerOperatorTools() {
     core_.addCategory(
         "operador", "Hablar con el operador",
-        "Mensajes y preguntas al operador en la barra de abajo de la app (con color segun prioridad) y "
+        "Mensajes y preguntas al operador en la barra de abajo de la app (con color según prioridad) y "
         "ayuda con el chat de los invitados: ver mensajes sin responder y sugerir respuestas que el "
         "operador manda con un click.");
     StudioViewModel& vm = vm_;

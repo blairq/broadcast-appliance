@@ -91,6 +91,9 @@ class TwitchViewModel : public QObject {
     void errorChanged();
     void chatChanged();
     void notify(const QString& message, const QString& level);
+    /// Arrancó un vivo desde acá: {plataforma, url, id, estudio?} (sin la clave).
+    /// Va al bus como «salida/vivo» y queda en el histórico del evento.
+    void vivo(const QVariantMap& datos);
 
    private:
     void setError(const QString& e);

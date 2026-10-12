@@ -23,13 +23,20 @@
 # ============================================================================
 
 BUILD_DIR ?= build
+# PERFILAR=1: un build que mide CPU por hilo y GPU (diag/Perfil, -DBA_PERFILAR=ON);
+# los paquetes salen con «-perfil» en el nombre. Sin eso, OFF explícito: un build
+# normal no hereda el modo de medición del caché de CMake.
+PERFILAR ?= 0
+BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF)
+BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
+export PERFILAR
 JOBS      ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 # Hace falta el sha256sum de GNU (coreutils): el que trae macOS 15+ es el de
 # BSD y no acepta `-c --quiet`. Si no es GNU, `shasum -a 256`, que usa el
 # mismo formato de salida y el mismo -c.
 SHA256       := $(shell sha256sum --version 2>/dev/null | grep -q GNU && echo sha256sum || echo "shasum -a 256")
 SHA256_CHECK := $(SHA256) -c --quiet
-# macOS: libobs pide Xcode completo. Si xcode-select apunta a las Command Line
+# macOS: ba-modelo (MLX, xcodebuild) pide Xcode completo. Si xcode-select apunta a las Command Line
 # Tools pero Xcode esta instalado, se usa ese sin tocar la configuracion del
 # sistema (lo mismo que `sudo xcode-select -s`, solo para este build).
 ifeq ($(shell uname -s),Darwin)
@@ -44,15 +51,15 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-obs-src deps-obs-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-obs-deps-win deps-ndi-src deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
-        deps deps-obs deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
+        deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
-        deps-msitools mcp-inventario deps-llamacpp bateria-local corpus-entrenamiento \
+        deps-msitools mcp-inventario deps-llamacpp deps-llamacpp-win deps-llamacpp-linux bateria-local corpus-entrenamiento \
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
         modelo-corpus modelo-inventario modelo-etiquetas \
         corpus-descubrir \
-        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros deps-sherpa-onnx _ba_baja
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-rostros deps-sherpa-onnx _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -74,21 +81,21 @@ help:
 	@echo "  make dist-linux dist/BroadcastAppliance-<ver>-linux-x64.tar.gz"
 	@echo "  make deps-macos     Todo lo del build de macOS (en una Mac Apple Silicon)"
 	@echo "  make macos          macOS: compila y corre los tests"
+	@echo "  make app-macos-rapida  la .app sin rehacer todo (para probar: ~25 s)"
 	@echo "  make dmg-macos      dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app)"
 	@echo "  make publicar       TODO: Linux y Windows (Docker) + .dmg (en Mac) y los sube a GitHub"
 	@echo "  make dist-linux-docker / dist-win-docker  Un bundle en Docker (con su .sha256)"
 	@echo "  make subir          Sube lo que haya en dist/ y verifica tamaño y sha256 en GitHub"
 	@echo "  make publicar-macos / publicar-linux / publicar-win  Una plataforma, compilando aca"
-	@echo "  make deps-linux Todo lo del build completo de Linux (libobs desde fuente, Qt, libwebrtc...)"
+	@echo "  make deps-linux Todo lo del build completo de Linux (GStreamer y sus deps desde fuente, libwebrtc...)"
 	@echo "  make clean      Borra $(BUILD_DIR)/"
 	@echo "  make clean-all  Borra $(BUILD_DIR)/, release/ y docs/_build/"
 	@echo ""
 	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
 	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
-	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2) -> extern/"
-	@echo "  make deps-obs         Runtime OBS 31.0.0 (libobs+CEF+Qt) -> extern/obs-studio"
+	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+libdeflate) -> extern/"
 	@echo "  make deps-qt          SDK Qt 6.6.3 win64_msvc2019_64 (build de Windows) -> extern/qt6"
-	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, OBS, libwebrtc...)"
+	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, GStreamer, libwebrtc...)"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
 	@echo "  make deps-lwip        lwIP 2.2.0 -> extern/lwip (tunel WireGuard del gateway)"
 	@echo "  make deps-cacert      raices de Mozilla (curl.se) -> extern/cacert (HTTPS propio: YouTube)"
@@ -96,6 +103,8 @@ help:
 	@echo "  make deps-sherpa-onnx sherpa-onnx (voz: reconocer, VAD, hablar) -> extern/sherpa-onnx"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
+	@echo "  make deps-pinggy      libpinggy 0.3.1 (tunel de pinggy.io, la del host) -> extern/pinggy"
+	@echo "  make deps-pinggy-win  libpinggy 0.3.1 de Windows -> extern/pinggy/windows-x86_64"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
 	@echo "  make deps-lsp         Modulos LSP 1.2.35 (CLAP, Linux) -> extern/lsp"
 	@echo "  make deps-lsp-win     Modulos LSP 1.2.35 para Windows (compilados desde fuente) -> extern/lsp"
@@ -127,20 +136,20 @@ help:
 # Build de desarrollo: configuración Debug (debug info, sin optimizar) para
 # depurar y correr los tests. ccache se activa solo vía CMakeLists.
 dev:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Debug
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 # --- Build genérico ---------------------------------------------------------
 # Configura (idempotente) y compila. Sin CMAKE_BUILD_TYPE explícito: CMake usa
 # su default (Release, fijado en el CMakeLists raíz).
 build:
-	cmake -S . -B $(BUILD_DIR)
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
 # --- Producción (Release + bundle) ------------------------------------------
 # Artefacto portable: Release + instalación del layout §5.1 en release.
 prod:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	@echo "Bundle portable: release/"
@@ -189,9 +198,7 @@ test-all:
 # FALA (no se salta en verde): un gate que se omite en silencio no es gate.
 CF := $(shell command -v clang-format 2>/dev/null || command -v clang-format-18 2>/dev/null)
 
-# Ya no hay exclusiones: los headers aproximados que vivian en
-# `src/obs-module/obs/` se eliminaron cuando el modulo paso a compilarse contra
-# libobs real, asi que todo `src/` es codigo propio y se lintea entero.
+# Sin exclusiones: todo `src/` es codigo propio y se lintea entero.
 lint:
 	@if [ -z "$(CF)" ]; then \
 		echo "ERROR: clang-format no encontrado. Instalarlo con: sudo apt install clang-format" >&2; \
@@ -203,7 +210,7 @@ lint:
 
 # --- Bundle portable (layout §5.1) ------------------------------------------
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
-# obs-plugins, data/libobs, Config, Logs, Recordings, Web/guest).
+# gst-plugins, data, Config, Logs, Recordings, Web/guest).
 release:
 	@# Desde cero: lo que se instaló antes y ya no va (de una receta vieja) no queda.
 	rm -rf release
@@ -232,42 +239,25 @@ deps-win-toolchain:
 deps-webrtc-win:
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=windows
 
-# Todo lo que el build de Windows necesita. Qt de Windows (msvc2019_64) mas el
-# Qt del host (moc, rcc, qmlcachegen corren en Linux), OBS (runtime + fuentes
-# para los headers), libwebrtc de Windows y las fuentes compartidas.
-deps-win: deps-win-toolchain deps-qt deps-qt-host deps-obs deps-obs-deps-win deps-ndi-src deps-webrtc-win \
-          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
-          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-python-win deps-gst-python-win \
-          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win
+# Todo lo que el build de Windows necesita. Qt de Windows (msvc2019_64: SDK y
+# también las DLL que viajan) mas el Qt del host (moc, rcc, qmlcachegen corren
+# en Linux), GStreamer oficial de MSVC (trae su FFmpeg), libwebrtc de Windows y
+# las fuentes compartidas.
+deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
+          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win \
+          deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
+          deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
 	tools/deps/lsp-win.sh $(JOBS)
-
-# FFmpeg para compilar contra el del runtime de OBS (NDI decodifica SpeedHQ con
-# libavcodec): headers + bibliotecas de importacion del obs-deps OFICIAL que fija
-# el propio OBS (extern/obs-src/buildspec.json, mismo hash). Es FFmpeg n7.0.2,
-# el mismo de las DLL de extern/obs-studio (que son las que viajan).
-OBS_DEPS_WIN_VER := 2024-09-12
-OBS_DEPS_WIN_SHA := d4a4f194591766891ad3c0b267deec3c4b85239c8fe557273559927456aeedbb
-OBS_DEPS_WIN_ZIP = $(DL_DIR)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip
-deps-obs-deps-win:
-	@mkdir -p "$(DL_DIR)"
-	@if [ -f "$(EXTERNS_DIR)/obs-deps-win/lib/avcodec.lib" ]; then echo "[deps] obs-deps (Windows): ya presente"; else \
-	  [ -f "$(OBS_DEPS_WIN_ZIP)" ] && [ "$$($(SHA256) "$(OBS_DEPS_WIN_ZIP)" | cut -d' ' -f1)" = "$(OBS_DEPS_WIN_SHA)" ] || \
-	    curl -fL --retry 3 -o "$(OBS_DEPS_WIN_ZIP)" "https://github.com/obsproject/obs-deps/releases/download/$(OBS_DEPS_WIN_VER)/windows-deps-$(OBS_DEPS_WIN_VER)-x64.zip"; \
-	  printf '%s  %s\n' "$(OBS_DEPS_WIN_SHA)" "$(OBS_DEPS_WIN_ZIP)" | $(SHA256_CHECK) || { echo "[deps] ERROR obs-deps: hash" >&2; exit 1; }; \
-	  rm -rf "$(EXTERNS_DIR)/obs-deps-win"; \
-	  unzip -q -o "$(OBS_DEPS_WIN_ZIP)" 'include/libavcodec/*' 'include/libavutil/*' 'lib/avcodec.lib' 'lib/avutil.lib' \
-	    -d "$(EXTERNS_DIR)/obs-deps-win"; \
-	  echo "[deps] obs-deps (Windows): FFmpeg (headers + .lib) en $(EXTERNS_DIR)/obs-deps-win"; fi
 
 # Recepcion NDI abierta: libNoIDea + libmicrodns por commit fijado.
 deps-ndi-src:
 	tools/deps/ndi-src.sh
 
 win: deps-win
-	cmake -S . -B $(WIN_BUILD_DIR) -G Ninja \
+	cmake -S . -B $(WIN_BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE=$(WIN_TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DQT_HOST_PATH=$(QT6_HOST_PATH)
@@ -292,40 +282,34 @@ release-win: win
 BA_VERSION := $(shell awk '/^project\(/,/\)/' CMakeLists.txt | awk '/VERSION/{print $$2; exit}')
 dist-win: release-win
 	@mkdir -p dist
-	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
+	rm -f dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip
 	@# Con carpeta raiz (como el .tar.gz de Linux): "Extraer aqui" no desparrama
 	@# los archivos del programa en la carpeta del usuario.
 	rm -rf dist/.zip-stage && mkdir -p dist/.zip-stage
 	cp -al $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance 2>/dev/null || cp -a $(WIN_RELEASE) dist/.zip-stage/BroadcastAppliance
-	cd dist/.zip-stage && 7z a -tzip -mx=7 -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64.zip BroadcastAppliance
+	cd dist/.zip-stage && 7z a -tzip -mx=7 -mcu=on -bso0 ../BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip BroadcastAppliance
 	rm -rf dist/.zip-stage
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64.zip > BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip"
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip > BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip.commit
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip"
 
-# Todo lo que el build completo de Linux necesita (libobs y sus deps desde
-# fuente, Qt del host, libwebrtc de Linux, fuentes compartidas...).
-deps-linux: deps-obs-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python
+# Todo lo que el build completo de Linux necesita (las bibliotecas de terceros
+# y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
+# compartidas...).
+deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
+            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
+            deps-llamacpp-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
 # --- macOS arm64 (Apple Silicon), nativo -------------------------------------
-# Todo se compila EN la Mac con Apple clang (Xcode completo: libobs lo exige).
-# Mismo layout portable que Linux (bin/64bit, obs-plugins/64bit, data/) y el
+# Todo se compila EN la Mac con Apple clang (Xcode completo: ba-modelo lo exige).
+# Mismo layout portable que Linux (bin/64bit, gst-plugins, data/) y el
 # mismo criterio: nada del sistema salvo los frameworks de macOS.
 #   make deps-macos     -> baja/compila todo lo de terceros en extern/
 #   make macos          -> compila (build/) y corre los tests
 #   make release-macos  -> bundle portable en release/ (verificado con otool)
 #   make dist-macos     -> dist/BroadcastAppliance-<ver>-macos-arm64.tar.gz
 #   make dmg-macos      -> dist/BroadcastAppliance-<ver>-macos-arm64.dmg (la .app, lo que publica el release)
-deps-obs-src:
-	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
-		--recurse-submodules --shallow-submodules \
-		https://github.com/obsproject/obs-studio.git extern/obs-src
-
-deps-obs-macos: check-macos-tools deps-obs-src
-	tools/deps/obs-macos.sh $(JOBS)
-
 deps-lsp-macos:
 	tools/deps/lsp-macos.sh $(JOBS)
 
@@ -338,16 +322,16 @@ check-macos-tools:
 	@echo "[macos] herramientas OK ($$(xcodebuild -version | head -1), $$(cmake --version | head -1))"
 
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
-# Linux viene compilada con obs-deps.
-deps-macos: check-macos-tools deps-obs-macos deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
+# Linux viene compilada con las de terceros (deps-terceros-linux).
+deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
+            deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
 	-$(MAKE) deps-lsp-macos
 
 macos: modelo-mac
-	cmake -S . -B $(BUILD_DIR) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
 		-DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	ctest --test-dir $(BUILD_DIR) --output-on-failure
@@ -376,8 +360,11 @@ modelo-mac: deps-mlx-swift-lm
 release-macos:
 	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en
 	@# $(BUILD_DIR), y los cambios de la app no llegaban a la .app.
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
+	@# De cero: también la cache de firmas (tools/deps/firmar-macos.sh).
+	rm -f $(BUILD_DIR)/firmas-*.txt $(BUILD_DIR)/firmados-*.txt
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	tools/deps/check-portable-macos.sh release
 	@# El manifest, como en Linux y Windows: sin el, el launcher verifica cero
@@ -389,13 +376,26 @@ release-macos:
 app-macos: release-macos
 	@mkdir -p dist
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app
+	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
+
+# Para probar mientras se programa: lo mismo que app-macos, pero sin borrar
+# release/ ni la .app. Solo se copia, firma, revisa y hashea lo que cambió
+# (tools/deps/firmar-macos.sh, BA_CHECK_SOLO, BA_MANIFEST_CACHE). Si algo raro
+# pasa, `make app-macos` lo arma de cero.
+app-macos-rapida:
+	cmake --build $(BUILD_DIR) -j$(JOBS)
+	cmake --install $(BUILD_DIR) --prefix release --component bundle
+	BA_CHECK_SOLO="$$(ls -t $(BUILD_DIR)/firmados-*.txt | head -1)" tools/deps/check-portable-macos.sh release
+	@mkdir -p dist
+	BA_FIRMADOS="$$(ls -t $(BUILD_DIR)/firmados-*.txt | head -1)" tools/deps/app-macos.sh --rapida release dist/BroadcastAppliance.app
 
 dmg-macos: release-macos
 	@mkdir -p dist
-	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg"
+	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.commit
+	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg"
 
 # ============================================================================
 # Releases desde una maquina propia (el CI de GitHub corre solo a mano).
@@ -421,9 +421,9 @@ dmg-macos: release-macos
 # De que commit sale cada archivo de dist/ (su .commit al lado): tools/publicar.sh
 # no sube nada que no sea del commit actual. "-dirty" = habia cambios sin commitear.
 ESTE_COMMIT = $(shell git rev-parse HEAD 2>/dev/null)$(shell git status --porcelain --untracked-files=no 2>/dev/null | grep -q . && echo -dirty)
-DIST_LINUX = dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz
-DIST_WIN   = dist/BroadcastAppliance-$(BA_VERSION)-windows-x64.zip
-DIST_MACOS = dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.dmg
+DIST_LINUX = dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz
+DIST_WIN   = dist/BroadcastAppliance-$(BA_VERSION)-windows-x64$(BA_SUFIJO).zip
+DIST_MACOS = dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
 
 dist-linux-docker:
 	tools/ci/compilar-en-docker.sh linux
@@ -473,20 +473,21 @@ publicar-win:
 
 dist-macos: release-macos
 	@mkdir -p dist
-	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz -s ',^\.,BroadcastAppliance,' .
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz > BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz.sha256
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64.tar.gz"
+	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz -s ',^\.,BroadcastAppliance,' .
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz.sha256
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).tar.gz"
 
 dist-linux:
-	cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Release
+	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
 	$(MAKE) release
 	@mkdir -p dist
-	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz --transform 's,^\.,BroadcastAppliance,' .
-	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.sha256
-	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz.commit
-	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64.tar.gz"
+	tools/caidas/simbolos-linux.sh release dist/simbolos/linux
+	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz --transform 's,^\.,BroadcastAppliance,' .
+	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.sha256
+	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.commit
+	@echo "dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz"
 
 # ============================================================================
 # Dependencias de terceros (extern/) — descarga reproducible e idempotente
@@ -500,8 +501,7 @@ dist-linux:
 # identificadores de descarga EXACTOS (tag de release, nombre de archivo) y
 # los SHA-256 viven aquí porque son metadatos de descarga, no "pins".
 #
-#   make deps             -> todo (obs + webrtc + spout + cloudflared + vcredist + lsp)
-#   make deps-obs         -> runtime OBS 31.0.0 (libobs.dll + CEF + Qt) a extern/obs-studio
+#   make deps             -> todo (qt + webrtc + spout + cloudflared + vcredist + lsp)
 #   make deps-webrtc      -> SDK libwebrtc M123 a extern/webrtc (= BA_WEBRTC_ROOT)
 #   make deps-spout       -> SDK Spout2 (tag real 2.007h) a extern/Spout2
 #   make deps-cloudflared -> cloudflared 2024.11.0 a extern/cloudflared
@@ -531,8 +531,6 @@ endif
 # --- Versiones (sincronizadas con versions.cmake) ---------------------------
 # Se leen de versions.cmake para que el pin sea la única fuente. Si la línea
 # no se encuentra, se cae a un default conocido (robustez ante reorden).
-OBS_TAG        := $(shell awk -F'"' '/OBS_STUDIO_TAG/{print $$2; exit}' versions.cmake 2>/dev/null)
-OBS_TAG        ?= 31.0.0
 CLOUDFLARED_VER:= $(shell awk -F'"' '/CLOUDFLARED_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
 CLOUDFLARED_VER?= 2024.11.0
 LSP_VER        := $(shell awk -F'"' '/LSP_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
@@ -550,16 +548,9 @@ WEBRTC_TAG := m123.6312.3.5
 SPOUT2_TAG := 2.007h
 
 # --- URLs + SHA-256 por asset -----------------------------------------------
-# OBS 31.0.0 (Windows): runtime portable (bin/64bit + obs-plugins/64bit con
-# libcef.dll/chrome_elf.dll + data/libobs). Es la raíz que consume tools/deploy
-# vía BA_DEPLOY_OBS. Trae también las DLLs de Qt del runtime.
-OBS_URL  := https://github.com/obsproject/obs-studio/releases/download/$(OBS_TAG)/OBS-Studio-$(OBS_TAG)-Windows.zip
-OBS_SHA  := 0ea3f71bd4d8a611ef763d2591aaf12b61e6f563284a3a14ddff485621fe4c41
-OBS_ZIP  := $(EXTERNS_DIR)/.downloads/OBS-Studio-$(OBS_TAG)-Windows.zip
-OBS_DEST := $(EXTERNS_DIR)/obs-studio
-
-# Qt 6.6.3 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config +
-# moc), NO el runtime (ese lo trae el zip de OBS en extern/obs-studio/bin/64bit).
+# Qt 6.6.3 (win64_msvc2019_64): SDK (headers + import libs + CMake config + moc)
+# y también el runtime: cmake/BaQtDeployWin.cmake copia de su bin/ las DLL que
+# ba-app importa de verdad.
 # Se instala con `aqtinstall` (en el .venv local) en lugar de curl: aqt baja el
 # componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin}
 # (incl. lib/cmake/Qt6/Qt6Config.cmake y lib/libQt6Core.a). La ruta oficial de
@@ -669,7 +660,7 @@ LSP_DEST := $(EXTERNS_DIR)/lsp
 # libsamplerate y argon2). Se vendorean a `extern/` para que un
 # configure con `extern/` poblado sea OFFLINE (cero red): el CMake prefiere la
 # copia vendored y solo cae a git si falta. Son DEPS DE BUILD (entran en el
-# binario), NO assets de runtime como OBS/Qt/Spout. Mismo patrón idempotente:
+# binario), NO assets de runtime como Qt/Spout. Mismo patrón idempotente:
 # presente+SHA -> skip; si no, curl a <tar>.part, mv, $(SHA256) -c, y se
 # extrae strippeando el top-dir de codeload.
 # ============================================================================
@@ -708,6 +699,11 @@ SAMPLERATE_SENT := $(SAMPLERATE_DEST)/CMakeLists.txt
 # argon2 20190702 (P-H-C/phc-winner-argon2). ⚠️  SIN CMakeLists: el target se
 # arma a mano en el CMakeLists raíz desde ${argon2_SOURCE_DIR}/src/*.c, por eso
 # el sentinel es el Makefile oficial (no un CMakeLists).
+LIBDEFLATE_URL  := https://codeload.github.com/ebiggers/libdeflate/tar.gz/refs/tags/v1.22
+LIBDEFLATE_SHA  := 7f343c7bf2ba46e774d8a632bf073235e1fd27723ef0a12a90f8947b7fe851d6
+LIBDEFLATE_TAR  := $(DL_DIR)/libdeflate-1.22.tar.gz
+LIBDEFLATE_DEST := $(EXTERNS_DIR)/libdeflate
+LIBDEFLATE_SENT := $(LIBDEFLATE_DEST)/CMakeLists.txt
 ARGON2_URL  := https://codeload.github.com/P-H-C/phc-winner-argon2/tar.gz/refs/tags/20190702
 ARGON2_SHA  := daf972a89577f8772602bf2eb38b6a3dd3d922bf5724d45e7f9589b5e830442c
 ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
@@ -721,83 +717,16 @@ ARGON2_SENT := $(ARGON2_DEST)/Makefile
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-deps: deps-obs deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
+deps: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
 
-# --- libobs para Linux (compilada desde fuente hacia extern/) ---------------
-# El motor de emision necesita libobs. En Windows se usa el runtime prebuilt
-# que baja `make deps-obs`; en Linux no hay tal cosa, asi que se compila desde
-# el tag fijado en versions.cmake hacia `extern/obs-linux`, que es de donde el
-# build del proyecto la toma (nunca del sistema).
-#
-# Requiere las bibliotecas de desarrollo de terceros listadas en el README
-# ("Requisitos de build"). uthash y nv-codec-headers se vendorean aca mismo.
-# Sin parentesis dentro del $(shell ...): make empareja parentesis y una
-# expresion sed con ellos le corta la llamada a la mitad.
-OBS_TAG := $(shell grep OBS_STUDIO_TAG versions.cmake | head -1 | cut -d'"' -f2)
-
-# Dependencias de libobs (FFmpeg, x264, jansson, curl, ...) DESDE FUENTE fijada:
-# el bundle no usa bibliotecas de terceros del sistema.
-deps-obs-deps-linux:
-	tools/deps/obs-deps-linux.sh $(JOBS)
-
-deps-obs-linux: deps-obs-deps-linux
-	@echo "==> libobs $(OBS_TAG) desde fuente hacia extern/obs-linux"
-	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
-		--recurse-submodules --shallow-submodules \
-		https://github.com/obsproject/obs-studio.git extern/obs-src
-	@test -d extern/uthash || git clone --depth 1 --branch v2.3.0 \
-		https://github.com/troydhanson/uthash.git extern/uthash
-	@test -d extern/nv-codec-headers || git clone --depth 1 --branch n12.2.72.0 \
-		https://github.com/FFmpeg/nv-codec-headers.git extern/nv-codec-headers
-	rm -rf extern/obs-build extern/obs-linux
-	PKG_CONFIG_PATH=$(CURDIR)/extern/obs-deps-linux/lib/pkgconfig \
-	cmake -S extern/obs-src -B extern/obs-build \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_PREFIX_PATH=$(CURDIR)/extern/obs-deps-linux \
-		-DENABLE_NEW_MPEGTS_OUTPUT=OFF -DENABLE_SERVICE_UPDATES=OFF \
-		-DCMAKE_DISABLE_FIND_PACKAGE_Gio=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
-		-DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
-		-DCMAKE_SHARED_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
-		-DCMAKE_MODULE_LINKER_FLAGS="-Wl,-rpath-link,$(CURDIR)/extern/obs-deps-linux/lib" \
-		-DENABLE_UI=OFF -DENABLE_SCRIPTING=OFF -DENABLE_BROWSER=OFF \
-		-DENABLE_WEBSOCKET=OFF -DENABLE_VLC=OFF -DENABLE_VST=OFF \
-		-DENABLE_AJA=OFF -DENABLE_DECKLINK=OFF -DENABLE_PIPEWIRE=OFF \
-		-DENABLE_QSV11=OFF -DENABLE_VIRTUALCAM=OFF -DENABLE_WEBRTC=OFF \
-		-DUthash_INCLUDE_DIR=$(CURDIR)/extern/uthash/include \
-		-DFFnvcodec_INCLUDE_DIR=$(CURDIR)/extern/nv-codec-headers/include \
-		-DCMAKE_INSTALL_PREFIX=$(CURDIR)/extern/obs-linux
-	cmake --build extern/obs-build -j$(JOBS)
-	cmake --install extern/obs-build
-	@# Uso desde el arbol de build (tests): libobs y sus plugins encuentran las
-	@# dependencias vendoreadas. En el bundle, BaPortableBundle fija $$ORIGIN.
-	@for f in extern/obs-linux/lib/*.so.* extern/obs-linux/bin/obs-ffmpeg-mux; do \
-	  [ -f "$$f" ] && [ ! -L "$$f" ] && patchelf --add-rpath '$$ORIGIN/../../obs-deps-linux/lib' "$$f"; done; true
-	@for f in extern/obs-linux/lib/obs-plugins/*.so; do \
-	  patchelf --add-rpath '$$ORIGIN/../../../obs-deps-linux/lib' "$$f"; done
-	@echo "==> libobs lista en extern/obs-linux"
-
-deps-obs:
-	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
-	@mkdir -p "$(DL_DIR)" "$(OBS_DEST)"
-	@if [ -f "$(OBS_ZIP)" ] && [ "$$($(SHA256) "$(OBS_ZIP)" | cut -d' ' -f1)" = "$(OBS_SHA)" ]; then \
-	  echo "[deps] OBS: ya presente y verificado ($(OBS_ZIP))"; \
-	else \
-	  echo "[deps] OBS: descargando $(OBS_URL)"; \
-	  curl -fL --retry 3 --connect-timeout 30 -o "$(OBS_ZIP).part" "$(OBS_URL)" \
-	    && mv "$(OBS_ZIP).part" "$(OBS_ZIP)" \
-	    && printf '%s  %s\n' "$(OBS_SHA)" "$(OBS_ZIP)" | $(SHA256_CHECK) \
-	    || { echo "[deps] ERROR OBS: fallo de descarga o hash" >&2; rm -f "$(OBS_ZIP).part"; exit 1; }; \
-	fi
-	@# Headers de libobs (el zip trae solo binarios): el arbol de fuentes del tag.
-	@test -d extern/obs-src || git clone --depth 1 --branch $(OBS_TAG) \
-		--recurse-submodules --shallow-submodules \
-		https://github.com/obsproject/obs-studio.git extern/obs-src
-	@if [ -f "$(OBS_DEST)/obs-plugins/64bit/libcef.dll" ]; then \
-	  echo "[deps] OBS: ya extraído en $(OBS_DEST)"; \
-	else \
-	  echo "[deps] OBS: extrayendo a $(OBS_DEST)"; \
-	  unzip -q -o "$(OBS_ZIP)" -d "$(OBS_DEST)"; \
-	fi
+# --- Bibliotecas de terceros de Linux (compiladas desde fuente) -------------
+# FFmpeg, x264, SRT, libva, libv4l2, cairo, libsndfile, libmicrodns... desde
+# fuente fijada (tools/deps/terceros-linux.sh): el bundle no usa bibliotecas de
+# terceros del sistema. Las usan GStreamer (deps-gstreamer-linux), los plugins
+# LSP y la búsqueda por mDNS. Quedan en extern/terceros-linux (antes
+# extern/obs-deps-linux: el script muda un árbol viejo y deja un enlace).
+deps-terceros-linux:
+	tools/deps/terceros-linux.sh $(JOBS)
 
 # Qt 6 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config).
 # Vía aqtinstall (en el .venv local): baja el componente exacto y lo deja en
@@ -850,7 +779,7 @@ QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Q
 # chequeo, en una maquina que ya tenia Qt el `qtpdf` no se bajaria nunca y nadie
 # se enteraria hasta que un PDF no se pueda abrir.
 # Renderiza las paginas de un PDF a imagen, que es de donde sale un carrusel
-# (ver docs/CARRUSEL.md). Se eligio sobre MuPDF porque usa el mismo vendoreo que
+# (ver docs/funciones/CARRUSEL.md). Se eligio sobre MuPDF porque usa el mismo vendoreo que
 # ya existe, anda igual en Linux y Windows, y no agrega otro build.
 QT6_HOST_PDF := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Pdf/Qt6PdfConfig.cmake
 # Multimedia (qtmultimedia), con su propio centinela por lo mismo que el PDF.
@@ -989,14 +918,17 @@ else
 endif
 ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER)/$(ORT_PKG)
 
-# La voz (docs/AUDIO-TTS.md): sherpa-onnx contra el MISMO ONNX Runtime de los
+# La voz (docs/funciones/AUDIO-TTS.md): sherpa-onnx contra el MISMO ONNX Runtime de los
 # rostros. Los modelos de voz NO: se bajan a pedido desde la app.
 deps-sherpa-onnx: deps-rostros
 	tools/deps/sherpa-onnx.sh
 
 # Windows: el ONNX Runtime oficial con DirectML (tools/deps/onnxruntime-win.sh)
 # y sherpa-onnx compilado con clang-cl contra él, cada uno en su carpeta.
-.PHONY: deps-onnxruntime-win deps-sherpa-onnx-win
+.PHONY: deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win
+# ncnn + Vulkan (superresolución en cualquier GPU: tools/deps/ncnn-win.sh).
+deps-ncnn-win:
+	tools/deps/ncnn-win.sh "$(DL_DIR)"
 deps-onnxruntime-win:
 	tools/deps/onnxruntime-win.sh "$(DL_DIR)"
 deps-sherpa-onnx-win: deps-onnxruntime-win deps-win-toolchain
@@ -1095,6 +1027,16 @@ deps-cloudflared:
 	    || { echo "[deps] ERROR cloudflared: fallo de descarga o hash" >&2; rm -f "$(CFL_EXE).part"; exit 1; }; \
 	fi
 
+# libpinggy (el túnel de pinggy.io de ba-pinggy, src/pinggy): binario oficial
+# fijado por versión y SHA-256 (tools/deps/pinggy.sh). deps-pinggy baja la del
+# host (macOS universal, Linux x86_64/aarch64); deps-pinggy-win la de Windows
+# (se compila desde Linux).
+deps-pinggy:
+	tools/deps/pinggy.sh
+
+deps-pinggy-win:
+	tools/deps/pinggy.sh windows-x86_64
+
 # cloudflared del host (Linux amd64/arm64 o macOS arm64), verificado por
 # SHA-256. En macOS el asset es un .tgz con el binario adentro.
 deps-cloudflared-host:
@@ -1150,15 +1092,18 @@ deps-lsp:
 	    && mkdir -p "$(LSP_DEST)/licencias" \
 	    && mv "$(LSP_DEST)/.x/lsp-plugins-$(LSP_VER)-Linux-x86_64/"*.txt "$(LSP_DEST)/licencias/"; \
 	  rm -rf "$(LSP_DEST)/.x"; \
-	  patchelf --set-rpath '$$ORIGIN:$$ORIGIN/../../obs-deps-linux/lib' "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap"; \
 	  echo "[deps] LSP: CLAP de Linux en $(LSP_DEST)/linux-x86_64"; \
 	fi
+	@# Siempre (es idempotente): un CLAP extraído antes del cambio de nombre
+	@# de extern/obs-deps-linux también queda apuntando a extern/terceros-linux.
+	@if command -v patchelf >/dev/null 2>&1; then \
+	  patchelf --set-rpath '$$ORIGIN:$$ORIGIN/../../terceros-linux/lib' "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap"; fi
 
 # CLAP (free-audio/clap, MIT): headers del formato de plugins que carga el host.
 CLAP_VER := 1.2.6
 CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
 # --- LibreOffice (opcional) --------------------------------------------------
-# Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/CARRUSEL.md).
+# Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/funciones/CARRUSEL.md).
 # NO entra en `make deps`: hay que pedirlo, porque son ~420 MB por plataforma y
 # el que recibe PDF no lo necesita. El bundle lo incluye solo si esta.
 # En la Mac, el de macOS (el .dmg se monta con hdiutil: solo se arma ahi).
@@ -1186,23 +1131,30 @@ deps-msitools:
 # de preguntarle a el, que es lo que el modelo ve de verdad. Sacarlo del codigo
 # obligaria a interpretar literales de C++ partidos en pedazos.
 mcp-inventario:
-	tools/mcp-inventario.py
+	tools/docs/mcp-inventario.py
 
 # llama.cpp (CPU) para medir un modelo chico corriendo ACA. Ver el comentario
-# del script: la GPU no esta libre, se la come libobs.
+# del script: la GPU no esta libre, se la come el motor de video.
 deps-llamacpp:
 	tools/deps/llamacpp.sh
+
+# llama.cpp como BIBLIOTECA para el ba-modelo de Windows y Linux (el modelo local
+# fuera de la Mac, src/modelo-llama): los binarios oficiales con Vulkan.
+deps-llamacpp-win: deps-win-toolchain
+	tools/deps/llamacpp-lib.sh win
+deps-llamacpp-linux:
+	tools/deps/llamacpp-lib.sh linux
 
 # Cuanto tarda y cuanto acierta ese modelo chico, con el prefijo cacheado.
 # Hace falta un .gguf en extern/modelos (no viaja en el repo: son gigas).
 bateria-local:
-	tools/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf --solo-nombre
+	tools/entrenar/bateria-local.py --modelo extern/modelos/Qwen3-1.7B-Q4_K_M.gguf --solo-nombre
 
 # El conjunto de entrenamiento del modelo chico, desde las semillas escritas a
 # mano. El examen (el corpus de siempre) queda intacto: es el unico numero
 # honesto que hay.
 corpus-entrenamiento:
-	tools/corpus-entrenamiento.py
+	tools/entrenar/corpus-entrenamiento.py
 
 ## El entorno de entrenamiento, por script: nada se instala a mano.
 venv-entrenar:
@@ -1221,7 +1173,7 @@ vector-control:
 # —que es cuando el modelo entrenado quedo viejo aunque las frases esten—.
 # Con --generar propone frases desde las etiquetas del buscador, PARA REVISAR.
 corpus-descubrir:
-	tools/corpus-descubrir.py
+	tools/entrenar/corpus-descubrir.py
 
 ## EL MODELO REACTIVO, AUTOMATICO. Cada vez que el MCP crece: inventario, json de
 ## equivalencias, bucle del corpus (cobertura, sentido, CDNV, Frobenius, margen)
@@ -1276,7 +1228,7 @@ deps-clap:
 # Agrupado: baja y extrae los 4 árboles de código de terceros que el
 # CMakeLists raíz consume vía FetchContent. Con `extern/` poblado, el configure
 # es OFFLINE (prefiere la copia vendored); sin él, cae a git.
-deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2
+deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate
 
 deps-mbedtls:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
@@ -1379,10 +1331,30 @@ deps-argon2:
 	  tar xzf "$(ARGON2_TAR)" -C "$(ARGON2_DEST)" --strip-components=1; \
 	fi
 
+deps-libdeflate:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(LIBDEFLATE_DEST)"
+	@if [ -f "$(LIBDEFLATE_TAR)" ] && [ "$$($(SHA256) "$(LIBDEFLATE_TAR)" | cut -d' ' -f1)" = "$(LIBDEFLATE_SHA)" ]; then \
+	  echo "[deps] libdeflate: ya presente y verificado ($(LIBDEFLATE_TAR))"; \
+	else \
+	  echo "[deps] libdeflate: descargando $(LIBDEFLATE_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(LIBDEFLATE_TAR).part" "$(LIBDEFLATE_URL)" \
+	    && mv "$(LIBDEFLATE_TAR).part" "$(LIBDEFLATE_TAR)" \
+	    && printf '%s  %s\n' "$(LIBDEFLATE_SHA)" "$(LIBDEFLATE_TAR)" | $(SHA256_CHECK) \
+	    || { echo "[deps] ERROR libdeflate: fallo de descarga o hash" >&2; rm -f "$(LIBDEFLATE_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(LIBDEFLATE_SENT)" ]; then \
+	  echo "[deps] libdeflate: ya extraído en $(LIBDEFLATE_DEST)"; \
+	else \
+	  echo "[deps] libdeflate: extrayendo a $(LIBDEFLATE_DEST)"; \
+	  rm -rf "$(LIBDEFLATE_DEST)"; \
+	  mkdir -p "$(LIBDEFLATE_DEST)"; \
+	  tar xzf "$(LIBDEFLATE_TAR)" -C "$(LIBDEFLATE_DEST)" --strip-components=1; \
+	fi
+
 # --- Estado / limpieza de dependencias --------------------------------------
 deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
-	@echo "  OBS $(OBS_TAG)          : $$( [ -f '$(OBS_DEST)/obs-plugins/64bit/libcef.dll' ] && echo OK || echo ausente )"
 	@echo "  Qt6 $(QT6_VER) (win64_msvc2019_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
 	@echo "  Spout2 $(SPOUT2_TAG)          : $$( [ -f '$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h' ] && echo OK || echo ausente )"
@@ -1416,7 +1388,7 @@ GST_RT := gstreamer-1.0-$(GST_VER)-universal.pkg
 GST_RT_SHA := 529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994
 GST_DEV := gstreamer-1.0-devel-$(GST_VER)-universal.pkg
 GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
-# --- Python de los plugins (docs/PLUGINS.md) -----------------------------------
+# --- Python de los plugins (docs/funciones/PLUGINS.md) -----------------------------------
 # CPython relocalizable de python-build-standalone: va adentro del programa
 # (Resources/python). Versión y sha256 fijados (el digest que publica GitHub).
 PY_REL := 20261001
@@ -1434,12 +1406,14 @@ PY_SHA_win-x64 := 52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986a
 .PHONY: deps-python deps-python-win
 deps-python:
 	@if [ -x "$(EXTERNS_DIR)/python/bin/python3" ] && [ "$$($(EXTERNS_DIR)/python/bin/python3 -c 'import platform; print(platform.python_version())')" = "$(PY_VER)" ] && \
-	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt' 2>/dev/null; then \
+	    $(EXTERNS_DIR)/python/bin/python3 -c 'import numpy, ctranslate2, sentencepiece, sacremoses, subword_nmt, onnx, PIL' 2>/dev/null && \
+	    { [ "$$(uname -s)" != Darwin ] || $(EXTERNS_DIR)/python/bin/python3 -c 'import coremltools' 2>/dev/null; }; then \
 		echo "Python ya está ($(EXTERNS_DIR)/python)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_$(HERR_PLAT)))" SHA="$(PY_SHA_$(HERR_PLAT))" QUE="Python" && \
 	bash tools/deps/python.sh "$(DL_DIR)/$(PY_TGZ_$(HERR_PLAT))" "$(EXTERNS_DIR)/python" $(HERR_PLAT)
 deps-python-win: deps-python
 	@if [ -f "$(EXTERNS_DIR)/python-win/python.exe" ] && [ -d "$(EXTERNS_DIR)/python-win/Lib/site-packages/ctranslate2" ] && \
+	    [ -d "$(EXTERNS_DIR)/python-win/Lib/site-packages/onnx" ] && \
 	    grep -q "$(PY_VER)" "$(EXTERNS_DIR)/python-win/.version" 2>/dev/null; then \
 		echo "Python de Windows ya está ($(EXTERNS_DIR)/python-win)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(PY_TGZ_win-x64)" URL="$(PY_URL)/$(subst +,%2B,$(PY_TGZ_win-x64))" SHA="$(PY_SHA_win-x64)" QUE="Python (Windows)" && \
@@ -1464,7 +1438,7 @@ deps-herramientas-win:
 
 # GStreamer de Linux: desde fuente, la misma versión (tools/deps/gstreamer-linux.sh).
 .PHONY: deps-gstreamer-linux
-deps-gstreamer-linux: deps-obs-linux
+deps-gstreamer-linux: deps-terceros-linux
 	bash tools/deps/gstreamer-linux.sh $(JOBS)
 
 # GStreamer de Windows: el oficial de MSVC, desarmado (tools/deps/gstreamer-win.sh).
@@ -1475,13 +1449,27 @@ GST_WIN_RT_SHA := 31cbc21fa0950b5c1e79c80959b2799805cb05a7a35953a13a9f7907761376
 GST_WIN_DEV := gstreamer-1.0-devel-msvc-x86_64-$(GST_WIN_VER).msi
 GST_WIN_DEV_SHA := af0a0720692052aaf5fb0cf2847ef34a87016ef0f914328d516f049e6c86f587
 .PHONY: deps-gstreamer-win
-deps-gstreamer-win: deps-obs deps-qt
+deps-gstreamer-win:
 	@if [ "$$(cat $(EXTERNS_DIR)/gstreamer-win/.version 2>/dev/null)" = "$(GST_WIN_VER) msvc_x86_64 r4" ]; then \
 		echo "GStreamer de Windows ya está ($(EXTERNS_DIR)/gstreamer-win)"; exit 0; fi; \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_RT)" URL="$(GST_WIN_URL)/$(GST_WIN_RT)" SHA="$(GST_WIN_RT_SHA)" QUE="GStreamer (Windows)" && \
 	$(MAKE) --no-print-directory _ba_baja ARCHIVO="$(DL_DIR)/$(GST_WIN_DEV)" URL="$(GST_WIN_URL)/$(GST_WIN_DEV)" SHA="$(GST_WIN_DEV_SHA)" QUE="GStreamer (Windows, cabeceras)" && \
-	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win" \
-		"$(EXTERNS_DIR)/obs-studio/bin/64bit" "$(EXTERNS_DIR)/qt6/6.6.3/msvc2019_64/bin"
+	bash tools/deps/gstreamer-win.sh "$$(pwd)/$(DL_DIR)/$(GST_WIN_RT)" "$$(pwd)/$(DL_DIR)/$(GST_WIN_DEV)" "$(EXTERNS_DIR)/gstreamer-win"
+
+# Los símbolos (.pdb) del GStreamer de Windows, del .msi de desarrollo, aparte:
+# no van en el aparato, van al almacén de símbolos (tools/caidas/simbolos.py)
+# para leer las pilas de los volcados.
+.PHONY: deps-gstreamer-win-pdb
+deps-gstreamer-win-pdb: deps-gstreamer-win
+	@if [ "$$(cat $(EXTERNS_DIR)/gstreamer-win-pdb/.version 2>/dev/null)" = "$(GST_WIN_VER)" ]; then \
+		echo "Símbolos de GStreamer (Windows) ya están"; exit 0; fi; \
+	t="$$(mktemp -d)"; trap 'rm -rf "$$t"' EXIT; \
+	for m in "$(DL_DIR)/$(GST_WIN_RT)" "$(DL_DIR)/$(GST_WIN_DEV)"; do \
+		(cd "$$t" && "$(CURDIR)/$(EXTERNS_DIR)/msitools/msiextract" "$(CURDIR)/$$m" >/dev/null); done; \
+	rm -rf "$(EXTERNS_DIR)/gstreamer-win-pdb" && mkdir -p "$(EXTERNS_DIR)/gstreamer-win-pdb" && \
+	find "$$t" -iname '*.pdb' -exec cp -n {} "$(EXTERNS_DIR)/gstreamer-win-pdb/" \; && \
+	echo "$(GST_WIN_VER)" >"$(EXTERNS_DIR)/gstreamer-win-pdb/.version" && \
+	echo "Símbolos de GStreamer (Windows): $$(ls $(EXTERNS_DIR)/gstreamer-win-pdb/*.pdb | wc -l) .pdb, $$(du -sh $(EXTERNS_DIR)/gstreamer-win-pdb | cut -f1)"
 
 # Los bindings de Python de GStreamer para el Python 3.12 del bundle (macOS).
 .PHONY: deps-gst-python-mac

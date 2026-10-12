@@ -12,7 +12,7 @@
 //     dice que puede (capacidades).
 //   * Con los dos, el joystick mueve uno u otro («modo»: optico | digital).
 //   * «Mejorar imagen» (filtro ba_mejora_imagen) también es por entrada:
-//     sigue lo general (Configuración → Video), o se fuerza, o se apaga.
+//     sigue lo general (Configuración → Cámaras y entradas), o se fuerza, o se apaga.
 //
 // Se guarda en Config/camaras.json (por nombre de entrada: si la entrada se
 // borra y se vuelve a agregar con el mismo nombre, recupera su PTZ). Las
@@ -58,7 +58,7 @@ class ControlCamaras : public QObject {
     Q_PROPERTY(bool buscando READ buscando NOTIFY busquedaCambio)
     /// Cámaras ONVIF encontradas en la red: [{direccion, host, nombre, modelo}]
     Q_PROPERTY(QVariantList encontradas READ encontradas NOTIFY busquedaCambio)
-    /// «Mejorar imagen» general (Configuración → Video).
+    /// «Mejorar imagen» general (Configuración → Cámaras y entradas).
     Q_PROPERTY(bool mejoraGeneral READ mejoraGeneral NOTIFY cambio)
 
    public:
@@ -73,6 +73,12 @@ class ControlCamaras : public QObject {
 
     // --- Mover (lo del joystick) -------------------------------------------
     /// Velocidades -1..1 (pan + derecha, tilt + arriba, zoom + acercar).
+    // --- Interlock: no mover la cámara que está AL AIRE -----------------------
+    /// La cámara (su entrada) está en la escena al aire.
+    Q_INVOKABLE bool alAire(const QString& entrada) const;
+    /// {activo, seguir_suave_permitido} (Config/ptz-interlock.json).
+    Q_INVOKABLE QVariantMap interlock() const;
+    Q_INVOKABLE void setInterlock(const QVariantMap& cambios);
     Q_INVOKABLE QString mover(const QString& entrada, double pan, double tilt, double zoom);
     Q_INVOKABLE QString parar(const QString& entrada);
     Q_INVOKABLE QString enfocar(const QString& entrada, double velocidad);
@@ -114,23 +120,29 @@ class ControlCamaras : public QObject {
     Q_INVOKABLE void sincronizar();
 
     // --- Posiciones con nombre (ptz/Posiciones) --------------------------------
-    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token}, creada,
-    /// modificada}]
+    /// [{id, nombre, comentario, definicion, digital{x,y,zoom}, camara{backend,memoria|token},
+    /// velocidad?, segundos?, miniatura?, miniatura_ruta?, miniatura_url?, creada, modificada}]
     Q_INVOKABLE QVariantList posiciones(const QString& entrada) const;
     /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
     /// nombre. {ok, error, aviso, id}.
     Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre,
-                                          const QString& comentario);
-    /// cambios: {nombre?, comentario?, regrabar?: bool (vuelve a registrar
-    /// donde está ahora)}. {ok, error, aviso}.
+                                          const QString& comentario, double velocidad = 0, double segundos = -1);
+    /// cambios: {nombre?, comentario?, velocidad? (0..1, 0 = la de la cámara),
+    /// segundos? (-1 = sin fijar), regrabar?: bool (vuelve a registrar donde
+    /// está ahora, con foto nueva), miniatura?: bool (solo la foto)}. {ok, error, aviso}.
     Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre,
                                            const QVariantMap& cambios);
     /// Borra la posición (y libera su memoria en la cámara).
     Q_INVOKABLE QString borrarPosicion(const QString& entrada, const QString& idONombre);
-    /// Va a la posición: la cámara a su memoria y el recorte a su encuadre.
+    /// Va a la posición: la cámara a su memoria (con su velocidad) y el
+    /// recorte a su encuadre, en `segundos` (-1 = los de la posición, o 1).
     /// {ok, error, aviso}.
     Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre,
-                                        double segundos = 1.0);
+                                        double segundos = -1);
+    /// Saca la foto de la posición: lo que muestra la entrada AHORA, 320 px de
+    /// ancho, en Miniaturas/ptz/. "" o el error. Se llama sola al crear o
+    /// regrabar (un rato después, cuando el recorte ya llegó).
+    Q_INVOKABLE QString capturarMiniatura(const QString& entrada, const QString& idONombre);
 
     /// Para MCP: el estado de una entrada (o de todas), como json.
     QJsonObject estadoJson(const QString& entrada = {}) const;
@@ -138,10 +150,13 @@ class ControlCamaras : public QObject {
    signals:
     void cambio();
     void busquedaCambio();
+    /// Lo que salió mal en algo que terminó después (la foto de una posición).
+    void aviso(const QString& texto);
 
    private:
     struct Camara;
     Camara* camara(const QString& entrada, QString* error);
+    QString guardarMiniatura(const QString& entrada, const QString& idONombre, const QImage& img);
     /// El backend que recibe el joystick y los presets.
     PtzBackend* activo(Camara& c) const;
     /// Mueve (o para, con todo en 0) sin cortar el pulso de `apuntar`.
@@ -157,7 +172,18 @@ class ControlCamaras : public QObject {
     /// cámara puede llegar después: ONVIF contesta el token). "" o el error;
     /// `aviso` lo que no se pudo.
     QString registrar(Camara& c, Posicion& p, QString& aviso);
+    /// La foto, un rato después (el recorte digital tarda en llegar).
+    void miniaturaPronto(const QString& entrada, const QString& id);
+    std::filesystem::path carpetaMiniaturas() const;
+    /// La foto de un preset (de la cámara o digital): Miniaturas/ptz/<clave>-preset-<cam|dig>-<n>.jpg.
+    QString nombreFotoPreset(const Camara& c, bool digital, int n) const;
+    /// Saca la foto del preset `n` (lo que muestra la entrada ahora).
+    void fotoPreset(const QString& entrada, bool digital, int n);
+    /// n -> url de la foto de cada preset que tiene una.
+    QVariantMap fotosPresets(const Camara& c, bool digital) const;
 
+    bool interlockActivo_ = true;
+    bool seguirSuavePermitido_ = true;
     AppRuntime& rt_;
     std::filesystem::path archivo_;
     QString credenciales_;

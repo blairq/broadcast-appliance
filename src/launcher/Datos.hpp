@@ -24,4 +24,11 @@ namespace ba::launcher {
 std::filesystem::path prepararDatos(const std::filesystem::path& bundle, const std::filesystem::path& datos,
                                     std::vector<std::string>& avisos);
 
+/// Las configuraciones (ver platform/Paths.hpp): la primera vez MUDA (renombra, no
+/// copia) lo que era de la configuración a `Configuraciones/Principal/` y deja
+/// launcher.json en la carpeta de la máquina; siempre: que la activa exista y tenga
+/// las semillas de fábrica (Graficos/, Extensiones/). Devuelve la carpeta de la activa.
+std::filesystem::path prepararConfiguraciones(const std::filesystem::path& bundle, const std::filesystem::path& datos,
+                                              std::vector<std::string>& avisos);
+
 } // namespace ba::launcher

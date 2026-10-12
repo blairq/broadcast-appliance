@@ -30,7 +30,11 @@ Rectangle {
         // --- Encabezado: por dónde entra la gente ----------------------------
         Panel {
             Layout.fillWidth: true
+            // Panel no calcula su alto: sin esto quedaba en 0 y el encabezado
+            // se dibujaba encima del panel de Preguntas.
+            Layout.preferredHeight: 2 * padding + encabezado.implicitHeight
             RowLayout {
+                id: encabezado
                 anchors.fill: parent
                 spacing: 12
                 ColumnLayout {
@@ -127,6 +131,14 @@ Rectangle {
                                     ctx.fillRect(off + x * cell, off + y * cell, cell, cell)
                     }
                 }
+            }
+            // Sin QR: por qué (y dónde se arregla).
+            Text {
+                visible: !!page.pub.enlace && page.pub.enlace.ok === false
+                Layout.preferredWidth: 300
+                wrapMode: Text.WordWrap
+                color: Theme.warn; font.pixelSize: 12
+                text: (page.pub.enlace && page.pub.enlace.mensaje) || "No hay enlace."
             }
             RowLayout {
                 Layout.preferredWidth: 300

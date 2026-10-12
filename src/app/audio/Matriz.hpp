@@ -7,7 +7,7 @@
 // aparecen en Audio con su propio rack.
 //
 // COLUMNAS (buses):
-//   * las 6 PISTAS de OBS. La 1 es el programa (emisión y grabación); de la 2
+//   * las 6 PISTAS del motor. La 1 es el programa (emisión y grabación); de la 2
 //     a la 6 las toma la grabación individual cuando hace falta. Un cruce a
 //     una pista es la asignación NATIVA de la fuente a esa pista: prender o
 //     apagar, sin agregar nada al camino del audio (cero retardo).
@@ -17,7 +17,8 @@
 //     fuente (una submezcla: «todos los micrófonos», con un compresor encima).
 //
 // Los buses virtuales los mezcla un hilo propio a partir del audio de cada
-// fuente después de sus filtros (el callback de captura de OBS). Eso agrega un
+// fuente después de su cadena (una toma del motor: escucharEntrada); una
+// entrada virtual vuelve al motor por la cola de su `bavoz`. Eso agrega un
 // colchón de ~20-30 ms, y SOLO a lo que pasa por un bus virtual: lo que va a
 // las pistas nativas no se entera. Nivel, pan y mute existen en los cruces de
 // los buses virtuales, y se muestran solo si se activan en ese cruce.
@@ -26,8 +27,8 @@
 // armar un círculo de buses).
 //
 // Se guarda en Config/audio-matriz.json. Hilos: todo lo de la interfaz en el
-// principal; el audio de las fuentes llega en el de OBS (solo se copia) y la
-// mezcla en el suyo.
+// principal; el audio de las fuentes llega en el de GStreamer (solo se copia)
+// y la mezcla en el suyo.
 // ============================================================================
 #pragma once
 
@@ -49,16 +50,9 @@
 
 #include <nlohmann/json.hpp>
 
-struct obs_source;
-struct obs_volmeter;
-struct audio_data;
-
 namespace ba::app::audio {
 
 class EquipoAudio;
-
-/// Registra el tipo de fuente de las entradas virtuales (al arrancar libobs).
-void registrarEntradaVirtual();
 
 class Matriz : public QObject {
     Q_OBJECT
@@ -76,7 +70,7 @@ class Matriz : public QObject {
     /// y cada dispositivo [{id, nombre, tipo, canales, visible, abierto, enApp}].
     Q_PROPERTY(bool mostrarEquipo READ mostrarEquipo WRITE setMostrarEquipo NOTIFY cambio)
     Q_PROPERTY(QVariantList equipo READ equipo NOTIFY cambio)
-    /// Las pistas 2-6 de OBS plegadas en la vista (por defecto: solo se ve la 1).
+    /// Las pistas 2-6 plegadas en la vista (por defecto: solo se ve la 1).
     Q_PROPERTY(bool pistasPlegadas READ pistasPlegadas WRITE setPistasPlegadas NOTIFY cambio)
 
    public:
@@ -121,6 +115,9 @@ class Matriz : public QObject {
 
     /// Para MCP: todo el estado en JSON.
     json estado() const;
+    /// Para diagnosticar: el nivel de cada fila (lo que entrega), el de cada bus, las
+    /// tomas enganchadas y el estado de los dispositivos del equipo.
+    json diagnostico() const;
     /// Dónde está cada pista ocupada por la grabación individual (lo informa el motor).
     void setUsoPista(int indice, const std::string& uso);
 
@@ -154,7 +151,8 @@ class Matriz : public QObject {
     void usarEquipo();
     std::function<std::set<std::string>()> usadasPorOtros_;
     std::set<std::string> ultimosOtros_; ///< lo último que se miró (para no reabrir en cada vuelta)
-    static void alAudio(void* param, obs_source* src, const ::audio_data* data, bool muted);
+    /// La entrada del motor de una entrada virtual (lee la cola de su `bavoz`).
+    bool crearEntradaVirtual(const std::string& nombre);
 
     std::filesystem::path root_;
     std::string pistas_[kPistas];
@@ -166,8 +164,8 @@ class Matriz : public QObject {
     std::map<std::pair<std::string, std::string>, Envio> envios_;            ///< (fuente, bus)
     std::vector<std::string> filas_;                                         ///< fuentes conocidas
 
-    // Tomas: callback de captura por fuente con algún envío a un bus virtual.
-    std::mutex tomasLock_;
+    // Tomas: el audio de cada fuente con algún envío a un bus virtual.
+    mutable std::mutex tomasLock_;
     std::map<std::string, std::shared_ptr<Toma>> tomas_;
 
     std::mutex planLock_;
@@ -182,8 +180,6 @@ class Matriz : public QObject {
     bool activa_ = false;
     QTimer timer_;
     QVariantMap medidores_;
-    std::map<std::string, obs_volmeter*> volmeters_;
-    std::map<std::string, std::shared_ptr<std::atomic<float>>> picos_;
 };
 
 } // namespace ba::app::audio

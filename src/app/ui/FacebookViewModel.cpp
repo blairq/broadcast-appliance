@@ -3,7 +3,10 @@
 // ============================================================================
 
 #include "ui/FacebookViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
+#include "platform/Paths.hpp"
 
+#include <algorithm>
 #include <QClipboard>
 #include <QDesktopServices>
 #include <QDir>
@@ -13,8 +16,8 @@
 #include <QSet>
 #include <QUrl>
 
-#include "AppRuntime.hpp"
-#include "AppSettings.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "arranque/AppSettings.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
 
 namespace ba::app {
@@ -33,7 +36,7 @@ QJsonArray withUid(const QJsonArray& in) {
 
 FacebookViewModel::FacebookViewModel(AppRuntime& rt, QObject* parent)
     : QObject(parent), rt_(rt), client_(std::make_unique<FacebookClient>(
-                                    QString::fromStdString((rt.dataRoot() / "Credenciales").string()))),
+                                    QString::fromStdString((ba::platform::credentialsDir()).string()))),
       lives_(std::make_unique<JsonListModel>(
           QStringList{"uid", "title", "description", "status", "url", "views", "created"})),
       videos_(std::make_unique<JsonListModel>(
@@ -126,14 +129,19 @@ void FacebookViewModel::refresh() {
 }
 
 QString FacebookViewModel::recordingsDir() const {
-    return QString::fromStdString(rt_.config().rec.directory);
+    return QString::fromStdString(rt_.carpetaGrabacion());
 }
 
 void FacebookViewModel::refreshRecordings() {
     QJsonArray out;
-    for (const QFileInfo& f :
-         QDir(recordingsDir())
-             .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time)) {
+    // Las del evento en curso y las de Recordings/, lo más nuevo primero.
+    QFileInfoList files;
+    for (const std::string& c : rt_.carpetasDeGrabaciones())
+        files += QDir(QString::fromStdString(c))
+                     .entryInfoList({"*.mkv", "*.mp4", "*.mov", "*.flv", "*.webm"}, QDir::Files, QDir::Time);
+    std::sort(files.begin(), files.end(),
+              [](const QFileInfo& a, const QFileInfo& b) { return a.lastModified() > b.lastModified(); });
+    for (const QFileInfo& f : files) {
         out.append(QJsonObject{{"id", f.absoluteFilePath()},
                                {"uid", f.absoluteFilePath()},
                                {"name", f.fileName()},
@@ -175,6 +183,9 @@ void FacebookViewModel::goLive(const QJsonObject& p, FacebookClient::Done done) 
         self->liveId_ = d.value("id").toString();
         self->setChatLive(self->liveId_);
         emit self->stateChanged();
+        QVariantMap v{{"plataforma", "facebook"}, {"id", self->liveId_}};
+        if (d.contains("permalink_url")) v["url"] = "https://www.facebook.com" + d.value("permalink_url").toString();
+        emit self->vivo(v);
         QTimer::singleShot(4000, self, [self]() {
             if (self) self->refresh();
         });
@@ -276,14 +287,14 @@ void FacebookViewModel::pollChat() {
                 chatItems_.append(v);
                 added = true;
             }
-            while (chatItems_.size() > 300)
+            while (chatItems_.size() > ba::ajustes::entero("chat.historial", 300))
                 chatItems_.removeFirst();
             if (added) {
                 chat_->setItems(withUid(chatItems_));
                 emit chatChanged();
             }
         }
-        chatTimer_.start(5000);
+        chatTimer_.start(ba::ajustes::sAMs("chat.sondeoS", 5));
     });
 }
 

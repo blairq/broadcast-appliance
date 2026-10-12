@@ -21,7 +21,7 @@ constexpr int kColumna = 220;
 
 bool esFiltro(const std::string& t) {
     return t == "color" || t == "croma" || t == "recorte" || t == "obs" || t == "gst" || t == "retardo" ||
-           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres";
+           t == "rostros" || t == "normalizar" || t == "sincro" || t == "superres" || t == "ptz" || t == "seguir" || t == "vista360";
 }
 
 json fabrica(const std::string& tipo) {
@@ -32,27 +32,81 @@ json fabrica(const std::string& tipo) {
         return {{"izquierda", 0.0}, {"arriba", 0.0},    {"derecha", 0.0},
                 {"abajo", 0.0},     {"espejoH", false}, {"espejoV", false}};
     if (tipo == "salida") return {{"nombre", ""}};
+    // Una imagen 360 (equirectangular) vista como una cámara común: hacia dónde mira
+    // (`yaw` -180..180, `pitch` -90..90, en grados), cuánto abre (`fov`, el campo
+    // vertical) y el tamaño del cuadro que sale (`ancho` x `alto`; 0 = como entra).
+    // El elemento ba360: en la GPU, ba360gl o ba360d3d12 (lo elige el motor).
+    if (tipo == "vista360" || tipo == "panoramica") {
+        const bool pano = tipo == "panoramica";
+        json p{{"yaw", 0.0},       {"pitch", 0.0},      {"fov", 90.0},       {"tira_campo", 180.0},
+               {"ancho", pano ? 0 : 1920}, {"alto", pano ? 0 : 1080},
+               {"modo", pano ? "lentes" : "equirect"}, {"ver", pano ? "tira" : "vista"}, {"mezcla", 5.0},
+               {"guia", "ninguna"}, {"guia_x", 0.5},     {"guia_y", 0.5},     {"guia_ancho", 0.5}, {"guia_alto", 0.5},
+               {"guia_grosor", 3.0}, {"guia_color", 0xFF00FF00LL}};
+        for (int i = 1; i <= kMaxLentes360; ++i) {
+            const std::string b = "lente" + std::to_string(i) + "_";
+            p[b + "tipo"] = pano ? "normal" : "ojo";
+            for (const auto& [k, v] : std::initializer_list<std::pair<const char*, double>>{
+                     {"x", 0.5}, {"y", 0.5}, {"radio", 0.5}, {"campo", pano ? 60.0 : 190.0}, {"yaw", 0},
+                     {"pitch", 0}, {"roll", 0}, {"k1", 0}, {"k2", 0}})
+                p[b + k] = v;
+        }
+        // La Panorámica (del estudio): un stream por cámara, lado a lado en su lienzo
+        // (lente_ancho x lente_alto cada uno), unidas en una imagen; de fábrica la tira,
+        // del tamaño de la suma de las resoluciones. `nombre`: la fuente en las escenas.
+        if (pano) {
+            p["lente_ancho"] = 1920;
+            p["lente_alto"] = 1080;
+            p["nombre"] = "";
+        }
+        return p;
+    }
     // `ms` (lo que se mide) manda sobre `cuadros` si es > 0.
     if (tipo == "retardo") return {{"cuadros", 0}, {"ms", 0}};
-    // Una fuente que declaró mal su color: cómo la decodificó libobs (lo
-    // declarado) y cómo es en verdad. `desentrelazar` se aplica a la fuente
-    // (en libobs, que tiene los campos): no | descartar | retro | mezclar |
-    // lineal | yadif | yadif2x; `campo`: arriba | abajo.
+    // Una fuente que declara mal su color o su entrelazado: lo que dice
+    // (declarado) y cómo es en verdad. El motor impone la colorimetría real en
+    // las caps antes de convertir (capssetter). `desentrelazar`: no (lo que diga
+    // la señal) | descartar | retro | mezclar | lineal | yadif | yadif2x; `campo`:
+    // arriba | abajo.
     if (tipo == "normalizar")
         return {{"matriz_declarada", "709"}, {"rango_declarado", "limitado"}, {"matriz_real", "709"},
                 {"rango_real", "limitado"},  {"desentrelazar", "no"},         {"campo", "arriba"}};
     // La huella para medir desfases (la pone video_sincronia y la saca al terminar).
     if (tipo == "sincro") return {{"auto", false}};
-    // `uso`: para qué la usa Personas (mirar | autoalta | puerta); `auto`: la
-    // puso Personas sola (y la saca cuando no la necesita).
+    // El elemento barostros (src/gst-plugins/rostros). `uso`: para qué la usa
+    // Personas (mirar | autoalta | puerta | seguir; "" = nadie, la puso el
+    // usuario); `auto`: la puso Personas sola (y la saca cuando no la necesita).
+    // `fps`: análisis por segundo; `reconocer`: el vector de cada cara (Personas
+    // lo pide siempre que la usa); `detector`: auto | vision | yunet. EL OVERLAY:
+    // `marcar`, `estilo` (recuadro | esquinas | relleno | tapar | pixelar),
+    // `color` (ARGB), `grosor`, `texto` (plantilla: {nombre} {cargo} {id}
+    // {confianza} {n}), `texto_posicion` (arriba | abajo), `texto_tamano`.
     if (tipo == "rostros")
-        return {{"uso", "mirar"}, {"cada", 500}, {"ancho", 640}, {"marcar", false}, {"auto", false}};
+        return {{"uso", ""},           {"auto", false},          {"activo", true},       {"fps", 5.0},
+                {"reconocer", false},  {"detector", "auto"},     {"confianza", 0.7},     {"marcar", false},
+                {"estilo", "recuadro"}, {"color", 0xFFFFC83CLL}, {"grosor", 4},          {"texto", ""},
+                {"texto_posicion", "arriba"}, {"texto_tamano", 0.035}};
     // Superresolución x2 (el plugin de GStreamer basuperres): `motor` auto | apple |
     // fsr | onnx (con `modelo`, la ruta del .onnx), `nitidez` (FSR), `proveedor`
     // (onnx: auto | cpu | coreml | dml), `activo`. Lo que la sigue trabaja al doble.
+    // `plugin`: el id de un plugin de superresolución (video/SuperRes: el catálogo y
+    // los instalados); la app lo traduce al motor y el modelo de ESTA máquina al
+    // mandar el grafo (CoreML en la Mac, ONNX/DirectML o TensorRT en Windows…).
     if (tipo == "superres")
-        return {{"motor", "auto"},     {"modelo", ""},   {"nitidez", 0.2},
-                {"proveedor", "auto"}, {"activo", true}, {"esperar", 0}};
+        return {{"plugin", ""},        {"motor", "auto"}, {"modelo", ""},   {"escala_red", 2},
+                {"nitidez", 0.2},      {"proveedor", "auto"}, {"activo", true}, {"esperar", 0},
+                {"unidades", "auto"}}; // CoreML: auto (Neural Engine), ane, gpu, cpu
+    // El PTZ digital (baptz): uno por entrada, se crea solo y no se quita (se
+    // apaga con `activo`); va donde se lo ponga. Lo maneja Cámaras PTZ.
+    if (tipo == "ptz") return {{"activo", true}};
+    // El seguimiento (baseguir): lee las caras de una tarjeta Rostros que esté
+    // antes y decide el encuadre. `objetivo`: "" (nadie) | "id:N" | "persona:<id>"
+    // | "x,y" (la cara más cercana a ese punto) | "mayor" | "centro".
+    // `zoom`: 0 = no lo toca; >0 = el zoom que busca; `aire` (lugar arriba de la
+    // cabeza), `suavidad` (s), `zona_muerta`, `perdida_s` (cuánto espera).
+    if (tipo == "seguir")
+        return {{"activo", true}, {"auto", false}, {"objetivo", ""},     {"zoom", 0.0},       {"tamano_cara", 0.0},
+                {"aire", 0.12},   {"suavidad", 0.6},   {"zona_muerta", 0.04}, {"perdida_s", 3.0}};
     if (tipo == "obs") return {{"filtro", ""}, {"ajustes", json::object()}};
     // Un módulo de GStreamer: el elemento y sus propiedades (lo que cambia de fábrica).
     // `esperar` (ms): 0 entrega el cuadro anterior (1 cuadro de latencia, nunca
@@ -64,8 +118,8 @@ json fabrica(const std::string& tipo) {
     // Por puerto: {"in_0": {x, y, ancho, alto, opacidad, orden}} (lo ejecuta el estudio).
     // `nombre`: la fuente con la que se pone en las escenas. Sin capas: mosaico.
     if (tipo == "compositor")
-        return {{"ancho", 1920},
-                {"alto", 1080},
+        return {{"ancho", 0}, // 0: el tamaño del lienzo del estudio
+                {"alto", 0},
                 {"fondo", 0xFF000000LL},
                 {"nombre", ""},
                 {"capas", json::object()}};
@@ -79,11 +133,15 @@ std::string titulo(const std::string& tipo) {
     if (tipo == "color") return "Color";
     if (tipo == "croma") return "Croma";
     if (tipo == "recorte") return "Recorte y espejo";
+    if (tipo == "vista360") return "Vista 360";
+    if (tipo == "panoramica") return "Panorámica";
     if (tipo == "salida") return "Salida";
     if (tipo == "retardo") return "Retardo";
     if (tipo == "normalizar") return "Normalizar";
     if (tipo == "sincro") return "Sincronía";
     if (tipo == "rostros") return "Rostros";
+    if (tipo == "ptz") return "PTZ";
+    if (tipo == "seguir") return "Seguimiento";
     if (tipo == "obs") return "Filtro";
     if (tipo == "gst") return "Módulo";
     if (tipo == "superres") return "Superresolución";
@@ -149,19 +207,208 @@ int indicePedido(const std::string& puerto) {
 
 } // namespace
 
+namespace {
+
+/// Un parámetro documentado: clave, tipo (numero | entero | texto | si_no |
+/// opcion | color), qué hace y, según el tipo, rango u opciones.
+json param(const char* clave, const char* tipo, const char* descripcion, json extra = json::object()) {
+    json p{{"clave", clave}, {"tipo", tipo}, {"descripcion", descripcion}};
+    for (auto it = extra.begin(); it != extra.end(); ++it) p[it.key()] = it.value();
+    return p;
+}
+
+} // namespace
+
+std::string GrafoVideo::ayudaTextoOverlay() {
+    return "EL TEXTO DEL OVERLAY (tarjeta Rostros, parámetro `texto`) es una plantilla: se escribe lo que se quiera y "
+           "estas marcas se reemplazan por lo de cada cara:\n"
+           "  {nombre}     quién es (lo pone Personas cuando la reconoce; vacío si no)\n"
+           "  {cargo}      su cargo, de su ficha en Personas\n"
+           "  {id}         el número de la cara (se conserva mientras se mueve)\n"
+           "  {confianza}  qué tan segura está la detección («91 %»)\n"
+           "  {n}          cuántas caras hay en el cuadro\n"
+           "Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin cargo muestra solo el nombre, y "
+           "si no queda nada no hay cartel. Ejemplos: «{nombre}», «{nombre} — {cargo}», «Cara {id}», «{confianza}», "
+           "«{nombre} #{id}». `texto_posicion`: arriba | abajo de la cara (si arriba no entra, va abajo); "
+           "`texto_tamano`: fracción del alto del video (0,035 = 3,5 %); el color es el de la marca (`color`). Vacío = sin texto.";
+}
+
+json GrafoVideo::parametrosDe(const std::string& tipo) {
+    json l = json::array();
+    if (tipo == "rostros") {
+        l.push_back(param("activo", "si_no", "Analizar; si no, la imagen solo pasa."));
+        l.push_back(param("fps", "numero", "Análisis por segundo (la imagen pasa siempre a su ritmo).", {{"min", 0.5}, {"max", 30}}));
+        l.push_back(param("reconocer", "si_no", "Sacar el vector de cada cara para la libreta de Personas (lo prende sola Personas cuando usa la cámara)."));
+        l.push_back(param("detector", "opcion", "Quién encuentra las caras: auto (Apple Vision en la Mac si no hace falta reconocer; si no, YuNet), vision o yunet.", {{"opciones", {"auto", "vision", "yunet"}}}));
+        l.push_back(param("confianza", "numero", "Descarta las detecciones dudosas.", {{"min", 0.1}, {"max", 1}}));
+        l.push_back(param("marcar", "si_no", "Dibujar el overlay sobre cada cara."));
+        l.push_back(param("estilo", "opcion", "Cómo se marca: recuadro, esquinas, relleno (translúcido), tapar (color sólido) o pixelar; tapar y pixelar sirven para no mostrar una cara.", {{"opciones", {"recuadro", "esquinas", "relleno", "tapar", "pixelar"}}}));
+        l.push_back(param("color", "color", "Color de la marca y del texto (ARGB, 0xFFFFC83C de fábrica)."));
+        l.push_back(param("grosor", "entero", "Grosor del borde en píxeles del video.", {{"min", 1}, {"max", 40}}));
+        l.push_back(param("texto", "texto", "Plantilla del texto sobre cada cara: {nombre} {cargo} {id} {confianza} {n} (ver la ayuda del texto)."));
+        l.push_back(param("texto_posicion", "opcion", "Dónde va el texto.", {{"opciones", {"arriba", "abajo"}}}));
+        l.push_back(param("texto_tamano", "numero", "Alto del texto, en fracción del alto del video.", {{"min", 0.01}, {"max", 0.2}}));
+        l.push_back(param("uso", "texto", "Para qué la usa Personas (mirar, autoalta, puerta, seguir); vacío = la puso el usuario. Lo maneja la app."));
+    } else if (tipo == "seguir") {
+        l.push_back(param("activo", "si_no", "Seguir; si no, pasa sin hacer nada."));
+        l.push_back(param("objetivo", "texto", "A quién: vacío (nadie) | id:N (la cara número N) | persona:X (id de su ficha o su nombre) | x,y (la cara más cercana a ese punto de la toma, 0..1) | mayor (la más grande) | centro (la más cercana al centro)."));
+        l.push_back(param("zoom", "numero", "El zoom que busca; 0 = no tocarlo.", {{"min", 0}, {"max", 8}}));
+        l.push_back(param("tamano_cara", "numero", "Qué parte del alto ocupa la cara (calcula el zoom); 0 = no ajustarlo.", {{"min", 0}, {"max", 1}}));
+        l.push_back(param("aire", "numero", "Cuánto queda la cara arriba del centro, en fracción del alto (deja aire arriba de la cabeza).", {{"min", -0.5}, {"max", 0.5}}));
+        l.push_back(param("suavidad", "numero", "Constante de tiempo del movimiento, en segundos.", {{"min", 0.05}, {"max", 10}}));
+        l.push_back(param("zona_muerta", "numero", "Lo que se puede correr la cara sin mover nada (que no tiemble).", {{"min", 0}, {"max", 0.5}}));
+        l.push_back(param("perdida_s", "numero", "Segundos que la busca donde estaba antes de soltarla.", {{"min", 0}, {"max", 60}}));
+    } else if (tipo == "ptz") {
+        l.push_back(param("activo", "si_no", "Encender o apagar el PTZ digital de esta entrada (también en Cámaras PTZ)."));
+    } else if (tipo == "color") {
+        l.push_back(param("brillo", "numero", "Suma luz (-1..1).", {{"min", -1}, {"max", 1}}));
+        l.push_back(param("contraste", "numero", "1 = sin cambio.", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("saturacion", "numero", "0 = blanco y negro, 1 = sin cambio.", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("gamma", "numero", "1 = sin cambio.", {{"min", 0.2}, {"max", 3}}));
+    } else if (tipo == "croma") {
+        l.push_back(param("clave", "color", "El color de fondo a sacar (RGB, 0x00B140 = verde)."));
+        l.push_back(param("similitud", "numero", "Cuánto se parece un color para irse.", {{"min", 0}, {"max", 1}}));
+        l.push_back(param("suavidad", "numero", "Suavidad del borde.", {{"min", 0}, {"max", 1}}));
+        l.push_back(param("derrame", "numero", "Quita el reflejo del color en la persona.", {{"min", 0}, {"max", 1}}));
+    } else if (tipo == "recorte") {
+        for (const char* k : {"izquierda", "arriba", "derecha", "abajo"})
+            l.push_back(param(k, "numero", "Cuánto se recorta de ese lado (fracción del cuadro; queda transparente).", {{"min", 0}, {"max", 0.5}}));
+        l.push_back(param("espejoH", "si_no", "Espejo horizontal."));
+        l.push_back(param("espejoV", "si_no", "Espejo vertical."));
+    } else if (tipo == "vista360" || tipo == "panoramica") {
+        if (tipo == "panoramica") {
+            l.push_back(param("nombre", "texto", "La fuente con la que se pone en las escenas."));
+            l.push_back(param("lente_ancho", "entero", "Ancho del stream de cada cámara (su franja en el lienzo).", {{"min", 64}, {"max", 7680}}));
+            l.push_back(param("lente_alto", "entero", "Alto del stream de cada cámara.", {{"min", 64}, {"max", 4320}}));
+        } else {
+            l.push_back(param("modo", "opcion", "Lo que entra: equirectangular, un ojo de pez, dos lado a lado o varias cámaras lado a lado (`lentes` las cuenta la tarjeta: de 1 a 8).", {{"opciones", {"equirect", "ojo", "dos-ojos", "lentes"}}}));
+        }
+        l.push_back(param("ver", "opcion", "Lo que sale: la vista (una cámara común: el PTZ), la tira (la panorámica), el panorama (la esfera entera) o la entrada con los círculos y las franjas (para calibrar).", {{"opciones", {"vista", "tira", "panorama", "entrada"}}}));
+        l.push_back(param("yaw", "numero", "Hacia dónde mira, de costado (grados): el pan (en la tira, su centro).", {{"min", -180}, {"max", 180}}));
+        l.push_back(param("pitch", "numero", "Hacia arriba o abajo (grados): el tilt.", {{"min", -90}, {"max", 90}}));
+        l.push_back(param("fov", "numero", "La vista: cuánto abre (grados, vertical): el zoom.", {{"min", 10}, {"max", 170}}));
+        l.push_back(param("tira_campo", "numero", "La tira: cuántos grados de costado entran.", {{"min", 10}, {"max", 360}}));
+        l.push_back(param("ancho", "entero", "Ancho del cuadro que sale (0 = como entra: en la Panorámica, la suma de las cámaras).", {{"min", 0}, {"max", 16384}}));
+        l.push_back(param("alto", "entero", "Alto del cuadro que sale (0 = como entra).", {{"min", 0}, {"max", 8192}}));
+        l.push_back(param("mezcla", "numero", "Franja donde se mezclan dos cámaras que se pisan (grados).", {{"min", 0}, {"max", 40}}));
+        for (int i = 1; i <= kMaxLentes360; ++i) {
+            const std::string b = "lente" + std::to_string(i) + "_", cual = " (lente " + std::to_string(i) + ")";
+            l.push_back(param((b + "tipo").c_str(), "opcion", ("Ojo de pez o común" + cual).c_str(), {{"opciones", {"ojo", "normal"}}}));
+            const auto lp = [&](const char* k, const std::string& d, double mn, double mx) {
+                l.push_back(param((b + k).c_str(), "numero", (d + cual).c_str(), {{"min", mn}, {"max", mx}}));
+            };
+            lp("x", "Centro óptico, de costado (fracción de su franja)", -0.5, 1.5);
+            lp("y", "Centro óptico, de arriba abajo (fracción del alto)", -0.5, 1.5);
+            lp("radio", "Ojo de pez: radio del círculo (fracción del alto)", 0.05, 1.5);
+            lp("campo", "Lo que cubre (grados): el círculo, o el ancho si es común", 10, 270);
+            lp("yaw", "Cómo encaja: hacia dónde mira, de costado (grados)", -180, 180);
+            lp("pitch", "Cómo encaja: inclinación (grados)", -90, 90);
+            lp("roll", "Cómo encaja: rotación sobre su eje (grados)", -180, 180);
+            lp("k1", "Deformación k1 (barril < 0 < cojín)", -1, 1);
+            lp("k2", "Deformación k2", -1, 1);
+        }
+        l.push_back(param("guia", "opcion", "Un dibujo encima para calibrar a mano: se ajustan las cámaras hasta que lo filmado coincida.", {{"opciones", {"ninguna", "rectangulo", "circulo", "grilla", "cruz", "esfera"}}}));
+        l.push_back(param("guia_x", "numero", "Centro de la guía, de costado (fracción de la salida).", {{"min", -1}, {"max", 2}}));
+        l.push_back(param("guia_y", "numero", "Centro de la guía, de arriba abajo.", {{"min", -1}, {"max", 2}}));
+        l.push_back(param("guia_ancho", "numero", "Ancho de la guía (fracción; en la grilla, el paso).", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("guia_alto", "numero", "Alto de la guía (fracción; en la grilla, el paso).", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("guia_grosor", "numero", "Grosor de la línea (píxeles).", {{"min", 0.5}, {"max", 40}}));
+        l.push_back(param("guia_color", "color", "Color de la guía (ARGB)."));
+    } else if (tipo == "retardo") {
+        l.push_back(param("cuadros", "entero", "Cuadros de atraso.", {{"min", 0}, {"max", 120}}));
+        l.push_back(param("ms", "entero", "Milisegundos de atraso (manda sobre `cuadros` si es > 0)."));
+    } else if (tipo == "superres") {
+        l.push_back(param("plugin", "texto", "El id de un plugin de superresolución (video_superres_plugins)."));
+        l.push_back(param("motor", "opcion", "auto, apple, fsr u onnx.", {{"opciones", {"auto", "apple", "fsr", "onnx"}}}));
+        l.push_back(param("modelo", "texto", "Con motor onnx: la ruta del .onnx."));
+        l.push_back(param("escala_red", "entero", "Cuánto agranda el modelo (2 = x2)."));
+        l.push_back(param("nitidez", "numero", "Nitidez (FSR).", {{"min", 0}, {"max", 2}}));
+        l.push_back(param("proveedor", "opcion", "ONNX: dónde corre.", {{"opciones", {"auto", "cpu", "coreml", "dml"}}}));
+        l.push_back(param("unidades", "opcion", "CoreML: dónde corre (auto = Neural Engine).", {{"opciones", {"auto", "ane", "gpu", "cpu"}}}));
+        l.push_back(param("esperar", "entero", "ms: 0 entrega el cuadro anterior (nunca frena); más espera el de ahora."));
+        l.push_back(param("activo", "si_no", "Encender o apagar."));
+    } else if (tipo == "salida") {
+        l.push_back(param("nombre", "texto", "El nombre de la fuente que se publica para las escenas."));
+    }
+    else if (tipo == "normalizar") {
+        l.push_back(param("matriz_declarada", "opcion", "La matriz de color que dice la fuente.", {{"opciones", {"601", "709", "2020"}}}));
+        l.push_back(param("matriz_real", "opcion", "La que es en verdad (si es distinta, se corrige).", {{"opciones", {"601", "709", "2020"}}}));
+        l.push_back(param("rango_declarado", "opcion", "El rango que dice la fuente.", {{"opciones", {"limitado", "completo"}}}));
+        l.push_back(param("rango_real", "opcion", "El rango de verdad (lavado o empastado = está mal).", {{"opciones", {"limitado", "completo"}}}));
+        l.push_back(param("desentrelazar", "opcion", "Forzar el desentrelazado (una que dice progresiva y no es); no = lo que diga la señal.",
+                          {{"opciones", {"no", "descartar", "retro", "mezclar", "lineal", "yadif", "yadif2x"}}}));
+        l.push_back(param("campo", "opcion", "Qué campo va primero.", {{"opciones", {"arriba", "abajo"}}}));
+    } else if (tipo == "compositor") {
+        l.push_back(param("ancho", "entero", "Ancho del lienzo; 0 = el del estudio."));
+        l.push_back(param("alto", "entero", "Alto del lienzo; 0 = el del estudio."));
+        l.push_back(param("fondo", "color", "Color de fondo (ARGB, 0xFF000000 = negro)."));
+        l.push_back(param("nombre", "texto", "La fuente con la que se pone en las escenas."));
+        l.push_back(param("capas", "texto", "Por puerto, {\"in_N\": {x, y, ancho, alto (0..1 del lienzo), opacidad, orden, ajuste encajar|llenar}}; sin capas, mosaico."));
+    } else if (tipo == "gst") {
+        l.push_back(param("elemento", "texto", "El módulo de GStreamer (video_modulos)."));
+        l.push_back(param("propiedades", "texto", "Sus propiedades, con los nombres de GStreamer (video_filtros las lista)."));
+        l.push_back(param("esperar", "entero", "ms: 0 entrega el cuadro anterior; más espera el de ahora."));
+    }
+    return l;
+}
+
+json GrafoVideo::eventosDe(const std::string& tipo) {
+    // Lo que cada tarjeta manda y escucha, todo con mecanismos estándar de
+    // GStreamer (eventos propios, mensajes al bus, metas). Se ve en Racks.
+    if (tipo == "rostros")
+        return {{"manda",
+                 {"evento «ba/rostros» hacia abajo y hacia arriba (json con las caras: id, x, y, ancho, alto 0..1, "
+                  "confianza, nombre, cargo, persona, toma; ventana del PTZ, video, detector, ms, pts)",
+                  "meta GstVideoRegionOfInterestMeta «face» en cada cuadro (parámetro «ba-rostro»)",
+                  "mensaje de elemento «ba-rostros» al bus (el mismo json y el cuadro analizado)"}},
+                {"escucha",
+                 {"«ba/ptz» (la ventana del PTZ: para dar cada cara también en la toma)",
+                  "«ba/control» con rostros_etiquetas (quién es cada cara, lo manda Personas)"}}};
+    if (tipo == "seguir")
+        return {{"manda",
+                 {"evento «ba/encuadre» hacia arriba y hacia abajo (x, y, zoom, suavidad, id; o soltar=true)",
+                  "mensaje de elemento «ba-seguir» al bus (estado, a quién sigue, el encuadre)"}},
+                {"escucha",
+                 {"«ba/rostros» venga de antes o de después", "«ba/ptz» (dónde está la ventana)",
+                  "«ba/control» con seguir_objetivo"}}};
+    if (tipo == "ptz")
+        return {{"manda", {"evento «ba/ptz» hacia abajo cuando cambia la ventana (x, y, zoom, moviendo)"}},
+                {"escucha", {"«ba/encuadre» venga de antes o de después (lo sigue 1,5 s; si no llega más, suelta)"}}};
+    return json::object();
+}
+
 json GrafoVideo::catalogo() {
     json out = json::array();
     const std::tuple<const char*, const char*, const char*> tipos[] = {
         {"color", "Brillo, contraste, saturación y gamma.", "entrada"},
         {"croma", "Saca un fondo de color (verde de fábrica): queda transparente.", "entrada"},
         {"recorte", "Recorta los bordes (quedan transparentes) y da vuelta la imagen.", "entrada"},
+        {"vista360",
+         "Una cámara 360 (imagen equirectangular) vista como una cámara común: hacia dónde mira y cuánto abre. "
+         "Corre en la placa de video (OpenGL en Mac y Linux, Direct3D 12 en Windows): la imagen no baja a la "
+         "memoria de la máquina.",
+         "entrada"},
         {"rostros",
-         "Reconoce caras en este punto de la entrada (para Personas: anotado, puerta). La imagen pasa igual; "
-         "con «marcar», dibuja las caras.",
+         "Encuentra, sigue y reconoce caras (elemento barostros): mira la toma entera de la cámara, sin demorar "
+         "la imagen. Con «marcar», un overlay sobre cada cara (recuadro, esquinas, relleno, tapar o pixelar) con "
+         "un texto ({nombre}, {cargo}, {id}, {confianza}). Publica las caras en cada cuadro (metas de región de "
+         "GStreamer) y en eventos «ba/rostros» para el resto de la cadena; Personas y el seguimiento del PTZ la "
+         "usan.",
+         "entrada"},
+        {"ptz",
+         "Pan, tilt y zoom digital (elemento baptz): uno por entrada, va donde se lo ponga en la cadena. Lo manejan "
+         "Cámaras PTZ, el joystick y los presets; sigue el encuadre que le pida una tarjeta Seguimiento (evento "
+         "«ba/encuadre», venga de antes o de después) y publica su ventana («ba/ptz»).",
+         "entrada"},
+        {"seguir",
+         "Sigue a una cara (elemento baseguir, no toca la imagen): lee las caras de una tarjeta Rostros (antes o "
+         "después), elige a quién (`objetivo`) y le manda el encuadre al PTZ (antes o después) con eventos de "
+         "GStreamer. Con una cámara motorizada, la app la mueve con pulsos.",
          "entrada"},
         {"normalizar",
-         "Corrige una fuente que declara mal su color (BT.601/709, rango limitado/completo) y la "
-         "desentrelaza (en la fuente, donde están los campos).",
+         "Corrige una fuente que declara mal su color (BT.601/709/2020, rango limitado/completo: la "
+         "imagen se ve lavada o empastada) o su entrelazado. No copia píxeles: le dice al que convierte "
+         "cómo es la señal de verdad.",
          "entrada"},
         {"retardo",
          "Atrasa la imagen (`ms`, o `cuadros`): para sincronizar una cámara con otra o con el audio.",
@@ -174,6 +421,12 @@ json GrafoVideo::catalogo() {
          "entrada"},
         {"compositor", "Junta varias entradas en una imagen (mosaico, imagen en imagen). Es del estudio.",
          "estudio"},
+        {"panoramica",
+         "Une varias cámaras (hasta 8, un stream cada una) en una sola imagen: una fila de cámaras comunes "
+         "(la tira, del tamaño de la suma de sus resoluciones) o una 360 de ojos de pez (la vista, como un "
+         "PTZ). Corrige la deformación de cada una y cómo encajan (centro, campo, montaje, distorsión) con "
+         "una guía encima para calibrar. Todo en la placa. Es del estudio: un cable de cada cámara.",
+         "estudio"},
         {"control",
          "Maneja con UN ajuste las tarjetas iguales de varias entradas (la misma corrección de color "
          "en todas las cámaras): un cable de control a cada una.",
@@ -181,12 +434,15 @@ json GrafoVideo::catalogo() {
     };
     for (const auto& [t, d, a] : tipos)
         out.push_back(
-            {{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"ambito", a}});
+            {{"tipo", t}, {"titulo", titulo(t)}, {"descripcion", d}, {"params", fabrica(t)}, {"parametros", parametrosDe(t)},
+             {"eventos", eventosDe(t)}, {"ambito", a}});
+    for (json& e : out)
+        if (e.value("tipo", std::string()) == "rostros") e["texto_overlay"] = ayudaTextoOverlay();
     return out;
 }
 
 bool GrafoVideo::tipoValido(const std::string& t) {
-    return esFiltro(t) || t == "salida" || t == "compositor" || t == "control";
+    return esFiltro(t) || t == "salida" || t == "compositor" || t == "panoramica" || t == "control";
 }
 
 std::string GrafoVideo::idEntrada(const std::string& fuente) { return slug(fuente) + ".entrada"; }
@@ -216,8 +472,9 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
     if (n.tipo == "entrada" || n.tipo == "control") return {};
     // Un filtro tiene además su entrada de control (de un controlador).
     if (esFiltro(n.tipo)) return {{"in", "video", false}, {"ctl", "control", false}};
-    if (n.tipo != "compositor") return {{"in", "video", false}};
-    // A pedido: los conectados, en orden, y uno libre al final.
+    if (n.tipo != "compositor" && n.tipo != "panoramica") return {{"in", "video", false}};
+    // A pedido: los conectados, en orden, y uno libre al final (en la Panorámica, hasta 8:
+    // el puerto in_k es la cámara k+1, y su franja en el lienzo).
     std::vector<int> usados;
     for (const auto& c : entrantes(n.id))
         if (indicePedido(c.entrada) >= 0) usados.push_back(indicePedido(c.entrada));
@@ -225,7 +482,8 @@ std::vector<GrafoVideo::Puerto> GrafoVideo::puertosEntrada(const Nodo& n) const 
     std::vector<Puerto> out;
     for (int i : usados)
         out.push_back({"in_" + std::to_string(i), "video", false});
-    out.push_back({"in_" + std::to_string(usados.empty() ? 0 : usados.back() + 1), "video", true});
+    const int libre = usados.empty() ? 0 : usados.back() + 1;
+    if (n.tipo != "panoramica" || libre < kMaxLentes360) out.push_back({"in_" + std::to_string(libre), "video", true});
     return out;
 }
 
@@ -256,6 +514,65 @@ bool GrafoVideo::llega(const std::string& desde, const std::string& hasta) const
             if (c.desde == n) pila.push_back(c.hacia);
     }
     return false;
+}
+
+bool GrafoVideo::asegurarPtz(const std::string& fuente) {
+    if (nodo(idEntrada(fuente)) == nullptr) return false;
+    for (const auto& n : nodos_)
+        if (n.grupo == fuente && n.tipo == "ptz") return false;
+    std::string e;
+    return !agregar("ptz", fuente, idEntrada(fuente), json::object(), &e).empty();
+}
+
+bool GrafoVideo::reubicar(const std::string& id, const std::string& despues, std::string* error) {
+    Nodo* n = nullptr;
+    for (auto& x : nodos_)
+        if (x.id == id) n = &x;
+    if (n == nullptr || !esFiltro(n->tipo)) {
+        if (error) *error = "«" + id + "» no es una tarjeta que se pueda mover en la cadena";
+        return false;
+    }
+    if (despues == id) return true;
+    const std::string grupo = n->grupo;
+    // Se saca de donde está (lo de antes sigue a lo de después)...
+    std::vector<Cable> antes = entrantes(id);
+    antes.erase(std::remove_if(antes.begin(), antes.end(), [](const Cable& c) { return c.entrada == "ctl"; }),
+                antes.end());
+    const std::vector<Cable> sale = salientes(id);
+    if (antes.size() != 1) {
+        if (error) *error = "«" + id + "» no está en una cadena simple (tiene " + std::to_string(antes.size()) + " entradas)";
+        return false;
+    }
+    cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
+                                 [&](const Cable& c) { return (c.desde == id || c.hacia == id) && c.entrada != "ctl"; }),
+                  cables_.end());
+    for (const auto& c : sale) cables_.push_back({antes[0].desde, antes[0].salida, c.hacia, c.entrada});
+    // ...y se intercala después de `despues` (vacío = justo antes de la escena).
+    std::string desde = despues;
+    if (desde.empty()) {
+        desde = idEntrada(grupo);
+        for (const auto& c : entrantes(idEscena(grupo))) desde = c.desde;
+    }
+    const Nodo* d = nodo(desde);
+    if (d == nullptr || d->grupo != grupo || puertosSalida(*d).empty()) {
+        // No se pudo: vuelve a donde estaba.
+        cables_.erase(std::remove_if(cables_.begin(), cables_.end(),
+                                     [&](const Cable& c) { return c.desde == antes[0].desde && c.salida == antes[0].salida; }),
+                      cables_.end());
+        cables_.push_back(antes[0]);
+        for (const auto& c : sale) cables_.push_back(c);
+        if (error) *error = "no hay una tarjeta «" + desde + "» de esta entrada después de la cual ponerla";
+        return false;
+    }
+    for (auto& c : cables_)
+        if (c.desde == desde && c.entrada != "ctl") c.desde = id;
+    cables_.push_back({desde, "out", id, "in"});
+    n = nullptr;
+    for (auto& x : nodos_)
+        if (x.id == id) n = &x;
+    n->x = d->x + kColumna;
+    n->y = d->y;
+    return true;
 }
 
 bool GrafoVideo::asegurarEntrada(const std::string& fuente) {
@@ -299,6 +616,12 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
         if (error) *error = "falta qué módulo de GStreamer (`elemento`)";
         return {};
     }
+    if (tipo == "ptz")
+        for (const auto& m : nodos_)
+            if (m.grupo == grupo && m.tipo == "ptz") {
+                if (error) *error = "«" + grupo + "» ya tiene su PTZ (" + m.id + "): se mueve con video_tarjeta_mover";
+                return {};
+            }
     Nodo n;
     n.tipo = tipo;
     n.etiqueta = titulo(tipo);
@@ -307,7 +630,7 @@ std::string GrafoVideo::agregar(const std::string& tipo, const std::string& grup
         for (auto it = params.begin(); it != params.end(); ++it)
             n.params[it.key()] = it.value();
     // Un compositor o un controlador es del estudio: suelto, a la derecha de todo.
-    if (tipo == "compositor" || tipo == "control") {
+    if (tipo == "compositor" || tipo == "panoramica" || tipo == "control") {
         n.grupo = "";
         n.id = idNuevo("", tipo);
         int x = 0;
@@ -360,6 +683,10 @@ bool GrafoVideo::quitar(const std::string& id, std::string* error) {
         if (error) *error = "la entrada y la escena no se quitan";
         return false;
     }
+    if (n->tipo == "ptz") {
+        if (error) *error = "el PTZ de la entrada no se quita: se apaga (activo) o se mueve de lugar";
+        return false;
+    }
     // Un filtro (una entrada, una salida) se puentea: lo de antes sigue a lo de después.
     std::vector<Cable> antes = entrantes(id);
     const std::vector<Cable> despues = salientes(id);
@@ -398,12 +725,13 @@ std::string GrafoVideo::conectar(const std::string& desde, const std::string& sa
     std::string ent = entrada;
     if (ent.empty()) {
         // El primer puerto del mismo tipo (en un compositor, el libre).
-        if (h->tipo == "compositor" && tipoSal == "video") ent = pe.back().id;
+        if ((h->tipo == "compositor" || h->tipo == "panoramica") && tipoSal == "video") ent = pe.back().id;
         for (const auto& p : pe)
             if (ent.empty() && p.tipo == tipoSal) ent = p.id;
     }
     const auto puerto = std::find_if(pe.begin(), pe.end(), [&](const Puerto& p) { return p.id == ent; });
-    const bool valida = puerto != pe.end() || (h->tipo == "compositor" && indicePedido(ent) >= 0);
+    const bool valida = puerto != pe.end() || (h->tipo == "compositor" && indicePedido(ent) >= 0) ||
+                        (h->tipo == "panoramica" && indicePedido(ent) >= 0 && indicePedido(ent) < kMaxLentes360);
     if (!valida) {
         if (error)
             *error = "«" + h->etiqueta + "» no tiene entrada" +
@@ -745,8 +1073,65 @@ std::string GrafoVideo::agregarControlada(const std::string& control, const std:
     return id;
 }
 
+json GrafoVideo::propiedades360(const json& p, int lentes) {
+    const auto num = [&](const char* k, double def) { return p.value(k, def); };
+    json pr{{"yaw", num("yaw", 0)},           {"pitch", num("pitch", 0)},
+            {"fov", num("fov", 90)},          {"tira-campo", num("tira_campo", 180)},
+            {"ancho", std::max(0, p.value("ancho", 0))}, {"alto", std::max(0, p.value("alto", 0))},
+            {"modo", lentes > 0 ? std::string("lentes") : p.value("modo", std::string("equirect"))},
+            {"ver", p.value("ver", std::string("vista"))}, {"mezcla", num("mezcla", 5)},
+            {"guia", p.value("guia", std::string("ninguna"))}, {"guia-x", num("guia_x", 0.5)},
+            {"guia-y", num("guia_y", 0.5)},   {"guia-ancho", num("guia_ancho", 0.5)},
+            {"guia-alto", num("guia_alto", 0.5)}, {"guia-grosor", num("guia_grosor", 3)},
+            {"guia-color", p.value("guia_color", 0xFF00FF00LL) & 0xFFFFFFFFLL}};
+    if (lentes > 0) pr["lentes"] = std::clamp(lentes, 1, kMaxLentes360);
+    static const std::pair<const char*, double> kLente[] = {{"x", 0.5},   {"y", 0.5},     {"radio", 0.5},
+                                                            {"campo", 190}, {"yaw", 0},   {"pitch", 0},
+                                                            {"roll", 0},  {"k1", 0},      {"k2", 0}};
+    for (int i = 1; i <= kMaxLentes360; ++i) {
+        const std::string l = "lente" + std::to_string(i);
+        pr[l + "-tipo"] = p.value(l + "_tipo", std::string("ojo"));
+        for (const auto& [k, def] : kLente) pr[l + "-" + k] = p.value(l + "_" + k, def);
+    }
+    return pr;
+}
+
+int GrafoVideo::lentesConectadas(const std::string& id) const {
+    int n = 0;
+    for (const auto& c : entrantes(id))
+        if (const int i = indicePedido(c.entrada); i >= 0) n = std::max(n, i + 1);
+    return std::min(n, kMaxLentes360);
+}
+
 json GrafoVideo::configCompositor(const std::string& id) const {
     const Nodo* n = nodo(id);
+    if (n != nullptr && n->tipo == "panoramica") {
+        // Las cámaras lado a lado en su lienzo (sin achicar: cada una en su franja,
+        // encajada; in_k es la k-ésima), y la unión sobre lo que sale (en la GPU,
+        // ba360gl / ba360d3d12). Una franja sin cable queda negra.
+        const json& p = n->params;
+        const int la = std::max(64, p.value("lente_ancho", 1920)), al = std::max(64, p.value("lente_alto", 1080));
+        const int cuantas = std::max(1, lentesConectadas(id));
+        json capas = json::array();
+        for (const auto& c : entrantes(id)) {
+            const Nodo* d = nodo(c.desde);
+            const int i = indicePedido(c.entrada);
+            if (d == nullptr || d->grupo.empty() || i < 0 || i >= cuantas) continue;
+            capas.push_back({{"toma", d->id},
+                             {"fuente", d->grupo},
+                             {"x", static_cast<double>(i) / cuantas},
+                             {"y", 0.0},
+                             {"ancho", 1.0 / cuantas},
+                             {"alto", 1.0},
+                             {"opacidad", 1.0},
+                             {"ajuste", "encajar"}});
+        }
+        // El lienzo no pasa del máximo de una textura (16384 de lado).
+        return {{"lienzo", {{"ancho", std::min(16384, cuantas * la)}, {"alto", al}}},
+                {"fondo", 0xFF000000LL},
+                {"capas", capas},
+                {"filtros", json::array({{{"id", "vista360"}, {"elemento", "ba360"}, {"propiedades", propiedades360(p, cuantas)}}})}};
+    }
     if (n == nullptr || n->tipo != "compositor") return json::object();
     const json& p = n->params;
     // Los puertos conectados, en orden; cada uno con lo que le llega.
@@ -791,8 +1176,8 @@ json GrafoVideo::configCompositor(const std::string& id) const {
                        {"opacidad", k.value("opacidad", 1.0)},
                        {"ajuste", k.value("ajuste", std::string("encajar"))}});
     }
-    return {{"ancho", p.value("ancho", 1920)},
-            {"alto", p.value("alto", 1080)},
+    return {{"ancho", p.value("ancho", 0)}, // 0: el del lienzo (lo resuelve el estudio)
+            {"alto", p.value("alto", 0)},
             {"fondo", p.value("fondo", 0xFF000000LL)},
             {"capas", out}};
 }
@@ -833,7 +1218,13 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
         if (c.entrada == "ctl" || !dentro.count(c.desde) || dentro.count(c.hacia) || c.hacia == is) continue;
         if (!tomadas.insert(c.desde).second) continue;
         const std::string t = "toma:" + c.desde;
-        ns.push_back({{"id", t}, {"tipo", "toma"}, {"params", {{"nombre", c.desde}}}});
+        // `escena`: va a la escena de otra entrada (traer): se publica en su punto de la cadena.
+        bool aEscena = false;
+        for (const auto& c2 : salientes(c.desde)) {
+            const Nodo* h = nodo(c2.hacia);
+            aEscena = aEscena || (h != nullptr && h->tipo == "escena" && !dentro.count(c2.hacia) && c2.hacia != is);
+        }
+        ns.push_back({{"id", t}, {"tipo", "toma"}, {"params", {{"nombre", c.desde}, {"escena", aEscena}}}});
         cs.push_back({{"desde", mapear(c.desde)}, {"hacia", t}});
     }
     // Lo que llega a su escena desde afuera: se trae (un compositor, o la toma
@@ -843,7 +1234,7 @@ json GrafoVideo::paraFiltro(const std::string& fuente) const {
         const Nodo* d = nodo(c.desde);
         if (d == nullptr) continue;
         json p = d->tipo == "compositor"
-                     ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump()}}
+                     ? json{{"compositor", d->id}, {"config", configCompositor(d->id).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)}}
                      : json{{"toma", d->id}, {"fuente", d->grupo}};
         ns.push_back({{"id", "traer"}, {"tipo", "traer"}, {"params", p}});
         cs.push_back({{"desde", "traer"}, {"hacia", "out"}});

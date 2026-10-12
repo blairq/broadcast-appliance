@@ -1,7 +1,7 @@
 {
   "_comentario": [
     "Inventario del servidor MCP del Broadcast Appliance.",
-    "GENERADO: no se edita a mano. Lo arma tools/mcp-inventario.py con el aparato andando.",
+    "GENERADO: no se edita a mano. Lo arma tools/docs/mcp-inventario.py con el aparato andando.",
     "`roles` de cada herramienta = los que la pueden usar (su categoria esta en su juego).",
     "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
@@ -4609,7 +4609,7 @@
       "nombre": "video_mejora",
       "titulo": "Mejorar imagen (general)",
       "categoria": "camaras",
-      "descripcion": "Mejorar imagen en las cámaras que siguen lo general (Configuración → Video): `activa`, y la intensidad de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.",
+      "descripcion": "Mejorar imagen en las cámaras que siguen lo general (Configuración → Cámaras y entradas): `activa`, y la intensidad de `ruido`, `color` (color pegado al brillo: el LED, la corbata) y `nitidez`, de 0 a 100. Sin argumentos, dice cómo está. Por entrada: ptz_configurar `mejora`.",
       "esquema": {
         "properties": {
           "activa": {

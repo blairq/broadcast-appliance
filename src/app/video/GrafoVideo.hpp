@@ -29,7 +29,7 @@
 // Lo ejecuta en la GPU el filtro `ba_video_grafo` de cada entrada
 // (src/obs-module/ba_video_grafo.cpp), que recibe `paraFiltro(entrada)`: lo
 // que se alcanza desde esa entrada, sin pasar por nodos de varias entradas
-// (esos los ejecuta el estudio; ver docs/VIDEO-GRAFO.md).
+// (esos los ejecuta el estudio; ver docs/funciones/VIDEO-GRAFO.md).
 
 #pragma once
 
@@ -39,6 +39,9 @@
 #include <vector>
 
 namespace ba::app::video {
+
+/// Cuántas cámaras une como mucho una Panorámica (ba360: hasta 8 lentes).
+constexpr int kMaxLentes360 = 8;
 
 class GrafoVideo {
    public:
@@ -66,6 +69,13 @@ class GrafoVideo {
     static nlohmann::json catalogo();
     static bool tipoValido(const std::string& tipo);
     /// El id del nodo `entrada` / `escena` de una entrada.
+    /// Los parámetros de un tipo de tarjeta, documentados: [{clave, tipo,
+    /// descripcion, min?, max?, opciones?}]. Los ve la tarjeta y el MCP.
+    static nlohmann::json parametrosDe(const std::string& tipo);
+    /// Lo que manda y escucha una tarjeta (eventos de GStreamer): {manda, escucha}.
+    static nlohmann::json eventosDe(const std::string& tipo);
+    /// Cómo se arma el texto del overlay de Rostros (la plantilla).
+    static std::string ayudaTextoOverlay();
     static std::string idEntrada(const std::string& fuente);
     static std::string idEscena(const std::string& fuente);
 
@@ -73,6 +83,13 @@ class GrafoVideo {
     /// Se asegura de que la entrada tenga su sub-grafo (entrada -> escena).
     /// true si lo creó.
     bool asegurarEntrada(const std::string& fuente);
+    /// Que la entrada tenga su tarjeta PTZ (justo después de la entrada si no
+    /// tiene). true si la puso.
+    bool asegurarPtz(const std::string& fuente);
+    /// Lleva una tarjeta de la cadena a otro lugar de la misma entrada: después
+    /// de `despues` (vacío = justo antes de la escena). La saca de donde está
+    /// uniendo lo de antes con lo de después.
+    bool reubicar(const std::string& id, const std::string& despues, std::string* error);
     std::vector<std::string> entradas() const;
     /// Saca el sub-grafo de una entrada (sus nodos y sus cables).
     void quitarEntrada(const std::string& fuente);
@@ -146,6 +163,11 @@ class GrafoVideo {
     /// opacidad, ajuste}]} de abajo hacia arriba. Las capas sin posición van
     /// en mosaico.
     nlohmann::json configCompositor(const std::string& id) const;
+    /// Los parámetros de una Vista 360 o una Panorámica, como propiedades de ba360
+    /// (`lentes` > 0: la Panorámica, con esa cantidad de cámaras lado a lado).
+    static nlohmann::json propiedades360(const nlohmann::json& params, int lentes);
+    /// Cuántas cámaras tiene una Panorámica (hasta el último puerto conectado).
+    int lentesConectadas(const std::string& id) const;
     /// Para la interfaz y MCP. Con `grupo`: ese sub-grafo y, marcados
     /// `externo`, los nodos de afuera que se conectan con él. Sin grupo: todo.
     nlohmann::json describir(const std::string& grupo, bool soloGrupo) const;

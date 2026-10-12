@@ -11,6 +11,9 @@
 //   nada del grafo, salvo «Ordenar», que solo mueve tarjetas.
 // - Lo que se usa poco o es peligroso (restablecer, sacar todo) va en «⋯».
 //
+// Si no entra en un renglón, los grupos saltan al siguiente (Flow); si los
+// botones de la página no entran ni así, van al menú «Herramientas ▾».
+//
 // `lienzo` es el área del grafo: tiene que tener `escala`, `zoom`, `grilla`,
 // `acercar(f)` y `ordenar()` (Patchbay los tiene; AudioPage, en su lienzo).
 import QtQuick
@@ -35,15 +38,24 @@ Item {
     property var mas: []
     property var lienzo: null
 
-    implicitHeight: 30
+    /// No entra todo en un renglón: lo que se agrega y los paneles bajan al segundo.
+    readonly property bool apretado: medidaAcciones.implicitWidth + 160 > width
+    readonly property bool dosRenglones: grupoVer.implicitWidth + grupoHacer.implicitWidth + grupoMirar.implicitWidth + 3 * 12 > width
+    implicitHeight: grilla.implicitHeight
 
     component Separador: Rectangle { width: 1; height: 20; color: Qt.rgba(1, 1, 1, 0.12); Layout.alignment: Qt.AlignVCenter }
 
-    RowLayout {
-        anchors.fill: parent
-        spacing: 6
+    // Los tres grupos FLUYEN: si no entran en un renglón, el que no entra baja al
+    // siguiente (con el panel de la derecha ancho, la barra nunca se sale de lugar).
+    Flow {
+        id: grilla
+        anchors { left: parent.left; right: parent.right; top: parent.top }
+        spacing: 12
 
-        // --- Qué estoy viendo ------------------------------------------------------------
+    // --- Qué estoy viendo ------------------------------------------------------------
+    RowLayout {
+        id: grupoVer
+        spacing: 6
         Text {
             text: barra.titulo
             visible: text !== ""
@@ -65,9 +77,14 @@ Item {
                 }
             }
         }
-        Separador { visible: barra.titulo !== "" || barra.vistas.length > 1 }
+        // Con opacidad (no visible): que no cambie el ancho que decide los renglones.
+        Separador { visible: barra.titulo !== "" || barra.vistas.length > 1; opacity: barra.dosRenglones ? 0 : 1 }
+    }
 
-        // --- Qué le sumo / qué hago -------------------------------------------------------
+    // --- Qué le sumo / qué hago -------------------------------------------------------
+    RowLayout {
+        id: grupoHacer
+        spacing: 6
         GlassButton {
             id: botonAgregar
             visible: barra.agregar.length > 0
@@ -127,7 +144,7 @@ Item {
             }
         }
         Repeater {
-            model: barra.acciones
+            model: barra.apretado ? [] : barra.acciones
             delegate: GlassButton {
                 required property var modelData
                 compact: true; text: modelData.t; icon: modelData.icon || ""
@@ -136,10 +153,54 @@ Item {
                 ToolTip.visible: hovered && !!modelData.tip; ToolTip.delay: 400; ToolTip.text: modelData.tip || ""
             }
         }
+        // No entran (panel de la derecha ancho, ventana chica): juntas en un menú.
+        GlassButton {
+            visible: barra.apretado && barra.acciones.length > 0
+            compact: true; text: "Herramientas ▾"; active: menuHerr.opened
+            onClicked: menuHerr.opened ? menuHerr.close() : menuHerr.open()
+            Popup {
+                id: menuHerr
+                y: parent.height + 6
+                padding: 8
+                background: Rectangle { color: Theme.panel; radius: 8; border.color: Theme.glassBorder }
+                ColumnLayout {
+                    spacing: 4
+                    Repeater {
+                        model: barra.acciones
+                        delegate: GlassButton {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            compact: true; text: modelData.t; icon: modelData.icon || ""
+                            enabled: modelData.enabled !== false
+                            onClicked: { menuHerr.close(); modelData.f() }
+                            ToolTip.visible: hovered && !!modelData.tip; ToolTip.delay: 400; ToolTip.text: modelData.tip || ""
+                        }
+                    }
+                }
+            }
+        }
 
-        Item { Layout.fillWidth: true }
+    }
 
-        // --- Cómo lo miro (no cambia el grafo) --------------------------------------------
+    // Lo que ocupan los botones de la página en fila (medido aparte, sin mostrarse):
+    // si no entran ni en el segundo renglón, van al menú «Herramientas».
+    Row {
+        id: medidaAcciones
+        // Transparente y sin recibir clics (invisible, un Row no se mide).
+        opacity: 0
+        enabled: false
+        z: -1
+        spacing: 6
+        Repeater {
+            model: barra.acciones
+            delegate: GlassButton { required property var modelData; compact: true; text: modelData.t; icon: modelData.icon || "" }
+        }
+    }
+
+    // --- Cómo lo miro (no cambia el grafo) --------------------------------------------
+    RowLayout {
+        id: grupoMirar
+        spacing: 6
         Row {
             visible: barra.lienzo !== null
             spacing: 2
@@ -148,7 +209,7 @@ Item {
                     { t: "−", tip: "Alejar (Cmd + rueda)", f: () => barra.lienzo.acercar(1 / 1.2) },
                     { t: barra.lienzo ? Math.round(barra.lienzo.escala * 100) + " %" : "", tip: "Tamaño real (100 %)", f: () => barra.lienzo.zoom = 1, ancho: 52 },
                     { t: "+", tip: "Acercar (Cmd + rueda)", f: () => barra.lienzo.acercar(1.2) },
-                    { t: "Ajustar", tip: "Que entre todo a lo ancho", f: () => barra.lienzo.zoom = 0 }
+                    { t: "Ajustar", tip: "Que entre todo a lo ancho", f: () => barra.lienzo.zoom = barra.lienzo.escalaParaTodo || 0 }
                 ]
                 delegate: GlassButton {
                     required property var modelData
@@ -205,5 +266,6 @@ Item {
                 }
             }
         }
+    }
     }
 }

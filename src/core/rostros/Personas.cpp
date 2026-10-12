@@ -178,7 +178,7 @@ bool Personas::guardar(const std::string& archivo) const {
             error_ = "no se pudo escribir " + tmp;
             return false;
         }
-        f << j.dump(1, '\t');
+        f << j.dump(1, '\t', false, nlohmann::json::error_handler_t::replace);
         if (!f) {
             error_ = "error al escribir " + tmp;
             return false;

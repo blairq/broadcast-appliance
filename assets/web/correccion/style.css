@@ -1,0 +1,25 @@
+:root { --fondo: #0b0c0f; --tarjeta: #16181d; --borde: #2a2d35; --texto: #f2f2f4; --tenue: #9a9ca5; --acento: #ff6a2b; --rojo: #ff3b30; --verde: #34c759; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 16px/1.45 -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { padding: 16px 20px 6px; }
+h1 { margin: 0; font-size: 20px; font-weight: 600; }
+.estado { font-size: 12px; font-weight: 500; color: var(--tenue); margin-left: 8px; }
+.estado.ok { color: var(--verde); }
+.estado.mal { color: var(--rojo); }
+.ayuda { margin: 4px 0 0; color: var(--tenue); font-size: 13px; }
+.lista { padding: 10px 20px 40px; display: flex; flex-direction: column; gap: 10px; }
+.frase { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 12px; padding: 10px 12px; }
+.frase.activa { border-color: var(--acento); box-shadow: 0 0 0 1px var(--acento); }
+.cabecera { display: flex; justify-content: space-between; color: var(--tenue); font-size: 12px; margin-bottom: 6px; }
+.cabecera .resta { font-variant-numeric: tabular-nums; }
+.cabecera .resta.poco { color: var(--rojo); font-weight: 600; }
+textarea { width: 100%; resize: vertical; min-height: 54px; background: #0f1014; color: var(--texto); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 18px; }
+textarea:focus { outline: none; border-color: var(--acento); }
+.barra { height: 3px; background: #2a2d35; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+.barra > div { height: 100%; background: var(--acento); transition: width 0.25s linear; }
+.botones { display: flex; gap: 8px; margin-top: 8px; }
+button { background: #24262d; color: var(--texto); border: 1px solid var(--borde); border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; cursor: pointer; }
+button.si { background: var(--verde); border-color: var(--verde); color: #08130b; font-weight: 600; }
+button.no { color: var(--rojo); }
+.vacio { color: var(--tenue); text-align: center; margin-top: 40px; }
+.oculto { display: none; }

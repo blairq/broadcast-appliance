@@ -15,7 +15,7 @@
 //     valores de un enum y los requeridos.
 //
 // Lo que no se puede validar queda en `bloqueos` y no se ejecuta.
-// Medido con tools/voz-banco.py (docs/voz-modelo-local.md).
+// Medido con tools/entrenar/voz-banco.py (docs/modelos/voz-modelo-local.md).
 
 #pragma once
 

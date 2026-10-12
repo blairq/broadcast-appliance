@@ -25,6 +25,8 @@
 // ============================================================================
 #pragma once
 
+#include <algorithm>
+
 #include <cstdint>
 #include <cstdlib>
 #include <filesystem>
@@ -54,10 +56,12 @@ inline constexpr int kMaxGuests = 16;
 struct Config {
     // --- CLI ---------------------------------------------------------------
     int guests = 2;                        // 1..kMaxGuests (default 2)
+    int guestsReserve = 0;                 // lugares reservados (cupo en caliente hasta acá); 0 = guests
     uint16_t port = 8787;                  // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
     std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
-    bool tunnel = true;                    // lanzar cloudflared si hay token
+    std::string urlHost;                   // lo que va en el QR y el enlace (IP o nombre); vacio = automatico
+    bool tunnel = false;                   // lanzar cloudflared (si hay token); se prende en Configuración → Cloudflare
     std::string tunnelHostname;            // dominio publico del tunel de Cloudflare (sala.midominio.com)
     std::string room = "sala1";            // sala por defecto
     // PIN de la sala. VACIO por defecto a proposito: un PIN fijo en el binario
@@ -83,8 +87,14 @@ struct Config {
     bool lobby = true;         // el operador admite a cada invitado
     int lobbySlots = 4;        // cuantos del lobby muestran su camara al operador
     int maxBackstage = 12;     // modo oradores: cuantos en la fila ven el programa
+    int vistasRemotas = 16;    // sesión remota: cuántos integrantes miran a la vez un canal en su celular
     int backstagePreviews = 6; // de la fila, cuantos (los primeros) muestran su camara al operador
     int maxUploadMB = 2048;    // tope por archivo compartido
+    // Configuración → Invitados / Sala (la interfaz los escribe en gateway.json).
+    int sinVideoPlacaMs = 1000; // invitado sin video tanto tiempo: su lugar muestra la placa
+    int pinIntentos = 5;        // PIN mal tantas veces desde una IP: se la bloquea
+    int pinBloqueoS = 60;       // por cuánto
+    nlohmann::json ajustes = nlohmann::json::object(); // los avanzados (ba::ajustes), de gateway.json
     std::string adminWebroot;  // Web/admin (consola web del operador)
     // --- Acceso directo de invitados ----------------------------------------
     bool https = true;           // HTTPS propio (camara/micro exigen pagina segura)
@@ -93,6 +103,7 @@ struct Config {
     uint16_t rtcPortMax = 40099;
     // WireGuard hacia un servidor con IP publica (tunel en espacio de usuario).
     bool wgEnabled = false;
+    nlohmann::json proxy = nlohmann::json::object(); // T61: el proxy por nombre (ver proxy/GestorProxy.hpp)
     std::string wgEndpoint;                 // host:puerto del servidor WireGuard
     std::string wgServerPublicKey;          // base64
     std::string wgAddress = "10.99.0.2/24"; // nuestra IP en el tunel
@@ -100,6 +111,35 @@ struct Config {
     int wgKeepalive = 25;
     uint16_t wgHttpPort = 80; // puertos que el servidor redirige a nuestra IP del tunel
     uint16_t wgHttpsPort = 443;
+    // pinggy.io (docs/planes/PINGGY.md): túnel de ba-pinggy hacia la escucha
+    // propia del túnel (puertoTunel, todo lo que entra es externo) y, con el TURN
+    // de la caja, sus forwardings. El token NO va acá: BA_PINGGY_TOKEN o la
+    // credencial "pinggy-token".
+    bool pinggyActivo = false;
+    std::string pinggyRegion = "auto"; // auto|us|eu|ap
+    std::string pinggyHost;            // dominio propio o subdominio persistente (Pro)
+    uint16_t pinggyPuertoTunel = 8786; // 127.0.0.1: la escucha del túnel en la señalización
+    uint16_t pinggyTurnTcpPuerto = 0;  // puerto público TCP fijo del TURN (Pro); 0 = el que dé pinggy
+    bool pinggyTurnUdp = false;
+    bool pinggyTurn = true; // TURN por el túnel (el video de los invitados de afuera)
+    uint16_t pinggyTurnUdpPuerto = 0;
+    std::string pinggyListaBlanca; // IPs/CIDR separadas por coma; vacío = todas
+    // ba-web (src/web): el servidor web público, adelante del túnel. pinggy le manda el
+    // tráfico a él (127.0.0.1:webPuerto) y él atiende el sitio y le pasa el resto a la
+    // escucha del túnel (pinggyPuertoTunel). Si no está el binario, pinggy va directo.
+    bool webActivo = true;
+    uint16_t webPuerto = 8785;
+    int webProcesos = 0; // 0 = auto (los núcleos, hasta 4)
+    // ¿ba-web atiende también el HTTPS de la red local? En Windows, de fábrica no: el
+    // firewall pregunta por cada programa que escucha en la red (y permitir pide ser
+    // administrador); ba-gateway ya está permitido y ba-web sería otro aviso, y si nadie lo
+    // acepta, la red local deja de entrar. Ahí lo sigue atendiendo el gateway, como antes.
+#ifdef _WIN32
+    bool webLan = false;
+#else
+    bool webLan = true;
+#endif
+    std::string webPath; // <root>/bin/64bit/ba-web[.exe]
     std::string configDir; // <datos>/Config
     std::string sharesDir; // <datos>/Shares (archivos de los invitados)
 
@@ -107,6 +147,8 @@ struct Config {
     std::string appRoot;         // raiz del layout portable
     std::string cloudflaredPath; // <root>/bin/64bit/cloudflared.exe
     std::string cloudflaredLog;  // <root>/Logs/cloudflared.log
+    std::string pinggyPath;      // <root>/bin/64bit/ba-pinggy[.exe]
+    std::string pinggyLog;       // <root>/Logs/pinggy.log
 
     /// Parsea los argumentos de linea de comandos.
     ///
@@ -126,8 +168,11 @@ struct Config {
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
         if (!j.is_object()) return;
         guests = j.value("guests", guests);
+        guestsReserve = j.value("guestsReserva", guestsReserve);
+        if (j.contains("proxy") && j["proxy"].is_object()) proxy = j["proxy"];
         port = j.value("port", port);
         bindAddress = j.value("bindAddress", bindAddress);
+        urlHost = j.value("urlHost", urlHost);
         room = j.value("room", room);
         tunnel = j.value("tunnel", tunnel);
         tunnelHostname = j.value("tunnelHostname", tunnelHostname);
@@ -142,6 +187,7 @@ struct Config {
         lobby = j.value("lobby", lobby);
         lobbySlots = j.value("lobbySlots", lobbySlots);
         maxBackstage = j.value("maxBackstage", maxBackstage);
+        vistasRemotas = j.value("vistasRemotas", vistasRemotas);
         backstagePreviews = j.value("backstagePreviews", backstagePreviews);
         https = j.value("https", https);
         httpsPort = j.value("httpsPort", httpsPort);
@@ -158,7 +204,33 @@ struct Config {
             wgHttpPort = w.value("httpPort", wgHttpPort);
             wgHttpsPort = w.value("httpsPort", wgHttpsPort);
         }
+        if (j.contains("pinggy") && j["pinggy"].is_object()) {
+            const auto& pg = j["pinggy"];
+            pinggyActivo = pg.value("activo", pinggyActivo);
+            pinggyRegion = pg.value("region", pinggyRegion);
+            pinggyHost = pg.value("host", pinggyHost);
+            pinggyPuertoTunel = pg.value("puertoTunel", pinggyPuertoTunel);
+            pinggyTurnTcpPuerto = pg.value("turnTcpPuerto", pinggyTurnTcpPuerto);
+            pinggyTurnUdp = pg.value("turnUdp", pinggyTurnUdp);
+            pinggyTurn = pg.value("turn", pinggyTurn);
+            pinggyTurnUdpPuerto = pg.value("turnUdpPuerto", pinggyTurnUdpPuerto);
+            pinggyListaBlanca = pg.value("listaBlanca", pinggyListaBlanca);
+            if (pinggyRegion != "us" && pinggyRegion != "eu" && pinggyRegion != "ap") pinggyRegion = "auto";
+            if (pinggyPuertoTunel == 0) pinggyPuertoTunel = 8786;
+        }
+        if (j.contains("web") && j["web"].is_object()) {
+            const auto& w = j["web"];
+            webActivo = w.value("activo", webActivo);
+            webPuerto = w.value("puerto", webPuerto);
+            webProcesos = std::clamp(w.value("procesos", webProcesos), 0, 64);
+            webLan = w.value("lan", webLan);
+            if (webPuerto == 0) webPuerto = 8785;
+        }
         maxUploadMB = j.value("maxUploadMB", maxUploadMB);
+        sinVideoPlacaMs = std::clamp(j.value("sinVideoPlacaMs", sinVideoPlacaMs), 200, 30000);
+        if (j.contains("ajustes") && j["ajustes"].is_object()) ajustes = j["ajustes"];
+        pinIntentos = std::clamp(j.value("pinIntentos", pinIntentos), 1, 100);
+        pinBloqueoS = std::clamp(j.value("pinBloqueoS", pinBloqueoS), 5, 86400);
     }
 
     void parseArgs(int argc, char** argv) {
@@ -174,6 +246,8 @@ struct Config {
             };
             if (arg == "--guests") {
                 guests = static_cast<int>(nextInt());
+            } else if (arg == "--guests-reserve") {
+                guestsReserve = static_cast<int>(nextInt());
             } else if (arg == "--port") {
                 port = static_cast<uint16_t>(nextInt());
             } else if (arg == "--metrics-port") {
@@ -214,6 +288,7 @@ struct Config {
         }
         if (guests < kMinGuests) guests = kMinGuests;
         if (guests > kMaxGuests) guests = kMaxGuests;
+        guestsReserve = std::clamp(std::max(guestsReserve, guests), guests, kMaxGuests);
         if (port == 0) port = 8787;
         if (metricsPort == 0) metricsPort = 9099;
         if (durationMs < 0) durationMs = 0;
@@ -230,6 +305,7 @@ struct Config {
         if (lobbySlots > 8) lobbySlots = 8;
         if (maxBackstage < 0) maxBackstage = 0;
         if (maxBackstage > 32) maxBackstage = 32;
+        vistasRemotas = std::clamp(vistasRemotas, 0, 64);
         if (backstagePreviews < 0) backstagePreviews = 0;
         if (backstagePreviews > 8) backstagePreviews = 8; // A se suscribe a BA.Backstage.1..8
         if (rtcPortMax < rtcPortMin) rtcPortMax = rtcPortMin;
@@ -258,13 +334,20 @@ struct Config {
         const std::filesystem::path binDir = bundle / "bin" / "64bit";
 #ifdef _WIN32
         const char* exe = "cloudflared.exe";
+        const char* exePinggy = "ba-pinggy.exe";
+        const char* exeWeb = "ba-web.exe";
 #else
         const char* exe = "cloudflared";
+        const char* exePinggy = "ba-pinggy";
+        const char* exeWeb = "ba-web";
 #endif
         appRoot = utf8(root);
         cloudflaredPath = utf8(binDir / exe);
         if (logsDir.empty()) logsDir = utf8(root / "Logs");
         cloudflaredLog = utf8(root / "Logs" / "cloudflared.log");
+        pinggyPath = utf8(binDir / exePinggy);
+        pinggyLog = utf8(root / "Logs" / "pinggy.log");
+        webPath = utf8(binDir / exeWeb);
         // La web viene con el programa: del bundle; si no está (la copia
         // sombra solo trae bin/, obs-plugins/ y data/), de la raíz real.
         std::error_code ec;
@@ -272,8 +355,10 @@ struct Config {
             std::filesystem::exists(bundle / "Web", ec) ? bundle / "Web" : root / "Web";
         if (webroot.empty()) webroot = utf8(web / "guest");
         if (adminWebroot.empty()) adminWebroot = utf8(web / "admin");
-        if (sharesDir.empty()) sharesDir = utf8(root / "Shares");
-        if (configDir.empty()) configDir = utf8(root / "Config");
+        // Lo de la configuración activa (Configuraciones/<nombre>/): su Config/ y lo que comparten los invitados.
+        const std::filesystem::path conf = ba::platform::configRoot().empty() ? root : ba::platform::configRoot();
+        if (sharesDir.empty()) sharesDir = utf8(conf / "Shares");
+        if (configDir.empty()) configDir = utf8(conf / "Config");
         return ok;
     }
 

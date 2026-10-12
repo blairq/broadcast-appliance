@@ -3,7 +3,7 @@
 
 Con solo comandos el modelo se especializa y pierde capacidad general (Qwen3-4B
 conservó el 61 % ajustado a un catálogo, arXiv 2605.17774); mezclando texto
-general se mitiga (Alopex, 2411.05209). Ver docs/entrenamiento-avanzado.md.
+general se mitiga (Alopex, 2411.05209). Ver docs/modelos/entrenamiento-avanzado.md.
 
 Las RESPUESTAS las escribe el modelo BASE (Qwen3.5 sin ajustar, sin thinking):
 lo que se le enseña a conservar es su propio comportamiento, no el estilo de

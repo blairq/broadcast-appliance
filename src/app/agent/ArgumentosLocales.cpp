@@ -162,8 +162,8 @@ std::string prompt(const std::string& sistema, const std::string& herramienta, c
     if (desc.size() > 700) desc = desc.substr(0, 700);
     const std::string usuario =
         "Herramienta: " + herramienta + " — " + ficha.value("title", std::string()) + "\n" + desc +
-        "\nEsquema de argumentos: " + ficha.value("inputSchema", json::object()).dump() +
-        "\n\nEstado del aparato: " + estado.dump() + "\n\nPedido del operador: «" + frase + "»";
+        "\nEsquema de argumentos: " + ficha.value("inputSchema", json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) +
+        "\n\nEstado del aparato: " + estado.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n\nPedido del operador: «" + frase + "»";
     return "<|im_start|>system\n" + sistema + "<|im_end|>\n<|im_start|>user\n" + usuario +
            "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n{";
 }
@@ -295,8 +295,8 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
             std::transform(kl.begin(), kl.end(), kl.begin(), ::tolower);
             if (kl.rfind("volume", 0) == 0 && volumen.count(fuente) > 0) {
                 v = std::round((volumen[fuente] + d) * 10.0) / 10.0;
-                r.notas.push_back("relativo " + std::string(d > 0 ? "+" : "") + json(d).dump() +
-                                  " dB sobre " + json(volumen[fuente]).dump());
+                r.notas.push_back("relativo " + std::string(d > 0 ? "+" : "") + json(d).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) +
+                                  " dB sobre " + json(volumen[fuente]).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
             } else {
                 // Sin valor actual que conozcamos: el número con su signo (un
                 // corrimiento, como el de sincronía, es así).
@@ -305,7 +305,7 @@ Resultado validar(const std::string& herr, const json& ficha, const json& args0,
             }
         }
         if (p.contains("enum") && std::find(p["enum"].begin(), p["enum"].end(), v) == p["enum"].end())
-            r.bloqueos.push_back("valor fuera de los permitidos: " + k + "=" + v.dump());
+            r.bloqueos.push_back("valor fuera de los permitidos: " + k + "=" + v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         if (p.contains("minimum") && v.is_number() && v.get<double>() < p["minimum"].get<double>())
             v = p["minimum"];
         if (p.contains("maximum") && v.is_number() && v.get<double>() > p["maximum"].get<double>())
@@ -379,7 +379,7 @@ std::string resumen(const json& args) {
     std::string out;
     for (auto it = args.begin(); it != args.end(); ++it) {
         if (!out.empty()) out += " · ";
-        out += it.key() + ": " + (it.value().is_string() ? it.value().get<std::string>() : it.value().dump());
+        out += it.key() + ": " + (it.value().is_string() ? it.value().get<std::string>() : it.value().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     return out;
 }

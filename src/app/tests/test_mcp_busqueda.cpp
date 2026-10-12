@@ -14,6 +14,7 @@
 // Por eso cada caso de acá es "esta consulta tiene que traer ESTA herramienta
 // entre las primeras", que es lo único que importa del otro lado.
 #include <chrono>
+#include <clocale>
 #include <cstdio>
 #include <set>
 #include <string>
@@ -118,12 +119,23 @@ const std::pair<const char*, const char*> kHerramientas[] = {
     {"ndi_sources", "Fuentes NDI"},
     {"video_input_add", "Agregar una camara"},
     {"settings_set", "Cambiar una configuracion"},
+    // Las de 2026-10-08 (configuraciones, panorámica, asamblea, histórico).
+    {"configuraciones_listar", "Las configuraciones"},
+    {"configuracion_crear", "Crear una configuracion"},
+    {"configuracion_cambiar", "Pasar a otra configuracion"},
+    {"configuracion_editar", "Renombrar, describir o borrar una configuracion"},
+    {"video_panoramica", "Unir varias camaras en una imagen (panoramica o 360), en una llamada"},
+    {"asamblea_revisar", "Revisar si la asamblea esta lista"},
+    {"asamblea_escenas_base", "Las escenas de la asamblea"},
+    {"historico_buscar", "Buscar en todos los eventos"},
+    {"botonera_cara", "Poner la cara de un boton (foto o video corto)"},
+    {"record_start", "Grabar"},
 };
 
 // --- La bateria de preguntas tipicas ----------------------------------------
 //
 // El corpus vive en datos/preguntas.json y lo comparten DOS bancos de prueba:
-// este (el buscador, sin modelo ni red) y tools/bateria-modelo.py (el modelo).
+// este (el buscador, sin modelo ni red) y tools/entrenar/bateria-modelo.py (el modelo).
 // Un solo corpus para los dos, o se van separando y dejan de comparar lo mismo.
 //
 // QUE MIDE ESTE. Si la herramienta que hace falta esta entre las primeras que
@@ -282,6 +294,15 @@ void velocidad(const Indice& i) {
 }
 
 int main() {
+    // EL LOCALE DE LA APP. Qt pone el del sistema (UTF-8) y con él `tolower` e
+    // `isalnum` rompían las tildes: «música» no encontraba nada en la app y acá
+    // (locale «C») sí. Se prueba con un locale UTF-8 puesto, si la máquina lo tiene.
+    for (const char* l : {"es_AR.UTF-8", "es_ES.UTF-8", "en_US.UTF-8", "C.UTF-8"})
+        if (std::setlocale(LC_ALL, l) != nullptr) break;
+    CHECK(Indice::terminos("Poner MÚSICA, ¿cámara? «Señal»") ==
+              (std::vector<std::string>{"poner", "musica", "camara", "senal"}),
+          "términos con tildes y mayúsculas, con el locale UTF-8 puesto");
+
     const Indice i = armarIndice();
     velocidad(i);
 
@@ -323,6 +344,18 @@ int main() {
     exigir(i, "grabar lo que estamos haciendo", "record_start");
     exigir(i, "poner el nombre de alguien en pantalla", "rotulo_vincular");
     exigir(i, "se ve todo negro", "capture_program");
+
+    // --- Lo de 2026-10-08, y con tildes (en la app el locale es UTF-8) -------
+    exigir(i, "poner música", "media_use");
+    exigir(i, "unir varias cámaras en una panorámica", "video_panoramica");
+    exigir(i, "cámara 360 de dos lentes ojo de pez", "video_panoramica");
+    exigir(i, "cambiar de configuración", "configuracion_cambiar");
+    exigir(i, "crear una configuración nueva", "configuracion_crear");
+    exigir(i, "qué configuraciones hay", "configuraciones_listar");
+    exigir(i, "revisar si la asamblea está lista", "asamblea_revisar");
+    exigir(i, "buscar en eventos anteriores", "historico_buscar");
+    exigir(i, "poner una foto en un botón del stream deck", "botonera_cara");
+    exigir(i, "grabar", "record_start");
 
     // --- La bateria del corpus compartido -----------------------------------
     {

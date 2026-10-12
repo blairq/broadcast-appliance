@@ -4,15 +4,12 @@
 #
 # PROPÓSITO
 #   `make release` / `make prod` instalan el ESQUELETO del layout §5.1 en
-#   release/ (bin/64bit, obs-plugins/64bit, data/libobs, Config, Logs,
-#   Recordings, Web/guest) con los binarios PROPIOS (BroadcastAppliance,
-#   ba-app, ba-gateway, ba-sources). Este script completa el bundle copiando
-#   los RUNTIMES DE TERCEROS que el build no produce:
+#   release/ (bin/64bit, gst-plugins, data, Config, Logs, Recordings,
+#   Web/guest) con los binarios PROPIOS (BroadcastAppliance, ba-app,
+#   ba-gateway) y los runtimes de terceros que ya instala el build (GStreamer,
+#   Qt, CRT). Este script puede completar el bundle copiando runtimes que el
+#   build no produce:
 #
-#     * runtime de OBS  (DLLs a bin/64bit, plugins a obs-plugins/64bit,
-#                        shaders data/libobs/*.effect, obs-browser-page.exe
-#                        y el CEF completo, que viaja dentro de
-#                        obs-plugins/64bit según §5.1);
 #     * runtime de Qt   (vía windeployqt si hay, o copia de sus *.dll);
 #     * runtime VC++    app-local (incluye msvcp140_atomic_wait.dll,
 #                        requerido por std::atomic::wait de C++20);
@@ -36,10 +33,6 @@
 #                  Si no existe, se crea (el esqueleto puede ser vacío).
 #
 # VARIABLES DE ENTORNO (cada una OPCIONAL)
-#   BA_DEPLOY_OBS         Root del runtime de OBS. Debe espejar el layout
-#                         portable: <root>/bin/64bit, <root>/obs-plugins/64bit
-#                         y <root>/data/libobs. Se copia sobre el bundle
-#                         respetando esos subdirectorios.
 #   BA_DEPLOY_QT          Dir con el runtime de Qt. Si además hay
 #                         BA_DEPLOY_WINDEPLOYQT, se ejecuta ese sobre
 #                         bin/64bit (y trae plugins/tls/etc.); si no, se
@@ -82,16 +75,6 @@ err()  { printf '[deploy] ERROR: %s\n' "$*" >&2; }
 
 usage() {
   sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'
-}
-
-# sha256 de un archivo → solo el hex (64 chars).
-# macOS < 15 no trae sha256sum: `shasum -a 256` da la misma salida.
-sha256_of() {
-  if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$1" | awk '{print $1}'
-  else
-    shasum -a 256 "$1" | awk '{print $1}'
-  fi
 }
 
 # --- Parseo de argumentos ---------------------------------------------------
@@ -181,35 +164,16 @@ sign_file() {
 
 # --- Raíces del bundle (layout §5.1) ----------------------------------------
 B_BIN64="$BUNDLE_DIR/bin/64bit"
-B_PLUGINS="$BUNDLE_DIR/obs-plugins/64bit"
-B_LIBOBS="$BUNDLE_DIR/data/libobs"
 
 # Con --solo-manifest no se copia nada: el bundle ya esta armado (es lo que
 # pasa en Linux, donde el build no necesita runtimes de terceros) y lo unico
 # que falta es el manifest para que el launcher tenga que verificar.
 if [ "$ONLY_MANIFEST" -eq 0 ]; then
 
-mkdir -p "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"
+mkdir -p "$B_BIN64"
 
 # ============================================================================
-# 1) RUNTIME DE OBS  (BA_DEPLOY_OBS)
-# ============================================================================
-# El root de OBS espeja el layout portable: bin/64bit, obs-plugins/64bit y
-# data/libobs. obs-browser-page.exe y el CEF (libcef.dll, chrome_elf.dll,
-# *.pak, icudtl.dat, locales/) viajan DENTRO de obs-plugins/64bit según §5.1,
-# así que se cubren con la copia de ese subdirectorio.
-if [ -n "${BA_DEPLOY_OBS:-}" ]; then
-  log "=== runtime de OBS (root: $BA_DEPLOY_OBS) ==="
-  copy_tree "$BA_DEPLOY_OBS/bin/64bit"        "$B_BIN64"   "OBS bin/64bit"        || true
-  copy_tree "$BA_DEPLOY_OBS/obs-plugins/64bit" "$B_PLUGINS" "OBS obs-plugins/64bit" || true
-  copy_tree "$BA_DEPLOY_OBS/data/libobs"      "$B_LIBOBS"  "OBS data/libobs"       || true
-else
-  warn "skip: BA_DEPLOY_OBS no configurado (runtime de OBS no copiado)"
-  mark_missing "BA_DEPLOY_OBS"
-fi
-
-# ============================================================================
-# 2) RUNTIME DE QT  (BA_DEPLOY_QT [, BA_DEPLOY_WINDEPLOYQT])
+# 1) RUNTIME DE QT  (BA_DEPLOY_QT [, BA_DEPLOY_WINDEPLOYQT])
 # ============================================================================
 if [ -n "${BA_DEPLOY_QT:-}" ]; then
   log "=== runtime de Qt (dir: $BA_DEPLOY_QT) ==="
@@ -238,7 +202,7 @@ else
 fi
 
 # ============================================================================
-# 3) RUNTIME VC++ APP-LOCAL  (BA_DEPLOY_VC)
+# 2) RUNTIME VC++ APP-LOCAL  (BA_DEPLOY_VC)
 # ============================================================================
 # DEBE incluir msvcp140_atomic_wait.dll (lo requiere std::atomic::wait de
 # C++20). Si falta, el bundle no arranca: es error, no skip.
@@ -260,7 +224,7 @@ else
 fi
 
 # ============================================================================
-# 4) CLOUDFLARED FIJADO  (BA_DEPLOY_CLOUDFLARED)
+# 3) CLOUDFLARED FIJADO  (BA_DEPLOY_CLOUDFLARED)
 # ============================================================================
 if [ -n "${BA_DEPLOY_CLOUDFLARED:-}" ]; then
   log "=== cloudflared (ruta: $BA_DEPLOY_CLOUDFLARED) ==="
@@ -274,17 +238,17 @@ else
 fi
 
 # ============================================================================
-# 5) FIRMA DE LOS ARCHIVOS COPIADOS  (BA_DEPLOY_SIGN_CMD)
+# 4) FIRMA DE LOS ARCHIVOS COPIADOS  (BA_DEPLOY_SIGN_CMD)
 # ============================================================================
 # Se firma cada archivo que el deploy COPIO en esta corrida (no los del
-# esqueleto, que los firma el build). Recorre los cuatro destinos conocidos.
+# esqueleto, que los firma el build). Recorre bin/64bit, donde copia todo.
 if [ -n "${BA_DEPLOY_SIGN_CMD:-}" ]; then
   log "=== firma de binarios (BA_DEPLOY_SIGN_CMD) ==="
   # Archivo temporal con la lista de rutas a firmar (una por línea).
   SIGN_LIST="$(mktemp)"
   trap 'rm -f "$SIGN_LIST"' EXIT
   # Recorre los destinos de despliegue y encola cada archivo.
-  for d in "$B_BIN64" "$B_PLUGINS" "$B_LIBOBS"; do
+  for d in "$B_BIN64"; do
     [ -d "$d" ] || continue
     while IFS= read -r -d '' f; do
       printf '%s\0' "$f" >> "$SIGN_LIST"
@@ -300,7 +264,7 @@ fi
 fi # --- fin del bloque de copiado (ver --solo-manifest) ---------------------
 
 # ============================================================================
-# 6) MANIFEST.JSON  (raíz del bundle)
+# 5) MANIFEST.JSON  (raíz del bundle)
 # ============================================================================
 # JSON determinista: claves ordenadas, lista de archivos ordenada por ruta.
 # Cubre TODO el árbol desplegado (incluye el esqueleto del build), porque el
@@ -313,13 +277,62 @@ GENERATED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 # Orden estable (byte-wise) independiente del locale del host.
 export LC_ALL=C
 
-# Escapa un string para JSON: comillas y backslash.
-json_escape() {
-  local s="$1"
-  s="${s//\\/\\\\}"
-  s="${s//\"/\\\"}"
-  printf '%s' "$s"
-}
+# Los archivos que entran, en orden. Solo lo que NO cambia al usar el programa:
+# si entraran la configuración, los registros o las grabaciones, el launcher
+# avisaría de "integridad rota" en cada arranque después del primero, que es la
+# mejor manera de que el operador aprenda a ignorar el aviso. Extensiones/: las
+# escribe el operador (o el asistente). Modelos, agentes, caches, respaldos,
+# compartidos, exportados, medios y gráficos también son del usuario (en macOS
+# ni siquiera están en el bundle, van al lado de la .app; en Windows y Linux sí).
+MTMP="$(mktemp -d)"
+( cd "$BUNDLE_DIR" && find . -type f -print0 ) | sort -z | while IFS= read -r -d '' rel; do
+  rel="${rel#./}"
+  # Nunca se incluye a sí mismo.
+  [ "$rel" = "manifest.json" ] && continue
+  case "$rel" in
+    Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*|Extensiones/*) continue ;;
+    Modelos/*|Agentes/*|Cache/*|Respaldos/*|Shares/*|Exportado/*|Media/*|Graficos/*) continue ;;
+  esac
+  printf '%s\0' "$rel"
+done > "$MTMP/lista"
+
+# Los hashes, por tandas y en paralelo (antes era un proceso por archivo: 20.000
+# en macOS). Con BA_MANIFEST_CACHE (un archivo «ctime|tamaño|ruta|sha256») solo
+# se calculan los nuevos o cambiados: el ctime cambia con cualquier escritura.
+JOBS="$( (sysctl -n hw.ncpu || nproc) 2>/dev/null || echo 4)"
+if command -v sha256sum >/dev/null 2>&1; then SHA=(sha256sum); else SHA=(shasum -a 256); fi
+if [ -n "${BA_MANIFEST_CACHE:-}" ]; then
+  if stat --version >/dev/null 2>&1; then STATF=(stat -c '%Z|%s|%n'); else STATF=(stat -f '%c|%z|%N'); fi
+  ( cd "$BUNDLE_DIR" && xargs -0 "${STATF[@]}" < "$MTMP/lista" ) > "$MTMP/ahora"
+  [ -f "$BA_MANIFEST_CACHE" ] || : > "$BA_MANIFEST_CACHE"
+  # Del cache, los que siguen iguales (ruta\thash); los otros, a calcular.
+  awk -F'|' -v sabidos="$MTMP/sabidos" -v faltan="$MTMP/faltan" '
+    FILENAME == ARGV[1] { h = $NF; k = $0; sub(/\|[^|]*$/, "", k); cache[k] = h; next }
+    { if ($0 in cache) { p = $0; sub(/^[^|]*\|[^|]*\|/, "", p); print p "\t" cache[$0] > sabidos }
+      else { p = $0; sub(/^[^|]*\|[^|]*\|/, "", p); printf "%s%c", p, 0 > faltan } }
+  ' "$BA_MANIFEST_CACHE" "$MTMP/ahora"
+  touch "$MTMP/sabidos" "$MTMP/faltan"
+else
+  cp "$MTMP/lista" "$MTMP/faltan"
+  : > "$MTMP/sabidos"
+fi
+# «hash  ruta» → «ruta\thash».
+# CADA TANDA ESCRIBE EN SU PROPIO ARCHIVO. Antes todas escribían al mismo pipe y,
+# cuando una salida pasaba de PIPE_BUF (4 KB), se mezclaba con la de otra tanda y se
+# perdía la línea de algún archivo: «falta el hash de …» al azar, cuando había miles
+# de archivos que hashear (p. ej. un test de coremltools, el 2026-10-12).
+mkdir -p "$MTMP/tandas"
+( cd "$BUNDLE_DIR" &&
+  xargs -0 -n 64 -P "$JOBS" sh -c 'salida=$(mktemp "$0/tanda.XXXXXX") && "$@" > "$salida"' \
+    "$MTMP/tandas" "${SHA[@]}" < "$MTMP/faltan" )
+cat "$MTMP"/tandas/tanda.* 2>/dev/null |
+  awk '{ h = substr($0, 1, 64); p = substr($0, 67); sub(/^\*/, "", p); print p "\t" h }' > "$MTMP/nuevos"
+cat "$MTMP/sabidos" "$MTMP/nuevos" > "$MTMP/hashes"
+if [ -n "${BA_MANIFEST_CACHE:-}" ]; then
+  awk -F'\t' 'FILENAME == ARGV[1] { h[$1] = $2; next }
+              { p = $0; sub(/^[^|]*\|[^|]*\|/, "", p); if (p in h) print $0 "|" h[p] }' \
+    "$MTMP/hashes" "$MTMP/ahora" > "$BA_MANIFEST_CACHE"
+fi
 
 {
   printf '{\n'
@@ -331,49 +344,18 @@ json_escape() {
   # ruta->hash el parser no encontraba ninguna entrada y la verificacion
   # pasaba siempre, con cero archivos revisados.
   printf '  "files": [\n'
-
-  first=1
-  # Recorre el árbol (sin seguir symlink a directorios), ordena por ruta
-  # relativa y emite una entrada por archivo. Las rutas van separadas por NUL
-  # (-d '') para soportar nombres con espacios o caracteres raros.
-  while IFS= read -r -d '' rel; do
-    rel="${rel#./}"
-    abs="$BUNDLE_DIR/$rel"
-    [ -f "$abs" ] || continue
-    # Nunca se incluye a sí mismo.
-    [ "$rel" = "manifest.json" ] && continue
-    # Solo lo que NO cambia al usar el programa. Si entraran la configuración,
-    # los registros o las grabaciones, el launcher avisaría de "integridad
-    # rota" en cada arranque después del primero, que es la mejor manera de
-    # que el operador aprenda a ignorar el aviso.
-    case "$rel" in
-      # Extensiones/: las escribe el operador (o el asistente) y cambian sin
-      # que cambie la version. Verificarlas haria que cada tarjeta nueva
-      # rompiera la comprobacion de integridad.
-      # Los demas de abajo tambien son del usuario: modelos bajados (GB),
-      # agentes, caches, respaldos, compartidos, exportados, medios y los
-      # graficos que se editan. En macOS ni siquiera estan en el bundle (van al
-      # lado de la .app), pero en Windows y Linux si.
-      Config/*|Logs/*|Recordings/*|Runtime/*|Credenciales/*|Eventos/*|Extensiones/*) continue ;;
-      Modelos/*|Agentes/*|Cache/*|Respaldos/*|Shares/*|Exportado/*|Media/*|Graficos/*) continue ;;
-    esac
-    hash="$(sha256_of "$abs")"
-    if [ "$first" -eq 1 ]; then
-      first=0
-    else
-      printf ',\n'
-    fi
-    printf '    {"path": "%s", "sha256": "%s"}' "$(json_escape "$rel")" "$hash"
-  done < <(
-    # El "./" inicial se saca en el bucle: `sed -z` no existe en macOS. Como
-    # todas las rutas lo comparten, ordenar con o sin el da el mismo orden.
-    ( cd "$BUNDLE_DIR" && find . -type f -print0 ) \
-      | sort -z
-  )
-
-  printf '\n  ]\n'
+  # En el orden de la lista (byte a byte); comillas y barras escapadas para JSON.
+  tr '\0' '\n' < "$MTMP/lista" | awk -F'\t' '
+    FILENAME == ARGV[1] { h[$1] = $2; next }
+    { p = $0; gsub(/\\/, "\\\\", p); gsub(/"/, "\\\"", p)
+      if (!($0 in h)) { print "falta el hash de " $0 > "/dev/stderr"; exit 1 }
+      printf "%s    {\"path\": \"%s\", \"sha256\": \"%s\"}", (n++ ? ",\n" : ""), p, h[$0] }
+    END { printf "\n" }
+  ' "$MTMP/hashes" - || { rm -rf "$MTMP"; warn "no se pudo armar el manifest"; exit 1; }
+  printf '  ]\n'
   printf '}\n'
 } > "$MANIFEST"
+rm -rf "$MTMP"
 
 log "manifest.json escrito en $MANIFEST"
 

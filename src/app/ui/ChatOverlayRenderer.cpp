@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-#include "ChatOverlaySource.hpp"
+#include "emision/ChatOverlaySource.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -149,6 +149,22 @@ QImage ChatOverlayRenderer::render(const std::vector<Message>& msgs, int width, 
     return img;
 }
 
+bool ChatOverlayRenderer::destacar(const QString& key) {
+    for (const Message& m : collect())
+        if (m.key == key) {
+            destacados_.insert(key);
+            return true;
+        }
+    return false;
+}
+
+void ChatOverlayRenderer::quitarDestacado(const QString& key) {
+    if (key.isEmpty())
+        destacados_.clear();
+    else
+        destacados_.remove(key);
+}
+
 void ChatOverlayRenderer::tick() {
     const std::vector<chatoverlay::Instance> list = chatoverlay::instances();
     if (list.empty()) return;
@@ -161,6 +177,7 @@ void ChatOverlayRenderer::tick() {
                 (m.source == "facebook" && !in.showFacebook) || (m.source == "room" && !in.showRoom))
                 continue;
             if (in.fadeSec > 0 && now - m.atMs > in.fadeSec * 1000LL) continue;
+            if (in.soloDestacados && !destacados_.contains(m.key)) continue;
             msgs.push_back(m);
         }
         if (static_cast<int>(msgs.size()) > in.maxMessages)

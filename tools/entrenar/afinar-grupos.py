@@ -43,7 +43,7 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 MINIMO, MAXIMO = 15, 20
 TOLERANCIA_Q = 0.02      # una reescritura no puede bajar Q mas que esto

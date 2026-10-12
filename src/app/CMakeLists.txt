@@ -4,23 +4,19 @@
 # El Proceso A es un ejecutable GUI (sin consola en Windows) que integra
 # `ba_core` (dsp + ipc + persist) con la UI de operación (spec §6).
 #
-# Arquitectura (docs/prompts/primer_prompt.md §6, §14):
-#   - `ba_core` es el núcleo: SIN Qt, SIN libobs, testeable por unidad.
-#   - `ba-app` (A) usa /MD (CRT dinámica) por consistencia con libobs y Qt.
-#   - Todo lo Qt/obs va tras `#ifdef _WIN32` (y, en la app completa, tras
-#     `BA_APP_HAVE_QT_OBS`, definido solo cuando Qt 6 + libobs están presentes).
+# Arquitectura:
+#   - `ba_core` es el núcleo: SIN Qt, testeable por unidad.
+#   - El motor de emisión es GStreamer (src/motor): libobs ya no está.
+#   - `ba-app` (A) usa /MD (CRT dinámica) por consistencia con Qt y GStreamer.
 #
 # Dos rutas de compilación, elegidas en el configure:
-#   1. Windows + Qt 6 + libobs presentes  -> app COMPLETA (QApplication +
-#      obs_startup + MainWindow). Se enlaza Qt 6 Widgets + libobs y se define
-#      `BA_APP_HAVE_QT_OBS`.
-#   2. Cross-compile MinGW de validación (o Linux) sin Qt/libobs -> modo
-#      HEADLESS: solo `ba_core`, que ejercita la misma integración dsp/ipc/
-#      persist (ver main.cpp, runHeadlessSelfTest). Así el target compila y se
-#      valida en cualquier plataforma, y la app real se construye en el
-#      entorno con Qt/libobs.
+#   1. Con Qt 6 vendoreado -> app COMPLETA (interfaz QML + motor). Se define
+#      `BA_APP_HAVE_GUI=1`.
+#   2. Sin Qt (una validación cruzada) -> modo HEADLESS: solo `ba_core`, que
+#      ejercita la misma integración dsp/ipc/persist (ver main.cpp,
+#      runHeadlessSelfTest). Así el target compila en cualquier plataforma.
 #
-# /MD (CRT dinámica) por consistencia con libobs y Qt — hereda del root.
+# /MD (CRT dinámica) — hereda del root.
 # ============================================================================
 
 # --- Sources ----------------------------------------------------------------
@@ -33,31 +29,32 @@ file(GLOB_RECURSE BA_APP_SOURCES CONFIGURE_DEPENDS
 
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/mcp/bridge/.*") # ba-mcp es otro binario
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/escritorio/.*") # ba-control es otro binario
 list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/src/app/tools/.*") # herramientas con su propio main
 
 # WIN32 en MSVC: subsistema GUI (sin consola). En Linux es un ejecutable normal.
-# BroadcastEngine.cpp incluye <obs.h>: sin libobs no puede compilarse, asi que
-# se saca de la lista (el resto del Proceso A sigue compilando headless).
-if(NOT BA_HAVE_LIBOBS)
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes)?\\.cpp$")
+# El motor es GStreamer (src/motor): sin él, el Proceso A compila sin motor.
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEnginePlaca\\.cpp$")
+list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
+if(NOT BA_HAVE_MOTOR)
+    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/BroadcastEngine(Scenes|Dsk)?\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/AppSettings\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/EngineSelfTest\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperateMode\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/GuiMode\\.cpp$")
-    list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/WindowingPlatform\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/OperatorFeed\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/ChatOverlaySource\\.cpp$")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/MonitorVoz\\.cpp$")
 endif()
 
 # --- Qt 6 (interfaz grafica) — VENDOREADO, nunca el del sistema -------------
-# Igual que libobs: el bundle es portable y se lleva su propio Qt. Se busca
+# El bundle es portable y se lleva su propio Qt (como GStreamer). Se busca
 # SOLO en extern/ (NO_DEFAULT_PATH):
 #   - Linux/macOS: extern/qt6-host/<QT6_VERSION>/<arch>  (`make deps-qt-host`)
 #   - Windows:     extern/qt6/<QT6_VERSION>/<arch>       (`make deps-qt`)
 # Sin Qt vendoreado, ba-app se compila sin interfaz (modo consola).
 set(BA_APP_QT_OK FALSE)
-if(BA_HAVE_LIBOBS)
+if(BA_HAVE_MOTOR)
     if(WIN32)
         set(_ba_qt_root "${CMAKE_SOURCE_DIR}/extern/qt6/${QT6_VERSION}")
     else()
@@ -95,44 +92,42 @@ else()
 endif()
 
 # --- NDI(R) sin SDK propietario: libNoIDea (VideoLAN, LGPL) + libmicrodns -----
-# Fuente fijada por commit (tools/deps/obs-deps-linux.sh). Se compila adentro de
+# Fuente fijada por commit (tools/deps/terceros-linux.sh). Se compila adentro de
 # ba-app; el video SpeedHQ lo decodifica el FFmpeg del bundle.
 set(BA_NOIDEA_DIR "${CMAKE_SOURCE_DIR}/extern/libnoidea")
-set(BA_OBS_DEPS "${CMAKE_SOURCE_DIR}/extern/obs-deps-linux")
+set(BA_TERCEROS "${CMAKE_SOURCE_DIR}/extern/terceros-linux")
 set(BA_HAVE_NDI OFF)
-# (macOS: pendiente; sin NDI hasta armar libmicrodns + FFmpeg de obs-deps-macos.)
-if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+if(BA_HAVE_MOTOR AND NOT WIN32 AND NOT APPLE AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_TERCEROS}/lib/libmicrodns.a")
     add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
                                  "${BA_NOIDEA_DIR}/extensions/discovery.c")
-    target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" "${BA_OBS_DEPS}/include")
+    target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" "${BA_TERCEROS}/include")
     target_compile_definitions(ba_noidea PUBLIC NOIDEA_EXT_DISCOVERY NOIDEA_STATIC PRIVATE HAVE_POLL=1 _GNU_SOURCE)
     set_target_properties(ba_noidea PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
     target_compile_options(ba_noidea PRIVATE -w)
     find_package(Threads REQUIRED)
-    target_link_libraries(ba_noidea PUBLIC "${BA_OBS_DEPS}/lib/libmicrodns.a" Threads::Threads)
+    target_link_libraries(ba_noidea PUBLIC "${BA_TERCEROS}/lib/libmicrodns.a" Threads::Threads)
     set(BA_HAVE_NDI ON)
     # Licencias (LGPL) junto al programa.
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/.build-obs-deps/libmicrodns/COPYING")
-        install(FILES "${CMAKE_SOURCE_DIR}/extern/.build-obs-deps/libmicrodns/COPYING" DESTINATION data/licencias
+    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/.build-terceros/libmicrodns/COPYING")
+        install(FILES "${CMAKE_SOURCE_DIR}/extern/.build-terceros/libmicrodns/COPYING" DESTINATION data/licencias
                 RENAME libmicrodns-LGPL.txt)
     endif()
 endif()
-# Windows: libmicrodns y libNoIDea se compilan aca (tools/deps/ndi-src.sh) y
-# libavcodec/libavutil son las DLL del runtime de OBS (FFmpeg n7.0.2), con los
-# headers y .lib del obs-deps oficial que fija OBS (make deps-obs-deps-win).
+# Windows: libmicrodns y libNoIDea se compilan aca (tools/deps/ndi-src.sh); el
+# video lo decodifica GStreamer (bandisrc), sin FFmpeg propio.
 set(BA_MDNS_DIR "${CMAKE_SOURCE_DIR}/extern/libmicrodns")
 
 # --- mDNS para buscar Chromecast (src/app/pantallas) --------------------------
-# La misma libmicrodns que usa NDI, pero como objetivo propio: NDI solo se
-# compila con libobs y en Linux, y buscar televisores tiene que andar igual en
-# las tres plataformas. En Linux se usa el .a de obs-deps si esta; si no (y en
-# macOS), se compila del fuente vendoreado, que es el mismo.
+# La misma libmicrodns que usa NDI, pero como objetivo propio: buscar
+# televisores tiene que andar igual en las tres plataformas. En Linux se usa el
+# .a de extern/terceros-linux (los terceros compilados, el nombre es histórico)
+# si está; si no (y en macOS), se compila del fuente vendoreado, que es el mismo.
 set(BA_MDNS_OK OFF)
-if(NOT WIN32 AND EXISTS "${BA_OBS_DEPS}/lib/libmicrodns.a")
+if(NOT WIN32 AND EXISTS "${BA_TERCEROS}/lib/libmicrodns.a")
     add_library(ba_mdns INTERFACE)
-    target_include_directories(ba_mdns INTERFACE "${BA_OBS_DEPS}/include")
-    target_link_libraries(ba_mdns INTERFACE "${BA_OBS_DEPS}/lib/libmicrodns.a")
+    target_include_directories(ba_mdns INTERFACE "${BA_TERCEROS}/include")
+    target_link_libraries(ba_mdns INTERFACE "${BA_TERCEROS}/lib/libmicrodns.a")
     set(BA_MDNS_OK ON)
 elseif(NOT WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
     # compat.c: os_strerror y compania (en Windows van ademas inet.c y poll.c).
@@ -146,10 +141,22 @@ elseif(NOT WIN32 AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
     set_target_properties(ba_mdns PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
     set(BA_MDNS_OK ON)
 endif()
+# macOS: NDI con la libmicrodns de arriba (compilada del fuente) y libNoIDea.
+# Ya no hace falta FFmpeg: el SpeedHQ lo decodifica avdec_speedhq de GStreamer
+# (NdiSource.cpp: el elemento bandisrc).
+if(APPLE AND BA_HAVE_MOTOR AND BA_MDNS_OK AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c")
+    add_library(ba_noidea STATIC "${BA_NOIDEA_DIR}/src/recv.c" "${BA_NOIDEA_DIR}/src/scramble.c"
+                                 "${BA_NOIDEA_DIR}/extensions/discovery.c")
+    target_include_directories(ba_noidea PUBLIC "${BA_NOIDEA_DIR}/include" PRIVATE "${BA_NOIDEA_DIR}/src")
+    target_compile_definitions(ba_noidea PUBLIC NOIDEA_EXT_DISCOVERY NOIDEA_STATIC PRIVATE HAVE_POLL=1)
+    set_target_properties(ba_noidea PROPERTIES C_STANDARD 11 POSITION_INDEPENDENT_CODE ON)
+    target_compile_options(ba_noidea PRIVATE -w)
+    target_link_libraries(ba_noidea PUBLIC ba_mdns)
+    set(BA_HAVE_NDI ON)
+    install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt COMPONENT bundle)
+endif()
 # El enlace con ba-app va mas abajo, cuando el objetivo ya existe.
-set(BA_OBS_DEPS_WIN "${CMAKE_SOURCE_DIR}/extern/obs-deps-win")
-if(BA_HAVE_LIBOBS AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c"
-   AND EXISTS "${BA_OBS_DEPS_WIN}/lib/avcodec.lib")
+if(BA_HAVE_MOTOR AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS "${BA_MDNS_DIR}/src/mdns.c")
     add_library(ba_microdns STATIC "${BA_MDNS_DIR}/src/mdns.c" "${BA_MDNS_DIR}/src/rr.c"
                                    "${BA_MDNS_DIR}/compat/compat.c" "${BA_MDNS_DIR}/compat/inet.c"
                                    "${BA_MDNS_DIR}/compat/poll.c")
@@ -171,9 +178,6 @@ if(BA_HAVE_LIBOBS AND WIN32 AND EXISTS "${BA_NOIDEA_DIR}/src/recv.c" AND EXISTS 
     target_compile_options(ba_noidea PRIVATE -w)
     target_link_libraries(ba_noidea PUBLIC ba_microdns ws2_32)
 
-    add_library(ba_ffmpeg_win INTERFACE)
-    target_include_directories(ba_ffmpeg_win SYSTEM INTERFACE "${BA_OBS_DEPS_WIN}/include")
-    target_link_libraries(ba_ffmpeg_win INTERFACE "${BA_OBS_DEPS_WIN}/lib/avcodec.lib" "${BA_OBS_DEPS_WIN}/lib/avutil.lib")
     set(BA_HAVE_NDI ON)
     install(FILES "${BA_NOIDEA_DIR}/COPYING" DESTINATION data/licencias RENAME libnoidea-LGPL.txt)
     install(FILES "${BA_MDNS_DIR}/COPYING" DESTINATION data/licencias RENAME libmicrodns-LGPL.txt)
@@ -188,7 +192,7 @@ endif()
 # rack de audio no se compila.
 set(BA_CLAP_INC "${CMAKE_SOURCE_DIR}/extern/clap/include")
 set(BA_HAVE_CLAP OFF)
-if(BA_HAVE_LIBOBS AND EXISTS "${BA_CLAP_INC}/clap/clap.h")
+if(BA_HAVE_MOTOR AND EXISTS "${BA_CLAP_INC}/clap/clap.h")
     set(BA_HAVE_CLAP ON)
 else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/.*")
@@ -280,6 +284,9 @@ if(MSVC)
 else()
     add_executable(ba-app ${BA_APP_SOURCES})
 endif()
+# QR de los links personales de la banca virtual (Nayuki, MIT; el mismo que el gateway).
+target_sources(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+target_include_directories(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
 if(BA_HAVE_VOZ)
     # Orden de enlace: de las APIs hacia abajo (son estaticas).
     set(BA_SHERPA_LIBS)
@@ -305,7 +312,7 @@ if(BA_HAVE_VOZ)
 endif()
 # Los modulos se incluyen como "evento/Evento.hpp": hace falta tambien sin Qt.
 target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-# Windows: el logo en el .exe (el mismo .ico que el launcher, ver tools/icono.py).
+# Windows: el logo en el .exe (el mismo .ico que el launcher, ver tools/generar/icono.py).
 if(WIN32)
     enable_language(RC)
     target_sources(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ba-app.rc")
@@ -314,7 +321,7 @@ if(WIN32)
 endif()
 # macOS: permisos de camara/microfono (TCC) en un ejecutable que no es .app.
 include(${CMAKE_SOURCE_DIR}/cmake/BaMacInfoPlist.cmake)
-ba_mac_embed_info_plist(ba-app com.legisstudio.broadcastappliance.app "Broadcast Appliance")
+ba_mac_embed_info_plist(ba-app io.github.blairq.broadcastappliance.app "Broadcast Appliance")
 
 # MinGW GUI: subsistema GUI (sin consola), igual que el launcher. Sin esto,
 # MinGW enlaza como consola y el CRT espera `main` en vez de `WinMain`/
@@ -332,7 +339,7 @@ endif()
 target_link_libraries(ba-app PRIVATE ba_core mbedtls mbedx509 mbedcrypto) # HTTPS propio (net/HttpsClient)
 if(APPLE)
     # Los canales físicos de cada dispositivo (audio/EquipoAudio: Qt informa de más en la Mac).
-    target_link_libraries(ba-app PRIVATE "-framework CoreAudio" "-framework CoreFoundation")
+    target_link_libraries(ba-app PRIVATE "-framework CoreAudio" "-framework CoreFoundation" "-framework Carbon")
 endif()
 # Buscar Chromecast en la red (src/app/pantallas/Buscar.cpp).
 if(BA_MDNS_OK)
@@ -347,43 +354,23 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     install(FILES "${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem" DESTINATION data)
 endif()
 
-# --- Motor de emision sobre libobs (spec §6) --------------------------------
-# libobs es cross-platform y el motor tambien: cuando `ba::libobs` existe se
-# compila `BroadcastEngine` en CUALQUIER plataforma, no solo en Windows. Ese
-# acoplamiento (todo lo de obs detras de `_WIN32`) era lo que mantenia el motor
-# sin compilar ni ejecutar en ningun lado.
-if(BA_HAVE_LIBOBS)
-    target_link_libraries(ba-app PRIVATE ba::libobs)
+# --- Motor de emision: GStreamer (src/motor) --------------------------------
+if(BA_HAVE_MOTOR)
+    target_link_libraries(ba-app PRIVATE ba_motor)
     if(BA_HAVE_NDI)
-        if(WIN32)
-            target_link_libraries(ba-app PRIVATE ba_noidea ba_ffmpeg_win)
-        else()
-            target_link_libraries(ba-app PRIVATE ba_noidea "${BA_OBS_DEPS}/lib/libavcodec.so" "${BA_OBS_DEPS}/lib/libavutil.so")
-        endif()
+        # Solo libNoIDea: el SpeedHQ lo decodifica GStreamer (avdec_speedhq).
+        target_link_libraries(ba-app PRIVATE ba_noidea)
         target_compile_definitions(ba-app PRIVATE BA_HAVE_NDI=1)
     endif()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=1)
-    # Linux: el motor elige Wayland o X11 para libobs antes de obs_startup
-    # (BroadcastEngine::selectWindowingPlatform). Son bibliotecas del sistema
-    # de escritorio, las mismas que ya carga libobs.
-    if(UNIX AND NOT APPLE)
-        find_package(X11 REQUIRED)
-        find_library(BA_WAYLAND_CLIENT wayland-client REQUIRED)
-        target_link_libraries(ba-app PRIVATE X11::X11 ${BA_WAYLAND_CLIENT})
-    endif()
-    # rpath $ORIGIN: el ejecutable busca sus bibliotecas JUNTO A EL dentro del
-    # bundle portable (bin/64bit/), no en el sistema. Es lo que hace que el
-    # bundle corra en una maquina sin nada instalado.
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_MOTOR=1)
+    # rpath: el ejecutable busca sus bibliotecas JUNTO A EL dentro del bundle
+    # portable (bin/64bit/), nunca en el sistema.
     if(APPLE)
-        # macOS: lo mismo con @executable_path (libobs.framework, dylibs de
-        # obs-deps y libobs-opengl.so viven junto a ba-app en bin/64bit).
         set_target_properties(ba-app PROPERTIES
-            BUILD_RPATH "${BA_OBS_MAC_PREFIX}/lib;${BA_QT_PREFIX}/lib"
+            BUILD_RPATH "${BA_QT_PREFIX}/lib"
             INSTALL_RPATH "@executable_path;@executable_path/qt/lib")
     elseif(NOT WIN32)
         set_target_properties(ba-app PROPERTIES
-            BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib"
-            # qt/lib: el Qt vendoreado que viaja en el bundle (BaQtDeploy.cmake).
             INSTALL_RPATH "$ORIGIN;$ORIGIN/qt/lib")
     endif()
     # Despues de fijar los rpath de arriba (los pisarian): GStreamer, del bundle.
@@ -391,7 +378,7 @@ if(BA_HAVE_LIBOBS)
         ba_gst_rpath(ba-app "")
     endif()
 else()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_LIBOBS=0)
+    target_compile_definitions(ba-app PRIVATE BA_HAVE_MOTOR=0)
 endif()
 
 # -rdynamic: exporta los simbolos al ejecutable para que la pila de una caida
@@ -436,7 +423,7 @@ endif()
 if(_ba_lo_ok)
     target_compile_definitions(ba-app PRIVATE BA_LIBREOFFICE_DIR="${_ba_lo_dir}")
 endif()
-    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=1)
+    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=1)
     # Version visible en Configuracion -> Sistema y datos (soporte).
     target_compile_definitions(ba-app PRIVATE BA_APP_VERSION="${PROJECT_VERSION}")
     target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -446,7 +433,7 @@ endif()
          "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
     qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente).
-    qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json)
+    qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json agent/prompt-modelo-local.md agent/pi-guarda.mjs)
     # El catalogo de filtros LSP en castellano (Audio -> filtros).
     qt_add_resources(ba-app "ba_lsp_catalogo" PREFIX "/audio" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/lsp-catalogo.json")
@@ -456,21 +443,28 @@ endif()
             DESTINATION data/red COMPONENT bundle)
     # La documentacion en castellano de los modulos de GStreamer (Video -> agregar modulo).
     qt_add_resources(ba-app "ba_gst_modulos" PREFIX "/video" BASE "${CMAKE_SOURCE_DIR}/datos"
-                     FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
+                     FILES "${CMAKE_SOURCE_DIR}/datos/gst-modulos.json" "${CMAKE_SOURCE_DIR}/datos/superres-catalogo.json")
     # Las reglas con las que el modelo local completa argumentos (agent/ArgumentosLocales).
     qt_add_resources(ba-app "ba_voz" PREFIX "/voz" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/voz-argumentos.txt")
-    # Sus capturas (del codigo fuente de LSP, LGPL-3.0: tools/lsp-capturas.sh).
+    # Sus capturas (del codigo fuente de LSP, LGPL-3.0: tools/capturas/lsp-capturas.sh).
     file(GLOB _ba_lsp_capturas "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/*.jpg")
     qt_add_resources(ba-app "ba_lsp_capturas" PREFIX "/lsp" BASE "${CMAKE_SOURCE_DIR}/assets/lsp-capturas"
                      FILES ${_ba_lsp_capturas})
+    # Una captura chica de la página de cada categoría, para el selector de
+    # herramientas de la Botonera (tools/capturas/capturas-botonera.py las saca de la app).
+    file(GLOB _ba_bot_capturas "${CMAKE_SOURCE_DIR}/assets/botonera-capturas/*.jpg")
+    if(_ba_bot_capturas)
+        qt_add_resources(ba-app "ba_bot_capturas" PREFIX "/botonera" BASE "${CMAKE_SOURCE_DIR}/assets/botonera-capturas"
+                         FILES ${_ba_bot_capturas})
+    endif()
     install(FILES "${CMAKE_SOURCE_DIR}/assets/lsp-capturas/LEEME.txt" DESTINATION data/licencias
             RENAME lsp-capturas-LEEME.txt COMPONENT bundle)
     # Los modelos locales que se ofrecen bajar (los actualiza la fabrica al subir).
     qt_add_resources(ba-app "ba_modelos" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json"
                            "${CMAKE_SOURCE_DIR}/datos/glosario-traduccion.json")
-    # El logo, para el icono de la ventana (tools/icono.py los genera).
+    # El logo, para el icono de la ventana (tools/generar/icono.py los genera).
     set(_ba_iconos "")
     foreach(_lado 16 24 32 48 64 128 256 512)
         list(APPEND _ba_iconos "${CMAKE_SOURCE_DIR}/assets/icons/broadcast-appliance-${_lado}.png")
@@ -480,6 +474,11 @@ endif()
     if(BA_HAVE_CLAP)
         target_include_directories(ba-app PRIVATE "${BA_CLAP_INC}")
         target_compile_definitions(ba-app PRIVATE BA_HAVE_CLAP=1 BA_DEV_LSP_CLAP="${BA_LSP_CLAP}")
+        # ClapEditor (las ventanas de los plugins) usa X11 en Linux; antes llegaba de rebote por libobs.
+        if(UNIX AND NOT APPLE)
+            find_package(X11 REQUIRED)
+            target_link_libraries(ba-app PRIVATE X11::X11)
+        endif()
         target_link_libraries(ba-app PRIVATE ${CMAKE_DL_LIBS})
     endif()
     if(NOT WIN32 AND NOT APPLE)
@@ -529,6 +528,12 @@ endif()
     target_link_libraries(test_dashboard_model PRIVATE Qt6::Core Qt6::Gui)
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
+    # Los instrumentos de video (forma de onda, vectorscopio, legalidad), sin GPU.
+    add_executable(test_scopes tests/test_scopes.cpp video/Scopes.cpp)
+    target_include_directories(test_scopes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_scopes PRIVATE Qt6::Core Qt6::Gui)
+    set_target_properties(test_scopes PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_scopes COMMAND test_scopes)
 
     # Servidor MCP: puente stdio (binario propio) y test del protocolo + HTTP.
     # Sin Qt y con el runtime de C++ estatico: solo necesita la libc (lo lanzan
@@ -541,7 +546,23 @@ endif()
         target_link_options(ba-mcp PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-mcp RUNTIME DESTINATION bin/64bit)
-    add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
+    # Control del escritorio de Windows (mouse, teclado, captura, programas…)
+    # como un segundo servidor MCP para los asistentes. Sin Qt, como ba-mcp.
+    add_executable(ba-control escritorio/ba_control_main.cpp escritorio/control_uia.cpp escritorio/control_chrome.cpp
+                              escritorio/control_archivos.cpp)
+    target_include_directories(ba-control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(ba-control PRIVATE ba_core)
+    if(WIN32)
+        target_link_libraries(ba-control PRIVATE user32 gdi32 gdiplus shell32 shlwapi ole32 oleaut32 ws2_32 advapi32)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        target_link_options(ba-control PRIVATE -static-libstdc++ -static-libgcc)
+    endif()
+    install(TARGETS ba-control RUNTIME DESTINATION bin/64bit)
+    add_test(NAME test_ba_control_esquemas
+             COMMAND ${CMAKE_COMMAND} -DBIN=$<TARGET_FILE:ba-control>
+                     -DPEDIDO=${CMAKE_CURRENT_SOURCE_DIR}/tests/ba_control_tools_list.jsonl
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/tests/ba_control_esquemas.cmake)
+    add_executable(test_mcp tests/test_mcp.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp mcp/McpIndice.cpp
                    mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_mcp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp PRIVATE ba_core Qt6::Core Qt6::Network)
@@ -555,7 +576,7 @@ endif()
     add_executable(test_mcp_busqueda tests/test_mcp_busqueda.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp)
     target_include_directories(test_mcp_busqueda PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_mcp_busqueda PRIVATE nlohmann_json::nlohmann_json)
-    # El corpus de preguntas lo comparten este test y tools/bateria-modelo.py.
+    # El corpus de preguntas lo comparten este test y tools/entrenar/bateria-modelo.py.
     target_compile_definitions(test_mcp_busqueda PRIVATE
         BA_CORPUS_PREGUNTAS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos/preguntas.json")
     add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
@@ -579,7 +600,7 @@ endif()
 
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
-        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp)
+        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp)
         target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
             target_link_libraries(test_escucha PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
@@ -620,6 +641,14 @@ endif()
             BA_TEST_GST_DOCS="${CMAKE_SOURCE_DIR}/datos/gst-modulos.json")
         add_test(NAME test_catalogo_gst COMMAND test_catalogo_gst)
         set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
+        # El rack como elemento de GStreamer (barack).
+        add_executable(test_gst_rack tests/test_gst_rack.cpp audio/GstRack.cpp audio/GstVoz.cpp video/CatalogoGst.cpp)
+        target_include_directories(test_gst_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_gst_rack PRIVATE ba_core ba::gstreamer)
+        ba_gst_rpath(test_gst_rack "")
+        target_compile_definitions(test_gst_rack PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0" BA_HAVE_GST=1)
+        add_test(NAME test_gst_rack COMMAND test_gst_rack)
+        set_tests_properties(test_gst_rack PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     # El grafo de tarjetas de video (video/GrafoVideo), sin GPU.
     add_executable(test_grafo_video tests/test_grafo_video.cpp video/GrafoVideo.cpp)
@@ -649,7 +678,7 @@ endif()
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
     set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
-    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp net/Descargas.cpp
                    net/HttpsClient.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
@@ -659,6 +688,14 @@ endif()
     qt_add_resources(test_modelos_locales "ba_modelos_test" PREFIX "/agent" BASE "${CMAKE_SOURCE_DIR}/datos"
                      FILES "${CMAKE_SOURCE_DIR}/datos/modelos-catalogo.json")
     add_test(NAME test_modelos_locales COMMAND test_modelos_locales)
+
+    # La cola unica de descargas: duplicados, por tipo, cancelar y seguir una
+    # descarga cortada (contra un servidor local, sin red).
+    add_executable(test_descargas tests/test_descargas.cpp net/Descargas.cpp net/HttpsClient.cpp)
+    target_include_directories(test_descargas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_descargas PRIVATE ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto)
+    set_target_properties(test_descargas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_descargas COMMAND test_descargas)
 
     # Buscar la ultima version de los agentes en su fuente oficial (con red;
     # sin red se saltea).
@@ -728,6 +765,28 @@ endif()
     target_include_directories(test_evento_store PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_evento_store PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_evento_store COMMAND test_evento_store)
+    # La página web del evento en vivo: generar, no pisar, subdominio, estado público.
+    add_executable(test_evento_web tests/test_evento_web.cpp evento/EventoWeb.cpp evento/Evento.cpp)
+    target_include_directories(test_evento_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_evento_web PRIVATE nlohmann_json::nlohmann_json)
+    target_compile_definitions(test_evento_web PRIVATE BA_PLANTILLAS_EVENTO="${CMAKE_SOURCE_DIR}/assets/web/evento/plantilla")
+    add_test(NAME test_evento_web COMMAND test_evento_web)
+    add_executable(test_bitacora tests/test_bitacora.cpp evento/Bitacora.cpp)
+    target_include_directories(test_bitacora PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_bitacora PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_bitacora COMMAND test_bitacora)
+    add_executable(test_fotos_config tests/test_fotos_config.cpp evento/FotosConfig.cpp)
+    target_include_directories(test_fotos_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_fotos_config PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    add_test(NAME test_fotos_config COMMAND test_fotos_config)
+    add_executable(test_cierre_evento tests/test_cierre_evento.cpp evento/CierreEvento.cpp evento/FotosConfig.cpp)
+    target_include_directories(test_cierre_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_cierre_evento PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    add_test(NAME test_cierre_evento COMMAND test_cierre_evento)
+    add_executable(test_historico tests/test_historico.cpp evento/Historico.cpp evento/Bitacora.cpp)
+    target_include_directories(test_historico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_historico PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_historico COMMAND test_historico)
 
     # El padron: quien viene, con que papel, por donde y si llego.
     add_executable(test_padron tests/test_padron.cpp evento/Padron.cpp)
@@ -739,7 +798,7 @@ endif()
     add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp
                    carrusel/CarruselStore.cpp)
     target_include_directories(test_carrusel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_carrusel COMMAND test_carrusel)
 
     # De un .pptx a laminas, corriendo el LibreOffice vendoreado de verdad: es
@@ -800,12 +859,12 @@ endif()
         if(APPLE)
             set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         elseif(NOT WIN32)
-            set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_OBS_DEPS}/lib")
+            set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_TERCEROS}/lib")
         endif()
         add_test(NAME test_clap_host COMMAND test_clap_host)
         set_tests_properties(test_clap_host PROPERTIES SKIP_RETURN_CODE 77)
         # Herramienta (no test, solo Mac): captura la interfaz de un plugin CLAP
-        # (las capturas y los iconos del Matrix Mixer: tools/lsp-matrix-mixer-doc.py).
+        # (las capturas y los iconos del Matrix Mixer: tools/docs/lsp-matrix-mixer-doc.py).
         if(APPLE)
             add_executable(capturar_lsp tools/capturar_lsp.cpp tools/capturar_vista_mac.mm audio/ClapHost.cpp
                 audio/ClapEditor.cpp)
@@ -822,7 +881,7 @@ endif()
         if(APPLE)
             set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         elseif(NOT WIN32)
-            set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_OBS_DEPS}/lib")
+            set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_TERCEROS}/lib")
         endif()
         add_test(NAME test_matrix_mixer COMMAND test_matrix_mixer)
         set_tests_properties(test_matrix_mixer PROPERTIES SKIP_RETURN_CODE 77)
@@ -830,7 +889,7 @@ endif()
                                        audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_audio_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_audio_rack PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}" _USE_MATH_DEFINES)
-        target_link_libraries(test_audio_rack PRIVATE nlohmann_json::nlohmann_json)
+        target_link_libraries(test_audio_rack PRIVATE ba_core nlohmann_json::nlohmann_json)
         target_link_libraries(test_audio_rack PRIVATE ${_ba_clap_ui_libs})
         if(APPLE)
             set_target_properties(test_audio_rack PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -839,7 +898,7 @@ endif()
                                           audio/Analyzer.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
         target_include_directories(test_audio_modules PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_audio_modules PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}")
-        target_link_libraries(test_audio_modules PRIVATE nlohmann_json::nlohmann_json)
+        target_link_libraries(test_audio_modules PRIVATE ba_core nlohmann_json::nlohmann_json)
         target_link_libraries(test_audio_modules PRIVATE ${_ba_clap_ui_libs})
         if(APPLE)
             set_target_properties(test_audio_modules PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -851,24 +910,81 @@ endif()
     endif()
     # Recepcion NDI abierta: descubrimiento + decodificador SpeedHQ del bundle.
     if(BA_HAVE_NDI)
-        add_executable(test_ndi tests/test_ndi.cpp NdiSource.cpp)
+        add_executable(test_ndi tests/test_ndi.cpp emision/NdiSource.cpp video/CatalogoGst.cpp)
         target_include_directories(test_ndi PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_ndi PRIVATE ba::libobs ba_noidea)
-        if(WIN32)
-            target_link_libraries(test_ndi PRIVATE ba_ffmpeg_win)
-        else()
-            target_link_libraries(test_ndi PRIVATE "${BA_OBS_DEPS}/lib/libavcodec.so" "${BA_OBS_DEPS}/lib/libavutil.so")
-            set_target_properties(test_ndi PROPERTIES BUILD_RPATH "${BA_OBS_LINUX_PREFIX}/lib;${BA_OBS_DEPS}/lib")
+        target_link_libraries(test_ndi PRIVATE ba_core ba_noidea ba::gstreamer)
+        target_compile_definitions(test_ndi PRIVATE BA_HAVE_GST=1 BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+        if(COMMAND ba_gst_rpath)
+            ba_gst_rpath(test_ndi "")
         endif()
         add_test(NAME test_ndi COMMAND test_ndi)
+        set_tests_properties(test_ndi PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     # Guias para conectar YouTube/Twitch/Facebook (misma fuente que el MCP).
-    add_executable(test_account_guides tests/test_account_guides.cpp AccountGuides.cpp)
+    add_executable(test_account_guides tests/test_account_guides.cpp net/AccountGuides.cpp)
     target_include_directories(test_account_guides PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_account_guides PRIVATE ba_core Qt6::Core)
     set_target_properties(test_account_guides PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_account_guides COMMAND test_account_guides)
     # Disparadores (alertas) con entradas y reloj falsos.
+    add_executable(test_cuerpo tests/test_cuerpo.cpp asamblea/Cuerpo.cpp)
+    target_include_directories(test_cuerpo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_cuerpo PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_cuerpo COMMAND test_cuerpo)
+    # Bus de eventos y botonera (superficie de control) con ganchos falsos.
+    add_executable(test_botonera tests/test_botonera.cpp control/Botonera.cpp control/Botonera.hpp
+                   control/BusEventos.cpp control/BusEventos.hpp)
+    target_include_directories(test_botonera PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_botonera COMMAND test_botonera)
+    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp asamblea/SeguirMicrofono.cpp
+                   asamblea/SeguirMicrofono.hpp asamblea/Bancas.cpp asamblea/Bancas.hpp asamblea/Cuerpo.cpp
+                   control/BusEventos.cpp control/BusEventos.hpp)
+    target_include_directories(test_seguir_microfono PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_seguir_microfono PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
+    add_executable(test_sesion_remota tests/test_sesion_remota.cpp asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp
+                   asamblea/Cuerpo.cpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+    target_include_directories(test_sesion_remota PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+    target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_sesion_remota COMMAND test_sesion_remota)
+    add_executable(test_debate tests/test_debate.cpp asamblea/Debate.cpp asamblea/Debate.hpp asamblea/Cuerpo.cpp)
+    target_include_directories(test_debate PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_debate PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_debate PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_debate COMMAND test_debate)
+    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp asamblea/OrdenDelDia.cpp asamblea/OrdenDelDia.hpp
+                   control/BusEventos.cpp control/BusEventos.hpp)
+    target_include_directories(test_orden_del_dia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_orden_del_dia PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_orden_del_dia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_orden_del_dia COMMAND test_orden_del_dia)
+    add_executable(test_quorum tests/test_quorum.cpp asamblea/Quorum.cpp asamblea/Quorum.hpp)
+    target_include_directories(test_quorum PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_quorum PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_quorum PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_quorum COMMAND test_quorum)
+    add_executable(test_correccion tests/test_correccion.cpp agent/FlujosTexto.cpp agent/FlujosTexto.hpp emision/FuentesApp.cpp)
+    target_include_directories(test_correccion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_correccion PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_correccion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_correccion COMMAND test_correccion)
+    add_executable(test_notificador tests/test_notificador.cpp agent/Notificador.cpp agent/Notificador.hpp)
+    target_include_directories(test_notificador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_notificador COMMAND test_notificador)
+    add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp)
+    target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_vocabulario PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_vocabulario COMMAND test_vocabulario)
+    add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp)
+    target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_loudness PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_loudness COMMAND test_loudness)
     add_executable(test_alerts tests/test_alerts.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
     target_include_directories(test_alerts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_alerts PRIVATE ba_core Qt6::Core)
@@ -906,6 +1022,19 @@ endif()
     target_link_libraries(test_facebook PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_facebook PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_facebook COMMAND test_facebook)
+    # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
+    # propiedades asignadas dos veces, tipos o ids que no existen).
+    add_executable(test_qml_carga tests/test_qml_carga.cpp)
+    target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+    set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_qml_carga COMMAND test_qml_carga)
+    # El selector de herramientas de la Botonera: busca y filtra por sección.
+    add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp)
+    target_link_libraries(test_selector_herramientas PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_compile_definitions(test_selector_herramientas PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+    set_target_properties(test_selector_herramientas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_selector_herramientas COMMAND test_selector_herramientas)
     # La interfaz parsea: qmllint sobre todos los QML (ver cmake/tests).
     find_program(BA_QMLLINT qmllint PATHS "${BA_QT_PREFIX}/bin" NO_DEFAULT_PATH)
     if(BA_QMLLINT)
@@ -913,7 +1042,7 @@ endif()
                  -DQML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/qml -P ${CMAKE_SOURCE_DIR}/cmake/tests/qml_syntax.cmake)
     endif()
 else()
-    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_QT_OBS=0)
+    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=0)
     message(STATUS "ba-app: sin Qt vendoreado -> solo modo consola ('make deps-qt-host' lo baja)")
 endif()
 
@@ -984,6 +1113,16 @@ if(BA_APP_QT_OK AND WIN32)
     install(SCRIPT "${CMAKE_SOURCE_DIR}/cmake/BaQtDeployWin.cmake" COMPONENT bundle)
 endif()
 
+# --- Demos ------------------------------------------------------------------
+# Configuraciones de ejemplo completas (assets/demo/<nombre>/): se crean como una
+# configuración nueva desde Configuración → Configuraciones (o configuracion_crear
+# {desde: "demo:<nombre>"}). Ver src/app/arranque/Configuraciones.hpp.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/demo")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/demo/"
+        DESTINATION Demos COMPONENT bundle
+    )
+endif()
+
 # --- Extensiones de ejemplo -------------------------------------------------
 # Tarjetas del dashboard que viven en el DISCO, no adentro del binario (ver
 # src/app/ui/ExtensionesModel.hpp). Las de fabrica se instalan como referencia;
@@ -994,3 +1133,15 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/extensiones")
         DESTINATION Extensiones COMPONENT bundle
     )
 endif()
+
+# Los ajustes avanzados (src/core/ajustes): muchos tests compilan fuentes de la app
+# sueltas y esas fuentes los consultan. Todos los test_* enlazan ba_core.
+get_property(_ba_app_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_t IN LISTS _ba_app_targets)
+    if(_t MATCHES "^test_")
+        get_target_property(_tipo ${_t} TYPE)
+        if(_tipo STREQUAL "EXECUTABLE")
+            target_link_libraries(${_t} PRIVATE ba_core)
+        endif()
+    endif()
+endforeach()

@@ -70,6 +70,12 @@ bool iniciarGst() {
         g_ok = gst_init_check(nullptr, nullptr, &e);
         if (!g_ok) g_err = e != nullptr ? e->message : "gst_init falló";
         if (e != nullptr) g_error_free(e);
+        // Lo mismo que motor::quitarPluginsDelSistema (este catálogo no enlaza el motor).
+        if (g_ok)
+            if (GstPlugin* p = gst_registry_find_plugin(gst_registry_get(), "directshow")) {
+                gst_registry_remove_plugin(gst_registry_get(), p);
+                gst_object_unref(p);
+            }
     });
     return g_ok;
 }
@@ -212,6 +218,40 @@ const json& CatalogoGst::modulos() const {
     });
 #endif
     return modulos_ = out;
+}
+
+const json& CatalogoGst::modulosAudio() const {
+    if (modulosAudio_.is_array()) return modulosAudio_;
+    json out = json::array();
+#if defined(BA_HAVE_GST)
+    if (!disponible_) return modulosAudio_ = out;
+    GList* lista = gst_registry_get_feature_list(gst_registry_get(), GST_TYPE_ELEMENT_FACTORY);
+    for (GList* l = lista; l != nullptr; l = l->next) {
+        auto* f = GST_ELEMENT_FACTORY(l->data);
+        const std::string clase = meta(f, GST_ELEMENT_METADATA_KLASS);
+        // Un filtro de audio: entra audio y sale audio (efectos, filtros, dinámica, conversión de nivel).
+        if (clase.find("Audio") == std::string::npos) continue;
+        if (clase.find("Filter") == std::string::npos && clase.find("Effect") == std::string::npos) continue;
+        bool no = false;
+        for (const char* x : {"Source", "Sink", "Demuxer", "Muxer", "Parser", "Decoder", "Encoder", "Payloader",
+                              "Depayloader", "Video", "Mixer"})
+            if (clase.find(x) != std::string::npos) no = true;
+        if (no) continue;
+        const std::string elemento = GST_OBJECT_NAME(f);
+        json m{{"elemento", elemento},
+               {"nombre", meta(f, GST_ELEMENT_METADATA_LONGNAME)},
+               {"clase", clase},
+               {"descripcion", meta(f, GST_ELEMENT_METADATA_DESCRIPTION)}};
+        if (docs_.contains(elemento))
+            for (const char* k : {"titulo", "para", "uso"})
+                if (docs_[elemento].contains(k)) m[k] = docs_[elemento][k];
+        out.push_back(std::move(m));
+    }
+    gst_plugin_feature_list_free(lista);
+    std::sort(out.begin(), out.end(),
+              [](const json& a, const json& b) { return a.value("elemento", "") < b.value("elemento", ""); });
+#endif
+    return modulosAudio_ = out;
 }
 
 json CatalogoGst::modulo(const std::string& elemento) const {

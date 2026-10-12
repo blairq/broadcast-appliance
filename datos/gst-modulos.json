@@ -1,5 +1,5 @@
 {
- "_comentario": "Documentación en castellano de los módulos de video de GStreamer (tools/gst-modulos-docs.py). La lee video/CatalogoGst.",
+ "_comentario": "Documentación en castellano de los módulos de video de GStreamer (tools/docs/gst-modulos-docs.py). La lee video/CatalogoGst.",
  "modulos": {
   "agingtv": {
    "titulo": "Película vieja",

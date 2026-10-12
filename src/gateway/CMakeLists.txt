@@ -51,6 +51,10 @@ else()
 endif()
 
 target_link_libraries(ba-gateway PRIVATE ba_core mbedcrypto)
+# El cliente HTTPS propio (mbedtls, sin Qt) de la app: lo usa el cliente ACME del proxy (T61).
+set(BA_GW_HTTPS "${CMAKE_SOURCE_DIR}/src/app/net/HttpsClient.cpp")
+target_sources(ba-gateway PRIVATE "${BA_GW_HTTPS}")
+set_source_files_properties("${BA_GW_HTTPS}" PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src/app")
 target_include_directories(ba-gateway PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 # QR de ingreso (Nayuki, MIT) en third_party/: codigo ajeno, fuera del lint.
 set(BA_QRCODEGEN_DIR "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
@@ -82,7 +86,7 @@ endif()
 # El servidor de señalización usa sockets. En Windows es winsock2 (ws2_32);
 # en POSIX el stack ya está en libc.
 if(WIN32)
-    target_link_libraries(ba-gateway PRIVATE ws2_32)
+    target_link_libraries(ba-gateway PRIVATE ws2_32 iphlpapi) # iphlpapi: las IP de la máquina (net/NetUtil)
 endif()
 
 # --- libwebrtc (solo Windows, solo si el SDK está presente) ------------------
@@ -250,9 +254,11 @@ list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_webrtc_[^/]*\\.cpp$")
 file(GLOB BA_GATEWAY_LIB_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/proxy/*.cpp"
 )
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+list(APPEND BA_GATEWAY_LIB_SOURCES "${BA_GW_HTTPS}")
 if(NOT BA_HAVE_LWIP)
     list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/net/IpStack\\.cpp$")
     list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_ipstack\\.cpp$")
@@ -278,7 +284,7 @@ foreach(test_source ${BA_GATEWAY_TESTS})
         target_compile_definitions(${test_name} PRIVATE BA_HAVE_LWIP=1)
     endif()
     if(WIN32)
-        target_link_libraries(${test_name} PRIVATE ws2_32)
+        target_link_libraries(${test_name} PRIVATE ws2_32 iphlpapi)
     endif()
     add_test(NAME ${test_name} COMMAND ${test_name})
     # 77 = saltado (ver src/core/CMakeLists.txt).
@@ -407,11 +413,37 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/pantalla")
         DESTINATION Web/pantalla
     )
 endif()
+# Puesto del corrector de subtítulos (/correccion/#k=…, T44).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/correccion")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/correccion/"
+        DESTINATION Web/correccion
+    )
+endif()
+
 # Teleprompter: la tablet del orador (/prompter) y el control del celular
 # (/prompter/#control). Lo sirve B, como el resto de las vistas web.
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/prompter")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/prompter/"
         DESTINATION Web/prompter
+    )
+endif()
+
+# Botonera: la superficie de control de la tablet (/botonera/), emparejada por QR.
+# La consola web de la presidencia (/presidencia/, docs/funciones/SESION-REMOTA.md §8).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/presidencia")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/presidencia/"
+        DESTINATION Web/presidencia
+    )
+endif()
+# La sesión remota de los integrantes (/sesion/, docs/funciones/SESION-REMOTA.md).
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/sesion")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/sesion/"
+        DESTINATION Web/sesion
+    )
+endif()
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/botonera")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/botonera/"
+        DESTINATION Web/botonera
     )
 endif()
 
@@ -423,9 +455,32 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/publico")
     )
 endif()
 
+# Evento: el marco de la página del evento en vivo (la raíz de la sala cuando
+# hay un evento con sitio) y vivo.js, que usan las páginas de cada sección.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/evento")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/evento/"
+        DESTINATION Web/evento
+    )
+endif()
+
 # Rotulos: escribir el nombre del que habla desde el celular (/rotulos/).
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/rotulos/"
         DESTINATION Web/rotulos
     )
+endif()
+
+# --- TURN de la caja (src/gateway/turn, docs/funciones/TURN.md) --------------
+# BA_GATEWAY_LIB_SOURCES no es recursivo y no ve turn/: se suman a TODOS los
+# tests (test_turn los usa directo; los demás los necesitan en cuanto
+# SignalingServer/main los llamen). ba-gateway ya los tiene por GLOB_RECURSE.
+file(GLOB BA_GATEWAY_TURN_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/turn/*.cpp")
+foreach(test_source ${BA_GATEWAY_TESTS})
+    get_filename_component(test_name ${test_source} NAME_WE)
+    if(TARGET ${test_name})
+        target_sources(${test_name} PRIVATE ${BA_GATEWAY_TURN_SOURCES})
+    endif()
+endforeach()
+if(TARGET test_webrtc_loopback)
+    target_sources(test_webrtc_loopback PRIVATE ${BA_GATEWAY_TURN_SOURCES})
 endif()

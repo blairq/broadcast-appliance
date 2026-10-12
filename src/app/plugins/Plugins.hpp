@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/plugins/Plugins.hpp — los plugins de Python (docs/PLUGINS.md)
+// src/app/plugins/Plugins.hpp — los plugins de Python (docs/funciones/PLUGINS.md)
 //
 // Un plugin es una carpeta en `Datos/Plugins/<id>/` (plugin.json + plugin.py +
 // sus bibliotecas en _libs/): vive en los DATOS, no en el programa, así que
@@ -74,7 +74,8 @@ class Plugins : public QObject {
    public:
     using json = nlohmann::json;
     /// Llamar una herramienta del servidor MCP (lo arma GuiMode, que tiene el servicio).
-    using Llamador = std::function<void(const std::string& herramienta, const json& args,
+    /// `plugin`: quién llama (para el registro y las guardas: origen «plugin:<id>»).
+    using Llamador = std::function<void(const std::string& plugin, const std::string& herramienta, const json& args,
                                         std::function<void(json resultado)> listo)>;
 
     Plugins(AppRuntime& rt, video::VideoGrafos* video, ptz::ControlCamaras* camaras,
@@ -82,8 +83,42 @@ class Plugins : public QObject {
     ~Plugins() override;
 
     void setLlamador(Llamador l) { llamador_ = std::move(l); }
+    /// Lo que publican los plugins va también al bus de la app (plugin/<id>/<canal>).
+    void setAlPublicar(std::function<void(const std::string& tema, const json& datos)> fn) { alPublicar_ = std::move(fn); }
+    /// Un evento de la app (bus): a los plugins que escuchan ese tema
+    /// (@plugin.escuchar("aire/tally"), "audio/nivel/+", "alarma/#").
+    void eventoApp(const std::string& tema, const json& datos);
+    // --- Superficies de hardware (Stream Deck, MIDI, X-keys…) ---------------------
+    // Un plugin registra un aparato como una botonera más (control/Botonera):
+    // el operador le asigna perfil y página, el plugin recibe el estado de cada
+    // celda para dibujarlo y avisa qué tecla apretaron.
+    using AltaSuperficie = std::function<void(const std::string& id, const std::string& nombre, const json& capacidades)>;
+    using BajaSuperficie = std::function<void(const std::string& id)>;
+    using EntradaSuperficie = std::function<void(const std::string& id, const json& msg)>;
+    void setSuperficies(AltaSuperficie alta, BajaSuperficie baja, EntradaSuperficie entrada) {
+        altaSup_ = std::move(alta);
+        bajaSup_ = std::move(baja);
+        entradaSup_ = std::move(entrada);
+    }
+    /// El estado renderizado para el aparato `id` ("plugin:<plugin>/<aparato>").
+    void superficieEstado(const std::string& id, const json& msg);
     /// Arranca los que estaban prendidos (al iniciar la app, cuando ya hay video).
     void arrancarGuardados();
+
+    // --- Aprobados para el aire (T60) ---------------------------------------------
+    // «Aprobar» fija el SHA-256 del código del plugin (todo menos _libs, datos,
+    // __pycache__ y lo que escribe la app) en Config/plugins-aprobados.json. Con el
+    // modo en vivo, solo arrancan (y se reinician) los aprobados con el mismo hash:
+    // un plugin que cambió después de probarlo no entra al aire sin que alguien lo mire.
+    void setEnVivo(std::function<bool()> f) { enVivo_ = std::move(f); }
+    /// El hash del código y la lista de archivos que lo forman.
+    std::string hashCodigo(const std::string& id, std::vector<std::string>* archivos = nullptr) const;
+    /// Lo aprueba con el hash de ahora. `quien` queda anotado ("persona", "asistente"…).
+    json aprobar(const std::string& id, const std::string& quien);
+    std::string desaprobar(const std::string& id);
+    /// {id: {hash, ms, quien, vigente (el código no cambió), cambiaron: [archivos]}}.
+    json aprobados() const;
+    bool aprobadoVigente(const std::string& id) const;
 
     std::filesystem::path carpeta() const { return carpeta_; }
     std::filesystem::path carpetaDe(const std::string& id) const { return carpeta_ / id; }
@@ -98,6 +133,10 @@ class Plugins : public QObject {
     /// Escribe (crea o pisa) archivos del plugin `id`; `manifiesto` se mezcla con plugin.json.
     std::string escribir(const std::string& id, const json& archivos, const json& manifiesto, json* hecho);
     std::string desdeEjemplo(const std::string& ejemplo, const std::string& id);
+    /// Pone al día los plugins que salieron de un ejemplo de la app cuando el
+    /// ejemplo cambió (se copia lo que había a .papelera; quedan config, id y
+    /// datos/). Si alguien tocó el código, no se pisa: se avisa. Al arrancar.
+    json actualizarEjemplos();
     std::string borrar(const std::string& id);
     /// Un .zip con el plugin (sin _libs ni datos) en Datos/Exportado. Async: {archivo} o {error}.
     void exportar(const std::string& id, std::function<void(json)> listo);
@@ -116,7 +155,7 @@ class Plugins : public QObject {
     std::string registro(const std::string& id, int lineas) const;
     /// Un pedido al plugin (control, ptz.*, info). `listo` con {ok, resultado|error}.
     void pedir(const std::string& id, const std::string& accion, const json& args,
-               std::function<void(json)> listo, int timeoutMs = 10000);
+               std::function<void(json)> listo, int timeoutMs = 0); ///< 0: el de Configuración (10 s)
     json eventos(const std::string& id, const std::string& canal, int cuantos) const;
     json secretosDe(const std::string& id) const;
     /// Lo que hay conectado: cámaras y micrófonos (GStreamer) + USB, HID y serie (Python).
@@ -152,6 +191,11 @@ class Plugins : public QObject {
     bool hayPython() const;
     Q_INVOKABLE void prender(const QString& id, bool activo);
     Q_INVOKABLE void reiniciarUi(const QString& id);
+    /// Aprobar para el aire (lo hace una PERSONA desde la GUI; por MCP no se puede). "" o el error.
+    Q_INVOKABLE QString aprobarUi(const QString& id);
+    Q_INVOKABLE QString desaprobarUi(const QString& id);
+    /// {vigente, cambiaron: [archivos], ms} del plugin `id` ({} si no está aprobado).
+    Q_INVOKABLE QVariantMap aprobacionUi(const QString& id) const;
     Q_INVOKABLE void probarUi(const QString& id);
     Q_INVOKABLE QString registroUi(const QString& id) const;
     Q_INVOKABLE QString copiarEjemplo(const QString& ejemplo, const QString& id);
@@ -191,6 +235,13 @@ class Plugins : public QObject {
     void evento(const QString& plugin, const QString& canal, const QString& datosJson);
 
    private:
+    /// `cambio()` juntado: un plugin que arranca manda decenas de declaraciones
+    /// seguidas, y cada `cambio()` hace que la interfaz rearme de cero todo lo
+    /// que lista los plugins (eran segundos de interfaz trabada). Varios avisos
+    /// dentro de 100 ms salen como uno solo.
+    void avisarCambio();
+    QTimer* cambioJuntado_ = nullptr;
+
     struct Proceso;
     struct Pendiente {
         std::function<void(json)> listo;
@@ -220,9 +271,18 @@ class Plugins : public QObject {
     QPointer<ptz::ControlCamaras> camaras_;
     QPointer<OperatorMessages> mensajes_;
     Llamador llamador_;
+    std::function<void(const std::string&, const json&)> alPublicar_;
+    AltaSuperficie altaSup_;
+    BajaSuperficie bajaSup_;
+    EntradaSuperficie entradaSup_;
+    std::map<std::string, std::set<std::string>> superficiesDe_; ///< plugin -> ids de aparatos
     std::filesystem::path carpeta_, logs_, config_;
+    std::function<bool()> enVivo_;
+    json leerAprobados() const;
     QString credenciales_;
     std::map<std::string, std::unique_ptr<Proceso>> procesos_;
+    /// Los que esperan las dependencias de un plugin (la descarga está en la cola).
+    std::map<std::string, std::vector<std::function<void(std::string, std::string)>>> esperandoDeps_;
     std::map<int, Pendiente> pendientes_;
     int n_ = 0;
     std::deque<json> eventos_; ///< los últimos (de todos)

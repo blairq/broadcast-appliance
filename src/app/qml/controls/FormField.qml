@@ -5,7 +5,7 @@
 // options, minimum, maximum, suffix). Este componente elige el control.
 //
 // kind: bool int float text textarea password secret path choice list color
-//       font button info header
+//       font button info header combo (se escribe, o se elige de la lista)
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -60,6 +60,7 @@ ColumnLayout {
                 case "bool": return boolC
                 case "int": case "float": return numC
                 case "choice": case "list": return choiceC
+                case "combo": return comboC
                 case "color": return colorC
                 case "font": return fontC
                 case "button": return buttonC
@@ -77,10 +78,15 @@ ColumnLayout {
             Text {
                 id: badgeText
                 anchors.centerIn: parent
-                text: field.badge === "gateway" ? "reinicia gateway" : "al reiniciar"
+                text: field.badge === "gateway" ? "reinicia la sala al aplicar" : "al volver a abrir el programa"
                 color: Theme.textFaint
                 font.pixelSize: 10
             }
+            MouseArea { id: badgeMa; anchors.fill: parent; hoverEnabled: true }
+            ToolTip.visible: badgeMa.containsMouse; ToolTip.delay: 300
+            ToolTip.text: field.badge === "gateway"
+                ? "Al aplicar se reinicia solo el servidor de la sala (gateway), sin cerrar el programa: los invitados se cortan y vuelven a entrar. También se puede reiniciar a mano con «Reiniciar la sala» (acá o en la página Sala)."
+                : "Rige la próxima vez que se abra el programa."
         }
     }
     Text {
@@ -153,6 +159,33 @@ ColumnLayout {
                     function onValueChanged() { combo.currentIndex = combo.indexOfValue(field.value) }
                 }
             }
+        }
+    }
+    // Se escribe a mano o se elige de la lista (lo elegido queda escrito): una dirección,
+    // un nombre de equipo… Vacío = el primero de la lista (normalmente «automático»).
+    Component {
+        id: comboC
+        RowLayout {
+            spacing: 6
+            TextField {
+                id: escrito
+                Layout.preferredWidth: 260
+                text: field.value !== undefined && field.value !== null ? String(field.value) : ""
+                placeholderText: field.options.length > 0 ? String(field.options[0].label) : ""
+                enabled: field.enabled
+                onEditingFinished: if (text !== String(field.value || "")) field.edited(text.trim())
+            }
+            ComboBox {
+                id: lista
+                Layout.preferredWidth: 160
+                textRole: "label"
+                valueRole: "value"
+                model: field.options
+                enabled: field.enabled
+                displayText: "Elegir…"
+                onActivated: { escrito.text = String(currentValue); field.edited(currentValue) }
+            }
+            Item { Layout.fillWidth: true }
         }
     }
     Component {

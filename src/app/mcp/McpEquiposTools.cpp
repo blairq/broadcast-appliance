@@ -24,7 +24,7 @@ json aJ(const QVariant& v) {
         nullptr, false)["v"];
 }
 QVariant aV(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump()))
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json{{"v", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toMap()
         .value("v");
@@ -141,7 +141,7 @@ void McpService::registerEquiposTools() {
                           if (r.contains("error")) {
                               json e{{"error", r.value("error").toString().toStdString()}};
                               if (r.contains("datos")) e["datos"] = aJ(r.value("datos"));
-                              return done(ToolResult::error(e.dump()));
+                              return done(ToolResult::error(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
                           }
                           done(ToolResult().data(aJ(r)));
                       });

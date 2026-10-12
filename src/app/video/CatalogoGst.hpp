@@ -46,6 +46,8 @@ class CatalogoGst {
     /// categoría y nombre. `tarjeta`: si va como tarjeta de filtro (imagen
     /// cruda entra y sale). Se arma una vez (el registro no cambia).
     const nlohmann::json& modulos() const;
+    /// Los filtros de AUDIO (para la cadena de audio de una entrada): mismo formato.
+    const nlohmann::json& modulosAudio() const;
     /// Uno (o {} si no está).
     nlohmann::json modulo(const std::string& elemento) const;
     /// Las propiedades que se pueden ajustar: [{nombre, tipo (bool | int |
@@ -59,6 +61,7 @@ class CatalogoGst {
 
     bool disponible_ = false;
     mutable nlohmann::json modulos_;
+    mutable nlohmann::json modulosAudio_;
     std::string error_;
     nlohmann::json docs_ = nlohmann::json::object();
 };

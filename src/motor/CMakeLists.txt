@@ -1,0 +1,87 @@
+# ============================================================================
+# src/motor — el motor de GStreamer (sin libobs)
+#
+# Biblioteca estática `ba_motor`: reloj del estudio, entradas (lo que era
+# ba_gst_fuente, sin OBS), buses de audio (audiomixer) y, después, composición
+# y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
+# ============================================================================
+
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp)
+target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
+# Capturas: las ventanas de cada sistema (ver Capturas.hpp).
+if(APPLE)
+    target_sources(ba_motor PRIVATE Capturas_mac.mm)
+    set_source_files_properties(Capturas_mac.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+    target_link_libraries(ba_motor PUBLIC "-framework CoreGraphics" "-framework Foundation")
+elseif(WIN32)
+    target_link_libraries(ba_motor PUBLIC dwmapi)
+endif()
+
+if(BUILD_TESTING OR TRUE)
+    add_executable(test_motor tests/test_motor.cpp)
+    target_link_libraries(test_motor PRIVATE ba_motor)
+    ba_gst_rpath(test_motor "")
+    target_compile_definitions(test_motor PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor gstbaaudio gstbaipc) # balimitador; baanillosink
+    add_test(NAME test_motor COMMAND test_motor)
+    set_tests_properties(test_motor PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_motor_retornos tests/test_motor_retornos.cpp)
+    target_link_libraries(test_motor_retornos PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_retornos "")
+    target_compile_definitions(test_motor_retornos PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_retornos gstbaaudio gstbaipc)
+    add_test(NAME test_motor_retornos COMMAND test_motor_retornos)
+    set_tests_properties(test_motor_retornos PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_composicion tests/test_composicion.cpp)
+    target_link_libraries(test_composicion PRIVATE ba_motor)
+    ba_gst_rpath(test_composicion "")
+    target_compile_definitions(test_composicion PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_composicion gstbafiltros) # basombra
+    add_test(NAME test_composicion COMMAND test_composicion)
+    set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_capturas tests/test_capturas.cpp)
+    target_link_libraries(test_capturas PRIVATE ba_motor)
+    ba_gst_rpath(test_capturas "")
+    target_compile_definitions(test_capturas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    if(TARGET gstbacaptura)
+        add_dependencies(test_capturas gstbacaptura)
+    endif()
+    add_test(NAME test_capturas COMMAND test_capturas)
+    set_tests_properties(test_capturas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+
+    add_executable(test_salidas tests/test_salidas.cpp)
+    target_link_libraries(test_salidas PRIVATE ba_motor)
+    ba_gst_rpath(test_salidas "")
+    target_compile_definitions(test_salidas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_salidas gstbaaudio gstbaipc)
+    add_test(NAME test_salidas COMMAND test_salidas)
+    set_tests_properties(test_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    add_executable(test_motor_app tests/test_motor_app.cpp)
+    target_link_libraries(test_motor_app PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_app "")
+    target_compile_definitions(test_motor_app PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_app gstbaaudio gstbaipc)
+    add_test(NAME test_motor_app COMMAND test_motor_app)
+    set_tests_properties(test_motor_app PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+
+    # La interfaz nunca espera al motor (docs/planes/PLAN-MOTOR-SIN-ESPERAS.md).
+    add_executable(test_motor_sin_esperas tests/test_motor_sin_esperas.cpp)
+    target_link_libraries(test_motor_sin_esperas PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_sin_esperas "")
+    target_compile_definitions(test_motor_sin_esperas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_sin_esperas gstbaaudio gstbaipc)
+    add_test(NAME test_motor_sin_esperas COMMAND test_motor_sin_esperas)
+    set_tests_properties(test_motor_sin_esperas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+endif()

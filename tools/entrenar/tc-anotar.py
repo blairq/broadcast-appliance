@@ -29,7 +29,7 @@ import tempfile
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib_prompt as lp  # noqa: E402
 import lib_tc as tc  # noqa: E402

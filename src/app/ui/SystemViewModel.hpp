@@ -33,6 +33,12 @@ class SystemViewModel : public QObject {
     QString version() const;
 
     Q_INVOKABLE void refresh();
+    /// Arrancar al encender el equipo (InicioConElSistema): {activo, abre, notas}.
+    Q_INVOKABLE QVariantMap inicioEstado() const;
+    /// "" o el error.
+    Q_INVOKABLE QString inicioPoner(bool activo);
+    /// Los elementos de GStreamer que faltan: [{elemento, para, imprescindible}].
+    Q_INVOKABLE QVariantList elementosQueFaltan() const;
     /// "" si `folder` (ruta o file://) es una version instalable; si no, por que no.
     Q_INVOKABLE QString checkUpdate(const QString& folder) const;
     /// Lanza la actualizacion y pide cerrar la app. Devuelve "" o el error.
@@ -41,13 +47,15 @@ class SystemViewModel : public QObject {
     /// Abre una carpeta de datos en el explorador ("" = la raiz).
     Q_INVOKABLE void openFolder(const QString& sub) const;
 
+    /// Lanza el launcher con `args` y cierra la app (actualizar, volver atrás, cambiar de configuración).
+    QString launch(const QStringList& args);
+
    signals:
     void changed();
     /// La app tiene que cerrarse para que el launcher actualice.
     void quitForUpdate();
 
    private:
-    QString launch(const QStringList& args);
 };
 
 /// Ruta local desde una URL file:// o una ruta.

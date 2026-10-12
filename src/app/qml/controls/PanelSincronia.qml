@@ -69,6 +69,49 @@ Popup {
                 GlassButton { compact: true; text: "Cerrar"; onClicked: pop.close() }
             }
 
+            // --- Latencia del estudio (P0.6) ---------------------------------------------------
+            Panel {
+                id: latPanel
+                Layout.fillWidth: true
+                padding: 12
+                implicitHeight: latCol.implicitHeight + 2 * padding
+                property var lat: ({ latencia_ms: 0, tope_ms: 0, automatico: true, tarde: [] })
+                Timer { interval: 1500; repeat: true; running: pop.opened; triggeredOnStart: true
+                        onTriggered: latPanel.lat = pop.vg.estudioLatenciaUi() }
+                ColumnLayout {
+                    id: latCol
+                    anchors.fill: parent
+                    spacing: 6
+                    RowLayout {
+                        Text { text: "Latencia del estudio"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text {
+                            text: latPanel.lat.latencia_ms + " ms"
+                            color: (latPanel.lat.tarde || []).length > 0 ? Theme.live : "#22c55e"
+                            font { pixelSize: 14; weight: Font.DemiBold }
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text { text: "Tope"; color: Theme.textDim; font.pixelSize: 12 }
+                        SpinBox {
+                            from: 0; to: 2000; stepSize: 10; editable: true
+                            value: latPanel.lat.tope_ms || 0
+                            onValueModified: pop.vg.ponerTopeEstudioUi(value)
+                        }
+                        GlassButton { compact: true; text: "Automático"; active: latPanel.lat.automatico === true
+                                      onClicked: pop.vg.ponerTopeEstudioUi(-1)
+                                      ToolTip.visible: hovered; ToolTip.text: "250 ms: alcanza para el procesamiento normal de una cámara; deja afuera solo lo pesado (superresolución)" }
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                        text: "Lo que se atrasa todo para que las entradas salgan alineadas. Una entrada que necesita más que el tope (una cámara con superresolución pesada) no arrastra a las demás: va con su propia demora."
+                    }
+                    Repeater {
+                        model: latPanel.lat.tarde || []
+                        delegate: Text { required property var modelData; color: Theme.live; font.pixelSize: 12
+                                         text: "⚠ «" + modelData.nombre + "» llega tarde (" + modelData.pide_ms + " ms)" }
+                    }
+                }
+            }
+
             // --- Reloj ------------------------------------------------------------------
             Panel {
                 Layout.fillWidth: true
@@ -185,16 +228,103 @@ Popup {
                                     ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Desfase (ms): positivo la atrasa"
                                 }
                                 GlassButton { compact: true; text: "Desfasar"; onClicked: pop.avisar(pop.vg.desfaseUi(fila.modelData.entrada, desf.value), "Desfase aplicado") }
-                                // Superresolución x2 (macOS 26): para cámaras chicas (PAL, hasta 960x960).
+                                // Cómo sale a horario: el colchón propio o el appsink de GStreamer
+                                // sincronizado con la latencia del estudio (audio y video juntos en los dos).
+                                ComboBox {
+                                    implicitWidth: 130
+                                    model: [ { t: "Colchón", v: "colchon" }, { t: "GStreamer", v: "gstreamer" } ]
+                                    textRole: "t"
+                                    currentIndex: fila.g.sincronia === "gstreamer" ? 1 : 0
+                                    onActivated: (i) => pop.avisar(pop.vg.sincroniaUi(fila.modelData.entrada, model[i].v), "Sincronía: " + model[i].t)
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Colchón: cola propia con la hora de captura (menos latencia con cámaras de hora inestable). " +
+                                                  "GStreamer: appsink al reloj con la latencia del estudio" +
+                                                  (fila.g.sincronia === "gstreamer" ? " (ahora " + (fila.g.latencia_estudio_ms || 0) + " ms)" : "")
+                                }
+                                // Superresolución x2 (macOS 26): para cámaras chicas (el tope lo pone el sistema).
                                 Text { visible: pop.vg.haySuperres(); text: "Superres x2"; color: Theme.textDim; font.pixelSize: 11 }
                                 Toggle {
                                     visible: pop.vg.haySuperres()
                                     checked: fila.g.superres === true
                                     onToggled: (w) => pop.avisar(pop.vg.superresUi(fila.modelData.entrada, w), w ? "Superresolución prendida" : "Superresolución apagada")
                                     ToolTip.visible: hov.hovered; ToolTip.delay: 400
-                                    ToolTip.text: "Duplica la resolución con la superresolución de Apple (para cámaras de hasta 960x960; las más grandes pasan sin tocar)" +
+                                    ToolTip.text: "Duplica la resolución con la superresolución de Apple (para cámaras chicas: hasta el tamaño máximo que acepte el sistema, hoy 960x960; las más grandes pasan sin tocar)" +
                                                   (fila.g.superres_ms > 0 ? ". Ahora: " + Number(fila.g.superres_ms).toFixed(1) + " ms por cuadro" : "")
                                     HoverHandler { id: hov }
+                                }
+                            }
+                            // Lo que corre en su cadena de GStreamer (las tarjetas del grafo y el audio).
+                            Text {
+                                visible: (fila.g.filtros || []).length > 0
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 170
+                                text: "En GStreamer: " + (fila.g.filtros || []).map(f => (f.audio ? "🔊 " : "") + f.elemento +
+                                          (f.ms > 0 ? " " + Number(f.ms).toFixed(0) + " ms" : "") + (f.andando === false ? " (no está)" : "")).join(" → ") +
+                                      (fila.g.compensacion_ms > 0 ? "  ·  audio y video atrasados " + fila.g.compensacion_ms + " ms juntos" : "")
+                                color: Theme.textFaint; font.pixelSize: 11; wrapMode: Text.WordWrap
+                            }
+                            // Los filtros de audio de la entrada: tocar uno lo edita; ‹ › lo mueve; ✕ lo saca.
+                            Flow {
+                                id: filaAudio
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 170
+                                spacing: 6
+                                property var lista: pop.vg.filtrosAudioUi(fila.modelData.entrada)
+                                function refrescar() { lista = pop.vg.filtrosAudioUi(fila.modelData.entrada) }
+                                function mover(i, d) {
+                                    const l = lista.slice(), j = i + d
+                                    if (j < 0 || j >= l.length) return
+                                    const x = l[i]; l[i] = l[j]; l[j] = x
+                                    pop.avisar(pop.vg.ponerFiltrosAudioUi(fila.modelData.entrada, l), "Orden cambiado")
+                                    refrescar()
+                                }
+                                Text { text: "Audio:"; color: Theme.textDim; font.pixelSize: 11; height: 26; verticalAlignment: Text.AlignVCenter }
+                                Repeater {
+                                    model: filaAudio.lista
+                                    delegate: Row {
+                                        id: chip
+                                        required property var modelData
+                                        required property int index
+                                        spacing: 1
+                                        GlassButton {
+                                            compact: true; text: "‹"; visible: chip.index > 0
+                                            onClicked: filaAudio.mover(chip.index, -1)
+                                        }
+                                        GlassButton {
+                                            compact: true
+                                            text: chip.modelData.elemento === "baplugin"
+                                                  ? "🐍 " + (chip.modelData.propiedades.plugin || "") + " · " + (chip.modelData.propiedades.tarjeta || "")
+                                                  : chip.modelData.elemento
+                                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Editar este filtro"
+                                            onClicked: editorAudio.abrirPara(fila.modelData.entrada, filaAudio, chip.index)
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "›"; visible: chip.index < filaAudio.lista.length - 1
+                                            onClicked: filaAudio.mover(chip.index, 1)
+                                        }
+                                        GlassButton {
+                                            compact: true; text: "✕"
+                                            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Sacar este filtro"
+                                            onClicked: { pop.avisar(pop.vg.quitarFiltroAudioUi(fila.modelData.entrada, chip.index), "Filtro sacado"); filaAudio.refrescar() }
+                                        }
+                                    }
+                                }
+                                GlassButton {
+                                    compact: true; text: "+ filtro…"
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Un módulo de audio de GStreamer o una tarjeta de audio de un plugin de Python"
+                                    onClicked: editorAudio.abrirPara(fila.modelData.entrada, filaAudio, -1)
+                                }
+                                ComboBox {
+                                    model: [ { t: "Rápidos…", v: "" }, { t: "Compresor", v: "compresor" }, { t: "Pasa altos (80 Hz)", v: "pasa_altos" },
+                                             { t: "Eco", v: "eco" }, { t: "Volumen x1,5", v: "volumen" }, { t: "Automixer (mesa)", v: "automixer" } ]
+                                    textRole: "t"
+                                    implicitWidth: 140
+                                    onActivated: (i) => {
+                                        const v = model[i].v
+                                        if (v) { pop.avisar(pop.vg.agregarFiltroAudioUi(fila.modelData.entrada, v), "Filtro agregado (la demora se compensa sola)"); filaAudio.refrescar() }
+                                        currentIndex = 0
+                                    }
                                 }
                             }
                             Repeater {
@@ -323,5 +453,18 @@ Popup {
                 }
             }
         }
+    }
+
+    // El editor de un filtro de audio (agregar o editar).
+    EditorFiltroAudio {
+        id: editorAudio
+        vg: pop.vg
+        property var filaQueAbrio: null
+        function abrirPara(entrada, fila, i) {
+            filaQueAbrio = fila
+            editorAudio.entrada = entrada
+            abrir(fila.lista, i)
+        }
+        onGuardado: if (filaQueAbrio) filaQueAbrio.refrescar()
     }
 }

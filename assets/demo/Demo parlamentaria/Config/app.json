@@ -1,0 +1,505 @@
+{
+  "audioInputs": [],
+  "conference": {
+    "operatorAudio": "",
+    "operatorVideo": ""
+  },
+  "currentScene": "Principal",
+  "encoder": {
+    "audioBitrateKbps": 160,
+    "bitrateKbps": 6000,
+    "keyintSec": 2,
+    "preset": "veryfast",
+    "rateControl": "CBR",
+    "video": "auto"
+  },
+  "estudio": {
+    "topeMs": -1
+  },
+  "guests": {
+    "audio": true,
+    "audioPreset": "podium",
+    "count": 2,
+    "video": true
+  },
+  "mcp": {
+    "approval": "invitados",
+    "enabled": true,
+    "port": 8790
+  },
+  "record": {
+    "calidad": "como_stream",
+    "container": "mkv",
+    "copiaDir": "",
+    "crf": 18,
+    "dir": "Recordings",
+    "enabled": false,
+    "pistas": [],
+    "remux": true,
+    "replaySegundos": 0
+  },
+  "returnFeeds": true,
+  "scenes": [
+    {
+      "folder": "",
+      "name": "Principal",
+      "sources": [
+        {
+          "id": "color_source_v3",
+          "muted": false,
+          "name": "Fondo",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "color": 4280295456,
+            "height": 1080,
+            "width": 1920
+          },
+          "visible": true,
+          "volume": 1.0
+        },
+        {
+          "id": "text_ft2_source_v2",
+          "muted": false,
+          "name": "Titulo",
+          "rect": [
+            0.05000000074505806,
+            0.05000000074505806,
+            0.6000000238418579,
+            0.11999999731779099
+          ],
+          "settings": {
+            "font": {
+              "face": "Helvetica",
+              "size": 96
+            },
+            "text": "Broadcast Appliance"
+          },
+          "visible": true,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Invitado 1",
+          "rect": [
+            0.0,
+            0.6200000047683716,
+            0.5,
+            0.36000001430511475
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "guest",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Guest.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": true,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Invitado 2",
+          "rect": [
+            0.5,
+            0.6200000047683716,
+            0.5,
+            0.36000001430511475
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "guest",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Guest.2",
+            "pipeline_audio": "",
+            "slot": 2,
+            "video_invitado": true
+          },
+          "visible": true,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Remoto con la palabra",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Remoto.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": false,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Remoto con la palabra — contenido",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto_contenido",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.RemotoContenido.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": false,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Remoto con la palabra 2",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Remoto.2",
+            "pipeline_audio": "",
+            "slot": 2,
+            "video_invitado": true
+          },
+          "visible": false,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Remoto con la palabra 2 — contenido",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto_contenido",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.RemotoContenido.2",
+            "pipeline_audio": "",
+            "slot": 2,
+            "video_invitado": true
+          },
+          "visible": false,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Invitado 1 — pantalla",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "share",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.GuestShare.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": false,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_guest_video",
+          "muted": false,
+          "name": "Invitado 2 — pantalla",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "share",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.GuestShare.2",
+            "pipeline_audio": "",
+            "slot": 2,
+            "video_invitado": true
+          },
+          "visible": false,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Cámara del recinto",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "pipeline": "filesrc location=\"Media/recinto.png\" ! decodebin ! videoconvert ! imagefreeze is-live=true"
+          },
+          "visible": false,
+          "volume": 1.0
+        }
+      ]
+    },
+    {
+      "folder": "",
+      "name": "Asamblea · Plano general",
+      "sources": [
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Cámara del recinto",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "pipeline": "filesrc location=\"Media/recinto.png\" ! decodebin ! videoconvert ! imagefreeze is-live=true"
+          },
+          "visible": true,
+          "volume": 1.0
+        }
+      ]
+    },
+    {
+      "folder": "",
+      "name": "Asamblea · Remoto",
+      "sources": [
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Remoto con la palabra",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Remoto.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": true,
+          "volume": 1.0
+        }
+      ]
+    },
+    {
+      "folder": "",
+      "name": "Asamblea · Debate remotos",
+      "sources": [
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Remoto con la palabra",
+          "rect": [
+            0.0,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Remoto.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": true,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Remoto con la palabra 2",
+          "rect": [
+            0.5,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Remoto.2",
+            "pipeline_audio": "",
+            "slot": 2,
+            "video_invitado": true
+          },
+          "visible": true,
+          "volume": 1.0
+        }
+      ]
+    },
+    {
+      "folder": "",
+      "name": "Asamblea · Debate sala y remoto",
+      "sources": [
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Cámara del recinto",
+          "rect": [
+            0.0,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "settings": {
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "pipeline": "filesrc location=\"Media/recinto.png\" ! decodebin ! videoconvert ! imagefreeze is-live=true"
+          },
+          "visible": true,
+          "volume": 1.0
+        },
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Remoto con la palabra",
+          "rect": [
+            0.5,
+            0.25,
+            0.5,
+            0.5
+          ],
+          "settings": {
+            "audio": false,
+            "channel": "remoto",
+            "estudio": false,
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "normalizar": false,
+            "pipeline": "bavideoanillo canal=BA.Remoto.1",
+            "pipeline_audio": "",
+            "slot": 1,
+            "video_invitado": true
+          },
+          "visible": true,
+          "volume": 1.0
+        }
+      ]
+    },
+    {
+      "folder": "",
+      "name": "Asamblea · Debate sala",
+      "sources": [
+        {
+          "id": "ba_gst_fuente",
+          "muted": false,
+          "name": "Cámara del recinto",
+          "rect": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ],
+          "settings": {
+            "filtros": "{\"alfa\":false,\"video\":[{\"elemento\":\"baptz\",\"id\":\"ptz\"}]}",
+            "pipeline": "filesrc location=\"Media/recinto.png\" ! decodebin ! videoconvert ! imagefreeze is-live=true"
+          },
+          "visible": true,
+          "volume": 1.0
+        }
+      ]
+    }
+  ],
+  "stream": {
+    "enabled": false,
+    "keyEnv": "BA_STREAM_KEY",
+    "server": ""
+  },
+  "transition": {
+    "durationMs": 300,
+    "type": "fade"
+  },
+  "ui": {
+    "balistica": "pico",
+    "previewWidth": 960,
+    "theme": "dark"
+  },
+  "video": {
+    "color": "709",
+    "formato": "nv12",
+    "fps": 30,
+    "height": 1080,
+    "legalizar": "no",
+    "mejora": {
+      "activa": false,
+      "color": 70,
+      "nitidez": 50,
+      "ruido": 60
+    },
+    "outputHeight": 1080,
+    "outputWidth": 1920,
+    "rango": "limitado",
+    "width": 1920
+  }
+}

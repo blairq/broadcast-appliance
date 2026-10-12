@@ -13,7 +13,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
@@ -138,8 +138,17 @@ QVariantList GraficoViewModel::graficos() const {
         out.append(QVariantMap{{"nombre", n},
                                {"titulo", f.value("nombre").toString(n)},
                                {"descripcion", f.value("descripcion").toString()},
+                               {"categoria", f.value("categoria").toString("General")},
                                {"declarativo", f.contains("declarativo")}});
     }
+    // Agrupados por categoría (la lista los muestra con su título): «General» primero.
+    std::stable_sort(out.begin(), out.end(), [](const QVariant& a, const QVariant& b) {
+        const QString ca = a.toMap()["categoria"].toString(), cb = b.toMap()["categoria"].toString();
+        if (ca == cb) return false;
+        if (ca == "General") return true;
+        if (cb == "General") return false;
+        return ca < cb;
+    });
     return out;
 }
 

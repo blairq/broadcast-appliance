@@ -2,6 +2,7 @@
 // src/app/graficos/GraficoProceso.cpp — ver GraficoProceso.hpp
 // ============================================================================
 #include "graficos/GraficoProceso.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -18,7 +19,7 @@ namespace {
 /// para los lentos: es para los que NO VAN A TERMINAR (un bucle infinito en
 /// el QML que alguien está escribiendo). Generoso a propósito, porque una tira
 /// de doce cuadros con desenfoque sí puede tardar.
-constexpr int kLimiteMs = 20000;
+inline int kLimiteMs() { return ba::ajustes::sAMs("graficos.limiteS", 20); }
 
 QImage dePngBase64(const QString& b64) {
     QImage img;
@@ -70,7 +71,7 @@ struct GraficoProceso::Impl {
 
         QByteArray linea;
         while (!linea.endsWith('\n')) {
-            if (!proc->waitForReadyRead(kLimiteMs)) {
+            if (!proc->waitForReadyRead(kLimiteMs())) {
                 // No contestó: o se colgó (bucle infinito en el gráfico) o se
                 // murió. En los dos casos se lo mata y se dice qué pasó.
                 const bool vivo = proc->state() == QProcess::Running;

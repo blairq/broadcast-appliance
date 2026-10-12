@@ -63,9 +63,12 @@ Rectangle {
         if (tipo === "croma") return "#22c55e"
         if (tipo === "color") return "#f59e0b"
         if (tipo === "recorte") return "#38bdf8"
+        if (tipo === "vista360" || tipo === "panoramica") return "#818cf8"
         if (tipo === "salida") return "#a78bfa"
         if (tipo === "retardo") return "#94a3b8"
         if (tipo === "rostros") return "#f43f5e"
+        if (tipo === "ptz") return "#06b6d4"
+        if (tipo === "seguir") return "#e879f9"
         return Theme.accent
     }
     function f2(v) { return Number(v).toFixed(2) }
@@ -83,7 +86,7 @@ Rectangle {
             const ks = Object.keys(pr)
             return "GStreamer · " + (p.elemento || "") + (ks.length ? " · " + ks.slice(0, 2).map(k => k + "=" + (typeof pr[k] === "number" ? Number(pr[k]).toFixed(2).replace(/\.?0+$/, "") : pr[k])).join(" ") : "")
         }
-        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho || 0) + "×" + (p.alto || 0) + (n.publicada ? " · en escena" : "")
+        if (n.tipo === "compositor") return ((n.entradas || []).length - 1) + " entradas · " + (p.ancho > 0 ? p.ancho + "×" + p.alto : "lienzo del estudio") + (n.publicada ? " · en escena" : "")
         if (n.tipo === "color") return "brillo " + f2(p.brillo) + " · contraste " + f2(p.contraste) + " · saturación " + f2(p.saturacion)
         if (n.tipo === "croma") return "fondo " + hex(p.clave) + " · similitud " + f2(p.similitud)
         if (n.tipo === "recorte") {
@@ -93,22 +96,75 @@ Rectangle {
             if (p.espejoV) partes.push("espejo ↕")
             return partes.length ? partes.join(" · ") : "sin cambios"
         }
+        if (n.tipo === "vista360" || n.tipo === "panoramica") {
+            if (p.ver === "entrada") return "calibrando: la entrada con los círculos"
+            if (p.ver === "tira") return "la tira" + (p.ancho > 0 ? " " + p.ancho + "×" + p.alto : " (la suma de las cámaras)") + (n.publicada ? " · en escena" : "")
+            if (p.ver === "panorama") return "el panorama 360" + (p.guia && p.guia !== "ninguna" ? " · guía " + p.guia : "")
+            return (n.tipo === "panoramica" ? (((n.entradas || []).filter(e => !e.pedido).length) + " cámaras · ") : "") + "mira " + Math.round(p.yaw || 0) + "° · " + Math.round(p.pitch || 0) + "° · abre " + Math.round(p.fov || 90) + "°" + (n.publicada ? " · en escena" : "")
+        }
         if (n.tipo === "salida") return "«" + (p.nombre || "") + "»" + (n.publicada ? " · en escena" : "")
         if (n.tipo === "retardo") return (p.cuadros || 0) + " cuadros de atraso"
-        if (n.tipo === "rostros") return ({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita" })[p.uso] + (p.marcar ? " · marca" : "")
+        if (n.tipo === "ptz") return p.activo === false ? "Apagado" : "Pan, tilt y zoom digital (Cámaras PTZ)"
+        if (n.tipo === "seguir") return p.activo === false ? "Apagado" : (p.objetivo ? "Sigue: " + p.objetivo : "Sin nadie elegido")
+        if (n.tipo === "rostros") return (({ mirar: "Personas mira", autoalta: "Personas anota sola", puerta: "Puerta: acredita", seguir: "Sigue a una cara" })[p.uso] || "Caras") +
+                                          (p.marcar ? " · " + (p.estilo || "recuadro") : "") + (p.texto ? " · «" + p.texto + "»" : "")
         return ""
     }
     // Los nodos de afuera (otra entrada, el estudio) en una columna a la
     // derecha: su posición es la de su propia vista.
+    // EN «RACKS», LAS TARJETAS DE LA ENTRADA EMPIEZAN ARRIBA A LA IZQUIERDA. Las
+    // posiciones guardadas son las de la vista Estudio (cada entrada en su franja):
+    // una entrada nueva quedaba en y=4272 y en Racks no se veía ninguna tarjeta.
+    // Se corren al mostrarlas y al moverlas se devuelve la posición de verdad.
+    readonly property point corrimiento: {
+        const l = page.g.nodos || []
+        let minX = Infinity, minY = Infinity
+        for (const n of l) if (!n.externo) { minX = Math.min(minX, n.x); minY = Math.min(minY, n.y) }
+        return minX === Infinity ? Qt.point(0, 0) : Qt.point(minX - 20, minY - 20)
+    }
+    // ui_show_page {page: "video", seccion: "<entrada>[/<id de tarjeta>]"}: esa entrada (y esa tarjeta).
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina !== "video" || !page.vg || seccion === "") return
+            const partes = seccion.split("/")
+            page.vg.entrada = partes[0]
+            if (partes.length > 1) page.elegir(partes.slice(1).join("/"))
+        }
+        // ui_abrir_panel: los diálogos de esta página (los mismos de sus botones).
+        function onAbrirPanel(pagina, panel) {
+            if (pagina !== "video") return
+            if (panel === "cerrar") { superresPop.close(); virtualPop.close(); catalogo.close(); return }
+            if (panel === "superresolucion") { panelSr.maestroPedido = ""; superresPop.open() }
+            else if (panel === "entrada_virtual") virtualPop.open()
+            else if (panel === "catalogo") catalogo.open()
+        }
+    }
+
+    // LOS EVENTOS ENTRE TARJETAS (ba/rostros, ba/ptz, ba/encuadre, ba/control…):
+    // lo que salió de cada una en los últimos 2 s, ↓ hacia abajo y ↑ hacia arriba.
+    property var eventosVivos: ({})
+    Timer {
+        interval: 1000; repeat: true; triggeredOnStart: true
+        running: page.visible && page.vista !== "estudio" && !!page.vg && page.vg.entrada !== ""
+        onTriggered: page.eventosVivos = page.vg.eventosDeEntrada()
+    }
+    function eventosTexto(id) {
+        const l = (page.eventosVivos || {})[id] || []
+        return l.filter(e => e.hace_ms < 2000).map(e => (e.direccion === "arriba" ? "↑ " : "↓ ") + e.evento).join("  ")
+    }
     readonly property var nodosVista: {
         const l = page.g.nodos || []
+        const dx = page.corrimiento.x, dy = page.corrimiento.y
         let maxX = 0
-        for (const n of l) if (!n.externo) maxX = Math.max(maxX, n.x)
+        for (const n of l) if (!n.externo) maxX = Math.max(maxX, n.x - dx)
         const out = []
-        let yExt = 0
+        let yExt = 20
         for (let i = 0; i < l.length; ++i) {
-            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) })
+            const ev = page.eventosTexto(l[i].id)
+            const n = Object.assign({}, l[i], { resumen: page.resumen(l[i]) + (ev ? "\n" + ev : "") })
             if (n.externo) { n.x = maxX + 260; n.y = yExt; yExt += 140 }
+            else { n.x = n.x - dx; n.y = n.y - dy }
             out.push(n)
         }
         return out
@@ -273,7 +329,7 @@ Rectangle {
                 porQueNoAgregar: "Elegí una entrada a la izquierda"
                 agregar: [
                     { titulo: "Tarjetas" + (page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? " (van después de «" + (page.nodo.etiqueta || page.sel) + "»)" : ""),
-                      items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control") : []).map(c => ({
+                      items: (page.vg ? page.vg.catalogo.filter(c => c.tipo !== "control" && c.tipo !== "ptz") : []).map(c => ({
                           t: c.titulo, tip: c.descripcion,
                           f: () => page.avisar(page.vg.agregar(c.tipo, page.nodo && page.nodo.tipo !== "escena" && !page.nodo.externo ? page.sel : ""))
                       })) },
@@ -284,7 +340,11 @@ Rectangle {
                     { t: "Sincronía y red…", icon: "⏱", f: () => sincronia.open(),
                       tip: "Reloj del estudio, entradas de red (SRT, RTMP, RTSP) con su diagnóstico, medir y corregir la sincronía entre entradas" },
                     { t: "Superresolución…", icon: "✦", f: () => superresPop.open(),
-                      tip: "Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara" }
+                      tip: "Duplicar la resolución de las cámaras de red (Apple, FSR, redes ONNX) y entrenar una red con lo que ve una cámara" },
+                    { t: "Scopes…", icon: "◫", f: () => scopesPop.open(),
+                      tip: "Forma de onda, RGB parade, vectorscopio e histograma del programa o de la entrada, y el legalizador para TV" },
+                    { t: "Programador de superresolución…", icon: "⚙", f: () => programadorPop.open(),
+                      tip: "Qué cámaras usan la red según el programa y el preview, cuánto aguanta cada acelerador y cómo entra la mejora" }
                 ]
                 mas: page.g.trivial === false ? [{
                     t: "Volver a como vino", peligro: true, tip: "Saca todas las tarjetas de esta entrada",
@@ -307,7 +367,8 @@ Rectangle {
                 seleccionado: page.sel
                 colorDe: page.colorDe
                 onElegir: (id) => page.elegir(id)
-                onMover: (id, x, y) => page.avisar(page.vg.mover(id, x, page.vista === "estudio" ? y - 30 : y))
+                onMover: (id, x, y) => page.avisar(page.vista === "estudio" ? page.vg.mover(id, x, y - 30)
+                                                   : page.vg.mover(id, x + page.corrimiento.x, y + page.corrimiento.y))
                 onConectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.conectar(desde, salida, hacia, entrada))
                 onDesconectar: (desde, salida, hacia, entrada) => page.avisar(page.vg.desconectar(desde, salida, hacia, entrada))
                 onOrdenar: page.avisar(page.vg.ordenar())
@@ -320,8 +381,10 @@ Rectangle {
         }
 
         // --- Vista previa y la tarjeta elegida ------------------------------------------
+        // Se arrastra para darle más lugar a las tarjetas o al panel (se recuerda).
+        Divisor { id: divisorPanel; clave: "video.panel"; ancho: 320; minimo: 240; maximo: 720 }
         Panel {
-            Layout.preferredWidth: 320
+            Layout.preferredWidth: divisorPanel.ancho
             Layout.fillHeight: true
             title: page.nodo ? page.nodo.etiqueta : "Vista previa"
             ColumnLayout {
@@ -333,14 +396,16 @@ Rectangle {
                     radius: 8; color: "black"; clip: true
                     // Damero: lo transparente (croma, recorte) se ve como tal.
                     Grid {
+                        id: damero
                         anchors.fill: parent
                         columns: Math.ceil(width / 12)
                         Repeater {
-                            model: Math.ceil(parent.width / 12) * Math.ceil(parent.height / 12)
+                            model: damero.columns * Math.ceil(damero.height / 12)
                             delegate: Rectangle {
                                 required property int index
                                 width: 12; height: 12
-                                color: (Math.floor(index / Math.ceil(parent.width / 12)) + index) % 2 ? "#2a2a2a" : "#1a1a1a"
+                                // Por el id y no por `parent`: un delegado recién creado todavía no lo tiene.
+                                color: (Math.floor(index / damero.columns) + index) % 2 ? "#2a2a2a" : "#1a1a1a"
                             }
                         }
                     }
@@ -349,6 +414,19 @@ Rectangle {
                         anchors.fill: parent
                         source: page.vg && page.vg.entrada !== "" ? "entrada:" + page.vg.entrada : ""
                         fillMode: VideoItem.Fit
+                    }
+                    // Con la tarjeta Seguimiento elegida: un clic en la imagen sigue a esa cara.
+                    MouseArea {
+                        anchors.fill: parent
+                        visible: page.tipoEf === "seguir" && !!page.vg && page.vg.entrada !== ""
+                        cursorShape: Qt.CrossCursor
+                        onClicked: (m) => {
+                            const asp = vistaPrevia.frameSize.width > 0 ? vistaPrevia.frameSize.width / vistaPrevia.frameSize.height : 16 / 9
+                            const iw = Math.min(width, height * asp), ih = iw / asp
+                            const u = Math.max(0, Math.min(1, (m.x - (width - iw) / 2) / iw))
+                            const v = Math.max(0, Math.min(1, (m.y - (height - ih) / 2) / ih))
+                            page.avisar(Studio.seguidor ? Studio.seguidor.seguirPunto(page.vg.entrada, u, v) : "El seguimiento no está disponible")
+                        }
                     }
                     Text {
                         visible: !vistaPrevia.hasFrame
@@ -361,6 +439,32 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     text: "Lo que ve la escena, con las tarjetas."
                     color: Theme.textFaint; font.pixelSize: 11
+                }
+                // Si se cae la señal estando al aire: avisar, armar o cortar a una escena de respaldo.
+                RowLayout {
+                    id: respaldo
+                    visible: !!page.vg && page.vg.entrada !== "" && !page.nodo
+                    Layout.fillWidth: true
+                    spacing: 4
+                    property var r: page.vg && page.vg.entrada !== "" ? Studio.respaldoEntrada(page.vg.entrada) : ({})
+                    Text { text: "Si se cae"; color: Theme.textDim; font.pixelSize: 11 }
+                    ComboBox {
+                        id: modoResp
+                        implicitWidth: 90
+                        model: [ { t: "Avisar", v: "avisar" }, { t: "Armar", v: "armar" }, { t: "Cortar", v: "cortar" } ]
+                        textRole: "t"
+                        currentIndex: Math.max(0, model.findIndex(o => o.v === (respaldo.r.al_perder_aire || "avisar")))
+                        onActivated: (i) => { const e = Studio.setRespaldoEntrada(page.vg.entrada, { escena: escResp.currentText, al_perder_aire: model[i].v, ms: 1000 })
+                                              if (e !== "") Studio.notify(e, "error") }
+                    }
+                    ComboBox {
+                        id: escResp
+                        Layout.fillWidth: true
+                        model: page.vg ? page.vg.escenasUi() : []
+                        currentIndex: Math.max(0, model.indexOf(respaldo.r.escena || ""))
+                        onActivated: (i) => Studio.setRespaldoEntrada(page.vg.entrada, { escena: model[i], al_perder_aire: modoResp.model[modoResp.currentIndex].v, ms: 1000 })
+                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La escena de respaldo si esta entrada se queda sin señal al aire"
+                    }
                 }
 
                 ScrollView {
@@ -495,7 +599,17 @@ Rectangle {
                                     { k: "suavidad", t: "Suavidad del borde", min: 0, max: 1 },
                                     { k: "derrame", t: "Quitar el reflejo de color", min: 0, max: 1 }]
                                 if (t === "rostros") return [
-                                    { k: "cada", t: "Cada cuánto mira (ms)", min: 100, max: 3000, entero: true }]
+                                    { k: "fps", t: "Análisis por segundo", min: 1, max: 15, entero: true },
+                                    { k: "confianza", t: "Confianza mínima", min: 0.3, max: 0.95 },
+                                    { k: "grosor", t: "Grosor del borde", min: 1, max: 20, entero: true },
+                                    { k: "texto_tamano", t: "Tamaño del texto", min: 0.015, max: 0.1 }]
+                                if (t === "seguir") return [
+                                    { k: "zoom", t: "Zoom que busca (0 = no tocarlo)", min: 0, max: 4 },
+                                    { k: "tamano_cara", t: "Tamaño de la cara (0 = no ajustar el zoom)", min: 0, max: 0.6 },
+                                    { k: "aire", t: "Aire arriba de la cabeza", min: -0.2, max: 0.35 },
+                                    { k: "suavidad", t: "Suavidad del movimiento (s)", min: 0.1, max: 3 },
+                                    { k: "zona_muerta", t: "Zona muerta (no tiembla)", min: 0, max: 0.2 },
+                                    { k: "perdida_s", t: "Espera si la pierde (s)", min: 0, max: 15 }]
                                 if (t === "retardo") return [
                                     { k: "cuadros", t: "Cuadros de atraso (para sincronizar)", min: 0, max: 30, entero: true }]
                                 if (t === "recorte") return [
@@ -519,7 +633,7 @@ Rectangle {
                                     Layout.fillWidth: true
                                     from: modelData.min; to: modelData.max
                                     stepSize: modelData.entero ? 1 : 0
-                                    value: page.nodo ? page.paramsEf[modelData.k] : 0
+                                    value: page.nodo && page.paramsEf && typeof page.paramsEf[modelData.k] === "number" ? page.paramsEf[modelData.k] : 0
                                     onMoved: page.ajustar(page.sel, modelData.k, modelData.entero ? Math.round(value) : value)
                                 }
                             }
@@ -580,6 +694,32 @@ Rectangle {
                             }
                         }
 
+                        // Vista 360 y Cámara 360: la vista, las lentes y la guía para calibrar.
+                        Panel360 {
+                            visible: page.tipoEf === "vista360" || page.tipoEf === "panoramica"
+                            Layout.fillWidth: true
+                            p: page.paramsEf || ({})
+                            camara: page.tipoEf === "panoramica"
+                            lentes: page.nodo && page.nodo.tipo === "panoramica" ? (page.nodo.entradas || []).filter(e => !e.pedido).length : 0
+                            onAjustar: (clave, valor) => page.ajustar(page.sel, clave, valor)
+                            onAtajo: (preset, campo) => page.avisar(page.vg.presetPanoramicaUi(page.sel, preset, campo))
+                        }
+                        ColumnLayout {
+                            visible: page.tipoEf === "panoramica" && !!page.nodo && page.nodo.tipo === "panoramica"
+                            Layout.fillWidth: true
+                            spacing: 4
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 11
+                                text: (page.nodo && page.nodo.publicada ? "Es la fuente «" : "Sale como la fuente «") +
+                                      (page.nodo ? page.nodo.params.nombre || "" : "") + "». Cada puerto es una cámara, en orden (el de arriba es la lente 1); se agregan tirando un cable al libre."
+                            }
+                            GlassButton {
+                                text: "Poner en la escena al aire"
+                                onClicked: page.avisar(page.vg.aEscena(page.sel, ""))
+                            }
+                        }
+
                         // Croma: el color de fondo.
                         RowLayout {
                             visible: page.tipoEf === "croma"
@@ -598,24 +738,139 @@ Rectangle {
                             }
                         }
 
-                        // Rostros: para qué la usa Personas, y marcar las caras.
+                        // Seguimiento (baseguir): a quién sigue.
                         ColumnLayout {
-                            visible: page.tipoEf === "rostros"
+                            visible: page.tipoEf === "seguir"
                             Layout.fillWidth: true
-                            spacing: 4
+                            spacing: 6
+                            readonly property var p: page.paramsEf || ({})
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
-                                text: !page.paramsEf ? "" : (page.paramsEf.auto
-                                      ? "La puso Personas (" + ({ mirar: "la página la está mirando", autoalta: "anotado automático", puerta: "cámara de la puerta" })[page.paramsEf.uso] + "): se va sola cuando deja de usarla."
-                                      : "Personas reconoce caras con lo que pasa por acá. Moverla de lugar cambia qué imagen mira (antes o después de corregir el color, de recortar…).")
+                                text: "No toca la imagen: lee las caras de una tarjeta Rostros (antes o después) y le manda el encuadre al PTZ (antes o después) con eventos de GStreamer. Clic en la vista previa: seguir a esa cara."
                             }
-                            CheckBox {
-                                text: "Marcar las caras en la imagen"
-                                checked: !!page.paramsEf && !!page.paramsEf.marcar
-                                onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
-                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: "Para probar o para un monitor: conviene ponerla en una rama (con una salida), no en lo que va al aire"
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.text; font.pixelSize: 12
+                                text: "Sigue: " + (parent.p.objetivo ? parent.p.objetivo : "nadie") +
+                                      (Studio.seguidor && Studio.seguidor.siguiendo[page.vg.entrada]
+                                       ? " · " + Studio.seguidor.siguiendo[page.vg.entrada].estado : "")
+                            }
+                            Flow {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                GlassButton { compact: true; text: "La más grande"; onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "mayor" })) }
+                                GlassButton { compact: true; text: "La del centro"; onClicked: page.avisar(Studio.seguidor.seguir(page.vg.entrada, { regla: "centro" })) }
+                                GlassButton { compact: true; text: "Soltar"; onClicked: Studio.seguidor.dejar(page.vg.entrada) }
+                            }
+                        }
+
+                        // Rostros (barostros): para qué la usa Personas, el análisis y el overlay.
+                        ColumnLayout {
+                            id: rostrosPanel
+                            visible: page.tipoEf === "rostros"
+                            Layout.fillWidth: true
+                            spacing: 6
+                            readonly property var p: page.paramsEf || ({})
+                            readonly property var plantillas: [
+                                { t: "Sin texto", v: "" },
+                                { t: "Nombre", v: "{nombre}" },
+                                { t: "Nombre y cargo", v: "{nombre} — {cargo}" },
+                                { t: "Número", v: "Cara {id}" },
+                                { t: "Confianza", v: "{confianza}" },
+                                { t: "Nombre o número", v: "{nombre} #{id}" }]
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 12
+                                text: rostrosPanel.p.auto
+                                      ? "La puso Personas (" + (({ mirar: "la página la está mirando", autoalta: "anotado automático", puerta: "cámara de la puerta", seguir: "seguimiento del PTZ" })[rostrosPanel.p.uso] || "") + "): se va sola cuando deja de usarla."
+                                      : "Mira la toma entera de la cámara (antes del PTZ digital) sin demorar la imagen. Las caras van en cada cuadro y en eventos «ba/rostros» para el resto de la cadena."
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                CheckBox {
+                                    text: "Reconocer (para Personas)"
+                                    checked: !!rostrosPanel.p.reconocer
+                                    onToggled: page.avisar(page.vg.ajustar(page.sel, { reconocer: checked }))
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Saca el vector de cada cara (lo que compara la libreta). Personas lo prende sola cuando usa la cámara."
+                                }
+                                Item { Layout.fillWidth: true }
+                                Text { text: "Detector"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    model: [{ t: "Automático", v: "auto" }, { t: "Apple (Vision)", v: "vision" }, { t: "YuNet", v: "yunet" }]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.detector || "auto")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { detector: model[i].v }))
+                                }
+                            }
+                            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                CheckBox {
+                                    text: "Overlay sobre las caras"
+                                    checked: !!rostrosPanel.p.marcar
+                                    onToggled: page.avisar(page.vg.ajustar(page.sel, { marcar: checked }))
+                                }
+                                Item { Layout.fillWidth: true }
+                                ComboBox {
+                                    enabled: !!rostrosPanel.p.marcar
+                                    model: [{ t: "Recuadro", v: "recuadro" }, { t: "Esquinas", v: "esquinas" }, { t: "Relleno", v: "relleno" },
+                                            { t: "Tapar", v: "tapar" }, { t: "Pixelar", v: "pixelar" }]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(m => m.v === (rostrosPanel.p.estilo || "recuadro")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { estilo: model[i].v }))
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: "Tapar y pixelar sirven para no mostrar una cara (privacidad)"
+                                }
+                            }
+                            RowLayout {
+                                enabled: !!rostrosPanel.p.marcar
+                                spacing: 6
+                                Text { text: "Color"; color: Theme.textDim; font.pixelSize: 12 }
+                                Repeater {
+                                    model: [0xFFFFC83C, 0xFF35C46B, 0xFF38BDF8, 0xFFFF3B30, 0xFFFFFFFF, 0xFF000000]
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        width: 20; height: 20; radius: 4
+                                        color: "#" + (modelData & 0xFFFFFF).toString(16).padStart(6, "0")
+                                        border.width: (rostrosPanel.p.color || 0xFFFFC83C) === modelData ? 2 : 1
+                                        border.color: (rostrosPanel.p.color || 0xFFFFC83C) === modelData ? Theme.text : Qt.rgba(1, 1, 1, 0.3)
+                                        MouseArea { anchors.fill: parent; onClicked: page.avisar(page.vg.ajustar(page.sel, { color: modelData })) }
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                Layout.fillWidth: true
+                                enabled: !!rostrosPanel.p.marcar
+                                Text { text: "Texto"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.preferredWidth: 150
+                                    model: rostrosPanel.plantillas
+                                    textRole: "t"
+                                    currentIndex: rostrosPanel.plantillas.findIndex(m => m.v === (rostrosPanel.p.texto || ""))
+                                    displayText: currentIndex < 0 ? "Personalizado" : currentText
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto: rostrosPanel.plantillas[i].v }))
+                                }
+                                ComboBox {
+                                    model: [{ t: "Arriba", v: "arriba" }, { t: "Abajo", v: "abajo" }]
+                                    textRole: "t"
+                                    currentIndex: rostrosPanel.p.texto_posicion === "abajo" ? 1 : 0
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { texto_posicion: model[i].v }))
+                                }
+                            }
+                            TextField {
+                                Layout.fillWidth: true
+                                enabled: !!rostrosPanel.p.marcar
+                                text: rostrosPanel.p.texto || ""
+                                placeholderText: "Plantilla: {nombre} {cargo} {id} {confianza} {n}"
+                                color: Theme.text
+                                onEditingFinished: if (text !== (rostrosPanel.p.texto || "")) page.avisar(page.vg.ajustar(page.sel, { texto: text }))
+                            }
+                            Text {
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textFaint; font.pixelSize: 11
+                                text: "El nombre y el cargo aparecen cuando Personas reconoce a alguien. Para un monitor o para probar, conviene el overlay en una rama con salida, no en lo que va al aire."
                             }
                         }
 
@@ -634,52 +889,125 @@ Rectangle {
                             }
                         }
 
-                        // Superresolución (el plugin de GStreamer basuperres): motor, modelo, nitidez.
+                        // Superresolución: se elige un PLUGIN (video/SuperRes: el catálogo y los
+                        // instalados); la app lo corre con lo mejor de esta máquina.
                         ColumnLayout {
+                            id: srPanel
                             visible: page.tipoEf === "superres"
                             Layout.fillWidth: true
                             spacing: 6
-                            readonly property var motores: Studio.superres ? Studio.superres.motores : []
+                            readonly property var sr: Studio.superres
+                            readonly property var motores: sr ? sr.motores : []
+                            // (depende de `modelos` para refrescarse cuando se instala algo)
+                            readonly property var plugins: sr ? (sr.modelos, sr.pluginsUi()) : []
+                            readonly property var visibles: plugins.filter(p => p.aca || !p.instalado)
+                            readonly property string elegido: page.paramsEf ? (page.paramsEf.plugin || "") : ""
+                            readonly property var actual: visibles.find(p => p.id === elegido) || null
+                            readonly property var trabajo: sr ? sr.trabajo : ({})
+                            property bool avanzado: false
                             Text {
                                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                                 color: Theme.textDim; font.pixelSize: 12
-                                text: "Duplica la resolución: lo que sigue trabaja al doble y la escena la recibe grande. Demora un cuadro; el audio de la entrada se atrasa lo mismo (solo)."
+                                text: "Agranda x2: lo que sigue trabaja al doble y la escena la recibe grande. Elegí el método; la demora se mide y el audio de la entrada se atrasa lo mismo (solo)."
                             }
-                            Flow {
+                            // El error de la tarjeta (el mismo que se ve en el grafo) y lo que
+                            // decidió el programador, con el motivo: antes no se veía nada acá y
+                            // parecía que prender o apagar no hacía efecto.
+                            Text {
+                                visible: !!page.nodo && !!page.nodo.error
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                text: page.nodo && page.nodo.error ? "⚠ " + page.nodo.error : ""
+                                color: Theme.live; font.pixelSize: 12
+                            }
+                            Item {
+                                id: srEstado
                                 Layout.fillWidth: true
-                                spacing: 4
-                                Repeater {
-                                    model: [
-                                        { m: "auto", t: "Automático", tip: "La red si hay modelo; si no, Apple (macOS 26); si no, FSR" },
-                                        { m: "apple", t: "Apple", tip: "VideoToolbox, macOS 26: la mejor en una Mac (entrada hasta 960x960)" },
-                                        { m: "fsr", t: "FSR 1", tip: "AMD, sin red neuronal: cualquier GPU, menos de 1 ms" },
-                                        { m: "onnx", t: "Red ONNX", tip: "Un modelo: la red chica entrenada con la cámara, SPAN o Real-ESRGAN" }
-                                    ].filter(o => o.m === "auto" || parent.parent.motores.indexOf(o.m) >= 0)
-                                    delegate: GlassButton {
-                                        required property var modelData
-                                        compact: true; text: modelData.t
-                                        active: !!page.paramsEf && (page.paramsEf.motor || "auto") === modelData.m
-                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { motor: modelData.m }))
-                                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: modelData.tip
+                                implicitHeight: srEstadoTxt.implicitHeight
+                                readonly property string entrada: page.nodo && page.nodo.grupo ? page.nodo.grupo : (page.vg ? String(page.vg.entrada || "") : "")
+                                property var e: ({})
+                                function leer() {
+                                    const p = page.vg ? page.vg.programadorUi() : ({})
+                                    e = (p.entradas || {})[entrada] || ({})
+                                }
+                                Timer { interval: 1000; running: srPanel.visible; repeat: true; triggeredOnStart: true; onTriggered: srEstado.leer() }
+                                Text {
+                                    id: srEstadoTxt
+                                    width: parent.width; wrapMode: Text.WordWrap
+                                    readonly property string modo: srEstado.e.modo || ""
+                                    text: modo === "" ? "Ahora: todavía sin estado (la entrada está arrancando)"
+                                        : "Ahora: " + (modo === "activo" ? "trabajando" : modo === "barato" ? "barata (agrandado común)" : "en reposo (pasa sin tocar)") +
+                                          (srEstado.e.ms > 0 ? " · " + Number(srEstado.e.ms).toFixed(0) + " ms por cuadro" : "") +
+                                          (srEstado.e.motivo ? " — " + srEstado.e.motivo : "")
+                                    color: modo === "activo" ? Theme.ok : modo === "" ? Theme.textFaint : Theme.amber
+                                    font.pixelSize: 12
+                                }
+                            }
+                            RowLayout {
+                                visible: srEstado.entrada !== ""
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Text { text: "Cuándo trabaja"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    id: srCuando
+                                    Layout.fillWidth: true
+                                    readonly property var opciones: [
+                                        { t: "Automático: cuando se ve grande (al aire o en preview) y llega a tiempo", v: "auto" },
+                                        { t: "Siempre (para probar: aunque no se vea o no llegue)", v: "siempre" },
+                                        { t: "Nunca", v: "nunca" } ]
+                                    model: opciones.map(o => o.t)
+                                    currentIndex: Math.max(0, opciones.findIndex(o => o.v === (srEstado.e.forzado || "auto")))
+                                    onActivated: (i) => {
+                                        const f = {}
+                                        f[srEstado.entrada] = opciones[i].v
+                                        page.avisar(page.vg.configurarProgramadorUi({ forzar: f }))
+                                        srEstado.leer()
                                     }
                                 }
                             }
                             RowLayout {
-                                visible: !!page.paramsEf && (page.paramsEf.motor === "onnx" || page.paramsEf.motor === "auto")
                                 Layout.fillWidth: true
                                 spacing: 6
-                                Text { text: "Modelo"; color: Theme.textDim; font.pixelSize: 12 }
+                                Text { text: "Método"; color: Theme.textDim; font.pixelSize: 12 }
                                 ComboBox {
+                                    id: srCombo
                                     Layout.fillWidth: true
-                                    readonly property var lista: [{ nombre: "— ninguno —", ruta: "" }].concat(Studio.superres ? Studio.superres.modelos : [])
-                                    model: lista.map(x => x.nombre)
-                                    currentIndex: Math.max(0, lista.findIndex(x => x.ruta === (page.paramsEf ? page.paramsEf.modelo || "" : "")))
-                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { modelo: lista[i].ruta }))
+                                    readonly property var lista: [{ id: "", nombre: "— elegí un método —", instalado: true }].concat(srPanel.visibles)
+                                    model: lista.map(p => p.nombre + (!p.instalado ? "  (instalar)" : p.ms_coreml ? "  · " + Number(p.ms_coreml).toFixed(0) + " ms" : ""))
+                                    currentIndex: Math.max(0, lista.findIndex(p => p.id === srPanel.elegido))
+                                    onActivated: (i) => {
+                                        const p = lista[i]
+                                        if (p.id === "") return
+                                        if (!p.instalado) {
+                                            const e = srPanel.sr.instalarPluginUi(p.id)
+                                            page.avisar(e === "" ? "" : e)
+                                            if (e === "") Studio.notify("Instalando «" + p.nombre + "»: tarda unos minutos", "info")
+                                            return
+                                        }
+                                        page.avisar(page.vg.ajustar(page.sel, { plugin: p.id, activo: true }))
+                                    }
                                 }
-                                GlassButton { compact: true; text: "Entrenar…"; onClicked: superresPop.open() }
+                            }
+                            Text {
+                                visible: !!srPanel.actual
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.text; font.pixelSize: 11
+                                text: srPanel.actual ? (srPanel.actual.descripcion || "") + (srPanel.actual.licencia ? "  (" + srPanel.actual.licencia + ")" : "") : ""
+                            }
+                            // Instalando (el laboratorio): el avance.
+                            ColumnLayout {
+                                visible: !!srPanel.trabajo.corriendo || (!!srPanel.trabajo.que && String(srPanel.trabajo.que).indexOf("Instalar") === 0)
+                                Layout.fillWidth: true
+                                spacing: 2
+                                Text { text: srPanel.trabajo.que || ""; color: Theme.textDim; font.pixelSize: 11 }
+                                ProgressBar { Layout.fillWidth: true; from: 0; to: 100; value: srPanel.trabajo.pct || 0; visible: !!srPanel.trabajo.corriendo }
+                                Text {
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    text: srPanel.trabajo.error ? "✕ " + srPanel.trabajo.error : (srPanel.trabajo.texto || "")
+                                    color: srPanel.trabajo.error ? Theme.live : Theme.textFaint; font.pixelSize: 11
+                                }
                             }
                             RowLayout {
-                                visible: !!page.paramsEf && (page.paramsEf.motor === "fsr" || page.paramsEf.motor === "auto")
+                                visible: srPanel.elegido === "fsr" || (!!page.paramsEf && page.paramsEf.motor === "fsr" && srPanel.elegido === "")
                                 Layout.fillWidth: true
                                 spacing: 6
                                 Text { text: "Nitidez (FSR)"; color: Theme.textDim; font.pixelSize: 12 }
@@ -696,6 +1024,79 @@ Rectangle {
                                 text: "Activa (si no, pasa sin tocar)"
                                 checked: !page.paramsEf || page.paramsEf.activo !== false
                                 onToggled: page.avisar(page.vg.ajustar(page.sel, { activo: checked }))
+                            }
+                            // Una red CoreML (Mac): dónde corre. Con dos redes a la vez, una en la GPU reparte la carga.
+                            RowLayout {
+                                visible: srPanel.motores.indexOf("coreml") >= 0 && !!srPanel.actual && !!srPanel.actual.archivos && !!srPanel.actual.archivos.coreml
+                                spacing: 6
+                                Text { text: "Corre en"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.fillWidth: true
+                                    model: [ { t: "Elegir solo (Neural Engine)", v: "auto" }, { t: "Neural Engine", v: "ane" },
+                                             { t: "GPU (compite con la composición)", v: "gpu" }, { t: "Procesador (lento)", v: "cpu" } ]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.unidades) || "auto")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { unidades: model[i].v }))
+                                }
+                            }
+                            // Una red ONNX (Windows/Linux): con qué la corre la placa. Vulkan pasa la red a ncnn la
+                            // primera vez (tarda unos segundos) y anda en AMD, Intel y NVIDIA.
+                            RowLayout {
+                                visible: srPanel.motores.indexOf("onnx") >= 0 && srPanel.motores.indexOf("coreml") < 0 &&
+                                         !!srPanel.actual && !!srPanel.actual.archivos && (!!srPanel.actual.archivos.onnx || !!srPanel.actual.archivos.onnx_nv12)
+                                spacing: 6
+                                Text { text: "Corre con"; color: Theme.textDim; font.pixelSize: 12 }
+                                ComboBox {
+                                    Layout.fillWidth: true
+                                    model: [ { t: "Elegir solo", v: "auto" }, { t: "DirectML (cualquier placa, Windows)", v: "dml" },
+                                             { t: "Vulkan (ncnn: AMD, Intel, NVIDIA)", v: "vulkan" }, { t: "TensorRT (NVIDIA, compila la red)", v: "tensorrt" },
+                                             { t: "CUDA (NVIDIA)", v: "cuda" }, { t: "OpenVINO (Intel)", v: "openvino" },
+                                             { t: "MIGraphX (AMD en Linux)", v: "migraphx" }, { t: "Procesador (lento)", v: "cpu" } ]
+                                    textRole: "t"
+                                    currentIndex: Math.max(0, model.findIndex(o => o.v === ((page.paramsEf && page.paramsEf.proveedor) || "auto")))
+                                    onActivated: (i) => page.avisar(page.vg.ajustar(page.sel, { proveedor: model[i].v }))
+                                }
+                            }
+                            RowLayout {
+                                spacing: 6
+                                GlassButton { compact: true; text: srPanel.avanzado ? "Ocultar avanzado" : "Avanzado…"; onClicked: srPanel.avanzado = !srPanel.avanzado }
+                                GlassButton { compact: true; text: "Red propia, placa y plugins…"; onClicked: { panelSr.maestroPedido = ""; superresPop.open() } }
+                                // Destilar: una red chica que imita a la red elegida, a medida de esta cámara.
+                                GlassButton {
+                                    compact: true
+                                    visible: !!srPanel.actual && srPanel.actual.tipo === "red" && !srPanel.actual.propio
+                                    text: "Destilar una red chica de esta…"
+                                    onClicked: { panelSr.maestroPedido = srPanel.elegido; superresPop.open() }
+                                }
+                            }
+                            // A mano: un motor y un modelo (sin plugin).
+                            Flow {
+                                visible: srPanel.avanzado
+                                Layout.fillWidth: true
+                                spacing: 4
+                                Repeater {
+                                    model: [
+                                        { m: "apple", t: "Apple" }, { m: "fsr", t: "FSR 1" }, { m: "onnx", t: "Red ONNX" }, { m: "coreml", t: "Red CoreML" }
+                                    ].filter(o => srPanel.motores.indexOf(o.m) >= 0)
+                                    delegate: GlassButton {
+                                        required property var modelData
+                                        compact: true; text: modelData.t
+                                        active: srPanel.elegido === "" && !!page.paramsEf && page.paramsEf.motor === modelData.m
+                                        onClicked: page.avisar(page.vg.ajustar(page.sel, { plugin: "", motor: modelData.m }))
+                                    }
+                                }
+                            }
+                            RowLayout {
+                                visible: srPanel.avanzado && srPanel.elegido === "" && !!page.paramsEf && (page.paramsEf.motor === "onnx" || page.paramsEf.motor === "coreml")
+                                Layout.fillWidth: true
+                                spacing: 6
+                                Text { text: "Modelo"; color: Theme.textDim; font.pixelSize: 12 }
+                                TextField {
+                                    Layout.fillWidth: true
+                                    text: page.paramsEf ? page.paramsEf.modelo || "" : ""
+                                    placeholderText: "ruta del .onnx o del .mlmodelc"
+                                    onEditingFinished: page.avisar(page.vg.ajustar(page.sel, { modelo: text }))
+                                }
                             }
                         }
 
@@ -743,13 +1144,29 @@ Rectangle {
                                 spacing: 6
                                 Text { text: "Lienzo"; color: Theme.textDim; font.pixelSize: 12 }
                                 Repeater {
-                                    model: [ { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: "Vertical", w: 1080, h: 1920 } ]
+                                    model: [ { t: "Como el estudio", w: 0, h: 0 }, { t: "1080p", w: 1920, h: 1080 }, { t: "720p", w: 1280, h: 720 }, { t: "4K", w: 3840, h: 2160 }, { t: "Vertical", w: 1080, h: 1920 } ]
                                     delegate: GlassButton {
                                         required property var modelData
                                         compact: true; text: modelData.t
-                                        active: !!page.nodo && page.nodo.params && page.nodo.params.ancho === modelData.w && page.nodo.params.alto === modelData.h
+                                        active: !!page.nodo && page.nodo.params && (page.nodo.params.ancho || 0) === modelData.w && (page.nodo.params.alto || 0) === modelData.h
                                         onClicked: page.avisar(page.vg.ajustar(page.sel, { ancho: modelData.w, alto: modelData.h }))
                                     }
+                                }
+                            }
+                            // Cualquier otro tamaño (0 = el del lienzo del estudio).
+                            RowLayout {
+                                spacing: 6
+                                Text { text: "Ancho"; color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.ancho || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { ancho: value }))
+                                }
+                                Text { text: "Alto"; color: Theme.textDim; font.pixelSize: 12 }
+                                SpinBox {
+                                    from: 0; to: 8192; stepSize: 2; editable: true
+                                    value: page.nodo && page.nodo.params ? (page.nodo.params.alto || 0) : 0
+                                    onValueModified: page.avisar(page.vg.ajustar(page.sel, { alto: value }))
                                 }
                             }
                             RowLayout {
@@ -837,8 +1254,68 @@ Rectangle {
                             }
                         }
 
+                        // La ayuda de la tarjeta: cada parámetro y los eventos que manda y
+                        // escucha (lo mismo que da video_tarjeta_ayuda por MCP).
+                        ColumnLayout {
+                            id: ayudaPanel
+                            readonly property var info: page.vg && page.tipoEf ? (page.vg.catalogo.find(c => c.tipo === page.tipoEf) || null) : null
+                            property bool abierto: false
+                            visible: !!info && ((info.parametros || []).length > 0 || !!(info.eventos && info.eventos.manda))
+                            Layout.fillWidth: true
+                            spacing: 4
+                            GlassButton {
+                                compact: true
+                                text: (ayudaPanel.abierto ? "▾ " : "▸ ") + "Parámetros y eventos"
+                                onClicked: ayudaPanel.abierto = !ayudaPanel.abierto
+                            }
+                            Repeater {
+                                model: ayudaPanel.abierto && ayudaPanel.info ? ayudaPanel.info.parametros : []
+                                Text {
+                                    required property var modelData
+                                    Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                    color: Theme.textDim; font.pixelSize: 11; textFormat: Text.StyledText
+                                    text: "<b>" + modelData.clave + "</b> <i>(" + modelData.tipo
+                                          + (modelData.opciones ? ": " + modelData.opciones.join(" | ") : "")
+                                          + (modelData.min !== undefined ? ", " + modelData.min + "…" + modelData.max : "")
+                                          + ")</i> — " + modelData.descripcion
+                                }
+                            }
+                            Text {
+                                visible: ayudaPanel.abierto && !!ayudaPanel.info && !!ayudaPanel.info.texto_overlay
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 11
+                                text: ayudaPanel.info && ayudaPanel.info.texto_overlay ? ayudaPanel.info.texto_overlay.replace(/`/g, "") : ""
+                            }
+                            Text {
+                                visible: ayudaPanel.abierto && !!ayudaPanel.info && !!(ayudaPanel.info.eventos && ayudaPanel.info.eventos.manda)
+                                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                color: Theme.textDim; font.pixelSize: 11
+                                text: {
+                                    const e = ayudaPanel.info && ayudaPanel.info.eventos ? ayudaPanel.info.eventos : null
+                                    if (!e || !e.manda) return ""
+                                    return "Manda:\n• " + e.manda.join("\n• ") + "\nEscucha:\n• " + (e.escucha || []).join("\n• ")
+                                }
+                            }
+                        }
+
+                        // Mover en la cadena (el orden importa; todas dejan pasar los eventos de las otras).
+                        RowLayout {
+                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" &&
+                                     page.nodo.tipo !== "salida" && page.nodo.tipo !== "compositor" && page.nodo.tipo !== "control"
+                            spacing: 6
+                            GlassButton {
+                                compact: true; text: "◀ Antes"
+                                onClicked: page.avisar(page.vg.correr(page.sel, -1))
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un lugar antes en la cadena"
+                            }
+                            GlassButton {
+                                compact: true; text: "Después ▶"
+                                onClicked: page.avisar(page.vg.correr(page.sel, 1))
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Un lugar después en la cadena"
+                            }
+                        }
                         GlassButton {
-                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena"
+                            visible: !!page.nodo && page.nodo.tipo !== "entrada" && page.nodo.tipo !== "escena" && page.nodo.tipo !== "ptz"
                             compact: true
                             text: "Quitar la tarjeta"
                             onClicked: { page.avisar(page.vg.quitar(page.sel)); page.sel = "" }
@@ -850,6 +1327,8 @@ Rectangle {
     }
 
     PanelSincronia { id: sincronia; vg: page.vg }
+    PanelProgramador { id: programadorPop; vg: page.vg }
+    PanelScopes { id: scopesPop; entrada: page.vg ? page.vg.entrada : "" }
     Popup {
         id: superresPop
         anchors.centerIn: parent
@@ -872,7 +1351,7 @@ Rectangle {
                 Layout.fillHeight: true
                 contentWidth: availableWidth
                 clip: true
-                PanelSuperres { width: srScroll.availableWidth; vg: page.vg; visible: superresPop.opened }
+                PanelSuperres { id: panelSr; width: srScroll.availableWidth; vg: page.vg; visible: superresPop.opened }
             }
         }
     }
@@ -899,7 +1378,12 @@ Rectangle {
         width: 520
         padding: 18
         property string preset: "barras-hd"
-        onOpened: { nombreVirtual.text = ""; pipelineVirtual.text = ""; preset = "barras-hd"; nombreVirtual.forceActiveFocus() }
+        onOpened: {
+            nombreVirtual.text = ""; pipelineVirtual.text = ""; preset = "barras-hd"
+            escenaVirtual.model = Studio.inputs.scenes
+            escenaVirtual.currentIndex = Math.max(0, Studio.inputs.scenes.indexOf(Studio.currentScene))
+            nombreVirtual.forceActiveFocus()
+        }
         background: Rectangle { color: Theme.panel; radius: Theme.radius; border.color: Theme.glassBorder }
         ColumnLayout {
             anchors.fill: parent
@@ -938,16 +1422,23 @@ Rectangle {
                 font.family: "Menlo"
                 placeholderText: "rtspsrc location=rtsp://… latency=200 ! decodebin"
             }
+            // En qué escena (de la lista, no escrita a mano): de fábrica, la que está al aire.
+            RowLayout {
+                Layout.fillWidth: true
+                Text { text: "En la escena"; color: Theme.textDim; font.pixelSize: 12 }
+                ComboBox { id: escenaVirtual; Layout.fillWidth: true }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
                 GlassButton { compact: true; text: "Cancelar"; onClicked: virtualPop.close() }
                 GlassButton {
-                    compact: true; text: "Crear en la escena al aire"; active: true
+                    compact: true; text: "Crear"; active: true
                     enabled: nombreVirtual.text.trim() !== "" && (virtualPop.preset !== "pipeline" || pipelineVirtual.text.trim() !== "")
                     onClicked: {
                         const e = page.vg.crearVirtual(nombreVirtual.text.trim(),
-                                                       virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset, "")
+                                                       virtualPop.preset === "pipeline" ? "pipeline:" + pipelineVirtual.text.trim() : virtualPop.preset,
+                                                       escenaVirtual.currentText)
                         page.avisar(e)
                         if (e === "") { page.vg.entrada = nombreVirtual.text.trim(); virtualPop.close() }
                     }

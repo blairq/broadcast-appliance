@@ -48,7 +48,7 @@
 #include <QFile>
 #include <QImage>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/Rostros.hpp"
 #include "ui/CalidadCara.hpp"
@@ -120,8 +120,8 @@ json calidadJson(const Calidad& q) {
 void McpService::registerRostroTools() {
     core_.addCategory("rostros", "Personas y rostros",
                       "Reconocer a alguien que ya estuvo: la libreta de personas (nombre, cargo, "
-                      "notas) y quien aparece en cada camara. Tambien el alta guiada de un invitado "
-                      "por WebRTC (`rostro_calidad` dice que pedirle) y el anotado automatico de "
+                      "notas) y quién aparece en cada cámara. También el alta guiada de un invitado "
+                      "por WebRTC (`rostro_calidad` dice que pedirle) y el anotado automático de "
                       "toda cara nueva (`rostro_autoalta`). Corre en el aparato, sin red.");
 
     const auto preparar = [this]() -> std::string {
@@ -167,7 +167,7 @@ void McpService::registerRostroTools() {
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
                         const auto q = pv->libreta().buscar(visto.vector);
-                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
                         if (seguro) pv->libreta().vistaAhora(q.id, ahoraMs());
                         out.push_back(json{
                             {"id", seguro ? q.id : ""},
@@ -373,7 +373,7 @@ void McpService::registerRostroTools() {
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
                         const auto q = pv->libreta().buscar(visto.vector);
-                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
                         json j = calidadJson(calidadDe(img, c));
                         j["id"] = seguro ? q.id : "";
                         j["nombre"] = seguro ? q.nombre : "";

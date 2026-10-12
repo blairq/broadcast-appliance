@@ -2,6 +2,7 @@
 // src/app/ui/PantallasViewModel.cpp — ver PantallasViewModel.hpp
 // ============================================================================
 #include "ui/PantallasViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -19,7 +20,9 @@
 #include <QUdpSocket>
 #include <QUrl>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "ipc/CanalesEscena.hpp"
 #include "diag/Registro.hpp"
 #include "pantallas/Buscar.hpp"
 #include "pantallas/Cast.hpp"
@@ -34,9 +37,9 @@ namespace pt = pantallas;
 
 /// Cuánto se espera a un aparato antes de darlo por perdido. Un televisor
 /// dormido tarda en despertar; más de esto es que no está.
-constexpr int kTimeoutMs = 8000;
+inline int kTimeoutMs() { return ba::ajustes::entero("pantallas.timeoutMs", 8000); }
 /// Cuánto dura una búsqueda en la red.
-constexpr int kBusquedaSeg = 5;
+inline int kBusquedaSeg() { return ba::ajustes::entero("pantallas.busquedaS", 5); }
 
 /// El catálogo de lo que se puede proyectar. Está acá y no en el QML porque
 /// también lo necesita el MCP: una sola lista, no dos que se desincronizan.
@@ -45,6 +48,10 @@ struct Campo {
     const char* etiqueta;
     const char* ejemplo;
     bool largo; ///< si va en un cuadro de varias líneas
+    /// De dónde salen las opciones, si es una lista y no texto libre:
+    /// "escenas" = las escenas armadas (la interfaz las tiene en Studio.scenes);
+    /// "qrs" = los QR para elegir (Studio.qr.paraElegir: los del aparato y los guardados).
+    const char* opciones = "";
 };
 struct Contenido {
     const char* id;
@@ -66,8 +73,10 @@ const std::vector<Contenido>& catalogo() {
          ""},
         {"qr",
          "Un código QR",
-         "El QR ocupa la pantalla entera: se escanea desde lejos.",
-         {{"texto", "Qué codifica", "https://…", false},
+         "El QR ocupa la pantalla entera: se escanea desde lejos. Uno del aparato (el del Público, el de "
+         "la Sala…), uno guardado en «Códigos QR» con su estilo, o lo que se escriba.",
+         {{"guardado", "Qué QR", "", false, "qrs"},
+          {"texto", "Qué codifica (si es a mano)", "https://…", false},
           {"pie", "Abajo, más chico", "Escaneá para entrar a la sala", false}},
          true,
          ""},
@@ -114,6 +123,19 @@ const std::vector<Contenido>& catalogo() {
          {},
          true,
          ""},
+        // Una escena cualquiera, no la que está al aire: la pantalla del hall con
+        // la cámara del recinto mientras el programa muestra otra cosa. Viaja
+        // como el programa (WebRTC, enlace del gateway), pero por un canal propio
+        // (BA.Escena.<k>): la escena se compone aparte y sigue aunque no esté al
+        // aire. Varias pantallas pueden mostrar escenas distintas a la vez.
+        {"escena",
+         "Una escena",
+         "Cualquiera de las escenas armadas, en vivo, esté o no al aire. Varias pantallas pueden mostrar "
+         "escenas distintas a la vez (hasta 4 escenas distintas; las pantallas con la misma escena "
+         "comparten). Cada escena que se muestra es una composición más para la máquina.",
+         {{"escena", "Escena", "", false, "escenas"}},
+         true,
+         ""},
     };
     return c;
 }
@@ -154,6 +176,8 @@ struct Destino {
     std::int64_t proximoIntentoMs = 0;
     /// -1 no se sabe, 0 no sabe mostrar páginas, 1 sí.
     int puedeMostrar = -1;
+    /// El canal de escena que usa (BA.Escena.<k>) si muestra una escena; -1 si no.
+    int canalEscena = -1;
 };
 
 /// Todo lo que pasa con una pantalla queda escrito: mandar algo a un televisor
@@ -308,7 +332,7 @@ struct PantallasViewModel::Impl {
         std::ofstream f(archivo, std::ios::binary | std::ios::trunc);
         // Se guardan los dos juntos: las pantallas y lo que rota en ellas son
         // la misma configuración de sala.
-        f << json{{"pantallas", o}, {"carruseles", car}}.dump(2) << "\n";
+        f << json{{"pantallas", o}, {"carruseles", car}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
     }
 
     void leer() {
@@ -386,8 +410,12 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
 
     // Lo que cada pantalla tiene que estar mostrando se revisa cada tanto: un
     // televisor que se reinició de madrugada vuelve solo a lo suyo.
-    d_->mantenimiento.setInterval(15000);
+    d_->mantenimiento.setInterval(std::max(2000, ba::ajustes::sAMs("pantallas.revisarS", 15)));
     connect(&d_->mantenimiento, &QTimer::timeout, this, [this]() { restaurar(); });
+    // Un canal de escena vive mientras alguna pantalla lo muestre: si la que lo
+    // usaba pasó a otra cosa, se apagó o se la tomó otra aplicación, se suelta
+    // (es una composición entera andando de gusto).
+    connect(this, &PantallasViewModel::cambio, this, [this]() { revisarCanales(); });
     d_->mantenimiento.start();
     // Al arrancar se busca una vez: sin eso, una pantalla con IP nueva no se
     // encontraría hasta que alguien apretara el botón.
@@ -450,7 +478,8 @@ QVariantList PantallasViewModel::contenidos() const {
             campos.append(QVariantMap{{"clave", QString::fromUtf8(f.clave)},
                                       {"etiqueta", QString::fromUtf8(f.etiqueta)},
                                       {"ejemplo", QString::fromUtf8(f.ejemplo)},
-                                      {"largo", f.largo}});
+                                      {"largo", f.largo},
+                                      {"opciones", QString::fromUtf8(f.opciones)}});
         out.append(QVariantMap{{"id", QString::fromUtf8(c.id)},
                                {"titulo", QString::fromUtf8(c.titulo)},
                                {"ayuda", QString::fromUtf8(c.ayuda)},
@@ -479,7 +508,7 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     if (tipo == "url") return datos.value("url").toString().trimmed();
     // El programa lleva un permiso de ingreso que acuña el gateway: la URL no
     // se puede armar acá. `mostrar` la pide y recién después manda.
-    if (tipo == "programa") return "(la pide el gateway al mandar)";
+    if (tipo == "programa" || tipo == "escena") return "(la pide el gateway al mandar)";
 
     // La base tiene que ser alcanzable DESDE el televisor: HTTP (nuestro HTTPS
     // es autofirmado y un televisor no tiene dónde aceptarlo) y la dirección
@@ -517,6 +546,7 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
     }
     QString url = base + "/pantalla/?tipo=" + tipo;
     for (const Campo& f : c->campos) {
+        if (std::string(f.opciones) == "qrs") continue; // lo elegido ya se volvió texto y estilo
         const QString v = datos.value(QString::fromUtf8(f.clave)).toString();
         if (v.isEmpty()) continue;
         url += "&" + QString::fromUtf8(f.clave) + "=" + QString::fromUtf8(QUrl::toPercentEncoding(v));
@@ -546,7 +576,7 @@ void PantallasViewModel::buscar() {
     }
     std::thread([this]() {
         std::string err;
-        auto encontrados = pt::buscar(kBusquedaSeg, &err);
+        auto encontrados = pt::buscar(kBusquedaSeg(), &err);
         QMetaObject::invokeMethod(this, [this, encontrados, err]() {
             d_->buscando = false;
             if (!err.empty()) {
@@ -767,6 +797,11 @@ QString PantallasViewModel::pasoAgregar(const QString& carrusel, const QString& 
     if (c == nullptr) return "No encuentro ese carrusel.";
     const Contenido* con = contenidoPorId(tipo);
     if (con == nullptr) return "No sé mostrar «" + tipo + "».";
+    // Lo que va en vivo entra con un permiso de UN SOLO USO que acuña el
+    // gateway al mandarlo: un paso de carrusel es una URL fija y no lo tiene.
+    if (tipo == "programa" || tipo == "escena")
+        return "Lo que va en vivo (el programa o una escena) no entra en un carrusel: mandalo directo a la "
+               "pantalla.";
     if (!con->disponible) return QString::fromUtf8(con->porque);
     Paso p;
     p.tipo = tipo;
@@ -890,6 +925,8 @@ QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QSt
     anotar(diag::Nivel::Info, "a «" + d->nombre.toStdString() + "»: carrusel «" + c->nombre.toStdString() +
                                   "» -> " + url.toStdString());
     d->ultimosDatos = QVariantMap{{"carrusel", carrusel}};
+    d->canalEscena = -1;
+    revisarCanales();
     mandarUrl(idPantalla, url, "carrusel:" + carrusel, "Carrusel — " + c->nombre);
     return {};
 }
@@ -985,7 +1022,7 @@ void PantallasViewModel::refrescar(const QString& id) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, id, host, puerto, desde]() {
-        const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs, desde.toStdString());
+        const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1033,6 +1070,10 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     if (d->puedeMostrar == 0)
         return d->nombre + " no sabe mostrar páginas web: contesta el protocolo, pero no tiene dónde "
                            "mostrarlas (¿es un parlante?).";
+    if (tipo != "escena") {
+        d->canalEscena = -1;
+        revisarCanales();
+    }
     // La votacion necesita dos cosas que solo sabe el gateway: la clave con la
     // que se lee la urna y la direccion que va adentro del QR. Se las pide y
     // recien despues manda, porque una pantalla con el QR equivocado manda a
@@ -1082,6 +1123,7 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
             });
         return {};
     }
+    if (tipo == "escena") return mostrarEscena(id, datos.value("escena").toString().trimmed());
     const QString url = urlDe(tipo, datos, id);
     if (url.isEmpty())
         return tipo == "url" ? "Poné una dirección."
@@ -1105,6 +1147,81 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
     return {};
 }
 
+QString PantallasViewModel::mostrarEscena(const QString& id, const QString& escena) {
+    Destino* d = d_->porId(id);
+    if (d == nullptr) return "No encuentro esa pantalla.";
+    if (escena.isEmpty()) return "Elegí qué escena mostrar.";
+    if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay escena que mandar.";
+    BroadcastEngine& eng = d_->rt->engine();
+    const auto nombres = eng.sceneNames();
+    if (std::find(nombres.begin(), nombres.end(), escena.toStdString()) == nombres.end())
+        return "No hay ninguna escena que se llame «" + escena + "».";
+    // El canal: el que ya tiene esa escena (dos pantallas con la misma escena
+    // la componen una sola vez) o uno que nadie esté usando.
+    d->canalEscena = -1;
+    revisarCanales();
+    int canal = -1;
+    for (int k = 0; k < ipc::kCanalesEscena && canal < 0; ++k)
+        if (QString::fromStdString(eng.escenaDeCanal(k)) == escena) canal = k;
+    for (int k = 0; k < ipc::kCanalesEscena && canal < 0; ++k)
+        if (eng.escenaDeCanal(k).empty()) canal = k;
+    if (canal < 0)
+        return "Ya hay " + QString::number(ipc::kCanalesEscena) +
+               " escenas distintas en las pantallas: pasá alguna a una escena que ya se esté mostrando, o pará "
+               "una.";
+    if (!eng.escenaACanal(canal, escena.toStdString()))
+        return "No pude preparar la escena: " + QString::fromStdString(eng.lastError());
+    d->canalEscena = canal;
+    d->ultimosDatos = QVariantMap{{"escena", escena}};
+    d->trabajando = true;
+    emit cambio();
+    const QString nombre = d->nombre;
+    anotar(diag::Nivel::Info, "a «" + nombre.toStdString() + "»: escena «" + escena.toStdString() + "» (canal " +
+                                  std::to_string(canal) + ")");
+    d_->sala->client().get(
+        "/api/v1/cast-link?target=local&canal=" + QString::number(canal) +
+            "&nombre=" + QString::fromUtf8(QUrl::toPercentEncoding(nombre)),
+        [this, id, escena](bool ok, const QJsonObject& r) {
+            Destino* d = d_->porId(id);
+            if (d == nullptr) return;
+            d->trabajando = false;
+            if (!ok || !r.value("ok").toBool()) {
+                d->estado = "error";
+                const QString m = r.value("message").toString();
+                d->error = m.isEmpty() ? "No pude sacar el enlace de la escena" : m;
+                d->canalEscena = -1;
+                revisarCanales();
+                emit notify(d->nombre + ": " + d->error, "error");
+                emit cambio();
+                return;
+            }
+            mandarUrl(id, r.value("url").toString(), "escena", "Escena — " + escena);
+        });
+    return {};
+}
+
+void PantallasViewModel::revisarCanales() {
+    BroadcastEngine& eng = d_->rt->engine();
+    for (int k = 0; k < ipc::kCanalesEscena; ++k) {
+        if (eng.escenaDeCanal(k).empty() || eng.canalEscenaConDuenos(k)) continue; // las vistas de los remotos
+        bool usado = false;
+        for (const Destino& d : d_->destinos)
+            if (d.canalEscena == k && (d.trabajando || (d.contenido == "escena" && d.estado == "mostrando")))
+                usado = true;
+        if (!usado) {
+            anotar(diag::Nivel::Info, "canal de escena " + std::to_string(k) + " («" + eng.escenaDeCanal(k) +
+                                          "») sin pantallas: se suelta");
+            eng.escenaACanal(k, "");
+        }
+    }
+}
+
+bool PantallasViewModel::muestraPrograma() const {
+    for (const Destino& d : d_->destinos)
+        if (d.contenido == "programa" && (d.estado == "mostrando" || d.trabajando)) return true;
+    return false;
+}
+
 /// Lo que hacen todos los contenidos al final: abrir el canal y mandar la URL.
 void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const QString& tipo,
                                    const QString& que) {
@@ -1126,7 +1243,7 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
         // `reload` en 0: la página no se recarga sola. Un QR o un mensaje no
         // cambian, y una recarga en medio de un evento se ve.
         const pt::Estado r =
-            pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs, desde.toStdString());
+            pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r, tipo, que]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1170,7 +1287,7 @@ void PantallasViewModel::parar(const QString& id) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, id, host, puerto, desde]() {
-        const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs, desde.toStdString());
+        const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1178,6 +1295,7 @@ void PantallasViewModel::parar(const QString& id) {
             d->vistaMs = QDateTime::currentMSecsSinceEpoch();
             d->contenido.clear();
             d->que.clear();
+            d->canalEscena = -1;
             if (r.ok) {
                 d->estado = "libre";
                 d->error.clear();
@@ -1205,7 +1323,7 @@ void PantallasViewModel::setVolumen(const QString& id, double nivel) {
     const QString desde;
     std::thread([this, id, host, puerto, desde, nivel]() {
         const pt::Estado r =
-            pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs, desde.toStdString());
+            pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1234,7 +1352,7 @@ void PantallasViewModel::silenciar(const QString& id, bool si) {
     const QString desde;
     std::thread([this, id, host, puerto, desde, si]() {
         const pt::Estado r =
-            pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs, desde.toStdString());
+            pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;

@@ -8,7 +8,7 @@
 
 #include <QFileInfo>
 
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/FacebookViewModel.hpp"
@@ -32,8 +32,8 @@ FacebookClient::Done reply(Done done, const std::string& okText = {}) {
 
 void McpService::registerFacebookTools() {
     core_.addCategory("facebook", "Facebook",
-                      "Paginas de Facebook: vivos (crear, transmitir, publicar, terminar), videos, subidas y "
-                      "comentarios. Solo Paginas (la API no transmite a perfiles). Primero facebook_status.");
+                      "Páginas de Facebook: vivos (crear, transmitir, publicar, terminar), videos, subidas y "
+                      "comentarios. Solo Páginas (la API no transmite a perfiles). Primero facebook_status.");
     auto* fb = static_cast<FacebookViewModel*>(vm_.facebook());
     AppRuntime& rt = rt_;
     const auto needPage = [fb](Done& done) {

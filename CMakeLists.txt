@@ -7,9 +7,9 @@
 #
 # Reglas de la arquitectura (docs/prompts/primer_prompt.md §14, §3, §9):
 #   - C++20 obligatorio en todo el árbol.
-#   - `ba_core` es el núcleo: SIN Qt, SIN libobs, testeable por unidad.
+#   - `ba_core` es el núcleo: SIN Qt, SIN motor de video, testeable por unidad.
 #   - El launcher (`BroadcastAppliance`) es Win32 puro con CRT estático (/MT).
-#   - A (`ba-app`), B (`ba-gateway`) y el módulo (`ba-sources`) usan /MD.
+#   - A (`ba-app`) usa /MD; el gateway va /MT con el launcher (cmake/BaWinStaticPart.cmake).
 #   - Los PDBs se emiten siempre.
 #
 # Este archivo solo monta el andamiaje de build. Los sources los aportan los
@@ -23,7 +23,7 @@ cmake_minimum_required(VERSION 3.21)
 project(
     BroadcastAppliance
     VERSION 2.0.0
-    DESCRIPTION "Broadcast Appliance Portable v2 (libobs embebido + Gateway WebRTC + Supervisor)"
+    DESCRIPTION "Broadcast Appliance Portable v2 (motor GStreamer + Gateway WebRTC + Supervisor)"
     LANGUAGES C CXX
 )
 
@@ -31,6 +31,17 @@ project(
 # ESTATICA en un sub-build propio (cmake/BaWinStaticPart.cmake). Con esta
 # opcion en ON, este mismo arbol ES ese sub-build: solo core+launcher+gateway.
 option(BA_WIN_STATIC_PART "Sub-build interno de Windows: launcher y gateway /MT" OFF)
+
+# Un build que MIDE (diag/Perfil): la CPU de cada hilo y la GPU cada segundo, en la
+# app y en el gateway, a Logs/perfil-*.jsonl y la herramienta MCP `perfil`; también
+# las mediciones del motor (BA_MEDIR_VISTAS). Para encontrar dónde se va la CPU o la
+# GPU en una máquina. `make … PERFILAR=1`. Apagado, el programa queda igual.
+# Solo diag/Perfil.cpp lo ve (src/core/CMakeLists.txt): el resto pregunta
+# Perfil::activo(), así cambiarlo recompila un archivo y no el programa entero.
+option(BA_PERFILAR "Medir CPU por hilo y GPU (diagnóstico de rendimiento)" OFF)
+if(BA_PERFILAR)
+    message(STATUS "BA_PERFILAR: build que mide CPU y GPU")
+endif()
 
 # C++20 es obligatorio en todos los targets.
 set(CMAKE_CXX_STANDARD 20)
@@ -98,6 +109,14 @@ FetchContent_Declare(libsamplerate
 FetchContent_Declare(argon2
     GIT_REPOSITORY https://github.com/P-H-C/phc-winner-argon2.git
     GIT_TAG ${ARGON2_VERSION})
+# libdeflate (MIT): el gzip de ba-web (src/web). Solo la biblioteca estática.
+FetchContent_Declare(libdeflate
+    URL https://codeload.github.com/ebiggers/libdeflate/tar.gz/refs/tags/v${LIBDEFLATE_VERSION}
+    URL_HASH SHA256=${LIBDEFLATE_SHA256})
+set(LIBDEFLATE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_ZLIB_SUPPORT OFF CACHE BOOL "" FORCE)
 # Compilar mbedtls como lib estática, sin sus tests/programs/examples.
 set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
@@ -149,6 +168,12 @@ if(EXISTS "${_BA_EXTERN}/libsamplerate/CMakeLists.txt")
 else()
     message(STATUS "libsamplerate: sin extern/libsamplerate: usando git")
 endif()
+if(EXISTS "${_BA_EXTERN}/libdeflate/CMakeLists.txt")
+    set(FETCHCONTENT_SOURCE_DIR_LIBDEFLATE "${_BA_EXTERN}/libdeflate")
+    message(STATUS "libdeflate: usando vendored en extern/ (offline)")
+else()
+    message(STATUS "libdeflate: sin extern/libdeflate: se baja el tarball")
+endif()
 if(EXISTS "${_BA_EXTERN}/argon2/Makefile")
     set(FETCHCONTENT_SOURCE_DIR_ARGON2 "${_BA_EXTERN}/argon2")
     message(STATUS "argon2: usando vendored en extern/ (offline)")
@@ -160,7 +185,7 @@ endif()
 # pida que no, asi que sus reglas de install se mandan a un componente propio
 # ("thirdparty") y `make release` instala solo el del producto ("bundle").
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME thirdparty)
-FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2)
+FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2 libdeflate)
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME bundle)
 
 # Target `argon2` a mano (el repo no trae CMakeLists): lib estática con los
@@ -183,8 +208,8 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 # --- Flags del compilador ---------------------------------------------------
-# MSVC: flags del spec §14. /MD por defecto para A, B y el módulo (consistencia
-# con libobs y Qt); el launcher se pasa a /MT en su propio CMakeLists.
+# MSVC: flags del spec §14. /MD por defecto para A (consistencia
+# con Qt y GStreamer); el launcher se pasa a /MT en su propio CMakeLists.
 # Los PDBs se emiten SIEMPRE (debug info) incluso en Release.
 if(MSVC)
     add_compile_options(
@@ -199,6 +224,10 @@ if(MSVC)
     # /Zi garantiza PDBs en todos los configurados; PDBs de enlace siempre.
     add_compile_options(/Zi)
     add_link_options(/DEBUG)
+    # /DEBUG apaga por defecto /OPT:REF y /OPT:ICF (sacar lo que nadie usa y
+    # juntar funciones idénticas): se vuelven a prender fuera de Debug, así el
+    # código queda igual que sin símbolos. Los .pdb van aparte (dist/simbolos).
+    add_link_options($<$<NOT:$<CONFIG:Debug>>:/OPT:REF> $<$<NOT:$<CONFIG:Debug>>:/OPT:ICF>)
     # Windows 10+ (ConPTY, WinRT...) y sin min/max de windows.h. NOMINMAX y
     # WIN32_LEAN_AND_MEAN van VACIOS: identicos al `#define` que ya tienen
     # varios archivos (redefinirlos igual no es un aviso).
@@ -207,8 +236,10 @@ if(MSVC)
 else()
     # Linux (gcc/clang): advertencias estrictas razonables.
     add_compile_options(-Wall -Wextra)
-    # Debug info por defecto para poder correr los unit tests con sanitizers.
-    add_compile_options($<$<CONFIG:Debug>:-g>)
+    # Símbolos siempre (también en Release): -g no cambia el código que se
+    # genera, solo agrega la información para leer una pila. En macOS queda en
+    # los .o y dsymutil la junta en un .dSYM; en Linux va aparte (dist/simbolos).
+    add_compile_options(-g)
     # macOS: el equivalente del --as-needed que Ubuntu usa por defecto. Sin
     # esto, todo lo que enlaza ba_core arrastra las dylibs de sus dependencias
     # opcionales (ONNX Runtime) aunque no las use, y el launcher, que no tiene
@@ -227,8 +258,6 @@ include(CTest)
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
 # contra ella. El launcher solo existe en Windows (Win32 puro); el resto se
 # configura en ambas plataformas.
-# --- libobs portable (Linux y Windows) --------------------------------------
-# Define el target importado `ba::libobs` y `BA_HAVE_LIBOBS`. Ver el modulo.
 if(BA_WIN_STATIC_PART)
     add_subdirectory(src/core)
     add_subdirectory(src/launcher)
@@ -237,7 +266,6 @@ if(BA_WIN_STATIC_PART)
 endif()
 
 include(${CMAKE_SOURCE_DIR}/cmake/BaOnnxRuntime.cmake)
-include(${CMAKE_SOURCE_DIR}/cmake/BaLibObs.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaGStreamer.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaPython.cmake)
 include(${CMAKE_SOURCE_DIR}/cmake/BaHerramientas.cmake)
@@ -266,24 +294,34 @@ else()
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
 endif()
-add_subdirectory(src/app)
-add_subdirectory(src/grafico)
-add_subdirectory(src/obs-module)
-# Plugins de GStreamer propios (superresolución): solo si hay GStreamer.
+# ba-web: el servidor web público (C, estilo nginx), adelante del túnel. Lo lanza el gateway.
+add_subdirectory(src/web)
+# ba-pinggy (túnel de pinggy.io, lo supervisa el gateway) si se bajó libpinggy
+# con `make deps-pinggy`. Fuera del sub-build /MT de Windows: no enlaza ba_core.
+if(EXISTS "${CMAKE_SOURCE_DIR}/extern/pinggy")
+    add_subdirectory(src/pinggy)
+endif()
+# El motor de emisión es GStreamer (src/motor) y sus plugins propios: la app
+# los necesita (sin GStreamer, ba-app se compila sin motor: solo herramientas).
+set(BA_HAVE_MOTOR ${BA_HAVE_GST})
 if(BA_HAVE_GST)
     add_subdirectory(src/gst-plugins)
+    add_subdirectory(src/motor)
 endif()
+add_subdirectory(src/app)
+add_subdirectory(src/grafico)
+# El modelo local fuera de la Mac (llama.cpp): ver src/modelo-llama.
+add_subdirectory(src/modelo-llama)
 
 # --- Reglas de instalación (layout 5.1) -------------------------------------
-# El layout espeja el portable de OBS (spec §5.1). Las rutas de destino son
-# relativas a CMAKE_INSTALL_PREFIX. Aquí se crean los directorios del layout
-# y se instalan los targets propios; los runtime de terceros (OBS, CEF, Qt,
-# VC++, cloudflared) los copia `tools/deploy` sobre este esqueleto.
+# Layout portable (spec §5.1). Las rutas de destino son relativas a
+# CMAKE_INSTALL_PREFIX. Aquí se crean los directorios del layout y se instalan
+# los targets propios y los runtime de terceros (GStreamer, Qt, CRT, cloudflared,
+# cada uno desde su módulo de cmake/).
 #
 #   <prefix>/
-#   ├── bin/64bit/            # ejecutables y DLLs propias
-#   ├── obs-plugins/64bit/    # plugins de libobs (incluye ba-sources)
-#   ├── data/libobs/          # shaders (*.effect) de libobs
+#   ├── bin/64bit/            # ejecutables y bibliotecas (GStreamer, Qt)
+#   ├── gst-plugins/          # los plugins de GStreamer propios
 #   ├── Config/               # configuración del usuario
 #   ├── Logs/                 # logs rotativos y dumps
 #   ├── Recordings/           # grabación de respaldo
@@ -298,12 +336,6 @@ endif()
 # `install(DIRECTORY DESTINATION ...)` sin fuente crea el directorio vacío.
 install(DIRECTORY
     DESTINATION bin/64bit
-)
-install(DIRECTORY
-    DESTINATION obs-plugins/64bit
-)
-install(DIRECTORY
-    DESTINATION data/libobs
 )
 install(DIRECTORY
     DESTINATION Config
@@ -340,53 +372,6 @@ if(NOT WIN32 AND NOT APPLE)
     install(PROGRAMS packaging/bundle/crear-acceso-directo.sh
         DESTINATION . COMPONENT bundle
     )
-endif()
-
-# --- Runtime de libobs dentro del bundle (portable) -------------------------
-# El bundle tiene que correr en una maquina SIN nada instalado (README, "el
-# build es self-contained"). Para eso se lleva su propia libobs, su modulo
-# grafico y los plugins de codificacion/salida/captura, y los binarios los
-# buscan con rpath $ORIGIN, o sea JUNTO A ELLOS, nunca en el sistema.
-if(BA_HAVE_LIBOBS)
-    # Bibliotecas: libobs, libobs-opengl (o las DLL en Windows) -> bin/64bit.
-    install(FILES ${BA_LIBOBS_RUNTIME_LIBS} DESTINATION bin/64bit)
-    # macOS: libobs.framework es una carpeta (con enlaces simbolicos adentro).
-    foreach(_d IN LISTS BA_LIBOBS_RUNTIME_DIRS)
-        install(DIRECTORY "${_d}" DESTINATION bin/64bit USE_SOURCE_PERMISSIONS)
-    endforeach()
-    if(BA_LIBOBS_RUNTIME_PROGRAMS)
-        install(PROGRAMS ${BA_LIBOBS_RUNTIME_PROGRAMS} DESTINATION bin/64bit)
-    endif()
-
-    # Plugins de OBS (x264, ffmpeg, rtmp, captura) -> obs-plugins/64bit.
-    if(APPLE AND EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
-        # Bundles .plugin enteros (binario + Resources con sus datos).
-        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/" DESTINATION obs-plugins/64bit USE_SOURCE_PERMISSIONS)
-    elseif(EXISTS "${BA_LIBOBS_PLUGIN_DIR}")
-        set(_ba_excl "")
-        foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
-            list(APPEND _ba_excl PATTERN "${_p}.dll" EXCLUDE)
-        endforeach()
-        # CEF (navegador de OBS): no se usa.
-        list(APPEND _ba_excl PATTERN "libcef.dll" EXCLUDE PATTERN "chrome_elf.dll" EXCLUDE
-             PATTERN "libEGL.dll" EXCLUDE PATTERN "libGLESv2.dll" EXCLUDE PATTERN "locales" EXCLUDE)
-        install(DIRECTORY "${BA_LIBOBS_PLUGIN_DIR}/"
-            DESTINATION obs-plugins/64bit
-            FILES_MATCHING PATTERN "*.so" PATTERN "*.dll" ${_ba_excl})
-    endif()
-
-    # Datos de libobs y de sus plugins (shaders .effect, locales) -> data/.
-    if(EXISTS "${BA_LIBOBS_DATA_DIR}/libobs")
-        install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/libobs/" DESTINATION data/libobs)
-    endif()
-    if(EXISTS "${BA_LIBOBS_DATA_DIR}/obs-plugins")
-        set(_ba_excl "")
-        foreach(_p IN LISTS BA_LIBOBS_PLUGIN_EXCLUDE)
-            list(APPEND _ba_excl PATTERN "${_p}" EXCLUDE)
-        endforeach()
-        install(DIRECTORY "${BA_LIBOBS_DATA_DIR}/obs-plugins/"
-            DESTINATION data/obs-plugins ${_ba_excl})
-    endif()
 endif()
 
 # Runtime de C++ del compilador (Linux): bin/64bit/cxx/. El launcher lo usa
@@ -442,7 +427,7 @@ if(APPLE)
 endif()
 
 # El paso de rpath va DESPUES de copiar el runtime: reescribe lo ya instalado.
-if(BA_HAVE_LIBOBS AND NOT WIN32 AND NOT APPLE)
+if(NOT WIN32 AND NOT APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaPortableBundle.cmake)
 endif()
 

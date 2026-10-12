@@ -86,6 +86,13 @@ QByteArray preset(bool guardar, int numero, int direccion) {
     return b;
 }
 
+QByteArray velocidadPreset(int numero, double velocidad, int direccion) {
+    const int v = std::clamp(static_cast<int>(std::lround(1 + std::clamp(velocidad, 0.0, 1.0) * 0x17)), 1, 0x18);
+    QByteArray b = bytes({0, 0x01, 0x7E, 0x01, 0x0B, std::clamp(numero - 1, 0, 127), v, 0xFF});
+    b[0] = byteDir(direccion);
+    return b;
+}
+
 QByteArray borrarPreset(int numero, int direccion) {
     QByteArray b = bytes({0, 0x01, 0x04, 0x3F, 0x00, std::clamp(numero - 1, 0, 127), 0xFF});
     b[0] = byteDir(direccion);
@@ -284,9 +291,13 @@ QString getPresets(const QString& perfil) {
     return "<tptz:GetPresets>" + perfilXml(perfil) + "</tptz:GetPresets>";
 }
 
-QString gotoPreset(const QString& perfil, const QString& preset) {
-    return "<tptz:GotoPreset>" + perfilXml(perfil) + "<tptz:PresetToken>" + esc(preset) +
-           "</tptz:PresetToken></tptz:GotoPreset>";
+QString gotoPreset(const QString& perfil, const QString& preset, double velocidad) {
+    QString b = "<tptz:GotoPreset>" + perfilXml(perfil) + "<tptz:PresetToken>" + esc(preset) + "</tptz:PresetToken>";
+    if (velocidad > 0) {
+        const QString v = num(std::clamp(velocidad, 0.0, 1.0));
+        b += "<tptz:Speed><tt:PanTilt x=\"" + v + "\" y=\"" + v + "\"/><tt:Zoom x=\"" + v + "\"/></tptz:Speed>";
+    }
+    return b + "</tptz:GotoPreset>";
 }
 
 QString setPreset(const QString& perfil, const QString& nombre, const QString& preset) {

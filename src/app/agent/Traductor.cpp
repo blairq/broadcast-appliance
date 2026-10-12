@@ -1,6 +1,7 @@
 // src/app/agent/Traductor.cpp — ver Traductor.hpp
 
 #include "agent/Traductor.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
@@ -15,6 +16,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <sstream>
 #include <fstream>
 
 namespace fs = std::filesystem;
@@ -29,8 +31,8 @@ QString q(const std::string& s) { return QString::fromStdString(s); }
 
 QVariant qv(const json& j) {
     if (j.is_array() || j.is_object())
-        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).toVariant();
-    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump()))
+        return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).toVariant();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(json::array({j}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
         .toVariant()
         .toList()
         .value(0);
@@ -53,7 +55,7 @@ void escribirJson(const fs::path& p, const json& j) {
     const fs::path tmp = p.string() + ".tmp";
     {
         std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
-        f << j.dump(1);
+        f << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, p, ec);
 }
@@ -73,7 +75,7 @@ std::string clave(const json& e) {
     return v.empty() ? std::string() : QString::fromStdString(v[0]).toLower().toStdString();
 }
 const char* kIdiomas[] = {"es", "en", "pt", "fr", "de", "ru", "zh"};
-constexpr int kMaxCaidas = 5;
+inline int kMaxCaidas() { return ba::ajustes::entero("traductor.maxCaidas", 5); }
 } // namespace
 
 const std::map<std::string, std::string>& Traductor::nombresIdiomas() {
@@ -94,10 +96,7 @@ Traductor::Traductor(fs::path dataRoot, ModelosLocales& modelos, FlujosTexto& fl
     leerGlosario();
     connect(&flujos_, &FlujosTexto::frase, this, &Traductor::alFrase);
     connect(&modelos_, &ModelosLocales::descargaCambio, this, [this]() {
-        if (!modelos_.descargando()) {
-            emit cambio();
-            seguirBajando();
-        }
+        if (!modelos_.descargando()) emit cambio();
     });
 }
 
@@ -368,23 +367,9 @@ std::string Traductor::bajar(const std::string& de, const std::string& a) {
     std::string err;
     pasos(de, a, &err);
     if (!err.empty()) return err;
-    for (const auto& r : faltan(de, a))
-        if (std::find(porBajar_.begin(), porBajar_.end(), r.get<std::string>()) == porBajar_.end())
-            porBajar_.push_back(r);
-    if (porBajar_.empty()) return {};
-    seguirBajando();
+    // A la cola de descargas: la que ya está en la cola o bajada no se repite.
+    for (const auto& r : faltan(de, a)) modelos_.descargar(q(r.get<std::string>()));
     return {};
-}
-
-void Traductor::seguirBajando() {
-    if (modelos_.descargando()) return;
-    while (!porBajar_.empty()) {
-        const std::string r = porBajar_.front();
-        porBajar_.pop_front();
-        if (!modelos_.carpetaInstalada(q(r)).empty()) continue;
-        modelos_.descargar(q(r));
-        return;
-    }
 }
 
 // --- El motor -------------------------------------------------------------------------------
@@ -401,7 +386,7 @@ void Traductor::arrancarMotor() {
     std::error_code ec;
     if (!fs::exists(python, ec) || !fs::exists(script, ec)) {
         motor_ = "error: el programa no trae el Python o el traductor";
-        emit cambio();
+        fallarCola();
         return;
     }
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -414,10 +399,20 @@ void Traductor::arrancarMotor() {
     if (!hijo_->iniciar(q(python), {"-I", "-B", q(script)}, env, q(raiz), false, &err)) {
         motor_ = "error: " + err;
         hijo_.reset();
-        emit cambio();
+        fallarCola();
         return;
     }
     motor_ = "arrancando";
+    emit cambio();
+}
+
+void Traductor::fallarCola() {
+    // Si el motor no arranca, lo pedido se contesta con el error: antes quedaba
+    // esperando para siempre (y el MCP `traducir` no volvía).
+    auto cola = std::move(cola_);
+    cola_.clear();
+    for (auto& p : cola)
+        p.listo({{"error", motor_.toStdString()}});
     emit cambio();
 }
 
@@ -454,7 +449,7 @@ void Traductor::alSalir() {
     enCurso_.clear();
     for (auto& [id, cb] : pend)
         cb({{"error", "el traductor se cerró"}});
-    if (++caidas_ > kMaxCaidas) {
+    if (++caidas_ > kMaxCaidas()) {
         motor_ = "error: el traductor se cayó varias veces seguidas (ver Logs)";
         for (auto& p : cola_)
             p.listo({{"error", motor_.toStdString()}});
@@ -464,7 +459,7 @@ void Traductor::alSalir() {
     }
     motor_ = "apagado";
     emit cambio();
-    if (!cola_.empty()) QTimer::singleShot(500, this, [this]() { arrancarMotor(); });
+    if (!cola_.empty()) QTimer::singleShot(ba::ajustes::entero("traductor.relanzarMs", 500), this, [this]() { arrancarMotor(); });
 }
 
 void Traductor::mandar() {
@@ -479,7 +474,7 @@ void Traductor::mandar() {
             cb(std::move(r));
             QTimer::singleShot(0, this, [this]() { mandar(); });
         };
-        hijo_->escribir(QByteArray::fromStdString(p.mensaje.dump() + "\n"));
+        hijo_->escribir(QByteArray::fromStdString(p.mensaje.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace) + "\n"));
     }
 }
 
@@ -522,7 +517,7 @@ bool cierra(const QString& t) {
     return c == '.' || c == '?' || c == '!' || c == QChar(0x2026) || c == QChar(0x3002) || c == ':' ||
            c == ';';
 }
-constexpr int kLargoMaximo = 280; ///< caracteres: más que esto no se espera
+inline std::size_t kLargoMaximo() { return static_cast<std::size_t>(ba::ajustes::entero("traductor.largoMax", 280)); } ///< caracteres: más que esto no se espera
 } // namespace
 
 void Traductor::alFrase(const QString& flujo, const QString& texto) {
@@ -544,7 +539,7 @@ void Traductor::alFrase(const QString& flujo, const QString& texto) {
         if (cierra(j.texto)) {
             j.timer->stop();
             soltar(id);
-        } else if (j.texto.size() > kLargoMaximo || ahora - j.desde >= maximo) {
+        } else if (j.texto.size() > kLargoMaximo() || ahora - j.desde >= maximo) {
             // Demasiado largo o demasiado tiempo sin punto: se traduce hasta la
             // última coma (si deja algo razonable) y el resto sigue juntándose.
             j.timer->stop();
@@ -638,6 +633,73 @@ json Traductor::glosario() const {
     return out;
 }
 
+std::string Traductor::glosarioCsv() const {
+    const auto campo = [](std::string v) {
+        for (auto& c : v)
+            if (c == ';' || c == '\n' || c == '\r') c = ' ';
+        return v;
+    };
+    std::string out = "es;en;pt;fr;de;ru;zh;grupo;revisado_por\n";
+    for (const auto& e : glosario()) {
+        std::string es;
+        for (const auto& f : variantes(e)) es += (es.empty() ? "" : "|") + f;
+        out += campo(es);
+        for (const char* k : {"en", "pt", "fr", "de", "ru", "zh"}) out += ";" + campo(e.value(k, std::string()));
+        out += ";" + campo(e.value("grupo", std::string())) + ";" + campo(e.value("revisado_por", std::string())) + "\n";
+    }
+    return out;
+}
+
+std::string Traductor::glosarioImportarCsv(const std::string& csv, const std::string& revisadoPor, int* cuantos) {
+    if (revisadoPor.empty()) return "falta `revisado_por`: quién revisó el glosario";
+    std::istringstream is(csv);
+    std::string l;
+    int n = 0;
+    std::vector<std::string> errores;
+    while (std::getline(is, l)) {
+        if (!l.empty() && l.back() == '\r') l.pop_back();
+        if (l.empty() || l.rfind("es;", 0) == 0) continue; // encabezado
+        std::vector<std::string> c;
+        std::string x;
+        std::istringstream cs(l);
+        while (std::getline(cs, x, ';')) c.push_back(x);
+        while (c.size() < 9) c.emplace_back();
+        json e = json::object();
+        json formas = json::array();
+        std::istringstream fs(c[0]);
+        while (std::getline(fs, x, '|'))
+            if (!x.empty()) formas.push_back(x);
+        e["es"] = formas;
+        const char* idiomas[] = {"en", "pt", "fr", "de", "ru", "zh"};
+        for (int i = 0; i < 6; ++i)
+            if (!c[static_cast<std::size_t>(i + 1)].empty()) e[idiomas[i]] = c[static_cast<std::size_t>(i + 1)];
+        if (!c[7].empty()) e["grupo"] = c[7];
+        e["revisado_por"] = revisadoPor;
+        if (const std::string err = glosarioAgregar(e); !err.empty()) errores.push_back(c[0] + ": " + err);
+        else ++n;
+    }
+    if (cuantos != nullptr) *cuantos = n;
+    if (n == 0) return errores.empty() ? "el CSV no tiene términos" : errores.front();
+    return {};
+}
+
+QString Traductor::glosarioExportarUi() {
+    const fs::path ruta = archivoGlosario().parent_path() / "glosario-para-revision.csv";
+    std::ofstream o(ruta);
+    if (!o) return {};
+    o << glosarioCsv();
+    return QString::fromStdString(ruta.string());
+}
+
+QString Traductor::glosarioImportarUi(const QUrl& url, const QString& revisadoPor) {
+    std::ifstream f(url.toLocalFile().toStdString());
+    if (!f) return "no pude leer el archivo";
+    const std::string csv((std::istreambuf_iterator<char>(f)), {});
+    int n = 0;
+    const std::string e = glosarioImportarCsv(csv, revisadoPor.trimmed().toStdString(), &n);
+    return QString::fromStdString(e);
+}
+
 json Traductor::glosarioActivo() const {
     json out = json::array();
     for (const auto& e : glosario())
@@ -665,6 +727,8 @@ std::string Traductor::glosarioAgregar(const json& entrada) {
     for (const char* k : kIdiomas)
         if (e.contains(k)) limpio[k] = e[k];
     if (e.contains("grupo") && e["grupo"].is_string()) limpio["grupo"] = e["grupo"];
+    if (e.contains("revisado_por") && e["revisado_por"].is_string() && !e["revisado_por"].get<std::string>().empty())
+        limpio["revisado_por"] = e["revisado_por"];
     auto& t = operador_["terminos"];
     const std::string c = clave(limpio);
     t.erase(std::remove_if(t.begin(), t.end(), [&](const json& x) { return clave(x) == c; }), t.end());
@@ -746,7 +810,8 @@ QVariantList Traductor::gruposQml() const {
         apagados.insert(x.get<std::string>());
     QVariantList out;
     static const std::map<std::string, std::string> nombres{{"general", "Generales de cabina"},
-                                                            {"legislativo-chubut", "Legislatura del Chubut"},
+                                                            {"asamblea", "Términos de asamblea"},
+                                                            {"localidades", "Localidades"},
                                                             {"operador", "Agregados por el operador"}};
     for (const auto& [k, v] : g) {
         const auto n = nombres.find(k);

@@ -26,6 +26,15 @@ json diagnosticar(const json& e) {
     const json g = e.value("gstreamer", json::object());
     const bool esGst = !g.empty();
 
+    // 0) Que se esté mostrando: sin eso OBS no la dibuja, y su grafo de tarjetas
+    //    (superresolución, filtros) no trabaja; el tamaño que informa es el de
+    //    la cámara, no el de la salida del grafo.
+    if (e.contains("mostrandose") && !e.value("mostrandose", true))
+        agregar(out, "info", "grafo",
+                "no se está mostrando (no está en programa ni en la vista previa): su grafo de tarjetas no trabaja "
+                "y el tamaño que informa es el de la entrada, sin procesar",
+                "ponela en una escena visible (scene_preview o scene_switch) para ver el resultado de sus tarjetas");
+
     // 1) Que ande.
     const bool iniciando = e.value("error", std::string()) == "GStreamer se está iniciando";
     if (iniciando)
@@ -100,13 +109,14 @@ json diagnosticar(const json& e) {
                 normalizado ? "nada" : "normalizarla");
 
     // 5) Tamaño.
-    const int ancho = e.value("ancho", 0);
-    if (ancho > 0 && lienzo.value("ancho", 0) > 0 &&
-        std::fabs(static_cast<double>(ancho) / std::max(1, alto) -
+    // Lo que sale (después de los filtros): ancho y alto del mismo lado.
+    const int ancho = e.value("ancho", 0), altoSale = e.value("alto", 0);
+    if (ancho > 0 && altoSale > 0 && lienzo.value("ancho", 0) > 0 &&
+        std::fabs(static_cast<double>(ancho) / altoSale -
                   static_cast<double>(lienzo.value("ancho", 1)) / std::max(1, lienzo.value("alto", 1))) >
             0.05)
         agregar(out, "info", "tamaño",
-                "su proporción (" + std::to_string(ancho) + "x" + std::to_string(alto) +
+                "su proporción (" + std::to_string(ancho) + "x" + std::to_string(altoSale) +
                     ") no es la del lienzo: en la escena "
                     "quedan bandas o se estira",
                 "en un compositor la capa la encaja sola (ajuste «encajar»); en una escena, ajustar la "

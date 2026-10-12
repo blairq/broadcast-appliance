@@ -9,7 +9,7 @@
 #   misma maquina es la unica forma.
 #
 # POR QUE LA COMPILACION DE CPU y no una con GPU. Porque la GPU YA ESTA
-# OCUPADA: libobs se come 42 ms por cuadro armando el programa (medido). No
+# OCUPADA: el motor de video se come 42 ms por cuadro armando el programa (medido con libobs). No
 # hay placa libre mientras el aparato trabaja, y pelearsela al motor de video
 # para ganar unos milisegundos de texto es el peor negocio posible.
 #

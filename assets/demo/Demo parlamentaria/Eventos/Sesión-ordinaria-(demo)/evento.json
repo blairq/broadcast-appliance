@@ -1,0 +1,90 @@
+{
+  "autoAceptar": [],
+  "bloques": [
+    {
+      "cues": [
+        {
+          "automatico": false,
+          "datos": {
+            "escena": "Asamblea · Plano general"
+          },
+          "duracionSeg": 0,
+          "id": "c2-12416",
+          "texto": "Plano general del recinto",
+          "tipo": "escena"
+        },
+        {
+          "automatico": false,
+          "datos": {},
+          "duracionSeg": 0,
+          "id": "c3-15708",
+          "texto": "La presidencia abre la sesión y verifica el quórum",
+          "tipo": "nota"
+        }
+      ],
+      "id": "b1-95125",
+      "nombre": "Apertura",
+      "nota": ""
+    },
+    {
+      "cues": [
+        {
+          "automatico": false,
+          "datos": {},
+          "duracionSeg": 0,
+          "id": "c5-38541",
+          "texto": "La palabra la da la presidencia (fila de oradores, consola o botonera); los remotos entran por el celular",
+          "tipo": "nota"
+        }
+      ],
+      "id": "b4-69583",
+      "nombre": "Orden del día",
+      "nota": ""
+    },
+    {
+      "cues": [
+        {
+          "automatico": false,
+          "datos": {},
+          "duracionSeg": 0,
+          "id": "c7-72416",
+          "texto": "Debate entre dos (debate_iniciar): la escena sale sola según sean de la sala o remotos",
+          "tipo": "nota"
+        }
+      ],
+      "id": "b6-44208",
+      "nombre": "Debate",
+      "nota": ""
+    },
+    {
+      "cues": [
+        {
+          "automatico": false,
+          "datos": {
+            "escena": "Asamblea · Plano general"
+          },
+          "duracionSeg": 0,
+          "id": "c9-94583",
+          "texto": "Plano general",
+          "tipo": "escena"
+        },
+        {
+          "automatico": false,
+          "datos": {},
+          "duracionSeg": 0,
+          "id": "c10-6583",
+          "texto": "La presidencia levanta la sesión",
+          "tipo": "nota"
+        }
+      ],
+      "id": "b8-98083",
+      "nombre": "Cierre",
+      "nota": ""
+    }
+  ],
+  "fecha": "2026-10-15",
+  "huso": "America/Argentina/Buenos_Aires",
+  "inicio": "18:00",
+  "nombre": "Sesión ordinaria (demo)",
+  "nota": ""
+}

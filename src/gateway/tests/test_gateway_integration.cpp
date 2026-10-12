@@ -342,7 +342,7 @@ int main() {
         json offer;
         offer["type"] = "offer";
         offer["sdp"] = kOfferSdp;
-        const std::vector<uint8_t> frame = Frame::encodeFrame(offer.dump());
+        const std::vector<uint8_t> frame = Frame::encodeFrame(offer.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         CHECK(writeWsFrame(fd, 0x2, std::string(frame.begin(), frame.end())),
               "enviar offer (Frame + frame WS binario)");
     }

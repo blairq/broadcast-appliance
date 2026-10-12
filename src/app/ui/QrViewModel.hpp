@@ -128,6 +128,20 @@ class QrViewModel : public QObject {
     QVariantMap paraProyectar(const QString& id) const;
     /// Lo guardado de los DOS ámbitos, para listarlo de una.
     QVariantList todos() const;
+
+    // --- Para elegir un QR desde otro lado (una pantalla, una escena) -----------
+    // Los del aparato están SIEMPRE (no hace falta haberlos guardado): «aparato:publico»,
+    // «aparato:sala», «aparato:prompter», «aparato:rotulos»; después los guardados (su id).
+    /// [{value, label}] en ese orden.
+    Q_INVOKABLE QVariantList paraElegir() const;
+    /// Lo de `paraProyectar` para lo elegido (un id o «aparato:x»). Un QR del aparato que
+    /// la sala todavía no dio vuelve con {pendiente: true} (y se le pide).
+    Q_INVOKABLE QVariantMap paraProyectarElegido(const QString& elegido);
+    /// El SVG de lo elegido; si no se eligió nada, el de `textoLibre`. Vacío si todavía no
+    /// hay qué codificar (un QR del aparato sin la sala, por ejemplo).
+    QString svgElegido(const QString& elegido, const QString& textoLibre);
+    /// El que anda (para las fuentes de las escenas, que no lo reciben).
+    static QrViewModel* elDeLaApp();
     /// Escribe un SVG en un archivo de Exportado/. Devuelve la ruta o vacío.
     QString escribir(const QString& svgTexto, const QString& nombre, const QString& formato, int px) const;
 

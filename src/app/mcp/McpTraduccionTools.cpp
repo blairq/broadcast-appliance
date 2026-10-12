@@ -7,6 +7,7 @@
 // archivo que dice glosario_ver (Datos/Config/glosario-traduccion.json).
 // ============================================================================
 
+#include "agent/Subtitulos.hpp"
 #include "agent/Traductor.hpp"
 #include "agent/Voz.hpp"
 #include "mcp/McpService.hpp"
@@ -15,8 +16,7 @@
 
 #include <QPointer>
 
-#include <obs.h>
-
+#include <fstream>
 #include <string>
 
 namespace ba::app::mcp {
@@ -230,30 +230,11 @@ void McpService::registerTraduccionTools() {
         x.inputSchema = {{"type", "object"},
                          {"properties", {{"nombre", {{"type", "string"}}}, {"flujo", {{"type", "string"}}}}}};
         x.run = [](const json& a, Done done) {
-            struct B {
-                std::string nombre, flujo;
-                int cuantos = 0;
-            } b{a.value("nombre", std::string()), a.value("flujo", std::string())};
-            obs_enum_sources(
-                [](void* p, obs_source_t* s) {
-                    auto* b = static_cast<B*>(p);
-                    const char* id = obs_source_get_unversioned_id(s);
-                    if (id == nullptr || std::string(id) != "ba_subtitulos") return true;
-                    if (!b->nombre.empty() && b->nombre != obs_source_get_name(s)) return true;
-                    obs_data_t* d = obs_source_get_settings(s);
-                    const bool es = b->flujo.empty() || b->flujo == obs_data_get_string(d, "flujo");
-                    obs_data_release(d);
-                    if (!es) return true;
-                    calldata_t cd;
-                    calldata_init(&cd);
-                    proc_handler_call(obs_source_get_proc_handler(s), "limpiar", &cd);
-                    calldata_free(&cd);
-                    ++b->cuantos;
-                    return true;
-                },
-                &b);
-            if (b.cuantos == 0) return done(ToolResult::error("no hay cuadros «Subtítulos» que coincidan"));
-            done(ToolResult().text("Borrados " + std::to_string(b.cuantos) + " cuadro(s) de subtítulos."));
+            agent::Subtitulos* sub = agent::Subtitulos::activo();
+            const int cuantos =
+                sub != nullptr ? sub->limpiar(a.value("nombre", std::string()), a.value("flujo", std::string())) : 0;
+            if (cuantos == 0) return done(ToolResult::error("no hay cuadros «Subtítulos» que coincidan"));
+            done(ToolResult().text("Borrados " + std::to_string(cuantos) + " cuadro(s) de subtítulos."));
         };
         core_.addTool(std::move(x));
     }
@@ -265,7 +246,7 @@ void McpService::registerTraduccionTools() {
         x.readOnly = true;
         x.description = "Los términos que la traducción respeta (castellano -> en, pt, fr, de, ru, zh), por "
                         "grupo («general», "
-                        "«legislativo-chubut», «operador»), cuáles están activos, y `archivo`: el JSON del "
+                        "«asamblea», «operador»), cuáles están activos, y `archivo`: el JSON del "
                         "operador, que también se puede "
                         "editar directamente (se suma al de fábrica y lo pisa). Con `buscar` filtra.";
         x.inputSchema = {{"type", "object"},
@@ -277,11 +258,75 @@ void McpService::registerTraduccionTools() {
             json out = json::array();
             for (const auto& e : t->glosario()) {
                 if (!g.empty() && e.value("grupo", "") != g) continue;
-                if (!b.isEmpty() && !QString::fromStdString(e.dump()).toLower().contains(b)) continue;
+                if (!b.isEmpty() && !QString::fromStdString(e.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)).toLower().contains(b)) continue;
                 out.push_back(e);
             }
             done(ToolResult().data(
                 {{"terminos", out}, {"cuantos", out.size()}, {"archivo", t->archivoGlosario().string()}}));
+        };
+        core_.addTool(std::move(x));
+    }
+    {
+        Tool x;
+        x.name = "glosario_exportar";
+        x.title = "Exportar el glosario para revisión";
+        x.category = "traduccion";
+        x.readOnly = true;
+        x.description = "El glosario en CSV («es;en;pt;fr;de;ru;zh;grupo;revisado_por», las formas en castellano "
+                        "separadas por «|») para que lo revise la institución. Con `archivo`, lo escribe ahí.";
+        x.inputSchema = {{"type", "object"}, {"properties", {{"archivo", {{"type", "string"}}}}}};
+        x.run = [t](const json& a, Done done) {
+            if (!t) return done(ToolResult::error("el traductor no está"));
+            const std::string csv = t->glosarioCsv();
+            const std::string ruta = a.value("archivo", std::string());
+            if (!ruta.empty()) {
+                std::ofstream o(ruta);
+                if (!o) return done(ToolResult::error("no pude escribir " + ruta));
+                o << csv;
+                return done(ToolResult::ok("Escrito en " + ruta));
+            }
+            done(ToolResult().text(csv));
+        };
+        core_.addTool(std::move(x));
+    }
+    {
+        Tool x;
+        x.name = "glosario_importar";
+        x.title = "Importar el glosario revisado";
+        x.category = "traduccion";
+        x.description = "Vuelve el CSV revisado (`csv`, o `archivo`): cada fila suma o pisa un término con la marca "
+                        "`revisado_por` (quién lo revisó: obligatorio).";
+        x.inputSchema = {{"type", "object"},
+                         {"required", {"revisado_por"}},
+                         {"properties",
+                          {{"csv", {{"type", "string"}}}, {"archivo", {{"type", "string"}}}, {"revisado_por", {{"type", "string"}}}}}};
+        x.run = [t](const json& a, Done done) {
+            if (!t) return done(ToolResult::error("el traductor no está"));
+            std::string csv = a.value("csv", std::string());
+            if (csv.empty() && a.contains("archivo")) {
+                std::ifstream f(a.value("archivo", std::string()));
+                if (!f) return done(ToolResult::error("no pude leer el archivo"));
+                csv.assign(std::istreambuf_iterator<char>(f), {});
+            }
+            int n = 0;
+            const std::string e = t->glosarioImportarCsv(csv, a.value("revisado_por", std::string()), &n);
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("Importados " + std::to_string(n) + " términos revisados."));
+        };
+        core_.addTool(std::move(x));
+    }
+    {
+        Tool x;
+        x.name = "traduccion_rotulo";
+        x.title = "Rotular la traducción automática";
+        x.category = "traduccion";
+        x.description = "Mientras salga una traducción en un cuadro de subtítulos o en los subtítulos ocultos, una "
+                        "capa DSK muestra «Traducción automática» (prendido de fábrica; se va 15 s despues de la ultima "
+                        "frase). `activo` lo prende o apaga; sin argumentos, el estado.";
+        x.inputSchema = {{"type", "object"}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
+        x.run = [this](const json& a, Done done) {
+            if (a.contains("activo")) vm_.setRotuloTraduccion(a.value("activo", true));
+            done(ToolResult().data(vm_.rotuloTraduccionEstado()));
         };
         core_.addTool(std::move(x));
     }
@@ -325,7 +370,7 @@ void McpService::registerTraduccionTools() {
         x.description =
             "Saca el término `es` (uno de fábrica queda apagado, no se borra). Con `grupo` y `activo`, "
             "prende o "
-            "apaga un grupo entero (p. ej. «legislativo-chubut» fuera de una sesión legislativa).";
+            "apaga un grupo entero (p. ej. «asamblea» fuera de una asamblea).";
         x.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"es", {{"type", "string"}}},

@@ -237,9 +237,49 @@ void testNoNaNBounded() {
     }
 }
 
+/// 8) Por bloques (un hilo por canal): el que habla pasa al frente, el hold
+///    se cuenta en muestras del canal aunque los otros llamen más seguido.
+void testBlocks() {
+    Automixer am(4);
+    am.setParams(testParams(), /*smoothMs=*/0.0);
+    const int bloque = 480; // 10 ms
+    // 200 ms: A habla fuerte, B apenas tiene ruido (bajo el umbral).
+    for (int i = 0; i < 20; ++i) {
+        am.setLevelBlock(0, 0.5f, bloque);
+        am.setLevelBlock(1, 0.0005f, bloque);
+    }
+    CHECK(am.gainFor(0) > 0.9f);
+    CHECK(am.gainFor(1) < 0.1f);
+    CHECK(am.gainFor(0) + am.gainFor(1) <= 1.01f);
+    // A se calla: 50 ms después sigue con el piso del hold (100 ms) aunque B
+    // mande el doble de bloques (otro tamaño de bloque).
+    for (int i = 0; i < 5; ++i) {
+        am.setLevelBlock(0, 0.0f, bloque);
+        am.setLevelBlock(1, 0.0f, bloque / 2);
+        am.setLevelBlock(1, 0.0f, bloque / 2);
+    }
+    CHECK(am.gainFor(0) >= static_cast<float>(dbToLin(-20.0)) - 1e-4f);
+    // 400 ms más con B hablando: la envolvente de A cae bajo el umbral (~310 ms
+    // con 50 ms de liberación), el hold vence 100 ms después y B pasa al frente.
+    for (int i = 0; i < 40; ++i) {
+        am.setLevelBlock(0, 0.0f, bloque);
+        am.setLevelBlock(1, 0.5f, bloque);
+    }
+    CHECK(am.gainFor(0) < 0.05f);
+    CHECK(am.gainFor(1) > 0.9f);
+    // Un bloque de 480 equivale a 480 muestras sueltas (misma envolvente).
+    Automixer a1(1), a2(1);
+    a1.setParams(testParams(), 0.0);
+    a2.setParams(testParams(), 0.0);
+    a1.setLevelBlock(0, 0.3f, bloque);
+    for (int i = 0; i < bloque; ++i) a2.setLevel(0, 0.3f);
+    CHECK(std::fabs(a1.gainFor(0) - a2.gainFor(0)) < 1e-3f);
+}
+
 } // namespace
 
 int main() {
+    testBlocks();
     testOneActive();
     testTwoEqual();
     testNEqual();

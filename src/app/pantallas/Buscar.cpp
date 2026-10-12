@@ -11,6 +11,12 @@
 #if defined(BA_HAVE_MDNS)
 #include <microdns/microdns.h>
 #include <microdns/rr.h>
+
+#include <QByteArray>
+#include <QElapsedTimer>
+#include <QHostAddress>
+#include <QRandomGenerator>
+#include <QUdpSocket>
 #endif
 
 namespace ba::app::pantallas {
@@ -93,25 +99,151 @@ void recibir(void* cookie, int status, const struct rr_entry* entries) {
     }
 }
 
+// --- Sin el puerto 5353: la pregunta «unicast heredada» (RFC 6762 §6.7) ----------
+// libmicrodns escucha en el 5353, y en la Mac (y en una PC con otro programa de
+// mDNS) ese puerto ya es del sistema: no se puede abrir. Preguntando desde un
+// puerto cualquiera, cada aparato contesta DIRECTO a ese puerto, con todo lo que
+// sabe (PTR, SRV, TXT y A). No necesita ningún puerto fijo ni permisos.
+
+/// Un nombre de DNS desde `pos` (con punteros de compresión). Avanza `pos` si `avanzar`.
+std::string leerNombre(const QByteArray& m, int& pos, int saltos = 0) {
+    std::string out;
+    int p = pos;
+    bool salto = false;
+    while (p < m.size() && saltos < 16) {
+        const auto largo = static_cast<unsigned char>(m[p]);
+        if (largo == 0) {
+            ++p;
+            break;
+        }
+        if ((largo & 0xC0) == 0xC0) {
+            if (p + 1 >= m.size()) break;
+            int destino = ((largo & 0x3F) << 8) | static_cast<unsigned char>(m[p + 1]);
+            if (!salto) pos = p + 2;
+            salto = true;
+            const std::string resto = leerNombre(m, destino, saltos + 1);
+            if (!resto.empty()) out += (out.empty() ? "" : ".") + resto;
+            return out;
+        }
+        if (p + 1 + largo > m.size()) break;
+        out += (out.empty() ? "" : ".") + m.mid(p + 1, largo).toStdString();
+        p += 1 + largo;
+    }
+    if (!salto) pos = p;
+    return out;
+}
+
+int leer16(const QByteArray& m, int p) {
+    return (static_cast<unsigned char>(m[p]) << 8) | static_cast<unsigned char>(m[p + 1]);
+}
+
+void leerRespuesta(const QByteArray& m, Busqueda& b) {
+    if (m.size() < 12) return;
+    const int preguntas = leer16(m, 4);
+    const int registros = leer16(m, 6) + leer16(m, 8) + leer16(m, 10);
+    int pos = 12;
+    for (int i = 0; i < preguntas && pos < m.size(); ++i) {
+        leerNombre(m, pos);
+        pos += 4;
+    }
+    for (int i = 0; i < registros && pos + 10 <= m.size(); ++i) {
+        const std::string nombre = leerNombre(m, pos);
+        if (pos + 10 > m.size()) return;
+        const int tipo = leer16(m, pos);
+        const int largo = leer16(m, pos + 8);
+        const int datos = pos + 10;
+        if (datos + largo > m.size()) return;
+        switch (tipo) {
+            case 33: { // SRV: prioridad, peso, puerto, destino
+                if (largo < 7) break;
+                Parcial& p = b.porServicio[nombreCorto(nombre)];
+                p.puerto = leer16(m, datos + 4);
+                int d = datos + 6;
+                p.destino = leerNombre(m, d);
+                break;
+            }
+            case 16: { // TXT: cadenas con su largo adelante
+                Parcial& p = b.porServicio[nombreCorto(nombre)];
+                for (int q = datos; q < datos + largo;) {
+                    const int l = static_cast<unsigned char>(m[q]);
+                    const std::string kv = m.mid(q + 1, l).toStdString();
+                    if (kv.rfind("fn=", 0) == 0) p.nombre = kv.substr(3);
+                    else if (kv.rfind("md=", 0) == 0) p.modelo = kv.substr(3);
+                    q += 1 + l;
+                }
+                break;
+            }
+            case 1: // A
+                if (largo == 4)
+                    b.ips[nombre] = QHostAddress(static_cast<quint32>((static_cast<unsigned char>(m[datos]) << 24) |
+                                                                      (static_cast<unsigned char>(m[datos + 1]) << 16) |
+                                                                      (static_cast<unsigned char>(m[datos + 2]) << 8) |
+                                                                      static_cast<unsigned char>(m[datos + 3])))
+                                        .toString()
+                                        .toStdString();
+                break;
+            default: break;
+        }
+        pos = datos + largo;
+    }
+}
+
+bool buscarUnicast(int segundos, Busqueda& b) {
+    QUdpSocket s;
+    if (!s.bind(QHostAddress::AnyIPv4, 0)) return false;
+    // La pregunta: id ≠ 0 (así se reconoce la unicast heredada), una pregunta PTR.
+    QByteArray q;
+    const auto id = static_cast<quint16>(QRandomGenerator::global()->bounded(1, 0xFFFF));
+    q.append(static_cast<char>(id >> 8)).append(static_cast<char>(id & 0xFF));
+    q.append(QByteArray("\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00", 10));
+    for (const char* parte : {"_googlecast", "_tcp", "local"}) {
+        q.append(static_cast<char>(std::strlen(parte))).append(parte);
+    }
+    q.append(QByteArray("\x00\x00\x0c\x00\x01", 5)); // fin del nombre, PTR, IN
+    const QHostAddress grupo("224.0.0.251");
+    QElapsedTimer t;
+    t.start();
+    qint64 ultimaPregunta = -1000;
+    while (t.elapsed() < segundos * 1000) {
+        // Repregunta cada segundo: es UDP, y un televisor dormido tarda en contestar.
+        if (t.elapsed() - ultimaPregunta >= 1000) {
+            s.writeDatagram(q, grupo, 5353);
+            ultimaPregunta = t.elapsed();
+        }
+        if (s.waitForReadyRead(200))
+            while (s.hasPendingDatagrams()) {
+                QByteArray r(static_cast<int>(s.pendingDatagramSize()), '\0');
+                s.readDatagram(r.data(), r.size());
+                leerRespuesta(r, b);
+            }
+    }
+    return true;
+}
+
 } // namespace
 
 bool sePuedeBuscar() { return true; }
 
 std::vector<Encontrado> buscar(int segundos, std::string* error) {
-    mdns_ctx* ctx = nullptr;
-    if (mdns_init(&ctx, MDNS_ADDR_IPV4, MDNS_PORT) < 0) {
-        if (error != nullptr)
-            *error = "No pude abrir el mDNS para buscar en la red (¿hay otro programa usando el puerto "
-                     "5353, o el firewall lo bloquea?).";
-        return {};
-    }
     Busqueda b;
     b.vence = ahoraMs() + static_cast<std::int64_t>(segundos) * 1000;
-    const char* nombres[] = {kServicio};
-    // `interval` 1: repregunta cada segundo, porque una sola pregunta se puede
-    // perder (es UDP a multicast) y un televisor dormido tarda en contestar.
-    const int r = mdns_listen(ctx, nombres, 1, RR_PTR, 1, parar, recibir, &b);
-    mdns_destroy(ctx);
+    int r = 0;
+    mdns_ctx* ctx = nullptr;
+    if (mdns_init(&ctx, MDNS_ADDR_IPV4, MDNS_PORT) < 0) {
+        // El 5353 está tomado (en la Mac, siempre: es del sistema): la pregunta unicast heredada.
+        if (!buscarUnicast(segundos, b)) {
+            if (error != nullptr)
+                *error = "No pude buscar en la red (¿el firewall bloquea el mDNS?): agregá el televisor a mano "
+                         "con su dirección IP.";
+            return {};
+        }
+    } else {
+        const char* nombres[] = {kServicio};
+        // `interval` 1: repregunta cada segundo, porque una sola pregunta se puede
+        // perder (es UDP a multicast) y un televisor dormido tarda en contestar.
+        r = mdns_listen(ctx, nombres, 1, RR_PTR, 1, parar, recibir, &b);
+        mdns_destroy(ctx);
+    }
     if (r < 0 && b.porServicio.empty()) {
         char buf[128] = {0};
         mdns_strerror(r, buf, sizeof(buf));

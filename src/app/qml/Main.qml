@@ -10,6 +10,22 @@ import "pages"
 
 ApplicationWindow {
     id: win
+    // Modo prueba (--test): el MCP no pide aprobaciones. Siempre a la vista.
+    Rectangle {
+        visible: Studio.modoTest
+        z: 100000
+        anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: 4 }
+        width: avisoTest.implicitWidth + 24; height: 20; radius: 4
+        color: "#c62828"
+        Text { id: avisoTest; anchors.centerIn: parent; color: "white"; font.pixelSize: 11; font.bold: true
+               text: "MODO PRUEBA (--test): el asistente actúa SIN pedir aprobación, ni siquiera en el aire" }
+    }
+    // El disco en apuros (controls/AvisoDisco.qml): arriba y a la vista desde cualquier página.
+    AvisoDisco {
+        z: 99999
+        anchors { top: parent.top; horizontalCenter: parent.horizontalCenter; topMargin: 64 }
+        width: Math.min(760, parent.width - 160)
+    }
     objectName: "ba:principal" // ver PageWindow.qml
     visible: true
     width: 1600
@@ -41,6 +57,62 @@ ApplicationWindow {
     }
 
     property int page: 0
+    /// Cuántas páginas (en orden) ya se pidieron en segundo plano (ver `paginas`).
+    property int precargadas: 0
+    Timer {
+        // Arranca cuando la interfaz ya se ve; una página cada 150 ms.
+        interval: 150
+        repeat: true
+        running: win.visible && win.precargadas < 29
+        onTriggered: win.precargadas++
+    }
+    // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
+    property int paginaPermitida: 0
+    onPageChanged: {
+        const id = Studio.riel.idDePagina(page)
+        if (Studio.paginaBloqueada(id)) {
+            desbloqueo.pagina = page
+            desbloqueo.idPagina = id
+            page = paginaPermitida
+            desbloqueo.open()
+        } else {
+            paginaPermitida = page
+        }
+    }
+    Dialog {
+        id: desbloqueo
+        property int pagina: 0
+        property string idPagina: ""
+        anchors.centerIn: parent
+        width: 440
+        modal: true
+        title: "Estamos en vivo"
+        onOpened: { confirmarF.text = ""; motivoF.text = ""; confirmarF.forceActiveFocus() }
+        contentItem: ColumnLayout {
+            spacing: 8
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: "«" + Studio.riel.tituloDePagina(desbloqueo.pagina) + "» tiene cosas que pueden cortar el aire. " +
+                      "Para entrar escribí CONFIRMAR y por qué (queda en el registro)."
+                color: Theme.text; font.pixelSize: 13
+            }
+            TextField { id: confirmarF; Layout.fillWidth: true; placeholderText: "CONFIRMAR"; color: Theme.text }
+            TextField { id: motivoF; Layout.fillWidth: true; placeholderText: "Motivo (p. ej. cambiar la sala de los invitados)"; color: Theme.text }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: desbloqueo.close() }
+                GlassButton {
+                    compact: true; text: "Entrar"; active: true
+                    enabled: confirmarF.text.trim().toUpperCase() === "CONFIRMAR" && motivoF.text.trim().length >= 3
+                    onClicked: {
+                        Studio.desbloquearPagina(desbloqueo.idPagina, motivoF.text.trim())
+                        desbloqueo.close()
+                        win.page = desbloqueo.pagina
+                    }
+                }
+            }
+        }
+    }
 
     // Cerrar la ventana principal cierra la aplicacion aunque haya ventanas de
     // salida abiertas (esas se recuerdan y vuelven al proximo arranque).
@@ -93,6 +165,8 @@ ApplicationWindow {
         else streamDlg.open()
     }
     function confirm(opts) { confirmDlg.ask(opts) }
+    /// La cola de descargas (controls/PanelDescargas.qml).
+    function abrirDescargas() { descargasDlg.open() }
     function confirmStopStream() {
         confirm({
             title: "¿Cortar la transmisión?",
@@ -106,6 +180,23 @@ ApplicationWindow {
     Connections {
         target: Studio
         function onNotify(message, level) { toasts.show(message, level) }
+        function onPedirConfirmarGrabacion(horas) {
+            confirm({
+                title: "Queda muy poco disco",
+                text: "Alcanza para ~" + Math.round(horas * 60) + " minutos de grabación a este bitrate. ¿Grabar igual?",
+                accept: "Grabar igual", reject: "Cancelar",
+                action: function() { Studio.grabarIgual() }
+            })
+        }
+        // Ya al aire y se pidió otro destino: nunca se cambia sin preguntar.
+        function onPedirCambioDestino(actual, nuevoServer, nuevoKey) {
+            confirm({
+                title: "Ya estás transmitiendo",
+                text: "Sale a " + actual + ". ¿Cambiar a " + nuevoServer + "? La transmisión se corta un instante.",
+                accept: "Cambiar de destino", reject: "Seguir como está",
+                action: function() { Studio.cambiarDestinoStream(nuevoServer, nuevoKey) }
+            })
+        }
         // Cierre pedido por la app (launcher por el canal de control,
         // actualizacion, MCP): nunca se pregunta. Si la guardia llego a frenar
         // ese quit, se repite ya sin guardia.
@@ -129,6 +220,9 @@ ApplicationWindow {
     readonly property real libreDer: Studio.riel.posicion === "derecha" ? rielLugar : 0
     readonly property real libreArr: Studio.riel.posicion === "arriba" ? rielLugar : 0
     readonly property real libreAba: Studio.riel.posicion === "abajo" ? rielLugar : 0
+    /// Con una alarma crítica, la franja roja ocupa su lugar arriba: las páginas
+    /// se corren (si no, tapaba el título y la primera fila de botones de cada una).
+    readonly property real libreAlarma: franjaAlarma.visible ? franjaAlarma.height : 0
 
     /// Cuanto margen tiene que dejar cada pagina a la izquierda. Con el riel a
     /// la izquierda, el riel FLOTA sobre ese margen; en los otros lados el
@@ -144,37 +238,31 @@ ApplicationWindow {
         // A la izquierda el riel FLOTA sobre el margen que cada pagina ya deja
         // (su `leftInset`); en los otros tres lados hay que reservarle lugar de
         // verdad, porque ahi las paginas no dejan nada.
-        anchors.topMargin: win.libreArr
+        anchors.topMargin: win.libreArr + win.libreAlarma
         anchors.rightMargin: win.libreDer
         currentIndex: win.page
-        DashboardPage { leftInset: win.insetPagina }
-        ScenesPage { leftInset: win.insetPagina }
-        ConferencePage { leftInset: win.insetPagina }
-        YouTubePage { leftInset: win.insetPagina }
-        TwitchPage { leftInset: win.insetPagina }
-        FacebookPage { leftInset: win.insetPagina }
-        SettingsPage { leftInset: win.insetPagina }
-        AssistantPage { leftInset: win.insetPagina }
-        InputsPage { leftInset: win.insetPagina }
-        AudioPage { leftInset: win.insetPagina }
-        EventoPage { leftInset: win.insetPagina }
-        GraficosPage { leftInset: win.insetPagina }
-        RotulosPage { leftInset: win.insetPagina }
-        RegistroPage { leftInset: win.insetPagina }
-        AgentesPage { leftInset: win.insetPagina }
-        PrompterPage { leftInset: win.insetPagina }
-        PantallasPage { leftInset: win.insetPagina }
-        QrPage { leftInset: win.insetPagina }
-        // AL FINAL, y no donde quedaria mas prolijo: el indice de cada pagina
-        // es su posicion en esta lista, y RielConfig los tiene escritos.
-        // Meterla en el medio le cambia el numero a todas las de abajo.
-        PersonasPage { leftInset: win.insetPagina }
-        PublicoPage { leftInset: win.insetPagina }
-        MediosPage { leftInset: win.insetPagina }
-        PtzPage { leftInset: win.insetPagina }
-        VideoPage { leftInset: win.insetPagina }
-        PluginsPage { leftInset: win.insetPagina }
-        EquiposPage { leftInset: win.insetPagina }
+        // Las páginas, CUANDO HACEN FALTA. Antes se creaban las 27 al arrancar
+        // (la mitad de lo que tardaba la interfaz en aparecer) y cada cambio de
+        // datos repintaba también las que nadie miraba. Ahora se crea la que se
+        // ve; las demás se van creando de a una, en segundo plano y de a pedazos
+        // (asynchronous: no traban), y una que se abre antes de tiempo se crea
+        // en el momento. Una vez creada queda: conserva lo que se escribió.
+        // El orden es el de componenteDePagina (= el índice de cada página).
+        Repeater {
+            model: 29
+            delegate: Loader {
+                id: lugar
+                required property int index
+                readonly property bool actual: paginas.currentIndex === index
+                property bool pedida: actual
+                onActualChanged: if (actual) pedida = true
+                active: pedida || win.precargadas > index
+                // La que se está mirando, ya (si estaba a medio crear, se termina ya).
+                asynchronous: !actual
+                sourceComponent: win.componenteDePagina(index)
+                onLoaded: item.leftInset = Qt.binding(() => win.insetPagina)
+            }
+        }
     }
 
     // --- Pestañas sacadas a su propia ventana --------------------------------------
@@ -206,15 +294,39 @@ ApplicationWindow {
     Component { id: cmpVideo;      VideoPage {} }
     Component { id: cmpPlugins;    PluginsPage {} }
     Component { id: cmpEquipos;    EquiposPage {} }
+    Component { id: cmpBotonera;   BotoneraPage {} }
+    Component { id: cmpAsamblea; AsambleaPage {} }
+    Component { id: cmpHistorico; HistoricoPage {} }
+    Component { id: cmpMultiview;  MultiviewPage {} }
 
     function componenteDePagina(i) {
         return [cmpDashboard, cmpScenes, cmpConference, cmpYouTube, cmpTwitch, cmpFacebook,
                 cmpSettings, cmpAssistant, cmpInputs, cmpAudio, cmpEvento, cmpGraficos,
                 cmpRotulos, cmpRegistro, cmpAgentes, cmpPrompter, cmpPantallas, cmpQr,
-                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos][i] || null
+                cmpPersonas, cmpPublico, cmpMedios, cmpPtz, cmpVideo, cmpPlugins, cmpEquipos, cmpBotonera, cmpAsamblea,
+                cmpHistorico, cmpMultiview][i] || null
     }
 
     ListModel { id: sueltas }
+    /// Cambia cada vez que se saca o se cierra una ventana de página (para los bindings de paginaAfuera).
+    property int sueltasTick: 0
+    /// Lo dictado va derecho al asistente si se lo está mirando: su página en la
+    /// principal, o su ventana propia activa (agent/Voz: vistaAsistente).
+    property bool ventanaAsistenteActiva: false
+    readonly property bool vistaAsistente: win.page === Studio.riel.paginaDeId("asistente") || ventanaAsistenteActiva
+    onVistaAsistenteChanged: if (Studio.voz) Studio.voz.vistaAsistente = vistaAsistente
+    /// ¿La página `id` (el de ui_show_page) está en su propia ventana?
+    function paginaAfuera(id) {
+        win.sueltasTick
+        for (let k = 0; k < sueltas.count; ++k)
+            if (sueltas.get(k).idPagina === id) return true
+        return false
+    }
+    /// Cierra la ventana propia de la página `id` (vuelve a la principal).
+    function traerPagina(id) {
+        for (let k = 0; k < sueltas.count; ++k)
+            if (sueltas.get(k).idPagina === id) { const v = ventanasSueltas.objectAt(k); if (v) v.close(); return }
+    }
 
     // --- Paneles sueltos -----------------------------------------------------
     // Mas fino que sacar una pagina: en un evento, la cola de preguntas en un
@@ -269,9 +381,11 @@ ApplicationWindow {
             if (sueltas.get(k).page === i) { toasts.show("«" + titulo + "» ya está en su ventana", "info"); return }
         }
         sueltas.append({ page: i, titulo: titulo, idPagina: Studio.riel.idDePagina(i) })
+        sueltasTick++
     }
 
     Instantiator {
+        id: ventanasSueltas
         model: sueltas
         delegate: PageWindow {
             required property int index
@@ -279,9 +393,11 @@ ApplicationWindow {
             titulo: sueltas.get(index) ? sueltas.get(index).titulo : ""
             idPagina: sueltas.get(index) ? sueltas.get(index).idPagina : ""
             contenido: win.componenteDePagina(page)
+            onActiveChanged: if (idPagina === "asistente") win.ventanaAsistenteActiva = active
             onCerrada: (p) => {
+                if (idPagina === "asistente") win.ventanaAsistenteActiva = false
                 for (let k = 0; k < sueltas.count; ++k)
-                    if (sueltas.get(k).page === p) { sueltas.remove(k); return }
+                    if (sueltas.get(k).page === p) { sueltas.remove(k); win.sueltasTick++; return }
             }
         }
     }
@@ -392,7 +508,7 @@ ApplicationWindow {
     Item {
         visible: win.page !== 0
         anchors { top: parent.top; horizontalCenter: parent.horizontalCenter
-                  topMargin: win.libreArr + 1 }
+                  topMargin: win.libreArr + win.libreAlarma + 1 }
         z: 50
         width: airState.width
         height: airState.height
@@ -421,7 +537,7 @@ ApplicationWindow {
     // Debajo de la franja del estado de emision, para no taparla.
     OnAirTimer {
         anchors { top: parent.top; horizontalCenter: parent.horizontalCenter
-                  topMargin: win.libreArr + 20 }
+                  topMargin: win.libreArr + win.libreAlarma + 20 }
         z: 50
         onClicked: win.page = 2
     }
@@ -435,6 +551,109 @@ ApplicationWindow {
         z: 60
     }
 
+    // --- Alarma crítica: franja roja que titila arriba hasta que se reconoce --------
+    Rectangle {
+        id: franjaAlarma
+        property var activas: []
+        property bool critica: false
+        // Las críticas sin reconocer, suenen o no (silenciar corta el sonido, no la franja).
+        readonly property var criticas: activas.filter(a => a.sonido === "critico")
+        readonly property bool todasSilenciadas: criticas.length > 0 && criticas.every(a => !!a.silenciada)
+        function refrescar() { activas = Studio.alarmasActivasUi(); critica = criticas.length > 0 }
+        function silenciar(si) {
+            const vistos = {}
+            for (const a of criticas)
+                if (!vistos[a.ruleId]) { vistos[a.ruleId] = true; Studio.silenciarAlarmaUi(a.ruleId, si) }
+        }
+        Connections { target: Studio; function onAlarmasCambio() { franjaAlarma.refrescar() } }
+        Component.onCompleted: refrescar()
+        visible: critica
+        z: 70
+        anchors { left: parent.left; right: parent.right; top: parent.top
+                  leftMargin: win.libreIzq; rightMargin: win.libreDer; topMargin: win.libreArr }
+        height: 34
+        color: "#dc2626"
+        SequentialAnimation on opacity {
+            running: franjaAlarma.visible; loops: Animation.Infinite
+            NumberAnimation { to: 0.55; duration: 450 }
+            NumberAnimation { to: 1.0; duration: 450 }
+        }
+        RowLayout {
+            anchors { fill: parent; leftMargin: 16; rightMargin: 10 }
+            spacing: 10
+            Text {
+                Layout.fillWidth: true; elide: Text.ElideRight
+                text: "⚠ ALARMA: " + (franjaAlarma.activas.length > 0 ? franjaAlarma.activas[franjaAlarma.activas.length - 1].text : "") +
+                      (franjaAlarma.activas.length > 1 ? "  (+" + (franjaAlarma.activas.length - 1) + ")" : "")
+                color: "white"; font { pixelSize: 14; weight: Font.Bold }
+            }
+            // Corta el sonido de estas alarmas (sus disparadores quedan silenciados: la
+            // franja sigue hasta Reconocer). Apretado otra vez, les devuelve el sonido.
+            GlassButton {
+                compact: true
+                text: franjaAlarma.todasSilenciadas ? "🔇 Silenciada" : "Silenciar"
+                onClicked: franjaAlarma.silenciar(!franjaAlarma.todasSilenciadas)
+            }
+            GlassButton { compact: true; text: "Reconocer (R)"; onClicked: Studio.reconocerAlarmaUi(0) }
+        }
+    }
+    Shortcut {
+        sequence: "R"
+        enabled: franjaAlarma.critica
+        onActivated: Studio.reconocerAlarmaUi(0)
+    }
+    // Los atajos que configuró el operador (página Botonera → Atajos). Los
+    // globales los atiende el sistema (funcionan sin foco): acá van los locales.
+    Instantiator {
+        model: Studio.acciones ? Studio.acciones.atajos.filter(a => !a.global) : []
+        delegate: Shortcut {
+            required property var modelData
+            sequence: modelData.tecla
+            context: Qt.ApplicationShortcut
+            onActivated: {
+                const e = Studio.acciones.ejecutarUi(modelData.accion)
+                if (e !== "") Studio.notify(e, "error")
+            }
+        }
+    }
+
+    // --- Volvimos de una caída: la causa y cuánto tardó el aire en volver -----------
+    Rectangle {
+        id: cartelCaida
+        readonly property var c: Studio.caidaReciente
+        visible: !!(c && c.causa)
+        anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 70 }
+        width: Math.min(parent.width - 80, 720)
+        height: cartelCol.implicitHeight + 28
+        radius: 14
+        z: 70
+        color: Qt.rgba(0.1, 0.1, 0.12, 0.96)
+        border.color: Theme.amber
+        border.width: 2
+        Timer { running: cartelCaida.visible && !!cartelCaida.c.aire_vuelta_s; interval: 30000; onTriggered: Studio.cerrarCartelCaida() }
+        ColumnLayout {
+            id: cartelCol
+            anchors { fill: parent; margins: 14 }
+            spacing: 4
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: (cartelCaida.c.componente === "gateway" ? "El gateway (la sala)" : "El programa") + " se reinició: " + (cartelCaida.c.causa || "")
+                color: Theme.text; font.pixelSize: 17; font.weight: Font.DemiBold
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: cartelCaida.c.aire_vuelta_s !== undefined
+                      ? "El aire volvió " + Number(cartelCaida.c.aire_vuelta_s).toFixed(1) + " s después de la caída."
+                      : cartelCaida.c.habia_aire ? "Retomando lo que estaba al aire…" : "No había nada al aire: no hubo que retomar."
+                color: cartelCaida.c.aire_vuelta_s !== undefined || !cartelCaida.c.habia_aire ? Theme.ok : Theme.amber; font.pixelSize: 14
+            }
+            RowLayout {
+                Text { Layout.fillWidth: true; text: "El detalle queda en la página Registro."; color: Theme.textFaint; font.pixelSize: 11 }
+                GlassButton { compact: true; text: "Entendido"; onClicked: Studio.cerrarCartelCaida() }
+            }
+        }
+    }
+
     // --- Avisos (toasts) ------------------------------------------------------------
     Column {
         id: toasts
@@ -445,9 +664,17 @@ ApplicationWindow {
         spacing: 8
         width: 380
         function show(message, level) {
-            // El mismo aviso que ya esta en pantalla no se repite (renueva su tiempo).
+            // El mismo aviso (o uno del mismo tipo: mismo comienzo, como «La interfaz
+            // estuvo trabada N s») no se apila: reemplaza al que está y renueva su tiempo.
+            const tipo = message.substring(0, 24)
             for (let i = 0; i < children.length; ++i)
-                if (children[i].message === message && children[i].opacity > 0) return children[i].renew()
+                if (children[i].opacity > 0 && children[i].message.substring(0, 24) === tipo) {
+                    children[i].message = message
+                    children[i].level = level || "info"
+                    return children[i].renew()
+                }
+            // Como mucho cuatro a la vista: el más viejo se va.
+            if (children.length >= 4) children[0].destroy()
             toastComp.createObject(toasts, { message: message, level: level || "info" })
         }
     }
@@ -498,4 +725,44 @@ ApplicationWindow {
         }
     }
     ConfirmDialog { id: confirmDlg }
+    PanelDescargas { id: descargasDlg }
+    // Los QR que manda el asistente (qr_mostrar): una ventana por QR, cada una de
+    // su color («escaneá el QR verde»), escalonadas para que se vean todas.
+    Component { id: qrMostrarComp; QrMostrar {} }
+    property int qrAbiertos: 0
+    Connections {
+        target: Studio
+        function onMostrarQr(texto, descripcion, mensaje, color) {
+            const n = win.qrAbiertos
+            const d = qrMostrarComp.createObject(win.contentItem, {
+                texto: texto, descripcion: descripcion, mensaje: mensaje, colorNombre: color || "verde"
+            })
+            // Una al lado de la otra mientras entren; después, escalonadas encima.
+            const w = d.width
+            const cols = Math.max(1, Math.floor((win.width - 32 + 16) / (w + 16)))
+            const x0 = Math.max(16, (win.width - cols * w - (cols - 1) * 16) / 2)
+            d.x = x0 + (n % cols) * (w + 16)
+            d.y = Math.max(16, 60 + Math.floor(n / cols) * 40)
+            win.qrAbiertos = n + 1
+            d.cerrada.connect(function() { win.qrAbiertos = Math.max(0, win.qrAbiertos - 1); d.destroy() })
+            d.open()
+        }
+    }
+
+    // --- Lo que se está bajando, visible en todas las páginas (abre las Descargas) ----
+    StatusPill {
+        visible: Studio.descargas.activas > 0
+        anchors { top: parent.top; right: parent.right; rightMargin: 14
+                  topMargin: win.libreArr + win.libreAlarma + 1 }
+        z: 50
+        height: 16
+        dot: Theme.accent
+        pulse: true
+        text: {
+            const l = Studio.descargas.lista
+            const b = l.length > 0 && l[0].estado === "bajando" ? l[0] : null
+            return "BAJANDO " + Studio.descargas.activas + (b ? "  " + Math.round(b.progreso * 100) + "%" : "")
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.abrirDescargas() }
+    }
 }

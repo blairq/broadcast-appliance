@@ -11,13 +11,17 @@ Rectangle {
     id: page
     color: Theme.bg
     property real leftInset: 92
+    // Las entradas que se graban aparte (ISO); se refresca cada segundo mientras se mira.
+    property var isos: Studio.isosUi()
+    Timer { interval: 1000; repeat: true; running: page.visible; onTriggered: page.isos = Studio.isosUi() }
     readonly property var inp: Studio.inputs
     property string hwError: ""
     property string micError: ""
     property string netError: ""
     // Miniaturas vivas solo mientras la pagina esta a la vista.
     onVisibleChanged: inp.setActive(visible)
-    Component.onCompleted: inp.setActive(visible)
+    // Solo prende: si se crea oculta (en segundo plano) no apaga a la otra que comparte `inp` (Cámaras PTZ).
+    Component.onCompleted: if (visible) inp.setActive(true)
 
     RowLayout {
         anchors { fill: parent; leftMargin: page.leftInset; margins: 20 }
@@ -264,6 +268,18 @@ Rectangle {
                                 Layout.fillWidth: true
                                 Text { text: modelData.name; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } elide: Text.ElideRight; Layout.fillWidth: true }
                                 Text { visible: modelData.receiving; text: modelData.width + "×" + modelData.height; color: Theme.textDim; font.pixelSize: 11 }
+                                // ISO: grabar esta entrada aparte (para editar después).
+                                GlassButton {
+                                    readonly property bool grabando: page.isos.some(g => g.fuente === modelData.name)
+                                    visible: modelData.kind !== "audio"
+                                    compact: true
+                                    text: grabando ? "● ISO" : "○ ISO"
+                                    active: grabando
+                                    activeColor: Theme.live
+                                    onClicked: { const e = Studio.isoUi(modelData.name, !grabando); if (e !== "") Studio.notify(e, "error"); page.isos = Studio.isosUi() }
+                                    ToolTip.visible: hovered; ToolTip.delay: 400
+                                    ToolTip.text: grabando ? "Se graba aparte en Recordings/entradas/: tocá para parar" : "Grabar esta entrada aparte (es un encode más)"
+                                }
                                 GlassButton {
                                     compact: true; text: "Quitar"
                                     onClicked: {

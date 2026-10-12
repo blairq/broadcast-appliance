@@ -1,59 +1,55 @@
-# --- Build outputs ----------------------------------------------------------
+# --- Lo que se compila (make, cmake, docker) --------------------------------
 build/
 build-*/
 release/
 release-win/
 dist/
+Testing/
+a.out
+ba-app-headless/
 
-# --- Python -----------------------------------------------------------------
+# --- Dependencias de terceros (make deps) ----------------------------------
+# extern/ guarda lo que se baja o se compila desde fuente fijada (Qt, GStreamer,
+# ONNX Runtime, libwebrtc, Python, LSP…). Se regenera con `make deps`.
+extern/
+
+# --- Python -------------------------------------------------------------------
 .venv/
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.ruff_cache/
 
-# --- Docs build artifacts ---------------------------------------------------
+# --- Documentación generada ---------------------------------------------------
 docs/_build/
 docs/doxygen/
 
-# --- Stray build/test artifacts --------------------------------------------
-# El plugin rtmp-services de OBS actualiza su catalogo de servicios en el cwd
-# al cargarse, asi que correr los tests deja este directorio en la raiz.
+# --- Logs y restos en la raíz -------------------------------------------------
+# aqtinstall (make deps-qt) y las corridas de entrenamiento escriben su log en el
+# cwd; un plugin de servicios RTMP dejaba su catálogo al correr los tests.
+/*.log
 rtmp-services/
-a.out
-Testing/
-ba-app-headless/
-# `aqtinstall` (make deps-qt) escribe su log en el cwd al bajar el SDK Qt6.
-aqtinstall.log
 
-# --- Dependencias de terceros (descargadas por `make deps`) ----------------
-# `extern/` guarda los assets de terceros (libwebrtc, OBS, Spout2, cloudflared,
-# VC++ redist, LSP). Se regenera con `make deps`; nunca se commitea.
-extern/
-
-# --- Tool / editor / OS state ----------------------------------------------
+# --- Editores, herramientas y sistema -----------------------------------------
+.DS_Store
+.claude/
 .codemap/
 .opencode/
-.DS_Store
+.ghidra_docker/
 
-# Entrenamiento: el venv lo arma tools/entrenar/venv.sh y unsloth deja su cache
+# --- Entrenamiento del modelo local -------------------------------------------
+# Los venv los arma tools/entrenar/venv.sh; unsloth deja su caché.
 .venv-entrenar/
 .venv-mlx/
 unsloth_compiled_cache/
-
-# Logs sueltos en la raiz (corridas de entrenamiento, etc.): no van al repo.
-/*.log
-
-# TODO lo que genera make corpus-entrenamiento (datos/entrenamiento/): el
-# corpus (50-90 MB por version, cada fila repite el prompt entero), su firma y
-# el examen (que sale de src/app/tests/datos/preguntas.json). Se regenera igual
-# desde las semillas, que si se versionan.
+# Lo que genera make corpus-entrenamiento (50-90 MB por versión): se regenera
+# desde las semillas, que sí se versionan.
 datos/entrenamiento/
 # Copias de seguridad de datos: el historial de git ya las guarda.
 datos/respaldo/
-
-# MODELOS: nunca al repo (pesan gigas). La fabrica los arma en ~/entrenamientos
-# y se publican en Hugging Face; aca solo queda su tarjeta (docs/modelos/).
+# Los modelos nunca van al repo (pesan gigas): se publican en Hugging Face y acá
+# queda su tarjeta (docs/modelos/).
 *.gguf
 *.safetensors
 *.safetensors.index.json
@@ -63,3 +59,8 @@ datos/respaldo/
 adapter_model.*
 checkpoint-*/
 imatrix.dat
+
+# --- Material privado de terceros ---------------------------------------------
+# El firmware y los manuales del DVD de Bosch, y su desensamblado: solo locales.
+docs/bosch/dvd/
+docs/bosch/desassembly/

@@ -1,0 +1,219 @@
+// test_motor_retornos.cpp — el motor entero: programa, escena al aire y mix-minus
+//
+// Con el GStreamer del bundle y nuestros plugins (sin ellos: SKIP):
+//   - dos entradas globales (un invitado y un micrófono) suenan en el programa;
+//   - una de escena suena solo cuando su escena está al aire;
+//   - el retorno del invitado en mix_minus lleva todo MENOS su voz, y se lee del
+//     anillo como lo lee el gateway (baanillo);
+//   - el programa para el gateway (ContentForReturn) lleva todo;
+//   - el mute de una entrada vale también en el retorno.
+// Los anillos usan otro prefijo: no pisan los de una app andando.
+
+#include "Motor.hpp"
+
+#include <gst/gst.h>
+
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <thread>
+#if defined(_WIN32)
+#include <process.h>
+#define getpid _getpid
+#else
+#include <unistd.h>
+#endif
+
+using namespace ba::motor;
+using json = nlohmann::json;
+
+namespace {
+int fallos = 0;
+#define CHECK(cond, msg)                                                             \
+    do {                                                                             \
+        if (!(cond)) {                                                               \
+            std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);         \
+            ++fallos;                                                                \
+        }                                                                            \
+    } while (0)
+
+bool cerca(double a, double b, double tol) { return std::fabs(a - b) <= tol; }
+void esperar(int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
+
+/// Lo que se lee de un anillo (como el gateway), en dBFS RMS, durante ~1 s.
+double leerAnillo(const std::string& canal) {
+    const std::string d = "baanillo canal=\"" + canal + "\" ! level name=n interval=300000000 ! fakesink sync=false";
+    GError* e = nullptr;
+    GstElement* p = gst_parse_launch(d.c_str(), &e);
+    if (e != nullptr) {
+        std::printf("leer %s: %s\n", canal.c_str(), e->message);
+        g_error_free(e);
+        return 99;
+    }
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    GstBus* bus = gst_element_get_bus(p);
+    double ultimo = -120;
+    const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
+    while (std::chrono::steady_clock::now() < fin) {
+        GstMessage* m = gst_bus_timed_pop_filtered(bus, 100 * GST_MSECOND, GST_MESSAGE_ELEMENT);
+        if (m == nullptr) continue;
+        const GstStructure* s = gst_message_get_structure(m);
+        if (gst_structure_has_name(s, "level")) {
+            G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+            const GValue* v = gst_structure_get_value(s, "rms");
+            auto* a = static_cast<GValueArray*>(g_value_get_boxed(v));
+            ultimo = g_value_get_double(g_value_array_get_nth(a, 0));
+            G_GNUC_END_IGNORE_DEPRECATIONS
+        }
+        gst_message_unref(m);
+    }
+    gst_object_unref(bus);
+    gst_element_set_state(p, GST_STATE_NULL);
+    gst_object_unref(p);
+    return std::isfinite(ultimo) ? std::max(ultimo, -120.0) : -120.0;
+}
+
+json tono(int frec) {
+    return {{"pipeline_audio", "audiotestsrc is-live=true wave=sine volume=0.25 freq=" + std::to_string(frec)}};
+}
+} // namespace
+
+int main() {
+#if defined(BA_TEST_GST_RAIZ)
+    g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
+#endif
+#if defined(BA_TEST_GST_PLUGINS)
+    g_setenv("BA_GST_PLUGINS_EXTRA", BA_TEST_GST_PLUGINS, FALSE);
+#endif
+    std::string err;
+    if (!iniciarGStreamer(&err)) {
+        std::printf("SKIP: sin GStreamer (%s)\n", err.c_str());
+        return 77;
+    }
+    for (const char* e : {"intersink", "audiomixer", "baanillosink", "baanillo", "balimitador"})
+        if (!hayFabrica(e)) {
+            std::printf("SKIP: falta %s\n", e);
+            return 77;
+        }
+    Motor::Config cfg;
+    cfg.prefijoAnillos = "BA.Audio.Prueba" + std::to_string(getpid()) + ".";
+    cfg.sinkEscucha = "fakesink sync=true"; // nada por los parlantes
+    Motor motor(cfg);
+    CHECK(motor.iniciar().empty(), "el motor arranca");
+    // Las órdenes del motor van en cola (Motor::orden): su error llega por
+    // alFallar. `falla` corre una, espera la cola y dice si falló.
+    std::string fallo;
+    motor.alFallar([&fallo](const std::string&, const std::string& e) { fallo = e; });
+    auto falla = [&]() {
+        motor.esperarCola();
+        const bool f = !fallo.empty();
+        fallo.clear();
+        return f;
+    };
+
+    CHECK(motor.agregarEntrada("invitado1", tono(440), {{"global", true}}).empty(), "el invitado");
+    CHECK(motor.agregarEntrada("mic", tono(1000), {{"global", true}}).empty(), "el micrófono");
+    CHECK(motor.agregarEntrada("video", tono(2000), {{"global", false}}).empty(), "una de escena");
+    motor.agregarEntrada("mic", tono(1), {});
+    CHECK(falla(), "no dos con el mismo id");
+    esperar(1500);
+    auto rms = [&]() { return motor.estado()["programa"].value("rms_db", -120.0); };
+    std::printf("programa (invitado + mic): %.2f dBFS\n", rms());
+    CHECK(cerca(rms(), -12.04, 1.0), "las dos globales suenan; la de escena no (no está al aire)");
+
+    motor.escenaAlAire({"video"}, 200);
+    esperar(800);
+    std::printf("con la escena al aire: %.2f dBFS\n", rms());
+    CHECK(cerca(rms(), -10.28, 1.0), "al aire, la de escena suma (tres senos de 0,25)");
+    motor.escenaAlAire({}, 0);
+    esperar(600);
+    CHECK(cerca(rms(), -12.04, 1.0), "fuera del aire se va");
+
+    CHECK(motor.retorno(1, "mix_minus", "invitado1").empty(), "retorno en mix_minus");
+    esperar(800);
+    const double ret = leerAnillo(cfg.prefijoAnillos + "Return.1");
+    std::printf("retorno del invitado 1 (sin él): %.2f dBFS\n", ret);
+    CHECK(cerca(ret, -15.05, 1.0), "el retorno lleva todo menos su voz (solo el micrófono)");
+    const double prog = leerAnillo(cfg.prefijoAnillos + "ContentForReturn");
+    std::printf("programa para el gateway: %.2f dBFS\n", prog);
+    CHECK(cerca(prog, -12.04, 1.0), "el programa para el gateway lleva todo");
+
+    motor.ponerMute("mic", true);
+    esperar(400);
+    const double retMudo = leerAnillo(cfg.prefijoAnillos + "Return.1");
+    std::printf("retorno con el mic en mute: %.2f dBFS\n", retMudo);
+    CHECK(retMudo < -60, "el mute vale también en el retorno");
+    motor.ponerMute("mic", false);
+
+    // La escena también vale en el retorno.
+    motor.escenaAlAire({"video"}, 0);
+    esperar(500);
+    const double retEscena = leerAnillo(cfg.prefijoAnillos + "Return.1");
+    CHECK(cerca(retEscena, -12.04, 1.0), "con la escena al aire, el retorno la oye");
+
+    // Las pistas: el micrófono también a la 2 (la grabación multipista).
+    CHECK(motor.ponerPistas("mic", {1, 2}).empty(), "el mic a las pistas 1 y 2");
+    esperar(800);
+    const json ps = motor.estado()["pistas"];
+    std::printf("pista 2: %.2f dBFS\n", ps.contains("2") ? ps["2"].value("rms_db", -120.0) : 99.0);
+    CHECK(ps.contains("2") && cerca(ps["2"].value("rms_db", -120.0), -15.05, 1.0), "la pista 2 lleva solo el micrófono");
+    motor.ponerPistas("mic", {7});
+    CHECK(falla(), "pista 7 no existe");
+    std::int64_t latPista = 0;
+    CHECK(motor.productorDeBus("pista2", &latPista) == "bus:pista2", "el productor de la pista");
+
+    // La escucha (a un fakesink): programa, directo y PFL, con su medidor.
+    auto picoEscucha = [&]() { return motor.estado()["escucha"].value("pico_db", -120.0); };
+    CHECK(motor.escuchar("programa").empty(), "escuchar el programa");
+    esperar(1200);
+    std::printf("escucha programa: pico %.2f dBFS, %s\n", picoEscucha(), motor.estado()["escucha"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+    CHECK(picoEscucha() > -12, "la escucha del programa suena");
+    CHECK(motor.escuchar("pfl", "invitado1").empty(), "escuchar al invitado solo");
+    esperar(1000);
+    std::printf("escucha pfl: pico %.2f dBFS\n", picoEscucha());
+    CHECK(cerca(picoEscucha(), -12.04, 1.5), "PFL: solo el invitado (pico de un seno de 0,25)");
+    CHECK(motor.escuchar("directo").empty(), "escuchar directo");
+    esperar(1000);
+    std::printf("escucha directo: pico %.2f dBFS\n", picoEscucha());
+    CHECK(picoEscucha() > -12, "directo: las globales suenan");
+    motor.escuchar("pfl", "nadie");
+    CHECK(falla(), "PFL de una que no existe avisa");
+    CHECK(motor.escuchar("apagado").empty(), "apagar la escucha");
+
+    // Escenas: armar y take. El audio de las capas sigue al take.
+    motor.escenaAlAire({}, 0);
+    CHECK(motor.quitarEntrada("video").empty(), "saco la de escena vieja");
+    const json cam = {{"pipeline", "videotestsrc is-live=true do-timestamp=true pattern=ball ! video/x-raw,width=320,height=180,framerate=30/1"},
+                      {"pipeline_audio", "audiotestsrc is-live=true wave=sine volume=0.25 freq=3000"}};
+    CHECK(motor.agregarEntrada("cam", cam, {}).empty(), "una cámara con su micrófono (de escena)");
+    CHECK(motor.definirEscena({{"nombre", "Cámara"}, {"capas", {{{"entrada", "cam"}}}}}).empty(), "definir la escena");
+    CHECK(motor.definirEscena({{"nombre", "Vacía"}, {"capas", json::array()}}).empty(), "y otra vacía");
+    motor.take();
+    CHECK(falla(), "take sin nada armado avisa");
+    CHECK(motor.armar("Cámara").empty(), "armar en el preview");
+    esperar(500);
+    CHECK(rms() < -11.0 && rms() > -13.0, "armada no suena (solo las globales)");
+    CHECK(motor.take("mezcla", 300).empty(), "take con mezcla");
+    esperar(1200);
+    std::printf("al aire la cámara: %.2f dBFS, %s\n", rms(), motor.estado()["video"]["programa"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
+    CHECK(cerca(rms(), -10.28, 1.0), "al aire, su audio suma");
+    CHECK(motor.estado()["video"].value("al_aire", "") == "Cámara", "la escena al aire");
+    CHECK(motor.armar("Vacía").empty() && motor.take().empty(), "take a la vacía");
+    esperar(800);
+    CHECK(cerca(rms(), -12.04, 1.0), "fuera del aire, su audio se va");
+    CHECK(motor.estado()["video"].value("armada", "") == "Cámara", "el take intercambia: la vieja queda armada");
+
+    const json st = motor.estado();
+    CHECK(st["retornos"].contains("1"), "el retorno en el estado");
+    CHECK(st["entradas"]["mic"].value("global", false), "el estado sabe cuáles son globales");
+    CHECK(motor.retorno(1, "programa", "").empty(), "volver a programa");
+    CHECK(motor.quitarEntrada("cam").empty(), "sacar una entrada");
+    motor.quitarEntrada("cam");
+    CHECK(falla(), "sacarla dos veces avisa");
+
+    motor.detener();
+    std::printf("== test_motor_retornos: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
+    return fallos == 0 ? 0 : 1;
+}

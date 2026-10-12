@@ -1,6 +1,7 @@
 // src/app/ptz/PtzOnvif.cpp — ver PtzOnvif.hpp
 
 #include "ptz/PtzOnvif.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -67,7 +68,7 @@ void PtzOnvif::soap(const QString& url, const QString& cuerpo, Respuesta alTermi
     QNetworkRequest pedido{QUrl(url)};
     pedido.setHeader(QNetworkRequest::ContentTypeHeader,
                      QStringLiteral("application/soap+xml; charset=utf-8"));
-    pedido.setTransferTimeout(4000);
+    pedido.setTransferTimeout(ba::ajustes::entero("ptz.timeoutMs", 4000));
     const QByteArray datos =
         conClave ? onvif::sobre(cuerpo, usuario_, clave_, desfase_) : onvif::sobre(cuerpo);
     QNetworkReply* r = red_->post(pedido, datos);
@@ -247,7 +248,7 @@ void PtzOnvif::vapix(const QString& consulta, std::function<void(bool)> alTermin
     url.setPath("/axis-cgi/com/ptz.cgi");
     url.setQuery(consulta);
     QNetworkRequest pedido{url};
-    pedido.setTransferTimeout(3000);
+    pedido.setTransferTimeout(ba::ajustes::entero("ptz.timeoutMs", 4000) * 3 / 4);
     QNetworkReply* r = red_->get(pedido);
     connect(r, &QNetworkReply::finished, this, [this, r, alTerminar]() {
         r->deleteLater();
@@ -323,6 +324,11 @@ void PtzOnvif::grabarPosicion(int, const QString& nombre, std::function<void(boo
 void PtzOnvif::irAPosicion(int, const QString& token) {
     if (servicios_.ptz.isEmpty() || token.isEmpty()) return;
     soap(servicios_.ptz, onvif::gotoPreset(perfil_.token, token), [](bool, const QByteArray&) {});
+}
+
+void PtzOnvif::irAPosicionCon(int, const QString& token, double velocidad) {
+    if (servicios_.ptz.isEmpty() || token.isEmpty()) return;
+    soap(servicios_.ptz, onvif::gotoPreset(perfil_.token, token, velocidad), [](bool, const QByteArray&) {});
 }
 
 void PtzOnvif::borrarPosicion(int, const QString& token) {

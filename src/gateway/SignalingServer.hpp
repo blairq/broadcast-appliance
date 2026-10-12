@@ -23,6 +23,14 @@
 //        POST /api/v1/board/view     {participant, sdp} -> video en vivo de
 //                                    un orador (relay, ver Webrtc.hpp)
 //
+//   1b) TUNEL — 127.0.0.1:tunnelPort (8786; solo con Cfg::tunel): lo mismo
+//      que la de invitados, pero para ba-pinggy (pinggy.io). TODA conexion que
+//      entra por aca es EXTERNA, sin importar la IP ni las cabeceras: llega
+//      desde 127.0.0.1 (el proceso de ba-pinggy) y sin esta marca se tomaria
+//      como de la red local (la botonera, por ejemplo, la atenderia). La IP
+//      real llega en una cabecera PROXY v1 (opcional) y es la que cuenta para
+//      los limites por IP y el registro.
+//
 //   2) CONTROL DEL OPERADOR — SIEMPRE 127.0.0.1:adminPort (nunca por el
 //      tunel). Es la API de la que cuelgan la vista web (Web/admin) y la vista
 //      Qt de la app. Ver AdminApi.cpp para las rutas.
@@ -75,6 +83,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Botonera.hpp"
+#include "Sesion.hpp"
 #include "Carruseles.hpp"
 #include "MediaRoute.hpp"
 #include "Preguntas.hpp"
@@ -84,17 +94,23 @@
 #include "TokenAuth.hpp"
 #include "Votacion.hpp"
 #include "Webrtc.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
 class Log;
 class MediaPump;
+namespace proxy {
+class GestorProxy;
+}
 class Room;
 class ShareStore;
 
 class SignalingServer {
    public:
     struct Cfg {
+        int pinIntentos = 5;  // PIN mal tantas veces desde una IP: bloqueo (Configuración → Sala)
+        int pinBloqueoS = 60; // por cuánto
         uint16_t port = 8787;
         std::string bindAddress = "127.0.0.1"; // "0.0.0.0" = red local (eleccion explicita)
         std::string webroot;                   // Web/guest
@@ -112,6 +128,8 @@ class SignalingServer {
         /// el enlace que el operador le pasa (o en el QR). Vacia = sin control
         /// remoto (la tablet igual muestra el texto).
         std::string prompterKey;
+        std::string correccionWebroot; // Web/correccion (puesto del corrector de subtítulos, T44)
+        std::string correccionKey;     // clave del puesto: nueva en cada arranque
         std::string rotulosWebroot;  // Web/rotulos (los rotulos desde el celular)
         std::string pantallaWebroot; // Web/pantalla (lo que se manda a un televisor)
         std::string castWebroot;     // Web/cast (el programa en vivo, para un televisor)
@@ -121,11 +139,21 @@ class SignalingServer {
         /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.
         std::string rotulosKey;
         std::string publicoWebroot; // Web/publico (la pagina del publico)
+        std::string eventoWebroot;  // Web/evento (el marco de la pagina del evento en vivo y vivo.js)
         /// Clave de la pagina del publico. Viaja en el QR que se reparte (o se
         /// proyecta): no es un secreto fuerte y no pretende serlo —lo tiene
         /// todo el que esta en la sala—, es lo que evita que la cola de
         /// preguntas la llene cualquiera que pase por el tunel.
         std::string publicoKey;
+        /// La clave de ba-web (src/web, adelante del túnel): con ella manda los ids de
+        /// mirada que juntó su caché (X-BA-Vistos en /api/v1/evento). Vacía: no se aceptan.
+        std::string webClave;
+        std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
+        std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
+        std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
+        // --- Escucha del tunel de pinggy (siempre 127.0.0.1, todo externo) ---
+        bool tunel = false;         // abrirla (main: pinggy activo)
+        uint16_t tunnelPort = 8786; // 0 = puerto efimero (tests)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -137,6 +165,8 @@ class SignalingServer {
 
     /// Motor de medios para publicar el uplink del invitado (B->A). Antes de start().
     void setPump(MediaPump* pump) { pump_ = pump; }
+    /// El proxy por nombre (T61), si está prendido: GET /api/v1/proxy, POST /api/v1/proxy/renovar.
+    void setProxy(proxy::GestorProxy* p) { proxy_ = p; }
 
     /// Abre los sockets de escucha y arranca los threads de accept.
     /// :returns: true si la superficie de invitados quedo escuchando (la de
@@ -148,6 +178,20 @@ class SignalingServer {
     uint16_t guestPort() const { return guestBoundPort_; }
     /// Puerto real de la API de control (0 si no esta abierta).
     uint16_t adminPort() const { return adminBoundPort_; }
+    /// Puerto real de la escucha del tunel (0 si no esta abierta).
+    uint16_t tunnelPort() const { return tunnelBoundPort_; }
+
+    /// La IP de origen de una cabecera PROXY v1 ("PROXY TCP4 <src> <dst> <sp>
+    /// <dp>"), en orden de red. TCP6: la IPv4 mapeada (::ffff:a.b.c.d) o, si
+    /// no, una seudo-IP estable 240.x.y.z por /64 (clase E: nunca es la red
+    /// local y separa a los clientes para los limites). :returns: false si la
+    /// linea no se entiende (UNKNOWN incluido).
+    static bool ipDeProxyV1(const std::string& linea, std::uint32_t& ipRed);
+    /// La IP real del X-Forwarded-For (el ULTIMO de la lista: el que agrego el
+    /// proxy de adelante). Solo se usa en la escucha del tunel sin PROXY v1.
+    static bool ipDeXff(const std::string& valor, std::uint32_t& ipRed);
+    /// Una IP en texto (IPv4, o IPv6 como en ipDeProxyV1) en orden de red.
+    static bool ipDeTexto(const std::string& texto, std::uint32_t& ipRed);
 
     /// IP publica del tunel WireGuard: los candidatos ICE de loopback (los que
     /// atiende el puente del tunel) se anuncian con esta IP. Vacio = no.
@@ -164,6 +208,21 @@ class SignalingServer {
     /// que es el unico que sabe que evento esta abierto. B solo lo repite.
     void setPublicoInfo(const nlohmann::json& info);
     nlohmann::json publicoInfo() const;
+    /// La página del evento en vivo (src/app/evento/EventoWeb.hpp). La manda A con el
+    /// evento abierto: {activo, dir: la carpeta Web/ del evento en el disco, estado:
+    /// lo público}. Con `activo`, la raíz de la sala sirve el marco del evento (la
+    /// página de la sección que se trata) y los invitados entran por /invitados/.
+    void setEventoWeb(const nlohmann::json& e);
+    nlohmann::json eventoWeb() const;
+    /// Los bloqueos por PIN mal: {global: {fallos, maximo, hasta, bloqueado}, ips: [{ip,
+    /// fallos, hasta, bloqueado}], intentosPorIp, bloqueoS}. Para el operador (API de control).
+    nlohmann::json bloqueosPin() const;
+    /// Levanta los bloqueos: los de esa IP, o (ip vacía) todos, el global incluido.
+    /// Devuelve cuántas IPs se desbloquearon.
+    int desbloquearPin(const std::string& ip);
+    /// Se llama (fuera de los locks) cada vez que cambia la carpeta Web/ del evento en vivo
+    /// ("" si no hay): ba-web la sirve desde ahí.
+    void setAlCambiarEventoDir(std::function<void(const std::string&)> fn) { alCambiarEventoDir_ = std::move(fn); }
     /// Los codigos que escanearon su invitacion y todavia no fueron a parar al
     /// padron. Es un BUZON, como el de los rotulos: B no tiene el padron —lo
     /// tiene A— asi que anota quien llego y A lo viene a buscar. Encolar es lo
@@ -198,6 +257,12 @@ class SignalingServer {
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
     }
+    /// Estado del acceso remoto para GET /api/remoto: {"pinggy":{...}, ...}.
+    /// Sin proveedor: pinggy apagado.
+    void setRemotoStatus(std::function<nlohmann::json()> fn) { remotoStatus_ = std::move(fn); }
+    /// GET /api/ice: los iceServers para los navegadores (turn/Ice.hpp). Recibe si
+    /// la conexión vino por el túnel (externa) y devuelve el cuerpo JSON.
+    void setIce(std::function<std::string(bool externo)> fn) { ice_ = std::move(fn); }
 
     /// Cambia el PIN de la sala (API de control). Vacio = generar uno.
     /// :returns: el PIN vigente, o vacio si no se pudo generar.
@@ -207,8 +272,9 @@ class SignalingServer {
 
    private:
     // --- Conexiones ---------------------------------------------------------
-    void acceptLoop(long long listenFd, bool admin);
-    void handleConnection(long long fd, std::uint32_t clientIp, bool admin);
+    /// `externo`: la escucha del tunel (ver el header): toda conexion es de afuera.
+    void acceptLoop(long long listenFd, bool admin, bool externo = false);
+    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo);
     void trackFd(long long fd);
     void untrackFd(long long fd);
     void closeActiveConns();
@@ -228,15 +294,18 @@ class SignalingServer {
     bool esPantalla(const std::string& pid) const;
     /// Registra una pantalla nueva y devuelve su id. `claveOut` recibe la
     /// clave de reenganche, que se le manda en el "hello".
-    std::string altaPantalla(std::string& claveOut);
+    std::string altaPantalla(std::string& claveOut, int canal = -1);
     /// La clave de reenganche de esa pantalla (vacia si no existe).
     std::string claveDePantalla(const std::string& pid) const;
     /// Valida un reenganche. true si ese id existe y la clave coincide.
-    bool reengancharPantalla(const std::string& pid, const std::string& clave);
+    bool reengancharPantalla(const std::string& pid, const std::string& clave, int canal = -1);
+    /// El canal de escena de una pantalla (-1: el programa).
+    int canalDePantalla(const std::string& pid) const;
     void bajaPantalla(const std::string& pid);
 
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
-                         const std::string& query, const std::string& body, std::uint32_t clientIp);
+                         const std::string& query, const std::string& headers, const std::string& body,
+                         std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& root, const std::string& relPath);
     void apiJoin(long long fd, const std::string& body, std::uint32_t clientIp);
     void apiVerify(long long fd, const std::string& query);
@@ -263,6 +332,13 @@ class SignalingServer {
     void wsLoop(long long fd, const std::string& pid, uint64_t gen);
     void handleWsMessage(const std::string& pid, uint64_t gen, const nlohmann::json& msg);
     void handleOffer(const std::string& pid, uint64_t gen, const std::string& sdp);
+    /// R3: la oferta del celular de un integrante remoto con la palabra -> ruta Remoto 1.
+    bool ofertaRemoto(const std::string& id, int canal, const std::string& sdp,
+                      std::function<void(const nlohmann::json&)> enviar);
+    /// Lo que mira un integrante en su celular (sesión del pool que solo recibe, pid «vista:<id>»).
+    bool ofertaVista(const std::string& id, const std::string& sdp, int canal, bool hablar,
+                     std::function<void(const nlohmann::json&)> enviar);
+    static MediaRoute rutaDeVista(int canal, bool hablar);
 
     struct WsConn {
         long long fd = -1;
@@ -288,6 +364,7 @@ class SignalingServer {
     std::map<int, SessionOwner> sessionOwner_; // idx -> dueño
     std::map<std::string, int> sessionOf_;     // pid -> idx
     std::mutex sessLock_;
+    std::thread statsThread_; ///< cada 2 s: estadisticas de cada conexion -> Room
     /// Cierra la sesion de `pid` (si `anyGen` o si sigue siendo de `gen`).
     void releaseSession(const std::string& pid, uint64_t gen, bool anyGen);
     /// La sala cambio la ruta de `pid`: se aplica a su sesion o, si todavia no
@@ -302,7 +379,7 @@ class SignalingServer {
     static constexpr int kPinMaxAttemptsPerIp = 5;
     static constexpr int kPinLockoutSecPerIp = 60;
     std::map<std::uint32_t, IpAttempts> ipAttempts_;
-    std::mutex ipAttemptsLock_;
+    mutable std::mutex ipAttemptsLock_;
     bool ipAttemptAllowed(std::uint32_t ip);
     void ipRecordFailure(std::uint32_t ip);
     void ipRecordSuccess(std::uint32_t ip);
@@ -349,33 +426,58 @@ class SignalingServer {
     /// reenganche. Aparte de la sala a proposito: nada de lo que sabe Room
     /// aplica a un televisor.
     ///
-    /// La entrada SOBREVIVE a la desconexion (hasta `kPantallaTtlMs`) porque
+    /// La entrada SOBREVIVE a la desconexion (hasta `kPantallaTtlMs()`) porque
     /// el token de ingreso es de un solo uso: sin esto, un televisor que
     /// pierde el WebSocket un segundo no puede volver nunca mas y se queda en
     /// "reconectando" hasta que alguien lo vuelva a castear a mano.
     struct Pantalla {
         std::string clave;
+        int canal = -1; ///< canal de escena que muestra (BA.Escena.<k>); -1: el programa
         std::int64_t sueltaMs = 0; ///< cuando se desconecto (0: conectada)
     };
-    static constexpr std::int64_t kPantallaTtlMs = 12LL * 60 * 60 * 1000;
-    static constexpr std::size_t kMaxPantallas = 32;
+    static std::int64_t kPantallaTtlMs() { return ba::ajustes::entero64("pantallas.ttlHoras", 12) * 60 * 60 * 1000; }
+    static std::size_t kMaxPantallas() { return static_cast<std::size_t>(ba::ajustes::entero("pantallas.max", 32)); }
     mutable std::mutex pantallasLock_;
     std::map<std::string, Pantalla> pantallas_;
     Rotulador rotulador_;
+    /// La botonera (superficie de control): borde de red, ver Botonera.hpp.
+    std::unique_ptr<BotoneraBorde> botonera_;
+    /// La sesión remota (integrantes desde afuera): borde de red, ver Sesion.hpp.
+    std::unique_ptr<SesionBorde> sesion_;
     Preguntas preguntas_;
     Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
+    /// Los que miran la página del evento: id del navegador (lo manda el marco) → última vez.
+    std::map<std::string, std::int64_t> mirando_;
+    mutable std::mutex eventoWebM_;
+    std::function<void(const std::string&)> alCambiarEventoDir_;
+    /// El caché de /api/v1/evento (ver eventoPublicoCacheado): la respuesta armada, la de
+    /// /api/v1/evento/vivos y cuándo se armó (0 = hay que rearmarla).
+    std::mutex eventoCacheM_;
+    std::string eventoCache_, eventoCacheVivos_;
+    std::int64_t eventoCacheMs_ = 0;
+    std::pair<std::string, std::string> eventoPublicoCacheado();
+    nlohmann::json eventoWeb_ = nlohmann::json::object();
+    /// Hay sitio del evento para mostrar (activo y su carpeta existe).
+    bool eventoWebActivo(std::string* dir = nullptr) const;
     std::vector<std::string> acreditaciones_;
     std::string fondoBytes_;
     std::string fondoTipo_;
     ShareStore& shares_;
     Log& log_;
     MediaPump* pump_ = nullptr;
+    // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.
+    std::mutex correccionMu_;
+    nlohmann::json correccionPend_ = nlohmann::json::array();
+    std::int64_t correccionMs_ = 0;
+    proxy::GestorProxy* proxy_ = nullptr;
     std::string publicAddress_;
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
     std::function<nlohmann::json(const std::string&)> joinUrl_;
+    std::function<nlohmann::json()> remotoStatus_;
+    std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
     std::mutex avatarsLock_;
     std::string boardToken_;
@@ -387,12 +489,15 @@ class SignalingServer {
     long long adminListenFd_ = -1;
     uint16_t adminBoundPort_ = 0;
     uint16_t guestBoundPort_ = 0;
+    long long tunnelListenFd_ = -1;
+    uint16_t tunnelBoundPort_ = 0;
     std::thread acceptThread_;
     std::thread adminAcceptThread_;
+    std::thread tunnelAcceptThread_;
 
     std::atomic<int> activeConns_{0};
-    static constexpr int kMaxConcurrentConns = 64;
-    static constexpr int kHandshakeTimeoutMs = 15000;
+    static int kMaxConcurrentConns() { return ba::ajustes::entero("room.maxConexiones", 64); }
+    static int kHandshakeTimeoutMs() { return ba::ajustes::entero("room.handshakeMs", 15000); }
     std::set<long long> activeFds_;
     std::mutex activeFdsLock_;
 

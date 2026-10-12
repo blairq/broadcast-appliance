@@ -384,7 +384,7 @@ bool guardarPadron(const fs::path& carpeta, const Padron& p, std::string* err) {
             if (err != nullptr) *err = "no se pudo escribir " + temporal.string();
             return false;
         }
-        out << p.aJson().dump(2) << '\n';
+        out << p.aJson().dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << '\n';
         if (!out) {
             if (err != nullptr) *err = "no se pudo terminar de escribir " + temporal.string();
             return false;

@@ -337,8 +337,21 @@ const std::set<std::string>& Roles::juegoDelAsistente() {
         "plugins",
         // Los equipos: detectar y manejar (red, esta máquina, USB), con acciones declaradas.
         "equipos",
+        // La botonera (tablets, Stream Deck, MIDI) y el bus de eventos: el
+        // operador le pide botones y plugins de superficies al asistente.
+        "botonera", "dsk",
         // La traducción en vivo y su glosario de términos del evento.
-        "traduccion"};
+        "traduccion",
+        // La central de conferencia del recinto (micrófonos de banca): las que
+        // abren o cierran micrófonos pasan por las guardas de aire.
+        "conferencia",
+        // La banca virtual (integrantes desde el navegador, en la sala o afuera).
+        "sesion",
+        // La asamblea (revisar que esté lista, sus escenas), las configuraciones con
+        // nombre (crear, cambiar, la demo) y el histórico de los eventos. Faltaban
+        // y no fallaba nada: no existían para el asistente (ni en help_search).
+        // McpCore::verificarJuegos avisa en el registro si queda otra afuera.
+        "asamblea", "configuraciones", "historico"};
     return c;
 }
 
@@ -453,7 +466,7 @@ void Roles::guardar() const {
         o[r.id] = json{
             {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo}};
     std::ofstream out(archivo_, std::ios::binary | std::ios::trunc);
-    out << o.dump(2) << "\n";
+    out << o.dump(2, ' ', false, nlohmann::json::error_handler_t::replace) << "\n";
 }
 
 } // namespace ba::app::agent

@@ -43,6 +43,8 @@ class McpHttp : public QObject {
     bool listen(quint16 port);
     quint16 port() const;
     const QString& token() const { return token_; }
+    /// Cambia el token en caliente (mcp_token_rotar). El puente ba-mcp lo relee en cada pedido.
+    void setToken(const QString& t) { token_ = t; }
 
    private:
     void onConnection();
@@ -60,6 +62,8 @@ class McpHttp : public QObject {
 /// Token persistente: credencial "mcp-token" de `credentialsDir` (cifrada; la
 /// crea si no existe). Vacio si no hay entropia o no se pudo guardar.
 QString loadOrCreateToken(const QString& credentialsDir);
+/// Un token nuevo (lo guarda cifrado). Vacío si no se pudo guardar.
+QString rotarToken(const QString& credentialsDir);
 /// Escribe un archivo JSON solo-dueño (temp + rename).
 bool writePrivateJson(const QString& path, const QByteArray& json);
 

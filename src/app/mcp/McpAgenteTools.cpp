@@ -22,9 +22,9 @@
 namespace ba::app::mcp {
 
 void McpService::registerAgenteTools() {
-    core_.addCategory("agentes", "Agentes automaticos",
-                      "Roles que atienden solos lo que llega de afuera (recepcion del lobby, tecnico de "
-                      "audio): cuales hay, prenderlos, encargarles algo, ver que hicieron.");
+    core_.addCategory("agentes", "Agentes automáticos",
+                      "Roles que atienden solos lo que llega de afuera (recepción del lobby, técnico de "
+                      "audio): cuáles hay, prenderlos, encargarles algo, ver qué hicieron.");
     agent::Despachador& d = vm_.despachador();
 
     {
@@ -75,8 +75,15 @@ void McpService::registerAgenteTools() {
               {"consola",
                {{"type", "boolean"},
                 {"description", "herramientas propias del agente: consola, archivos, internet"}}}}}};
-        t.run = [&d](const json& a, Done done) {
+        t.run = [&d, this](const json& a, Done done) {
             const std::string rol = a["rol"].get<std::string>();
+            // En vivo no se le da la máquina entera a un agente: la consola no
+            // pasa por las guardas de aire.
+            if (a.value("consola", false) && core_.hayAire()) {
+                done(ToolResult::error("Con la transmisión o la grabación andando no se prende la consola de un "
+                                       "agente (no pasa por las guardas de aire). Prendela fuera del aire."));
+                return;
+            }
             if (d.roles().porId(rol) == nullptr) {
                 done(ToolResult::error("No existe el rol `" + rol + "`: agente_roles los lista."));
                 return;

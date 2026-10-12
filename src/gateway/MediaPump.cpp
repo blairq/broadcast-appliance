@@ -10,7 +10,11 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <cmath>
+#include <thread>
 #include <vector>
+
+#include <nlohmann/json.hpp>
 
 #include "ipc/HealthBlock.hpp"
 
@@ -241,6 +245,19 @@ void MediaPump::start() {
         lobbyVideo_.push_back(makeVideo(name(cfg_.lobbyVideoNames, k), cfg_.lobbyW, cfg_.lobbyH));
         lobbyAudio_.push_back(makeAudio(name(cfg_.lobbyAudioNames, k)));
     }
+    // R3: el integrante remoto con la palabra (a la app, como una entrada más).
+    remotoVideo_.clear();
+    remotoAudio_.clear();
+    remotoVideo_.emplace_back();
+    remotoAudio_.emplace_back();
+    remotoContenido_.clear();
+    remotoContenido_.emplace_back();
+    const size_t remotos = cfg_.remotoVideoNames.empty() ? 0 : cfg_.remotoVideoNames.size() - 1;
+    for (size_t k = 1; k <= remotos; ++k) {
+        remotoVideo_.push_back(makeVideo(name(cfg_.remotoVideoNames, k), cfg_.programW, cfg_.programH));
+        remotoContenido_.push_back(makeVideo(name(cfg_.remotoContenidoNames, k), cfg_.programW, cfg_.programH));
+        remotoAudio_.push_back(makeAudio(name(cfg_.remotoAudioNames, k)));
+    }
     {
         std::lock_guard<std::mutex> lock(routesLock_);
         routes_.assign(static_cast<size_t>(hub_.sessions()) + 1, MediaRoute{});
@@ -249,6 +266,13 @@ void MediaPump::start() {
     stop_.store(false);
     threads_.emplace_back(&MediaPump::returnAudioThread, this);
     threads_.emplace_back(&MediaPump::returnVideoThread, this);
+    for (size_t k = 0; k < cfg_.escenaVideoNames.size(); ++k) {
+        const int canal = static_cast<int>(k);
+        threads_.emplace_back(&MediaPump::videoBajadaThread, this, cfg_.escenaVideoNames[k],
+                              "escena " + std::to_string(canal), [canal](const MediaRoute& r) {
+                                  return r.kind == MediaRoute::Kind::Escena && r.index == canal;
+                              });
+    }
     threads_.emplace_back(&MediaPump::operatorAudioThread, this);
     threads_.emplace_back(&MediaPump::operatorVideoThread, this);
     threads_.emplace_back(&MediaPump::plateThread, this);
@@ -296,7 +320,30 @@ void MediaPump::returnAudioThread() {
     bool open = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     std::vector<float> block;
+    // Mix-minus: un lector por slot (se abren cuando A los publica).
+    const size_t nSlots = cfg_.returnSlotNames.size();
+    std::vector<SharedAudioRing> slotReaders(nSlots);
+    std::vector<bool> slotOpen(nSlots, false);
+    std::vector<std::vector<float>> slotBlock(nSlots);
+    auto lastSlotRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
     while (!stop_.load(std::memory_order_relaxed)) {
+        {
+            const auto now = std::chrono::steady_clock::now();
+            if (now - lastSlotRetry >= std::chrono::milliseconds(1000)) {
+                lastSlotRetry = now;
+                for (size_t s = 1; s < nSlots; ++s) {
+                    if (slotOpen[s] && slotReaders[s].stale()) {
+                        slotReaders[s] = SharedAudioRing{};
+                        slotOpen[s] = false;
+                    }
+                    if (!slotOpen[s] && !cfg_.returnSlotNames[s].empty() &&
+                        SharedAudioRing::openReader(cfg_.returnSlotNames[s].c_str(), slotReaders[s]).ok) {
+                        slotOpen[s] = true;
+                        log_.info("retorno mix-minus del slot " + std::to_string(s) + " abierto");
+                    }
+                }
+            }
+        }
         if (!open) {
             const auto now = std::chrono::steady_clock::now();
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
@@ -319,11 +366,65 @@ void MediaPump::returnAudioThread() {
         if (block.size() < n) block.resize(n);
         PoppedBlock blk;
         if (reader.pop(block.data(), blk)) {
+            // El bloque de cada slot con mix-minus (uno por vuelta, al mismo ritmo).
+            std::vector<const float*> deSlot(nSlots, nullptr);
+            for (size_t s = 1; s < nSlots; ++s) {
+                if (!slotOpen[s]) continue;
+                const size_t ns = slotReaders[s].blockFloats();
+                if (ns != n) continue;
+                if (slotBlock[s].size() < ns) slotBlock[s].resize(ns);
+                PoppedBlock b2;
+                // Un hueco del mix-minus (silencio de relleno): mejor el programa entero.
+                if (slotReaders[s].pop(slotBlock[s].data(), b2) && !b2.isSilence) deSlot[s] = b2.samples;
+            }
+            // IFB: la voz del operador de este bloque (silencio si no hay), una vez para todos.
+            std::vector<float> voz;
+            bool hayVoz = false;
+            {
+                std::lock_guard<std::mutex> l(ifbLock_);
+                if (!ifb_.empty()) {
+                    voz.assign(n, 0.0f);
+                    const size_t k = std::min(n, ifb_.size());
+                    std::copy(ifb_.begin(), ifb_.begin() + static_cast<long>(k), voz.begin());
+                    ifb_.erase(ifb_.begin(), ifb_.begin() + static_cast<long>(k));
+                    hayVoz = true;
+                }
+            }
+            const int prueba = pruebaSesion_.load();
+            std::vector<float> mezcla;
             for (int s : sessionsWhere([](const MediaRoute& r) {
-                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+                     return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage ||
+                            r.kind == MediaRoute::Kind::Escena;
                  })) {
-                if (WebrtcSession* sess = hub_.session(s))
-                    sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
+                const MediaRoute r = route(s);
+                const float* fuente = blk.samples;
+                if (r.kind == MediaRoute::Kind::Program && r.index > 0 && static_cast<size_t>(r.index) < nSlots &&
+                    deSlot[static_cast<size_t>(r.index)] != nullptr)
+                    fuente = deSlot[static_cast<size_t>(r.index)];
+                if ((r.talk && hayVoz) || s == prueba) {
+                    mezcla.assign(fuente, fuente + n);
+                    if (r.talk && hayVoz) // el programa baja (~-8 dB) para que la voz se entienda
+                        for (size_t i = 0; i < n; ++i) mezcla[i] = std::clamp(mezcla[i] * 0.4f + voz[i], -1.0f, 1.0f);
+                    if (s == prueba) {
+                        // Tono de 1 kHz a -12 dBFS, prendido según un código seudoaleatorio de
+                        // 16 tramos de 250 ms (no periódico: un ruido que se repite —un pitido
+                        // cada segundo— no se confunde con el eco).
+                        const std::int64_t desde = pruebaDesdeNs_.load();
+                        const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                                         std::chrono::steady_clock::now().time_since_epoch()).count();
+                        const bool on = codigoPrueba((ahoraNs - desde) / 250'000'000LL);
+                        const double paso = 2.0 * 3.14159265358979 * 1000.0 / cfg_.audioRate;
+                        for (size_t i = 0; i + 1 < n; i += 2) {
+                            const float t = on ? 0.25f * static_cast<float>(std::sin(pruebaFase_)) : 0.0f;
+                            pruebaFase_ += paso;
+                            mezcla[i] = std::clamp(mezcla[i] * 0.3f + t, -1.0f, 1.0f);
+                            mezcla[i + 1] = std::clamp(mezcla[i + 1] * 0.3f + t, -1.0f, 1.0f);
+                        }
+                        if (pruebaFase_ > 1e6) pruebaFase_ = std::fmod(pruebaFase_, 2.0 * 3.14159265358979);
+                    }
+                    fuente = mezcla.data();
+                }
+                if (WebrtcSession* sess = hub_.session(s)) sess->pushLocalAudio(fuente, n, cfg_.audioRate);
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -343,6 +444,13 @@ void MediaPump::returnAudioThread() {
 constexpr int kMiradaMs = 4;
 
 void MediaPump::returnVideoThread() {
+    videoBajadaThread(cfg_.programVideoName, "retorno video", [](const MediaRoute& r) {
+        return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
+    });
+}
+
+void MediaPump::videoBajadaThread(std::wstring nombre, std::string etiqueta,
+                                  std::function<bool(const MediaRoute&)> para) {
     SpoutReceiver receiver;
     bool sub = false;
     auto lastRetry = std::chrono::steady_clock::now() - std::chrono::seconds(1);
@@ -364,7 +472,7 @@ void MediaPump::returnVideoThread() {
             if (now - lastRetry >= std::chrono::milliseconds(500)) {
                 lastRetry = now;
                 // El tamaño lo fija A al publicar (su salida), no la config de B.
-                if (receiver.subscribe(cfg_.programVideoName.c_str())) {
+                if (receiver.subscribe(nombre.c_str())) {
                     sub = true;
                     srcW = receiver.width();
                     srcH = receiver.height();
@@ -376,7 +484,7 @@ void MediaPump::returnVideoThread() {
                         outH = srcH;
                     }
                     scaled.assign(static_cast<size_t>(outW) * outH * 4u, 0);
-                    log_.info("retorno video: suscrito a BA.Program (" + std::to_string(srcW) + "x" +
+                    log_.info(etiqueta + ": suscrito (" + std::to_string(srcW) + "x" +
                               std::to_string(srcH) + ") -> " + std::to_string(outW) + "x" +
                               std::to_string(outH));
                 }
@@ -389,15 +497,13 @@ void MediaPump::returnVideoThread() {
             sub = false;
             outW = 0;
             outH = 0;
-            log_.info("retorno video: A cambio o se cerro; resuscribiendo");
+            log_.info(etiqueta + ": A cambio o se cerro; resuscribiendo");
             continue;
         }
         if (receiver.hasData()) {
             FrameMeta meta{};
             if (receiver.receive(src.data(), src.size(), meta)) {
-                const auto targets = sessionsWhere([](const MediaRoute& r) {
-                    return r.kind == MediaRoute::Kind::Program || r.kind == MediaRoute::Kind::Backstage;
-                });
+                const auto targets = sessionsWhere(para);
                 if (!targets.empty() && outW > 0 && outH > 0) {
                     const auto t0 = std::chrono::steady_clock::now();
                     scaleBgra(src.data(), srcW, srcH, scaled.data(), outW, outH);
@@ -433,7 +539,7 @@ void MediaPump::returnVideoThread() {
                 const double fps = cuadros / seg;
                 const double edadMs = static_cast<double>(edadUs) / cuadros / 1000.0;
                 log_.fmt(medioMs > 25.0 ? "warn" : "info", 0,
-                         "retorno video: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", fps, medioMs,
+                         "%s: %.1f fps, %.1f ms por cuadro, %.1f ms de A a B%s", etiqueta.c_str(), fps, medioMs,
                          edadMs, medioMs > 25.0 ? " (no llega: la pantalla se va a atrasar)" : "");
             }
             trabajoUs = 0;
@@ -480,6 +586,14 @@ void MediaPump::operatorAudioThread() {
                      [](const MediaRoute& r) { return r.kind == MediaRoute::Kind::Lobby && r.talk; })) {
                 if (WebrtcSession* sess = hub_.session(s))
                     sess->pushLocalAudio(blk.samples, n, cfg_.audioRate);
+            }
+            // Adentro (programa o fila) no se le empuja aparte: ya recibe el retorno
+            // y dos fuentes en el mismo track se pisan. Va a la cola del IFB.
+            if (!sessionsWhere([](const MediaRoute& r) { return r.kind != MediaRoute::Kind::Lobby && r.talk; }).empty()) {
+                std::lock_guard<std::mutex> l(ifbLock_);
+                ifb_.insert(ifb_.end(), blk.samples, blk.samples + n);
+                const size_t tope = static_cast<size_t>(cfg_.audioRate) * 2 * 3 / 10; // 300 ms estéreo
+                while (ifb_.size() > tope) ifb_.pop_front();
             }
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
@@ -551,6 +665,28 @@ void MediaPump::operatorVideoThread() {
 // --- Subida ------------------------------------------------------------------
 
 void MediaPump::forwardAudio(int session, const float* samples, size_t n, int rate) {
+    if (session == pruebaSesion_.load() && samples != nullptr && rate > 0) {
+        // Goertzel a 1 kHz sobre el canal izquierdo, en trozos de 20 ms ubicados por
+        // la hora de llegada desde que empezó la prueba.
+        const std::int64_t desde = pruebaDesdeNs_.load();
+        const std::int64_t ahoraNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                         std::chrono::steady_clock::now().time_since_epoch()).count();
+        const size_t frames = n / 2;
+        const double k = 2.0 * std::cos(2.0 * 3.14159265358979 * 1000.0 / rate);
+        double s1 = 0, s2 = 0;
+        for (size_t i = 0; i < frames; ++i) {
+            const double s0 = samples[2 * i] + k * s1 - s2;
+            s2 = s1;
+            s1 = s0;
+        }
+        const double pot = (s1 * s1 + s2 * s2 - k * s1 * s2) / std::max<size_t>(frames * frames, 1);
+        const long bin = static_cast<long>((ahoraNs - desde) / 20'000'000LL);
+        std::lock_guard<std::mutex> l(pruebaLock_);
+        if (bin >= 0 && bin < 1000) {
+            if (pruebaBins_.size() <= static_cast<size_t>(bin)) pruebaBins_.resize(static_cast<size_t>(bin) + 1, -1.0);
+            pruebaBins_[static_cast<size_t>(bin)] = std::max(pruebaBins_[static_cast<size_t>(bin)], pot);
+        }
+    }
     const MediaRoute r = route(session);
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
         r.index < static_cast<int>(guestAudio_.size())) {
@@ -559,7 +695,79 @@ void MediaPump::forwardAudio(int session, const float* samples, size_t n, int ra
                r.index < static_cast<int>(lobbyAudio_.size())) {
         // El operador solo escucha a quien le esta hablando.
         publishAudio(*lobbyAudio_[static_cast<size_t>(r.index)], samples, n, rate);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoAudio_.size())) {
+        publishAudio(*remotoAudio_[static_cast<size_t>(r.index)], samples, n, rate);
     }
+}
+
+bool MediaPump::codigoPrueba(long long tramo) {
+    static constexpr unsigned kCodigo = 0b1011000111101010u; // 16 tramos, mitad prendidos
+    return tramo >= 0 && ((kCodigo >> (15 - (tramo % 16))) & 1u) != 0;
+}
+
+nlohmann::json MediaPump::analizarEco(const std::vector<double>& bins, int dur) {
+    // El patrón (1 = tono) en trozos de 20 ms: el código de 16 tramos de 250 ms, durante `dur`.
+    const auto tono = [dur](long b) { return b >= 0 && b * 20 < dur && codigoPrueba((b * 20) / 250); };
+    double mejor = -1e9, ecoDb = 0;
+    int demora = 0;
+    std::vector<double> porDemora;
+    for (int lag = 0; lag <= 50; ++lag) { // hasta 1 s de ida y vuelta
+        double on = 0, off = 0;
+        int non = 0, noff = 0;
+        for (size_t b = 0; b < bins.size(); ++b) {
+            if (bins[b] < 0) continue;
+            const long origen = static_cast<long>(b) - lag;
+            if (origen < 0 || origen * 20 >= dur) continue;
+            if (tono(origen)) on += bins[b], ++non;
+            else off += bins[b], ++noff;
+        }
+        if (non < 3 || noff < 3) continue;
+        const double db = 10.0 * std::log10((on / non + 1e-12) / (off / noff + 1e-12));
+        porDemora.push_back(db);
+        if (db > mejor) mejor = db, ecoDb = db, demora = lag * 20;
+    }
+    // Un eco de verdad sobresale en UNA demora; si todas dan parecido, es otra cosa
+    // (un ruido parejo de 1 kHz): se descuenta la mediana de las demás.
+    double mediana = 0;
+    if (!porDemora.empty()) {
+        std::vector<double> v = porDemora;
+        std::nth_element(v.begin(), v.begin() + static_cast<long>(v.size() / 2), v.end());
+        mediana = v[v.size() / 2];
+    }
+    const double sobresale = ecoDb - std::max(0.0, mediana);
+    return nlohmann::json{{"eco_db", std::round(sobresale * 10) / 10},
+                       {"eco_bruto_db", std::round(ecoDb * 10) / 10},
+                       {"demora_ms", demora},
+                       {"eco", sobresale > 10.0},
+                       {"trozos", bins.size()}};
+}
+
+std::string MediaPump::pruebaTecnica(int session, int ms) {
+    const MediaRoute r = route(session);
+    if (r.kind != MediaRoute::Kind::Program && r.kind != MediaRoute::Kind::Backstage)
+        return R"({"error":"la prueba es para los de adentro (programa o fila): en el lobby no recibe el retorno"})";
+    int libre = 0;
+    if (!pruebaSesion_.compare_exchange_strong(libre, session)) return R"({"error":"ya hay una prueba andando"})";
+    {
+        std::lock_guard<std::mutex> l(pruebaLock_);
+        pruebaBins_.clear();
+    }
+    pruebaDesdeNs_ = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    const int dur = std::clamp(ms, 2000, 8000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(dur + 600)); // y lo que tarda en volver
+    pruebaSesion_ = 0;
+    std::vector<double> bins;
+    {
+        std::lock_guard<std::mutex> l(pruebaLock_);
+        bins = pruebaBins_;
+    }
+    nlohmann::json out = analizarEco(bins, dur);
+    if (WebrtcSession* sess = hub_.session(session)) {
+        const nlohmann::json red = nlohmann::json::parse(sess->estadisticas(), nullptr, false);
+        if (red.is_object()) out["red"] = red;
+    }
+    if (bins.empty()) out["aviso"] = "no llegó audio de su micrófono durante la prueba (¿lo tiene silenciado?)";
+    return out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
@@ -574,17 +782,35 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
     } else if (r.kind == MediaRoute::Kind::Backstage && r.index >= 1 &&
                r.index < static_cast<int>(backstageVideo_.size())) {
         publishVideo(*backstageVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoVideo_.size())) {
+        publishVideo(*remotoVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
 }
 
 void MediaPump::forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);
-    // Solo los de adentro comparten pantalla hacia el programa.
+    // Solo los de adentro comparten pantalla hacia el programa (y el remoto con la palabra).
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
         r.index < static_cast<int>(shareVideo_.size())) {
         publishVideo(*shareVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+    } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 &&
+               r.index < static_cast<int>(remotoContenido_.size()) && remotoContenido_[static_cast<size_t>(r.index)]) {
+        publishVideo(*remotoContenido_[static_cast<size_t>(r.index)], pixels, w, h, true);
     }
+}
+
+void MediaPump::apagarRemoto(int canal) {
+    if (canal < 1 || canal >= static_cast<int>(remotoVideo_.size()) || !remotoVideo_[static_cast<size_t>(canal)]) return;
+    const auto negro = [this](VideoOut& out) {
+        if (out.w <= 0 || out.h <= 0) return;
+        std::vector<uint8_t> px(static_cast<size_t>(out.w) * out.h * 4u, 0);
+        for (size_t i = 3; i < px.size(); i += 4) px[i] = 0xFF;
+        publishVideo(out, px.data(), out.w, out.h, false);
+    };
+    negro(*remotoVideo_[static_cast<size_t>(canal)]);
+    if (canal < static_cast<int>(remotoContenido_.size()) && remotoContenido_[static_cast<size_t>(canal)])
+        negro(*remotoContenido_[static_cast<size_t>(canal)]);
 }
 
 void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real) {
@@ -671,7 +897,7 @@ void MediaPump::plateThread() {
         plates[s].assign(static_cast<size_t>(w) * h * 4u, 0);
         drawPlate(plates[s].data(), w, h, static_cast<int>(s));
     }
-    constexpr uint64_t kGuestTimeoutNs = 1000000000ULL; // sin video 1 s -> placa
+    const uint64_t kGuestTimeoutNs = cfg_.sinVideoNs; // sin video tanto tiempo -> placa
     while (!stop_.load(std::memory_order_relaxed)) {
         const uint64_t now = monoNs();
         for (size_t s = 1; s < guestVideo_.size(); ++s) {

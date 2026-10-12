@@ -51,10 +51,10 @@ std::string textoDe(const json& content) {
 }
 
 QVariantMap aMapa(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 QVariantList aLista(const json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump())).array().toVariantList();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
 void registrar(diag::Nivel n, const std::string& rol, const std::string& texto) {
@@ -200,7 +200,7 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
     c->creadaMs = ahoraMs();
     const std::string id = c->id;
     corridas_.push_front(std::move(c));
-    while (corridas_.size() > kCorridasGuardadas) {
+    while (corridas_.size() > kCorridasGuardadas()) {
         // Nunca se tira una en curso.
         auto& ultima = corridas_.back();
         if (ultima->proc != nullptr) break;
@@ -324,10 +324,10 @@ void Despachador::lanzarAhora(Corrida& c) {
     connect(c.tope, &QTimer::timeout, this, [this, id]() {
         Corrida* cc = porId(id);
         if (cc == nullptr || cc->proc == nullptr) return;
-        cc->error = "se paso del tope de " + std::to_string(kTopeMinutos) + " minutos";
+        cc->error = "se paso del tope de " + std::to_string(kTopeMinutos()) + " minutos";
         cc->proc->kill();
     });
-    c.tope->start(kTopeMinutos * 60 * 1000);
+    c.tope->start(kTopeMinutos() * 60 * 1000);
     c.estado = "corriendo";
     c.inicioMs = ahoraMs();
     registrar(diag::Nivel::Info, c.rol,
@@ -395,7 +395,7 @@ std::string textoClave(const json& j, const char* clave) {
             v["data"]["message"].is_string())
             return v["data"]["message"].get<std::string>();
     }
-    return v.dump();
+    return v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
 }
 
 } // namespace
@@ -507,7 +507,7 @@ void Despachador::paso(Corrida& c, json p) {
     if (p.value("tipo", "") == "herramienta")
         registrar(diag::Nivel::Depuracion, c.rol,
                   c.id + " llama " + p.value("herramienta", "") + " " +
-                      recortar(p.value("args", json::object()).dump(), 200));
+                      recortar(p.value("args", json::object()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace), 200));
     c.pasos.push_back(std::move(p));
     emit cambio();
 }
@@ -651,7 +651,7 @@ QVariantList Despachador::rolesQml() const {
 }
 
 QVariantList Despachador::corridasQml() const {
-    json r = corridas(kCorridasGuardadas);
+    json r = corridas(kCorridasGuardadas());
     for (auto& x : r) {
         const Rol* rol = roles_.porId(x.value("rol", ""));
         x["rolTitulo"] = rol == nullptr ? x["rol"] : json(rol->titulo);

@@ -83,9 +83,15 @@ class SourcesModel : public QAbstractListModel {
     Q_INVOKABLE bool move(const QString& name, int delta);
     Q_INVOKABLE bool remove(const QString& name);
     Q_INVOKABLE bool setRect(const QString& name, double x, double y, double w, double h);
+    /// Transparencia, borde difuso y sombra de la fuente en esta escena (ver EfectosCapa::aJson).
+    Q_INVOKABLE QVariantMap efectos(const QString& name) const;
+    /// Cambia solo lo que traiga `cambios` (las mismas claves; la sombra, anidada).
+    Q_INVOKABLE bool setEfectos(const QString& name, const QVariantMap& cambios);
     /// Agrega una fuente nueva de tipo `typeId` con nombre unico derivado de
     /// `baseName`. :returns: el nombre final ("" si fallo).
     Q_INVOKABLE QString add(const QString& typeId, const QString& baseName);
+    /// Lo mismo, con sus ajustes ya puestos (un «Código QR» con el QR elegido, …).
+    Q_INVOKABLE QString addConAjustes(const QString& typeId, const QString& baseName, const QVariantMap& ajustes);
     /// Invitado de la sala (camara o pantalla compartida del slot): reusa la
     /// fuente si ya existe en otra escena (misma fuente, otra posicion).
     Q_INVOKABLE QString addGuest(int slot, bool share);
@@ -137,6 +143,8 @@ class MixerModel : public QAbstractListModel {
     /// los escribe a mano se rompe en silencio (pasa: se pidio el pico
     /// creyendo pedir el volumen).
     Q_INVOKABLE QVariantMap canal(int fila) const;
+    /// El pico (dBFS, con caída suave) de una fuente por nombre; -100 si no es de audio.
+    double picoDe(const std::string& nombre) const;
 
    private:
     AppRuntime& rt_;

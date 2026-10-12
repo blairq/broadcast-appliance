@@ -1,0 +1,300 @@
+{
+ "integrantes": [
+  {
+   "banca": "P",
+   "bloque": "Presidencia",
+   "cargo_oficial": "Presidenta del Consejo",
+   "dcn_unidad": "1",
+   "distrito": "Ciudad de Puerto Ejemplo",
+   "id": "l1",
+   "nombre": "Marta Ibarguren",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Presidencia"
+   }
+  },
+  {
+   "banca": "1",
+   "bloque": "Frente Ciudadano",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "2",
+   "distrito": "Distrito Centro",
+   "id": "l2",
+   "nombre": "Julián Ferreyra Ocampo",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 1"
+   }
+  },
+  {
+   "banca": "2",
+   "bloque": "Frente Ciudadano",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "3",
+   "distrito": "Distrito Centro",
+   "id": "l3",
+   "nombre": "Carolina Benítez Lagos",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 2"
+   }
+  },
+  {
+   "banca": "3",
+   "bloque": "Frente Ciudadano",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "4",
+   "distrito": "Distrito Centro",
+   "id": "l4",
+   "nombre": "Rodolfo Quiroga Saenz",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 3"
+   }
+  },
+  {
+   "banca": "4",
+   "bloque": "Frente Ciudadano",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "5",
+   "distrito": "Distrito Centro",
+   "id": "l5",
+   "nombre": "Valeria Montes Arriola",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 4"
+   }
+  },
+  {
+   "banca": "5",
+   "bloque": "Unión Vecinal",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "6",
+   "distrito": "Distrito Norte",
+   "id": "l6",
+   "nombre": "Andrés Villalba Ruiz",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 5"
+   }
+  },
+  {
+   "banca": "6",
+   "bloque": "Unión Vecinal",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "7",
+   "distrito": "Distrito Norte",
+   "id": "l7",
+   "nombre": "Silvina Paredes Olmos",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 6"
+   }
+  },
+  {
+   "banca": "7",
+   "bloque": "Unión Vecinal",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "8",
+   "distrito": "Distrito Norte",
+   "id": "l8",
+   "nombre": "Tomás Echeverría Lunes",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 7"
+   }
+  },
+  {
+   "banca": "8",
+   "bloque": "Unión Vecinal",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "9",
+   "distrito": "Distrito Norte",
+   "id": "l9",
+   "nombre": "Lucía Ferrando Bustos",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 8"
+   }
+  },
+  {
+   "banca": "9",
+   "bloque": "Alianza del Puerto",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "10",
+   "distrito": "Distrito Puerto",
+   "id": "l10",
+   "nombre": "Gabriel Sosa Inchausti",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 9"
+   }
+  },
+  {
+   "banca": "10",
+   "bloque": "Alianza del Puerto",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "11",
+   "distrito": "Distrito Puerto",
+   "id": "l11",
+   "nombre": "Natalia Correa Brizuela",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 10"
+   }
+  },
+  {
+   "banca": "11",
+   "bloque": "Alianza del Puerto",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "12",
+   "distrito": "Distrito Puerto",
+   "id": "l12",
+   "nombre": "Esteban Galván Moreira",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 11"
+   }
+  },
+  {
+   "banca": "12",
+   "bloque": "Alianza del Puerto",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "13",
+   "distrito": "Distrito Puerto",
+   "id": "l13",
+   "nombre": "Inés Arrieta Pallares",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 12"
+   }
+  },
+  {
+   "banca": "13",
+   "bloque": "Independientes",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "14",
+   "distrito": "Distrito Sur",
+   "id": "l14",
+   "nombre": "Martín Lucero Tavella",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 13"
+   }
+  },
+  {
+   "banca": "14",
+   "bloque": "Independientes",
+   "cargo_oficial": "Consejera",
+   "dcn_unidad": "15",
+   "distrito": "Distrito Sur",
+   "id": "l15",
+   "nombre": "Paula Domínguez Rivas",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 14"
+   }
+  },
+  {
+   "banca": "15",
+   "bloque": "Independientes",
+   "cargo_oficial": "Consejero",
+   "dcn_unidad": "16",
+   "distrito": "Distrito Sur",
+   "id": "l16",
+   "nombre": "Ramiro Acosta Valdés",
+   "preset_ptz": {
+    "camara": "Cámara del recinto",
+    "posicion": "Banca 15"
+   }
+  }
+ ],
+ "nombre": "Consejo de la Ciudad de Puerto Ejemplo",
+ "recinto": {
+  "bancas": [
+   {
+    "banca": "1",
+    "columna": 0,
+    "fila": 0
+   },
+   {
+    "banca": "2",
+    "columna": 1,
+    "fila": 0
+   },
+   {
+    "banca": "3",
+    "columna": 2,
+    "fila": 0
+   },
+   {
+    "banca": "4",
+    "columna": 3,
+    "fila": 0
+   },
+   {
+    "banca": "5",
+    "columna": 4,
+    "fila": 0
+   },
+   {
+    "banca": "6",
+    "columna": 5,
+    "fila": 0
+   },
+   {
+    "banca": "7",
+    "columna": 6,
+    "fila": 0
+   },
+   {
+    "banca": "8",
+    "columna": 7,
+    "fila": 0
+   },
+   {
+    "banca": "9",
+    "columna": 8,
+    "fila": 0
+   },
+   {
+    "banca": "10",
+    "columna": 0,
+    "fila": 1
+   },
+   {
+    "banca": "11",
+    "columna": 1,
+    "fila": 1
+   },
+   {
+    "banca": "12",
+    "columna": 2,
+    "fila": 1
+   },
+   {
+    "banca": "13",
+    "columna": 3,
+    "fila": 1
+   },
+   {
+    "banca": "14",
+    "columna": 4,
+    "fila": 1
+   },
+   {
+    "banca": "15",
+    "columna": 5,
+    "fila": 1
+   },
+   {
+    "banca": "P",
+    "columna": 6,
+    "fila": 1
+   }
+  ],
+  "columnas": 9,
+  "distribucion": "hemiciclo",
+  "filas": 2
+ }
+}

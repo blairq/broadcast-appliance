@@ -48,6 +48,9 @@ class HostServices {
     virtual void removeFd(int fd) = 0;
     /// El plugin cambio su estado (p. ej. desde su editor): hay que guardarlo.
     virtual void stateDirty() {}
+    /// Un plugin avisó que cambió su latencia (CLAP_EXT_LATENCY): hay que recalcular
+    /// la compensación de los racks.
+    virtual void latencyChanged() {}
 };
 
 struct PluginDesc {
@@ -115,6 +118,9 @@ class ClapInstance {
     /// (lo saco del grafo): se detiene aca sin esperar.
     void deactivate(bool audioDetached = false);
     bool active() const { return active_; }
+    /// La latencia que agrega, en muestras (CLAP_EXT_LATENCY; 0 si no la declara o
+    /// no está activo). Hilo principal.
+    uint32_t latencia() const;
     double sampleRate() const { return sampleRate_; }
     const std::vector<PortInfo>& inputs() const { return inputs_; }
     const std::vector<PortInfo>& outputs() const { return outputs_; }

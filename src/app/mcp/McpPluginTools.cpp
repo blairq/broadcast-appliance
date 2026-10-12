@@ -6,7 +6,7 @@
 // ESCRIBE un plugin: plugin_escribir -> plugin_probar (sin la app: informe)
 // -> plugin_activar -> lo usa (sus entradas ya son entradas, su PTZ ya es un
 // PTZ, sus tarjetas van con plugin_tarjeta, sus controles con plugin_control).
-// Ayuda: `help {"topic": "plugins"}`. Ver docs/PLUGINS.md.
+// Ayuda: `help {"topic": "plugins"}`. Ver docs/funciones/PLUGINS.md.
 // ============================================================================
 
 #include "mcp/McpService.hpp"
@@ -191,6 +191,27 @@ void McpService::registerPluginTools() {
                     e["registro"] = p->registro(i, 30);
                 done(ToolResult().data(e));
             });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "plugin_aprobados";
+        t.title = "Plugins aprobados para el aire";
+        t.category = "plugins";
+        t.readOnly = true;
+        t.description =
+            "Los plugins aprobados para el aire: con el modo en vivo solo arrancan (y se reinician) esos, y solo "
+            "si su código no cambió desde la aprobación (`vigente`; si no, `cambiaron` dice qué archivos). "
+            "APROBAR lo hace una persona en Plugins → «Aprobar para el aire»: el asistente escribe plugins y no "
+            "puede aprobarse a sí mismo. Con `quitar: <id>` se le saca la aprobación.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"quitar", {{"type", "string"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            if (!p) return done(ToolResult::error("los plugins no están disponibles"));
+            if (a.contains("quitar"))
+                if (const std::string e = p->desaprobar(a.value("quitar", std::string())); !e.empty())
+                    return done(ToolResult::error(e));
+            done(ToolResult().data(p->aprobados()));
         };
         core_.addTool(std::move(t));
     }

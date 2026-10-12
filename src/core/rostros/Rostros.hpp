@@ -24,13 +24,14 @@
 //      vectores distintos y no se reconoce a sí misma.
 //
 // COMPARAR ES UN COSENO. Dos vectores de la misma persona apuntan casi al
-// mismo lado. `kMismaPersona` es dónde se corta, y está elegido para errar
+// mismo lado. `kMismaPersona()` es dónde se corta, y está elegido para errar
 // hacia "no sé" antes que hacia "es fulano": confundir a dos personas en un
 // rótulo al aire es peor que no reconocer a ninguna.
 // ============================================================================
 #pragma once
 
 #include <cstdint>
+#include "ajustes/Ajustes.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -54,7 +55,7 @@ float parecido(const std::vector<float>& a, const std::vector<float>& b);
 /// que es conservador: con menos entran parecidos de familia y gente con
 /// anteojos parecidos. Confundir a dos personas en un rótulo al aire es peor
 /// que no reconocer a ninguna, así que el error se paga del lado de "no sé".
-constexpr float kMismaPersona = 0.45f;
+inline float kMismaPersona() { return static_cast<float>(ba::ajustes::numero("rostros.mismaPersona", 0.45)); }
 
 /// El motor: carga los dos modelos una vez y los reusa.
 ///

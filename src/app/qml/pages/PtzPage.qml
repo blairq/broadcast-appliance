@@ -12,6 +12,16 @@ import "../controls"
 
 Rectangle {
     id: page
+    // Interlock: la cámara AL AIRE no se mueve sin preguntar (se vería el movimiento).
+    function siNoAlAire(accion) {
+        if (!page.cc || !page.cc.alAire(page.sel) || !page.cc.interlock().activo) { accion(); return }
+        ApplicationWindow.window.confirm({
+            title: "La cámara «" + page.sel + "» está al aire",
+            text: "Moverla se ve en la transmisión. ¿Mover igual?",
+            accept: "Mover igual", reject: "Cancelar",
+            action: accion
+        })
+    }
     color: Theme.bg
     property real leftInset: 92
     readonly property var cc: Studio.camaras
@@ -35,13 +45,29 @@ Rectangle {
     readonly property var caps: cam === null ? ({}) : (mueveDigital ? cam.capacidadesDigital : cam.capacidades)
     property real velocidad: 0.6
     property bool guardando: false
+    // Las fotos de los presets de lo que mueve el joystick (n -> url).
+    readonly property var fotosPresets: cam === null ? ({}) : ((mueveDigital ? cam.fotosPresetsDigitales : cam.fotosPresetsCamara) || ({}))
+    // Los presets se muestran de a 16: el bloque siguiente aparece cuando se
+    // usa el último del anterior (o con «16 más»), hasta lo que admite.
+    property int presetsExtra: 0
+    readonly property int presetsVisibles: {
+        const max = page.caps.presets || 0
+        let usado = 0
+        if (page.cam && page.mueveDigital)
+            for (const n of page.cam.presetsDigitales) usado = Math.max(usado, n)
+        for (const k in page.fotosPresets) usado = Math.max(usado, parseInt(k))
+        return Math.min(max, (Math.floor(usado / 16) + 1 + page.presetsExtra) * 16)
+    }
     property string error: ""
     property var pos: ({})
+    // La grilla del recinto en lugar del control de una cámara.
+    property bool verRecinto: false
 
-    onVisibleChanged: inp.setActive(visible)
+    onVisibleChanged: { inp.setActive(visible); mirar() }
     Component.onCompleted: {
-        inp.setActive(visible)
+        if (visible) inp.setActive(true) // creada oculta no apaga a Entradas, que comparte `inp`
         if (cc && cc.camaras.length > 0) sel = cc.camaras[0].entrada
+        mirar()
     }
     Connections {
         target: page.cc
@@ -56,7 +82,30 @@ Rectangle {
     }
 
     function avisar(e) { page.error = e }
-    onSelChanged: { page.ptzMsg = ""; page.redTick++ }
+    // Lo que termina después (la foto de una posición) avisa por acá.
+    Connections { target: page.cc; function onAviso(texto) { page.avisar(texto) } }
+    // ui_show_page {page: "camaras", seccion: "recinto" | <entrada>}
+    Connections {
+        target: Studio
+        function onMostrarSeccion(pagina, seccion) {
+            if (pagina !== "camaras") return
+            if (seccion.toLowerCase() === "recinto") { page.verRecinto = true; return }
+            page.sel = seccion
+            page.verRecinto = false
+        }
+    }
+    onSelChanged: { page.ptzMsg = ""; page.redTick++; page.presetsExtra = 0; mirar() }
+    // La imagen en vivo de la elegida, solo mientras se ve la página (renderizarla cuesta).
+    property string mirando: ""
+    function mirar() {
+        const quiero = page.visible && !page.verRecinto ? page.sel : ""
+        if (quiero === page.mirando) return
+        if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
+        if (quiero !== "") Studio.frames.mirarEntrada(quiero, true)
+        page.mirando = quiero
+    }
+    onVerRecintoChanged: mirar()
+    Component.onDestruction: if (page.mirando !== "") Studio.frames.mirarEntrada(page.mirando, false)
     Connections {
         target: Studio.red
         function onPtzListo(entrada, ok, texto) {
@@ -78,9 +127,15 @@ Rectangle {
             Layout.preferredWidth: 280
             Layout.fillHeight: true
             title: "Cámaras (" + (page.cc ? page.cc.camaras.length : 0) + ")"
+            GlassButton {
+                id: botonRecinto
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+                text: "▦ Recinto (bancas)"; active: page.verRecinto
+                onClicked: page.verRecinto = true
+            }
             ListView {
                 id: lista
-                anchors.fill: parent
+                anchors { left: parent.left; right: parent.right; top: parent.top; bottom: botonRecinto.top; bottomMargin: 8 }
                 clip: true
                 spacing: 8
                 model: page.cc ? page.cc.camaras : []
@@ -123,7 +178,7 @@ Rectangle {
                             }
                         }
                     }
-                    MouseArea { anchors.fill: parent; onClicked: { page.sel = modelData.entrada; page.error = "" } }
+                    MouseArea { anchors.fill: parent; onClicked: { page.sel = modelData.entrada; page.error = ""; page.verRecinto = false } }
                 }
             }
         }
@@ -134,7 +189,7 @@ Rectangle {
             Layout.fillHeight: true
             contentWidth: availableWidth
             clip: true
-            visible: page.cam !== null
+            visible: page.cam !== null && !page.verRecinto
 
             ColumnLayout {
                 width: parent.width
@@ -149,15 +204,74 @@ Rectangle {
                         id: vistaFila
                         anchors.fill: parent
                         spacing: 14
+                        // La imagen en vivo: clic apunta ahí, arrastrar encuadra ese cuadro
+                        // (lo mismo que la ventana de la tarjeta PTZ: ControlCamaras::apuntar).
                         Rectangle {
+                            id: vista
                             Layout.fillWidth: true
                             Layout.preferredHeight: width * 9 / 16
                             Layout.maximumHeight: 340
                             radius: 10; color: "black"; clip: true
-                            Image { anchors.fill: parent; fillMode: Image.PreserveAspectFit; cache: false
-                                    source: page.cam ? "image://inputs/" + encodeURIComponent(page.sel) + "?" + page.inp.stamp : "" }
+                            VideoItem { id: video; anchors.fill: parent; source: page.cam ? "entrada:" + page.sel : ""; fillMode: VideoItem.Fit }
+                            Text { visible: !video.hasFrame; anchors.centerIn: parent
+                                   text: "Sin señal"; color: Theme.textFaint; font.pixelSize: 13 }
+                            // Donde cae la imagen dentro del rectángulo (Fit deja bandas).
+                            readonly property real aspecto: video.frameSize.width > 0 ? video.frameSize.width / video.frameSize.height : 16 / 9
+                            readonly property real iw: Math.min(width, height * aspecto)
+                            readonly property real ih: iw / aspecto
+                            readonly property real ix: (width - iw) / 2
+                            readonly property real iy: (height - ih) / 2
+                            function u(x) { return Math.max(0, Math.min(1, (x - ix) / iw)) }
+                            function v(y) { return Math.max(0, Math.min(1, (y - iy) / ih)) }
+                            Rectangle {
+                                id: cuadro
+                                visible: false
+                                color: Qt.rgba(1, 0.42, 0.17, 0.15)
+                                border { color: Theme.accent; width: 2 }
+                            }
+                            // La mira en el centro: ahí va lo que se toque.
+                            Rectangle { anchors.centerIn: parent; width: 18; height: 1; color: Qt.rgba(1, 1, 1, 0.35) }
+                            Rectangle { anchors.centerIn: parent; width: 1; height: 18; color: Qt.rgba(1, 1, 1, 0.35) }
                             StatusPill { anchors { left: parent.left; top: parent.top; margins: 8 }
                                          text: page.mueveDigital ? "DIGITAL" : "ÓPTICO"; dot: page.cam && page.cam.listo ? Theme.ok : Theme.warn }
+                            Text {
+                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 6 }
+                                horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
+                                text: "Clic: apuntar · arrastrar: encuadrar ese cuadro" + (page.mueveDigital ? " · rueda: zoom · doble clic: cuadro completo" : "")
+                                color: Qt.rgba(1, 1, 1, 0.55); font.pixelSize: 10
+                                style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.7)
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                enabled: page.cam !== null
+                                preventStealing: true // que el ScrollView no se lleve el arrastre
+                                cursorShape: Qt.CrossCursor
+                                property point desde
+                                onPressed: (m) => { desde = Qt.point(m.x, m.y); cuadro.visible = false }
+                                onPositionChanged: (m) => {
+                                    if (!pressed) return
+                                    if (Math.abs(m.x - desde.x) < 6 && Math.abs(m.y - desde.y) < 6) return
+                                    cuadro.x = Math.min(m.x, desde.x); cuadro.y = Math.min(m.y, desde.y)
+                                    cuadro.width = Math.abs(m.x - desde.x); cuadro.height = Math.abs(m.y - desde.y)
+                                    cuadro.visible = true
+                                }
+                                onReleased: (m) => {
+                                    let u = vista.u(m.x), v = vista.v(m.y), an = 0, al = 0
+                                    if (cuadro.visible) {
+                                        cuadro.visible = false
+                                        u = vista.u(cuadro.x + cuadro.width / 2); v = vista.v(cuadro.y + cuadro.height / 2)
+                                        an = cuadro.width / vista.iw; al = cuadro.height / vista.ih
+                                    }
+                                    page.siNoAlAire(function() { page.avisar(page.cc.apuntar(page.sel, u, v, an, al)) })
+                                }
+                                onDoubleClicked: if (page.mueveDigital) page.siNoAlAire(function() { page.avisar(page.cc.encuadre(page.sel, 0.5, 0.5, 1, 0.8)) })
+                                onWheel: (w) => {
+                                    if (!page.mueveDigital) return
+                                    const z = page.pos.zoom || 1
+                                    page.avisar(page.cc.encuadre(page.sel, page.pos.x || 0.5, page.pos.y || 0.5,
+                                                                 Math.max(1, Math.min(8, z * (w.angleDelta.y > 0 ? 1.15 : 1 / 1.15))), 0.15))
+                                }
+                            }
                         }
                         // Mapa: el cuadro entero y la ventana del recorte. Clic = centrar ahí.
                         ColumnLayout {
@@ -400,6 +514,8 @@ Rectangle {
                             spacing: 8
                             Text { text: page.mueveDigital ? "Presets digitales" : "Presets de la cámara"; color: Theme.textDim; font.pixelSize: 12 }
                             Item { Layout.fillWidth: true }
+                            GlassButton { compact: true; text: "16 más"; visible: page.presetsVisibles < (page.caps.presets || 0)
+                                          onClicked: page.presetsExtra++ }
                             GlassButton { compact: true; text: page.guardando ? "Tocá un número para guardar" : "Guardar…"
                                           active: page.guardando; onClicked: page.guardando = !page.guardando }
                         }
@@ -408,23 +524,30 @@ Rectangle {
                             columns: 8
                             rowSpacing: 6; columnSpacing: 6
                             Repeater {
-                                model: Math.min(16, page.caps.presets || 0)
+                                model: page.presetsVisibles
                                 delegate: Rectangle {
                                     required property int index
                                     readonly property int numero: index + 1
-                                    readonly property bool lleno: !page.mueveDigital || (page.cam && page.cam.presetsDigitales.indexOf(numero) >= 0)
-                                    width: 52; height: 40; radius: 10
+                                    readonly property string foto: page.fotosPresets[String(numero)] || ""
+                                    readonly property bool lleno: foto !== "" || !page.mueveDigital || (page.cam && page.cam.presetsDigitales.indexOf(numero) >= 0)
+                                    width: 64; height: 40; radius: 8; clip: true
                                     color: pm.pressed ? Theme.accent : page.guardando ? Qt.rgba(1, 0.42, 0.17, 0.14)
                                                                                      : lleno ? Qt.rgba(1, 1, 1, 0.1) : Qt.rgba(1, 1, 1, 0.03)
                                     border.color: page.guardando ? Theme.accent : Qt.rgba(1, 1, 1, lleno ? 0.22 : 0.08)
-                                    Text { anchors.centerIn: parent; text: numero; color: lleno || page.guardando ? Theme.text : Theme.textFaint
-                                           font { pixelSize: 15; weight: Font.DemiBold } }
+                                    // La foto del lugar, sacada al guardar.
+                                    Image { anchors.fill: parent; anchors.margins: 1; visible: foto !== ""; source: foto
+                                            fillMode: Image.PreserveAspectCrop; asynchronous: true; opacity: pm.pressed ? 0.5 : 1 }
+                                    Text { anchors { centerIn: foto === "" ? parent : undefined; left: foto !== "" ? parent.left : undefined
+                                                     bottom: foto !== "" ? parent.bottom : undefined; margins: 3 }
+                                           text: numero; color: lleno || page.guardando ? Theme.text : Theme.textFaint
+                                           font { pixelSize: foto !== "" ? 11 : 15; weight: Font.DemiBold }
+                                           style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, foto !== "" ? 0.8 : 0) }
                                     MouseArea {
                                         id: pm
                                         anchors.fill: parent
                                         onClicked: {
                                             if (page.guardando) { page.avisar(page.cc.guardarPreset(page.sel, numero)); page.guardando = false }
-                                            else page.avisar(page.cc.irPreset(page.sel, numero))
+                                            else page.siNoAlAire(function() { page.avisar(page.cc.irPreset(page.sel, numero)) })
                                         }
                                     }
                                 }
@@ -468,13 +591,26 @@ Rectangle {
                                 required property var modelData
                                 property bool editando: false
                                 Layout.fillWidth: true
-                                implicitHeight: filaCol.implicitHeight + 16
+                                implicitHeight: Math.max(filaCol.implicitHeight, 72) + 16
                                 radius: 10
                                 color: Qt.rgba(1, 1, 1, 0.04)
                                 border.color: Qt.rgba(1, 1, 1, 0.08)
+                                // La foto de cómo se veía: tocarla = ir.
+                                Rectangle {
+                                    id: miniPos
+                                    anchors { left: parent.left; top: parent.top; margins: 8 }
+                                    width: 128; height: 72; radius: 6; color: "black"; clip: true
+                                    Image { anchors.fill: parent; fillMode: Image.PreserveAspectCrop; asynchronous: true
+                                            source: filaPos.modelData.miniatura_url || "" }
+                                    Text { anchors.centerIn: parent; visible: !filaPos.modelData.miniatura_url
+                                           text: "sin foto"; color: Theme.textFaint; font.pixelSize: 11 }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, -1)
+                                                             page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
+                                }
                                 ColumnLayout {
                                     id: filaCol
-                                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 8 }
+                                    anchors { left: miniPos.right; right: parent.right; top: parent.top; margins: 8 }
                                     spacing: 4
                                     RowLayout {
                                         Layout.fillWidth: true
@@ -484,8 +620,11 @@ Rectangle {
                                         TextField { id: edNombre; visible: filaPos.editando; Layout.preferredWidth: 180; text: filaPos.modelData.nombre }
                                         TextField { id: edComentario; visible: filaPos.editando; Layout.fillWidth: true; text: filaPos.modelData.comentario || "" }
                                         GlassButton { compact: true; text: "Ir"; active: true; visible: !filaPos.editando
-                                                      onClicked: { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, 1.0)
-                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) } }
+                                                      onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, -1)
+                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
+                                        GlassButton { compact: true; text: "Foto"; visible: !filaPos.editando
+                                                      ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Vuelve a sacar la foto con lo que se ve ahora"
+                                                      onClicked: page.avisar(page.cc.capturarMiniatura(page.sel, filaPos.modelData.id)) }
                                         GlassButton { compact: true; text: "Regrabar"; visible: !filaPos.editando
                                                       onClicked: { const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id, {regrabar: true})
                                                                    page.avisar(r.ok ? (r.aviso || "") : r.error) } }
@@ -493,7 +632,8 @@ Rectangle {
                                                       onClicked: {
                                                           if (filaPos.editando) {
                                                               const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id,
-                                                                                               {nombre: edNombre.text, comentario: edComentario.text})
+                                                                                               {nombre: edNombre.text, comentario: edComentario.text,
+                                                                                                velocidad: edVelocidad.value, segundos: edSegundos.value / 10})
                                                               page.avisar(r.ok ? "" : r.error)
                                                               if (r.ok) filaPos.editando = false
                                                           } else filaPos.editando = true
@@ -509,6 +649,21 @@ Rectangle {
                                                           })
                                                       } }
                                     }
+                                    RowLayout {
+                                        visible: filaPos.editando
+                                        Layout.fillWidth: true
+                                        Text { text: "Velocidad de la cabeza"; color: Theme.textDim; font.pixelSize: 11 }
+                                        Slider { id: edVelocidad; from: 0; to: 1; Layout.preferredWidth: 140
+                                                 value: filaPos.modelData.velocidad || 0 }
+                                        Text { text: edVelocidad.value < 0.01 ? "la de la cámara" : Math.round(edVelocidad.value * 100) + " %"
+                                               color: Theme.textDim; font.pixelSize: 11; Layout.preferredWidth: 90 }
+                                        Text { text: "Recorte en"; color: Theme.textDim; font.pixelSize: 11 }
+                                        // En décimas de segundo; -1 décima = sin fijar (usa lo que diga quien la llama).
+                                        SpinBox { id: edSegundos; from: -1; to: 100; editable: true
+                                                  value: filaPos.modelData.segundos !== undefined ? Math.round(filaPos.modelData.segundos * 10) : -1
+                                                  textFromValue: function(v) { return v < 0 ? "—" : (v / 10).toFixed(1) + " s" }
+                                                  valueFromText: function(t) { const n = parseFloat(t.replace(",", ".")); return isNaN(n) ? -1 : Math.round(n * 10) } }
+                                    }
                                     Text { visible: !filaPos.editando && (filaPos.modelData.comentario || "") !== ""
                                            text: filaPos.modelData.comentario || ""; color: Theme.textDim; font.pixelSize: 12
                                            Layout.fillWidth: true; wrapMode: Text.WordWrap }
@@ -518,6 +673,8 @@ Rectangle {
                                             const m = filaPos.modelData
                                             const partes = []
                                             if (m.definicion) partes.push(m.definicion.ancho + "×" + m.definicion.alto)
+                                            if (m.velocidad) partes.push("cabeza al " + Math.round(m.velocidad * 100) + " %")
+                                            if (m.segundos !== undefined) partes.push("recorte en " + m.segundos.toFixed(1) + " s")
                                             if (m.digital) partes.push("digital " + m.digital.zoom.toFixed(2) + "× en " + m.digital.x.toFixed(2) + ", " + m.digital.y.toFixed(2))
                                             if (m.camara) partes.push(m.camara.backend.toUpperCase() + (m.camara.memoria ? " memoria " + m.camara.memoria : m.camara.token ? " token " + m.camara.token : " (grabando…)"))
                                             return partes.join("  ·  ")
@@ -668,7 +825,7 @@ Rectangle {
                                 spacing: 2
                                 Text { text: "Mejorar imagen"; color: Theme.text; font.pixelSize: 13 }
                                 Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                                       text: "Limpia el ruido, pega el color a los bordes y afila. Lo general (y la intensidad) está en Configuración → Video." }
+                                       text: "Limpia el ruido, pega el color a los bordes y afila. Lo general (y la intensidad) está en Configuración → Cámaras y entradas." }
                             }
                             ComboBox {
                                 Layout.preferredWidth: 220
@@ -685,8 +842,20 @@ Rectangle {
                 }
             }
         }
+        Panel {
+            visible: page.verRecinto
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Recinto" + (Studio.cuerpo.nombre ? " · " + Studio.cuerpo.nombre : "")
+            ScrollView {
+                anchors.fill: parent
+                contentWidth: availableWidth
+                clip: true
+                RecintoGrilla { width: parent.width }
+            }
+        }
         Item {
-            visible: page.cam === null
+            visible: page.cam === null && !page.verRecinto
             Layout.fillWidth: true
             Layout.fillHeight: true
             Text { anchors.centerIn: parent; color: Theme.textFaint; font.pixelSize: 14

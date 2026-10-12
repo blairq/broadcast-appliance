@@ -1,0 +1,9 @@
+{
+  "id": "ptz-visca-ip-escucha",
+  "nombre": "PTZ: cámara virtual VISCA-IP (para controladores)",
+  "descripcion": "Escucha VISCA-over-IP (UDP, el 52381 de Sony) como si fuera una cámara, para manejar el PTZ con un controlador comercial (Sony RM-IP, Panasonic AW-RP con VISCA, Skaarhoj, PTZOptics, Bitfocus…). Cada puerto es una cámara: en el controlador se da de alta esta computadora con ese puerto, y lo que llega (pan/tilt con velocidad, zoom, presets y home (= el preset `home_preset`)) va a la cámara real de `camaras` por el PTZ de la app, con el interlock de siempre (mover una cámara al aire pide confirmación). Contesta ACK y completion como una cámara Sony. Sin dependencias.",
+  "version": "1.0",
+  "principal": "plugin.py",
+  "herramientas": ["ptz_mover", "ptz_preset", "ptz_parar"],
+  "config": {"camaras": {"52381": "Cámara 1"}, "escuchar_en": "0.0.0.0", "tope_movimiento_s": 10, "home_preset": 1}
+}

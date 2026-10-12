@@ -1,6 +1,7 @@
 // src/app/ptz/PtzPanasonic.cpp — ver PtzPanasonic.hpp
 
 #include "ptz/PtzPanasonic.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "ptz/PtzProtocolos.hpp"
 
@@ -68,7 +69,7 @@ void PtzPanasonic::siguiente() {
         url.setPassword(clave_);
     }
     QNetworkRequest pedido(url);
-    pedido.setTransferTimeout(2000);
+    pedido.setTransferTimeout(ba::ajustes::entero("ptz.timeoutMs", 4000) / 2);
     enVuelo_ = true;
     QNetworkReply* r = red_->get(pedido);
     connect(r, &QNetworkReply::finished, this, [this, r, orden]() {

@@ -24,6 +24,7 @@
 // ============================================================================
 
 #include "Cloudflared.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -56,7 +57,7 @@ bool CloudflaredSupervisor::start() {
     // Sin token no hay tunel posible: lanzarlo igual solo generaba un bucle de
     // reinicios. El gateway queda accesible en la red local.
     if (tunnelToken_.empty()) {
-        log_.info("cloudflared: sin token de tunel (BA_TUNNEL_TOKEN); sin tunel, solo acceso local");
+        log_.info("cloudflared: sin token de tunel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); sin tunel, solo acceso local");
         return false;
     }
     std::error_code ec;
@@ -190,7 +191,7 @@ void CloudflaredSupervisor::sleepBackoff() {
     for (int waited = 0; waited < backoffMs_ && !stop_.load(); waited += 100) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    if (backoffMs_ < 30000) backoffMs_ *= 2; // 1s,2s,4s,... hasta 30s
+    if (backoffMs_ < ba::ajustes::sAMs("gateway.tunelReintentoMaxS", 30)) backoffMs_ *= 2; // 1s,2s,4s,... hasta el tope
 }
 
 void CloudflaredSupervisor::runLoop() {

@@ -24,6 +24,7 @@
 // Necesita al menos una interfaz de red (se permite loopback). Sin conexion en
 // el plazo, SKIP (77): en un CI sin red no se puede probar RTP.
 
+#include <numbers>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -105,7 +106,7 @@ class ToneSource : public webrtc::Notifier<webrtc::AudioSourceInterface> {
         int16_t pcm[480];
         for (int i = 0; i < 480; ++i) {
             pcm[i] = static_cast<int16_t>(12000 * std::sin(phase_));
-            phase_ += 2 * M_PI * 440.0 / 48000.0;
+            phase_ += 2 * std::numbers::pi * 440.0 / 48000.0;
         }
         std::lock_guard<std::mutex> lock(m_);
         for (auto* s : sinks_)
@@ -182,7 +183,7 @@ class Browser : public webrtc::PeerConnectionObserver {
         if (sendIce)
             sendIce(
                 json{{"candidate", line}, {"sdpMid", c->sdp_mid()}, {"sdpMLineIndex", c->sdp_mline_index()}}
-                    .dump());
+                    .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     }
     void OnTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> t) override {
         auto track = t->receiver()->track();

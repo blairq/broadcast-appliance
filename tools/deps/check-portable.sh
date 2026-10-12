@@ -31,7 +31,7 @@ fi
 
 # Como el cargador dinamico: una dependencia del bundle tiene que estar en un
 # directorio del RUNPATH/RPATH del PROPIO archivo ($ORIGIN = su carpeta). El
-# RUNPATH no se hereda: libobs busca FFmpeg con el suyo, no con el de ba-app.
+# RUNPATH no se hereda: un plugin de GStreamer busca FFmpeg con el suyo, no con el de ba-app.
 # (LD_LIBRARY_PATH no cuenta: el launcher lo borra.)
 resolvable() { # <elf> <soname>
   local elf="$1" need="$2" dir rp d

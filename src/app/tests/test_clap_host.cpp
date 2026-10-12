@@ -11,6 +11,7 @@
 // todos sus parametros (para armar las interfaces de alto nivel).
 // ============================================================================
 
+#include <numbers>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -56,7 +57,7 @@ float run(ClapInstance& c, float amp, int blocks) {
     for (int b = 0; b < blocks; ++b) {
         for (uint32_t i = 0; i < N; ++i) {
             l[i] = r[i] = amp * static_cast<float>(std::sin(phase));
-            phase += 2 * M_PI * 1000.0 / 48000.0;
+            phase += 2 * std::numbers::pi * 1000.0 / 48000.0;
         }
         c.process(ins, outs, N);
         peak = 0;

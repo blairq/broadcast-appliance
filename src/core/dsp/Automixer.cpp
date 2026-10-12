@@ -105,9 +105,11 @@ Automixer::Automixer(int maxChannels) {
     maxChannels_ = cap;
     env_ = std::make_unique<std::atomic<float>[]>(static_cast<std::size_t>(cap));
     holdUntil_ = std::make_unique<std::atomic<long long>[]>(static_cast<std::size_t>(cap));
+    holdLeft_ = std::make_unique<std::atomic<long long>[]>(static_cast<std::size_t>(cap));
     for (int i = 0; i < cap; ++i) {
         env_[static_cast<std::size_t>(i)].store(0.0f);
         holdUntil_[static_cast<std::size_t>(i)].store(-1);
+        holdLeft_[static_cast<std::size_t>(i)].store(0);
     }
     tick_.store(0);
     // Coeficientes con los defaults (setParams los recalcula).
@@ -145,6 +147,7 @@ void Automixer::reset() {
     for (int i = 0; i < maxChannels_; ++i) {
         env_[static_cast<std::size_t>(i)].store(0.0f);
         holdUntil_[static_cast<std::size_t>(i)].store(-1);
+        holdLeft_[static_cast<std::size_t>(i)].store(0);
     }
     tick_.store(0);
     attenuation_.store(1.0f, std::memory_order_relaxed);
@@ -259,7 +262,7 @@ float Automixer::gainFor(int ch) const {
     // Sin esto, la normalizacion Dugan lo mandaba a 0 y el hold quedaba inutil.
     const long long tick = tick_.load();
     const long long holdUntil = holdUntil_[idx].load();
-    if (holdUntil > tick) {
+    if (holdUntil > tick || holdLeft_[idx].load() > 0) {
         const float floor = static_cast<float>(dbToLin(holdFloorDb_.load(std::memory_order_relaxed)));
         if (gain < floor) {
             gain = floor;
@@ -273,6 +276,49 @@ float Automixer::gainFor(int ch) const {
         gain = 1.0f;
     }
     return gain;
+}
+
+void Automixer::setLevelBlock(int ch, float rms, int frames) {
+    if (ch < 0 || ch >= maxChannels_ || frames <= 0) {
+        return;
+    }
+    const std::size_t idx = static_cast<std::size_t>(ch);
+    float lin = std::fabs(rms);
+    if (lin > 1.0f) {
+        lin = 1.0f;
+    }
+    // El one-pole aplicado `frames` veces seguidas con la misma entrada:
+    // coeficiente equivalente 1 - (1 - c)^frames.
+    const auto enBloque = [frames](float c) {
+        return static_cast<float>(1.0 - std::pow(1.0 - static_cast<double>(c), static_cast<double>(frames)));
+    };
+    const float prev = env_[idx].load();
+    const float c = enBloque(lin > prev ? atk_.load(std::memory_order_relaxed) : rel_.load(std::memory_order_relaxed));
+    const float next = prev + (lin - prev) * c;
+    env_[idx].store(next);
+
+    const double fs = fs_.load(std::memory_order_relaxed);
+    const double thrLin = dbToLin(openThresholdDb_.load(std::memory_order_relaxed));
+    if (next > static_cast<float>(thrLin)) {
+        holdLeft_[idx].store(static_cast<long long>((holdMs_.load(std::memory_order_relaxed) / 1000.0) * fs + 0.5));
+    } else {
+        const long long q = holdLeft_[idx].load() - frames;
+        holdLeft_[idx].store(q > 0 ? q : 0);
+    }
+
+    int openCount = 0;
+    for (int i = 0; i < maxChannels_; ++i) {
+        if (env_[static_cast<std::size_t>(i)].load() > static_cast<float>(thrLin)) {
+            ++openCount;
+        }
+    }
+    // Varios escritores: el objetivo es local (no `attenuationTarget_`) y la
+    // atenuación compartida se acerca a él; si dos la escriben a la vez gana
+    // uno, sin consecuencia audible (el siguiente bloque corrige).
+    const float target = attenuationForOpenCount(openCount);
+    float att = attenuation_.load(std::memory_order_relaxed);
+    att += (target - att) * enBloque(attFade_.load(std::memory_order_relaxed));
+    attenuation_.store(std::clamp(att, 0.0f, 1.0f), std::memory_order_relaxed);
 }
 
 } // namespace ba::dsp

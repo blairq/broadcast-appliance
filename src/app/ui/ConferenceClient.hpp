@@ -41,7 +41,7 @@ class ConferenceClient : public QObject {
     const QJsonObject& snapshot() const { return snap_; }
 
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
-    void post(const QString& path, const QJsonObject& body = {}, Done done = {});
+    void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
     void del(const QString& path, Done done = {});
     void get(const QString& path, Done done);
     /// GET de bytes crudos (fotos de las tarjetas). No avisa `failed`: una
@@ -52,6 +52,11 @@ class ConferenceClient : public QObject {
     void onlineChanged(bool online);
     void snapshotChanged();
     void chatReceived(const QJsonObject& msg);
+    /// La botonera (superficie de control): solicitud, entrada o conexión de una tablet.
+    void botoneraEvento(const QJsonObject& ev);
+    /// Lo que mandó el corrector de subtítulos desde /correccion/ (T44): {id, texto?, descartar}.
+    void correccionEvento(const QJsonObject& ev);
+    void sesionEvento(const QJsonObject& ev);
     /// Una accion fallo; `error` es el codigo de la API ("full", "not_found"...).
     void failed(const QString& error);
 
@@ -63,7 +68,7 @@ class ConferenceClient : public QObject {
     void dispatch(const QByteArray& event, const QByteArray& data);
     void setOnline(bool on);
     void scheduleReconnect();
-    void send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done);
+    void send(const QByteArray& verb, const QString& path, const QByteArray& body, Done done, int timeoutMs = 5000);
 
     QNetworkAccessManager nam_;
     QNetworkReply* sse_ = nullptr;

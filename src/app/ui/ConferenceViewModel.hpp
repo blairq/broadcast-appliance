@@ -63,8 +63,12 @@ class JsonListModel : public QAbstractListModel {
 class ConferenceViewModel : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool online READ online NOTIFY onlineChanged)
+    /// El proxy por nombre (T61): lo último que dijo la sala (GET /api/v1/proxy) más la configuración.
+    Q_PROPERTY(QVariantMap proxy READ proxy NOTIFY proxyChanged)
     Q_PROPERTY(QString room READ room NOTIFY roomChanged)
     Q_PROPERTY(QString pin READ pin NOTIFY roomChanged)
+    /// Los bloqueos por PIN mal ({global, ips, intentosPorIp, bloqueoS}): se piden con pinBloqueos().
+    Q_PROPERTY(QVariantMap bloqueosPin READ bloqueosPin NOTIFY bloqueosPinChanged)
     Q_PROPERTY(QString guestUrl READ guestUrl NOTIFY roomChanged)
     Q_PROPERTY(bool lobby READ lobby NOTIFY roomChanged)
     Q_PROPERTY(bool locked READ locked NOTIFY roomChanged)
@@ -189,18 +193,38 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void kick(const QString& id);
     /// Lobby: hablarle en privado (le llega tu voz y vos escuchas la suya).
     Q_INVOKABLE void talk(const QString& id, bool on);
+    /// Prueba técnica (T33): eco por su micrófono y red. El resultado llega por pruebaLista.
+    Q_INVOKABLE void pruebaTecnica(const QString& id);
+    QVariantMap proxy() const { return proxy_; }
+    Q_INVOKABLE void refrescarProxy();
+    Q_INVOKABLE void renovarProxy(const QString& host);
+    /// Cambia la configuración del proxy (activo, dominio, acme…) y reinicia la sala. "" o el error.
+    Q_INVOKABLE QString configurarProxy(const QVariantMap& cambios);
+    /// Reinicia solo el gateway (la sala): relee su configuración (IP, puertos,
+    /// túnel…) sin tocar el resto del programa. Los invitados se cortan y vuelven
+    /// a entrar. "" o el error.
+    Q_INVOKABLE QString reiniciarSala();
+    /// Lo que hay que decirle al operador según el resultado de la prueba.
+    static QString recomendacionPrueba(const QJsonObject& r);
     /// Elegir con que fuentes te ve/oye el lobby ("" = ninguna).
     Q_INVOKABLE void setOperatorFeed(const QString& video, const QString& audio);
     /// Refresca las listas de fuentes (se agregaron o quitaron fuentes).
     Q_INVOKABLE void refreshSources() { emit operatorChanged(); }
     /// "mute-mic" | "mute-cam" | "stop-screen" | "lower-hand"
     Q_INVOKABLE void request(const QString& id, const QString& what);
+    /// El participante en el slot (1..invitados): {id, name, red{kbps_in, perdida_pct, jitter_ms, rtt_ms, semaforo}…}; {} si no hay.
+    Q_INVOKABLE QVariantMap participanteEnSlot(int slot) const;
     /// `to`: "all" o el id de un participante.
     Q_INVOKABLE void sendChat(const QString& to, const QString& text);
     Q_INVOKABLE void setLobby(bool on);
     Q_INVOKABLE void setLocked(bool on);
     /// PIN nuevo (vacio = generar uno).
     Q_INVOKABLE void newPin(const QString& pin = {});
+    /// Pide a la sala quién está bloqueado por PIN mal (actualiza bloqueosPin).
+    Q_INVOKABLE void pinBloqueos();
+    /// Levanta los bloqueos: los de esa IP, o (vacío) todos, el global incluido.
+    Q_INVOKABLE void desbloquearPin(const QString& ip = {});
+    QVariantMap bloqueosPin() const { return bloqueosPin_; }
     Q_INVOKABLE void removeShare(const QString& id);
     /// Copia el archivo a <datos>/Media y lo agrega a la escena actual.
     Q_INVOKABLE void takeShare(const QString& id);
@@ -227,6 +251,8 @@ class ConferenceViewModel : public QObject {
                                            const QString& iface);
 
    signals:
+    void proxyChanged();
+    void pruebaLista(const QString& id, const QVariantMap& resultado);
     void onlineChanged();
     void roomChanged();
     void autoIntakeChanged();
@@ -239,6 +265,7 @@ class ConferenceViewModel : public QObject {
     /// Configuracion del servidor lista para copiar (o error).
     void serverConfigReady(const QString& config, const QString& error);
     void notify(const QString& message, const QString& level);
+    void bloqueosPinChanged();
     /// Se agrego una fuente a la escena (la vista de fuentes debe recargar).
     void sourceAdded();
 
@@ -248,6 +275,8 @@ class ConferenceViewModel : public QObject {
     void participantAction(const QString& id, const QString& action, const QJsonObject& body = {});
 
     AppRuntime& rt_;
+    QVariantMap proxy_;
+    QVariantMap bloqueosPin_;
 
     bool autoIntake_ = false;
     int chatRev_ = 0;

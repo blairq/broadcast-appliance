@@ -9,6 +9,7 @@
 // que es como lo usa Integrity. Hasta este test el hash salia distinto al de
 // sha256sum y la verificacion de integridad fallaba siempre.
 
+#include "Integrity.hpp"
 #include "Sha256.hpp"
 
 #include <cstdio>
@@ -63,6 +64,33 @@ int main() {
           "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad");
     std::filesystem::remove(path);
     CHECK(Sha256::hashFile(path.wstring()).empty()); // ausente -> vacio
+
+    // Una ruta del manifest con tilde («Sesión»): en Windows se copiaba byte por
+    // byte a la forma ancha y el archivo «no existía» (una instalación nueva
+    // arrancaba con la pantalla de integridad). Corre también en la batería de
+    // Windows, que es donde se notaba.
+    {
+        const std::u8string u8 = (std::filesystem::temp_directory_path() / "ba_test_integridad").u8string();
+        const std::string u8raiz(u8.begin(), u8.end());
+        const std::filesystem::path raiz(u8);
+        std::filesystem::remove_all(raiz);
+        const std::filesystem::path dir = raiz / std::filesystem::path(u8"Sesión-ordinaria");
+        std::filesystem::create_directories(dir);
+        {
+            std::ofstream out(dir / "evento.json", std::ios::binary);
+            out << "abc";
+        }
+        {
+            std::ofstream m(raiz / "manifest.json", std::ios::binary);
+            m << "{ \"files\": [ { \"path\": \"" << reinterpret_cast<const char*>(u8"Sesión-ordinaria/evento.json")
+              << "\", \"sha256\": \"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad\" } ] }";
+        }
+        const ba::launcher::IntegrityReport r = ba::launcher::Integrity::verify(fromUtf8Path(u8raiz));
+        CHECK(r.ok);
+        CHECK(r.checked >= 1);
+        CHECK(r.missing == 0);
+        std::filesystem::remove_all(raiz);
+    }
 
     if (g_failures == 0) {
         std::printf("test_sha256: OK\n");

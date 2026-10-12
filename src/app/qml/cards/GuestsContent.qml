@@ -51,6 +51,58 @@ Item {
                         color: Qt.rgba(0, 0, 0, 0.55)
                         Text { id: gl; anchors.centerIn: parent; text: Studio.conference.slotNames[index] || ("Invitado " + (index + 1)); color: Theme.text; font.pixelSize: 10 }
                     }
+                    // La red de este invitado: semáforo con las cifras y bajar su calidad.
+                    Rectangle {
+                        id: semaforo
+                        property var p: Studio.conference.participanteEnSlot(index + 1)
+                        Timer { interval: 2000; running: true; repeat: true; onTriggered: semaforo.p = Studio.conference.participanteEnSlot(index + 1) }
+                        readonly property var red: (p && p.red) || ({})
+                        visible: !!(p && p.id)
+                        anchors { right: parent.right; top: parent.top; margins: 6 }
+                        width: 14; height: 14; radius: 7
+                        color: red.semaforo === "rojo" ? Theme.live : red.semaforo === "ambar" ? Theme.amber : red.semaforo === "verde" ? Theme.ok : Theme.textFaint
+                        border.color: "white"; border.width: 1
+                        ToolTip.visible: semHov.hovered
+                        ToolTip.text: "Red: " + (red.kbps_in || 0) + " kbps · pérdida " + (red.perdida_pct || 0) + " % · jitter " +
+                                      (red.jitter_ms || 0) + " ms · RTT " + (red.rtt_ms || 0) + " ms" + (red.alto ? " · " + red.alto + "p" : "")
+                        HoverHandler { id: semHov }
+                        TapHandler { onTapped: calidadMenu.popup() }
+                        Menu {
+                            id: calidadMenu
+                            MenuItem { text: "Bajar a 720p"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-720p") }
+                            MenuItem { text: "Bajar a 360p"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-360p") }
+                            MenuItem { text: "Calidad completa"; onTriggered: Studio.conference.request(semaforo.p.id, "calidad-max") }
+                            MenuSeparator {}
+                            MenuItem {
+                                text: "Grabar aparte (ISO)"
+                                onTriggered: {
+                                    const f = Studio.fuenteDeInvitado(semaforo.p.id)
+                                    if (f === "") { Studio.notify("Ese invitado no tiene una fuente en el programa todavía.", "warn"); return }
+                                    const e = Studio.isoUi(f, true)
+                                    Studio.notify(e === "" ? "Grabando «" + f + "» aparte" : e, e === "" ? "ok" : "error")
+                                }
+                            }
+                            MenuSeparator {}
+                            MenuItem {
+                                text: "Aprobar su cargo para el zócalo: «" + ((semaforo.p && semaforo.p.info) || "—") + "»"
+                                enabled: !!(semaforo.p && semaforo.p.info)
+                                onTriggered: { const e = Studio.aprobarInfoInvitado(semaforo.p.id, ""); Studio.notify(e !== "" ? e : "Cargo aprobado para el zócalo", e !== "" ? "error" : "info") }
+                            }
+                        }
+                    }
+                    // Lo que oye este invitado: el programa sin su voz (de fábrica) o el programa entero.
+                    ComboBox {
+                        id: oye
+                        anchors { right: parent.right; bottom: parent.bottom; margins: 6 }
+                        width: 150; height: 24
+                        font.pixelSize: 10
+                        model: [ { t: "Oye: programa sin su voz", v: "mix_minus" }, { t: "Oye: programa entero", v: "programa" } ]
+                        textRole: "t"
+                        currentIndex: Studio.retornoInvitadoUi(index + 1) === "programa" ? 1 : 0
+                        onActivated: (i) => { const e = Studio.setRetornoInvitadoUi(index + 1, model[i].v); if (e !== "") Studio.notify(e, "error") }
+                        ToolTip.visible: hovered; ToolTip.delay: 400
+                        ToolTip.text: "Sin su voz (mix-minus): no se escucha con retardo a sí mismo ni hace eco. Entero: solo si usa auriculares y lo pide."
+                    }
                 }
             }
         }

@@ -41,7 +41,7 @@ De acá salen cuatro decisiones:
 ## El método, y por qué cada parte
 
 - **El prompt es el mismo que se sirve**, fichas incluidas, armado por
-  `tools/lib_prompt.py` — un solo módulo para el banco, el corpus y esto. Este
+  `tools/entrenar/lib_prompt.py` — un solo módulo para el banco, el corpus y esto. Este
   proyecto ya se comió el error contrario: con el sistema pidiendo JSON y la
   gramática dejando escribir sólo el nombre, el acierto cayó de 56% a 16%.
   Parecía que el modelo no sabía; le pedíamos una cosa y lo forzábamos a otra.
@@ -85,7 +85,7 @@ ejemplos de 2.700 tokens son unos pocos minutos por época.
 
 Después, **en la notebook**, contra el mismo examen:
 
-    tools/bateria-local.py --modelo modelos/reactivo-v1-q8_0/...gguf --solo-nombre
+    tools/entrenar/bateria-local.py --modelo modelos/reactivo-v1-q8_0/...gguf --solo-nombre
 
 ## Cuando agregás herramientas al MCP
 
@@ -114,7 +114,7 @@ entrenamiento igual (mejor eso que no existir) y **se corrigen y se promueven a
 mano** a `datos/semillas-reactivas.json`. El generador dice cuántas herramientas
 del corpus son de segunda mano.
 
-    make corpus-descubrir ARGS=--generar   # o: tools/corpus-descubrir.py --generar
+    make corpus-descubrir ARGS=--generar   # o: tools/entrenar/corpus-descubrir.py --generar
     # …editar datos/semillas-auto.json, mover lo bueno a semillas-reactivas.json…
     make corpus-entrenamiento
 
@@ -124,8 +124,8 @@ Medir da un número; **clasificar los fallos da la próxima tarea**. Los fallos
 no son todos iguales y cada tipo se arregla distinto — con más volumen no se
 arregla ninguno.
 
-    tools/bateria-local.py --modelo <gguf> --solo-nombre   # mide y deja el json
-    tools/entrenar/fallos.py docs/bateria-local.json       # los clasifica
+    tools/entrenar/bateria-local.py --modelo <gguf> --solo-nombre   # mide y deja el json
+    tools/entrenar/fallos.py docs/modelos/bateria-local.json       # los clasifica
 
 Salen en tres grupos, separados con las marcas de `docs/mcp.json` y no a ojo:
 
@@ -192,4 +192,4 @@ hacia las vecinas, y no subir la CDNV direccional de ningun par por encima del
 objetivo. Sirve para cualquier conjunto de herramientas.
 
 **Documentacion completa, con la matematica y lo que salio mal:
-[docs/bucle-corpus.md](../../docs/bucle-corpus.md).**
+[docs/modelos/bucle-corpus.md](../../docs/modelos/bucle-corpus.md).**

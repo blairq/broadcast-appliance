@@ -1,0 +1,32 @@
+{
+  "config": {
+    "asistencia": true,
+    "duplicar_escape": true,
+    "escape": "0xC8",
+    "host": "",
+    "latido_s": 5,
+    "protocolo": "full",
+    "puerto": "",
+    "puerto_tcp": 9451,
+    "reintentos": 2,
+    "rtscts": true,
+    "simulador_actividad_s": 0,
+    "simulador_unidades": 17,
+    "solo_escuchar": false,
+    "tcp_fn_en_datos": true,
+    "transporte": "simulador",
+    "traza": false,
+    "velocidad": 115200,
+    "votacion": true
+  },
+  "dependencias": [
+    "pyserial"
+  ],
+  "descripcion": "Controla la central (CCU) de un sistema de conferencia Bosch DCN Next Generation por el Open Interface: abrir y cerrar micrófonos de banca, lista de pedidos de palabra, «siguiente», oradores, modo de operación y avisos de tiempo. Por puerto serie RS-232 (protocolos Full y Simple; de fábrica el puerto 1 de la CCU es Full a 115200 con RTS/CTS) o por red (TCP 9451, CCU2). Publica «conferencia/microfono» {banca, abierto} (lo usan Seguir al micrófono, la fila de oradores y el Recinto) y el estado completo en «dcn/estado». La unidad de cada banca se asigna en el Cuerpo (dcn_unidad) o se aprende apretando el botón en la sala. Viene en «solo escuchar»: no manda órdenes hasta que se apague. Con transporte «simulador» se prueba sin el equipo. Requiere la licencia del Open Interface (LBB4187/00) habilitada en la CCU. Ver docs/bosch/open-interface.md.",
+  "ejemplo": "bosch-dcn",
+  "ejemplo_huella": "40716670fba7ece147ac7160b29405ad131d831591423d719de92f53f96aa500",
+  "id": "bosch-dcn",
+  "nombre": "Bosch DCN Next Generation (central de conferencia)",
+  "principal": "plugin.py",
+  "version": "1.0"
+}

@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <string>
 #include <thread>
@@ -44,6 +45,8 @@
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#include <fcntl.h>
+#include <io.h>
 #include <process.h>
 #include <windows.h>
 #else
@@ -189,6 +192,22 @@ int childMain(int argc, char** argv) {
         std::fprintf(stdout, "salida-%s\n", arg(3).c_str());
         std::fprintf(stderr, "error-%s\n", arg(3).c_str());
         return 0;
+    }
+    if (mode == "stdin") {
+        // Lee la entrada hasta el fin (en binario) y sale 0 si es exactamente lo esperado,
+        // que viene en hexadecimal en argv[3]: en Windows, argv pasa por la página de
+        // códigos ANSI y una «ñ» o un salto de línea no llegarían iguales.
+#ifdef _WIN32
+        _setmode(_fileno(stdin), _O_BINARY);
+#endif
+        std::string todo;
+        char buf[4096];
+        size_t n;
+        while ((n = std::fread(buf, 1, sizeof buf, stdin)) > 0) todo.append(buf, n);
+        std::string esperado;
+        const std::string hx = arg(3);
+        for (size_t i = 0; i + 1 < hx.size(); i += 2) esperado += static_cast<char>(std::stoi(hx.substr(i, 2), nullptr, 16));
+        return todo == esperado ? 0 : 5;
     }
     if (mode == "cwd") {
         std::error_code ec;
@@ -416,6 +435,30 @@ void testProcessOutputFile() {
     CHECK(all.find("error-dos") != std::string::npos);
     in.close();
     std::filesystem::remove(out);
+}
+
+void testProcessStdinData() {
+    // Lo de stdinData le llega entero al hijo por su entrada (y el pipe se cierra).
+    const std::string datos = "-----BEGIN CERTIFICATE-----\nlinea con acentos: año\r\n-----END-----\n";
+    std::string hx;
+    for (unsigned char c : datos) {
+        char b[3];
+        std::snprintf(b, sizeof b, "%02x", c);
+        hx += b;
+    }
+    ProcessOptions o = childOpts({"stdin", hx});
+    o.stdinData = datos;
+    Process p;
+    CHECK(Process::spawn(o, p));
+    const auto code = p.wait(10000);
+    CHECK(code.has_value() && *code == 0);
+    // Y con otros datos que no coinciden, el hijo lo nota (la prueba prueba algo).
+    ProcessOptions mal = childOpts({"stdin", hx});
+    mal.stdinData = "otra cosa";
+    Process q;
+    CHECK(Process::spawn(mal, q));
+    const auto c2 = q.wait(10000);
+    CHECK(c2.has_value() && *c2 == 5);
 }
 
 void testProcessWaitAndKill() {
@@ -686,6 +729,28 @@ void testSingleInstance() {
 
 } // namespace
 
+// Rutas guardables: relativas a los datos y de vuelta, aunque la carpeta se haya movido.
+void testRutasDeDatos() {
+    namespace fs = std::filesystem;
+#ifndef _WIN32
+    const fs::path raiz = fs::temp_directory_path() / ("ba-rutas-" + std::to_string(::getpid()));
+    fs::create_directories(raiz / "Modelos" / "superres");
+    { std::ofstream(raiz / "Modelos" / "superres" / "m.onnx") << "x"; }
+    setenv("BA_DATA_ROOT", raiz.string().c_str(), 1);
+    CHECK(rutaGuardable(raiz / "Modelos" / "superres" / "m.onnx") == "Modelos/superres/m.onnx");
+    CHECK(rutaGuardable("/otra/cosa/afuera.onnx") == "/otra/cosa/afuera.onnx");
+    CHECK(rutaDeDatos("Modelos/superres/m.onnx") == raiz / "Modelos" / "superres" / "m.onnx");
+    // Una ruta de antes de mover la carpeta de datos: se rearma desde la de ahora.
+    CHECK(rutaDeDatos("/viejo/lugar/BroadcastAppliance Datos/Modelos/superres/m.onnx") ==
+          raiz / "Modelos" / "superres" / "m.onnx");
+    CHECK(rutaDeDatos("/viejo/lugar/sin/carpetas/conocidas.onnx") == fs::path("/viejo/lugar/sin/carpetas/conocidas.onnx"));
+    CHECK(rutaDeDatos("").empty());
+    unsetenv("BA_DATA_ROOT");
+    std::error_code ec;
+    fs::remove_all(raiz, ec);
+#endif
+}
+
 int main(int argc, char** argv) {
     if (argc >= 3 && std::strcmp(argv[1], "--child") == 0) {
         return childMain(argc, argv);
@@ -702,6 +767,7 @@ int main(int argc, char** argv) {
     testProcessMissingExe();
     testProcessEnvAndCwd();
     testProcessOutputFile();
+    testProcessStdinData();
     testProcessWaitAndKill();
     testProcessDestructorKills();
     testProcessKillReachesGrandchildren();
@@ -712,6 +778,7 @@ int main(int argc, char** argv) {
     testSocketConnectTimeout();
     testControlEndpointOverSocket();
     testSingleInstance();
+    testRutasDeDatos();
 
     if (g_failures == 0) {
         std::printf("test_platform: OK\n");

@@ -39,7 +39,7 @@ espera (``obs_module_load``) y registra:
 - **Filtro «PTZ digital»** (``ba_ptz_digital``): pan/tilt/zoom recortando en
   la GPU (bicúbica), con joystick y presets por proc handler
   (``data/ptz-digital.effect``). Lo maneja el módulo PTZ de la app: ver
-  ``docs/PTZ.md``.
+  ``docs/funciones/PTZ.md``.
 
 Enlaza `ba_core`.
 

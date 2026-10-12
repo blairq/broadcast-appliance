@@ -1,5 +1,5 @@
 # ============================================================================
-# cmake/BaPython.cmake — el Python de los plugins (docs/PLUGINS.md)
+# cmake/BaPython.cmake — el Python de los plugins (docs/funciones/PLUGINS.md)
 #
 # Si está extern/python (make deps-python, tools/deps/python.sh), el intérprete
 # portable se instala en el bundle (python/) y se define BA_HAVE_PYTHON. El SDK

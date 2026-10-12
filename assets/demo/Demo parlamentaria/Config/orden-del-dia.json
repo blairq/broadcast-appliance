@@ -1,0 +1,50 @@
+{
+ "puntos": [
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 1,
+   "resultado": "",
+   "titulo": "Lectura y aprobación del acta de la sesión anterior"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 2,
+   "resultado": "",
+   "titulo": "Proyecto de ordenanza 14/26: ampliación de la red de ciclovías del puerto"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 3,
+   "resultado": "",
+   "titulo": "Proyecto de resolución 22/26: horario extendido de la biblioteca municipal"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 4,
+   "resultado": "",
+   "titulo": "Pedido de informes al Ejecutivo sobre el mantenimiento del muelle norte"
+  },
+  {
+   "estado": "pendiente",
+   "expediente": "",
+   "fin_ms": 0,
+   "inicio_ms": 0,
+   "n": 5,
+   "resultado": "",
+   "titulo": "Homenaje a los 150 años del faro de Puerto Ejemplo"
+  }
+ ],
+ "tramos": []
+}

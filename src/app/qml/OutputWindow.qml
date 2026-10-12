@@ -20,13 +20,22 @@ Window {
     required property rect geometry
 
     objectName: "ba:salida:" + winId // ver PageWindow.qml
-    title: "Broadcast Appliance — " + (keys.length === 1 ? Studio.frames.label(keys[0]) : "Salida de video")
+    title: "Broadcast Appliance — " + (layout.startsWith("multiview") ? (mv.nombre || "Multiview") : keys.length === 1 ? Studio.frames.label(keys[0]) : "Salida de video")
     color: "black"
     x: geometry.x; y: geometry.y
     width: geometry.width; height: geometry.height
     minimumWidth: 320; minimumHeight: 180
     visible: true
-    visibility: fullscreen ? Window.FullScreen : Window.Windowed
+    /// Maximizada (botón «Maximizar»; ventana_mover también la deja así).
+    property bool maximizada: false
+    /// Para ventana_mover (MCP): normal | maximizada | pantalla-completa | minimizada,
+    /// por el mismo camino que los botones (así quedan bien sus textos y el modelo).
+    function ponerEstado(e) {
+        if (e === "minimizada") { w.showMinimized(); return }
+        w.maximizada = e === "maximizada"
+        Studio.dashboard.windows.setFullscreen(w.winId, e === "pantalla-completa")
+    }
+    visibility: fullscreen ? Window.FullScreen : (maximizada ? Window.Maximized : Window.Windowed)
 
     function screenByName(name) {
         for (let i = 0; i < Qt.application.screens.length; ++i)
@@ -42,11 +51,37 @@ Window {
     onXChanged: remember(); onYChanged: remember(); onWidthChanged: remember(); onHeightChanged: remember()
     Timer { id: saveGeom; interval: 600; onTriggered: Studio.dashboard.windows.setGeometry(w.winId, w.x, w.y, w.width, w.height) }
 
+    // layout «multiview»: la ventana sigue a la página Multiview (fuentes, distribución
+    // y estilo), en vivo.
+    readonly property bool esMultiview: w.layout === "multiview" || w.layout.startsWith("multiview:")
+    // «multiview:<id>»: esa multivista (si se borró, la elegida); «multiview» solo: la elegida.
+    readonly property var mv: (Studio.multiviews, w.layout.startsWith("multiview:") && Studio.multiviewDe(w.layout.slice(10)).id !== undefined
+                               ? Studio.multiviewDe(w.layout.slice(10)) : Studio.multiview)
+    readonly property var claves: w.esMultiview ? (w.mv.fuentes || []) : w.keys
+    Rectangle { anchors.fill: parent; color: "black"; visible: w.esMultiview }
     VideoWall {
-        anchors.fill: parent
-        keys: w.keys
-        layout: w.layout
+        id: muro
+        // 16:9 centrado en el multiview (como en la página); lo demás, la ventana entera.
+        readonly property real ancho16: Math.min(parent.width, parent.height * 16 / 9)
+        anchors.centerIn: parent
+        width: w.esMultiview ? ancho16 : parent.width
+        height: w.esMultiview ? ancho16 * 9 / 16 : parent.height
+        keys: w.claves
+        layout: w.esMultiview ? (w.mv.distribucion || "grid") : w.layout
         fillMode: VideoItem.Fit
+        // Una ventana con UNA sola fuente suele ir a un proyector o un televisor
+        // de la sala: sin marcas de operador. Con varias es un multiview de control.
+        operador: w.claves.length > 1
+        gap: w.esMultiview ? (w.mv.separacion || 0) : 0
+        fondo: w.esMultiview ? (w.mv.fondo || "transparent") : "transparent"
+        borde: w.esMultiview ? (w.mv.borde || 0) : 0
+        colorBorde: w.esMultiview ? (w.mv.colorBorde || "white") : "white"
+        labels: w.esMultiview && w.mv.nombres === true
+        tamEtiqueta: w.esMultiview ? (w.mv.tamNombres || 18) : 11
+        tally: w.esMultiview ? w.mv.tally !== false : operador
+        vumetros: w.esMultiview ? w.mv.vumetros !== false : operador
+        escala: w.esMultiview ? width / 1920 : 1
+        grosorTally: w.esMultiview ? (w.mv.grosorTally !== undefined ? w.mv.grosorTally : 2) : -1
     }
 
     // --- Controles que aparecen con el mouse --------------------------------
@@ -171,7 +206,7 @@ Window {
                 }
             }
             GlassButton {
-                compact: true; visible: w.keys.length > 1; text: "Distribucion"
+                compact: true; visible: w.keys.length > 1 && !w.esMultiview; text: "Distribucion"
                 onClicked: layoutMenu.popup()
                 Menu {
                     id: layoutMenu
@@ -184,6 +219,27 @@ Window {
                         }
                     }
                 }
+            }
+            // Qué multivista muestra esta ventana (las de la página Multiview).
+            GlassButton {
+                compact: true; visible: w.esMultiview; text: w.mv.nombre || "Multivista"; icon: "▥"
+                onClicked: vistaMenu.popup()
+                Menu {
+                    id: vistaMenu
+                    Repeater {
+                        model: Studio.multiviews
+                        delegate: MenuItem {
+                            required property var modelData
+                            text: modelData.nombre; checkable: true; checked: w.mv.id === modelData.id
+                            onTriggered: Studio.dashboard.windows.setLayout(w.winId, "multiview:" + modelData.id)
+                        }
+                    }
+                }
+            }
+            GlassButton {
+                compact: true; visible: !w.fullscreen
+                text: w.maximizada ? "Restaurar" : "Maximizar"; icon: w.maximizada ? "❐" : "□"
+                onClicked: w.maximizada = !w.maximizada
             }
             GlassButton {
                 compact: true

@@ -280,3 +280,112 @@ def serie_listar() -> list[dict]:
         raise RuntimeError('falta pyserial: "dependencias": ["pyserial"] en plugin.json') from e
     return [{"puerto": p.device, "descripcion": p.description, "vid": f"{p.vid or 0:04x}", "pid": f"{p.pid or 0:04x}",
              "serie": p.serial_number or ""} for p in list_ports.comports()]
+
+
+# --- Stream Deck sin libhidapi del sistema -----------------------------------------------
+#
+# python-elgato-streamdeck carga ``libhidapi`` del sistema por ctypes (Homebrew, apt…), y eso
+# choca con la regla del programa: nada del sistema. Este transporte hace lo mismo con el
+# módulo ``hid`` (la rueda «hidapi», que trae hidapi compilado adentro en los tres sistemas y
+# viene con el Python del programa).
+
+
+def streamdeck_gestor():
+    """Un ``DeviceManager`` de python-elgato-streamdeck que habla por el ``hid`` vendoreado."""
+    import platform
+    import threading
+
+    import hid
+    from StreamDeck.DeviceManager import DeviceManager
+    from StreamDeck.Transport.Transport import Transport, TransportError
+
+    mac = platform.system() == "Darwin"
+
+    class TransporteHid(Transport):
+        class Device(Transport.Device):
+            def __init__(self, info):
+                self.info = info
+                self.h = None
+                self.mutex = threading.Lock()
+
+            def open(self):
+                with self.mutex:
+                    if self.h is None:
+                        d = hid.device()
+                        d.open_path(self.info["path"])
+                        d.set_nonblocking(1)
+                        self.h = d
+
+            def close(self):
+                with self.mutex:
+                    if self.h is not None:
+                        self.h.close()
+                        self.h = None
+
+            def __del__(self):
+                self.close()
+
+            def __exit__(self, *a):
+                self.close()
+
+            def is_open(self):
+                return self.h is not None
+
+            def connected(self):
+                return any(d["path"] == self.info["path"] for d in hid.enumerate(self.info["vendor_id"], self.info["product_id"]))
+
+            def path(self):
+                p = self.info["path"]
+                return p.decode() if isinstance(p, bytes) else p
+
+            def vendor_id(self):
+                return self.info["vendor_id"]
+
+            def product_id(self):
+                return self.info["product_id"]
+
+            def _h(self):
+                if self.h is None:
+                    raise TransportError("No HID device.")
+                return self.h
+
+            def write_feature(self, payload):
+                with self.mutex:
+                    r = self._h().send_feature_report(bytes(payload))
+                if r < 0:
+                    raise TransportError(f"Failed to write feature report ({r})")
+                return r
+
+            def read_feature(self, report_id, length):
+                # Mismo arreglo que el original: en la Mac hidapi a veces devuelve uno menos.
+                with self.mutex:
+                    datos = bytes(self._h().get_feature_report(report_id, length + 1 if mac else length))
+                return (datos + bytes(length))[:length]
+
+            def write(self, payload):
+                with self.mutex:
+                    r = self._h().write(bytes(payload))
+                if r < 0:
+                    raise TransportError(f"Failed to write out report ({r})")
+                return r
+
+            def read(self, length):
+                with self.mutex:
+                    datos = self._h().read(length)
+                if not datos:
+                    return None
+                return (bytes(datos) + bytes(length))[:length]
+
+        @staticmethod
+        def probe():
+            hid.enumerate(0, 0)
+
+        def enumerate(self, vid, pid):
+            return [TransporteHid.Device(d) for d in hid.enumerate(vid or 0, pid or 0)]
+
+    class Gestor(DeviceManager):
+        @staticmethod
+        def _get_transport(transport):
+            return TransporteHid()
+
+    return Gestor()

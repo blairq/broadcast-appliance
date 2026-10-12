@@ -363,6 +363,67 @@ int main(int argc, char** argv) {
         r2 = callT("salir_al_aire", json::object(), "A");
         CHECK(r2["result"].value("isError", false) && runs == 4,
               "sin aprobador: bloqueado, nunca se ejecuta");
+
+        // --- Guardas de aire: con aire, una herramienta de aire pedida por algo
+        // automático espera SIEMPRE a una persona (aunque la política sea "nunca").
+        {
+            int corridas = 0, preguntas = 0;
+            bool decide = false;
+            std::string motivo;
+            Tool t;
+            t.name = "scene_switch";
+            t.run = [&corridas](const json&, Done done) {
+                ++corridas;
+                done(ToolResult::ok("cambiada"));
+            };
+            sec.addTool(std::move(t));
+            sec.setApprovalPolicy(ApprovalPolicy::Never);
+            bool aire = false;
+            sec.setHayAire([&aire]() { return aire; });
+            sec.setApprover([&](const Tool&, const json&, const std::string& m, std::function<void(bool)> d) {
+                ++preguntas;
+                motivo = m;
+                d(decide);
+            });
+            const auto llamar = [&](const CallContext& c) {
+                json res;
+                sec.callTool({{"name", "scene_switch"}, {"arguments", json::object()}}, [&res](json x) { res = x; }, c);
+                return res;
+            };
+            llamar(CallContext{"Z", "", "asistente"});
+            CHECK(corridas == 1 && preguntas == 0, "sin aire: la de aire va directo");
+            aire = true;
+            json x = llamar(CallContext{"Z", "", "asistente"});
+            CHECK(preguntas == 1 && corridas == 1 && motivo.rfind("ACCIÓN DE AIRE", 0) == 0 && x.value("isError", false),
+                  "con aire: pregunta aunque la politica sea nunca, y rechazada no corre");
+            decide = true;
+            llamar(CallContext{"Z", "", "plugin"});
+            CHECK(preguntas == 2 && corridas == 2, "con aire, un plugin tambien pregunta; aprobada corre");
+            llamar(CallContext{"Z", "", "botonera", true});
+            CHECK(preguntas == 2 && corridas == 3, "una persona (botonera): no pregunta");
+            sec.setApprover({});
+            x = llamar(CallContext{"Z", "", "disparador"});
+            CHECK(corridas == 3 && x.value("structuredContent", json::object()).value("necesita_confirmacion", false),
+                  "sin aprobador: bloqueada, con necesita_confirmacion");
+            // En vivo, la voz solo lee o hace lo reversible sin preguntar.
+            int otras = 0;
+            Tool u;
+            u.name = "algo_que_cambia";
+            u.run = [&otras](const json&, Done done) {
+                ++otras;
+                done(ToolResult::ok("ok"));
+            };
+            sec.addTool(std::move(u));
+            json y;
+            sec.callTool({{"name", "algo_que_cambia"}, {"arguments", json::object()}}, [&y](json r) { y = r; },
+                         CallContext{"V", "", "voz"});
+            CHECK(otras == 0 && y.value("isError", false), "en vivo, la voz no cambia cosas sin preguntar");
+            sec.callTool({{"name", "algo_que_cambia"}, {"arguments", json::object()}}, [&y](json r) { y = r; },
+                         CallContext{"V", "", "asistente"});
+            CHECK(otras == 1, "el asistente con politica nunca: lo no-de-aire va directo");
+            CHECK(sec.aire().ajustar("scene_switch", "normal") != "", "las fijas no bajan");
+            sec.setHayAire({});
+        }
     }
 
     // --- 7) HTTP ---------------------------------------------------------------------
@@ -371,7 +432,7 @@ int main(int argc, char** argv) {
     CHECK(srv.listen(0), "escucha en 127.0.0.1");
     const quint16 port = srv.port();
     const QByteArray init =
-        QByteArray::fromStdString(req(30, "initialize", {{"protocolVersion", "2025-06-18"}}).dump());
+        QByteArray::fromStdString(req(30, "initialize", {{"protocolVersion", "2025-06-18"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
     const QPair<QByteArray, QByteArray> auth{"Authorization", "Bearer " + token.toUtf8()};
     CHECK(http(port, "POST", "/mcp", init, {}).status == 401, "sin token -> 401");
     CHECK(http(port, "POST", "/mcp", init, {{"Authorization", "Bearer malo"}}).status == 401,
@@ -388,7 +449,7 @@ int main(int argc, char** argv) {
     CHECK(http(port, "POST", "/otra", init, {auth}).status == 404, "otra ruta -> 404");
     CHECK(http(port, "POST", "/mcp", "{roto", {auth}).status == 400, "JSON roto -> 400");
     h = http(port, "POST", "/mcp",
-             QByteArray::fromStdString(req(31, "tools/call", {{"name", "later"}}).dump()), {auth});
+             QByteArray::fromStdString(req(31, "tools/call", {{"name", "later"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)), {auth});
     CHECK(h.status == 200 && h.body.contains("structuredContent"), "herramienta asincrona por HTTP");
 
     // --- 8) puente stdio ba-mcp -----------------------------------------------------------
@@ -401,12 +462,12 @@ int main(int argc, char** argv) {
         bridge.start(BA_MCP_BRIDGE, {});
         CHECK(bridge.waitForStarted(5000), "arranca ba-mcp");
         bridge.write(
-            QByteArray::fromStdString(req(40, "initialize", {{"protocolVersion", "2025-06-18"}}).dump()) +
+            QByteArray::fromStdString(req(40, "initialize", {{"protocolVersion", "2025-06-18"}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) +
             "\n");
         bridge.write(note + "\n");
         bridge.write(
             QByteArray::fromStdString(
-                req(41, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "por stdio"}}}}).dump()) +
+                req(41, "tools/call", {{"name", "echo"}, {"arguments", {{"text", "por stdio"}}}}).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) +
             "\n");
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
@@ -441,7 +502,7 @@ int main(int argc, char** argv) {
         env.insert("BA_DATA_ROOT", "/nonexistent-ba-test"); // sin bundle de datos: no hay Runtime/mcp.json
         bridge.setProcessEnvironment(env);
         bridge.start(BA_MCP_BRIDGE, {});
-        bridge.write(QByteArray::fromStdString(req(50, "initialize").dump()) + "\n");
+        bridge.write(QByteArray::fromStdString(req(50, "initialize").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + "\n");
         bridge.closeWriteChannel();
         bridge.waitForFinished(5000);
         const QByteArray out = bridge.readAllStandardOutput();
@@ -493,7 +554,7 @@ int main(int argc, char** argv) {
         CHECK(iniTodo["result"]["instructions"].get<std::string>().find("**otro**") != std::string::npos,
               "sin rol, el mapa es completo");
         // Por HTTP: la cabecera.
-        const Http h = http(port, "POST", "/mcp", QByteArray::fromStdString(req(67, "tools/list").dump()),
+        const Http h = http(port, "POST", "/mcp", QByteArray::fromStdString(req(67, "tools/list").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)),
                             {auth, {"X-BA-Rol", "rec"}});
         CHECK(h.status == 200 && h.body.contains("\"echo\"") && !h.body.contains("\"ajeno\""),
               "X-BA-Rol filtra por HTTP");
@@ -505,7 +566,7 @@ int main(int argc, char** argv) {
         bridge.setProcessEnvironment(env);
         bridge.start(BA_MCP_BRIDGE, {"--rol", "rec"});
         CHECK(bridge.waitForStarted(5000), "arranca ba-mcp --rol");
-        bridge.write(QByteArray::fromStdString(req(68, "tools/list").dump()) + "\n");
+        bridge.write(QByteArray::fromStdString(req(68, "tools/list").dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)) + "\n");
         bridge.closeWriteChannel();
         // El servidor HTTP vive en ESTE proceso: hay que girar el event loop.
         QByteArray out;
@@ -534,7 +595,7 @@ int main(int argc, char** argv) {
         const std::string r = Traza::resumir(json{{"t", largo}});
         CHECK(!r.empty(), "resumir un texto con acentos no revienta");
         CHECK(r.find("no se pudo resumir") == std::string::npos, "y no cae en el camino de emergencia");
-        CHECK(json(r).dump().size() > 0, "lo que sale se puede serializar");
+        CHECK(json(r).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).size() > 0, "lo que sale se puede serializar");
     }
 
     if (g_failures == 0) {

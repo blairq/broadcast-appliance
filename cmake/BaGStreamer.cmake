@@ -4,12 +4,13 @@
 # Si está extern/gstreamer-macos/GStreamer.framework (make deps-gstreamer-macos,
 # tools/deps/gstreamer-macos.sh), se define BA_HAVE_GST y el objetivo
 # `ba::gstreamer` (cabeceras y bibliotecas de GStreamer y GLib), y el
-# framework entero se instala en bin/64bit (como libobs.framework). En
+# framework entero se instala en bin/64bit. En
 # ejecución, ba::platform::prepararGst hace que se usen SOLO esos plugins.
 #
 # En Linux, extern/gstreamer-linux (make deps-gstreamer-linux: compilado desde
 # fuente, tools/deps/gstreamer-linux.sh) va a bin/64bit/gstreamer; glib es la
-# del sistema (base, como para Qt).
+# del sistema (base, como para Qt). FFmpeg, x264, libva y cairo, que sus
+# plugins buscan en bin/64bit, los copia cmake/BaPortableBundle.cmake.
 #
 # Sin GStreamer, todo compila igual (BA_HAVE_GST apagado).
 # ============================================================================
@@ -28,7 +29,7 @@ if(APPLE AND EXISTS "${BA_GST_FW}/Versions/1.0/lib/libgstreamer-1.0.dylib")
     endforeach()
     target_link_libraries(ba::gstreamer INTERFACE ${_libs})
     target_compile_definitions(ba::gstreamer INTERFACE BA_HAVE_GST=1)
-    # El framework entero, con sus enlaces simbólicos, al lado de libobs.
+    # El framework entero, con sus enlaces simbólicos, en bin/64bit.
     install(DIRECTORY "${BA_GST_FW}" DESTINATION bin/64bit USE_SOURCE_PERMISSIONS
             PATTERN "include" EXCLUDE PATTERN "Headers" EXCLUDE PATTERN "pkgconfig" EXCLUDE)
     # libgstpython para el Python 3.12 del bundle (tools/deps/gst-python-mac.sh):
@@ -76,26 +77,20 @@ elseif(WIN32 AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-win/lib/gstreamer-
     endforeach()
     target_link_libraries(ba::gstreamer INTERFACE ${_libs})
     target_compile_definitions(ba::gstreamer INTERFACE BA_HAVE_GST=1)
-    # Las DLL que también trae el OBS (su FFmpeg 7.0; GStreamer trae la 7.1, la
-    # misma versión mayor: el OBS anda con la nueva, gst-libav no con la vieja):
-    # va la de GStreamer. Windows carga una sola por nombre.
-    set(_ba_obs_libs "")
-    foreach(_l IN LISTS BA_LIBOBS_RUNTIME_LIBS)
-        get_filename_component(_n "${_l}" NAME)
-        if(EXISTS "${_g}/bin/${_n}")
-            message(STATUS "GStreamer: ${_n} (la de GStreamer, no la del OBS)")
-        else()
-            list(APPEND _ba_obs_libs "${_l}")
-        endif()
-    endforeach()
-    set(BA_LIBOBS_RUNTIME_LIBS ${_ba_obs_libs})
+    # Sus DLL (FFmpeg incluido: lo trae GStreamer) junto al .exe.
     install(DIRECTORY "${_g}/bin/" DESTINATION bin/64bit COMPONENT bundle PATTERN "*.pdb" EXCLUDE)
     # Todo lo demás (plugins, escáner, Python de los plugins, GIO, presets),
     # menos lo que es solo para compilar.
     install(DIRECTORY "${_g}/" DESTINATION bin/64bit/gstreamer COMPONENT bundle
             PATTERN "bin" EXCLUDE PATTERN "include" EXCLUDE PATTERN "*.lib" EXCLUDE PATTERN "*.def" EXCLUDE
             PATTERN "*.a" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "duplicadas.txt" EXCLUDE
-            PATTERN "*.pdb" EXCLUDE) # símbolos de depuración (231 MB): no hacen nada en el aparato
+            PATTERN "*.pdb" EXCLUDE # símbolos de depuración (231 MB): no hacen nada en el aparato
+            # DirectShow: sus envoltorios (dshowvdec_*/dshowadec_*) le ofrecen a decodebin
+            # CUALQUIER códec instalado en el sistema. Así entraban al proceso los LAV
+            # Filters del K-Lite Codec Pack (en los 7 volcados de la PC de pruebas,
+            # 2026-10-10): código de afuera, adentro de la app. La captura va por Media
+            # Foundation y el audio por WASAPI: no se usa para nada.
+            PATTERN "gstdirectshow.dll" EXCLUDE)
     # gstpython.dll para el Python 3.12 del bundle (tools/deps/gst-python-win.sh).
     file(GLOB _ba_gstpy "${CMAKE_SOURCE_DIR}/extern/gst-python-win/gstpython*.dll")
     if(_ba_gstpy)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """El corpus de tool calling: herramienta + argumentos, derivar, falta_dato y charla.
 
-Junta (ver docs/entrenamiento-avanzado.md):
+Junta (ver docs/modelos/entrenamiento-avanzado.md):
   - datos/tc-anotaciones.json (tc-anotar.py): cada plantilla se rinde K veces
     con estados del aparato DISTINTOS (lib_tc.estado_sintetico) y la llamada con
     los nombres de ese estado; algunas con las variantes de siempre (sin tildes,
@@ -35,10 +35,10 @@ import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(RAIZ / "tools"))
+sys.path.insert(0, str(RAIZ / "tools" / "entrenar"))
 import lib_tc as tc  # noqa: E402
 
-_spec = importlib.util.spec_from_file_location("corpus_viejo", RAIZ / "tools/corpus-entrenamiento.py")
+_spec = importlib.util.spec_from_file_location("corpus_viejo", RAIZ / "tools/entrenar/corpus-entrenamiento.py")
 corpus_viejo = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(corpus_viejo)
 

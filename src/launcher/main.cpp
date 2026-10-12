@@ -19,6 +19,7 @@
 //   --gw-arg=<x>     argumento extra para B (repetible)
 
 #include "Datos.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "Log.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
@@ -27,6 +28,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <algorithm>
 #include <csignal>
 #include <cstdio>
 #include <fstream>
@@ -55,6 +57,8 @@ int runLauncher(const std::vector<std::string>& args) {
     // .app (escribir adentro rompe su firma). La primera vez se mudan.
     std::vector<std::string> mudados;
     const std::filesystem::path datos = ba::launcher::prepararDatos(root, ba::platform::dataRoot(), mudados);
+    // Cada configuración con lo suyo (Configuraciones/<nombre>/): la primera vez se muda la de ahora.
+    ba::launcher::prepararConfiguraciones(root, datos, mudados);
     // Todo el launcher (y sus hijos) usa esta raíz: las caches, Runtime/, Logs/.
     {
         const std::u8string d = datos.u8string();
@@ -75,6 +79,7 @@ int runLauncher(const std::vector<std::string>& args) {
     {
         ba::launcher::UpdateOptions uo;
         uo.root = root;
+        uo.datos = datos;
         bool wantUpdate = false;
         bool start = false;
         for (std::size_t i = 0; i < args.size(); ++i) {
@@ -112,21 +117,38 @@ int runLauncher(const std::vector<std::string>& args) {
     }
 
     ba::launcher::Supervisor::Config cfg;
+    // --reiniciar: lo pide la app al cambiar de configuración (espera que se cierre el anterior).
+    for (const std::string& a : args)
+        if (a == "--reiniciar") cfg.esperarInstanciaMs = 60000;
     cfg.root = root;
     cfg.dataRoot = datos;
     cfg.appExe = bin / (std::string("ba-app") + kExeSuffix);
     cfg.gatewayExe = bin / (std::string("ba-gateway") + kExeSuffix);
     cfg.logsDir = datos / "Logs";
 
-    // Config/launcher.json (lo escribe la interfaz de A): copia sombra,
+    // launcher.json (lo escribe la interfaz de A): copia sombra,
     // dialogo de recuperacion y argumentos extra de A y B. La linea de
     // comandos, mas abajo, lo pisa.
     {
-        std::ifstream in(datos / "Config" / "launcher.json");
+        // Es de la máquina: <datos>/launcher.json (antes, Config/launcher.json).
+        std::ifstream in(std::filesystem::exists(datos / "launcher.json") ? datos / "launcher.json"
+                                                                          : datos / "Config" / "launcher.json");
         const nlohmann::json j = nlohmann::json::parse(in, nullptr, false, true);
         if (in && j.is_object()) {
             cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);
             cfg.recoveryUi = j.value("recoveryUi", cfg.recoveryUi);
+            ba::ajustes::cargar(j.value("ajustes", nlohmann::json::object())); // Configuración → avanzados del arranque
+            if (cfg.esperarInstanciaMs > 0) cfg.esperarInstanciaMs = ba::ajustes::sAMs("launcher.esperaCierreS", 60);
+            // Configuración → Sistema y datos → Arranque y recuperación (con topes sanos).
+            const auto entre = [&j](const char* k, double def, double lo, double hi) {
+                const auto& v = j.value(k, nlohmann::json());
+                return v.is_number() ? std::clamp(v.get<double>(), lo, hi) : def;
+            };
+            cfg.cuelgueMs = static_cast<std::uint64_t>(entre("cuelgueS", 5, 2, 120) * 1000);
+            cfg.graciaArranqueMs = static_cast<std::uint64_t>(entre("graciaArranqueS", 20, 5, 600) * 1000);
+            cfg.maxCaidas = static_cast<int>(entre("maxCaidas", 5, 1, 100));
+            cfg.ventanaCaidasMs = static_cast<std::uint64_t>(entre("ventanaCaidasMin", 2, 1, 120) * 60000);
+            cfg.reiniciosSinPreguntar = static_cast<int>(entre("reiniciosSinPreguntar", 2, 0, 100));
             for (const auto& a : j.value("appArgs", nlohmann::json::array())) {
                 if (a.is_string()) cfg.appArgs.push_back(a.get<std::string>());
             }
@@ -142,6 +164,9 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.shadowCopy = false; // ya es el default; se acepta por compatibilidad
         } else if (a == "--no-recovery-ui") {
             cfg.recoveryUi = false;
+        } else if (a == "--test" || a == "--debug") {
+            // Modo prueba: el MCP no pide aprobaciones (ver McpCore::setSinAprobaciones).
+            cfg.appArgs.emplace_back("--test");
         } else if (a.rfind("--app-arg=", 0) == 0) {
             cfg.appArgs.push_back(a.substr(10));
         } else if (a.rfind("--gw-arg=", 0) == 0) {
@@ -183,9 +208,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR, int nCmd
 
 #else
 
+#include <sys/resource.h>
+
 extern "C" void onStopSignal(int) { ba::launcher::Supervisor::requestStop(); }
 
 int main(int argc, char** argv) {
+    // Abierta desde el Finder, una app tiene un tope de 256 archivos abiertos, y
+    // cada pipeline del motor usa dos (el bus de GStreamer): con ~100 pipelines
+    // se pasaba y la app se caía al arrancar. Se sube el tope (los hijos lo heredan).
+    if (struct rlimit rl{}; getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur < 8192) {
+        rl.rlim_cur = rl.rlim_max == RLIM_INFINITY ? 8192 : std::min<rlim_t>(8192, rl.rlim_max);
+        setrlimit(RLIMIT_NOFILE, &rl);
+    }
     std::signal(SIGINT, onStopSignal);
     std::signal(SIGTERM, onStopSignal);
     std::signal(SIGHUP, onStopSignal);

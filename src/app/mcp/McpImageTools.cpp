@@ -16,6 +16,7 @@
 // ============================================================================
 
 #include <QFont>
+#include "ajustes/Ajustes.hpp"
 #include <QGuiApplication>
 #include <QPainter>
 #include <QPointer>
@@ -27,9 +28,10 @@
 #include <memory>
 
 #include "agent/Despachador.hpp"
+#include "platform/Paths.hpp"
 #include "agent/ModeloPropio.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "AppRuntime.hpp"
+#include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/Credentials.hpp"
@@ -38,6 +40,8 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "video/Scopes.hpp"
+#include "video/VideoGrafos.hpp"
 #include <QBuffer>
 #include <thread>
 
@@ -45,17 +49,19 @@ namespace ba::app::mcp {
 
 namespace {
 
-/// Render de libobs (fuente/escena; "" = escena al aire) como QImage.
-bool renderSource(AppRuntime& rt, const std::string& name, int maxWidth, QImage& out, std::string& err) {
-    std::vector<std::uint8_t> rgba;
-    int w = 0;
-    int h = 0;
-    if (!rt.engine().captureSource(name, maxWidth, rgba, w, h)) {
-        err = rt.engine().lastError();
-        return false;
-    }
-    out = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
-    return true;
+/// Una fuente o escena ("" = el programa) como QImage, sin que espere la
+/// interfaz (el MCP corre en su hilo): prepara acá, el cuadro se espera en otro hilo y `listo` se llama de
+/// vuelta en el hilo de la interfaz, con la imagen (o nula y el error).
+void renderAparte(AppRuntime& rt, const std::string& name, int maxWidth,
+                  std::function<void(QImage img, std::string err)> listo) {
+    rt.engine().capturarAparte(
+        name, maxWidth,
+        [listo = std::move(listo)](const std::string& e, std::vector<std::uint8_t> rgba, int w, int h) mutable {
+            QImage img;
+            if (e.empty() && w > 0 && h > 0) img = QImage(rgba.data(), w, h, w * 4, QImage::Format_RGBA8888).copy();
+            QMetaObject::invokeMethod(
+                qApp, [listo = std::move(listo), img, e]() mutable { listo(img, e); }, Qt::QueuedConnection);
+        });
 }
 
 bool feedImage(StudioViewModel& vm, const std::string& key, QImage& out) {
@@ -134,7 +140,7 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
         return {};
     }
     QByteArray clave;
-    const QString cred = QString::fromStdWString((rt.dataRoot() / "Credenciales").wstring());
+    const QString cred = QString::fromStdWString((ba::platform::credentialsDir()).wstring());
     if (!ba::app::cred::read(cred, "modelo-propio-api-key", clave)) {
         error = "falta la clave del modelo propio";
         return {};
@@ -179,8 +185,8 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
     req.url = url + "/chat/completions";
     req.headers = {{"Authorization", "Bearer " + clave.trimmed().toStdString()},
                    {"Content-Type", "application/json"}};
-    req.body = body.dump();
-    req.timeoutMs = 45000;
+    req.body = body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    req.timeoutMs = ba::ajustes::sAMs("mcp.imagenTimeoutS", 45);
     const net::HttpResponse r = net::HttpsClient::request(req);
     if (r.status == 0) {
         error = "no contesta: " + r.error;
@@ -203,7 +209,7 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
 
 void McpService::registerImageTools() {
     core_.addCategory(
-        "imagenes", "Imagenes y video (vision)",
+        "imagenes", "Imágenes y video (visión)",
         "Ver el programa, cualquier fuente o escena, cada persona, la app, y secuencias en el tiempo.");
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
@@ -219,19 +225,81 @@ void McpService::registerImageTools() {
         t.readOnly = true;
         t.description = "Una foto de lo que esta saliendo al aire AHORA: para ver si se ve negro, congelado "
                         "o mal encuadrado. Imagen de lo que esta saliendo al aire ahora (la escena del "
-                        "programa, render completo de "
-                        "libobs). Por defecto 1280 px de ancho, JPEG.";
+                        "programa, render completo del motor). Por defecto 1280 px de ancho, JPEG.";
         t.inputSchema = withImageProps(json::object());
         t.run = [&rt, &vm, &core](const json& a, Done done) {
-            QImage img;
-            std::string err;
-            if (!renderSource(rt, "", a.value("maxWidth", 1280), img, err) && !feedImage(vm, "program", img))
-                return done(ToolResult::error("No hay imagen del programa: " + err));
+            renderAparte(rt, "", a.value("maxWidth", 1280), [&rt, &vm, &core, a, done](QImage img, std::string err) {
+                if (img.isNull() && !feedImage(vm, "program", img))
+                    return done(ToolResult::error("No hay imagen del programa: " + err));
+                ToolResult r;
+                r.text("Programa — escena '" + rt.engine().currentScene() + "' (" + std::to_string(img.width()) +
+                       "x" + std::to_string(img.height()) + ")");
+                addImage(r, img, a, 1280, core, rt.dataRoot());
+                done(r);
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_scope";
+        t.title = "Instrumentos de video (forma de onda, vectorscopio…)";
+        t.category = "imagenes";
+        t.readOnly = true;
+        t.description =
+            "Forma de onda (`onda`), RGB parade (`parade`), vectorscopio (`vector`) o histograma "
+            "(`histograma`) del programa o de una `fuente`, más cuánto de la imagen está fuera de rango: "
+            "`legalidad` = % de negros aplastados, blancos quemados y puntos fuera de la gama compuesta PAL "
+            "(lo que balegal corrige). La imagen se guarda en disco (no viaja en la conversación).";
+        t.inputSchema = withImageProps(json{
+            {"fuente", {{"type", "string"}, {"description", "Fuente o escena; sin esto, el programa."}}},
+            {"tipo", {{"type", "string"}, {"enum", {"onda", "parade", "vector", "histograma"}}, {"default", "onda"}}}});
+        t.run = [&rt, &vm, &core](const json& a, Done done) {
+            video::TipoScope tipo = video::TipoScope::Onda;
+            if (!video::tipoScopeDeTexto(QString::fromStdString(a.value("tipo", std::string("onda"))), tipo))
+                return done(ToolResult::error("`tipo`: onda, parade, vector o histograma"));
+            const std::string fuente = a.value("fuente", std::string());
+            renderAparte(rt, fuente, 960, [&rt, &vm, &core, a, done, fuente, tipo](QImage img, std::string err) {
+            if (img.isNull() && (!fuente.empty() || !feedImage(vm, "program", img)))
+                return done(ToolResult::error("No hay imagen: " + err));
+            const video::Legalidad l = video::medirLegalidad(img);
+            const QImage s = video::dibujarScope(img, tipo, tipo == video::TipoScope::Vector ? 420 : 640,
+                                                 tipo == video::TipoScope::Vector ? 420 : 360);
             ToolResult r;
-            r.text("Programa — escena '" + rt.engine().currentScene() + "' (" + std::to_string(img.width()) +
-                   "x" + std::to_string(img.height()) + ")");
-            addImage(r, img, a, 1280, core, rt.dataRoot());
+            r.text((fuente.empty() ? std::string("Programa") : "'" + fuente + "'") + " — " +
+                   a.value("tipo", std::string("onda")));
+            r.data(json{{"legalidad",
+                         {{"negros_aplastados_pct", std::round(l.lumaBajaPct * 10) / 10},
+                          {"blancos_quemados_pct", std::round(l.lumaAltaPct * 10) / 10},
+                          {"fuera_de_gama_pct", std::round(l.cromaPct * 10) / 10}}},
+                        {"legalizador", vm.videoGrafos() != nullptr ? vm.videoGrafos()->legalizar() : std::string("no")}});
+            addImage(r, s, a, s.width(), core, rt.dataRoot());
             done(r);
+            });
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "video_legalizar";
+        t.title = "Legalizar para TV";
+        t.category = "imagenes";
+        t.description =
+            "Pasa cada entrada por el legalizador broadcast-safe (balegal, en la cadena de GStreamer de la "
+            "entrada): `modo` no | pal (luma/croma en rango y gama compuesta +133 %) | ntsc (más estricto, "
+            "+120 %) | rango (solo luma y croma). Para entregar a un canal. Sin argumentos informa.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"modo", {{"type", "string"}, {"enum", {"no", "pal", "ntsc", "rango"}}}}}}};
+        t.run = [&rt, &vm](const json& a, Done done) {
+            if (a.contains("modo")) {
+                rt.config().legalizar = a.value("modo", std::string("no"));
+                rt.save();
+                if (vm.videoGrafos() != nullptr) vm.videoGrafos()->setLegalizar(rt.config().legalizar);
+            }
+            json r{{"modo", rt.config().legalizar}};
+            if (vm.videoGrafos() != nullptr && rt.config().legalizar != "no")
+                r["entradas"] = vm.videoGrafos()->estadoLegalizador();
+            done(ToolResult().data(r));
         };
         core_.addTool(std::move(t));
     }
@@ -254,9 +322,8 @@ void McpService::registerImageTools() {
             // contestar con una imagen que engaña.
             auto intento = std::make_shared<std::function<void(int)>>();
             *intento = [&rt, &core, a, done, intento](int n) {
-                QImage img;
-                std::string err;
-                if (!renderSource(rt, a["name"], a.value("maxWidth", 1280), img, err)) {
+                renderAparte(rt, a["name"], a.value("maxWidth", 1280), [&rt, &core, a, done, intento, n](QImage img, std::string err) {
+                if (img.isNull()) {
                     QTimer::singleShot(0, [intento]() { *intento = nullptr; });
                     return done(ToolResult::error(err));
                 }
@@ -278,6 +345,7 @@ void McpService::registerImageTools() {
                        (negra ? " — sale NEGRA (sin señal todavía, o la imagen es negra de verdad)" : ""));
                 addImage(r, img, a, 1280, core, rt.dataRoot());
                 done(r);
+                });
             };
             (*intento)(0);
         };
@@ -296,14 +364,22 @@ void McpService::registerImageTools() {
             json{{"cellWidth", {{"type", "integer"}, {"minimum", 160}, {"maximum", 960}, {"default", 400}}}});
         t.run = [&rt, &core](const json& a, Done done) {
             const int cellW = a.value("cellWidth", 400);
-            std::vector<std::pair<QString, QImage>> items;
-            for (const std::string& s : rt.engine().sceneNames()) {
-                QImage img;
-                std::string err;
-                renderSource(rt, s, cellW, img, err);
-                items.emplace_back(QString::fromStdString(s), img);
+            const std::vector<std::string> nombres = rt.engine().sceneNames();
+            if (nombres.empty()) return done(ToolResult::error("No hay escenas."));
+            // Una escena por vez, sin que espere la interfaz (renderAparte); al
+            // final, la grilla.
+            auto juntas = std::make_shared<std::vector<std::pair<QString, QImage>>>();
+            auto paso = std::make_shared<std::function<void(std::size_t)>>();
+            *paso = [&rt, &core, a, done, cellW, nombres, juntas, paso](std::size_t i) {
+            if (i < nombres.size()) {
+                renderAparte(rt, nombres[i], cellW, [juntas, nombres, i, paso](QImage img, std::string) {
+                    juntas->emplace_back(QString::fromStdString(nombres[i]), img);
+                    if (*paso) (*paso)(i + 1);
+                });
+                return;
             }
-            if (items.empty()) return done(ToolResult::error("No hay escenas."));
+            QTimer::singleShot(0, [paso]() { *paso = nullptr; }); // corta el ciclo de referencias
+            const auto& items = *juntas;
             const int cols =
                 std::max(1, static_cast<int>(std::ceil(std::sqrt(static_cast<double>(items.size())))));
             ToolResult r;
@@ -311,6 +387,8 @@ void McpService::registerImageTools() {
             addImage(r, contactSheet(items, cellW, cols, QString::fromStdString(rt.engine().currentScene())),
                      a, 0, core, rt.dataRoot());
             done(r);
+            };
+            (*paso)(0);
         };
         core_.addTool(std::move(t));
     }
@@ -480,14 +558,15 @@ void McpService::registerImageTools() {
                                                   "(capture_person da su foto)."));
             }
             const int maxW = a.value("maxWidth", 640);
-            const auto grab = [&rt, &vm, target, maxW](QImage& img, std::string& err) {
-                if (target == "program") return renderSource(rt, "", maxW, img, err);
+            // Sin que espere la interfaz: la imagen llega a `listo` (ver renderAparte).
+            const auto grab = [&rt, &vm, target, maxW](std::function<void(QImage, std::string)> listo) {
+                if (target == "program") return renderAparte(rt, "", maxW, std::move(listo));
                 if (target.find(':') != std::string::npos) {
-                    if (feedImage(vm, target, img)) return true;
-                    err = "sin imagen en " + target;
-                    return false;
+                    QImage img;
+                    if (feedImage(vm, target, img)) return listo(img, std::string());
+                    return listo(QImage(), "sin imagen en " + target);
                 }
-                return renderSource(rt, target, maxW, img, err);
+                renderAparte(rt, target, maxW, std::move(listo));
             };
             struct Seq {
                 ToolResult r;
@@ -504,11 +583,11 @@ void McpService::registerImageTools() {
             QPointer<McpService> guard(self);
             *step = [seq, step, grab, a, done, interval, maxW, guard, &core, &rt]() {
                 if (!guard) return;
-                QImage img;
-                std::string err;
                 const qint64 now = QDateTime::currentMSecsSinceEpoch();
                 if (seq->n == 0) seq->t0 = now;
-                if (grab(img, err)) {
+                grab([seq, step, a, done, interval, maxW, guard, &core, &rt, now](QImage img, std::string err) {
+                if (!guard) return;
+                if (!img.isNull()) {
                     seq->r.text("t=" + std::to_string(now - seq->t0) + " ms");
                     json args = a;
                     args["maxWidth"] = maxW;
@@ -524,6 +603,7 @@ void McpService::registerImageTools() {
                 }
                 QTimer::singleShot(interval, [step]() {
                     if (*step) (*step)();
+                });
                 });
             };
             (*step)();
@@ -577,24 +657,9 @@ void McpService::registerImageTools() {
                                               "devuelve una descripcion que no sirve para decidir."));
             const std::string fuente = a.value("fuente", std::string("programa"));
 
-            QImage img;
-            std::string err;
-            if (fuente == "interfaz") {
-                QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
-                if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
-                img = w->grabWindow();
-            } else if (fuente == "programa" || fuente == "program") {
-                if (!renderSource(rt, "", 1280, img, err) && !feedImage(vm, "program", img))
-                    return done(ToolResult::error("No hay imagen del programa: " + err));
-            } else if (!feedImage(vm, fuente, img)) {
-                // Una escena o una fuente por su nombre: se dibuja aparte (no toca
-                // el programa ni la armada).
-                if (!renderSource(rt, fuente, 1280, img, err))
-                    return done(ToolResult::error("Sin imagen en '" + fuente +
-                                                  "': no es una escena, una fuente ni una "
-                                                  "clave de feeds_list (" +
-                                                  err + ")."));
-            }
+            // Con la imagen en la mano, lo que sigue (se llama ya, o cuando llega
+            // el cuadro: renderAparte, que no hace esperar a la interfaz).
+            const auto seguir = [&vm, &rt, a, done, que, fuente](QImage img) {
             if (img.isNull()) return done(ToolResult::error("No se pudo tomar la imagen."));
 
             const QString archivo = guardarCaptura(img, rt.dataRoot(), a, 1280);
@@ -644,6 +709,31 @@ void McpService::registerImageTools() {
                                     {"ms", j.value("ms_imagen", 0.0)},
                                     {"captura", archivo.toStdString()}};
                 done(r);
+            });
+            };
+            if (fuente == "interfaz") {
+                QQuickWindow* w = self->mainWindow_ ? self->mainWindow_() : nullptr;
+                if (w == nullptr) return done(ToolResult::error("La interfaz grafica no esta abierta."));
+                return seguir(w->grabWindow());
+            }
+            if (fuente == "programa" || fuente == "program") {
+                return renderAparte(rt, "", 1280, [&vm, seguir, done](QImage img, std::string err) {
+                    if (img.isNull() && !feedImage(vm, "program", img))
+                        return done(ToolResult::error("No hay imagen del programa: " + err));
+                    seguir(img);
+                });
+            }
+            QImage img;
+            if (feedImage(vm, fuente, img)) return seguir(img);
+            // Una escena o una fuente por su nombre: se dibuja aparte (no toca
+            // el programa ni la armada).
+            renderAparte(rt, fuente, 1280, [seguir, done, fuente](QImage img, std::string err) {
+                if (img.isNull())
+                    return done(ToolResult::error("Sin imagen en '" + fuente +
+                                                  "': no es una escena, una fuente ni una "
+                                                  "clave de feeds_list (" +
+                                                  err + ")."));
+                seguir(img);
             });
         };
         core_.addTool(std::move(t));
