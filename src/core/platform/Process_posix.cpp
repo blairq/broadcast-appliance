@@ -15,6 +15,7 @@
 #include "platform/Process.hpp"
 
 #include <fcntl.h>
+#include <pthread.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -149,6 +150,34 @@ void Process::reset() {
     killOnDestroy_ = false;
 }
 
+namespace {
+/// Escribe los datos de la entrada del hijo y cierra el pipe (el hijo lee hasta el fin).
+/// SIGPIPE bloqueada mientras tanto: si el hijo ya se murió, falla con EPIPE sin matar
+/// al padre.
+void escribirEntrada(int fd, const std::string& datos) {
+    sigset_t pipe, antes;
+    sigemptyset(&pipe);
+    sigaddset(&pipe, SIGPIPE);
+    pthread_sigmask(SIG_BLOCK, &pipe, &antes);
+    std::size_t hecho = 0;
+    while (hecho < datos.size()) {
+        const ssize_t w = ::write(fd, datos.data() + hecho, datos.size() - hecho);
+        if (w < 0 && errno == EINTR) continue;
+        if (w <= 0) break;
+        hecho += static_cast<std::size_t>(w);
+    }
+    ::close(fd);
+#if defined(__linux__)
+    // una SIGPIPE que haya quedado pendiente se consume acá (no le llega a nadie); en
+    // macOS no hace falta: el pipe tiene F_SETNOSIGPIPE
+    struct timespec cero = {0, 0};
+    while (sigtimedwait(&pipe, nullptr, &cero) > 0) {
+    }
+#endif
+    pthread_sigmask(SIG_SETMASK, &antes, nullptr);
+}
+} // namespace
+
 bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) {
     out.reset();
     CStrings argv = buildArgv(opts);
@@ -175,6 +204,15 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
         }
         return false;
     }
+    // La entrada estándar con datos (stdinData): un pipe; el hijo lee de su lado.
+    int inFd[2] = {-1, -1};
+    if (!opts.stdinData.empty() && ::pipe2(inFd, O_CLOEXEC) != 0) {
+        setErr(err, std::string("pipe2 (stdin): ") + std::strerror(errno));
+        ::close(pipefd[0]);
+        ::close(pipefd[1]);
+        if (outFd >= 0) ::close(outFd);
+        return false;
+    }
     const pid_t parent = ::getpid();
     const pid_t pid = ::fork();
     if (pid < 0) {
@@ -182,6 +220,10 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
         ::close(pipefd[1]);
         if (outFd >= 0) {
             ::close(outFd);
+        }
+        if (inFd[0] >= 0) {
+            ::close(inFd[0]);
+            ::close(inFd[1]);
         }
         setErr(err, std::string("fork: ") + std::strerror(errno));
         return false;
@@ -205,6 +247,7 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
             ::dup2(outFd, 1);
             ::dup2(outFd, 2);
         }
+        if (inFd[0] >= 0) ::dup2(inFd[0], 0);
         // Todo fd heredado >2 queda CLOEXEC: el hijo no se lleva sockets del
         // padre (p. ej. el listener del canal de control).
         ::syscall(SYS_close_range, 3U, ~0U, 4U /* CLOSE_RANGE_CLOEXEC */);
@@ -230,12 +273,15 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
         n = ::read(pipefd[0], &childErr, sizeof(childErr));
     } while (n < 0 && errno == EINTR);
     ::close(pipefd[0]);
+    if (inFd[0] >= 0) ::close(inFd[0]);
     if (n == sizeof(childErr)) {
+        if (inFd[1] >= 0) ::close(inFd[1]);
         int status = 0;
         ::waitpid(pid, &status, 0);
         setErr(err, "exec '" + argv.storage[0] + "': " + std::strerror(childErr));
         return false;
     }
+    if (inFd[1] >= 0) escribirEntrada(inFd[1], opts.stdinData);
     out.pid_ = static_cast<std::uint32_t>(pid);
     out.killOnDestroy_ = opts.killWithParent;
     return true;
@@ -258,8 +304,22 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
 
     posix_spawn_file_actions_t fa;
     posix_spawn_file_actions_init(&fa);
+    // La entrada estándar con datos (stdinData): un pipe; el hijo lee de su lado.
+    int inFd[2] = {-1, -1};
+    if (!opts.stdinData.empty()) {
+        if (::pipe(inFd) != 0) {
+            posix_spawn_file_actions_destroy(&fa);
+            posix_spawnattr_destroy(&attr);
+            setErr(err, std::string("pipe (stdin): ") + std::strerror(errno));
+            return false;
+        }
+        ::fcntl(inFd[0], F_SETFD, FD_CLOEXEC);
+        ::fcntl(inFd[1], F_SETFD, FD_CLOEXEC);
+        ::fcntl(inFd[1], F_SETNOSIGPIPE, 1); // si el hijo se murió, EPIPE y no la señal
+    }
     // Con CLOEXEC_DEFAULT se cierra TODO salvo lo heredado explicitamente.
-    posix_spawn_file_actions_addinherit_np(&fa, 0);
+    if (inFd[0] >= 0) posix_spawn_file_actions_adddup2(&fa, inFd[0], 0);
+    else posix_spawn_file_actions_addinherit_np(&fa, 0);
     if (!opts.outputFile.empty()) {
         posix_spawn_file_actions_addopen(&fa, 1, opts.outputFile.c_str(), O_WRONLY | O_CREAT | O_APPEND,
                                          0644);
@@ -276,10 +336,13 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
     const int rc = ::posix_spawn(&pid, argv.ptrs[0], &fa, &attr, argv.ptrs.data(), envp.ptrs.data());
     posix_spawn_file_actions_destroy(&fa);
     posix_spawnattr_destroy(&attr);
+    if (inFd[0] >= 0) ::close(inFd[0]);
     if (rc != 0) {
+        if (inFd[1] >= 0) ::close(inFd[1]);
         setErr(err, "posix_spawn '" + argv.storage[0] + "': " + std::strerror(rc));
         return false;
     }
+    if (inFd[1] >= 0) escribirEntrada(inFd[1], opts.stdinData);
     out.pid_ = static_cast<std::uint32_t>(pid);
     out.killOnDestroy_ = opts.killWithParent;
     return true;

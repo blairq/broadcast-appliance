@@ -37,6 +37,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <iostream>
 #include <iterator>
 #include <string>
 #include <thread>
@@ -189,6 +190,11 @@ int childMain(int argc, char** argv) {
         std::fprintf(stdout, "salida-%s\n", arg(3).c_str());
         std::fprintf(stderr, "error-%s\n", arg(3).c_str());
         return 0;
+    }
+    if (mode == "stdin") {
+        // Lee la entrada hasta el fin y sale 0 si es exactamente argv[3].
+        const std::string todo((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());
+        return todo == arg(3) ? 0 : 5;
     }
     if (mode == "cwd") {
         std::error_code ec;
@@ -416,6 +422,24 @@ void testProcessOutputFile() {
     CHECK(all.find("error-dos") != std::string::npos);
     in.close();
     std::filesystem::remove(out);
+}
+
+void testProcessStdinData() {
+    // Lo de stdinData le llega entero al hijo por su entrada (y el pipe se cierra).
+    const std::string datos = "-----BEGIN CERTIFICATE-----\nlinea con acentos: año\n-----END-----\n";
+    ProcessOptions o = childOpts({"stdin", datos});
+    o.stdinData = datos;
+    Process p;
+    CHECK(Process::spawn(o, p));
+    const auto code = p.wait(10000);
+    CHECK(code.has_value() && *code == 0);
+    // Y con otros datos que no coinciden, el hijo lo nota (la prueba prueba algo).
+    ProcessOptions mal = childOpts({"stdin", datos});
+    mal.stdinData = "otra cosa";
+    Process q;
+    CHECK(Process::spawn(mal, q));
+    const auto c2 = q.wait(10000);
+    CHECK(c2.has_value() && *c2 == 5);
 }
 
 void testProcessWaitAndKill() {
@@ -724,6 +748,7 @@ int main(int argc, char** argv) {
     testProcessMissingExe();
     testProcessEnvAndCwd();
     testProcessOutputFile();
+    testProcessStdinData();
     testProcessWaitAndKill();
     testProcessDestructorKills();
     testProcessKillReachesGrandchildren();

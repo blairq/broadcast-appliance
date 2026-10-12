@@ -140,6 +140,16 @@ static int correr(const char* conf_path, int64_t padre) {
     log_open(conf->error_log);
     access_open(conf->access_log);
     ajustar_descriptores(conf);
+    /* HTTPS: el certificado y la clave llegan por la entrada estándar (los manda el gateway:
+       nunca están en el disco en claro). Los workers los heredan en memoria. */
+    for (int i = 0; i < conf->nlisten; i++)
+        if (conf->listen[i].ssl) {
+            if (tls_leer_entrada()) {
+                log_msg("error", "https: no llegó el certificado por la entrada estándar");
+                return 1;
+            }
+            break;
+        }
     bw_sock ls[BW_MAX_LISTEN];
     for (int i = 0; i < conf->nlisten; i++) {
         ls[i] = sock_listen(conf->listen[i].host, conf->listen[i].port, err, sizeof err);
@@ -315,6 +325,25 @@ static int correr_worker(const char* conf_path, int64_t master) {
         if (ls[i] == INVALID_SOCKET) return 1;
         sock_nonblock(ls[i]);
     }
+    /* después de las escuchas, el certificado de HTTPS (largo de 4 bytes y el PEM; 0 = no hay) */
+    uint32_t npem = 0;
+    DWORD leidos = 0, total = 0;
+    while (total < sizeof npem) {
+        if (!ReadFile(in, (char*)&npem + total, (DWORD)(sizeof npem - total), &leidos, NULL) || !leidos) break;
+        total += leidos;
+    }
+    if (total == sizeof npem && npem > 0 && npem <= (1u << 16)) {
+        char* pem = (char*)malloc(npem + 1);
+        total = 0;
+        while (pem && total < npem) {
+            if (!ReadFile(in, pem + total, npem - total, &leidos, NULL) || !leidos) break;
+            total += leidos;
+        }
+        if (pem && total == npem) {
+            pem[npem] = 0;
+            tls_set_pem(pem, npem);
+        }
+    }
     return worker_run(conf, ls, conf->nlisten, master);
 }
 
@@ -358,6 +387,16 @@ static int lanzar_win(const char* conf_path, bw_sock* ls, int n, wslot* w) {
         DWORD escritos = 0;
         WriteFile(wr, &info, sizeof info, &escritos, NULL);
     }
+    {
+        /* el certificado de HTTPS, si hay (solo en memoria: por el pipe) */
+        const char* pem = NULL;
+        size_t npem = 0;
+        tls_pem(&pem, &npem);
+        const uint32_t n32 = pem ? (uint32_t)npem : 0;
+        DWORD escritos = 0;
+        WriteFile(wr, &n32, sizeof n32, &escritos, NULL);
+        if (n32) WriteFile(wr, pem, n32, &escritos, NULL);
+    }
     CloseHandle(wr);
     w->proc = pi.hProcess;
     w->pid = pi.dwProcessId;
@@ -382,6 +421,14 @@ static int correr(const char* conf_path, int64_t padre) {
             return 1;
         }
     }
+    for (int i = 0; i < conf->nlisten; i++)
+        if (conf->listen[i].ssl) {
+            if (tls_leer_entrada()) {
+                log_msg("error", "https: no llegó el certificado por la entrada estándar");
+                return 1;
+            }
+            break;
+        }
     SetConsoleCtrlHandler(al_ctrl, TRUE);
     {
         SECURITY_ATTRIBUTES sa = {sizeof sa, NULL, TRUE};

@@ -8,7 +8,7 @@
 # Sin nada del sistema: solo libdeflate (FetchContent / extern/libdeflate).
 # ============================================================================
 
-set(BA_WEB_SOURCES main.c http.c conf.c ev.c gz.c plat.c)
+set(BA_WEB_SOURCES main.c http.c conf.c ev.c gz.c plat.c tls.c)
 if(MSVC)
     add_executable(ba-web WIN32 ${BA_WEB_SOURCES})
     target_link_options(ba-web PRIVATE /ENTRY:mainCRTStartup)
@@ -16,7 +16,8 @@ else()
     add_executable(ba-web ${BA_WEB_SOURCES})
 endif()
 set_target_properties(ba-web PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
-target_link_libraries(ba-web PRIVATE libdeflate::libdeflate_static)
+# mbedTLS (vendoreado, el mismo del gateway): el HTTPS de la red local.
+target_link_libraries(ba-web PRIVATE libdeflate::libdeflate_static mbedtls mbedx509 mbedcrypto)
 if(WIN32)
     target_link_libraries(ba-web PRIVATE ws2_32)
     target_compile_definitions(ba-web PRIVATE _CRT_SECURE_NO_WARNINGS _WINSOCK_DEPRECATED_NO_WARNINGS)

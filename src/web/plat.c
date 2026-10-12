@@ -389,6 +389,8 @@ static int64_t file_pread(bw_file* f, char* p, int64_t n, int64_t off) {
 #endif
 }
 
+int64_t file_read_at(bw_file* f, char* p, int64_t n, int64_t off) { return file_pread(f, p, n, off); }
+
 int64_t file_send(bw_sock s, bw_file* f, int64_t off, int64_t n) {
     if (n <= 0) return 0;
 #if defined(__linux__)

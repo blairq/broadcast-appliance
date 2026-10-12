@@ -59,6 +59,11 @@ struct ProcessOptions {
     /// Si no esta vacio, stdout y stderr del hijo van a este archivo (se
     /// crea si no existe y se AGREGA al final: no pisa corridas anteriores).
     std::filesystem::path outputFile;
+    /// Si no está vacío, se le da al hijo por su entrada estándar (un pipe que se cierra
+    /// después de escribirlo: el hijo lee hasta el fin). Para pasar secretos (una clave
+    /// privada) sin que toquen el disco, la línea de comandos ni el entorno. Que sea chico
+    /// (menos de 64 KiB: entra entero en el pipe sin esperar al hijo).
+    std::string stdinData;
 };
 
 /// Proceso hijo lanzado por `Process::spawn`.

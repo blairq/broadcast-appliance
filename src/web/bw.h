@@ -104,6 +104,9 @@ typedef struct bw_listen {
     int port;
     int proxy_protocol; /* acepta la línea PROXY v1 desde loopback */
     int real_ip_xff;    /* la IP real es la última de X-Forwarded-For (la pone el túnel) */
+    int ssl;            /* HTTPS (el certificado llega por la entrada estándar) */
+    char up_host[64];   /* upstream=host:puerto de esta escucha ("" = el general) */
+    int up_port;
 } bw_listen;
 
 typedef struct bw_conf {
@@ -212,6 +215,23 @@ int ev_add(bw_sock fd, void* ptr, int rd, int wr, int* slot);
 int ev_mod(bw_sock fd, void* ptr, int rd, int wr, int* slot);
 void ev_del(bw_sock fd, int* slot);
 int ev_wait(bw_evt* out, int max, int timeout_ms);
+
+/* ---- HTTPS (tls.c) ---- */
+typedef struct bw_tls bw_tls;
+int tls_leer_entrada(void);                 /* el master: el PEM de la entrada estándar */
+void tls_pem(const char** pem, size_t* n);  /* el PEM leído (para pasárselo a los workers) */
+void tls_set_pem(char* pem, size_t n);      /* el worker de Windows: el que le pasó el master */
+int tls_iniciar_worker(char* err, size_t errlen);
+int tls_activo(void);
+bw_tls* tls_nuevo(bw_sock fd);
+void tls_liberar(bw_tls* t);
+int tls_handshake(bw_tls* t);               /* 1 listo, 0 esperar, -1 falló */
+int tls_quiere_escribir(const bw_tls* t);
+int tls_recv(bw_tls* t, char* p, int n);    /* >0, 0 esperar, -1 error, -2 cerró */
+int tls_send(bw_tls* t, const char* p, int n); /* >0, 0 esperar, -1 error */
+size_t tls_pendiente(const bw_tls* t);
+/* Lee n bytes del archivo desde off (para mandarlo cifrado: sin sendfile). */
+int64_t file_read_at(bw_file* f, char* p, int64_t n, int64_t off);
 
 /* ---- Worker ---- */
 int worker_run(const bw_conf* c, bw_sock* listeners, int nlisteners, int64_t master_pid);

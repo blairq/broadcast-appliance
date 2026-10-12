@@ -6,8 +6,33 @@ comprimidos, guarda un microcaché de la API del evento y le pasa todo lo demás
 Es otro proceso a propósito: si los visitantes lo tapan o se cae, la sala y la emisión siguen.
 
 ```
-visitante ──https──> pinggy ──> ba-web 127.0.0.1:8785 ──> gateway 127.0.0.1:8786 (escucha del túnel)
+visitante ──https──> pinggy ──> ba-web 127.0.0.1:8785 ──────> gateway 127.0.0.1:8786 (escucha del túnel)
+red local ──https──────────────> ba-web 0.0.0.0:8789 (TLS) ──> gateway 127.0.0.1:8787 (escucha local)
 ```
+
+## HTTPS de la red local
+
+ba-web atiende también el HTTPS de la red local (el enlace `https://<IP>:8789` de la sala), con
+mbedTLS y sin bloquear: así la gente de la sala también tiene gzip, caché y límites, y el gateway
+no cifra nada por cada visitante.
+
+- **El certificado es el mismo de siempre** (el propio de `Credenciales/tls-propio`, o el
+  autofirmado): misma huella, los navegadores que ya lo aceptaron no vuelven a avisar. El gateway
+  lo saca de `Credenciales/` (cifrado) y se lo pasa a ba-web **por la entrada estándar** (un pipe
+  que se cierra): nunca toca el disco en claro, ni la línea de comandos, ni el entorno.
+  `ProcessOptions::stdinData` (Process_posix/win) es lo que lo permite.
+- Cada worker arma su TLS con su propio generador al azar (si lo heredaran del master con
+  `fork()`, sacarían los mismos números). TLS 1.2 (ECDHE + AES-GCM/ChaCha20), como el terminador
+  del gateway; 1.0 y 1.1 se rechazan.
+- Cada escucha tiene su destino (`listen … ssl upstream=127.0.0.1:8787`): la red local va a la
+  escucha local del gateway (ICE con el TURN local, como siempre); el túnel, a la del túnel.
+- Con WireGuard (cuyo puente manda la línea PROXY antes del TLS) sigue el terminador del gateway.
+  Si ba-web no arranca, el terminador escucha en el mismo puerto: las URLs no cambian.
+- Probado: 20 000 pedidos por HTTPS con pipelining en 50 conexiones (~34 000/s), archivo de 5 MB
+  íntegro (SHA-256), handshake roto / HTTP en claro / conexión muda (se cierra a los 3 s) / TLS
+  1.0 y 1.1 rechazados, y 5 000 pedidos rotos cifrados con ASan, sin errores. Con la app: misma
+  huella, un invitado entra por la red local y su WebSocket anda; matado el master, el gateway lo
+  relanza con el certificado.
 
 ## Arquitectura (la de nginx)
 

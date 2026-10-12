@@ -48,7 +48,7 @@ static int g_nconns = 0;
 /* ------------------------------------------------------------------------- */
 
 enum { O_LISTEN = 1, O_CONN, O_UP };
-enum { C_READ = 0, C_WRITE, C_PROXY, C_CACHE, C_TUNNEL };
+enum { C_READ = 0, C_WRITE, C_PROXY, C_CACHE, C_TUNNEL, C_TLS /* el handshake de HTTPS */ };
 enum { U_BUF = 0, U_STREAM, U_TUNNEL, U_CACHE };
 
 /* La cabecera de un pedido (nginx: 4 × 8 KiB): el sitio no usa cookies grandes. */
@@ -139,6 +139,7 @@ typedef struct conn {
     int es_tunel;         /* contado en limit_tunnels */
     int en_cola;          /* tiene pedidos esperando (pipelining) */
     int64_t pedido_desde; /* cuándo llegó el primer byte del pedido (slowloris) */
+    bw_tls* tls;          /* HTTPS: todo lo del cliente pasa por acá */
 } conn;
 
 typedef struct up {
@@ -909,8 +910,11 @@ static int servir_estatico(conn* c, const bw_location* l) {
 /* Proxy al gateway                                                          */
 /* ------------------------------------------------------------------------- */
 
-static up* up_nuevo(void) {
-    bw_sock s = sock_connect(C->upstream_host, C->upstream_port);
+/* Al gateway: al upstream de la escucha por la que entró (la red local va a otra escucha
+   del gateway que el túnel), o al general. */
+static up* up_nuevo(const bw_listen* lc) {
+    const int propio = lc && lc->up_port > 0;
+    bw_sock s = sock_connect(propio ? lc->up_host : C->upstream_host, propio ? lc->up_port : C->upstream_port);
     if (s == BW_BAD) return NULL;
     up* u = (up*)calloc(1, sizeof *u);
     if (!u) {
@@ -950,7 +954,7 @@ static void up_close(up* u) {
 }
 
 static void proxy_iniciar(conn* c, int tunel) {
-    up* u = up_nuevo();
+    up* u = up_nuevo(c->lc);
     if (!u) {
         respuesta_simple(c, 502, NULL, "502 Bad Gateway\n", 1);
         return;
@@ -1263,7 +1267,7 @@ static void cache_despertar(centry* e, int ok) {
 }
 
 static void cache_traer(centry* e, const conn* quien) {
-    up* u = up_nuevo();
+    up* u = up_nuevo(NULL); /* el general: la respuesta es para todos */
     if (!u) {
         cache_despertar(e, 0);
         return;
@@ -1630,6 +1634,10 @@ static void conn_close(conn* c) {
     if (c->en_cola)
         for (int i = 0; i < g_ncola; i++)
             if (g_cola[i] == c) g_cola[i] = NULL;
+    if (c->tls) {
+        tls_liberar(c->tls); /* antes de cerrar el socket: el aviso de cierre va por ahí */
+        c->tls = NULL;
+    }
     ev_del(c->fd, &c->slot);
     sock_close(c->fd);
     if (c->prev) c->prev->next = c->next;
@@ -1670,19 +1678,53 @@ static void finish_response(conn* c) {
     CONN_IO(c, c->in.len < HEAD_MAX, 0);
     /* El próximo pedido (pipelining) se atiende en la vuelta siguiente del bucle, no acá:
        miles de pedidos en un paquete no pueden apilar llamadas (ni acaparar el worker). */
-    if (c->in.len) encolar(c);
+    if (c->in.len || (c->tls && tls_pendiente(c->tls))) encolar(c);
 }
 
+/* Al cliente (cifrado si es HTTPS): >0 mandados, 0 hay que esperar, -1 error. */
+static int c_send(conn* c, const char* p, size_t n) {
+    if (n > (1u << 20)) n = 1u << 20;
+    if (c->tls) return tls_send(c->tls, p, (int)n);
+    const int r = (int)send(c->fd, p, (int)n, BW_SEND_FLAGS);
+    if (r >= 0) return r;
+    return sock_would_block() ? 0 : -1;
+}
+/* Del cliente: >0 leídos, 0 hay que esperar, -1 error, -2 el cliente cerró. */
+static int c_recv(conn* c, char* p, size_t n) {
+    if (n > (1u << 20)) n = 1u << 20;
+    if (c->tls) return tls_recv(c->tls, p, (int)n);
+    const int r = (int)recv(c->fd, p, (int)n, 0);
+    if (r > 0) return r;
+    if (r == 0) return -2;
+    return sock_would_block() ? 0 : -1;
+}
+/* Un pedazo del archivo: sendfile en claro; cifrado, leído de a 16 KiB (si mbedTLS pide
+   esperar, la próxima vez se lee lo mismo: es lo que exige). */
+static int64_t c_file(conn* c, int64_t n) {
+    if (!c->tls) return file_send(c->fd, &c->file, c->file_off, n);
+    char tmp[16384];
+    const int64_t quiero = n > (int64_t)sizeof tmp ? (int64_t)sizeof tmp : n;
+    const int64_t leidos = file_read_at(&c->file, tmp, quiero, c->file_off);
+    if (leidos <= 0) return -1;
+    return tls_send(c->tls, tmp, (int)leidos);
+}
+
+static void tls_paso(conn* c);
+
 static void conn_write(conn* c) {
+    if (c->state == C_TLS) {
+        tls_paso(c);
+        return;
+    }
     for (;;) {
         if (c->muerto) return;
         if (c->out_off < c->out.len) {
-            const int n = (int)send(c->fd, c->out.p + c->out_off, (int)(c->out.len - c->out_off), BW_SEND_FLAGS);
+            const int n = c_send(c, c->out.p + c->out_off, c->out.len - c->out_off);
             if (n < 0) {
-                if (sock_would_block()) break;
                 conn_close(c);
                 return;
             }
+            if (n == 0) break;
             c->out_off += (size_t)n;
             c->enviados += n;
             c->deadline = g_now + C->send_timeout_ms;
@@ -1696,20 +1738,19 @@ static void conn_write(conn* c) {
             continue;
         }
         if (c->body && c->body_off < c->body_end) {
-            const int n =
-                (int)send(c->fd, c->body->data + c->body_off, (int)(c->body_end - c->body_off), BW_SEND_FLAGS);
+            const int n = c_send(c, c->body->data + c->body_off, c->body_end - c->body_off);
             if (n < 0) {
-                if (sock_would_block()) break;
                 conn_close(c);
                 return;
             }
+            if (n == 0) break;
             c->body_off += (size_t)n;
             c->enviados += n;
             c->deadline = g_now + C->send_timeout_ms;
             continue;
         }
         if (c->tiene_file && c->file_off < c->file_end) {
-            const int64_t n = file_send(c->fd, &c->file, c->file_off, c->file_end - c->file_off);
+            const int64_t n = c_file(c, c->file_end - c->file_off);
             if (n < 0) {
                 conn_close(c);
                 return;
@@ -1898,7 +1939,30 @@ static void conn_process(conn* c) {
     despachar(c);
 }
 
-static void conn_leer(conn* c) {
+static void conn_leer(conn* c);
+
+/* El handshake de HTTPS: mbedTLS dice si quiere leer o escribir; al terminar, a leer el pedido. */
+static void tls_paso(conn* c) {
+    const int k = tls_handshake(c->tls);
+    if (k < 0) {
+        conn_close(c); /* no es TLS, versión vieja, o se cortó */
+        return;
+    }
+    if (k == 0) {
+        const int w = tls_quiere_escribir(c->tls);
+        CONN_IO(c, !w, w);
+        return;
+    }
+    c->state = C_READ;
+    CONN_IO(c, 1, 0);
+    if (tls_pendiente(c->tls)) conn_leer(c);
+}
+
+static void conn_leer_una(conn* c) {
+    if (c->state == C_TLS) {
+        tls_paso(c);
+        return;
+    }
     if (c->state == C_TUNNEL) {
         up* u = c->up;
         if (!u) {
@@ -1909,12 +1973,13 @@ static void conn_leer(conn* c) {
             conn_close(c);
             return;
         }
-        const int n = (int)recv(c->fd, u->out.p + u->out.len, 16384, 0);
-        if (n < 0) {
-            if (!sock_would_block()) conn_close(c);
+        const int n = c_recv(c, u->out.p + u->out.len, 16384);
+        if (n == -1) {
+            conn_close(c);
             return;
         }
-        if (n == 0) {
+        if (n == 0) return; /* hay que esperar */
+        if (n == -2) {
             u->cliente_eof = 1;
             CONN_IO(c, 0, c->ev_wr);
             if (u->out_off >= u->out.len) {
@@ -1933,10 +1998,7 @@ static void conn_leer(conn* c) {
         return;
     }
     if (c->state != C_READ) {
-        /* no se esperaba leer: ¿se cerró? */
-        char tmp[1];
-        const int n = (int)recv(c->fd, tmp, 0, 0);
-        (void)n;
+        /* no se esperaba leer (se está respondiendo): se deja de escuchar hasta terminar */
         CONN_IO(c, 0, c->ev_wr);
         return;
     }
@@ -1950,13 +2012,10 @@ static void conn_leer(conn* c) {
         conn_close(c);
         return;
     }
-    const int n = (int)recv(c->fd, c->in.p + c->in.len, (int)(c->in.cap - c->in.len - 1), 0);
+    const int n = c_recv(c, c->in.p + c->in.len, c->in.cap - c->in.len - 1);
+    if (n == 0) return; /* hay que esperar */
     if (n < 0) {
-        if (!sock_would_block()) conn_close(c);
-        return;
-    }
-    if (n == 0) {
-        conn_close(c);
+        conn_close(c); /* error, o el cliente cerró */
         return;
     }
     if (!c->in.len && !c->pedido_desde) {
@@ -1966,6 +2025,19 @@ static void conn_leer(conn* c) {
     c->in.len += (size_t)n;
     c->in.p[c->in.len] = 0;
     conn_process(c);
+}
+
+/* ¿Queda algo ya descifrado que el sistema no va a avisar, y hay dónde ponerlo? */
+static int tls_queda(const conn* c) {
+    if (c->muerto || !c->tls || !tls_pendiente(c->tls)) return 0;
+    if (c->state == C_READ) return c->in.len < HEAD_MAX;
+    if (c->state == C_TUNNEL) return c->up && !c->up->cliente_eof && c->up->out.len - c->up->out_off < STREAM_HIGH;
+    return 0;
+}
+
+static void conn_leer(conn* c) {
+    conn_leer_una(c);
+    for (int i = 0; i < 64 && tls_queda(c); i++) conn_leer_una(c);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -2028,6 +2100,7 @@ static void up_escribir(up* u) {
 #endif
         } else {
             CONN_IO(u->c, 1, u->c->ev_wr);
+            if (tls_queda(u->c)) conn_leer(u->c);
         }
     }
 }
@@ -2158,7 +2231,7 @@ static void desalojar_ociosas(int cuantas) {
     while (c->next) c = c->next; /* la más vieja está al final */
     while (c && cuantas > 0) {
         conn* ant = c->prev;
-        if (!c->muerto && c->state == C_READ && c->in.len == 0 && !c->en_cola) {
+        if (!c->muerto && ((c->state == C_READ && c->in.len == 0 && !c->en_cola) || c->state == C_TLS)) {
             conn_close(c);
             cuantas--;
         }
@@ -2213,6 +2286,15 @@ static void aceptar(lst* l) {
         else if (sa.ss_family == AF_INET6)
             inet_ntop(AF_INET6, &((struct sockaddr_in6*)&sa)->sin6_addr, c->peer, sizeof c->peer);
         memcpy(c->ip, c->peer, sizeof c->ip);
+        if (l->lc->ssl) {
+            c->tls = tls_nuevo(s);
+            if (!c->tls) {
+                sock_close(s);
+                free(c);
+                return;
+            }
+            c->state = C_TLS; /* primero el handshake (dentro del plazo de la cabecera) */
+        }
         c->deadline = g_now + C->header_timeout_ms;
         if (ev_add(s, c, 1, 0, &c->slot)) {
             sock_close(s);
@@ -2275,6 +2357,15 @@ int worker_run(const bw_conf* conf, bw_sock* listeners, int n, int64_t master_pi
         log_msg("error", "no se pudo crear el bucle de eventos");
         return 1;
     }
+    for (int i = 0; i < n; i++)
+        if (conf->listen[i].ssl) {
+            char err[256];
+            if (tls_iniciar_worker(err, sizeof err)) {
+                log_msg("error", "%s", err);
+                return 1;
+            }
+            break;
+        }
     g_now = now_ms();
     for (int i = 0; i < n; i++) {
         lst* l = (lst*)calloc(1, sizeof *l);
@@ -2329,6 +2420,7 @@ int worker_run(const bw_conf* conf, bw_sock* listeners, int n, int64_t master_pi
                 if (!c->muerto && c->state == C_READ) {
                     conn_process(c);
                     if (!c->muerto && c->state == C_READ && c->in.len < HEAD_MAX) CONN_IO(c, 1, c->ev_wr);
+                    if (tls_queda(c)) conn_leer(c); /* lo ya descifrado: el sistema no lo avisa */
                 }
             }
             int j = 0;

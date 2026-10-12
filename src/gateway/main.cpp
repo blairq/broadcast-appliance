@@ -713,6 +713,7 @@ int main(int argc, char** argv) {
     }() + "; en el QR: " + (hostLocal.empty() ? std::string("(ninguna)") : hostLocal));
 
     std::unique_ptr<net::TlsTerminator> tls;
+    bool httpsPorBaWeb = false;
     if (cfg.https) {
         net::TlsTerminator::Config tc;
         tc.bindAddress = cfg.bindAddress;
@@ -725,7 +726,15 @@ int main(int argc, char** argv) {
         if (!publicHost.empty()) tc.names.push_back(publicHost);
         if (!publicIp.empty() && publicIp != publicHost) tc.names.push_back(publicIp);
         tls = std::make_unique<net::TlsTerminator>(tc, logLine);
-        if (!tls->start()) {
+        // El HTTPS de la red local lo atiende ba-web (gzip, caché, límites; ver más abajo) con
+        // este mismo certificado: acá solo se carga. Con WireGuard no: su puente manda la
+        // línea PROXY antes del TLS, y eso lo entiende este terminador. Si ba-web después no
+        // arranca, este terminador escucha en el mismo puerto (las URLs no cambian).
+        const bool webPuede = cfg.webActivo && !cfg.wgEnabled && std::filesystem::exists(cfg.webPath);
+        if (webPuede && tls->cargarCertificado()) {
+            tls->atendidoAfuera(cfg.httpsPort);
+            httpsPorBaWeb = true;
+        } else if (!tls->start()) {
             log.warn("https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)", -1);
             tls.reset();
         }
@@ -927,20 +936,33 @@ int main(int argc, char** argv) {
     // ba-web adelante del túnel: pinggy le manda el tráfico a él y él atiende el sitio (de
     // memoria, con gzip) y le pasa el resto a la escucha del túnel. Si no arranca, pinggy va
     // directo a la escucha del túnel, como antes.
+    // También atiende el HTTPS de la red local (httpsPorBaWeb, más arriba): el certificado le
+    // llega por la entrada estándar (nunca a disco) y le pasa todo a la escucha local (cfg.port).
     std::unique_ptr<WebSupervisor> baWeb;
-    if (cfg.pinggyActivo && cfg.webActivo) {
+    if ((cfg.pinggyActivo || httpsPorBaWeb) && cfg.webActivo) {
         WebSupervisor::Cfg wc;
         wc.exe = cfg.webPath;
         wc.logPath = (std::filesystem::path(cfg.logsDir) / "ba-web.log").string();
         wc.dir = ba::platform::stateDir().string();
         wc.webroot = cfg.webroot;
         wc.eventoWebroot = sigCfg.eventoWebroot;
+        wc.tunel = cfg.pinggyActivo;
         wc.puerto = cfg.webPuerto;
         wc.upstream = cfg.pinggyPuertoTunel;
         wc.procesos = cfg.webProcesos;
         wc.cacheMs = ba::ajustes::entero("evento.cacheMs", 1000);
         wc.clave = sigCfg.webClave;
         wc.proxyProtocol = !turnActivo; // como pc.haproxy de pinggy, más abajo
+        if (httpsPorBaWeb && tls) {
+            std::string crt, key;
+            if (tls->pemParaExportar(crt, key)) {
+                wc.lanBind = cfg.bindAddress;
+                wc.lanPuerto = cfg.httpsPort;
+                wc.lanUpstream = cfg.port;
+                wc.tlsPem = crt + "\n" + key;
+                std::fill(key.begin(), key.end(), '\0');
+            }
+        }
         if (!wc.dir.empty()) {
             baWeb = std::make_unique<WebSupervisor>(std::move(wc), log);
             WebSupervisor* bw = baWeb.get();
@@ -951,6 +973,15 @@ int main(int argc, char** argv) {
             }
         }
     }
+    // Si ba-web no arrancó (o no le llegó el certificado), el HTTPS de la red local lo atiende
+    // el terminador de siempre, en el mismo puerto.
+    if (httpsPorBaWeb && tls && !(baWeb && baWeb->atiendeLan())) {
+        log.warn("https: ba-web no lo atiende; arranca el terminador propio", -1);
+        if (!tls->start()) {
+            log.warn("https: no arranco; los invitados solo tienen http (sin camara fuera de localhost)", -1);
+            tls.reset();
+        }
+    }
     if (cfg.pinggyActivo) {
         PinggySupervisor::Cfg pc;
         pc.exe = cfg.pinggyPath;
@@ -958,7 +989,7 @@ int main(int argc, char** argv) {
         pc.region = cfg.pinggyRegion;
         pc.host = cfg.pinggyHost;
         pc.listaBlanca = cfg.pinggyListaBlanca;
-        pc.puertoTunel = baWeb ? baWeb->puerto() : cfg.pinggyPuertoTunel;
+        pc.puertoTunel = baWeb && baWeb->atiendeTunel() ? baWeb->puerto() : cfg.pinggyPuertoTunel;
         pc.turn = turnActivo;
         pc.turnLocal = turnPuertoLocal;
         pc.turnTcpPuerto = cfg.pinggyTurnTcpPuerto;

@@ -42,9 +42,17 @@ class WebSupervisor {
         /// pinggy manda la línea PROXY v1 (sin TURN). Si no la manda, ba-web NO la acepta:
         /// si la aceptara, un visitante podría mandar la suya e inventarse la IP.
         bool proxyProtocol = false;
+        bool tunel = true;         ///< atiende lo que llega por pinggy (127.0.0.1:puerto)
+        /// El HTTPS de la red local (lanPuerto 0 = no): escucha en lanBind:lanPuerto y le pasa
+        /// todo a la escucha local del gateway (lanUpstream). El certificado y la clave, en PEM,
+        /// van por la entrada estándar de ba-web (tlsPem): nunca al disco ni al entorno.
+        std::string lanBind;
+        uint16_t lanPuerto = 0;
+        uint16_t lanUpstream = 0;
+        std::string tlsPem;
     };
     WebSupervisor(Cfg cfg, Log& log);
-    ~WebSupervisor();
+    ~WebSupervisor(); // borra el PEM de la memoria
     WebSupervisor(const WebSupervisor&) = delete;
     WebSupervisor& operator=(const WebSupervisor&) = delete;
 
@@ -53,6 +61,8 @@ class WebSupervisor {
     void stop();
     bool vivo() const { return alive_.load(); }
     uint16_t puerto() const { return cfg_.puerto; }
+    bool atiendeTunel() const { return cfg_.tunel; }
+    bool atiendeLan() const { return cfg_.lanPuerto != 0 && !cfg_.tlsPem.empty(); }
     /// La carpeta Web/ del evento en vivo ("" si no hay). Escribe el archivo solo si cambió.
     void setEventoDir(const std::string& dir);
     /// La configuración que se le escribe (para la prueba y para mirarla).

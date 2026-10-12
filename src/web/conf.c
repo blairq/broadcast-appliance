@@ -302,7 +302,7 @@ int conf_load(const char* path, bw_conf* c, char* err, size_t errlen) {
             if (tamano(args[1], &c->file_cache_total)) ERR("open_file_cache_total: tamaño inválido");
         } else if (!strcmp(d, "proxy_buffer_max") && n == 2) {
             if (tamano(args[1], &c->proxy_buffer_max)) ERR("proxy_buffer_max: tamaño inválido");
-        } else if (!strcmp(d, "listen") && n >= 2 && n <= 4) {
+        } else if (!strcmp(d, "listen") && n >= 2 && n <= 6) {
             if (c->nlisten >= BW_MAX_LISTEN) ERR("demasiados listen");
             bw_listen* l = &c->listen[c->nlisten++];
             memset(l, 0, sizeof *l);
@@ -310,7 +310,11 @@ int conf_load(const char* path, bw_conf* c, char* err, size_t errlen) {
             for (int i = 2; i < n; i++) {
                 if (!strcmp(args[i], "proxy_protocol")) l->proxy_protocol = 1;
                 else if (!strcmp(args[i], "real_ip_xff")) l->real_ip_xff = 1;
-                else ERR("listen: opciones «proxy_protocol» y «real_ip_xff»");
+                else if (!strcmp(args[i], "ssl")) l->ssl = 1;
+                else if (!strncmp(args[i], "upstream=", 9)) {
+                    if (host_puerto(args[i] + 9, l->up_host, sizeof l->up_host, &l->up_port))
+                        ERR("listen: upstream=host:puerto inválido");
+                } else ERR("listen: opciones «proxy_protocol», «real_ip_xff», «ssl», «upstream=host:puerto»");
             }
         } else if (!strcmp(d, "limit_conn_per_ip") && n == 2) {
             c->limit_conn_per_ip = atoi(args[1]);

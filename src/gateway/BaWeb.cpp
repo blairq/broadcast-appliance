@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "BaWeb.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -54,9 +55,17 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     s += "# Generado por el gateway al arrancar (BaWeb.cpp): no se edita a mano.\n";
     s += "worker_processes " + procesos + ";\n";
     s += "worker_connections 4096;\n";
-    // real_ip_xff: la IP real es la última de X-Forwarded-For, la que agrega pinggy (--xff).
-    s += "listen 127.0.0.1:" + std::to_string(c.puerto) + (c.proxyProtocol ? " proxy_protocol" : "") + " real_ip_xff;\n";
-    s += "upstream 127.0.0.1:" + std::to_string(c.upstream) + ";\n";
+    // El túnel. real_ip_xff: la IP real es la última de X-Forwarded-For, la que agrega pinggy (--xff).
+    if (c.tunel)
+        s += "listen 127.0.0.1:" + std::to_string(c.puerto) + (c.proxyProtocol ? " proxy_protocol" : "") +
+             " real_ip_xff;\n";
+    // La red local, por HTTPS (el certificado llega por la entrada estándar): a la escucha
+    // local del gateway, no a la del túnel (allá todo es «de afuera»).
+    if (c.lanPuerto && !c.tlsPem.empty())
+        s += "listen " + (c.lanBind.empty() ? std::string("0.0.0.0") : c.lanBind) + ":" + std::to_string(c.lanPuerto) +
+             " ssl upstream=127.0.0.1:" + std::to_string(c.lanUpstream) + ";\n";
+    // El general (el microcaché y lo que no diga otra cosa).
+    s += "upstream 127.0.0.1:" + std::to_string(c.tunel ? c.upstream : c.lanUpstream) + ";\n";
     s += "error_log " + (logPath.empty() ? std::string("stderr") : q(logPath)) + ";\n";
     s += "gzip on;\ngzip_comp_level 6;\n";
     // La raíz: el marco del evento o la sala de invitados (lo decide el gateway); igual
@@ -88,7 +97,10 @@ WebSupervisor::WebSupervisor(Cfg cfg, Log& log) : cfg_(std::move(cfg)), log_(log
     aliasPath_ = (std::filesystem::path(cfg_.dir) / "evento-web.dir").string();
 }
 
-WebSupervisor::~WebSupervisor() { stop(); }
+WebSupervisor::~WebSupervisor() {
+    stop();
+    std::fill(cfg_.tlsPem.begin(), cfg_.tlsPem.end(), '\0'); // la clave privada, fuera de la memoria
+}
 
 bool WebSupervisor::start() {
     if (started_.load()) return alive_.load();
@@ -108,8 +120,12 @@ bool WebSupervisor::start() {
     if (!spawn()) return false;
     started_.store(true);
     thread_ = std::thread(&WebSupervisor::runLoop, this);
-    log_.info("ba-web: lanzado (127.0.0.1:" + std::to_string(cfg_.puerto) + " -> gateway 127.0.0.1:" +
-              std::to_string(cfg_.upstream) + ")");
+    log_.info(std::string("ba-web: lanzado") +
+              (cfg_.tunel ? " (túnel 127.0.0.1:" + std::to_string(cfg_.puerto) + " -> " + std::to_string(cfg_.upstream) + ")"
+                          : std::string()) +
+              (atiendeLan() ? " (HTTPS de la red local :" + std::to_string(cfg_.lanPuerto) + " -> " +
+                                  std::to_string(cfg_.lanUpstream) + ")"
+                            : std::string()));
     return true;
 }
 
@@ -132,6 +148,9 @@ bool WebSupervisor::spawn() {
 #endif
     o.args = {"-c", confPath_, "--padre", std::to_string(yo)};
     o.envSet["BA_WEB_CLAVE"] = cfg_.clave; // por el entorno: por la línea de comandos se vería en `ps`
+    // El certificado y la clave del HTTPS de la red local: por la entrada estándar (un pipe
+    // que se cierra), nunca al disco, a la línea de comandos ni al entorno.
+    if (atiendeLan()) o.stdinData = cfg_.tlsPem;
     o.killWithParent = true;
     o.hideWindow = true;
     // La salida cruda (solo errores antes de abrir su log, o un aborto): aparte y con tope.

@@ -230,14 +230,35 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
             return false;
         }
     }
-    HANDLE inherit[3];
+    // La entrada estándar con datos (stdinData): un pipe; el hijo hereda solo el lado de leer.
+    HANDLE inRd = nullptr, inWr = nullptr;
+    if (!opts.stdinData.empty()) {
+        SECURITY_ATTRIBUTES sa{};
+        sa.nLength = sizeof(sa);
+        sa.bInheritHandle = TRUE;
+        if (!CreatePipe(&inRd, &inWr, &sa, 1 << 16)) {
+            setErr(err, "CreatePipe(stdin)");
+            if (outFile != nullptr) CloseHandle(outFile);
+            DeleteProcThreadAttributeList(attrs);
+            CloseHandle(job);
+            return false;
+        }
+        SetHandleInformation(inWr, HANDLE_FLAG_INHERIT, 0);
+    }
+    HANDLE inherit[4];
     DWORD nInherit = 0;
     if (outFile != nullptr) {
         inherit[nInherit++] = outFile;
     }
+    if (inRd != nullptr) {
+        inherit[nInherit++] = inRd;
+    }
     for (DWORD std : {STD_INPUT_HANDLE, STD_OUTPUT_HANDLE, STD_ERROR_HANDLE}) {
         if (outFile != nullptr && std != STD_INPUT_HANDLE) {
             continue; // stdout/stderr van al archivo
+        }
+        if (inRd != nullptr && std == STD_INPUT_HANDLE) {
+            continue; // la entrada es el pipe
         }
         HANDLE h = GetStdHandle(std);
         DWORD flags = 0;
@@ -260,11 +281,11 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
     // (posicionada, showCmd=SW_SHOWNORMAL) pero sin WS_VISIBLE: el dashboard
     // no aparecia nunca al abrir desde el launcher. La consola la suprime
     // CREATE_NO_WINDOW, mas abajo, que es lo que `hideWindow` quiere decir.
-    if (outFile != nullptr) {
+    if (outFile != nullptr || inRd != nullptr) {
         si.StartupInfo.dwFlags |= STARTF_USESTDHANDLES;
-        si.StartupInfo.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        si.StartupInfo.hStdOutput = outFile;
-        si.StartupInfo.hStdError = outFile;
+        si.StartupInfo.hStdInput = inRd != nullptr ? inRd : GetStdHandle(STD_INPUT_HANDLE);
+        si.StartupInfo.hStdOutput = outFile != nullptr ? outFile : GetStdHandle(STD_OUTPUT_HANDLE);
+        si.StartupInfo.hStdError = outFile != nullptr ? outFile : GetStdHandle(STD_ERROR_HANDLE);
     }
     PROCESS_INFORMATION pi{};
     const std::wstring workDir = opts.workDir.wstring();
@@ -277,13 +298,18 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
     if (outFile != nullptr) {
         CloseHandle(outFile); // el hijo tiene su copia
     }
+    if (inRd != nullptr) {
+        CloseHandle(inRd); // ídem
+    }
     if (!ok) {
         setErr(err, "CreateProcessW");
+        if (inWr != nullptr) CloseHandle(inWr);
         CloseHandle(job);
         return false;
     }
     if (!AssignProcessToJobObject(job, pi.hProcess)) {
         setErr(err, "AssignProcessToJobObject");
+        if (inWr != nullptr) CloseHandle(inWr);
         TerminateProcess(pi.hProcess, 1);
         CloseHandle(pi.hThread);
         CloseHandle(pi.hProcess);
@@ -292,6 +318,12 @@ bool Process::spawn(const ProcessOptions& opts, Process& out, std::string* err) 
     }
     ResumeThread(pi.hThread);
     CloseHandle(pi.hThread);
+    if (inWr != nullptr) {
+        // entra entero en el pipe (64 KiB): no espera al hijo; al cerrar, el hijo lee el fin
+        DWORD escritos = 0;
+        WriteFile(inWr, opts.stdinData.data(), static_cast<DWORD>(opts.stdinData.size()), &escritos, nullptr);
+        CloseHandle(inWr);
+    }
 
     out.pid_ = pi.dwProcessId;
     out.process_ = pi.hProcess;
