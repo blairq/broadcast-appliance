@@ -22,6 +22,8 @@
 #include <vector>
 
 #include "arranque/AppRuntime.hpp"
+#include "audio/ObjetivoLoudness.hpp"
+#include "emision/RetornosInvitados.hpp"
 #include "arranque/ArranqueAviso.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/ChatOverlaySource.hpp"
@@ -545,11 +547,7 @@ int AppRuntime::start() {
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
     // gráficos) pasan por acá: así quedan también en la configuración.
     fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
-    {
-        std::ifstream f(root_ / "Config" / "loudness.json");
-        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object()) engine_.loudness().ponerObjetivo(j);
-    }
+    audio::ObjetivoLoudness(root_, engine_.loudness()).cargar(); // el objetivo guardado (Config/loudness.json)
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
     // interfaz ya no hace que el supervisor corte el aire. Desde acá late él.
     latidoArranque.parar();
@@ -570,14 +568,8 @@ int AppRuntime::start() {
     addAudioInputs();
     marca("las entradas de audio");
     arranque::avisar("Armando las escenas…");
-    // Lo que oye cada invitado (mix-minus de fábrica): Config/retornos.json.
-    {
-        std::ifstream f(root_ / "Config" / "retornos.json");
-        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object())
-            for (const auto& [slot, modo] : j.items())
-                if (modo.is_string()) engine_.setRetornoInvitado(std::atoi(slot.c_str()), modo.get<std::string>());
-    }
+    // Lo que oye cada invitado (mix-minus de fábrica): lo guardado en Config/retornos.json.
+    emision::RetornosInvitados(*this).cargar();
     engine_.setTransition(cfg_.transition.type, cfg_.transition.durationMs);
     for (const auto& sc : cfg_.scenes) {
         arranque::avisar("Armando la escena «" + sc.name + "»…");

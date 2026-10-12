@@ -28,6 +28,8 @@ class RetornosInvitados {
     std::string modo(int slot) const;
     /// {"1": modo, …} de los lugares que hay.
     nlohmann::json todos() const;
+    /// Pone lo guardado en retornos.json (al arrancar). Sin archivo, mix-minus para todos.
+    void cargar();
 
    private:
     AppRuntime& rt_;

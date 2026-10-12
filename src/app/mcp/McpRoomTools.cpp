@@ -584,9 +584,7 @@ void McpService::registerRoomTools() {
                     ++n;
                 }
                 if (n == 0) return done(ToolResult::error("no mandaste nada para cambiar"));
-                const QString summary = settings->apply();
-                auto* ui = static_cast<SettingsModel*>(vm.settings());
-                if (!ui->dirty()) ui->revert();
+                const QString summary = settings->apply(); // la vista se recarga sola (aviso «Ajustes»)
                 done(summary.contains("EN VIVO") || summary.contains("ERROR") ? ToolResult::error(summary.toStdString())
                                                                               : ToolResult::ok(summary.toStdString()));
             };

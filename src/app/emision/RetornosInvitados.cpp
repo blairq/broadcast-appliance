@@ -5,6 +5,8 @@
 #include "arranque/AppRuntime.hpp"
 #include "arranque/ArchivoConfig.hpp"
 
+#include <cstdlib>
+
 namespace ba::app::emision {
 
 RetornosInvitados::RetornosInvitados(AppRuntime& rt) : rt_(rt) {}
@@ -21,6 +23,13 @@ std::string RetornosInvitados::poner(int slot, const std::string& modo) {
 }
 
 std::string RetornosInvitados::modo(int slot) const { return rt_.engine().retornoInvitado(slot); }
+
+void RetornosInvitados::cargar() {
+    const nlohmann::json j = config::leerObjeto(rt_.dataRoot() / "Config" / "retornos.json");
+    for (const auto& [slot, modo] : j.items())
+        if (modo.is_string() && (modo == "mix_minus" || modo == "programa"))
+            rt_.engine().setRetornoInvitado(std::atoi(slot.c_str()), modo.get<std::string>());
+}
 
 nlohmann::json RetornosInvitados::todos() const {
     nlohmann::json out = nlohmann::json::object();
