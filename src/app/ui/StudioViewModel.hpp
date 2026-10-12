@@ -92,6 +92,7 @@ class FotosConfig;
 namespace ba::app::control {
 class BusEventos;
 class Botonera;
+class BotoneraGateway;
 class CarasBotonera;
 class SatelliteServidor;
 class Dsk;
@@ -435,6 +436,8 @@ class StudioViewModel : public QObject {
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }
     control::Botonera& botonera() { return *botonera_; }
+    /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
+    control::BotoneraGateway& botoneraGateway() { return *botoneraGw_; }
     control::CarasBotonera& carasBotonera() { return *carasBotonera_; }
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
     Q_INVOKABLE QVariantMap apiRemotaUi() const;
@@ -555,11 +558,6 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
     /// Una persona aprueba (o no) la tablet que pidió emparejarse.
     Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar);
-    /// Lo mismo para el MCP: arma el código y llama a `listo` con lo de arriba.
-    void emparejarTablet(const QString& perfil, const QString& nombre, int venceDias,
-                         std::function<void(const QVariantMap&)> listo);
-    /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
-    void sincronizarBotonera();
     void sincronizarSesion();
     /// Las vistas del celular de los remotos al gateway: el programa o las escenas
     /// (toma sus canales mientras haya alguien conectado). `forzar`: aunque no cambió nada.
@@ -997,6 +995,7 @@ class StudioViewModel : public QObject {
     std::atomic<bool> cancelarSellos_{false};
     std::unique_ptr<control::CarasBotonera> carasBotonera_;
     std::unique_ptr<control::Botonera> botonera_;
+    std::unique_ptr<control::BotoneraGateway> botoneraGw_;
     std::unique_ptr<control::SatelliteServidor> satellite_;
     std::unique_ptr<control::Dsk> dsk_;
     std::unique_ptr<control::Acciones> acciones_;
