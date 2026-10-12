@@ -751,6 +751,12 @@ endif()
         target_link_libraries(test_grafico_proceso PRIVATE Qt6::Core Qt6::Gui)
         add_test(NAME test_grafico_proceso COMMAND test_grafico_proceso)
         set_tests_properties(test_grafico_proceso PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+        # El catálogo de gráficos (graficos/Catalogo): lo mismo para el editor, el aire y el MCP.
+        add_executable(test_graficos_catalogo tests/test_graficos_catalogo.cpp graficos/Catalogo.cpp)
+        target_include_directories(test_graficos_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_graficos_catalogo PRIVATE Qt6::Core)
+        set_target_properties(test_graficos_catalogo PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+        add_test(NAME test_graficos_catalogo COMMAND test_graficos_catalogo)
     endif()
 
     # Medir el retardo entre labios y voz con un aplauso. C++ puro: recibe
