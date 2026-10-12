@@ -298,6 +298,16 @@ bool Padron::despedir(const std::string& id) {
     return true;
 }
 
+Padron::Votantes Padron::votantes() const {
+    Votantes v;
+    for (const Asistente& a : gente_) {
+        if (!a.vota) continue;
+        ++v.podian;
+        if (a.estado == Estado::Llego) v.habilitados.push_back({a.codigo, a.nombre});
+    }
+    return v;
+}
+
 Resumen Padron::resumen() const {
     Resumen r;
     r.total = static_cast<int>(gente_.size());

@@ -4,6 +4,7 @@
 
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
+#include "sala/VotacionSala.hpp"
 #include "escenas/Conmutador.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -326,6 +327,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // modera. No consulta nada hasta que una vista se muestra (ver `activo`).
     publico_ = std::make_unique<PublicoViewModel>(conference_.get(), this);
     marca("publico");
+    // La votación es del modelo (con el padrón del evento abierto); el público y el MCP la usan.
+    votacion_ = std::make_unique<sala::VotacionSala>(conference_->client(), [this]() {
+        return evento_ ? evento_->votantes() : std::nullopt;
+    });
+    publico_->setVotacion(votacion_.get());
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
     playlist_ = std::make_unique<medios::Playlist>(rt, this);

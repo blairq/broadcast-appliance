@@ -29,22 +29,8 @@ Item {
     Component.onCompleted: pub.activo = true
     Component.onDestruction: pub.activo = false
 
-    /// Los del padrón que pueden votar Y ya llegaron. El que tiene derecho y no
-    /// vino cuenta para el denominador pero no vota desde su casa.
-    function habilitados() {
-        const out = []
-        const p = ev.padron || []
-        for (let i = 0; i < p.length; ++i)
-            if (p[i].vota && p[i].estado === "llego")
-                out.push({ codigo: p[i].codigo, nombre: p[i].nombre })
-        return out
-    }
-    function conDerecho() {
-        const p = ev.padron || []
-        let n = 0
-        for (let i = 0; i < p.length; ++i) if (p[i].vota) ++n
-        return n
-    }
+    // Quién vota en una formal lo decide el modelo (los del padrón con voto que
+    // llegaron): acá solo se mira cuántos hay para habilitar el botón.
 
     ColumnLayout {
         anchors.fill: parent
@@ -295,15 +281,17 @@ Item {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    color: modo.currentValue === "formal" && raiz.habilitados().length === 0
+                    // Los números los calcula el padrón (modelo): con voto y presentes, con voto en total.
+                    readonly property var resumen: raiz.ev ? raiz.ev.resumenPadron : ({})
+                    color: modo.currentValue === "formal" && !(resumen.votoPresente > 0)
                            ? Theme.live : Theme.textDim
                     font.pixelSize: 12
                     text: modo.currentValue === "formal"
-                          ? (raiz.habilitados().length === 0
+                          ? (!(resumen.votoPresente > 0)
                              ? "Nadie con derecho a voto llegó todavía. Una votación formal sin " +
                                "votantes da un resultado que parece válido."
-                             : "Pueden votar " + raiz.habilitados().length + " presentes, de " +
-                               raiz.conDerecho() + " con derecho en el padrón.")
+                             : "Pueden votar " + resumen.votoPresente + " presentes, de " +
+                               resumen.conVoto + " con derecho en el padrón.")
                           : "Vota cualquiera que tenga el enlace, una vez por teléfono. El resultado " +
                             "es indicativo: no sirve para decidir."
                 }
@@ -315,14 +303,11 @@ Item {
                         text: modo.currentValue === "formal" ? "Abrir la votación" : "Abrir la encuesta"
                         active: true
                         enabled: campoPregunta.text.trim() !== "" &&
-                                 (modo.currentValue === "encuesta" || raiz.habilitados().length > 0)
+                                 (modo.currentValue === "encuesta" || (raiz.ev && raiz.ev.resumenPadron.votoPresente > 0))
                         onClicked: {
                             const ops = campoOpciones.text.split(",").map((s) => s.trim())
                                                                     .filter((s) => s !== "")
-                            raiz.pub.abrirVotacion(campoPregunta.text, ops, modo.currentValue,
-                                                   secreta.checked, false,
-                                                   modo.currentValue === "formal" ? raiz.habilitados() : [],
-                                                   modo.currentValue === "formal" ? raiz.conDerecho() : 0)
+                            raiz.pub.abrirVotacion(campoPregunta.text, ops, modo.currentValue, secreta.checked, false)
                             campoPregunta.text = ""
                         }
                     }

@@ -206,6 +206,13 @@ void quienes_estan() {
     CHECK(r.enLinea == 0, "ninguno por la sala");
     CHECK(r.faltan == 2, "faltan dos");
     CHECK(r.votoPresente == 1, "y solo uno de los presentes vota");
+    {
+        // Quiénes votan en una formal: los que tienen voto Y llegaron; podian = todos los que tienen voto.
+        const Padron::Votantes v = p.votantes();
+        CHECK(v.habilitados.size() == 1 && v.habilitados[0].codigo == p.gente()[0].codigo,
+              "vota el presente con derecho (no el de prensa, no el que no llegó)");
+        CHECK(v.podian == 2, "el denominador cuenta a los dos con derecho, vinieran o no");
+    }
 
     // El de online entra por la sala: el padron es UNO para los dos mundos.
     p.acreditar(p.gente()[1].id, "lobby", 1200);

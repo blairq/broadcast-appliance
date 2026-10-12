@@ -68,6 +68,7 @@ class BancoSuperRes;
 } // namespace ba::app::video
 namespace ba::app::sala {
 class CupoSala;
+class VotacionSala;
 }
 namespace ba::app::escenas {
 class Conmutador;
@@ -509,6 +510,8 @@ class StudioViewModel : public QObject {
     /// El cupo de invitados (modelo: sala::CupoSala). La interfaz y el MCP lo piden
     /// por acá; el resultado se muestra como aviso.
     sala::CupoSala& cupoSala() { return *cupoSala_; }
+    /// La votación de la sala (modelo).
+    sala::VotacionSala& votacion() { return *votacion_; }
     /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
     Q_INVOKABLE QString cupoUi(int n);
     QString balistica() const;
@@ -904,6 +907,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
     std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
+    std::unique_ptr<sala::VotacionSala> votacion_; ///< ídem
     std::unique_ptr<AccesoRemoto> accesoRemoto_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;

@@ -156,6 +156,19 @@ class Padron {
 
     Resumen resumen() const;
 
+    /// Quiénes votan en una votación formal: los que tienen derecho a voto Y ya
+    /// llegaron (el que tiene derecho y no vino cuenta para `podian`, el
+    /// denominador, pero no vota desde su casa).
+    struct Votantes {
+        struct Votante {
+            std::string codigo;
+            std::string nombre;
+        };
+        std::vector<Votante> habilitados;
+        int podian = 0; ///< los que tienen derecho a voto, vinieran o no
+    };
+    Votantes votantes() const;
+
     nlohmann::json aJson() const;
     static Padron deJson(const nlohmann::json& j);
 

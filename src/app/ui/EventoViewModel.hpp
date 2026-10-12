@@ -14,6 +14,7 @@
 // igual, se ven los tiempos, pero no se toca lo que sale al aire.
 // ============================================================================
 #pragma once
+#include <optional>
 
 #include <memory>
 
@@ -97,6 +98,11 @@ class EventoViewModel : public QObject {
 
     QVariantList eventos() const;
     QString abierto() const { return abierto_; }
+    /// Los votantes del evento abierto (la regla es de evento::Padron), o nada sin evento.
+    std::optional<evento::Padron::Votantes> votantes() const {
+        if (abierto_.isEmpty()) return std::nullopt;
+        return padron_.votantes();
+    }
     QVariantMap enCurso() const;
     /// El bitacora.jsonl del evento en curso (vacío si no hay ninguno).
     std::filesystem::path archivoBitacora() const;

@@ -22,6 +22,11 @@
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
+#include <nlohmann/json.hpp>
+
+namespace ba::app::sala {
+class VotacionSala;
+}
 
 namespace ba::app {
 
@@ -64,10 +69,11 @@ class PublicoViewModel : public QObject {
     /// o dicha a viva voz).
     Q_INVOKABLE void sumar(const QString& texto, const QString& nombre, const QString& deDonde);
 
-    /// Abre una votación. `habilitados` son [{codigo, nombre}] y `podian` el
-    /// total con derecho según el padrón; en una encuesta van vacíos.
+    /// Abre una votación (las reglas y quién vota son del modelo: sala::VotacionSala).
     Q_INVOKABLE void abrirVotacion(const QString& pregunta, const QStringList& opciones, const QString& modo,
-                                   bool secreta, bool enVivo, const QVariantList& habilitados, int podian);
+                                   bool secreta, bool enVivo);
+    /// La votación de la sala (modelo); la pone quien arma los view models.
+    void setVotacion(sala::VotacionSala* v) { votacionSala_ = v; }
     Q_INVOKABLE void cerrarVotacion();
     Q_INVOKABLE void mostrarEnVivo(bool si);
     /// Pide el enlace de la página del público (llega por `enlaceCambio`).
@@ -79,9 +85,11 @@ class PublicoViewModel : public QObject {
     void notify(const QString& texto, const QString& tipo);
 
    private:
+    void alVolverVotacion(const std::string& error, const nlohmann::json& respuesta, const QString& queFallo);
     void consultar();
 
     ConferenceViewModel* sala_ = nullptr;
+    sala::VotacionSala* votacionSala_ = nullptr;
     QTimer reloj_;
     QVariantList preguntas_;
     QVariantMap recuento_;

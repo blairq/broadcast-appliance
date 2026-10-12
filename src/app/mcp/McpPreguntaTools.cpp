@@ -13,6 +13,7 @@
 // que los telefonos alcanzan. Estas herramientas son el lado de A: mirar la
 // cola, elegir, sacar al aire y dar por respondida.
 // ============================================================================
+#include "sala/VotacionSala.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 
 #include <QFile>
@@ -306,51 +307,19 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"secreta", {{"type", "boolean"}, {"description", "no guardar que voto cada uno"}}},
               {"enVivo",
                {{"type", "boolean"}, {"description", "mostrar el resultado mientras esta abierta"}}}}}};
-        t.run = [pedir, &vm](const json& a, Done done) {
-            QJsonArray opciones;
+        t.run = [&vm](const json& a, Done done) {
+            // La operación es del modelo (reglas y padrón), la misma que usa la GUI.
+            std::vector<std::string> opciones;
             if (a.contains("opciones") && a["opciones"].is_array())
                 for (const json& o : a["opciones"])
-                    if (o.is_string()) opciones.append(QString::fromStdString(o.get<std::string>()));
-            if (opciones.size() < 2)
-                return done(ToolResult::error(
-                    "Hacen falta al menos dos opciones: con una sola no hay nada que decidir."));
-
-            QJsonObject cuerpo{{"accion", "abrir"},
-                               {"pregunta", QString::fromStdString(a.value("pregunta", std::string()))},
-                               {"opciones", opciones},
-                               {"modo", QString::fromStdString(a.value("modo", std::string("encuesta")))},
-                               {"secreta", a.value("secreta", false)},
-                               {"enVivo", a.value("enVivo", false)}};
-
-            if (a.value("modo", std::string("encuesta")) == "formal") {
-                auto* ev = static_cast<EventoViewModel*>(vm.evento());
-                if (ev == nullptr || ev->abierto().isEmpty())
-                    return done(ToolResult::error(
-                        "Una votacion formal necesita el padron, y el padron vive en el evento. Abri "
-                        "uno con `evento_abrir`."));
-                QJsonArray habilitados;
-                int podian = 0;
-                for (const QVariant& v : ev->padron()) {
-                    const QVariantMap m = v.toMap();
-                    if (!m.value("vota").toBool()) continue;
-                    ++podian;
-                    // Solo los PRESENTES votan. El que tiene derecho y no vino
-                    // cuenta para el denominador —para eso esta `podian`— pero
-                    // no puede votar desde su casa.
-                    if (m.value("estado").toString() != "llego") continue;
-                    habilitados.append(QJsonObject{{"codigo", m.value("codigo").toString()},
-                                                   {"nombre", m.value("nombre").toString()}});
-                }
-                if (habilitados.isEmpty())
-                    return done(ToolResult::error(
-                        "No hay nadie con derecho a voto y presente en el padron. Fijate "
-                        "`padron_ver`: hace falta `vota` en true y estado `llego`. Abrir una votacion "
-                        "formal donde nadie puede votar es peor que no abrirla, porque el resultado "
-                        "parece valido."));
-                cuerpo["habilitados"] = habilitados;
-                cuerpo["podian"] = podian;
-            }
-            pedir("POST", "/api/v1/votacion", cuerpo, std::move(done), "Votacion abierta.");
+                    if (o.is_string()) opciones.push_back(o.get<std::string>());
+            const std::string e = vm.votacion().abrir(
+                a.value("pregunta", std::string()), opciones, a.value("modo", std::string("encuesta")),
+                a.value("secreta", false), a.value("enVivo", false), [done](const std::string& err, const json& r) {
+                    if (!err.empty()) return done(ToolResult::error("La sala respondio: " + err));
+                    done(ToolResult().text("Votacion abierta.").data(r));
+                });
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }
@@ -379,16 +348,21 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"historial",
                {{"type", "boolean"}, {"description", "ademas, TODAS las que se cerraron en este evento"}}},
               {"enVivo", {{"type", "boolean"}, {"description", "mostrar el resultado en vivo"}}}}}};
-        t.run = [pedir](const json& a, Done done) {
-            if (a.value("cerrar", false))
-                return pedir("POST", "/api/v1/votacion", QJsonObject{{"accion", "cerrar"}}, std::move(done),
-                             "Votacion cerrada.");
-            if (a.contains("enVivo"))
-                return pedir("POST", "/api/v1/votacion",
-                             QJsonObject{{"accion", "en_vivo"}, {"si", a["enVivo"].get<bool>()}},
-                             std::move(done), "Hecho.");
-            pedir("GET", a.value("historial", false) ? "/api/v1/votacion?historial=1" : "/api/v1/votacion",
-                  {}, std::move(done), {});
+        t.run = [&vm](const json& a, Done done) {
+            const auto contestar = [done](const std::string& texto) {
+                return [done, texto](const std::string& err, const json& r) {
+                    if (!err.empty())
+                        return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                                                      ". Fijate `room_status`."));
+                    ToolResult res = ToolResult().data(r);
+                    res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
+                    done(res);
+                };
+            };
+            auto& v = vm.votacion();
+            if (a.value("cerrar", false)) return v.cerrar(contestar("Votacion cerrada."));
+            if (a.contains("enVivo")) return v.setEnVivo(a["enVivo"].get<bool>(), contestar("Hecho."));
+            v.ver(a.value("historial", false), contestar({}));
         };
         core.addTool(std::move(t));
     }
