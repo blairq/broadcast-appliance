@@ -554,6 +554,11 @@ class Fabrica:
     def exportar(self):
         ex = self.dir / "export"
         ex.mkdir(exist_ok=True)
+        # LA SONDA DE DERIVAR (sonda-exportar.py): se entrena sobre el modelo final y
+        # viaja con el (sonda.safetensors + su entrada en modelo.json)
+        if self.a.formato == "tc" and not (self.dir / "sonda.safetensors").exists():
+            correr([PY, E / "sonda-exportar.py", "--modelo", self.adaptador, "--corpus", self.corpus,
+                    "--salida", self.dir], env={"CUDA_VISIBLE_DEVICES": "0"}, salida=self.dir / "sonda.log")
         # fusionado + MLX q4 (exportar-mlx.py hace las dos cosas)
         if not PY_MLX.exists():
             correr([E / "venv-mlx.sh"])
@@ -1234,6 +1239,9 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
                 "turnos": 1, "tool_response": False}
         else:
             out["formato"] = {"id": "nombre-de-herramienta", "version": 1, "prompt_huella": m["perfil"].get("prompt")}
+        sonda = self.dir / "sonda.json"
+        if sonda.exists():  # la sonda de derivar: que hacer con sonda.safetensors (ver sonda-exportar.py)
+            out["sonda"] = {"archivo": "sonda.safetensors", **json.loads(sonda.read_text())}
         return out
 
     def empaquetar(self):
@@ -1263,6 +1271,8 @@ entrenadas; contesta charla con una llamada en el {100 * ch16.get('llamadas_en_c
                     enlazar(ex["mmproj"], d / "mmproj-F16.gguf")
             if hp.exists():
                 shutil.copy(hp, d)
+            if (self.dir / "sonda.safetensors").exists():
+                shutil.copy(self.dir / "sonda.safetensors", d)
             if lic.exists():
                 shutil.copy(lic, d / "LICENSE")
             if eq:
