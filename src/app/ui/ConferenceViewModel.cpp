@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ui/ConferenceViewModel.hpp"
+#include <QMetaObject>
+#include <QPointer>
 #include "ajustes/Ajustes.hpp"
 
 #include <QClipboard>
@@ -503,9 +505,18 @@ QString ConferenceViewModel::configurarProxy(const QVariantMap& cambios) {
 }
 
 QString ConferenceViewModel::reiniciarSala() {
-    if (rt_.restartGateway()) return {};
-    return "No se pudo reiniciar la sala: " + QString::fromStdString(rt_.lastError()) +
-           ". Si sigue, cerrá y volvé a abrir el programa.";
+    // Aparte: esperar que el gateway se cierre trababa la interfaz. Si falla, avisa.
+    QPointer<ConferenceViewModel> yo(this);
+    rt_.reiniciarSalaEnElFondo([yo](const std::string& e) {
+        if (e.empty() || !yo) return;
+        QMetaObject::invokeMethod(yo.data(), [yo, e]() {
+            if (yo)
+                emit yo->notify("No se pudo reiniciar la sala: " + QString::fromStdString(e) +
+                                    ". Si sigue, cerrá y volvé a abrir el programa.",
+                                "error");
+        }, Qt::QueuedConnection);
+    });
+    return {};
 }
 
 QString ConferenceViewModel::recomendacionPrueba(const QJsonObject& r) {
@@ -620,9 +631,8 @@ void ConferenceViewModel::configureDirectAccess(const QString& endpoint, const Q
                       g.wgPublicAddress = pub.toStdString();
                       rt_.save();
                       emit serverConfigReady(r.value("config").toString(), {});
-                      emit notify(rt_.restartGateway() ? "Tunel configurado: reiniciando la sala"
-                                                       : "Tunel configurado, pero la sala no se reinició: apretá «Reiniciar la sala» en la página Sala",
-                                  "ok");
+                      emit notify("Tunel configurado: reiniciando la sala", "ok");
+                      reiniciarSala();
                   });
 }
 

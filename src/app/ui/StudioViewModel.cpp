@@ -1582,6 +1582,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
     connect(sources_.get(), &SourcesModel::error, this,
             [this](const QString& m) { emit notify(m, "error"); });
+    connect(settings_.get(), &SettingsModel::salaReiniciada, this, [this](const QString& e) {
+        emit notify(e.isEmpty() ? QString("Sala reiniciada con la configuración nueva.")
+                                : "La sala no se reinició (" + e + "): apretá «Reiniciar la sala» en Configuración o en la página Sala.",
+                    e.isEmpty() ? "ok" : "error");
+    });
     connect(settings_.get(), &SettingsModel::applied, this, [this](const QString& summary) {
         emit notify(summary, summary.contains("ERROR") ? "error" : "ok");
         emit canvasChanged();

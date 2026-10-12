@@ -23,6 +23,8 @@
 #pragma once
 
 #include <atomic>
+#include <functional>
+#include <thread>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -142,8 +144,15 @@ class AppRuntime {
     bool applyEncoder(const EncoderConfig& e);
     /// Guarda app.json, gateway.json y launcher.json.
     bool save();
-    /// Reinicia B (el launcher lo relanza con gateway.json nuevo).
+    /// Reinicia B (el launcher lo relanza con gateway.json nuevo). BLOQUEA hasta
+    /// ~4 s (espera que B se cierre): desde la interfaz o el MCP, usar
+    /// reiniciarSalaEnElFondo.
     bool restartGateway();
+    /// Lo mismo sin bloquear a quien lo pide: corre en un hilo aparte (uno a la
+    /// vez) y llama a `listo` DESDE ESE HILO con el resultado ("" = hecho). Si ya
+    /// hay un reinicio en curso, `listo` recibe que se espere.
+    void reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo);
+    ~AppRuntime();
 
     AppConfig& config() { return cfg_; }
     const AppConfig& config() const { return cfg_; }
@@ -214,6 +223,8 @@ class AppRuntime {
     ba::ipc::ControlService control_;
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
     std::string lastError_;
+    std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
+    std::atomic<bool> reiniciandoSala_{false};
     bool streamStopWanted_ = true;
     bool recordStopWanted_ = true;
     bool corteAnterior_ = false;

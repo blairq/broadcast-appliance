@@ -81,6 +81,9 @@ class SettingsModel : public QAbstractListModel {
     void dirtyChanged();
     void draftChanged();
     void applied(const QString& summary);
+    /// El reinicio de la sala que pidió apply() terminó (corre aparte: no traba la
+    /// interfaz). `error` vacío = hecho.
+    void salaReiniciada(const QString& error);
 
    private:
     std::function<std::string(int)> cupoEnCaliente_;

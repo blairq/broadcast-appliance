@@ -22,6 +22,8 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "sala/CupoSala.hpp"
+#include <QMetaObject>
+#include <QCoreApplication>
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/AccesoRemoto.hpp"
@@ -762,8 +764,14 @@ void McpService::registerRoomTools() {
             if (p.value("activo", false) && p.value("dominio", std::string()).empty())
                 return done(ToolResult::error("falta `dominio`"));
             if (!rt.save()) return done(ToolResult::error(rt.lastError()));
-            const bool ok = rt.restartGateway();
-            done(ToolResult().data(json{{"proxy", p}, {"sala_reiniciada", ok}}));
+            // El reinicio, aparte (esperar el cierre del gateway trababa la interfaz).
+            rt.reiniciarSalaEnElFondo([done, p](const std::string& e) {
+                QMetaObject::invokeMethod(QCoreApplication::instance(), [done, p, e]() {
+                    json r{{"proxy", p}, {"sala_reiniciada", e.empty()}};
+                    if (!e.empty()) r["error"] = e;
+                    done(ToolResult().data(r));
+                }, Qt::QueuedConnection);
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -1154,8 +1162,11 @@ void McpService::registerRoomTools() {
             "Reinicia el proceso de la sala: se cortan todos (se reconectan solos en segundos si el "
             "estado se puede recuperar). Solo si algo no responde.";
         t.run = [&rt](const json&, Done done) {
-            done(rt.restartGateway() ? ToolResult::ok("Gateway reiniciandose.")
-                                     : ToolResult::error(rt.lastError()));
+            rt.reiniciarSalaEnElFondo([done](const std::string& e) {
+                QMetaObject::invokeMethod(QCoreApplication::instance(), [done, e]() {
+                    done(e.empty() ? ToolResult::ok("Gateway reiniciandose.") : ToolResult::error(e));
+                }, Qt::QueuedConnection);
+            });
         };
         core_.addTool(std::move(t));
     }

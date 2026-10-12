@@ -5,6 +5,8 @@
 #include "arranque/AjustesMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "ui/SettingsModel.hpp"
+#include <QMetaObject>
+#include <QPointer>
 
 #include <QHostInfo>
 #include <QNetworkInterface>
@@ -724,9 +726,16 @@ QString SettingsModel::apply() {
     }
     if (restartB) {
         if (!porQue.isEmpty()) notes << "Se reinicia la sala por: " + porQue.join(", ") + ".";
-        notes << (rt_.restartGateway() ? "Sala (gateway) reiniciada con la configuración nueva."
-                                       : "La sala no se reinició (" + qs(rt_.lastError()) +
-                                             "): apretá «Reiniciar la sala» acá abajo o en la página Sala.");
+        // Aparte: esperar que el gateway se cierre trababa la interfaz unos segundos
+        // (al prender o apagar pinggy, por ejemplo). El resultado llega como señal.
+        notes << "Reiniciando la sala con la configuración nueva…";
+        QPointer<SettingsModel> yo(this);
+        rt_.reiniciarSalaEnElFondo([yo](const std::string& e) {
+            if (!yo) return;
+            QMetaObject::invokeMethod(yo.data(), [yo, e]() {
+                if (yo) emit yo->salaReiniciada(QString::fromStdString(e));
+            }, Qt::QueuedConnection);
+        });
     }
     load();
     const QString summary = notes.join(" ");

@@ -1469,13 +1469,16 @@ bool AppRuntime::save() {
     return true;
 }
 
-bool AppRuntime::restartGateway() {
+namespace {
+/// El pedido de reinicio a B (bloquea hasta ~4 s). Sin tocar el estado de
+/// AppRuntime: lo usan restartGateway y el hilo de reiniciarSalaEnElFondo.
+bool pedirReinicioGateway(std::string& error) {
     // Cierre ordenado de B por su canal de control: el launcher lo relanza y
     // B relee gateway.json. Sin launcher, B simplemente se cierra.
     ba::platform::LocalStream s;
     std::string err;
     if (!ba::platform::LocalStream::connect("control.gateway", 1000, s, &err)) {
-        lastError_ = "sin canal con el gateway: " + err;
+        error = "sin canal con el gateway: " + err;
         return false;
     }
     ba::ipc::ControlEndpoint ep(s, ba::ipc::ControlEndpoint::kLauncher);
@@ -1483,7 +1486,7 @@ bool AppRuntime::restartGateway() {
     m.type = ba::ipc::Type::Shutdown;
     m.payload = "{}";
     if (!ep.sendRequest(m)) {
-        lastError_ = "no se pudo mandar el pedido al gateway";
+        error = "no se pudo mandar el pedido al gateway";
         return false;
     }
     // La conexión queda abierta hasta que el gateway la cierre al salir: B mira
@@ -1496,10 +1499,36 @@ bool AppRuntime::restartGateway() {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
     if (ep.connected()) {
-        lastError_ = "el gateway no contestó al pedido de reinicio";
+        error = "el gateway no contestó al pedido de reinicio";
         return false;
     }
     return true;
+}
+} // namespace
+
+bool AppRuntime::restartGateway() {
+    std::string e;
+    const bool ok = pedirReinicioGateway(e);
+    if (!ok) lastError_ = e;
+    return ok;
+}
+
+void AppRuntime::reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo) {
+    if (reiniciandoSala_.exchange(true)) {
+        if (listo) listo("ya se está reiniciando la sala");
+        return;
+    }
+    if (reinicioSala_.joinable()) reinicioSala_.join(); // el anterior ya terminó
+    reinicioSala_ = std::thread([this, listo = std::move(listo)]() {
+        std::string e;
+        pedirReinicioGateway(e);
+        reiniciandoSala_ = false;
+        if (listo) listo(e);
+    });
+}
+
+AppRuntime::~AppRuntime() {
+    if (reinicioSala_.joinable()) reinicioSala_.join();
 }
 
 CanvasRect guestRect(int slot, int count) {
