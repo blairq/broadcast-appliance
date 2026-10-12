@@ -683,7 +683,9 @@ QString SettingsModel::apply() {
         g.pinggyPuertoTunel = static_cast<std::uint16_t>(i("pinggy.puertoTunel"));
         if (g.pinggyActivo && g.pinggyDominioTipo != "azar" && g.pinggyHost.empty())
             notes << "Pinggy: falta el subdominio o dominio; mientras tanto se usa la dirección al azar.";
-        c.guests = i("guests.count");
+        // Por ajustarInvitados, como el cupo en caliente: crea el audio y las
+        // entradas de video de los lugares nuevos (si no, «Invitado 5» no aparecía).
+        if (i("guests.count") != c.guests) rt_.ajustarInvitados(i("guests.count"));
         g.guestsReserva = std::max(i("guests.reserva"), c.guests);
         restartB = true;
     }
