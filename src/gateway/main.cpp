@@ -598,7 +598,9 @@ int main(int argc, char** argv) {
     const std::string guestUrl = "http://127.0.0.1:" + std::to_string(cfg.port) + "/";
     // El enlace que copia el operador lleva la sala en el fragmento (#room=),
     // igual que el QR: el invitado no tiene que tipear un dato que no conoce.
-    room.setHostInfo(roomPin, guestUrl + "#room=" + cfg.room);
+    // Los invitados entran por /invitados/: la raíz es de la página del evento cuando
+    // hay uno con sitio (ver SignalingServer, «la página del evento en vivo»).
+    room.setHostInfo(roomPin, guestUrl + "invitados/#room=" + cfg.room);
 
     // Archivos que comparten los invitados: de B, se limpian en cada arranque
     // (A copia lo que toma a su propia carpeta de medios).
@@ -641,6 +643,7 @@ int main(int argc, char** argv) {
         sigCfg.castWebroot = (guestRoot.parent_path() / "cast").string();
         sigCfg.comunWebroot = (guestRoot.parent_path() / "comun").string();
         sigCfg.publicoWebroot = (guestRoot.parent_path() / "publico").string();
+        sigCfg.eventoWebroot = (guestRoot.parent_path() / "evento").string();
         sigCfg.botoneraWebroot = (guestRoot.parent_path() / "botonera").string();
         sigCfg.sesionWebroot = (guestRoot.parent_path() / "sesion").string();
     }
@@ -804,7 +807,7 @@ int main(int argc, char** argv) {
     } else if (tls) {
         bestUrl = "https://127.0.0.1:" + std::to_string(tls->port()) + "/";
     }
-    room.setHostInfo(roomPin, bestUrl + "#room=" + cfg.room);
+    room.setHostInfo(roomPin, bestUrl + "invitados/#room=" + cfg.room);
 
     server.setServerConfigGenerator([&](const nlohmann::json& req) {
         // Claves NUEVAS para el servidor + su wg0.conf con las redirecciones
@@ -1008,7 +1011,7 @@ int main(int argc, char** argv) {
     server.setJoinUrlProvider([&](const std::string& target) -> nlohmann::json {
         // La sala va en el fragmento (#room=): la app del invitado la precarga
         // y el fragmento nunca viaja al servidor. El PIN NO va en el QR.
-        const std::string frag = "#room=" + cfg.room;
+        const std::string frag = "invitados/#room=" + cfg.room;
         if (target == "remote") {
             // pinggy primero si esta listo (ver la precedencia arriba).
             if (const std::string pg = urlPinggy(); !pg.empty()) return {{"url", pg + "/" + frag}};

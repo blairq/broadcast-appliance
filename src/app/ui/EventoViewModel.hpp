@@ -83,6 +83,9 @@ class EventoViewModel : public QObject {
 
     // --- Revision previa ------------------------------------------------------
     Q_PROPERTY(QVariantList reparos READ reparos NOTIFY reparosChanged)
+    /// La página web del evento en vivo (evento/EventoWeb.hpp): {hay, carpeta, paginas:[…],
+    /// sitio:{titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar}}.
+    Q_PROPERTY(QVariantMap web READ web NOTIFY webChanged)
 
    public:
     /// :param sinAbrirUltimo: no abre solo el ultimo evento que se toco. Lo
@@ -312,6 +315,21 @@ class EventoViewModel : public QObject {
     /// conectado). Se corre a pedido, no sola.
     Q_INVOKABLE void revisar();
 
+    // --- La página web del evento en vivo ------------------------------------------
+    QVariantMap web() const;
+    /// Genera el sitio en Web/ (portada, una página por sección, cierre, estilo). No
+    /// pisa lo que ya existe salvo `sobrescribir`. {escritas, salteadas, error}.
+    Q_INVOKABLE QVariantMap generarWeb(bool sobrescribir = false);
+    /// Cambia sitio.json (título, bajada, color, fondo, subdominio, barra…). "" o el error.
+    Q_INVOKABLE QString setWebSitio(const QVariantMap& campos);
+    /// Una página por nombre («portada», «cierre», el id/nombre/número de una sección,
+    /// o un .html/.css propio): leerla y escribirla. Escribir sin evento abierto: error.
+    Q_INVOKABLE QString leerPaginaWeb(const QString& pagina) const;
+    Q_INVOKABLE QString escribirPaginaWeb(const QString& pagina, const QString& contenido);
+    /// Le manda a la sala lo de la página del evento (lo hace solo al abrir, al
+    /// avanzar el guion y cada 10 s; esto es para forzarlo).
+    Q_INVOKABLE void publicarWeb();
+
    public:
     // Las dos de arriba, ademas, como propiedades: es lo que hace que la vista
     // se redibuje sola cuando alguien llega.
@@ -330,6 +348,11 @@ class EventoViewModel : public QObject {
     void padronChanged();
     void enCursoChanged();
     void notify(const QString& texto, const QString& tipo);
+    void webChanged();
+    /// Se puso en curso un evento con sitio y «dirección al iniciar»: la dirección
+    /// pública tiene que pasar a ser la de su subdominio (lo hace StudioViewModel con
+    /// la API key de pinggy).
+    void pedirDireccion(const QString& subdominio);
 
    public:
     /// La carpeta Discursos/ del evento abierto (vacía si no hay ninguno).
@@ -392,6 +415,16 @@ class EventoViewModel : public QObject {
     void recogerAcreditaciones();
     /// El reloj de eso. Ver `recogerAcreditaciones`.
     QTimer buzon_;
+    /// La página web del evento: el reenvío a la sala (cada 10 s, por si se reinició),
+    /// cuándo arrancó el guion, la versión del sitio (cambia al regenerar/editar) y lo
+    /// último que se mandó (para no repetir).
+    QTimer webTimer_;
+    qint64 webArranqueMs_ = 0;
+    int webVersion_ = 1;
+    QByteArray webUltimo_;
+    QString carpetaWebAbs() const;
+    /// Genera las páginas que falten del sitio (no pisa nada): al crear y al guardar.
+    void asegurarWebBase();
     std::unique_ptr<evento::Guion> guionCorriendo_;
     QString abierto_;
     bool sucio_ = false;

@@ -440,6 +440,16 @@ Rectangle {
                 }
             }
             TabButton { text: "Orden del día" }
+            TabButton { text: "Página web" }
+        }
+
+        // ---- Página web del evento en vivo -----------------------------------------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 4
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "La página web del evento en vivo"
+            PanelEventoWeb { anchors.fill: parent; onPedirAsistente: (t) => page.pedirAsistente(t) }
         }
 
         // ---- Orden del día ---------------------------------------------------

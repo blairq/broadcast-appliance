@@ -132,7 +132,7 @@ void McpService::registerQrTools() {
               {"color",
                {{"type", "string"},
                 {"description", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb"}}}}}};
-        t.examples = {R"({"texto": "https://sala.ejemplo.com/#room=sala1", "descripcion": "Enlace para los invitados", "color": "verde"})",
+        t.examples = {R"({"texto": "https://sala.ejemplo.com/invitados/#room=sala1", "descripcion": "Enlace para los invitados", "color": "verde"})",
                       R"({"texto": "https://sala.ejemplo.com/sesion/", "descripcion": "Sesión remota", "color": "azul"})"};
         StudioViewModel* vmp = &vm_;
         t.run = [vmp](const json& a, Done done) {

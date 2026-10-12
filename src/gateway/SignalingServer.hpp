@@ -139,6 +139,7 @@ class SignalingServer {
         /// que todavia no se anuncio. Vacia = la pagina no atiende a nadie.
         std::string rotulosKey;
         std::string publicoWebroot; // Web/publico (la pagina del publico)
+        std::string eventoWebroot;  // Web/evento (el marco de la pagina del evento en vivo y vivo.js)
         /// Clave de la pagina del publico. Viaja en el QR que se reparte (o se
         /// proyecta): no es un secreto fuerte y no pretende serlo —lo tiene
         /// todo el que esta en la sala—, es lo que evita que la cola de
@@ -204,6 +205,12 @@ class SignalingServer {
     /// que es el unico que sabe que evento esta abierto. B solo lo repite.
     void setPublicoInfo(const nlohmann::json& info);
     nlohmann::json publicoInfo() const;
+    /// La página del evento en vivo (src/app/evento/EventoWeb.hpp). La manda A con el
+    /// evento abierto: {activo, dir: la carpeta Web/ del evento en el disco, estado:
+    /// lo público}. Con `activo`, la raíz de la sala sirve el marco del evento (la
+    /// página de la sección que se trata) y los invitados entran por /invitados/.
+    void setEventoWeb(const nlohmann::json& e);
+    nlohmann::json eventoWeb() const;
     /// Los codigos que escanearon su invitacion y todavia no fueron a parar al
     /// padron. Es un BUZON, como el de los rotulos: B no tiene el padron —lo
     /// tiene A— asi que anota quien llego y A lo viene a buscar. Encolar es lo
@@ -428,6 +435,10 @@ class SignalingServer {
     Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
+    mutable std::mutex eventoWebM_;
+    nlohmann::json eventoWeb_ = nlohmann::json::object();
+    /// Hay sitio del evento para mostrar (activo y su carpeta existe).
+    bool eventoWebActivo(std::string* dir = nullptr) const;
     std::vector<std::string> acreditaciones_;
     std::string fondoBytes_;
     std::string fondoTipo_;

@@ -455,6 +455,14 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/publico")
     )
 endif()
 
+# Evento: el marco de la página del evento en vivo (la raíz de la sala cuando
+# hay un evento con sitio) y vivo.js, que usan las páginas de cada sección.
+if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/evento")
+    install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/evento/"
+        DESTINATION Web/evento
+    )
+endif()
+
 # Rotulos: escribir el nombre del que habla desde el celular (/rotulos/).
 if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
     install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/rotulos/"

@@ -301,6 +301,26 @@ nlohmann::json SignalingServer::publicoInfo() const {
     return publicoInfo_;
 }
 
+void SignalingServer::setEventoWeb(const nlohmann::json& e) {
+    std::lock_guard<std::mutex> g(eventoWebM_);
+    eventoWeb_ = e.is_object() ? e : nlohmann::json::object();
+}
+
+nlohmann::json SignalingServer::eventoWeb() const {
+    std::lock_guard<std::mutex> g(eventoWebM_);
+    return eventoWeb_;
+}
+
+bool SignalingServer::eventoWebActivo(std::string* dir) const {
+    std::lock_guard<std::mutex> g(eventoWebM_);
+    if (!eventoWeb_.value("activo", false)) return false;
+    const std::string d = eventoWeb_.value("dir", std::string());
+    std::error_code ec;
+    if (d.empty() || !std::filesystem::is_directory(d, ec)) return false;
+    if (dir != nullptr) *dir = d;
+    return true;
+}
+
 void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
     std::lock_guard<std::mutex> g(publicoM_);
     fondoBytes_ = std::move(bytes);
@@ -575,8 +595,49 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
 void SignalingServer::handleGuestHttp(long long fd, const std::string& method, const std::string& path,
                                       const std::string& query, const std::string& body,
                                       std::uint32_t clientIp) {
+    // --- La página del evento en vivo (y los invitados en /invitados/) ---------
+    // Con un evento con sitio, la raíz es el marco del evento: muestra la página de
+    // la sección que se trata y la cambia sola. Los enlaces viejos de invitados
+    // («/#room=…») los manda el marco a /invitados/ (el fragmento no llega acá).
     if (path == "/" || path == "/index.html") {
-        serveStatic(fd, cfg_.webroot, "index.html");
+        if (eventoWebActivo() && !cfg_.eventoWebroot.empty()) serveStatic(fd, cfg_.eventoWebroot, "index.html");
+        else serveStatic(fd, cfg_.webroot, "index.html");
+        return;
+    }
+    if (method == "GET" && (path == "/invitados" || path.rfind("/invitados/", 0) == 0)) {
+        if (path == "/invitados") {
+            http::sendResponse(fd, 301, "text/plain", "", "Location: /invitados/\r\n");
+            return;
+        }
+        std::string rel = path.substr(11);
+        if (rel.empty()) rel = "index.html";
+        serveStatic(fd, cfg_.webroot, rel);
+        return;
+    }
+    if (method == "GET" && path.rfind("/evento/", 0) == 0) {
+        // /evento/_/… lo del programa (vivo.js); el resto, la carpeta Web/ del evento.
+        if (path.rfind("/evento/_/", 0) == 0) {
+            if (!cfg_.eventoWebroot.empty() && serveStatic(fd, cfg_.eventoWebroot, path.substr(10))) return;
+            http::sendResponse(fd, 404, "text/plain", "no encontrado\n");
+            return;
+        }
+        std::string dir;
+        if (!eventoWebActivo(&dir)) {
+            http::sendResponse(fd, 404, "text/plain", "no hay evento\n");
+            return;
+        }
+        std::string rel = path.substr(8);
+        if (rel.empty()) rel = "portada.html";
+        serveStatic(fd, dir, rel);
+        return;
+    }
+    if (path == "/api/evento" && method == "GET") {
+        // Lo público del evento en vivo (sin la carpeta del disco).
+        const json e = eventoWeb();
+        json out = e.value("estado", json::object());
+        out["activo"] = eventoWebActivo();
+        http::sendResponse(fd, 200, "application/json", out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                           "Cache-Control: no-store\r\n");
         return;
     }
     if (path == "/healthz") {

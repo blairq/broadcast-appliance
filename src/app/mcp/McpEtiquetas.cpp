@@ -120,6 +120,7 @@ const Fila kPropias[] = {
     {"proxy_renovar", "renovar certificado lets encrypt acme proxy"},
     {"acceso_remoto_configurar_con_api_key", "pinggy api key armar todo solo token automatico subdominio fijo cambiar subdominio elegir nombre dns tunel pro sin entrar al panel"},
     {"acceso_remoto_cortar_tuneles", "pinggy cortar bajar tunel matar sesion activa otro equipo mismo token liberar"},
+    {"evento_web", "pagina web del evento sitio frontend en vivo seccion portada cierre html personalizar dominio subdominio url del evento pagina publica"},
     {"acceso_remoto_estado", "pinggy tunel acceso remoto desde afuera internet url publica enlace externo dns cname dominio propio subdominio turn invitados de afuera"},
     {"proxy_configurar", "configurar proxy dominio dns certificados automaticos lets encrypt traefik 443"},
     {"playlist_crear", "playlist lista de videos clips armar playlist in out encadenar"},

@@ -27,6 +27,7 @@
 #include "graficos/Vinculos.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "evento/EventoWeb.hpp"
 
 namespace ba::app {
 namespace {
@@ -136,7 +137,150 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     vigiaEnCurso_.setInterval(ba::ajustes::sAMs("evento.vigiaS", 60));
     connect(&vigiaEnCurso_, &QTimer::timeout, this, &EventoViewModel::asegurarEnCurso);
     vigiaEnCurso_.start();
+    // La página web del evento en vivo: a la sala cuando cambia algo y cada 10 s.
+    webTimer_.setInterval(ba::ajustes::sAMs("evento.webReenvioS", 10));
+    connect(&webTimer_, &QTimer::timeout, this, [this]() { webUltimo_.clear(); publicarWeb(); });
+    webTimer_.start();
+    connect(this, &EventoViewModel::correChanged, this, &EventoViewModel::publicarWeb);
+    connect(this, &EventoViewModel::guionChanged, this, [this]() { emit webChanged(); publicarWeb(); });
     refrescar();
+}
+
+// --- La página web del evento en vivo -------------------------------------------
+
+QString EventoViewModel::carpetaWebAbs() const {
+    if (abierto_.isEmpty()) return {};
+    return QString::fromStdWString(evento::carpetaWeb(store_.carpetaDe(abierto_.toStdString())).wstring());
+}
+
+QVariantMap EventoViewModel::web() const {
+    if (abierto_.isEmpty()) return {{"hay", false}};
+    const std::filesystem::path dir = carpetaWebAbs().toStdWString();
+    std::error_code ec;
+    const bool hay = std::filesystem::exists(dir / "portada.html", ec);
+    QVariantList paginas;
+    paginas << QVariantMap{{"pagina", "portada.html"}, {"nombre", "Portada (antes de empezar)"},
+                           {"existe", std::filesystem::exists(dir / "portada.html", ec)}};
+    for (std::size_t i = 0; i < e_.bloques.size(); ++i) {
+        const std::string p = evento::paginaDeBloque(e_.bloques[i], i);
+        paginas << QVariantMap{{"pagina", QString::fromStdString(p)},
+                               {"nombre", QString::fromStdString(e_.bloques[i].nombre)},
+                               {"existe", std::filesystem::exists(dir / p, ec)}};
+    }
+    paginas << QVariantMap{{"pagina", "cierre.html"}, {"nombre", "Cierre (al terminar)"},
+                           {"existe", std::filesystem::exists(dir / "cierre.html", ec)}};
+    const evento::SitioWeb s = evento::SitioWeb::leer(dir, e_);
+    return {{"hay", hay},
+            {"carpeta", carpetaWebAbs()},
+            {"paginas", paginas},
+            {"sitio", QJsonDocument::fromJson(QByteArray::fromStdString(s.aJson().dump())).object().toVariantMap()}};
+}
+
+QVariantMap EventoViewModel::generarWeb(bool sobrescribir) {
+    if (abierto_.isEmpty()) return {{"error", "No hay ningún evento abierto."}};
+    const evento::ResultadoWeb r = evento::generar(e_, carpetaWebAbs().toStdWString(), sobrescribir);
+    QStringList esc, sal;
+    for (const auto& x : r.escritas) esc << QString::fromStdString(x);
+    for (const auto& x : r.salteadas) sal << QString::fromStdString(x);
+    ++webVersion_;
+    webUltimo_.clear();
+    emit webChanged();
+    publicarWeb();
+    if (!r.error.empty()) return {{"error", QString::fromStdString(r.error)}, {"escritas", esc}, {"salteadas", sal}};
+    anotar("Página web del evento: " + QString::number(esc.size()) + " archivos generados", "evento");
+    return {{"escritas", esc}, {"salteadas", sal}, {"carpeta", carpetaWebAbs()}};
+}
+
+QString EventoViewModel::setWebSitio(const QVariantMap& campos) {
+    if (abierto_.isEmpty()) return "No hay ningún evento abierto.";
+    const std::filesystem::path dir = carpetaWebAbs().toStdWString();
+    evento::SitioWeb s = evento::SitioWeb::leer(dir, e_);
+    if (campos.contains("titulo")) s.titulo = campos.value("titulo").toString().toStdString();
+    if (campos.contains("bajada")) s.bajada = campos.value("bajada").toString().toStdString();
+    if (campos.contains("color")) s.color = campos.value("color").toString().toStdString();
+    if (campos.contains("fondo")) s.fondo = campos.value("fondo").toString().toStdString();
+    if (campos.contains("barra")) s.barra = campos.value("barra").toBool();
+    if (campos.contains("direccion_al_iniciar")) s.direccionAlIniciar = campos.value("direccion_al_iniciar").toBool();
+    if (campos.contains("subdominio")) {
+        const std::string sub = evento::subdominioDe(campos.value("subdominio").toString().toStdString());
+        if (sub.empty() && !campos.value("subdominio").toString().trimmed().isEmpty())
+            return "El subdominio va con letras, números y guiones.";
+        s.subdominio = sub;
+    }
+    if (!s.guardar(dir)) return "No se pudo guardar sitio.json.";
+    ++webVersion_;
+    webUltimo_.clear();
+    emit webChanged();
+    publicarWeb();
+    return {};
+}
+
+QString EventoViewModel::leerPaginaWeb(const QString& pagina) const {
+    if (abierto_.isEmpty()) return {};
+    const std::string rel = evento::resolverPagina(e_, pagina.toStdString());
+    if (rel.empty()) return {};
+    QFile f(carpetaWebAbs() + "/" + QString::fromStdString(rel));
+    return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+}
+
+QString EventoViewModel::escribirPaginaWeb(const QString& pagina, const QString& contenido) {
+    if (abierto_.isEmpty()) return "No hay ningún evento abierto.";
+    const std::string rel = evento::resolverPagina(e_, pagina.toStdString());
+    if (rel.empty()) return "No conozco la página «" + pagina + "»: portada, cierre, una sección o un .html propio.";
+    QDir().mkpath(carpetaWebAbs());
+    QFile f(carpetaWebAbs() + "/" + QString::fromStdString(rel));
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return "No se pudo escribir " + QString::fromStdString(rel);
+    f.write(contenido.toUtf8());
+    f.close();
+    ++webVersion_;
+    webUltimo_.clear();
+    emit webChanged();
+    publicarWeb();
+    return {};
+}
+
+void EventoViewModel::publicarWeb() {
+    if (sala_ == nullptr) return;
+    json cuerpo{{"activo", false}};
+    const QString dir = carpetaWebAbs();
+    std::error_code ec;
+    if (!dir.isEmpty() && std::filesystem::exists(std::filesystem::path(dir.toStdWString()) / "portada.html", ec)) {
+        // El estado público: en qué sección va (nada de cues ni notas).
+        std::string est = "proximo";
+        int bloque = -1;
+        if (guionCorriendo_) {
+            switch (guionCorriendo_->estado()) {
+                case evento::Guion::Estado::Corriendo: est = "en_vivo"; break;
+                case evento::Guion::Estado::Pausado: est = "pausa"; break;
+                case evento::Guion::Estado::Terminado: est = "terminado"; break;
+                default: break;
+            }
+            if (est == "en_vivo" || est == "pausa") bloque = guionCorriendo_->posicion().bloque;
+        }
+        if (ensayo_) est = "proximo"; // un ensayo no se publica
+        if (est == "proximo" && store_.datos(abierto_.toStdString()).estado == "terminado") est = "terminado";
+        if ((est == "en_vivo" || est == "pausa") && webArranqueMs_ == 0) webArranqueMs_ = QDateTime::currentMSecsSinceEpoch();
+        if (est == "proximo") webArranqueMs_ = 0;
+        qint64 inicioMs = 0;
+        if (!e_.fecha.empty() && !e_.inicio.empty()) {
+            const QTimeZone tz = e_.huso.empty() ? QTimeZone::systemTimeZone() : QTimeZone(QByteArray::fromStdString(e_.huso));
+            const QDateTime dt(QDate::fromString(QString::fromStdString(e_.fecha), "yyyy-MM-dd"),
+                               QTime::fromString(QString::fromStdString(e_.inicio), "HH:mm"), tz.isValid() ? tz : QTimeZone::systemTimeZone());
+            if (dt.isValid()) inicioMs = dt.toMSecsSinceEpoch();
+        }
+        const evento::SitioWeb s = evento::SitioWeb::leer(dir.toStdWString(), e_);
+        json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0);
+        estado["version"] = webVersion_;
+        cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"estado", estado}};
+    }
+    const QByteArray b = QByteArray::fromStdString(cuerpo.dump());
+    if (b == webUltimo_) return;
+    webUltimo_ = b;
+    // La hora de la sala va aparte (cambia siempre y no tiene que forzar el reenvío).
+    json conHora = cuerpo;
+    if (conHora.contains("estado")) conHora["estado"]["ahoraMs"] = QDateTime::currentMSecsSinceEpoch();
+    sala_->client().post("/api/v1/evento-web",
+                         QJsonDocument::fromJson(QByteArray::fromStdString(conHora.dump())).object());
 }
 
 EventoViewModel::~EventoViewModel() = default;
@@ -241,6 +385,16 @@ bool EventoViewModel::iniciarEvento(const QString& carpeta) {
     }
     emit enCursoChanged();
     emit listaChanged();
+    {
+        // Su página web con dirección propia: que la dirección pública pase a ser esa.
+        const std::filesystem::path dir = evento::carpetaWeb(store_.carpetaDe(carpeta.toStdString()));
+        std::error_code ec;
+        if (std::filesystem::exists(dir / "portada.html", ec)) {
+            const evento::Evento ev = carpeta == abierto_ ? e_ : store_.cargar(carpeta.toStdString());
+            const evento::SitioWeb s = evento::SitioWeb::leer(dir, ev);
+            if (s.direccionAlIniciar && !s.subdominio.empty()) emit pedirDireccion(QString::fromStdString(s.subdominio));
+        }
+    }
     return true;
 }
 
@@ -336,7 +490,22 @@ QString EventoViewModel::crear(const QString& nombre, const QString& enCarpeta) 
     }
     emit listaChanged();
     abrir(QString::fromStdString(carpeta));
+    // Todo evento nuevo nace con su página web básica (la plantilla): hay algo aunque
+    // el asistente no la personalice, y le sirve de ejemplo de la estructura.
+    asegurarWebBase();
     return QString::fromStdString(carpeta);
+}
+
+void EventoViewModel::asegurarWebBase() {
+    if (abierto_.isEmpty()) return;
+    // Solo lo que falta (una sección nueva, la portada de un evento recién creado):
+    // lo que ya está —editado a mano o por el asistente— no se toca.
+    const evento::ResultadoWeb r = evento::generar(e_, carpetaWebAbs().toStdWString(), false);
+    if (r.escritas.empty()) return;
+    ++webVersion_;
+    webUltimo_.clear();
+    emit webChanged();
+    publicarWeb();
 }
 
 bool EventoViewModel::abrir(const QString& carpeta) {
@@ -391,6 +560,7 @@ void EventoViewModel::cerrar() {
     abierto_.clear();
     sucio_ = false;
     reparos_.clear();
+    webUltimo_.clear();
     emit padronChanged();
     emit guionChanged();
     emit sucioChanged();
@@ -653,6 +823,7 @@ bool EventoViewModel::guardar() {
     sucio_ = false;
     emit sucioChanged();
     emit listaChanged();
+    asegurarWebBase(); // las páginas de las secciones nuevas
     return true;
 }
 

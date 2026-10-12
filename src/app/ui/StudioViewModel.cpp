@@ -266,6 +266,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         marca("evento");
     }
     connect(evento_.get(), &EventoViewModel::notify, this, &StudioViewModel::notify);
+    // Un evento con página web y dirección propia: al ponerlo en curso, la dirección
+    // pública pasa a ser su subdominio (con la API key de pinggy). Reinicia la sala:
+    // al aire no se toca (se avisa).
+    connect(evento_.get(), &EventoViewModel::pedirDireccion, this, [this](const QString& sub) {
+        if (!accesoRemoto_ || !accesoRemoto_->apiKeyGuardada()) return;
+        const QString actual = accesoRemoto_->estado().value("pinggy").toMap().value("urlPublica").toString();
+        if (actual.contains("//" + sub + ".")) return; // ya es esa
+        if (streaming_ || recording_) {
+            emit notify("El evento tiene su dirección (" + sub + ".a.pinggy.link) pero se está transmitiendo o grabando: "
+                        "no se cambia ahora (reinicia la sala). Cambiala desde Guion → Página web cuando se pueda.", "warning");
+            return;
+        }
+        emit notify("Pasando la dirección pública a " + sub + ".a.pinggy.link (la sala se reinicia)…", "info");
+        accesoRemoto_->configurarConApiKey(sub);
+    });
     grafico_ = std::make_unique<GraficoViewModel>(rt, *emisor_);
     marca("grafico");
     // El rotulador mira la escena que está al aire, así que la sigue.

@@ -36,6 +36,8 @@
 #include "evento/Historico.hpp"
 #include "evento/FotosConfig.hpp"
 #include "mcp/McpCore.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "net/AccesoRemoto.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/HistoricoViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -113,6 +115,89 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                                         {"carpetas", carpetas},
                                         {"abierto", ev.abierto().toStdString()},
                                         {"en_curso", ev.enCurso().value("carpeta").toString().toStdString()}}));
+        };
+        core.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_web";
+        t.title = "La página web del evento en vivo";
+        t.category = "evento";
+        t.openWorld = true;
+        t.description =
+            "El sitio del evento abierto: una página por sección (bloque) del guion, una portada (antes de empezar) "
+            "y un cierre, en la carpeta Web/ del evento (queda en el historial). La raíz de la dirección pública "
+            "muestra la página de la sección que se está tratando y cambia sola cuando el guion avanza; los "
+            "invitados entran por /invitados/. `accion`: ver | generar {sobrescribir} | leer {pagina} | escribir "
+            "{pagina, html} | sitio {titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar} | "
+            "direccion {subdominio?} (pasa la dirección pública a <subdominio>.a.pinggy.link con la API key; reinicia "
+            "la sala).";
+        t.details =
+            "`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. "
+            "Las páginas son HTML completos y del usuario: personalizalas de verdad (textos, imágenes de la "
+            "carpeta Web/, colores) con `escribir`; `generar` no pisa lo que ya existe salvo `sobrescribir`. "
+            "Mantené `<script src=\"/evento/_/vivo.js\" defer></script>` y usá data-vivo=\"estado|seccion|siguiente|"
+            "cuenta|transcurrido|agenda\" para lo que cambia en vivo (ver el comentario al final de cada página). "
+            "Nunca pongas en la página instrucciones del operador ni datos privados: es pública. "
+            "El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevista-pepito); con "
+            "`direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la "
+            "dirección con qr_mostrar.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"accion"}},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"ver", "generar", "leer", "escribir", "sitio", "direccion"}}}},
+                           {"sobrescribir", {{"type", "boolean"}}},
+                           {"pagina", {{"type", "string"}}},
+                           {"html", {{"type", "string"}}},
+                           {"titulo", {{"type", "string"}}},
+                           {"bajada", {{"type", "string"}}},
+                           {"color", {{"type", "string"}}},
+                           {"fondo", {{"type", "string"}}},
+                           {"subdominio", {{"type", "string"}}},
+                           {"barra", {{"type", "boolean"}}},
+                           {"direccion_al_iniciar", {{"type", "boolean"}}}}}};
+        t.run = [&ev, &vm](const json& a, Done done) {
+            const std::string acc = a.value("accion", std::string("ver"));
+            if (ev.abierto().isEmpty()) return done(ToolResult::error("No hay ningún evento abierto: evento_abrir."));
+            if (acc == "ver") return done(ToolResult().data(qvToJson(ev.web())));
+            if (acc == "generar") {
+                const QVariantMap r = ev.generarWeb(a.value("sobrescribir", false));
+                if (r.contains("error")) return done(ToolResult::error(r.value("error").toString().toStdString()));
+                return done(ToolResult().data(qvToJson(r)));
+            }
+            if (acc == "leer") {
+                const QString h = ev.leerPaginaWeb(QString::fromStdString(a.value("pagina", std::string())));
+                if (h.isEmpty()) return done(ToolResult::error("No existe esa página (¿generaste el sitio?)."));
+                return done(ToolResult::ok(h.toStdString()));
+            }
+            if (acc == "escribir") {
+                const QString e = ev.escribirPaginaWeb(QString::fromStdString(a.value("pagina", std::string())),
+                                                       QString::fromStdString(a.value("html", std::string())));
+                return done(e.isEmpty() ? ToolResult::ok("Página guardada: se ve en vivo.") : ToolResult::error(e.toStdString()));
+            }
+            if (acc == "sitio") {
+                QVariantMap c;
+                for (const char* k : {"titulo", "bajada", "color", "fondo", "subdominio"})
+                    if (a.contains(k) && a[k].is_string()) c[k] = QString::fromStdString(a[k].get<std::string>());
+                for (const char* k : {"barra", "direccion_al_iniciar"})
+                    if (a.contains(k) && a[k].is_boolean()) c[k] = a[k].get<bool>();
+                const QString e = ev.setWebSitio(c);
+                return done(e.isEmpty() ? ToolResult().data(qvToJson(ev.web().value("sitio"))) : ToolResult::error(e.toStdString()));
+            }
+            if (acc == "direccion") {
+                AccesoRemoto* ar = vm.accesoRemoto();
+                if (!ar || !ar->apiKeyGuardada())
+                    return done(ToolResult::error("Falta la API key de pinggy (acceso_remoto_clave tipo api_key)."));
+                if (vm.alAire())
+                    return done(ToolResult::error("Se está transmitiendo o grabando: cambiar la dirección reinicia la sala. Esperá a que termine."));
+                QString sub = QString::fromStdString(a.value("subdominio", std::string()));
+                if (sub.isEmpty()) sub = ev.web().value("sitio").toMap().value("subdominio").toString();
+                if (sub.isEmpty()) return done(ToolResult::error("El evento no tiene subdominio: evento_web sitio {subdominio}."));
+                ar->configurarConApiKey(sub);
+                return done(ToolResult::ok(("Pidiendo " + sub + ".a.pinggy.link a pinggy (la sala se reinicia). Mirá el "
+                                            "resultado con acceso_remoto_estado.").toStdString()));
+            }
+            done(ToolResult::error("accion: ver, generar, leer, escribir, sitio o direccion"));
         };
         core.addTool(std::move(t));
     }

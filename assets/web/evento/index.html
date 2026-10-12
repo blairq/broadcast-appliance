@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Evento en vivo</title>
+  <link rel="stylesheet" href="/evento/_/marco.css" />
+  <!--
+    El marco de la página del evento en vivo (src/app/evento/EventoWeb.hpp): la raíz
+    de la sala cuando hay un evento con sitio. Arriba, la franja «en vivo» (qué se
+    trata ahora, qué sigue, cuánto lleva); abajo, la página de la sección actual
+    (Web/<pagina> del evento), que cambia sola cuando el guion avanza.
+  -->
+  <script src="/evento/_/marco.js" defer></script>
+</head>
+<body>
+  <header id="barra" class="barra oculto">
+    <span id="estado" class="vivo">Próximamente</span>
+    <strong id="nombre"></strong>
+    <span id="ahora" class="ahora"></span>
+    <span class="espacio"></span>
+    <span id="sigue" class="sigue"></span>
+    <span id="reloj" class="reloj"></span>
+  </header>
+  <iframe id="pagina" title="El evento" class="pagina"></iframe>
+  <div id="sinEvento" class="sin-evento oculto">
+    <h1>No hay ningún evento en este momento</h1>
+    <p>Volvé a entrar más tarde.</p>
+  </div>
+</body>
+</html>

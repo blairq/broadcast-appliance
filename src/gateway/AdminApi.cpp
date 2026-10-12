@@ -597,6 +597,14 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
 
+    // La página del evento en vivo: la manda A con el evento abierto (y cada vez que
+    // el guion avanza). {activo, dir, estado}.
+    if (path == "/api/v1/evento-web" && method == "POST") {
+        setEventoWeb(req);
+        sendJson(fd, 200, json{{"ok", true}});
+        return;
+    }
+
     // --- La urna, del lado del operador --------------------------------------
     if (path == "/api/v1/votacion") {
         if (method == "GET") {

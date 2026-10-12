@@ -148,7 +148,7 @@ void AccesoRemoto::aplicarEstado(bool ok, const QVariantMap& r) {
     QVariantList enl;
     if (!base.isEmpty()) {
         const QString sala = QString::fromStdString(rt_.gateway().room);
-        enl << QVariantMap{{"nombre", "Invitados"}, {"url", base + "/#room=" + sala}}
+        enl << QVariantMap{{"nombre", "Invitados"}, {"url", base + "/invitados/#room=" + sala}}
             << QVariantMap{{"nombre", "Sesión remota (integrantes)"}, {"url", base + "/sesion/"}}
             << QVariantMap{{"nombre", "Público"}, {"url", base + "/publico/"}}
             << QVariantMap{{"nombre", "Botonera (tablets)"}, {"url", base + "/botonera/"}};
