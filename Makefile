@@ -59,7 +59,7 @@ PIP       ?= .venv/bin/pip
         venv-entrenar vector-control venv-mlx deps-llamacpp-convertir modelo modelo-fabricar \
         modelo-corpus modelo-inventario modelo-etiquetas \
         corpus-descubrir \
-        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-rostros deps-sherpa-onnx _ba_baja
+        deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-rostros deps-sherpa-onnx _ba_baja
 
 # --- Ayuda (target por defecto) ---------------------------------------------
 help:
@@ -93,7 +93,7 @@ help:
 	@echo ""
 	@echo "Dependencias de terceros (extern/, gitignored, idempotente):"
 	@echo "  make deps             Descarga TODO (runtime + fuentes de build)"
-	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2) -> extern/"
+	@echo "  make deps-src         Fuentes de BUILD (mbedtls+nlohmann+samplerate+argon2+libdeflate) -> extern/"
 	@echo "  make deps-qt          SDK Qt 6.6.3 win64_msvc2019_64 (build de Windows) -> extern/qt6"
 	@echo "  make deps-win         Todo lo del build de Windows (toolchain, Qt, GStreamer, libwebrtc...)"
 	@echo "  make deps-webrtc      SDK libwebrtc M123 -> extern/webrtc (BA_WEBRTC_TARGET=windows|linux)"
@@ -699,6 +699,11 @@ SAMPLERATE_SENT := $(SAMPLERATE_DEST)/CMakeLists.txt
 # argon2 20190702 (P-H-C/phc-winner-argon2). ⚠️  SIN CMakeLists: el target se
 # arma a mano en el CMakeLists raíz desde ${argon2_SOURCE_DIR}/src/*.c, por eso
 # el sentinel es el Makefile oficial (no un CMakeLists).
+LIBDEFLATE_URL  := https://codeload.github.com/ebiggers/libdeflate/tar.gz/refs/tags/v1.22
+LIBDEFLATE_SHA  := 7f343c7bf2ba46e774d8a632bf073235e1fd27723ef0a12a90f8947b7fe851d6
+LIBDEFLATE_TAR  := $(DL_DIR)/libdeflate-1.22.tar.gz
+LIBDEFLATE_DEST := $(EXTERNS_DIR)/libdeflate
+LIBDEFLATE_SENT := $(LIBDEFLATE_DEST)/CMakeLists.txt
 ARGON2_URL  := https://codeload.github.com/P-H-C/phc-winner-argon2/tar.gz/refs/tags/20190702
 ARGON2_SHA  := daf972a89577f8772602bf2eb38b6a3dd3d922bf5724d45e7f9589b5e830442c
 ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
@@ -1223,7 +1228,7 @@ deps-clap:
 # Agrupado: baja y extrae los 4 árboles de código de terceros que el
 # CMakeLists raíz consume vía FetchContent. Con `extern/` poblado, el configure
 # es OFFLINE (prefiere la copia vendored); sin él, cae a git.
-deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2
+deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate
 
 deps-mbedtls:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
@@ -1324,6 +1329,27 @@ deps-argon2:
 	  rm -rf "$(ARGON2_DEST)"; \
 	  mkdir -p "$(ARGON2_DEST)"; \
 	  tar xzf "$(ARGON2_TAR)" -C "$(ARGON2_DEST)" --strip-components=1; \
+	fi
+
+deps-libdeflate:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(LIBDEFLATE_DEST)"
+	@if [ -f "$(LIBDEFLATE_TAR)" ] && [ "$$($(SHA256) "$(LIBDEFLATE_TAR)" | cut -d' ' -f1)" = "$(LIBDEFLATE_SHA)" ]; then \
+	  echo "[deps] libdeflate: ya presente y verificado ($(LIBDEFLATE_TAR))"; \
+	else \
+	  echo "[deps] libdeflate: descargando $(LIBDEFLATE_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(LIBDEFLATE_TAR).part" "$(LIBDEFLATE_URL)" \
+	    && mv "$(LIBDEFLATE_TAR).part" "$(LIBDEFLATE_TAR)" \
+	    && printf '%s  %s\n' "$(LIBDEFLATE_SHA)" "$(LIBDEFLATE_TAR)" | $(SHA256_CHECK) \
+	    || { echo "[deps] ERROR libdeflate: fallo de descarga o hash" >&2; rm -f "$(LIBDEFLATE_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(LIBDEFLATE_SENT)" ]; then \
+	  echo "[deps] libdeflate: ya extraído en $(LIBDEFLATE_DEST)"; \
+	else \
+	  echo "[deps] libdeflate: extrayendo a $(LIBDEFLATE_DEST)"; \
+	  rm -rf "$(LIBDEFLATE_DEST)"; \
+	  mkdir -p "$(LIBDEFLATE_DEST)"; \
+	  tar xzf "$(LIBDEFLATE_TAR)" -C "$(LIBDEFLATE_DEST)" --strip-components=1; \
 	fi
 
 # --- Estado / limpieza de dependencias --------------------------------------

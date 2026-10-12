@@ -124,6 +124,13 @@ struct Config {
     bool pinggyTurn = true; // TURN por el túnel (el video de los invitados de afuera)
     uint16_t pinggyTurnUdpPuerto = 0;
     std::string pinggyListaBlanca; // IPs/CIDR separadas por coma; vacío = todas
+    // ba-web (src/web): el servidor web público, adelante del túnel. pinggy le manda el
+    // tráfico a él (127.0.0.1:webPuerto) y él atiende el sitio y le pasa el resto a la
+    // escucha del túnel (pinggyPuertoTunel). Si no está el binario, pinggy va directo.
+    bool webActivo = true;
+    uint16_t webPuerto = 8785;
+    int webProcesos = 0; // 0 = auto (los núcleos, hasta 4)
+    std::string webPath; // <root>/bin/64bit/ba-web[.exe]
     std::string configDir; // <datos>/Config
     std::string sharesDir; // <datos>/Shares (archivos de los invitados)
 
@@ -201,6 +208,13 @@ struct Config {
             pinggyListaBlanca = pg.value("listaBlanca", pinggyListaBlanca);
             if (pinggyRegion != "us" && pinggyRegion != "eu" && pinggyRegion != "ap") pinggyRegion = "auto";
             if (pinggyPuertoTunel == 0) pinggyPuertoTunel = 8786;
+        }
+        if (j.contains("web") && j["web"].is_object()) {
+            const auto& w = j["web"];
+            webActivo = w.value("activo", webActivo);
+            webPuerto = w.value("puerto", webPuerto);
+            webProcesos = std::clamp(w.value("procesos", webProcesos), 0, 64);
+            if (webPuerto == 0) webPuerto = 8785;
         }
         maxUploadMB = j.value("maxUploadMB", maxUploadMB);
         sinVideoPlacaMs = std::clamp(j.value("sinVideoPlacaMs", sinVideoPlacaMs), 200, 30000);
@@ -311,9 +325,11 @@ struct Config {
 #ifdef _WIN32
         const char* exe = "cloudflared.exe";
         const char* exePinggy = "ba-pinggy.exe";
+        const char* exeWeb = "ba-web.exe";
 #else
         const char* exe = "cloudflared";
         const char* exePinggy = "ba-pinggy";
+        const char* exeWeb = "ba-web";
 #endif
         appRoot = utf8(root);
         cloudflaredPath = utf8(binDir / exe);
@@ -321,6 +337,7 @@ struct Config {
         cloudflaredLog = utf8(root / "Logs" / "cloudflared.log");
         pinggyPath = utf8(binDir / exePinggy);
         pinggyLog = utf8(root / "Logs" / "pinggy.log");
+        webPath = utf8(binDir / exeWeb);
         // La web viene con el programa: del bundle; si no está (la copia
         // sombra solo trae bin/, obs-plugins/ y data/), de la raíz real.
         std::error_code ec;

@@ -109,6 +109,14 @@ FetchContent_Declare(libsamplerate
 FetchContent_Declare(argon2
     GIT_REPOSITORY https://github.com/P-H-C/phc-winner-argon2.git
     GIT_TAG ${ARGON2_VERSION})
+# libdeflate (MIT): el gzip de ba-web (src/web). Solo la biblioteca estática.
+FetchContent_Declare(libdeflate
+    URL https://codeload.github.com/ebiggers/libdeflate/tar.gz/refs/tags/v${LIBDEFLATE_VERSION}
+    URL_HASH SHA256=${LIBDEFLATE_SHA256})
+set(LIBDEFLATE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(LIBDEFLATE_ZLIB_SUPPORT OFF CACHE BOOL "" FORCE)
 # Compilar mbedtls como lib estática, sin sus tests/programs/examples.
 set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
 set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
@@ -160,6 +168,12 @@ if(EXISTS "${_BA_EXTERN}/libsamplerate/CMakeLists.txt")
 else()
     message(STATUS "libsamplerate: sin extern/libsamplerate: usando git")
 endif()
+if(EXISTS "${_BA_EXTERN}/libdeflate/CMakeLists.txt")
+    set(FETCHCONTENT_SOURCE_DIR_LIBDEFLATE "${_BA_EXTERN}/libdeflate")
+    message(STATUS "libdeflate: usando vendored en extern/ (offline)")
+else()
+    message(STATUS "libdeflate: sin extern/libdeflate: se baja el tarball")
+endif()
 if(EXISTS "${_BA_EXTERN}/argon2/Makefile")
     set(FETCHCONTENT_SOURCE_DIR_ARGON2 "${_BA_EXTERN}/argon2")
     message(STATUS "argon2: usando vendored en extern/ (offline)")
@@ -171,7 +185,7 @@ endif()
 # pida que no, asi que sus reglas de install se mandan a un componente propio
 # ("thirdparty") y `make release` instala solo el del producto ("bundle").
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME thirdparty)
-FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2)
+FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2 libdeflate)
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME bundle)
 
 # Target `argon2` a mano (el repo no trae CMakeLists): lib estática con los
@@ -280,6 +294,8 @@ else()
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
 endif()
+# ba-web: el servidor web público (C, estilo nginx), adelante del túnel. Lo lanza el gateway.
+add_subdirectory(src/web)
 # ba-pinggy (túnel de pinggy.io, lo supervisa el gateway) si se bajó libpinggy
 # con `make deps-pinggy`. Fuera del sub-build /MT de Windows: no enlaza ba_core.
 if(EXISTS "${CMAKE_SOURCE_DIR}/extern/pinggy")

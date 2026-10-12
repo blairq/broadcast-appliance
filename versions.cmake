@@ -64,6 +64,12 @@ mark_as_advanced(NLOHMANN_JSON_VERSION)
 set(ARGON2_VERSION "20190702" CACHE STRING "Versión/tag de Argon2 (referencia P-H-C)")
 mark_as_advanced(ARGON2_VERSION)
 
+# libdeflate (MIT, Eric Biggers): el gzip de ba-web (src/web). C puro, rápido, sin
+# dependencias. Se baja el tarball del tag con su SHA-256 (make deps-libdeflate).
+set(LIBDEFLATE_VERSION "1.22" CACHE STRING "Versión de libdeflate")
+set(LIBDEFLATE_SHA256 "7f343c7bf2ba46e774d8a632bf073235e1fd27723ef0a12a90f8947b7fe851d6" CACHE STRING "SHA-256 del tarball de libdeflate")
+mark_as_advanced(LIBDEFLATE_VERSION LIBDEFLATE_SHA256)
+
 # --- libsamplerate (Secret Rabbit Code, MIT) --------------------------------
 # Re-muestreo de audio (cambio de frecuencia de muestreo) para la cadena DSP
 # (spec 7.4). Lib de C pura que compila en Linux y Windows; se trae por
@@ -100,6 +106,7 @@ message(STATUS "  cloudflared : ${CLOUDFLARED_VERSION}")
 message(STATUS "  mbedTLS     : ${MBEDTLS_VERSION}")
 message(STATUS "  nlohmann    : ${NLOHMANN_JSON_VERSION}")
 message(STATUS "  Argon2      : ${ARGON2_VERSION} (referencia P-H-C, KDF de secrets.json)")
+message(STATUS "  libdeflate  : ${LIBDEFLATE_VERSION} (gzip de ba-web)")
 message(STATUS "  libsamplerate: ${LIBSAMPLERATE_VERSION}")
 message(STATUS "  LSP Plugins : ${LSP_VERSION} (CLAP)")
 message(STATUS "  clang-format: ${CLANG_FORMAT_VERSION} (herramienta de lint)")

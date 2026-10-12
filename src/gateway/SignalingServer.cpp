@@ -306,6 +306,12 @@ void SignalingServer::setEventoWeb(const nlohmann::json& e) {
         std::lock_guard<std::mutex> g(eventoWebM_);
         eventoWeb_ = e.is_object() ? e : nlohmann::json::object();
     }
+    // ba-web sirve la carpeta Web/ del evento: se le avisa (escribe un archivo solo si cambió).
+    if (alCambiarEventoDir_) {
+        std::string dir;
+        if (!eventoWebActivo(&dir)) dir.clear();
+        alCambiarEventoDir_(dir);
+    }
     // Dato nuevo de la app (el guion avanzó, cambió el sitio): el caché se tira ya.
     std::lock_guard<std::mutex> g(eventoCacheM_);
     eventoCacheMs_ = 0;
@@ -632,7 +638,7 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
         if (current) room_.disconnect(pid, nowMs());
         return;
     }
-    handleGuestHttp(fd, method, path, query, body, clientIp);
+    handleGuestHttp(fd, method, path, query, headers, body, clientIp);
 }
 
 // ============================================================================
@@ -640,8 +646,8 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
 // ============================================================================
 
 void SignalingServer::handleGuestHttp(long long fd, const std::string& method, const std::string& path,
-                                      const std::string& query, const std::string& body,
-                                      std::uint32_t clientIp) {
+                                      const std::string& query, const std::string& headers,
+                                      const std::string& body, std::uint32_t clientIp) {
     // --- La página del evento en vivo (y los invitados en /invitados/) ---------
     // Con un evento con sitio, la raíz es el marco del evento: muestra la página de
     // la sección que se trata y la cambia sola. Los enlaces viejos de invitados
@@ -715,6 +721,23 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 const std::string v = http::urlDecode(q.at("v")).substr(0, 40);
                 std::lock_guard<std::mutex> g(eventoWebM_);
                 if (!v.empty() && (mirando_.size() < 20000 || mirando_.count(v))) mirando_[v] = nowMs();
+            }
+            // Los que atendió el caché de ba-web: los manda él, con su clave, como hashes de
+            // 8 cifras hex («h:» adelante, para no mezclarse con los ids que llegan directo).
+            if (!cfg_.webClave.empty() && http::getHeader(headers, "X-BA-Clave") == cfg_.webClave) {
+                const std::string vistos = http::getHeader(headers, "X-BA-Vistos");
+                const std::int64_t ahora = nowMs();
+                std::lock_guard<std::mutex> g(eventoWebM_);
+                std::size_t ini = 0;
+                while (ini < vistos.size()) {
+                    std::size_t fin = vistos.find(',', ini);
+                    if (fin == std::string::npos) fin = vistos.size();
+                    const std::string id = vistos.substr(ini, fin - ini);
+                    if (id.size() == 8 && id.find_first_not_of("0123456789abcdef") == std::string::npos &&
+                        (mirando_.size() < 20000 || mirando_.count("h:" + id)))
+                        mirando_["h:" + id] = ahora;
+                    ini = fin + 1;
+                }
             }
         }
         const auto [cuerpo, vivos] = eventoPublicoCacheado();

@@ -193,6 +193,10 @@ cada 10 s (por si la sala se reinició). El gateway sirve:
 
 Un ensayo no se publica (la página queda en «próximamente»).
 
+Por el túnel no atiende el gateway sino **ba-web** (docs/funciones/BA-WEB.md): sirve estas mismas
+rutas desde memoria y comprimidas, con un microcaché de `/api/v1/evento`, y le pasa el resto
+al gateway.
+
 ## La dirección del evento
 
 `sitio.json` → `subdominio` (sale del nombre: «Entrevista_Pepito» → `entrevista-pepito`;

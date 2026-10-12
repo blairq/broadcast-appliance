@@ -79,6 +79,7 @@
 #include "Config.hpp"
 #include "Log.hpp"
 #include "Pinggy.hpp"
+#include "BaWeb.hpp"
 
 #include "diag/Caidas.hpp"
 #include "diag/Perfil.hpp"
@@ -662,6 +663,9 @@ int main(int argc, char** argv) {
     // cualquiera que pase por el tunel. Nueva en cada arranque, como las otras:
     // las preguntas del evento de ayer no son las de hoy.
     if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
+    // La de ba-web (el servidor público adelante del túnel): para que pueda mandar los ids
+    // de mirada que juntó su caché. Nueva en cada arranque; le llega por el entorno.
+    if (!ba::security::randomSecretHex(16, sigCfg.webClave)) sigCfg.webClave.clear();
     sigCfg.adminToken = adminToken;
     // La escucha propia del tunel de pinggy (127.0.0.1:8786): todo lo que entra
     // por ahi es externo, venga con la IP que venga (ver SignalingServer.hpp).
@@ -920,6 +924,32 @@ int main(int argc, char** argv) {
     // pinggy si esta listo, si no el dominio de Cloudflare, si no WireGuard. Los
     // dos tuneles pueden estar prendidos a la vez: cada uno llega a su escucha.
     std::unique_ptr<PinggySupervisor> pinggy;
+    // ba-web adelante del túnel: pinggy le manda el tráfico a él y él atiende el sitio (de
+    // memoria, con gzip) y le pasa el resto a la escucha del túnel. Si no arranca, pinggy va
+    // directo a la escucha del túnel, como antes.
+    std::unique_ptr<WebSupervisor> baWeb;
+    if (cfg.pinggyActivo && cfg.webActivo) {
+        WebSupervisor::Cfg wc;
+        wc.exe = cfg.webPath;
+        wc.logPath = (std::filesystem::path(cfg.logsDir) / "ba-web.log").string();
+        wc.dir = ba::platform::stateDir().string();
+        wc.webroot = cfg.webroot;
+        wc.eventoWebroot = sigCfg.eventoWebroot;
+        wc.puerto = cfg.webPuerto;
+        wc.upstream = cfg.pinggyPuertoTunel;
+        wc.procesos = cfg.webProcesos;
+        wc.cacheMs = ba::ajustes::entero("evento.cacheMs", 1000);
+        wc.clave = sigCfg.webClave;
+        if (!wc.dir.empty()) {
+            baWeb = std::make_unique<WebSupervisor>(std::move(wc), log);
+            WebSupervisor* bw = baWeb.get();
+            server.setAlCambiarEventoDir([bw](const std::string& dir) { bw->setEventoDir(dir); });
+            if (!baWeb->start()) {
+                server.setAlCambiarEventoDir(nullptr);
+                baWeb.reset();
+            }
+        }
+    }
     if (cfg.pinggyActivo) {
         PinggySupervisor::Cfg pc;
         pc.exe = cfg.pinggyPath;
@@ -927,7 +957,7 @@ int main(int argc, char** argv) {
         pc.region = cfg.pinggyRegion;
         pc.host = cfg.pinggyHost;
         pc.listaBlanca = cfg.pinggyListaBlanca;
-        pc.puertoTunel = cfg.pinggyPuertoTunel;
+        pc.puertoTunel = baWeb ? baWeb->puerto() : cfg.pinggyPuertoTunel;
         pc.turn = turnActivo;
         pc.turnLocal = turnPuertoLocal;
         pc.turnTcpPuerto = cfg.pinggyTurnTcpPuerto;
@@ -1206,6 +1236,7 @@ int main(int argc, char** argv) {
     if (wg) wg->stop();
     if (tls) tls->stop();
     if (pinggy) pinggy->stop(); // antes que la escucha del tunel
+    if (baWeb) baWeb->stop();   // después de pinggy (ya no le llega nada)
     if (turnSrv) turnSrv->stop();
     server.stop();
     if (!adminFile.empty()) {

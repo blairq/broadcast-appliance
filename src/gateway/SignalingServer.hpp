@@ -145,6 +145,9 @@ class SignalingServer {
         /// todo el que esta en la sala—, es lo que evita que la cola de
         /// preguntas la llene cualquiera que pase por el tunel.
         std::string publicoKey;
+        /// La clave de ba-web (src/web, adelante del túnel): con ella manda los ids de
+        /// mirada que juntó su caché (X-BA-Vistos en /api/v1/evento). Vacía: no se aceptan.
+        std::string webClave;
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
         std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
         std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
@@ -211,6 +214,9 @@ class SignalingServer {
     /// página de la sección que se trata) y los invitados entran por /invitados/.
     void setEventoWeb(const nlohmann::json& e);
     nlohmann::json eventoWeb() const;
+    /// Se llama (fuera de los locks) cada vez que cambia la carpeta Web/ del evento en vivo
+    /// ("" si no hay): ba-web la sirve desde ahí.
+    void setAlCambiarEventoDir(std::function<void(const std::string&)> fn) { alCambiarEventoDir_ = std::move(fn); }
     /// Los codigos que escanearon su invitacion y todavia no fueron a parar al
     /// padron. Es un BUZON, como el de los rotulos: B no tiene el padron —lo
     /// tiene A— asi que anota quien llego y A lo viene a buscar. Encolar es lo
@@ -292,7 +298,8 @@ class SignalingServer {
     void bajaPantalla(const std::string& pid);
 
     void handleGuestHttp(long long fd, const std::string& method, const std::string& path,
-                         const std::string& query, const std::string& body, std::uint32_t clientIp);
+                         const std::string& query, const std::string& headers, const std::string& body,
+                         std::uint32_t clientIp);
     bool serveStatic(long long fd, const std::string& root, const std::string& relPath);
     void apiJoin(long long fd, const std::string& body, std::uint32_t clientIp);
     void apiVerify(long long fd, const std::string& query);
@@ -438,6 +445,7 @@ class SignalingServer {
     /// Los que miran la página del evento: id del navegador (lo manda el marco) → última vez.
     std::map<std::string, std::int64_t> mirando_;
     mutable std::mutex eventoWebM_;
+    std::function<void(const std::string&)> alCambiarEventoDir_;
     /// El caché de /api/v1/evento (ver eventoPublicoCacheado): la respuesta armada, la de
     /// /api/v1/evento/vivos y cuándo se armó (0 = hay que rearmarla).
     std::mutex eventoCacheM_;
