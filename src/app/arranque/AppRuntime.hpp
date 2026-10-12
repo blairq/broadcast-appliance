@@ -84,6 +84,12 @@ class AppRuntime {
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.
     bool startStreaming(const std::string& server = {}, const std::string& key = {}, bool cambiarEnCaliente = false);
     void stopStreaming();
+    /// Salir al aire a mano (servidor y clave escritos o los de la configuración):
+    /// startStreaming y, si arrancó o cambió de destino, avisa a alVivoManual con el
+    /// servidor (nunca la clave). La GUI y el MCP pasan por acá: el vivo queda en el
+    /// bus y en el histórico venga de donde venga.
+    bool salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente = false);
+    void alVivoManual(std::function<void(const std::string& servidor)> f) { alVivoManual_ = std::move(f); }
 
     // --- Destinos adicionales de la transmisión (Config/destinos.json; la
     // clave de cada uno en el almacén cifrado como "stream-<id>") -------------
@@ -224,6 +230,7 @@ class AppRuntime {
     OperatorFeed operator_; // vive mientras libobs este arriba (ver stop)
     std::string lastError_;
     std::thread reinicioSala_;              ///< reiniciarSalaEnElFondo
+    std::function<void(const std::string&)> alVivoManual_;
     std::atomic<bool> reiniciandoSala_{false};
     bool streamStopWanted_ = true;
     bool recordStopWanted_ = true;

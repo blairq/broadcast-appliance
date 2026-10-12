@@ -854,6 +854,15 @@ void AppRuntime::restoreOutputs() {
     }
 }
 
+bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
+    if (!startStreaming(server, key, cambiarEnCaliente)) return false;
+    if (engine_.ultimoInicio() != BroadcastEngine::Inicio::YaIgual && alVivoManual_) {
+        const std::string srv = server.empty() ? cfg_.streamCfg.server : server;
+        if (!srv.empty()) alVivoManual_(srv);
+    }
+    return true;
+}
+
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
     StreamConfig sc = cfg_.streamCfg;
     if (!server.empty()) {

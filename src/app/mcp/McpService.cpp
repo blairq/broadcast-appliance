@@ -2218,8 +2218,9 @@ void McpService::registerTools() {
                 if (!e.empty()) return done(ToolResult::error(e));
                 return done(ToolResult().text("Destino iniciado.").data(json{{"destinos", rt.destinos()}}));
             }
-            if (!rt.startStreaming(a.value("server", std::string()), a.value("key", std::string()),
-                                   a.value("cambiar_en_caliente", false))) {
+            // La misma operación del modelo que el botón (el vivo queda en el bus y el histórico).
+            if (!rt.salirAlAireManual(a.value("server", std::string()), a.value("key", std::string()),
+                                      a.value("cambiar_en_caliente", false))) {
                 if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
                     ToolResult r = ToolResult::error("Ya esta transmitiendo a " + rt.engine().destinoActivo() +
                                                      ": NO se cambio nada. Para pasar a este destino: "

@@ -755,6 +755,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                            true);
         };
         connect(youtube_.get(), &YouTubeViewModel::vivo, this, alVivo);
+        // El vivo a mano (GUI o MCP: AppRuntime::salirAlAireManual). El servidor sí
+        // (es público); la clave nunca.
+        rt_.alVivoManual([this](const std::string& servidor) {
+            QMetaObject::invokeMethod(this, [this, servidor]() {
+                if (bus_) bus_->publicar("salida/vivo", {{"plataforma", "manual"}, {"servidor", servidor}}, true);
+            });
+        });
         connect(twitch_.get(), &TwitchViewModel::vivo, this, alVivo);
         connect(facebook_.get(), &FacebookViewModel::vivo, this, alVivo);
         notificador_ = std::make_unique<agent::Notificador>(rt.dataRoot());
@@ -2536,15 +2543,12 @@ QVariantMap StudioViewModel::remuxUi() const {
 }
 
 void StudioViewModel::startStreaming(const QString& server, const QString& key) {
-    if (rt_.startStreaming(server.toStdString(), key.toStdString())) {
+    if (rt_.salirAlAireManual(server.toStdString(), key.toStdString())) {
         // Nunca un "Al aire" verde si no cambió nada.
         if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
             emit notify("Ya estabas transmitiendo a ese destino: no cambió nada", "info");
-        else {
+        else
             emit notify("Al aire", "ok");
-            // El servidor sí (es público); la clave nunca.
-            if (bus_ && !server.isEmpty()) bus_->publicar("salida/vivo", {{"plataforma", "manual"}, {"servidor", server.toStdString()}}, true);
-        }
     } else if (rt_.engine().ultimoInicio() == BroadcastEngine::Inicio::YaOtroDestino) {
         emit pedirCambioDestino(qs(rt_.engine().destinoActivo()), server, key);
     } else {
@@ -2554,7 +2558,7 @@ void StudioViewModel::startStreaming(const QString& server, const QString& key) 
 }
 
 void StudioViewModel::cambiarDestinoStream(const QString& server, const QString& key) {
-    if (rt_.startStreaming(server.toStdString(), key.toStdString(), true))
+    if (rt_.salirAlAireManual(server.toStdString(), key.toStdString(), true))
         emit notify("Transmitiendo al destino nuevo", "ok");
     else
         emit notify("No se pudo cambiar de destino: " + qs(rt_.lastError()), "error");
