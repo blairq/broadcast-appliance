@@ -29,7 +29,7 @@ def _principal():
 
 PRINCIPAL = _principal()
 CC = os.path.join(PRINCIPAL, "build", "compile_commands.json")
-QMLLINT = next((os.path.join(d, "qmllint") for d in sorted(__import__("glob").glob(os.path.join(RAIZ, "extern/qt6-host/*/macos/bin"))) if os.path.exists(os.path.join(d, "qmllint"))), "qmllint")
+QMLLINT = next((os.path.join(d, "qmllint") for d in sorted(__import__("glob").glob(os.path.join(PRINCIPAL, "extern/qt6-host/*/macos/bin"))) if os.path.exists(os.path.join(d, "qmllint"))), "qmllint")
 
 
 def main():
