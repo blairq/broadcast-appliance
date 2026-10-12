@@ -438,8 +438,8 @@ class SignalingServer {
     /// Los que miran la página del evento: id del navegador (lo manda el marco) → última vez.
     std::map<std::string, std::int64_t> mirando_;
     mutable std::mutex eventoWebM_;
-    /// El caché de /api/evento (ver eventoPublicoCacheado): la respuesta armada, la de
-    /// /api/evento/vivos y cuándo se armó (0 = hay que rearmarla).
+    /// El caché de /api/v1/evento (ver eventoPublicoCacheado): la respuesta armada, la de
+    /// /api/v1/evento/vivos y cuándo se armó (0 = hay que rearmarla).
     std::mutex eventoCacheM_;
     std::string eventoCache_, eventoCacheVivos_;
     std::int64_t eventoCacheMs_ = 0;

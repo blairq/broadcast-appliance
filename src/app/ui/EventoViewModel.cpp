@@ -303,6 +303,15 @@ void EventoViewModel::publicarWeb() {
         evento::ExtrasVivo x;
         x.vivos = evento::armarVivos(s, plataformas_ ? plataformas_() : json::object());
         x.aviso = webAviso_;
+        if (preguntas_) x.preguntas = preguntas_();
+        if (enLaSala_) x.enLaSala = enLaSala_();
+        if (datosSala_) x.sala = datosSala_();
+        {
+            // La asistencia sale del padrón del evento (cuántos se anotaron y cuántos llegaron).
+            const QVariantMap r = resumenPadron();
+            if (r.value("total").toInt() > 0)
+                x.sala["asistencia"] = {{"total", r.value("total").toInt()}, {"presentes", r.value("presentes").toInt()}};
+        }
         // Cuándo empezó de verdad cada sección (para el horario estimado de las que siguen).
         if (est == "proximo") webInicioReal_.clear();
         if (bloque >= 0 && !webInicioReal_.count(bloque)) webInicioReal_[bloque] = QDateTime::currentMSecsSinceEpoch();
@@ -672,6 +681,9 @@ QVariantMap EventoViewModel::guion() const {
                        {"huso", QString::fromStdString(e_.huso)},
                        {"cuando", cuando()},
                        {"nota", QString::fromStdString(e_.nota)},
+                       {"invitados", e_.invitados},
+                       {"preguntas", e_.preguntas},
+                       {"asamblea", e_.asamblea},
                        {"duracionSeg", e_.duracionSeg()},
                        {"cues", static_cast<int>(e_.cantidadDeCues())},
                        {"bloques", bs}};
@@ -762,6 +774,27 @@ void EventoViewModel::setFecha(const QString& aaaammdd) {
 void EventoViewModel::setHuso(const QString& iana) {
     e_.huso = iana.toStdString();
     marcarSucio();
+}
+
+void EventoViewModel::setInvitados(bool si) {
+    if (e_.invitados == si) return;
+    e_.invitados = si;
+    marcarSucio();
+    emit guionChanged();
+}
+
+void EventoViewModel::setAsamblea(bool si) {
+    if (e_.asamblea == si) return;
+    e_.asamblea = si;
+    marcarSucio();
+    emit guionChanged();
+}
+
+void EventoViewModel::setPreguntas(bool si) {
+    if (e_.preguntas == si) return;
+    e_.preguntas = si;
+    marcarSucio();
+    emit guionChanged();
 }
 
 QString EventoViewModel::husoDelAparato() { return QString::fromUtf8(QTimeZone::systemTimeZoneId()); }

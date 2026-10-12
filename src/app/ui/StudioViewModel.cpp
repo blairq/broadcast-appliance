@@ -6,6 +6,8 @@
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
+#include <map>
+#include <set>
 #include <QClipboard>
 #include <QDateTime>
 #include <QQmlEngine>
@@ -136,6 +138,11 @@ namespace ba::app {
 namespace {
 
 QString qs(const std::string& s) { return QString::fromStdString(s); }
+
+/// Un hijo objeto, o {} si falta o no es un objeto (value() sobre null tira una excepción).
+nlohmann::json hijoObjeto(const nlohmann::json& j, const char* k) {
+    return j.is_object() && j.contains(k) && j[k].is_object() ? j[k] : nlohmann::json::object();
+}
 
 QString hms(std::chrono::steady_clock::time_point since) {
     const auto s =
@@ -403,6 +410,188 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                           {"enVivo", twitch_->streamingHere() || !twitch_->stream().isEmpty()}};
         nlohmann::json fb{{"liveId", facebook_->liveId().toStdString()}, {"pageId", facebook_->pageId().toStdString()}};
         return nlohmann::json{{"youtube", yt}, {"twitch", tw}, {"facebook", fb}};
+    });
+    // Las preguntas del público para la página del evento: SOLO las moderadas (la que se
+    // responde, las elegidas, las respondidas); nunca las nuevas sin revisar ni las
+    // descartadas. Mientras el evento tiene página, la cola se consulta (como si la
+    // página Público estuviera abierta).
+    evento_->setPublico(
+        [this]() {
+            nlohmann::json alAire = nlohmann::json::array(), elegidas = nlohmann::json::array(),
+                           respondidas = nlohmann::json::array();
+            for (const QVariant& v : publico_->preguntas()) {
+                const QVariantMap p = v.toMap();
+                const QString est = p.value("estado").toString();
+                nlohmann::json q{{"texto", p.value("texto").toString().toStdString()},
+                                 {"nombre", p.value("nombre").toString().toStdString()},
+                                 {"votos", p.value("votos").toInt()},
+                                 {"estado", est.toStdString()}};
+                if (est == "al_aire") alAire.push_back(q);
+                else if (est == "elegida") elegidas.push_back(q);
+                else if (est == "respondida") respondidas.push_back(q);
+            }
+            nlohmann::json out = alAire;
+            for (auto& q : elegidas) out.push_back(q);
+            for (auto& q : respondidas) out.push_back(q);
+            if (out.size() > 40) out.erase(out.begin() + 40, out.end());
+            return out;
+        },
+        [this]() {
+            // Los invitados de la sala (los que están adentro) y los integrantes conectados
+            // desde el navegador (sesión remota; se crea más tarde, puede no estar).
+            return conference_->peopleConnected() + (sesionRemota_ ? sesionRemota_->conectados() : 0);
+        });
+    connect(publico_.get(), &PublicoViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
+    // Lo que sabe el resto del sistema y es público, para la página del evento. Cada cosa
+    // puede no existir (la asamblea se arma después, o no hay): la página no muestra lo que
+    // no viene.
+    evento_->setSala([this]() {
+        nlohmann::json sala = nlohmann::json::object();
+        sala["aire"] = {{"transmitiendo", streaming_}, {"grabando", recording_}};
+        const auto publicoDe = [](const nlohmann::json& i) {
+            nlohmann::json p{{"nombre", i.value("nombre", std::string())}};
+            for (const char* k : {"bloque", "cargo"})
+                if (i.contains(k) && i[k].is_string() && !i[k].get<std::string>().empty()) p[k] = i[k];
+            return p;
+        };
+        if (bancas_) {
+            const nlohmann::json b = bancas_->estadoJson();
+            nlohmann::json fila = nlohmann::json::array();
+            for (const auto& i : b.value("cola", nlohmann::json::array())) fila.push_back(publicoDe(i));
+            const nlohmann::json alAire = b.value("al_aire", nlohmann::json());
+            if (alAire.is_object() || !fila.empty()) {
+                nlohmann::json o{{"fila", fila}};
+                if (alAire.is_object()) {
+                    o["habla"] = publicoDe(alAire);
+                    o["asignadoSeg"] = b.value("asignado_s", 0);
+                    // Cuándo se le termina el tiempo (hora absoluta): la página cuenta sola.
+                    o["hastaMs"] = b.value("desde_ms", 0LL) + b.value("asignado_s", 0LL) * 1000;
+                }
+                sala["oradores"] = o;
+            }
+        }
+        if (ordenDia_) {
+            nlohmann::json puntos = nlohmann::json::array();
+            for (const auto& p : ordenDia_->puntos())
+                puntos.push_back({{"n", p.value("n", 0)}, {"titulo", p.value("titulo", std::string())},
+                                  {"expediente", p.value("expediente", std::string())},
+                                  {"estado", p.value("estado", std::string())},
+                                  {"resultado", p.value("resultado", std::string())}});
+            if (!puntos.empty()) sala["ordenDelDia"] = puntos;
+        }
+        if (quorum_) {
+            const nlohmann::json q = quorum_->estado();
+            if (q.value("configurado", false))
+                sala["quorum"] = {{"configurado", true}, {"presentes", q.value("presentes", 0)},
+                                  {"necesarios", q.value("necesarios", 0)}, {"hay", q.value("hay_quorum", false)}};
+        }
+        if (cuerpo_) {
+            // La asamblea: el cuerpo, quién está presente (conectado desde el navegador y
+            // habilitado, o presente en su banca según la central), quién habla, el quórum,
+            // el punto en tratamiento y los resultados oficiales. La página solo lo muestra si
+            // el evento es una asamblea.
+            std::set<std::string> remotos;
+            if (sesionRemota_) for (const auto& b : sesionRemota_->presentesBancas()) remotos.insert(b);
+            nlohmann::json porBanca = nlohmann::json::object();
+            if (dcn_) porBanca = hijoObjeto(hijoObjeto(dcn_->estado(), "asistencia"), "por_banca");
+            const std::string hablaId = bancas_ ? hijoObjeto(bancas_->estadoJson(), "al_aire").value("id", std::string()) : std::string();
+            nlohmann::json integrantes = nlohmann::json::array();
+            nlohmann::json porId = nlohmann::json::object(); // id → lo público del integrante (para el recinto)
+            std::map<std::string, std::pair<int, int>> bloques; // bloque → {presentes, total}
+            int presentes = 0;
+            for (const auto& i : cuerpo_->cuerpo().integrantes()) {
+                const std::string banca = i.value("banca", std::string());
+                const bool remoto = !banca.empty() && remotos.count(banca);
+                const bool enSala = !banca.empty() && porBanca.is_object() && porBanca.value(banca, false);
+                nlohmann::json p{{"nombre", i.value("nombre", std::string())}, {"banca", banca},
+                                 {"presente", remoto || enSala}, {"lugar", remoto ? "remoto" : enSala ? "sala" : ""},
+                                 {"habla", !hablaId.empty() && i.value("id", std::string()) == hablaId}};
+                for (const char* k : {"bloque", "cargo"})
+                    if (i.contains(k) && i[k].is_string() && !i[k].get<std::string>().empty()) p[k] = i[k];
+                if (remoto || enSala) ++presentes;
+                auto& bl = bloques[i.value("bloque", std::string())];
+                ++bl.second;
+                if (remoto || enSala) ++bl.first;
+                if (i.contains("id") && i["id"].is_string()) porId[i["id"].get<std::string>()] = p;
+                integrantes.push_back(p);
+            }
+            nlohmann::json asam{{"cuerpo", cuerpo_->cuerpo().nombre()}, {"integrantes", integrantes},
+                                {"presentes", presentes}, {"total", static_cast<int>(integrantes.size())}};
+            // Los bloques (para ver de un vistazo cuántos de cada uno están).
+            nlohmann::json bjs = nlohmann::json::array();
+            for (const auto& [nombre, n] : bloques)
+                if (!nombre.empty()) bjs.push_back({{"bloque", nombre}, {"presentes", n.first}, {"total", n.second}});
+            asam["bloques"] = bjs;
+            // El recinto: dónde está sentado cada uno (fila 0 la de adelante, la más cerca de
+            // la presidencia; columna 0 la de la izquierda vista desde la cabina) y cómo se
+            // dibuja (grilla, hemiciclo o lista). Solo lo público: sin presets ni micrófonos.
+            {
+                const nlohmann::json r = cuerpo_->cuerpo().recinto(true);
+                nlohmann::json lugares = nlohmann::json::array();
+                for (const auto& l : r.value("bancas", nlohmann::json::array())) {
+                    nlohmann::json x{{"banca", l.value("banca", std::string())}, {"fila", l.value("fila", 0)},
+                                     {"columna", l.value("columna", 0)}};
+                    const std::string id = hijoObjeto(l, "integrante").value("id", std::string());
+                    if (!id.empty() && porId.contains(id)) {
+                        const auto& p = porId[id];
+                        for (const char* k : {"nombre", "bloque", "cargo", "presente", "lugar", "habla"})
+                            if (p.contains(k)) x[k] = p[k];
+                    }
+                    lugares.push_back(x);
+                }
+                if (!lugares.empty())
+                    asam["recinto"] = {{"distribucion", r.value("distribucion", std::string("grilla"))},
+                                       {"filas", r.value("filas", 0)}, {"columnas", r.value("columnas", 0)},
+                                       {"bancas", lugares}};
+            }
+            if (quorum_) {
+                const nlohmann::json q = quorum_->estado();
+                if (q.value("configurado", false))
+                    asam["quorum"] = {{"presentes", q.value("presentes", 0)}, {"necesarios", q.value("necesarios", 0)},
+                                      {"hay", q.value("hay_quorum", false)}, {"miembros", q.value("miembros", 0)}};
+                nlohmann::json vots = nlohmann::json::array();
+                for (const auto& o : quorum_->oficiales())
+                    vots.push_back({{"asunto", o.value("asunto", std::string())},
+                                    {"afirmativos", o.value("afirmativos", 0)}, {"negativos", o.value("negativos", 0)},
+                                    {"abstenciones", o.value("abstenciones", 0)}, {"aprobado", o.value("aprobado", false)}});
+                asam["votaciones"] = vots;
+            }
+            if (ordenDia_) {
+                const nlohmann::json a = ordenDia_->actual();
+                if (a.is_object() && a.value("n", 0) > 0)
+                    asam["punto"] = {{"n", a.value("n", 0)}, {"titulo", a.value("titulo", std::string())},
+                                     {"expediente", a.value("expediente", std::string())}};
+            }
+            sala["asamblea"] = asam;
+        }
+        {
+            // La votación: la pregunta y si está abierta; el resultado solo cuando ya se puede
+            // mostrar (cerrada, o el operador eligió mostrarlo mientras está abierta).
+            const QVariantMap v = publico_->votacion();
+            if (v.value("hubo").toBool()) {
+                const bool abierta = v.value("abierta").toBool();
+                nlohmann::json vo{{"pregunta", v.value("pregunta").toString().toStdString()},
+                                  {"abierta", abierta},
+                                  {"modo", v.value("modo").toString().toStdString()},
+                                  {"votaron", v.value("votaron").toInt()},
+                                  {"podian", v.value("podian").toInt()}};
+                if (!abierta || v.value("enVivo").toBool()) {
+                    nlohmann::json res = nlohmann::json::array();
+                    for (const QVariant& r : v.value("resultado").toList())
+                        res.push_back({{"opcion", r.toMap().value("opcion").toString().toStdString()},
+                                       {"votos", r.toMap().value("votos").toInt()}});
+                    vo["resultado"] = res;
+                }
+                sala["votacion"] = vo;
+            }
+        }
+        return sala;
+    });
+    connect(evento_.get(), &EventoViewModel::webChanged, this, [this]() {
+        const bool hay = evento_->web().value("hay").toBool();
+        if (hay == publicoPorWeb_) return;
+        publicoPorWeb_ = hay;
+        publico_->setActivo(hay);
     });
     connect(youtube_.get(), &YouTubeViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
     connect(twitch_.get(), &TwitchViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
@@ -924,7 +1113,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                 if (const int p = dcn_->presentesCentral(); p >= 0) {
                     // Los que la central ya cuenta presentes en su banca no se suman.
                     const nlohmann::json porBanca =
-                        dcn_->estado().value("asistencia", nlohmann::json::object()).value("por_banca", nlohmann::json::object());
+                        hijoObjeto(hijoObjeto(dcn_->estado(), "asistencia"), "por_banca");
                     int extra = 0;
                     for (const auto& b : virtuales)
                         if (!porBanca.value(b, false)) ++extra;
@@ -1046,7 +1235,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         seguirVotacionCentral();
         // El presidente apretó prioridad en su unidad: la central ya calló a los suyos; los
         // remotos también se callan (si no, el que habla por el celular seguía sonando).
-        const bool prio = dcn_->estado().value("prioridad", nlohmann::json::object()).value("activa", false);
+        const bool prio = hijoObjeto(dcn_->estado(), "prioridad").value("activa", false);
         if (prio && !prioridadCentral_) {
             silenciarRemotos();
             emit notify("Prioridad del presidente: todos callados (también los remotos)", "info");

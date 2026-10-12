@@ -312,7 +312,7 @@ void SignalingServer::setEventoWeb(const nlohmann::json& e) {
 }
 
 std::pair<std::string, std::string> SignalingServer::eventoPublicoCacheado() {
-    // EL CACHÉ DE /api/evento. Con cientos de navegadores preguntando cada 2 s, armar la
+    // EL CACHÉ DE /api/v1/evento. Con cientos de navegadores preguntando cada 2 s, armar la
     // respuesta cada vez es consultar cientos de veces por segundo la sala (la lista de
     // invitados), las conexiones de la sesión remota y la urna. Se arma como mucho una vez
     // por `evento.cacheMs` (1 s) y se reparte la misma a todos; setEventoWeb la invalida.
@@ -706,7 +706,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         serveStatic(fd, dir, rel);
         return;
     }
-    if ((path == "/api/evento" || path == "/api/evento/vivos") && method == "GET") {
+    if ((path == "/api/v1/evento" || path == "/api/v1/evento/vivos") && method == "GET") {
         // Cada navegador manda su id al preguntar: así se cuenta cuántos miran (los de
         // los últimos 15 s). Anotarlo es barato; lo caro va en el caché de abajo.
         {
@@ -718,7 +718,7 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             }
         }
         const auto [cuerpo, vivos] = eventoPublicoCacheado();
-        http::sendResponse(fd, 200, "application/json", path == "/api/evento" ? cuerpo : vivos,
+        http::sendResponse(fd, 200, "application/json", path == "/api/v1/evento" ? cuerpo : vivos,
                            "Cache-Control: no-cache\r\n");
         return;
     }

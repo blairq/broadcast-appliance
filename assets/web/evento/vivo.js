@@ -2,7 +2,7 @@
 //
 // LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas (Web/*.html de cada
 // evento, que salen de assets/web/evento/plantilla) no traen datos escritos; todo lo
-// pone este script con lo que da la sala en /api/evento: el nombre, la fecha, las
+// pone este script con lo que da la sala en /api/v1/evento: el nombre, la fecha, las
 // secciones, el programa, anterior/siguiente, qué pasa ahora. Si cambia el guion, la
 // página muestra lo nuevo sola, sin regenerar nada.
 //
@@ -17,6 +17,7 @@
 //   estado (En vivo / Próximamente / En pausa / Terminó, + clase)  seccion (la que se
 //   trata)  siguiente  cuenta («Empieza en 2:10:05» / «Empieza en breve»)  transcurrido
 //   habla (quién tiene la palabra, si el guion lo dice)  aviso (lo que publica el operador)
+//   preguntas (las del público ya moderadas, una lista) · n-preguntas
 //   en-la-sala / en-la-sala-texto (invitados e integrantes conectados)  mirando / mirando-texto
 //   progreso-texto
 //   En la página de una sección (<body data-seccion="<id>">): seccion-nombre
@@ -30,7 +31,22 @@
 // Visibilidad: data-vivo-si="fecha | huso | bajada | secciones | vivos | habla | aviso |
 //   participar | votacion | proximo | en_vivo | terminado | no-proximo | franja (hay fecha o
 //   ya empezó) | conectados (hay
-//   alguien en la sala o más de uno mirando) | en-la-sala | mirando"  (se esconde si no).
+//   alguien en la sala o más de uno mirando) | en-la-sala | mirando | preguntas (hay
+//   preguntas para mostrar) | preguntas-o-participar"  (se esconde si no).
+//   Lo que sabe el sistema: oradores-habla  oradores-detalle (bloque/cargo)  oradores-restante
+//   (cuenta atrás)  oradores-fila (lista)  orden (el orden del día, lista)  quorum-presentes
+//   quorum-necesarios  quorum-estado  asistencia-presentes  asistencia-total  votacion-pregunta
+//   votacion-estado  votacion-votaron  votacion-resultado (barras)
+//   Más visibilidad: invitados  transmitiendo  grabando  oradores  fila  orden  quorum
+//   asistencia  votacion-info  resultado
+//   La asamblea (si el evento lo es): asamblea-cuerpo  asamblea-presentes  asamblea-total
+//   asamblea-quorum  integrantes (grilla: presente / remoto / habla)  punto-titulo
+//   punto-expediente  votaciones (los resultados oficiales)  recinto (el plano de bancas:
+//   grilla o hemiciclo, color por bloque, vacía = ausente, aro = habla)  bloques (la
+//   leyenda: cada bloque con sus presentes). Visibilidad: asamblea  punto  votaciones
+//   asamblea-quorum  recinto  bloques
+//   Numeración: un [data-num] adentro de cada sección visible se numera solo («01», «02»…).
+//   Letras: un [data-letra] en cada tarjeta visible de unas .columnas se pone solo (A, B, C…).
 // Enlaces: data-vivo-href="primera | anterior | proxima | publico".
 // Componentes: [data-acordeon] (preguntas), [data-menu] (menú del celular).
 //
@@ -99,6 +115,11 @@
     poner("cuenta", falta ? "Empieza en " + mmss(falta) : proximo && ultimo.inicioMs ? "Empieza en breve" : "");
     poner("transcurrido", ultimo.arrancoMs && (ultimo.estado === "en_vivo" || ultimo.estado === "pausa")
       ? mmss((ahora - ultimo.arrancoMs) / 1000) : "—");
+    const o = ultimo.oradores;
+    if (o && o.habla && o.hastaMs && o.asignadoSeg) {
+      const rest = (o.hastaMs - ahora) / 1000;
+      poner("oradores-restante", rest > 0 ? "Le quedan " + mmss(rest) : "Se le terminó el tiempo");
+    }
     for (const caja of $$('[data-vivo="cuenta-bloques"]')) {
       caja.hidden = !falta;
       if (!falta) continue;
@@ -142,15 +163,20 @@
     poner("minutos", total ? String(Math.ceil(total / 60)) : "—");
     si("fecha", !!f); si("huso", !!e.huso); si("franja", !!f || e.estado !== "proximo"); si("bajada", true); si("secciones", secciones.length > 0);
     // Marquesina: los nombres de las secciones, dos veces (la animación corre la mitad).
+    // Cada uno lleva a su sección (con el mouse; con el teclado está el programa).
     for (const m of $$('[data-vivo="marquesina"]')) {
-      const firma = secciones.map((s) => s.nombre).join("\u0001");
+      const firma = secciones.map((s) => s.nombre + s.pagina).join("\u0001");
       if (m.dataset.firma === firma) continue;
       m.dataset.firma = firma;
       m.textContent = "";
       if (!secciones.length) continue;
       const vueltas = Math.max(1, Math.ceil(6 / secciones.length));
       for (let k = 0; k < 2 * vueltas; ++k)
-        for (const s of secciones) { const sp = document.createElement("span"); sp.textContent = s.nombre; m.appendChild(sp); }
+        for (const s of secciones) {
+          const a = document.createElement("a");
+          a.href = s.pagina; a.textContent = s.nombre; a.tabIndex = -1;
+          m.appendChild(a);
+        }
     }
     // Los enlaces a cada sección (el pie, un índice).
     for (const ul of $$('[data-vivo="lista-secciones"]')) {
@@ -195,7 +221,7 @@
 
   // --- El programa ------------------------------------------------------------------
   function rehacerAgendas(secciones) {
-    const firma = secciones.map((s) => [s.id, s.nombre, s.inicioPrevistoMs, s.inicioEstimadoMs, s.duracionSeg].join("\u0001")).join("\u0002");
+    const firma = secciones.map((s) => [s.id, s.nombre, s.inicioPrevistoMs, s.inicioEstimadoMs, s.inicioRealMs, s.duracionSeg].join("\u0001")).join("\u0002");
     for (const ol of $$('[data-vivo="agenda"]')) {
       if (ol.dataset.firma === firma) continue;
       ol.dataset.firma = firma;
@@ -207,7 +233,11 @@
         a.href = s.pagina;
         const n = document.createElement("span"); n.className = "nombre"; n.textContent = s.nombre;
         const m = document.createElement("span"); m.className = "meta";
-        m.textContent = [hora(s.inicioEstimadoMs || s.inicioPrevistoMs), duracionCorta(s.duracionSeg)].filter(Boolean).join(" · ");
+        // Ya empezó: a qué hora y en qué minuto de la grabación (capítulo). Si no, cuándo se espera.
+        const cap = s.inicioRealMs && ultimo && ultimo.arrancoMs ? "min " + mmss((s.inicioRealMs - ultimo.arrancoMs) / 1000) : "";
+        m.textContent = (s.inicioRealMs ? ["Empezó " + hora(s.inicioRealMs), cap]
+                                        : [hora(s.inicioEstimadoMs || s.inicioPrevistoMs), duracionCorta(s.duracionSeg)])
+          .filter(Boolean).join(" · ");
         a.append(n, m);
         li.appendChild(a);
         ol.appendChild(li);
@@ -288,6 +318,213 @@
     caja.appendChild(marco);
   }
 
+  // --- Lo que sabe el resto del sistema ------------------------------------------------------
+  function lista(sel, items, armar) {
+    for (const el of $$(sel)) {
+      const firma = JSON.stringify(items);
+      if (el.dataset.firma === firma) continue;
+      el.dataset.firma = firma;
+      el.textContent = "";
+      for (const it of items) el.appendChild(armar(it));
+    }
+  }
+  const ESTADO_PUNTO = { pendiente: "Pendiente", en_tratamiento: "En tratamiento", votado: "Votado", comision: "A comisión", retirado: "Retirado" };
+  function datosDelSistema(e) {
+    si("invitados", !!e.invitados);
+    const aire = e.aire || {};
+    si("transmitiendo", !!aire.transmitiendo); si("grabando", !!aire.grabando);
+    // Oradores: quién habla (y su tiempo) y la fila.
+    const o = e.oradores || null;
+    si("oradores", !!(o && (o.habla || (o.fila || []).length)));
+    si("orador-habla", !!(o && o.habla));
+    poner("oradores-habla", o && o.habla ? o.habla.nombre : "");
+    poner("oradores-detalle", o && o.habla ? [o.habla.cargo, o.habla.bloque].filter(Boolean).join(" · ") : "");
+    if (!(o && o.habla && o.asignadoSeg)) poner("oradores-restante", "");
+    const fila = (o && o.fila) || [];
+    si("fila", fila.length > 0);
+    lista('[data-vivo="oradores-fila"]', fila, (p) => {
+      const li = document.createElement("li");
+      li.textContent = p.nombre;
+      if (p.bloque) { const b = document.createElement("span"); b.className = "tenue"; b.textContent = " · " + p.bloque; li.appendChild(b); }
+      return li;
+    });
+    // El orden del día.
+    const puntos = e.ordenDelDia || [];
+    si("orden", puntos.length > 0);
+    lista('[data-vivo="orden"]', puntos, (p) => {
+      const li = document.createElement("li");
+      li.className = "punto " + (p.estado || "");
+      const n = document.createElement("span"); n.className = "mono tenue"; n.textContent = dos(p.n);
+      const t = document.createElement("div");
+      const b = document.createElement("b"); b.textContent = p.titulo;
+      const m = document.createElement("span"); m.className = "ceja";
+      m.textContent = [p.expediente ? "Expte. " + p.expediente : "", ESTADO_PUNTO[p.estado] || p.estado, p.resultado].filter(Boolean).join(" · ");
+      t.append(b, m);
+      li.append(n, t);
+      return li;
+    });
+    // Quórum y asistencia.
+    const q = e.quorum || null;
+    si("quorum", !!q);
+    poner("quorum-presentes", q ? String(q.presentes) : ""); poner("quorum-necesarios", q ? String(q.necesarios) : "");
+    poner("quorum-estado", q ? (q.hay ? "Hay quórum" : "Sin quórum") : "");
+    const as = e.asistencia || null;
+    si("asistencia", !!as);
+    poner("asistencia-presentes", as ? String(as.presentes) : ""); poner("asistencia-total", as ? String(as.total) : "");
+    // La votación (el resultado, solo cuando se puede mostrar).
+    const v = e.votacion || null;
+    si("votacion-info", !!(v && v.pregunta));
+    poner("votacion-pregunta", v ? v.pregunta : "");
+    poner("votacion-estado", v ? (v.abierta ? "Votación abierta" : "Votación cerrada") : "");
+    for (const el of $$('[data-vivo="votacion-estado"]')) el.classList.toggle("en_vivo", !!(v && v.abierta));
+    poner("votacion-votaron", v ? (v.podian ? v.votaron + " de " + v.podian + " votaron" : v.votaron + " votaron") : "");
+    const res = (v && v.resultado) || [];
+    si("resultado", res.length > 0);
+    const total = res.reduce((a, r) => a + r.votos, 0) || 1;
+    lista('[data-vivo="votacion-resultado"]', res, (r) => {
+      const d = document.createElement("div"); d.className = "barra-voto";
+      const top = document.createElement("div"); top.className = "barra-voto-top";
+      const a = document.createElement("span"); a.textContent = r.opcion;
+      const b = document.createElement("span"); b.className = "mono"; b.textContent = r.votos + " · " + Math.round((100 * r.votos) / total) + "%";
+      top.append(a, b);
+      const pista = document.createElement("div"); pista.className = "progreso";
+      const llena = document.createElement("div"); llena.style.width = (100 * r.votos) / total + "%";
+      pista.appendChild(llena);
+      d.append(top, pista);
+      return d;
+    });
+  }
+  // El plano de bancas. Mismo dibujo que la app: en la grilla la presidencia arriba y la
+  // fila 0 debajo; en el hemiciclo la presidencia abajo al centro y cada fila un arco (la
+  // 0 la de adentro). Las columnas de izquierda a derecha vistas desde la cabina.
+  const PALETA = ["#4ea8ff", "#ffb020", "#3ddc97", "#c77dff", "#ff6b9a", "#2ec4d6", "#a3d95b", "#ff8a3d", "#8f9bff", "#e0c36a"];
+  function colorDeBloque(a) {
+    const orden = (a.bloques || []).map((b) => b.bloque);
+    return (b) => { const i = orden.indexOf(b || ""); return i < 0 ? "#8a8a8f" : PALETA[i % PALETA.length]; };
+  }
+  const NS = "http://www.w3.org/2000/svg";
+  function svg(tag, at) { const el = document.createElementNS(NS, tag); for (const k in at) el.setAttribute(k, at[k]); return el; }
+  function plano(a) {
+    const r = a.recinto || null;
+    const dibujable = !!(r && (r.distribucion === "grilla" || r.distribucion === "hemiciclo") && r.filas > 0 && r.columnas > 0 && (r.bancas || []).length);
+    si("recinto", dibujable);
+    if (!dibujable) return;
+    const color = colorDeBloque(a);
+    for (const caja of $$('[data-vivo="recinto"]')) {
+      const firma = JSON.stringify([r, a.bloques]);
+      if (caja.dataset.firma === firma) continue;
+      caja.dataset.firma = firma;
+      const F = r.filas, C = r.columnas, R = 0.42;
+      const lugar = [];
+      let vb, pres;
+      if (r.distribucion === "hemiciclo") {
+        const r0 = Math.max(1.4 * C / Math.PI, 1.4), paso = 1.32, r1 = r0 + paso * (F - 1), m = 0.6;
+        for (const b of r.bancas) {
+          const radio = r0 + paso * b.fila, ang = Math.PI * (1 - (b.columna + 0.5) / C);
+          lugar.push([b, radio * Math.cos(ang), -radio * Math.sin(ang)]);
+        }
+        vb = [-(r1 + m), -(r1 + m), 2 * (r1 + m), r1 + m + 1.3];
+        pres = { x: -Math.min(r0 * 0.6, 3), y: 0.35, w: Math.min(r0 * 1.2, 6) };
+      } else {
+        const paso = 1.2, arriba = 1.5;
+        for (const b of r.bancas) lugar.push([b, b.columna * paso, arriba + b.fila * paso]);
+        vb = [-0.6, -0.1, (C - 1) * paso + 1.2, arriba + (F - 1) * paso + 0.7];
+        pres = { x: -0.5, y: 0, w: (C - 1) * paso + 1 };
+      }
+      const s = svg("svg", { viewBox: vb.map((n) => n.toFixed(2)).join(" "), role: "img",
+                             "aria-label": "Plano de bancas: " + (a.presentes || 0) + " de " + (a.total || 0) + " presentes" });
+      s.append(svg("rect", { x: pres.x, y: pres.y, width: pres.w, height: 0.8, rx: 0.15, class: "presidencia" }));
+      const t = svg("text", { x: pres.x + pres.w / 2, y: pres.y + 0.52, "text-anchor": "middle", class: "presidencia-texto" });
+      t.textContent = "PRESIDENCIA";
+      s.append(t);
+      for (const [b, x, y] of lugar) {
+        const g = svg("g", { class: "banca" + (b.presente ? " presente" : "") + (b.habla ? " habla" : "") + (b.nombre ? "" : " vacia") });
+        const c = color(b.bloque);
+        if (b.habla) g.append(svg("circle", { cx: x, cy: y, r: R + 0.12, class: "aro" }));
+        g.append(svg("circle", { cx: x, cy: y, r: R, fill: b.presente ? c : "transparent", stroke: c }));
+        const n = svg("text", { x: x, y: y + 0.13, "text-anchor": "middle", class: "numero" + (b.presente ? " sobre" : "") });
+        n.textContent = b.banca;
+        const tt = svg("title", {});
+        tt.textContent = (b.nombre || "Banca sin ocupar") + (b.bloque ? " · " + b.bloque : "") + " · Banca " + b.banca
+          + (b.nombre ? (b.habla ? " · Habla" : b.presente ? (b.lugar === "remoto" ? " · Presente (remoto)" : " · Presente") : " · Ausente") : "");
+        g.append(n, tt);
+        s.append(g);
+      }
+      caja.textContent = "";
+      caja.append(s);
+    }
+    const bl = a.bloques || [];
+    si("bloques", bl.length > 0);
+    lista('[data-vivo="bloques"]', bl, (b) => {
+      const li = document.createElement("li");
+      const m = document.createElement("i"); m.style.background = color(b.bloque);
+      const n = document.createElement("b"); n.textContent = b.bloque;
+      const q = document.createElement("span"); q.className = "mono tenue"; q.textContent = b.presentes + "/" + b.total;
+      li.append(m, n, q);
+      return li;
+    });
+  }
+  function asamblea(e) {
+    const a = e.asamblea || null;
+    si("asamblea", !!a);
+    if (!a) return;
+    poner("asamblea-cuerpo", a.cuerpo || "La asamblea");
+    poner("asamblea-presentes", String(a.presentes || 0));
+    poner("asamblea-total", String(a.total || 0));
+    const q = a.quorum || null;
+    si("asamblea-quorum", !!q);
+    poner("asamblea-quorum", q ? (q.hay ? "Hay quórum" : "Sin quórum") + " · se necesitan " + q.necesarios : "");
+    for (const el of $$('[data-vivo="asamblea-quorum"]')) el.classList.toggle("en_vivo", !!(q && q.hay));
+    plano(a);
+    const colorI = colorDeBloque(a);
+    lista('[data-vivo="integrantes"]', a.integrantes || [], (p) => {
+      const li = document.createElement("li");
+      li.className = "integrante" + (p.presente ? " presente" : "") + (p.habla ? " habla" : "");
+      if (p.bloque) li.style.borderLeft = "3px solid " + colorI(p.bloque);
+      const n = document.createElement("b"); n.textContent = p.nombre;
+      const d = document.createElement("span"); d.className = "tenue";
+      d.textContent = [p.banca ? "Banca " + p.banca : "", p.bloque].filter(Boolean).join(" · ");
+      const est = document.createElement("span"); est.className = "ceja";
+      est.textContent = p.habla ? "Habla" : p.presente ? (p.lugar === "remoto" ? "Presente · remoto" : "Presente") : "Ausente";
+      li.append(n, d, est);
+      return li;
+    });
+    const pt = a.punto || null;
+    si("punto", !!pt);
+    poner("punto-titulo", pt ? (pt.n ? "Punto " + pt.n + " · " : "") + pt.titulo : "");
+    poner("punto-expediente", pt && pt.expediente ? "Expte. " + pt.expediente : "");
+    const vs = a.votaciones || [];
+    si("votaciones", vs.length > 0);
+    lista('[data-vivo="votaciones"]', vs, (v) => {
+      const li = document.createElement("li");
+      li.className = "votacion-oficial " + (v.aprobado ? "aprobado" : "rechazado");
+      const t = document.createElement("b"); t.textContent = v.asunto;
+      const r = document.createElement("span"); r.className = "mono";
+      r.textContent = v.afirmativos + " a favor · " + v.negativos + " en contra · " + v.abstenciones + " abstenciones";
+      const est = document.createElement("span"); est.className = "estado" + (v.aprobado ? " en_vivo" : "");
+      est.textContent = v.aprobado ? "Aprobado" : "Rechazado";
+      li.append(t, r, est);
+      return li;
+    });
+  }
+  // Numera las secciones que se ven («01 /», «02 /»…): una que no aplica no deja hueco.
+  function numerar() {
+    let n = 0;
+    for (const el of $$("[data-num]")) {
+      const sec = el.closest("section");
+      const visible = !sec || (!sec.hidden && !sec.closest("[hidden]"));
+      if (visible) el.textContent = dos(++n);
+    }
+    // Las letras de las tarjetas ([data-letra]): A, B, C… solo entre las que se ven.
+    for (const grupo of $$(".columnas")) {
+      let i = 0;
+      for (const el of grupo.querySelectorAll("[data-letra]")) {
+        const t = el.closest(".tarjeta");
+        if (!t || !t.hidden) el.textContent = String.fromCharCode(65 + i++);
+      }
+    }
+  }
+
   // --- Aplicar el estado ------------------------------------------------------------------
   function aplicar(e) {
     if (!e) return;
@@ -320,9 +557,36 @@
     poner("mirando", String(mirando));
     poner("mirando-texto", mirando === 1 ? "mirando esta página" : "mirando esta página");
     si("en-la-sala", enSala > 0); si("mirando", mirando > 1); si("conectados", enSala > 0 || mirando > 1);
-    si("participar", !!e.publicoUrl); href("publico", e.publicoUrl || ""); si("votacion", !!e.votacionAbierta);
+    // Las preguntas del público (solo las moderadas: la que se responde, las elegidas y las
+    // respondidas). Sin preguntas, el bloque no aparece.
+    const preguntas = e.preguntas || [];
+    si("preguntas", preguntas.length > 0);
+    si("preguntas-o-participar", preguntas.length > 0 || !!e.publicoUrl);
+    poner("n-preguntas", String(preguntas.length));
+    for (const ul of $$('[data-vivo="preguntas"]')) {
+      const firma = JSON.stringify(preguntas.map((p) => [p.texto, p.nombre, p.estado, p.votos]));
+      if (ul.dataset.firma === firma) continue;
+      ul.dataset.firma = firma;
+      ul.textContent = "";
+      for (const p of preguntas) {
+        const li = document.createElement("li");
+        li.className = "pregunta " + p.estado;
+        const et = document.createElement("span");
+        et.className = "ceja";
+        et.textContent = p.estado === "al_aire" ? "Respondiendo ahora" : p.estado === "respondida" ? "Respondida" : "En la cola";
+        const t = document.createElement("p");
+        t.textContent = p.texto;
+        li.append(et, t);
+        if (p.nombre) { const n = document.createElement("span"); n.className = "tenue"; n.textContent = "— " + p.nombre; li.appendChild(n); }
+        ul.appendChild(li);
+      }
+    }
+    si("participar", !!e.publicoUrl);
+    datosDelSistema(e);
+    asamblea(e); href("publico", e.publicoUrl || ""); si("votacion", !!e.votacionAbierta);
     pintarVivos(e.vivos || []);
     relojes();
+    numerar();
     const firma = JSON.stringify(Object.assign({}, e, { ahoraMs: 0 }));
     if (firma === ultimaFirma) return;
     ultimaFirma = firma;
@@ -362,7 +626,7 @@
   });
   async function traer() {
     try {
-      const r = await fetch("/api/evento?v=" + idMirada, { cache: "no-store" });
+      const r = await fetch("/api/v1/evento?v=" + idMirada, { cache: "no-store" });
       if (r.ok) aplicar(await r.json());
     } catch (err) { /* se reintenta */ }
   }

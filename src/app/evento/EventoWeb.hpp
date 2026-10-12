@@ -110,6 +110,20 @@ struct ExtrasVivo {
     std::map<int, std::int64_t> inicioReal;
     /// Lo que le falta a la sección actual según lo previsto (-1 = no se sabe).
     int restanteActualSeg = -1;
+    /// Las preguntas del público YA MODERADAS: [{texto, nombre, estado: al_aire|elegida|
+    /// respondida, votos}]. Nunca las nuevas sin revisar ni las descartadas.
+    nlohmann::json preguntas = nlohmann::json::array();
+    /// Cuántos están en la sala (invitados adentro e integrantes conectados).
+    int enLaSala = 0;
+    /// Lo que sabe el resto del sistema y es público (lo arma StudioViewModel; cada uno
+    /// puede faltar): aire {transmitiendo, grabando}, oradores {habla: {nombre, bloque,
+    /// cargo}, hastaMs (cuándo se le termina el tiempo), asignadoSeg, fila: [{nombre, bloque}]}, ordenDelDia [{n,
+    /// titulo, expediente, estado, resultado}], quorum {configurado, presentes, necesarios,
+    /// hay}, votacion {pregunta, abierta, modo, votaron, podian, resultado?}, asistencia
+    /// {total, presentes}, asamblea {cuerpo, integrantes [{nombre, bloque, cargo, banca,
+    /// presente, lugar: sala|remoto, habla}], presentes, total, quorum, punto {n, titulo,
+    /// expediente}, votaciones [{asunto, afirmativos, negativos, abstenciones, aprobado}]}.
+    nlohmann::json sala = nlohmann::json::object();
 };
 
 /// Lo que ve cualquiera del evento en vivo. `estado`: proximo | en_vivo | pausa | terminado.

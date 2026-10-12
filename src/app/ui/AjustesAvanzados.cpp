@@ -121,7 +121,7 @@ const std::vector<AjusteAvanzado>& ajustesAvanzados() {
         {"proxy.ociosoMin", "Red de la sala", "Proxy por nombre: conexión quieta", "int", {}, 1, 1440, "min", "", "gateway", QVariant(15), Destino::Sala},
         {"proxy.maxConexiones", "Red de la sala", "Proxy por nombre: conexiones", "int", {}, 10, 100000, "", "", "gateway", QVariant(4000), Destino::Sala},
         {"proxy.topeKB", "Red de la sala", "Proxy por nombre: tope por dirección", "int", {}, 16, 65536, "KB", "", "gateway", QVariant(256), Destino::Sala},
-        {"evento.cacheMs", "Sala", "Página del evento: caché de /api/evento", "int", {}, 100, 30000, "ms", "Cada cuánto como mucho se arma la respuesta que piden los navegadores (la misma para todos).", "gateway", QVariant(1000), Destino::Sala},
+        {"evento.cacheMs", "Sala", "Página del evento: caché de /api/v1/evento", "int", {}, 100, 30000, "ms", "Cada cuánto como mucho se arma la respuesta que piden los navegadores (la misma para todos).", "gateway", QVariant(1000), Destino::Sala},
         {"evento.webReenvioS", "Sala", "Página del evento: reenvío del estado a la sala", "int", {}, 2, 300, "s", "Por si la sala se reinició: cada cuánto se le vuelve a mandar el estado del evento.", "restart", QVariant(10), Destino::App},
         {"gateway.tunelReintentoMaxS", "Cloudflare", "Túnel: espera máxima para reconectar", "int", {}, 2, 600, "s", "", "gateway", QVariant(30), Destino::Sala},
         {"asistente.demoraArranqueMs", "Asistente (MCP)", "Arranque automático: demora", "int", {}, 0, 60000, "ms", "", "live", QVariant(2500), Destino::App},

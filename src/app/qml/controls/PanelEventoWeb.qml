@@ -111,7 +111,7 @@ ScrollView {
         Seccion {
             visible: !!pw.w.hay
             titulo: "En el momento"
-            subtitulo: "Un aviso arriba de la página (se ve ya, en todas las secciones) y si el público puede preguntar y votar desde ahí."
+            subtitulo: "Un aviso arriba de la página (se ve ya, en todas las secciones) y lo que usa este evento."
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -128,10 +128,22 @@ ScrollView {
                 GlassButton { compact: true; text: "Sacar"; enabled: !!(pw.w.aviso || {}).texto
                               onClicked: { avisoCampo.text = ""; pw.ev.setAvisoWeb("", "info") } }
             }
+            // Lo que usa el evento (está en su definición: lo leen la página y el asistente).
             RowLayout {
                 spacing: 8
-                Toggle { checked: pw.sitio.participacion === true; onToggled: (v) => pw.guardar({ participacion: v }) }
-                Text { text: "Que el público pueda preguntar y votar desde la página (abre /publico/ con su clave)"; color: Theme.text; font.pixelSize: 12 }
+                Toggle { checked: pw.ev.guion.invitados === true; onToggled: (v) => { pw.ev.setInvitados(v); pw.ev.guardar() } }
+                Text { text: "Usa invitados en la sala (la página ofrece «Entrar a la sala»)"; color: Theme.text; font.pixelSize: 12 }
+            }
+            RowLayout {
+                spacing: 8
+                Toggle { checked: pw.ev.guion.asamblea === true; onToggled: (v) => { pw.ev.setAsamblea(v); pw.ev.guardar() } }
+                Text { text: "Es una sesión de asamblea (integrantes y presentes, quórum, orden del día y votaciones oficiales)"; color: Theme.text; font.pixelSize: 12 }
+            }
+            RowLayout {
+                spacing: 8
+                Toggle { checked: pw.ev.guion.preguntas === true || pw.sitio.participacion === true
+                         onToggled: (v) => { pw.ev.setPreguntas(v); pw.ev.guardar(); if (!v && pw.sitio.participacion) pw.guardar({ participacion: false }) } }
+                Text { text: "El público puede preguntar y votar (la página muestra el enlace y las preguntas moderadas)"; color: Theme.text; font.pixelSize: 12 }
             }
         }
 
@@ -141,7 +153,7 @@ ScrollView {
             titulo: "Dónde se ve en vivo"
             subtitulo: "La página muestra el vivo embebido (YouTube primero) y botones para abrirlo en cada plataforma. Se toman solos de las cuentas "
                        + "conectadas (el vivo que transmite la app, el canal de Twitch, el vivo de la página de Facebook); acá se pueden fijar para este evento, "
-                       + "p. ej. un vivo programado de YouTube. También en /api/evento/vivos."
+                       + "p. ej. un vivo programado de YouTube. También en /api/v1/evento/vivos."
             component CampoVivo: RowLayout {
                 property string clave
                 property string etiqueta

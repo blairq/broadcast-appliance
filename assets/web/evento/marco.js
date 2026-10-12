@@ -1,5 +1,5 @@
 // El marco de la página del evento en vivo. Le pregunta a la sala cómo va el
-// evento (/api/evento, cada 2 s), muestra la franja de arriba y pone abajo la
+// evento (/api/v1/evento, cada 2 s), muestra la franja de arriba y pone abajo la
 // página de la sección que se trata; cuando el guion avanza, cambia sola. A la
 // página de adentro le pasa el estado (postMessage) para que vivo.js lo use.
 "use strict";
@@ -83,7 +83,7 @@ function aplicar(e) {
 
 async function traer() {
   try {
-    const r = await fetch("/api/evento?v=" + idMirada, { cache: "no-store" });
+    const r = await fetch("/api/v1/evento?v=" + idMirada, { cache: "no-store" });
     if (r.ok) aplicar(await r.json());
   } catch (err) { /* sin conexión: se reintenta en la próxima vuelta */ }
 }

@@ -167,6 +167,10 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void setInicio(const QString& hhmm);
     Q_INVOKABLE void setFecha(const QString& aaaammdd);
     Q_INVOKABLE void setHuso(const QString& iana);
+    /// Lo que usa el evento: invitados en la sala; preguntas y votos del público.
+    Q_INVOKABLE void setInvitados(bool si);
+    Q_INVOKABLE void setPreguntas(bool si);
+    Q_INVOKABLE void setAsamblea(bool si);
     /// El arranque como instante absoluto, ISO-8601 con desfasaje
     /// ("2026-09-24T19:00:00-03:00"). Vacio si falta la fecha o la hora.
     ///
@@ -252,6 +256,14 @@ class EventoViewModel : public QObject {
     /// Lo que se sabe de YouTube, Twitch y Facebook para «dónde verlo en vivo» de la
     /// página web (ver evento::armarVivos). Lo pone StudioViewModel.
     void setPlataformas(std::function<nlohmann::json()> f) { plataformas_ = std::move(f); }
+    /// Las preguntas del público ya moderadas y cuántos hay en la sala (lo pone StudioViewModel).
+    /// Lo que sabe el resto del sistema para la página (al aire, oradores, orden del día,
+    /// quórum, votación): ver evento::ExtrasVivo::sala.
+    void setSala(std::function<nlohmann::json()> f) { datosSala_ = std::move(f); }
+    void setPublico(std::function<nlohmann::json()> preguntas, std::function<int()> enLaSala) {
+        preguntas_ = std::move(preguntas);
+        enLaSala_ = std::move(enLaSala);
+    }
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
@@ -427,6 +439,9 @@ class EventoViewModel : public QObject {
     /// último que se mandó (para no repetir).
     QTimer webTimer_;
     std::function<nlohmann::json()> plataformas_;
+    std::function<nlohmann::json()> preguntas_;
+    std::function<int()> enLaSala_;
+    std::function<nlohmann::json()> datosSala_;
     qint64 webArranqueMs_ = 0;
     int webVersion_ = 1;
     QByteArray webUltimo_;

@@ -190,7 +190,7 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
         }
     };
     // Las plantillas del sistema (assets/web/evento/plantilla): genéricas, sin datos del
-    // evento adentro; la página se arma sola con /api/evento (vivo.js). Acá solo va lo que
+    // evento adentro; la página se arma sola con /api/v1/evento (vivo.js). Acá solo va lo que
     // tiene que estar en el HTML aunque no corra JavaScript: el título, la descripción y,
     // en la página de cada sección, cuál es.
     const fs::path pl = carpetaPlantillas();
@@ -344,6 +344,8 @@ json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado
 json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado, int bloque, std::int64_t inicioMs,
                    std::int64_t arrancoMs, std::int64_t ahoraMs, const ExtrasVivo& x) {
     const json& vivos = x.vivos;
+    // La sala puede no haber llegado todavía (null): value() sobre null tira una excepción.
+    const json sala = x.sala.is_object() ? x.sala : json::object();
     json secciones = json::array();
     std::int64_t previsto = inicioMs; // la hora prevista de cada sección, sumando duraciones
     for (std::size_t i = 0; i < e.bloques.size(); ++i) {
@@ -404,7 +406,20 @@ json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado
             {"vivos", vivos.is_array() ? vivos : json::array()},
             {"aviso", x.aviso.is_object() && !x.aviso.value("texto", std::string()).empty() ? x.aviso : json(nullptr)},
             {"habla", (estado == "en_vivo" || estado == "pausa") ? x.habla : std::string()},
-            {"participacion", s.participacion}};
+            {"participacion", s.participacion || e.preguntas},
+            {"preguntas", x.preguntas.is_array() ? x.preguntas : json::array()},
+            {"enLaSala", x.enLaSala},
+            {"invitados", e.invitados},
+            {"preguntasPublico", e.preguntas},
+            {"aire", sala.value("aire", json(nullptr))},
+            {"oradores", sala.value("oradores", json(nullptr))},
+            {"ordenDelDia", sala.value("ordenDelDia", json::array())},
+            {"quorum", sala.value("quorum", json(nullptr))},
+            {"votacion", sala.value("votacion", json(nullptr))},
+            {"asistencia", sala.value("asistencia", json(nullptr))},
+            // La asamblea: solo si el evento lo es (cuerpo, integrantes y presentes, quórum,
+            // punto en tratamiento y los resultados oficiales).
+            {"asamblea", e.asamblea ? sala.value("asamblea", json(nullptr)) : json(nullptr)}};
 }
 
 std::string resolverPagina(const Evento& e, const std::string& pedidaCruda) {

@@ -61,13 +61,15 @@
         <div><b data-vivo="minutos">—</b><span>Minutos</span></div>
         <div><b><span data-vivo="dia"></span> <span data-vivo="mes"></span></b><span>Fecha</span></div>
         <div><b data-vivo="hora-inicio">—</b><span>Empezó</span></div>
+        <div data-vivo-si="quorum" hidden><b><span data-vivo="quorum-presentes"></span>/<span data-vivo="quorum-necesarios"></span></b><span data-vivo="quorum-estado">Quórum</span></div>
+        <div data-vivo-si="asistencia" hidden><b><span data-vivo="asistencia-presentes"></span>/<span data-vivo="asistencia-total"></span></b><span>Llegaron / anotados</span></div>
       </div>
     </div>
 
     <section class="seccion" id="vivo" style="margin-top:64px">
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja">01 / La grabación</p>
+          <p class="ceja"><span data-num></span> / La grabación</p>
           <h2 class="h2">Volvé a verlo.</h2>
         </div>
         <div class="reproductor-caja">
@@ -77,13 +79,64 @@
       </div>
     </section>
 
+    <!-- La asamblea (si el evento es una sesión de asamblea): el cuerpo, quién está
+         presente, el quórum, el punto en tratamiento y los resultados oficiales. -->
+    <section class="seccion" id="asamblea" data-vivo-si="asamblea" hidden>
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja"><span data-num></span> / La asamblea</p>
+          <h2 class="h2" data-vivo="asamblea-cuerpo">La asamblea</h2>
+          <p class="bajada"><b data-vivo="asamblea-presentes">0</b> de <span data-vivo="asamblea-total">0</span> integrantes presentes
+            <span data-vivo-si="asamblea-quorum" hidden> · <span class="estado" data-vivo="asamblea-quorum"></span></span></p>
+        </div>
+        <div class="tarjeta" data-vivo-si="punto" hidden style="margin-bottom:24px">
+          <p class="ceja" style="margin:0 0 6px;color:var(--vivo)">En tratamiento</p>
+          <b class="h3" data-vivo="punto-titulo"></b>
+          <p class="tenue mono" data-vivo="punto-expediente"></p>
+        </div>
+        <div class="recinto-caja" data-vivo-si="recinto" hidden>
+          <div class="recinto" data-vivo="recinto"></div>
+          <ul class="bloques" data-vivo="bloques" data-vivo-si="bloques" hidden></ul>
+          <p class="tenue recinto-nota">Visto desde el fondo del recinto. Llena: presente · vacía: ausente · con aro: en el uso de la palabra.</p>
+        </div>
+        <ul class="integrantes" data-vivo="integrantes"></ul>
+        <div data-vivo-si="votaciones" hidden style="margin-top:40px">
+          <p class="ceja">Votaciones oficiales</p>
+          <ul class="votaciones" data-vivo="votaciones"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- La votación: la pregunta y, cuando se puede mostrar, el resultado. -->
+    <section class="seccion" id="votacion" data-vivo-si="votacion-info" hidden>
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja"><span data-num></span> / Votación</p>
+          <h2 class="h2" data-vivo="votacion-pregunta"></h2>
+          <p class="bajada"><span class="estado" data-vivo="votacion-estado"></span> <span class="mono tenue" data-vivo="votacion-votaron"></span></p>
+        </div>
+        <div class="resultado" data-vivo="votacion-resultado" data-vivo-si="resultado" hidden></div>
+      </div>
+    </section>
+
     <section class="seccion" id="programa" data-vivo-si="secciones">
       <div class="contenedor">
         <div class="cabeza-seccion">
-          <p class="ceja">02 / Lo que pasó</p>
+          <p class="ceja"><span data-num></span> / Lo que pasó</p>
           <h2 class="h2">Parte por parte.</h2>
         </div>
         <ol class="programa" data-vivo="agenda"></ol>
+      </div>
+    </section>
+
+    <!-- El orden del día (si el evento lo tiene): cada punto, su estado y su resultado. -->
+    <section class="seccion" id="orden" data-vivo-si="orden" hidden>
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja"><span data-num></span> / Orden del día</p>
+          <h2 class="h2">Qué se resolvió.</h2>
+        </div>
+        <ol class="orden" data-vivo="orden"></ol>
       </div>
     </section>
   </main>
@@ -100,7 +153,7 @@
           <li><a href="portada.html">Portada</a></li></ul></div>
         <div data-vivo-si="secciones"><h4>Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
         <div><h4>Seguí</h4><ul><li><a data-vivo-href="publico" data-vivo-si="participar" hidden>Preguntar y votar</a></li>
-          <li><a href="/invitados/">La sala</a></li></ul></div>
+          <li data-vivo-si="invitados" hidden><a href="/invitados/">La sala</a></li></ul></div>
       </div>
       <div class="pie-final"><span><span data-vivo="nombre">{{titulo}}</span> · <span data-vivo="anio"></span></span><span>Gracias por estar.</span></div>
     </div>

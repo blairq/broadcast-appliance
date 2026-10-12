@@ -137,7 +137,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. "
             "LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; "
             "/evento/_/vivo.js pone el nombre, la fecha, las secciones, el programa, anterior/siguiente, quién habla "
-            "y la gente conectada con lo que da /api/evento, así que si cambia el guion la página se actualiza sola. "
+            "y la gente conectada con lo que da /api/v1/evento, así que si cambia el guion la página se actualiza sola. "
             "Para personalizar, sumá contenido propio (de qué va cada sección, fotos, links) con `escribir` y dejá los "
             "atributos data-vivo (la lista completa está al principio de vivo.js; `leer` una página muestra cómo). "
             "`generar` no pisa lo editado salvo `sobrescribir`. "
@@ -147,7 +147,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "DÓNDE VERLO EN VIVO: el estado trae `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, "
             "Facebook: salen solos de las cuentas conectadas; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: "
             "link}}` los fija para este evento, \"\" los saca). En la página: data-vivo=\"reproductor\" (el vivo embebido) y "
-            "data-vivo=\"vivos\" (botones); en JSON, GET /api/evento/vivos. "
+            "data-vivo=\"vivos\" (botones); en JSON, GET /api/v1/evento/vivos. "
+            "ASAMBLEA (si el guion tiene `asamblea: true`): el estado trae `asamblea` {cuerpo, presentes, total, "
+            "integrantes [{nombre, banca, bloque, presente, lugar, habla}], bloques [{bloque, presentes, total}], "
+            "recinto {distribucion, filas, columnas, bancas [{banca, fila, columna, nombre, bloque, presente, habla}]}, "
+            "quorum, punto (el que se trata), votaciones (las oficiales)}. La plantilla dibuja el plano de bancas "
+            "(data-vivo=\"recinto\") con el color de cada bloque: a los partidos les importa dónde se sienta cada uno. "
             "El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevista-pepito); con "
             "`direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la "
             "dirección con qr_mostrar.";
@@ -1037,7 +1042,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"inicio", {{"type", "string"}, {"description", "HH:MM, hora prevista de arranque."}}},
               {"huso",
                {{"type", "string"},
-                {"description", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires."}}}}}};
+                {"description", "Nombre IANA del huso, p. ej. America/Argentina/Buenos_Aires."}}},
+              {"invitados", {{"type", "boolean"}, {"description", "el evento usa invitados en la sala (la página ofrece entrar)"}}},
+              {"preguntas", {{"type", "boolean"}, {"description", "el público puede preguntar y votar (/publico/)"}}},
+              {"asamblea", {{"type", "boolean"}, {"description", "es una sesión de asamblea: la página muestra integrantes, quórum, orden del día y votaciones"}}}}}};
         t.run = [&ev](const json& a, Done done) {
             // Se valida ANTES de tocar nada: si la fecha esta mal, el nombre
             // tampoco se cambia. Guardar a medias deja al operador sin saber
@@ -1059,6 +1067,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
             if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
+            if (a.contains("invitados") && a["invitados"].is_boolean()) ev.setInvitados(a["invitados"].get<bool>());
+            if (a.contains("preguntas") && a["preguntas"].is_boolean()) ev.setPreguntas(a["preguntas"].get<bool>());
+            if (a.contains("asamblea") && a["asamblea"].is_boolean()) ev.setAsamblea(a["asamblea"].get<bool>());
             if (!ev.guardar())
                 return done(ToolResult::error("No se pudo guardar (¿hay algun evento abierto?)."));
             done(ToolResult::ok("Guion guardado."));
@@ -1337,6 +1348,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
               {"inicio", {{"type", "string"}, {"description", "HH:MM"}}},
               {"huso", {{"type", "string"}, {"description", "nombre IANA"}}},
               {"nota", {{"type", "string"}}},
+              {"invitados", {{"type", "boolean"}, {"description", "usa invitados en la sala de videoconferencia"}}},
+              {"preguntas", {{"type", "boolean"}, {"description", "el público puede preguntar y votar"}}},
+              {"asamblea", {{"type", "boolean"}, {"description", "es una sesión de asamblea"}}},
               {"bloques",
                {{"type", "array"},
                 {"items",
@@ -1390,6 +1404,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             if (a.contains("fecha")) ev.setFecha(QString::fromStdString(a["fecha"]));
             if (a.contains("inicio")) ev.setInicio(QString::fromStdString(a["inicio"]));
             if (a.contains("huso")) ev.setHuso(QString::fromStdString(a["huso"]));
+            if (a.contains("invitados") && a["invitados"].is_boolean()) ev.setInvitados(a["invitados"].get<bool>());
+            if (a.contains("preguntas") && a["preguntas"].is_boolean()) ev.setPreguntas(a["preguntas"].get<bool>());
+            if (a.contains("asamblea") && a["asamblea"].is_boolean()) ev.setAsamblea(a["asamblea"].get<bool>());
 
             int nBloques = 0, nCues = 0;
             if (a.contains("bloques") && a["bloques"].is_array()) {

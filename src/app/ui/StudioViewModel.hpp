@@ -905,6 +905,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<QrViewModel> qr_;
     std::unique_ptr<PersonasViewModel> personas_;
     std::unique_ptr<PublicoViewModel> publico_;
+    bool publicoPorWeb_ = false; ///< la cola del público se consulta porque el evento tiene página
     std::unique_ptr<MediosViewModel> medios_;
     std::unique_ptr<medios::Playlist> playlist_;
     std::unique_ptr<CarruselViewModel> carruseles_;

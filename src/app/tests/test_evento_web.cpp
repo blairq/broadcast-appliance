@@ -144,6 +144,22 @@ int main() {
     CHECK(armarVivos(SitioWeb{}, nlohmann::json::object()).empty(), "sin cuentas ni nada fijado: vacío");
     CHECK(estadoPublico(e, s, "proximo", -1, 0, 0, 0, v)["vivos"].size() == 3, "van en el estado");
 
+    // La asamblea: solo si el evento lo es, y sin romperse si la sala no llegó (null).
+    {
+        Evento ea = e;
+        ea.asamblea = true;
+        ExtrasVivo xa; // xa.sala queda en null
+        nlohmann::json ok;
+        bool tiro = false;
+        try { ok = estadoPublico(ea, s, "en_vivo", 0, 0, 0, 0, xa); } catch (...) { tiro = true; }
+        CHECK(!tiro, "sala en null: no tira");
+        CHECK(!tiro && ok["asamblea"].is_null() && ok["ordenDelDia"].is_array(), "sala en null: lo de la sala vacío");
+        xa.sala = {{"asamblea", {{"cuerpo", "Consejo"}, {"presentes", 3}, {"total", 5}}}};
+        CHECK(estadoPublico(ea, s, "en_vivo", 0, 0, 0, 0, xa)["asamblea"]["presentes"] == 3, "asamblea habilitada: va");
+        ea.asamblea = false;
+        CHECK(estadoPublico(ea, s, "en_vivo", 0, 0, 0, 0, xa)["asamblea"].is_null(), "asamblea no habilitada: null");
+    }
+
     fs::remove_all(dir);
     std::printf(g_fallos ? "test_evento_web: %d fallos\n" : "test_evento_web: OK\n", g_fallos);
     return g_fallos ? 1 : 0;

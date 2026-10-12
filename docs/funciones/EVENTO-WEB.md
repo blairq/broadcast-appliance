@@ -10,7 +10,7 @@ cuánto lleva). Los invitados a la sala entran por `/invitados/` (los enlaces vi
 ## La página se arma sola con los datos de la app
 
 Las páginas no traen datos del evento escritos: todo lo pone `/evento/_/vivo.js` con lo
-que publica la app en `/api/evento`. Nombre, bajada, fecha y hora, huso, secciones,
+que publica la app en `/api/v1/evento`. Nombre, bajada, fecha y hora, huso, secciones,
 programa (con hora prevista y estimada), anterior/siguiente, números, marquesina, quién
 habla, aviso, dónde verlo y gente conectada. Si cambia el guion, la página muestra lo
 nuevo sin regenerar nada. Una sección recién agregada (todavía sin su archivo en el
@@ -36,7 +36,7 @@ Lo que se publica además del guion:
 - **Participar** (opcional, `sitio.json` → `participacion`): el enlace a `/publico/` con su
   clave y si hay una votación abierta.
 
-`/api/evento` tiene caché: la sala arma la respuesta como mucho una vez por segundo
+`/api/v1/evento` tiene caché: la sala arma la respuesta como mucho una vez por segundo
 (ajuste `evento.cacheMs`) y la reparte igual a todos. Así cientos de navegadores no
 consultan cada uno la sala, las conexiones y la urna. Un dato nuevo de la app la invalida
 al instante.
@@ -91,7 +91,7 @@ Toda página carga `<script src="/evento/_/vivo.js" defer></script>`:
 - El evento `evento` de `window` (`e.detail` = el estado).
 - Atributos `data-vivo`: `estado`, `seccion`, `siguiente`, `cuenta`, `transcurrido`,
   `agenda` (una `<ol>`: marca `hecha`/`actual` y se rehace si cambia el guion).
-- `GET /api/evento`: el mismo estado en JSON (sin caché). El marco lo pide cada 2 s y se lo
+- `GET /api/v1/evento`: el mismo estado en JSON (de solo lectura, con caché de `evento.cacheMs`). El marco lo pide cada 2 s y se lo
   pasa a la página por `postMessage`; una página abierta sola lo pide cada 3 s.
 
 El estado (solo lo público: nunca el texto de los cues ni las notas del operador):
@@ -111,10 +111,56 @@ El estado (solo lo público: nunca el texto de los cues ni las notas del operado
 }
 ```
 
+Lo demás del estado (cada cosa es `null` o vacía si no hay; la página no muestra nada de eso):
+
+| Campo | Qué |
+|---|---|
+| `inicioEstimadoMs`, `inicioRealMs` | la hora estimada (se corre si arrancó tarde) y la real de cada sección |
+| `vivos` | dónde verlo en vivo (abajo) |
+| `aviso` | `{texto, tipo}`: el aviso del operador (Guion → Página web → En el momento) |
+| `habla` | quién habla ahora (solo en vivo o en pausa) |
+| `aire` | `{transmitiendo, grabando}` |
+| `oradores` | `{habla: {nombre, cargo, bloque, asignadoSeg, hastaMs}, fila: [{nombre, …}]}` |
+| `preguntas` | las del público ya moderadas (al aire, elegidas o respondidas) |
+| `participacion`, `publicoUrl`, `votacionAbierta` | si se puede preguntar y votar, y dónde |
+| `invitados`, `preguntasPublico`, `asamblea` (booleanos del guion) | qué usa el evento |
+| `enLaSala`, `mirando` | conectados en la sala (invitados y remotos) y navegadores mirando la página |
+| `ordenDelDia` | `[{n, titulo, expediente, estado, resultado}]` |
+| `quorum` | `{presentes, necesarios, hay}` |
+| `votacion` | la del público: pregunta, si está abierta, cuántos votaron; el resultado solo cerrada o si el operador lo muestra |
+| `asistencia` | el padrón: presentes y anotados |
+| `asamblea` | solo si el evento es una asamblea (abajo) |
+
+### La asamblea
+
+Con «Es una sesión de asamblea» prendido (Guion → Página web, o `evento_guardar {"asamblea": true}`):
+
+```json
+"asamblea": {
+  "cuerpo": "Consejo de la Ciudad", "presentes": 15, "total": 16,
+  "integrantes": [{"nombre", "banca", "bloque", "cargo", "presente": true,
+                   "lugar": "sala | remoto | ", "habla": false}],
+  "bloques": [{"bloque": "Unión Vecinal", "presentes": 4, "total": 4}],
+  "recinto": {"distribucion": "hemiciclo | grilla", "filas": 2, "columnas": 9,
+              "bancas": [{"banca": "1", "fila": 0, "columna": 0, "nombre", "bloque",
+                          "presente", "lugar", "habla"}]},
+  "quorum": {"presentes": 15, "necesarios": 9, "hay": true, "miembros": 16},
+  "punto": {"n": 3, "titulo": "…", "expediente": "245/26"},
+  "votaciones": [{"asunto", "afirmativos", "negativos", "abstenciones", "aprobado"}]
+}
+```
+
+Presente = conectado y habilitado en la sesión remota, o presente en su banca según la central
+de conferencia. **El recinto** es dónde se sienta cada uno (Asamblea → Recinto): fila 0 la de
+adelante, la más cerca de la presidencia; columna 0 la de la izquierda vista desde el fondo. La
+plantilla lo dibuja igual que la app (en la grilla la presidencia arriba; en el hemiciclo
+abajo, cada fila un arco), con el color de cada bloque, vacía si está ausente y un aro si habla.
+Una banca sin nadie va sin `nombre`. Nunca salen presets de cámara ni micrófonos.
+
 ## Dónde verlo en vivo (YouTube, Twitch, Facebook)
 
-`GET /api/evento/vivos` → `{activo, vivos: [{plataforma, nombre, url, embed, enVivo}]}` (también
-va como `vivos` dentro de `/api/evento`). Salen solos de las cuentas conectadas
+`GET /api/v1/evento/vivos` → `{activo, vivos: [{plataforma, nombre, url, embed, enVivo}]}` (también
+va como `vivos` dentro de `/api/v1/evento`). Salen solos de las cuentas conectadas
 (`evento::armarVivos`, lo que sabe StudioViewModel):
 
 - **YouTube**: el vivo que está transmitiendo la app (`watch?v=` y `/embed/<id>`); si no, el vivo
@@ -142,8 +188,8 @@ cada 10 s (por si la sala se reinició). El gateway sirve:
 | `/invitados/` | la sala de invitados |
 | `/evento/<archivo>` | la carpeta Web/ del evento (sin salirse de ella) |
 | `/evento/_/<archivo>` | lo del programa: `vivo.js`, `marco.js`, `marco.css` |
-| `/api/evento` | el estado público |
-| `/api/evento/vivos` | dónde verlo en vivo (YouTube, Twitch, Facebook) |
+| `/api/v1/evento` | el estado público |
+| `/api/v1/evento/vivos` | dónde verlo en vivo (YouTube, Twitch, Facebook) |
 
 Un ensayo no se publica (la página queda en «próximamente»).
 
