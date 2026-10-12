@@ -2,6 +2,8 @@
 // src/app/ui/EventoViewModel.cpp — ver EventoViewModel.hpp
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
+#include "sala/ControlSala.hpp"
+#include <QPointer>
 #include "ajustes/Ajustes.hpp"
 
 #include <set>
@@ -342,8 +344,7 @@ void EventoViewModel::publicarWeb() {
     // La hora de la sala va aparte (cambia siempre y no tiene que forzar el reenvío).
     json conHora = cuerpo;
     if (conHora.contains("estado")) conHora["estado"]["ahoraMs"] = QDateTime::currentMSecsSinceEpoch();
-    sala_->client().post("/api/v1/evento-web",
-                         QJsonDocument::fromJson(QByteArray::fromStdString(conHora.dump())).object());
+    sala_->control().publicarEventoWeb(conHora);
 }
 
 EventoViewModel::~EventoViewModel() = default;
@@ -2042,8 +2043,10 @@ bool EventoViewModel::despedir(const QString& id) {
 
 void EventoViewModel::recogerAcreditaciones() {
     if (abierto_.isEmpty() || sala_ == nullptr) return;
-    sala_->client().get("/api/v1/acreditaciones", [this](bool ok, const QJsonObject& r) {
-        if (!ok) return;
+    QPointer<EventoViewModel> yo(this);
+    sala_->control().acreditaciones([this, yo](const std::string& err, const nlohmann::json& rj) {
+        if (!yo || !err.empty()) return;
+        const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(rj.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
         const QJsonArray cs = r.value("codigos").toArray();
         if (cs.isEmpty()) return;
         int hechos = 0;

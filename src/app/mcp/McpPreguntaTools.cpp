@@ -455,9 +455,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             const bool soloVer = a.value("soloVer", false);
             // El historial de la urna vive en B: hay que ir a buscarlo antes de
             // poder escribir nada.
-            conf->client().get(
-                "/api/v1/votacion?historial=1", [ev, done, soloVer, &vm](bool ok, const QJsonObject& r) {
-                    const QJsonArray votaciones = ok ? r.value("historial").toArray() : QJsonArray{};
+            // El historial de la urna, por el modelo de la votación (como la GUI).
+            vm.votacion().ver(
+                true, [ev, done, soloVer, &vm](const std::string& err, const json& rj) {
+                    const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(rj.dump(-1, ' ', false, json::error_handler_t::replace))).object();
+                    const QJsonArray votaciones = err.empty() ? r.value("historial").toArray() : QJsonArray{};
                     const QString texto = ev->acta(votaciones);
                     QString archivo;
                     if (!soloVer) archivo = ev->guardarActa(texto);
@@ -471,7 +473,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     // Si B no contesto, el acta sale igual PERO se dice: un acta a
                     // la que le faltan las votaciones y no lo aclara es peor que
                     // ninguna.
-                    if (!ok)
+                    if (!err.empty())
                         out["aviso"] = "No pude hablar con la sala: el acta va SIN las votaciones. Fijate "
                                        "`room_status` y volve a pedirla.";
                     res.structured = out;

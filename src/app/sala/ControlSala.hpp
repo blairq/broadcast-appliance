@@ -96,6 +96,16 @@ class ControlSala {
     std::string configurarProxy(const nlohmann::json& cambios, Reiniciada reiniciada = {});
     /// HTTPS, túnel WireGuard, IPs y puertos de la sala.
     void verRed(Listo listo);
+    /// El estado de los rótulos para el celular que los encarga (también es su
+    /// latido); `listo` recibe los encargos pendientes ({encargos: […]}).
+    void publicarRotulos(const nlohmann::json& estado, Listo listo);
+    /// El estado público del evento para su página (/evento/).
+    void publicarEventoWeb(const nlohmann::json& estado);
+    /// Los códigos de votante acreditados en la puerta desde la última vez ({codigos: […]}).
+    void acreditaciones(Listo listo);
+    /// El nivel de registro del gateway (otro proceso): verlo y cambiarlo.
+    void nivelLog(Listo listo);
+    void setNivelLog(const std::string& nivel, Listo listo);
     /// Arma la configuración del servidor con IP pública (`endpoint` host:puerto)
     /// y deja este equipo apuntando a él con el túnel prendido; la sala se
     /// reinicia. `listo` recibe la configuración para copiar (`config`).

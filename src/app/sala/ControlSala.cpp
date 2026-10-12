@@ -203,6 +203,22 @@ std::string ControlSala::configurarProxy(const nlohmann::json& cambios, Reinicia
 
 void ControlSala::verRed(Listo listo) { pedir(sala_, "GET", "/api/v1/network", {}, std::move(listo)); }
 
+void ControlSala::publicarRotulos(const nlohmann::json& estado, Listo listo) {
+    pedir(sala_, "POST", "/api/v1/rotulos", {{"estado", estado}, {"tomar", true}}, std::move(listo));
+}
+
+void ControlSala::publicarEventoWeb(const nlohmann::json& estado) {
+    pedir(sala_, "POST", "/api/v1/evento-web", estado, {});
+}
+
+void ControlSala::acreditaciones(Listo listo) { pedir(sala_, "GET", "/api/v1/acreditaciones", {}, std::move(listo)); }
+
+void ControlSala::nivelLog(Listo listo) { pedir(sala_, "GET", "/api/v1/log-nivel", {}, std::move(listo)); }
+
+void ControlSala::setNivelLog(const std::string& nivel, Listo listo) {
+    pedir(sala_, "POST", "/api/v1/log-nivel", {{"nivel", nivel}}, std::move(listo));
+}
+
 std::string ControlSala::accesoDirecto(const std::string& endpoint, const std::string& direccionPublica,
                                        const std::string& interfaz, Listo listo, Reiniciada reiniciada) {
     const std::string ep = recortado(endpoint);
