@@ -71,6 +71,7 @@ class CupoSala;
 }
 namespace ba::app::escenas {
 class Conmutador;
+class RespaldoEntradas;
 }
 namespace ba::app::red {
 class Red;
@@ -381,7 +382,9 @@ class StudioViewModel : public QObject {
     bool presidenciaHabla() const { return presidenciaHabla_; }
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
-    QStringList sinSenal() const { return sinSenal_; }
+    QStringList sinSenal() const;
+    /// El respaldo de entradas (modelo).
+    escenas::RespaldoEntradas& respaldoEntradas() { return *respaldo_; }
     /// Qué hacer si la entrada se cae estando al aire: {escena, al_perder_aire: avisar|armar|cortar, ms}.
     Q_INVOKABLE QVariantMap respaldoEntrada(const QString& entrada) const;
     Q_INVOKABLE QString setRespaldoEntrada(const QString& entrada, const QVariantMap& r);
@@ -1037,9 +1040,7 @@ class StudioViewModel : public QObject {
     bool corteDirectoEditor_ = false;
     QHash<QString, QString> infoAprobada_; ///< participante -> cargo aprobado por el operador
     unsigned vigiaTicks_ = 0;
-    QStringList sinSenal_;
-    QHash<QString, qint64> sinSenalDesde_; ///< entrada -> cuándo se perdió
-    QSet<QString> respaldoHecho_;          ///< entradas cuyo respaldo ya se aplicó en esta caída
+    std::unique_ptr<escenas::RespaldoEntradas> respaldo_; ///< usa video_ y conmutador_
     void revisarSenales();
     std::unique_ptr<agent::AgentViewModel> agent_;
     std::unique_ptr<agent::Roles> roles_;

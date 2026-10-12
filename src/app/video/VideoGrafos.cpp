@@ -196,6 +196,19 @@ VideoGrafos::VideoGrafos(AppRuntime& rt, std::filesystem::path dataRoot, QObject
     }).detach();
 }
 
+bool VideoGrafos::tieneSenal(const json& st) {
+    const json g = st.value("gstreamer", json::object());
+    if (!g.is_object()) return false;
+    // Recién rearmada a pedido (se prendió el PTZ, se agregó una tarjeta): la
+    // cámara se vuelve a abrir y tarda unos segundos en dar cuadros. No es una
+    // caída: 12 s de gracia (una que de verdad se cayó sigue sin señal después).
+    const double rearmada = g.value("rearmada_hace_s", -1.0);
+    if (rearmada >= 0.0 && rearmada < 12.0) return true;
+    if (g.contains("fps_recibidos")) return st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5;
+    const double sin = g.value("sin_datos_s", -1.0);
+    return sin >= 0.0 && sin < 1.5;
+}
+
 bool VideoGrafos::esEntrada(const std::string& n) const {
     BroadcastEngine& e = rt_.engine();
     const std::string type = e.sourceTypeId(n);

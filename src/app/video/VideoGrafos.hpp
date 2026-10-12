@@ -307,6 +307,9 @@ class VideoGrafos : public QObject {
     /// fps, formato, colorimetría, colchón, cuadros tarde), la latencia que
     /// agrega su sub-grafo, y los errores y avisos de sus tarjetas.
     nlohmann::json estadoEntrada(const std::string& entrada) const;
+    /// ¿Hay señal según el estado de una entrada (estadoEntrada)? Cuadros que llegan,
+    /// con 12 s de gracia si recién se rearmó (se vuelve a abrir la cámara).
+    static bool tieneSenal(const nlohmann::json& estado);
     /// Agrega al final del sub-grafo de `entrada` una tarjeta `gst` con ese
     /// módulo (p. ej. `baplugin`, la de un plugin de Python). "" o el error.
     std::string agregarTarjetaGst(const std::string& entrada, const std::string& elemento,

@@ -8,6 +8,7 @@
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"
 #include "escenas/Conmutador.hpp"
+#include "escenas/RespaldoEntradas.hpp"
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
 #include "asamblea/Debate.hpp"
@@ -2535,19 +2536,17 @@ void McpService::registerTools() {
                            {"al_perder_aire", {{"type", "string"}, {"enum", {"avisar", "armar", "cortar"}}}},
                            {"ms", {{"type", "integer"}, {"minimum", 200}, {"maximum", 60000}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = QString::fromStdString(a.value("entrada", std::string()));
+            auto& resp = vm.respaldoEntradas(); // el modelo, el mismo que usa la GUI
+            const std::string e = a.value("entrada", std::string());
             if (a.contains("al_perder_aire")) {
-                if (e.isEmpty()) return done(ToolResult::error("falta `entrada`"));
-                QVariantMap r{{"escena", QString::fromStdString(a.value("escena", std::string()))},
-                              {"al_perder_aire", QString::fromStdString(a.value("al_perder_aire", std::string()))},
-                              {"ms", a.value("ms", 1000)}};
-                const QString err = vm.setRespaldoEntrada(e, r);
-                if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                if (e.empty()) return done(ToolResult::error("falta `entrada`"));
+                const std::string err = resp.setRespaldo(e, a.value("escena", std::string()),
+                                                         a.value("al_perder_aire", std::string()), a.value("ms", 1000));
+                if (!err.empty()) return done(ToolResult::error(err));
             }
             json sin = json::array();
-            for (const QString& s : vm.sinSenal()) sin.push_back(s.toStdString());
-            done(ToolResult().data(json{{"sin_senal", sin},
-                                        {"respaldo", e.isEmpty() ? json() : qvToJson(vm.respaldoEntrada(e))}}));
+            for (const QString& s : resp.sinSenal()) sin.push_back(s.toStdString());
+            done(ToolResult().data(json{{"sin_senal", sin}, {"respaldo", e.empty() ? json() : resp.respaldo(e)}}));
         };
         core_.addTool(std::move(t));
     }

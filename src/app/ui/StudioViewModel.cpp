@@ -5,6 +5,7 @@
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
 #include "escenas/Conmutador.hpp"
+#include "escenas/RespaldoEntradas.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
@@ -160,18 +161,6 @@ QString hms(std::chrono::steady_clock::time_point since) {
 namespace {
 /// ¿Le llegan cuadros a la entrada? El motor publica cuánto hace del último dato
 /// (`sin_datos_s`: -1 si todavía no llegó nada); el de antes, `fps_recibidos`.
-bool tieneSenal(const nlohmann::json& st) {
-    const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
-    if (!g.is_object()) return false;
-    // Recién rearmada a pedido (se prendió el PTZ, se agregó una tarjeta): la
-    // cámara se vuelve a abrir y tarda unos segundos en dar cuadros. No es una
-    // caída: 12 s de gracia (una que de verdad se cayó sigue sin señal después).
-    const double rearmada = g.value("rearmada_hace_s", -1.0);
-    if (rearmada >= 0.0 && rearmada < 12.0) return true;
-    if (g.contains("fps_recibidos")) return st.value("ancho", 0) > 0 && g.value("fps_recibidos", 0.0) > 0.5;
-    const double sin = g.value("sin_datos_s", -1.0);
-    return sin >= 0.0 && sin < 1.5;
-}
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
@@ -731,7 +720,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                     // Una que todavía no entregó nada (una cámara de red conectándose): hasta
                     // los 45 s del arranque no es «sin señal»; la que tenía y la perdió, sí.
                     const bool nuncaLlego = g.value("sin_datos_s", 0.0) < 0.0;
-                    bool con = !activa || tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
+                    bool con = !activa || video::VideoGrafos::tieneSenal(st) || (nuncaLlego && ahora - desde < 45000);
                     // La primera vez que se la ve no «vuelve» de nada: arranca dada por buena
                     // (si no, a los 15 s del arranque todas pasaban 10 s «sin señal»).
                     auto& [reportada, conDesde] =
@@ -1178,6 +1167,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // El grafo de tarjetas de video de cada entrada (después del PTZ).
     video_ = std::make_unique<video::VideoGrafos>(rt, rt.dataRoot());
     video_->setLegalizar(rt.config().legalizar);
+    // El respaldo de las entradas al aire que pierden señal (modelo): acá solo se muestra.
+    respaldo_ = std::make_unique<escenas::RespaldoEntradas>(rt, *video_, *conmutador_, this);
+    connect(respaldo_.get(), &escenas::RespaldoEntradas::sinSenalCambio, this, &StudioViewModel::senalChanged);
+    connect(respaldo_.get(), &escenas::RespaldoEntradas::aviso, this,
+            [this](const QString& texto) { emit notify(texto, "error"); });
     // La superresolución que no llega: aviso al operador y evento en el bus (T40).
     connect(video_.get(), &video::VideoGrafos::superresTarde, this,
             [this](const QString& e, double ms, double cuadroMs, bool bypass) {
@@ -2988,77 +2982,22 @@ QObject* StudioViewModel::configuracionesQml() const { return configuraciones_.g
 QObject* StudioViewModel::dcnQml() const { return dcn_.get(); }
 QObject* StudioViewModel::sesionRemotaQml() const { return sesionRemota_.get(); }
 
-namespace {
-nlohmann::json leerRespaldos(const std::filesystem::path& datos) {
-    std::ifstream f(datos / "Config" / "respaldo-entradas.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-    return j.is_object() ? j : nlohmann::json::object();
-}
-} // namespace
-
 QVariantMap StudioViewModel::respaldoEntrada(const QString& entrada) const {
-    const nlohmann::json r = leerRespaldos(rt_.dataRoot()).value(entrada.toStdString(), nlohmann::json::object());
+    const nlohmann::json r = respaldo_->respaldo(entrada.toStdString());
     return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QString StudioViewModel::setRespaldoEntrada(const QString& entrada, const QVariantMap& r) {
-    const QString modo = r.value("al_perder_aire", "avisar").toString();
-    if (modo != "avisar" && modo != "armar" && modo != "cortar") return "al_perder_aire: avisar, armar o cortar";
-    nlohmann::json todos = leerRespaldos(rt_.dataRoot());
-    todos[entrada.toStdString()] = {{"escena", r.value("escena").toString().toStdString()},
-                                    {"al_perder_aire", modo.toStdString()},
-                                    {"ms", std::clamp(r.value("ms", 1000).toInt(), 200, 60000)}};
-    std::ofstream o(rt_.dataRoot() / "Config" / "respaldo-entradas.json");
-    o << todos.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    return {};
+    return qs(respaldo_->setRespaldo(entrada.toStdString(), r.value("escena").toString().toStdString(),
+                                     r.value("al_perder_aire", "avisar").toString().toStdString(),
+                                     r.value("ms", 1000).toInt()));
 }
 
 void StudioViewModel::revisarSenales() {
-    if (!video_) return;
-    QStringList sin;
-    for (const QString& e : video_->entradas()) {
-        const nlohmann::json st = video_->estadoEntrada(e.toStdString());
-        if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
-        const nlohmann::json g = st.value("gstreamer", nlohmann::json::object());
-        if (!tieneSenal(st)) sin << e;
-    }
-    const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-    for (const QString& e : sin)
-        if (!sinSenalDesde_.contains(e)) sinSenalDesde_[e] = ahora;
-    for (auto it = sinSenalDesde_.begin(); it != sinSenalDesde_.end();)
-        if (!sin.contains(it.key())) {
-            respaldoHecho_.remove(it.key());
-            it = sinSenalDesde_.erase(it);
-        } else {
-            ++it;
-        }
-    if (sin != sinSenal_) {
-        sinSenal_ = sin;
-        emit senalChanged();
-    }
-    // Una entrada AL AIRE sin señal: lo que se configuró (avisar, armar o cortar al respaldo).
-    const nlohmann::json resp = leerRespaldos(rt_.dataRoot());
-    auto alAire = rt_.engine().sceneSources(rt_.engine().currentScene());
-    for (const std::string& f : rt_.engine().fuentesDsk()) alAire.push_back(f); // el recuadro de LSA también
-    for (const QString& e : sin) {
-        if (respaldoHecho_.contains(e)) continue;
-        if (std::find(alAire.begin(), alAire.end(), e.toStdString()) == alAire.end()) continue;
-        const nlohmann::json r = resp.value(e.toStdString(), nlohmann::json::object());
-        if (ahora - sinSenalDesde_.value(e) < r.value("ms", 1000)) continue;
-        respaldoHecho_.insert(e);
-        const QString escena = QString::fromStdString(r.value("escena", std::string()));
-        const std::string modo = r.value("al_perder_aire", std::string("avisar"));
-        if (modo == "cortar" && !escena.isEmpty()) {
-            takeScene(escena);
-            emit notify("«" + e + "» se quedó sin señal al aire: se cortó a «" + escena + "»", "error");
-        } else if (modo == "armar" && !escena.isEmpty()) {
-            armarEscena(escena);
-            emit notify("«" + e + "» se quedó sin señal al aire: «" + escena + "» quedó armada (TAKE)", "error");
-        } else {
-            emit notify("«" + e + "» se quedó sin señal AL AIRE", "error");
-        }
-    }
+    if (respaldo_) respaldo_->revisar();
 }
+
+QStringList StudioViewModel::sinSenal() const { return respaldo_ ? respaldo_->sinSenal() : QStringList(); }
 
 QObject* StudioViewModel::ccQml() const { return cc_.get(); }
 
@@ -3235,7 +3174,7 @@ void StudioViewModel::publicarEventos() {
         muestrearSalud();
         bus_->publicar("audio/loudness", rt_.engine().loudness().json());
         nlohmann::json sin = nlohmann::json::array();
-        for (const QString& e : sinSenal_) sin.push_back(e.toStdString());
+        for (const QString& e : sinSenal()) sin.push_back(e.toStdString());
         bus_->publicar("entrada/senal", {{"sin_senal", sin}});
         if (bancas_) bus_->publicar("oradores/al_aire", bancas_->oradorParaZocalo());
         if (conference_) {
