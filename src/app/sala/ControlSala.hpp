@@ -5,17 +5,20 @@
 // cerrada, atención automática del asistente), el PIN y sus bloqueos, el chat
 // del operador, los archivos compartidos, el proxy por nombre y la red. La GUI
 // (la página Sala, Configuración) y el MCP (room_set, room_pin,
-// room_pin_bloqueos, chat_send, share_delete, proxy_*, network_status) pasan
-// por acá, con las mismas reglas:
+// room_pin_bloqueos, chat_send, share_view, share_take, share_delete, proxy_*,
+// network_status) pasan por acá, con las mismas reglas:
 //
 //   - la atención automática se guarda en la configuración y la sala se entera
 //     también cuando arranca después que el programa;
 //   - un mensaje vacío no se manda; sin destinatario va a todos;
+//   - un archivo compartido se toma con copia propia en Media/ (la carpeta de
+//     la sala se limpia al reiniciarla) y entra a la escena al aire;
 //   - el proxy: solo las claves que entiende, prendido pide dominio, se guarda
 //     y la sala se reinicia (aparte: esperar el cierre trababa la interfaz).
 // ============================================================================
 #pragma once
 
+#include <QByteArray>
 #include <QMetaObject>
 
 #include <functional>
@@ -34,6 +37,17 @@ class ControlSala {
    public:
     /// "" = la sala se reinició; si no, por qué no. Llega en el hilo de la interfaz.
     using Reiniciada = std::function<void(const std::string& error)>;
+    /// Un archivo compartido: sus datos (como los da la sala) y, si es una
+    /// imagen, sus bytes.
+    using Contenido =
+        std::function<void(const std::string& error, const nlohmann::json& archivo, const QByteArray& bytes)>;
+    /// Lo que quedó de tomar un archivo compartido.
+    struct Tomado {
+        std::string error;  ///< "" = entró a la escena
+        std::string nombre; ///< el que le puso el invitado
+        std::string fuente; ///< la fuente nueva
+        std::string escena; ///< la escena al aire, donde entró
+    };
 
     ControlSala(AppRuntime& rt, ConferenceClient& sala);
     ~ControlSala();
@@ -60,6 +74,14 @@ class ControlSala {
     /// `para`: "all" (o vacío) o el id de una persona. Devuelve el error inmediato o "".
     std::string chatear(const std::string& para, const std::string& texto, Listo listo = {});
     void borrarArchivo(const std::string& id, Listo listo = {});
+    /// Los datos de un archivo compartido y, si es una imagen, sus bytes (para
+    /// revisarla antes de ponerla al aire). Videos y audios: solo los datos.
+    void verArchivo(const std::string& id, Contenido listo);
+    /// Lo copia a Media/ y lo agrega a la escena al aire (imagen, video o audio).
+    Tomado tomarArchivo(const std::string& id);
+    /// Avisa cada fuente nueva que entra por tomarArchivo (para que la vista
+    /// recargue sus listas, venga de la GUI o del MCP).
+    void setAlTomarArchivo(std::function<void()> f) { alTomarArchivo_ = std::move(f); }
     /// Un código de un solo uso para entrar a la consola web (la respuesta trae `url`).
     void codigoConsolaWeb(Listo listo);
 
@@ -88,6 +110,7 @@ class ControlSala {
     AppRuntime& rt_;
     ConferenceClient& sala_;
     QMetaObject::Connection alConectar_;
+    std::function<void()> alTomarArchivo_;
 };
 
 } // namespace ba::app::sala

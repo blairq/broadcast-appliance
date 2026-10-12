@@ -139,6 +139,9 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     enlaces_ = std::make_unique<sala::EnlacesSala>(*client_);
     paginaPublico_ = std::make_unique<sala::PaginaPublico>(*client_);
     teleprompter_ = std::make_unique<sala::Teleprompter>(*client_);
+    // Un archivo compartido que entra a la escena (por la GUI o el MCP): las
+    // listas de fuentes se recargan.
+    control_->setAlTomarArchivo([this]() { emit sourceAdded(); });
     // Todo pedido que falla pasa por acá: el texto es el del modelo (el mismo
     // que lee el MCP).
     connect(client_.get(), &ConferenceClient::failed, this, [this](const QString& e) {
@@ -684,63 +687,11 @@ void ConferenceViewModel::openWebConsole() {
 }
 
 void ConferenceViewModel::takeShare(const QString& id) {
-    QJsonObject share;
-    for (const QJsonValue& v : shares_->items()) {
-        if (v.toObject().value("id").toString() == id) share = v.toObject();
-    }
-    if (share.isEmpty()) {
-        emit notify("Ese archivo ya no esta", "error");
-        return;
-    }
-    // Copia propia: la carpeta de B se limpia al reiniciarlo, y la escena de A
-    // no debe depender de eso.
-    const QString srcPath = share.value("path").toString();
-    const fs::path src(srcPath.toStdU16String());
-    const fs::path mediaDir = rt_.dataRoot() / "Media";
-    std::error_code ec;
-    fs::create_directories(mediaDir, ec);
-    const QString shown = share.value("name").toString();
-    QString stem = QString::fromStdU16String(fs::path(shown.toStdU16String()).stem().u16string());
-    stem.replace(QRegularExpression("[^\\w\\- ]"), "_");
-    if (stem.isEmpty()) stem = "archivo";
-    fs::path dst = mediaDir / (stem.toStdU16String() + src.extension().u16string());
-    for (int n = 2; fs::exists(dst, ec); ++n) {
-        dst = mediaDir / ((stem + QString(" (%1)").arg(n)).toStdU16String() + src.extension().u16string());
-    }
-    fs::copy_file(src, dst, ec);
-    if (ec) {
-        emit notify("No se pudo copiar el archivo: " + QString::fromStdString(ec.message()), "error");
-        return;
-    }
-
-    const QString kind = share.value("kind").toString();
-    const QString file = QString::fromStdU16String(dst.u16string());
-    SourceSpec spec;
-    QJsonObject settings;
-    if (kind == "image") {
-        spec.id = "image_source";
-        settings.insert("file", file);
-    } else {
-        spec.id = "ffmpeg_source";
-        settings.insert("local_file", file);
-        settings.insert("is_local_file", true);
-        settings.insert("looping", kind == "video");
-        settings.insert("restart_on_activate", true);
-    }
-    spec.settingsJson = QJsonDocument(settings).toJson(QJsonDocument::Compact).toStdString();
-    const std::string scene = rt_.engine().currentScene();
-    const QString base = share.value("participantName").toString() + " — " + shown;
-    QString name = base;
-    for (int n = 2; rt_.engine().sourceExists(name.toStdString()); ++n)
-        name = base + QString(" (%1)").arg(n);
-    spec.name = name.toStdString();
-    if (!rt_.addSource(scene, spec)) {
-        emit notify("No se pudo agregar la fuente: " + QString::fromStdString(rt_.lastError()), "error");
-        return;
-    }
-    rt_.save();
-    emit sourceAdded();
-    emit notify("«" + shown + "» agregado a la escena " + QString::fromStdString(scene), "ok");
+    // Las reglas (copia propia en Media/, el nombre, el tipo de fuente) son del
+    // modelo, el mismo que usa el MCP (share_take).
+    const sala::ControlSala::Tomado t = control_->tomarArchivo(ss(id));
+    if (!t.error.empty()) return emit notify(qs(t.error), "error");
+    emit notify("«" + qs(t.nombre) + "» agregado a la escena " + qs(t.escena), "ok");
 }
 
 QVariantList ConferenceViewModel::chatCon(const QString& uid) const {

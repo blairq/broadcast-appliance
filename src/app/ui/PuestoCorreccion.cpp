@@ -12,7 +12,7 @@
 namespace ba::app {
 
 PuestoCorreccion::PuestoCorreccion(ConferenceClient& sala, agent::FlujosTexto& flujos, QObject* parent)
-    : QObject(parent), sala_(sala), flujos_(flujos), enlaces_(sala) {
+    : QObject(parent), sala_(sala), flujos_(flujos), enlaces_(sala), cola_(sala) {
     // Varios cambios seguidos (una frase entra y otra sale) van en un solo envío.
     demora_.setSingleShot(true);
     demora_.setInterval(80);
@@ -28,11 +28,7 @@ PuestoCorreccion::PuestoCorreccion(ConferenceClient& sala, agent::FlujosTexto& f
     });
 }
 
-void PuestoCorreccion::sincronizar() {
-    if (!sala_.online()) return;
-    const QJsonDocument d = QJsonDocument::fromJson(QByteArray::fromStdString(flujos_.pendientes().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
-    sala_.post("/api/v1/correccion/pendientes", QJsonObject{{"pendientes", d.array()}}, [](bool, const QJsonObject&) {});
-}
+void PuestoCorreccion::sincronizar() { cola_.publicarPendientes(flujos_.pendientes()); }
 
 void PuestoCorreccion::pedirQr(const QString& target, const QString& /*vista*/, bool /*conClave*/) {
     // El mismo enlace que da el MCP (subtitulos_puesto): modelo sala::EnlacesSala.

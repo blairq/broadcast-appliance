@@ -21,6 +21,7 @@
 #include "audio/MonitorVoz.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "sala/Teleprompter.hpp"
 #if defined(BA_HAVE_VOZ)
 #include "audio/Habla.hpp"
 #endif
@@ -40,6 +41,22 @@ QString archivo(const std::filesystem::path& raiz) {
 }
 
 double ahoraMs() { return static_cast<double>(QDateTime::currentMSecsSinceEpoch()); }
+
+/// Un número de la respuesta (0 si no viene o no es número, como QJsonValue).
+double numero(const nlohmann::json& r, const char* k) {
+    const auto it = r.find(k);
+    return it != r.end() && it->is_number() ? it->get<double>() : 0.0;
+}
+/// Un sí/no de la respuesta (no si no viene).
+bool siNo(const nlohmann::json& r, const char* k) {
+    const auto it = r.find(k);
+    return it != r.end() && it->is_boolean() && it->get<bool>();
+}
+/// Un texto de la respuesta ("" si no viene).
+std::string cadena(const nlohmann::json& r, const char* k) {
+    const auto it = r.find(k);
+    return it != r.end() && it->is_string() ? it->get<std::string>() : std::string();
+}
 } // namespace
 
 VozPrompter::VozPrompter(AppRuntime& rt, Voz& voz, ConferenceViewModel* sala, QObject* parent)
@@ -127,22 +144,23 @@ void VozPrompter::consultar() {
     if (sala_ == nullptr || consultando_) return;
     consultando_ = true;
     const double pedido = ahoraMs();
-    sala_->client().get("/api/v1/prompter", [this, pedido](bool ok, const QJsonObject& r) {
+    // El estado lo da el modelo del teleprompter (el mismo que usa su página).
+    sala_->teleprompter().ver([this, pedido](const std::string& error, const nlohmann::json& r) {
         consultando_ = false;
-        if (!ok) {
+        if (!error.empty()) {
             hayEstado_ = false;
             setEstado("El teleprompter no contesta");
             return;
         }
         const double llegada = ahoraMs();
-        const std::string texto = r.value("texto").toString().toStdString();
+        const std::string texto = cadena(r, "texto");
         pv::Estado e;
-        e.posicion = r.value("posicion").toDouble();
-        e.ppm = r.value("ppm").toInt();
-        e.corriendo = r.value("corriendo").toBool();
-        e.desdeMs = r.value("desdeMs").toDouble();
+        e.posicion = numero(r, "posicion");
+        e.ppm = static_cast<int>(numero(r, "ppm"));
+        e.corriendo = siNo(r, "corriendo");
+        e.desdeMs = numero(r, "desdeMs");
         // El reloj del gateway contra el nuestro (a mitad del viaje).
-        const double offset = (pedido + llegada) / 2.0 - r.value("ahoraMs").toDouble();
+        const double offset = (pedido + llegada) / 2.0 - numero(r, "ahoraMs");
 
         bool reiniciar_ = false;
         if (texto != texto_) {

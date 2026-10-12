@@ -4,9 +4,11 @@
 // Cada página que sirve la sala tiene su enlace, de la red local o de afuera
 // (el túnel), y la sala lo devuelve con la matriz de su QR: el ingreso de los
 // invitados (con o sin PIN), el tablero de oradores, el puesto del corrector de
-// subtítulos, la página del público y el teleprompter. La GUI (QrDialog, la
-// página Sala, Público, Teleprompter, las invitaciones del evento) y el MCP
-// (room_link, subtitulos_puesto, publico_pagina) los piden por acá.
+// subtítulos, la página del público, el teleprompter, los rótulos y lo que
+// se le manda a un televisor (el programa o una escena). La GUI (QrDialog, la
+// página Sala, Público, Teleprompter, los códigos QR, las pantallas, las
+// invitaciones del evento) y el MCP (room_link, subtitulos_puesto,
+// publico_pagina) los piden por acá.
 //
 // Sin enlace, `mensaje` dice por qué (sin red, solo esta máquina…): lo dice la
 // sala y, si no contesta, «La sala no responde».
@@ -49,6 +51,12 @@ class EnlacesSala {
     void publico(bool remoto, Listo listo);
     /// `vista`: "control" u "orador".
     void prompter(bool remoto, const std::string& vista, bool conClave, Listo listo);
+    /// El de los rótulos para el celular; con `conClave` la clave va adentro.
+    void rotulos(bool remoto, bool conClave, Listo listo);
+    /// Lo que sale al aire (o, con `canal` >= 0, la escena de ese canal) para
+    /// un televisor de la red local, que entra a la sala como `nombre`. Lleva
+    /// un permiso de un solo uso: se pide cada vez que se lo manda.
+    void pantalla(const std::string& nombre, int canal, Listo listo);
 
    private:
     void pedirEnlace(const std::string& ruta, Listo listo);

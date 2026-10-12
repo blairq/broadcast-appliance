@@ -14,6 +14,7 @@
 #include <QDir>
 #include <QHostAddress>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
 #include <QNetworkInterface>
@@ -26,6 +27,9 @@
 #include "diag/Registro.hpp"
 #include "pantallas/Buscar.hpp"
 #include "pantallas/Cast.hpp"
+#include "sala/ControlSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/PantallasSala.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 
@@ -270,6 +274,22 @@ struct PantallasViewModel::Impl {
     QString origenSeguro;
     std::vector<Carrusel> carruseles;
     QVariantList superficies;
+    /// Lo que la sala sirve a las pantallas (modelo); nulo sin sala.
+    std::unique_ptr<sala::PantallasSala> salaPantallas;
+
+    /// Las direcciones de esta máquina (y el origen seguro) según la sala.
+    void pedirDirecciones(std::function<void()> despues) {
+        if (sala == nullptr) return;
+        sala->control().verRed([this, despues](const std::string& error, const nlohmann::json& r) {
+            if (!error.empty()) return;
+            misIps.clear();
+            for (const auto& v : r.value("lan", nlohmann::json::array()))
+                if (v.is_string()) misIps << QString::fromStdString(v.get<std::string>());
+            const auto o = r.find("origenSeguro");
+            origenSeguro = o != r.end() && o->is_string() ? QString::fromStdString(o->get<std::string>()) : QString();
+            if (despues) despues();
+        });
+    }
 
     Carrusel* carrusel(const QString& id) {
         for (Carrusel& c : carruseles)
@@ -392,6 +412,7 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
     : QObject(parent), d_(std::make_unique<Impl>()) {
     d_->rt = &rt;
     d_->sala = sala;
+    if (sala != nullptr) d_->salaPantallas = std::make_unique<sala::PantallasSala>(sala->client());
     d_->archivo = rt.dataRoot() / "Config" / "pantallas.json";
     d_->leer();
     if (!pt::sePuedeBuscar())
@@ -429,16 +450,7 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
 
     // Las direcciones de esta máquina, para armar URLs que el televisor pueda
     // alcanzar. Se pregunta una vez al arrancar y en cada búsqueda.
-    if (sala != nullptr) {
-        sala->client().get("/api/v1/network", [this](bool ok, const QJsonObject& r) {
-            if (!ok) return;
-            d_->misIps.clear();
-            for (const QJsonValue& v : r.value("lan").toArray())
-                d_->misIps << v.toString();
-            d_->origenSeguro = r.value("origenSeguro").toString();
-            emit cambio();
-        });
-    }
+    d_->pedirDirecciones([this]() { emit cambio(); });
 }
 
 PantallasViewModel::~PantallasViewModel() = default;
@@ -565,15 +577,7 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
 void PantallasViewModel::buscar() {
     if (d_->buscando.exchange(true)) return; // ya hay una en curso
     emit cambio();
-    if (d_->sala != nullptr) {
-        d_->sala->client().get("/api/v1/network", [this](bool ok, const QJsonObject& r) {
-            if (!ok) return;
-            d_->misIps.clear();
-            for (const QJsonValue& v : r.value("lan").toArray())
-                d_->misIps << v.toString();
-            d_->origenSeguro = r.value("origenSeguro").toString();
-        });
-    }
+    d_->pedirDirecciones({});
     std::thread([this]() {
         std::string err;
         auto encontrados = pt::buscar(kBusquedaSeg(), &err);
@@ -766,7 +770,7 @@ QString PantallasViewModel::carruselBorrar(const QString& id) {
     d_->guardar();
     // Se lo saca del gateway también: una pantalla que lo estuviera mostrando
     // va a decir que no existe, que es la verdad.
-    if (d_->sala != nullptr) d_->sala->client().post("/api/v1/carruseles", QJsonObject{{"borrar", id}});
+    if (d_->salaPantallas) d_->salaPantallas->borrarCarrusel(id.toStdString());
     emit carruselesCambio();
     return {};
 }
@@ -852,24 +856,22 @@ QString PantallasViewModel::pasoSegundos(const QString& carrusel, int indice, in
 
 void PantallasViewModel::publicar(const QString& id, const QString& hostDestino) {
     const Carrusel* c = d_->carrusel(id);
-    if (c == nullptr || d_->sala == nullptr) return;
-    QJsonArray pasos;
+    if (c == nullptr || !d_->salaPantallas) return;
+    std::vector<sala::PasoCarrusel> pasos;
     for (const Paso& p : c->pasos) {
         // Cada paso se resuelve a una URL alcanzable DESDE el televisor: por
         // eso hace falta saber a cuál va (elige la IP de su misma red).
         const QString url = urlDe(p.tipo, p.datos, hostDestino);
         if (url.isEmpty()) continue;
         const Contenido* con = contenidoPorId(p.tipo);
-        pasos.append(QJsonObject{{"url", url},
-                                 {"segundos", p.segundos},
-                                 {"titulo", con == nullptr ? p.tipo : QString::fromUtf8(con->titulo)}});
+        pasos.push_back({url.toStdString(), p.segundos,
+                         con == nullptr ? p.tipo.toStdString() : std::string(con->titulo)});
     }
-    if (pasos.isEmpty()) return;
+    if (pasos.empty()) return;
     anotar(diag::Nivel::Info, "publico el carrusel «" + c->nombre.toStdString() + "» (" +
                                   std::to_string(pasos.size()) + " pasos)");
-    d_->sala->client().post(
-        "/api/v1/carruseles",
-        QJsonObject{{"id", c->id}, {"nombre", c->nombre}, {"transicion", c->transicion}, {"pasos", pasos}});
+    d_->salaPantallas->publicarCarrusel(c->id.toStdString(), c->nombre.toStdString(), c->transicion.toStdString(),
+                                        pasos);
 }
 
 void PantallasViewModel::publicarCarrusel(const QString& id) {
@@ -889,21 +891,15 @@ void PantallasViewModel::publicarCarrusel(const QString& id) {
 void PantallasViewModel::publicarTally(const QString& aire, const QString& armada,
                                        const QStringList& fuentesAire, const QStringList& fuentesArmadas,
                                        bool transmitiendo, bool grabando) {
-    if (d_->sala == nullptr) return;
-    const auto arr = [](const QStringList& l) {
-        QJsonArray a;
+    if (!d_->salaPantallas) return;
+    const auto lista = [](const QStringList& l) {
+        std::vector<std::string> v;
         for (const QString& s : l)
-            a.append(s);
-        return a;
+            v.push_back(s.toStdString());
+        return v;
     };
-    d_->sala->client().post("/api/v1/tally",
-                            QJsonObject{{"aire", aire},
-                                        {"armada", armada},
-                                        {"fuentesAire", arr(fuentesAire)},
-                                        {"fuentesArmadas", arr(fuentesArmadas)},
-                                        {"transmitiendo", transmitiendo},
-                                        {"grabando", grabando}},
-                            [](bool, const QJsonObject&) {});
+    d_->salaPantallas->tally(aire.toStdString(), armada.toStdString(), lista(fuentesAire), lista(fuentesArmadas),
+                             transmitiendo, grabando);
 }
 
 QString PantallasViewModel::mostrarCarrusel(const QString& idPantalla, const QString& carrusel) {
@@ -938,18 +934,23 @@ QVariantList PantallasViewModel::superficies() const { return d_->superficies; }
 void PantallasViewModel::pedirSuperficies() { pedirSuperficies(nullptr); }
 
 void PantallasViewModel::pedirSuperficies(std::function<void(QVariantList)> luego) {
-    if (d_->sala == nullptr) {
+    if (!d_->salaPantallas) {
         if (luego) luego({});
         return;
     }
-    d_->sala->client().get("/api/v1/superficies", [this, luego](bool ok, const QJsonObject& r) {
-        if (!ok) {
+    d_->salaPantallas->superficies([this, luego](const std::string& error, const nlohmann::json& r) {
+        if (!error.empty()) {
             if (luego) luego({});
             return;
         }
         d_->superficies.clear();
-        for (const QJsonValue& v : r.value("superficies").toArray())
-            d_->superficies.append(v.toObject().toVariantMap());
+        for (const auto& v : r.value("superficies", nlohmann::json::array()))
+            if (v.is_object())
+                d_->superficies.append(
+                    QJsonDocument::fromJson(QByteArray::fromStdString(
+                                                v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+                        .object()
+                        .toVariantMap());
         emit superficiesCambio();
         if (luego) luego(d_->superficies);
     });
@@ -961,22 +962,20 @@ void PantallasViewModel::empujar(const QString& a, const QString& tipo, const QS
 
 void PantallasViewModel::empujar(const QString& a, const QString& tipo, const QString& url, bool recargar,
                                  std::function<void(bool, int)> luego) {
-    if (d_->sala == nullptr) {
+    if (!d_->salaPantallas) {
         if (luego) luego(false, 0);
         return;
     }
-    QJsonObject o;
-    if (!url.isEmpty()) o["url"] = url;
-    if (recargar) o["recargar"] = true;
-    if (!a.isEmpty()) o["a"] = a;
-    if (!tipo.isEmpty()) o["tipo"] = tipo;
     anotar(diag::Nivel::Info, "empujo a " +
                                   (a.isEmpty() ? "todas(" + tipo.toStdString() + ")" : a.toStdString()) +
                                   ": " + (recargar ? std::string("recargar") : url.toStdString()));
-    d_->sala->client().post("/api/v1/superficies/mostrar", o, [this, luego](bool ok, const QJsonObject& r) {
-        pedirSuperficies();
-        if (luego) luego(ok && r.value("ok").toBool(), r.value("a").toInt());
-    });
+    d_->salaPantallas->mostrarEnSuperficies(
+        a.toStdString(), tipo.toStdString(), url.toStdString(), recargar,
+        [this, luego](const std::string& error, const nlohmann::json& r) {
+            pedirSuperficies();
+            const auto n = r.find("a");
+            if (luego) luego(error.empty(), n != r.end() && n->is_number() ? n->get<int>() : 0);
+        });
 }
 
 // --- Restaurar lo fijado --------------------------------------------------------------
@@ -1082,22 +1081,21 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
         if (d_->sala == nullptr) return "La sala no está corriendo: sin ella no hay urna que mostrar.";
         d->trabajando = true;
         emit cambio();
-        d_->sala->client().get("/api/v1/publico-link?target=local&conClave=1",
-                               [this, id, datos](bool ok, const QJsonObject& r) mutable {
-                                   Destino* d = d_->porId(id);
-                                   if (d == nullptr) return;
-                                   d->trabajando = false;
-                                   if (!ok || !r.value("ok").toBool()) {
-                                       d->estado = "error";
-                                       d->error = "No pude sacar el enlace del público";
-                                       emit notify(d->nombre + ": " + d->error, "error");
-                                       emit cambio();
-                                       return;
-                                   }
-                                   datos["clavePublico"] = r.value("clave").toString();
-                                   datos["entrada"] = r.value("url").toString();
-                                   mostrar(id, "votacion", datos);
-                               });
+        d_->sala->enlaces().publico(false, [this, id, datos](const sala::Enlace& e) mutable {
+            Destino* d = d_->porId(id);
+            if (d == nullptr) return;
+            d->trabajando = false;
+            if (!e.ok) {
+                d->estado = "error";
+                d->error = "No pude sacar el enlace del público";
+                emit notify(d->nombre + ": " + d->error, "error");
+                emit cambio();
+                return;
+            }
+            datos["clavePublico"] = QString::fromStdString(e.clave);
+            datos["entrada"] = QString::fromStdString(e.url);
+            mostrar(id, "votacion", datos);
+        });
         return {};
     }
     if (tipo == "programa") {
@@ -1105,22 +1103,20 @@ QString PantallasViewModel::mostrar(const QString& id, const QString& tipo, cons
         d->trabajando = true;
         emit cambio();
         const QString nombre = d->nombre;
-        d_->sala->client().get(
-            "/api/v1/cast-link?target=local&nombre=" + QString::fromUtf8(QUrl::toPercentEncoding(nombre)),
-            [this, id](bool ok, const QJsonObject& r) {
-                Destino* d = d_->porId(id);
-                if (d == nullptr) return;
-                d->trabajando = false;
-                if (!ok || !r.value("ok").toBool()) {
-                    d->estado = "error";
-                    const QString m = r.value("message").toString();
-                    d->error = m.isEmpty() ? "No pude sacar el enlace del programa" : m;
-                    emit notify(d->nombre + ": " + d->error, "error");
-                    emit cambio();
-                    return;
-                }
-                mandarUrl(id, r.value("url").toString(), "programa", "Lo que sale al aire");
-            });
+        d_->sala->enlaces().pantalla(nombre.toStdString(), -1, [this, id](const sala::Enlace& e) {
+            Destino* d = d_->porId(id);
+            if (d == nullptr) return;
+            d->trabajando = false;
+            if (!e.ok) {
+                d->estado = "error";
+                const QString m = QString::fromStdString(e.respuesta.value("message", std::string()));
+                d->error = m.isEmpty() ? "No pude sacar el enlace del programa" : m;
+                emit notify(d->nombre + ": " + d->error, "error");
+                emit cambio();
+                return;
+            }
+            mandarUrl(id, QString::fromStdString(e.url), "programa", "Lo que sale al aire");
+        });
         return {};
     }
     if (tipo == "escena") return mostrarEscena(id, datos.value("escena").toString().trimmed());
@@ -1178,16 +1174,14 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
     const QString nombre = d->nombre;
     anotar(diag::Nivel::Info, "a «" + nombre.toStdString() + "»: escena «" + escena.toStdString() + "» (canal " +
                                   std::to_string(canal) + ")");
-    d_->sala->client().get(
-        "/api/v1/cast-link?target=local&canal=" + QString::number(canal) +
-            "&nombre=" + QString::fromUtf8(QUrl::toPercentEncoding(nombre)),
-        [this, id, escena](bool ok, const QJsonObject& r) {
+    d_->sala->enlaces().pantalla(
+        nombre.toStdString(), canal, [this, id, escena](const sala::Enlace& e) {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
             d->trabajando = false;
-            if (!ok || !r.value("ok").toBool()) {
+            if (!e.ok) {
                 d->estado = "error";
-                const QString m = r.value("message").toString();
+                const QString m = QString::fromStdString(e.respuesta.value("message", std::string()));
                 d->error = m.isEmpty() ? "No pude sacar el enlace de la escena" : m;
                 d->canalEscena = -1;
                 revisarCanales();
@@ -1195,7 +1189,7 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& esce
                 emit cambio();
                 return;
             }
-            mandarUrl(id, r.value("url").toString(), "escena", "Escena — " + escena);
+            mandarUrl(id, QString::fromStdString(e.url), "escena", "Escena — " + escena);
         });
     return {};
 }
