@@ -100,6 +100,8 @@ class SesionRemota : public QObject {
     int conectados() const;
     /// Los integrantes habilitados y conectados (para no contarlos dos veces).
     std::vector<std::string> presentesIds() const;
+    /// Está sesionando desde el navegador: conectado y habilitado (cuenta como presente por acá).
+    bool presente(const std::string& integrante) const;
     /// Las bancas de los habilitados y conectados.
     std::vector<std::string> presentesBancas() const;
 
@@ -183,6 +185,7 @@ class SesionRemota : public QObject {
     Q_INVOKABLE QString setDatosUi(const QString& integrante, const QVariantMap& datos);
     Q_INVOKABLE QString habilitarUi(const QString& integrante, bool si);
     Q_INVOKABLE QString expulsarUi(const QString& integrante, const QString& motivo);
+    Q_INVOKABLE bool presenteUi(const QString& integrante) const { return presente(integrante.toStdString()); }
     /// La foto de su cámara (la última que mandó): la pide la interfaz al gateway
     /// y, cuando llega (`fotoLista`), la toma con `fotoUrl` (data:image/jpeg…).
     Q_INVOKABLE void pedirFoto(const QString& integrante);

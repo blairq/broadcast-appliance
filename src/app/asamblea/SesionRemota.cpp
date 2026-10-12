@@ -475,6 +475,11 @@ int SesionRemota::conectados() const {
     return n;
 }
 
+bool SesionRemota::presente(const std::string& integrante) const {
+    const auto it = estado_.find(integrante);
+    return it != estado_.end() && it->second.conectado && it->second.habilitado;
+}
+
 std::vector<std::string> SesionRemota::presentesIds() const {
     std::vector<std::string> out;
     for (const auto& [id, e] : estado_)

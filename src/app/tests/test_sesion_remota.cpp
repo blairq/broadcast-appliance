@@ -73,15 +73,17 @@ int main(int argc, char** argv) {
     // Entra → espera → la presidencia lo habilita.
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", true}, {"ip", "190.1.2.3"}, {"lugar", "afuera"}});
     CHECK(s.presentes() == 0 && s.conectados() == 1, "conectado pero sin habilitar: no es presente");
+    CHECK(!s.presente(ana), "conectado pero sin habilitar: no sesiona desde el navegador");
     CHECK(!enviados.empty() && enviados.back().value("estado", std::string()) == "conectado", "le avisa que espera");
     CHECK(s.habilitar(ana, true, "presidencia").empty() && s.presentes() == 1, "habilitado: presente");
+    CHECK(s.presente(ana) && !s.presente(juan), "habilitado y conectado: es remoto; el que no entró, no");
     CHECK(enviados.back().value("estado", std::string()) == "habilitado", "le avisa que está habilitado");
     CHECK(s.presentesBancas() == std::vector<std::string>{"3"}, "su banca");
     CHECK(!s.habilitar(juan, true, "operador").empty(), "no se habilita a alguien que no está conectado");
 
     // Se cae y vuelve dentro de la gracia: sigue habilitado.
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", false}});
-    CHECK(s.presentes() == 0, "caído no cuenta");
+    CHECK(s.presentes() == 0 && !s.presente(ana), "caído no cuenta (ni es remoto)");
     s.evento({{"tipo", "conexion"}, {"id", ana}, {"conectado", true}, {"lugar", "sala"}});
     CHECK(s.presentes() == 1, "volvió enseguida: sigue habilitado");
 

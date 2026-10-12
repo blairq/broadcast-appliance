@@ -17,12 +17,12 @@ ColumnLayout {
     readonly property bool activo: !!e.activo
     readonly property var cfg: e.config || ({})
     readonly property var integrantes: (Studio.cuerpo.integrantes || []).filter(i => (i.banca || "") !== "")
-    readonly property var etiquetas: integrantes.map(i => "Banca " + i.banca + " · " + i.nombre + (pd.esRemoto(i.id) ? "  (remoto)" : ""))
-    function esRemoto(id) {
-        const s = Studio.sesionRemota
-        if (!s) return false
-        for (const p of s.participantes) if (p.id === id) return p.conectado && p.estado === "habilitado"
-        return false
+    // Remoto = sesiona desde el navegador (la regla es de SesionRemota::presente);
+    // leer `participantes` hace que la lista se rearme cuando cambia la banca virtual.
+    readonly property var sr: Studio.sesionRemota
+    readonly property var etiquetas: {
+        if (pd.sr) pd.sr.participantes
+        return integrantes.map(i => "Banca " + i.banca + " · " + i.nombre + (pd.sr && pd.sr.presenteUi(i.id) ? "  (remoto)" : ""))
     }
     function avisar(e) { if (e) Studio.notify(e, "error") }
     function mmss(s) { const a = Math.abs(s); return (s < 0 ? "-" : "") + Math.floor(a / 60) + ":" + String(a % 60).padStart(2, "0") }
@@ -121,7 +121,7 @@ ColumnLayout {
         GlassButton { compact: true; text: "+30 s"; onClicked: pd.deb.sumarUi(30) }
         GlassButton { compact: true; text: "−30 s"; onClicked: pd.deb.sumarUi(-30) }
         Item { Layout.fillWidth: true }
-        GlassButton { text: "🔇 Silenciar a todos"; onClicked: pd.avisar(Studio.silenciarTodos("operador")) }
+        GlassButton { text: "🔇 Silenciar a todos"; onClicked: Studio.silenciarTodos() }
         GlassButton { text: "Terminar el debate"; activeColor: Theme.live; onClicked: pd.deb.terminarUi() }
     }
     Text {
