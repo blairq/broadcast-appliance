@@ -56,6 +56,7 @@ namespace ba::app::audio {
 class RackManager;
 class Matriz;
 class AudioViewModel;
+class ObjetivoLoudness;
 } // namespace ba::app::audio
 
 namespace ba::app::ptz {
@@ -75,6 +76,10 @@ class SeguridadSala;
 namespace ba::app::escenas {
 class Conmutador;
 class RespaldoEntradas;
+}
+namespace ba::app::emision {
+class RetornosInvitados;
+class SeguridadAire;
 }
 namespace ba::app::red {
 class Red;
@@ -760,6 +765,12 @@ class StudioViewModel : public QObject {
     QString escenaArmada() const;
     /// El conmutador de escenas (modelo): la GUI y el MCP cambian de escena por ahí.
     escenas::Conmutador& conmutador() { return *conmutador_; }
+    /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
+    emision::SeguridadAire& seguridadAire() { return *seguridadAire_; }
+    /// Lo que oye cada invitado (modelo, Config/retornos.json).
+    emision::RetornosInvitados& retornos() { return *retornos_; }
+    /// El objetivo de loudness guardado (modelo, Config/loudness.json).
+    audio::ObjetivoLoudness& objetivoLoudness() { return *objetivoLoudness_; }
 
     /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
     /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
@@ -1009,6 +1020,9 @@ class StudioViewModel : public QObject {
     std::uint64_t saltadosAntes_ = 0;
     void muestrearSalud();
     std::unique_ptr<escenas::Conmutador> conmutador_; ///< el aire y la armada (modelo)
+    std::unique_ptr<emision::SeguridadAire> seguridadAire_;     ///< FTB y placa (modelo)
+    std::unique_ptr<emision::RetornosInvitados> retornos_;      ///< (modelo)
+    std::unique_ptr<audio::ObjetivoLoudness> objetivoLoudness_; ///< (modelo)
     qint64 caidaMs_ = 0;
     std::unique_ptr<asamblea::SeguirMicrofono> seguirMic_;
     std::unique_ptr<asamblea::OrdenDelDia> ordenDia_;

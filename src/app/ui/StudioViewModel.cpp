@@ -11,6 +11,9 @@
 #include "asamblea/Votaciones.hpp"
 #include "asamblea/Presidencia.hpp"
 #include "escenas/RespaldoEntradas.hpp"
+#include "emision/RetornosInvitados.hpp"
+#include "emision/SeguridadAire.hpp"
+#include "audio/ObjetivoLoudness.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
@@ -232,6 +235,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     marca("frames");
     frames_->setLobbySlots(rt.gateway().lobbySlots);
+    // El FTB, la placa, los retornos y el objetivo de loudness son del modelo: acá se muestran.
+    seguridadAire_ = std::make_unique<emision::SeguridadAire>(rt);
+    seguridadAire_->alCambiar([this]() { emit placaChanged(); });
+    retornos_ = std::make_unique<emision::RetornosInvitados>(rt);
+    objetivoLoudness_ = std::make_unique<audio::ObjetivoLoudness>(rt.dataRoot(), rt.engine().loudness());
     // El conmutador de escenas es del modelo; acá solo se refleja lo que cambia.
     conmutador_ = std::make_unique<escenas::Conmutador>(rt, this);
     connect(conmutador_.get(), &escenas::Conmutador::alAireCambio, this, [this](const QString& escena) {
@@ -2435,31 +2443,13 @@ void StudioViewModel::resetLoudnessUi() { rt_.engine().loudness().reiniciar(); }
 
 QString StudioViewModel::objetivoLoudnessUi(const QVariantMap& o) {
     const auto j = nlohmann::json::parse(QJsonDocument(QJsonObject::fromVariantMap(o)).toJson().toStdString(), nullptr, false);
-    const std::string e = rt_.engine().loudness().ponerObjetivo(j);
-    if (e.empty()) {
-        const auto ob = rt_.engine().loudness().objetivo();
-        std::ofstream f(rt_.dataRoot() / "Config" / "loudness.json");
-        f << nlohmann::json{{"perfil", ob.perfil}, {"lufs", ob.lufs}, {"tp", ob.tp}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    }
-    return qs(e);
+    return qs(objetivoLoudness_->poner(j));
 }
 
-QString StudioViewModel::retornoInvitadoUi(int slot) const { return qs(rt_.engine().retornoInvitado(slot)); }
+QString StudioViewModel::retornoInvitadoUi(int slot) const { return qs(retornos_->modo(slot)); }
 
 QString StudioViewModel::setRetornoInvitadoUi(int slot, const QString& modo) {
-    if (modo != "mix_minus" && modo != "programa") return "retorno: mix_minus o programa";
-    if (slot < 1 || slot > rt_.config().guests) return "no hay un invitado " + QString::number(slot);
-    rt_.engine().setRetornoInvitado(slot, modo.toStdString());
-    nlohmann::json j = nlohmann::json::object();
-    {
-        std::ifstream f(rt_.dataRoot() / "Config" / "retornos.json");
-        const nlohmann::json x = nlohmann::json::parse(f, nullptr, false);
-        if (x.is_object()) j = x;
-    }
-    j[std::to_string(slot)] = modo.toStdString();
-    std::ofstream o(rt_.dataRoot() / "Config" / "retornos.json");
-    o << j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-    return {};
+    return qs(retornos_->poner(slot, modo.toStdString()));
 }
 
 QVariantMap StudioViewModel::discoUi() const {
@@ -2857,31 +2847,16 @@ void StudioViewModel::setCorteDirectoEditor(bool si) {
     emit escenasAjustesChanged();
 }
 
-namespace {
-void guardarPlaca(const std::filesystem::path& datos, const nlohmann::json& estado) {
-    std::error_code ec;
-    std::filesystem::create_directories(datos / "Runtime", ec);
-    std::ofstream o(datos / "Runtime" / "placa.json");
-    o << estado.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-}
-} // namespace
-
 QString StudioViewModel::ftbUi(bool activar, int ms, const QString& audio) {
-    if (!rt_.engine().ftb(activar, ms, audio != "mantener")) return qs(rt_.engine().lastError());
-    guardarPlaca(ba::platform::dataRoot(), rt_.engine().estadoPlaca()); // Runtime/ es de la máquina
-    emit placaChanged();
-    return {};
+    return qs(seguridadAire_->ftb(activar, ms, audio.toStdString())); // placaChanged llega por alCambiar
 }
 
 QString StudioViewModel::placaUi(bool activar, const QString& texto, const QString& imagen, int ms) {
-    if (!rt_.engine().placa(activar, texto.toStdString(), imagen.toStdString(), ms)) return qs(rt_.engine().lastError());
-    guardarPlaca(ba::platform::dataRoot(), rt_.engine().estadoPlaca()); // Runtime/ es de la máquina
-    emit placaChanged();
-    return {};
+    return qs(seguridadAire_->placa(activar, texto.toStdString(), imagen.toStdString(), ms));
 }
 
 QVariantMap StudioViewModel::estadoPlacaUi() const {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(rt_.engine().estadoPlaca().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+    return QJsonDocument::fromJson(QByteArray::fromStdString(seguridadAire_->estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }
 
 QStringList StudioViewModel::textosPlaca() const {
@@ -2893,13 +2868,7 @@ QStringList StudioViewModel::textosPlaca() const {
 }
 
 void StudioViewModel::restaurarPlaca() {
-    std::ifstream f(ba::platform::dataRoot() / "Runtime" / "placa.json");
-    const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-    if (!j.is_object()) return;
-    if (j.value("placa", false))
-        rt_.engine().placa(true, j.value("placa_texto", std::string()), j.value("placa_imagen", std::string()), 0);
-    if (j.value("ftb", false)) rt_.engine().ftb(true, 0, j.value("ftb_audio", false));
-    if (j.value("placa", false) || j.value("ftb", false))
+    if (seguridadAire_->restaurar())
         emit notify("Se restauró lo que estaba al aire antes del corte (placa o negro)", "warn");
 }
 

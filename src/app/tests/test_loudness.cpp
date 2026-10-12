@@ -3,10 +3,12 @@
 //   - silencio -> sin integrado (compuerta absoluta);
 //   - mitad a -20 y mitad a -30 dBFS -> LRA ≈ 10 LU.
 #include "audio/LoudnessPrograma.hpp"
+#include "audio/ObjetivoLoudness.hpp"
 
 #include <numbers>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <vector>
 
 using ba::app::audio::LoudnessPrograma;
@@ -66,6 +68,22 @@ int main() {
         LoudnessPrograma l(48000);
         CHECK(l.ponerObjetivo({{"perfil", "a85"}}).empty() && l.objetivo().lufs == -24, "perfil A/85: -24 LKFS");
         CHECK(!l.ponerObjetivo({{"perfil", "custom"}, {"lufs", 3}}).empty(), "custom fuera de rango: error");
+    }
+    {
+        // El objetivo guardado (Config/loudness.json): se guarda solo si vale, y vuelve al arrancar.
+        namespace fs = std::filesystem;
+        const fs::path dir = fs::temp_directory_path() / "ba-test-objetivo-loudness";
+        fs::remove_all(dir);
+        LoudnessPrograma l(48000);
+        ba::app::audio::ObjetivoLoudness o(dir, l);
+        CHECK(!o.poner({{"perfil", "custom"}, {"lufs", 3}}).empty() && !fs::exists(dir / "Config" / "loudness.json"),
+              "objetivo inválido: error y nada guardado");
+        CHECK(o.poner({{"perfil", "plataforma14"}}).empty() && fs::exists(dir / "Config" / "loudness.json"),
+              "objetivo válido: queda guardado");
+        LoudnessPrograma otro(48000);
+        ba::app::audio::ObjetivoLoudness(dir, otro).cargar();
+        CHECK(otro.objetivo().perfil == "plataforma14" && otro.objetivo().lufs == -14, "al arrancar vuelve el guardado");
+        fs::remove_all(dir);
     }
     std::printf(fallas ? "\n%d FALLAS\n" : "\nTODO OK\n", fallas);
     return fallas ? 1 : 0;

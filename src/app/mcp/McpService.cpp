@@ -55,6 +55,9 @@
 #include "arranque/AppRuntime.hpp"
 #include "arranque/AppSettings.hpp"
 #include "emision/InputSpecs.hpp"
+#include "emision/RetornosInvitados.hpp"
+#include "emision/SeguridadAire.hpp"
+#include "audio/ObjetivoLoudness.hpp"
 #include "mcp/McpBotoneraTools.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "mcp/McpHttp.hpp"
@@ -916,10 +919,11 @@ void McpService::registerTools() {
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}},
                            {"audio", {{"type", "string"}, {"enum", {"bajar", "mantener"}}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.ftbUi(a.value("activar", false), a.value("ms", 800),
-                                       QString::fromStdString(a.value("audio", std::string("bajar"))));
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult().data(qvToJson(vm.estadoPlacaUi())));
+            auto& s = vm.seguridadAire();
+            if (const std::string e = s.ftb(a.value("activar", false), a.value("ms", 800), a.value("audio", std::string("bajar")));
+                !e.empty())
+                return done(ToolResult::error(e));
+            done(ToolResult().data(s.estado()));
         };
         core_.addTool(std::move(t));
     }
@@ -940,10 +944,12 @@ void McpService::registerTools() {
                            {"imagen", {{"type", "string"}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.placaUi(a.value("activar", false), QString::fromStdString(a.value("texto", std::string())),
-                                         QString::fromStdString(a.value("imagen", std::string())), a.value("ms", 600));
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult().data(qvToJson(vm.estadoPlacaUi())));
+            auto& s = vm.seguridadAire();
+            if (const std::string e = s.placa(a.value("activar", false), a.value("texto", std::string()),
+                                              a.value("imagen", std::string()), a.value("ms", 600));
+                !e.empty())
+                return done(ToolResult::error(e));
+            done(ToolResult().data(s.estado()));
         };
         core_.addTool(std::move(t));
     }
@@ -957,7 +963,7 @@ void McpService::registerTools() {
         t.run = [&vm](const json&, Done done) {
             json textos = json::array();
             for (const QString& s : vm.textosPlaca()) textos.push_back(s.toStdString());
-            done(ToolResult().data(json{{"textos", textos}, {"estado", qvToJson(vm.estadoPlacaUi())}}));
+            done(ToolResult().data(json{{"textos", textos}, {"estado", vm.seguridadAire().estado()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -2290,12 +2296,10 @@ void McpService::registerTools() {
                            {"lufs", {{"type", "number"}}},
                            {"tp", {{"type", "number"}}}}}};
         t.run = [&vm, &rt](const json& a, Done done) {
-            QVariantMap m;
-            m["perfil"] = QString::fromStdString(a.value("perfil", std::string("r128")));
-            if (a.contains("lufs")) m["lufs"] = a.value("lufs", -23.0);
-            if (a.contains("tp")) m["tp"] = a.value("tp", -1.0);
-            const QString e = vm.objetivoLoudnessUi(m);
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            json o{{"perfil", a.value("perfil", std::string("r128"))}};
+            if (a.contains("lufs")) o["lufs"] = a.value("lufs", -23.0);
+            if (a.contains("tp")) o["tp"] = a.value("tp", -1.0);
+            if (const std::string e = vm.objetivoLoudness().poner(o); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(rt.engine().loudness().json()));
         };
         core_.addTool(std::move(t));
@@ -3113,14 +3117,12 @@ void McpService::registerTools() {
                          {"properties",
                           {{"slot", {{"type", "integer"}, {"minimum", 1}}},
                            {"retorno", {{"type", "string"}, {"enum", {"mix_minus", "programa"}}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
-            if (a.contains("retorno")) {
-                const QString e = vm.setRetornoInvitadoUi(a.value("slot", 0), QString::fromStdString(a.value("retorno", std::string())));
-                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            }
-            json out = json::object();
-            for (int s = 1; s <= rt.config().guests; ++s) out[std::to_string(s)] = rt.engine().retornoInvitado(s);
-            done(ToolResult().data(json{{"retornos", out}}));
+        t.run = [&vm](const json& a, Done done) {
+            auto& r = vm.retornos();
+            if (a.contains("retorno"))
+                if (const std::string e = r.poner(a.value("slot", 0), a.value("retorno", std::string())); !e.empty())
+                    return done(ToolResult::error(e));
+            done(ToolResult().data(json{{"retornos", r.todos()}}));
         };
         core_.addTool(std::move(t));
     }
