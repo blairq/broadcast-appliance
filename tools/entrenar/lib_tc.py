@@ -129,7 +129,7 @@ def funciones(inv=None):
     por = {h["nombre"]: h for h in inv["herramientas"]}
     out = [{"type": "function", "function": {"name": n, "description": _desc(por[n]),
                                              "parameters": compactar(por[n]["esquema"])}}
-           for n in lp.herramientas_reactivas(inv)]
+           for n in lp.orden_prompt(inv)]
     return out + PSEUDO
 
 

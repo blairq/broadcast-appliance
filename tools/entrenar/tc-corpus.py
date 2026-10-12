@@ -213,6 +213,10 @@ def main():
     _spec2.loader.exec_module(tca)
     esq = tc.esquemas()
     descartadas = 0
+    # las de las herramientas que el perfil saco A PROPOSITO (lp.FUERA): no se
+    # entrenan como llamada; mas abajo pasan a ser ejemplos de derivar
+    import lib_prompt as _lp
+    de_fuera = {h: [a for a in anot[h] if "falta" not in a] for h in _lp.FUERA if h in anot}
     for h in list(anot):
         buenas = [a for a in anot[h] if h in esq and not tca.validar(a, esq[h], h)]
         descartadas += len(anot[h]) - len(buenas)
@@ -285,6 +289,24 @@ def main():
     der = [f for f in der if not ste_es.errores_derivar(f)]
     print(f"derivar: {len(der)} frases en STE-ES ({n_der - len(der)} fuera)")
     rnd.shuffle(der)
+    # LAS DEL BORDE PRIMERO: los pedidos de las herramientas que el perfil saco
+    # (renombrar una escena, las propiedades crudas de una fuente...) se parecen
+    # a los propios mas que cualquier otro ajeno: es justo lo que el modelo tiene
+    # que aprender a derivar. Se rinden con nombres de verdad y pasan STE-ES.
+    borde = []
+    for h, lista in sorted(de_fuera.items()):
+        for a in lista:
+            for _ in range(2):
+                _, formas = tc.estado_sintetico(rnd, tc.tipos_de(a["plantilla"], {}))
+                frase, _ = tc.rellenar(a["plantilla"], {}, formas, rnd)
+                if frase and not ste_es.errores_derivar(frase) and _norm(frase) not in _prohibidas:
+                    borde.append(frase)
+                    break
+    borde = sorted(set(borde))
+    rnd.shuffle(borde)
+    ya = set(borde)
+    der = borde + [f for f in der if f not in ya]
+    print(f"derivar: {len(borde)} del borde (anotaciones de {len(de_fuera)} herramientas sacadas del perfil)")
     base = len(ent)
     # derivar y charla son porciones del TOTAL
     total = int(len(herr) / max(0.1, 1 - args.derivar - args.charla - args.falta))
