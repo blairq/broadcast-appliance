@@ -121,18 +121,48 @@ ColumnLayout {
         // --- Sala: la grilla y las dos listas ------------------------------------------
         RowLayout {
             spacing: 12
-            ScrollView {
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                contentWidth: availableWidth
-                clip: true
-                RecintoGrilla { width: parent.width; tocarAbreMicrofono: true }
+                spacing: 8
+                // Sin la central la grilla se ve igual, pero tocar no abre nada: que se sepa.
+                Rectangle {
+                    Layout.fillWidth: true
+                    visible: !pc.ok && Studio.cuerpo.integrantes.length > 0
+                    implicitHeight: avisoSinCentral.implicitHeight + 16
+                    radius: 8
+                    color: Qt.rgba(1, 0.7, 0.1, 0.10)
+                    border.color: Qt.rgba(1, 0.7, 0.1, 0.35)
+                    RowLayout {
+                        id: avisoSinCentral
+                        anchors { fill: parent; margins: 8; leftMargin: 12 }
+                        spacing: 10
+                        Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
+                               text: "Sin la central conectada, tocar una banca no abre su micrófono (abre el menú de la banca)." }
+                        GlassButton { compact: true; text: "Ir a Conexión"; onClicked: pc.pestana = 3 }
+                    }
+                }
+                ScrollView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: availableWidth
+                    clip: true
+                    RecintoGrilla { width: parent.width; tocarAbreMicrofono: true; onPedirCuerpo: panelCuerpo.open() }
+                }
             }
+            Rectangle { Layout.fillHeight: true; implicitWidth: 1; color: Qt.rgba(1, 1, 1, 0.08) }
             ColumnLayout {
                 Layout.preferredWidth: 300
+                Layout.maximumWidth: 300
                 Layout.fillHeight: true
                 spacing: 8
-                Text { text: "Pidieron la palabra"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text { text: "Pidieron la palabra"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                    Item { Layout.fillWidth: true }
+                    Text { visible: (pc.e.pedidos || []).length > 0; text: (pc.e.pedidos || []).length; color: Theme.amber
+                           font { pixelSize: 13; weight: Font.Black } }
+                }
                 Text {
                     Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.amber; font.pixelSize: 12
                     visible: !!(pc.e.proximo && pc.e.proximo.unidad)
@@ -155,7 +185,10 @@ ColumnLayout {
                     clip: true
                     spacing: 4
                     model: pc.e.pedidos || []
-                    Text { anchors.centerIn: parent; visible: parent.count === 0; text: "nadie"; color: Theme.textFaint; font.pixelSize: 12 }
+                    EstadoVacio { anchors.centerIn: parent; width: parent.width; visible: parent.count === 0; chico: true
+                                  titulo: "Nadie pidió la palabra"
+                                  texto: pc.ok ? "Cuando alguien aprieta el botón de su banca, aparece acá con su turno. «Siguiente ▶» le da la palabra al primero."
+                                               : "Con la central conectada, los pedidos de palabra aparecen acá en orden." }
                     delegate: Rectangle {
                         required property var modelData
                         required property int index
@@ -175,14 +208,23 @@ ColumnLayout {
                         }
                     }
                 }
-                Text { text: "Hablando"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.08) }
+                RowLayout {
+                    Layout.fillWidth: true
+                    Text { text: "Hablando"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+                    Item { Layout.fillWidth: true }
+                    Text { visible: (pc.e.hablando || []).length > 0; text: (pc.e.hablando || []).length; color: Theme.live
+                           font { pixelSize: 13; weight: Font.Black } }
+                }
                 ListView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: Math.max(60, Math.min(220, count * 44))
+                    Layout.preferredHeight: Math.max(70, Math.min(220, count * 44))
                     clip: true
                     spacing: 4
                     model: pc.e.hablando || []
-                    Text { anchors.centerIn: parent; visible: parent.count === 0; text: "nadie"; color: Theme.textFaint; font.pixelSize: 12 }
+                    EstadoVacio { anchors.centerIn: parent; width: parent.width; visible: parent.count === 0; chico: true
+                                  titulo: "Ningún micrófono abierto"
+                                  texto: "Tocá una banca para abrirle el micrófono." }
                     delegate: Rectangle {
                         required property var modelData
                         width: ListView.view.width; height: 40; radius: 8
@@ -216,19 +258,54 @@ ColumnLayout {
                 Text { visible: !!pc.e.aprendiendo; color: Theme.amber; font { pixelSize: 15; weight: Font.Black }
                        text: "Apretá el botón de la banca " + (pc.e.aprendiendo || "") }
                 Item { Layout.fillWidth: true }
-                GlassButton { text: "Cuerpo…"; onClicked: panelCuerpo.open() }
+                GlassButton { text: "Integrantes…"; onClicked: panelCuerpo.open() }
             }
-            Text { visible: (pc.e.unidades_sin_banca || []).length > 0; color: Theme.textFaint; font.pixelSize: 12
-                   text: "Unidades conectadas sin banca: " + (pc.e.unidades_sin_banca || []).join(", ") }
+            Text { visible: (pc.e.unidades_sin_banca || []).length > 0; color: Theme.amber; font.pixelSize: 12
+                   Layout.fillWidth: true; elide: Text.ElideRight
+                   text: (pc.e.unidades_sin_banca || []).length + " unidades conectadas sin banca: " + (pc.e.unidades_sin_banca || []).join(", ")
+                   HoverHandler { id: sobreSinBanca }
+                   ToolTip.visible: sobreSinBanca.hovered; ToolTip.delay: 400
+                   ToolTip.text: "Ponele la banca a cada una en su fila (o «Aprender todas»)" }
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.leftMargin: 8
+                visible: (pc.e.unidades || []).length > 0
+                spacing: 10
+                Text { Layout.preferredWidth: 90; text: "Unidad"; color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 80; text: "Tipo"; color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 230; text: "Equipo"; color: Theme.textFaint; font.pixelSize: 11 }
+                Text { Layout.preferredWidth: 90; text: "Estado"; color: Theme.textFaint; font.pixelSize: 11 }
+                Text { text: "Banca"; color: Theme.textFaint; font.pixelSize: 11 }
+                Item { Layout.fillWidth: true }
+            }
+            EstadoVacio {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: (pc.e.unidades || []).length === 0
+                icono: "⏻"
+                titulo: pc.ok ? "La central no informó unidades" : "Sin la central no se ven las unidades"
+                texto: pc.ok ? "Fijate que las unidades estén enchufadas a la central y encendidas."
+                             : "Conectá la central (pestaña Conexión) y acá aparece cada unidad, de qué tipo es y qué banca tiene asignada."
+                accion: pc.ok ? "" : "Ir a Conexión"
+                onActivado: pc.pestana = 3
+            }
             ListView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                visible: (pc.e.unidades || []).length > 0
                 clip: true
-                spacing: 3
+                spacing: 2
                 model: pc.e.unidades || []
-                delegate: RowLayout {
-                    required property var modelData
-                    width: ListView.view.width
+                delegate: Rectangle {
+                  required property var modelData
+                  required property int index
+                  width: ListView.view.width
+                  implicitHeight: filaU.implicitHeight + 6
+                  radius: 6
+                  color: index % 2 ? Qt.rgba(1, 1, 1, 0.025) : "transparent"
+                  RowLayout {
+                    id: filaU
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8 }
                     spacing: 10
                     Text { text: "Unidad " + modelData.unidad; color: Theme.text; font.pixelSize: 12; Layout.preferredWidth: 90 }
                     Text { text: modelData.tipo; color: modelData.tipo === "presidente" ? "#d4af37" : Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 80 }
@@ -243,14 +320,20 @@ ColumnLayout {
                     GlassButton { compact: true; text: "Asignar"; enabled: campoBanca.text.trim() !== "" && campoBanca.text !== (modelData.banca || "")
                                   onClicked: pc.pedir("asignar", "unidad_asignar", {banca: campoBanca.text.trim(), unidad: modelData.unidad}) }
                     Item { Layout.fillWidth: true }
+                  }
                 }
             }
         }
 
         // --- Votación y asistencia (fase 2) ------------------------------------------------
-        ColumnLayout {
+        ScrollView {
+          id: votScroll
+          contentWidth: availableWidth
+          clip: true
+          ColumnLayout {
             id: vot
-            spacing: 8
+            width: votScroll.availableWidth - 4
+            spacing: 10
             readonly property var v: pc.e.votacion || ({})
             readonly property var asis: pc.e.asistencia || ({})
             readonly property var err: pc.e.fase2_errores || ({})
@@ -258,6 +341,10 @@ ColumnLayout {
             readonly property string est: v.estado || "sin_preparar"
             Text { visible: !!vot.err.votacion; Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
                    text: "La votación de la central no arrancó: " + (vot.err.votacion || "") }
+            Seccion {
+                titulo: "Votación en la central" + (vot.est === "abierta" ? " · ABIERTA" : vot.est === "pausada" ? " · en pausa" : "")
+                subtitulo: "Se vota con los botones de cada banca. Primero se prepara (tema y opciones), después se abre y se cierra; el resultado se pasa a Quórum como oficial."
+                resaltado: vot.est === "abierta" ? Theme.live : "transparent"
             RowLayout {
                 spacing: 8
                 Layout.fillWidth: true
@@ -298,8 +385,11 @@ ColumnLayout {
                 }
             }
             Text {
-                Layout.fillWidth: true; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
-                text: vot.est === "sin_preparar" ? "Sin votación" :
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                color: vot.est === "sin_preparar" ? Theme.textFaint : Theme.text
+                font { pixelSize: vot.est === "sin_preparar" ? 12 : 15; weight: vot.est === "sin_preparar" ? Font.Normal : Font.DemiBold }
+                text: vot.est === "sin_preparar" ? (pc.ok ? "No hay ninguna votación preparada. Escribí el tema (sale solo del punto en tratamiento) y tocá «Preparar»."
+                                                          : "Sin la central conectada no se puede votar con las bancas: usá «Votación en los celulares», abajo.") :
                       (vot.v.tema || "") + " — " + ({preparada: "preparada", abierta: "ABIERTA", pausada: "en pausa", cerrada: "cerrada"}[vot.est] || vot.est)
             }
             RowLayout {
@@ -322,7 +412,9 @@ ColumnLayout {
             }
             ListView {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
+                Layout.preferredHeight: Math.min(260, count * 20)
+                visible: count > 0
+                interactive: contentHeight > height
                 clip: true
                 spacing: 2
                 model: vot.v.nominal || []
@@ -336,8 +428,12 @@ ColumnLayout {
                            color: modelData.voto === "afirmativo" ? Theme.ok : modelData.voto === "negativo" ? Theme.live : Theme.amber }
                 }
             }
-            Rectangle { Layout.fillWidth: true; implicitHeight: 1; color: Qt.rgba(1, 1, 1, 0.1) }
+            }
+            Seccion {
+                titulo: "Asistencia"
+                subtitulo: "La central sabe quién está sentado (tarjeta o botón de presencia en la banca)."
             RowLayout {
+                Layout.fillWidth: true
                 spacing: 12
                 Text { color: Theme.text; font.pixelSize: 13
                        text: vot.err.asistencia ? "Asistencia de la central: no arrancó (" + vot.err.asistencia + ")"
@@ -355,28 +451,23 @@ ColumnLayout {
                          ? "Llamado nominal: vota " + (pc.e.nominal_turno.banca ? "la banca " + pc.e.nominal_turno.banca : "el delegado " + pc.e.nominal_turno.delegado)
                            + (pc.e.nominal_turno.segundos_restantes ? " (" + pc.e.nominal_turno.segundos_restantes + " s)" : "") : "")
             }
+            }
             // --- Los celulares (sesión remota): votan igual, con o sin la central ---
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: celu.implicitHeight + 20
-                radius: 10
-                color: Qt.rgba(1, 1, 1, 0.04)
-                border.color: vot.vr.estado === "abierta" ? Theme.live : Qt.rgba(1, 1, 1, 0.08)
+            Seccion {
+                titulo: "Votación en los celulares" + (vot.vr.estado === "abierta" ? " · ABIERTA" : vot.vr.estado === "pausada" ? " · en pausa"
+                        : vot.vr.estado === "cerrada" ? " · cerrada" : "")
+                subtitulo: "Los que entran por el navegador votan desde su celular, con o sin la central."
+                resaltado: vot.vr.estado === "abierta" ? Theme.live : "transparent"
+                extra: [
+                    Text { color: Theme.textDim; font.pixelSize: 12; text: "Tiempo para votar (s)" },
+                    SpinBox { from: 0; to: 600; stepSize: 10; editable: true
+                              value: Studio.sesionRemota ? Studio.sesionRemota.votoSegundos : 60
+                              onValueModified: Studio.sesionRemota.votoSegundos = value }
+                ]
                 ColumnLayout {
                     id: celu
-                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                    Layout.fillWidth: true
                     spacing: 6
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold
-                               text: "Votación en los celulares" + (vot.vr.estado === "abierta" ? " · ABIERTA" : vot.vr.estado === "pausada" ? " · en pausa"
-                                     : vot.vr.estado === "cerrada" ? " · cerrada" : "") }
-                        Item { Layout.fillWidth: true }
-                        Text { color: Theme.textDim; font.pixelSize: 12; text: "Tiempo para votar (s)" }
-                        SpinBox { from: 0; to: 600; stepSize: 10; editable: true
-                                  value: Studio.sesionRemota ? Studio.sesionRemota.votoSegundos : 60
-                                  onValueModified: Studio.sesionRemota.votoSegundos = value }
-                    }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                         text: (vot.vr.estado === "abierta" || vot.vr.estado === "pausada" || vot.vr.estado === "cerrada")
@@ -404,6 +495,8 @@ ColumnLayout {
                     }
                 }
             }
+            Item { Layout.preferredHeight: 4 }
+          }
         }
 
         // --- Conexión ----------------------------------------------------------------
@@ -411,6 +504,15 @@ ColumnLayout {
             id: conexion
             spacing: 8
             readonly property var cfg: pc.dcn ? pc.dcn.config : ({})
+            Seccion {
+                titulo: "Conexión con la central"
+                subtitulo: "La central tiene que tener habilitada la licencia del Open Interface (LBB4187/00). Por serie: el puerto 1 de la CCU viene de fábrica en Full a 115200 (llaves S500); cable 1 a 1 con RTS/CTS, de hasta unos 2 m. Por red (CCU2): puerto 9451."
+                extra: [
+                    Rectangle { implicitWidth: 10; implicitHeight: 10; radius: 5
+                                color: pc.ok ? Theme.ok : (pc.e.enlace === "sincronizando" ? Theme.amber : Theme.live) },
+                    Text { color: pc.ok ? Theme.ok : Theme.textDim; font.pixelSize: 12
+                           text: pc.ok ? "conectada" + (pc.e.solo_escuchar ? " · solo escuchar" : "") : pc.plugin === "corriendo" ? "sin respuesta" : "apagada" }
+                ]
             GridLayout {
                 columns: 2
                 columnSpacing: 10; rowSpacing: 6
@@ -465,7 +567,10 @@ ColumnLayout {
                            text: "Recibe todo pero no le manda órdenes a la central. Para la primera prueba en la sala; apagalo cuando responda bien." }
                 }
                 Text { text: "Escape (avanzado)"; color: Theme.textDim; font.pixelSize: 12 }
-                TextField { id: campoEscape; implicitWidth: 90; text: conexion.cfg.escape || "0xC8" }
+                RowLayout {
+                    TextField { id: campoEscape; implicitWidth: 90; text: conexion.cfg.escape || "0xC8" }
+                    Text { color: Theme.textFaint; font.pixelSize: 11; text: "No lo cambies salvo que la central use otro (de fábrica, 0xC8)." }
+                }
             }
             RowLayout {
                 spacing: 8
@@ -488,15 +593,15 @@ ColumnLayout {
                        text: pc.e.contadores ? "enviados " + pc.e.contadores.enviados + " · recibidos " + pc.e.contadores.recibidos
                                                + " · reenvíos " + pc.e.contadores.reenvios + " · checksum mal " + pc.e.contadores.checksum_mal : "" }
             }
-            Text {
-                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                text: "La central tiene que tener habilitada la licencia del Open Interface (LBB4187/00). Por serie: el puerto 1 de la CCU viene de fábrica en Full a 115200 (llaves S500); cable 1 a 1 con RTS/CTS, de hasta unos 2 m. Por red (CCU2): puerto 9451."
             }
             RowLayout {
                 spacing: 8
+                Layout.topMargin: 4
                 Text { text: "Tramas"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
                 Switch { id: trazaSw; enabled: pc.plugin === "corriendo"; onToggled: pc.pedir("traza", "traza", {activa: checked, ultimas: 200}) }
                 GlassButton { compact: true; text: "Actualizar"; enabled: pc.plugin === "corriendo"; onClicked: pc.pedir("traza", "traza", {ultimas: 200}) }
+                Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 11
+                       text: "Lo que va y viene por el cable, para cuando algo no anda (las últimas 200)." }
             }
             ScrollView {
                 Layout.fillWidth: true
@@ -506,7 +611,7 @@ ColumnLayout {
                     readOnly: true
                     font { family: Theme.mono; pixelSize: 11 }
                     color: Theme.textDim
-                    text: pc.tramas.join("\n") || "(prendé «Tramas» para verlas)"
+                    text: pc.tramas.join("\n") || (pc.plugin === "corriendo" ? "(prendé «Tramas» para verlas)" : "(conectá la central para ver las tramas)")
                 }
             }
         }
@@ -548,6 +653,9 @@ ColumnLayout {
                     spacing: 2
                     model: pc.funciones
                     currentIndex: 0
+                    EstadoVacio { anchors.centerIn: parent; width: parent.width - 20; visible: parent.count === 0; chico: true
+                                  titulo: pc.plugin === "corriendo" ? "Tocá «Cargar la lista»" : "Hace falta la central conectada"
+                                  texto: "Las funciones salen del plugin de la central." }
                     delegate: Rectangle {
                         required property var modelData
                         required property int index

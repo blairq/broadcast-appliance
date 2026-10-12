@@ -48,35 +48,67 @@ ColumnLayout {
     }
 
     // --- Consolas de la presidencia (la página web /presidencia/) ---------------------------
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 8
-        Text { color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; text: "Consola de la presidencia" }
-        Repeater {
-            model: cr.s ? cr.s.consolasUi : []
-            delegate: Rectangle {
-                required property var modelData
-                implicitWidth: filaC.implicitWidth + 16; implicitHeight: 30; radius: 15
-                color: Qt.rgba(1, 1, 1, 0.05); border.color: modelData.conectada ? Theme.ok : Qt.rgba(1, 1, 1, 0.12)
-                RowLayout {
-                    id: filaC
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text { text: (modelData.conectada ? "● " : "○ ") + modelData.nombre; color: modelData.conectada ? Theme.ok : Theme.textDim; font.pixelSize: 12 }
-                    Text { text: "✕"; color: Theme.textFaint; font.pixelSize: 12
-                           MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                       onClicked: ApplicationWindow.window.confirm({ title: "¿Revocar el acceso de «" + modelData.nombre + "»?",
-                                           text: "La consola deja de andar ya.", accept: "Revocar", reject: "Cancelar",
-                                           action: function() { cr.s.revocarConsolaUi(modelData.id) } }) } }
+    Seccion {
+        titulo: "Consola de la presidencia"
+        subtitulo: "Una página web para quien preside (tablet o compu): da la palabra, ve quién la pidió, maneja la votación y el debate. Cada acceso es un link propio que se puede revocar."
+        extra: GlassButton { compact: true; text: "Nuevo acceso…"; active: cr.s && cr.s.consolasUi.length === 0
+                             onClicked: { nombreConsola.text = "Presidencia"; nuevaConsola.open() } }
+        Flow {
+            Layout.fillWidth: true
+            spacing: 8
+            visible: !!cr.s && cr.s.consolasUi.length > 0
+            Repeater {
+                model: cr.s ? cr.s.consolasUi : []
+                delegate: Rectangle {
+                    required property var modelData
+                    implicitWidth: filaC.implicitWidth + 20; implicitHeight: 30; radius: 15
+                    color: Qt.rgba(1, 1, 1, 0.05); border.color: modelData.conectada ? Theme.ok : Qt.rgba(1, 1, 1, 0.12)
+                    RowLayout {
+                        id: filaC
+                        anchors.centerIn: parent
+                        spacing: 6
+                        Rectangle { implicitWidth: 8; implicitHeight: 8; radius: 4; color: modelData.conectada ? Theme.ok : Theme.textFaint }
+                        Text { text: modelData.nombre; color: modelData.conectada ? Theme.text : Theme.textDim; font.pixelSize: 12 }
+                        Text { visible: modelData.creado_ms > 0; color: Theme.textFaint; font.pixelSize: 11
+                               text: "· " + (modelData.conectada ? "en uso" : "desde el " + Qt.formatDate(new Date(modelData.creado_ms), "d/M")) }
+                        Text { text: "✕"; color: Theme.textFaint; font.pixelSize: 12
+                               ToolTip.visible: mRev.containsMouse; ToolTip.delay: 400; ToolTip.text: "Revocar este acceso"
+                               MouseArea { id: mRev; anchors.fill: parent; anchors.margins: -4; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                           onClicked: ApplicationWindow.window.confirm({ title: "¿Revocar el acceso de «" + modelData.nombre + "»?",
+                                               text: "La consola deja de andar ya.", accept: "Revocar", reject: "Cancelar",
+                                               action: function() { cr.s.revocarConsolaUi(modelData.id) } }) } }
+                    }
                 }
             }
         }
-        GlassButton { compact: true; text: "Nuevo acceso a la consola…"
-                      onClicked: { const r = cr.s.generarConsolaUi("Presidencia"); if (r.error) Studio.notify(r.error, "error"); else credencial.mostrar(r) } }
-        Item { Layout.fillWidth: true }
+        Text {
+            visible: !cr.s || cr.s.consolasUi.length === 0
+            color: Theme.textFaint; font.pixelSize: 12
+            text: "Todavía no hay ningún acceso. Tocá «Nuevo acceso…» y pasale el link (o el QR) a quien preside."
+        }
+    }
+    Dialog {
+        id: nuevaConsola
+        anchors.centerIn: Overlay.overlay
+        modal: true
+        title: "Nuevo acceso a la consola"
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: {
+            const r = cr.s.generarConsolaUi(nombreConsola.text.trim() || "Presidencia")
+            if (r.error) Studio.notify(r.error, "error"); else credencial.mostrar(r)
+        }
+        ColumnLayout {
+            spacing: 8
+            Text { Layout.preferredWidth: 380; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                   text: "Un nombre para reconocerlo en la lista (p. ej. «Presidencia», «Vice», «Secretaría»). El link se muestra una sola vez." }
+            TextField { id: nombreConsola; Layout.fillWidth: true; placeholderText: "Presidencia"; onAccepted: nuevaConsola.accept() }
+        }
     }
 
     // --- Lo que ven en el celular: su cámara (siempre, en un recuadro) y hasta dos canales ---
+    Seccion {
+        titulo: "Qué ven en el celular"
+        subtitulo: "Cada uno elige en su celular qué mirar: su cámara, la salida principal u otra escena; su propia imagen queda siempre en un recuadro. Las escenas usan los canales de las pantallas de la sala (4 entre todas)."
     RowLayout {
         id: vistasFila
         Layout.fillWidth: true
@@ -106,8 +138,7 @@ ColumnLayout {
             const e = cr.s.setVistasUi(l)
             if (e !== "") Studio.notify(e, "error")
         }
-        Text { color: Theme.text; font.pixelSize: 13; font.weight: Font.DemiBold; text: "En el celular ven" }
-        Text { color: Theme.textDim; font.pixelSize: 12; text: "su cámara +" }
+        Text { color: Theme.textDim; font.pixelSize: 12; text: "Su cámara +" }
         component CanalVista: RowLayout {
             property int indice: 0
             property alias campo: nombreV
@@ -125,18 +156,25 @@ ColumnLayout {
             }
         }
         CanalVista { id: vA; indice: 0 }
+        Text { color: Theme.textDim; font.pixelSize: 12; text: "y" }
         CanalVista { id: vB; indice: 1 }
         Item { Layout.fillWidth: true }
     }
-    Text {
-        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-        text: "Cada uno elige en su celular qué mirar: su cámara, la salida principal u otra escena; su propia imagen queda siempre en un recuadro. " +
-              "Las escenas usan los canales de las pantallas de la sala (4 entre todas)."
     }
 
     // --- Encabezado de la tabla ---------------------------------------------------------
     RowLayout {
         Layout.fillWidth: true
+        Layout.topMargin: 4
+        Text { text: "El acceso de cada integrante"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+        Text { visible: Studio.cuerpo.integrantes.length > 0; color: Theme.textFaint; font.pixelSize: 12
+               text: "· " + cr.parts.filter(p => p.credencial).length + " de " + Studio.cuerpo.integrantes.length + " con acceso" }
+        Item { Layout.fillWidth: true }
+    }
+    RowLayout {
+        Layout.fillWidth: true
+        Layout.leftMargin: 8
+        visible: Studio.cuerpo.integrantes.length > 0
         spacing: 10
         Text { Layout.preferredWidth: 60; text: "Banca"; color: Theme.textFaint; font.pixelSize: 11 }
         Text { Layout.preferredWidth: 200; text: "Conferencista"; color: Theme.textFaint; font.pixelSize: 11 }
@@ -151,10 +189,28 @@ ColumnLayout {
         clip: true
         spacing: 3
         model: Studio.cuerpo.integrantes
-        delegate: RowLayout {
-            required property var modelData
-            readonly property var est: cr.parts.length >= 0 ? cr.estadoDe(modelData.id) : null
-            width: ListView.view.width
+        EstadoVacio {
+            anchors { top: parent.top; topMargin: 30; horizontalCenter: parent.horizontalCenter }
+            width: parent.width
+            visible: parent.count === 0
+            icono: "▦"
+            titulo: "Todavía no hay integrantes"
+            texto: "Cada integrante del cuerpo puede entrar desde el navegador (en la sala con el celular, o desde afuera) con su link y su PIN. "
+                   + "Primero cargá los integrantes; después, acá, «Dar acceso…» a cada uno."
+            accion: "Cargar integrantes…"
+            onActivado: cuerpoCr.open()
+        }
+        delegate: Rectangle {
+          required property var modelData
+          required property int index
+          readonly property var est: cr.parts.length >= 0 ? cr.estadoDe(modelData.id) : null
+          width: ListView.view.width
+          implicitHeight: filaI.implicitHeight + 8
+          radius: 6
+          color: index % 2 ? Qt.rgba(1, 1, 1, 0.025) : "transparent"
+          RowLayout {
+            id: filaI
+            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8 }
             spacing: 10
             Text { Layout.preferredWidth: 60; color: Theme.textDim; font.pixelSize: 12; text: modelData.banca ? modelData.banca : "" }
             Text { Layout.preferredWidth: 200; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 12; text: modelData.nombre }
@@ -200,8 +256,10 @@ ColumnLayout {
                               text: "El link y la contraseña dejan de andar ya (si está conectado, se corta).", accept: "Revocar", reject: "Cancelar",
                               action: function() { cr.s.revocarUi(modelData.id) } }) }
             Item { Layout.fillWidth: true }
+          }
         }
     }
+    PanelCuerpo { id: cuerpoCr }
 
     // --- El link y el PIN, una sola vez ----------------------------------------------
     Dialog {

@@ -45,8 +45,21 @@ ColumnLayout {
     }
 
     // --- Elegir y empezar -------------------------------------------------------------
+    EstadoVacio {
+        Layout.fillWidth: true
+        Layout.topMargin: 20
+        Layout.bottomMargin: 10
+        visible: !pd.activo && pd.integrantes.length < 2
+        icono: "⚖"
+        titulo: "Para un debate hacen falta dos integrantes con banca"
+        texto: "El debate es entre dos (de la sala, remotos o uno y uno), moderado por la presidencia: cada uno tiene su turno y su reloj, "
+               + "y la escena se arma sola. Cargá los integrantes con su banca en el botón «Integrantes» de arriba."
+    }
+    Seccion {
+        visible: !pd.activo && pd.integrantes.length >= 2
+        titulo: "Empezar un debate"
+        subtitulo: "Elegí a los dos. Al empezar, la central queda con sus dos micrófonos, las cámaras van a sus bancas y se arma la escena de ese tipo de debate."
     RowLayout {
-        visible: !pd.activo
         Layout.fillWidth: true
         spacing: 10
         Text { text: "A"; color: Theme.textDim; font.pixelSize: 13 }
@@ -59,6 +72,9 @@ ColumnLayout {
             onClicked: pd.avisar(pd.deb.iniciarUi(pd.integrantes[elegirA.currentIndex].id, pd.integrantes[elegirB.currentIndex].id, "a"))
         }
         Item { Layout.fillWidth: true }
+    }
+    Text { visible: elegirA.currentIndex === elegirB.currentIndex; color: Theme.amber; font.pixelSize: 12
+           text: "A y B tienen que ser dos distintos." }
     }
 
     // --- En curso ------------------------------------------------------------------------
@@ -115,7 +131,9 @@ ColumnLayout {
     }
 
     // --- Configuración -------------------------------------------------------------------
-    Text { text: "La escena de cada tipo de debate"; color: Theme.text; font { pixelSize: 13; weight: Font.DemiBold } }
+    Seccion {
+        titulo: "Cómo se arma"
+        subtitulo: "Lo que se usa en todos los debates: la escena de cada combinación, el tiempo de cada turno y si sale al aire solo."
     GridLayout {
         columns: 2
         columnSpacing: 10
@@ -149,9 +167,11 @@ ColumnLayout {
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+        Layout.topMargin: 4
         text: "Los remotos entran como «Remoto con la palabra» (A, o el único remoto) y «Remoto con la palabra 2» (B): la escena de dos remotos tiene que mostrar las dos entradas; " +
               "la de sala y remoto, la cámara de la sala y «Remoto con la palabra». Con alguno de la sala, la central pasa a modo operador con dos micrófonos y al terminar vuelve como estaba. " +
               "La presidencia hace lo mismo desde su consola web."
+    }
     }
     Item { Layout.fillHeight: true }
 }

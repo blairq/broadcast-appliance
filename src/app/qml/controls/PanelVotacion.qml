@@ -63,7 +63,7 @@ Item {
                 Layout.fillWidth: true
                 elide: Text.ElideRight
                 readonly property var ult: Studio.quorum.oficiales.length > 0 ? Studio.quorum.oficiales[Studio.quorum.oficiales.length - 1] : null
-                text: ult ? "Último oficial: " + ult.asunto + " — " + (ult.aprobado ? "APROBADO" : "RECHAZADO") + " " + ult.afirmativos + "-" + ult.negativos + "-" + ult.abstenciones : ""
+                text: !ult ? "Todavía no hay resultados oficiales (los del tablero o Secretaría, para el acta)." : "Último oficial: " + ult.asunto + " — " + (ult.aprobado ? "APROBADO" : "RECHAZADO") + " " + ult.afirmativos + "-" + ult.negativos + "-" + ult.abstenciones
                 color: ult && ult.aprobado ? Theme.ok : Theme.textDim
                 font.pixelSize: 11
             }
@@ -219,19 +219,29 @@ Item {
         // --- Abrir una nueva --------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
-            Layout.fillHeight: true
+            implicitHeight: nueva.implicitHeight + 28
             radius: Theme.radiusSmall
             color: Qt.rgba(1, 1, 1, 0.03)
             border.color: Theme.glassBorder
 
             ColumnLayout {
-                anchors { fill: parent; margins: 14 }
+                id: nueva
+                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 14 }
                 spacing: 8
 
                 Text {
-                    text: raiz.abierta ? "Abrir otra (reemplaza a la que está abierta)" : "Abrir una"
+                    text: raiz.abierta ? "Abrir otra (reemplaza a la que está abierta)" : "Abrir una votación o una encuesta"
                     color: Theme.text
                     font { pixelSize: 14; weight: Font.DemiBold }
+                }
+                Text {
+                    Layout.fillWidth: true
+                    visible: !raiz.abierta
+                    wrapMode: Text.WordWrap
+                    text: "Se vota desde el teléfono con el QR. La votación formal es la del padrón (vale para decidir); "
+                          + "la encuesta es abierta a cualquiera y solo indica. Para votar con las bancas de la central, está Conferencia → Votación y asistencia."
+                    color: Theme.textFaint
+                    font.pixelSize: 11
                 }
                 Text {
                     Layout.fillWidth: true
@@ -302,7 +312,8 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
                     GlassButton {
-                        text: "Abrir"
+                        text: modo.currentValue === "formal" ? "Abrir la votación" : "Abrir la encuesta"
+                        active: true
                         enabled: campoPregunta.text.trim() !== "" &&
                                  (modo.currentValue === "encuesta" || raiz.habilitados().length > 0)
                         onClicked: {
@@ -317,11 +328,11 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
                 }
-                // Lo que sobra va abajo: sin esto el layout repartía el alto
-                // entre los campos y quedaban huecos enormes.
-                Item { Layout.fillHeight: true }
             }
         }
+        // Lo que sobra va abajo: sin esto el layout repartía el alto
+        // entre los campos y quedaban huecos enormes.
+        Item { Layout.fillHeight: true }
     }
 
     // A que televisor. La lista es la misma de la pagina de Pantallas: el

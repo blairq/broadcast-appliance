@@ -77,6 +77,8 @@ ColumnLayout {
     signal pedirCuerpo()
     property string elegida: ""
     property string aviso: ""
+    /// Nadie cargado: en vez de una grilla vacía, qué hacer.
+    readonly property bool sinNadie: !rec.editando && (Studio.cuerpo.integrantes || []).length === 0
 
     function lugar(f, c) {
         const l = r.bancas || []
@@ -163,6 +165,7 @@ ColumnLayout {
     // --- Cabecera --------------------------------------------------------------------
     RowLayout {
         Layout.fillWidth: true
+        visible: !rec.sinNadie
         spacing: 8
         ComboBox {
             id: dist
@@ -211,26 +214,25 @@ ColumnLayout {
     }
     Text {
         Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
-        visible: rec.aviso !== "" || rec.filas === 0 || rec.editando
+        visible: rec.aviso !== "" || (rec.filas === 0 && !rec.sinNadie) || rec.editando
         color: rec.aviso !== "" ? Theme.live : Theme.textFaint
         text: rec.aviso !== "" ? rec.aviso
-              : rec.filas === 0 ? "Todavía no hay grilla. Cargá el cuerpo (Personas → Cuerpo) con su banca y su preset, y tocá «Acomodar solas»."
+              : rec.filas === 0 ? "Todavía no hay grilla. A cada integrante ponele su banca (botón «Integrantes» de arriba), y tocá «Acomodar solas»."
               : rec.elegida !== "" ? "Banca " + rec.elegida + ": tocá el lugar vacío donde va (o «Sacar»)."
               : "Tocá una banca y después el lugar donde va. En el hemiciclo, las filas son los arcos (la primera, la más cerca de la presidencia)."
     }
     // Sin nadie cargado la grilla queda vacía y no dice nada: lo que hay que hacer.
-    RowLayout {
+    EstadoVacio {
         Layout.fillWidth: true
-        visible: !rec.editando && (Studio.cuerpo.integrantes || []).length === 0
-        spacing: 10
-        Text {
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-            color: Theme.textDim
-            font.pixelSize: 13
-            text: "Todavía no hay integrantes. Cargalos (a mano o desde una planilla) con su banca, y las bancas aparecen acá."
-        }
-        GlassButton { compact: true; active: true; text: "Cargar integrantes…"; onClicked: rec.pedirCuerpo() }
+        Layout.topMargin: 70
+        Layout.bottomMargin: 40
+        visible: rec.sinNadie
+        icono: "▦"
+        titulo: "Todavía no hay integrantes en el recinto"
+        texto: "Cargá quién se sienta en cada banca (a mano o pegando una planilla): nombre, bloque y número de banca. "
+               + "Con eso aparecen las bancas acá, con su cara, y se pueden acomodar como está la sala de verdad."
+        accion: "Cargar integrantes…"
+        onActivado: rec.pedirCuerpo()
     }
     // Las que todavía no tienen lugar.
     Flow {
@@ -333,7 +335,7 @@ ColumnLayout {
                            HoverHandler { id: hvU } }
                     Text { visible: celda.turno > 0; text: "#" + celda.turno; color: Theme.amber; font { pixelSize: 11; weight: Font.DemiBold } }
                     Text { visible: celda.i !== null && !celda.i.validado; text: "⚠"; color: Theme.amber; font.pixelSize: 11
-                           ToolTip.visible: hv.hovered; ToolTip.text: "Nombre sin validar (Personas → Cuerpo)"
+                           ToolTip.visible: hv.hovered; ToolTip.text: "Nombre sin validar (botón «Integrantes» de arriba)"
                            HoverHandler { id: hv } }
                 }
                 Text { visible: !celda.ancha && !celda.chica; Layout.fillWidth: true; elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
@@ -358,7 +360,7 @@ ColumnLayout {
     Rectangle {
         Layout.fillWidth: true
         implicitHeight: 26
-        visible: rec.filas > 0 && rec.distribucion === "grilla"
+        visible: rec.filas > 0 && rec.distribucion === "grilla" && !rec.sinNadie
         radius: 6
         color: Qt.rgba(1, 1, 1, 0.05)
         Text { anchors.centerIn: parent; text: "PRESIDENCIA"; color: Theme.textFaint
@@ -368,7 +370,7 @@ ColumnLayout {
     // --- Grilla ----------------------------------------------------------------------------
     GridLayout {
         Layout.fillWidth: true
-        visible: rec.filas > 0 && rec.distribucion === "grilla"
+        visible: rec.filas > 0 && rec.distribucion === "grilla" && !rec.sinNadie
         columns: Math.max(1, rec.columnas)
         rowSpacing: 6; columnSpacing: 6
         Repeater {
@@ -388,7 +390,7 @@ ColumnLayout {
     Item {
         id: hemi
         Layout.fillWidth: true
-        visible: rec.filas > 0 && rec.distribucion === "hemiciclo"
+        visible: rec.filas > 0 && rec.distribucion === "hemiciclo" && !rec.sinNadie
         // Las medidas salen de que entren las bancas sin pisarse: en el arco de
         // adentro, la distancia entre dos bancas (radio · π / columnas) tiene que
         // ser más que una banca; cada fila de más agrega una banca y algo de radio.
@@ -428,7 +430,7 @@ ColumnLayout {
     // --- Lista ------------------------------------------------------------------------------
     ColumnLayout {
         Layout.fillWidth: true
-        visible: rec.distribucion === "lista"
+        visible: rec.distribucion === "lista" && !rec.sinNadie
         spacing: 4
         Repeater {
             model: rec.distribucion === "lista"

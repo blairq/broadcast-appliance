@@ -26,6 +26,10 @@ Rectangle {
     color: active ? activeColor : (ma.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07))
     border.color: active ? Qt.lighter(activeColor, 1.3) : Qt.rgba(1, 1, 1, 0.14)
     Behavior on color { ColorAnimation { duration: 140 } }
+    // Deshabilitado tiene que VERSE: si no, «Siguiente ▶» naranja sin nadie en la
+    // lista parece que anda y no hace nada.
+    opacity: enabled ? 1 : 0.38
+    Behavior on opacity { NumberAnimation { duration: 140 } }
     scale: ma.pressed ? 0.96 : 1.0
     Behavior on scale { NumberAnimation { duration: 90 } }
 

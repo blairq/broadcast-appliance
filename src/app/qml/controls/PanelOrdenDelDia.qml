@@ -18,6 +18,7 @@ ColumnLayout {
         Text {
             Layout.fillWidth: true
             elide: Text.ElideRight
+            opacity: od.o.puntos.length > 0 ? 1 : 0
             text: od.o.actual && od.o.actual.n ? "En tratamiento: Punto " + od.o.actual.n + " — " + od.o.actual.titulo
                                                : (od.o.puntos.length > 0 ? "Ningún punto en tratamiento" : "Sin orden del día")
             color: od.o.actual && od.o.actual.n ? Theme.text : Theme.textDim
@@ -26,12 +27,18 @@ ColumnLayout {
         }
         GlassButton {
             compact: true; text: "Siguiente punto ▶"; active: true
+            visible: od.o.puntos.length > 0
             enabled: od.o.puntos.some(p => p.estado === "pendiente")
             onClicked: { const e = od.o.siguienteUi(); if (e !== "") Studio.notify(e, "error") }
         }
-        GlassButton { compact: true; text: "Cargar…"; onClicked: carga.open() }
+        Text {
+            visible: od.o.puntos.length > 0
+            color: Theme.textFaint; font.pixelSize: 12
+            text: od.o.puntos.filter(p => p.estado !== "pendiente" && p.estado !== "en_tratamiento").length + " de " + od.o.puntos.length + " tratados"
+        }
+        GlassButton { compact: true; text: "Cargar otro…"; visible: od.o.puntos.length > 0; onClicked: carga.open() }
         GlassButton {
-            compact: true; text: "Capítulos"
+            compact: true; text: "Capítulos"; visible: od.o.puntos.length > 0
             onClicked: {
                 const t = Studio.capitulosPuntosUi()
                 Studio.notify(t !== "" ? "Capítulos por punto: " + t.replace(/\n/g, " · ") : "Hace falta estar grabando y haber tratado puntos.", "info")
@@ -45,6 +52,17 @@ ColumnLayout {
         clip: true
         spacing: 4
         model: od.o.puntos
+        EstadoVacio {
+            anchors.centerIn: parent
+            width: parent.width
+            visible: parent.count === 0
+            icono: "☰"
+            titulo: "Todavía no hay orden del día"
+            texto: "Pegá los puntos de la sesión (uno por línea, o un CSV). El punto en tratamiento sale en los zócalos ({punto.texto}), "
+                   + "arma los capítulos de la grabación y queda en el acta junto con su resultado."
+            accion: "Cargar el orden del día…"
+            onActivado: carga.open()
+        }
         delegate: Rectangle {
             required property var modelData
             width: ListView.view.width
@@ -77,9 +95,10 @@ ColumnLayout {
                 }
                 ComboBox {
                     implicitWidth: 130
-                    model: [ "pendiente", "votado", "comision", "retirado" ]
+                    model: [ { t: "Pendiente", v: "pendiente" }, { t: "Votado", v: "votado" }, { t: "A comisión", v: "comision" }, { t: "Retirado", v: "retirado" } ]
+                    textRole: "t"
                     displayText: "Estado…"
-                    onActivated: (i) => od.o.puntoUi(modelData.n, model[i], "")
+                    onActivated: (i) => od.o.puntoUi(modelData.n, model[i].v, "")
                 }
                 TextField {
                     Layout.preferredWidth: 170

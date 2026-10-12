@@ -16,6 +16,8 @@ let est = null;              // el último estado
 let desfase = 0;             // reloj de la app - reloj de acá
 let reintento = 1000;
 let cortado = false;
+let adentro = false;         // ya entró una vez (para el cartel de «reconectando»)
+let pingTimer = null;
 const caras = new Map();     // id -> dataURL (la última foto)
 const pedidasCuerpo = new Set();
 let debateA = null, debateB = null; // {id, nombre} elegidos en el recinto antes de empezar
@@ -74,6 +76,7 @@ function conectar() {
   ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } recibir(m); };
   ws.onclose = () => {
     $("conexion").className = "punto-con apagado";
+    $("sinConexion").classList.toggle("oculto", !adentro || cortado);
     if (cortado || !pin) return;
     setTimeout(conectar, reintento);
     reintento = Math.min(reintento * 2, 15000);
@@ -91,11 +94,15 @@ function recibir(m) {
         return;
       }
       reintento = 1000;
+      adentro = true;
       $("conexion").className = "punto-con vivo";
+      $("sinConexion").classList.add("oculto");
       $("entrar").classList.add("oculto");
       $("consola").classList.remove("oculto");
       mandar({ type: "hola" });
-      setInterval(() => mandar({ type: "ping" }), 20000);
+      // Uno solo: al reconectar se volvía a sumar otro intervalo cada vez.
+      if (!pingTimer) pingTimer = setInterval(() => mandar({ type: "ping" }), 20000);
+      despierta();
       break;
     case "estado":
       est = m;
@@ -121,6 +128,8 @@ function recibir(m) {
       break;
     case "cortado":
       cortado = true;
+      $("sinConexion").textContent = m.motivo || "Se cerró la consola.";
+      $("sinConexion").classList.remove("oculto");
       avisar(m.motivo || "Se cerró la consola.", true);
       break;
   }
@@ -129,7 +138,7 @@ function recibir(m) {
 // --- Pintar todo -------------------------------------------------------------------------
 function pintar() {
   if (!est) return;
-  $("cuerpo").textContent = est.cuerpo ? " · " + est.cuerpo : "";
+  $("cuerpo").textContent = est.cuerpo || "";
   $("punto").textContent = est.punto ? "En tratamiento: " + est.punto : "";
   const q = est.quorum || {};
   $("quorum").textContent = "Quórum " + (q.presentes ?? "—") + (q.necesarios ? " / " + q.necesarios : "");
@@ -145,6 +154,10 @@ function pintar() {
   $("hablaYo").disabled = !est.con_central;
   $("hablaYo").title = est.con_central ? "Calla a todos y abre el micrófono de la presidencia" : "Hace falta la central";
   if (document.activeElement !== $("votSegundos")) $("votSegundos").value = est.voto_s ?? 60;
+  // Lo que no se puede hacer, apagado (antes todo parecía andar y contestaba un error).
+  const conPalabra = !!(est.fila || {}).al_aire;
+  for (const b of document.querySelectorAll('[data-accion="sumar"], [data-accion="terminar"]')) b.disabled = !conPalabra;
+  document.querySelector('[data-accion="siguiente"]').disabled = !((est.fila || {}).cola || []).length;
   pintarRecinto();
   pintarEsperan();
   pintarFila();
@@ -164,17 +177,57 @@ function pintarRecinto() {
   const abiertos = new Set((est.central || {}).abiertos || []);
   const palabra = (est.fila || {}).al_aire ? est.fila.al_aire.id : "";
   let presentes = 0, total = 0;
-  for (const b of r.bancas || []) {
+  const ocupadas = (r.bancas || []).filter((b) => b.integrante);
+  if (!ocupadas.length) {
+    const v = el("div", "recinto-vacio");
+    v.appendChild(el("strong", "", "Todavía no hay bancas"));
+    v.appendChild(el("span", "", "La secretaría carga los integrantes con su banca en la app (Asamblea → Integrantes) y aparecen acá."));
+    caja.appendChild(v);
+    $("resumenRecinto").textContent = "";
+    return;
+  }
+  // En píxeles y no en % de la caja: la caja es más alta que ancha y los arcos salían
+  // estirados como una «V». Más bancas, más chicas (si no, en la fila de adentro se pisan).
+  const grilla = r.distribucion === "grilla" || r.distribucion === "lista";
+  caja.classList.toggle("en-grilla", grilla);
+  const W = caja.clientWidth || 600, H = caja.clientHeight || 420;
+  // La caja estira hasta el alto de la columna más larga (más que la pantalla): se usa
+  // solo lo que se ve, así el hemiciclo no queda abajo, fuera de la vista.
+  const Hv = Math.min(H, Math.max(360, window.innerHeight - 190));
+  const BANCA = 82; // lo que ocupa una banca a escala 1 (64 × 76 y un poco de aire)
+  let pos, escala;
+  if (grilla) {
+    // Las filas de adelante (la 0) abajo, cerca de la presidencia, como en la app.
+    const dx = W / cols, dy = (Hv - 60) / filas;
+    escala = Math.max(0.42, Math.min(1, dx / BANCA, dy / BANCA));
+    pos = (b) => [dx * (b.columna + 0.5), Hv - 60 - dy * (b.fila + 0.5) + 10];
+    caja.style.setProperty("--mesa", (H - Hv + 4).toFixed(0) + "px");
+  } else {
+    // Cada fila un arco alrededor de la presidencia (abajo, al centro). La caja suele
+    // ser más alta que ancha: el arco se estira un poco para arriba (hasta 1,25 veces)
+    // para usar ese alto, y el hemiciclo queda centrado en la caja.
+    const Rx = Math.max(80, W / 2 - 36);
+    const Ry = Math.max(80, Math.min(Hv - 90, Rx * 1.25));
+    const cx = W / 2, cy = Math.min(Hv - 34, (Hv + Ry) / 2 + 10);
+    const r0 = filas > 1 ? 0.5 : 1, paso = filas > 1 ? (1 - r0) / (filas - 1) : 0;
+    const hueco = Math.min(Math.PI * r0 * (Rx + Ry) / 2 / cols, filas > 1 ? paso * Math.min(Rx, Ry) : Infinity);
+    escala = Math.max(0.42, Math.min(1, hueco / BANCA));
+    pos = (b) => {
+      const f = r0 + paso * b.fila;
+      const ang = Math.PI * (1 - (b.columna + 0.5) / cols);
+      return [cx + Rx * f * Math.cos(ang), cy - Ry * f * Math.sin(ang)];
+    };
+    caja.style.setProperty("--mesa", (H - cy - 30).toFixed(0) + "px");
+  }
+  caja.style.setProperty("--escala", escala.toFixed(3));
+  for (const b of ocupadas) {
     const i = b.integrante;
-    if (!i) continue;
     total++;
     const remoto = remotoDe(i.id);
     const d = el("div", "banca");
-    // Posición en el arco (en % de la caja: el centro abajo).
-    const radio = 0.44 + 0.52 * (filas <= 1 ? 1 : b.fila / (filas - 1));
-    const ang = Math.PI * (1 - (b.columna + 0.5) / cols);
-    d.style.left = (50 + 46 * radio * Math.cos(ang)) + "%";
-    d.style.top = (92 - 84 * radio * Math.sin(ang)) + "%";
+    const [x, y] = pos(b);
+    d.style.left = x.toFixed(1) + "px";
+    d.style.top = y.toFixed(1) + "px";
     if (remoto && remoto.estado === "habilitado") { d.classList.add("remoto"); presentes++; }
     else if (remoto && remoto.estado === "esperando") d.classList.add("espera");
     else if (abiertos.has(b.banca) || (est.central && est.central.conectada)) { d.classList.add("sala"); presentes++; }
@@ -370,6 +423,7 @@ function pintarVotacion() {
   // Los próximos temas: un toque los pone como tema.
   const pr = $("proximos");
   pr.textContent = "";
+  if ((est.proximos || []).length) pr.appendChild(el("span", "tenue chico", "Próximos puntos (un toque lo pone como tema):"));
   for (const p of (est.proximos || []).slice(0, 4)) {
     const b = el("button", "boton chico", p.n + ". " + p.titulo);
     b.addEventListener("click", () => { $("votTema").value = p.titulo; });
@@ -404,7 +458,8 @@ function pintarDebate() {
   const r = d.restante_s || 0;
   $("debateReloj").textContent = !activo ? "" : d.turno === "nadie" ? "Nadie tiene el turno"
     : d.turno === "ambos" ? "Hablan los dos"
-    : (d.turno === "a" ? "Turno de A" : "Turno de B") + (d.turno_s > 0 ? " · " + (r < 0 ? "-" : "") + Math.floor(Math.abs(r) / 60) + ":" + String(Math.abs(r) % 60).padStart(2, "0") : "");
+    : (d.turno === "a" ? "Turno de A" : "Turno de B") + (d.turno_s > 0 ? " · " + mmss(r) : "");
+  $("debateReloj").classList.toggle("oculto", !activo);
   $("debateIniciar").classList.toggle("oculto", activo);
   for (const x of document.querySelectorAll(".debate-en")) x.classList.toggle("oculto", !activo);
   if (activo && d.aviso) $("debateReloj").title = d.aviso;
@@ -441,6 +496,11 @@ function menuBanca(ev, b, i, remoto) {
 }
 function cerrarMenu() { $("menuBanca").classList.add("oculto"); }
 document.addEventListener("click", cerrarMenu);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrarMenu(); });
+
+// Al cambiar el tamaño de la ventana (girar la tablet), se vuelven a acomodar las bancas.
+let redibujar = null;
+window.addEventListener("resize", () => { clearTimeout(redibujar); redibujar = setTimeout(() => { if (est) pintarRecinto(); }, 120); });
 
 // --- Las caras en vivo ---------------------------------------------------------------------------
 let ultimaRonda = 0;
@@ -564,3 +624,23 @@ setInterval(() => {
   const d = new Date(Date.now() + desfase);
   $("reloj").textContent = String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
 }, 1000);
+
+// --- Pantalla completa y pantalla prendida -------------------------------------------------------
+// En una tablet sobre la mesa de la presidencia: que no se apague sola en medio de la
+// sesión, y que se pueda usar a pantalla completa (sin la barra del navegador).
+let candado = null;
+async function despierta() {
+  try { if ("wakeLock" in navigator && !candado) { candado = await navigator.wakeLock.request("screen"); candado.addEventListener("release", () => { candado = null; }); } }
+  catch (e) { /* sin permiso o sin soporte: no importa */ }
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && adentro) despierta(); });
+const botonCompleta = $("pantallaCompleta");
+if (!document.documentElement.requestFullscreen) botonCompleta.classList.add("oculto");
+botonCompleta.addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen().catch(() => {});
+});
+document.addEventListener("fullscreenchange", () => {
+  botonCompleta.textContent = document.fullscreenElement ? "⤡" : "⤢";
+  botonCompleta.title = document.fullscreenElement ? "Salir de pantalla completa" : "Pantalla completa";
+});

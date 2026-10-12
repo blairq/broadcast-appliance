@@ -50,7 +50,8 @@
       <div id="remotos" class="chip">Remotos —</div>
       <div id="central" class="chip">Central —</div>
       <div id="reloj" class="chip reloj">--:--</div>
-      <span id="conexion" class="punto-con apagado" title="Conexión"></span>
+      <button id="pantallaCompleta" class="boton chico" type="button" title="Pantalla completa">⤢</button>
+      <span id="conexion" class="punto-con apagado" title="Conexión con la app"></span>
     </header>
 
     <section class="col col-izq">
@@ -78,7 +79,7 @@
           <button class="boton rojo" data-accion="terminar">Terminar</button>
           <button class="boton celeste" data-accion="siguiente">Siguiente ▶</button>
         </div>
-        <label class="tiempo">Tiempo de cada uno <input id="asignado" type="number" min="10" step="30" /> s</label>
+        <label class="tiempo">Tiempo para cada orador <input id="asignado" type="number" min="10" step="30" /> segundos</label>
         <!-- Lo que hace la presidencia sobre todos: callarlos (también a los remotos) y hablar ella. -->
         <div class="acciones">
           <button class="boton rojo" data-accion="silenciar">🔇 Silenciar a todos</button>
@@ -124,7 +125,7 @@
       <article class="tarjeta vidrio inclinable">
         <h2>Pidieron la palabra <span id="cuantosPidieron" class="tenue"></span></h2>
         <div id="fila" class="lista"></div>
-        <p class="tenue chico">Mantené apretado 🎙 para hablar con quien pidió la palabra: lo ves en «En uso de la palabra».</p>
+        <p class="tenue chico">«Dar» le da la palabra. Con los remotos, mantené apretado 🎙 para hablarle antes: lo ves en «En uso de la palabra».</p>
       </article>
       <article class="tarjeta vidrio inclinable votacion" id="tarjetaVotacion">
         <h2>Votación <span id="estadoVot" class="tenue"></span></h2>
@@ -136,7 +137,7 @@
               <option value="si_no">Sí · No</option>
               <option value="si_no_abstencion_nppv">Sí · No · Abst. · No participa</option>
             </select>
-            <input id="votSegundos" type="number" min="0" step="10" title="Segundos para votar" />
+            <label class="seg" title="Segundos para votar (0 = sin límite)"><input id="votSegundos" type="number" min="0" step="10" /> s</label>
             <button class="boton rojo" id="votAbrirBoton">Abrir votación</button>
           </div>
           <div id="proximos" class="proximos"></div>
@@ -157,6 +158,7 @@
   <!-- El menú de una banca. -->
   <div id="menuBanca" class="menu vidrio oculto" role="menu"></div>
   <div id="aviso" class="aviso oculto"></div>
+  <div id="sinConexion" class="sin-conexion oculto" role="status">Sin conexión con la app: reconectando…</div>
   <audio id="audioRemoto" autoplay></audio>
   <script src="../comun/ice.js"></script>
   <script src="consola.js"></script>
