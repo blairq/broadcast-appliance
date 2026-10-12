@@ -1185,6 +1185,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             for (const QString& e : video_->entradas()) {
                 const nlohmann::json st = video_->estadoEntrada(e.toStdString());
                 if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
+                // Una entrada solo de audio (un tono, un micrófono por pipeline) no tiene
+                // imagen nunca: no es «sin señal».
+                const nlohmann::json aj = nlohmann::json::parse(rt_.engine().sourceSettingsJson(e.toStdString()), nullptr, false);
+                if (aj.is_object() && aj.value("pipeline", std::string()).empty() && aj.value("uri", std::string()).empty() &&
+                    aj.value("camara", std::string()).empty() && !aj.value("pipeline_audio", std::string()).empty())
+                    continue;
                 if (st.value("ancho", 0) <= 0)
                     agregar(false, "La entrada «" + e + "» no tiene señal ahora");
             }

@@ -915,8 +915,13 @@ void VideoGrafos::sincronizar() {
     // que se fue queda guardado si tenía tarjetas (por si vuelve con el mismo
     // nombre); si estaba vacío, se borra.
     bool nuevos = false;
+    // Los ids de las tarjetas salen del nombre «aplanado» («Ajuste: barras» y «Ajuste —
+    // barras» dan lo mismo): el sub-grafo guardado de una entrada que ya no está se
+    // descarta si choca con el de una que sí está (si no, las dos comparten tarjetas).
+    std::set<std::string> idsVivos;
+    for (const QString& e : hay) idsVivos.insert(GrafoVideo::idEntrada(e.toStdString()));
     for (const std::string& e : grafo_.entradas())
-        if (!hay.contains(q(e)) && grafo_.trivial(e)) {
+        if (!hay.contains(q(e)) && (grafo_.trivial(e) || idsVivos.count(GrafoVideo::idEntrada(e)))) {
             grafo_.quitarEntrada(e);
             nuevos = true;
         }
@@ -1243,7 +1248,12 @@ json VideoGrafos::pasarAEntrada(const std::string& entrada, json& para) {
             // activa, prendido o no en Cámaras PTZ: quieto y sin zoom pasa los cuadros
             // sin tocarlos (passthrough), y así prenderlo o apagarlo no rearma la
             // cámara (rearmarla son unos segundos sin cuadros: saltaba la alarma).
-            if (p.value("activo", true))
+            // UNO por entrada: dos tarjetas «ptz» (un grafo viejo que quedó de una fuente
+            // borrada con el mismo nombre) daban dos elementos ba_f_ptz y la cadena no
+            // enganchaba nunca («could not link ba_f_ptz to ba_f_ptz»).
+            bool yaHay = false;
+            for (const auto& v : video) yaHay = yaHay || v.value("id", std::string()) == "ptz";
+            if (p.value("activo", true) && !yaHay)
                 video.push_back(json{{"id", "ptz"}, {"elemento", "baptz"}});
             movidas.insert(id);
             cables.erase(cables.begin() + static_cast<long>(desdeIn[0]));

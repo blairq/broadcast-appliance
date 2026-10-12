@@ -1139,10 +1139,14 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {{"type", "object"},
                          {"required", {"item", "hecho"}},
                          {"properties",
-                          {{"item", {{"type", "string"}}}, {"hecho", {{"type", "boolean"}}}, {"nota", {{"type", "string"}}}}}};
+                          {{"item", {{"type", "string"}}},
+                           {"hecho", {{"type", "boolean"}}},
+                           {"nota", {{"type", "string"}}},
+                           {"texto", {{"type", "string"}, {"description", "lo que ve la persona, para un ítem nuevo"}}}}}};
         t.run = [&ev](const json& a, Done done) {
             if (!ev.marcarChequeo(QString::fromStdString(a.value("item", std::string())), a.value("hecho", false),
-                                  QString::fromStdString(a.value("nota", std::string()))))
+                                  QString::fromStdString(a.value("nota", std::string())),
+                                  QString::fromStdString(a.value("texto", std::string()))))
                 return done(ToolResult::error("No hay un evento abierto (evento_abrir)."));
             done(ToolResult().text("Anotado."));
         };

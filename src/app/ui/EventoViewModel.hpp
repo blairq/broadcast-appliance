@@ -156,7 +156,8 @@ class EventoViewModel : public QObject {
     /// [{item, texto, hecho, nota, cuando}].
     Q_INVOKABLE QVariantList chequeo() const;
     /// Marca un ítem (o lo agrega si no existe). false si no hay evento abierto.
-    Q_INVOKABLE bool marcarChequeo(const QString& item, bool hecho, const QString& nota);
+    /// `texto`: lo que ve la persona, para un ítem nuevo (de fábrica, el nombre del ítem).
+    Q_INVOKABLE bool marcarChequeo(const QString& item, bool hecho, const QString& nota, const QString& texto = {});
     Q_INVOKABLE QString crear(const QString& nombre, const QString& enCarpeta = {});
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();

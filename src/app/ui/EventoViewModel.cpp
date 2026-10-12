@@ -2155,7 +2155,7 @@ QVariantList EventoViewModel::chequeo() const {
     return out;
 }
 
-bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QString& nota) {
+bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QString& nota, const QString& texto) {
     if (abierto_.isEmpty() || item.trimmed().isEmpty()) return false;
     const auto ruta = store_.carpetaDe(abierto_.toStdString()) / "chequeo.json";
     json j = json::object();
@@ -2170,7 +2170,8 @@ bool EventoViewModel::marcarChequeo(const QString& item, bool hecho, const QStri
     bool conocido = false;
     for (const auto& [k, t] : itemsDeChequeo())
         if (id == k) conocido = true;
-    if (!conocido && !g.contains("texto")) g["texto"] = id;
+    if (!conocido && !texto.trimmed().isEmpty()) g["texto"] = texto.trimmed().toStdString();
+    else if (!conocido && !g.contains("texto")) g["texto"] = id;
     g["hecho"] = hecho;
     g["nota"] = nota.toStdString();
     g["cuando"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm").toStdString();

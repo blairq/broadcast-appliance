@@ -1,0 +1,92 @@
+{
+  "nombre": "Identificación de la señal de ajuste",
+  "descripcion": "La banda de arriba que va sobre las barras: «SEÑAL DE AJUSTE», el nombre del evento y cuándo empieza (del tamaño del lienzo, transparente debajo de la banda). Así el que mira la transmisión de prueba sabe que es la correcta.",
+  "ancho": 1920,
+  "alto": 1080,
+  "parametros": [
+    {
+      "clave": "evento",
+      "titulo": "Evento",
+      "tipo": "texto",
+      "porDefecto": "Nombre del evento",
+      "ayuda": "El nombre del evento: es lo que confirma que la transmisión es la correcta."
+    },
+    {
+      "clave": "detalle",
+      "titulo": "Detalle",
+      "tipo": "texto",
+      "porDefecto": "Empieza a las 19:00",
+      "ayuda": "La fecha y la hora de inicio."
+    },
+    {
+      "clave": "salidaEn",
+      "titulo": "Cuándo se va",
+      "tipo": "ms",
+      "porDefecto": 0,
+      "minimo": 0,
+      "maximo": 60000,
+      "ayuda": "0 = se queda mientras estén las barras."
+    }
+  ],
+  "declarativo": {
+    "ancho": 1920,
+    "alto": 1080,
+    "entrada": {
+      "efecto": "aparece",
+      "duracion": 400
+    },
+    "salida": {
+      "efecto": "desaparece",
+      "duracion": 300
+    },
+    "capas": [
+      {
+        "tipo": "panel",
+        "izquierda": 0,
+        "arriba": 0,
+        "ancho": 1920,
+        "alto": 220,
+        "color": "#000000",
+        "opacidad": 0.85
+      },
+      {
+        "tipo": "texto",
+        "id": "etiqueta",
+        "valor": "SEÑAL DE AJUSTE",
+        "tamano": 30,
+        "peso": "negrita",
+        "color": "#ffd60a",
+        "izquierda": 80,
+        "arriba": 34
+      },
+      {
+        "tipo": "texto",
+        "id": "evento",
+        "valor": "{evento}",
+        "tamano": 56,
+        "peso": "negrita",
+        "izquierda": 80,
+        "arriba": 80,
+        "ancho": 1760
+      },
+      {
+        "tipo": "texto",
+        "id": "detalle",
+        "valor": "{detalle}",
+        "tamano": 30,
+        "peso": "liviana",
+        "color": "#d4d4d8",
+        "izquierda": 82,
+        "arriba": 158,
+        "ancho": 1760
+      }
+    ]
+  },
+  "acciones": [
+    {
+      "icono": "▦",
+      "titulo": "Con los datos del evento",
+      "prompt": "Mirá el evento abierto (evento_ver) y poné en esta banda su nombre y, de detalle, la fecha y la hora de inicio."
+    }
+  ]
+}

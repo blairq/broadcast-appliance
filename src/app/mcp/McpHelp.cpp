@@ -290,7 +290,7 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
 
 1. **El Cuerpo:** cada integrante con su banca (`cuerpo_importar` desde una planilla, o `integrante_editar`). Sin banca no aparece en el recinto.
 2. **El recinto:** la grilla de bancas como se ven desde la cabina (`recinto_editar {filas, columnas, auto: true}`).
-3. **Las cámaras de las bancas:** para cada banca, una posición PTZ que la encuadre (`ptz_posicion_guardar`) anotada en el Cuerpo (`integrante_editar {id, camara, posicion}`). Al darle la palabra, la cámara va sola a esa posición.
+3. **Las cámaras de las bancas:** para cada banca, una posición PTZ que la encuadre (`ptz_posicion_crear`) anotada en el Cuerpo (`integrante_editar {id, camara, posicion}`). Al darle la palabra, la cámara va sola a esa posición.
 4. **LAS ESCENAS** (lo que más se olvida): al darle la palabra a una banca se ARMA la escena que muestra su cámara; si ninguna escena la muestra, no sale nadie. Hace falta:
    - una escena por cada cámara de bancas (con el zócalo `{orador}` si se quiere el nombre en pantalla);
    - un plano general;
@@ -300,13 +300,101 @@ Casi siempre para lo mismo: **"este discurso dura nueve minutos y tengo seis"**.
    `asamblea_escenas_base` las propone armadas con las cámaras y entradas que hay (mostrale la propuesta al operador) y con `crear: true` las crea y configura el debate. Después se pueden retocar (zócalo, fondo, logo).
 5. **La central de conferencia** (si hay): `help {"topic": "conferencia"}`; cada banca con su unidad.
 6. **Los remotos:** `help {"topic": "sesion"}`; link y PIN a los que sesionan a distancia; qué ven en el celular (`sesion_vistas`).
-7. **El orden del día** (`orden_del_dia`): se ve en los celulares y en la consola de la presidencia.
+7. **El orden del día** (`orden_del_dia_cargar`): se ve en los celulares y en la consola de la presidencia.
 8. **El debate** (si va a haber): `debate_config` con la escena de cada tipo y el tiempo de cada turno.
 9. **El guion** (`evento_armar`) para lo que sí tiene orden: apertura, himno, cierre. El cuerpo de la sesión lo maneja la fila de oradores (`banca_*`), no los cues.
 
 Durante la sesión: `banca_al_aire` / `banca_terminar` (la palabra), `presidencia_silenciar` y `presidencia_hablar`, `debate_iniciar` / `debate_turno`, votación con `dcn_votacion` o `sesion_votacion`.
 
 Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un consejo con 15 integrantes, recinto, central simulada, escenas y debate): `configuracion_crear {"nombre": "Demo", "desde": "demo:Demo parlamentaria"}` y `configuracion_cambiar` (ver `help {"topic": "configuraciones"}`).md"},
+    {"procedimiento_salon", "Procedimiento: evento en salón",
+     "Paso a paso para diseñar, controlar, ensayar y salir con un evento en salón (con público, oradores, invitados remotos y preguntas).",
+     R"md(El procedimiento estándar para un evento **en salón**: público en la sala, oradores, transmisión y grabación, y si se pide invitados remotos y preguntas del público. Seguilo en orden; cada paso dice con qué herramienta. **Proponé antes de hacer** lo que cambia el evento o sale al aire, y no inventes datos: lo que no te dijeron, preguntalo.
+
+**0. Lo que hay que preguntar** (antes de armar nada): nombre del evento; fecha, hora de inicio y **huso** (si alguien se conecta de otro lado); lugar; duración y partes (bloques) con su tiempo; quién habla en cada parte, con **nombre y cargo** tal como van en pantalla; si hay **invitados remotos**; si el **público pregunta y vota**; **dónde se transmite** (YouTube, Twitch, Facebook, otro servidor) y si se graba; música de espera y de cierre; videos que se pasan; si hay **acreditación** de asistentes; si hace falta teleprompter o subtítulos.
+
+**1. Configurar** (todo lo que tiene que quedar puesto):
+| Qué | Con qué |
+|---|---|
+| El evento y su guion: bloques con tiempos y cues (escena, orador con su tiempo, video, música, gráfico, teleprompter, nota, espera) | `evento_armar {nombre, fecha, inicio, huso, invitados, preguntas, bloques}`; después `evento_bloque` / `evento_cue` |
+| Las escenas: cada cámara, plano general, pantalla compartida, invitados | `scene_define`, `scene_list` (help escenas) |
+| Música y videos en Medios/ (los cues los nombran) | `media_list`, `media_find` (help medios) |
+| Zócalos de cada orador (nombre y cargo bien escritos) | gráfico `zocalo` en cues de tipo gráfico; `grafico_listar`, `grafico_probar` |
+| Micrófonos de la sala y niveles | `audio_input_add`, `audio_measure`, `audio_loudness` (help audio) |
+| Adónde se transmite | cuentas: `account_setup_guide`, `accounts_status`; servidor propio: `stream_destino_agregar` |
+| La grabación (disco y calidad) | `record_disco`, `record_ajustes` |
+| La página web del evento (una página por bloque, se actualiza sola) | `evento_web {accion: generar}`; `evento_web {accion: sitio, participacion: true}` si el público participa; dónde verlo en vivo: `sitio {vivos}` |
+| Invitados remotos (si hay) | `room_link`, `room_pin`; lobby con `room_set`; quién está: `invitado_chequeo` |
+| Preguntas del público (si hay) | la página del público (QR); moderación con `preguntas_ver` / `pregunta_moderar` |
+| Asistentes y acreditación (si hay) | `padron_anotar`; en la puerta, `padron_puerta` |
+| El principio y el final: señal de ajuste, placa «Antes de empezar», placa de fin, bloques Previa y Cierre | `evento_preparar {musica_espera, musica_cierre, bajada, cierre}` |
+
+**2. Controlar** (lo automático): `evento_revisar` (escenas, archivos, disco, destino, entradas sin señal) → `evento_ensayo_rapido` (camina el guion entero) → `evento_verificar` (la lista de control completa de este tipo de evento). Arreglá cada «falta» con lo que dice `como` y volvé a correr `evento_verificar` hasta que no falte nada.
+
+**3. Pedirle a la persona que controle**: `evento_verificar` deja en la lista de chequeo del evento lo que solo confirma alguien mirando y escuchando (estado «a_mano»). **Mostrale esa lista entera** a quien te pidió el evento y pedile que confirme cada cosa; a medida que te diga que sí, marcalo con `evento_chequeo {item, hecho: true, nota}`. No marques nada que no te hayan confirmado.
+
+**4. Ensayar** (probar cada pieza, sin salir al aire):
+- **Música:** `audio_escuchar {name}` la manda a los auriculares del operador; que la escuche y diga si el volumen está bien.
+- **Videos:** `scene_preview` con la escena del video y `capture_source` para mirarlo; con su audio.
+- **Gráficos:** `grafico_probar` con los datos reales de cada zócalo y placa (mirá las imágenes; nombres y cargos bien escritos).
+- **Página web:** `evento_web {accion: ver}` y el QR con `qr_mostrar` para abrirla en un celular.
+- **Grabación de prueba:** `record_start`, un minuto, `record_stop`, y que la reproduzcan.
+- **Invitado de prueba** (si hay): `invitado_prueba`: se ve, se oye y nos oye.
+- **Pregunta de prueba** (si hay): que alguien mande una desde el celular y moderala.
+- **Transmisión de prueba:** con la señal de ajuste al aire, `stream_start` y `stream_salud`; que la persona la vea en la plataforma (barras, hora que corre, tono, que sea el evento correcto). Si falta mucho para empezar, `stream_stop`.
+- **Todo el recorrido:** `evento_correr` con el ensayo prendido (help del evento) para ver el orden real de las escenas.
+
+**5. Dejarlo listo para empezar:** `evento_verificar` sin faltas y con todo confirmado; después `evento_preparar {al_aire: true}` deja la señal de ajuste en el programa. Avisale a la persona que quedó listo y qué falta hacer el día.
+
+**6. El día, de la señal de ajuste al final:**
+1. **30 a 15 minutos antes:** `evento_iniciar`; la Previa del guion arranca con la señal de ajuste (`evento_correr`); `stream_start` y `record_start`. Confirmar que se ve y se oye en la plataforma (el cue de espera lo pide).
+2. **10 a 5 minutos antes:** `evento_correr` → placa «Antes de empezar» con la música de espera.
+3. **Es la hora:** `evento_correr` al primer bloque.
+4. **Durante:** `evento_correr` para avanzar; zócalos a tiempo; preguntas moderadas; vigilar `stream_salud` y `audio_loudness`.
+5. **Cierre:** el bloque Cierre pone la música y la placa de fin; cuando terminó, `stream_stop`, `record_stop`, `evento_terminar` y `evento_informe` (lo que duró cada parte, para el próximo). La página web pasa sola al cierre.)md"},
+    {"procedimiento_asamblea", "Procedimiento: sesión de asamblea",
+     "Paso a paso para diseñar, controlar, ensayar y salir con una sesión de asamblea (cuerpo con bancas, quórum, orden del día, votaciones, remotos).",
+     R"md(El procedimiento estándar para una **sesión de asamblea** (concejo, consejo, directorio, consorcio): integrantes en bancas, quórum, orden del día, votaciones y, si hay, integrantes a distancia. Una sesión **no es un guion de cues**: la palabra cambia sin orden previo y la maneja la fila de oradores. Seguilo en orden, **proponé antes de hacer** y no inventes datos. Para el detalle de cada pieza: help asamblea, conferencia y sesion.
+
+**0. Lo que hay que preguntar:** nombre del cuerpo y de la sesión; fecha, hora y **huso**; la **lista de integrantes** con banca, nombre, cargo y bloque (mejor una planilla); quiénes **votan**; la **regla del quórum** y la mayoría; el **orden del día** (puntos y expedientes); si hay **central de conferencia** (micrófonos de las bancas) o se trabaja sin ella; si hay **integrantes a distancia**; dónde se transmite y si se graba; si hay himno, minuto de silencio u otros momentos fijos.
+
+**1. Configurar:**
+| Qué | Con qué |
+|---|---|
+| El evento como asamblea y su guion (solo lo que tiene orden: Previa, apertura, cierre) | `evento_armar {nombre, fecha, inicio, huso, asamblea: true, gente, bloques}` |
+| El Cuerpo: cada integrante con su banca, cargo y bloque (validados) | `cuerpo_importar` (planilla), `integrante_editar`, `integrante_validar` |
+| El recinto: la grilla de bancas | `recinto_editar {filas, columnas, auto: true}` |
+| La cámara de cada banca | `ptz_posicion_crear` y `integrante_editar {id, camara, posicion}`; probar con `recinto_apuntar` |
+| LAS ESCENAS de bancas, plano general, remoto con la palabra y debate | `asamblea_escenas_base` (mostrá la propuesta; `crear: true`) |
+| La central de conferencia (si hay) | `dcn_conectar`; cada banca con su unidad (help conferencia) |
+| Los integrantes a distancia (si hay) | `sesion_credencial {banca}` (link y PIN), `sesion_acceso_opciones`; la consola de la presidencia: `sesion_consola {accion: crear}` |
+| El padrón con quién vota | `evento_armar {gente: [{…, vota: true}]}` o `padron_anotar` |
+| El quórum | `quorum_regla` |
+| El orden del día | `orden_del_dia_cargar` |
+| Los gráficos de asamblea: zócalo de integrante, punto del orden del día, quórum, resultado de votación, cuarto intermedio | se vinculan solos a lo validado (help asamblea, `grafico_listar` categoría Asamblea) |
+| Adónde se transmite y la grabación | como en un evento en salón (help procedimiento_salon, paso 1) |
+| La página web del evento (muestra la asamblea, el recinto con las bancas por bloque, el quórum y las votaciones) | `evento_web {accion: generar}` |
+| El principio y el final: señal de ajuste, placa de espera, placa de fin | `evento_preparar` |
+
+**2. Controlar:** `asamblea_revisar` (cuerpo, recinto, presets, escenas, central, banca virtual, orden del día) → `evento_revisar` → `evento_verificar {tipo: asamblea}`. Arreglá cada «falta» y repetí hasta que no falte nada.
+
+**3. Pedirle a la persona que controle:** la lista «a_mano» de `evento_verificar`: además de lo general (cámaras, sonido, gráficos, página, grabación, transmisión de prueba), la **central probada banca por banca**, el **preset de cada banca**, una **votación de prueba**, los **remotos con su link y PIN** (uno probado), la **consola de la presidencia** y **quién toma el acta**. Marcá con `evento_chequeo` solo lo que te confirmen.
+
+**4. Ensayar:**
+- **Cada banca:** darle la palabra (`banca_al_aire`) y terminarla (`banca_terminar`): ¿se mueve la cámara, se arma la escena, sale el zócalo con el nombre correcto, abre el micrófono?
+- **Un remoto:** que entre con su link y PIN, habilitarlo, darle la palabra.
+- **Votación de prueba:** con la central o con la banca virtual (`sesion_votacion`); el resultado oficial (`votacion_resultado_oficial`) en pantalla.
+- **Quórum:** `quorum_estado` con los presentes.
+- Y lo de todo evento: música, gráficos, página web, grabación y transmisión de prueba (help procedimiento_salon, paso 4).
+
+**5. Dejarlo listo:** `evento_verificar {tipo: asamblea}` sin faltas y con todo confirmado; `evento_preparar {al_aire: true}` deja la señal de ajuste en el programa. Avisale a la persona.
+
+**6. El día, de la señal de ajuste al final:**
+1. **30 a 15 minutos antes:** `evento_iniciar`; señal de ajuste; `stream_start` y `record_start`; confirmar en la plataforma.
+2. **Antes de empezar:** placa de espera con música; los remotos entran y se habilitan; `quorum_estado`.
+3. **Apertura:** con quórum, el primer bloque (himno, apertura de la presidencia).
+4. **La sesión:** la fila de oradores (`banca_cola`, `banca_al_aire`, `banca_terminar`); el punto en tratamiento (`orden_del_dia_punto`); votaciones y su resultado oficial; cuarto intermedio con su placa si hace falta. El registro va solo al acta (`sesion_registro`).
+5. **Cierre:** el bloque Cierre (placa de fin); `stream_stop`, `record_stop`, `evento_terminar` y `evento_informe`.)md"},
     {"laminas", "Carruseles de laminas", "La presentacion del orador, lamina por lamina.",
      R"md(Una tira de imagenes que muestra una escena. **No es el `carrusel_*` de las pantallas**: eso rota mensajes y QR en un televisor secundario. Esto es la presentacion del orador.
 

@@ -492,6 +492,12 @@ bool BroadcastEngine::ajustesMotorTipo(const SourceSpec& spec, json& a) const {
 
 bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     if (sources_.count(pedida.name) > 0) return true;
+    // El motor separa con «:» la entrada de lo que sale de ella («Cámara:video»): un nombre
+    // con «:» no se puede crear allá. Se dice acá, y no queda una fuente «agregada» y muerta.
+    if (pedida.name.find(':') != std::string::npos) {
+        setError("el nombre de una fuente no puede tener «:» («" + pedida.name + "»): usá «—» o «-»");
+        return false;
+    }
     // Lo viejo de OBS que ya tiene versión GStreamer (InputSpecs).
     SourceSpec spec = pedida;
     inputs::migrarMedio(spec);

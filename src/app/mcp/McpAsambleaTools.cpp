@@ -113,7 +113,7 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
     }
     if (!sinPreset.empty())
         falta("camaras", std::to_string(sinPreset.size()) + " banca(s) sin preset de cámara: al darles la palabra no se muestra a nadie.",
-              "Apuntá la PTZ a cada banca, guardá la posición (ptz_posicion_guardar) y anotala en el Cuerpo "
+              "Apuntá la PTZ a cada banca, guardá la posición (ptz_posicion_crear) y anotala en el Cuerpo "
               "(integrante_editar {id, camara, posicion}).");
     if (!camaraRara.empty())
         falta("camaras", "Bancas con una cámara que no existe: " + camaraRara.front() + (camaraRara.size() > 1 ? " y otras" : "") + ".",
@@ -131,12 +131,12 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
             if (bancas.size() > 2)
                 aviso("camaras", std::to_string(bancas.size()) + " bancas usan la misma posición («" + cp +
                                      "»): al darle la palabra a una no se la encuadra a ella, se ve el plano entero.",
-                      "Una posición por banca (o por grupo chico de bancas vecinas): apuntá la PTZ, ptz_posicion_guardar "
+                      "Una posición por banca (o por grupo chico de bancas vecinas): apuntá la PTZ, ptz_posicion_crear "
                       "{entrada, nombre: \"Banca N\"} e integrante_editar {id, camara, posicion}.");
     }
     if (!posicionRara.empty())
         aviso("camaras", "Bancas con una posición PTZ que la cámara no tiene: " + posicionRara.front() + (posicionRara.size() > 1 ? " y otras" : "") + ".",
-              "ptz_posicion_guardar en esa cámara con ese nombre.");
+              "ptz_posicion_crear en esa cámara con ese nombre.");
 
     // 4. LAS ESCENAS: cada cámara de bancas en alguna escena, el remoto, el debate.
     const auto camaras = camarasDeBancas(cuerpo);
@@ -204,7 +204,7 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm, AppRuntime& rt) {
         }
     }
     if (vm.ordenDelDia().puntos().empty())
-        aviso("orden", "El orden del día está vacío.", "orden_del_dia {puntos: [...]} (se ve en los celulares y en la consola).");
+        aviso("orden", "El orden del día está vacío.", "orden_del_dia_cargar {texto} con una línea por punto (se ve en los celulares y en la consola).");
 
     return {{"listo", faltas.empty()},
             {"faltas", faltas},
