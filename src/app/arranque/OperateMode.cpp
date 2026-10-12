@@ -854,6 +854,17 @@ void AppRuntime::restoreOutputs() {
     }
 }
 
+std::string AppRuntime::grabarAparte(const std::string& fuente) {
+    const nlohmann::json d = discoGrabacion();
+    const double horas = d.value("horas", -1.0);
+    if (horas >= 0 && horas < kDiscoMinimoAparteH)
+        return "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.";
+    if (static_cast<int>(engine_.sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
+        return "Ya se graban " + std::to_string(BroadcastEngine::kMaxIndividuales) + " aparte (el tope): pará alguna.";
+    if (!startSourceRecording(fuente)) return lastError_;
+    return {};
+}
+
 bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente) {
     if (!startStreaming(server, key, cambiarEnCaliente)) return false;
     if (engine_.ultimoInicio() != BroadcastEngine::Inicio::YaIgual && alVivoManual_) {

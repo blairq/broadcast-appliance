@@ -2473,7 +2473,7 @@ void StudioViewModel::toggleRecording() {
         // Antes de grabar: cuánto alcanza el disco a este bitrate.
         const nlohmann::json d = rt_.discoGrabacion();
         const double horas = d.value("horas", -1.0);
-        if (horas >= 0 && horas < 0.25) {
+        if (horas >= 0 && horas < AppRuntime::kDiscoMinimoH) {
             emit pedirConfirmarGrabacion(horas);
             return;
         }
@@ -3807,18 +3807,21 @@ QVariantList StudioViewModel::isosUi() const {
     return out;
 }
 
+void StudioViewModel::isoInvitadoUi(const QString& id) {
+    const QString f = fuenteDeInvitado(id);
+    if (f.isEmpty()) return emit notify("Ese invitado no tiene una fuente en el programa todavía.", "warn");
+    const QString e = isoUi(f, true);
+    emit notify(e.isEmpty() ? "Grabando «" + f + "» aparte" : e, e.isEmpty() ? "ok" : "error");
+}
+
 QString StudioViewModel::isoUi(const QString& fuente, bool grabar) {
     if (!grabar) {
         rt_.stopSourceRecording(fuente.toStdString());
         emit statusChanged();
         return {};
     }
-    const nlohmann::json d = rt_.discoGrabacion();
-    if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < 0.5)
-        return "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.";
-    if (static_cast<int>(rt_.engine().sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
-        return QString("Ya se graban %1 aparte (el tope): pará alguna.").arg(BroadcastEngine::kMaxIndividuales);
-    if (!rt_.startSourceRecording(fuente.toStdString())) return qs(rt_.lastError());
+    const std::string e = rt_.grabarAparte(fuente.toStdString()); // las reglas son del modelo
+    if (!e.empty()) return qs(e);
     emit statusChanged();
     return {};
 }

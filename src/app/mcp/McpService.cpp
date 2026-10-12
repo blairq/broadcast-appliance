@@ -3518,9 +3518,10 @@ void McpService::registerTools() {
                     arrancar.push_back(s);
 
             json fallaron = json::array();
+            // Con las reglas del modelo (disco, tope), las mismas que la GUI.
             for (const std::string& s : arrancar)
-                if (!rt.startSourceRecording(s))
-                    fallaron.push_back(json{{"fuente", s}, {"motivo", rt.lastError()}});
+                if (const std::string e = rt.grabarAparte(s); !e.empty())
+                    fallaron.push_back(json{{"fuente", s}, {"motivo", e}});
             if (a.contains("parar") && a["parar"].is_array())
                 for (const json& s : a["parar"])
                     if (s.is_string()) rt.stopSourceRecording(s.get<std::string>());
@@ -3553,7 +3554,7 @@ void McpService::registerTools() {
         t.run = [&rt, &vm](const json&, Done done) {
             if (rt.engine().status().recording) return done(ToolResult::ok("Ya esta grabando."));
             const json d = rt.discoGrabacion();
-            if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < 0.25)
+            if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < AppRuntime::kDiscoMinimoH)
                 return done(ToolResult::error("Queda disco para menos de 15 minutos a este bitrate: no se arranca sola. "
                                               "Liberá espacio o que el operador lo arranque desde Salidas."));
             if (!rt.startRecording()) return done(ToolResult::error("No arranco: " + rt.lastError()));

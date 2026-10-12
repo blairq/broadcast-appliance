@@ -484,6 +484,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantList isosUi() const;
     /// Graba o deja de grabar una fuente aparte (chequea el disco y el tope). "" o el error.
     Q_INVOKABLE QString isoUi(const QString& fuente, bool grabar);
+    /// Grabar aparte la fuente de un invitado de la sala (id): avisa el resultado.
+    Q_INVOKABLE void isoInvitadoUi(const QString& id);
     /// La fuente de un invitado de la sala («Invitado N» por su lugar). "" si no tiene.
     Q_INVOKABLE QString fuenteDeInvitado(const QString& participante) const;
     /// Todas las de video de la escena al aire (true) o ninguna (false). Devuelve los errores.

@@ -75,12 +75,7 @@ Item {
                             MenuSeparator {}
                             MenuItem {
                                 text: "Grabar aparte (ISO)"
-                                onTriggered: {
-                                    const f = Studio.fuenteDeInvitado(semaforo.p.id)
-                                    if (f === "") { Studio.notify("Ese invitado no tiene una fuente en el programa todavía.", "warn"); return }
-                                    const e = Studio.isoUi(f, true)
-                                    Studio.notify(e === "" ? "Grabando «" + f + "» aparte" : e, e === "" ? "ok" : "error")
-                                }
+                                onTriggered: Studio.isoInvitadoUi(semaforo.p.id)
                             }
                             MenuSeparator {}
                             MenuItem {

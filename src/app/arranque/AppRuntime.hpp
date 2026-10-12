@@ -74,6 +74,14 @@ class AppRuntime {
     /// Graba una entrada a su propio archivo, ademas del programa. Ver
     /// BroadcastEngine::startSourceRecording: cada una es un encode mas.
     bool startSourceRecording(const std::string& source);
+    /// Grabar una fuente aparte (ISO) con las reglas: disco para al menos
+    /// kDiscoMinimoAparteH y el tope de BroadcastEngine::kMaxIndividuales.
+    /// "" = arrancó; si no, por qué no. La GUI y el MCP pasan por acá.
+    std::string grabarAparte(const std::string& fuente);
+    /// Con menos disco que esto (a este bitrate) la grabación del programa no
+    /// arranca sola: la GUI pide confirmar, el MCP no la arranca.
+    static constexpr double kDiscoMinimoH = 0.25;
+    static constexpr double kDiscoMinimoAparteH = 0.5;
     bool stopSourceRecording(const std::string& source);
     void stopAllSourceRecordings();
     /// La señal limpia (sin DSK ni placa) a un destino guardado (`destino` = su id) o
