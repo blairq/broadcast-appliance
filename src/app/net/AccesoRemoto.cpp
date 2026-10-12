@@ -168,6 +168,14 @@ QString AccesoRemoto::guardarToken(const QString& token) {
     return {};
 }
 
+QVariantMap AccesoRemoto::guardarTokenTunel(const QString& token, bool hayCambiosSinAplicar) {
+    if (const QString e = guardarToken(token); !e.isEmpty())
+        return {{"error", e}, {"reiniciarAhora", false}};
+    // Lo que rige es lo guardado (rt_.gateway()), no lo que está a medio editar.
+    const bool reiniciar = cli_.online() && rt_.gateway().pinggyActivo && !hayCambiosSinAplicar;
+    return {{"error", QString()}, {"reiniciarAhora", reiniciar}};
+}
+
 QString AccesoRemoto::borrarToken() {
     if (!ba::security::CredentialStore::bundle().remove(kToken) && tokenGuardado())
         return "No se pudo borrar de Credenciales/.";
