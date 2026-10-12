@@ -111,6 +111,7 @@ void McpService::registerAlertTools() {
     {
         Tool t;
         t.name = "notificador_borrar";
+        t.destructive = true;
         t.title = "Borrar un notificador";
         t.category = "alertas";
         t.description = "Borra el notificador `id` (y su secreto guardado).";

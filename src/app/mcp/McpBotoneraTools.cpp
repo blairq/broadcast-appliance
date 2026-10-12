@@ -198,6 +198,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_perfil_borrar";
+        t.destructive = true;
         t.title = "Borrar un perfil de botonera";
         t.category = "botonera";
         t.description = "Borra el `perfil` (los aparatos que lo tenian quedan sin perfil). Confirmalo con el operador.";
@@ -306,6 +307,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_pagina_borrar";
+        t.destructive = true;
         t.title = "Borrar una pagina";
         t.category = "botonera";
         t.description = "Borra la `pagina` (un perfil siempre conserva al menos una).";
@@ -467,6 +469,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_celda_borrar";
+        t.destructive = true;
         t.title = "Borrar una celda";
         t.category = "botonera";
         t.description = "Saca la celda en (`x`, `y`).";
@@ -592,6 +595,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "botonera_revocar";
+        t.destructive = true;
         t.title = "Revocar un aparato";
         t.category = "botonera";
         t.description = "El token del `dispositivo` (o de todas las tablets con \"todos\") deja de valer y se corta su "
@@ -761,6 +765,7 @@ void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
     {
         Tool t;
         t.name = "atajo_quitar";
+        t.destructive = true;
         t.title = "Quitar un atajo";
         t.category = "botonera";
         t.description = "Saca el atajo de `tecla` (o de la accion con ese id).";

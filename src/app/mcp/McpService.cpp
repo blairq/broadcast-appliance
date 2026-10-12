@@ -2328,6 +2328,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "mcp_token_rotar";
+        t.destructive = true;
         t.title = "Rotar el token del MCP";
         t.category = "config";
         t.description = "Cambia ya el token del servidor MCP (el viejo deja de valer). El puente ba-mcp lo relee solo; un "
@@ -2486,6 +2487,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "voz_vocabulario_quitar";
+        t.destructive = true;
         t.title = "Quitar un termino del vocabulario";
         t.category = "traduccion";
         t.description = "Saca el `termino` (de cualquier grupo).";
@@ -3584,6 +3586,7 @@ void McpService::registerTools() {
     {
         Tool t;
         t.name = "record_stop";
+        t.destructive = true;
         t.title = "Detener grabacion";
         t.category = "salidas";
         t.description = "PARA de grabar: cierra el archivo y deja de escribir en disco.";

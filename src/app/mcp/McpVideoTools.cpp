@@ -418,6 +418,7 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_tarjeta_quitar";
+        t.destructive = true;
         t.title = "Quitar una tarjeta de video";
         t.category = "video";
         t.description =
@@ -587,6 +588,7 @@ void McpService::registerVideoTools() {
     {
         Tool t;
         t.name = "video_grafo_limpiar";
+        t.destructive = true;
         t.title = "Volver el video de una entrada a como vino";
         t.category = "video";
         t.description = "Deja la `entrada` en «entrada -> escena»: saca sus tarjetas y lo que llegaba a su "
@@ -1371,6 +1373,7 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_plugin_borrar";
+            t.destructive = true;
             t.title = "Borrar un plugin de superresolución instalado";
             t.category = "video";
             t.description = "Borra la carpeta de un plugin instalado (`id`, de superres_plugins): una red instalada, un "
@@ -1387,6 +1390,7 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_variantes";
+            t.readOnly = true;
             t.title = "Ver las variantes de las redes (compiladas para un tamaño fijo)";
             t.category = "video";
             t.description =
@@ -1496,6 +1500,7 @@ void McpService::registerVideoTools() {
         {
             Tool t;
             t.name = "superres_variante_borrar";
+            t.destructive = true;
             t.title = "Borrar una variante de una red";
             t.category = "video";
             t.description = "Borra una variante (`plugin`, `id`): las tarjetas vuelven a la red general para ese tamaño.";

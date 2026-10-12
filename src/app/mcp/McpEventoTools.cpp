@@ -777,6 +777,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
     {
         Tool t;
         t.name = "evento_terminar";
+        t.destructive = true;
         t.title = "Terminar el evento en curso";
         t.category = "evento";
         t.description = "Termina el evento en curso (queda en el histórico como terminado).";
@@ -1871,6 +1872,7 @@ void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe) {
     {
         Tool t;
         t.name = "padron_quitar";
+        t.destructive = true;
         t.title = "Sacar a alguien del padron";
         t.category = "padron";
         t.description = "Borra a una persona de la lista del evento abierto.";

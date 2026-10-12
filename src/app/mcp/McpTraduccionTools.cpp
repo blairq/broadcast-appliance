@@ -365,6 +365,7 @@ void McpService::registerTraduccionTools() {
     {
         Tool x;
         x.name = "glosario_quitar";
+        x.destructive = true;
         x.title = "Sacar un término del glosario (o apagar un grupo)";
         x.category = "traduccion";
         x.description =

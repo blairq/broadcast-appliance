@@ -89,6 +89,7 @@ void McpService::registerPantallaTools() {
     {
         Tool t;
         t.name = "pantalla_buscar";
+        t.readOnly = true;
         t.title = "Buscar televisores en la red";
         t.category = "pantallas";
         t.description = "Busca Chromecast en la red local (tarda unos segundos). Las que aparezcan quedan "
