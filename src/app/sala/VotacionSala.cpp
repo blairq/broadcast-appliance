@@ -2,38 +2,10 @@
 
 #include "sala/VotacionSala.hpp"
 
-#include "ui/ConferenceClient.hpp"
-
-#include <QJsonDocument>
-#include <QJsonObject>
 
 namespace ba::app::sala {
 
-namespace {
-QJsonObject aQt(const nlohmann::json& j) {
-    return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
-        .object();
-}
-nlohmann::json deQt(const QJsonObject& o) {
-    return nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-}
-} // namespace
-
 VotacionSala::VotacionSala(ConferenceClient& sala, Votantes votantes) : sala_(sala), votantes_(std::move(votantes)) {}
-
-void VotacionSala::pedir(const char* metodo, const std::string& ruta, const nlohmann::json& cuerpo, Listo listo) {
-    const auto alVolver = [listo](bool ok, const QJsonObject& r) {
-        const nlohmann::json j = deQt(r);
-        std::string error;
-        if (!ok) error = r.value("error").toString("la sala no contesta").toStdString();
-        else if (r.contains("ok") && !r.value("ok").toBool()) error = r.value("error").toString("la sala no lo aceptó").toStdString();
-        if (listo) listo(error, j);
-    };
-    if (std::string(metodo) == "GET")
-        sala_.get(QString::fromStdString(ruta), alVolver);
-    else
-        sala_.post(QString::fromStdString(ruta), aQt(cuerpo), alVolver);
-}
 
 std::string VotacionSala::abrir(const std::string& pregunta, const std::vector<std::string>& opcionesPedidas,
                                 const std::string& modo, bool secreta, bool enVivo, Listo listo) {
@@ -60,18 +32,18 @@ std::string VotacionSala::abrir(const std::string& pregunta, const std::vector<s
         cuerpo["habilitados"] = hs;
         cuerpo["podian"] = v->podian;
     }
-    pedir("POST", "/api/v1/votacion", cuerpo, std::move(listo));
+    pedir(sala_, "POST", "/api/v1/votacion", cuerpo, std::move(listo));
     return {};
 }
 
-void VotacionSala::cerrar(Listo listo) { pedir("POST", "/api/v1/votacion", {{"accion", "cerrar"}}, std::move(listo)); }
+void VotacionSala::cerrar(Listo listo) { pedir(sala_, "POST", "/api/v1/votacion", {{"accion", "cerrar"}}, std::move(listo)); }
 
 void VotacionSala::setEnVivo(bool si, Listo listo) {
-    pedir("POST", "/api/v1/votacion", {{"accion", "en_vivo"}, {"si", si}}, std::move(listo));
+    pedir(sala_, "POST", "/api/v1/votacion", {{"accion", "en_vivo"}, {"si", si}}, std::move(listo));
 }
 
 void VotacionSala::ver(bool historial, Listo listo) {
-    pedir("GET", historial ? "/api/v1/votacion?historial=1" : "/api/v1/votacion", {}, std::move(listo));
+    pedir(sala_, "GET", historial ? "/api/v1/votacion?historial=1" : "/api/v1/votacion", {}, std::move(listo));
 }
 
 } // namespace ba::app::sala

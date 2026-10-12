@@ -14,6 +14,7 @@
 // cola, elegir, sacar al aire y dar por respondida.
 // ============================================================================
 #include "sala/VotacionSala.hpp"
+#include "sala/PreguntasSala.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 
 #include <QFile>
@@ -86,6 +87,18 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             conf->client().post(ruta, cuerpo, contestar);
     };
 
+    /// Lo que contestó la sala, para el asistente (los errores dicen que mire la sala).
+    const auto contestarSala = [](Done done, std::string texto) {
+        return [done, texto](const std::string& err, const json& r) {
+            if (!err.empty())
+                return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                                              ". Fijate `room_status`: si esta caida, las preguntas del publico no llegan a ningun lado."));
+            ToolResult res;
+            res.structured = r;
+            res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
+            done(res);
+        };
+    };
     {
         Tool t;
         t.name = "preguntas_ver";
@@ -110,9 +123,7 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
             "`deDonde` dice por donde entro (publico, sala, youtube, twitch, facebook). La cola es una "
             "sola para todos a proposito.\\n\\n"
             "El TEXTO LO ESCRIBE CUALQUIERA con el enlace: leelo antes de sacarlo al aire.";
-        t.run = [pedir](const json&, Done done) {
-            pedir("GET", "/api/v1/preguntas", {}, std::move(done), {});
-        };
+        t.run = [&vm, contestarSala](const json&, Done done) { vm.preguntas().ver(contestarSala(done, {})); };
         core.addTool(std::move(t));
     }
     {
@@ -146,15 +157,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 {"enum",
                  {"elegir", "des_elegir", "al_aire", "responder", "descartar", "limpiar", "vaciar"}}}},
               {"id", {{"type", "string"}, {"description", "el id que da preguntas_ver"}}}}}};
-        t.run = [pedir](const json& a, Done done) {
-            const std::string accion = a.value("accion", std::string());
-            const std::string id = a.value("id", std::string());
-            const bool necesitaId = accion != "limpiar" && accion != "vaciar";
-            if (necesitaId && id.empty())
-                return done(ToolResult::error("Falta `id`: decime cual. Los ids los da `preguntas_ver`."));
-            pedir("POST", "/api/v1/preguntas",
-                  QJsonObject{{"accion", QString::fromStdString(accion)}, {"id", QString::fromStdString(id)}},
-                  std::move(done), "Hecho.");
+        t.run = [&vm, contestarSala](const json& a, Done done) {
+            const std::string e = vm.preguntas().moderar(a.value("accion", std::string()), a.value("id", std::string()),
+                                                         contestarSala(done, "Hecho."));
+            if (!e.empty()) done(ToolResult::error(e + " Los ids los da `preguntas_ver`."));
         };
         core.addTool(std::move(t));
     }
@@ -182,13 +188,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                             {{"type", "string"},
                              {"enum", {"sala", "publico", "youtube", "twitch", "facebook"}},
                              {"description", "por donde llego"}}}}}};
-        t.run = [pedir](const json& a, Done done) {
-            pedir("POST", "/api/v1/preguntas",
-                  QJsonObject{{"accion", "preguntar"},
-                              {"texto", QString::fromStdString(a.value("texto", std::string()))},
-                              {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
-                              {"deDonde", QString::fromStdString(a.value("deDonde", std::string("sala")))}},
-                  std::move(done), "Sumada a la cola.");
+        t.run = [&vm, contestarSala](const json& a, Done done) {
+            const std::string e = vm.preguntas().sumar(a.value("texto", std::string()), a.value("nombre", std::string()),
+                                                       a.value("deDonde", std::string("sala")),
+                                                       contestarSala(done, "Sumada a la cola."));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }
@@ -261,10 +265,11 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
         t.description = "Suma a la cola de preguntas un mensaje del chat (YouTube, Twitch, Facebook o la sala) por su "
                         "`mensaje_id` (la `key` de chat_recientes), con su autor y de donde vino.";
         t.inputSchema = {{"type", "object"}, {"required", {"mensaje_id"}}, {"properties", {{"mensaje_id", {{"type", "string"}}}}}};
-        t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.preguntaDesdeChatUi(QString::fromStdString(a.value("mensaje_id", std::string())));
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult::ok("Mandada a la cola de preguntas."));
+        t.run = [&vm, contestarSala](const json& a, Done done) {
+            // Por el modelo, esperando lo que diga la sala (antes contestaba «ok» antes de saberlo).
+            const std::string e = vm.preguntas().sumarDesdeChat(a.value("mensaje_id", std::string()),
+                                                                contestarSala(done, "Sumada a la cola de preguntas."));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }
@@ -317,7 +322,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                 a.value("pregunta", std::string()), opciones, a.value("modo", std::string("encuesta")),
                 a.value("secreta", false), a.value("enVivo", false), [done](const std::string& err, const json& r) {
                     if (!err.empty()) return done(ToolResult::error("La sala respondio: " + err));
-                    done(ToolResult().text("Votacion abierta.").data(r));
+                    ToolResult res;
+                    res.structured = r;
+                    res.text("Votacion abierta.");
+                    done(res);
                 });
             if (!e.empty()) done(ToolResult::error(e));
         };
@@ -354,7 +362,8 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                     if (!err.empty())
                         return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
                                                       ". Fijate `room_status`."));
-                    ToolResult res = ToolResult().data(r);
+                    ToolResult res;
+                    res.structured = r;
                     res.text(texto.empty() ? r.dump(2, ' ', false, json::error_handler_t::replace) : texto);
                     done(res);
                 };

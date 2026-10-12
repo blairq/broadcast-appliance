@@ -4,6 +4,7 @@
 #include "ui/PublicoViewModel.hpp"
 #include <QPointer>
 #include "sala/VotacionSala.hpp"
+#include "sala/PreguntasSala.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -60,51 +61,57 @@ void PublicoViewModel::setActivo(bool a) {
 }
 
 void PublicoViewModel::consultar() {
-    if (sala_ == nullptr) return;
-    sala_->client().get("/api/v1/preguntas", [this](bool ok, const QJsonObject& r) {
+    if (preguntasSala_ == nullptr || votacionSala_ == nullptr) return;
+    QPointer<PublicoViewModel> yo(this);
+    preguntasSala_->ver([yo](const std::string& err, const nlohmann::json& r) {
+        if (!yo) return;
         // Sin conexion NO se vacia lo que ya esta en pantalla: una cola vacia
         // significa «nadie pregunto» y eso es otra cosa muy distinta de «no
         // puedo ver las preguntas». Se marca `enLinea` y la vista lo dice.
-        if (enLinea_ != ok) {
-            enLinea_ = ok;
-            emit cambio();
+        if (yo->enLinea_ != err.empty()) {
+            yo->enLinea_ = err.empty();
+            emit yo->cambio();
         }
-        if (!ok) return;
-        preguntas_ = aLista(r.value("preguntas").toArray());
-        recuento_ = r.value("recuento").toObject().toVariantMap();
-        emit cambio();
+        if (err.empty()) yo->tomarPreguntas(r);
     });
-    sala_->client().get("/api/v1/votacion", [this](bool ok, const QJsonObject& r) {
-        if (!ok) return;
-        votacion_ = r.value("votacion").toObject().toVariantMap();
-        emit cambio();
+    votacionSala_->ver(false, [yo](const std::string& err, const nlohmann::json& r) {
+        if (yo && err.empty()) yo->alVolverVotacion(err, r, {});
     });
 }
 
 void PublicoViewModel::moderar(const QString& accion, const QString& id) {
-    if (sala_ == nullptr) return;
-    sala_->client().post("/api/v1/preguntas", QJsonObject{{"accion", accion}, {"id", id}},
-                         [this](bool ok, const QJsonObject& r) {
-                             if (!ok) return emit notify("No pude hablar con la sala.", "error");
-                             preguntas_ = aLista(r.value("preguntas").toArray());
-                             recuento_ = r.value("recuento").toObject().toVariantMap();
-                             emit cambio();
-                         });
+    if (preguntasSala_ == nullptr) return;
+    QPointer<PublicoViewModel> yo(this);
+    const std::string e = preguntasSala_->moderar(accion.toStdString(), id.toStdString(),
+                                                  [yo](const std::string& err, const nlohmann::json& r) {
+                                                      if (!yo) return;
+                                                      if (!err.empty()) return emit yo->notify("No pude hablar con la sala.", "error");
+                                                      yo->tomarPreguntas(r);
+                                                  });
+    if (!e.empty()) emit notify(QString::fromStdString(e), "error");
 }
 
 void PublicoViewModel::sumar(const QString& texto, const QString& nombre, const QString& deDonde) {
-    if (sala_ == nullptr || texto.trimmed().isEmpty()) return;
-    sala_->client().post("/api/v1/preguntas",
-                         QJsonObject{{"accion", "preguntar"},
-                                     {"texto", texto.trimmed()},
-                                     {"nombre", nombre},
-                                     {"deDonde", deDonde.isEmpty() ? QString("sala") : deDonde}},
-                         [this](bool ok, const QJsonObject& r) {
-                             if (!ok) return emit notify("No pude sumarla.", "error");
-                             preguntas_ = aLista(r.value("preguntas").toArray());
-                             recuento_ = r.value("recuento").toObject().toVariantMap();
-                             emit cambio();
-                         });
+    if (preguntasSala_ == nullptr) return;
+    QPointer<PublicoViewModel> yo(this);
+    const std::string e = preguntasSala_->sumar(texto.toStdString(), nombre.toStdString(), deDonde.toStdString(),
+                                                [yo](const std::string& err, const nlohmann::json& r) {
+                                                    if (!yo) return;
+                                                    if (!err.empty()) return emit yo->notify("No pude sumarla.", "error");
+                                                    yo->tomarPreguntas(r);
+                                                });
+    if (!e.empty()) emit notify(QString::fromStdString(e), "error");
+}
+
+void PublicoViewModel::tomarPreguntas(const nlohmann::json& r) {
+    const auto aQv = [](const nlohmann::json& j) {
+        return QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"x", j}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+            .object()
+            .value("x");
+    };
+    preguntas_ = aLista(aQv(r.value("preguntas", nlohmann::json::array())).toArray());
+    recuento_ = aQv(r.value("recuento", nlohmann::json::object())).toObject().toVariantMap();
+    emit cambio();
 }
 
 void PublicoViewModel::abrirVotacion(const QString& pregunta, const QStringList& opciones, const QString& modo,
@@ -137,7 +144,10 @@ void PublicoViewModel::mostrarEnVivo(bool si) {
 }
 
 void PublicoViewModel::alVolverVotacion(const std::string& error, const nlohmann::json& r, const QString& queFallo) {
-    if (!error.empty()) return emit notify(queFallo + ": " + QString::fromStdString(error), "error");
+    if (!error.empty()) {
+        if (!queFallo.isEmpty()) emit notify(queFallo + ": " + QString::fromStdString(error), "error");
+        return;
+    }
     const nlohmann::json v = r.value("votacion", nlohmann::json::object());
     votacion_ = QJsonDocument::fromJson(QByteArray::fromStdString(v.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
                     .object()

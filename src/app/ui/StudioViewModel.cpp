@@ -5,6 +5,7 @@
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/VotacionSala.hpp"
+#include "sala/PreguntasSala.hpp"
 #include "escenas/Conmutador.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -332,6 +333,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         return evento_ ? evento_->votantes() : std::nullopt;
     });
     publico_->setVotacion(votacion_.get());
+    // Las preguntas, ídem; un mensaje del chat se busca en el chat que junta las plataformas.
+    preguntas_ = std::make_unique<sala::PreguntasSala>(conference_->client(), [this](const std::string& clave)
+                                                           -> std::optional<sala::PreguntasSala::MensajeChat> {
+        if (!chatOverlay_) return std::nullopt;
+        for (const auto& m : chatOverlay_->collect())
+            if (m.key.toStdString() == clave)
+                return sala::PreguntasSala::MensajeChat{m.text.toStdString(), m.author.toStdString(),
+                                                        m.source == "room" ? std::string("sala") : m.source.toStdString()};
+        return std::nullopt;
+    });
+    publico_->setPreguntas(preguntas_.get());
     connect(publico_.get(), &PublicoViewModel::notify, this, &StudioViewModel::notify);
     medios_ = std::make_unique<MediosViewModel>(rt, this);
     playlist_ = std::make_unique<medios::Playlist>(rt, this);
@@ -2966,20 +2978,13 @@ void StudioViewModel::quitarDestacadoChatUi(const QString& key) {
 }
 
 QString StudioViewModel::preguntaDesdeChatUi(const QString& key) {
-    if (!chatOverlay_ || !conference_) return "el chat no está disponible";
-    for (const auto& m : chatOverlay_->collect()) {
-        if (m.key != key) continue;
-        const QString deDonde = m.source == "room" ? "sala" : m.source;
-        static_cast<ConferenceViewModel*>(conference_.get())
-            ->client()
-            .post("/api/v1/preguntas",
-                  QJsonObject{{"accion", "preguntar"}, {"texto", m.text}, {"nombre", m.author}, {"deDonde", deDonde}},
-                  [this](bool ok, const QJsonObject&) {
-                      emit notify(ok ? "Sumada a la cola de preguntas" : "No se pudo sumar la pregunta", ok ? "ok" : "error");
-                  });
-        return {};
-    }
-    return "ese mensaje ya no está en el chat";
+    QPointer<StudioViewModel> yo(this);
+    return qs(preguntas_->sumarDesdeChat(key.toStdString(), [yo](const std::string& err, const nlohmann::json&) {
+        if (yo)
+            emit yo->notify(err.empty() ? QString("Sumada a la cola de preguntas")
+                                        : "No se pudo sumar la pregunta: " + QString::fromStdString(err),
+                            err.empty() ? "ok" : "error");
+    }));
 }
 
 QObject* StudioViewModel::bancasQml() const { return bancas_.get(); }

@@ -26,6 +26,7 @@
 
 namespace ba::app::sala {
 class VotacionSala;
+class PreguntasSala;
 }
 
 namespace ba::app {
@@ -74,6 +75,8 @@ class PublicoViewModel : public QObject {
                                    bool secreta, bool enVivo);
     /// La votación de la sala (modelo); la pone quien arma los view models.
     void setVotacion(sala::VotacionSala* v) { votacionSala_ = v; }
+    /// La cola de preguntas de la sala (modelo).
+    void setPreguntas(sala::PreguntasSala* p) { preguntasSala_ = p; }
     Q_INVOKABLE void cerrarVotacion();
     Q_INVOKABLE void mostrarEnVivo(bool si);
     /// Pide el enlace de la página del público (llega por `enlaceCambio`).
@@ -86,10 +89,12 @@ class PublicoViewModel : public QObject {
 
    private:
     void alVolverVotacion(const std::string& error, const nlohmann::json& respuesta, const QString& queFallo);
+    void tomarPreguntas(const nlohmann::json& respuesta);
     void consultar();
 
     ConferenceViewModel* sala_ = nullptr;
     sala::VotacionSala* votacionSala_ = nullptr;
+    sala::PreguntasSala* preguntasSala_ = nullptr;
     QTimer reloj_;
     QVariantList preguntas_;
     QVariantMap recuento_;

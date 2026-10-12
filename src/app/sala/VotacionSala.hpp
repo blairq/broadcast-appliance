@@ -24,17 +24,14 @@
 #include <nlohmann/json.hpp>
 
 #include "evento/Padron.hpp"
-
-namespace ba::app {
-class ConferenceClient;
-}
+#include "sala/Pedido.hpp"
 
 namespace ba::app::sala {
 
 class VotacionSala {
    public:
     /// "" = hecho; si no, por qué no. `respuesta`: lo que contestó la sala ({votacion, …}).
-    using Listo = std::function<void(const std::string& error, const nlohmann::json& respuesta)>;
+    using Listo = sala::Listo;
     /// Los votantes del evento abierto, o nada si no hay evento (no hay padrón).
     using Votantes = std::function<std::optional<evento::Padron::Votantes>()>;
 
@@ -50,8 +47,6 @@ class VotacionSala {
     void ver(bool historial, Listo listo);
 
    private:
-    void pedir(const char* metodo, const std::string& ruta, const nlohmann::json& cuerpo, Listo listo);
-
     ConferenceClient& sala_;
     Votantes votantes_;
 };
