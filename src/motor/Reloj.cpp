@@ -8,6 +8,7 @@
 
 #include "platform/GstEntorno.hpp"
 
+#include <gst/base/gstbasetransform.h>
 #include <gst/net/net.h>
 
 #include <algorithm>
@@ -27,6 +28,7 @@ bool iniciarGStreamer(std::string* error) {
     std::call_once(una, []() {
         if (gst_is_initialized()) {
             ok = true;
+            serializarConvertidoresD3D12();
             return;
         }
         if (!ba::platform::prepararGst()) {
@@ -37,7 +39,10 @@ bool iniciarGStreamer(std::string* error) {
         ok = gst_init_check(nullptr, nullptr, &e);
         if (!ok) err = e != nullptr ? ba::diag::utf8Valido(e->message) : "gst_init falló";
         if (e != nullptr) g_error_free(e);
-        if (ok) quitarPluginsDelSistema();
+        if (ok) {
+            quitarPluginsDelSistema();
+            serializarConvertidoresD3D12();
+        }
     });
     if (!ok && error != nullptr) *error = err;
     return ok;
@@ -51,6 +56,49 @@ void quitarPluginsDelSistema() {
             gst_object_unref(p);
         }
     }
+}
+
+namespace {
+using SetCaps = gboolean (*)(GstBaseTransform*, GstCaps*, GstCaps*);
+struct ConvertidorD3D12 {
+    const char* fabrica;
+    GType tipo = 0;
+    SetCaps original = nullptr;
+};
+// Se llenan una vez (serializarConvertidoresD3D12), antes de que exista ninguno.
+ConvertidorD3D12 g_d3d12[] = {{"d3d12convert"}, {"d3d12scale"}, {"d3d12colorconvert"}};
+std::recursive_mutex g_d3d12Mu;
+
+gboolean setCapsDeAUno(GstBaseTransform* t, GstCaps* entra, GstCaps* sale) {
+    for (const auto& c : g_d3d12)
+        if (c.original != nullptr && G_OBJECT_TYPE(t) == c.tipo) {
+            std::lock_guard<std::recursive_mutex> l(g_d3d12Mu);
+            return c.original(t, entra, sale);
+        }
+    return FALSE;
+}
+} // namespace
+
+void serializarConvertidoresD3D12() {
+    static std::once_flag una;
+    std::call_once(una, []() {
+        for (auto& c : g_d3d12) {
+            GstElementFactory* f = gst_element_factory_find(c.fabrica);
+            if (f == nullptr) continue; // sin D3D12 (macOS, Linux)
+            auto* cargada = GST_ELEMENT_FACTORY(gst_plugin_feature_load(GST_PLUGIN_FEATURE(f)));
+            gst_object_unref(f);
+            if (cargada == nullptr) continue;
+            const GType tipo = gst_element_factory_get_element_type(cargada);
+            gst_object_unref(cargada);
+            if (tipo == 0 || !g_type_is_a(tipo, GST_TYPE_BASE_TRANSFORM)) continue;
+            // La clase queda viva (la referencia no se suelta): el puntero cambiado dura.
+            auto* k = static_cast<GstBaseTransformClass*>(g_type_class_ref(tipo));
+            if (k->set_caps == nullptr || k->set_caps == setCapsDeAUno) continue;
+            c.tipo = tipo;
+            c.original = k->set_caps;
+            k->set_caps = setCapsDeAUno;
+        }
+    });
 }
 
 void ponerRegistro(std::function<void(Nivel, const std::string&)> f) {

@@ -84,4 +84,13 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_motor_sin_esperas gstbaaudio gstbaipc)
     add_test(NAME test_motor_sin_esperas COMMAND test_motor_sin_esperas)
     set_tests_properties(test_motor_sin_esperas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
+
+    # Los convertidores de D3D12 de a uno (la caída del heap de las placas). Solo Windows.
+    add_executable(test_d3d12_de_a_uno tests/test_d3d12_de_a_uno.cpp)
+    target_link_libraries(test_d3d12_de_a_uno PRIVATE ba_motor)
+    ba_gst_rpath(test_d3d12_de_a_uno "")
+    target_compile_definitions(test_d3d12_de_a_uno PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_test(NAME test_d3d12_de_a_uno COMMAND test_d3d12_de_a_uno)
+    set_tests_properties(test_d3d12_de_a_uno PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
 endif()
