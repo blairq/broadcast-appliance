@@ -23,6 +23,10 @@
 #include <string>
 #include <vector>
 
+namespace ba::app::asamblea {
+class Cuerpo;
+}
+
 namespace ba::app::agent {
 
 class Vocabulario {
@@ -43,6 +47,9 @@ class Vocabulario {
     void activarGrupo(const std::string& grupo, bool activo);
     /// Reemplaza el grupo «cuerpo» con estos nombres (nombres y apellidos).
     void ponerGrupo(const std::string& grupo, const std::vector<std::string>& terminos);
+    /// Pone en el grupo «cuerpo» los nombres de los integrantes y, aparte, el
+    /// apellido solo (se dice «el consejero Pérez»). Devuelve cuántos términos quedaron.
+    int cargarCuerpo(const asamblea::Cuerpo& cuerpo);
     /// Los últimos reemplazos hechos al aire ({original, reemplazo, ms}).
     json ultimosReemplazos() const;
 

@@ -2468,7 +2468,7 @@ void McpService::registerTools() {
                            {"del_cuerpo", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (a.value("del_cuerpo", false))
-                return done(ToolResult::ok("Nombres del cuerpo: " + std::to_string(vm.vocabularioDelCuerpoUi()) + "."));
+                return done(ToolResult::ok("Nombres del cuerpo: " + std::to_string(vm.vocabulario().cargarCuerpo(vm.cuerpo().cuerpo())) + "."));
             const std::string termino = a.value("termino", std::string()), grupo = a.value("grupo", std::string());
             if (termino.empty() && !grupo.empty() && a.contains("activo")) {
                 vm.vocabulario().activarGrupo(grupo, a.value("activo", true));
@@ -2695,7 +2695,7 @@ void McpService::registerTools() {
             done(ToolResult().data({{"puntos", o.puntos()},
                                     {"actual", o.actual()},
                                     {"tiempos_palabra", o.tiemposPalabra(vm.remotosPalabra())},
-                                    {"capitulos", vm.capitulosPuntosUi().toStdString()}}));
+                                    {"capitulos", o.capitulosTexto(vm.recordStartMs())}}));
         };
         core_.addTool(std::move(t));
     }

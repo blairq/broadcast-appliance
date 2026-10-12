@@ -432,7 +432,8 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE void vocabularioGrupoUi(const QString& grupo, bool activo);
     /// {texto, reemplazos: [{original, reemplazo}]}.
     Q_INVOKABLE QVariantMap vocabularioProbarUi(const QString& texto);
-    /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo». Devuelve cuántos.
+    /// Pone los nombres y apellidos del Cuerpo en el grupo «cuerpo» (agent::Vocabulario::cargarCuerpo)
+    /// y avisa cuántos. Devuelve cuántos.
     Q_INVOKABLE int vocabularioDelCuerpoUi();
     agent::Vocabulario& vocabulario() { return *vocabulario_; }
     control::BusEventos& bus() { return *bus_; }

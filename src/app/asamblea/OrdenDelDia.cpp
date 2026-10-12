@@ -240,6 +240,14 @@ json OrdenDelDia::capitulos(std::int64_t recInicioMs) const {
     return out;
 }
 
+std::string OrdenDelDia::capitulosTexto(std::int64_t recInicioMs) const {
+    if (recInicioMs <= 0) return {};
+    std::string t;
+    for (const auto& c : capitulos(recInicioMs))
+        t += c.value("marca", std::string()) + " " + c.value("titulo", std::string()) + "\n";
+    return t;
+}
+
 std::string OrdenDelDia::anexoActa(const json& remotos) const {
     std::string t;
     if (!puntos_.empty()) {

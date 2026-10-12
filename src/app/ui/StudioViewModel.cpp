@@ -3006,18 +3006,9 @@ QVariantMap StudioViewModel::vocabularioProbarUi(const QString& texto) {
 }
 
 int StudioViewModel::vocabularioDelCuerpoUi() {
-    std::vector<std::string> nombres;
-    for (const auto& i : cuerpo_->cuerpo().integrantes()) {
-        const std::string n = i.value("nombre", std::string());
-        if (n.empty()) continue;
-        nombres.push_back(n);
-        // El apellido solo también (se dice «el consejero Pérez»).
-        if (const auto sp = n.rfind(' '); sp != std::string::npos && n.size() - sp > 4) nombres.push_back(n.substr(sp + 1));
-    }
-    std::sort(nombres.begin(), nombres.end());
-    nombres.erase(std::unique(nombres.begin(), nombres.end()), nombres.end());
-    vocabulario_->ponerGrupo("cuerpo", nombres);
-    return static_cast<int>(nombres.size());
+    const int n = vocabulario_->cargarCuerpo(cuerpo_->cuerpo());
+    emit notify("Nombres del cuerpo: " + QString::number(n), "info");
+    return n;
 }
 
 } // namespace ba::app
@@ -3189,11 +3180,7 @@ nlohmann::json StudioViewModel::remotosPalabra() const {
 }
 
 QString StudioViewModel::capitulosPuntosUi() const {
-    if (!recording_ || !ordenDia_) return {};
-    QString t;
-    for (const auto& c : ordenDia_->capitulos(recSinceMs_))
-        t += QString::fromStdString(c.value("marca", std::string()) + " " + c.value("titulo", std::string())) + "\n";
-    return t;
+    return ordenDia_ ? qs(ordenDia_->capitulosTexto(recordStartMs())) : QString();
 }
 
 QStringList StudioViewModel::nombresParaDsk() const {

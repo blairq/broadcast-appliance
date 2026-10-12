@@ -52,6 +52,9 @@ class OrdenDelDia : public QObject {
     json tiemposPalabra(const json& remotos) const;
     /// Capítulos para la grabación desde `recInicioMs`: [{seg, marca, titulo}].
     json capitulos(std::int64_t recInicioMs) const;
+    /// Los mismos capítulos como texto para pegar en YouTube («mm:ss Punto n: título» por
+    /// línea). Sin grabación (`recInicioMs` <= 0) no hay capítulos: "".
+    std::string capitulosTexto(std::int64_t recInicioMs) const;
     /// El anexo del acta (markdown): orden del día y uso de la palabra.
     std::string anexoActa(const json& remotos) const;
     /// Empieza una sesión nueva (borra puntos y tiempos).

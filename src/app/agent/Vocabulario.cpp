@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/Vocabulario.hpp"
 
+#include "asamblea/Cuerpo.hpp"
+
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -276,6 +278,22 @@ void Vocabulario::ponerGrupo(const std::string& grupo, const std::vector<std::st
     datos_["grupos"][grupo] = {{"activo", activo}, {"terminos", t}};
     guardar();
     reindexar();
+}
+
+int Vocabulario::cargarCuerpo(const asamblea::Cuerpo& cuerpo) {
+    std::vector<std::string> nombres;
+    for (const auto& i : cuerpo.integrantes()) {
+        const std::string n = i.value("nombre", std::string());
+        if (n.empty()) continue;
+        nombres.push_back(n);
+        // El apellido solo también (se dice «el consejero Pérez»); uno corto
+        // («Paz», «Gil») se confundiría con palabras comunes: no va solo.
+        if (const auto sp = n.rfind(' '); sp != std::string::npos && n.size() - sp > 4) nombres.push_back(n.substr(sp + 1));
+    }
+    std::sort(nombres.begin(), nombres.end());
+    nombres.erase(std::unique(nombres.begin(), nombres.end()), nombres.end());
+    ponerGrupo("cuerpo", nombres);
+    return static_cast<int>(nombres.size());
 }
 
 json Vocabulario::ultimosReemplazos() const {

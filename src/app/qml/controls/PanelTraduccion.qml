@@ -519,7 +519,7 @@ ColumnLayout {
             }
             GlassButton {
                 compact: true; text: "Importar del Cuerpo"
-                onClicked: { Studio.notify("Nombres del cuerpo: " + Studio.vocabularioDelCuerpoUi(), "info"); vocSec.refrescar() }
+                onClicked: { Studio.vocabularioDelCuerpoUi(); vocSec.refrescar() }
             }
         }
         Text {
