@@ -2317,4 +2317,47 @@ void SignalingServer::ipRecordSuccess(std::uint32_t ip) {
     ipAttempts_.erase(ip);
 }
 
+nlohmann::json SignalingServer::bloqueosPin() const {
+    const int now = static_cast<int>(ba::security::nowUnix());
+    json ips = json::array();
+    {
+        std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+        for (const auto& [ip, a] : ipAttempts_) {
+            in_addr in{};
+            in.s_addr = ip;
+            char txt[INET_ADDRSTRLEN] = {0};
+            inet_ntop(AF_INET, &in, txt, sizeof txt);
+            const bool bloqueada = a.lockedUntilUnix != 0 && now < a.lockedUntilUnix;
+            if (a.lockedUntilUnix != 0 && !bloqueada) continue; // ya venció
+            ips.push_back({{"ip", txt}, {"fallos", a.failures}, {"bloqueada", bloqueada},
+                           {"quedanS", bloqueada ? a.lockedUntilUnix - now : 0}});
+        }
+    }
+    int fallos = 0, hasta = 0;
+    auth_.bloqueoGlobal(fallos, hasta);
+    const bool global = hasta != 0 && now < hasta;
+    return json{{"global", {{"fallos", fallos}, {"bloqueado", global}, {"quedanS", global ? hasta - now : 0}}},
+                {"ips", ips},
+                {"intentosPorIp", cfg_.pinIntentos},
+                {"bloqueoS", cfg_.pinBloqueoS}};
+}
+
+int SignalingServer::desbloquearPin(const std::string& ip) {
+    int n = 0;
+    {
+        std::lock_guard<std::mutex> lock(ipAttemptsLock_);
+        if (ip.empty()) {
+            n = static_cast<int>(ipAttempts_.size());
+            ipAttempts_.clear();
+        } else {
+            in_addr in{};
+            if (inet_pton(AF_INET, ip.c_str(), &in) == 1) n = static_cast<int>(ipAttempts_.erase(in.s_addr));
+        }
+    }
+    if (ip.empty()) auth_.desbloquear(); // el global también: si no, /api/join seguiría cerrado
+    log_.info("pin: bloqueos levantados por el operador (" + (ip.empty() ? std::string("todos") : ip) + ", " +
+              std::to_string(n) + " IP)");
+    return n;
+}
+
 } // namespace ba::gateway

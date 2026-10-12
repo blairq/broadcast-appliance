@@ -662,6 +662,28 @@ void ConferenceViewModel::newPin(const QString& pin) {
     });
 }
 
+void ConferenceViewModel::pinBloqueos() {
+    client_->get("/api/v1/pin/bloqueos", [this](bool ok, const QJsonObject& r) {
+        if (!ok) return;
+        bloqueosPin_ = r.value("bloqueos").toObject().toVariantMap();
+        emit bloqueosPinChanged();
+    });
+}
+
+void ConferenceViewModel::desbloquearPin(const QString& ip) {
+    QJsonObject body;
+    if (!ip.trimmed().isEmpty()) body.insert("ip", ip.trimmed());
+    client_->post("/api/v1/pin/desbloquear", body, [this, ip](bool ok, const QJsonObject& r) {
+        if (!ok) {
+            emit notify("No se pudo desbloquear (¿la sala está conectada?)", "error");
+            return;
+        }
+        bloqueosPin_ = r.value("bloqueos").toObject().toVariantMap();
+        emit bloqueosPinChanged();
+        emit notify(ip.isEmpty() ? QString("Desbloqueados todos (y el bloqueo general)") : "Desbloqueada " + ip, "ok");
+    });
+}
+
 void ConferenceViewModel::removeShare(const QString& id) {
     client_->del("/api/v1/shares/" + QString::fromUtf8(QUrl::toPercentEncoding(id)));
 }

@@ -605,6 +605,18 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
 
+    // --- Los bloqueos por PIN mal (por IP y el global) ------------------------
+    if (path == "/api/v1/pin/bloqueos" && method == "GET") {
+        sendJson(fd, 200, json{{"ok", true}, {"bloqueos", bloqueosPin()}});
+        return;
+    }
+    if (path == "/api/v1/pin/desbloquear" && method == "POST") {
+        const std::string ip = req.value("ip", std::string());
+        const int n = desbloquearPin(ip);
+        sendJson(fd, 200, json{{"ok", true}, {"desbloqueadas", n}, {"bloqueos", bloqueosPin()}});
+        return;
+    }
+
     // --- La urna, del lado del operador --------------------------------------
     if (path == "/api/v1/votacion") {
         if (method == "GET") {

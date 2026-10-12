@@ -95,6 +95,12 @@ class TokenAuth {
     /// Vida util configurada de los tokens (segundos).
     int ttlSec() const { return ttlSec_; }
 
+    /// El bloqueo GLOBAL de PIN (el de último recurso, que cierra /api/join para todos):
+    /// fallos en la ventana y hasta cuándo (seg Unix; 0 = sin bloqueo).
+    void bloqueoGlobal(int& fallos, int& hasta) const;
+    /// Lo levanta (el operador, por la API de control).
+    void desbloquear();
+
    private:
     // `mutable`: `verify()` es const pero toma el lock (el PIN que lee el
     // callback es estado mutable compartido; se serializa todo).

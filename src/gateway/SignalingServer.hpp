@@ -214,6 +214,12 @@ class SignalingServer {
     /// página de la sección que se trata) y los invitados entran por /invitados/.
     void setEventoWeb(const nlohmann::json& e);
     nlohmann::json eventoWeb() const;
+    /// Los bloqueos por PIN mal: {global: {fallos, maximo, hasta, bloqueado}, ips: [{ip,
+    /// fallos, hasta, bloqueado}], intentosPorIp, bloqueoS}. Para el operador (API de control).
+    nlohmann::json bloqueosPin() const;
+    /// Levanta los bloqueos: los de esa IP, o (ip vacía) todos, el global incluido.
+    /// Devuelve cuántas IPs se desbloquearon.
+    int desbloquearPin(const std::string& ip);
     /// Se llama (fuera de los locks) cada vez que cambia la carpeta Web/ del evento en vivo
     /// ("" si no hay): ba-web la sirve desde ahí.
     void setAlCambiarEventoDir(std::function<void(const std::string&)> fn) { alCambiarEventoDir_ = std::move(fn); }
@@ -373,7 +379,7 @@ class SignalingServer {
     static constexpr int kPinMaxAttemptsPerIp = 5;
     static constexpr int kPinLockoutSecPerIp = 60;
     std::map<std::uint32_t, IpAttempts> ipAttempts_;
-    std::mutex ipAttemptsLock_;
+    mutable std::mutex ipAttemptsLock_;
     bool ipAttemptAllowed(std::uint32_t ip);
     void ipRecordFailure(std::uint32_t ip);
     void ipRecordSuccess(std::uint32_t ip);

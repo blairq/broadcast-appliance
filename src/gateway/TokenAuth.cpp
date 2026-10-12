@@ -50,6 +50,17 @@ std::string TokenAuth::issue(const std::string& room, const std::string& pin) {
     return svc_->issue(room, pin, ttlSec_);
 }
 
+void TokenAuth::bloqueoGlobal(int& fallos, int& hasta) const {
+    std::lock_guard<std::mutex> lock(m_);
+    fallos = svc_->failures();
+    hasta = svc_->lockedUntil();
+}
+
+void TokenAuth::desbloquear() {
+    std::lock_guard<std::mutex> lock(m_);
+    svc_->resetLockout(ba::security::nowUnix());
+}
+
 namespace {
 /// Mapea el resultado del servicio al codigo estable del gateway.
 int toCode(ba::security::TokenService::VerifyResult r) {

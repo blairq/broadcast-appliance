@@ -237,6 +237,63 @@ void McpService::registerRoomTools() {
         };
         core_.addTool(std::move(t));
     }
+    {
+        Tool t;
+        t.name = "room_pin_bloqueos";
+        t.title = "Bloqueos por PIN mal";
+        t.category = "sala";
+        t.description =
+            "Quién quedó bloqueado por poner mal el PIN y cómo destrabarlo. `accion`: «ver» (de fábrica) o "
+            "«desbloquear» (con `ip`, solo esa; sin `ip`, todas y también el bloqueo global).";
+        t.details =
+            "Hay dos bloqueos. POR IP: tras `intentosPorIp` PIN mal desde la misma IP (de fábrica 5), esa IP no "
+            "puede entrar por `bloqueoS` segundos (Configuración → Sala). GLOBAL: de último recurso, si hay "
+            "muchísimos fallos entre todos (un ataque repartido) se cierra la entrada para todos un rato. "
+            "Por internet la IP es la real (la pasa ba-web desde el túnel). Desbloquear no cambia el PIN: si "
+            "alguien lo está adivinando, mejor cambiarlo (room_pin). Usalo cuando un invitado legítimo se "
+            "equivocó varias veces y no puede entrar, o cuando nadie puede entrar (global).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"ver", "desbloquear"}}}},
+                           {"ip", {{"type", "string"}, {"description", "Solo esta IP (al desbloquear)."}}}}}};
+        t.examples = {R"({})", R"({"accion": "desbloquear"})", R"({"accion": "desbloquear", "ip": "190.12.34.56"})"};
+        t.run = [client](const json& a, Done done) {
+            const auto mostrar = [done](const json& r, const std::string& antes) {
+                const json b = r.value("bloqueos", json::object());
+                std::string txt = antes;
+                const json g = b.value("global", json::object());
+                if (g.value("bloqueado", false))
+                    txt += "BLOQUEO GLOBAL activo: nadie puede entrar por " + std::to_string(g.value("quedanS", 0)) +
+                           " s más (" + std::to_string(g.value("fallos", 0)) + " fallos entre todos).\n";
+                int n = 0;
+                for (const auto& ip : b.value("ips", json::array()))
+                    if (ip.value("bloqueada", false)) {
+                        txt += "- " + ip.value("ip", std::string()) + ": bloqueada " +
+                               std::to_string(ip.value("quedanS", 0)) + " s más\n";
+                        ++n;
+                    }
+                if (!n && !g.value("bloqueado", false)) txt += "No hay nadie bloqueado.";
+                done(ToolResult::ok(txt).data(b));
+            };
+            if (a.value("accion", std::string("ver")) == "desbloquear") {
+                json b = json::object();
+                if (a.contains("ip") && a["ip"].is_string() && !a["ip"].get<std::string>().empty()) b["ip"] = a["ip"];
+                client->post("/api/v1/pin/desbloquear", toQt(b), [done, mostrar, b](bool ok, const QJsonObject& r) {
+                    const json j = fromQt(r);
+                    if (!ok) return done(ToolResult::error("La sala respondio: " + errorText(j)));
+                    mostrar(j, b.contains("ip") ? "Desbloqueada " + b["ip"].get<std::string>() + ".\n"
+                                                : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
+                                                      " IP y el bloqueo global.\n");
+                });
+                return;
+            }
+            client->get("/api/v1/pin/bloqueos", [done, mostrar](bool ok, const QJsonObject& r) {
+                if (!ok) return done(ToolResult::error("La sala (gateway) no respondió."));
+                mostrar(fromQt(r), "");
+            });
+        };
+        core_.addTool(std::move(t));
+    }
     // Volver a la fila. ESTABA EN UNA TABLA junto con admitir, rechazar y
     // sacar, y esas tres YA se registran una por una mas abajo, con su titulo,
     // sus detalles y sus ejemplos: se estaban publicando DOS VECES cada una.

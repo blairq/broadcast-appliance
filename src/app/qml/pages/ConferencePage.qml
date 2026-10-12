@@ -846,6 +846,7 @@ Rectangle {
                             }
                             GlassButton { text: pinText.shown ? "Ocultar" : "Ver"; compact: true; onClicked: pinText.shown = !pinText.shown }
                             GlassButton { text: "Nuevo"; compact: true; onClicked: pinDlg.open() }
+                            GlassButton { text: "Bloqueos"; compact: true; onClicked: bloqueosDlg.open() }
                         }
                         RowLayout {
                             Layout.fillWidth: true
@@ -1297,6 +1298,58 @@ Rectangle {
                 TextArea { readOnly: true; text: wgDlg.config; font.family: Theme.mono; font.pixelSize: 11; wrapMode: TextEdit.NoWrap; selectByMouse: true }
             }
             GlassButton { visible: wgDlg.config !== ""; text: "Copiar configuracion"; compact: true; onClicked: Studio.copiar(wgDlg.config) }
+        }
+    }
+
+    // Los que quedaron bloqueados por poner mal el PIN (por IP, y el general de último
+    // recurso). Desbloquear no cambia el PIN: si alguien lo está adivinando, mejor «Nuevo».
+    Dialog {
+        id: bloqueosDlg
+        anchors.centerIn: parent
+        modal: true
+        title: "Bloqueos por PIN mal"
+        standardButtons: Dialog.Close
+        readonly property var b: conf.bloqueosPin || ({})
+        readonly property var g: b.global || ({})
+        readonly property var ips: (b.ips || []).filter(x => x.bloqueada)
+        onOpened: conf.pinBloqueos()
+        Timer { interval: 3000; running: bloqueosDlg.visible; repeat: true; onTriggered: conf.pinBloqueos() }
+        ColumnLayout {
+            spacing: 10
+            width: 420
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.Wrap
+                text: "Tras " + (bloqueosDlg.b.intentosPorIp || 5) + " PIN mal desde la misma conexión, esa conexión espera "
+                      + (bloqueosDlg.b.bloqueoS || 60) + " s. Desbloquear no cambia el PIN."
+                color: Theme.textDim; font.pixelSize: 12
+            }
+            Text {
+                visible: bloqueosDlg.g.bloqueado === true
+                Layout.fillWidth: true; wrapMode: Text.Wrap
+                text: "Bloqueo general: nadie puede entrar por " + bloqueosDlg.g.quedanS + " s más (" + bloqueosDlg.g.fallos + " fallos entre todos)."
+                color: Theme.live; font.pixelSize: 13
+            }
+            Text {
+                visible: bloqueosDlg.ips.length === 0 && bloqueosDlg.g.bloqueado !== true
+                text: "No hay nadie bloqueado."
+                color: Theme.text; font.pixelSize: 13
+            }
+            Repeater {
+                model: bloqueosDlg.ips
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Text { text: modelData.ip; color: Theme.text; font { pixelSize: 13; family: Theme.mono } Layout.fillWidth: true }
+                    Text { text: modelData.quedanS + " s"; color: Theme.textDim; font.pixelSize: 12 }
+                    GlassButton { text: "Desbloquear"; compact: true; onClicked: conf.desbloquearPin(modelData.ip) }
+                }
+            }
+            GlassButton {
+                text: "Desbloquear todos"
+                active: true; compact: true
+                enabled: bloqueosDlg.ips.length > 0 || bloqueosDlg.g.bloqueado === true
+                onClicked: conf.desbloquearPin("")
+            }
         }
     }
 

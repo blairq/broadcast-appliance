@@ -67,6 +67,8 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QVariantMap proxy READ proxy NOTIFY proxyChanged)
     Q_PROPERTY(QString room READ room NOTIFY roomChanged)
     Q_PROPERTY(QString pin READ pin NOTIFY roomChanged)
+    /// Los bloqueos por PIN mal ({global, ips, intentosPorIp, bloqueoS}): se piden con pinBloqueos().
+    Q_PROPERTY(QVariantMap bloqueosPin READ bloqueosPin NOTIFY bloqueosPinChanged)
     Q_PROPERTY(QString guestUrl READ guestUrl NOTIFY roomChanged)
     Q_PROPERTY(bool lobby READ lobby NOTIFY roomChanged)
     Q_PROPERTY(bool locked READ locked NOTIFY roomChanged)
@@ -218,6 +220,11 @@ class ConferenceViewModel : public QObject {
     Q_INVOKABLE void setLocked(bool on);
     /// PIN nuevo (vacio = generar uno).
     Q_INVOKABLE void newPin(const QString& pin = {});
+    /// Pide a la sala quién está bloqueado por PIN mal (actualiza bloqueosPin).
+    Q_INVOKABLE void pinBloqueos();
+    /// Levanta los bloqueos: los de esa IP, o (vacío) todos, el global incluido.
+    Q_INVOKABLE void desbloquearPin(const QString& ip = {});
+    QVariantMap bloqueosPin() const { return bloqueosPin_; }
     Q_INVOKABLE void removeShare(const QString& id);
     /// Copia el archivo a <datos>/Media y lo agrega a la escena actual.
     Q_INVOKABLE void takeShare(const QString& id);
@@ -258,6 +265,7 @@ class ConferenceViewModel : public QObject {
     /// Configuracion del servidor lista para copiar (o error).
     void serverConfigReady(const QString& config, const QString& error);
     void notify(const QString& message, const QString& level);
+    void bloqueosPinChanged();
     /// Se agrego una fuente a la escena (la vista de fuentes debe recargar).
     void sourceAdded();
 
@@ -268,6 +276,7 @@ class ConferenceViewModel : public QObject {
 
     AppRuntime& rt_;
     QVariantMap proxy_;
+    QVariantMap bloqueosPin_;
 
     bool autoIntake_ = false;
     int chatRev_ = 0;
