@@ -433,19 +433,20 @@ void McpService::registerRoomTools() {
         {
             Tool t;
             t.name = "acceso_remoto_clave";
-            t.title = "Acceso remoto: guardar o borrar la clave de pinggy";
+            t.title = "Acceso remoto: guardar o borrar una clave (pinggy o Cloudflare)";
             t.category = "sala";
             t.idempotent = true;
             t.description =
-                "Guarda CIFRADA en la bóveda (Credenciales/) la clave de pinggy que te pasó el operador, o la borra. "
-                "`tipo`: \"token\" (el token de TÚNEL: abre el túnel; panel de pinggy → token) o \"api_key\" (la "
-                "API key: solo consulta qué túneles hay, con acceso_remoto_panel). Nunca se devuelve ni se escribe "
+                "Guarda CIFRADA en la bóveda (Credenciales/) la clave que te pasó el operador, o la borra. "
+                "`tipo`: \"token\" (el token del PLAN de pinggy: abre el túnel; el del comando …@pro.pinggy.io), \"api_key\" (la "
+                "API key de pinggy: control de la cuenta por API, con acceso_remoto_panel; NO abre túneles) o "
+                "\"cloudflare\" (el token del túnel de Cloudflare, Configuración → Cloudflare). Nunca se devuelve ni se escribe "
                 "en el registro: la respuesta dice solo «guardada». Si no sabés cuál es, probá con acceso_remoto_panel "
                 "después de guardarla como api_key (si la acepta, es la API key). El token rige al reiniciar la sala.";
             t.inputSchema = {
                 {"type", "object"},
                 {"properties",
-                 {{"tipo", {{"type", "string"}, {"enum", {"token", "api_key"}}}},
+                 {{"tipo", {{"type", "string"}, {"enum", {"token", "api_key", "cloudflare"}}}},
                   {"clave", {{"type", "string"}, {"description", "la clave (no hace falta para borrar)"}}},
                   {"borrar", {{"type", "boolean"}, {"default", false}}}}},
                 {"required", {"tipo"}}};
@@ -457,13 +458,20 @@ void McpService::registerRoomTools() {
                 QString e;
                 if (tipo == "token") e = borrar ? acc->borrarToken() : acc->guardarToken(clave);
                 else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : acc->guardarApiKey(clave);
-                else return done(ToolResult::error("tipo: \"token\" o \"api_key\""));
+                else if (tipo == "cloudflare") e = borrar ? acc->borrarTokenCloudflare() : acc->guardarTokenCloudflare(clave);
+                else return done(ToolResult::error("tipo: \"token\", \"api_key\" o \"cloudflare\""));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-                done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel " : "API key ") +
+                done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel de pinggy " : tipo == "cloudflare" ? "Token de Cloudflare " : "API key ") +
                                     (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
-                                    (tipo == "token" && !borrar ? " Rige al reiniciar la sala (room_restart o "
+                                    (tipo != "api_key" && !borrar ? " Rige al reiniciar la sala (gateway_restart o "
                                                                   "aplicar Configuración)."
-                                                                : "")));
+                                                                : "") +
+                                    (acc->clavesIguales()
+                                         ? " OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
+                                           "panel de pinggy: el token (el del comando del túnel, …@pro.pinggy.io) abre el túnel; la "
+                                           "API key (API keys) solo sirve para consultar la cuenta. Con la API key como token el "
+                                           "túnel no abre."
+                                         : "")));
             };
             core_.addTool(std::move(t));
         }

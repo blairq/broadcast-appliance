@@ -57,7 +57,7 @@ bool CloudflaredSupervisor::start() {
     // Sin token no hay tunel posible: lanzarlo igual solo generaba un bucle de
     // reinicios. El gateway queda accesible en la red local.
     if (tunnelToken_.empty()) {
-        log_.info("cloudflared: sin token de tunel (BA_TUNNEL_TOKEN); sin tunel, solo acceso local");
+        log_.info("cloudflared: sin token de tunel (Configuración → Cloudflare o BA_TUNNEL_TOKEN); sin tunel, solo acceso local");
         return false;
     }
     std::error_code ec;

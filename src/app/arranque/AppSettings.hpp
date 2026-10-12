@@ -154,7 +154,7 @@ struct GatewaySettings {
     /// vacío = automática (la IP de la interfaz elegida, o la primera de la red).
     std::string urlHost;
     std::string room = "sala1";
-    bool tunnel = true;         ///< usar cloudflared si hay token
+    bool tunnel = false;        ///< usar cloudflared (solo si hay token: sin token se lee apagado)
     std::string tunnelHostname; ///< dominio publico del tunel de Cloudflare
     std::uint16_t metricsPort = 9099;
     int programVideoW = 1280; ///< retorno del programa a las pantallas de la sala

@@ -30,6 +30,7 @@ namespace {
 
 constexpr const char* kToken = "pinggy-token";
 constexpr const char* kApiKey = "pinggy-api-key";
+constexpr const char* kTokenCloudflare = "cloudflare-token"; // lo lee el gateway (main.cpp)
 constexpr const char* kSesionesActivas = "https://dashboard.pinggy.io/backend/api/v1/session/active";
 
 /// Un secreto pegado del panel: sin espacios alrededor; adentro, nada de blancos.
@@ -79,6 +80,11 @@ AccesoRemoto::AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* paren
 
 bool AccesoRemoto::tokenGuardado() const { return ba::security::CredentialStore::bundle().exists(kToken); }
 bool AccesoRemoto::apiKeyGuardada() const { return ba::security::CredentialStore::bundle().exists(kApiKey); }
+bool AccesoRemoto::clavesIguales() const {
+    std::string t, k;
+    const auto almacen = ba::security::CredentialStore::bundle();
+    return almacen.read(kToken, t) && almacen.read(kApiKey, k) && !t.empty() && t == k;
+}
 
 void AccesoRemoto::setSiguiendo(bool on) {
     if (on == siguiendo_) return;
@@ -161,6 +167,26 @@ QString AccesoRemoto::guardarToken(const QString& token) {
 
 QString AccesoRemoto::borrarToken() {
     if (!ba::security::CredentialStore::bundle().remove(kToken) && tokenGuardado())
+        return "No se pudo borrar de Credenciales/.";
+    emit credencialesChanged();
+    return {};
+}
+
+bool AccesoRemoto::tokenCloudflareGuardado() const {
+    return ba::security::CredentialStore::bundle().exists(kTokenCloudflare);
+}
+
+QString AccesoRemoto::guardarTokenCloudflare(const QString& token) {
+    QString limpio;
+    if (const QString e = validarSecreto(token, limpio); !e.isEmpty()) return e;
+    if (!ba::security::CredentialStore::bundle().write(kTokenCloudflare, limpio.toStdString()))
+        return "No se pudo guardar en Credenciales/ (¿el disco está lleno o es de solo lectura?).";
+    emit credencialesChanged();
+    return {};
+}
+
+QString AccesoRemoto::borrarTokenCloudflare() {
+    if (!ba::security::CredentialStore::bundle().remove(kTokenCloudflare) && tokenCloudflareGuardado())
         return "No se pudo borrar de Credenciales/.";
     emit credencialesChanged();
     return {};

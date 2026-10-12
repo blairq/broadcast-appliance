@@ -61,7 +61,7 @@ struct Config {
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
     std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
     std::string urlHost;                   // lo que va en el QR y el enlace (IP o nombre); vacio = automatico
-    bool tunnel = true;                    // lanzar cloudflared si hay token
+    bool tunnel = false;                   // lanzar cloudflared (si hay token); se prende en Configuración → Cloudflare
     std::string tunnelHostname;            // dominio publico del tunel de Cloudflare (sala.midominio.com)
     std::string room = "sala1";            // sala por defecto
     // PIN de la sala. VACIO por defecto a proposito: un PIN fijo en el binario

@@ -39,6 +39,11 @@ class AccesoRemoto : public QObject {
     Q_PROPERTY(QVariantList enlaces READ enlaces NOTIFY estadoChanged)
     Q_PROPERTY(bool tokenGuardado READ tokenGuardado NOTIFY credencialesChanged)
     Q_PROPERTY(bool apiKeyGuardada READ apiKeyGuardada NOTIFY credencialesChanged)
+    /// El token de túnel y la API key son la MISMA clave: casi seguro se pegó la API
+    /// key donde va el token (y así el túnel no abre).
+    Q_PROPERTY(bool clavesIguales READ clavesIguales NOTIFY credencialesChanged)
+    /// El token del túnel de Cloudflare (Configuración → Cloudflare), cifrado en Credenciales/.
+    Q_PROPERTY(bool tokenCloudflareGuardado READ tokenCloudflareGuardado NOTIFY credencialesChanged)
     /// Mientras sea true, consulta el estado cada 5 s (la vista lo prende al mostrarse).
     Q_PROPERTY(bool siguiendo READ siguiendo WRITE setSiguiendo NOTIFY siguiendoChanged)
     /// {estado: ""|"verificando"|"ok"|"mal"|"error", texto}
@@ -54,6 +59,8 @@ class AccesoRemoto : public QObject {
     QVariantList enlaces() const { return enlaces_; }
     bool tokenGuardado() const;
     bool apiKeyGuardada() const;
+    bool clavesIguales() const;
+    bool tokenCloudflareGuardado() const;
     bool siguiendo() const { return siguiendo_; }
     void setSiguiendo(bool on);
     QVariantMap dns() const { return dns_; }
@@ -64,6 +71,8 @@ class AccesoRemoto : public QObject {
     /// Guarda el token de túnel (cifrado). "" si salió bien, si no el motivo.
     Q_INVOKABLE QString guardarToken(const QString& token);
     Q_INVOKABLE QString borrarToken();
+    Q_INVOKABLE QString guardarTokenCloudflare(const QString& token);
+    Q_INVOKABLE QString borrarTokenCloudflare();
     Q_INVOKABLE QString guardarApiKey(const QString& clave);
     Q_INVOKABLE QString borrarApiKey();
     /// Las instrucciones para el que administra el DNS (dominio propio).

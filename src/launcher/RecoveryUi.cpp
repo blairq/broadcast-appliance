@@ -343,7 +343,20 @@ RecoveryAction RecoveryUi::present(const Incident& inc) {
             out += buf;
         ::pclose(f);
     }
-    if (out.find("button returned:Salir") != std::string::npos) return RecoveryAction::Exit;
+    if (out.find("button returned:Salir") != std::string::npos) {
+        // Salir corta la transmisión y la grabación: se confirma (por defecto, no).
+        std::string conf;
+        if (FILE* f = ::popen("osascript -e 'display dialog \"¿Cerrar todo el programa? Se corta la transmisión y la "
+                              "grabación.\" with title \"Broadcast Appliance\" buttons {\"Cerrar todo\", \"Seguir\"} "
+                              "default button \"Seguir\" with icon stop giving up after 60' 2>/dev/null", "r")) {
+            char buf[256];
+            while (std::fgets(buf, sizeof(buf), f) != nullptr)
+                conf += buf;
+            ::pclose(f);
+        }
+        if (conf.find("button returned:Cerrar todo") != std::string::npos) return RecoveryAction::Exit;
+        return RecoveryAction::Retry;
+    }
     if (out.find("button returned:Reiniciar todo") != std::string::npos) return RecoveryAction::ForceRestart;
 #endif
     return RecoveryAction::Retry;

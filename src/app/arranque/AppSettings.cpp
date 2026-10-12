@@ -4,6 +4,7 @@
 
 #include "arranque/AppSettings.hpp"
 #include "platform/Paths.hpp"
+#include "security/CredentialStore.hpp"
 #include "arranque/RutasPortables.hpp"
 #include "emision/InputSpecs.hpp"
 
@@ -11,11 +12,18 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 
 namespace ba::app {
 
 namespace {
+/// Hay token del túnel de Cloudflare (entorno o Configuración → Cloudflare).
+bool tokenCloudflare() {
+    const char* e = std::getenv("BA_TUNNEL_TOKEN");
+    if (e != nullptr && *e != '\0') return true;
+    return ba::security::CredentialStore::bundle().exists("cloudflare-token");
+}
 
 using json = nlohmann::json;
 namespace fs = std::filesystem;
@@ -448,7 +456,9 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.bindAddress = get<std::string>(j, "bindAddress", s.bindAddress);
     s.urlHost = get<std::string>(j, "urlHost", s.urlHost);
     s.room = get<std::string>(j, "room", s.room);
-    s.tunnel = get(j, "tunnel", s.tunnel);
+    // Venía prendido de fábrica sin token (y sin token no anda): aparecía siempre
+    // prendido. Sin token guardado se lee apagado.
+    s.tunnel = get(j, "tunnel", s.tunnel) && tokenCloudflare();
     s.tunnelHostname = get<std::string>(j, "tunnelHostname", s.tunnelHostname);
     s.metricsPort = get(j, "metricsPort", s.metricsPort);
     s.programVideoW = get(j, "programVideoW", s.programVideoW);

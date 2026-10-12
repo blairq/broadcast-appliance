@@ -1106,6 +1106,14 @@ int main(int argc, char** argv) {
                  -1);
     } else {
         cfg.tunnelToken = envOrEmpty(kEnvTunnelToken);
+        // Si no, el que se guarda en Configuración → Cloudflare (cifrado en Credenciales/).
+        if (cfg.tunnelToken.empty()) {
+            std::string t;
+            if (ba::security::CredentialStore::bundle().read("cloudflare-token", t)) {
+                while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+                cfg.tunnelToken = t;
+            }
+        }
     }
     CloudflaredSupervisor cloudflared(cfg.cloudflaredPath, cfg.tunnelToken, cfg.metricsPort,
                                       cfg.cloudflaredLog, log);

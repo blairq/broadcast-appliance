@@ -381,7 +381,7 @@ void Supervisor::handleCrash(bool isA) {
     // relea gateway.json (Configuración → aplicar). No es una caída: no va al cartel
     // «se reinició» ni cuenta para el cortacircuito; se relanza ya.
     // Dos seguidas en menos de 10 s ya no es un reinicio pedido: camino normal.
-    if (!isA && code && *code == 0 && !volcados_->hayCaida(name) && nowMs() - ultimoCierreOrdenadoB_ > 10000) {
+    if (!isA && esCierreOrdenadoB(code)) {
         ultimoCierreOrdenadoB_ = nowMs();
         BA_LOG_INFO("sup", 0, "B se cerró en orden (reinicio de la sala); se relanza");
         startChild(false);
@@ -392,6 +392,11 @@ void Supervisor::handleCrash(bool isA) {
     const std::optional<Volcado> v = volcados_->tomarCaida(name);
     anotarCaida(isA, v ? v->causa : causaDe(code), code, v ? v->dmp : std::filesystem::path());
     restartChild(isA);
+}
+
+bool Supervisor::esCierreOrdenadoB(std::optional<int> code) {
+    if (!code) code = gateway_.exitCode();
+    return code && *code == 0 && !volcados_->hayCaida("B") && nowMs() - ultimoCierreOrdenadoB_ > 10000;
 }
 
 void Supervisor::handleHang(bool isA) {
@@ -416,7 +421,8 @@ void Supervisor::handleHang(bool isA) {
     restartChild(isA);
 }
 
-RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
+void Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung) {
+    if (preguntando_->load()) return; // ya hay un cartel abierto
     Incident inc;
     inc.title = L"Broadcast Appliance — Recuperación";
     inc.childADown = appDown || appHung;
@@ -432,16 +438,17 @@ RecoveryAction Supervisor::presentRecovery(bool appDown, bool appHung, bool gwDo
     // Un hijo caido podria deberse a un archivo corrupto: se muestra la
     // integridad, cacheada para no re-hashear el disco en un loop de crashes.
     inc.showIntegrity = true;
-    const std::uint64_t now = nowMs();
-    if (!hasIntegrityReport_ || now - lastIntegrityCheckMs_ > 60000) {
-        inc.integrity = Integrity::verify(cfg_.root.wstring());
-        lastIntegrityReport_ = inc.integrity;
-        lastIntegrityCheckMs_ = now;
-        hasIntegrityReport_ = true;
-    } else {
-        inc.integrity = lastIntegrityReport_;
-    }
-    return RecoveryUi::present(inc);
+    // (Se verifica en el hilo del cartel: puede tardar y aquí no se frena nada.)
+    const bool verificar = true;
+    preguntando_->store(true);
+    // Desprendido: el diálogo puede quedar abierto minutos y el launcher puede cerrar
+    // antes; lo compartido va por shared_ptr.
+    std::thread([inc, verificar, root = cfg_.root, decision = decisionRecuperacion_, preg = preguntando_]() mutable {
+        if (verificar) inc.integrity = Integrity::verify(root.wstring());
+        const RecoveryAction a = RecoveryUi::present(inc);
+        if (a == RecoveryAction::Exit || a == RecoveryAction::ForceRestart) decision->store(static_cast<int>(a));
+        preg->store(false);
+    }).detach();
 }
 
 void Supervisor::forceRestart() {
@@ -481,6 +488,30 @@ void Supervisor::watchdogLoop() {
             break;
         }
 
+        // La sala cerrada EN ORDEN (reinicio pedido por la app, p. ej. al aplicar la
+        // configuración o cambiar el acceso remoto) no es una falla: va directo a
+        // handleCrash, que la relanza, SIN contar para el cartel de recuperación. Antes
+        // contaba: al tercer reinicio seguido salía el diálogo de «la sala se cerró» y
+        // la sala quedaba abajo esperando que alguien contestara.
+        if (gwDown && !appDown && !appHung && esCierreOrdenadoB()) {
+            handleCrash(false);
+            sleepInterruptible(kPollMs, stopRequested_);
+            continue;
+        }
+
+        // Lo que contestaron en el cartel (si contestaron): se toma acá, sin haber frenado nada.
+        const int decision = decisionRecuperacion_->exchange(-1);
+        if (decision == static_cast<int>(RecoveryAction::Exit)) {
+            BA_LOG_INFO("sup", 0, "recuperación: el operador eligió salir");
+            orderedShutdown();
+            break;
+        }
+        if (decision == static_cast<int>(RecoveryAction::ForceRestart)) {
+            forceRestart();
+            sleepInterruptible(kPollMs, stopRequested_);
+            continue;
+        }
+
         if (appDown || appHung || gwDown || gwHung) {
             RecoveryAction action = RecoveryAction::Retry;
             const std::uint64_t failAt = nowMs();
@@ -489,8 +520,10 @@ void Supervisor::watchdogLoop() {
             }
             lastFailureMs_ = failAt;
             ++recentFailures_;
-            if (cfg_.recoveryUi && recentFailures_ > cfg_.reiniciosSinPreguntar) {
-                action = presentRecovery(appDown, appHung, gwDown, gwHung);
+            // Se pregunta solo si la que falla una y otra vez es la interfaz/motor (A): la
+            // sala sola (B) se relanza sin molestar (la app ya avisa en su pantalla).
+            if (cfg_.recoveryUi && recentFailures_ > cfg_.reiniciosSinPreguntar && (appDown || appHung)) {
+                presentRecovery(appDown, appHung, gwDown, gwHung);
             }
             if (action == RecoveryAction::Exit) {
                 orderedShutdown();

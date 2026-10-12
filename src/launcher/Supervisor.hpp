@@ -24,6 +24,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <cstdint>
 #include <filesystem>
@@ -104,7 +105,13 @@ class Supervisor {
     void handleHang(bool isA);
 
     // --- Recuperacion (UI) --------------------------------------------------
-    RecoveryAction presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung);
+    /// Muestra el cartel de recuperación EN OTRO HILO: el watchdog sigue relanzando
+    /// mientras tanto (antes esperaba hasta 5 min la respuesta con la sala abajo). La
+    /// decisión llega por `decisionRecuperacion_` y se toma en la vuelta siguiente.
+    void presentRecovery(bool appDown, bool appHung, bool gwDown, bool gwHung);
+    /// -1 = sin decisión pendiente; si no, un RecoveryAction.
+    std::shared_ptr<std::atomic<int>> decisionRecuperacion_ = std::make_shared<std::atomic<int>>(-1);
+    std::shared_ptr<std::atomic<bool>> preguntando_ = std::make_shared<std::atomic<bool>>(false);
     void forceRestart();
 
     // --- Vigilancia y cierre ------------------------------------------------
@@ -116,6 +123,8 @@ class Supervisor {
 
     // --- Estado -------------------------------------------------------------
     Config cfg_;
+    /// B salió con código 0, sin volcado y no recién (dos en 10 s ya no cuentan como pedido).
+    bool esCierreOrdenadoB(std::optional<int> code = std::nullopt);
     std::uint64_t ultimoCierreOrdenadoB_ = 0; ///< la última vez que la sala cerró en orden (reinicio pedido)
     ChildProcess app_;
     ChildProcess gateway_;
