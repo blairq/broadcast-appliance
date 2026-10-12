@@ -16,6 +16,41 @@ else()
 endif()
 if(EXISTS "${_ba_py}")
     set(BA_HAVE_PYTHON ON)
+    # El bytecode SIN FECHA (unchecked-hash): Python no compara el .pyc con la
+    # fecha del .py. Con el de fábrica (por fecha), copiar el programa a un disco
+    # que guarda las fechas con otra precisión (exFAT, FAT) los deja «viejos», y
+    # cualquier Python que corra sin -B (un agente con consola) los reescribe
+    # adentro del programa: la integridad del arranque da «hash distinto» (pasó
+    # en la PC de pruebas con un SSD exFAT: 79 .pyc de numpy). Una sola vez por
+    # extern (la marca); para Windows (compilado cruzado) con un Python 3.12 de acá.
+    if(NOT EXISTS "${BA_PYTHON_DIR}/.pyc-sin-fecha")
+        if(WIN32)
+            find_program(_ba_py_host NAMES python3.12 python3 python)
+            set(_ba_py_lib "${BA_PYTHON_DIR}/Lib")
+            if(_ba_py_host)
+                execute_process(COMMAND "${_ba_py_host}" -c "import sys; print('%d.%d' % sys.version_info[:2])"
+                                OUTPUT_VARIABLE _ba_py_host_ver OUTPUT_STRIP_TRAILING_WHITESPACE)
+                if(NOT _ba_py_host_ver STREQUAL "3.12")
+                    unset(_ba_py_host)
+                endif()
+            endif()
+        else()
+            set(_ba_py_host "${_ba_py}")
+            file(GLOB _ba_py_lib "${BA_PYTHON_DIR}/lib/python3.*")
+        endif()
+        if(_ba_py_host AND _ba_py_lib)
+            message(STATUS "Python de los plugins: bytecode sin fecha (una vez; tarda un poco)")
+            execute_process(COMMAND "${_ba_py_host}" -I -m compileall -q -f -j 0 --invalidation-mode unchecked-hash
+                                    ${_ba_py_lib}
+                            RESULT_VARIABLE _ba_py_r OUTPUT_QUIET ERROR_QUIET)
+            # 1 = algún archivo no compiló (tests con sintaxis vieja): el resto quedó.
+            if(_ba_py_r EQUAL 0 OR _ba_py_r EQUAL 1)
+                file(TOUCH "${BA_PYTHON_DIR}/.pyc-sin-fecha")
+            endif()
+        else()
+            message(WARNING "Python de los plugins: no hay un Python 3.12 para el bytecode sin fecha")
+        endif()
+    endif()
     # Con su bytecode (precompilado en tools/deps/python.sh): corre con -B. Las
     # cabeceras y los .lib son solo para compilar extensiones.
     install(DIRECTORY "${BA_PYTHON_DIR}/" DESTINATION python USE_SOURCE_PERMISSIONS COMPONENT bundle

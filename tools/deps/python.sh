@@ -55,7 +55,7 @@ if [ "$PLAT" = win-x64 ]; then
         --target "$OUT/Lib/site-packages" "${LIBS[@]}"
     find "$OUT" -name '__pycache__' -type d -prune -exec rm -rf {} +
     # El bytecode es el mismo en cualquier sistema (misma versión de Python).
-    "$HOSTPY" -m compileall -q -j 0 "$OUT/Lib" >/dev/null 2>&1 || true
+    "$HOSTPY" -m compileall -q -j 0 --invalidation-mode unchecked-hash "$OUT/Lib" >/dev/null 2>&1 || true
     grep -h "^Version" "$OUT"/Lib/site-packages/ctranslate2-*.dist-info/METADATA >/dev/null
     echo "$(basename "$TGZ")" >"$OUT/.version"
     log "listo: $OUT ($(du -sh "$OUT" | cut -f1))"
@@ -77,7 +77,7 @@ fi
 # El bytecode, precompilado acá: en ejecución Python corre con -B (no escribe
 # nada adentro del programa: escribir en la .app rompe el sello de la firma).
 find "$OUT" -name '__pycache__' -type d -prune -exec rm -rf {} +
-"$OUT/bin/python3" -m compileall -q -j 0 "$OUT/lib" >/dev/null 2>&1 || true
+"$OUT/bin/python3" -m compileall -q -j 0 --invalidation-mode unchecked-hash "$OUT/lib" >/dev/null 2>&1 || true
 # Apple Silicon no corre código sin firma: todo Mach-O, firmado (ad-hoc acá;
 # make app-macos vuelve a sellar la .app entera).
 if [ "$(uname -s)" = Darwin ]; then
