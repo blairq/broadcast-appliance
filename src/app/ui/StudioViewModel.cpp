@@ -830,6 +830,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
         marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
+        // asistente se entera por él, sin que cada llamador se acuerde de avisar.
+        connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
         // Los roles automaticos: un disparo que un rol activo reclama va a un
         // agente de un tiro y NO al chat del asistente interactivo.
         roles_ = std::make_unique<agent::Roles>(rt.dataRoot() / "Config" / "roles.json");
@@ -2874,7 +2877,6 @@ bool StudioViewModel::alarmaCritica() const {
 
 bool StudioViewModel::silenciarAlarmaUi(const QString& disparador, bool silenciar) {
     const auto r = alerts_->update(disparador.toStdString(), nlohmann::json{{"silenciada", silenciar}});
-    if (agent_) emit agent_->alertsChanged();
     return !r.contains("error");
 }
 

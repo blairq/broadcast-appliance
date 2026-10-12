@@ -246,6 +246,7 @@ json AlertEngine::create(const json& spec) {
     rules_.push_back(rule);
     state_[rule["id"]] = State{};
     save();
+    emit reglasCambio();
     return rule;
 }
 
@@ -267,6 +268,7 @@ json AlertEngine::update(const std::string& id, const json& changes) {
         if (changes.value("enabled", false)) r.erase("done");
         state_[id] = State{};
         save();
+        emit reglasCambio();
         return r;
     }
     return {{"error", "no existe el disparador " + id}};
@@ -278,6 +280,7 @@ bool AlertEngine::remove(const std::string& id) {
                  rules_.end());
     state_.erase(id);
     save();
+    if (rules_.size() != before) emit reglasCambio();
     return rules_.size() != before;
 }
 
@@ -285,6 +288,7 @@ void AlertEngine::clear() {
     rules_.clear();
     state_.clear();
     save();
+    emit reglasCambio();
 }
 
 json AlertEngine::list() const { return rules_; }
@@ -956,6 +960,7 @@ json AlertEngine::fabrica(bool restablecer) {
                      rules_.end());
         sembrar();
         save();
+        emit reglasCambio();
     }
     json out = json::array();
     for (const auto& r : rules_)
