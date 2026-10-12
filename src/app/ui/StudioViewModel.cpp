@@ -4112,3 +4112,56 @@ nlohmann::json StudioViewModel::saludSerie(const std::string& destino, int minut
 }
 
 } // namespace ba::app
+
+// --- Multiview ----------------------------------------------------------------------------
+
+namespace ba::app {
+
+namespace {
+QVariantMap multiviewDeFabrica() {
+    return {{"fuentes", QStringList{"program", "armada"}},
+            {"distribucion", "control"},
+            {"separacion", 8},
+            {"fondo", "#202024"},
+            {"borde", 2},
+            {"colorBorde", "#5a5a64"},
+            {"nombres", true},
+            {"tamNombres", 18},
+            {"tally", true},
+            {"vumetros", true}};
+}
+} // namespace
+
+QVariantMap StudioViewModel::multiview() const {
+    if (!multiviewLeido_) {
+        auto* yo = const_cast<StudioViewModel*>(this);
+        yo->multiviewLeido_ = true;
+        yo->multiview_ = multiviewDeFabrica();
+        QFile f(QString::fromStdWString((rt_.dataRoot() / "Config" / "multiview.json").wstring()));
+        if (f.open(QIODevice::ReadOnly)) {
+            const QVariantMap m = QJsonDocument::fromJson(f.readAll()).object().toVariantMap();
+            for (auto it = m.begin(); it != m.end(); ++it) yo->multiview_[it.key()] = it.value();
+        }
+    }
+    return multiview_;
+}
+
+void StudioViewModel::setMultiview(const QVariantMap& cambios) {
+    QVariantMap m = multiview();
+    for (auto it = cambios.begin(); it != cambios.end(); ++it) m[it.key()] = it.value();
+    multiview_ = m;
+    const std::filesystem::path dir = rt_.dataRoot() / "Config";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    QFile f(QString::fromStdWString((dir / "multiview.json").wstring()));
+    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        f.write(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Indented));
+    emit multiviewChanged();
+}
+
+void StudioViewModel::restablecerMultiview() {
+    multiview_.clear();
+    setMultiview(multiviewDeFabrica());
+}
+
+} // namespace ba::app

@@ -284,6 +284,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
     /// La cola única de descargas (Descargas, arriba a la derecha): ver net/Descargas.hpp.
     Q_PROPERTY(QObject* descargas READ descargas CONSTANT)
+    /// El multiview (página Multiview y sus ventanas): {fuentes, distribucion, separacion,
+    /// fondo, borde, colorBorde, nombres, tamNombres, tally, vumetros}. Config/multiview.json.
+    Q_PROPERTY(QVariantMap multiview READ multiview NOTIFY multiviewChanged)
     /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
     Q_PROPERTY(QObject* voz READ voz CONSTANT)
     /// «Voz del teleprompter»: el guion dicho en voz alta, siguiendo al teleprompter.
@@ -629,6 +632,10 @@ class StudioViewModel : public QObject {
     QObject* agent() const;
     QObject* modelos() const;
     QObject* descargas() const;
+    QVariantMap multiview() const;
+    /// Cambia lo que venga en `cambios` (lo demás queda) y lo guarda.
+    Q_INVOKABLE void setMultiview(const QVariantMap& cambios);
+    Q_INVOKABLE void restablecerMultiview();
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
@@ -815,6 +822,7 @@ class StudioViewModel : public QObject {
     void seccionConfigChanged();
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
+    void multiviewChanged();
     /// qr_mostrar: abrir una ventana con el QR de `texto`, su descripción, una
     /// explicación y un color (verde, azul… o #rrggbb), con el botón de copiar.
     void mostrarQr(const QString& texto, const QString& descripcion, const QString& mensaje, const QString& color);
@@ -1036,6 +1044,8 @@ class StudioViewModel : public QObject {
     bool gatewayAlive_ = false;
     double peakL_ = -100;
     double peakR_ = -100;
+    QVariantMap multiview_;
+    bool multiviewLeido_ = false;
 };
 
 } // namespace ba::app

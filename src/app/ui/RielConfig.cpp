@@ -40,6 +40,8 @@ const std::vector<Grupo>& catalogo() {
            "UVC)"},
           {21, "camaras", "⌖", "Cámaras PTZ: mover, zoom, presets y mejorar la imagen de cada cámara"},
           {22, "video", "⧈", "Video: tarjetas por entrada (croma, color, recorte) y salidas con nombre"},
+          {28, "multiview", "▥",
+           "Multiview: varias fuentes en un muro, con separación y bordes de color, tally y vúmetros; a otro monitor"},
           {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"},
           {25, "botonera", "▣", "Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI"}}},
         {"Contenido",

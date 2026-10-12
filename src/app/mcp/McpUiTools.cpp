@@ -19,6 +19,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "platform/Paths.hpp"
 #include "mcp/McpService.hpp"
+#include "video/VideoGrafos.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/FrameService.hpp"
@@ -59,6 +60,46 @@ void McpService::registerUiTools() {
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
     auto* windows = static_cast<OutputWindowsModel*>(dash->windows());
 
+    {
+        Tool t;
+        t.name = "multiview";
+        t.title = "Multiview: ver y armar (y sacarlo a una ventana)";
+        t.category = "interfaz";
+        t.description =
+            "El multiview (página Multiview): varias fuentes en un muro con separación de color y borde por cuadro. "
+            "Sin argumentos devuelve cómo está y qué fuentes se pueden poner. Con argumentos cambia SOLO lo que mandes "
+            "(se guarda y lo siguen sus ventanas en vivo). `ventana`: true abre una ventana de salida con el multiview "
+            "(para llevar a otro monitor). Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", \"entrada:<nombre>\".";
+        t.inputSchema = {
+            {"type", "object"},
+            {"properties",
+             {{"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
+              {"distribucion", {{"type", "string"}, {"enum", {"control", "grid", "focus", "pip", "row"}}}},
+              {"separacion", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 0-60"}}},
+              {"fondo", {{"type", "string"}, {"description", "color de la separación (#rrggbb)"}}},
+              {"borde", {{"type", "integer"}, {"description", "px por cuadro (a 1920 de ancho), 0-20"}}},
+              {"colorBorde", {{"type", "string"}, {"description", "#rrggbb"}}},
+              {"nombres", {{"type", "boolean"}}},
+              {"tamNombres", {{"type", "integer"}}},
+              {"tally", {{"type", "boolean"}}},
+              {"vumetros", {{"type", "boolean"}}},
+              {"ventana", {{"type", "boolean"}, {"default", false}}}}}};
+        t.examples = {R"({"fuentes": ["program", "armada", "entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
+        t.run = [&vm, windows](const json& a, Done done) {
+            QVariantMap cambios;
+            for (const char* k : {"fuentes", "distribucion", "separacion", "fondo", "borde", "colorBorde", "nombres",
+                                  "tamNombres", "tally", "vumetros"})
+                if (a.contains(k)) cambios[k] = jsonToQv(a[k]);
+            if (!cambios.isEmpty()) vm.setMultiview(cambios);
+            if (a.value("ventana", false)) windows->open({}, "multiview");
+            json disp = json::array();
+            for (const QString& k : static_cast<FrameService*>(vm.frames())->keys()) disp.push_back(k.toStdString());
+            if (auto* vg = static_cast<video::VideoGrafos*>(vm.video()))
+                for (const QString& e : vg->entradas()) disp.push_back("entrada:" + e.toStdString());
+            done(ToolResult().data({{"multiview", qvToJson(vm.multiview())}, {"fuentes_disponibles", disp}}));
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "ui_show_page";
@@ -341,7 +382,7 @@ void McpService::registerUiTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"feeds", {{"type", "array"}, {"items", {{"type", "string"}}}}},
-                           {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row"}}}},
+                           {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row", "control", "multiview"}}, {"description", "multiview: sigue a la página Multiview (fuentes y estilo)"}}},
                            {"dim", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
         t.run = [dash](const json& a, Done done) {
             if (a.contains("feeds")) {
