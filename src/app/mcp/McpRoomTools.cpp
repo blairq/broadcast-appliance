@@ -187,8 +187,8 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.description =
             "Lobby de admision (true = cada invitado espera que lo hagas pasar), sala cerrada (nadie "
-            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa, SIN reiniciar la sala, hasta los "
-            "lugares reservados (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).";
+            "nuevo puede entrar) y `cupo`: cuántos invitados en el programa (1 a 16), SIN reiniciar la sala: los "
+            "lugares nuevos se crean andando (no saca a nadie: si un lugar que se iría está ocupado, no lo baja).";
         t.inputSchema = {
             {"type", "object"},
             {"properties",

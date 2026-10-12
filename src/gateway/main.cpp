@@ -542,7 +542,9 @@ int main(int argc, char** argv) {
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby
     // o en la fila de oradores, que ve el programa).
-    WebrtcHub hub(cfg.guestsReserve + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
+    // Las del programa, para el tope de invitados (kMaxInvitados): una sesión está
+    // vacía hasta que alguien se conecta, y así el cupo sube sin reiniciar la sala.
+    WebrtcHub hub(kMaxInvitados + cfg.lobbySlots + cfg.maxBackstage + 2 /* los remotos con la palabra (un debate) */ +
                       cfg.vistasRemotas /* lo que miran los integrantes en su celular */, cfg.guestVideoW, cfg.guestVideoH,
                   cfg.audioRate, cfg.audioChannels);
 
@@ -563,7 +565,9 @@ int main(int argc, char** argv) {
                     &pumpCfg.lobbyAudioNames, &pumpCfg.lobbyVideoNames, &pumpCfg.returnSlotNames}) {
         v->emplace_back();
     }
-    for (int s = 1; s <= cfg.guestsReserve; ++s) { // los reservados: el cupo cambia en caliente
+    // Los nombres de todos los lugares posibles (son solo texto): los canales se
+    // crean para el cupo al arrancar y los demás cuando el cupo sube (MediaPump::ampliar).
+    for (int s = 1; s <= kMaxInvitados; ++s) {
         pumpCfg.guestAudioNames.push_back(toWide("BA.Audio.Guest." + std::to_string(s)));
         pumpCfg.returnSlotNames.push_back(toWide("BA.Audio.Return." + std::to_string(s)));
         pumpCfg.guestVideoNames.push_back(toWide("BA.Guest." + std::to_string(s)));
@@ -581,6 +585,7 @@ int main(int argc, char** argv) {
     pumpCfg.backstageVideoNames.push_back({});
     for (int k = 1; k <= cfg.backstagePreviews; ++k)
         pumpCfg.backstageVideoNames.push_back(toWide("BA.Backstage." + std::to_string(k)));
+    pumpCfg.lugaresIniciales = std::max(cfg.guests, cfg.guestsReserve);
     pumpCfg.audioRate = cfg.audioRate;
     pumpCfg.audioChannels = cfg.audioChannels;
     pumpCfg.programW = cfg.videoW;
@@ -596,7 +601,7 @@ int main(int argc, char** argv) {
     Room::Cfg roomCfg;
     roomCfg.name = cfg.room;
     roomCfg.maxGuests = cfg.guests;
-    roomCfg.reserva = cfg.guestsReserve;
+    roomCfg.reserva = kMaxInvitados; // el cupo sube en caliente hasta el tope
     roomCfg.lobby = cfg.lobby;
     roomCfg.lobbySlots = cfg.lobbySlots;
     roomCfg.backstageSlots = cfg.backstagePreviews;

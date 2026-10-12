@@ -346,11 +346,15 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             if (req.contains("intake") && req["intake"].is_boolean())
                 room_.setIntake(req["intake"].get<bool>());
             if (req.contains("cupo") && req["cupo"].is_number_integer()) {
-                const int r = room_.setCupo(req["cupo"].get<int>());
+                const int n = req["cupo"].get<int>();
+                // Los canales de los lugares nuevos, ANTES de que la sala pueda
+                // admitir a alguien ahí (sin lobby entra solo): sin reiniciar.
+                if (pump_ != nullptr && n >= 1 && n <= kMaxInvitados) pump_->ampliar(n);
+                const int r = room_.setCupo(n);
                 if (r != Room::kOk) {
                     sendJson(fd, 409, json{{"ok", false},
                                            {"error", r == Room::kFull ? "hay invitados en lugares que se irían"
-                                                                      : "fuera de los lugares reservados (cambiar la reserva reinicia la sala)"}});
+                                                                      : "el cupo va de 1 a " + std::to_string(kMaxInvitados)}});
                     return;
                 }
             }

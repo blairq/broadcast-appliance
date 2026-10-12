@@ -30,6 +30,12 @@
 
 namespace ba::gateway {
 
+/// El tope de invitados en el programa. El cupo se cambia en caliente hasta acá:
+/// el gateway crea los canales de un lugar cuando el cupo lo alcanza
+/// (MediaPump::ampliar) y las sesiones WebRTC del pool son livianas hasta que
+/// alguien se conecta, así que no hace falta reiniciar la sala.
+inline constexpr int kMaxInvitados = 16;
+
 struct MediaRoute {
     /// Backstage: admitido en modo oradores, esperando su turno: RECIBE el
     /// programa pero lo que manda no va a ningun lado (ni al programa).

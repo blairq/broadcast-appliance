@@ -143,7 +143,7 @@ struct AppConfig {
 /// Configuracion de B (gateway.json).
 struct GatewaySettings {
     int guests = 2; ///< copia de AppConfig::guests (la fuente de verdad es A)
-    /// Lugares reservados al arrancar la sala: el cupo cambia sin reiniciar hasta acá (T33).
+    /// Lugares que la sala deja listos al arrancar (sus canales); el cupo cambia en caliente hasta 16 igual.
     int guestsReserva = 4;
     /// El proxy por nombre (T61): la sección "proxy" de gateway.json tal cual
     /// (activo, dominio, puertos, servicios, acme). Ver src/gateway/proxy/GestorProxy.hpp.

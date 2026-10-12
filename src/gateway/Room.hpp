@@ -131,8 +131,8 @@ class Room {
     struct Cfg {
         std::string name = "sala1";
         int maxGuests = 2;
-        /// Lugares reservados al arrancar (sesiones y canales hacia A): el cupo se puede
-        /// cambiar en caliente hasta acá (setCupo). 0 = igual a maxGuests.
+        /// Hasta dónde se puede subir el cupo en caliente (setCupo): main le pone
+        /// kMaxInvitados (los canales los crea MediaPump::ampliar). 0 = igual a maxGuests.
         int reserva = 0;
         bool lobby = true;      ///< true: el operador admite a cada uno
         int graceMs = 30000;    ///< cuanto se guarda el lugar de un desconectado

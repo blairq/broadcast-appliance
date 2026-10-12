@@ -3934,10 +3934,10 @@ QString StudioViewModel::cupo(int n, std::function<void(const QString&)> listo) 
     if (n < 1 || n > 16) return "el cupo va de 1 a 16";
     auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
     if (!cli->online()) return "la sala no está andando";
-    // Lo que reservó la sala AL ARRANCAR (la configuración puede haber cambiado después).
+    // El tope que informa la sala (kMaxInvitados del gateway).
     const int reserva = cli->snapshot().value("reserva").toInt(rt_.config().guests);
     if (n > reserva)
-        return QString("la sala reservó %1 lugares: para más, subí «Lugares reservados» (reinicia la sala)").arg(reserva);
+        return QString("la sala admite hasta %1 invitados").arg(reserva);
     cli->post("/api/v1/room", QJsonObject{{"cupo", n}}, [this, n, listo](bool ok, const QJsonObject& r) {
         if (!ok) return listo(r.value("error").toString("la sala no lo aceptó"));
         rt_.ajustarInvitados(n);

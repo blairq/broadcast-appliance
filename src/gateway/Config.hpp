@@ -56,7 +56,7 @@ inline constexpr int kMaxGuests = 16;
 struct Config {
     // --- CLI ---------------------------------------------------------------
     int guests = 2;                        // 1..kMaxGuests (default 2)
-    int guestsReserve = 0;                 // lugares reservados (cupo en caliente hasta acá); 0 = guests
+    int guestsReserve = 0;                 // lugares con canales desde el arranque (el cupo sube igual hasta kMaxInvitados); 0 = guests
     uint16_t port = 8787;                  // puerto de señalización en 127.0.0.1
     uint16_t metricsPort = 9099;           // puerto de métricas de cloudflared (loopback)
     std::string bindAddress = "127.0.0.1"; // escucha de la senalizacion
