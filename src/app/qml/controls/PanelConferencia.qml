@@ -80,12 +80,12 @@ ColumnLayout {
                           action: function() { pc.pedir("cerrar", "cerrar_todos") } }) }
         // La presidencia sobre todos (también los remotos): Studio.silenciarTodos / hablaPresidencia.
         GlassButton { text: "🔇 Silenciar a todos"; activeColor: Theme.live
-                      onClicked: { const e = Studio.silenciarTodos("operador"); if (e !== "") Studio.notify(e, "error") }
+                      onClicked: Studio.silenciarTodos()
                       ToolTip.visible: hovered; ToolTip.delay: 400
                       ToolTip.text: "Cierra los micrófonos de la central (menos el del presidente), termina al orador y les saca la palabra a los remotos" }
         GlassButton { text: Studio.presidenciaHabla ? "🎙 Presidencia hablando" : "🎙 Habla la presidencia"
                       active: Studio.presidenciaHabla; activeColor: Theme.live; enabled: pc.ok
-                      onClicked: { const e = Studio.hablaPresidencia(!Studio.presidenciaHabla, "operador"); if (e !== "") Studio.notify(e, "error") }
+                      onClicked: Studio.hablaPresidencia(!Studio.presidenciaHabla)
                       ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "Calla a todos y abre el micrófono de la presidencia" }
     }
     Text {

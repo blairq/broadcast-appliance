@@ -8,6 +8,7 @@
 #include "sala/PreguntasSala.hpp"
 #include "escenas/Conmutador.hpp"
 #include "asamblea/Votaciones.hpp"
+#include "asamblea/Presidencia.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
@@ -1266,17 +1267,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Las votaciones (central, celulares, Quórum) son del modelo.
     if (sesionRemota_ && quorum_)
         votaciones_ = std::make_unique<asamblea::Votaciones>(*sesionRemota_, *dcn_, *quorum_, *bus_, this);
-    connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, this, [this]() {
-        // El presidente apretó prioridad en su unidad: la central ya calló a los suyos; los
-        // remotos también se callan (si no, el que habla por el celular seguía sonando).
-        const bool prio = hijoObjeto(dcn_->estado(), "prioridad").value("activa", false);
-        if (prio && !prioridadCentral_) {
-            silenciarRemotos();
-            emit notify("Prioridad del presidente: todos callados (también los remotos)", "info");
-            bus_->publicar("presidencia/silencio", {{"origen", "prioridad"}}, false);
-        }
-        prioridadCentral_ = prio;
-    });
     bus_->suscribir("#", [this](const std::string& t, const nlohmann::json& d) {
         if (plugins_ && t.rfind("plugin/", 0) != 0) plugins_->eventoApp(t, d);
     });
@@ -1426,103 +1416,31 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             },
             [this](const std::string& id) { botonera_->quitarLocal(id); },
             [this](const std::string& id, const nlohmann::json& msg) { botonera_->entrada(id, msg); });
-        // La banca virtual: el gateway autentica y avisa; acá se decide.
+        // La banca virtual: el gateway autentica y avisa; decide asamblea::Presidencia (con
+        // las consolas de la presidencia y la prioridad del presidente). Acá solo se muestra.
         if (sesionRemota_) {
-            connect(cli, &ConferenceClient::sesionEvento, this, [this](const QJsonObject& o) {
-                const nlohmann::json ev =
-                    nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-                if (ev.is_object()) sesionRemota_->evento(ev);
-            });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::enviar, this,
-                    [cli, aQt](const QString& id, const nlohmann::json& msg) {
-                        cli->post("/api/v1/sesion/enviar", aQt({{"id", id.toStdString()}, {"msg", msg}}),
-                                  [](bool, const QJsonObject&) {});
-                    });
-            // Quiénes mandan medios a la sala: va solo la lista final de cada tanda (un debate
-            // da la palabra a dos seguidos) y con número, así una que llega tarde no pisa
-            // a la nueva (los POST viajan en paralelo y llegaban al revés).
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::mediosA, this, [this, cli, aQt](const QStringList& ids) {
-                mediosPendientes_ = ids;
-                if (mediosProgramados_) return;
-                mediosProgramados_ = true;
-                QTimer::singleShot(0, this, [this, cli, aQt]() {
-                    mediosProgramados_ = false;
-                    nlohmann::json l = nlohmann::json::array();
-                    for (const QString& i : mediosPendientes_) l.push_back(i.toStdString());
-                    cli->post("/api/v1/sesion/medios", aQt({{"ids", l}, {"seq", ++mediosSeq_}}), [](bool, const QJsonObject&) {});
-                });
-            });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::cortar, this,
-                    [cli, aQt](const QString& id, const QString& motivo) {
-                        cli->post("/api/v1/sesion/cortar", aQt({{"id", id.toStdString()}, {"motivo", motivo.toStdString()}}),
-                                  [](bool, const QJsonObject&) {});
-                    });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::fotoPedida, this, [this, cli](const QString& id) {
-                cli->getRaw("/api/v1/sesion/foto?id=" + QString::fromUtf8(QUrl::toPercentEncoding(id)),
-                            [this, id](bool ok, const QByteArray& b) {
-                                if (ok && sesionRemota_) sesionRemota_->ponerFoto(id, b);
-                            });
-            });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::pedidoPalabra, this,
-                    [this](const QString& id, bool pedir) {
-                        if (!bancas_) return;
-                        if (pedir) bancas_->agregar(id);
-                        else bancas_->quitar(id);
-                    });
             connect(sesionRemota_.get(), &asamblea::SesionRemota::aviso, this,
                     [this](const QString& t, const QString& nivel) { emit notify(t, nivel); });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::credencialesCambio, this, [this]() { sincronizarSesion(); });
             connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, [this]() {
                 if (quorum_) emit quorum_->cambio();
-                aplicarVistasRemotas();
             });
-            connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
-                if (on) sincronizarSesion();
-            });
-            // La consola web de la presidencia: el estado (como mucho 4 veces por
-            // segundo) y lo que pide.
-            consolaTimer_.setSingleShot(true);
-            consolaTimer_.setInterval(250);
-            connect(&consolaTimer_, &QTimer::timeout, this, [this]() { mandarEstadoConsola(); });
-            const auto programar = [this]() {
-                if (sesionRemota_ && sesionRemota_->hayConsolas() && !consolaTimer_.isActive()) consolaTimer_.start();
-            };
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::cambio, this, programar);
-            connect(bancas_.get(), &asamblea::Bancas::cambio, this, programar);
-            connect(this, &StudioViewModel::presidenciaHablaChanged, this, programar);
-            if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, programar);
-            if (debate_) connect(debate_.get(), &asamblea::Debate::cambio, this, [this]() { aplicarVistasRemotas(); });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::volvio, this, [this](const QString& id) {
-                // Después de la palabra que le reenvía SesionRemota: el turno del debate manda.
-                if (debate_ && debate_->participa(id.toStdString()))
-                    QTimer::singleShot(0, this, [this]() { if (debate_) debate_->reenviar(); });
-            });
-            connect(cuerpo_.get(), &asamblea::CuerpoViewModel::cambio, this, programar);
-            if (quorum_) connect(quorum_.get(), &asamblea::Quorum::cambio, this, programar);
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::consolaConexion, this,
-                    [this, cli](const QString& id, bool on) {
-                        if (!on) return;
-                        mandarEstadoConsola();
-                        enlaceProgramaConsola(id);
-                    });
-            connect(sesionRemota_.get(), &asamblea::SesionRemota::accionConsola, this,
-                    [this](const QString& id, const nlohmann::json& m) { accionConsola(id, m); });
-            // El punto del orden del día en el celular de cada uno.
-            bus_->suscribir("sesion/punto", [this](const std::string&, const nlohmann::json& p) {
-                if (!sesionRemota_) return;
-                const std::string t = p.is_object() ? p.value("titulo", p.value("texto", std::string())) : std::string();
-                const int n = p.is_object() ? p.value("n", 0) : 0;
-                sesionRemota_->info({{"punto", t.empty() ? std::string() : (n > 0 ? std::to_string(n) + ". " : "") + t}});
-                // Y los que vienen (los temas a votar), hasta cinco.
-                if (ordenDia_) {
-                    nlohmann::json prox = nlohmann::json::array();
-                    for (const auto& x : ordenDia_->puntos())
-                        if (x.value("estado", std::string()) == "pendiente" && prox.size() < 5)
-                            prox.push_back(std::to_string(x.value("n", 0)) + ". " + x.value("titulo", std::string()));
-                    sesionRemota_->setProximos(prox);
-                }
-            });
-            sincronizarSesion();
+            asamblea::Presidencia::Partes pp{.sesion = *sesionRemota_,
+                                             .bancas = *bancas_,
+                                             .debate = debate_.get(),
+                                             .dcn = *dcn_,
+                                             .votaciones = votaciones_.get(),
+                                             .cuerpo = *cuerpo_,
+                                             .quorum = quorum_.get(),
+                                             .ordenDia = ordenDia_.get(),
+                                             .sala = *cli,
+                                             .bus = *bus_,
+                                             .motor = rt_.engine(),
+                                             .microfonoOperador = [this]() { return !conference_->operatorAudio().isEmpty(); }};
+            presidencia_ = std::make_unique<asamblea::Presidencia>(std::move(pp), this);
+            connect(presidencia_.get(), &asamblea::Presidencia::aviso, this,
+                    [this](const QString& t, const QString& nivel) { emit notify(t, nivel); });
+            connect(presidencia_.get(), &asamblea::Presidencia::presidenciaHablaCambio, this,
+                    &StudioViewModel::presidenciaHablaChanged);
         }
     }
     marca("plugins");
@@ -3245,286 +3163,28 @@ QStringList StudioViewModel::nombresParaDsk() const {
     return out;
 }
 
-nlohmann::json StudioViewModel::estadoConsola() const {
-    using nlohmann::json;
-    json e{{"type", "estado"}, {"ahora_ms", QDateTime::currentMSecsSinceEpoch()}};
-    e["cuerpo"] = cuerpo_->cuerpo().nombre();
-    e["recinto"] = cuerpo_->cuerpo().recinto(true);
-    e["remotos"] = sesionRemota_->participantes();
-    e["presidencia_habla"] = presidenciaHabla_;
-    if (debate_) e["debate"] = debate_->estadoJson();
-    e["con_central"] = dcn_ && dcn_->conectada();
-    // La fila: cada uno con si habla desde el navegador.
-    const json b = bancas_->estadoJson();
-    const auto remotoDe = [this](const std::string& id) {
-        const auto v = sesionRemota_->presentesIds();
-        return std::find(v.begin(), v.end(), id) != v.end();
-    };
-    json cola = json::array();
-    for (const auto& i : b.value("cola", json::array()))
-        cola.push_back({{"id", i.value("id", std::string())}, {"nombre", i.value("nombre", std::string())},
-                        {"banca", i.value("banca", std::string())}, {"bloque", i.value("bloque", std::string())},
-                        {"remoto", remotoDe(i.value("id", std::string()))}});
-    json alAire = json();
-    if (b.value("al_aire", json()).is_object()) {
-        const json& i = b["al_aire"];
-        alAire = {{"id", i.value("id", std::string())}, {"nombre", i.value("nombre", std::string())},
-                  {"banca", i.value("banca", std::string())}, {"bloque", i.value("bloque", std::string())},
-                  {"remoto", remotoDe(i.value("id", std::string()))}};
-    }
-    e["fila"] = {{"cola", cola}, {"al_aire", alAire}, {"desde_ms", b.value("desde_ms", 0LL)},
-                 {"asignado_s", b.value("asignado_s", 0)}, {"asignado_fabrica_s", b.value("asignado_fabrica_s", 0)}};
-    // La central.
-    if (dcn_ && dcn_->conectada()) {
-        const json d = dcn_->estado();
-        e["central"] = {{"conectada", true}, {"abiertos", d.value("abiertos", json::array())},
-                        {"pedidos", d.value("pedidos", json::array())}, {"votacion", d.value("votacion", json::object())}};
-    } else {
-        e["central"] = {{"conectada", false}};
-    }
-    e["votacion"] = sesionRemota_->votacion();
-    e["voto_s"] = sesionRemota_->votoSegundos();
-    if (quorum_) e["quorum"] = quorum_->estado();
-    if (ordenDia_) {
-        const json actual = ordenDia_->actual();
-        e["punto"] = actual.is_object() ? actual.value("titulo", std::string()) : std::string();
-        json prox = json::array();
-        for (const auto& x : ordenDia_->puntos())
-            if (x.value("estado", std::string()) == "pendiente" && prox.size() < 8)
-                prox.push_back({{"n", x.value("n", 0)}, {"titulo", x.value("titulo", std::string())}});
-        e["proximos"] = prox;
-    }
-    return e;
-}
-
-void StudioViewModel::mandarEstadoConsola() {
-    if (!sesionRemota_ || !sesionRemota_->hayConsolas() || !conference_) return;
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    if (!cli.online()) return;
-    const nlohmann::json body{{"id", "consolas"}, {"msg", estadoConsola()}};
-    cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-             [](bool, const QJsonObject&) {});
-}
-
-void StudioViewModel::enlaceProgramaConsola(const QString& consola) {
-    if (!conference_) return;
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    QPointer<StudioViewModel> yo(this);
-    // El programa en vivo (el mismo de los televisores, /cast/), con su token.
-    cli.get("/api/v1/sesion/cast", [yo, &cli, consola](bool ok, const QJsonObject& r) {
-        if (!yo || !ok || !r.value("ok").toBool()) return;
-        const QString url = r.value("url").toString();
-        const nlohmann::json body{{"id", consola.toStdString()}, {"msg", {{"type", "cast"}, {"url", url.toStdString()}}}};
-        cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-                 [](bool, const QJsonObject&) {});
-    });
-}
-
-void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json& m) {
-    using nlohmann::json;
-    if (!sesionRemota_ || !bancas_) return;
-    const std::string t = m.value("type", std::string());
-    const std::string id = m.value("id", std::string());
-    const std::string quien = "presidencia (" + consola.toStdString().substr(8) + ")";
-    std::string error;
-    if (t == "hola") {
-        mandarEstadoConsola();
-        enlaceProgramaConsola(consola);
-    } else if (t == "habilitar" || t == "deshabilitar") {
-        error = sesionRemota_->habilitar(id, t == "habilitar", quien);
-    } else if (t == "expulsar") {
-        error = sesionRemota_->expulsar(id, quien, m.value("motivo", std::string()));
-    } else if (t == "dar_palabra") {
-        error = bancas_->alAire(QString::fromStdString(id), "armar", m.value("segundos", -1)).toStdString();
-    } else if (t == "terminar") {
-        bancas_->terminar();
-    } else if (t == "debate" && debate_) {
-        const std::string acc = m.value("accion", std::string());
-        if (acc == "iniciar")
-            error = debate_->iniciar(m.value("a", std::string()), m.value("b", std::string()), m.value("turno", std::string("a")));
-        else if (acc == "turno")
-            error = debate_->turno(m.value("turno", std::string()));
-        else if (acc == "sumar")
-            debate_->sumar(m.value("segundos", 60));
-        else if (acc == "terminar")
-            debate_->terminar();
-    } else if (t == "silenciar_todos") {
-        error = silenciarTodos(QString::fromStdString(quien)).toStdString();
-    } else if (t == "hablar_presidencia") {
-        error = hablaPresidencia(m.value("activo", true), QString::fromStdString(quien)).toStdString();
-    } else if (t == "quitar_fila") {
-        bancas_->quitar(QString::fromStdString(id));
-    } else if (t == "siguiente") {
-        error = bancas_->siguiente("armar").toStdString();
-    } else if (t == "sumar_tiempo") {
-        bancas_->sumarTiempo(m.value("segundos", 60));
-    } else if (t == "tiempo") {
-        bancas_->setAsignado(m.value("asignado_s", 180));
-    } else if (t == "votacion" && votaciones_) {
-        // Central o celulares lo decide el modelo; lo que falle (también lo de la central, que contesta después) se avisa.
-        QPointer<StudioViewModel> yo(this);
-        votaciones_->accion(m.value("accion", std::string()), m, quien, [yo](const std::string& e) {
-            if (yo && !e.empty()) emit yo->notify(QString::fromStdString(e), "error");
-        });
-    } else if (t == "ptt") {
-        // «Apretar para hablar»: le avisa al integrante; el audio y el video van
-        // directo entre la consola y su navegador (WebRTC, señalizado por el gateway).
-        sesionRemota_->ptt(id, m.value("activo", false), consola.toStdString());
-    } else if (t == "foto_cuerpo") {
-        const QString ruta = cuerpo_->rutaFoto(QString::fromStdString(id));
-        QFile f(ruta);
-        if (!ruta.isEmpty() && f.open(QIODevice::ReadOnly) && f.size() < 200000) {
-            auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-            const json body{{"id", consola.toStdString()},
-                            {"msg", {{"type", "foto_cuerpo"}, {"id", id}, {"jpeg", f.readAll().toBase64().toStdString()}}}};
-            cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-                     [](bool, const QJsonObject&) {});
-        }
-    } else if (t == "cast") {
-        enlaceProgramaConsola(consola);
-    }
-    if (!error.empty()) {
-        auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-        const json body{{"id", consola.toStdString()}, {"msg", {{"type", "error"}, {"texto", error}}}};
-        cli.post("/api/v1/sesion/enviar", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-                 [](bool, const QJsonObject&) {});
-    }
-    if (!consolaTimer_.isActive()) consolaTimer_.start();
-}
-
-void StudioViewModel::sincronizarSesion() {
-    if (!conference_ || !sesionRemota_) return;
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    if (!cli.online()) return;
-    const nlohmann::json body{{"participantes", sesionRemota_->paraGateway()}};
-    cli.post("/api/v1/sesion/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-             [](bool, const QJsonObject&) {});
-    aplicarVistasRemotas(true);
-    // Si el gateway se reinició no sabe quién tiene la palabra: se le vuelve a decir.
-    {
-        QJsonArray ids;
-        for (const auto& i : sesionRemota_->conPalabraTodos()) ids.append(QString::fromStdString(i));
-        cli.post("/api/v1/sesion/medios", QJsonObject{{"ids", ids}, {"seq", static_cast<qint64>(++mediosSeq_)}},
-                 [](bool, const QJsonObject&) {});
-    }
-    // El origen de los links: el del túnel si hay; si no, el de la red local (HTTPS).
-    QPointer<StudioViewModel> yo(this);
-    cli.get("/api/v1/sesion/origen?target=remote", [yo, &cli](bool ok, const QJsonObject& r) {
-        if (!yo || !yo->sesionRemota_) return;
-        if (ok && r.value("ok").toBool()) {
-            yo->sesionRemota_->setOrigen(r.value("origen").toString().toStdString());
-            return;
-        }
-        cli.get("/api/v1/sesion/origen?target=local", [yo](bool ok2, const QJsonObject& r2) {
-            if (yo && yo->sesionRemota_ && ok2 && r2.value("ok").toBool())
-                yo->sesionRemota_->setOrigen(r2.value("origen").toString().toStdString());
-        });
-    });
-}
-
-void StudioViewModel::aplicarVistasRemotas(bool forzar) {
-    if (!conference_ || !sesionRemota_) return;
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    if (!cli.online()) return;
-    // Las escenas se componen solo mientras haya algún remoto conectado.
-    const bool alguien = sesionRemota_->conectados() > 0;
-    nlohmann::json vistas = sesionRemota_->vistas();
-    // Durante un debate, un canal más con la escena del debate: los remotos se ven entre
-    // ellos (los dos del debate pasan solos a ese canal).
-    if (debate_ && debate_->activo()) {
-        const std::string esc = debate_->estadoJson().value("escena", std::string());
-        if (!esc.empty()) vistas.push_back({{"id", "debate"}, {"nombre", "Debate"}, {"fuente", esc}});
-    }
-    const std::string firma = (alguien ? "1" : "0") + vistas.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    if (!forzar && firma == firmaVistas_) return;
-    firmaVistas_ = firma;
-    BroadcastEngine& eng = rt_.engine();
-    eng.soltarCanalesEscena("sesion-remota");
-    nlohmann::json out = nlohmann::json::array();
-    for (const auto& v : vistas) {
-        const std::string fuente = v.value("fuente", std::string());
-        int canal = -2;
-        if (fuente == "programa") {
-            canal = -1;
-        } else if (alguien) {
-            canal = eng.tomarCanalEscena(fuente, "sesion-remota");
-            if (canal < 0)
-                emit notify(QString::fromStdString("No hay canal libre para mandarles la escena «" + fuente +
-                                                   "» a los remotos (las pantallas usan los 4)"),
-                            "warning");
-        }
-        out.push_back({{"id", v.value("id", std::string())}, {"nombre", v.value("nombre", std::string())}, {"canal", canal}});
-    }
-    cli.post("/api/v1/sesion/vistas",
-             QJsonDocument::fromJson(QByteArray::fromStdString(nlohmann::json{{"vistas", out}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-             [](bool, const QJsonObject&) {});
-}
-
 QString StudioViewModel::hablarARemoto(const QString& integrante, bool activo) {
-    if (!sesionRemota_ || !conference_) return "La sesión remota no está andando.";
-    auto* conf = static_cast<ConferenceViewModel*>(conference_.get());
-    if (activo && conf->operatorAudio().isEmpty())
-        return "Para hablarle hace falta tu micrófono: elegilo en Sala → Tu cámara y micrófono.";
-    if (activo && !conf->client().online()) return "La sala (el gateway) no está andando.";
-    const std::string id = integrante.toStdString();
-    conf->client().post("/api/v1/sesion/hablar", QJsonObject{{"id", integrante}, {"activo", activo}},
-                        [](bool, const QJsonObject&) {});
-    // Su celular muestra «Te están hablando» y abre el sonido aunque esté en la sala.
-    sesionRemota_->ptt(id, activo, "operador");
-    return {};
+    if (!presidencia_) return "La sesión remota no está andando.";
+    return QString::fromStdString(presidencia_->hablarARemoto(integrante.toStdString(), activo));
 }
 
-int StudioViewModel::unidadPresidente() const {
-    if (!dcn_) return 0;
-    for (const auto& u : dcn_->estado().value("unidades", nlohmann::json::array()))
-        if (u.value("tipo", std::string()) == "presidente") return u.value("unidad", 0);
-    return 0;
-}
-
-void StudioViewModel::silenciarRemotos() {
-    if (!sesionRemota_) return;
-    // En un debate, callarlos es darle el turno a nadie (su imagen sigue entrando).
-    if (debate_ && debate_->activo()) debate_->turno("nadie");
-    // El orador al aire, si habla por el celular, termina (eso le suelta los medios).
-    if (bancas_) {
-        const nlohmann::json aa = bancas_->estadoJson().value("al_aire", nlohmann::json());
-        if (aa.is_object() && sesionRemota_->tienePalabra(aa.value("id", std::string()))) bancas_->terminar();
-    }
-    for (const auto& id : sesionRemota_->conPalabraTodos())
-        if (!debate_ || !debate_->participa(id)) sesionRemota_->darPalabra(id, false, 0);
-}
-
-QString StudioViewModel::silenciarTodos(const QString& quien) {
-    if (bancas_) bancas_->terminar();
-    if (debate_ && debate_->activo()) debate_->turno("nadie"); // los dos callados, el debate sigue
-    silenciarRemotos();
-    if (dcn_ && dcn_->conectada())
-        dcn_->control("cerrar_todos", {{"incluir_presidente", false}}, [this](bool ok, const nlohmann::json&, const std::string& e) {
-            if (!ok) emit notify(QString::fromStdString("Central: " + e), "error");
-        });
-    bus_->publicar("presidencia/silencio", {{"origen", quien.toStdString()}}, false);
-    return {};
-}
-
-QString StudioViewModel::hablaPresidencia(bool activo, const QString& quien) {
-    if (!dcn_ || !dcn_->conectada()) return "Sin la central no hay micrófono de la presidencia que abrir.";
-    const int u = unidadPresidente();
-    if (u == 0) return "La central no tiene una unidad de presidente.";
-    if (activo) silenciarTodos(quien);
+void StudioViewModel::silenciarTodos() {
+    if (!presidencia_) return;
     QPointer<StudioViewModel> yo(this);
-    dcn_->control("microfono", {{"unidad", u}, {"abierto", activo}, {"confirmar", true}},
-                  [yo, activo](bool ok, const nlohmann::json&, const std::string& e) {
-                      if (!yo) return;
-                      if (!ok) {
-                          emit yo->notify(QString::fromStdString("Central: " + e), "error");
-                          return;
-                      }
-                      yo->presidenciaHabla_ = activo;
-                      emit yo->presidenciaHablaChanged();
-                  });
-    bus_->publicar("presidencia/habla", {{"activa", activo}, {"origen", quien.toStdString()}}, false);
-    return {};
+    presidencia_->silenciarTodos("operador", [yo](const std::string& e) {
+        if (yo && !e.empty()) emit yo->notify(QString::fromStdString(e), "error");
+    });
 }
+
+void StudioViewModel::hablaPresidencia(bool activo) {
+    if (!presidencia_) return;
+    QPointer<StudioViewModel> yo(this);
+    presidencia_->hablaPresidencia(activo, "operador", [yo](const std::string& e) {
+        if (yo && !e.empty()) emit yo->notify(QString::fromStdString(e), "error");
+    });
+}
+
+bool StudioViewModel::presidenciaHabla() const { return presidencia_ && presidencia_->presidenciaHabla(); }
 
 void StudioViewModel::sincronizarBotonera() {
     if (!conference_ || !botonera_) return;

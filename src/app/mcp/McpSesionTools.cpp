@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "asamblea/Votaciones.hpp"
+#include "asamblea/Presidencia.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -332,8 +333,9 @@ void McpService::registerSesionTools() {
             std::string e;
             const std::string id = idDe(a, e);
             if (id.empty()) return done(ToolResult::error(e));
-            const QString r = vm->hablarARemoto(QString::fromStdString(id), a.value("activo", false));
-            if (!r.isEmpty()) return done(ToolResult::error(r.toStdString()));
+            if (vm->presidencia() == nullptr) return done(ToolResult::error("La sesión remota no está andando."));
+            const std::string r = vm->presidencia()->hablarARemoto(id, a.value("activo", false));
+            if (!r.empty()) return done(ToolResult::error(r));
             done(ToolResult::ok(a.value("activo", false) ? "Le estás hablando." : "Listo, ya no le hablás."));
         };
         core_.addTool(std::move(t));

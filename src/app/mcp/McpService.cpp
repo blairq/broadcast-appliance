@@ -12,6 +12,7 @@
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
 #include "asamblea/Debate.hpp"
+#include "asamblea/Presidencia.hpp"
 #include <QRegularExpression>
 #include <QDateTime>
 #include <QRandomGenerator>
@@ -2753,9 +2754,11 @@ void McpService::registerTools() {
                         "presidencia), termina al orador que está al aire y les saca la palabra a los remotos (también a "
                         "los de un debate). Lo mismo que el botón de prioridad del presidente en su unidad.";
         t.run = [&vm](const json&, Done done) {
-            const QString e = vm.silenciarTodos("mcp");
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult::ok("Todos callados."));
+            // La misma operación que el botón y las consolas; el error es el de la central.
+            if (vm.presidencia() == nullptr) return done(ToolResult::error("La presidencia no está disponible."));
+            vm.presidencia()->silenciarTodos("mcp", [done](const std::string& e) {
+                done(e.empty() ? ToolResult::ok("Todos callados.") : ToolResult::error(e));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -2768,9 +2771,13 @@ void McpService::registerTools() {
                         "presidente de la central; false lo cierra. Hace falta la central conectada.";
         t.inputSchema = {{"type", "object"}, {"required", {"activo"}}, {"properties", {{"activo", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.hablaPresidencia(a.value("activo", true), "mcp");
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
-            done(ToolResult::ok(a.value("activo", true) ? "Todos callados; habla la presidencia." : "La presidencia cerró su micrófono."));
+            if (vm.presidencia() == nullptr) return done(ToolResult::error("La presidencia no está disponible."));
+            const bool activo = a.value("activo", true);
+            // Contesta cuando contesta la central (abrió o no el micrófono).
+            vm.presidencia()->hablaPresidencia(activo, "mcp", [done, activo](const std::string& e) {
+                if (!e.empty()) return done(ToolResult::error(e));
+                done(ToolResult::ok(activo ? "Todos callados; habla la presidencia." : "La presidencia cerró su micrófono."));
+            });
         };
         core_.addTool(std::move(t));
     }

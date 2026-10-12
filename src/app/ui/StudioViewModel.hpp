@@ -109,6 +109,7 @@ class Debate;
 class ConferenciaDcn;
 class SesionRemota;
 class Votaciones;
+class Presidencia;
 class SeguirMicrofono;
 class OrdenDelDia;
 class Quorum;
@@ -374,17 +375,16 @@ class StudioViewModel : public QObject {
     void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
-    /// «Apretar para hablar» desde la app: mientras `activo`, el remoto oye la voz del
-    /// operador (su micrófono de la sala) mezclada en el sonido de su celular. "" o el error.
+    /// «Apretar para hablar» desde la app (asamblea::Presidencia): mientras `activo`, el
+    /// remoto oye la voz del operador en su celular. "" o el error.
     Q_INVOKABLE QString hablarARemoto(const QString& integrante, bool activo);
-    /// La presidencia calla a todos: los micrófonos de la central (menos el suyo), el orador
-    /// que está al aire y los remotos que tienen la palabra (también los de un debate).
-    Q_INVOKABLE QString silenciarTodos(const QString& quien = QStringLiteral("operador"));
-    /// «Hablo yo»: calla a todos y abre el micrófono de la presidencia en la central;
-    /// con false lo cierra. "" o el error.
-    Q_INVOKABLE QString hablaPresidencia(bool activo, const QString& quien = QStringLiteral("operador"));
+    /// La presidencia calla a todos (asamblea::Presidencia); lo que falle se avisa.
+    Q_INVOKABLE void silenciarTodos();
+    /// «Hablo yo» (asamblea::Presidencia): calla a todos y abre el micrófono de la
+    /// presidencia en la central; con false lo cierra. Lo que falle se avisa.
+    Q_INVOKABLE void hablaPresidencia(bool activo);
     Q_PROPERTY(bool presidenciaHabla READ presidenciaHabla NOTIFY presidenciaHablaChanged)
-    bool presidenciaHabla() const { return presidenciaHabla_; }
+    bool presidenciaHabla() const;
     bool corteDirectoEditor() const { return corteDirectoEditor_; }
     QObject* cuerpoQml() const;
     QStringList sinSenal() const;
@@ -402,6 +402,7 @@ class StudioViewModel : public QObject {
     QObject* sesionRemotaQml() const;
     QObject* votacionesQml() const;
     asamblea::Votaciones* votaciones() { return votaciones_.get(); }
+    asamblea::Presidencia* presidencia() { return presidencia_.get(); }
     QObject* ccQml() const;
     agent::SubtitulosCC& cc() { return *cc_; }
     asamblea::Bancas& bancas() { return *bancas_; }
@@ -560,26 +561,6 @@ class StudioViewModel : public QObject {
                          std::function<void(const QVariantMap&)> listo);
     /// Le pasa al gateway los tokens vigentes (hash con sal) de las tablets.
     void sincronizarBotonera();
-    void sincronizarSesion();
-    /// Las vistas del celular de los remotos al gateway: el programa o las escenas
-    /// (toma sus canales mientras haya alguien conectado). `forzar`: aunque no cambió nada.
-    void aplicarVistasRemotas(bool forzar = false);
-    std::string firmaVistas_;
-    QStringList mediosPendientes_;
-    bool mediosProgramados_ = false;
-    /// Arranca en la hora de arranque: siempre mayor que el de la corrida anterior (el gateway
-    /// sigue andando y descarta las listas con número menor al último).
-    long long mediosSeq_ = QDateTime::currentMSecsSinceEpoch();
-    bool presidenciaHabla_ = false;
-    bool prioridadCentral_ = false; ///< el botón de prioridad del presidente, como lo vio la última vez
-    /// Los remotos que tienen la palabra (y el orador remoto al aire) dejan de hablar.
-    void silenciarRemotos();
-    int unidadPresidente() const;
-    nlohmann::json estadoConsola() const;
-    void mandarEstadoConsola();
-    void enlaceProgramaConsola(const QString& consola);
-    void accionConsola(const QString& consola, const nlohmann::json& m);
-    QTimer consolaTimer_;
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
@@ -1041,6 +1022,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<asamblea::ConferenciaDcn> dcn_;
     std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
     std::unique_ptr<asamblea::Votaciones> votaciones_; ///< usa sesionRemota_, dcn_, quorum_ y bus_: va después (se destruye antes)
+    /// Usa sesionRemota_, bancas_, debate_, dcn_, votaciones_, cuerpo_, quorum_, ordenDia_, conference_ y bus_.
+    std::unique_ptr<asamblea::Presidencia> presidencia_;
     qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
