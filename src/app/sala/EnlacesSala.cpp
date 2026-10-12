@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 
 namespace ba::app::sala {
 
@@ -65,6 +66,18 @@ void EnlacesSala::prompter(bool remoto, const std::string& vista, bool conClave,
     pedirEnlace(std::string("/api/v1/prompter-link?target=") + destino(remoto) +
                     "&vista=" + (vista == "orador" ? "orador" : "control") + "&conClave=" + (conClave ? "1" : "0"),
                 std::move(listo));
+}
+
+void EnlacesSala::rotulos(bool remoto, bool conClave, Listo listo) {
+    pedirEnlace(std::string("/api/v1/rotulos-link?target=") + destino(remoto) + "&conClave=" + (conClave ? "1" : "0"),
+                std::move(listo));
+}
+
+void EnlacesSala::pantalla(const std::string& nombre, int canal, Listo listo) {
+    std::string ruta = "/api/v1/cast-link?target=local";
+    if (canal >= 0) ruta += "&canal=" + std::to_string(canal);
+    ruta += "&nombre=" + QUrl::toPercentEncoding(QString::fromStdString(nombre)).toStdString();
+    pedirEnlace(ruta, std::move(listo));
 }
 
 } // namespace ba::app::sala

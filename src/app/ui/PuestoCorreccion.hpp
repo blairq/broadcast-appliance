@@ -3,8 +3,8 @@
 //
 // Une la cola de corrección (agent::FlujosTexto: las frases que esperan unos
 // segundos antes de salir) con la página /correccion/ que sirve el gateway:
-//   - cada vez que cambian las pendientes, se las pasa al gateway
-//     (POST /api/v1/correccion/pendientes); la página las pide cada 500 ms;
+//   - cada vez que cambian las pendientes, se las pasa a la sala (modelo
+//     sala::CorreccionSala); la página las pide cada 500 ms;
 //   - lo que el corrector aprueba, corrige o descarta llega por el SSE
 //     (evento «correccion») y se aplica con FlujosTexto::corregir;
 //   - el enlace con su clave (por arranque) y el QR, para QrDialog (lo da el
@@ -16,6 +16,7 @@
 #include <QStringList>
 #include <QTimer>
 
+#include "sala/CorreccionSala.hpp"
 #include "sala/EnlacesSala.hpp"
 
 namespace ba::app {
@@ -40,6 +41,7 @@ class PuestoCorreccion : public QObject {
     agent::FlujosTexto& flujos_;
     QTimer demora_;
     sala::EnlacesSala enlaces_;
+    sala::CorreccionSala cola_;
 };
 
 } // namespace ba::app
