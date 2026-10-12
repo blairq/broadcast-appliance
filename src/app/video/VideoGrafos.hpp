@@ -286,6 +286,10 @@ class VideoGrafos : public QObject {
     /// Ajusta `id`; si la maneja un controlador, el ajuste va al controlador
     /// (salvo la etiqueta). "" o el error.
     static std::string ajustarEn(GrafoVideo& g, const std::string& id, nlohmann::json params);
+    /// Pone en `g` las capas de la disposición en el compositor `comp` (borra
+    /// antes las que tenía, así no queda un `orden` o una opacidad de otra).
+    static std::string disponerEn(GrafoVideo& g, const std::string& comp, const std::string& disposicion,
+                                  const std::vector<std::string>& puertos);
     // --- Rostros (lo usa Personas) ------------------------------------------
     // (Lo que ve cada tarjeta llega por el bus de la entrada: motor::escucharElementos.)
     /// A quién sigue la tarjeta Seguimiento de `entrada` (la pone después de
@@ -363,6 +367,22 @@ class VideoGrafos : public QObject {
     std::string armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
                              const std::string& disposicion, const std::string& nombre, bool ocultarSueltas,
                              nlohmann::json* hecho);
+    /// Las capas de una disposición del compositor para sus `puertos`, en orden
+    /// (el primero es el fondo en «pip»): {puerto: {x, y, ancho, alto, orden?} | null}
+    /// (null = en la grilla). `disposicion`: "mosaico" ("" también; con 3, una
+    /// arriba al centro y dos abajo), "pip" (la primera de fondo y las demás
+    /// chicas arriba a la derecha, una debajo de otra) o "lado" (cada una en su
+    /// franja de 1/n de ancho y toda la altura: el encaje la centra sin
+    /// estirarla). Vacío y `error` si no se puede.
+    static nlohmann::json capasDeDisposicion(const std::string& disposicion, const std::vector<std::string>& puertos,
+                                             std::string* error);
+    /// Rearma el compositor `compositor` (su id) en una disposición, con las
+    /// entradas que ya tiene conectadas: borra las capas que tenía y pone las de
+    /// capasDeDisposicion. La usan la página Video y video_mosaico. "" o el error.
+    std::string aplicarDisposicion(const std::string& compositor, const std::string& disposicion);
+    Q_INVOKABLE QString aplicarDisposicionUi(const QString& compositor, const QString& disposicion) {
+        return QString::fromStdString(aplicarDisposicion(compositor.toStdString(), disposicion.toStdString()));
+    }
     /// Crea una entrada virtual; "" o el error.
     std::string crearEntradaVirtual(const std::string& nombre, const std::string& preset,
                                     const std::string& escena);
