@@ -8,8 +8,14 @@
 #include "ui/ConferenceClient.hpp"
 
 #include <QCoreApplication>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QUrl>
+
+#include <filesystem>
+#include <system_error>
 
 namespace ba::app::sala {
 
@@ -19,6 +25,18 @@ std::string recortado(std::string s) {
     s.erase(0, s.find_first_not_of(" \t\r\n"));
     s.erase(s.find_last_not_of(" \t\r\n") + 1);
     return s;
+}
+
+/// El archivo compartido `id`, como lo da la sala (vacío si ya no está).
+QJsonObject archivoCompartido(const ConferenceClient& sala, const std::string& id) {
+    const QString cual = QString::fromStdString(id);
+    for (const QJsonValue& v : sala.snapshot().value("shares").toArray())
+        if (v.toObject().value("id").toString() == cual) return v.toObject();
+    return {};
+}
+
+std::string enRuta(const std::string& id) {
+    return QUrl::toPercentEncoding(QString::fromStdString(id)).toStdString();
 }
 
 } // namespace
@@ -75,8 +93,87 @@ std::string ControlSala::chatear(const std::string& para, const std::string& tex
 }
 
 void ControlSala::borrarArchivo(const std::string& id, Listo listo) {
-    pedir(sala_, "DELETE", "/api/v1/shares/" + QUrl::toPercentEncoding(QString::fromStdString(id)).toStdString(), {},
-          std::move(listo));
+    pedir(sala_, "DELETE", "/api/v1/shares/" + enRuta(id), {}, std::move(listo));
+}
+
+void ControlSala::verArchivo(const std::string& id, Contenido listo) {
+    const QJsonObject a = archivoCompartido(sala_, id);
+    if (a.isEmpty()) {
+        if (listo) listo("Ese archivo ya no está.", nlohmann::json::object(), {});
+        return;
+    }
+    nlohmann::json datos =
+        nlohmann::json::parse(QJsonDocument(a).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+    if (!datos.is_object()) datos = nlohmann::json::object();
+    if (a.value("kind").toString() != "image") {
+        if (listo) listo({}, datos, {});
+        return;
+    }
+    sala_.getRaw(QString::fromStdString("/api/v1/shares/" + enRuta(id) + "/content"),
+                 [listo, datos](bool ok, const QByteArray& bytes) {
+                     if (!listo) return;
+                     if (!ok || bytes.isEmpty()) return listo("No se pudo leer el archivo.", datos, {});
+                     listo({}, datos, bytes);
+                 });
+}
+
+ControlSala::Tomado ControlSala::tomarArchivo(const std::string& id) {
+    namespace fs = std::filesystem;
+    Tomado t;
+    const QJsonObject a = archivoCompartido(sala_, id);
+    if (a.isEmpty()) {
+        t.error = "Ese archivo ya no está.";
+        return t;
+    }
+    // Copia propia: la carpeta de la sala se limpia al reiniciarla, y la
+    // escena no debe depender de eso.
+    const QString shown = a.value("name").toString();
+    t.nombre = shown.toStdString();
+    const fs::path src(a.value("path").toString().toStdU16String());
+    const fs::path mediaDir = rt_.dataRoot() / "Media";
+    std::error_code ec;
+    fs::create_directories(mediaDir, ec);
+    QString stem = QString::fromStdU16String(fs::path(shown.toStdU16String()).stem().u16string());
+    stem.replace(QRegularExpression("[^\\w\\- ]"), "_");
+    if (stem.isEmpty()) stem = "archivo";
+    fs::path dst = mediaDir / (stem.toStdU16String() + src.extension().u16string());
+    for (int n = 2; fs::exists(dst, ec); ++n)
+        dst = mediaDir / ((stem + QString(" (%1)").arg(n)).toStdU16String() + src.extension().u16string());
+    fs::copy_file(src, dst, ec);
+    if (ec) {
+        t.error = "No se pudo copiar el archivo: " + ec.message();
+        return t;
+    }
+
+    const QString kind = a.value("kind").toString();
+    const QString file = QString::fromStdU16String(dst.u16string());
+    SourceSpec spec;
+    QJsonObject settings;
+    if (kind == "image") {
+        spec.id = "image_source";
+        settings.insert("file", file);
+    } else {
+        spec.id = "ffmpeg_source";
+        settings.insert("local_file", file);
+        settings.insert("is_local_file", true);
+        settings.insert("looping", kind == "video");
+        settings.insert("restart_on_activate", true);
+    }
+    spec.settingsJson = QJsonDocument(settings).toJson(QJsonDocument::Compact).toStdString();
+    t.escena = rt_.engine().currentScene();
+    const QString base = a.value("participantName").toString() + " — " + shown;
+    QString name = base;
+    for (int n = 2; rt_.engine().sourceExists(name.toStdString()); ++n)
+        name = base + QString(" (%1)").arg(n);
+    spec.name = name.toStdString();
+    if (!rt_.addSource(t.escena, spec)) {
+        t.error = "No se pudo agregar la fuente: " + rt_.lastError();
+        return t;
+    }
+    rt_.save();
+    t.fuente = spec.name;
+    if (alTomarArchivo_) alTomarArchivo_();
+    return t;
 }
 
 void ControlSala::codigoConsolaWeb(Listo listo) {

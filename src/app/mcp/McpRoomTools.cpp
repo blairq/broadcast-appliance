@@ -129,7 +129,6 @@ void McpService::registerRoomTools() {
     StudioViewModel& vm = vm_;
     AppRuntime& rt = rt_;
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-    ConferenceClient* client = &conf->client();
 
     // Las operaciones de la sala (modelo): las mismas que usa la GUI.
     sala::ControlSala& control = conf->control();
@@ -1000,23 +999,18 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"id", {{"type", "string"}}}, {"maxWidth", {{"type", "integer"}, {"default", 1280}}}}},
             {"required", {"id"}}};
-        t.run = [&vm, client](const json& a, Done done) {
-            json share;
-            for (const auto& s : roomSnapshot(vm).value("shares", json::array()))
-                if (s.value("id", "") == a["id"].get<std::string>()) share = s;
-            if (share.is_null()) return done(ToolResult::error("No existe ese archivo (share_list)."));
-            if (share.value("kind", "") != "image") return done(ToolResult().data(share));
-            client->getRaw("/api/v1/shares/" + QString::fromStdString(a["id"]) + "/content",
-                           [a, share, done](bool ok, const QByteArray& bytes) {
-                               QImage img;
-                               if (!ok || !img.loadFromData(bytes))
-                                   return done(ToolResult::error("No se pudo leer la imagen."));
-                               ToolResult r;
-                               r.text(share.value("name", "") + " — de " +
-                                      share.value("participantName", ""));
-                               addImage(r, img, a, 1280);
-                               done(r);
-                           });
+        t.run = [&control](const json& a, Done done) {
+            control.verArchivo(a["id"].get<std::string>(), [a, done](const std::string& err, const json& share,
+                                                                      const QByteArray& bytes) {
+                if (!err.empty()) return done(ToolResult::error(err + " share_list dice cuáles hay."));
+                if (bytes.isEmpty()) return done(ToolResult().data(share)); // video o audio: sus datos
+                QImage img;
+                if (!img.loadFromData(bytes)) return done(ToolResult::error("No se pudo leer la imagen."));
+                ToolResult r;
+                r.text(share.value("name", "") + " — de " + share.value("participantName", ""));
+                addImage(r, img, a, 1280);
+                done(r);
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -1030,9 +1024,11 @@ void McpService::registerRoomTools() {
             "video o audio).";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [conf](const json& a, Done done) {
-            conf->takeShare(QString::fromStdString(a["id"]));
-            done(ToolResult::ok("Agregado a la escena al aire (si fallo, la app lo avisa en pantalla)."));
+        t.run = [&control](const json& a, Done done) {
+            // La misma operación que el botón «Tomar» de la página Sala.
+            const sala::ControlSala::Tomado r = control.tomarArchivo(a["id"].get<std::string>());
+            if (!r.error.empty()) return done(ToolResult::error(r.error));
+            done(ToolResult::ok("«" + r.nombre + "» agregado a la escena «" + r.escena + "» como «" + r.fuente + "»."));
         };
         core_.addTool(std::move(t));
     }
