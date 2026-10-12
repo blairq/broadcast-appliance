@@ -7,6 +7,7 @@
 
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"
+#include "escenas/Conmutador.hpp"
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
 #include "asamblea/Debate.hpp"
@@ -1060,17 +1061,17 @@ void McpService::registerTools() {
             "`live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el "
             "proximo `scene_take`. Son los dos buses de una mesa de switcher.";
         t.run = [&rt, &vm](const json&, Done done) {
-            const QString armada = vm.escenaArmada();
+            const std::string armada = vm.conmutador().armada();
             json scenes = json::array();
             for (const std::string& n : rt.orderedSceneNames()) {
                 scenes.push_back(json{{"name", n},
                                       {"live", n == rt.engine().currentScene()},
-                                      {"armada", QString::fromStdString(n) == armada},
+                                      {"armada", n == armada},
                                       {"folder", rt.sceneFolder(n)},
                                       {"sources", rt.engine().sceneSources(n)}});
             }
             done(ToolResult().data(json{{"current", rt.engine().currentScene()},
-                                        {"armada", armada.toStdString()},
+                                        {"armada", armada},
                                         {"folders", rt.sceneFolders()},
                                         {"scenes", scenes}}));
         };
@@ -1143,9 +1144,8 @@ void McpService::registerTools() {
         t.run = [&rt, &vm, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
             if (!sceneExists(name)) return done(noScene(name));
-            vm.takeScene(QString::fromStdString(name));
-            if (rt.engine().currentScene() != name)
-                return done(ToolResult::error("No se pudo: " + rt.lastError()));
+            if (const std::string e = vm.conmutador().poner(name); !e.empty())
+                return done(ToolResult::error("No se pudo: " + e));
             done(ToolResult::ok("Al aire: " + name));
         };
         core_.addTool(std::move(t));
@@ -1168,12 +1168,11 @@ void McpService::registerTools() {
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"name", {{"type", "string"}}}}}, {"required", {"name"}}};
         t.examples = {R"({"name": "06 Debate invitados"})"};
-        t.run = [&rt, &vm, sceneExists, noScene](const json& a, Done done) {
+        t.run = [&vm, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
             if (!sceneExists(name)) return done(noScene(name));
-            vm.armarEscena(QString::fromStdString(name));
-            if (vm.escenaArmada().toStdString() != name)
-                return done(ToolResult::error("No se armo: «" + name + "» ya esta al aire."));
+            if (const std::string e = vm.conmutador().armar(name); !e.empty())
+                return done(ToolResult::error("No se armo: " + e));
             done(ToolResult::ok("Armada: " + name + ". Mirala con capture_source y sacala con scene_take."));
         };
         core_.addTool(std::move(t));
@@ -1185,12 +1184,12 @@ void McpService::registerTools() {
         t.category = "escenas";
         t.description = "Pone al aire la escena armada con un CORTE (sin transicion), aunque la global sea un fundido. "
                         "Deja armada la que salia.";
-        t.run = [&rt, &vm](const json&, Done done) {
-            const QString armada = vm.escenaArmada();
-            if (armada.isEmpty()) return done(ToolResult::error("No hay nada armado (scene_preview)."));
-            vm.takeCon("cut", 0);
-            if (rt.engine().currentScene() != armada.toStdString()) return done(ToolResult::error("No se pudo: " + rt.lastError()));
-            done(ToolResult::ok("AL AIRE (corte): " + armada.toStdString()));
+        t.run = [&vm](const json&, Done done) {
+            const std::string armada = vm.conmutador().armada();
+            if (armada.empty()) return done(ToolResult::error("No hay nada armado (scene_preview)."));
+            if (const std::string e = vm.conmutador().take("cut", 0); !e.empty())
+                return done(ToolResult::error("No se pudo: " + e));
+            done(ToolResult::ok("AL AIRE (corte): " + armada));
         };
         core_.addTool(std::move(t));
     }
@@ -1206,7 +1205,8 @@ void McpService::registerTools() {
                          {"required", {"t"}},
                          {"properties", {{"t", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}, {"soltar", {{"type", "boolean"}}}}}};
         t.run = [&rt, &vm](const json& a, Done done) {
-            vm.tbar(a.value("t", 0.0), a.value("soltar", false));
+            if (const std::string e = vm.conmutador().tbar(a.value("t", 0.0), a.value("soltar", false)); !e.empty())
+                return done(ToolResult::error(e));
             done(ToolResult().data({{"al_aire", rt.engine().currentScene()}, {"hacia", rt.engine().manualHacia()}}));
         };
         core_.addTool(std::move(t));
@@ -1225,9 +1225,9 @@ void McpService::registerTools() {
                            {"tipo", {{"type", "string"}, {"enum", {"", "cut", "fade", "swipe", "slide", "fade_to_color"}}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.setTransicionEntrada(QString::fromStdString(a.value("escena", std::string())),
-                                                      QString::fromStdString(a.value("tipo", std::string())), a.value("ms", -1));
-            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            const std::string e = vm.conmutador().setTransicionEntrada(a.value("escena", std::string()),
+                                                                       a.value("tipo", std::string()), a.value("ms", -1));
+            if (!e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok("Listo."));
         };
         core_.addTool(std::move(t));
@@ -1243,9 +1243,9 @@ void McpService::registerTools() {
                          {"properties", {{"fuente", {{"type", "string"}}}, {"sigue_video", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             if (a.contains("fuente") && a.contains("sigue_video"))
-                vm.setAfv(QString::fromStdString(a.value("fuente", std::string())), a.value("sigue_video", false));
+                vm.conmutador().setAfv(a.value("fuente", std::string()), a.value("sigue_video", false));
             json l = json::array();
-            for (const QString& f : vm.afvFuentes()) l.push_back(f.toStdString());
+            for (const std::string& f : vm.conmutador().afvFuentes()) l.push_back(f);
             done(ToolResult().data({{"sigue_video", l}}));
         };
         core_.addTool(std::move(t));
@@ -1265,16 +1265,14 @@ void McpService::registerTools() {
                           {{"transicion", {{"type", "string"}, {"enum", {"cut", "fade", "swipe", "slide", "fade_to_color"}},
                                            {"description", "otra transicion solo para este take (si no, la de entrada de la escena o la global)"}}},
                            {"ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
-            const QString armada = vm.escenaArmada();
-            if (armada.isEmpty())
+        t.run = [&vm](const json& a, Done done) {
+            const std::string armada = vm.conmutador().armada();
+            if (armada.empty())
                 return done(ToolResult::error(
                     "No hay nada armado. Arma el proximo plano con scene_preview {\"name\": ...}."));
-            vm.takeCon(QString::fromStdString(a.value("transicion", std::string())), a.value("ms", -1));
-            if (rt.engine().currentScene() != armada.toStdString())
-                return done(ToolResult::error("No se pudo: " + rt.lastError()));
-            done(ToolResult::ok("AL AIRE: " + armada.toStdString() +
-                                ". Queda armada: " + vm.escenaArmada().toStdString() + "."));
+            if (const std::string e = vm.conmutador().take(a.value("transicion", std::string()), a.value("ms", -1)); !e.empty())
+                return done(ToolResult::error("No se pudo: " + e));
+            done(ToolResult::ok("AL AIRE: " + armada + ". Queda armada: " + vm.conmutador().armada() + "."));
         };
         core_.addTool(std::move(t));
     }
@@ -1559,8 +1557,10 @@ void McpService::registerTools() {
                         rt.moveSource(name, n, 1);
                 }
             }
-            // Como scene_switch: con la transición de entrada, el AFV y el tally.
-            if (a.value("switch", false)) vm.takeScene(QString::fromStdString(name));
+            // Por el conmutador (modelo), como scene_switch: transición de entrada y AFV.
+            if (a.value("switch", false))
+                if (const std::string e = vm.conmutador().poner(name); !e.empty())
+                    return done(ToolResult::error("Escena armada, pero no salió al aire: " + e));
             persist();
             std::string msg = "Escena '" + name + "': " + std::to_string(added) + " fuente(s).";
             for (const auto& l : log)

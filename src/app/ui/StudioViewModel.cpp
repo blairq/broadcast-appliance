@@ -4,6 +4,7 @@
 
 #include "ui/StudioViewModel.hpp"
 #include "sala/CupoSala.hpp"
+#include "escenas/Conmutador.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
@@ -236,6 +237,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     marca("frames");
     frames_->setLobbySlots(rt.gateway().lobbySlots);
+    // El conmutador de escenas es del modelo; acá solo se refleja lo que cambia.
+    conmutador_ = std::make_unique<escenas::Conmutador>(rt, this);
+    connect(conmutador_.get(), &escenas::Conmutador::alAireCambio, this, [this](const QString& escena) {
+        scenes_->liveChanged();
+        sources_->setScene(escena); // el editor de fuentes sigue a la escena al aire
+        emit sceneChanged();
+        publicarTally();
+    });
+    connect(conmutador_.get(), &escenas::Conmutador::armadaCambio, this, [this](const QString& escena) {
+        scenes_->setArmada(escena);
+        frames_->setArmada(escena); // el monitor de armada mira esta
+        emit sceneChanged();
+        publicarTally();
+    });
+    connect(conmutador_.get(), &escenas::Conmutador::afvCambio, this, &StudioViewModel::statusChanged);
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
@@ -327,7 +343,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     playlist_->setArmar([this](const QString& escena) {
         scenes_->reload();
         emit escenasCambiaron();
-        armarEscena(escena);
+        conmutador_->armar(escena.toStdString());
     });
     connect(playlist_.get(), &medios::Playlist::notify, this, &StudioViewModel::notify);
     // Tras un corte de luz, la playlist sigue donde estaba (P0.10). Un rato
@@ -962,15 +978,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             rotuloCapa_ = std::clamp(j.value("capa", 4), 1, 4);
         }
     }
-    {
-        std::ifstream f(rt.dataRoot() / "Config" / "transiciones.json");
-        const nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
-        if (j.is_object()) {
-            transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
-            for (const auto& x : j.value("afv", nlohmann::json::array()))
-                if (x.is_string()) afv_.insert(QString::fromStdString(x.get<std::string>()));
-        }
-    }
     rotuloApagar_.setSingleShot(true);
     connect(&rotuloApagar_, &QTimer::timeout, this, [this]() {
         if (dsk_) dsk_->mostrar(rotuloCapa_, false, true);
@@ -1012,8 +1019,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
             return otra;
         };
-        g.armar = [this](const std::string& e) { armarEscena(QString::fromStdString(e)); };
-        g.cortar = [this](const std::string& e) { takeScene(QString::fromStdString(e)); };
+        g.armar = [this](const std::string& e) { conmutador_->armar(e); };
+        g.cortar = [this](const std::string& e) { conmutador_->poner(e); };
         g.microfono = [this](const std::string& f, bool abierto) { rt_.engine().setSourceMuted(f, !abierto); };
         g.microfonoBanca = [this](const std::string& banca, bool abierto, bool terminar) {
             // Por la central solo si está conectada y la banca tiene su unidad; si
@@ -2599,24 +2606,16 @@ void StudioViewModel::stopStreaming() {
 }
 
 void StudioViewModel::takeScene(const QString& name) {
-    if (!cambiarEscena(name, QString(), -1)) {
-        emit notify(qs(rt_.lastError()), "error");
-        return;
-    }
-    scenes_->liveChanged();
-    sources_->setScene(name); // el editor de fuentes sigue a la escena al aire
-    emit sceneChanged();
-    publicarTally();
-    rt_.save();
+    if (const std::string e = conmutador_->poner(name.toStdString()); !e.empty()) emit notify(qs(e), "error");
 }
 
-QString StudioViewModel::escenaArmada() const { return scenes_->armada(); }
+QString StudioViewModel::escenaArmada() const { return qs(conmutador_->armada()); }
 
 void StudioViewModel::publicarTally() {
     auto* p = qobject_cast<PantallasViewModel*>(pantallas());
     if (p == nullptr) return;
     const QString aire = qs(rt_.engine().currentScene());
-    const QString armada = scenes_->armada();
+    const QString armada = escenaArmada();
     const auto fuentesDe = [this](const QString& escena) {
         QStringList out;
         if (escena.isEmpty()) return out;
@@ -2631,40 +2630,15 @@ void StudioViewModel::publicarTally() {
 }
 
 void StudioViewModel::armarEscena(const QString& name) {
-    if (name == qs(rt_.engine().currentScene())) {
-        // Armar lo que ya esta al aire deja el TAKE sin sentido (cortaria a lo
-        // mismo). Se avisa en vez de aceptarlo callado.
-        emit notify("«" + name + "» ya está al aire: armá otra para el próximo take.", "aviso");
-        return;
-    }
-    scenes_->setArmada(name);
-    frames_->setArmada(name); // el monitor de armada mira esta
-    emit sceneChanged();
-    publicarTally();
+    if (const std::string e = conmutador_->armar(name.toStdString()); !e.empty()) emit notify(qs(e), "aviso");
 }
 
 void StudioViewModel::take() { takeCon(QString(), -1); }
 
 void StudioViewModel::takeCon(const QString& tipo, int ms) {
-    const QString armada = scenes_->armada();
-    if (armada.isEmpty()) {
-        emit notify("No hay ninguna escena armada: elegí una en el bus de preview.", "aviso");
-        return;
-    }
-    const QString saliendo = qs(rt_.engine().currentScene());
-    if (!cambiarEscena(armada, tipo, ms)) {
-        emit notify(qs(rt_.lastError()), "error");
-        return;
-    }
-    // El plano que sale del aire queda armado: en una mesa, despues de un take
-    // el preview tiene lo anterior y volver es un solo golpe.
-    scenes_->setArmada(saliendo);
-    frames_->setArmada(saliendo);
-    scenes_->liveChanged();
-    sources_->setScene(armada);
-    emit sceneChanged();
-    publicarTally();
-    rt_.save();
+    const bool habiaArmada = !conmutador_->armada().empty();
+    if (const std::string e = conmutador_->take(tipo.toStdString(), ms); !e.empty())
+        emit notify(qs(e), habiaArmada ? "error" : "aviso");
 }
 
 QStringList StudioViewModel::ventanasAbiertas() const {
@@ -3181,7 +3155,7 @@ void StudioViewModel::publicarEventos() {
     }
     ++busTicks_;
     const QString aire = qs(rt_.engine().currentScene());
-    const QString armada = scenes_->armada();
+    const QString armada = escenaArmada();
     const auto fuentesDe = [this](const QString& escena) {
         nlohmann::json out = nlohmann::json::array();
         if (!escena.isEmpty())
@@ -4196,90 +4170,23 @@ nlohmann::json StudioViewModel::caidas(int n) const {
 
 namespace ba::app {
 
-bool StudioViewModel::cambiarEscena(const QString& dest, const QString& tipo, int ms) {
-    QString t = tipo;
-    int d = ms;
-    // Sin pedido explícito: la transición de entrada de la escena (si tiene).
-    if (t.isEmpty() && transicionesEntrada_.contains(dest.toStdString())) {
-        const auto& e = transicionesEntrada_[dest.toStdString()];
-        t = QString::fromStdString(e.value("tipo", std::string()));
-        d = e.value("ms", -1);
-    }
-    const bool ok = t.isEmpty() ? rt_.setScene(dest.toStdString()) : rt_.setSceneCon(dest.toStdString(), t.toStdString(), d);
-    if (ok) aplicarAfv(dest, t == "cut" ? 0 : (d < 0 ? rt_.config().transition.durationMs : d));
-    return ok;
-}
-
-void StudioViewModel::aplicarAfv(const QString& dest, int ms) {
-    if (afv_.isEmpty()) return;
-    const auto enDest = rt_.engine().sceneSources(dest.toStdString());
-    for (const QString& f : afv_) {
-        const std::string n = f.toStdString();
-        const bool entra = std::find(enDest.begin(), enDest.end(), n) != enDest.end();
-        const float actual = rt_.engine().sourceVolume(n);
-        if (!entra && actual > 0.001f) afvVolumen_[f] = actual;
-        const float objetivo = entra ? afvVolumen_.value(f, 1.0f) : 0.0f;
-        // Fundido en pasos de 30 ms, con la duración de la transición.
-        const int pasos = std::max(1, ms / 30);
-        for (int i = 1; i <= pasos; ++i) {
-            const float v = actual + (objetivo - actual) * static_cast<float>(i) / static_cast<float>(pasos);
-            QTimer::singleShot(i * 30, this, [this, n, v]() { rt_.engine().setSourceVolume(n, v); });
-        }
-    }
-}
-
 QVariantMap StudioViewModel::transicionEntrada(const QString& escena) const {
-    if (!transicionesEntrada_.contains(escena.toStdString())) return {};
-    const auto& e = transicionesEntrada_[escena.toStdString()];
+    const nlohmann::json e = conmutador_->transicionEntrada(escena.toStdString());
+    if (e.empty()) return {};
     return {{"tipo", QString::fromStdString(e.value("tipo", std::string()))}, {"ms", e.value("ms", -1)}};
 }
 
 QString StudioViewModel::setTransicionEntrada(const QString& escena, const QString& tipo, int ms) {
-    static const QStringList tipos{"", "cut", "fade", "swipe", "slide", "fade_to_color"};
-    if (!tipos.contains(tipo)) return "tipo: cut, fade, swipe, slide o fade_to_color (vacío = la global)";
-    if (tipo.isEmpty()) transicionesEntrada_.erase(escena.toStdString());
-    else transicionesEntrada_[escena.toStdString()] = {{"tipo", tipo.toStdString()}, {"ms", ms}};
-    guardarTransiciones();
-    return {};
+    return qs(conmutador_->setTransicionEntrada(escena.toStdString(), tipo.toStdString(), ms));
 }
 
-void StudioViewModel::setAfv(const QString& fuente, bool sigue) {
-    if (sigue) afv_.insert(fuente);
-    else afv_.remove(fuente);
-    guardarTransiciones();
-    emit statusChanged();
-}
+bool StudioViewModel::afv(const QString& fuente) const { return conmutador_->afv(fuente.toStdString()); }
 
-void StudioViewModel::guardarTransiciones() const {
-    nlohmann::json afv = nlohmann::json::array();
-    for (const QString& f : afv_) afv.push_back(f.toStdString());
-    std::ofstream o(rt_.dataRoot() / "Config" / "transiciones.json");
-    o << nlohmann::json{{"entrada", transicionesEntrada_}, {"afv", afv}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
-}
+void StudioViewModel::setAfv(const QString& fuente, bool sigue) { conmutador_->setAfv(fuente.toStdString(), sigue); }
 
 void StudioViewModel::tbar(double t, bool soltar) {
-    const QString armada = scenes_->armada();
-    if (armada.isEmpty()) {
-        emit notify("No hay ninguna escena armada para la T-bar.", "aviso");
-        return;
-    }
-    const QString saliendo = qs(rt_.engine().currentScene());
-    bool alAire = false;
-    if (!rt_.engine().transicionManual(armada.toStdString(), static_cast<float>(t), soltar, &alAire)) {
-        emit notify(qs(rt_.engine().lastError()), "error");
-        return;
-    }
-    if (alAire) {
-        rt_.config().currentScene = armada.toStdString();
-        aplicarAfv(armada, 0);
-        scenes_->setArmada(saliendo);
-        frames_->setArmada(saliendo);
-        scenes_->liveChanged();
-        sources_->setScene(armada);
-        emit sceneChanged();
-        publicarTally();
-        rt_.save();
-    }
+    if (const std::string e = conmutador_->tbar(t, soltar); !e.empty())
+        emit notify(qs(e), conmutador_->armada().empty() ? "aviso" : "error");
 }
 
 } // namespace ba::app

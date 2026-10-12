@@ -69,6 +69,9 @@ class BancoSuperRes;
 namespace ba::app::sala {
 class CupoSala;
 }
+namespace ba::app::escenas {
+class Conmutador;
+}
 namespace ba::app::red {
 class Red;
 } // namespace ba::app::red
@@ -757,10 +760,11 @@ class StudioViewModel : public QObject {
     Q_INVOKABLE QVariantMap transicionEntrada(const QString& escena) const;
     Q_INVOKABLE QString setTransicionEntrada(const QString& escena, const QString& tipo, int ms);
     /// Audio que sigue al video (AFV): la fuente sube cuando su escena entra al aire y baja cuando sale.
-    Q_INVOKABLE bool afv(const QString& fuente) const { return afv_.contains(fuente); }
+    Q_INVOKABLE bool afv(const QString& fuente) const;
     Q_INVOKABLE void setAfv(const QString& fuente, bool sigue);
-    QStringList afvFuentes() const { return QStringList(afv_.begin(), afv_.end()); }
     QString escenaArmada() const;
+    /// El conmutador de escenas (modelo): la GUI y el MCP cambian de escena por ahí.
+    escenas::Conmutador& conmutador() { return *conmutador_; }
 
     /// Las escenas AGRUPADAS POR CARPETA, en el orden que puso el operador:
     /// `[{carpeta: "", escenas: ["a", "b"]}, {carpeta: "Bloque 1", ...}]`.
@@ -1005,13 +1009,7 @@ class StudioViewModel : public QObject {
     nlohmann::json saludActual_ = nlohmann::json::array();
     std::uint64_t saltadosAntes_ = 0;
     void muestrearSalud();
-    nlohmann::json transicionesEntrada_ = nlohmann::json::object();
-    QSet<QString> afv_;
-    QHash<QString, float> afvVolumen_;
-    /// Cambia a `dest` con la transición que corresponda (la pedida, la de entrada de la escena o la global) y aplica el AFV.
-    bool cambiarEscena(const QString& dest, const QString& tipo, int ms);
-    void aplicarAfv(const QString& dest, int ms);
-    void guardarTransiciones() const;
+    std::unique_ptr<escenas::Conmutador> conmutador_; ///< el aire y la armada (modelo)
     qint64 caidaMs_ = 0;
     std::unique_ptr<asamblea::SeguirMicrofono> seguirMic_;
     std::unique_ptr<asamblea::OrdenDelDia> ordenDia_;

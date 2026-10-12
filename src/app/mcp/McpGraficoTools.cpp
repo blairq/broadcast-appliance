@@ -22,6 +22,7 @@
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
 #include "graficos/Vinculos.hpp"
+#include "escenas/Conmutador.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -282,7 +283,7 @@ void McpService::registerGraficoTools() {
                                             a.value("duracionMs", 0), a.value("repetir", false));
             if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
             if (!escenaArmar.empty()) {
-                vm_.armarEscena(QString::fromStdString(escenaArmar));
+                vm_.conmutador().armar(escenaArmar);
                 return done(ToolResult::ok("«" + a["nombre"].get<std::string>() + "» armado en el preview («" + escenaArmar +
                                            "»): sale con TAKE."));
             }
