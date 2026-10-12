@@ -22,6 +22,18 @@ Rectangle {
         }
     }
 
+    // La columna derecha (Uso, Acceso, Proxy…): se cambia de ancho con el
+    // tirador de su borde izquierdo y, angosta, queda un riel de íconos (QR,
+    // PIN, lobby, sala cerrada, consola). Cuando entra la segunda persona se
+    // angosta sola para que las baldosas de la sala tengan lugar; cuando queda
+    // una, vuelve al ancho que tenía.
+    readonly property real anchoRiel: 64
+    property real anchoDer: 374
+    property real anchoDerAntes: 374
+    readonly property bool derAngosta: anchoDer < 220
+    property int genteAntes: 0
+    function expandirDer() { anchoDer = anchoDerAntes >= 300 ? anchoDerAntes : 374 }
+
     // Reloj para los "hace N min" (sin tocar el modelo).
     property double now: Date.now()
     Timer { interval: 5000; running: page.visible; repeat: true; onTriggered: page.now = Date.now() }
@@ -441,6 +453,15 @@ Rectangle {
                     GridView {
                         id: grid
                         anchors.fill: parent
+                        onCountChanged: {
+                            if (count > 1 && page.genteAntes <= 1 && !page.derAngosta) {
+                                page.anchoDerAntes = page.anchoDer
+                                page.anchoDer = page.anchoRiel
+                            } else if (count <= 1 && page.genteAntes > 1 && page.derAngosta) {
+                                page.expandirDer()
+                            }
+                            page.genteAntes = count
+                        }
                         clip: true
                         readonly property int cols: count <= 1 ? 1 : 2
                         cellWidth: width / cols
@@ -750,12 +771,102 @@ Rectangle {
             // asistente —parecía que la barra se superponía, y en realidad era
             // la página la que se salía de su lugar—. Acá se scrollea, que es
             // lo que hace cualquier panel lateral que no entra.
-            ScrollView {
-                id: colDer
-                Layout.preferredWidth: 360
-                Layout.maximumWidth: 360
+            Item {
+                id: colDerMarco
+                Layout.preferredWidth: page.anchoDer
+                Layout.minimumWidth: page.anchoDer
+                Layout.maximumWidth: page.anchoDer
                 Layout.fillWidth: false
                 Layout.fillHeight: true
+
+                // El vestigio: siempre está, aunque la columna sea un riel.
+                // Arrastrarlo cambia el ancho; soltado muy angosto, queda el riel.
+                Rectangle {
+                    id: tirador
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    width: 10
+                    radius: 5
+                    color: tiradorMa.containsMouse || tiradorMa.pressed ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 3
+                        Repeater { model: 3; Rectangle { width: 3; height: 3; radius: 1.5; color: Theme.textFaint } }
+                    }
+                    MouseArea {
+                        id: tiradorMa
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.SizeHorCursor
+                        property real x0: 0
+                        property real ancho0: 0
+                        onPressed: (m) => { x0 = mapToItem(page, m.x, 0).x; ancho0 = page.anchoDer }
+                        onPositionChanged: (m) => {
+                            if (!pressed) return
+                            const dx = mapToItem(page, m.x, 0).x - x0
+                            page.anchoDer = Math.max(page.anchoRiel, Math.min(560, ancho0 - dx))
+                        }
+                        onReleased: {
+                            if (page.anchoDer < 260) page.anchoDer = page.anchoRiel
+                            else { page.anchoDer = Math.max(300, page.anchoDer); page.anchoDerAntes = page.anchoDer }
+                        }
+                        onDoubleClicked: page.derAngosta ? page.expandirDer() : (page.anchoDer = page.anchoRiel)
+                        ToolTip.visible: containsMouse && !pressed; ToolTip.delay: 600
+                        ToolTip.text: "Arrastrá para cambiar el ancho (doble clic: abrir o cerrar)"
+                    }
+                }
+
+                // Angosta: los atajos de lo que más se usa.
+                ColumnLayout {
+                    id: riel
+                    visible: page.derAngosta
+                    anchors { left: tirador.right; right: parent.right; top: parent.top; leftMargin: 4 }
+                    spacing: 8
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "⟨"; compact: true
+                        onClicked: page.expandirDer()
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir el panel (Acceso, uso de la sala…)"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "⊞"; compact: true; active: true
+                        onClicked: qrDlg.show("local")
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Invitar con QR"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "PIN"; compact: true
+                        onClicked: { Studio.copiar(conf.pin); Studio.notify("PIN copiado: " + conf.pin, "info") }
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Copiar el PIN de la sala"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "⏸"; compact: true
+                        active: conf.lobby
+                        onClicked: conf.setLobby(!conf.lobby)
+                        ToolTip.visible: hovered; ToolTip.delay: 300
+                        ToolTip.text: conf.lobby ? "Lobby de admisión: prendido (vos decidís quién entra)" : "Lobby de admisión: apagado (entran directo)"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "🔒"; compact: true
+                        active: conf.locked; activeColor: Theme.live
+                        onClicked: conf.setLocked(!conf.locked)
+                        ToolTip.visible: hovered; ToolTip.delay: 300
+                        ToolTip.text: conf.locked ? "Sala cerrada: nadie nuevo puede pedir entrar" : "Sala abierta a quien tenga el PIN"
+                    }
+                    GlassButton {
+                        Layout.alignment: Qt.AlignHCenter
+                        icon: "↗"; compact: true; enabled: conf.online
+                        onClicked: conf.openWebConsole()
+                        ToolTip.visible: hovered; ToolTip.delay: 300; ToolTip.text: "Abrir consola web"
+                    }
+                }
+
+            ScrollView {
+                id: colDer
+                visible: !page.derAngosta
+                anchors { left: tirador.right; right: parent.right; top: parent.top; bottom: parent.bottom; leftMargin: 4 }
                 clip: true
                 // Sin barra horizontal: la columna tiene ancho fijo y lo que
                 // sobra es alto. Una barra de abajo acá solo roba 12 px.
@@ -1132,6 +1243,7 @@ Rectangle {
                 }
             } // ColumnLayout de la columna derecha
             } // ScrollView
+            } // colDerMarco
         }
     }
 
