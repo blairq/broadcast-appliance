@@ -81,6 +81,7 @@ Window {
         tally: w.esMultiview ? w.mv.tally !== false : operador
         vumetros: w.esMultiview ? w.mv.vumetros !== false : operador
         escala: w.esMultiview ? width / 1920 : 1
+        grosorTally: w.esMultiview ? (w.mv.grosorTally !== undefined ? w.mv.grosorTally : 2) : -1
     }
 
     // --- Controles que aparecen con el mouse --------------------------------

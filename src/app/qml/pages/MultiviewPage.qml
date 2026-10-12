@@ -130,6 +130,7 @@ Rectangle {
                         tally: page.mv.tally !== false
                         vumetros: page.mv.vumetros !== false
                         escala: width / 1920
+                        grosorTally: page.mv.grosorTally !== undefined ? page.mv.grosorTally : 2
                     }
                     Text {
                         anchors.centerIn: parent
@@ -303,6 +304,15 @@ Rectangle {
                     RowLayout {
                         Switch { checked: page.mv.tally !== false; onToggled: page.poner("tally", checked) }
                         Text { text: "Tally (rojo al aire, verde armada)"; color: Theme.text; font.pixelSize: 13 }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        visible: page.mv.tally !== false
+                        Text { text: "Grosor del tally"; color: Theme.textDim; font.pixelSize: 12 }
+                        Slider { Layout.fillWidth: true; from: 1; to: 12; stepSize: 1
+                                 value: page.mv.grosorTally !== undefined ? page.mv.grosorTally : 2
+                                 onMoved: page.poner("grosorTally", Math.round(value)) }
+                        Text { text: (page.mv.grosorTally !== undefined ? page.mv.grosorTally : 2) + " px"; color: Theme.textDim; font.pixelSize: 12 }
                     }
                     RowLayout {
                         Switch { checked: page.mv.vumetros !== false; onToggled: page.poner("vumetros", checked) }

@@ -28,6 +28,12 @@ Item {
     property color colorBorde: "white"
     property real tamEtiqueta: 11
     property real escala: 1
+    /// Grosor del tally y del aviso «sin señal» (px a 1920, con `escala`); -1 = automático (el de siempre).
+    property real grosorTally: -1
+    function grosor(item) {
+        return wall.grosorTally >= 0 ? Math.max(1, wall.grosorTally * wall.escala)
+                                     : Math.max(3, Math.min(item.width, item.height) / 90)
+    }
     readonly property real g: gap * escala
     /// Tally (rojo al aire, verde armada), vúmetro y cuenta regresiva de medios por celda (T38).
     /// Las marcas de operador (sin señal, tally, vúmetro, cuenta regresiva). Apagadas en lo que ve el público.
@@ -113,7 +119,7 @@ Item {
                 readonly property bool sin: modelData.startsWith("entrada:") && Studio.sinSenal.indexOf(modelData.slice(8)) >= 0
                 visible: sin && wall.operador
                 anchors.fill: parent; color: "transparent"
-                border { color: Theme.live; width: 3 }
+                border { color: Theme.live; width: wall.grosorTally >= 0 ? wall.grosor(parent) : 3 }
                 SequentialAnimation on opacity { running: parent.visible; loops: Animation.Infinite
                     NumberAnimation { to: 0.35; duration: 450 } NumberAnimation { to: 1; duration: 450 } }
                 // Arriba, no al centro: al centro está el texto de la placa de la entrada.
@@ -133,7 +139,7 @@ Item {
                 readonly property bool armada: f !== "" && !alAire && (Studio.tally.armada || []).indexOf(f) >= 0
                 visible: wall.tally && (alAire || armada)
                 anchors.fill: parent; color: "transparent"; z: 2
-                border { color: alAire ? "#e53935" : "#2ecc71"; width: Math.max(3, Math.min(parent.width, parent.height) / 90) }
+                border { color: alAire ? "#e53935" : "#2ecc71"; width: wall.grosor(parent) }
             }
             // Vúmetro de la fuente (si tiene audio).
             Rectangle {

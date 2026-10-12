@@ -93,6 +93,7 @@ void McpService::registerUiTools() {
               {"nombres", {{"type", "boolean"}}},
               {"tamNombres", {{"type", "integer"}}},
               {"tally", {{"type", "boolean"}}},
+              {"grosorTally", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 1-12; de fábrica 2"}}},
               {"vumetros", {{"type", "boolean"}}},
               {"ventana", {{"type", "boolean"}, {"default", false}}},
               {"monitor", {{"type", "string"}, {"description", "con ventana: nombre del monitor (ver `monitores`)"}}},
@@ -125,7 +126,7 @@ void McpService::registerUiTools() {
             if (a.contains("renombrar")) vm.renombrarMultiview(id, QString::fromStdString(a.value("renombrar", std::string())));
             QVariantMap cambios;
             for (const char* k : {"fuentes", "distribucion", "separacion", "fondo", "borde", "colorBorde", "nombres",
-                                  "tamNombres", "tally", "vumetros"})
+                                  "tamNombres", "tally", "vumetros", "grosorTally"})
                 if (a.contains(k)) cambios[k] = jsonToQv(a[k]);
             if (!cambios.isEmpty()) vm.setMultiviewDe(id, cambios);
             if (a.value("cerrar_ventanas", false)) vm.cerrarVentanasMultiview();
