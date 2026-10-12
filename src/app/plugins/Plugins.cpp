@@ -1,6 +1,7 @@
 // src/app/plugins/Plugins.cpp — ver Plugins.hpp
 
 #include "plugins/Plugins.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "net/Descargas.hpp"
 
@@ -128,8 +129,8 @@ QProcessEnvironment entornoPython() {
     return env;
 }
 
-constexpr int kMaxCaidas = 5;
-constexpr qint64 kVentanaCaidasMs = 60'000;
+inline int kMaxCaidas() { return ba::ajustes::entero("plugins.maxCaidas", 5); }
+inline qint64 kVentanaCaidasMs() { return ba::ajustes::entero64("plugins.ventanaCaidasS", 60) * 1000; }
 } // namespace
 
 struct Plugins::Proceso {
@@ -700,7 +701,7 @@ void Plugins::dependencias(const std::string& id, std::function<void(std::string
         return ctx.enLaInterfaz([yo, args, id, firma, salida, pip](std::function<void(const std::string&)> listo) {
             if (!yo) return listo("cancelada");
             yo->escribirRegistro(id, "[pip] bajando: " + QByteArray::fromStdString(firma).replace('\n', ' ') + "\n");
-            *pip = Hijo::correr(yo.data(), q(yo->python()), args, entornoPython(), 15 * 60 * 1000,
+            *pip = Hijo::correr(yo.data(), q(yo->python()), args, entornoPython(), ba::ajustes::entero("plugins.pipMin", 15) * 60 * 1000,
                          [yo, id, salida, listo](int codigo, QByteArray out, QByteArray err) {
                              *salida = (out + err).toStdString();
                              if (yo) yo->escribirRegistro(id, QByteArray::fromStdString("[pip] " + *salida));
@@ -954,7 +955,7 @@ void Plugins::alSalir(const std::string& id, int codigo, bool caido) {
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     p.caidas.push_back(ahora);
     p.caidas.erase(std::remove_if(p.caidas.begin(), p.caidas.end(),
-                                  [&](qint64 t) { return ahora - t > kVentanaCaidasMs; }),
+                                  [&](qint64 t) { return ahora - t > kVentanaCaidasMs(); }),
                    p.caidas.end());
     if (p.error.empty()) p.error = caido ? "se cayó" : "terminó (código " + std::to_string(codigo) + ")";
     {
@@ -969,9 +970,9 @@ void Plugins::alSalir(const std::string& id, int codigo, bool caido) {
     if (!estabaListo)
         for (auto& cb : cbs)
             cb(estado(id));
-    if (static_cast<int>(p.caidas.size()) >= kMaxCaidas) {
+    if (static_cast<int>(p.caidas.size()) >= kMaxCaidas()) {
         p.estado = "caido";
-        avisar("El plugin «" + id + "» se cayó " + std::to_string(kMaxCaidas) +
+        avisar("El plugin «" + id + "» se cayó " + std::to_string(kMaxCaidas()) +
                    " veces en un minuto y quedó apagado: " + p.error,
                "warning");
         emit cambio();
@@ -1379,6 +1380,7 @@ json Plugins::eventos(const std::string& id, const std::string& canal, int cuant
 
 void Plugins::pedir(const std::string& id, const std::string& accion, const json& args,
                     std::function<void(json)> listo, int timeoutMs) {
+    if (timeoutMs <= 0) timeoutMs = ba::ajustes::entero("plugins.pedidoMs", 10000); // Configuración → avanzado
     auto it = procesos_.find(id);
     if (it == procesos_.end() || !it->second->p || !it->second->listo)
         return listo(json{{"ok", false}, {"error", "el plugin «" + id + "» no está corriendo"}});
@@ -1981,7 +1983,7 @@ void Plugins::correrPython(const QString& codigo, const QStringList& args, std::
             QString("import sys; sys.path[:0] = [%1, %2]\n")
                 .arg(q(json(yo->sdk().string()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)), q(json((herr / "_libs").string()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
         Hijo::correr(yo, q(yo->python()), QStringList{"-I", "-B", "-c", pre + codigo} + args, entornoPython(),
-                     60000, [listo](int, QByteArray out, QByteArray errb) {
+                     ba::ajustes::sAMs("plugins.herramientaS", 60), [listo](int, QByteArray out, QByteArray errb) {
                          json r = json::parse(out.trimmed().toStdString(), nullptr, false);
                          if (r.is_discarded())
                              r = {{"error", (errb.right(1500) + out.right(500)).toStdString()}};

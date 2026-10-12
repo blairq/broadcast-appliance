@@ -99,10 +99,10 @@ void Escucha::cargar(const Modelos& m, std::function<void(const std::string&)> l
             so::VadModelConfig v;
             v.silero_vad.model = m.vad;
             v.silero_vad.min_silence_duration = 0.4f;
-            v.silero_vad.max_speech_duration = static_cast<float>(kMaxSegundos);
+            v.silero_vad.max_speech_duration = static_cast<float>(kMaxSegundosAhora());
             v.sample_rate = kFrecuenciaModelo;
             v.num_threads = 1;
-            motor->vad.emplace(so::VoiceActivityDetector::Create(v, static_cast<float>(kMaxSegundos) + 5.0f));
+            motor->vad.emplace(so::VoiceActivityDetector::Create(v, static_cast<float>(kMaxSegundosAhora()) + 5.0f));
             motor->conVad = motor->vad->Get() != nullptr;
             motor->ventanaVad = v.silero_vad.window_size;
         }
@@ -129,7 +129,7 @@ void Escucha::alimentar(const float* muestras, std::size_t n, std::uint32_t frec
     if (!grabando_ || muestras == nullptr || n == 0) return;
     std::lock_guard<std::mutex> l(tomaLock_);
     frecuencia_ = frecuencia;
-    const std::size_t tope = static_cast<std::size_t>(kMaxSegundos * frecuencia);
+    const std::size_t tope = static_cast<std::size_t>(kMaxSegundosAhora() * frecuencia);
     if (toma_.size() >= tope) return;
     toma_.insert(toma_.end(), muestras, muestras + std::min(n, tope - toma_.size()));
 }

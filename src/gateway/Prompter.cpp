@@ -195,7 +195,7 @@ void Prompter::visto(const std::string& id, const std::string& vista, const std:
     const int64_t ahora = ahoraMs();
     // Se limpia al anotar (no hay temporizador acá): lo viejo se va solo.
     for (auto it = clientes_.begin(); it != clientes_.end();)
-        it = ahora - it->second.vistoMs > kVivoMs * 15 ? clientes_.erase(it) : std::next(it);
+        it = ahora - it->second.vistoMs > kVivoMs() * 15 ? clientes_.erase(it) : std::next(it);
     // Con la tabla llena, uno nuevo reemplaza al que hace más que no aparece.
     if (clientes_.size() >= kMaxClientes && clientes_.find(id) == clientes_.end()) {
         auto viejo = clientes_.begin();
@@ -218,7 +218,7 @@ json Prompter::clientes() const {
     std::vector<json> vivos;
     for (const auto& [id, c] : clientes_) {
         const int64_t hace = ahora - c.vistoMs;
-        if (hace > kVivoMs) continue;
+        if (hace > kVivoMs()) continue;
         vivos.push_back(json{
             {"id", id}, {"vista", c.vista}, {"nombre", c.nombre}, {"ip", ipTexto(c.ip)}, {"haceMs", hace}});
     }

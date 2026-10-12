@@ -36,6 +36,7 @@
 // ============================================================================
 
 #include "Webrtc.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -772,9 +773,15 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             impl_->prevLost = lost;
             impl_->prevMs = ahora;
             const double jit = jitterMax * 1000.0, rttMs = rtt >= 0 ? rtt * 1000.0 : -1;
-            const char* sem = (perdida > 5 || rttMs > 400 || jit > 50)   ? "rojo"
-                              : (perdida > 2 || rttMs > 200 || jit > 30) ? "ambar"
-                                                                         : "verde";
+            // El semáforo de red del invitado (Configuración → avanzado de la sala).
+            namespace aj = ba::ajustes;
+            const char* sem = (perdida > aj::numero("room.rojoPerdidaPct", 5) || rttMs > aj::numero("room.rojoRttMs", 400) ||
+                               jit > aj::numero("room.rojoJitterMs", 50))
+                                  ? "rojo"
+                              : (perdida > aj::numero("room.ambarPerdidaPct", 2) || rttMs > aj::numero("room.ambarRttMs", 200) ||
+                                 jit > aj::numero("room.ambarJitterMs", 30))
+                                  ? "ambar"
+                                  : "verde";
             nlohmann::json j{{"kbps_in", std::lround(kin)},  {"kbps_out", std::lround(kout)},
                              {"perdida_pct", std::round(perdida * 10) / 10},
                              {"jitter_ms", std::lround(jit)}, {"rtt_ms", std::lround(rttMs)},
@@ -1164,7 +1171,7 @@ int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp,
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr || session < 1 || session > guests_) return 0;
     reapViewers();
-    if (viewerCount() >= kMaxViewers) return 0;
+    if (viewerCount() >= kMaxViewers()) return 0;
     webrtc::SdpParseError err;
     std::unique_ptr<webrtc::SessionDescriptionInterface> offer =
         webrtc::CreateSessionDescription(webrtc::SdpType::kOffer, offerSdp, &err);
@@ -1296,7 +1303,8 @@ void WebrtcHub::reapViewers() {
         std::lock_guard<std::mutex> lock(st->viewersM);
         for (const auto& [id, v] : st->viewers) {
             const int s = v->state.load();
-            if ((s == 2 && now - v->downSinceMs.load() > 10000) || (s == 0 && now - v->createdMs > 20000))
+            if ((s == 2 && now - v->downSinceMs.load() > ba::ajustes::sAMs("room.visorCaidoS", 10)) ||
+                (s == 0 && now - v->createdMs > ba::ajustes::sAMs("room.visorNoConectaS", 20)))
                 ids.push_back(id);
         }
     }

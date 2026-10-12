@@ -11,6 +11,7 @@
 // ============================================================================
 
 #include "SignalingServer.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
@@ -331,16 +332,16 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
 
         // Tope de concurrencia: por encima se responde 503 y se cierra, en vez
         // de lanzar threads sin limite.
-        if (activeConns_.load(std::memory_order_relaxed) >= kMaxConcurrentConns) {
+        if (activeConns_.load(std::memory_order_relaxed) >= kMaxConcurrentConns()) {
             http::sendResponse(fd, 503, "text/plain", "servidor saturado\n");
             http::closeFd(fd);
-            log_.warn("senalizacion: conexion rechazada, tope de " + std::to_string(kMaxConcurrentConns) +
+            log_.warn("senalizacion: conexion rechazada, tope de " + std::to_string(kMaxConcurrentConns()) +
                           " conexiones",
                       -1);
             continue;
         }
         http::setNoDelay(fd);
-        http::setSocketTimeout(fd, kHandshakeTimeoutMs);
+        http::setSocketTimeout(fd, kHandshakeTimeoutMs());
         activeConns_.fetch_add(1, std::memory_order_relaxed);
         trackFd(fd);
 #ifdef _WIN32
@@ -1062,7 +1063,7 @@ void SignalingServer::apiUpload(long long fd, const std::string& headers, const 
         return;
     }
     // Una subida grande tarda: el timeout es por recv (sin datos 60 s = cortar).
-    http::setSocketTimeout(fd, 60000);
+    http::setSocketTimeout(fd, ba::ajustes::sAMs("room.subidaTimeoutS", 60));
     const auto res = shares_.save(static_cast<uint64_t>(total),
                                   [fd](uint8_t* buf, size_t n) { return http::recvSome(fd, buf, n); });
     if (res.err == ShareStore::kUnsupported) {
@@ -1305,11 +1306,11 @@ std::string SignalingServer::altaPantalla(std::string& claveOut, int canal) {
     // temporizador) porque es el unico momento en que la tabla crece.
     const std::int64_t ahora = nowMs();
     for (auto it = pantallas_.begin(); it != pantallas_.end();)
-        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs) ? pantallas_.erase(it)
+        it = (it->second.sueltaMs != 0 && ahora - it->second.sueltaMs > kPantallaTtlMs()) ? pantallas_.erase(it)
                                                                                         : std::next(it);
     // Con la tabla llena, se desaloja a la que hace mas que esta suelta. Una
     // conectada no se toca: esa esta mostrando algo ahora mismo.
-    while (pantallas_.size() >= kMaxPantallas) {
+    while (pantallas_.size() >= kMaxPantallas()) {
         auto peor = pantallas_.end();
         for (auto it = pantallas_.begin(); it != pantallas_.end(); ++it)
             if (it->second.sueltaMs != 0 &&

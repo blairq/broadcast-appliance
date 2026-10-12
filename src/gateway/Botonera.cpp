@@ -16,6 +16,7 @@
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "security/SecretsStore.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -59,11 +60,11 @@ const char* tipoDe(const std::string& rel) {
     return "application/octet-stream";
 }
 
-constexpr int kMaxConexiones = 32;
-constexpr int kMensajesPorSegundo = 60;
-constexpr int kLatidoMs = 30000;
-constexpr int kAuthMs = 10000;
-constexpr std::int64_t kSolicitudMs = 5 * 60 * 1000;
+inline int kMaxConexiones() { return ba::ajustes::entero("botoneraWeb.maxConexiones", 32); }
+inline int kMensajesPorSegundo() { return ba::ajustes::entero("botoneraWeb.mensajesPorSegundo", 60); }
+inline int kLatidoMs() { return ba::ajustes::sAMs("botoneraWeb.latidoS", 30); }
+inline int kAuthMs() { return ba::ajustes::sAMs("botoneraWeb.authS", 10); }
+inline std::int64_t kSolicitudMs() { return ba::ajustes::entero64("botoneraWeb.solicitudMin", 5) * 60 * 1000; }
 const std::set<std::string> kTipos{"hola",      "presionar", "soltar", "valor",  "girar",
                                    "pagina",    "confirmar", "cancelar", "editar"};
 
@@ -273,7 +274,7 @@ bool BotoneraBorde::atender(long long fd, const std::string& method, const std::
             std::lock_guard<std::mutex> l(mu_);
             const std::int64_t ahora = ahoraMs();
             for (auto it = solicitudes_.begin(); it != solicitudes_.end();)
-                it = ahora - it->second.ms > kSolicitudMs ? solicitudes_.erase(it) : std::next(it);
+                it = ahora - it->second.ms > kSolicitudMs() ? solicitudes_.erase(it) : std::next(it);
             Solicitud s;
             s.ip = ipTexto(clientIp);
             s.ms = ahora;
@@ -329,7 +330,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
     }
     {
         std::lock_guard<std::mutex> l(mu_);
-        if (static_cast<int>(conns_.size()) >= kMaxConexiones) {
+        if (static_cast<int>(conns_.size()) >= kMaxConexiones()) {
             http::sendResponse(fd, 503, "text/plain", "demasiadas botoneras\n");
             return;
         }
@@ -344,7 +345,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
     c->ip = ipTexto(clientIp);
     // 1. Autenticación: el primer mensaje, a los 10 s como mucho.
     {
-        if (http::waitReadable(fd, kAuthMs) <= 0) return;
+        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
         std::string payload;
         int op = 0;
         if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
@@ -371,7 +372,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
     // 2. El lazo.
     std::vector<std::int64_t> ventana;
     while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs);
+        const int r = http::waitReadable(fd, kLatidoMs());
         if (r <= 0) break; // sin latido: se da por caída
         std::string payload;
         int op = 0;
@@ -386,7 +387,7 @@ void BotoneraBorde::wsLoop(long long fd, const std::string& headers, std::uint32
         const std::int64_t ahora = ahoraMs();
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
-        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo) {
+        if (static_cast<int>(ventana.size()) >= kMensajesPorSegundo()) {
             log_.warn("botonera: " + c->dispositivo + " manda demasiado; se corta", -1);
             break;
         }

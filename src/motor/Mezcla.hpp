@@ -36,6 +36,7 @@
 #include <map>
 #include <mutex>
 #include <string>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::motor {
 
@@ -127,7 +128,8 @@ class Mezcla {
     std::int64_t latenciaFijaNs_ = -1;
 };
 
-/// El margen sobre la latencia del estudio que esperan los mezcladores.
-constexpr std::int64_t kMargenMezclaNs = 30 * GST_MSECOND;
+/// El margen sobre la latencia del estudio que esperan los mezcladores
+/// (Configuración → avanzado: «audio.margenMezclaMs», 30 ms de siempre).
+inline std::int64_t margenMezclaNs() { return ajustes::msANs("audio.margenMezclaMs", 30); }
 
 } // namespace ba::motor

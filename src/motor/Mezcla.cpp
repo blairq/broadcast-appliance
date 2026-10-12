@@ -10,6 +10,7 @@
 #include <numbers>
 #include <algorithm>
 #include <cmath>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::motor {
 
@@ -104,7 +105,7 @@ Mezcla::~Mezcla() {
 void Mezcla::aplicarLatencia() {
     // La del estudio más el margen; sube enseguida, baja solo de a mucho (cada
     // cambio corre el audio).
-    const std::int64_t l = latenciaFijaNs_ >= 0 ? latenciaFijaNs_ : reloj_.latencia() + kMargenMezclaNs;
+    const std::int64_t l = latenciaFijaNs_ >= 0 ? latenciaFijaNs_ : reloj_.latencia() + margenMezclaNs();
     if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
     latenciaNs_ = l;
     // Solo el piso del mezclador: el pipeline suma lo demás que declaran sus
@@ -135,10 +136,10 @@ void Mezcla::agregar(const std::string& id) {
     // La cola no agrega demora: lo que no entra se tira (una entrada trabada no
     // traba el bus). Es la del intersrc (tira lo viejo): una queue atrás era un
     // hilo más por rama. 1,5 s: lo que sumaban las dos.
-    g_object_set(r.src, "max-time", static_cast<guint64>(3 * GST_SECOND / 2), "max-buffers", static_cast<guint64>(0), nullptr);
+    g_object_set(r.src, "max-time", static_cast<guint64>(ajustes::msANs("audio.colaFuenteMs", 1500)), "max-buffers", static_cast<guint64>(0), nullptr);
     if (medidores_)
-        g_object_set(r.nivel, "interval", static_cast<guint64>(50 * GST_MSECOND), "post-messages", TRUE, "peak-ttl",
-                     static_cast<guint64>(300 * GST_MSECOND), nullptr);
+        g_object_set(r.nivel, "interval", static_cast<guint64>(ajustes::msANs("audio.medidorMs", 50)), "post-messages", TRUE, "peak-ttl",
+                     static_cast<guint64>(ajustes::msANs("audio.picoMs", 300)), nullptr);
     gst_bin_add_many(GST_BIN(pipeline_), r.src, r.vol, r.nivel, nullptr);
     gst_element_link_many(r.src, r.vol, r.nivel, nullptr);
     r.pad = gst_element_request_pad_simple(mezclador_, "sink_%u");

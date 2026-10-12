@@ -2,6 +2,7 @@
 // src/app/ui/PantallasViewModel.cpp — ver PantallasViewModel.hpp
 // ============================================================================
 #include "ui/PantallasViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -36,9 +37,9 @@ namespace pt = pantallas;
 
 /// Cuánto se espera a un aparato antes de darlo por perdido. Un televisor
 /// dormido tarda en despertar; más de esto es que no está.
-constexpr int kTimeoutMs = 8000;
+inline int kTimeoutMs() { return ba::ajustes::entero("pantallas.timeoutMs", 8000); }
 /// Cuánto dura una búsqueda en la red.
-constexpr int kBusquedaSeg = 5;
+inline int kBusquedaSeg() { return ba::ajustes::entero("pantallas.busquedaS", 5); }
 
 /// El catálogo de lo que se puede proyectar. Está acá y no en el QML porque
 /// también lo necesita el MCP: una sola lista, no dos que se desincronizan.
@@ -409,7 +410,7 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, ConferenceViewModel* sala
 
     // Lo que cada pantalla tiene que estar mostrando se revisa cada tanto: un
     // televisor que se reinició de madrugada vuelve solo a lo suyo.
-    d_->mantenimiento.setInterval(15000);
+    d_->mantenimiento.setInterval(std::max(2000, ba::ajustes::sAMs("pantallas.revisarS", 15)));
     connect(&d_->mantenimiento, &QTimer::timeout, this, [this]() { restaurar(); });
     // Un canal de escena vive mientras alguna pantalla lo muestre: si la que lo
     // usaba pasó a otra cosa, se apagó o se la tomó otra aplicación, se suelta
@@ -575,7 +576,7 @@ void PantallasViewModel::buscar() {
     }
     std::thread([this]() {
         std::string err;
-        auto encontrados = pt::buscar(kBusquedaSeg, &err);
+        auto encontrados = pt::buscar(kBusquedaSeg(), &err);
         QMetaObject::invokeMethod(this, [this, encontrados, err]() {
             d_->buscando = false;
             if (!err.empty()) {
@@ -1021,7 +1022,7 @@ void PantallasViewModel::refrescar(const QString& id) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, id, host, puerto, desde]() {
-        const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs, desde.toStdString());
+        const pt::Estado r = pt::consultar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1242,7 +1243,7 @@ void PantallasViewModel::mandarUrl(const QString& id, const QString& url, const 
         // `reload` en 0: la página no se recarga sola. Un QR o un mensaje no
         // cambian, y una recarga en medio de un evento se ve.
         const pt::Estado r =
-            pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs, desde.toStdString());
+            pt::mostrarUrl(host.toStdString(), puerto, url.toStdString(), 0, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r, tipo, que]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1286,7 +1287,7 @@ void PantallasViewModel::parar(const QString& id) {
     // una es como le hablamos nosotros, la otra es como nos encuentra el.
     const QString desde;
     std::thread([this, id, host, puerto, desde]() {
-        const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs, desde.toStdString());
+        const pt::Estado r = pt::parar(host.toStdString(), puerto, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1322,7 +1323,7 @@ void PantallasViewModel::setVolumen(const QString& id, double nivel) {
     const QString desde;
     std::thread([this, id, host, puerto, desde, nivel]() {
         const pt::Estado r =
-            pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs, desde.toStdString());
+            pt::volumen(host.toStdString(), puerto, nivel, -1, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;
@@ -1351,7 +1352,7 @@ void PantallasViewModel::silenciar(const QString& id, bool si) {
     const QString desde;
     std::thread([this, id, host, puerto, desde, si]() {
         const pt::Estado r =
-            pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs, desde.toStdString());
+            pt::volumen(host.toStdString(), puerto, -1, si ? 1 : 0, kTimeoutMs(), desde.toStdString());
         QMetaObject::invokeMethod(this, [this, id, r]() {
             Destino* d = d_->porId(id);
             if (d == nullptr) return;

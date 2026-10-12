@@ -309,6 +309,8 @@ class BroadcastEngine {
     /// La copia en el otro disco (vacío si no hay).
     std::string archivoCopiaGrabacion() const;
     /// Pasa `archivo` (mkv) a `formato` (mp4/mov) sin recodificar, en otro hilo.
+    /// Varios archivos seguidos (los tramos de una grabación partida), en un solo hilo.
+    bool remuxVarios(const std::vector<std::string>& archivos, const std::string& formato, bool borrarOrigen);
     bool remux(const std::string& archivo, const std::string& formato, bool borrarOrigen);
     /// {archivo, destino, pct, andando, ok, error}.
     nlohmann::json remuxEstado() const;

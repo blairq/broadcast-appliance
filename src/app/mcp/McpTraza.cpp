@@ -2,6 +2,7 @@
 // src/app/mcp/McpTraza.cpp — ver McpTraza.hpp
 // ============================================================================
 #include "mcp/McpTraza.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -124,7 +125,7 @@ struct Traza::Impl {
     std::size_t escritos = 0;
     /// 8 MB y una sola vuelta. Es la traza de UNA sesion de trabajo: guardar
     /// mas es guardar el mes pasado, que no lo mira nadie.
-    static constexpr std::size_t kMaxBytes = 8u * 1024u * 1024u;
+    static std::size_t kMaxBytes() { return static_cast<std::size_t>(ba::ajustes::entero("mcp.trazaMB", 8)) * 1024u * 1024u; }
 };
 
 Traza& Traza::la() {
@@ -151,7 +152,7 @@ void Traza::anotar(const std::string& texto) {
     if (d_ == nullptr) return;
     std::lock_guard<std::mutex> g(d_->mutex);
     if (!d_->salida.is_open()) return;
-    if (d_->escritos > Impl::kMaxBytes) {
+    if (d_->escritos > Impl::kMaxBytes()) {
         d_->salida.close();
         std::error_code ec;
         std::filesystem::rename(d_->archivo, d_->archivo.parent_path() / "mcp.1.log", ec);

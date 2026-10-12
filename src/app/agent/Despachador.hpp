@@ -32,6 +32,7 @@
 #pragma once
 
 #include <QObject>
+#include "ajustes/Ajustes.hpp"
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -69,8 +70,8 @@ class Despachador : public QObject {
     using json = nlohmann::json;
 
     static constexpr int kProfundidadMax = 1;
-    static constexpr int kTopeMinutos = 20;
-    static constexpr std::size_t kCorridasGuardadas = 200;
+    static int kTopeMinutos() { return ba::ajustes::entero("agentes.topeMin", 20); }
+    static std::size_t kCorridasGuardadas() { return static_cast<std::size_t>(ba::ajustes::entero("agentes.historial", 200)); }
     static constexpr int kResumenesDeContexto = 5;
 
     Despachador(Roles& roles, Motores motores, QObject* parent = nullptr);

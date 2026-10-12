@@ -298,6 +298,7 @@ AppConfig loadAppConfig(const fs::path& path, const fs::path& dataRoot) {
     c.mcpApproval = get<std::string>(mcp, "approval", "invitados");
     if (c.mcpApproval != "siempre" && c.mcpApproval != "nunca") c.mcpApproval = "invitados";
     c.mcpAprobacionMin = std::clamp(get(mcp, "aprobacionMin", c.mcpAprobacionMin), 1, 240);
+    if (j.contains("ajustes") && j["ajustes"].is_object()) c.ajustes = j["ajustes"];
     {
         const json ml = j.value("modeloLocal", json::object());
         c.modeloContexto = std::clamp(get(ml, "contexto", c.modeloContexto), 2048, 262144);
@@ -429,6 +430,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"transition", {{"type", c.transition.type}, {"durationMs", c.transition.durationMs}}},
         {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}, {"balistica", c.balistica}}},
         {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}, {"aprobacionMin", c.mcpAprobacionMin}}},
+        {"ajustes", c.ajustes},
         {"scenes", scenes},
         {"audioInputs", audioIns},
         {"currentScene", c.currentScene},
@@ -455,6 +457,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.sinVideoPlacaMs = get(j, "sinVideoPlacaMs", s.sinVideoPlacaMs);
     s.pinIntentos = get(j, "pinIntentos", s.pinIntentos);
     s.pinBloqueoS = get(j, "pinBloqueoS", s.pinBloqueoS);
+    if (j.contains("ajustes") && j["ajustes"].is_object()) s.ajustes = j["ajustes"];
     s.videoW = get(j, "videoW", s.videoW);
     s.videoH = get(j, "videoH", s.videoH);
     s.guestVideoW = get(j, "guestVideoW", s.guestVideoW);
@@ -477,6 +480,8 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.wgAddress = get<std::string>(w, "address", s.wgAddress);
     s.wgPublicAddress = get<std::string>(w, "publicAddress", s.wgPublicAddress);
     s.wgKeepalive = get(w, "keepalive", s.wgKeepalive);
+    s.wgHttpPort = get(w, "httpPort", s.wgHttpPort);
+    s.wgHttpsPort = get(w, "httpsPort", s.wgHttpsPort);
     if (j.contains("proxy") && j["proxy"].is_object()) s.proxy = j["proxy"];
     return s;
 }
@@ -503,6 +508,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"sinVideoPlacaMs", s.sinVideoPlacaMs},
                           {"pinIntentos", s.pinIntentos},
                           {"pinBloqueoS", s.pinBloqueoS},
+                          {"ajustes", s.ajustes},
                           {"videoW", s.videoW},
                           {"videoH", s.videoH},
                           {"guestVideoW", s.guestVideoW},
@@ -524,7 +530,9 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                             {"serverPublicKey", s.wgServerPublicKey},
                             {"address", s.wgAddress},
                             {"publicAddress", s.wgPublicAddress},
-                            {"keepalive", s.wgKeepalive}}},
+                            {"keepalive", s.wgKeepalive},
+                            {"httpPort", s.wgHttpPort},
+                            {"httpsPort", s.wgHttpsPort}}},
                           {"proxy", s.proxy}};
     if (wgPrevio.is_object()) {
         wgPrevio.update(nuevo["wireguard"]);
@@ -545,6 +553,7 @@ LauncherSettings loadLauncherSettings(const fs::path& path) {
     s.maxCaidas = get(j, "maxCaidas", s.maxCaidas);
     s.ventanaCaidasMin = get(j, "ventanaCaidasMin", s.ventanaCaidasMin);
     s.reiniciosSinPreguntar = get(j, "reiniciosSinPreguntar", s.reiniciosSinPreguntar);
+    if (j.contains("ajustes") && j["ajustes"].is_object()) s.ajustes = j["ajustes"];
     return s;
 }
 
@@ -559,6 +568,7 @@ bool saveLauncherSettings(const fs::path& path, const LauncherSettings& s, std::
     j["maxCaidas"] = s.maxCaidas;
     j["ventanaCaidasMin"] = s.ventanaCaidasMin;
     j["reiniciosSinPreguntar"] = s.reiniciosSinPreguntar;
+    j["ajustes"] = s.ajustes;
     return writeJson(path, j, err);
 }
 

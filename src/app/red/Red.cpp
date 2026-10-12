@@ -1,6 +1,7 @@
 // src/app/red/Red.cpp — ver Red.hpp
 
 #include "red/Red.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "net/Credentials.hpp"
 #include "ptz/ControlCamaras.hpp"
@@ -49,8 +50,8 @@ namespace {
 
 /// Los puertos que dicen «esto es de video»: RTSP, web, SDKs propios, RTMP, NDI.
 const std::vector<int> kPuertos = {554, 8554, 80, 88, 8080, 8000, 37777, 1935, 5960};
-constexpr int kConcurrentes = 256;
-constexpr int kEsperaConexionMs = 600;
+inline int kConcurrentes() { return ba::ajustes::entero("red.escaneoConcurrentes", 256); }
+inline int kEsperaConexionMs() { return ba::ajustes::entero("red.escaneoEsperaMs", 600); }
 
 std::string minusculas(std::string s) {
     for (auto& c : s)
@@ -286,7 +287,7 @@ void Red::escanear(Listo listo) {
     auto lanzarPtr = std::make_shared<std::function<void()>>();
     *lanzarPtr = [this, lanzarPtr]() {
         if (!esc_) return;
-        while (esc_->activos < kConcurrentes && esc_->siguiente < esc_->pendientes.size()) {
+        while (esc_->activos < kConcurrentes() && esc_->siguiente < esc_->pendientes.size()) {
             const auto [host, puerto] = esc_->pendientes[esc_->siguiente++];
             ++esc_->activos;
             auto* s = new QTcpSocket(this);
@@ -316,7 +317,7 @@ void Red::escanear(Listo listo) {
                 fin();
             });
             connect(s, &QTcpSocket::errorOccurred, this, [fin](QAbstractSocket::SocketError) { fin(); });
-            QTimer::singleShot(kEsperaConexionMs, s, fin);
+            QTimer::singleShot(kEsperaConexionMs(), s, fin);
             s->connectToHost(host, static_cast<quint16>(puerto));
         }
     };
@@ -390,7 +391,7 @@ void Red::terminarBarrido() {
             continue;
         }
         QNetworkRequest pedido(QUrl(QString("http://%1:%2/").arg(QString::fromStdString(ip)).arg(web)));
-        pedido.setTransferTimeout(2500);
+        pedido.setTransferTimeout(ba::ajustes::entero("red.respuestaMs", 2500));
         pedido.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                             QNetworkRequest::NoLessSafeRedirectPolicy);
         QNetworkReply* r = http_->get(pedido);
@@ -606,7 +607,7 @@ void Red::sondearRtsp(const std::string& ip, json candidatas, Listo listo) {
             });
             connect(s, &QTcpSocket::errorOccurred, this,
                     [=](QAbstractSocket::SocketError) { terminar(rtsp::leer(*buf)); });
-            QTimer::singleShot(2500, s, [=]() { terminar(rtsp::leer(*buf)); });
+            QTimer::singleShot(ba::ajustes::entero("red.respuestaMs", 2500), s, [=]() { terminar(rtsp::leer(*buf)); });
             s->connectToHost(u.host, static_cast<quint16>(u.puerto));
         };
         (*pedir)(QString(), 1);
@@ -652,7 +653,7 @@ void Red::analizar(const QString& uri, Listo listo) {
             r = {{"error", "GStreamer: " + err}};
         } else {
             GError* e = nullptr;
-            GstDiscoverer* d = gst_discoverer_new(10 * GST_SECOND, &e);
+            GstDiscoverer* d = gst_discoverer_new(static_cast<GstClockTime>(ba::ajustes::sANs("red.analizarS", 10)), &e);
             GstDiscovererInfo* info =
                 d != nullptr ? gst_discoverer_discover_uri(d, uri.toUtf8().constData(), &e) : nullptr;
             if (e != nullptr) {

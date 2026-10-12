@@ -22,7 +22,7 @@ def abrir():
                 break
     if not nombre:
         raise RuntimeError("no encontré el puerto serie (poné «puerto» en la configuración)")
-    estado["puerto"] = serial.Serial(nombre, int(c.get("baudios", 9600)), timeout=0.2)
+    estado["puerto"] = serial.Serial(nombre, int(c.get("baudios", 9600)), timeout=float(c.get("timeout_s", 0.2)))
     plugin.estado(f"VISCA por {nombre}")
 
 

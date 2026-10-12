@@ -19,6 +19,7 @@
 //   --gw-arg=<x>     argumento extra para B (repetible)
 
 #include "Datos.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "Log.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
@@ -136,6 +137,8 @@ int runLauncher(const std::vector<std::string>& args) {
         if (in && j.is_object()) {
             cfg.shadowCopy = j.value("shadowCopy", cfg.shadowCopy);
             cfg.recoveryUi = j.value("recoveryUi", cfg.recoveryUi);
+            ba::ajustes::cargar(j.value("ajustes", nlohmann::json::object())); // Configuración → avanzados del arranque
+            if (cfg.esperarInstanciaMs > 0) cfg.esperarInstanciaMs = ba::ajustes::sAMs("launcher.esperaCierreS", 60);
             // Configuración → Sistema y datos → Arranque y recuperación (con topes sanos).
             const auto entre = [&j](const char* k, double def, double lo, double hi) {
                 const auto& v = j.value(k, nlohmann::json());

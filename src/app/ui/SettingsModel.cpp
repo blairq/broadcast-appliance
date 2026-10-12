@@ -8,11 +8,16 @@
 
 #include <QHostInfo>
 #include <QNetworkInterface>
+#include <QSet>
 #include <QVariantMap>
 
 #include "arranque/AppRuntime.hpp"
+#include "ajustes/Ajustes.hpp"
+#include "ui/AjustesAvanzados.hpp"
 
 namespace ba::app {
+
+using json = nlohmann::json;
 
 namespace {
 
@@ -165,6 +170,9 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"wg.serverKey", "Acceso remoto", "Clave pública del servidor", "text", {}, 0, 0, "", "La que muestra 'wg show' en el servidor (base64).", "gateway", ""},
         {"wg.address", "Acceso remoto", "Dirección en el túnel", "text", {}, 0, 0, "", "La que el servidor le asigna a este equipo (AllowedIPs).", "gateway", "10.99.0.2/24"},
         {"wg.publicAddress", "Acceso remoto", "IP o dominio público", "text", {}, 0, 0, "", "Por donde entran los invitados; también es la que se anuncia para WebRTC.", "gateway", ""},
+        {"gateway.metricsPort", "Acceso remoto", "Puerto de métricas del túnel", "int", {}, 1024, 65535, "", "Lo usa cloudflared en esta máquina (127.0.0.1) para informar cómo anda el túnel.", "gateway", 9099},
+        {"wg.httpPort", "Acceso remoto", "WireGuard: puerto web que redirige el servidor", "int", {}, 1, 65535, "", "", "gateway", 80},
+        {"wg.httpsPort", "Acceso remoto", "WireGuard: puerto seguro que redirige el servidor", "int", {}, 1, 65535, "", "", "gateway", 443},
         {"wg.keepalive", "Acceso remoto", "Keepalive", "int", {}, 0, 120, "s", "Mantiene abierto el NAT del lado de este equipo.", "gateway", 25},
         // --- Asistente de IA (MCP) -------------------------------------------------
         {"mcp.enabled", "Asistente (MCP)", "Servidor MCP", "bool", {}, 0, 0, "", "Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta máquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra).", "restart", true},
@@ -175,6 +183,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"modelo.contexto", "Modelos locales", "Memoria de la charla (contexto)", "int", {}, 2048, 262144, "tokens", "Contexto del modelo local de chat (pestaña Asistente, «modelo local»). Más, recuerda más de la charla y usa más memoria de la placa. Rige al volver a arrancarlo.", "live", 32768},
         {"modelo.capasGpu", "Modelos locales", "Capas en la GPU", "int", {}, 0, 999, "", "999 = todas (lo más rápido). Si la placa se queda sin memoria, bajalo; 0 = solo la CPU. Rige al volver a arrancarlo.", "live", 999},
         // --- Apariencia ------------------------------------------------------------
+        {"ui.previewWidth", "Apariencia", "Ancho de las vistas previas", "int", {}, 320, 3840, "px", "El tamaño con que se dibujan las vistas previas del programa y las escenas. Más grande se ve mejor y usa más la placa.", "restart", 960},
         {"ui.theme", "Apariencia", "Tema", "choice", choices({{"dark","Oscuro"},{"light","Claro"}}), 0, 0, "", "", "live", "dark"},
         // --- Sistema y datos -------------------------------------------------------
         {"launcher.shadow", "Sistema y datos", "Copia sombra", "bool", {}, 0, 0, "", "Ejecutar desde una copia en Cache/ del propio bundle (permite actualizar el bundle en caliente).", "restart", false},
@@ -186,10 +195,39 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"launcher.recoveryUi", "Sistema y datos", "Diálogo de recuperación", "bool", {}, 0, 0, "", "Si está apagado, el supervisor reinicia solo sin preguntar.", "restart", true},
     };
     // clang-format on
+    // Los avanzados (antes valores fijos en el código): al final, cada uno en su sección.
+    for (const AjusteAvanzado& a : ajustesAvanzados()) {
+        QVariantList opciones;
+        for (const auto& [v, l] : a.opciones) opciones << QVariantMap{{"value", v}, {"label", l}};
+        Field f{a.key, a.section, a.label, a.kind, opciones, a.min, a.max, a.suffix, a.help, a.scope, a.def};
+        f.avanzado = true;
+        f.destino = static_cast<int>(a.destino);
+        fields_.push_back(std::move(f));
+    }
     load();
 }
 
 QVariantMap SettingsModel::current() const {
+    QVariantMap m = currentBasicos();
+    // Los avanzados: lo guardado en su archivo ("ajustes") o su valor de siempre.
+    const AppConfig& c = rt_.config();
+    const json* donde[3] = {&c.ajustes, &const_cast<AppRuntime&>(rt_).gateway().ajustes,
+                            &const_cast<AppRuntime&>(rt_).launcher().ajustes};
+    for (const Field& f : fields_) {
+        if (!f.avanzado) continue;
+        const json& j = *donde[std::clamp(f.destino, 0, 2)];
+        const auto it = j.find(f.key.toStdString());
+        if (it == j.end()) m[f.key] = f.def;
+        else if (it->is_string()) m[f.key] = QString::fromStdString(it->get<std::string>());
+        else if (it->is_boolean()) m[f.key] = it->get<bool>();
+        else if (f.kind == "float") m[f.key] = it->get<double>();
+        else if (it->is_number()) m[f.key] = static_cast<int>(it->get<double>());
+        else m[f.key] = f.def;
+    }
+    return m;
+}
+
+QVariantMap SettingsModel::currentBasicos() const {
     const AppConfig& c = rt_.config();
     const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();
     const LauncherSettings& l = const_cast<AppRuntime&>(rt_).launcher();
@@ -285,9 +323,13 @@ QVariantMap SettingsModel::current() const {
         {"wg.address", qs(g.wgAddress)},
         {"wg.publicAddress", qs(g.wgPublicAddress)},
         {"wg.keepalive", g.wgKeepalive},
+        {"gateway.metricsPort", g.metricsPort},
+        {"wg.httpPort", g.wgHttpPort},
+        {"wg.httpsPort", g.wgHttpsPort},
         {"launcher.shadow", l.shadowCopy},
         {"launcher.recoveryUi", l.recoveryUi},
         {"ui.theme", qs(c.theme)},
+        {"ui.previewWidth", c.previewWidth},
         {"mcp.enabled", c.mcpEnabled},
         {"mcp.port", c.mcpPort},
         {"mcp.approval", QString::fromStdString(c.mcpApproval)},
@@ -321,6 +363,7 @@ QVariant SettingsModel::data(const QModelIndex& index, int role) const {
         case SuffixRole: return f.suffix;
         case HelpRole: return f.help;
         case ScopeRole: return f.scope;
+        case AvanzadoRole: return f.avanzado;
         case ModifiedRole: return draft_.value(f.key) != saved_.value(f.key);
         default: return {};
     }
@@ -330,7 +373,8 @@ QHash<int, QByteArray> SettingsModel::roleNames() const {
     return {{KeyRole, "key"},     {SectionRole, "section"}, {LabelRole, "label"},
             {KindRole, "kind"},   {ValueRole, "value"},     {OptionsRole, "options"},
             {MinRole, "minimum"}, {MaxRole, "maximum"},     {SuffixRole, "suffix"},
-            {HelpRole, "help"},   {ScopeRole, "scope"},     {ModifiedRole, "modified"}};
+            {HelpRole, "help"},   {ScopeRole, "scope"},     {ModifiedRole, "modified"},
+            {AvanzadoRole, "avanzado"}};
 }
 
 bool SettingsModel::dirty() const { return draft_ != saved_; }
@@ -375,6 +419,18 @@ void SettingsModel::revert() {
     emit dirtyChanged();
 }
 
+bool SettingsModel::tieneBasicos(const QString& section) const {
+    for (const Field& f : fields_)
+        if (f.section == section && !f.avanzado) return true;
+    return false;
+}
+
+bool SettingsModel::tieneAvanzados(const QString& section) const {
+    for (const Field& f : fields_)
+        if (f.section == section && f.avanzado) return true;
+    return false;
+}
+
 void SettingsModel::resetSection(const QString& section) {
     for (const auto& f : fields_) {
         if (f.section == section) {
@@ -394,9 +450,14 @@ QString SettingsModel::apply() {
                    "»: reinicia el gateway o el programa y corta a los invitados o el aire. Volvé atrás esos cambios o "
                    "esperá a terminar la transmisión.";
     }
+    // Por prefijo, sin los avanzados (esos van por destino, más abajo: algunos de la
+    // app empiezan con «room.» y no tienen por qué reiniciar la sala).
+    QSet<QString> avanzados;
+    for (const Field& f : fields_)
+        if (f.avanzado) avanzados.insert(f.key);
     const auto changed = [&](const QString& prefix) {
         for (auto it = draft_.cbegin(); it != draft_.cend(); ++it) {
-            if (it.key().startsWith(prefix) && it.value() != saved_.value(it.key())) {
+            if (it.key().startsWith(prefix) && !avanzados.contains(it.key()) && it.value() != saved_.value(it.key())) {
                 return true;
             }
         }
@@ -492,6 +553,7 @@ QString SettingsModel::apply() {
     c.guestAudio = b("guests.audio");
     c.guestAudioPreset = s("guests.audioPreset");
     c.theme = s("ui.theme");
+    c.previewWidth = std::clamp(i("ui.previewWidth"), 320, 3840);
     c.mcpEnabled = b("mcp.enabled");
     c.mcpPort = i("mcp.port");
     c.mcpApproval = s("mcp.approval");
@@ -509,9 +571,31 @@ QString SettingsModel::apply() {
         notes << (e.empty() ? QString("Cupo de invitados: %1 (sin reiniciar la sala).").arg(i("guests.count"))
                             : "Cupo: " + QString::fromStdString(e));
     }
+    // Los avanzados: cada uno a su archivo ("ajustes"), solo los que no están en su valor de siempre.
+    json ajApp = json::object(), ajSala = json::object(), ajLauncher = json::object();
+    bool cambiaSala = false, cambiaLauncher = false;
+    for (const Field& f : fields_) {
+        if (!f.avanzado) continue;
+        const QVariant v = draft_.value(f.key);
+        if (v != saved_.value(f.key)) {
+            if (f.destino == 1) cambiaSala = true;
+            if (f.destino == 2) cambiaLauncher = true;
+        }
+        if (v == f.def) continue;
+        json jv = f.kind == "float"  ? json(v.toDouble())
+                  : f.kind == "int"  ? json(v.toInt())
+                  : f.kind == "bool" ? json(v.toBool())
+                                     : json(v.toString().toStdString());
+        (f.destino == 1 ? ajSala : f.destino == 2 ? ajLauncher : ajApp)[f.key.toStdString()] = jv;
+    }
+    c.ajustes = ajApp;
+    ba::ajustes::cargar(c.ajustes); // en caliente: el código los lee al usarlos
+    rt_.launcher().ajustes = ajLauncher;
+    if (cambiaLauncher) notes << "Los avanzados del arranque rigen al volver a abrir el programa.";
     if (!soloCupo && (changed("gateway.") || changed("guests.count") || changed("guests.reserva") || changed("room.") ||
-                      changed("direct.") || changed("wg."))) {
+                      changed("direct.") || changed("wg.") || cambiaSala)) {
         GatewaySettings& g = rt_.gateway();
+        g.ajustes = ajSala;
         g.room = s("gateway.room");
         g.port = static_cast<std::uint16_t>(i("gateway.port"));
         g.bindAddress = s("gateway.bind");
@@ -548,6 +632,9 @@ QString SettingsModel::apply() {
         g.wgAddress = s("wg.address");
         g.wgPublicAddress = s("wg.publicAddress");
         g.wgKeepalive = i("wg.keepalive");
+        g.metricsPort = static_cast<std::uint16_t>(i("gateway.metricsPort"));
+        g.wgHttpPort = static_cast<std::uint16_t>(i("wg.httpPort"));
+        g.wgHttpsPort = static_cast<std::uint16_t>(i("wg.httpsPort"));
         c.guests = i("guests.count");
         g.guestsReserva = std::max(i("guests.reserva"), c.guests);
         restartB = true;

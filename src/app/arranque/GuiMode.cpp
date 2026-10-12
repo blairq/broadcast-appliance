@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include "arranque/GuiMode.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "arranque/ArranqueAviso.hpp"
 #include "platform/Paths.hpp"
 
@@ -353,7 +354,7 @@ int runGui(int argc, char** argv) {
                 mcpService.core().callTool({{"name", h}, {"arguments", args}}, std::move(listo),
                                            mcp::CallContext{"plugin:" + plugin, "", "plugin:" + plugin});
             });
-            QTimer::singleShot(3000, pl, [pl]() { pl->arrancarGuardados(); });
+            QTimer::singleShot(ba::ajustes::entero("arranque.pluginsMs", 3000), pl, [pl]() { pl->arrancarGuardados(); });
         }
         // La botonera ejecuta por el MISMO camino que el asistente (validación,
         // registro, sincronizar la vista), como «botonera:<aparato>». Es una

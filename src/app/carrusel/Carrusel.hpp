@@ -21,6 +21,7 @@
 #pragma once
 
 #include <cstdint>
+#include "ajustes/Ajustes.hpp"
 #include <string>
 #include <vector>
 
@@ -47,7 +48,7 @@ class Carrusel {
    public:
     /// Cuántas láminas se admiten. Una presentación larga tiene cincuenta; mil
     /// es que alguien apuntó a la carpeta equivocada.
-    static constexpr std::size_t kMax = 500;
+    static std::size_t kMax() { return static_cast<std::size_t>(ba::ajustes::entero("limites.carrusel", 500)); }
 
     const std::vector<Lamina>& laminas() const { return laminas_; }
     std::size_t tamano() const { return laminas_.size(); }

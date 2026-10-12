@@ -2,6 +2,7 @@
 // src/app/agent/ModelosLocales.cpp — ver ModelosLocales.hpp
 // ============================================================================
 #include "agent/ModelosLocales.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QRegularExpression>
 #include "platform/Paths.hpp"
@@ -421,7 +422,7 @@ std::map<std::string, std::string> pesosDe(const RepoHf& r, const std::string& s
 net::HttpResponse pedirHf(const std::string& url) {
     net::HttpRequest req;
     req.url = url;
-    req.timeoutMs = 20000;
+    req.timeoutMs = ba::ajustes::sAMs("modelos.timeoutHfS", 20);
     // Siguiendo las redirecciones: Hugging Face contesta `resolve/<commit>/…` con un
     // 307 a /api/resolve-cache/… (desde 2026-10; antes daba el archivo directo) y,
     // sin seguirlo, cada modelo.json parecía «no publicado».
@@ -486,7 +487,7 @@ void ModelosLocales::revisarHerramientas(const QString& repo, bool forzar) {
             // consulta falló por otra cosa). Lo que sí se encontró, vale siempre.
             const std::int64_t edad =
                 QDateTime::currentSecsSinceEpoch() - (g.is_object() ? g.value("cuando", std::int64_t{0}) : 0);
-            if (g.is_object() && (!g.value("modelo_json", json()).is_null() || edad < 6 * 3600)) {
+            if (g.is_object() && (!g.value("modelo_json", json()).is_null() || edad < ba::ajustes::entero("modelos.cacheFichasHoras", 6) * 3600)) {
                 mj = g.value("modelo_json", json());
                 nota = g.value("nota", std::string());
                 de = g.value("de", std::string("Hugging Face"));
@@ -667,7 +668,7 @@ std::optional<net::Descargas::Pedido> ModelosLocales::pedidoDe(const QString& re
             net::HttpRequest req;
             req.url = "https://huggingface.co/api/models/" + r +
                       (revision.empty() ? "" : "/revision/" + revision) + "?blobs=true";
-            req.timeoutMs = 30000;
+            req.timeoutMs = ba::ajustes::sAMs("modelos.timeoutHfS", 20) * 3 / 2;
             req.cancel = ctx.banderaCancelar();
             const net::HttpResponse res = net::HttpsClient::request(req);
             if (!res.error.empty())
@@ -862,7 +863,7 @@ void ModelosLocales::registrarActualizaciones() {
             } else {
                 net::HttpRequest req;
                 req.url = "https://huggingface.co/api/models/" + i.repo.toStdString();
-                req.timeoutMs = 15000;
+                req.timeoutMs = ba::ajustes::sAMs("modelos.timeoutHfS", 20) * 3 / 4;
                 const net::HttpResponse res = net::HttpsClient::request(req);
                 const json j = json::parse(res.body, nullptr, false);
                 if (res.status == 200 && j.is_object()) {

@@ -12,6 +12,7 @@
 #include <cstring>
 #include <deque>
 #include <set>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::app::audio {
 
@@ -847,7 +848,8 @@ void AudioRack::rebuild() {
         n->latenciaSalida = entra + n->latencia;
         if (n->kind == "out") latenciaTotal_ = entra;
     }
-    constexpr uint32_t kMaxRetardo = 96000; // 2 s a 48 kHz: más es un error
+    // Tope de la compensación de latencia entre ramas (2 s a 48 kHz: más es un error).
+    const uint32_t kMaxRetardo = static_cast<uint32_t>(std::max(0, ajustes::entero("audio.compensacionMaxMs", 2000))) * 48u;
     const auto retardoDe = [&](const std::string& desde, const std::string& hacia) -> uint32_t {
         const Node* a = find(desde);
         const Node* b = find(hacia);

@@ -16,6 +16,7 @@
 // ============================================================================
 
 #include <QFont>
+#include "ajustes/Ajustes.hpp"
 #include <QGuiApplication>
 #include <QPainter>
 #include <QPointer>
@@ -185,7 +186,7 @@ std::string mirarConElModeloPropio(AppRuntime& rt, const QImage& img, const std:
     req.headers = {{"Authorization", "Bearer " + clave.trimmed().toStdString()},
                    {"Content-Type", "application/json"}};
     req.body = body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    req.timeoutMs = 45000;
+    req.timeoutMs = ba::ajustes::sAMs("mcp.imagenTimeoutS", 45);
     const net::HttpResponse r = net::HttpsClient::request(req);
     if (r.status == 0) {
         error = "no contesta: " + r.error;

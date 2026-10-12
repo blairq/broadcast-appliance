@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/FacebookViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -286,14 +287,14 @@ void FacebookViewModel::pollChat() {
                 chatItems_.append(v);
                 added = true;
             }
-            while (chatItems_.size() > 300)
+            while (chatItems_.size() > ba::ajustes::entero("chat.historial", 300))
                 chatItems_.removeFirst();
             if (added) {
                 chat_->setItems(withUid(chatItems_));
                 emit chatChanged();
             }
         }
-        chatTimer_.start(5000);
+        chatTimer_.start(ba::ajustes::sAMs("chat.sondeoS", 5));
     });
 }
 

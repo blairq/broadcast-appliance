@@ -24,6 +24,7 @@
 // ============================================================================
 
 #include "Cloudflared.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <chrono>
 #include <cstring>
@@ -190,7 +191,7 @@ void CloudflaredSupervisor::sleepBackoff() {
     for (int waited = 0; waited < backoffMs_ && !stop_.load(); waited += 100) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    if (backoffMs_ < 30000) backoffMs_ *= 2; // 1s,2s,4s,... hasta 30s
+    if (backoffMs_ < ba::ajustes::sAMs("gateway.tunelReintentoMaxS", 30)) backoffMs_ *= 2; // 1s,2s,4s,... hasta el tope
 }
 
 void CloudflaredSupervisor::runLoop() {

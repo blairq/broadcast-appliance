@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Botonera.hpp"
+#include "ajustes/Ajustes.hpp"
 #include <QJsonArray>
 #include <QFile>
 
@@ -28,11 +29,11 @@ namespace fs = std::filesystem;
 namespace {
 
 constexpr int kMaxDispositivos = 32;
-constexpr int kAccionesPorSegundo = 20;
-constexpr std::int64_t kCodigoMs = 2 * 60 * 1000;
-constexpr std::int64_t kConfirmarMs = 5000;
-constexpr int kMantenerMs = 700;
-constexpr std::size_t kAuditoria = 500;
+inline int kAccionesPorSegundo() { return ba::ajustes::entero("botonera.accionesPorSegundo", 20); }
+inline std::int64_t kCodigoMs() { return ba::ajustes::entero64("botonera.codigoMin", 2) * 60 * 1000; }
+inline std::int64_t kConfirmarMs() { return ba::ajustes::entero64("botonera.confirmarMs", 5000); }
+inline int kMantenerMs() { return ba::ajustes::entero("botonera.mantenerMs", 700); }
+inline std::size_t kAuditoria() { return static_cast<std::size_t>(ba::ajustes::entero("botonera.auditoria", 500)); }
 
 std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -310,7 +311,7 @@ void Botonera::auditar(const std::string& dispositivo, const std::string& que, c
     // También al registro general: de ahí lo toma la bitácora del evento en curso.
     ba::diag::registro().linea(ba::diag::Nivel::Info, "botonera", 0,
                                dispositivo + " " + que + (detalle.empty() ? "" : " " + detalle));
-    while (auditoria_.size() > kAuditoria) auditoria_.pop_front();
+    while (auditoria_.size() > kAuditoria()) auditoria_.pop_front();
     std::error_code ec;
     fs::create_directories(log_.parent_path(), ec);
     std::ofstream o(log_, std::ios::app);
@@ -1200,9 +1201,9 @@ json Botonera::nuevoCodigo(const std::string& perfil, const std::string& nombre,
     if (p.empty() && !datos_["perfiles"].empty()) p = datos_["perfiles"][0].value("id", std::string());
     if (buscarPerfil(p) == nullptr) return {{"error", "no hay un perfil «" + perfil + "»"}};
     const std::string codigo = hexAleatorio(16); // 128 bits
-    codigos_[codigo] = {p, nombre, venceDias, ahora + kCodigoMs};
+    codigos_[codigo] = {p, nombre, venceDias, ahora + kCodigoMs()};
     auditar("escritorio", "codigo", "perfil " + p);
-    return {{"codigo", codigo}, {"vence_ms", ahora + kCodigoMs}, {"perfil", p}};
+    return {{"codigo", codigo}, {"vence_ms", ahora + kCodigoMs()}, {"perfil", p}};
 }
 
 std::string Botonera::solicitud(const std::string& sol, const std::string& codigo, const std::string& nombre,
@@ -1265,7 +1266,7 @@ bool Botonera::limiteOk(const std::string& dispositivo) {
     auto& q = acciones_[dispositivo];
     const std::int64_t ahora = ahoraMs();
     while (!q.empty() && ahora - q.front() > 1000) q.pop_front();
-    if (static_cast<int>(q.size()) >= kAccionesPorSegundo) return false;
+    if (static_cast<int>(q.size()) >= kAccionesPorSegundo()) return false;
     q.push_back(ahora);
     return true;
 }
@@ -1348,7 +1349,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
             QPointer<Botonera> yo(this);
             const json am = (*c)["accion_mantener"];
             const std::int64_t marca = presionadoMs_[kd];
-            QTimer::singleShot(kMantenerMs, this, [yo, dev, kd, marca, am, celda]() {
+            QTimer::singleShot(kMantenerMs(), this, [yo, dev, kd, marca, am, celda]() {
                 if (!yo) return;
                 auto it = yo->presionadoMs_.find(kd);
                 if (it == yo->presionadoMs_.end() || it->second != marca) return; // ya lo soltaron
@@ -1465,10 +1466,10 @@ void Botonera::correr(const std::string& dev, const json& perfil, const json& ac
     }
     // Una acción con «confirmar» (p. ej. el micrófono del presidente) también se confirma en el aparato.
     if ((deAire || accion.value("confirmar", false)) && !confirmado) {
-        pendientes_[dev] = {celda, accion, ahoraMs() + kConfirmarMs};
+        pendientes_[dev] = {celda, accion, ahoraMs() + kConfirmarMs()};
         auditar(dev, "confirmar", celda);
         emit mensaje(QString::fromStdString(dev),
-                     json{{"type", "confirmar"}, {"celda", celda}, {"vence_ms", kConfirmarMs},
+                     json{{"type", "confirmar"}, {"celda", celda}, {"vence_ms", kConfirmarMs()},
                           {"texto", "Cambia el aire: confirmá"}});
         ultimoRender_.erase(dev);
         sucio_ = true;

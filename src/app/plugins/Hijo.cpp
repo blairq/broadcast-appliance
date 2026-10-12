@@ -1,6 +1,7 @@
 // src/app/plugins/Hijo.cpp — ver Hijo.hpp
 
 #include "plugins/Hijo.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QSocketNotifier>
 #include <QTimer>
@@ -92,7 +93,7 @@ bool Hijo::iniciar(const QString& programa, const QStringList& args, const QProc
         emit termino(st == QProcess::NormalExit ? codigo : -1, st != QProcess::NormalExit);
     });
     proc_->start(QIODevice::ReadWrite | QIODevice::Unbuffered);
-    if (!proc_->waitForStarted(10000)) {
+    if (!proc_->waitForStarted(ba::ajustes::sAMs("plugins.arranqueS", 10))) {
         if (error) *error = QStringLiteral("no se pudo lanzar «%1»: %2").arg(programa, proc_->errorString());
         delete proc_;
         proc_ = nullptr;

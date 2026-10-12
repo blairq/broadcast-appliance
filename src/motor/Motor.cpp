@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::motor {
 
@@ -69,7 +70,7 @@ std::string Motor::iniciar() {
     // El programa para el gateway (lo que oyen los invitados en modo «programa»).
     if (!cfg_.prefijoAnillos.empty() && hayFabrica("baanillosink")) {
         const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
-                              " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
+                              " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! baanillosink canal=" +
                               entreComillas(anillo("ContentForReturn"));
         GError* e = nullptr;
         puente_ = gst_parse_launch(d.c_str(), &e);
@@ -80,7 +81,7 @@ std::string Motor::iniciar() {
             puente_ = nullptr;
         } else {
             reloj_->adoptar(puente_);
-            puenteLatNs_ = programa_->latenciaSalidaNs() + kMargenMezclaNs;
+            puenteLatNs_ = programa_->latenciaSalidaNs() + margenMezclaNs();
             gst_pipeline_set_latency(GST_PIPELINE(puente_), static_cast<GstClockTime>(puenteLatNs_));
             gst_element_set_state(puente_, GST_STATE_PLAYING);
         }
@@ -211,7 +212,7 @@ void Motor::bucle() {
             }
             // Los que consumen el programa esperan lo que tarda en salir.
             if (puente_ != nullptr && programa_) {
-                const std::int64_t lat = programa_->latenciaSalidaNs() + kMargenMezclaNs;
+                const std::int64_t lat = programa_->latenciaSalidaNs() + margenMezclaNs();
                 if (lat > puenteLatNs_ + static_cast<std::int64_t>(5 * GST_MSECOND) ||
                     lat < puenteLatNs_ - static_cast<std::int64_t>(60 * GST_MSECOND)) {
                     puenteLatNs_ = lat;
@@ -938,7 +939,7 @@ void Motor::armarTomaAudio() {
     BA_CANDADO(mu_);
     if (tomaAudio_ == nullptr && programa_) {
         const std::string d = "intersrc producer-name=" + entreComillas(programa_->productor()) +
-                              " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! "
+                              " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! "
                               "appsink name=s emit-signals=true sync=true max-buffers=0 drop=false";
         tomaAudio_ = gst_parse_launch(d.c_str(), nullptr);
         if (tomaAudio_ != nullptr) {
@@ -947,7 +948,7 @@ void Motor::armarTomaAudio() {
             gst_object_unref(sk);
             reloj_->adoptar(tomaAudio_);
             gst_pipeline_set_latency(GST_PIPELINE(tomaAudio_),
-                                     static_cast<GstClockTime>(programa_->latenciaSalidaNs() + kMargenMezclaNs));
+                                     static_cast<GstClockTime>(programa_->latenciaSalidaNs() + margenMezclaNs()));
             gst_element_set_state(tomaAudio_, GST_STATE_PLAYING);
         }
     }

@@ -33,7 +33,7 @@ from dcn.transporte import FlujoSerie, FlujoSocket, SerieFull, SerieSimple, Tcp
 
 plugin = ba.Plugin()
 c = plugin.config
-ESPERA_S = 5.0  # lo que espera un control (desde SU hilo) la respuesta de la CCU
+ESPERA_S = float(c.get("espera_s", 5.0))  # lo que espera un control (desde SU hilo) la respuesta de la CCU (config)
 
 estado = {"enlace": "caido", "motivo": "sin conectar", "desde": time.time()}
 ccu: Ccu | None = None
@@ -318,7 +318,7 @@ def abrir():
         return SerieFull(FlujoSocket(a), escape=esc, latido_s=latido, traza=al_traza), "simulador (Full)"
     sim = None
     if t == "tcp":
-        s = socket.create_connection((c["host"], int(c.get("puerto_tcp", 9451))), timeout=5)
+        s = socket.create_connection((c["host"], int(c.get("puerto_tcp", 9451))), timeout=float(c.get("conectar_s", 5)))
         return Tcp(FlujoSocket(s), latido_s=latido, fn_en_datos=bool(c.get("tcp_fn_en_datos", True)),
                    traza=al_traza), f"{c['host']}:{c.get('puerto_tcp', 9451)}"
     puerto = c.get("puerto", "")
@@ -337,7 +337,7 @@ def sincronizar(gen: int) -> None:
     estado.update(enlace="sincronizando")
     publicar_estado()
     try:
-        ccu.sincronizar().result(timeout=30)
+        ccu.sincronizar().result(timeout=float(c.get("sincronizar_s", 30)))
     except Exception as e:  # noqa: BLE001
         registrar(f"no se pudo sincronizar: {e}")
         estado.update(enlace="caido", motivo=f"no sincronizó: {e}")

@@ -1,6 +1,7 @@
 // src/app/agent/FlujosTexto.cpp — ver FlujosTexto.hpp
 
 #include "agent/FlujosTexto.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "emision/FuentesApp.hpp"
 
@@ -15,7 +16,7 @@ namespace ba::app::agent {
 
 namespace {
 
-constexpr std::size_t kTope = 2000;
+inline std::size_t kTope() { return static_cast<std::size_t>(ba::ajustes::entero("limites.frases", 2000)); }
 
 /// 00:01:02,345 (formato SRT).
 QString tiempoSrt(qint64 ms) {
@@ -92,7 +93,7 @@ void FlujosTexto::entregar(const QString& flujo, const QString& texto, const QSt
     f.cuando = QDateTime::currentDateTime();
     f.hora = f.cuando.toString("HH:mm:ss");
     frases_.push_back(f);
-    while (frases_.size() > kTope)
+    while (frases_.size() > kTope())
         frases_.pop_front();
 
     const nlohmann::json conf = config_ ? config_(flujo) : nlohmann::json();

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
 #include <QClipboard>
@@ -281,7 +282,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Tras un corte de luz, la playlist sigue donde estaba (P0.10). Un rato
     // después: que las fuentes ya estén armadas.
     if (rt.corteAnterior())
-        QTimer::singleShot(2000, this, [this]() {
+        QTimer::singleShot(ba::ajustes::entero("arranque.retomarPlaylistMs", 2000), this, [this]() {
             const std::string r = playlist_->retomar();
             if (r.empty()) emit notify("La playlist sigue donde estaba antes del corte", "info");
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "arranque", 0,
@@ -531,7 +532,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             std::ifstream f(archivo);
             nlohmann::json j = nlohmann::json::parse(f, nullptr, false);
             const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
-            if (j.is_object() && !j.value("vista", false) && ahora - j.value("hora_ms", 0LL) < 10 * 60 * 1000) {
+            if (j.is_object() && !j.value("vista", false) && ahora - j.value("hora_ms", 0LL) < ba::ajustes::entero64("launcher.cartelCaidaMin", 10) * 60 * 1000) {
                 caidaMs_ = j.value("hora_ms", 0LL);
                 caida_ = QVariantMap{{"causa", QString::fromStdString(j.value("causa", std::string()))},
                                      {"componente", QString::fromStdString(j.value("componente", std::string()))},
@@ -1343,7 +1344,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
     frameTick_.start(16); // hasta 60 Hz; FrameService solo avisa si hay frame nuevo
     // Tras una caída: la placa o el negro vuelven como estaban.
-    QTimer::singleShot(1500, this, [this]() {
+    QTimer::singleShot(ba::ajustes::entero("arranque.restaurarPlacaMs", 1500), this, [this]() {
         restaurarPlaca();
         if (dsk_) dsk_->restaurar();
     });
@@ -1608,9 +1609,9 @@ void StudioViewModel::armarBitacora() {
                                            "retención: grabaciones borradas de " + std::to_string(r["eventos"].size()) +
                                                " eventos (" + std::to_string(r.value("bytes", 0ULL) / 1000000) + " MB)");
         };
-        QTimer::singleShot(60000, this, revisar);
+        QTimer::singleShot(ba::ajustes::sAMs("historico.primeraRevisionS", 60), this, revisar);
         connect(tDisco, &QTimer::timeout, this, revisar);
-        tDisco->start(3600 * 1000);
+        tDisco->start(std::max(60000, ba::ajustes::entero("historico.revisarCadaMin", 60) * 60 * 1000));
     }
     auto* tFotos = new QTimer(this);
     tFotos->setInterval(10000);
@@ -2059,8 +2060,7 @@ void StudioViewModel::setSeccionConfig(const QString& pedida) {
                                                 {"Sistema", "Sistema y datos"},
                                                 {"Barra de navegación", "Apariencia"},
                                                 {"Barra de navegacion", "Apariencia"},
-                                                {"Audio y voz", "Voz del operador"},
-                                                {"Audio", "Voz del operador"}};
+                                                {"Audio y voz", "Voz del operador"}};
     const QString s = kAntes.value(pedida, pedida);
     if (s == seccionConfig_) return;
     seccionConfig_ = s;
@@ -3862,7 +3862,7 @@ void StudioViewModel::rotularTraduccion(const QString& flujo, const QString& ori
                                     {"transicion_ms", 300}});
     for (const auto& c : dsk_->capas())
         if (c.value("capa", 0) == rotuloCapa_ && !c.value("visible", false)) dsk_->mostrar(rotuloCapa_, true, false);
-    rotuloApagar_.start(15000); // se va 15 s después de la última frase traducida
+    rotuloApagar_.start(ba::ajustes::sAMs("traductor.rotuloApagarS", 15)); // se va después de la última frase traducida
 }
 
 void StudioViewModel::setRotuloTraduccion(bool activo) {

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "twitch/TwitchClient.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -613,7 +614,7 @@ void TwitchClient::chatLoop(QString token, QString login) {
         status("Chat de Twitch: reconectando…");
         for (int waited = 0; waited < backoff && !chatStop_; waited += 200)
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        backoff = std::min(backoff * 2, 60000);
+        backoff = std::min(backoff * 2, ba::ajustes::sAMs("twitch.reconexionMaxS", 60));
     }
 }
 

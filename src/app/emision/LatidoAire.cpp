@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "emision/LatidoAire.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include "diag/Registro.hpp"
@@ -77,11 +78,11 @@ void LatidoAire::bucle() {
         }
         ultimaVueltaNs = ahora;
         // Vivo: avanzó en el último segundo (un cuadro cada 1/fps; a 1 s sobra).
-        const bool vivo = sinAvanceNs < 1'000'000'000ULL;
+        const bool vivo = sinAvanceNs < static_cast<std::uint64_t>(ba::ajustes::msANs("supervisor.sinAvanceMs", 1000));
         motorVivo_ = vivo;
         const std::uint64_t ui0 = ultimoUiNs_.load();
         const std::uint64_t uiNs = ui0 == 0 ? 0 : ahora - ui0; // arrancando: la interfaz todavía carga
-        const bool uiTrabada = uiNs > 2'000'000'000ULL;
+        const bool uiTrabada = uiNs > static_cast<std::uint64_t>(ba::ajustes::msANs("supervisor.uiTrabadaMs", 2000));
         if (uiTrabada && !avisoTraba) {
             avisoTraba = true;
             ba::diag::registro().linea(ba::diag::Nivel::Aviso, "supervisor", 0,

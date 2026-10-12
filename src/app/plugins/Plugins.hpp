@@ -155,7 +155,7 @@ class Plugins : public QObject {
     std::string registro(const std::string& id, int lineas) const;
     /// Un pedido al plugin (control, ptz.*, info). `listo` con {ok, resultado|error}.
     void pedir(const std::string& id, const std::string& accion, const json& args,
-               std::function<void(json)> listo, int timeoutMs = 10000);
+               std::function<void(json)> listo, int timeoutMs = 0); ///< 0: el de Configuración (10 s)
     json eventos(const std::string& id, const std::string& canal, int cuantos) const;
     json secretosDe(const std::string& id) const;
     /// Lo que hay conectado: cámaras y micrófonos (GStreamer) + USB, HID y serie (Python).

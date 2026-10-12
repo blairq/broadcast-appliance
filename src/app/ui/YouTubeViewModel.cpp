@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/YouTubeViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <QClipboard>
@@ -435,7 +436,7 @@ void YouTubeViewModel::pollChat() {
                                           "warn");
                         return;
                     }
-                    self->chatTimer_.start(15000);
+                    self->chatTimer_.start(ba::ajustes::sAMs("chat.reintentoS", 15));
                     return;
                 }
                 self->chatPageToken_ = d.value("nextPageToken").toString();
@@ -443,7 +444,7 @@ void YouTubeViewModel::pollChat() {
                 if (!fresh.isEmpty()) {
                     for (const QJsonValue& v : fresh)
                         self->chatItems_.append(v);
-                    while (self->chatItems_.size() > 300)
+                    while (self->chatItems_.size() > ba::ajustes::entero("chat.historial", 300))
                         self->chatItems_.removeFirst();
                     self->chat_->setItems(withUid(self->chatItems_));
                     emit self->chatChanged();
@@ -480,7 +481,7 @@ void YouTubeViewModel::pollChat() {
                          emit self->notify(
                              "YouTube: ese evento no tiene chat (todavia no empezo o esta deshabilitado).",
                              "warn");
-                         self->chatTimer_.start(20000);
+                         self->chatTimer_.start(ba::ajustes::sAMs("chat.sinChatS", 20));
                          return;
                      }
                      fetch();

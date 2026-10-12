@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/TwitchViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <QDesktopServices>
@@ -64,7 +65,7 @@ TwitchViewModel::TwitchViewModel(AppRuntime& rt, QObject* parent)
         if (s.contains("valida") || s.contains("no se pudo")) emit notify(s, "warn");
     });
     connect(&streamTimer_, &QTimer::timeout, this, &TwitchViewModel::pollStream);
-    streamTimer_.start(30000); // estado del vivo: cada 30 s (barato)
+    streamTimer_.start(ba::ajustes::sAMs("twitch.estadoS", 30)); // estado del vivo (barato)
     QTimer::singleShot(0, client_.get(), &TwitchClient::stateChanged);
     if (loggedIn()) QTimer::singleShot(1500, this, &TwitchViewModel::refresh);
 }

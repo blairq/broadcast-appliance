@@ -85,6 +85,7 @@
 #include "MediaPump.hpp"
 
 #include "diag/Registro.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -174,7 +175,7 @@ std::string SignalingServer::issueLoginCode() {
     for (auto it = loginCodes_.begin(); it != loginCodes_.end();) {
         it = (it->second <= now) ? loginCodes_.erase(it) : std::next(it);
     }
-    loginCodes_[code] = now + 120000; // 2 minutos para abrir el navegador
+    loginCodes_[code] = now + ba::ajustes::sAMs("room.adminCodigoS", 120); // para abrir el navegador
     return code;
 }
 

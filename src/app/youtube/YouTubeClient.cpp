@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "youtube/YouTubeClient.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -29,7 +30,7 @@ namespace ba::app {
 namespace {
 
 constexpr const char* kScope = "https://www.googleapis.com/auth/youtube";
-constexpr int kLoginTimeoutMs = 5 * 60 * 1000;
+inline int kLoginTimeoutMs() { return ba::ajustes::entero("plataformas.loginMin", 5) * 60 * 1000; }
 
 QString randomToken(int n) {
     static const char* kSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
@@ -418,7 +419,7 @@ void YouTubeClient::login(Done done) {
         }
     });
     QPointer<QTcpServer> server(loginServer_);
-    QTimer::singleShot(kLoginTimeoutMs, this, [this, server]() {
+    QTimer::singleShot(kLoginTimeoutMs(), this, [this, server]() {
         if (server && server == loginServer_) finishLogin(false, "El login no se completo en 5 minutos.");
     });
     emit stateChanged();

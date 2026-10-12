@@ -30,6 +30,7 @@
 #pragma once
 
 #include <cstdint>
+#include "ajustes/Ajustes.hpp"
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -38,6 +39,10 @@ namespace ba::launcher {
 
 /// Tamaño a partir del cual se rota la salida de un hijo antes de lanzarlo.
 inline constexpr std::uintmax_t kChildOutputMaxBytes = 5u * 1024u * 1024u;
+/// El tope de Configuración (avanzado: «launcher.salidaHijosMB»); 5 MB de siempre.
+inline std::uintmax_t childOutputMaxBytes() {
+    return static_cast<std::uintmax_t>(ba::ajustes::entero("launcher.salidaHijosMB", 5)) * 1024u * 1024u;
+}
 
 /// Generaciones rotadas que se conservan (<archivo>.1 .. <archivo>.N).
 inline constexpr int kChildOutputKeepFiles = 2;
@@ -50,7 +55,7 @@ inline constexpr int kChildOutputKeepFiles = 2;
 /// y el proximo lanzamiento reintenta.
 ///
 /// :returns: true si se roto.
-bool rotateChildOutput(const std::filesystem::path& file, std::uintmax_t maxBytes = kChildOutputMaxBytes,
+bool rotateChildOutput(const std::filesystem::path& file, std::uintmax_t maxBytes = childOutputMaxBytes(),
                        int keepFiles = kChildOutputKeepFiles);
 
 /// Los argumentos en una linea, con los valores sensibles tapados ("***"):
@@ -68,7 +73,7 @@ std::string redactedArgs(const std::vector<std::string>& args);
 /// :returns: true si el archivo se puede escribir; false = lanzar sin captura.
 bool prepareChildOutput(const std::filesystem::path& file, const std::string& name,
                         const std::filesystem::path& exe, const std::vector<std::string>& args,
-                        std::uintmax_t maxBytes = kChildOutputMaxBytes,
+                        std::uintmax_t maxBytes = childOutputMaxBytes(),
                         int keepFiles = kChildOutputKeepFiles);
 
 } // namespace ba::launcher

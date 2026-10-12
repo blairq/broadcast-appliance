@@ -94,6 +94,7 @@ struct Config {
     int sinVideoPlacaMs = 1000; // invitado sin video tanto tiempo: su lugar muestra la placa
     int pinIntentos = 5;        // PIN mal tantas veces desde una IP: se la bloquea
     int pinBloqueoS = 60;       // por cuánto
+    nlohmann::json ajustes = nlohmann::json::object(); // los avanzados (ba::ajustes), de gateway.json
     std::string adminWebroot;  // Web/admin (consola web del operador)
     // --- Acceso directo de invitados ----------------------------------------
     bool https = true;           // HTTPS propio (camara/micro exigen pagina segura)
@@ -174,6 +175,7 @@ struct Config {
         }
         maxUploadMB = j.value("maxUploadMB", maxUploadMB);
         sinVideoPlacaMs = std::clamp(j.value("sinVideoPlacaMs", sinVideoPlacaMs), 200, 30000);
+        if (j.contains("ajustes") && j["ajustes"].is_object()) ajustes = j["ajustes"];
         pinIntentos = std::clamp(j.value("pinIntentos", pinIntentos), 1, 100);
         pinBloqueoS = std::clamp(j.value("pinBloqueoS", pinBloqueoS), 5, 86400);
     }

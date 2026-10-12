@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/ConferenceClient.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 
@@ -17,8 +18,8 @@
 namespace ba::app {
 
 namespace {
-constexpr int kMaxBackoffMs = 15000;
-constexpr int kWatchdogMs = 40000; // B late cada 15 s: 40 s sin nada = conexion muerta
+inline int kMaxBackoffMs() { return ba::ajustes::sAMs("room.reconexionMaxS", 15); }
+inline int kWatchdogMs() { return ba::ajustes::sAMs("room.salaMuertaS", 40); } // B late cada 15 s: tanto sin nada = conexion muerta
 } // namespace
 
 ConferenceClient::ConferenceClient(QObject* parent) : QObject(parent) {
@@ -68,11 +69,11 @@ void ConferenceClient::connectEvents() {
     sse_ = nam_.get(req);
     connect(sse_, &QNetworkReply::readyRead, this, &ConferenceClient::onEventsData);
     connect(sse_, &QNetworkReply::finished, this, &ConferenceClient::onEventsClosed);
-    watchdog_.start(kWatchdogMs);
+    watchdog_.start(kWatchdogMs());
 }
 
 void ConferenceClient::onEventsData() {
-    watchdog_.start(kWatchdogMs);
+    watchdog_.start(kWatchdogMs());
     buf_ += sse_->readAll();
     // Bloques separados por linea en blanco; lineas "event:", "data:", ":".
     for (;;) {
@@ -124,7 +125,7 @@ void ConferenceClient::onEventsClosed() {
 void ConferenceClient::scheduleReconnect() {
     if (retry_.isActive()) return;
     retry_.start(backoffMs_);
-    backoffMs_ = std::min(backoffMs_ * 2, kMaxBackoffMs);
+    backoffMs_ = std::min(backoffMs_ * 2, kMaxBackoffMs());
 }
 
 void ConferenceClient::setOnline(bool on) {

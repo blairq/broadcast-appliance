@@ -39,7 +39,7 @@ void Superficies::latido(const std::string& tipo, const std::string& id, const s
     const std::int64_t ahora = ahoraMs();
     // Se limpia al anotar: no hay temporizador acá y lo viejo se va solo.
     for (auto it = por_.begin(); it != por_.end();)
-        it = ahora - it->second.vistaMs > kVivaMs * 20 ? por_.erase(it) : std::next(it);
+        it = ahora - it->second.vistaMs > kVivaMs() * 20 ? por_.erase(it) : std::next(it);
     if (por_.size() >= kMax && por_.find(id) == por_.end()) {
         auto viejo = por_.begin();
         for (auto it = por_.begin(); it != por_.end(); ++it)
@@ -61,7 +61,7 @@ json Superficies::vivas() const {
     json out = json::array();
     for (const auto& [id, v] : por_) {
         const std::int64_t hace = ahora - v.vistaMs;
-        if (hace > kVivaMs) continue;
+        if (hace > kVivaMs()) continue;
         out.push_back(json{{"id", id},
                            {"tipo", v.tipo},
                            {"que", v.que},

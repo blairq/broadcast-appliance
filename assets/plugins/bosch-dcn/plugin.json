@@ -25,6 +25,9 @@
     "asistencia": true,
     "traza": false,
     "simulador_unidades": 12,
-    "simulador_actividad_s": 0
+    "simulador_actividad_s": 0,
+    "espera_s": 5,
+    "conectar_s": 5,
+    "sincronizar_s": 30
   }
 }

@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "video/ElementosGst.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "diag/Registro.hpp"
 #include "video/CatalogoGst.hpp"
@@ -72,7 +73,7 @@ void revisarElementosGstAlArrancar() {
     std::thread([]() {
         if (!iniciarGStreamer()) return;
         // Los de la app se registran en otros hilos al arrancar: un rato de gracia.
-        std::this_thread::sleep_for(std::chrono::seconds(8));
+        std::this_thread::sleep_for(std::chrono::seconds(ba::ajustes::entero("arranque.revisarElementosS", 8)));
         for (const auto& e : revisarElementosGst())
             if (!e.value("esta", true))
                 ba::diag::registro().linea(e.value("imprescindible", false) ? ba::diag::Nivel::Error : ba::diag::Nivel::Aviso,

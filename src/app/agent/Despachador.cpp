@@ -200,7 +200,7 @@ std::string Despachador::encargar(const std::string& rolId, const std::string& t
     c->creadaMs = ahoraMs();
     const std::string id = c->id;
     corridas_.push_front(std::move(c));
-    while (corridas_.size() > kCorridasGuardadas) {
+    while (corridas_.size() > kCorridasGuardadas()) {
         // Nunca se tira una en curso.
         auto& ultima = corridas_.back();
         if (ultima->proc != nullptr) break;
@@ -324,10 +324,10 @@ void Despachador::lanzarAhora(Corrida& c) {
     connect(c.tope, &QTimer::timeout, this, [this, id]() {
         Corrida* cc = porId(id);
         if (cc == nullptr || cc->proc == nullptr) return;
-        cc->error = "se paso del tope de " + std::to_string(kTopeMinutos) + " minutos";
+        cc->error = "se paso del tope de " + std::to_string(kTopeMinutos()) + " minutos";
         cc->proc->kill();
     });
-    c.tope->start(kTopeMinutos * 60 * 1000);
+    c.tope->start(kTopeMinutos() * 60 * 1000);
     c.estado = "corriendo";
     c.inicioMs = ahoraMs();
     registrar(diag::Nivel::Info, c.rol,
@@ -651,7 +651,7 @@ QVariantList Despachador::rolesQml() const {
 }
 
 QVariantList Despachador::corridasQml() const {
-    json r = corridas(kCorridasGuardadas);
+    json r = corridas(kCorridasGuardadas());
     for (auto& x : r) {
         const Rol* rol = roles_.porId(x.value("rol", ""));
         x["rolTitulo"] = rol == nullptr ? x["rol"] : json(rol->titulo);

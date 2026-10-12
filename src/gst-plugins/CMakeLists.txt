@@ -139,7 +139,7 @@ endif()
 # Rostros: YuNet + SFace (src/core/rostros, el mismo de Personas) con el ONNX
 # Runtime de la plataforma; en la Mac, además el detector de Apple (Vision).
 if(EXISTS "${BA_ORT_DIR}/include/onnxruntime_cxx_api.h" AND EXISTS "${_ba_ort}")
-    set(_ros rostros/plugin.cpp rostros/barostros.cpp rostros/seguir.cpp "${CMAKE_SOURCE_DIR}/src/core/rostros/Rostros.cpp"
+    set(_ros rostros/plugin.cpp rostros/barostros.cpp rostros/seguir.cpp "${CMAKE_SOURCE_DIR}/src/core/rostros/Rostros.cpp" "${CMAKE_SOURCE_DIR}/src/core/ajustes/Ajustes.cpp"
              "${CMAKE_SOURCE_DIR}/src/core/diag/Utf8.cpp") # los mensajes de ONNX Runtime (cp1252 en Windows)
     if(APPLE)
         list(APPEND _ros rostros/vision_mac.mm)

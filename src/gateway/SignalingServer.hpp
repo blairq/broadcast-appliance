@@ -86,6 +86,7 @@
 #include "TokenAuth.hpp"
 #include "Votacion.hpp"
 #include "Webrtc.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -373,7 +374,7 @@ class SignalingServer {
     /// reenganche. Aparte de la sala a proposito: nada de lo que sabe Room
     /// aplica a un televisor.
     ///
-    /// La entrada SOBREVIVE a la desconexion (hasta `kPantallaTtlMs`) porque
+    /// La entrada SOBREVIVE a la desconexion (hasta `kPantallaTtlMs()`) porque
     /// el token de ingreso es de un solo uso: sin esto, un televisor que
     /// pierde el WebSocket un segundo no puede volver nunca mas y se queda en
     /// "reconectando" hasta que alguien lo vuelva a castear a mano.
@@ -382,8 +383,8 @@ class SignalingServer {
         int canal = -1; ///< canal de escena que muestra (BA.Escena.<k>); -1: el programa
         std::int64_t sueltaMs = 0; ///< cuando se desconecto (0: conectada)
     };
-    static constexpr std::int64_t kPantallaTtlMs = 12LL * 60 * 60 * 1000;
-    static constexpr std::size_t kMaxPantallas = 32;
+    static std::int64_t kPantallaTtlMs() { return ba::ajustes::entero64("pantallas.ttlHoras", 12) * 60 * 60 * 1000; }
+    static std::size_t kMaxPantallas() { return static_cast<std::size_t>(ba::ajustes::entero("pantallas.max", 32)); }
     mutable std::mutex pantallasLock_;
     std::map<std::string, Pantalla> pantallas_;
     Rotulador rotulador_;
@@ -425,8 +426,8 @@ class SignalingServer {
     std::thread adminAcceptThread_;
 
     std::atomic<int> activeConns_{0};
-    static constexpr int kMaxConcurrentConns = 64;
-    static constexpr int kHandshakeTimeoutMs = 15000;
+    static int kMaxConcurrentConns() { return ba::ajustes::entero("room.maxConexiones", 64); }
+    static int kHandshakeTimeoutMs() { return ba::ajustes::entero("room.handshakeMs", 15000); }
     std::set<long long> activeFds_;
     std::mutex activeFdsLock_;
 

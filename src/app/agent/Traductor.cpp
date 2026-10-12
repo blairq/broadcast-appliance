@@ -1,6 +1,7 @@
 // src/app/agent/Traductor.cpp — ver Traductor.hpp
 
 #include "agent/Traductor.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
@@ -74,7 +75,7 @@ std::string clave(const json& e) {
     return v.empty() ? std::string() : QString::fromStdString(v[0]).toLower().toStdString();
 }
 const char* kIdiomas[] = {"es", "en", "pt", "fr", "de", "ru", "zh"};
-constexpr int kMaxCaidas = 5;
+inline int kMaxCaidas() { return ba::ajustes::entero("traductor.maxCaidas", 5); }
 } // namespace
 
 const std::map<std::string, std::string>& Traductor::nombresIdiomas() {
@@ -448,7 +449,7 @@ void Traductor::alSalir() {
     enCurso_.clear();
     for (auto& [id, cb] : pend)
         cb({{"error", "el traductor se cerró"}});
-    if (++caidas_ > kMaxCaidas) {
+    if (++caidas_ > kMaxCaidas()) {
         motor_ = "error: el traductor se cayó varias veces seguidas (ver Logs)";
         for (auto& p : cola_)
             p.listo({{"error", motor_.toStdString()}});
@@ -458,7 +459,7 @@ void Traductor::alSalir() {
     }
     motor_ = "apagado";
     emit cambio();
-    if (!cola_.empty()) QTimer::singleShot(500, this, [this]() { arrancarMotor(); });
+    if (!cola_.empty()) QTimer::singleShot(ba::ajustes::entero("traductor.relanzarMs", 500), this, [this]() { arrancarMotor(); });
 }
 
 void Traductor::mandar() {
@@ -516,7 +517,7 @@ bool cierra(const QString& t) {
     return c == '.' || c == '?' || c == '!' || c == QChar(0x2026) || c == QChar(0x3002) || c == ':' ||
            c == ';';
 }
-constexpr int kLargoMaximo = 280; ///< caracteres: más que esto no se espera
+inline std::size_t kLargoMaximo() { return static_cast<std::size_t>(ba::ajustes::entero("traductor.largoMax", 280)); } ///< caracteres: más que esto no se espera
 } // namespace
 
 void Traductor::alFrase(const QString& flujo, const QString& texto) {
@@ -538,7 +539,7 @@ void Traductor::alFrase(const QString& flujo, const QString& texto) {
         if (cierra(j.texto)) {
             j.timer->stop();
             soltar(id);
-        } else if (j.texto.size() > kLargoMaximo || ahora - j.desde >= maximo) {
+        } else if (j.texto.size() > kLargoMaximo() || ahora - j.desde >= maximo) {
             // Demasiado largo o demasiado tiempo sin punto: se traduce hasta la
             // última coma (si deja algo razonable) y el resto sigue juntándose.
             j.timer->stop();

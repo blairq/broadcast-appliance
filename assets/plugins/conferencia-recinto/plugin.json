@@ -5,6 +5,14 @@
   "version": "1.0",
   "principal": "plugin.py",
   "dependencias": [],
-  "config": {"modo": "simulador", "host": "", "puerto": 9000, "patron": "MIC\\s+(?P<banca>\\w+)\\s+(?P<estado>ON|OFF|1|0)",
-             "simulador_cada_s": 12, "al_abrir": "nada"}
+  "config": {
+    "modo": "simulador",
+    "host": "",
+    "puerto": 9000,
+    "patron": "MIC\\s+(?P<banca>\\w+)\\s+(?P<estado>ON|OFF|1|0)",
+    "simulador_cada_s": 12,
+    "al_abrir": "nada",
+    "conectar_s": 10,
+    "reconectar_s": 5
+  }
 }

@@ -183,8 +183,8 @@ void conectados() {
     CHECK(p.clientes().size() == antes, "sin id no se anota");
 
     // Dejar de pedir = desaparecer. La pagina pide cada 500 ms, asi que
-    // pasado kVivoMs sin aparecer ya no esta.
-    std::this_thread::sleep_for(std::chrono::milliseconds(Prompter::kVivoMs + 200));
+    // pasado kVivoMs() sin aparecer ya no esta.
+    std::this_thread::sleep_for(std::chrono::milliseconds(Prompter::kVivoMs() + 200));
     CHECK(p.clientes().empty(), "el que deja de pedir se va solo");
     p.visto("tablet-1", "orador", "", 0x0100007f);
     CHECK(p.clientes().size() == 1, "y vuelve si vuelve a pedir");

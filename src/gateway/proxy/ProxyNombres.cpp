@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "proxy/ProxyNombres.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "proxy/Certificados.hpp"
 
@@ -45,10 +46,10 @@ namespace ba::gateway::proxy {
 
 namespace {
 
-constexpr size_t kTope = 256 * 1024;      // por dirección: más, y se deja de leer
-constexpr int kHandshakeMs = 10000;
-constexpr int kOciosoMs = 15 * 60 * 1000; // un WebSocket quieto (con su latido) dura más que esto
-constexpr int kMaxConexiones = 4000;
+inline size_t kTope() { return static_cast<size_t>(ba::ajustes::entero("proxy.topeKB", 256)) * 1024; } // por dirección: más, y se deja de leer
+inline int kHandshakeMs() { return ba::ajustes::entero("proxy.handshakeMs", 10000); }
+inline int kOciosoMs() { return ba::ajustes::entero("proxy.ociosoMin", 15) * 60 * 1000; } // un WebSocket quieto (con su latido) dura más que esto
+inline int kMaxConexiones() { return ba::ajustes::entero("proxy.maxConexiones", 4000); }
 
 std::int64_t ahoraMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch())
@@ -382,7 +383,7 @@ void ProxyNombres::bucle() {
 #else
             if (s < 0) return;
 #endif
-            if (static_cast<int>(conns.size()) >= kMaxConexiones) {
+            if (static_cast<int>(conns.size()) >= kMaxConexiones()) {
                 cerrar(static_cast<long long>(s));
                 ++rechazadas_;
                 continue;
@@ -518,9 +519,9 @@ void ProxyNombres::bucle() {
                 case Conn::Estado::Http: evCli = POLLIN; break;
                 case Conn::Estado::Conectando: evBack = POLLOUT; break;
                 case Conn::Estado::Pasando:
-                    if (c.haciaAdentro.size() < kTope && !c.finCliente) evCli |= POLLIN;
+                    if (c.haciaAdentro.size() < kTope() && !c.finCliente) evCli |= POLLIN;
                     if (!c.haciaAfuera.empty()) evCli |= POLLOUT;
-                    if (c.haciaAfuera.size() < kTope && !c.finServicio) evBack |= POLLIN;
+                    if (c.haciaAfuera.size() < kTope() && !c.finServicio) evBack |= POLLIN;
                     if (!c.haciaAdentro.empty()) evBack |= POLLOUT;
                     if (c.esTls && mbedtls_ssl_get_bytes_avail(&c.ssl) > 0) hayPendienteTls = true;
                     break;
@@ -569,7 +570,7 @@ void ProxyNombres::bucle() {
                     }
                 } else if (c.estado == Conn::Estado::Pasando) {
                     if (lee || mbedtls_ssl_get_bytes_avail(&c.ssl) > 0) {
-                        while (c.haciaAdentro.size() < kTope) {
+                        while (c.haciaAdentro.size() < kTope()) {
                             const int r = mbedtls_ssl_read(&c.ssl, reinterpret_cast<unsigned char*>(buf.data()), buf.size());
                             if (r > 0) {
                                 c.haciaAdentro.append(buf.data(), static_cast<size_t>(r));
@@ -637,8 +638,8 @@ void ProxyNombres::bucle() {
         for (auto it = conns.begin(); it != conns.end();) {
             Conn& c = **it;
             bool fin = false;
-            if (c.estado == Conn::Estado::Handshake && ahora - c.desde > kHandshakeMs) fin = true;
-            if (ahora - c.ultimo > kOciosoMs) fin = true;
+            if (c.estado == Conn::Estado::Handshake && ahora - c.desde > kHandshakeMs()) fin = true;
+            if (ahora - c.ultimo > kOciosoMs()) fin = true;
             if (c.estado == Conn::Estado::Pasando) {
                 if (c.finServicio && c.haciaAfuera.empty()) fin = true;
                 if (c.finCliente && c.haciaAdentro.empty()) fin = true;

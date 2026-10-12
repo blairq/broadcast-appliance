@@ -167,7 +167,7 @@ void McpService::registerRostroTools() {
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
                         const auto q = pv->libreta().buscar(visto.vector);
-                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
                         if (seguro) pv->libreta().vistaAhora(q.id, ahoraMs());
                         out.push_back(json{
                             {"id", seguro ? q.id : ""},
@@ -373,7 +373,7 @@ void McpService::registerRostroTools() {
                     for (const auto& visto : caras) {
                         const ba::rostros::Cara& c = visto.cara;
                         const auto q = pv->libreta().buscar(visto.vector);
-                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+                        const bool seguro = q.parecido >= ba::rostros::kMismaPersona();
                         json j = calidadJson(calidadDe(img, c));
                         j["id"] = seguro ? q.id : "";
                         j["nombre"] = seguro ? q.nombre : "";

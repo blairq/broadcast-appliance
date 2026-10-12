@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "agent/AgentViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -254,7 +255,7 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, AlertEngine& alerts, QObject* par
     });
     connect(&alerts_, &AlertEngine::fired, this, &AgentViewModel::onAlert);
     // Arranque automatico cuando todo este listo (GuiMode conecta el MCP despues).
-    QTimer::singleShot(2500, this, [this]() {
+    QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
         if (autoStart_ && installed() && mcpReady() && !running()) start();
     });
 }
@@ -420,7 +421,7 @@ void AgentViewModel::probarModeloPropio() {
         req.method = "GET";
         req.url = url;
         req.headers = {{"Authorization", autorizacion}, {"Accept", "application/json"}};
-        req.timeoutMs = 8000;
+        req.timeoutMs = ba::ajustes::entero("asistente.probarMs", 8000);
         const net::HttpResponse r = net::HttpsClient::request(req);
         QString texto;
         QString nivel = "error";
@@ -923,7 +924,7 @@ void AgentViewModel::install() {
                 QProcess py;
                 py.start(QString::fromStdString(pythonDelPrograma().string()),
                          {"-I", "-B", "-c", kDescomprimir, QDir::toNativeSeparators(tmp), QDir::toNativeSeparators(dest)});
-                if (!py.waitForFinished(600000) || py.exitStatus() != QProcess::NormalExit || py.exitCode() != 0)
+                if (!py.waitForFinished(ba::ajustes::entero("asistente.descomprimirMin", 10) * 60000) || py.exitStatus() != QProcess::NormalExit || py.exitCode() != 0)
                     err = "No se pudo descomprimir: " +
                           QString::fromUtf8(py.readAllStandardError()).trimmed().right(400) +
                           (py.error() == QProcess::FailedToStart ? " (no arrancó el Python del programa)" : "");
@@ -1404,10 +1405,10 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
                                {"models", json::array({{{"id", "local"},
                                                         {"name", "Modelo local"},
                                                         {"contextWindow", rt_.config().modeloContexto},
-                                                        {"maxTokens", 4096},
+                                                        {"maxTokens", ba::ajustes::entero("modelo.maxTokens", 4096)},
                                                         {"samplingParams",
-                                                         {{"temperature", 0.7}, {"top_p", 0.8}, {"top_k", 20},
-                                                          {"presence_penalty", 1.5}}}}})}}}}}};
+                                                         {{"temperature", ba::ajustes::numero("modelo.temperatura", 0.7)}, {"top_p", 0.8}, {"top_k", 20},
+                                                          {"presence_penalty", ba::ajustes::numero("modelo.penalidadRepeticion", 1.5)}}}}})}}}}}};
         writeText(profile + "/models.json",
                   QByteArray::fromStdString(modelos.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
         // El prompt propio (el de pi es para programar) y SOLO el programa: la
@@ -1638,7 +1639,7 @@ void AgentViewModel::arrancarServidorLocal(std::function<void()> listo) {
             pararServidorLocal();
             return;
         }
-        if (++*intentos > 360) {
+        if (++*intentos > ba::ajustes::entero("modelo.cargaS", 180) * 2) { // cada 500 ms
             reloj->stop();
             setError("El modelo local no terminó de cargar en 3 minutos (ver Logs/llama-server.log).");
             pararServidorLocal();
@@ -1706,7 +1707,7 @@ void AgentViewModel::setHayAire(std::function<bool()> fn) {
     hayAire_ = std::move(fn);
     if (vigiaAire_ != nullptr) return;
     vigiaAire_ = new QTimer(this);
-    vigiaAire_->setInterval(2000);
+    vigiaAire_->setInterval(ba::ajustes::entero("asistente.vigiaAireMs", 2000));
     connect(vigiaAire_, &QTimer::timeout, this, [this]() {
         if (!session_->running() || !hayAire_) return;
         const bool aire = hayAire_();
@@ -1795,7 +1796,7 @@ void AgentViewModel::onAlert(const json& ev) {
     if (!flushScheduled_) {
         flushScheduled_ = true;
         // Si llegan varias juntas, van en un solo mensaje.
-        QTimer::singleShot(1500, this, &AgentViewModel::flushAlerts);
+        QTimer::singleShot(ba::ajustes::entero("asistente.agruparAlertasMs", 1500), this, &AgentViewModel::flushAlerts);
     }
 }
 
@@ -1804,7 +1805,7 @@ void AgentViewModel::deliverNote(const QString& text) {
     pendingAlerts_ << text;
     if (!flushScheduled_) {
         flushScheduled_ = true;
-        QTimer::singleShot(600, this, &AgentViewModel::flushAlerts);
+        QTimer::singleShot(ba::ajustes::entero("asistente.agruparNotasMs", 600), this, &AgentViewModel::flushAlerts);
     }
 }
 

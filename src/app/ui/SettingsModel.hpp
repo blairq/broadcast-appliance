@@ -44,7 +44,8 @@ class SettingsModel : public QAbstractListModel {
         SuffixRole,
         HelpRole,
         ScopeRole, ///< "live" "gateway" "restart"
-        ModifiedRole
+        ModifiedRole,
+        AvanzadoRole ///< de los «avanzados» (ui/AjustesAvanzados): se ven con «Mostrar ajustes avanzados»
     };
 
     explicit SettingsModel(AppRuntime& rt, QObject* parent = nullptr);
@@ -62,6 +63,10 @@ class SettingsModel : public QAbstractListModel {
     Q_INVOKABLE void revert() override;
     /// Vuelve a los valores por defecto la seccion (en el borrador).
     Q_INVOKABLE void resetSection(const QString& section);
+    /// Si la sección tiene campos que no son avanzados (si no, se muestran siempre).
+    Q_INVOKABLE bool tieneBasicos(const QString& section) const;
+    /// Si la sección tiene avanzados (el interruptor se muestra solo donde sirve).
+    Q_INVOKABLE bool tieneAvanzados(const QString& section) const;
     /// Modo en vivo (T48): mientras devuelva true, lo que reinicia el gateway o el
     /// programa no se aplica (corta a los invitados o el aire).
     void setEnVivo(std::function<bool()> fn) { enVivo_ = std::move(fn); }
@@ -86,9 +91,12 @@ class SettingsModel : public QAbstractListModel {
         QString help;
         QString scope;
         QVariant def;
+        bool avanzado = false;
+        int destino = 0; ///< avanzados: 0 app.json, 1 gateway.json, 2 launcher.json ("ajustes")
     };
     void load(); // configuracion actual -> borrador
     QVariantMap current() const;
+    QVariantMap currentBasicos() const; ///< los de siempre (sin los avanzados)
     int rowOfKey(const QString& key) const;
 
     AppRuntime& rt_;

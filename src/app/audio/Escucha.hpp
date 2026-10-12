@@ -31,6 +31,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::app::audio {
 
@@ -53,7 +54,8 @@ class Escucha {
     using Listo = std::function<void(const Resultado&)>;
 
     /// Lo más que se graba en una toma: una orden, no un discurso.
-    static constexpr double kMaxSegundos = 30.0;
+    /// Largo máximo de un segmento que va a transcripción (Configuración → avanzado).
+    static double kMaxSegundosAhora() { return ajustes::numero("escucha.segmentoMaxS", 30.0); }
 
     Escucha();
     ~Escucha();

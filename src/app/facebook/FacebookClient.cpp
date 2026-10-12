@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "facebook/FacebookClient.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -239,8 +240,8 @@ void FacebookClient::login(Done done) {
         }
     });
     QPointer<QTcpServer> server(loginServer_);
-    QTimer::singleShot(5 * 60 * 1000, this, [this, server]() {
-        if (server && server == loginServer_) finishLogin(false, "El login no se completo en 5 minutos.");
+    QTimer::singleShot(ba::ajustes::entero("plataformas.loginMin", 5) * 60 * 1000, this, [this, server]() {
+        if (server && server == loginServer_) finishLogin(false, "El login no se completo a tiempo.");
     });
     emit stateChanged();
     openBrowser_(url.toString(QUrl::FullyEncoded));

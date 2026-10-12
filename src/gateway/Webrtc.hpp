@@ -66,6 +66,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -249,7 +250,7 @@ class WebrtcHub {
         uint64_t salida = 0;
     };
     Trafico trafico() const;
-    static constexpr int kMaxViewers = 48;
+    static int kMaxViewers() { return ba::ajustes::entero("room.maxVisores", 48); }
 
    private:
     int guests_;

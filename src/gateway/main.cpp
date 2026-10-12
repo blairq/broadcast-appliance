@@ -40,6 +40,7 @@
 // ============================================================================
 
 #include <algorithm>
+#include "ajustes/Ajustes.hpp"
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -416,6 +417,7 @@ int main(int argc, char** argv) {
     // Config/gateway.json (lo escribe la interfaz de A); la linea de comandos
     // lo pisa.
     cfg.loadFile((ba::platform::configRoot() / "Config" / "gateway.json").string());
+    ba::ajustes::cargar(cfg.ajustes); // Configuración → avanzados de la sala
     cfg.parseArgs(argc, argv);
     cfg.derivePaths();
     Log log;
@@ -515,9 +517,10 @@ int main(int argc, char** argv) {
     // distribuido: con el valor anterior (5) los fallos de UN solo cliente
     // cerraban /api/join para todos los invitados, que era una negacion de
     // servicio trivial contra la sala.
-    constexpr int kGlobalPinAttempts = 100;
-    constexpr int kGlobalLockoutSec = 60;
-    TokenAuth auth(std::move(hmacSecret), roomPin, kGlobalPinAttempts, kGlobalLockoutSec, 300);
+    const int kGlobalPinAttempts = ba::ajustes::entero("room.pinGlobalIntentos", 100);
+    const int kGlobalLockoutSec = ba::ajustes::entero("room.pinGlobalBloqueoS", 60);
+    TokenAuth auth(std::move(hmacSecret), roomPin, kGlobalPinAttempts, kGlobalLockoutSec,
+                   ba::ajustes::entero("room.tokenTtlS", 300));
 
     // --- Hub de sesiones WebRTC (1..guests).
     // Pool de sesiones: una por participante que publica (adentro, en el lobby

@@ -1,6 +1,7 @@
 // src/app/agent/VozPrompter.cpp — ver VozPrompter.hpp
 
 #include "agent/VozPrompter.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <QDateTime>
@@ -30,8 +31,8 @@ namespace pv = prompter_voz;
 
 namespace {
 constexpr int kTickMs = 100;
-constexpr int kConsultaMs = 250;       ///< cada cuánto se mira el estado del gateway
-constexpr double kAnticipoMs = 6000;   ///< cuánto antes se sintetiza una frase (con 3 s llegaba tarde)
+inline int kConsultaMs() { return ba::ajustes::entero("vozPrompter.consultaMs", 250); } ///< cada cuánto se mira el estado del gateway
+inline double kAnticipoMs() { return ba::ajustes::numero("vozPrompter.anticipoMs", 6000); } ///< cuánto antes se sintetiza una frase (con 3 s llegaba tarde)
 constexpr double kSaltoPalabras = 1.5; ///< más de esto entre lo previsto y lo informado: saltó
 
 QString archivo(const std::filesystem::path& raiz) {
@@ -166,7 +167,7 @@ void VozPrompter::consultar() {
 
 void VozPrompter::tick() {
     static int cuenta = 0;
-    if (++cuenta * kTickMs >= kConsultaMs) {
+    if (++cuenta * kTickMs >= kConsultaMs()) {
         cuenta = 0;
         consultar();
     }
@@ -213,7 +214,7 @@ void VozPrompter::tick() {
     while (siguiente_ < static_cast<int>(frases_.size())) {
         const auto& f = frases_[static_cast<std::size_t>(siguiente_)];
         const double llega = pv::llegaEn(est_, f.desde);
-        if (llega - ahoraG > kAnticipoMs) break;
+        if (llega - ahoraG > kAnticipoMs()) break;
         agendar(f.desde, f.hasta, llega);
         ++siguiente_;
     }

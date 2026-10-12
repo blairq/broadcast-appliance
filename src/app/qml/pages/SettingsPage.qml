@@ -26,12 +26,16 @@ Rectangle {
     /// El orden de la lista de la izquierda. Las secciones del esquema
     /// (SettingsModel) y las de vista propia, juntas por tema.
     readonly property var grupos: [
-        { titulo: "Imagen", secciones: ["Video", "Cámaras y entradas", page.traduccionSection] },
+        { titulo: "Imagen y sonido", secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
         { titulo: "Salida", secciones: ["Transmisión", "Grabación", "Codificación"] },
         { titulo: "Sala de invitados", secciones: ["Invitados", "Sala", "Red de la sala", "Acceso remoto"] },
         { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
-        { titulo: "Sistema", secciones: [page.aparienciaSection, page.systemSection] }
+        { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", page.systemSection] }
     ]
+    /// Los ajustes avanzados (antes fijos en el código): escondidos salvo que se pidan;
+    /// una sección que solo tiene avanzados (Audio, Plugins y descargas) los muestra siempre.
+    property bool verAvanzados: false
+
     /// Las que tienen vista propia (el formulario del esquema, si tienen campos, va adentro).
     readonly property var propias: [page.systemSection, page.aparienciaSection, page.modelosSection,
                                     page.vozSection, page.traduccionSection, page.controlSection]
@@ -48,7 +52,7 @@ Rectangle {
         "room.pinIntentos": "Seguridad", "room.maxUploadMB": "Archivos",
         "gateway.port": "Dónde escucha", "direct.https": "Conexión directa (HTTPS y WebRTC)", "room.adminPort": "Control",
         "gateway.tunnel": "Cloudflare", "wg.enabled": "Servidor propio (WireGuard)",
-        "mcp.approval": "Aprobaciones", "modelo.contexto": "El chat sin internet (pestaña Asistente)", "launcher.cuelgue": "Si se cuelga o se cae",
+        "mcp.approval": "Aprobaciones", "video.esperaCorteMs": "Avanzado", "entradas.congelarMs": "Avanzado", "audio.margenMezclaMs": "Avanzado", "stream.sinDatosS": "Avanzado", "record.colchonIsoS": "Avanzado", "room.oradorSeg": "Avanzado", "room.maxConexiones": "Avanzado", "gateway.tunelReintentoMaxS": "Avanzado", "asistente.demoraArranqueMs": "Avanzado", "modelo.maxTokens": "Avanzado", "traductor.maxCaidas": "Avanzado", "vozPrompter.consultaMs": "Avanzado", "descargas.simultaneas": "Avanzado", "launcher.primerLatidoS": "Avanzado", "modelo.contexto": "El chat sin internet (pestaña Asistente)", "launcher.cuelgue": "Si se cuelga o se cae",
     })
     readonly property var ml: Studio.modelos
     readonly property var sys: Studio.system
@@ -98,8 +102,12 @@ Rectangle {
             Layout.preferredWidth: 240
             Layout.fillHeight: true
             title: "Configuración"
+            ColumnLayout {
+            anchors.fill: parent
+            spacing: 6
             ListView {
-                anchors.fill: parent
+                Layout.fillWidth: true
+                Layout.fillHeight: true
                 clip: true
                 spacing: 2
                 // [{grupo}|{seccion}] en el orden de `grupos`.
@@ -116,7 +124,7 @@ Rectangle {
                     required property int index
                     readonly property bool esGrupo: modelData.grupo !== undefined
                     width: ListView.view.width
-                    height: esGrupo ? (index === 0 ? 18 : 24) : 30
+                    height: esGrupo ? (index === 0 ? 16 : 22) : 28
                     Text {
                         visible: parent.esGrupo
                         anchors { left: parent.left; leftMargin: 8; bottom: parent.bottom; bottomMargin: 4 }
@@ -135,12 +143,22 @@ Rectangle {
                     }
                 }
             }
+            }
         }
 
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
             title: page.section
+            // Arriba a la derecha, al lado del título: los avanzados (antes fijos en el código).
+            RowLayout {
+                z: 10
+                anchors { top: parent.top; right: parent.right; topMargin: -34; rightMargin: 4 }
+                spacing: 6
+                visible: Studio.settings.tieneBasicos(page.section) && Studio.settings.tieneAvanzados(page.section)
+                Text { text: "Mostrar ajustes avanzados"; color: Theme.textDim; font.pixelSize: 12 }
+                Switch { checked: page.verAvanzados; onToggled: page.verAvanzados = checked }
+            }
             ScrollView {
                 anchors.fill: parent
                 clip: true
@@ -238,7 +256,8 @@ Rectangle {
                 required property bool modified
                 required property string scope
                 required property int index
-                visible: section === campos.seccion
+                required property bool avanzado
+                visible: section === campos.seccion && (!avanzado || page.verAvanzados || !Studio.settings.tieneBasicos(section))
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? implicitHeight : 0
                 spacing: 8
@@ -847,7 +866,12 @@ Rectangle {
         ScrollView {
             clip: true
             contentWidth: availableWidth
-            PanelTraduccion { width: parent.width }
+            ColumnLayout {
+                width: parent.width
+                spacing: 14
+                PanelTraduccion { Layout.fillWidth: true }
+                CamposDeSeccion { Layout.fillWidth: true; seccion: page.traduccionSection }
+            }
         }
     }
     Component {
@@ -1152,6 +1176,8 @@ Rectangle {
                     compact: true; text: "Borrar la transcripción"
                     onClicked: Studio.voz.borrarTranscripcion()
                 }
+                // Los del esquema (la voz del prompter): avanzados.
+                CamposDeSeccion { Layout.fillWidth: true; seccion: page.vozSection }
             }
         }
     }

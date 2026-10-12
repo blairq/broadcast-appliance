@@ -4,12 +4,14 @@
 #include "Composicion.hpp"
 #include "diag/Utf8.hpp"
 
-#include "Mezcla.hpp" // kMargenMezclaNs
+#include "Mezcla.hpp" // margenMezclaNs
 #include "Reloj.hpp"
 
 #include <gst/video/video.h>
 
 #include <algorithm>
+
+#include "ajustes/Ajustes.hpp"
 #include <cstdlib>
 #include <atomic>
 #include <cmath>
@@ -28,7 +30,6 @@ std::string nombreSeguro(const std::string& s) {
     return n;
 }
 
-constexpr std::int64_t kEsperaCorteNs = 700 * GST_MSECOND; ///< corte: lo más que se espera el primer cuadro de la nueva
 } // namespace
 
 // --- Sombra -----------------------------------------------------------------------------
@@ -240,7 +241,7 @@ Composicion::~Composicion() {
 }
 
 void Composicion::aplicarLatencia() {
-    const std::int64_t l = reloj_.latencia() + kMargenMezclaNs;
+    const std::int64_t l = reloj_.latencia() + margenMezclaNs();
     if (latenciaNs_ >= 0 && l <= latenciaNs_ && l > latenciaNs_ - 60 * static_cast<std::int64_t>(GST_MSECOND)) return;
     latenciaNs_ = l;
     // Todo en otro hilo (ver recalcularLatenciaAparte): esto corre en el bucle del motor.
@@ -597,7 +598,7 @@ void Composicion::mostrar(const Escena& e, const std::string& transicion, int ms
         genVieja_ = vieja;
         transicion_ = animada ? transicion : "corte";
         transDesdeNs_ = ahoraNs();
-        transNs_ = animada ? static_cast<std::int64_t>(ms) * 1000000 : kEsperaCorteNs;
+        transNs_ = animada ? static_cast<std::int64_t>(ms) * 1000000 : ajustes::msANs("video.esperaCorteMs", 700);
         if (animada) animar(0.0);
     }
 }

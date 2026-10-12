@@ -24,6 +24,27 @@ Ya están en Configuración (clave entre paréntesis):
 
 No se duplicaron en la página porque ya tienen su lugar en la interfaz: la retención de grabaciones y el aviso de disco (página Histórico), la espera de la interfaz trabada (tarjeta de salud) y el tope de latencia del estudio (panel de sincronía).
 
+### Prioridad media y baja (2026-10-11, segunda tanda)
+
+Todo lo de las tablas de abajo pasó a Configuración como **ajustes avanzados** (170), salvo lo que se lista al final. Cómo funciona:
+
+- `src/core/ajustes/Ajustes.{hpp,cpp}`: un registro por proceso. La app lo carga de `app.json`, la sala de `gateway.json` y el launcher de `launcher.json`, siempre bajo `"ajustes"` y solo con lo que se cambió. El código lo consulta al usarlo (`ajustes::entero("stream.colaMs", 1000)`), con el valor de siempre como respaldo.
+- `src/app/ui/AjustesAvanzados.cpp`: la tabla (rótulo, rango, unidad, explicación, sección, a qué archivo va). `SettingsModel` los suma a su sección con el rol `avanzado`.
+- En la página: interruptor «Mostrar ajustes avanzados» arriba a la derecha. Las secciones que solo tienen avanzados (Audio, Plugins y descargas) los muestran siempre. También van en Traducción, Voz del operador y Modelos locales.
+- Lo de la app rige en caliente (al aplicar se recarga el registro); lo de la sala reinicia la sala; lo del launcher, al volver a abrir el programa.
+- Tests: `src/core/tests/test_ajustes.cpp`.
+- Plugins incluidos: sus esperas van en su `config` (`espera_s`, `conectar_s`, `sincronizar_s`, `reconectar_s`, `sin_aparato_s`, `timeout_s`), con el valor de siempre si no está.
+- Además: «Ancho de las vistas previas» (`ui.previewWidth`), el puerto de métricas del túnel y los puertos que redirige WireGuard (antes solo en los archivos).
+
+De paso: con la grabación partida en tramos, al terminar se pasan a MP4/MOV todos los tramos (antes solo el último); y un reinicio pedido de la sala (al aplicar Configuración) ya no se anota como caída ni muestra el cartel «se reinició».
+
+**No se pasaron**, a propósito:
+
+- El anillo de audio entre procesos (`SharedAudioRing::kDefaultCapacityBlocks`): lo crean la app y la sala y lo lee el otro; si cada uno tuviera otro tamaño se rompe el audio de los invitados.
+- Los anillos estéreo (`RingEstereo`): están en el camino de cada bloque de audio.
+- La caché del chequeo de integridad del launcher, los 3 s para cerrar procesos hijos sueltos en plugins/modelos/cloudflared (internos; el del launcher sí está), el puerto de WireGuard por defecto (51820) y el de Cast (8009): son del protocolo.
+- `statusEverySec` (solo para el modo sin interfaz).
+
 ## Ya configurables, pero solo en un archivo (no en la página)
 
 - `app.json`: `estudio.topeMs` (latencia del estudio, 250 ms por defecto, `src/motor/Reloj.hpp:86`), `ui.previewWidth` (960), `statusEverySec`.

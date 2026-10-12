@@ -19,6 +19,8 @@
 // ============================================================================
 #pragma once
 
+#include "ajustes/Ajustes.hpp"
+
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -36,7 +38,7 @@ struct HttpRequest {
     /// Si no esta vacio, el cuerpo es este archivo (en streaming).
     std::string bodyFile;
     std::function<void(std::uint64_t sent, std::uint64_t total)> progress;
-    int timeoutMs = 30000; ///< por operacion de red (no total)
+    int timeoutMs = ba::ajustes::sAMs("red.httpTimeoutS", 30); ///< por operacion de red (no total; Configuración → avanzado)
     /// Si no esta vacio y la respuesta es 2xx, el cuerpo va a este archivo (en
     /// streaming: sirve para descargas de cientos de MB) y `body` queda vacio.
     std::string responseFile;

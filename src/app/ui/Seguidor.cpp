@@ -82,7 +82,7 @@ QVariantList describir(PersonasViewModel* p, const std::vector<Reconocedor::Vist
             {"x", v.cara.x / w}, {"y", v.cara.y / h}, {"ancho", v.cara.ancho / w}, {"alto", v.cara.alto / h}};
         if (p != nullptr && !v.vector.empty()) {
             const auto m = p->libreta().buscar(v.vector);
-            if (!m.id.empty() && m.parecido >= ba::rostros::kMismaPersona) {
+            if (!m.id.empty() && m.parecido >= ba::rostros::kMismaPersona()) {
                 c["id"] = QString::fromStdString(m.id);
                 c["nombre"] = QString::fromStdString(m.nombre);
                 c["parecido"] = m.parecido;

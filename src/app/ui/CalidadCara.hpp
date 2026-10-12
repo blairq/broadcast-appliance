@@ -11,6 +11,8 @@
 // ============================================================================
 #pragma once
 
+#include "ajustes/Ajustes.hpp"
+
 #if BA_HAVE_ROSTROS
 
 #include <string>
@@ -47,11 +49,11 @@ struct Calidad {
 /// Lo que se le pide al modelo de mínima. Abajo de esto el vector sale pobre y
 /// el reconocimiento se vuelve una lotería (medido: caras de menos de ~80 px
 /// dan parecidos de 0.5 contra sí mismas).
-constexpr int kAltoMinimo = 80;
-constexpr double kNitidezMinima = 35.0;
-constexpr double kLuzMinima = 45.0;
-constexpr double kLuzMaxima = 218.0;
-constexpr double kGiroMaximo = 0.28;
+inline int kAltoMinimo() { return ba::ajustes::entero("rostros.altoMinimoPx", 80); }
+inline double kNitidezMinima() { return ba::ajustes::numero("rostros.nitidezMinima", 35.0); }
+inline double kLuzMinima() { return ba::ajustes::numero("rostros.luzMinima", 45.0); }
+inline double kLuzMaxima() { return ba::ajustes::numero("rostros.luzMaxima", 218.0); }
+inline double kGiroMaximo() { return ba::ajustes::numero("rostros.giroMaximo", 0.28); }
 
 Calidad calidadDe(const QImage& img, const ba::rostros::Cara& c);
 

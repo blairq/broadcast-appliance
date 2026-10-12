@@ -2,6 +2,7 @@
 // src/app/ui/EventoViewModel.cpp — ver EventoViewModel.hpp
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <set>
 #include <fstream>
@@ -132,7 +133,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
         if (j.is_object()) automatico_ = j.value("evento_automatico", true);
     }
     asegurarEnCurso();
-    vigiaEnCurso_.setInterval(60 * 1000);
+    vigiaEnCurso_.setInterval(ba::ajustes::sAMs("evento.vigiaS", 60));
     connect(&vigiaEnCurso_, &QTimer::timeout, this, &EventoViewModel::asegurarEnCurso);
     vigiaEnCurso_.start();
     refrescar();
@@ -369,7 +370,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
     // Cada dos segundos: el que escanea en la puerta espera mirando el
     // telefono, y diez segundos ahi parado se sienten eternos.
     if (buzon_.interval() == 0) {
-        buzon_.setInterval(2000);
+        buzon_.setInterval(ba::ajustes::entero("evento.buzonMs", 2000));
         connect(&buzon_, &QTimer::timeout, this, &EventoViewModel::recogerAcreditaciones);
     }
     buzon_.start();

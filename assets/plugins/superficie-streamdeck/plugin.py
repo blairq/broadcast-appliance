@@ -99,7 +99,7 @@ def buscar():
                     plugin.log(f"se desenchufó {sid}")
         except Exception as e:  # noqa: BLE001 — sin hidapi no hay nada que buscar
             plugin.aviso(f"Stream Deck: {e}", "warning")
-            time.sleep(30)
+            time.sleep(float(plugin.config.get("sin_aparato_s", 30)))
         time.sleep(float(plugin.config.get("buscar_cada_s", 3)))
 
 

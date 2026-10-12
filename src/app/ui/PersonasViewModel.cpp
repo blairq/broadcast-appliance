@@ -2,6 +2,7 @@
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
 #include "ui/PersonasViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <QCoreApplication>
@@ -204,25 +205,25 @@ QImage imagenDe(GstSample* s) {
 // entra y sale dan una detección suelta. Anotando la primera, la libreta se
 // llena de fichas de nada y el operador termina borrando más de lo que
 // completa. Tres pasadas seguidas ya es alguien que está ahí.
-constexpr int kVecesParaAnotar = 3;
+inline int kVecesParaAnotar() { return ba::ajustes::entero("rostros.vecesParaAnotar", 3); }
 /// Si esa cara no volvió en este rato, se olvida y empieza de nuevo.
 ///
 /// DOCE SEGUNDOS Y NO CUATRO, por el lobby: ahí la ronda rota entre las
 /// posiciones de espera, así que a la misma persona la vuelve a mirar cada
 /// varios segundos. Con cuatro, se olvidaba de ella entre vuelta y vuelta y no
 /// llegaba nunca a las tres pasadas: el anotado automático no anotaba a nadie.
-constexpr std::int64_t kOlvidoPendienteMs = 12000;
+inline std::int64_t kOlvidoPendienteMs() { return ba::ajustes::entero64("rostros.olvidoS", 12) * 1000; }
 /// Tope de la libreta para el anotado automático. Llegando acá se apaga solo y
 /// lo dice: una libreta de miles de desconocidos no la revisa nadie, y cada
 /// búsqueda las recorre a todas.
-constexpr int kMaxFichasAuto = 500;
+inline int kMaxFichasAuto() { return ba::ajustes::entero("rostros.maxFichas", 500); }
 /// Cada cuánto mira la ronda. Detectar cuesta ~30 ms; a este ritmo es ruido de
 /// fondo, y alcanza de sobra para juntar tres pasadas de quien se quedó.
-constexpr int kRondaMs = 700;
+inline int kRondaMs() { return ba::ajustes::entero("rostros.rondaMs", 700); }
 /// Cuánto parecido hace falta para ABRIRLE LA PUERTA a alguien sin preguntar.
 ///
 /// MAS QUE PARA PONERLE UN NOMBRE, y esa diferencia es la decisión. El 0.45 de
-/// `kMismaPersona` está elegido para un rótulo: si se equivoca, alguien lo ve
+/// `kMismaPersona()` está elegido para un rótulo: si se equivoca, alguien lo ve
 /// en pantalla y lo corrige. Dejar entrar a la sala no se corrige igual —ya
 /// está adentro, con cámara y micrófono, y puede quedar al aire—. Para eso se
 /// pide un margen que no deja lugar a un parecido de familia: medido, la misma
@@ -231,11 +232,11 @@ constexpr int kRondaMs = 700;
 /// Y ADEMAS la cara tiene que servir: un reconocimiento hecho sobre una cara
 /// borrosa o de perfil puede dar cualquier número, y ese número no puede ser
 /// el que abre la puerta.
-constexpr float kAbrirLaPuerta = 0.60F;
+inline float kAbrirLaPuerta() { return static_cast<float>(ba::ajustes::numero("rostros.admitirSolo", 0.60)); }
 /// «La vi recién» se guarda cada tanto, no en cada vuelta: escribir la libreta
 /// entera —vectores incluidos— dos veces por segundo es todo disco para nada.
 /// Un alta o una cara nueva sí se guardan en el acto.
-constexpr std::int64_t kGuardarVistasMs = 30000;
+inline std::int64_t kGuardarVistasMs() { return ba::ajustes::entero64("rostros.guardarVistasS", 30) * 1000; }
 
 /// El recorte de la cara, con margen, para la ficha (ver McpRostroTools).
 QString escribirFoto(const QImage& img, const ba::rostros::Cara& c, const QString& carpeta,
@@ -270,7 +271,7 @@ PersonasViewModel::PersonasViewModel(AppRuntime& rt, StudioViewModel& vm, QObjec
     } else {
         d_->aviso = d_->rec.error();
     }
-    d_->ronda.setInterval(kRondaMs);
+    d_->ronda.setInterval(kRondaMs());
     connect(&d_->ronda, &QTimer::timeout, this, [this] {
         // Una sola cámara por vuelta, siempre. Mirar las cuatro posiciones del
         // lobby juntas cuadruplicaría el trabajo en la misma vuelta; rotando,
@@ -324,7 +325,7 @@ void PersonasViewModel::alRostros(const QString& entrada, const std::string& js,
             if (!c.contains("vector") || !c["vector"].is_array()) continue;
             hayVectores = true;
             const auto q = d_->libreta.buscar(c["vector"].get<std::vector<float>>());
-            if (q.parecido < ba::rostros::kMismaPersona) continue;
+            if (q.parecido < ba::rostros::kMismaPersona()) continue;
             const ba::rostros::Persona* p = d_->libreta.porId(q.id);
             if (p == nullptr || p->nombre.empty()) continue;
             etiquetas.push_back({{"id", c.value("id", 0)}, {"nombre", p->nombre}, {"cargo", p->cargo}, {"persona", q.id}});
@@ -752,7 +753,7 @@ void PersonasViewModel::dejarPasarSiCorresponde(const QString& uid, const QStrin
     // Una sola vez por persona que espera: si el operador la rechaza a mano,
     // volver a hacerla pasar en la vuelta siguiente sería pelearle al operador.
     if (d_->yaPasaron.contains(uid)) return;
-    if (parecido < kAbrirLaPuerta || !sirve) return; // ver kAbrirLaPuerta
+    if (parecido < kAbrirLaPuerta() || !sirve) return; // ver kAbrirLaPuerta()
     auto* ev = static_cast<EventoViewModel*>(d_->vm.evento());
     auto* conf = static_cast<ConferenceViewModel*>(d_->vm.conference());
     if (ev == nullptr || conf == nullptr) return;
@@ -820,7 +821,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
         auto& ps = d_->pendientes;
         ps.erase(
             std::remove_if(ps.begin(), ps.end(),
-                           [&](const Impl::Pendiente& p) { return ahora - p.ultimoMs > kOlvidoPendienteMs; }),
+                           [&](const Impl::Pendiente& p) { return ahora - p.ultimoMs > kOlvidoPendienteMs(); }),
             ps.end());
     }
 
@@ -830,7 +831,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
     for (const auto& visto : caras) {
         const ba::rostros::Cara& c = visto.cara;
         auto q = d_->libreta.buscar(visto.vector);
-        bool seguro = q.parecido >= ba::rostros::kMismaPersona;
+        bool seguro = q.parecido >= ba::rostros::kMismaPersona();
         if (registrar && !visto.vector.empty()) {
             if (seguro) {
                 d_->libreta.vistaAhora(q.id, ahora);
@@ -867,7 +868,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
                                {"ch", img.height()}});
     }
 
-    if (alta || (vista && ahora - d_->ultimoGuardado > kGuardarVistasMs)) {
+    if (alta || (vista && ahora - d_->ultimoGuardado > kGuardarVistasMs())) {
         d_->libreta.guardar(d_->archivo.toStdString());
         d_->ultimoGuardado = ahora;
     }
@@ -884,7 +885,7 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
             // misma razon: acreditar al que no es deja a dos personas mal
             // anotadas —una que no vino y otra que si— y nadie lo descubre
             // hasta que hay que contar el quorum.
-            if (v.value("parecido").toFloat() < kAbrirLaPuerta) continue;
+            if (v.value("parecido").toFloat() < kAbrirLaPuerta()) continue;
             if (!calidadDe(img, caras[i].cara).sirve) continue;
             acreditarEnLaPuerta(id, v.value("nombre").toString());
         }
@@ -945,15 +946,15 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid,
 QString PersonasViewModel::anotarDesconocida(const std::vector<float>& v, const QImage& img,
                                              const ba::rostros::Cara& c, std::int64_t ahora) {
     for (auto& p : d_->pendientes) {
-        if (ba::rostros::parecido(p.v, v) < ba::rostros::kMismaPersona) continue;
+        if (ba::rostros::parecido(p.v, v) < ba::rostros::kMismaPersona()) continue;
         p.v = v; // el último visto: la cara suele ir mejorando al acercarse
         p.ultimoMs = ahora;
-        if (++p.veces < kVecesParaAnotar) return {};
+        if (++p.veces < kVecesParaAnotar()) return {};
 
-        if (static_cast<int>(d_->libreta.todas().size()) >= kMaxFichasAuto) {
+        if (static_cast<int>(d_->libreta.todas().size()) >= kMaxFichasAuto()) {
             d_->aviso = QString("La libreta llegó a %1 fichas: apagué el anotado automático para "
                                 "no llenarla de desconocidos. Completá o borrá las que sobran.")
-                            .arg(kMaxFichasAuto);
+                            .arg(kMaxFichasAuto());
             setAutoalta(false);
             emit notify(d_->aviso, "aviso");
             return {};

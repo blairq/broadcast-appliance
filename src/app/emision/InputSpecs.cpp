@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "emision/InputSpecs.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "audio/EntradasAudio.hpp"
 #include "video/Camaras.hpp"
@@ -201,10 +202,10 @@ bool migrarMicrofono(SourceSpec& spec) {
 SourceSpec networkSpec(const std::string& url, const std::string& name, const json& opts,
                        const std::string& caFile) {
     const std::string sch = networkScheme(url);
-    const bool low = opts.value("latency", std::string("low")) == "low";
+    const bool low = opts.value("latency", ajustes::texto("entradas.redModo", "low")) == "low";
     std::string ff;
     if (sch == "rtsp" || sch == "rtsps")
-        ff += "rtsp_transport=" + opts.value("rtspTransport", std::string("tcp")) + " ";
+        ff += "rtsp_transport=" + opts.value("rtspTransport", ajustes::texto("entradas.rtspTransporte", "tcp")) + " ";
     if (low) ff += "fflags=nobuffer flags=low_delay ";
     // TLS: se verifica el certificado del servidor con las raices del bundle.
     if ((sch == "https" || sch == "rtmps" || sch == "rtsps") && !caFile.empty())

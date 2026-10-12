@@ -2,6 +2,7 @@
 // src/app/ui/RegistroViewModel.cpp — ver RegistroViewModel.hpp
 // ============================================================================
 #include "ui/RegistroViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>
@@ -26,7 +27,7 @@ constexpr int kSeguirMs = 2000;
 
 /// Cuántas líneas se muestran como mucho. Más que esto no lo lee nadie y la
 /// lista se pone pesada; para más, están los filtros.
-constexpr int kTope = 800;
+inline int kTope() { return ba::ajustes::entero("limites.registroLineas", 800); }
 
 QString horaLocal(std::int64_t ms) {
     return QDateTime::fromMSecsSinceEpoch(ms).toString("dd/MM HH:mm:ss.zzz");
@@ -44,7 +45,7 @@ struct RegistroViewModel::Impl {
     bool enMemoria = false;
     QTimer reloj;
 
-    explicit Impl(AppRuntime& r) : rt(r) { filtro.cuantas = kTope; }
+    explicit Impl(AppRuntime& r) : rt(r) { filtro.cuantas = kTope(); }
 
     QString carpeta() const { return QString::fromStdString((ba::platform::dataRoot() / "Logs").string()); }
 };
@@ -201,7 +202,7 @@ void RegistroViewModel::refrescar() {
         // El anillo no está filtrado: se filtra acá con el mismo criterio que
         // el lector, para que cambiar de fuente no cambie lo que se ve.
         const std::string busca = d_->filtro.busca;
-        for (const auto& r : ba::diag::registro().ultimas(kTope)) {
+        for (const auto& r : ba::diag::registro().ultimas(kTope())) {
             if (static_cast<int>(r.nivel) < static_cast<int>(d_->filtro.minimo)) continue;
             if (!d_->filtro.componentes.empty() &&
                 std::find(d_->filtro.componentes.begin(), d_->filtro.componentes.end(), r.componente) ==

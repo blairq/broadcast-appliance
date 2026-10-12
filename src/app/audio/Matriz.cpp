@@ -24,6 +24,7 @@
 #include <deque>
 #include <fstream>
 #include <set>
+#include "ajustes/Ajustes.hpp"
 
 namespace fs = std::filesystem;
 
@@ -150,7 +151,7 @@ Matriz::Matriz(fs::path dataRoot, QObject* parent) : QObject(parent), root_(std:
             }
         }
     });
-    lento_.start(3000);
+    lento_.start(std::max(500, ajustes::entero("audio.rescanEquiposMs", 3000)));
     hilo_ = std::thread([this]() { bucleMezcla(); });
 }
 

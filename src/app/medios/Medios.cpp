@@ -2,6 +2,7 @@
 // src/app/medios/Medios.cpp — ver Medios.hpp
 // ============================================================================
 #include "medios/Medios.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <algorithm>
 #include <QDateTime>
@@ -22,7 +23,7 @@ const QStringList kDocumentos{"pdf", "pptx", "ppt", "odp"};
 /// Cuantos archivos se miran como mucho. Una carpeta de medios tiene cientos;
 /// diez mil es que alguien apunto a su disco entero, y recorrerlo entero
 /// congelaria la interfaz sin decir por que.
-constexpr int kTope = 5000;
+inline int kTope() { return ba::ajustes::entero("limites.mediosArchivos", 5000); }
 
 } // namespace
 
@@ -70,7 +71,7 @@ QVector<Archivo> listar(const QString& raiz, const QString& soloCarpeta) {
         if (!QDir(dir).exists()) continue;
         QDirIterator it(dir, QDir::Files | QDir::NoDotAndDotDot, QDirIterator::Subdirectories);
         while (it.hasNext()) {
-            if (out.size() >= kTope) break;
+            if (out.size() >= kTope()) break;
             const QFileInfo fi(it.next());
             const Tipo t = tipoDe(fi.fileName());
             // Lo que no sabemos mostrar ni reproducir no entra: llenar la

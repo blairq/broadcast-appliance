@@ -272,7 +272,7 @@ void Voz::alAudio(const std::string& fuente, int modo, const float* m, std::uint
     if (modo != 1 || !tomando_) return;
     std::lock_guard<std::mutex> l(tomasLock_);
     Toma& t = tomas_[fuente];
-    if (t.audio.size() > static_cast<std::size_t>(audio::Escucha::kMaxSegundos * f)) return;
+    if (t.audio.size() > static_cast<std::size_t>(audio::Escucha::kMaxSegundosAhora() * f)) return;
     t.frecuencia = f;
     t.audio.insert(t.audio.end(), m, m + n);
     for (std::uint32_t i = 0; i < n; ++i)

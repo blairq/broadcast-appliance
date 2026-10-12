@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -33,7 +34,7 @@ class Superficies {
    public:
     /// Cuánto vale un latido. Las páginas laten cada 5 s, así que 15 aguanta
     /// dos perdidos sin declarar muerta una que está bien.
-    static constexpr std::int64_t kVivaMs = 15000;
+    static std::int64_t kVivaMs() { return ba::ajustes::entero64("superficies.vivaS", 15) * 1000; }
     static constexpr std::size_t kMax = 64;
 
     /// Una superficie CONECTADA por WebSocket: además de decir que está viva,
@@ -50,7 +51,7 @@ class Superficies {
     /// "pantalla", "prompter"...), `id` la identifica entre recargas, `que`
     /// es lo que está mostrando ahora mismo.
     void latido(const std::string& tipo, const std::string& id, const std::string& que, std::uint32_t ip);
-    /// Las que latieron hace menos de kVivaMs.
+    /// Las que latieron hace menos de kVivaMs().
     nlohmann::json vivas() const;
 
     // --- Las que están conectadas por el canal ---------------------------------

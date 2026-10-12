@@ -8,6 +8,8 @@
 #include "Reloj.hpp"
 
 #include <algorithm>
+
+#include "ajustes/Ajustes.hpp"
 #include <atomic>
 #include <filesystem>
 
@@ -46,7 +48,8 @@ const std::vector<std::string>& codificadoresDeLaPlaca() {
 bool tiene(GstElement* e, const char* p) { return g_object_class_find_property(G_OBJECT_GET_CLASS(e), p) != nullptr; }
 
 /// El sufijo de un tramo de splitmuxsink en la ruta que arma.
-constexpr int kMargenSalidaMs = 300;
+/// Margen de latencia que suman las salidas (Configuración → avanzado: «salidas.margenMs»).
+inline std::int64_t margenSalidaNs() { return ajustes::msANs("salidas.margenMs", 300); }
 
 } // namespace
 
@@ -220,7 +223,7 @@ std::string correrHastaElFinal(GstElement* p) {
     gst_element_set_state(p, GST_STATE_PLAYING);
     GstBus* bus = gst_element_get_bus(p);
     std::string error;
-    GstMessage* m = gst_bus_timed_pop_filtered(bus, 120 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
+    GstMessage* m = gst_bus_timed_pop_filtered(bus, static_cast<GstClockTime>(ajustes::sANs("record.replayJuntarS", 120)), static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
     if (m == nullptr) {
         error = "no terminó en 2 minutos";
     } else {
@@ -275,7 +278,7 @@ Repeticion::Repeticion(Reloj& reloj, std::string carpetaTramos, int segundos, in
     Grabacion::Config c;
     c.carpeta = carpeta_;
     c.nombre = "repeticion";
-    c.tramoSeg = 2;
+    c.tramoSeg = std::max(1, ajustes::entero("record.replayTramoS", 2));
     c.gopSeg = 1; // un tramo empieza siempre en un cuadro clave
     c.maxTramos = segundos_ / 2 + 2;
     c.kbps = kbps;
@@ -338,14 +341,14 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     // Cada rama: válvula (pausar sin cerrar) ! cola cruda ! codificador ! colchón
     // comprimido (lo que aguanta un disco trabado) ! mux.
     const std::string colchon = " max-size-time=" + std::to_string(static_cast<guint64>(std::max(1, cfg_.colchonSeg)) * GST_SECOND) +
-                                " max-size-buffers=0 max-size-bytes=" + std::to_string(512u << 20) + " ";
+                                " max-size-buffers=0 max-size-bytes=" + std::to_string(static_cast<guint64>(ajustes::entero("record.colchonMB", 512)) << 20) + " ";
     if (!f.video.empty())
         d += "intersrc producer-name=" + entreComillas(f.video) +
-             " ! valve name=pausa_v ! queue name=cv leaky=downstream max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! " +
+             " ! valve name=pausa_v ! queue name=cv leaky=downstream max-size-time=" + std::to_string(ajustes::sANs("record.colaEncoderS", 3)) + " max-size-buffers=0 max-size-bytes=0 ! " +
              aCodificador(elegirCodificador(cfg_.codificadores)) + " ! identity name=antes_cod ";
     for (std::size_t i = 0; i < f.audios.size(); ++i)
         d += "intersrc producer-name=" + entreComillas(f.audios[i]) + " ! valve name=pausa_a" + std::to_string(i) +
-             " ! queue leaky=downstream max-size-time=3000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
+             " ! queue leaky=downstream max-size-time=" + std::to_string(ajustes::sANs("record.colaEncoderS", 3)) + " max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
              "avenc_aac bitrate=" + std::to_string(std::max(64, cfg_.kbpsAudio) * 1000) + " ! aacparse ! queue name=colchon_a" +
              std::to_string(i) + colchon + "! mux.audio_" + std::to_string(i) + " ";
     GError* e = nullptr;
@@ -365,7 +368,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
         GstElement* colV = gst_element_factory_make("queue", "colchon_v");
         if (colV != nullptr)
             g_object_set(colV, "max-size-time", static_cast<guint64>(std::max(1, cfg_.colchonSeg)) * GST_SECOND, "max-size-buffers", 0u,
-                         "max-size-bytes", 512u << 20, nullptr);
+                         "max-size-bytes", static_cast<guint>(std::min<guint64>(static_cast<guint64>(ajustes::entero("record.colchonMB", 512)) << 20, G_MAXUINT)), nullptr);
         if (cod == nullptr || parse == nullptr || antes == nullptr || colV == nullptr) {
             error_ = "no hay codificador de video (" + codificador_ + ")";
             for (GstElement* x : {cod, parse, antes, colV})
@@ -442,7 +445,7 @@ std::string Grabacion::iniciar(const Fuentes& f) {
     gst_object_unref(mux);
     sinRelojPropio(p);
     reloj_.adoptar(p);
-    const std::int64_t lat = std::max(f.latVideoNs, f.latAudioNs) + kMargenSalidaMs * static_cast<std::int64_t>(GST_MSECOND);
+    const std::int64_t lat = std::max(f.latVideoNs, f.latAudioNs) + margenSalidaNs();
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(lat));
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         error_ = "la grabación no arrancó";
@@ -599,11 +602,11 @@ std::string Transmision::armar() {
                               entreComillas(cfg_.url) + " ";
     if (!fuentes_.video.empty())
         d += "intersrc producer-name=" + entreComillas(fuentes_.video) +
-             " ! queue name=cv leaky=downstream max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! " + aCodificador(elegirCodificador(cfg_.codificadores)) +
+             " ! queue name=cv leaky=downstream max-size-time=" + std::to_string(ajustes::msANs("stream.colaMs", 1000)) + " max-size-buffers=0 max-size-bytes=0 ! " + aCodificador(elegirCodificador(cfg_.codificadores)) +
              " ! identity name=antes_cod ";
     if (!fuentes_.audios.empty())
         d += "intersrc producer-name=" + entreComillas(fuentes_.audios.front()) +
-             " ! queue max-size-time=1000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! avenc_aac bitrate=" +
+             " ! queue max-size-time=" + std::to_string(ajustes::msANs("stream.colaMs", 1000)) + " max-size-buffers=0 max-size-bytes=0 ! audioconvert ! avenc_aac bitrate=" +
              std::to_string(std::max(64, cfg_.kbpsAudio) * 1000) + " ! aacparse ! queue ! mux. ";
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
@@ -654,7 +657,7 @@ std::string Transmision::armar() {
     }
     sinRelojPropio(p);
     reloj_.adoptar(p);
-    const std::int64_t lat = std::max(fuentes_.latVideoNs, fuentes_.latAudioNs) + kMargenSalidaMs * static_cast<std::int64_t>(GST_MSECOND);
+    const std::int64_t lat = std::max(fuentes_.latVideoNs, fuentes_.latAudioNs) + margenSalidaNs();
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(lat));
     if (gst_element_set_state(p, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
         gst_element_set_state(p, GST_STATE_NULL);
@@ -703,7 +706,7 @@ void Transmision::parar() {
         // EOS: rtmp2sink manda el cierre al servidor antes de cortar.
         gst_element_send_event(pipeline_, gst_event_new_eos());
         GstBus* bus = gst_element_get_bus(pipeline_);
-        if (GstMessage* m = gst_bus_timed_pop_filtered(bus, 2 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR)))
+        if (GstMessage* m = gst_bus_timed_pop_filtered(bus, static_cast<GstClockTime>(ajustes::msANs("stream.cierreMs", 2000)), static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR)))
             gst_message_unref(m);
         gst_object_unref(bus);
     }
@@ -717,7 +720,7 @@ bool Transmision::andando() const {
 
 bool Transmision::conectada() const {
     std::lock_guard<std::mutex> l(mu_);
-    return pipeline_ != nullptr && ultimoDatoNs_ != 0 && ahoraNs() - ultimoDatoNs_ < 2'000'000'000LL;
+    return pipeline_ != nullptr && ultimoDatoNs_ != 0 && ahoraNs() - ultimoDatoNs_ < ajustes::sANs("stream.sinDatosS", 2);
 }
 
 void Transmision::tic() {
@@ -770,7 +773,7 @@ void Transmision::tic() {
 
 json Transmision::estado() const {
     std::lock_guard<std::mutex> l(mu_);
-    const bool conectada = pipeline_ != nullptr && ultimoDatoNs_ != 0 && ahoraNs() - ultimoDatoNs_ < 2'000'000'000LL;
+    const bool conectada = pipeline_ != nullptr && ultimoDatoNs_ != 0 && ahoraNs() - ultimoDatoNs_ < ajustes::sANs("stream.sinDatosS", 2);
     return {{"andando", pedida_},
             {"conectada", conectada},
             {"reconectando", pedida_ && !conectada && intentos_ > 0},

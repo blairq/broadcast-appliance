@@ -29,6 +29,8 @@
 #include <QUrl>
 
 #include <algorithm>
+
+#include "ajustes/Ajustes.hpp"
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -2002,13 +2004,14 @@ void VideoGrafos::evaluarSuperres() {
         } else {
             t.desde = 0;
         }
-        if (t.veces > 0 && ahora - t.ultimaVez > 10 * 60 * 1000) t.veces = 0; // 10 min tranquila: de cero
-        if (t.desde != 0 && ahora - t.desde >= 2000 && !t.avisado) {
+        if (t.veces > 0 && ahora - t.ultimaVez > ajustes::entero("superres.tranquilaMin", 10) * 60 * 1000) t.veces = 0; // tranquila: de cero
+        if (t.desde != 0 && ahora - t.desde >= ajustes::entero("superres.lentaMs", 2000) && !t.avisado) {
             t.avisado = true;
             t.ultimaVez = ahora;
             if (bypassAuto) {
                 ++t.veces;
-                t.bypassHasta = ahora + std::min<qint64>(15000LL << std::min(t.veces - 1, 4), 120000);
+                t.bypassHasta = ahora + std::min<qint64>(static_cast<qint64>(ajustes::sAMs("superres.baratoS", 15)) << std::min(t.veces - 1, 4),
+                                                         static_cast<qint64>(ajustes::sAMs("superres.baratoMaxS", 120)));
             }
             char t2[256];
             std::snprintf(t2, sizeof t2, "superresolución de «%s» no llega: %.1f ms por cuadro (cuadro %.1f ms)%s",

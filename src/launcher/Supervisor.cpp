@@ -6,6 +6,7 @@
 // la capa de plataforma con Crashpad (plan multiplataforma, fase 9).
 
 #include "Supervisor.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "Integrity.hpp"
 #include "Log.hpp"
@@ -41,8 +42,8 @@ constexpr std::uint32_t kProcVersion = 1;
 // Supervisor::Config. El dialogo de recuperacion BLOQUEA el reinicio hasta que
 // alguien hace clic: una caida aislada al aire se reinicia sola; recien con
 // fallas repetidas en la ventana se le pregunta al operador.
-constexpr int kGracefulMs = 5000;   // espera tras el pedido de cierre
-constexpr int kTerminateMs = 3000;  // espera tras SIGTERM antes de matar
+inline int kGracefulMs() { return ba::ajustes::entero("launcher.cierreOrdenadoMs", 5000); } // espera tras el pedido de cierre
+inline int kTerminateMs() { return ba::ajustes::entero("launcher.terminarMs", 3000); } // espera tras SIGTERM antes de matar
 // Gracia de arranque (cfg_.graciaArranqueMs): un hijo recien lanzado todavia no
 // late. Sin esto el watchdog lo declaraba colgado en el mismo milisegundo y lo
 // mataba. Un crash durante el arranque se detecta igual (el proceso sale).
@@ -50,9 +51,9 @@ constexpr int kTerminateMs = 3000;  // espera tras SIGTERM antes de matar
 // instalar o actualizar, macOS verifica la firma de cientos de binarios antes
 // de dejarlos correr (9 s solo para cargar, comprobado) y a los 20 s se lo
 // mataba en pleno arranque. Un cuelgue de verdad al arrancar se ve igual.
-constexpr std::uint64_t kPrimerLatidoMs = 90000;
+inline std::uint64_t kPrimerLatidoMs() { return static_cast<std::uint64_t>(ba::ajustes::entero("launcher.primerLatidoS", 90)) * 1000; }
 // Espera antes de relanzar un hijo que salio con exit_code::kEnvironment.
-constexpr std::uint64_t kEnvironmentRetryMs = 60000;
+inline std::uint64_t kEnvironmentRetryMs() { return static_cast<std::uint64_t>(ba::ajustes::entero("launcher.reintentoEntornoS", 60)) * 1000; }
 
 std::uint64_t nowMs() {
     using namespace std::chrono;
@@ -66,7 +67,7 @@ int backoffSeconds(int consecutive) {
     if (consecutive >= 0 && consecutive < 4) {
         return seq[consecutive];
     }
-    return 10;
+    return std::max(5, ba::ajustes::entero("launcher.relanzarMaxS", 10));
 }
 
 /// Duerme `ms` en tramos cortos, cortando antes si se pidio parar.
@@ -95,7 +96,7 @@ bool Supervisor::inStartupGrace(bool isA) const {
     if (pasado < cfg_.graciaArranqueMs) return true;
     const bool latio =
         health_.read(isA ? cfg_.slotA : cfg_.slotB).lastBeatQpc != latidoAlLanzar_[isA ? 1 : 0];
-    return !latio && pasado < kPrimerLatidoMs;
+    return !latio && pasado < kPrimerLatidoMs();
 }
 
 int Supervisor::run() {
@@ -369,11 +370,21 @@ void Supervisor::handleCrash(bool isA) {
                      name +
                          " no puede funcionar en este entorno (ver su log: p. ej. sin sesion grafica); "
                          "reintento en " +
-                         std::to_string(kEnvironmentRetryMs / 1000) + " s");
-        sleepInterruptible(static_cast<int>(kEnvironmentRetryMs), stopRequested_);
+                         std::to_string(kEnvironmentRetryMs() / 1000) + " s");
+        sleepInterruptible(static_cast<int>(kEnvironmentRetryMs()), stopRequested_);
         if (!stopRequested_.load()) {
             startChild(isA);
         }
+        return;
+    }
+    // La sala cerrada EN ORDEN (código 0): la app la reinició a propósito para que
+    // relea gateway.json (Configuración → aplicar). No es una caída: no va al cartel
+    // «se reinició» ni cuenta para el cortacircuito; se relanza ya.
+    // Dos seguidas en menos de 10 s ya no es un reinicio pedido: camino normal.
+    if (!isA && code && *code == 0 && !volcados_->hayCaida(name) && nowMs() - ultimoCierreOrdenadoB_ > 10000) {
+        ultimoCierreOrdenadoB_ = nowMs();
+        BA_LOG_INFO("sup", 0, "B se cerró en orden (reinicio de la sala); se relanza");
+        startChild(false);
         return;
     }
     BA_LOG_WARN("sup", code.value_or(-1), name + " termino inesperadamente; reiniciando con backoff");
@@ -399,7 +410,7 @@ void Supervisor::handleHang(bool isA) {
         anotarCaida(isA, "se colgó (dejó de latir)", std::nullopt, v.dmp);
     }
     child(isA).kill();
-    child(isA).waitExit(kTerminateMs);
+    child(isA).waitExit(kTerminateMs());
     health_.setState(slot, ba::ipc::ProcessState::Hung);
     child(isA).close();
     restartChild(isA);
@@ -437,7 +448,7 @@ void Supervisor::forceRestart() {
     BA_LOG_WARN("sup", 0, "forzar reinicio: terminando hijos y relanzando desde 0");
     for (bool isA : {true, false}) {
         child(isA).kill();
-        child(isA).waitExit(kTerminateMs);
+        child(isA).waitExit(kTerminateMs());
         child(isA).close();
     }
     health_.setState(cfg_.slotA, ba::ipc::ProcessState::Terminated);
@@ -512,17 +523,17 @@ void Supervisor::stopChild(bool isA) {
     const std::string name = isA ? "A" : "B";
     // 1) Pedido por el canal de control. 2) SIGTERM (POSIX). 3) Matar.
     if (control_.requestShutdown(isA ? ControlChannel::kAppChannel : ControlChannel::kGatewayChannel) &&
-        c.waitExit(kGracefulMs)) {
+        c.waitExit(kGracefulMs())) {
         BA_LOG_INFO("sup", 0, name + " cerro por el canal de control");
         return;
     }
-    if (c.terminate() && c.waitExit(kTerminateMs)) {
+    if (c.terminate() && c.waitExit(kTerminateMs())) {
         BA_LOG_INFO("sup", 0, name + " cerro tras la señal de terminacion");
         return;
     }
     BA_LOG_WARN("sup", 0, name + " no cerro a tiempo; se fuerza");
     c.kill();
-    c.waitExit(kTerminateMs);
+    c.waitExit(kTerminateMs());
 }
 
 void Supervisor::orderedShutdown() {

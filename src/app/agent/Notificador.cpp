@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "agent/Notificador.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 
 #include "security/CredentialStore.hpp"
@@ -131,7 +132,7 @@ void Notificador::enviar(const std::string& id, const std::string& titulo, const
     if (!req.url().isValid() || (req.url().scheme() != "https" && req.url().scheme() != "http"))
         return listo(false, "la URL no es válida");
     req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    req.setTransferTimeout(10000);
+    req.setTransferTimeout(ba::ajustes::sAMs("notificaciones.timeoutS", 10));
     QNetworkReply* r = nam_.post(req, cuerpo);
     connect(r, &QNetworkReply::finished, this, [r, listo]() {
         r->deleteLater();

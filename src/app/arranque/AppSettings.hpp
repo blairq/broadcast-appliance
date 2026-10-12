@@ -96,6 +96,8 @@ struct AppConfig {
     int mcpAprobacionMin = 10;  ///< una aprobación pendiente se rechaza sola a los N min
     int modeloContexto = 32768; ///< contexto del modelo local de chat (tokens)
     int modeloCapasGpu = 999;   ///< capas en la GPU (999 = todas; 0 = solo CPU)
+    /// Los avanzados de la app (ba::ajustes; tabla en ui/AjustesAvanzados): solo los cambiados.
+    nlohmann::json ajustes = nlohmann::json::object();
     int replaySegundos = 0; ///< repetición: los últimos N s en memoria (0 = apagada)
     /// Tope de la latencia del estudio (ms; -1 = automático: 250 ms). Una entrada
     /// que pide más va con su propia demora y avisa (P0.6).
@@ -161,6 +163,7 @@ struct GatewaySettings {
     int sinVideoPlacaMs = 1000; ///< invitado sin video tanto tiempo: su lugar muestra la placa
     int pinIntentos = 5;        ///< PIN mal tantas veces desde una IP: bloqueo
     int pinBloqueoS = 60;
+    nlohmann::json ajustes = nlohmann::json::object(); ///< los avanzados de la sala (ba::ajustes)
     int videoW = 1280; ///< slot de video del invitado hacia A
     int videoH = 720;
     int guestVideoW = 640; ///< retorno de programa hacia el invitado
@@ -183,6 +186,8 @@ struct GatewaySettings {
     std::string wgAddress = "10.99.0.2/24";
     std::string wgPublicAddress; ///< IP/dominio publico que usan los invitados
     int wgKeepalive = 25;
+    std::uint16_t wgHttpPort = 80;   ///< puertos que el servidor redirige a nuestra IP del túnel
+    std::uint16_t wgHttpsPort = 443;
 };
 
 /// Configuracion del launcher (launcher.json).
@@ -195,6 +200,7 @@ struct LauncherSettings {
     int maxCaidas = 5;             ///< más caídas que esto en la ventana: modo seguro
     int ventanaCaidasMin = 2;
     int reiniciosSinPreguntar = 2; ///< fallas seguidas que se reinician sin preguntar
+    nlohmann::json ajustes = nlohmann::json::object(); ///< los avanzados del arranque (ba::ajustes)
 };
 
 /// Rutas de los tres archivos bajo `dataRoot`.

@@ -22,6 +22,7 @@
 #pragma once
 
 #include <filesystem>
+#include "ajustes/Ajustes.hpp"
 #include <string>
 #include <vector>
 
@@ -34,7 +35,7 @@ struct UpdateOptions {
     std::filesystem::path datos;
     std::filesystem::path source; ///< carpeta de la version nueva (vacio en rollback)
     bool rollback = false;
-    int waitLockMs = 60000;            ///< cuanto esperar a que la app cierre
+    int waitLockMs = ba::ajustes::sAMs("launcher.esperaCierreS", 60); ///< cuanto esperar a que la app cierre
     std::string lockName = "launcher"; ///< lock de instancia unica del launcher
 };
 

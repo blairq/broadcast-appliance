@@ -10,6 +10,8 @@
 #include "platform/Paths.hpp"
 
 #include <algorithm>
+
+#include "ajustes/Ajustes.hpp"
 #include <cmath>
 #include <cstring>
 #include <deque>
@@ -299,7 +301,7 @@ void Entrada::armarSalida() {
     const std::string d = "fallbackswitch name=fs timeout=" + std::to_string(g_sinSenalNs.load()) + " immediate-fallback=" +
                           std::string(inmediata ? "true" : "false") + " ! intersink name=sale producer-name=" +
                           entreComillas(productorVideo()) + " sync=false event-types=\"<>\" intersrc producer-name=" +
-                          entreComillas(id_ + ":crudo:video") + " max-time=2500000000 ! fs.sink_0 " +
+                          entreComillas(id_ + ":crudo:video") + " max-time=" + std::to_string(ajustes::msANs("entradas.congelarMs", 2500)) + " ! fs.sink_0 " +
                           placa;
     GError* e = nullptr;
     GstElement* p = gst_parse_launch(d.c_str(), &e);
@@ -824,7 +826,7 @@ void Entrada::armar() {
                          G_CALLBACK(+[](GstElement*, GstElement* origen, gpointer d) {
                              auto* e = static_cast<Entrada*>(d);
                              GObjectClass* k = G_OBJECT_GET_CLASS(origen);
-                             const std::string lat = std::to_string(std::max<std::int64_t>(e->latenciaMs_, 20));
+                             const std::string lat = std::to_string(std::max<std::int64_t>(e->latenciaMs_, ajustes::entero("entradas.latenciaMinimaMs", 20)));
                              const bool ntp = e->ntpSync_ && !e->ntpApagadoSolo_;
                              if (g_object_class_find_property(k, "latency") != nullptr)
                                  gst_util_set_object_arg(G_OBJECT(origen), "latency", lat.c_str());
@@ -1110,9 +1112,10 @@ void Entrada::medirLatencia() {
         // quieta un minuto.
         const std::int64_t ahoraUs = g_get_monotonic_time();
         const auto puede = [&](Realineo& r, double med, const char* que) {
-            if (ahoraUs < r.quietoHastaUs || ahoraUs - r.ultimoUs < 10'000'000) return false;
-            if (r.ultimoUs != 0 && ahoraUs - r.ultimoUs < 20'000'000 && (med > 0) != (r.ultimo > 0)) {
-                r.quietoHastaUs = ahoraUs + 60'000'000;
+            const std::int64_t entre = ajustes::entero64("entradas.realineoEntreS", 10) * 1'000'000;
+            if (ahoraUs < r.quietoHastaUs || ahoraUs - r.ultimoUs < entre) return false;
+            if (r.ultimoUs != 0 && ahoraUs - r.ultimoUs < 2 * entre && (med > 0) != (r.ultimo > 0)) {
+                r.quietoHastaUs = ahoraUs + ajustes::entero64("entradas.realineoQuietoS", 60) * 1'000'000;
                 registrar(Nivel::Aviso, id_ + ": las horas de su " + que + " van y vienen (" +
                                             std::to_string(static_cast<int>(r.ultimo)) + " ms, " +
                                             std::to_string(static_cast<int>(med)) + " ms): no se realinea por un minuto");
@@ -1160,7 +1163,7 @@ void Entrada::medirLatencia() {
         reloj_.olvidar(id_);
     // RTSP: la hora de la cámara (RTCP) muy corrida hace que los cuadros salgan «del
     // futuro» (edad negativa). Sostenido: se deja de usar su hora y se rearma.
-    if (ntpSync_ && !ntpApagadoSolo_ && uri_.rfind("rtsp", 0) == 0 && datos > 60 && edadP50_ < -400) {
+    if (ntpSync_ && !ntpApagadoSolo_ && uri_.rfind("rtsp", 0) == 0 && datos > 60 && edadP50_ < -ajustes::entero("entradas.avisoHoraMs", 400)) {
         registrar(Nivel::Aviso, id_ + ": la hora de la cámara está corrida " + std::to_string(static_cast<int>(-edadP50_)) +
                                     " ms; se deja de usar (ntp-sync)");
         ntpApagadoSolo_ = true;
@@ -1265,7 +1268,8 @@ void Entrada::tic() {
     if (pipeline_ == nullptr && esperaDispositivo_) {
         // Esperando su dispositivo: se arma cuando el vigía avisa (o cada 15 s, de respaldo). Una
         // ventana que no está abierta no la avisa nadie: se mira cada 2 s.
-        const std::uint64_t cada = (!ventanaApp_.empty() || !ventanaTitulo_.empty()) ? 2'000'000'000ULL : 15'000'000'000ULL;
+        const std::uint64_t cada = (!ventanaApp_.empty() || !ventanaTitulo_.empty()) ? static_cast<std::uint64_t>(ajustes::msANs("entradas.buscarVentanaMs", 2000))
+                                                                                              : static_cast<std::uint64_t>(ajustes::sANs("entradas.buscarDispositivoS", 15));
         if (Vigia::el().generacion() != genVista_ || ahoraNs() - esperaDesdeNs_ > cada)
             trabajar([this]() { armar(); });
         return;

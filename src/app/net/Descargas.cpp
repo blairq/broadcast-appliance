@@ -2,6 +2,7 @@
 // src/app/net/Descargas.cpp — ver Descargas.hpp
 // ============================================================================
 #include "net/Descargas.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "net/HttpsClient.hpp"
 
@@ -20,8 +21,8 @@ namespace fs = std::filesystem;
 
 namespace {
 Descargas* g_la = nullptr;
-constexpr int kObreros = 2;
-constexpr std::size_t kHistorial = 100;
+inline int kObreros() { return std::clamp(ba::ajustes::entero("descargas.simultaneas", 2), 1, 8); } // se lee al arrancar
+inline std::size_t kHistorial() { return static_cast<std::size_t>(ba::ajustes::entero("descargas.historial", 100)); }
 
 std::int64_t ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
 
@@ -61,7 +62,7 @@ void Descargas::iniciar(const fs::path& raizDatos) {
 
 Descargas::Descargas(fs::path raiz) : raiz_(std::move(raiz)) {
     leerHistorial();
-    for (int i = 0; i < kObreros; ++i) obreros_.emplace_back([this] { correr(); });
+    for (int i = 0; i < kObreros(); ++i) obreros_.emplace_back([this] { correr(); });
 }
 
 Descargas::~Descargas() {
@@ -209,7 +210,7 @@ std::string Descargas::Contexto::bajar(const std::string& url, const fs::path& d
     req.url = url;
     req.responseFile = parte.string();
     req.resumeFrom = ya;
-    req.timeoutMs = 60000;
+    req.timeoutMs = ba::ajustes::sAMs("descargas.timeoutS", 60);
     req.cancel = cancelado_.get();
     const auto t0 = std::chrono::steady_clock::now();
     const std::string quien = nombre.empty() ? destino.filename().string() : nombre;
@@ -489,7 +490,7 @@ void Descargas::guardarHistorial() {
                          {"bytes", i->bytes}, {"desde", i->desde}, {"hasta", i->hasta}});
         }
     }
-    while (h.size() > kHistorial) h.erase(h.begin());
+    while (h.size() > kHistorial()) h.erase(h.begin());
     std::error_code ec;
     fs::create_directories(raiz_ / "Runtime", ec);
     std::ofstream o(raiz_ / "Runtime" / "descargas.json", std::ios::trunc);

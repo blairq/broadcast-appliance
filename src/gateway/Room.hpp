@@ -39,6 +39,7 @@
 #include <nlohmann/json.hpp>
 
 #include "MediaRoute.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -63,9 +64,9 @@ class Room {
     /// Configuracion del modo oradores.
     struct SpeakerCfg {
         bool enabled = false;            ///< admitir = entrar a la fila (no al aire)
-        int defaultSec = 180;            ///< tiempo de cada orador al entrar
+        int defaultSec = ba::ajustes::entero("room.oradorSeg", 180); ///< tiempo de cada orador al entrar (Configuración)
         std::string carousel = "manual"; ///< "manual" | "chain" (al sacar entra el siguiente) | "time"
-        int graceSec = 10;               ///< "time": margen despues de cero antes de rotar
+        int graceSec = ba::ajustes::entero("room.oradorGraciaS", 10); ///< "time": margen despues de cero antes de rotar
         bool multi = false;              ///< varios al aire a la vez (si no, uno reemplaza al otro)
         int defaultSlot = 1;             ///< slot del programa para el orador
     };

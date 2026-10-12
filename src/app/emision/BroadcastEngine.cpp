@@ -9,6 +9,7 @@
 // ============================================================================
 
 #include "emision/BroadcastEngine.hpp"
+#include "ajustes/Ajustes.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/NdiSource.hpp"
 #include "audio/GstRack.hpp"
@@ -818,7 +819,7 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
     const auto ahora = std::chrono::steady_clock::now();
     // Las que nadie pidió en 10 s, afuera.
     for (auto it = capturas_.begin(); it != capturas_.end();)
-        if (it->first != clave && ahora - it->second.uso > std::chrono::seconds(10)) {
+        if (it->first != clave && ahora - it->second.uso > std::chrono::seconds(ajustes::entero("video.vistaReposoS", 10))) {
             motor_->verSoltar(it->first);
             it = capturas_.erase(it);
         } else {
@@ -843,7 +844,7 @@ std::string BroadcastEngine::capturarVista(const std::string& clave, int w, int 
     // pueden salir sin las capas que todavía arrancan (en la GPU, compilar los
     // shaders tarda): se toma un cuadro de después. Una vista ya viva, al toque.
     const auto desde = std::chrono::steady_clock::now();
-    const auto espera = nueva && esEscena ? std::chrono::milliseconds(700) : std::chrono::milliseconds(0);
+    const auto espera = nueva && esEscena ? std::chrono::milliseconds(ajustes::entero("video.esperaCapturaMs", 700)) : std::chrono::milliseconds(0);
     for (int i = 0; i < 60; ++i) {
         const bool hay = motor_->verUltimo(clave, c, s);
         ok = ok || hay;
@@ -1260,7 +1261,7 @@ std::string BroadcastEngine::startRecordingYa(const RecordConfig& rec, const Enc
     motor::Grabacion::Config c;
     c.carpeta = rec.directory;
     c.nombre = nombre;
-    c.tramoSeg = 0; // un archivo por grabación (como antes); el MKV ya aguanta un corte
+    c.tramoSeg = ajustes::entero("record.tramoMin", 0) * 60; // 0: un archivo por grabación; el MKV ya aguanta un corte
     c.kbps = rec.calidad == "archivo" ? enc.videoBitrateKbps * 3 : enc.videoBitrateKbps;
     c.kbpsAudio = std::max(enc.audioBitrateKbps, rec.calidad == "archivo" ? 256 : 160);
     c.gopSeg = std::max(1, enc.keyintSec);
@@ -1315,7 +1316,8 @@ void BroadcastEngine::stopRecordingYa() {
     const auto archivos = rec_->archivos();
     if (!archivos.empty()) recordPath_ = archivos.back();
     rec_.reset();
-    if (estaba && !remuxSal_.empty() && remuxAlTerminarSal_ && !recordPath_.empty()) remux(recordPath_, remuxSal_, true);
+    // Con la grabación partida en tramos (Configuración → avanzado), se pasan todos.
+    if (estaba && !remuxSal_.empty() && remuxAlTerminarSal_ && !archivos.empty()) remuxVarios(archivos, remuxSal_, true);
 }
 
 std::string BroadcastEngine::archivoGrabacion() const {
@@ -1343,6 +1345,12 @@ nlohmann::json BroadcastEngine::grabacionEstado() const {
 }
 
 bool BroadcastEngine::remux(const std::string& archivo, const std::string& formato, bool borrarOrigen) {
+    return remuxVarios({archivo}, formato, borrarOrigen);
+}
+
+bool BroadcastEngine::remuxVarios(const std::vector<std::string>& archivos, const std::string& formato, bool borrarOrigen) {
+    if (archivos.empty()) return false;
+    const std::string archivo = archivos.front();
     std::lock_guard<std::mutex> lr(remuxM_); // lo lanza también el hilo de salidas (al parar)
     if (remux_ && remux_->andando) {
         setError("ya hay un remux andando");
@@ -1354,19 +1362,33 @@ bool BroadcastEngine::remux(const std::string& archivo, const std::string& forma
     st->destino = destino;
     st->andando = true;
     remux_ = st;
-    std::thread([st, archivo, destino, borrarOrigen]() {
-        const std::string e = motor::remuxar(archivo, destino, [&](double p) { st->pct = static_cast<float>(p * 100.0); });
-        // Antes de borrar el MKV: que exista y que no sea mucho más chico.
-        std::error_code ec;
-        const auto tamO = std::filesystem::file_size(archivo, ec);
-        const auto tamD = std::filesystem::file_size(destino, ec);
-        const bool verificado = e.empty() && !ec && tamD > 0 && tamD * 10 >= tamO * 9;
-        {
-            std::lock_guard<std::mutex> l(st->mu);
-            if (!verificado) st->error = e.empty() ? "el archivo nuevo no se verificó (tamaño)" : e;
+    std::thread([st, archivos, formato, borrarOrigen]() {
+        bool todos = true;
+        for (std::size_t i = 0; i < archivos.size(); ++i) {
+            const std::string& origen = archivos[i];
+            const std::string dest = std::filesystem::path(origen).replace_extension("." + formato).string();
+            {
+                std::lock_guard<std::mutex> l(st->mu);
+                st->archivo = origen;
+                st->destino = dest;
+            }
+            const double base = static_cast<double>(i) / static_cast<double>(archivos.size());
+            const std::string e = motor::remuxar(origen, dest, [&](double p) {
+                st->pct = static_cast<float>((base + p / static_cast<double>(archivos.size())) * 100.0);
+            });
+            // Antes de borrar el MKV: que exista y que no sea mucho más chico.
+            std::error_code ec;
+            const auto tamO = std::filesystem::file_size(origen, ec);
+            const auto tamD = std::filesystem::file_size(dest, ec);
+            const bool verificado = e.empty() && !ec && tamD > 0 && tamD * 10 >= tamO * 9;
+            if (!verificado) {
+                std::lock_guard<std::mutex> l(st->mu);
+                st->error = e.empty() ? "el archivo nuevo no se verificó (tamaño)" : e;
+                todos = false;
+            }
+            if (verificado && borrarOrigen) std::filesystem::remove(origen, ec);
         }
-        if (verificado && borrarOrigen) std::filesystem::remove(archivo, ec);
-        st->ok = verificado;
+        st->ok = todos;
         st->pct = 100;
         st->andando = false;
     }).detach();
@@ -1713,14 +1735,14 @@ std::string BroadcastEngine::startSourceRecordingYa(const std::string& source, c
     motor::Grabacion::Config c;
     c.carpeta = dir;
     c.nombre = "entrada-" + limpio + "-" + marcaDeTiempo();
-    c.tramoSeg = 0;
+    c.tramoSeg = ajustes::entero("record.tramoMin", 0) * 60;
     c.kbps = enc.videoBitrateKbps;
     c.kbpsAudio = enc.audioBitrateKbps;
     c.gopSeg = std::max(1, enc.keyintSec);
     c.fps = std::max(1, video_.fpsNum / std::max(1, video_.fpsDen));
     // Las sesiones de codificación de la placa quedan para el programa: x264.
     c.codificadores = {"x264enc"};
-    c.colchonSeg = 10; // hasta 8 a la vez: menos memoria (con el disco en apuros se pausan)
+    c.colchonSeg = std::max(1, ajustes::entero("record.colchonIsoS", 10)); // hasta 8 a la vez: menos memoria (con el disco en apuros se pausan)
     r.grab = std::make_unique<motor::Grabacion>(motor_->reloj(), c);
     const std::string err = r.grab->iniciar(f);
     if (!err.empty()) {
@@ -1812,7 +1834,7 @@ std::string BroadcastEngine::startCleanFeedYa(const std::string& destino, const 
         motor::Grabacion::Config c;
         c.carpeta = dir;
         c.nombre = "senal-limpia-" + marcaDeTiempo();
-        c.tramoSeg = 0;
+        c.tramoSeg = ajustes::entero("record.tramoMin", 0) * 60;
         c.kbps = enc.videoBitrateKbps;
         c.fps = fps;
         c.codificadores = {"x264enc"};

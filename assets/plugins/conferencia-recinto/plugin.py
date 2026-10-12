@@ -40,13 +40,13 @@ def leer_lineas(f):
 def modo_tcp():
     while plugin.andando:
         try:
-            with socket.create_connection((c["host"], int(c.get("puerto", 9000))), timeout=10) as s:
+            with socket.create_connection((c["host"], int(c.get("puerto", 9000))), timeout=float(c.get("conectar_s", 10))) as s:
                 plugin.estado(f"conectado a {c['host']}:{c.get('puerto')}")
                 s.settimeout(None)
                 leer_lineas(s.makefile("rb"))
         except OSError as e:
             plugin.estado(f"sin conexión con el sistema: {e}", ok=False)
-        time.sleep(5)
+        time.sleep(float(c.get("reconectar_s", 5)))
 
 
 def modo_escucha():

@@ -14,6 +14,7 @@
 #include "Botonera.hpp" // sha256Hex
 #include "HttpIo.hpp"
 #include "Log.hpp"
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::gateway {
 
@@ -56,14 +57,14 @@ const char* tipoDe(const std::string& rel) {
     return "application/octet-stream";
 }
 
-constexpr int kMaxConexiones = 4096;    // el límite técnico (docs/funciones/SESION-REMOTA.md §7)
-constexpr int kMensajesPorSegundo = 20;
-constexpr int kLatidoMs = 30000;
-constexpr int kAuthMs = 15000;
-constexpr int kIntentosPorIp = 10;      // cada 10 minutos
-constexpr int kFallasParaBloquear = 5;
-constexpr std::int64_t kBloqueoMs = 15 * 60 * 1000;
-constexpr std::size_t kMaxFoto = 96 * 1024;
+inline int kMaxConexiones() { return ba::ajustes::entero("sesion.maxConexiones", 4096); }    // el límite técnico (docs/funciones/SESION-REMOTA.md §7)
+inline int kMensajesPorSegundo() { return ba::ajustes::entero("sesion.mensajesPorSegundo", 20); }
+inline int kLatidoMs() { return ba::ajustes::sAMs("sesion.latidoS", 30); }
+inline int kAuthMs() { return ba::ajustes::sAMs("sesion.authS", 15); }
+inline int kIntentosPorIp() { return ba::ajustes::entero("sesion.intentosPorIp", 10); }      // cada 10 minutos
+inline int kFallasParaBloquear() { return ba::ajustes::entero("sesion.fallasParaBloquear", 5); }
+inline std::int64_t kBloqueoMs() { return ba::ajustes::entero64("sesion.bloqueoMin", 15) * 60 * 1000; }
+inline std::size_t kMaxFoto() { return static_cast<std::size_t>(ba::ajustes::entero("sesion.fotoKB", 96)) * 1024; }
 // Lo que la página puede mandar; lo demás se ignora. Las de la palabra y el voto
 // se agregan en sus fases (R2, R4): la app decide si las acepta.
 const std::set<std::string> kTipos{"hola", "palabra", "voto"};
@@ -120,7 +121,7 @@ bool SesionBorde::intentoPermitido(const std::string& ip) {
     auto& v = intentos_[ip];
     const std::int64_t ahora = ahoraMs();
     v.erase(std::remove_if(v.begin(), v.end(), [&](std::int64_t t) { return ahora - t > 10 * 60 * 1000; }), v.end());
-    if (static_cast<int>(v.size()) >= kIntentosPorIp) return false;
+    if (static_cast<int>(v.size()) >= kIntentosPorIp()) return false;
     v.push_back(ahora);
     return true;
 }
@@ -165,15 +166,15 @@ void SesionBorde::anotarPinMal(const std::string& id) {
         std::lock_guard<std::mutex> l(mu_);
         auto it = credenciales_.find(id);
         if (it == credenciales_.end()) return;
-        if (++it->second.fallas >= kFallasParaBloquear) {
+        if (++it->second.fallas >= kFallasParaBloquear()) {
             it->second.fallas = 0;
-            it->second.bloqueadoHastaMs = ahoraMs() + kBloqueoMs;
+            it->second.bloqueadoHastaMs = ahoraMs() + kBloqueoMs();
             seBloqueo = true;
         }
     }
     if (seBloqueo) {
         log_.warn("sesion: " + id + " bloqueado 15 min por PIN errado", -1);
-        alApp_({{"tipo", "bloqueo"}, {"id", id}, {"minutos", kBloqueoMs / 60000}});
+        alApp_({{"tipo", "bloqueo"}, {"id", id}, {"minutos", kBloqueoMs() / 60000}});
     }
 }
 
@@ -246,7 +247,7 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
     if (key.empty()) return http::sendResponse(fd, 400, "text/plain", "falta Sec-WebSocket-Key\n"), true;
     {
         std::lock_guard<std::mutex> l(mu_);
-        if (static_cast<int>(conns_.size()) >= kMaxConexiones)
+        if (static_cast<int>(conns_.size()) >= kMaxConexiones())
             return http::sendResponse(fd, 503, "text/plain", "sesion llena\n"), true;
     }
     const std::string accept = http::base64(http::sha1(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").data(), 20);
@@ -270,7 +271,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     c->lugar = lugar;
     // 1. Autenticación: el primer mensaje, a los 15 s como mucho.
     {
-        if (http::waitReadable(fd, kAuthMs) <= 0) return;
+        if (http::waitReadable(fd, kAuthMs()) <= 0) return;
         std::string payload;
         int op = 0;
         if (!http::readWsFrame(fd, payload, op) || op != 0x1) return;
@@ -362,7 +363,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
     // 2. El lazo.
     std::vector<std::int64_t> ventana;
     while (true) {
-        const int r = http::waitReadable(fd, kLatidoMs);
+        const int r = http::waitReadable(fd, kLatidoMs());
         if (r <= 0) break; // sin latido: se da por caído
         std::string payload;
         int op = 0;
@@ -373,12 +374,12 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             http::writeWsFrame(fd, 0xA, payload);
             continue;
         }
-        if (op != 0x1 || payload.size() > kMaxFoto * 2) continue;
+        if (op != 0x1 || payload.size() > kMaxFoto() * 2) continue;
         const std::int64_t ahora = ahoraMs();
         ventana.erase(std::remove_if(ventana.begin(), ventana.end(), [&](std::int64_t t) { return ahora - t > 1000; }),
                       ventana.end());
         // La consola junta candidatos ICE de varias conexiones a la vez: más margen.
-        if (static_cast<int>(ventana.size()) >= (consola ? kMensajesPorSegundo * 4 : kMensajesPorSegundo)) {
+        if (static_cast<int>(ventana.size()) >= (consola ? kMensajesPorSegundo() * 4 : kMensajesPorSegundo())) {
             log_.warn("sesion: " + c->id + " manda demasiado; se corta", -1);
             break;
         }
@@ -481,7 +482,7 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         if (t == "foto") {
             // La foto de su cámara: queda acá; la app la pide cuando la muestra.
             std::string jpeg = http::deBase64(m.value("jpeg", std::string()));
-            if (jpeg.size() >= 4 && jpeg.size() <= kMaxFoto && static_cast<unsigned char>(jpeg[0]) == 0xFF &&
+            if (jpeg.size() >= 4 && jpeg.size() <= kMaxFoto() && static_cast<unsigned char>(jpeg[0]) == 0xFF &&
                 static_cast<unsigned char>(jpeg[1]) == 0xD8) {
                 std::lock_guard<std::mutex> l(mu_);
                 fotos_[c->id] = std::move(jpeg);

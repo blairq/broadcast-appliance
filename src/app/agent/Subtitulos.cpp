@@ -1,6 +1,7 @@
 // src/app/agent/Subtitulos.cpp — ver Subtitulos.hpp
 
 #include "agent/Subtitulos.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include "emision/FuentesApp.hpp"
 #include "agent/FlujosTexto.hpp"
@@ -20,7 +21,7 @@ namespace {
 
 using json = nlohmann::json;
 constexpr const char* kTipo = "ba_subtitulos";
-constexpr int kMaxLineas = 4;
+inline int kMaxLineas() { return ba::ajustes::entero("cc.maxLineas", 4); }
 constexpr int kTicMs = 100;
 
 Subtitulos* gActivo = nullptr;
@@ -83,7 +84,7 @@ double duracion(const std::vector<std::string>& b, double cps, double minimo) {
     return std::max(minimo, static_cast<double>(n) / std::max(1.0, cps));
 }
 
-int nLineas(const json& a) { return std::clamp(a.value("lineas", 2), 1, kMaxLineas); }
+int nLineas(const json& a) { return std::clamp(a.value("lineas", 2), 1, kMaxLineas()); }
 int caracteres(const json& a) { return std::clamp(a.value("caracteres", 42), 10, 120); }
 int tamano(const json& a) {
     const json f = a.value("font", json::object());
@@ -175,7 +176,7 @@ Subtitulos::Subtitulos(FlujosTexto& flujos, QObject* parent) : QObject(parent), 
                               {"color_fondo", "Color del fondo", "color"},
                               {"contorno", "Contorno", "bool"},
                               {"sombra", "Sombra", "bool"},
-                              {"lineas", "Líneas a la vez", "int", 1, kMaxLineas, 1},
+                              {"lineas", "Líneas a la vez", "int", 1, static_cast<double>(kMaxLineas()), 1},
                               {"caracteres", "Caracteres por línea (máximo)", "int", 10, 120, 1},
                               {"ancho", "Ancho del cuadro (px)", "int", 200, 7680, 10},
                               {"cps", "Velocidad de lectura (caracteres por segundo)", "float", 5, 40, 0.5},

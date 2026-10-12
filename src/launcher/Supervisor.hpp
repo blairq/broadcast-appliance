@@ -116,6 +116,7 @@ class Supervisor {
 
     // --- Estado -------------------------------------------------------------
     Config cfg_;
+    std::uint64_t ultimoCierreOrdenadoB_ = 0; ///< la última vez que la sala cerró en orden (reinicio pedido)
     ChildProcess app_;
     ChildProcess gateway_;
     ba::ipc::HealthBlock health_;

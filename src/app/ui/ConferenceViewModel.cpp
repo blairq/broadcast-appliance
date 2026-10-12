@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/ConferenceViewModel.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <QClipboard>
 #include <QDateTime>
@@ -26,7 +27,7 @@ namespace ba::app {
 
 /// Ver el uso: cuánto se espera antes de que el asistente aborde a alguien
 /// que acaba de llegar al lobby, para que el reconocimiento llegue a contestar.
-constexpr int kEsperarAlReconocimientoMs = 2500;
+inline int kEsperarAlReconocimientoMs() { return ba::ajustes::entero("asistente.esperaLobbyMs", 2500); }
 
 namespace fs = std::filesystem;
 
@@ -123,10 +124,10 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     };
     // Fotos de las tarjetas de oradores (las renueva el invitado cada 5 s).
     connect(&avatarPoll_, &QTimer::timeout, this, &ConferenceViewModel::pollAvatars);
-    avatarPoll_.start(5000);
+    avatarPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
     connect(&networkPoll_, &QTimer::timeout, this, pollNetwork);
     connect(client_.get(), &ConferenceClient::onlineChanged, this, pollNetwork);
-    networkPoll_.start(5000);
+    networkPoll_.start(std::max(1000, ba::ajustes::entero("room.sondeoMs", 5000)));
     // Si el operador lo dejo prendido, sigue prendido al arrancar: es una
     // decision del evento, no un boton que haya que volver a apretar. Si no
     // hay asistente, se apaga solo en cuanto lo intenta (ver onSnapshot).
@@ -348,7 +349,7 @@ void ConferenceViewModel::onSnapshot() {
                 // segundo después va a estar identificado—. Dos segundos y
                 // medio no los nota nadie del otro lado.
                 const QString nombre = p.value("name").toString();
-                QTimer::singleShot(kEsperarAlReconocimientoMs, this, [this, pid, nombre]() {
+                QTimer::singleShot(kEsperarAlReconocimientoMs(), this, [this, pid, nombre]() {
                     if (intakeSink_ == nullptr) return;
                     // Si mientras tanto entró sola (lista del evento), la
                     // atiende el otro camino: `marcarAtendido` lo saca de acá.

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include "ajustes/Ajustes.hpp"
 
 namespace ba::motor {
 
@@ -50,7 +51,7 @@ void Escucha::armar() {
     error_.clear();
     if (productor_.empty()) return;
     const std::string cola = "intersrc producer-name=" + entreComillas(productor_) +
-                             " ! queue max-size-time=2000000000 max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
+                             " ! queue max-size-time=" + std::to_string(ajustes::sANs("audio.colaEscuchaS", 2)) + " max-size-buffers=0 max-size-bytes=0 ! audioconvert ! "
                              "audioresample ! volume name=vol ! level name=nivel interval=50000000 peak-ttl=300000000 ! ";
     for (const std::string& disp : {dispositivo_, std::string()}) {
         GError* e = nullptr;

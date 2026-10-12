@@ -30,7 +30,7 @@ const Lamina* Carrusel::lamina() const {
 }
 
 bool Carrusel::agregar(Lamina l) {
-    if (l.archivo.empty() || laminas_.size() >= kMax) return false;
+    if (l.archivo.empty() || laminas_.size() >= kMax()) return false;
     // La misma imagen dos veces en la tira es casi siempre un descuido al
     // armarla (se arrastro la carpeta dos veces), y despues al operador le
     // aparecen dos tarjetas identicas y no sabe cual tocar.
