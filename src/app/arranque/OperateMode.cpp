@@ -270,6 +270,30 @@ void AppRuntime::ajustarInvitados(int n) {
         for (int slot = antes + 1; slot <= n; ++slot)
             if (!engine_.addGuestAudio(slot))
                 std::printf("ba-app: invitado %d (audio) omitido: %s\n", slot, engine_.lastError().c_str());
+    // Y el video de los lugares nuevos (la cámara y la pantalla de cada uno): sin
+    // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
+    // primera escena, como las del arranque: el operador las pone donde quiera.
+    if (cfg_.guestVideo && !cfg_.scenes.empty()) {
+        const auto existe = [this](const std::string& nombre) {
+            for (const auto& sc : cfg_.scenes)
+                for (const auto& s : sc.sources)
+                    if (s.name == nombre) return true;
+            return false;
+        };
+        for (int slot = antes + 1; slot <= n; ++slot)
+            for (const bool share : {false, true}) {
+                SourceSpec spec;
+                spec.id = "ba_guest_video";
+                spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
+                if (existe(spec.name)) continue;
+                spec.settingsJson =
+                    "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"" + (share ? "share" : "guest") + "\"}";
+                spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+                spec.visible = false;
+                if (!addSource(cfg_.scenes.front().name, spec))
+                    std::printf("ba-app: «%s» omitido: %s\n", spec.name.c_str(), lastError_.c_str());
+            }
+    }
     save();
 }
 
@@ -364,6 +388,32 @@ void AppRuntime::addGuests() {
             spec.visible = false;
             cfg_.scenes.front().sources.push_back(spec);
         }
+    }
+    // Cada lugar con su cámara y su pantalla, aunque ya hubiera invitados: si el
+    // cupo se subió (a 4) con escenas que tenían los de 2, los nuevos no se creaban
+    // y en Entradas se veían solo 2. Los que faltan, ocultos en la primera escena.
+    if (cfg_.guestVideo && !cfg_.scenes.empty()) {
+        const auto hay = [this](int slot, const std::string& canal) {
+            for (const auto& sc : cfg_.scenes)
+                for (const auto& s : sc.sources) {
+                    if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
+                    const nlohmann::json j = nlohmann::json::parse(s.settingsJson.empty() ? "{}" : s.settingsJson, nullptr, false);
+                    if (j.is_object() && j.value("slot", 0) == slot && j.value("channel", std::string("guest")) == canal) return true;
+                }
+            return false;
+        };
+        for (int slot = 1; slot <= cfg_.guests; ++slot)
+            for (const bool share : {false, true}) {
+                if (hay(slot, share ? "share" : "guest")) continue;
+                SourceSpec spec;
+                spec.id = "ba_guest_video";
+                spec.name = "Invitado " + std::to_string(slot) + (share ? " — pantalla" : "");
+                spec.settingsJson =
+                    "{\"slot\":" + std::to_string(slot) + ",\"channel\":\"" + (share ? "share" : "guest") + "\"}";
+                spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
+                spec.visible = false;
+                cfg_.scenes.front().sources.push_back(spec);
+            }
     }
 }
 

@@ -152,7 +152,7 @@ Rectangle {
     readonly property var sourceTree: {
         groupTick
         const src = au ? au.sources : []
-        const orden = ["Invitados", "Micrófonos y líneas del equipo", "Entradas del equipo (placas)", "Voces (texto a audio)",
+        const orden = ["Invitados", "Asamblea", "Micrófonos y líneas del equipo", "Entradas del equipo (placas)", "Voces (texto a audio)",
                        "Audio del equipo (lo que suena)", "Medios y red", "Otras fuentes"]
         const porGrupo = {}
         for (let i = 0; i < src.length; ++i) {

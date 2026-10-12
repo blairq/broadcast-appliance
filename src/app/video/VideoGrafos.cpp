@@ -214,9 +214,14 @@ QVariantList VideoGrafos::entradasInfo() const {
     QVariantList out;
     for (const QString& e : entradas_) {
         const std::string n = e.toStdString();
-        const std::string tipo = inputs::tipoLogico(rt_.engine().sourceTypeId(n),
-                                                    json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false));
+        const json ajustes = json::parse(rt_.engine().sourceSettingsJson(n), nullptr, false);
+        const std::string tipo = inputs::tipoLogico(rt_.engine().sourceTypeId(n), ajustes);
+        // Los remotos de la asamblea (el que tiene la palabra y lo que comparte)
+        // aparte de los invitados de la sala.
+        const bool deAsamblea = tipo == "ba_guest_video" && ajustes.is_object() &&
+                                ajustes.value("channel", std::string()).rfind("remoto", 0) == 0;
         const QString grupo = tipo == inputs::kVideoType ? QStringLiteral("Cámaras")
+                              : deAsamblea               ? QStringLiteral("Asamblea")
                               : tipo == "ba_guest_video" ? QStringLiteral("Invitados")
                               : tipo == "ba_ndi_input"   ? QStringLiteral("NDI")
                               : tipo == kTipoVirtual     ? QStringLiteral("Virtuales")
