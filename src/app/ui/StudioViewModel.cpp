@@ -343,7 +343,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     playlist_->setArmar([this](const QString& escena) {
         scenes_->reload();
         emit escenasCambiaron();
-        conmutador_->armar(escena.toStdString());
+        return conmutador_->armar(escena.toStdString());
     });
     connect(playlist_.get(), &medios::Playlist::notify, this, &StudioViewModel::notify);
     // Tras un corte de luz, la playlist sigue donde estaba (P0.10). Un rato

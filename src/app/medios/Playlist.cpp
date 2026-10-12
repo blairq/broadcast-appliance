@@ -259,9 +259,13 @@ QString Playlist::moverUi(int indice, int destino) {
 
 QString Playlist::controlUi(const QString& accion, int indice) { return qs(control(accion.toStdString(), indice)); }
 
+std::string Playlist::armar() {
+    if (const std::string e = asegurarEscena(); !e.empty()) return e;
+    return armar_ ? armar_(kEscena) : std::string();
+}
+
 void Playlist::armarUi() {
-    if (const std::string e = asegurarEscena(); !e.empty()) return emit notify(qs(e), "error");
-    if (armar_) armar_(kEscena);
+    if (const std::string e = armar(); !e.empty()) emit notify(qs(e), "error");
 }
 
 } // namespace ba::app::medios

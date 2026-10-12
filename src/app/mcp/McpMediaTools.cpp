@@ -129,8 +129,9 @@ void McpService::registerMediaTools() {
             if (a.contains("auto_next")) pl.setAutoNext(a.value("auto_next", true));
             if (a.contains("loop")) pl.setLoop(a.value("loop", false));
             const std::string acc = a.value("accion", std::string());
-            if (acc == "armar") pl.armarUi();
-            else if (!acc.empty())
+            if (acc == "armar") {
+                if (const std::string e = pl.armar(); !e.empty()) return done(ToolResult::error(e));
+            } else if (!acc.empty())
                 if (const std::string e = pl.control(acc, a.value("indice", -1)); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult().data(json{{"estado", pl.estado()}, {"items", pl.items()}}));
         };
