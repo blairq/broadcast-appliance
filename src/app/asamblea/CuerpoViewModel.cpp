@@ -23,6 +23,8 @@ nlohmann::json deMapa(const QVariantMap& m) {
 
 CuerpoViewModel::CuerpoViewModel(std::filesystem::path datos, QObject* parent)
     : QObject(parent), datos_(std::move(datos)), c_(std::make_unique<Cuerpo>(datos_ / "Config" / "cuerpo.json")) {
+    // El Cuerpo avisa sus cambios (los pida la interfaz, el MCP o quien sea).
+    c_->alCambiar([this]() { emit cambio(); });
     // La tanda de fotos sigue cuando termina la que estaba (salga bien o mal).
     connect(this, &CuerpoViewModel::fotoLista, this, [this](const QString& id, bool, const QString&) {
         if (!capturando_.isEmpty() && id == capturando_) {
@@ -97,7 +99,6 @@ QString CuerpoViewModel::guardarFoto(const QString& id, const QImage& img) {
     std::string err;
     nlohmann::json c{{"id", id.toStdString()}, {"foto", rel.toStdString()}};
     if (c_->guardar(c, &err).empty()) return QString::fromStdString(err);
-    emit cambio();
     return {};
 }
 
@@ -135,13 +136,11 @@ void CuerpoViewModel::capturarFoto(const QString& id) {
 bool CuerpoViewModel::borrarFoto(const QString& id) {
     std::string err;
     if (c_->guardar({{"id", id.toStdString()}, {"foto", ""}}, &err).empty()) return false;
-    emit cambio();
     return true;
 }
 
 void CuerpoViewModel::setNombre(const QString& n) {
     c_->setNombre(n.trimmed().toStdString());
-    emit cambio();
 }
 
 QString CuerpoViewModel::guardar(const QVariantMap& campos) {
@@ -156,26 +155,20 @@ QString CuerpoViewModel::guardar(const QVariantMap& campos) {
         j["microfono"] = {{"fuente", j["microfono"].get<std::string>()}};
     std::string err;
     if (c_->guardar(j, &err).empty()) return QString::fromStdString(err);
-    emit cambio();
     return {};
 }
 
 bool CuerpoViewModel::borrar(const QString& id) {
-    const bool ok = c_->borrar(id.toStdString());
-    if (ok) emit cambio();
-    return ok;
+    return c_->borrar(id.toStdString());
 }
 
 bool CuerpoViewModel::validar(const QString& id) {
-    const bool ok = c_->validar(id.toStdString(), "operador");
-    if (ok) emit cambio();
-    return ok;
+    return c_->validar(id.toStdString(), "operador");
 }
 
 QString CuerpoViewModel::importar(const QString& archivo, bool reemplazar) {
     const QString ruta = archivo.startsWith("file:") ? QUrl(archivo).toLocalFile() : archivo;
     const nlohmann::json r = c_->importarCsv(ruta.toStdString(), reemplazar);
-    emit cambio();
     QString t = QString("Importados %1, actualizados %2").arg(r.value("importados", 0)).arg(r.value("actualizados", 0));
     if (!r["errores"].empty()) t += QString(", %1 con error (%2)").arg(r["errores"].size()).arg(QString::fromStdString(r["errores"][0].get<std::string>()));
     return t;
@@ -198,9 +191,7 @@ QVariantMap CuerpoViewModel::recinto() const {
 }
 
 QString CuerpoViewModel::editarRecinto(const QVariantMap& cambios) {
-    const std::string e = c_->setRecinto(deMapa(cambios));
-    if (e.empty()) emit cambio();
-    return QString::fromStdString(e);
+    return QString::fromStdString(c_->setRecinto(deMapa(cambios)));
 }
 
 QVariantMap CuerpoViewModel::buscar(const QString& clave) const {

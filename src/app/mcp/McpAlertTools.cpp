@@ -193,7 +193,6 @@ void McpService::registerAlertTools() {
                 return done(ToolResult::error("`permitir_aire` no se cambia al aire: hacelo fuera de la emisión."));
             const json r = eng.create(a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
-            QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
             done(ToolResult().text("Disparador " + r["id"].get<std::string>() + " activo.").data(r));
         };
         core_.addTool(std::move(t));
@@ -228,9 +227,8 @@ void McpService::registerAlertTools() {
             "grabar), entrada sin señal (crítico) e invitado caído. `restablecer`: true los vuelve a poner como "
             "vinieron (los propios no se tocan).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"restablecer", {{"type", "boolean"}}}}}};
-        t.run = [&eng, this](const json& a, Done done) {
+        t.run = [&eng](const json& a, Done done) {
             const json r = eng.fabrica(a.value("restablecer", false));
-            if (a.value("restablecer", false)) QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
             done(ToolResult().data(json{{"fabrica", r}}));
         };
         core_.addTool(std::move(t));
@@ -288,7 +286,6 @@ void McpService::registerAlertTools() {
                 return done(ToolResult::error("`permitir_aire` no se cambia al aire: hacelo fuera de la emisión."));
             const json r = eng.update(a["id"].get<std::string>(), a);
             if (r.contains("error")) return done(ToolResult::error(r["error"].get<std::string>()));
-            QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
             done(ToolResult().data(r));
         };
         core_.addTool(std::move(t));
@@ -302,13 +299,12 @@ void McpService::registerAlertTools() {
         t.description = "Borra un disparador (`id`) o todos (`all`: true).";
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"id", {{"type", "string"}}}, {"all", {{"type", "boolean"}}}}}};
-        t.run = [&eng, this](const json& a, Done done) {
+        t.run = [&eng](const json& a, Done done) {
             if (a.value("all", false)) {
                 eng.clear();
             } else if (!a.contains("id") || !eng.remove(a["id"].get<std::string>())) {
                 return done(ToolResult::error("No existe ese disparador (alert_list los muestra)."));
             }
-            QMetaObject::invokeMethod(vm_.agent(), "alertsChanged");
             done(ToolResult::ok("Listo."));
         };
         core_.addTool(std::move(t));

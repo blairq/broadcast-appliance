@@ -23,6 +23,7 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <functional>
 #include <string>
 
 namespace ba::app::asamblea {
@@ -65,10 +66,17 @@ class Cuerpo {
     /// Escribe una planilla de ejemplo con el encabezado y dos filas.
     static bool escribirPlantilla(const std::filesystem::path& archivo);
 
+    /// Quién se entera de cada cambio (nombre, integrantes, recinto): una vez
+    /// por operación, venga de la interfaz, del MCP o de la sesión remota. Así
+    /// la vista no depende de que cada llamador se acuerde de avisar.
+    void alCambiar(std::function<void()> fn) { alCambiar_ = std::move(fn); }
+
    private:
     void guardarArchivo() const;
     std::filesystem::path archivo_;
     json datos_;
+    std::function<void()> alCambiar_;
+    bool importando_ = false; ///< importarCsv avisa una vez al final, no por fila
 };
 
 } // namespace ba::app::asamblea

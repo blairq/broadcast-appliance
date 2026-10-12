@@ -330,7 +330,6 @@ void McpService::registerAsambleaTools() {
                 if (!esc.empty()) deb->configurar({{"escenas", esc}});
             }
             rt.save();
-            vm.refreshModels();
             done(ToolResult()
                      .text(errores.empty() ? "Listo." : "Hecho, con errores en algunas fuentes.")
                      .data({{"creadas", creadas}, {"errores", errores}, {"siguiente", "asamblea_revisar"}}));

@@ -84,7 +84,7 @@ void McpService::registerInputTools() {
                  "Preset (full, pip-br, left, ...) o {x,y,w,h}. Por defecto pantalla completa."}}},
               {"modo", {{"type", "string"}, {"description", "«ANCHOxALTO@cps», de video_devices {device}"}}}}},
             {"required", {"device"}}};
-        t.run = [&rt, &vm, layoutOf](const json& a, Done done) {
+        t.run = [&rt, layoutOf](const json& a, Done done) {
             BroadcastEngine& e = rt.engine();
             if (!e.sourceTypeExists(inputs::kMicType))
                 return done(ToolResult::error("La entrada de GStreamer (ba_gst_fuente) no esta cargada."));
@@ -100,7 +100,6 @@ void McpService::registerInputTools() {
             const std::string scene = a.value("scene", e.currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            vm.refreshModels();
             done(ToolResult::ok("Agregada '" + spec.name + "' a '" + scene +
                                 "'. Verifica con capture_source (la camara tarda un instante en abrir)."));
         };
@@ -152,7 +151,6 @@ void McpService::registerInputTools() {
             const std::string scene = a.value("scene", rt.engine().currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            vm.refreshModels();
             // Esperar un poco a que llegue imagen para contestar algo util.
             const std::string name = spec.name;
             auto* timer = new QTimer(&vm);
@@ -235,7 +233,6 @@ void McpService::registerInputTools() {
             const std::string scene = a.value("scene", rt.engine().currentScene());
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            vm.refreshModels();
             const std::string name = spec.name;
             auto* timer = new QTimer(&vm);
             auto tries = std::make_shared<int>(0);

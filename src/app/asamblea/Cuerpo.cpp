@@ -81,6 +81,8 @@ void Cuerpo::guardarArchivo() const {
         o << datos_.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     fs::rename(tmp, archivo_, ec);
+    // Todo cambio termina guardándose acá: es el lugar para avisar.
+    if (alCambiar_ && !importando_) alCambiar_();
 }
 
 json Cuerpo::recinto(bool completo) const {
@@ -294,6 +296,7 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
         return res;
     }
     if (reemplazar) datos_["integrantes"] = json::array();
+    importando_ = true;
     std::string linea;
     int nro = 1;
     while (std::getline(f, linea)) {
@@ -321,6 +324,8 @@ json Cuerpo::importarCsv(const fs::path& archivo, bool reemplazar) {
         else
             res[existe.empty() ? "importados" : "actualizados"] = res.value(existe.empty() ? "importados" : "actualizados", 0) + 1;
     }
+    importando_ = false;
+    if (alCambiar_) alCambiar_();
     return res;
 }
 

@@ -588,7 +588,6 @@ void McpService::registerRoomTools() {
                 const QString summary = settings->apply();
                 auto* ui = static_cast<SettingsModel*>(vm.settings());
                 if (!ui->dirty()) ui->revert();
-                vm.refreshModels();
                 done(summary.contains("EN VIVO") || summary.contains("ERROR") ? ToolResult::error(summary.toStdString())
                                                                               : ToolResult::ok(summary.toStdString()));
             };
@@ -1041,9 +1040,8 @@ void McpService::registerRoomTools() {
             "video o audio).";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [conf, &vm](const json& a, Done done) {
+        t.run = [conf](const json& a, Done done) {
             conf->takeShare(QString::fromStdString(a["id"]));
-            vm.refreshModels();
             done(ToolResult::ok("Agregado a la escena al aire (si fallo, la app lo avisa en pantalla)."));
         };
         core_.addTool(std::move(t));

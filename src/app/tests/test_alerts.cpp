@@ -337,6 +337,21 @@ int main(int argc, char** argv) {
         CHECK(reloaded.list().size() == eng.list().size(), "los disparadores se guardan y se recargan");
         const json again = reloaded.create(json{{"type", "lobby"}});
         CHECK(again["id"] != t1["id"] && again["id"] != t2["id"], "los ids no se reutilizan");
+        // El motor avisa él mismo que cambiaron las reglas (la vista no depende
+        // de que el MCP o la interfaz se acuerden de avisar).
+        int avisos = 0;
+        QObject::connect(&reloaded, &AlertEngine::reglasCambio, [&avisos]() { ++avisos; });
+        const json r = reloaded.create(json{{"type", "hand"}});
+        CHECK(avisos == 1, "crear avisa");
+        CHECK(reloaded.create(json{{"type", "no_existe"}}).contains("error") && avisos == 1, "crear con error no avisa");
+        reloaded.update(r["id"].get<std::string>(), json{{"enabled", false}});
+        CHECK(avisos == 2, "cambiar avisa");
+        CHECK(reloaded.update("nadie", json{{"enabled", false}}).contains("error") && avisos == 2,
+              "cambiar uno que no existe no avisa");
+        CHECK(reloaded.remove(r["id"].get<std::string>()) && avisos == 3, "borrar avisa");
+        CHECK(!reloaded.remove("nadie") && avisos == 3, "borrar uno que no existe no avisa");
+        reloaded.clear();
+        CHECK(avisos == 4, "borrar todos avisa");
     }
 
     if (g_failures == 0) std::printf("test_alerts: OK\n");

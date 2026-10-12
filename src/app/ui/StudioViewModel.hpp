@@ -1024,6 +1024,11 @@ class StudioViewModel : public QObject {
     /// Usa sesionRemota_, bancas_, debate_, dcn_, votaciones_, cuerpo_, quorum_, ordenDia_, conference_ y bus_.
     std::unique_ptr<asamblea::Presidencia> presidencia_;
     qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
+    /// Los avisos del runtime (AppRuntime::observar): se juntan en una máscara y se
+    /// reflejan en una sola pasada por vuelta del bucle (refrescarAvisos).
+    int observadorRt_ = 0;
+    std::atomic<unsigned> avisosPendientes_{0};
+    void refrescarAvisos();
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
     /// El orador presencial cuyo tiempo se lleva en la central (banca@desde) y los avisos ya dados.

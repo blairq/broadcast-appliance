@@ -800,14 +800,12 @@ void McpService::registerTools() {
 
     AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
-    const auto persist = [&rt, &vm]() {
-        rt.save();
-        vm.refreshModels();
-    };
-    // La invariante, puesta una vez y para todas: lo que se toca por MCP se ve
-    // en la interfaz. El despachador la aplica a TODA herramienta que modifica
-    // algo, asi ninguna superficie nueva depende de que su autor se acuerde.
-    // Ver McpCore::setSincronizador.
+    const auto persist = [&rt]() { rt.save(); };
+    // La invariante, puesta una vez y para todas: lo que se toca por MCP queda
+    // guardado. El despachador la aplica a TODA herramienta que modifica algo,
+    // asi ninguna superficie nueva depende de que su autor se acuerde. La vista
+    // no se avisa desde aca: el runtime avisa sus cambios (AppRuntime::observar)
+    // y StudioViewModel se entera solo. Ver McpCore::setSincronizador.
     core_.setSincronizador(persist);
     const auto sceneOr = [&rt](const json& a) {
         const std::string s = a.value("scene", std::string());
@@ -1868,14 +1866,11 @@ void McpService::registerTools() {
             if (a.contains("muted")) (rt.setMuted(name, a["muted"]) ? did : failed).push_back("silencio");
             if (a.contains("rename")) {
                 const std::string to = a["rename"];
-                if (rt.engine().renameSource(name, to)) {
-                    for (auto& sc : rt.config().scenes)
-                        for (auto& s : sc.sources)
-                            if (s.name == name) s.name = to;
+                if (rt.renameSource(name, to)) {
                     name = to;
                     did.push_back("nombre");
                 } else {
-                    failed.push_back("nombre (" + rt.engine().lastError() + ")");
+                    failed.push_back("nombre (" + rt.lastError() + ")");
                 }
             }
             persist();
@@ -2214,10 +2209,9 @@ void McpService::registerTools() {
               {"key", {{"type", "string"}, {"description", "Clave de transmision (solo en memoria)."}}},
               {"cambiar_en_caliente", {{"type", "boolean"}, {"description", "estando al aire, pasar a este destino"}}},
               {"destino", {{"type", "string"}, {"description", "id de un destino adicional o \"todos\""}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             if (a.contains("destino")) {
                 const std::string e = rt.iniciarDestino(a.value("destino", std::string()));
-                emit vm.destinosChanged();
                 if (!e.empty()) return done(ToolResult::error(e));
                 return done(ToolResult().text("Destino iniciado.").data(json{{"destinos", rt.destinos()}}));
             }
@@ -2235,7 +2229,6 @@ void McpService::registerTools() {
                                               ". Si falta la clave: pasala en `key` o en la variable " +
                                               rt.config().streamKeyEnv + "."));
             }
-            emit vm.statusChanged();
             if (rt.engine().ultimoInicio() == BroadcastEngine::Inicio::YaIgual)
                 return done(ToolResult::ok("Ya estaba transmitiendo a ese destino: no cambio nada."));
             done(ToolResult::ok("Transmitiendo."));
@@ -2252,14 +2245,12 @@ void McpService::registerTools() {
             "BAJA del aire: corta la transmision que esta saliendo. Detiene la transmision en vivo. Con "
             "`destino` (id o \"todos\"), corta solo ese destino adicional y el principal sigue.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"destino", {{"type", "string"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             if (a.contains("destino")) {
                 rt.detenerDestino(a.value("destino", std::string()));
-                emit vm.destinosChanged();
                 return done(ToolResult::ok("Destino cortado; el resto sigue."));
             }
             rt.stopStreaming();
-            emit vm.statusChanged();
             done(ToolResult::ok("Transmision detenida."));
         };
         core_.addTool(std::move(t));
@@ -2927,7 +2918,6 @@ void McpService::registerTools() {
                          {"properties", {{"archivo", {{"type", "string"}}}, {"reemplazar", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const json r = vm.cuerpo().cuerpo().importarCsv(a.value("archivo", std::string()), a.value("reemplazar", false));
-            emit vm.cuerpo().cambio();
             done(ToolResult().data(r));
         };
         core_.addTool(std::move(t));
@@ -3103,7 +3093,6 @@ void McpService::registerTools() {
         t.run = [&vm](const json& a, Done done) {
             const std::string e = vm.cuerpo().cuerpo().setRecinto(a);
             if (!e.empty()) return done(ToolResult::error(e));
-            emit vm.cuerpo().cambio();
             done(ToolResult().data(vm.cuerpo().cuerpo().recinto()));
         };
         core_.addTool(std::move(t));
@@ -3340,11 +3329,10 @@ void McpService::registerTools() {
                            {"respaldo", {{"type", "boolean"}}},
                            {"modo", {{"type", "string"}, {"enum", {"caller", "listener", "rendezvous"}}}},
                            {"latencia_ms", {{"type", "integer"}, {"minimum", 20}, {"maximum", 8000}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             std::string id;
             const std::string e = rt.guardarDestino(a, &id);
             if (!e.empty()) return done(ToolResult::error(e));
-            emit vm.destinosChanged();
             done(ToolResult().data(json{{"id", id}, {"destinos", rt.destinos()}}));
         };
         core_.addTool(std::move(t));
@@ -3363,10 +3351,9 @@ void McpService::registerTools() {
                            {"url", {{"type", "string"}}},
                            {"clave", {{"type", "string"}}},
                            {"respaldo", {{"type", "boolean"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             const std::string e = rt.guardarDestino(a);
             if (!e.empty()) return done(ToolResult::error(e));
-            emit vm.destinosChanged();
             done(ToolResult().data(json{{"destinos", rt.destinos()}}));
         };
         core_.addTool(std::move(t));
@@ -3379,10 +3366,9 @@ void McpService::registerTools() {
         t.destructive = true;
         t.description = "Borra el destino `id` (si estaba transmitiendo, lo corta) y su clave guardada.";
         t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             const std::string e = rt.borrarDestino(a.value("id", std::string()));
             if (!e.empty()) return done(ToolResult::error(e));
-            emit vm.destinosChanged();
             done(ToolResult::ok("Borrado."));
         };
         core_.addTool(std::move(t));
@@ -3446,7 +3432,7 @@ void McpService::registerTools() {
                         "la corta. Es un encode más (x264, en la CPU): mirá `status.cpu`.";
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"activar", {{"type", "boolean"}}}, {"destino", {{"type", "string"}}}}}};
-        t.run = [&rt, &vm](const json& a, Done done) {
+        t.run = [&rt](const json& a, Done done) {
             if (a.contains("activar")) {
                 if (a.value("activar", false)) {
                     const std::string e = rt.iniciarSenalLimpia(a.value("destino", std::string()));
@@ -3454,7 +3440,6 @@ void McpService::registerTools() {
                 } else {
                     rt.engine().stopCleanFeed();
                 }
-                emit vm.statusChanged();
             }
             done(ToolResult().data(rt.engine().cleanFeedEstado()));
         };
@@ -3544,7 +3529,6 @@ void McpService::registerTools() {
                                          }()},
                                         {"audioPropio", g.audioPropio},
                                         {"activa", g.activa}});
-            emit vm.statusChanged();
             done(ToolResult().data(json{{"grabando", grabando},
                                         {"noSePudo", fallaron},
                                         {"tope", BroadcastEngine::kMaxIndividuales}}));
@@ -3558,14 +3542,13 @@ void McpService::registerTools() {
         t.category = "salidas";
         t.description = "EMPEZAR a grabar el programa en disco, con la carpeta y el formato de la "
                         "configuracion. Es para cuando todavia no se esta grabando.";
-        t.run = [&rt, &vm](const json&, Done done) {
+        t.run = [&rt](const json&, Done done) {
             if (rt.engine().status().recording) return done(ToolResult::ok("Ya esta grabando."));
             const json d = rt.discoGrabacion();
             if (d.value("horas", -1.0) >= 0 && d.value("horas", -1.0) < AppRuntime::kDiscoMinimoH)
                 return done(ToolResult::error("Queda disco para menos de 15 minutos a este bitrate: no se arranca sola. "
                                               "Liberá espacio o que el operador lo arranque desde Salidas."));
             if (!rt.startRecording()) return done(ToolResult::error("No arranco: " + rt.lastError()));
-            emit vm.statusChanged();
             // La grabación arranca en el hilo de salidas (la interfaz no espera el
             // codificador): se mira cada 200 ms, sin trabar nada, hasta que tiene archivo.
             auto mirar = std::make_shared<std::function<void(int)>>();
@@ -3601,9 +3584,8 @@ void McpService::registerTools() {
         t.title = "Detener grabacion";
         t.category = "salidas";
         t.description = "PARA de grabar: cierra el archivo y deja de escribir en disco.";
-        t.run = [&rt, &vm](const json&, Done done) {
+        t.run = [&rt](const json&, Done done) {
             rt.stopRecording();
-            emit vm.statusChanged();
             done(ToolResult::ok("Grabacion detenida."));
         };
         core_.addTool(std::move(t));
@@ -3706,7 +3688,6 @@ void McpService::registerTools() {
             const QString summary = settings->apply();
             auto* ui = static_cast<SettingsModel*>(vm.settings());
             if (!ui->dirty()) ui->revert(); // la vista muestra lo nuevo
-            vm.refreshModels();
             done(ToolResult::ok("Aplicado. " + summary.toStdString()));
         };
         core_.addTool(std::move(t));
