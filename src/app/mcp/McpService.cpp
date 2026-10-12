@@ -682,7 +682,21 @@ void McpService::applySecurity() {
     core_.setApprover(
         [this](const Tool& t, const json& args, const std::string& reason, std::function<void(bool)> decide) {
             auto* msgs = static_cast<OperatorMessages*>(vm_.messages());
-            std::string a = args.empty() ? std::string("(sin argumentos)") : args.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+            // Lo que parezca una clave no se muestra en la tarjeta (queda en pantalla y en el chat).
+            std::function<json(const json&)> tapar = [&tapar](const json& j) -> json {
+                if (!j.is_object()) return j;
+                json o = json::object();
+                for (auto it = j.begin(); it != j.end(); ++it) {
+                    std::string k = it.key();
+                    for (auto& c : k) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                    const bool secreta = k.find("token") != std::string::npos || k.find("clave") != std::string::npos ||
+                                         k.find("key") != std::string::npos || k.find("secret") != std::string::npos ||
+                                         k.find("password") != std::string::npos || k == "pin";
+                    o[it.key()] = secreta && it.value().is_string() ? json("«tapado»") : tapar(it.value());
+                }
+                return o;
+            };
+            std::string a = args.empty() ? std::string("(sin argumentos)") : tapar(args).dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
             if (a.size() > 1200) a = a.substr(0, 1200) + "\n…";
             const bool deAire = reason.rfind("ACCIÓN DE AIRE", 0) == 0;
             const int id = msgs->post(json{{"kind", "question"},

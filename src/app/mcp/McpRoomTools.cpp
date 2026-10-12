@@ -24,6 +24,8 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/AccesoRemoto.hpp"
+#include "ui/EventoViewModel.hpp"
+#include "ui/SettingsModel.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -399,6 +401,183 @@ void McpService::registerRoomTools() {
             acc->consultar([done](json r) { done(ToolResult().data(r)); });
         };
         core_.addTool(std::move(t));
+    }
+    if (AccesoRemoto* ar = vm.accesoRemoto(); ar != nullptr) {
+        const QPointer<AccesoRemoto> acc = ar;
+        // Espera a que `campo` (dns/panel) deje de estar «verificando/consultando» (o 30 s).
+        const auto esperar = [acc](void (AccesoRemoto::*senal)(), std::function<QVariantMap()> leer, Done done) {
+            auto conn = std::make_shared<QMetaObject::Connection>();
+            auto listo = std::make_shared<bool>(false);
+            auto terminar = [conn, listo, leer, done]() {
+                if (*listo) return;
+                const QVariantMap m = leer();
+                const QString e = m.value("estado").toString();
+                if (e == "verificando" || e == "consultando") return;
+                *listo = true;
+                QObject::disconnect(*conn);
+                done(ToolResult().data(json{{"estado", m.value("estado").toString().toStdString()},
+                                            {"texto", m.value("texto").toString().toStdString()}}));
+            };
+            *conn = QObject::connect(acc.data(), senal, acc.data(), terminar);
+            QTimer::singleShot(30000, acc.data(), [conn, listo, done]() {
+                if (*listo) return;
+                *listo = true;
+                QObject::disconnect(*conn);
+                done(ToolResult::error("pinggy/DNS no contestó en 30 s"));
+            });
+            terminar(); // por si ya terminó
+        };
+        {
+            Tool t;
+            t.name = "acceso_remoto_clave";
+            t.title = "Acceso remoto: guardar o borrar la clave de pinggy";
+            t.category = "sala";
+            t.idempotent = true;
+            t.description =
+                "Guarda CIFRADA en la bóveda (Credenciales/) la clave de pinggy que te pasó el operador, o la borra. "
+                "`tipo`: \"token\" (el token de TÚNEL: abre el túnel; panel de pinggy → token) o \"api_key\" (la "
+                "API key: solo consulta qué túneles hay, con acceso_remoto_panel). Nunca se devuelve ni se escribe "
+                "en el registro: la respuesta dice solo «guardada». Si no sabés cuál es, probá con acceso_remoto_panel "
+                "después de guardarla como api_key (si la acepta, es la API key). El token rige al reiniciar la sala.";
+            t.inputSchema = {
+                {"type", "object"},
+                {"properties",
+                 {{"tipo", {{"type", "string"}, {"enum", {"token", "api_key"}}}},
+                  {"clave", {{"type", "string"}, {"description", "la clave (no hace falta para borrar)"}}},
+                  {"borrar", {{"type", "boolean"}, {"default", false}}}}},
+                {"required", {"tipo"}}};
+            t.run = [acc](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const std::string tipo = a.value("tipo", std::string());
+                const bool borrar = a.value("borrar", false);
+                const QString clave = QString::fromStdString(a.value("clave", std::string())).trimmed();
+                QString e;
+                if (tipo == "token") e = borrar ? acc->borrarToken() : acc->guardarToken(clave);
+                else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : acc->guardarApiKey(clave);
+                else return done(ToolResult::error("tipo: \"token\" o \"api_key\""));
+                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel " : "API key ") +
+                                    (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
+                                    (tipo == "token" && !borrar ? " Rige al reiniciar la sala (room_restart o "
+                                                                  "aplicar Configuración)."
+                                                                : "")));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_configurar";
+            t.title = "Acceso remoto: configurar pinggy";
+            t.category = "sala";
+            t.description =
+                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Acceso remoto → "
+                "Pinggy). Solo cambia lo que mandes. Reinicia la sala (corta a los invitados un momento). "
+                "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
+                "propio: va con `host` y `cname_destino`).";
+            t.inputSchema = {
+                {"type", "object"},
+                {"properties",
+                 {{"activo", {{"type", "boolean"}}},
+                  {"region", {{"type", "string"}, {"enum", {"auto", "us", "eu", "ap"}}}},
+                  {"direccion", {{"type", "string"}, {"enum", {"azar", "pinggy", "propio"}}}},
+                  {"host", {{"type", "string"}, {"description", "subdominio fijo o dominio propio"}}},
+                  {"cname_destino", {{"type", "string"}, {"description", "lo que muestra el panel de pinggy"}}},
+                  {"turn", {{"type", "boolean"}, {"description", "video de los invitados de afuera por el túnel"}}},
+                  {"turn_udp", {{"type", "boolean"}}},
+                  {"turn_tcp_puerto", {{"type", "integer"}}},
+                  {"turn_udp_puerto", {{"type", "integer"}}},
+                  {"lista_blanca", {{"type", "string"}, {"description", "IPs o redes separadas por coma; vacío = todos"}}}}}};
+            t.examples = {R"({"activo": true, "direccion": "propio", "host": "sala.miorganismo.gob.ar", "cname_destino": "abc.a.pinggy.link"})"};
+            SettingsModel* settings = settings_.get();
+            t.run = [settings, &vm](const json& a, Done done) {
+                if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
+                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine "
+                                                  "(reinicia la sala). Si hace falta, lo hace el operador desde la app."));
+                static const std::vector<std::pair<const char*, const char*>> kMapa = {
+                    {"activo", "pinggy.activo"},           {"region", "pinggy.region"},
+                    {"direccion", "pinggy.dominioTipo"},   {"host", "pinggy.host"},
+                    {"cname_destino", "pinggy.cnameDestino"}, {"turn", "pinggy.turn"},
+                    {"turn_udp", "pinggy.turnUdp"},        {"turn_tcp_puerto", "pinggy.turnTcpPuerto"},
+                    {"turn_udp_puerto", "pinggy.turnUdpPuerto"}, {"lista_blanca", "pinggy.listaBlanca"}};
+                settings->revert();
+                int n = 0;
+                for (const auto& [arg, clave] : kMapa) {
+                    if (!a.contains(arg)) continue;
+                    if (!settings->value(clave).isValid()) {
+                        settings->revert();
+                        return done(ToolResult::error(std::string("esta versión no tiene ") + clave));
+                    }
+                    settings->setValue(clave, jsonToQv(a[arg]));
+                    ++n;
+                }
+                if (n == 0) return done(ToolResult::error("no mandaste nada para cambiar"));
+                const QString summary = settings->apply();
+                auto* ui = static_cast<SettingsModel*>(vm.settings());
+                if (!ui->dirty()) ui->revert();
+                vm.refreshModels();
+                done(summary.contains("EN VIVO") || summary.contains("ERROR") ? ToolResult::error(summary.toStdString())
+                                                                              : ToolResult::ok(summary.toStdString()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_dns_instrucciones";
+            t.title = "Acceso remoto: instrucciones para el DNS";
+            t.category = "sala";
+            t.readOnly = true;
+            t.description = "El texto para mandarle al que administra el DNS (registro CNAME, pasos en el panel de "
+                            "pinggy, comodín, dominio raíz). Sin argumentos, con el dominio y el destino configurados.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
+            t.run = [acc, &rt = rt_](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
+                if (host.isEmpty()) return done(ToolResult::error("falta el dominio (host)"));
+                done(ToolResult::ok(acc->instruccionesDns(host, dest).toStdString()));
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_dns_verificar";
+            t.title = "Acceso remoto: verificar el DNS del dominio propio";
+            t.category = "sala";
+            t.readOnly = true;
+            t.openWorld = true;
+            t.description = "Resuelve el CNAME del dominio y dice si apunta al destino de pinggy (estado: ok, otro, "
+                            "mal, error). Sin argumentos, con lo configurado.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"host", {{"type", "string"}}}, {"cname_destino", {{"type", "string"}}}}}};
+            t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
+                acc->verificarDns(host, dest);
+                esperar(&AccesoRemoto::dnsChanged, [acc]() { return acc ? acc->dns() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_panel";
+            t.title = "Acceso remoto: túneles activos en la cuenta de pinggy";
+            t.category = "sala";
+            t.readOnly = true;
+            t.openWorld = true;
+            t.description = "Consulta el panel de pinggy con la API key guardada (acceso_remoto_clave tipo api_key): "
+                            "qué túneles tiene activos la cuenta, con qué dominio y puertos. Los secretos que vengan "
+                            "en la respuesta salen tapados.";
+            t.run = [acc, esperar](const json&, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                acc->verEnPinggy();
+                esperar(&AccesoRemoto::panelChanged, [acc]() { return acc ? acc->panel() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
     }
     {
         Tool t;
