@@ -1147,7 +1147,7 @@ Rectangle {
         property bool loading: false
         readonly property bool board: target.startsWith("board-")
         title: board ? "Tablero de oradores (solo lectura) — " + (target === "board-remote" ? "por internet" : "red local")
-                     : target === "remote" ? "QR remoto — por internet (Cloudflare)" : "QR local — misma red"
+                     : target === "remote" ? "QR remoto — por internet" : "QR local — misma red"
         function show(t) {
             target = t; url = ""; modules = []; message = ""; loading = true
             open()
