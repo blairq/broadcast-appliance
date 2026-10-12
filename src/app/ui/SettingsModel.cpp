@@ -219,7 +219,17 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         fields_.push_back(std::move(f));
     }
     load();
+    // Otro formulario (el del MCP, el de la GUI) aplicó la configuración: este,
+    // si no tiene cambios a medio hacer, muestra lo vigente.
+    observador_ = rt_.observar([this](AppRuntime::Cambio c) {
+        if (c != AppRuntime::Cambio::Ajustes || aplicando_) return;
+        QMetaObject::invokeMethod(this, [this]() {
+            if (!dirty()) revert();
+        }, Qt::QueuedConnection);
+    });
 }
+
+SettingsModel::~SettingsModel() { rt_.dejarDeObservar(observador_); }
 
 QVariantMap SettingsModel::current() const {
     QVariantMap m = currentBasicos();
@@ -738,6 +748,9 @@ QString SettingsModel::apply() {
         });
     }
     load();
+    aplicando_ = true;
+    rt_.ajustesAplicados(); // los otros formularios se recargan
+    aplicando_ = false;
     const QString summary = notes.join(" ");
     emit applied(summary);
     return summary;

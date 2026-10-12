@@ -96,7 +96,6 @@ QString InputsViewModel::addNdi(const QString& ndiName, const QString& name, con
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();
-    vm_.refreshModels();
     refresh();
     return {};
 #else
@@ -142,7 +141,6 @@ QString InputsViewModel::addAudioInput(const QString& device, const QString& nam
     // (un microfono no pertenece a una escena).
     if (!rt_.addAudioInput(spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();
-    vm_.refreshModels();
     refresh();
     return {};
 }
@@ -251,7 +249,6 @@ QString InputsViewModel::addHardware(const QString& device, const QString& name,
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();
-    vm_.refreshModels();
     refresh();
     return {};
 }
@@ -269,7 +266,6 @@ QString InputsViewModel::addNetwork(const QString& url, const QString& name, con
     const std::string sc = scene.isEmpty() ? rt_.engine().currentScene() : scene.toStdString();
     if (!rt_.addSource(sc, spec)) return QString::fromStdString(rt_.lastError());
     rt_.save();
-    vm_.refreshModels();
     refresh();
     return {};
 }
@@ -286,7 +282,6 @@ void InputsViewModel::remove(const QString& name) {
     // Las entradas de audio no estan en ninguna escena: van por su canal global.
     rt_.removeAudioInput(n);
     rt_.save();
-    vm_.refreshModels();
     refresh();
 }
 

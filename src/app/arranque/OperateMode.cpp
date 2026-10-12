@@ -1057,6 +1057,11 @@ std::string AppRuntime::aplicarReplay() {
     return s > 0 ? "Repetición: guarda los últimos " + std::to_string(s) + " s." : "Repetición apagada.";
 }
 
+void AppRuntime::detenerSenalLimpia() {
+    engine_.stopCleanFeed();
+    avisar(Cambio::Salidas);
+}
+
 std::string AppRuntime::iniciarSenalLimpia(const std::string& destino) {
     std::string url, clave, dir;
     if (!destino.empty()) {

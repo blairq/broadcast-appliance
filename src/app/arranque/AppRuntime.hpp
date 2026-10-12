@@ -73,6 +73,7 @@ class AppRuntime {
         Fuentes, ///< qué fuentes hay en una escena y en qué orden (agregar, quitar, mover, renombrar)
         Capa,    ///< cómo está una fuente: visible, lugar, efectos, recorte o sus ajustes
         Audio,   ///< volumen o silencio de una fuente, o las entradas de audio del equipo
+        Ajustes, ///< se aplicó la configuración (Configuración o settings_set del MCP)
     };
     /// Suma a alguien a los avisos; devuelve su id (para `dejarDeObservar`). Se
     /// lo llama en el hilo de la operación (el de la interfaz) y puede llegar
@@ -80,6 +81,9 @@ class AppRuntime {
     /// trabajo pesado, agrupado del lado de quien escucha.
     int observar(std::function<void(Cambio)> fn);
     void dejarDeObservar(int id);
+    /// La configuración se aplicó y se guardó (lo llama SettingsModel::apply): los
+    /// formularios de Configuración que no tienen cambios a medio hacer se recargan.
+    void ajustesAplicados() { avisar(Cambio::Ajustes); }
 
     // --- Salidas --------------------------------------------------------------
     /// La carpeta del evento en curso (docs/planes/PLAN-EVENTOS-HISTORICO.md, H4): con
@@ -107,6 +111,8 @@ class AppRuntime {
     /// La señal limpia (sin DSK ni placa) a un destino guardado (`destino` = su id) o
     /// a Recordings/limpia/ si viene vacío. "" o el error.
     std::string iniciarSenalLimpia(const std::string& destino);
+    /// Corta la señal limpia (y avisa, como todas las salidas).
+    void detenerSenalLimpia();
     /// Prende o apaga la repetición con cfg_.replaySegundos. Devuelve la nota para el operador.
     std::string aplicarReplay();
     /// Transmite a `server` con `key`; vacios = los de la configuracion/entorno.

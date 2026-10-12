@@ -3429,7 +3429,7 @@ void McpService::registerTools() {
                     const std::string e = rt.iniciarSenalLimpia(a.value("destino", std::string()));
                     if (!e.empty()) return done(ToolResult::error(e));
                 } else {
-                    rt.engine().stopCleanFeed();
+                    rt.detenerSenalLimpia();
                 }
             }
             done(ToolResult().data(rt.engine().cleanFeedEstado()));
@@ -3676,9 +3676,8 @@ void McpService::registerTools() {
                 return done(
                     ToolResult::error("Claves desconocidas:" + u + ". settings_list muestra las validas."));
             }
+            // La vista se recarga sola (AppRuntime avisa «Ajustes» al aplicar).
             const QString summary = settings->apply();
-            auto* ui = static_cast<SettingsModel*>(vm.settings());
-            if (!ui->dirty()) ui->revert(); // la vista muestra lo nuevo
             done(ToolResult::ok("Aplicado. " + summary.toStdString()));
         };
         core_.addTool(std::move(t));

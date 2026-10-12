@@ -292,9 +292,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         }
         const QString resumen = m.apply();
         if (resumen.contains("EN VIVO") || resumen.contains("ERROR")) return resumen;
-        if (!settings_->dirty()) settings_->revert();
-        refreshModels();
-        return {};
+        return {}; // los formularios y las listas se enteran solos (avisos del runtime)
     });
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
@@ -1501,14 +1499,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                 : "La sala no se reinició (" + e + "): apretá «Reiniciar la sala» en Configuración o en la página Sala.",
                     e.isEmpty() ? "ok" : "error");
     });
+    // El resumen de lo que aplicó el formulario de la GUI; lo que rige ya (lienzo,
+    // tema, invitados, cámaras…) lo hace el aviso «Ajustes», aplique quien aplique.
     connect(settings_.get(), &SettingsModel::applied, this, [this](const QString& summary) {
         emit notify(summary, summary.contains("ERROR") ? "error" : "ok");
-        emit canvasChanged();
-        emit themeChanged();
-        emit sceneChanged();
-        frames_->setGuests(rt_.config().guests);
-        camaras_->sincronizar(); // Mejorar imagen general: rige ya
-        video_->setLegalizar(rt_.config().legalizar);
     });
 
     // Lo que cambia en el runtime (escenas, fuentes, salidas), lo pida quien lo
@@ -2718,6 +2712,15 @@ void StudioViewModel::refrescarAvisos() {
     const unsigned b = avisosPendientes_.exchange(0);
     const auto hubo = [b](AppRuntime::Cambio c) { return (b & (1u << static_cast<unsigned>(c))) != 0; };
     using C = AppRuntime::Cambio;
+    if (hubo(C::Ajustes)) {
+        // Se aplicó la configuración (la GUI o settings_set del MCP): lo que rige ya.
+        emit canvasChanged();
+        emit themeChanged();
+        emit sceneChanged();
+        frames_->setGuests(rt_.config().guests);
+        camaras_->sincronizar(); // Mejorar imagen general: rige ya
+        video_->setLegalizar(rt_.config().legalizar);
+    }
     // Las listas se recargan SOLO si quedaron distintas: si el cambio lo hizo la
     // vista, ya las recargó ella, y otra recarga le borraría la selección.
     if (hubo(C::Escenas)) {
@@ -3228,13 +3231,10 @@ QVariantMap StudioViewModel::limpiaUi() const {
 
 QString StudioViewModel::limpiaActivarUi(bool activar, const QString& destino) {
     if (!activar) {
-        rt_.engine().stopCleanFeed();
-        emit statusChanged();
+        rt_.detenerSenalLimpia();
         return {};
     }
-    const std::string e = rt_.iniciarSenalLimpia(destino.toStdString());
-    emit statusChanged();
-    return qs(e);
+    return qs(rt_.iniciarSenalLimpia(destino.toStdString()));
 }
 
 QString StudioViewModel::urlApiRemota() const {
