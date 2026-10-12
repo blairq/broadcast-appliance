@@ -534,9 +534,10 @@ Rectangle {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                     textFormat: Text.StyledText; linkColor: Theme.accent
                     onLinkActivated: (l) => Qt.openUrlExternally(l)
-                    text: "Las dos salen de <a href=\"https://dashboard.pinggy.io\">dashboard.pinggy.io</a> pero son <b>distintas</b>: "
-                          + "el <b>token</b> abre el túnel con tu plan; la <b>API key</b> deja que la app consulte y maneje tu cuenta por la API. "
-                          + "Se guardan cifradas en este equipo y no se vuelven a mostrar."
+                    text: "<b>Lo más fácil: pegá solo la API key y tocá «Armar todo».</b> La app le pide a tu cuenta el token del túnel, "
+                          + "tu subdominio fijo y tu puerto, y prende el túnel; si querés otro nombre, escribilo y lo cambia en la cuenta. "
+                          + "No hace falta entrar a <a href=\"https://dashboard.pinggy.io\">dashboard.pinggy.io</a>. "
+                          + "Las claves se guardan cifradas en este equipo y no se vuelven a mostrar."
                 }
                 Rectangle {
                     Layout.fillWidth: true
@@ -557,7 +558,7 @@ Rectangle {
                     // --- 1. El token del plan ---
                     Seccion {
                         Layout.alignment: Qt.AlignTop
-                        titulo: "1 · Token del plan — abre el túnel"
+                        titulo: "Token del plan — abre el túnel (lo trae «Armar todo»)"
                         subtitulo: "Con él, el túnel usa tu plan Pro: dirección fija (tu subdominio o tu dominio), sin el cartel de aviso y sin el límite de 60 minutos."
                         resaltado: pg.ar.clavesIguales ? Theme.live : "transparent"
                         Text {
@@ -593,8 +594,8 @@ Rectangle {
                     // --- 2. La API key ---
                     Seccion {
                         Layout.alignment: Qt.AlignTop
-                        titulo: "2 · API key — control de la cuenta por API"
-                        subtitulo: "Deja que la app consulte tu cuenta de pinggy (qué túneles están activos, con qué dirección y puertos). No abre túneles: el túnel anda sin ella."
+                        titulo: "API key — maneja tu cuenta de pinggy"
+                        subtitulo: "Con ella la app arma todo sola (token, subdominio, puerto), cambia el subdominio y corta túneles de la cuenta. Es lo único que hace falta pegar."
                         Text {
                             text: pg.ar.apiKeyGuardada ? "● Guardada" : "● Sin API key (opcional)"
                             color: pg.ar.apiKeyGuardada ? (pg.ar.clavesIguales ? Theme.live : Theme.ok) : Theme.textFaint; font.pixelSize: 12
@@ -630,6 +631,45 @@ Rectangle {
                             color: pg.ar.panel.estado === "error" ? Theme.live : Theme.textDim
                             font { pixelSize: 11; family: pg.ar.panel.estado === "ok" ? Theme.mono : Theme.font }
                         }
+                    }
+                }
+                // Armar todo con la API key: token, subdominio (y cambiarlo), puerto, y prender.
+                Seccion {
+                    titulo: "Armar todo con la API key"
+                    subtitulo: pg.ar.apiKeyGuardada ? "Trae el token del túnel, tu subdominio y tu puerto TCP fijo desde la cuenta, y prende el túnel (la sala se reinicia)."
+                                                    : "Primero guardá la API key (arriba)."
+                    resaltado: pg.ar.cuenta.estado === "error" ? Theme.live : pg.ar.cuenta.estado === "ok" ? Theme.ok : "transparent"
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Text { text: "Subdominio (opcional)"; color: Theme.textDim; font.pixelSize: 12 }
+                        TextField {
+                            id: subPedido
+                            Layout.preferredWidth: 220
+                            placeholderText: "dejalo vacío o p. ej. sala-concejo"
+                            inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+                        }
+                        Text { text: ".a.pinggy.link"; color: Theme.textFaint; font.pixelSize: 12 }
+                        Item { Layout.fillWidth: true }
+                        GlassButton {
+                            text: pg.ar.cuenta.estado === "trabajando" ? "Armando…" : "Armar todo"; active: true
+                            enabled: pg.ar.apiKeyGuardada && pg.ar.cuenta.estado !== "trabajando"
+                            onClicked: pg.ar.configurarConApiKey(subPedido.text)
+                        }
+                        GlassButton {
+                            compact: true; text: "Cortar túneles de la cuenta"
+                            enabled: pg.ar.apiKeyGuardada && pg.ar.cuenta.estado !== "trabajando"
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Cortar los túneles de la cuenta?",
+                                text: "Corta todos los túneles activos de tu cuenta de pinggy (p. ej. otro equipo con el mismo token). El de este equipo vuelve a conectarse solo si está prendido.",
+                                accept: "Cortar", reject: "Cancelar", action: function() { pg.ar.cortarTunelesDeLaCuenta() } })
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+                        visible: (pg.ar.cuenta.texto || "") !== ""
+                        color: pg.ar.cuenta.estado === "error" ? Theme.live : pg.ar.cuenta.estado === "ok" ? Theme.ok : Theme.textDim
+                        text: pg.ar.cuenta.texto || ""
                     }
                 }
 

@@ -172,7 +172,27 @@ La fuente se ajusta dentro del rectangulo conservando su proporcion.
 
 ## Ingreso
 - `room_link {"target": "local"|"remote", "withPin"}` da el enlace y su QR (imagen). `room_pin` cambia el PIN. `room_set {"lobby", "locked"}`.
-- `network_status`: HTTPS, tunel WireGuard, enlaces.)md"},
+- `network_status`: HTTPS, tunel WireGuard, enlaces.
+- Para que entren **desde internet** (pinggy, Cloudflare, túnel propio): `help {"topic": "acceso_remoto"}`.)md"},
+    {"acceso_remoto", "Acceso desde internet: pinggy, Cloudflare, túnel propio",
+     "Sacar la sala a internet. Con pinggy alcanza la API key: la app arma todo sola.",
+     R"md(Tres caminos, **uno por vez** (Configuración → «Acceso desde internet»): **Pinggy** (el de siempre), **Cloudflare** (dominio de la organización en Cloudflare) y **Túnel propio (WireGuard)** (un servidor con IP pública). Cualquiera reinicia la sala al cambiarlo: **nunca con el evento en vivo** (las herramientas lo rechazan).
+
+## Pinggy: con la API key, todo solo
+La cuenta Pro de pinggy tiene **dos claves distintas**: la **API key** (maneja la cuenta) y el **token del túnel** (abre el túnel). **El operador solo tiene que pasarte la API key**; el token lo trae la app.
+1. `acceso_remoto_clave {"tipo": "api_key", "clave": "…"}`: la guarda cifrada (nunca se devuelve ni se escribe en el registro; no la repitas en el chat).
+2. `acceso_remoto_configurar_con_api_key {}`: le pide a la cuenta el token (lo guarda cifrado), su **subdominio fijo** (algo.a.pinggy.link) y su **puerto TCP fijo** (para el video de los de afuera), y prende el túnel con eso. Con `{"subdominio": "sala-concejo"}` primero **cambia el subdominio en la cuenta** (queda sala-concejo.a.pinggy.link); si pinggy no lo da (ocupado o inválido) lo dice: ofrecé otro nombre.
+3. `acceso_remoto_estado`: esperá `pinggy.estado` = `listo` y pasale al operador `pinggy.urlPublica` y los `enlaces` (invitados, sesión remota, público). Para que lo escanee: `qr_mostrar`.
+- `acceso_remoto_panel`: qué túneles tiene activos la cuenta, visto desde pinggy. `acceso_remoto_cortar_tuneles`: los corta todos (p. ej. otro equipo que quedó con el mismo token: pinggy deja **un túnel por token**).
+- **No pegues la API key como token** (`tipo: "token"`): no abre el túnel (pinggy contesta «no autenticado») y la app avisa que son iguales. El token a mano (`tipo: "token"`) es solo si no hay API key.
+- `acceso_remoto_configurar` cambia lo demás (región, dominio propio con `host` y `cname_destino`, TURN, lista blanca). Dominio de la organización: `acceso_remoto_dns_instrucciones` arma el texto para el que maneja el DNS y `acceso_remoto_dns_verificar` controla el CNAME.
+- Sin plan Pro (sin token): anda igual en modo gratis, 60 minutos, dirección al azar y con un cartel de pinggy que los invitados tienen que aceptar.
+
+## Cloudflare
+Hace falta el **token del túnel de Cloudflare** (Zero Trust → Networks → Tunnels): `acceso_remoto_clave {"tipo": "cloudflare", "clave": "…"}`, después `settings_set {"values": {"gateway.tunnel": true, "gateway.tunnelHost": "sala.midominio.com"}}`. Sin token queda apagado.
+
+## Túnel propio (WireGuard)
+Un servidor propio con IP pública: `settings_set` con `wg.enabled`, `wg.endpoint` (host:puerto), `wg.serverKey`, `wg.address`, `wg.publicAddress`. Es el mejor camino para el video, pero alguien tiene que haber armado el servidor.)md"},
     {"evento", "Guion del evento (storyboard)",
      "Bloques, cues, tiempos previstos, revision previa, ensayo y teleprompter.",
      R"md(## Que es
@@ -309,7 +329,7 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
      R"md(- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
 - `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.
 - Alcance: `live` (en el momento), `gateway` (reinicia la sala: los invitados se reconectan), `restart` (al proximo arranque).
-- Secciones: Video, Codificación, Grabación, Transmisión, Invitados, Escena, Gateway, Sala, Acceso directo, Sistema, Asistente (MCP).
+- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Sala, Red de la sala, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del operador, Modelos locales, Control de Windows, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {"topic": "acceso_remoto"}`.
 - Para tener VARIAS configuraciones enteras (una por cliente, una de prueba, la demo) y pasar de una a otra: `help {"topic": "configuraciones"}`.)md"},
     {"configuraciones", "Configuraciones con nombre",
      "Varias configuraciones enteras (escenas, medios, plugins, botonera, Cuerpo, eventos), la demo, y pasar de una a otra sin copiar nada.",

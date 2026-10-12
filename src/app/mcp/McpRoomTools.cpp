@@ -415,7 +415,7 @@ void McpService::registerRoomTools() {
                 if (*listo) return;
                 const QVariantMap m = leer();
                 const QString e = m.value("estado").toString();
-                if (e == "verificando" || e == "consultando") return;
+                if (e == "verificando" || e == "consultando" || e == "trabajando") return;
                 *listo = true;
                 QObject::disconnect(*conn);
                 done(ToolResult().data(json{{"estado", m.value("estado").toString().toStdString()},
@@ -441,8 +441,10 @@ void McpService::registerRoomTools() {
                 "`tipo`: \"token\" (el token del PLAN de pinggy: abre el túnel; el del comando …@pro.pinggy.io), \"api_key\" (la "
                 "API key de pinggy: control de la cuenta por API, con acceso_remoto_panel; NO abre túneles) o "
                 "\"cloudflare\" (el token del túnel de Cloudflare, Configuración → Cloudflare). Nunca se devuelve ni se escribe "
-                "en el registro: la respuesta dice solo «guardada». Si no sabés cuál es, probá con acceso_remoto_panel "
-                "después de guardarla como api_key (si la acepta, es la API key). El token rige al reiniciar la sala.";
+                "en el registro: la respuesta dice solo «guardada». Con pinggy lo normal es guardar SOLO la api_key y "
+                "seguir con acceso_remoto_configurar_con_api_key (trae el token sola); el token a mano es solo si no "
+                "hay API key. Si no sabés cuál es, guardala como api_key y probá acceso_remoto_panel (si la acepta, es "
+                "la API key). El token rige al reiniciar la sala. Guía: help {\"topic\": \"acceso_remoto\"}.";
             t.inputSchema = {
                 {"type", "object"},
                 {"properties",
@@ -482,6 +484,7 @@ void McpService::registerRoomTools() {
             t.category = "sala";
             t.description =
                 "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la sala (corta a los invitados un momento). "
+                "Para armarlo de cero con la API key (token, subdominio y puerto de la cuenta) usá acceso_remoto_configurar_con_api_key. "
                 "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
                 "propio: va con `host` y `cname_destino`).";
             t.inputSchema = {
@@ -598,6 +601,45 @@ void McpService::registerRoomTools() {
                     if (m.value("estado") == "probando") m["estado"] = "consultando"; // sigue esperando
                     return m;
                 }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_configurar_con_api_key";
+            t.title = "Acceso remoto: armar pinggy solo con la API key";
+            t.category = "sala";
+            t.openWorld = true;
+            t.description = "Con SOLO la API key guardada (acceso_remoto_clave tipo api_key) arma todo pinggy: le pide a "
+                            "la cuenta el token del túnel (lo guarda cifrado, nunca se muestra), su subdominio fijo y su "
+                            "puerto TCP fijo, y prende el túnel con eso (reinicia la sala). Con `subdominio` (solo el "
+                            "nombre, p. ej. \"sala-concejo\") primero lo cambia en la cuenta: queda "
+                            "sala-concejo.a.pinggy.link; si pinggy no lo da (ocupado), avisa. No hace falta entrar al "
+                            "panel de pinggy.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties", {{"subdominio", {{"type", "string"}, {"description", "opcional: el nombre que se quiere"}}}}}};
+            t.run = [acc, esperar, &vm](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                if (auto* ev = static_cast<EventoViewModel*>(vm.evento()); ev != nullptr && ev->enVivo())
+                    return done(ToolResult::error("El evento está corriendo: el túnel no se toca hasta que termine (reinicia la sala)."));
+                acc->configurarConApiKey(QString::fromStdString(a.value("subdominio", std::string())));
+                esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_cortar_tuneles";
+            t.title = "Acceso remoto: cortar los túneles activos de la cuenta de pinggy";
+            t.category = "sala";
+            t.destructive = true;
+            t.openWorld = true;
+            t.description = "Con la API key, corta todos los túneles activos de la cuenta de pinggy (p. ej. otro equipo "
+                            "que quedó con el mismo token). El de este equipo, si está prendido, vuelve a conectarse solo.";
+            t.run = [acc, esperar](const json&, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                acc->cortarTunelesDeLaCuenta();
+                esperar(&AccesoRemoto::cuentaChanged, [acc]() { return acc ? acc->cuenta() : QVariantMap{}; }, done);
             };
             core_.addTool(std::move(t));
         }

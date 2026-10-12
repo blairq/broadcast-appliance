@@ -52,6 +52,8 @@ class AccesoRemoto : public QObject {
     Q_PROPERTY(QVariantMap panel READ panel NOTIFY panelChanged)
     /// «Probar dirección»: {estado: probando|ok|mal|error, texto}.
     Q_PROPERTY(QVariantMap prueba READ prueba NOTIFY pruebaChanged)
+    /// «Configurar todo con la API key»: {estado: ""|trabajando|ok|error, texto, host, puerto_tcp, subdominio}
+    Q_PROPERTY(QVariantMap cuenta READ cuenta NOTIFY cuentaChanged)
    public:
     AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* parent = nullptr);
 
@@ -81,6 +83,17 @@ class AccesoRemoto : public QObject {
     Q_INVOKABLE void verificarDns(const QString& host, const QString& destino);
     /// Consulta los túneles activos en el panel de pinggy con la API key (resultado en `panel`).
     Q_INVOKABLE void verEnPinggy();
+    /// Con SOLO la API key arma todo: le pide a la cuenta de pinggy el token del túnel
+    /// (lo guarda cifrado), su subdominio fijo y su puerto TCP fijo; si se pide
+    /// `subdominio` (solo el nombre, p. ej. «sala-concejo») lo cambia en la cuenta; y
+    /// prende el túnel con eso (por `aplicarPinggy`). Asíncrono: el resultado en `cuenta`.
+    Q_INVOKABLE void configurarConApiKey(const QString& subdominio = QString());
+    /// Corta los túneles activos de la cuenta (otro equipo con el mismo token).
+    Q_INVOKABLE void cortarTunelesDeLaCuenta();
+    QVariantMap cuenta() const { return cuenta_; }
+    /// Lo pone StudioViewModel: aplica cambios de Configuración → Pinggy
+    /// ({"pinggy.activo": true, …}) y devuelve el resumen (o el error).
+    void setAplicarPinggy(std::function<QString(const QVariantMap&)> f) { aplicarPinggy_ = std::move(f); }
     /// Prueba si pinggy da esa dirección con el token guardado: abre un túnel de
     /// prueba corto (sin desplazar a otro) y compara la dirección que devuelve.
     /// Con la API key, mira antes si ya la usa un túnel activo de la cuenta.
@@ -97,6 +110,7 @@ class AccesoRemoto : public QObject {
     void dnsChanged();
     void panelChanged();
     void pruebaChanged();
+    void cuentaChanged();
 
    private:
     void pedirEstado(std::function<void(bool ok, const QVariantMap& r)> done);
@@ -115,6 +129,10 @@ class AccesoRemoto : public QObject {
     QVariantMap prueba_;
     void ponerPrueba(const QString& estado, const QString& texto);
     void probarConTunel(const QString& host);
+    QVariantMap cuenta_;
+    std::function<QString(const QVariantMap&)> aplicarPinggy_;
+    void ponerCuenta(const QString& estado, const QString& texto, const QVariantMap& extra = {});
+    void seguirConToken(const std::string& clave, const QString& subdominio);
 };
 
 } // namespace ba::app

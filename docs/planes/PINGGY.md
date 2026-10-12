@@ -45,9 +45,22 @@ URL de todos los servicios web, y para WebRTC configurar bien ICE»).
   `CNAME host → <id>.a.pinggy.link.` (sin el proxy naranja si el DNS está en Cloudflare),
   comodín incluido; certificado Let's Encrypt de pinggy. Sin API para crearlos: desde el
   dashboard. https://pinggy.io/docs/custom_domain/
-- **API REST** (Pro/Enterprise): solo monitoreo (`GET /session/active`, historial) con
-  `Authorization: Bearer <API key>`. **La API key no levanta túneles: para eso hace falta
-  el token de túnel.** https://pinggy.io/docs/api/api/
+- **API REST**: la documentada es solo monitoreo (`GET /session/active`, historial) con
+  `Authorization: Bearer <API key>`. https://pinggy.io/docs/api/api/
+- **El backend del panel acepta la misma API key** (verificado 2026-10-12 con la cuenta Pro,
+  base `https://dashboard.pinggy.io/backend/api/v1`, rutas sacadas del JS del panel):
+  - `GET /token/active` → `[{token, enabled, subscription, preferences:[{subdomain,
+    customdomain, tcp_persistent_port, subdomain_id}]}]`: **el token del túnel** y su dirección.
+    Con ese token ba-pinggy abre el túnel Pro autenticado («You are authenticated as …»).
+  - `GET /subdomain/list`, `POST /subdomain/update {subdomain_id, subdomain_substring}` (cambia
+    el subdominio; si es el mismo: 403 «already set»), `POST /subdomain/randomize {subdomain_id}`.
+  - `GET /session/active` → `[{id, tokenId, subdomains, ports, forwardings…}]`;
+    `POST /session/kill {"session-id": id}` → `{"status": true}` (corta el túnel: probado).
+  - `GET /plan/active`, `/user/limits`, `/configuration`, `/device-token/list`.
+  - No hay ruta para crear o regenerar el token (el plan Pro trae uno).
+  Así la app arma todo con **solo la API key**: `AccesoRemoto::configurarConApiKey`,
+  MCP `acceso_remoto_configurar_con_api_key` y `acceso_remoto_cortar_tuneles`. Es una API sin
+  documentar: si pinggy la cambia, queda el camino manual (pegar el token).
 - **Un túnel por token** (`force` corta el otro). Free: 60 min y URL aleatoria. Pro:
   subdominios, dominios, puertos TCP/UDP fijos. https://pinggy.io/#prices
 - **Sin confirmar**: que el WebSocket pase por un túnel HTTP; el hostname de la región

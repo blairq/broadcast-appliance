@@ -238,6 +238,21 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
     accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, conference_->client());
+    // «Configurar todo con la API key»: los cambios de Configuración → Pinggy van por un
+    // modelo aparte (como el MCP), así no se pisa lo que el operador tenga a medio editar.
+    accesoRemoto_->setAplicarPinggy([this](const QVariantMap& cambios) -> QString {
+        SettingsModel m(rt_);
+        m.revert();
+        for (auto it = cambios.begin(); it != cambios.end(); ++it) {
+            if (!m.value(it.key()).isValid()) return "esta versión no tiene " + it.key();
+            m.setValue(it.key(), it.value());
+        }
+        const QString resumen = m.apply();
+        if (resumen.contains("EN VIVO") || resumen.contains("ERROR")) return resumen;
+        if (!settings_->dirty()) settings_->revert();
+        refreshModels();
+        return {};
+    });
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());

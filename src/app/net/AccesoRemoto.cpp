@@ -32,6 +32,9 @@ constexpr const char* kToken = "pinggy-token";
 constexpr const char* kApiKey = "pinggy-api-key";
 constexpr const char* kTokenCloudflare = "cloudflare-token"; // lo lee el gateway (main.cpp)
 constexpr const char* kSesionesActivas = "https://dashboard.pinggy.io/backend/api/v1/session/active";
+// El mismo backend que usa el panel web de pinggy: con la API key (Bearer) contesta
+// también el token del túnel, el subdominio y cortar sesiones (probado 2026-10-12).
+constexpr const char* kApiPinggy = "https://dashboard.pinggy.io/backend/api/v1";
 
 /// Un secreto pegado del panel: sin espacios alrededor; adentro, nada de blancos.
 QString validarSecreto(const QString& crudo, QString& limpio) {
@@ -481,6 +484,143 @@ void AccesoRemoto::probarConTunel(const QString& host) {
             return self->ponerPrueba("error", "No arrancó la prueba (¿falta ba-pinggy en el programa?) o pinggy no "
                                               "contestó en 30 s.");
         self->ponerPrueba("error", error.isEmpty() ? QString("Pinggy no contestó como se esperaba.") : error);
+    });
+}
+
+// --- Todo con la API key ----------------------------------------------------------------
+
+namespace {
+/// El primer mensaje de error que manda pinggy ({"errors": ["…"]} o {"error": "…"}).
+QString errorDePinggy(const net::HttpResponse& res) {
+    const json j = json::parse(res.body, nullptr, false);
+    if (j.is_object()) {
+        if (j.contains("errors") && j["errors"].is_array() && !j["errors"].empty() && j["errors"][0].is_string())
+            return QString::fromStdString(j["errors"][0].get<std::string>());
+        if (j.contains("error") && j["error"].is_string()) return QString::fromStdString(j["error"].get<std::string>());
+    }
+    if (res.status == 401 || res.status == 403) return "pinggy no aceptó la API key";
+    if (res.status == 0) return "no se pudo llegar a pinggy: " + QString::fromStdString(res.error);
+    return QString("pinggy contestó %1").arg(res.status);
+}
+
+net::HttpRequest pedidoPinggy(const std::string& clave, const std::string& ruta, const json* cuerpo = nullptr) {
+    net::HttpRequest req;
+    req.url = std::string(kApiPinggy) + ruta;
+    req.headers = {{"Authorization", "Bearer " + clave}, {"Accept", "application/json"}};
+    if (cuerpo) {
+        req.method = "POST";
+        req.headers.emplace_back("Content-Type", "application/json");
+        req.body = cuerpo->dump();
+    }
+    req.timeoutMs = 20000;
+    return req;
+}
+} // namespace
+
+void AccesoRemoto::ponerCuenta(const QString& estado, const QString& texto, const QVariantMap& extra) {
+    QVariantMap m = extra;
+    m["estado"] = estado;
+    m["texto"] = texto;
+    cuenta_ = m;
+    emit cuentaChanged();
+}
+
+void AccesoRemoto::configurarConApiKey(const QString& pedido) {
+    std::string clave;
+    if (!ba::security::CredentialStore::bundle().read(kApiKey, clave) || clave.empty())
+        return ponerCuenta("error", "Falta la API key: pegala en «API key» y guardala.");
+    // Solo el nombre: «Sala-Concejo.a.pinggy.link» → «sala-concejo».
+    QString sub = pedido.trimmed().toLower();
+    sub.remove(QRegularExpression("^https?://"));
+    sub = sub.section('.', 0, 0);
+    if (!sub.isEmpty() && !QRegularExpression("^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$").match(sub).hasMatch())
+        return ponerCuenta("error", "El subdominio va con letras, números y guiones (sin espacios ni acentos), p. ej. sala-concejo.");
+    ponerCuenta("trabajando", "Pidiendo los datos a tu cuenta de pinggy…");
+    if (sub.isEmpty()) return seguirConToken(clave, {});
+    QPointer<AccesoRemoto> self(this);
+    net::asyncRequest(this, pedidoPinggy(clave, "/subdomain/list"), [self, clave, sub](const net::HttpResponse& res) {
+        if (!self) return;
+        const json l = json::parse(res.body, nullptr, false);
+        if (res.status < 200 || res.status >= 300 || !l.is_array() || l.empty() || !l[0].is_object())
+            return self->ponerCuenta("error", "No pude leer los subdominios de la cuenta: " + errorDePinggy(res) + ".");
+        const json& s0 = l[0];
+        const std::string actual = s0.value("subdomain", std::string());
+        if (QString::fromStdString(actual).section('.', 0, 0) == sub) return self->seguirConToken(clave, sub); // ya es ese
+        const json cuerpo{{"subdomain_id", s0.value("subdomain_id", 0)}, {"subdomain_substring", sub.toStdString()}};
+        self->ponerCuenta("trabajando", "Pidiendo «" + sub + "» en pinggy…");
+        net::asyncRequest(self, pedidoPinggy(clave, "/subdomain/update", &cuerpo), [self, clave, sub](const net::HttpResponse& r) {
+            if (!self) return;
+            if (r.status < 200 || r.status >= 300)
+                return self->ponerCuenta("error", "Pinggy no dio «" + sub + "»: " + errorDePinggy(r) +
+                                                      ". Probá con otro nombre (o dejalo vacío para usar el que ya tenés).");
+            self->seguirConToken(clave, sub);
+        });
+    });
+}
+
+void AccesoRemoto::seguirConToken(const std::string& clave, const QString& sub) {
+    QPointer<AccesoRemoto> self(this);
+    net::asyncRequest(this, pedidoPinggy(clave, "/token/active"), [self, sub](const net::HttpResponse& res) {
+        if (!self) return;
+        const json l = json::parse(res.body, nullptr, false);
+        if (res.status < 200 || res.status >= 300 || !l.is_array())
+            return self->ponerCuenta("error", "No pude pedir el token: " + errorDePinggy(res) + ".");
+        const json* tok = nullptr;
+        for (const auto& t : l)
+            if (t.is_object() && t.value("enabled", true) && !t.value("token", std::string()).empty()) { tok = &t; break; }
+        if (!tok) return self->ponerCuenta("error", "Tu cuenta de pinggy no tiene ningún token activo (¿el plan Pro está vencido?).");
+        // El token: directo a la bóveda; no pasa por la interfaz ni por el registro.
+        if (!ba::security::CredentialStore::bundle().write(kToken, tok->value("token", std::string())))
+            return self->ponerCuenta("error", "No se pudo guardar el token en Credenciales/.");
+        emit self->credencialesChanged();
+        // Su dirección: la preferencia del token (subdominio o dominio propio) y el puerto TCP fijo.
+        std::string host, propio;
+        int puerto = 0;
+        if (tok->contains("preferences") && (*tok)["preferences"].is_array() && !(*tok)["preferences"].empty()) {
+            const json& p = (*tok)["preferences"][0];
+            host = p.value("subdomain", std::string());
+            if (p.contains("customdomain") && p["customdomain"].is_string()) propio = p["customdomain"].get<std::string>();
+            if (p.contains("tcp_persistent_port") && p["tcp_persistent_port"].is_number_integer()) puerto = p["tcp_persistent_port"].get<int>();
+        }
+        if (!sub.isEmpty() && QString::fromStdString(host).section('.', 0, 0) != sub && propio.empty())
+            host = (sub + ".a.pinggy.link").toStdString(); // recién cambiado: la lista puede tardar
+        QVariantMap cambios{{"pinggy.activo", true}};
+        if (!propio.empty()) { cambios["pinggy.dominioTipo"] = "propio"; cambios["pinggy.host"] = QString::fromStdString(propio); }
+        else if (!host.empty()) { cambios["pinggy.dominioTipo"] = "pinggy"; cambios["pinggy.host"] = QString::fromStdString(host); }
+        if (puerto > 0) cambios["pinggy.turnTcpPuerto"] = puerto;
+        const QString dir = QString::fromStdString(propio.empty() ? host : propio);
+        const QVariantMap extra{{"host", dir}, {"puerto_tcp", puerto}};
+        if (!self->aplicarPinggy_)
+            return self->ponerCuenta("ok", "Token guardado. Dirección: " + dir + ". Prendé el túnel y aplicá.", extra);
+        const QString e = self->aplicarPinggy_(cambios);
+        if (!e.isEmpty()) return self->ponerCuenta("error", "Token guardado, pero no se pudo prender el túnel: " + e, extra);
+        self->ponerCuenta("ok", "Listo: el túnel sale con tu plan Pro por https://" + dir +
+                                    (puerto > 0 ? QString(" (video de los de afuera por el puerto %1)").arg(puerto) : QString()) +
+                                    ". La sala se reinicia sola con eso.", extra);
+    });
+}
+
+void AccesoRemoto::cortarTunelesDeLaCuenta() {
+    std::string clave;
+    if (!ba::security::CredentialStore::bundle().read(kApiKey, clave) || clave.empty())
+        return ponerCuenta("error", "Falta la API key.");
+    ponerCuenta("trabajando", "Cortando los túneles activos de la cuenta…");
+    QPointer<AccesoRemoto> self(this);
+    net::asyncRequest(this, pedidoPinggy(clave, "/session/active"), [self, clave](const net::HttpResponse& res) {
+        if (!self) return;
+        const json l = json::parse(res.body, nullptr, false);
+        if (res.status < 200 || res.status >= 300 || !l.is_array())
+            return self->ponerCuenta("error", "No pude ver los túneles activos: " + errorDePinggy(res) + ".");
+        if (l.empty()) return self->ponerCuenta("ok", "La cuenta no tenía ningún túnel activo.");
+        int n = 0;
+        for (const auto& s : l) {
+            if (!s.is_object() || !s.contains("id")) continue;
+            const json cuerpo{{"session-id", s["id"]}};
+            ++n;
+            net::asyncRequest(self, pedidoPinggy(clave, "/session/kill", &cuerpo), [](const net::HttpResponse&) {});
+        }
+        self->ponerCuenta("ok", QString("Pedí cortar %1 túnel%2 de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).")
+                                    .arg(n).arg(n == 1 ? "" : "es"));
     });
 }
 

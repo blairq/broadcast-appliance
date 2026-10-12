@@ -114,6 +114,17 @@ Con un servidor de prueba local (HTTP + WebSocket, TCP eco, UDP eco) y curl/clie
 (`xxxxx-143-105-137-116.free.pinggy.net`, o la IPv6 si conectó por IPv6) y vence a los 60 min. Sirve
 para probar, no para dar enlaces.
 
+## Armar todo con la API key (2026-10-12)
+
+En Configuración → Pinggy, «Armar todo con la API key» (o MCP
+`acceso_remoto_configurar_con_api_key {subdominio?}`): con solo la API key guardada, la app pide
+a la cuenta el token del túnel (`/token/active`, lo guarda cifrado como `pinggy-token`), el
+subdominio fijo y el puerto TCP fijo, opcionalmente cambia el subdominio
+(`/subdomain/update`), y aplica `pinggy.activo`, `pinggy.dominioTipo`, `pinggy.host` y
+`pinggy.turnTcpPuerto` (reinicia la sala). «Cortar túneles de la cuenta» usa `/session/kill`.
+Detalle de las rutas en docs/planes/PINGGY.md. Si el token y la API key guardados son la misma
+clave, la página y `acceso_remoto_clave` avisan (con la API key como token el túnel no abre).
+
 ## Lo que tiene que saber el resto
 
 - El puerto del túnel en el gateway tiene que aceptar **PROXY v1 (TCP4 y TCP6)** si se usa
