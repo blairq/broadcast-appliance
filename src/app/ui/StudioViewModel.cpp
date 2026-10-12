@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
+#include "sala/CupoSala.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
 #include <fstream>
@@ -239,6 +240,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
     marca("conference");
+    // El cupo es del modelo; acá solo se muestra lo que pasó.
+    cupoSala_ = std::make_unique<sala::CupoSala>(rt, conference_->client());
+    cupoSala_->alAvisar([this](const std::string& texto, bool error) {
+        emit notify(QString::fromStdString(texto), error ? "error" : "ok");
+    });
+    cupoSala_->alCambiar([this](int n) { frames_->setGuests(n); });
     // El encargo al asistente vive aca (necesita el MCP): la sala solo avisa.
     conference_->setIntakeSink([this](const QString& id, const QString& name, bool yaAdentro) {
         return assistantIntake(id, name, yaAdentro);
@@ -765,7 +772,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             }
         }
         settings_->setEnVivo([this]() { return modoVivo(); });
-        settings_->setCupoEnCaliente([this](int n) { return cupoUi(n).toStdString(); });
+        settings_->setCupoEnCaliente([this](int n) { return cupoSala_->cambiar(n); });
         // ¿Volvemos de una caída? El supervisor dejó escrita la causa.
         {
             const auto archivo = ba::platform::dataRoot() / "Runtime" / "ultima-caida.json";
@@ -3930,32 +3937,7 @@ QString StudioViewModel::medirSincroUi(int segundos) {
     });
 }
 
-QString StudioViewModel::cupo(int n, std::function<void(const QString&)> listo) {
-    if (n < 1 || n > 16) return "el cupo va de 1 a 16";
-    auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
-    // El tope que informa la sala (kMaxInvitados del gateway); sin foto todavía, 16.
-    const int reserva = cli->snapshot().value("reserva").toInt(16);
-    if (n > reserva)
-        return QString("la sala admite hasta %1 invitados").arg(reserva);
-    // Se pide aunque los eventos de la sala estén reconectando (es otro pedido HTTP).
-    cli->post("/api/v1/room", QJsonObject{{"cupo", n}}, [this, n, listo](bool ok, const QJsonObject& r) {
-        if (!ok && r.contains("error")) return listo(r.value("error").toString()); // p. ej. gente en esos lugares
-        // Aceptado, o la sala no contesta (no está andando): igual queda guardado y
-        // rige cuando arranque (lee el cupo de la configuración).
-        rt_.ajustarInvitados(n);
-        frames_->setGuests(n);
-        listo(ok ? QString() : QString("la sala no contesta: queda guardado y rige cuando arranque"));
-    });
-    return {};
-}
-
-QString StudioViewModel::cupoUi(int n) {
-    const int antes = rt_.config().guests;
-    return cupo(n, [this, n, antes](const QString& e) {
-        if (!e.isEmpty()) emit notify("Cupo: " + e, "error");
-        else emit notify(QString("Cupo de invitados: %1 → %2, sin reiniciar la sala.").arg(antes).arg(n), "ok");
-    });
-}
+QString StudioViewModel::cupoUi(int n) { return QString::fromStdString(cupoSala_->cambiar(n)); }
 
 QObject* StudioViewModel::playlistQml() const { return playlist_.get(); }
 QObject* StudioViewModel::puestoCorreccionQml() const { return puestoCorreccion_.get(); }

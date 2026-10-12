@@ -66,6 +66,9 @@ class VideoGrafos;
 class SuperRes;
 class BancoSuperRes;
 } // namespace ba::app::video
+namespace ba::app::sala {
+class CupoSala;
+}
 namespace ba::app::red {
 class Red;
 } // namespace ba::app::red
@@ -495,9 +498,10 @@ class StudioViewModel : public QObject {
     QObject* playlistQml() const;
     QObject* puestoCorreccionQml() const;
     medios::Playlist& playlist() { return *playlist_; }
-    /// El cupo de invitados sin reiniciar la sala (hasta los reservados). "" o el error
-    /// inmediato; el resultado de la sala llega a `listo` ("" = aplicado).
-    QString cupo(int n, std::function<void(const QString&)> listo);
+    /// El cupo de invitados (modelo: sala::CupoSala). La interfaz y el MCP lo piden
+    /// por acá; el resultado se muestra como aviso.
+    sala::CupoSala& cupoSala() { return *cupoSala_; }
+    /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
     Q_INVOKABLE QString cupoUi(int n);
     QString balistica() const;
     bool modoTest() const { return modoTest_; }
@@ -890,6 +894,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FrameService> frames_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
+    std::unique_ptr<sala::CupoSala> cupoSala_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<AccesoRemoto> accesoRemoto_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;

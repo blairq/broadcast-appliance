@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "diag/Perfil.hpp"
+#include "sala/CupoSala.hpp"
 #include "mcp/McpService.hpp"
 #include "Piezas.hpp" // motor::hayFabrica
 #include "asamblea/Debate.hpp"
@@ -341,7 +342,7 @@ McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
       settings_(std::make_unique<SettingsModel>(rt)) {
     // El cupo en caliente, como en la GUI: sin esto, settings_set con el cupo
     // reiniciaba la sala (y cortaba a todos los invitados).
-    settings_->setCupoEnCaliente([this](int n) { return vm_.cupoUi(n).toStdString(); });
+    settings_->setCupoEnCaliente([this](int n) { return vm_.cupoSala().cambiar(n); });
     registerHelp();
     registerTools();
     registerImageTools();

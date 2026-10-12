@@ -1126,12 +1126,11 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
     // y los de chat, como OxCoder 9B), en cualquier plataforma: llama-server los
     // carga todos (la Mac también). Vacío = el del modelo local activo. Los MLX
     // todavía no: hace falta un servidor de MLX que hable el protocolo de OpenAI.
-    // Solo los INSTALADOS (bajados y verificados: su carpeta tiene «.ok», como
-    // ModelosLocales::instalado): los demás se bajan desde Modelos locales.
+    // Solo los INSTALADOS (la regla es de ModelosLocales): los demás se bajan
+    // desde Modelos locales.
     if (proveedor == "local") {
         const auto instalado = [](const std::string& repo) {
-            std::error_code ec;
-            return std::filesystem::exists(ba::platform::dataRoot() / "Modelos" / carpetaDeRepo(repo) / ".ok", ec);
+            return ModelosLocales::instaladoEn(ba::platform::dataRoot() / "Modelos", repo);
         };
         QStringList out;
         QFile f(":/agent/modelos-catalogo.json");

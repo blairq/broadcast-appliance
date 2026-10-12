@@ -21,6 +21,7 @@
 #include <set>
 
 #include "arranque/AppRuntime.hpp"
+#include "sala/CupoSala.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "net/AccesoRemoto.hpp"
@@ -196,18 +197,19 @@ void McpService::registerRoomTools() {
               {"locked", {{"type", "boolean"}}},
               {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
         t.run = [post, &vm = vm_](const json& a, Done done) {
+            // El cupo es una operación del modelo (sala::CupoSala), la misma que usa la GUI.
             if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
                 const int n = a.value("cupo", 2);
-                const QString e = vm.cupo(n, [done, n](const QString& err) {
-                    if (!err.isEmpty()) done(ToolResult::error("La sala respondio: " + err.toStdString()));
+                const std::string e = vm.cupoSala().cambiar(n, [done, n](const std::string& err) {
+                    if (!err.empty()) done(ToolResult::error("La sala respondio: " + err));
                     else done(ToolResult::ok("Cupo: " + std::to_string(n) + " invitados, sin reiniciar la sala."));
                 });
-                if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
+                if (!e.empty()) done(ToolResult::error(e));
                 return;
             }
             if (a.contains("cupo")) {
-                const QString e = vm.cupoUi(a.value("cupo", 2));
-                if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+                const std::string e = vm.cupoSala().cambiar(a.value("cupo", 2));
+                if (!e.empty()) return done(ToolResult::error(e));
             }
             json b = json::object();
             if (a.contains("lobby")) b["lobby"] = a["lobby"];
