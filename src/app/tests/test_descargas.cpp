@@ -173,7 +173,9 @@ int main(int argc, char** argv) {
 
     // --- Seguir una descarga cortada ------------------------------------------------------
     QByteArray cuerpo;
-    for (int i = 0; i < 400000; ++i) cuerpo.append(static_cast<char>((i * 7919) % 251));
+    // En 64 bits: 400000 * 7919 no entra en un int (desborde = UB; gcc -O2 lo
+    // volvía un bucle infinito).
+    for (long long i = 0; i < 400000; ++i) cuerpo.append(static_cast<char>((i * 7919) % 251));
     std::atomic<int> pedidos{0};
     std::atomic<bool> vioRango{false};
     QTcpServer srv;
