@@ -3933,16 +3933,18 @@ QString StudioViewModel::medirSincroUi(int segundos) {
 QString StudioViewModel::cupo(int n, std::function<void(const QString&)> listo) {
     if (n < 1 || n > 16) return "el cupo va de 1 a 16";
     auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
-    if (!cli->online()) return "la sala no está andando";
-    // El tope que informa la sala (kMaxInvitados del gateway).
-    const int reserva = cli->snapshot().value("reserva").toInt(rt_.config().guests);
+    // El tope que informa la sala (kMaxInvitados del gateway); sin foto todavía, 16.
+    const int reserva = cli->snapshot().value("reserva").toInt(16);
     if (n > reserva)
         return QString("la sala admite hasta %1 invitados").arg(reserva);
+    // Se pide aunque los eventos de la sala estén reconectando (es otro pedido HTTP).
     cli->post("/api/v1/room", QJsonObject{{"cupo", n}}, [this, n, listo](bool ok, const QJsonObject& r) {
-        if (!ok) return listo(r.value("error").toString("la sala no lo aceptó"));
+        if (!ok && r.contains("error")) return listo(r.value("error").toString()); // p. ej. gente en esos lugares
+        // Aceptado, o la sala no contesta (no está andando): igual queda guardado y
+        // rige cuando arranque (lee el cupo de la configuración).
         rt_.ajustarInvitados(n);
         frames_->setGuests(n);
-        listo({});
+        listo(ok ? QString() : QString("la sala no contesta: queda guardado y rige cuando arranque"));
     });
     return {};
 }

@@ -489,6 +489,19 @@ QString SettingsModel::apply() {
         }
         return false;
     };
+    // Qué cambió de lo que reinicia la sala (para decirlo en el aviso).
+    const auto cambiadas = [&](const QStringList& prefijos) {
+        QStringList out;
+        for (auto it = draft_.cbegin(); it != draft_.cend(); ++it) {
+            if (avanzados.contains(it.key()) || it.value() == saved_.value(it.key())) continue;
+            for (const QString& p : prefijos)
+                if (it.key().startsWith(p)) {
+                    out << it.key();
+                    break;
+                }
+        }
+        return out;
+    };
     const auto s = [&](const char* k) { return draft_.value(k).toString().toStdString(); };
     const auto i = [&](const char* k) { return draft_.value(k).toInt(); };
     const auto b = [&](const char* k) { return draft_.value(k).toBool(); };
@@ -588,15 +601,15 @@ QString SettingsModel::apply() {
     }
 
     bool restartB = false;
-    // El cupo, sin reiniciar la sala, si no cambió nada más de la sala: el gateway
-    // crea los canales de los lugares nuevos andando, hasta su tope (16 invitados).
-    const bool soloCupo = changed("guests.count") && !changed("gateway.") && !changed("room.") && !changed("direct.") &&
-                          !changed("wg.") && !changed("pinggy.") && !changed("guests.reserva") && cupoEnCaliente_ &&
-                          i("guests.count") <= 16;
-    if (soloCupo) {
-        const std::string e = cupoEnCaliente_(i("guests.count"));
-        notes << (e.empty() ? QString("Cupo de invitados: %1 (sin reiniciar la sala).").arg(i("guests.count"))
-                            : "Cupo: " + QString::fromStdString(e));
+    // El cupo SIEMPRE en caliente con la sala andando: el gateway crea los canales de
+    // los lugares nuevos (hasta 16) y, si al bajarlo hay gente en un lugar que se iría,
+    // la sala lo rechaza (aviso) y no saca a nadie. Nunca reinicia la sala por el cupo:
+    // eso cortaba a todos (pasó al bajar de 6 a 3 con 6 conectados).
+    bool cupoEnVivo = false;
+    if (changed("guests.count") && cupoEnCaliente_ && i("guests.count") >= 1 && i("guests.count") <= 16) {
+        const std::string e = cupoEnCaliente_(i("guests.count")); // el resultado llega como aviso
+        cupoEnVivo = true;
+        if (!e.empty()) notes << "Cupo: " + QString::fromStdString(e);
     }
     // Los avanzados: cada uno a su archivo ("ajustes"), solo los que no están en su valor de siempre.
     json ajApp = json::object(), ajSala = json::object(), ajLauncher = json::object();
@@ -619,8 +632,9 @@ QString SettingsModel::apply() {
     ba::ajustes::cargar(c.ajustes); // en caliente: el código los lee al usarlos
     rt_.launcher().ajustes = ajLauncher;
     if (cambiaLauncher) notes << "Los avanzados del arranque rigen al volver a abrir el programa.";
-    if (!soloCupo && (changed("gateway.") || changed("guests.count") || changed("guests.reserva") || changed("room.") ||
-                      changed("direct.") || changed("wg.") || changed("pinggy.") || cambiaSala)) {
+    const QStringList porQue = cambiadas({"gateway.", "guests.reserva", "room.", "direct.", "wg.", "pinggy."}) +
+                               (cupoEnVivo ? QStringList() : cambiadas({"guests.count"}));
+    if (!porQue.isEmpty() || cambiaSala) {
         GatewaySettings& g = rt_.gateway();
         g.ajustes = ajSala;
         g.room = s("gateway.room");
@@ -686,7 +700,7 @@ QString SettingsModel::apply() {
             notes << "Pinggy: falta el subdominio o dominio; mientras tanto se usa la dirección al azar.";
         // Por ajustarInvitados, como el cupo en caliente: crea el audio y las
         // entradas de video de los lugares nuevos (si no, «Invitado 5» no aparecía).
-        if (i("guests.count") != c.guests) rt_.ajustarInvitados(i("guests.count"));
+        if (!cupoEnVivo && i("guests.count") != c.guests) rt_.ajustarInvitados(i("guests.count"));
         g.guestsReserva = std::max(i("guests.reserva"), c.guests);
         restartB = true;
     }
@@ -709,6 +723,7 @@ QString SettingsModel::apply() {
         notes << "Configuracion guardada.";
     }
     if (restartB) {
+        if (!porQue.isEmpty()) notes << "Se reinicia la sala por: " + porQue.join(", ") + ".";
         notes << (rt_.restartGateway() ? "Sala (gateway) reiniciada con la configuración nueva."
                                        : "La sala no se reinició (" + qs(rt_.lastError()) +
                                              "): apretá «Reiniciar la sala» acá abajo o en la página Sala.");

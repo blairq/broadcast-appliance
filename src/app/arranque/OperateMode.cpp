@@ -294,6 +294,22 @@ void AppRuntime::ajustarInvitados(int n) {
                     std::printf("ba-app: «%s» omitido: %s\n", spec.name.c_str(), lastError_.c_str());
             }
     }
+    // Al bajar el cupo (la sala ya lo aceptó: no hay nadie en esos lugares), las
+    // entradas de video de los lugares que se van salen de todas las escenas: si no,
+    // en Video seguían «Invitado 4…6» sin nadie. El audio queda (en silencio: lleva
+    // atado su retorno mix-minus). Si el cupo vuelve a subir, se crean de nuevo.
+    if (n < antes) {
+        std::vector<std::pair<std::string, std::string>> sacar; // escena, fuente
+        for (const auto& sc : cfg_.scenes)
+            for (const auto& s : sc.sources) {
+                if (!inputs::esVideoInvitado(s.id, s.settingsJson)) continue;
+                const nlohmann::json j = nlohmann::json::parse(s.settingsJson.empty() ? "{}" : s.settingsJson, nullptr, false);
+                const std::string canal = j.is_object() ? j.value("channel", std::string("guest")) : "guest";
+                if (j.is_object() && j.value("slot", 0) > n && (canal == "guest" || canal == "share"))
+                    sacar.emplace_back(sc.name, s.name);
+            }
+        for (const auto& [escena, fuente] : sacar) removeSource(escena, fuente);
+    }
     save();
 }
 

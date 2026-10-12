@@ -339,6 +339,9 @@ json modelRows(const QAbstractItemModel& m) {
 McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
     : QObject(parent), rt_(rt), vm_(vm), props_(std::make_unique<PropertiesModel>(rt)),
       settings_(std::make_unique<SettingsModel>(rt)) {
+    // El cupo en caliente, como en la GUI: sin esto, settings_set con el cupo
+    // reiniciaba la sala (y cortaba a todos los invitados).
+    settings_->setCupoEnCaliente([this](int n) { return vm_.cupoUi(n).toStdString(); });
     registerHelp();
     registerTools();
     registerImageTools();
