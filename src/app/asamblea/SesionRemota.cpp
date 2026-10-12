@@ -2,6 +2,7 @@
 #include "asamblea/SesionRemota.hpp"
 
 #include "asamblea/Cuerpo.hpp"
+#include "security/CredentialStore.hpp"
 
 #include "qrcodegen.hpp"
 
@@ -69,6 +70,8 @@ void SesionRemota::cargar() {
     graciaS_ = std::clamp(j.value("gracia_s", 120), 0, 3600);
     votoSegundos_ = std::clamp(j.value("voto_s", 60), 0, 3600);
     if (j.value("vistas", json()).is_array()) vistas_ = j["vistas"];
+    pinEnQr_ = j.value("pin_en_qr", false);
+    accesoFijo_ = j.value("acceso_fijo", false);
 }
 
 void SesionRemota::guardar() const {
@@ -78,7 +81,8 @@ void SesionRemota::guardar() const {
     {
         std::ofstream f(tmp);
         f << json{{"credenciales", credenciales_}, {"consolas", consolas_}, {"gracia_s", graciaS_},
-                  {"voto_s", votoSegundos_}, {"vistas", vistas_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
+                  {"voto_s", votoSegundos_}, {"vistas", vistas_},
+                  {"pin_en_qr", pinEnQr_}, {"acceso_fijo", accesoFijo_}}.dump(1, ' ', false, nlohmann::json::error_handler_t::replace);
     }
     std::filesystem::rename(tmp, archivo_, ec);
 }
@@ -105,9 +109,55 @@ void SesionRemota::anotar(const std::string& que, const std::string& id, const j
 
 // --- Credenciales ---------------------------------------------------------------------
 
-json SesionRemota::generar(const std::string& id) {
+std::string SesionRemota::nombreSecreto(const std::string& id) const {
+    // Por configuración (cada una tiene su Cuerpo y sus ids) y con un nombre válido
+    // para el almacén ([a-z0-9._-]) sea cual sea el id.
+    return "asamblea-" + sha256(archivo_.string() + "|" + id).substr(0, 32);
+}
+
+bool SesionRemota::accesoGuardado(const std::string& id) const {
+    return credenciales_.contains(id) && ba::security::CredentialStore::bundle().exists(nombreSecreto(id));
+}
+
+json SesionRemota::armarAcceso(const json& i, const std::string& token, const std::string& pin) const {
+    json out{{"id", i.value("id", std::string())}, {"pin", pin}, {"nombre", i.value("nombre", std::string())},
+             {"banca", i.value("banca", std::string())}, {"fijo", accesoFijo_}, {"pin_en_qr", pinEnQr_}};
+    const std::string frag = "/sesion/#i=" + out["id"].get<std::string>() + "&t=" + token;
+    out["link"] = origen_.empty() ? frag : origen_ + frag;
+    // Con el PIN adentro, el link solo alcanza para entrar: es la credencial entera.
+    if (pinEnQr_) out["link_con_pin"] = out["link"].get<std::string>() + "&p=" + pin;
+    const std::string enQr = pinEnQr_ ? out["link_con_pin"].get<std::string>() : out["link"].get<std::string>();
+    try {
+        const auto qr = qrcodegen::QrCode::encodeText(enQr.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
+        json filas = json::array();
+        for (int y = 0; y < qr.getSize(); ++y) {
+            std::string f;
+            for (int x = 0; x < qr.getSize(); ++x) f.push_back(qr.getModule(x, y) ? '1' : '0');
+            filas.push_back(f);
+        }
+        out["qr"] = filas;
+    } catch (...) {
+    }
+    if (origen_.empty()) out["aviso"] = "Falta el origen público (el gateway no contestó): completá el comienzo del link.";
+    return out;
+}
+
+json SesionRemota::generar(const std::string& id, bool forzar) {
     const json i = integrante(id);
     if (!i.is_object()) return {{"error", "no hay ningún integrante con ese id en el Cuerpo"}};
+    const auto almacen = ba::security::CredentialStore::bundle();
+    // Acceso fijo: el que ya tiene, igual (mismo link, mismo PIN), salvo que se pida renovar.
+    if (accesoFijo_ && !forzar && credenciales_.contains(id)) {
+        std::string guardado;
+        if (almacen.read(nombreSecreto(id), guardado)) {
+            const json g = json::parse(guardado, nullptr, false);
+            if (g.is_object() && g.value("token", std::string()).size() == 64) {
+                json out = armarAcceso(i, g["token"].get<std::string>(), g.value("pin", std::string()));
+                out["repetido"] = true;
+                return out;
+            }
+        }
+    }
     const std::string token = hexAleatorio(32);
     // PIN de 6 dígitos parejo (bounded no tiene sesgo de módulo).
     const quint32 n = QRandomGenerator::system()->bounded(1000000u);
@@ -122,33 +172,41 @@ json SesionRemota::generar(const std::string& id) {
                          {"creado_ms", ahoraMs()}};
     if (antes.contains("usuario")) credenciales_[id]["usuario"] = antes["usuario"];
     if (antes.contains("datos")) credenciales_[id]["datos"] = antes["datos"];
+    // Fijo: se guarda cifrado para poder mostrarlo de nuevo. Si no, no queda en ningún lado.
+    if (accesoFijo_) almacen.write(nombreSecreto(id), json{{"token", token}, {"pin", pin}}.dump());
+    else almacen.remove(nombreSecreto(id));
     guardar();
-    anotar("credencial", id);
+    anotar(forzar ? "credencial_renovada" : "credencial", id);
     emit credencialesCambio();
     emit cambio();
-    json out{{"id", id}, {"pin", pin}, {"nombre", i.value("nombre", std::string())},
-             {"banca", i.value("banca", std::string())}};
-    const std::string frag = "/sesion/#i=" + id + "&t=" + token;
-    out["link"] = origen_.empty() ? frag : origen_ + frag;
-    // El QR del link (sin el PIN: el PIN se dice aparte).
-    try {
-        const auto qr = qrcodegen::QrCode::encodeText(out["link"].get<std::string>().c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
-        json filas = json::array();
-        for (int y = 0; y < qr.getSize(); ++y) {
-            std::string f;
-            for (int x = 0; x < qr.getSize(); ++x) f.push_back(qr.getModule(x, y) ? '1' : '0');
-            filas.push_back(f);
-        }
-        out["qr"] = filas;
-    } catch (...) {
+    return armarAcceso(i, token, pin);
+}
+
+void SesionRemota::setPinEnQr(bool si) {
+    if (si == pinEnQr_) return;
+    pinEnQr_ = si;
+    guardar();
+    emit cambio();
+}
+
+void SesionRemota::setAccesoFijo(bool si) {
+    if (si == accesoFijo_) return;
+    accesoFijo_ = si;
+    // Apagarlo borra los guardados: desde ahí, se muestran una sola vez como antes
+    // (los links que ya tienen siguen andando).
+    if (!si) {
+        const auto almacen = ba::security::CredentialStore::bundle();
+        for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) almacen.remove(nombreSecreto(it.key()));
     }
-    if (origen_.empty()) out["aviso"] = "Falta el origen público (el gateway no contestó): completá el comienzo del link.";
-    return out;
+    guardar();
+    anotar(si ? "acceso_fijo" : "acceso_no_fijo", "");
+    emit cambio();
 }
 
 bool SesionRemota::revocar(const std::string& id) {
     if (!credenciales_.contains(id)) return false;
     credenciales_.erase(id);
+    ba::security::CredentialStore::bundle().remove(nombreSecreto(id));
     guardar();
     anotar("revocada", id);
     emit credencialesCambio();
@@ -389,6 +447,7 @@ json SesionRemota::participantes() const {
             p["con_clave"] = !c.value("hash_clave", std::string()).empty();
             p["datos"] = c.value("datos", json::object());
             p["creado_ms"] = c.value("creado_ms", std::int64_t(0));
+            p["fijo"] = accesoFijo_ && accesoGuardado(id);
         }
         if (it != estado_.end()) {
             const Estado& e = it->second;
@@ -794,7 +853,7 @@ void SesionRemota::limpiarRegistro() {
 
 QVariantList SesionRemota::participantesUi() const { return aQv(participantes()).toList(); }
 
-QVariantMap SesionRemota::generarUi(const QString& id) { return aQv(generar(id.toStdString())).toMap(); }
+QVariantMap SesionRemota::generarUi(const QString& id, bool forzar) { return aQv(generar(id.toStdString(), forzar)).toMap(); }
 
 bool SesionRemota::revocarUi(const QString& id) { return revocar(id.toStdString()); }
 

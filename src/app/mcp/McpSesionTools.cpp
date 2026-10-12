@@ -57,7 +57,9 @@ void McpService::registerSesionTools() {
             done(ToolResult().data({{"participantes", s->participantes()},
                                     {"presentes", s->presentes()},
                                     {"conectados", s->conectados()},
-                                    {"origen", s->origen()}}));
+                                    {"origen", s->origen()},
+                                    {"pin_en_qr", s->pinEnQr()},
+                                    {"acceso_fijo", s->accesoFijo()}}));
         };
         core_.addTool(std::move(t));
     }
@@ -67,17 +69,44 @@ void McpService::registerSesionTools() {
         t.title = "Link y PIN de un integrante";
         t.category = "sesion";
         t.destructive = true;
-        t.description = "Genera el link personal y el PIN de la banca virtual de un integrante (si ya tenía, el "
-                        "anterior deja de andar). El link y el PIN se muestran UNA sola vez: se le pasan al "
-                        "integrante por un canal seguro (no por el chat de la transmisión).";
-        t.inputSchema = {{"type", "object"}, {"properties", {{"banca", quien}}}, {"required", {"banca"}}};
+        t.description = "El link personal y el PIN de la banca virtual de un integrante. Sin acceso fijo, genera "
+                        "uno nuevo (el anterior deja de andar) y se muestra UNA sola vez. Con acceso fijo "
+                        "(sesion_acceso_opciones), si ya tenía devuelve EL MISMO (`repetido`: true) y solo cambia con "
+                        "`renovar`: true. Con el PIN en el QR viene también `link_con_pin` (entra sin tipear). Se le "
+                        "pasan al integrante por un canal seguro (no por el chat de la transmisión).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"banca", quien},
+                                         {"renovar", {{"type", "boolean"},
+                                                      {"description", "Link y PIN nuevos aunque el acceso sea fijo (el anterior deja de andar)"}}}}},
+                         {"required", {"banca"}}};
         t.run = [s, idDe](const json& a, Done done) {
             std::string e;
             const std::string id = idDe(a, e);
             if (id.empty()) return done(ToolResult::error(e));
-            const json r = s->generar(id);
+            const json r = s->generar(id, a.value("renovar", false));
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "sesion_acceso_opciones";
+        t.title = "Opciones del acceso de los integrantes";
+        t.category = "sesion";
+        t.description = "Cómo es el acceso de los integrantes de la asamblea por el navegador. `pin_en_qr`: el PIN va "
+                        "adentro del QR (escanea y entra sin tipear; el QR solo ya es la credencial entera). "
+                        "`acceso_fijo`: el link y el PIN de cada uno quedan guardados (cifrados) y no cambian salvo que "
+                        "se renueve (sesion_credencial con renovar); apagarlo borra los guardados (los links siguen "
+                        "andando). Sin argumentos, devuelve cómo están.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"pin_en_qr", {{"type", "boolean"}}}, {"acceso_fijo", {{"type", "boolean"}}}}}};
+        t.run = [s](const json& a, Done done) {
+            if (a.contains("pin_en_qr") && a["pin_en_qr"].is_boolean()) s->setPinEnQr(a["pin_en_qr"].get<bool>());
+            if (a.contains("acceso_fijo") && a["acceso_fijo"].is_boolean()) s->setAccesoFijo(a["acceso_fijo"].get<bool>());
+            done(ToolResult().data({{"pin_en_qr", s->pinEnQr()}, {"acceso_fijo", s->accesoFijo()},
+                                    {"nota", s->accesoFijo() ? "Los que ya tenían acceso antes de prenderlo necesitan un link nuevo una vez para que quede guardado."
+                                                             : ""}}));
         };
         core_.addTool(std::move(t));
     }

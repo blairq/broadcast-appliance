@@ -162,6 +162,37 @@ ColumnLayout {
     }
     }
 
+    // --- Cómo es el acceso: PIN en el QR y acceso fijo ------------------------------------
+    Seccion {
+        titulo: "Cómo entran los integrantes"
+        subtitulo: "Cada integrante entra desde el navegador con su link y su PIN."
+        GridLayout {
+            Layout.fillWidth: true
+            columns: 3
+            columnSpacing: 10
+            rowSpacing: 8
+            Toggle { checked: !!cr.s && cr.s.pinEnQr; onToggled: (w) => cr.s.pinEnQr = w }
+            Text { text: "PIN incluido en el QR"; color: Theme.text; font.pixelSize: 12 }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: cr.s && cr.s.pinEnQr ? Theme.amber : Theme.textFaint; font.pixelSize: 11
+                   text: cr.s && cr.s.pinEnQr
+                         ? "Escanea y entra sin tipear nada. Ojo: el QR (o el link con PIN) solo ya alcanza para entrar; tratalo como una llave."
+                         : "El QR lleva solo el link y el PIN se pasa aparte (más seguro)." }
+            Toggle { checked: !!cr.s && cr.s.accesoFijo
+                     onToggled: (w) => {
+                         if (w) { cr.s.accesoFijo = true; return }
+                         ApplicationWindow.window.confirm({ title: "¿Dejar de guardar los accesos?",
+                             text: "Los links que ya tienen siguen andando, pero no se van a poder volver a mostrar: para verlos habrá que renovarlos.",
+                             accept: "Dejar de guardar", reject: "Cancelar", action: function() { cr.s.accesoFijo = false } })
+                     } }
+            Text { text: "Link y PIN fijos"; color: Theme.text; font.pixelSize: 12 }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                   text: cr.s && cr.s.accesoFijo
+                         ? "Cada integrante tiene siempre el mismo link y el mismo PIN (quedan guardados cifrados en este equipo). «Ver acceso…» los vuelve a mostrar; solo cambian con «Renovar…»."
+                           + (cr.parts.some(p => p.credencial && !p.fijo) ? " Los que ya tenían acceso de antes necesitan renovarlo una vez para que quede guardado." : "")
+                         : "Cada vez que se da acceso se genera un link y un PIN nuevos, y se muestran una sola vez." }
+        }
+    }
+
     // --- Encabezado de la tabla ---------------------------------------------------------
     RowLayout {
         Layout.fillWidth: true
@@ -230,17 +261,23 @@ ColumnLayout {
                       : est.estado === "esperando" ? "esperando (Recinto)"
                       : "sin conectar"
             }
-            GlassButton { compact: true; text: est && est.credencial ? "Nuevo link…" : "Dar acceso…"
+            // Fijo y guardado: se ve el mismo cuando se quiera; renovar es aparte y se confirma.
+            GlassButton { compact: true; visible: !!est && est.credencial && est.fijo; text: "Ver acceso…"; active: true
+                          onClicked: { const r = cr.s.generarUi(modelData.id, false)
+                                       if (r.error) Studio.notify(r.error, "error"); else credencial.mostrar(r) } }
+            GlassButton { compact: true
+                          text: !(est && est.credencial) ? "Dar acceso…" : est.fijo ? "Renovar…" : cr.s.accesoFijo ? "Renovar (queda fijo)…" : "Nuevo link…"
                           onClicked: {
                               const generar = function() {
-                                  const r = cr.s.generarUi(modelData.id)
+                                  const r = cr.s.generarUi(modelData.id, true)
                                   if (r.error) { Studio.notify(r.error, "error"); return }
                                   credencial.mostrar(r)
                               }
                               if (est && est.credencial)
-                                  ApplicationWindow.window.confirm({ title: "¿Generar un link nuevo?",
-                                      text: "El link, el PIN y la contraseña anteriores de " + modelData.nombre + " dejan de andar.",
-                                      accept: "Generar", reject: "Cancelar", action: generar })
+                                  ApplicationWindow.window.confirm({ title: "¿Generar un link y un PIN nuevos?",
+                                      text: "El link, el PIN y la contraseña anteriores de " + modelData.nombre + " dejan de andar"
+                                            + (est.conectado ? " (y si está conectado, se corta)." : "."),
+                                      accept: "Renovar", reject: "Cancelar", action: generar })
                               else generar()
                           } }
             GlassButton { compact: true; text: "Usuario y contraseña…"; visible: !!est && est.credencial
@@ -272,8 +309,14 @@ ColumnLayout {
         function mostrar(r) { datos = r; open(); lienzo.requestPaint() }
         ColumnLayout {
             spacing: 10
-            Text { Layout.preferredWidth: 420; wrapMode: Text.WordWrap; color: Theme.amber; font.pixelSize: 12
-                   text: "Se muestra UNA sola vez. Pasale el link (o el QR) y el PIN por un canal seguro, por separado si se puede." }
+            Text { Layout.preferredWidth: 420; wrapMode: Text.WordWrap; font.pixelSize: 12
+                   color: credencial.datos.fijo ? Theme.textDim : Theme.amber
+                   text: (credencial.datos.fijo
+                          ? (credencial.datos.repetido ? "Es el mismo de siempre (acceso fijo): no cambió nada. " : "Queda fijo: se puede volver a ver con «Ver acceso…». ")
+                          : "Se muestra UNA sola vez. ")
+                         + (credencial.datos.pin_en_qr
+                            ? "El QR ya trae el PIN: con escanearlo entra. Pasáselo solo a esa persona."
+                            : "Pasale el link (o el QR) y el PIN por un canal seguro, por separado si se puede.") }
             Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.preferredWidth: 260; Layout.preferredHeight: 260; radius: 10; color: "white"
@@ -301,6 +344,8 @@ ColumnLayout {
                 Text { color: Theme.text; font.pixelSize: 26; font.weight: Font.Black; font.letterSpacing: 4; text: credencial.datos.pin || "" }
                 Item { Layout.fillWidth: true }
                 GlassButton { text: "Copiar link"; onClicked: { campoLink.selectAll(); campoLink.copy(); Studio.notify("Link copiado", "ok") } }
+                GlassButton { visible: !!credencial.datos.link_con_pin; text: "Copiar con PIN"
+                              onClicked: { Studio.copiar(credencial.datos.link_con_pin); Studio.notify("Link con PIN copiado", "ok") } }
             }
             Text { visible: !!credencial.datos.aviso; Layout.preferredWidth: 420; wrapMode: Text.WordWrap
                    color: Theme.amber; font.pixelSize: 11; text: credencial.datos.aviso || "" }

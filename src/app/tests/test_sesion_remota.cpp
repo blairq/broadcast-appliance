@@ -6,6 +6,7 @@
 #include <QTemporaryDir>
 
 #include <cstdio>
+#include <fstream>
 
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/SesionRemota.hpp"
@@ -33,6 +34,8 @@ int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     QTemporaryDir dir;
     const std::filesystem::path d = dir.path().toStdString();
+    // El acceso fijo guarda en Credenciales/ del equipo: que sea la carpeta temporal.
+    qputenv("BA_DATA_ROOT", dir.path().toUtf8());
     asamblea::Cuerpo cuerpo(d / "cuerpo.json");
     std::string err;
     const std::string ana = cuerpo.guardar({{"nombre", "Ana Pérez"}, {"banca", "3"}}, &err);
@@ -169,6 +172,45 @@ int main(int argc, char** argv) {
 
     // Revocar: deja de ir al gateway.
     CHECK(s.revocar(ana) && s.revocar(juan) && s.paraGateway().empty(), "revocado ya no va al gateway");
+
+    // PIN en el QR: el link con PIN aparte; el de siempre, sin.
+    s.setPinEnQr(true);
+    const json q = s.generar(ana);
+    CHECK(q.value("link_con_pin", std::string()) == q.value("link", std::string()) + "&p=" + q.value("pin", std::string()),
+          "link_con_pin = link + &p=PIN");
+    CHECK(q.value("link", std::string()).find("&p=") == std::string::npos, "el link común no lleva el PIN");
+    s.setPinEnQr(false);
+    CHECK(!s.generar(ana).contains("link_con_pin"), "sin la opción, no hay link con PIN");
+
+    // Acceso fijo: el primero que se da queda; pedirlo de nuevo devuelve el mismo.
+    s.setAccesoFijo(true);
+    const json f1 = s.generar(ana, true);
+    const json f2 = s.generar(ana);
+    CHECK(f2.value("repetido", false) && f2.value("link", std::string()) == f1.value("link", std::string())
+              && f2.value("pin", std::string()) == f1.value("pin", std::string()), "fijo: mismo link y mismo PIN");
+    {
+        asamblea::SesionRemota otra(cuerpo, d);
+        const json f3 = otra.generar(ana);
+        CHECK(otra.accesoFijo() && f3.value("pin", std::string()) == f1.value("pin", std::string()), "fijo: sobrevive al reinicio");
+    }
+    const json f4 = s.generar(ana, true);
+    CHECK(!f4.value("repetido", false) && f4.value("link", std::string()) != f1.value("link", std::string()), "renovar de prepo cambia el link");
+    CHECK(s.accesoGuardado(ana), "guardado en Credenciales");
+    std::string crudo;
+    for (const auto& e : std::filesystem::directory_iterator(d / "Credenciales")) {
+        std::ifstream in(e.path(), std::ios::binary);
+        crudo += std::string((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    }
+    std::ifstream cfg(d / "Config" / "sesion-remota.json");
+    crudo += std::string((std::istreambuf_iterator<char>(cfg)), std::istreambuf_iterator<char>());
+    const std::string tok4 = f4.value("link", std::string()).substr(f4.value("link", std::string()).find("&t=") + 3);
+    CHECK(crudo.find(tok4) == std::string::npos, "el token no queda en claro en ningún archivo");
+    s.setAccesoFijo(false);
+    CHECK(!s.accesoGuardado(ana), "apagarlo borra los guardados");
+    CHECK(!s.generar(ana).value("repetido", false), "sin fijo, cada vez uno nuevo");
+    s.setAccesoFijo(true);
+    s.generar(ana, true);
+    CHECK(s.revocar(ana) && !s.accesoGuardado(ana), "revocar borra el guardado");
 
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;

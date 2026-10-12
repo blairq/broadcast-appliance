@@ -10,6 +10,8 @@ const integrante = frag.get("i") || "";
 const token = frag.get("t") || "";
 
 const conLink = integrante !== "" && token.length === 64;
+// El PIN adentro del link (opción «PIN en el QR» de la app): entra sin tipear nada.
+const pinDelLink = conLink ? (frag.get("p") || "") : "";
 let ws = null;
 let pin = "";          // el PIN o la contraseña: solo en memoria, para reconectar sin volver a pedirlo
 let usuario = "";
@@ -598,6 +600,11 @@ $("formPin").addEventListener("submit", (e) => {
   cortadoAProposito = false;
   conectar();
 });
+if (pinDelLink) {
+  pin = pinDelLink;
+  $("botonEntrar").disabled = true;
+  conectar();
+}
 $("pedir").addEventListener("click", () => {
   if (!ws || ws.readyState !== 1) return;
   ws.send(JSON.stringify({ type: "palabra", accion: pidio ? "cancelar" : "pedir" }));

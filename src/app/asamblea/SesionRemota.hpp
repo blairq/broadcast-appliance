@@ -53,6 +53,12 @@ class SesionRemota : public QObject {
     /// La votación en los celulares (ver votacion()).
     Q_PROPERTY(QVariantMap votacionActual READ votacionUi NOTIFY cambio)
     Q_PROPERTY(int votoSegundos READ votoSegundos WRITE setVotoSegundos NOTIFY cambio)
+    /// El PIN va adentro del QR (y en «link_con_pin»): escanear y entrar, sin tipear nada.
+    Q_PROPERTY(bool pinEnQr READ pinEnQr WRITE setPinEnQr NOTIFY cambio)
+    /// Acceso fijo: el link y el PIN de cada integrante se guardan (cifrados, en
+    /// Credenciales/) y se pueden volver a mostrar; «Dar acceso» no los cambia. Solo
+    /// cambian si se pide renovar (generar con forzar).
+    Q_PROPERTY(bool accesoFijo READ accesoFijo WRITE setAccesoFijo NOTIFY cambio)
 
    public:
     using json = nlohmann::json;
@@ -61,7 +67,15 @@ class SesionRemota : public QObject {
     // --- Credenciales -------------------------------------------------------------
     /// Genera (o regenera: el link anterior deja de andar) el link y el PIN de un
     /// integrante. Devuelve {link, pin, id} UNA vez, o {error}.
-    json generar(const std::string& integrante);
+    /// Con el acceso fijo y uno ya guardado, devuelve ESE (mismo link y PIN) salvo
+    /// `forzar` (renovar de prepo).
+    json generar(const std::string& integrante, bool forzar = false);
+    bool pinEnQr() const { return pinEnQr_; }
+    void setPinEnQr(bool si);
+    bool accesoFijo() const { return accesoFijo_; }
+    void setAccesoFijo(bool si);
+    /// Tiene su link y PIN guardados (se pueden volver a mostrar).
+    bool accesoGuardado(const std::string& integrante) const;
     bool revocar(const std::string& integrante);
     /// Usuario y contraseña (para entrar sin el link, tipeando): la contraseña se
     /// genera (12 caracteres fáciles de dictar) y se muestra UNA vez. {usuario, clave} o {error}.
@@ -163,7 +177,7 @@ class SesionRemota : public QObject {
     // --- Para la interfaz --------------------------------------------------------------
     QVariantList participantesUi() const;
     QString origenUi() const { return QString::fromStdString(origen_); }
-    Q_INVOKABLE QVariantMap generarUi(const QString& integrante);
+    Q_INVOKABLE QVariantMap generarUi(const QString& integrante, bool forzar = false);
     Q_INVOKABLE bool revocarUi(const QString& integrante);
     Q_INVOKABLE QVariantMap generarClaveUi(const QString& integrante, const QString& usuario);
     Q_INVOKABLE QString setDatosUi(const QString& integrante, const QVariantMap& datos);
@@ -257,6 +271,12 @@ class SesionRemota : public QObject {
         std::map<std::string, std::pair<std::string, std::int64_t>> votos; // id -> (opcion, ms)
     } vot_;
     json mensajeVotacion(const std::string& id) const;
+    bool pinEnQr_ = false;
+    bool accesoFijo_ = false;
+    /// Nombre en el CredentialStore del link y PIN guardados de un integrante.
+    std::string nombreSecreto(const std::string& id) const;
+    /// {link, link_con_pin?, qr, aviso?} de un token y un PIN.
+    json armarAcceso(const json& integrante, const std::string& token, const std::string& pin) const;
     void mandarVotacion();
 };
 
