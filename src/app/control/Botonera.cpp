@@ -611,6 +611,179 @@ bool Botonera::borrarCelda(const std::string& perfil, const std::string& pagina,
     return true;
 }
 
+// --- Operaciones sobre una celda (las piden el panel del escritorio y el MCP) ---
+
+std::string Botonera::validarLugar(const std::string& perfil, const std::string& pagina, int x, int y) const {
+    const json* g = buscarPagina(perfil, pagina);
+    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    if (x < 0 || y < 0 || x >= g->value("columnas", 4) || y >= g->value("filas", 3))
+        return "(" + std::to_string(x) + ", " + std::to_string(y) + ") está fuera de la grilla (" +
+               std::to_string(g->value("columnas", 4)) + "×" + std::to_string(g->value("filas", 3)) + ")";
+    return {};
+}
+
+json Botonera::celdaParaEditar(const std::string& perfil, const std::string& pagina, int x, int y,
+                               std::string* error) const {
+    if (std::string e = validarLugar(perfil, pagina, x, y); !e.empty()) {
+        if (error) *error = std::move(e);
+        return nullptr;
+    }
+    // La que cubre (x, y), con su lugar (una celda ancha se edita desde cualquiera de sus casillas).
+    if (const json* c = celdaEn(*buscarPagina(perfil, pagina), x, y)) return *c;
+    return json{{"x", x}, {"y", y}, {"tipo", "boton"}};
+}
+
+std::string Botonera::medioDeCelda(const json& celda, bool* video) const {
+    const json est = celda.value("estilo", json::object());
+    const std::string ref = est.is_object() ? est.value("imagen", std::string()) : std::string();
+    if (ref.rfind("medio:", 0) != 0 || !g_.medioDeCara) return {};
+    const json m = g_.medioDeCara(ref.substr(6));
+    if (!m.is_object()) return {};
+    if (video) *video = m.value("video", false);
+    return m.value("medio", std::string());
+}
+
+bool Botonera::alTocarCara(const json& celda) const {
+    const std::string medio = medioDeCelda(celda);
+    const json a = celda.value("accion", json());
+    if (medio.empty() || !a.is_object()) return false;
+    const json args = a.value("args", json::object());
+    return a.value("tipo", std::string("herramienta")) == "herramienta" &&
+           a.value("herramienta", std::string()) == "media_use" && args.is_object() &&
+           args.value("path", std::string()) == medio;
+}
+
+std::string Botonera::setCeldaEn(const std::string& perfil, const std::string& pagina, int x, int y, const json& celda) {
+    if (!celda.is_object()) return "la celda es un objeto";
+    json c = celda;
+    c["x"] = x;
+    c["y"] = y;
+    return setCelda(perfil, pagina, c);
+}
+
+std::string Botonera::editarCelda(const std::string& perfil, const std::string& pagina, int x, int y,
+                                  const json& campos) {
+    if (!campos.is_object()) return "los campos son un objeto";
+    std::string error;
+    json c = celdaParaEditar(perfil, pagina, x, y, &error);
+    if (c.is_null()) return error;
+    if (campos.contains("tipo") && campos["tipo"].is_string()) c["tipo"] = campos["tipo"];
+    if (!c.contains("estilo") || !c["estilo"].is_object()) c["estilo"] = json::object();
+    json& est = c["estilo"];
+    if (campos.contains("texto") && campos["texto"].is_string()) est["texto"] = campos["texto"];
+    for (const char* k : {"fondo", "color"}) {
+        if (!campos.contains(k)) continue;
+        const std::string v = campos[k].is_string() ? campos[k].get<std::string>() : std::string();
+        if (v.empty())
+            est.erase(k);
+        else
+            est[k] = v;
+    }
+    if (campos.contains("herramienta")) {
+        const std::string h = campos["herramienta"].is_string() ? campos["herramienta"].get<std::string>() : std::string();
+        if (!h.empty()) {
+            const json args = campos.value("args", json::object());
+            c["accion"] = {{"tipo", "herramienta"}, {"herramienta", h}, {"args", args.is_object() ? args : json::object()}};
+        } else if (c.contains("accion") && c["accion"].is_object() &&
+                   c["accion"].value("tipo", std::string("herramienta")) == "herramienta") {
+            // Una acción de página, secuencia o receta no se ve en el formulario: queda.
+            c.erase("accion");
+        }
+    }
+    return setCelda(perfil, pagina, c);
+}
+
+std::string Botonera::ponerCara(const std::string& perfil, const std::string& pagina, int x, int y,
+                                const std::string& idCara, bool alTocar, std::string* aviso) {
+    if (idCara.empty()) return "falta la cara";
+    std::string error;
+    json c = celdaParaEditar(perfil, pagina, x, y, &error);
+    if (c.is_null()) return error;
+    if (!c.contains("estilo") || !c["estilo"].is_object()) c["estilo"] = json::object();
+    c["estilo"]["imagen"] = "medio:" + idCara;
+    if (alTocar) {
+        bool video = false;
+        const std::string medio = medioDeCelda(c, &video);
+        if (medio.empty()) {
+            if (aviso) *aviso = "un video de cámara no se puede poner al aire, solo se ve en el botón";
+        } else {
+            c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "media_use"}, {"args", {{"path", medio}, {"loop", video}}}};
+        }
+    }
+    return setCelda(perfil, pagina, c);
+}
+
+std::string Botonera::quitarCara(const std::string& perfil, const std::string& pagina, int x, int y) {
+    const json* g = buscarPagina(perfil, pagina);
+    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    const json* hay = celdaEn(*g, x, y);
+    if (hay == nullptr) return "no hay celda en (" + std::to_string(x) + ", " + std::to_string(y) + ")";
+    json c = *hay;
+    if (c.contains("estilo") && c["estilo"].is_object()) c["estilo"].erase("imagen");
+    return setCelda(perfil, pagina, c);
+}
+
+std::string Botonera::setAlTocarCara(const std::string& perfil, const std::string& pagina, int x, int y, bool on) {
+    const json* g = buscarPagina(perfil, pagina);
+    if (g == nullptr) return "no hay esa página (perfil «" + perfil + "», página «" + pagina + "»)";
+    const json* hay = celdaEn(*g, x, y);
+    if (hay == nullptr) return "no hay celda en (" + std::to_string(x) + ", " + std::to_string(y) + ")";
+    json c = *hay;
+    bool video = false;
+    const std::string medio = medioDeCelda(c, &video);
+    if (on) {
+        if (medio.empty()) return "esta cara no se puede poner al aire (un video de cámara solo se ve en el botón)";
+        c["accion"] = {{"tipo", "herramienta"}, {"herramienta", "media_use"}, {"args", {{"path", medio}, {"loop", video}}}};
+    } else {
+        if (!alTocarCara(c)) return {}; // ya no lo hacía
+        c.erase("accion");
+    }
+    return setCelda(perfil, pagina, c);
+}
+
+json Botonera::formularioCelda(const std::string& perfil, const std::string& pagina, int x, int y) const {
+    const json* g = buscarPagina(perfil, pagina);
+    const json* c = g != nullptr ? celdaEn(*g, x, y) : nullptr;
+    if (c == nullptr)
+        return {{"existe", false}, {"x", x}, {"y", y}, {"tipo", "boton"}, {"texto", ""}, {"fondo", ""}, {"color", ""},
+                {"imagen", ""}, {"herramienta", ""}, {"args", ""}, {"al_tocar", false}, {"json", ""}};
+    const json est0 = c->value("estilo", json::object());
+    const json est = est0.is_object() ? est0 : json::object();
+    const json a = c->value("accion", json());
+    const bool deHerramienta = a.is_object() && a.value("tipo", std::string("herramienta")) == "herramienta";
+    const std::string herr = deHerramienta ? a.value("herramienta", std::string()) : std::string();
+    const std::string args =
+        deHerramienta && a.contains("args") ? a["args"].dump(-1, ' ', false, json::error_handler_t::replace) : std::string();
+    return {{"existe", true},
+            {"x", c->value("x", x)},
+            {"y", c->value("y", y)},
+            {"tipo", c->value("tipo", std::string("boton"))},
+            {"texto", est.value("texto", std::string())},
+            {"fondo", est.value("fondo", std::string())},
+            {"color", est.value("color", std::string())},
+            {"imagen", est.value("imagen", std::string())},
+            {"herramienta", herr},
+            {"args", args},
+            {"al_tocar", alTocarCara(*c)},
+            {"json", c->dump(2, ' ', false, json::error_handler_t::replace)}};
+}
+
+std::string Botonera::avisoPermisos(const std::string& perfil, const json& celda) const {
+    const json* p = buscarPerfil(perfil);
+    if (p == nullptr || !celda.is_object()) return {};
+    std::set<std::string> perm;
+    for (const auto& h : p->value("herramientas_permitidas", json::array()))
+        if (h.is_string()) perm.insert(h.get<std::string>());
+    if (perm.count("*")) return {};
+    std::string aviso;
+    for (const char* k : {"accion", "accion_soltar", "accion_mantener"})
+        if (celda.contains(k) && celda[k].is_object() && celda[k].contains("herramienta") &&
+            !perm.count(celda[k].value("herramienta", std::string())))
+            aviso = "«" + celda[k].value("herramienta", std::string()) +
+                    "» no está en las herramientas del perfil; hasta que una persona la sume, el botón avisa y no hace nada.";
+    return aviso;
+}
+
 json Botonera::celdas(const std::string& perfil, const std::string& pagina) const {
     const json* g = buscarPagina(perfil, pagina);
     if (g == nullptr) return nullptr;
@@ -1557,16 +1730,33 @@ QString Botonera::editarPaginaUi(const QString& perfil, const QString& pagina, c
 bool Botonera::borrarPaginaUi(const QString& perfil, const QString& pagina) {
     return borrarPagina(perfil.toStdString(), pagina.toStdString());
 }
-QString Botonera::setCeldaUi(const QString& perfil, const QString& pagina, const QString& celdaJson) {
-    const json c = json::parse(celdaJson.toStdString(), nullptr, false);
-    if (c.is_discarded()) return "el JSON de la celda no se entiende";
-    return QString::fromStdString(setCelda(perfil.toStdString(), pagina.toStdString(), c));
+QVariantMap Botonera::celdaFormularioUi(const QString& perfil, const QString& pagina, int x, int y) const {
+    return aQv(formularioCelda(perfil.toStdString(), pagina.toStdString(), x, y)).toMap();
 }
-QString Botonera::celdaJsonUi(const QString& perfil, const QString& pagina, int x, int y) const {
-    const json* g = buscarPagina(perfil.toStdString(), pagina.toStdString());
-    if (g == nullptr) return {};
-    const json* c = celdaEn(*g, x, y);
-    return c != nullptr ? QString::fromStdString(c->dump(2)) : QString();
+QString Botonera::editarCeldaUi(const QString& perfil, const QString& pagina, int x, int y, const QVariantMap& campos) {
+    json c = deQv(campos);
+    // Los argumentos llegan como el texto del campo (vacío = sin argumentos).
+    if (c.is_object() && c.contains("args") && c["args"].is_string()) {
+        const QString t = QString::fromStdString(c["args"].get<std::string>()).trimmed();
+        const json args = t.isEmpty() ? json::object() : json::parse(t.toStdString(), nullptr, false);
+        if (args.is_discarded() || !args.is_object()) return "Los argumentos no son JSON válido (un objeto {…})";
+        c["args"] = args;
+    }
+    return QString::fromStdString(editarCelda(perfil.toStdString(), pagina.toStdString(), x, y, c));
+}
+QString Botonera::guardarCeldaJsonUi(const QString& perfil, const QString& pagina, int x, int y, const QString& texto) {
+    const json c = json::parse(texto.toStdString(), nullptr, false);
+    if (c.is_discarded()) return "El JSON de la celda no se entiende";
+    return QString::fromStdString(setCeldaEn(perfil.toStdString(), pagina.toStdString(), x, y, c));
+}
+QString Botonera::ponerCaraUi(const QString& perfil, const QString& pagina, int x, int y, const QString& idCara) {
+    return QString::fromStdString(ponerCara(perfil.toStdString(), pagina.toStdString(), x, y, idCara.toStdString(), false));
+}
+QString Botonera::quitarCaraUi(const QString& perfil, const QString& pagina, int x, int y) {
+    return QString::fromStdString(quitarCara(perfil.toStdString(), pagina.toStdString(), x, y));
+}
+QString Botonera::alTocarCaraUi(const QString& perfil, const QString& pagina, int x, int y, bool on) {
+    return QString::fromStdString(setAlTocarCara(perfil.toStdString(), pagina.toStdString(), x, y, on));
 }
 bool Botonera::borrarCeldaUi(const QString& perfil, const QString& pagina, int x, int y) {
     return borrarCelda(perfil.toStdString(), pagina.toStdString(), x, y);

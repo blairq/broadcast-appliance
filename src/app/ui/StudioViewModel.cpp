@@ -56,6 +56,7 @@
 #include "agent/Vocabulario.hpp"
 #include "agent/Notificador.hpp"
 #include "control/Botonera.hpp"
+#include "control/BotoneraGateway.hpp"
 #include "asamblea/Debate.hpp"
 #include "control/CarasBotonera.hpp"
 #include "control/BusEventos.hpp"
@@ -1327,6 +1328,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (ref.rfind("medio:", 0) != 0) return nullptr;
             return carasBotonera_->cara(ref.substr(6));
         };
+        g.medioDeCara = [this](const std::string& id) -> nlohmann::json {
+            const QVariantMap i = carasBotonera_->info(qs(id));
+            return {{"medio", i.value("medio").toString().toStdString()}, {"video", i.value("video").toBool()}};
+        };
         g.presidentes = [this]() {
             std::set<std::string> out;
             if (dcn_)
@@ -1364,44 +1369,17 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         const auto aQt = [](const nlohmann::json& j) {
             return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
         };
-        connect(cli, &ConferenceClient::botoneraEvento, this, [this, cli, aQt](const QJsonObject& o) {
-            const nlohmann::json ev = nlohmann::json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(),
-                                                            nullptr, false);
-            if (!ev.is_object()) return;
-            const std::string tipo = ev.value("tipo", std::string());
-            if (tipo == "solicitud") {
-                const std::string e = botonera_->solicitud(ev.value("solicitud", std::string()), ev.value("codigo", std::string()),
-                                                           ev.value("nombre", std::string()), ev.value("ip", std::string()));
-                if (!e.empty())
-                    cli->post("/api/v1/botonera/resolver",
-                              aQt({{"solicitud", ev.value("solicitud", std::string())}, {"estado", "invalido"}, {"error", e}}),
-                              [](bool, const QJsonObject&) {});
-            } else if (tipo == "entrada") {
-                botonera_->entrada(ev.value("dispositivo", std::string()), ev.value("msg", nlohmann::json::object()));
-            } else if (tipo == "remota") {
-                const std::string e = botonera_->entradaRemota(
-                    ev.value("dispositivo", std::string()), ev.value("perfil", std::string()), ev.value("pagina", std::string()),
-                    ev.value("x", -1), ev.value("y", -1), ev.value("accion", std::string()), ev.value("ip", std::string()));
-                if (!e.empty()) emit notify("API remota de la botonera: " + qs(e), "aviso");
-            } else if (tipo == "conexion") {
-                botonera_->marcarConexion(ev.value("dispositivo", std::string()), ev.value("conectado", false),
-                                          ev.value("ip", std::string()));
-            }
-        });
-        connect(botonera_.get(), &control::Botonera::mensaje, this,
-                [this, cli, aQt](const QString& dev, const nlohmann::json& msg) {
-                    const std::string origen = botonera_->origenDe(dev.toStdString());
-                    if (origen == "tablet")
-                        cli->post("/api/v1/botonera/enviar", aQt({{"dispositivo", dev.toStdString()}, {"msg", msg}}),
-                                  [](bool, const QJsonObject&) {});
-                    else if (origen == "plugin" && plugins_)
-                        plugins_->superficieEstado(dev.toStdString(), msg);
-                    else if (origen == "satellite" && satellite_)
-                        satellite_->mensaje(dev.toStdString(), msg);
-                });
-        connect(botonera_.get(), &control::Botonera::credencialesCambio, this, [this]() { sincronizarBotonera(); });
-        connect(cli, &ConferenceClient::onlineChanged, this, [this](bool on) {
-            if (on) sincronizarBotonera();
+        // La botonera con el gateway (tablets: eventos, credenciales, emparejar): su modelo.
+        botoneraGw_ = std::make_unique<control::BotoneraGateway>(*botonera_, *cli);
+        connect(botoneraGw_.get(), &control::BotoneraGateway::aviso, this,
+                [this](const QString& texto, const QString& nivel) { emit notify(texto, nivel); });
+        // Los aparatos de plugins y del satélite (las tablets van por BotoneraGateway).
+        connect(botonera_.get(), &control::Botonera::mensaje, this, [this](const QString& dev, const nlohmann::json& msg) {
+            const std::string origen = botonera_->origenDe(dev.toStdString());
+            if (origen == "plugin" && plugins_)
+                plugins_->superficieEstado(dev.toStdString(), msg);
+            else if (origen == "satellite" && satellite_)
+                satellite_->mensaje(dev.toStdString(), msg);
         });
         connect(botonera_.get(), &control::Botonera::solicitudNueva, this,
                 [this](const QString&, const QString& nombre, const QString& perfil, const QString& ip) {
@@ -3186,105 +3164,22 @@ void StudioViewModel::hablaPresidencia(bool activo) {
 
 bool StudioViewModel::presidenciaHabla() const { return presidencia_ && presidencia_->presidenciaHabla(); }
 
-void StudioViewModel::sincronizarBotonera() {
-    if (!conference_ || !botonera_) return;
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    if (!cli.online()) return;
-    const nlohmann::json body{{"dispositivos", botonera_->credencialesParaGateway()}};
-    cli.post("/api/v1/botonera/credenciales", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-             [](bool, const QJsonObject&) {});
-}
-
-void StudioViewModel::emparejarTablet(const QString& perfil, const QString& nombre, int venceDias,
-                                      std::function<void(const QVariantMap&)> listo) {
-    const nlohmann::json c = botonera_->nuevoCodigo(perfil.toStdString(), nombre.toStdString(), venceDias);
-    if (c.contains("error")) {
-        listo({{"error", QString::fromStdString(c.value("error", std::string()))}});
-        return;
-    }
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    if (!cli.online()) {
-        listo({{"error", "El gateway no está andando: la tablet no tendría a quién conectarse."}});
-        return;
-    }
-    const QString codigo = QString::fromStdString(c.value("codigo", std::string()));
-    const qint64 vence = c.value("vence_ms", 0LL);
-    cli.get("/api/v1/network", [codigo, vence, listo](bool ok, const QJsonObject& r) {
-        if (!ok) {
-            listo({{"error", "No pude preguntarle al gateway la dirección de la red local."}});
-            return;
-        }
-        // Una URL de la red local (no la del túnel), HTTPS si está.
-        QStringList lan;
-        for (const QJsonValue& v : r.value("lan").toArray()) lan << v.toString();
-        QString base;
-        for (const QJsonValue& v : r.value("urls").toArray()) {
-            const QString u = v.toString();
-            const bool deLan = std::any_of(lan.begin(), lan.end(), [&](const QString& ip) { return u.contains("//" + ip + ":") || u.contains("//" + ip + "/"); });
-            if (!deLan) continue;
-            if (base.isEmpty() || (u.startsWith("https") && !base.startsWith("https"))) base = u;
-        }
-        QVariantMap out{{"codigo", codigo}, {"vence_ms", vence}};
-        const QJsonObject https = r.value("https").toObject();
-        if (https.value("enabled").toBool()) out["huella"] = https.value("fingerprint").toString();
-        if (r.value("bindAddress").toString() == "127.0.0.1")
-            out["aviso"] = "El gateway escucha solo en esta máquina (127.0.0.1): una tablet no llega. Cambiá la "
-                           "dirección de la sala a la red local en Configuración → Red de la sala (cualquiera en la red podría "
-                           "ver las páginas públicas; la botonera igual pide su token).";
-        // El gateway escucha solo en esta máquina: la URL igual se arma con la IP
-        // de la red (anda en cuanto se abra el gateway a la red; el aviso lo dice).
-        if (base.isEmpty() && !lan.isEmpty()) {
-            if (https.value("enabled").toBool()) {
-                base = "https://" + lan.first() + ":" + QString::number(https.value("port").toInt(8789)) + "/";
-            } else {
-                for (const QJsonValue& v : r.value("urls").toArray()) {
-                    const QUrl u(v.toString());
-                    if (u.scheme() == "http" && u.port() > 0) {
-                        base = "http://" + lan.first() + ":" + QString::number(u.port()) + "/";
-                        break;
-                    }
-                }
-            }
-        }
-        if (base.isEmpty()) {
-            out["error"] = "No encontré una dirección de la red local para la tablet (¿está conectada la red?).";
-            listo(out);
-            return;
-        }
-        if (!base.endsWith('/')) base += '/';
-        const QString url = base + "botonera/#p=" + codigo;
-        out["url"] = url;
-        ba::qr::Estilo e;
-        e.correccion = ba::qr::Correccion::Media;
-        const std::string svg = ba::qr::svg(url.toStdString(), e);
-        out["qr"] = "data:image/svg+xml;base64," + QString::fromLatin1(QByteArray::fromStdString(svg).toBase64());
-        listo(out);
-    });
-}
-
 void StudioViewModel::emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias) {
     QPointer<StudioViewModel> yo(this);
-    emparejarTablet(perfil, nombre, venceDias, [yo](const QVariantMap& r) {
-        if (yo) emit yo->emparejamientoListo(r);
+    botoneraGw_->emparejar(perfil.toStdString(), nombre.toStdString(), venceDias, [yo](const nlohmann::json& r) {
+        if (!yo) return;
+        const QJsonDocument d = QJsonDocument::fromJson(
+            QByteArray::fromStdString(r.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)));
+        emit yo->emparejamientoListo(d.object().toVariantMap());
     });
 }
 
 void StudioViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar) {
-    const nlohmann::json r = botonera_->resolverSolicitud(solicitud.toStdString(), aprobar);
-    if (r.contains("error")) {
-        emit notify(QString::fromStdString(r.value("error", std::string())), "error");
+    const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar);
+    if (!e.empty()) {
+        emit notify(qs(e), "error");
         return;
     }
-    nlohmann::json body{{"solicitud", solicitud.toStdString()}, {"estado", aprobar ? "aprobada" : "rechazada"}};
-    if (aprobar) {
-        body["dispositivo"] = r.value("dispositivo", std::string());
-        body["token"] = r.value("token", std::string());
-    }
-    auto& cli = static_cast<ConferenceViewModel*>(conference_.get())->client();
-    // Primero las credenciales (para que el token ya valga) y después el token a la tablet.
-    sincronizarBotonera();
-    cli.post("/api/v1/botonera/resolver", QJsonDocument::fromJson(QByteArray::fromStdString(body.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object(),
-             [](bool, const QJsonObject&) {});
     emit notify(aprobar ? "Tablet emparejada." : "Emparejamiento rechazado.", aprobar ? "ok" : "info");
 }
 
