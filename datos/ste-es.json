@@ -769,6 +769,34 @@
      "herramientas": [
       "media_use"
      ]
+    },
+    {
+     "objeto": "una banca al aire",
+     "ejemplo": "poné a Pérez al aire",
+     "herramientas": [
+      "banca_al_aire"
+     ]
+    },
+    {
+     "objeto": "una placa encima de lo que sale",
+     "ejemplo": "poné la placa de volvemos enseguida",
+     "herramientas": [
+      "aire_placa"
+     ]
+    },
+    {
+     "objeto": "el negro sobre lo que sale",
+     "ejemplo": "poné negro en el aire",
+     "herramientas": [
+      "aire_ftb"
+     ]
+    },
+    {
+     "objeto": "un mensaje del chat en destacado",
+     "ejemplo": "poné en destacado el mensaje de Juan",
+     "herramientas": [
+      "chat_destacar"
+     ]
     }
    ]
   },
@@ -952,6 +980,27 @@
      "ejemplo": "sacá el reloj de la pantalla del escenario",
      "herramientas": [
       "pantalla_parar"
+     ]
+    },
+    {
+     "objeto": "la placa del aire",
+     "ejemplo": "sacá la placa",
+     "herramientas": [
+      "aire_placa"
+     ]
+    },
+    {
+     "objeto": "el destacado de un mensaje del chat",
+     "ejemplo": "sacá el destacado del mensaje de Carla",
+     "herramientas": [
+      "chat_quitar_destacado"
+     ]
+    },
+    {
+     "objeto": "un orador presencial del aire",
+     "ejemplo": "sacá a Pérez del aire",
+     "herramientas": [
+      "banca_terminar"
      ]
     }
    ]
@@ -1163,6 +1212,13 @@
      "ejemplo": "pasame el estado general del aparato",
      "herramientas": [
       "status"
+     ]
+    },
+    {
+     "objeto": "al punto siguiente del orden del día",
+     "ejemplo": "pasá al punto del presupuesto",
+     "herramientas": [
+      "orden_del_dia_punto"
      ]
     }
    ]
@@ -1560,6 +1616,20 @@
      "herramientas": [
       "speaker_next"
      ]
+    },
+    {
+     "objeto": "la palabra a un integrante del recinto",
+     "ejemplo": "dale la palabra a Gómez",
+     "herramientas": [
+      "banca_al_aire"
+     ]
+    },
+    {
+     "objeto": "el turno en el debate",
+     "ejemplo": "dale el turno a Pérez en el debate",
+     "herramientas": [
+      "debate_turno"
+     ]
     }
    ]
   },
@@ -1816,6 +1886,48 @@
      "ejemplo": "mostrame las posiciones de la cámara 2",
      "herramientas": [
       "ptz_posiciones"
+     ]
+    },
+    {
+     "objeto": "las bancas del recinto (mostrame)",
+     "ejemplo": "mostrame las bancas",
+     "herramientas": [
+      "bancas_listar"
+     ]
+    },
+    {
+     "objeto": "el orden del día (mostrame)",
+     "ejemplo": "mostrame el orden del día",
+     "herramientas": [
+      "orden_del_dia_ver"
+     ]
+    },
+    {
+     "objeto": "los mensajes del chat del público (mostrame)",
+     "ejemplo": "mostrame lo último del chat",
+     "herramientas": [
+      "chat_recientes"
+     ]
+    },
+    {
+     "objeto": "las capas del DSK (mostrame)",
+     "ejemplo": "mostrame las capas",
+     "herramientas": [
+      "dsk_listar"
+     ]
+    },
+    {
+     "objeto": "las caras que ve una cámara (mostrame)",
+     "ejemplo": "mostrame las caras de la dos",
+     "herramientas": [
+      "ptz_rostros"
+     ]
+    },
+    {
+     "objeto": "una capa del DSK (mostrá)",
+     "ejemplo": "mostrá la capa del logo",
+     "herramientas": [
+      "dsk_mostrar"
      ]
     }
    ]
@@ -2155,6 +2267,34 @@
      "herramientas": [
       "participant_profile"
      ]
+    },
+    {
+     "objeto": "tiempo al orador del recinto",
+     "ejemplo": "sumale un minuto a Pérez",
+     "herramientas": [
+      "banca_tiempo"
+     ]
+    },
+    {
+     "objeto": "una banca a la fila del recinto",
+     "ejemplo": "sumá a Gómez a la fila",
+     "herramientas": [
+      "banca_cola"
+     ]
+    },
+    {
+     "objeto": "un mensaje del chat a la cola de preguntas",
+     "ejemplo": "sumá el mensaje de Juan a las preguntas",
+     "herramientas": [
+      "pregunta_desde_chat"
+     ]
+    },
+    {
+     "objeto": "tiempo al turno del debate",
+     "ejemplo": "sumale 30 segundos al turno del debate",
+     "herramientas": [
+      "debate_turno"
+     ]
     }
    ]
   },
@@ -2216,6 +2356,27 @@
      "ejemplo": "agregá la música de fondo a la escena Panel",
      "herramientas": [
       "media_use"
+     ]
+    },
+    {
+     "objeto": "una banca a la fila del recinto",
+     "ejemplo": "agregá a la concejala Díaz a la fila",
+     "herramientas": [
+      "banca_cola"
+     ]
+    },
+    {
+     "objeto": "un mensaje del chat a la cola de preguntas",
+     "ejemplo": "agregá lo que escribió Carla a las preguntas",
+     "herramientas": [
+      "pregunta_desde_chat"
+     ]
+    },
+    {
+     "objeto": "tiempo al orador del recinto",
+     "ejemplo": "agregale un minuto a Pérez",
+     "herramientas": [
+      "banca_tiempo"
      ]
     }
    ]
@@ -2346,6 +2507,34 @@
      "herramientas": [
       "pantalla_parar"
      ]
+    },
+    {
+     "objeto": "una banca de la fila del recinto",
+     "ejemplo": "quitá a Sosa de la fila",
+     "herramientas": [
+      "banca_cola"
+     ]
+    },
+    {
+     "objeto": "el destacado de un mensaje del chat",
+     "ejemplo": "quitá el destacado del mensaje de Juan",
+     "herramientas": [
+      "chat_quitar_destacado"
+     ]
+    },
+    {
+     "objeto": "la placa del aire",
+     "ejemplo": "quitá la placa",
+     "herramientas": [
+      "aire_placa"
+     ]
+    },
+    {
+     "objeto": "tiempo al orador del recinto",
+     "ejemplo": "quitale 20 segundos a Pérez",
+     "herramientas": [
+      "banca_tiempo"
+     ]
     }
    ]
   },
@@ -2400,6 +2589,13 @@
      "herramientas": [
       "audio_set"
      ]
+    },
+    {
+     "objeto": "el micrófono del orador presencial (termina su turno)",
+     "ejemplo": "cortale el micrófono a Pérez",
+     "herramientas": [
+      "banca_terminar"
+     ]
     }
    ]
   },
@@ -2453,6 +2649,13 @@
      "ejemplo": "arrancá el evento de apertura",
      "herramientas": [
       "evento_correr"
+     ]
+    },
+    {
+     "objeto": "un debate entre dos integrantes",
+     "ejemplo": "arrancá el debate entre Pérez y Gómez",
+     "herramientas": [
+      "debate_iniciar"
      ]
     }
    ]
@@ -2517,6 +2720,13 @@
      "ejemplo": "empezá a transmitir",
      "herramientas": [
       "stream_start"
+     ]
+    },
+    {
+     "objeto": "a tratar un punto del orden del día",
+     "ejemplo": "empezá a tratar el punto del presupuesto",
+     "herramientas": [
+      "orden_del_dia_punto"
      ]
     }
    ]
@@ -2652,6 +2862,20 @@
      "herramientas": [
       "pantalla_parar"
      ]
+    },
+    {
+     "objeto": "el turno del orador presencial",
+     "ejemplo": "terminá el turno de Pérez",
+     "herramientas": [
+      "banca_terminar"
+     ]
+    },
+    {
+     "objeto": "el debate",
+     "ejemplo": "terminá el debate",
+     "herramientas": [
+      "debate_terminar"
+     ]
     }
    ]
   },
@@ -2721,6 +2945,20 @@
      "herramientas": [
       "prompter_cargar"
      ]
+    },
+    {
+     "objeto": "un punto del orden del día (empezar a tratarlo)",
+     "ejemplo": "abrí el punto del presupuesto",
+     "herramientas": [
+      "orden_del_dia_punto"
+     ]
+    },
+    {
+     "objeto": "un debate entre dos integrantes",
+     "ejemplo": "abrí el debate entre Pérez y Gómez",
+     "herramientas": [
+      "debate_iniciar"
+     ]
     }
    ]
   },
@@ -2767,6 +3005,27 @@
      "ejemplo": "cerrá la línea con Juan del lobby",
      "herramientas": [
       "participant_talk"
+     ]
+    },
+    {
+     "objeto": "todos los micrófonos del recinto",
+     "ejemplo": "cerrá todos los micrófonos del recinto",
+     "herramientas": [
+      "presidencia_silenciar"
+     ]
+    },
+    {
+     "objeto": "el debate",
+     "ejemplo": "cerrá el debate",
+     "herramientas": [
+      "debate_terminar"
+     ]
+    },
+    {
+     "objeto": "el turno del orador presencial",
+     "ejemplo": "cerrá el turno de Pérez",
+     "herramientas": [
+      "banca_terminar"
      ]
     }
    ]
@@ -2902,6 +3161,13 @@
      "ejemplo": "activá el modo presentador para Rocío",
      "herramientas": [
       "speaker_presenter"
+     ]
+    },
+    {
+     "objeto": "una placa encima de lo que sale",
+     "ejemplo": "activá la placa de volvemos enseguida",
+     "herramientas": [
+      "aire_placa"
      ]
     }
    ]
@@ -3071,6 +3337,13 @@
      "herramientas": [
       "prompter_control"
      ]
+    },
+    {
+     "objeto": "una capa del DSK",
+     "ejemplo": "subí la capa del logo",
+     "herramientas": [
+      "dsk_mostrar"
+     ]
     }
    ]
   },
@@ -3161,6 +3434,13 @@
      "ejemplo": "bajá la velocidad del prompter",
      "herramientas": [
       "prompter_control"
+     ]
+    },
+    {
+     "objeto": "una capa del DSK",
+     "ejemplo": "bajá la capa del reloj",
+     "herramientas": [
+      "dsk_mostrar"
      ]
     }
    ]
@@ -3280,6 +3560,20 @@
      "ejemplo": "armame el vínculo del zócalo con el orador al aire",
      "herramientas": [
       "rotulo_vincular"
+     ]
+    },
+    {
+     "objeto": "un debate entre dos integrantes",
+     "ejemplo": "armá el debate entre Pérez y Gómez",
+     "herramientas": [
+      "debate_iniciar"
+     ]
+    },
+    {
+     "objeto": "una banca en el preview",
+     "ejemplo": "armá la banca de Gómez",
+     "herramientas": [
+      "banca_al_aire"
      ]
     }
    ]
@@ -3958,6 +4252,13 @@
      "herramientas": [
       "source_types"
      ]
+    },
+    {
+     "objeto": "las bancas del recinto",
+     "ejemplo": "listá las bancas",
+     "herramientas": [
+      "bancas_listar"
+     ]
     }
    ]
   },
@@ -4102,6 +4403,13 @@
      "ejemplo": "ocultá el logo en la escena Panel",
      "herramientas": [
       "source_update"
+     ]
+    },
+    {
+     "objeto": "una capa del DSK",
+     "ejemplo": "ocultá la capa del reloj",
+     "herramientas": [
+      "dsk_mostrar"
      ]
     }
    ]
@@ -4371,6 +4679,13 @@
      "ejemplo": "volvé la pantalla grande a su fondo",
      "herramientas": [
       "pantalla_parar"
+     ]
+    },
+    {
+     "objeto": "del negro al programa",
+     "ejemplo": "volvé del negro",
+     "herramientas": [
+      "aire_ftb"
      ]
     }
    ]
@@ -6134,6 +6449,13 @@
      "herramientas": [
       "participant_profile"
      ]
+    },
+    {
+     "objeto": "una banca en la fila del recinto",
+     "ejemplo": "anotá a Pérez en la fila",
+     "herramientas": [
+      "banca_cola"
+     ]
     }
    ]
   },
@@ -6774,6 +7096,98 @@
      "ejemplo": "en el modo oradores, permití varios oradores al aire a la vez",
      "herramientas": [
       "speakers_config"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "destacar",
+   "formas": [
+    "destacá",
+    "destaca",
+    "destacalo",
+    "destacala"
+   ],
+   "significado": "poner un mensaje del chat del público en los overlays de chat destacados",
+   "herramientas": [
+    "chat_destacar"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "fundir",
+   "formas": [
+    "fundí",
+    "fundi",
+    "fundilo"
+   ],
+   "significado": "fundir a negro todo lo que sale al aire (y volver del negro)",
+   "herramientas": [
+    "aire_ftb"
+   ]
+  },
+  {
+   "tipo": "accion",
+   "verbo": "callar",
+   "formas": [
+    "callá",
+    "calla",
+    "callalos"
+   ],
+   "significado": "cerrar los micrófonos de todo el recinto desde la presidencia",
+   "herramientas": [
+    "presidencia_silenciar"
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "apuntar",
+   "formas": [
+    "apuntá",
+    "apunta",
+    "apuntala",
+    "apuntalo"
+   ],
+   "sentidos": [
+    {
+     "objeto": "cámara a una posición guardada",
+     "ejemplo": "apuntá la dos al atril",
+     "herramientas": [
+      "ptz_ir_posicion"
+     ]
+    },
+    {
+     "objeto": "cámara a la banca de un integrante",
+     "ejemplo": "apuntá la cámara a la banca de Pérez",
+     "herramientas": [
+      "recinto_apuntar"
+     ]
+    }
+   ]
+  },
+  {
+   "tipo": "polisemica",
+   "palabra": "seguir",
+   "formas": [
+    "seguí",
+    "segui",
+    "seguila",
+    "seguilo"
+   ],
+   "sentidos": [
+    {
+     "objeto": "persona con una cámara (que la mantenga encuadrada)",
+     "ejemplo": "seguí a Laura con la dos",
+     "herramientas": [
+      "ptz_seguir"
+     ]
+    },
+    {
+     "objeto": "el guion (continuar desde donde quedó)",
+     "ejemplo": "seguí el guion desde donde quedó",
+     "herramientas": [
+      "evento_correr"
      ]
     }
    ]

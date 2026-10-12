@@ -43,12 +43,17 @@ RE_CONTEXTO = re.compile(r"^\[(escena_armada|escena_actual)\]$")
 RELLENO = {"escena": "la del cierre", "audio": "la música", "audio_operador": "", "fuente": "la cámara 2",
            "persona": "Laura", "grafico": "el zócalo", "carrusel": "la presentación", "camara": "la dos",
            "posicion": "el atril", "discurso": "el del intendente", "medio": "la tanda", "pregunta": "la de Juan",
-           "pantalla": "la tele del hall", "receta": "la de apertura"}
+           "pantalla": "la tele del hall", "receta": "la de apertura",
+           "banca": "Pérez", "capa": "la capa del logo", "punto": "el del presupuesto", "mensaje": "el mensaje de Juan"}
 
 
 # que tipo de entidad recibe cada familia de herramientas (como candidatos() en
 # agent/ArgumentosLocales.cpp): un audio_set no recibe el nombre de una persona
-ENTIDADES = [(("scene_", "transition_"), {"escena"}), (("audio", "mixer_"), {"audio", "audio_operador"}),
+ENTIDADES = [  # v5 primero: el primer prefijo que coincide manda (chat_destacar no es de personas)
+             (("banca_", "recinto_", "debate_"), {"banca"}), (("dsk_",), {"capa"}), (("orden_del_dia_",), {"punto"}),
+             (("chat_destacar", "chat_quitar_destacado", "pregunta_desde_chat"), {"mensaje"}),
+             (("ptz_seguir",), {"camara", "persona"}),
+             (("scene_", "transition_"), {"escena"}), (("audio", "mixer_"), {"audio", "audio_operador"}),
              (("source_", "capture_source"), {"fuente", "audio", "audio_operador", "escena"}),
              (("participant_", "speaker_", "capture_person", "chat_"), {"persona"}),
              (("grafico_", "rotulo_"), {"grafico", "escena"}), (("laminas_",), {"carrusel", "escena"}),
@@ -104,7 +109,7 @@ def validar(a, esq, herramienta=None):
             for m in tc.RE_HUECO.finditer(v):
                 if m.group(1) != "audio_operador" and m.group(0) not in huecos_pl:
                     err.append(f"{k}: el hueco {m.group(0)} no esta en la plantilla")
-            if t in ("number", "integer") and not (RE_REL.match(v) or RE_EXACTO.match(v)):
+            if t in ("number", "integer") and not (RE_REL.match(v) or RE_EXACTO.match(v) or tc.RE_HUECO.fullmatch(v)):
                 err.append(f"{k}: numero como texto debe ser cambio (-4/+3) o exacto (=-10): {v!r}")
             if "enum" in p and v not in p["enum"] and not tc.RE_HUECO.search(v):
                 err.append(f"{k}: {v!r} no esta en el enum {p['enum']}")

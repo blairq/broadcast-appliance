@@ -67,10 +67,18 @@ SISTEMA_V4 = SISTEMA.replace(
     "- Nombres (escenas, fuentes, audio, participantes, gráficos, carruseles, cámaras y sus posiciones, pantallas): copiá"
     " EXACTAMENTE uno de los del estado. Discursos y medios van por su ruta; preguntas y recetas, por su id.")
 NUEVO = lp.PERFIL != "reactivo"
+# v5 (perfil vivo5): el recinto (bancas), las capas del DSK, el orden del dia y el
+# chat del publico tambien se nombran
+V5 = getattr(lp, "ESTADO", None) == "v5"
+SISTEMA_V5 = SISTEMA_V4.replace(
+    "Discursos y medios van por su ruta; preguntas y recetas, por su id.",
+    "Discursos y medios van por su ruta; preguntas y recetas, por su id. Una banca va por el nombre de su"
+    " integrante o por su número, como la nombre el operador; las capas del DSK y los puntos del orden del día,"
+    " por su número; los mensajes del chat, por su key.")
 
 
 def sistema():
-    return SISTEMA_V4 if NUEVO else SISTEMA
+    return SISTEMA_V5 if V5 else SISTEMA_V4 if NUEVO else SISTEMA
 
 
 INSTRUCCION_QWEN = (
@@ -262,16 +270,41 @@ RECETAS = [("r1", ["la receta de apertura", "la apertura"], "Apertura"), ("r2", 
            ("r3", ["la de la tanda", "la receta de la tanda"], "Tanda"), ("r4", ["la de entrevista", "la receta de entrevista"], "Entrevista"),
            ("r5", ["la de corte a publicidad", "el corte"], "Corte a publicidad")]
 
+# v5: el recinto, el DSK, el orden del dia y el chat del publico. Las bancas y las
+# capas reciben su numero al armar cada estado (no son fijos de una sala a otra)
+INTEGRANTES = [("Pérez", "el concejal"), ("Gómez", "la concejala"), ("Fernández", "el concejal"),
+               ("Rodríguez", "la concejala"), ("López", "el concejal"), ("Martínez", "la concejala"),
+               ("Sosa", "el concejal"), ("Acosta", "la concejala"), ("Romero", "el concejal"),
+               ("Díaz", "la concejala"), ("Benítez", "el concejal"), ("Medina", "la concejala"),
+               ("Suárez", "el concejal"), ("Herrera", "la concejala"), ("Aguirre", "el concejal")]
+BLOQUES = ["Frente Vecinal", "Unión Ciudadana", "Bloque Independiente", "Compromiso Local"]
+CAPAS = [("Logo", ["la capa del logo", "el logo de la capa"]), ("Intérprete LSA", ["la capa del intérprete", "el intérprete de señas"]),
+         ("Reloj", ["la capa del reloj", "el reloj de la capa"]), ("Zócalo fijo", ["la capa del zócalo fijo", "el zócalo fijo"]),
+         ("Mosca del canal", ["la capa de la mosca", "la mosca del canal"]), ("Marca de agua", ["la capa de la marca de agua", "la marca de agua"])]
+PUNTOS = [("Expte. 123/24 – Presupuesto 2025", ["el del presupuesto", "el punto del presupuesto"]),
+          ("Expte. 45/24 – Transporte urbano", ["el del transporte", "el punto del transporte"]),
+          ("Expte. 88/24 – Plaza Belgrano", ["el de la plaza", "el punto de la plaza"]),
+          ("Expte. 12/24 – Becas estudiantiles", ["el de las becas", "el punto de las becas"]),
+          ("Expte. 67/24 – Alumbrado público", ["el del alumbrado", "el punto del alumbrado"]),
+          ("Expte. 31/24 – Tasa de servicios", ["el de la tasa", "el punto de la tasa"])]
+MENSAJES = [("yt:8f2a", ["el mensaje de Juan", "lo que escribió Juan"], "Saludos desde Rosario|Juan|youtube"),
+            ("yt:91c0", ["el mensaje de Carla", "lo que escribió Carla"], "¿Van a tratar lo de la plaza?|Carla|youtube"),
+            ("tw:33b7", ["el mensaje de Nico", "lo que puso Nico"], "Se escucha bajo el micrófono|Nico|twitch"),
+            ("fb:5d1e", ["el mensaje de Sofía", "lo que escribió Sofía"], "Gracias por transmitir|Sofía|facebook"),
+            ("yt:a04f", ["el mensaje de Martín", "lo que puso Martín"], "¿Cuándo se vota el presupuesto?|Martín|youtube"),
+            ("sala:7e", ["el mensaje de Lucía", "lo que escribió Lucía"], "Pido la palabra para una pregunta|Lucía|sala")]
 TIPOS = {"escena": ESCENAS, "audio": AUDIO, "fuente": FUENTES, "persona": PERSONAS,
          "grafico": GRAFICOS, "carrusel": CARRUSELES,
          "camara": CAMARAS, "posicion": POSICIONES, "discurso": DISCURSOS, "medio": MEDIOS,
-         "pregunta": PREGUNTAS, "pantalla": PANTALLAS, "receta": RECETAS}
+         "pregunta": PREGUNTAS, "pantalla": PANTALLAS, "receta": RECETAS,
+         "banca": INTEGRANTES, "capa": CAPAS, "punto": PUNTOS, "mensaje": MENSAJES}
 RE_HUECO = re.compile(r"\{(escena|audio|audio_operador|fuente|persona|grafico|carrusel|camara|posicion|discurso|medio"
-                      r"|pregunta|pantalla|receta)(\d?)\}")
+                      r"|pregunta|pantalla|receta|banca|capa|punto|mensaje)(\d?)\}")
 # las claves del estado (v4 suma las de los comandos nuevos)
 ESTADO_CLAVES = ["escena_actual", "escena_armada", "escenas", "fuentes_de_la_escena_actual", "audio", "participantes",
                  "graficos", "carruseles"]
 ESTADO_CLAVES_V4 = ESTADO_CLAVES + ["camaras", "discursos", "medios", "preguntas", "pantallas", "recetas"]
+ESTADO_CLAVES_V5 = ESTADO_CLAVES_V4 + ["bancas", "capas", "orden_del_dia", "chat"]
 
 
 def estado_sintetico(rnd, necesita=()):
@@ -323,6 +356,34 @@ def estado_sintetico(rnd, necesita=()):
             "recetas": [{"id": r[0], "nombre": r[2]} for r in recetas]})
         formas.update({"camara": camaras, "posiciones": posiciones, "discurso": discursos, "medio": medios,
                        "pregunta": preguntas, "pantalla": pantallas, "receta": recetas})
+    if V5:
+        # el recinto: cada integrante en su banca (numero), por nombre o por numero
+        integ = elegir(INTEGRANTES, 3, 12, cuantos.get("banca", 0))
+        numeros = rnd.sample(range(1, 31), len(integ))
+        al_aire = rnd.choice([None] + [i for i in range(len(integ))]) if integ else None
+        bancas = [{"banca": n, "integrante": a, "bloque": rnd.choice(BLOQUES), "al_aire": i == al_aire}
+                  for i, (n, (a, _)) in enumerate(zip(numeros, integ))]
+        f_banca = []
+        for n, (a, titulo) in zip(numeros, integ):
+            f_banca.append((a, [a, f"{titulo} {a}"]))
+            f_banca.append((str(n), [f"la banca {n}", f"la {n}"]))
+        capas = elegir(CAPAS, 1, 4, cuantos.get("capa", 0))
+        n_capas = rnd.sample(range(1, 5), len(capas))
+        puntos = elegir(PUNTOS, 2, 6, cuantos.get("punto", 0))
+        actual = rnd.randrange(len(puntos)) if puntos and rnd.random() < 0.7 else None
+        mensajes = elegir(MENSAJES, 0, 5, cuantos.get("mensaje", 0))
+        est.update({
+            "bancas": bancas,
+            "capas": [{"capa": n, "nombre": c[0], "arriba": rnd.random() < 0.3} for n, c in zip(n_capas, capas)],
+            "orden_del_dia": [{"n": i + 1, "titulo": p[0],
+                               "estado": "en_tratamiento" if i == actual else ("votado" if actual is not None and i < actual else "pendiente")}
+                              for i, p in enumerate(puntos)],
+            "chat": [{"key": m[0], "autor": m[2].split("|")[1], "texto": m[2].split("|")[0],
+                      "plataforma": m[2].split("|")[2], "destacado": False} for m in mensajes]})
+        formas.update({"banca": f_banca,
+                       "capa": [(str(n), c[1] + [f"la capa {n}"]) for n, c in zip(n_capas, capas)],
+                       "punto": [(str(i + 1), p[1] + [f"el punto {i + 1}"]) for i, p in enumerate(puntos)],
+                       "mensaje": mensajes})
     return est, formas
 
 

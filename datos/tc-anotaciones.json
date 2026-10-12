@@ -1,4 +1,308 @@
 {
+ "aire_ftb": [
+  {
+   "frase": "fundí a negro",
+   "plantilla": "fundí a negro",
+   "args": {
+    "activar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundí a negro ya",
+   "plantilla": "fundí a negro ya",
+   "args": {
+    "activar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundí a negro en dos segundos",
+   "plantilla": "fundí a negro en dos segundos",
+   "args": {
+    "activar": true,
+    "ms": 2000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundí a negro sin tocar el audio",
+   "plantilla": "fundí a negro sin tocar el audio",
+   "args": {
+    "activar": true,
+    "audio": "mantener"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundido a negro en tres segundos y bajá el audio",
+   "plantilla": "fundido a negro en tres segundos y bajá el audio",
+   "args": {
+    "activar": true,
+    "ms": 3000,
+    "audio": "bajar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé del negro",
+   "plantilla": "volvé del negro",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé del negro en un segundo",
+   "plantilla": "volvé del negro en un segundo",
+   "args": {
+    "activar": false,
+    "ms": 1000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé del negro, mantené el audio",
+   "plantilla": "volvé del negro, mantené el audio",
+   "args": {
+    "activar": false,
+    "audio": "mantener"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundí todo a negro ya, que se corta la señal",
+   "plantilla": "fundí todo a negro ya, que se corta la señal",
+   "args": {
+    "activar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé del negro ya, arranca el discurso",
+   "plantilla": "volvé del negro ya, arranca el discurso",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundí a negro al toque",
+   "plantilla": "fundí a negro al toque",
+   "args": {
+    "activar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé del negro en cinco segundos",
+   "plantilla": "volvé del negro en cinco segundos",
+   "args": {
+    "activar": false,
+    "ms": 5000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "a negro, en diez segundos",
+   "plantilla": "a negro, en diez segundos",
+   "args": {
+    "activar": true,
+    "ms": 10000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fundí a negro y que el audio quede bajo",
+   "plantilla": "fundí a negro y que el audio quede bajo",
+   "args": {
+    "activar": true,
+    "audio": "bajar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "volvé del negro en tres segundos, sin tocar el audio",
+   "plantilla": "volvé del negro en tres segundos, sin tocar el audio",
+   "args": {
+    "activar": false,
+    "ms": 3000,
+    "audio": "mantener"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale con el negro",
+   "plantilla": "dale con el negro",
+   "falta": "¿fundir a negro o volver del negro?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "aire_placa": [
+  {
+   "frase": "placa de cuarto intermedio, cinco segundos",
+   "plantilla": "placa de cuarto intermedio, cinco segundos",
+   "args": {
+    "activar": true,
+    "texto": "Cuarto intermedio",
+    "ms": 5000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné la placa Volvemos enseguida, ya",
+   "plantilla": "poné la placa Volvemos enseguida, ya",
+   "args": {
+    "activar": true,
+    "texto": "Volvemos enseguida"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa Volvemos enseguida",
+   "plantilla": "activá la placa Volvemos enseguida",
+   "args": {
+    "activar": true,
+    "texto": "Volvemos enseguida"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá la placa, ya volvemos",
+   "plantilla": "quitá la placa, ya volvemos",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa de cuarto intermedio",
+   "plantilla": "activá la placa de cuarto intermedio",
+   "args": {
+    "activar": true,
+    "texto": "Cuarto intermedio"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa Minuto de silencio y que dure diez segundos",
+   "plantilla": "activá la placa Minuto de silencio y que dure diez segundos",
+   "args": {
+    "activar": true,
+    "texto": "Minuto de silencio",
+    "ms": 10000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá la placa de cuarto intermedio",
+   "plantilla": "quitá la placa de cuarto intermedio",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa Volvemos enseguida, se cortó el sonido",
+   "plantilla": "activá la placa Volvemos enseguida, se cortó el sonido",
+   "args": {
+    "activar": true,
+    "texto": "Volvemos enseguida"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá la placa ya, seguimos en vivo",
+   "plantilla": "quitá la placa ya, seguimos en vivo",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa Volvemos enseguida ya",
+   "plantilla": "activá la placa Volvemos enseguida ya",
+   "args": {
+    "activar": true,
+    "texto": "Volvemos enseguida"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá la placa del minuto de silencio",
+   "plantilla": "quitá la placa del minuto de silencio",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá la placa, dale",
+   "plantilla": "quitá la placa, dale",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa Volvemos enseguida, fundido en dos segundos",
+   "plantilla": "activá la placa Volvemos enseguida, fundido en dos segundos",
+   "args": {
+    "activar": true,
+    "texto": "Volvemos enseguida",
+    "ms": 2000
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "activá la placa Cuarto intermedio ya",
+   "plantilla": "activá la placa Cuarto intermedio ya",
+   "args": {
+    "activar": true,
+    "texto": "Cuarto intermedio"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá la placa Cuarto intermedio, ya volvimos",
+   "plantilla": "quitá la placa Cuarto intermedio, ya volvimos",
+   "args": {
+    "activar": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "audio_analyze": [
   {
    "frase": "analizá qué frecuencia está zumbando",
@@ -1018,6 +1322,600 @@
    "plantilla": "el audio va adelantado a la imagen, atrasale el audio",
    "falta": "¿De qué fuente es el audio?",
    "nueva": true
+  }
+ ],
+ "banca_al_aire": [
+  {
+   "frase": "{banca} al aire",
+   "plantilla": "{banca} al aire",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire ya",
+   "plantilla": "{banca} al aire ya",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire en directo",
+   "plantilla": "{banca} al aire en directo",
+   "args": {
+    "banca": "{banca}",
+    "modo": "directo"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá armada a {banca}",
+   "plantilla": "dejá armada a {banca}",
+   "args": {
+    "banca": "{banca}",
+    "modo": "armar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire, tiene dos minutos",
+   "plantilla": "{banca} al aire, tiene dos minutos",
+   "args": {
+    "banca": "{banca}",
+    "asignado_s": 120
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire con noventa segundos",
+   "plantilla": "{banca} al aire con noventa segundos",
+   "args": {
+    "banca": "{banca}",
+    "asignado_s": 90
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ponela al aire",
+   "plantilla": "ponela al aire",
+   "falta": "¿cuál banca?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire en directo, cinco minutos",
+   "plantilla": "{banca} al aire en directo, cinco minutos",
+   "args": {
+    "banca": "{banca}",
+    "modo": "directo",
+    "asignado_s": 300
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire, que la concejala ya pidió la palabra",
+   "plantilla": "{banca} al aire, que la concejala ya pidió la palabra",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá armada a {banca} con dos minutos",
+   "plantilla": "dejá armada a {banca} con dos minutos",
+   "args": {
+    "banca": "{banca}",
+    "modo": "armar",
+    "asignado_s": 120
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire ya, que no hay más tiempo",
+   "plantilla": "{banca} al aire ya, que no hay más tiempo",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "al aire ya",
+   "plantilla": "al aire ya",
+   "falta": "¿qué banca?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné a {banca} al aire",
+   "plantilla": "poné a {banca} al aire",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} al aire en directo ya",
+   "plantilla": "{banca} al aire en directo ya",
+   "args": {
+    "banca": "{banca}",
+    "modo": "directo"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá a {banca}",
+   "plantilla": "armá a {banca}",
+   "args": {
+    "banca": "{banca}",
+    "modo": "armar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá a {banca} con cuatro minutos",
+   "plantilla": "armá a {banca} con cuatro minutos",
+   "args": {
+    "banca": "{banca}",
+    "modo": "armar",
+    "asignado_s": 240
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá {banca} para después",
+   "plantilla": "armá {banca} para después",
+   "args": {
+    "banca": "{banca}",
+    "modo": "armar"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "banca_cola": [
+  {
+   "frase": "quitá a {banca} de la cola",
+   "plantilla": "quitá a {banca} de la cola",
+   "args": {
+    "quitar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sumá a {banca} a la cola de oradores",
+   "plantilla": "sumá a {banca} a la cola de oradores",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá a {banca} a la cola",
+   "plantilla": "agregá a {banca} a la cola",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá de la cola a {banca}",
+   "plantilla": "quitá de la cola a {banca}",
+   "args": {
+    "quitar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá a {banca} de la cola, pidió irse",
+   "plantilla": "bajá a {banca} de la cola, pidió irse",
+   "args": {
+    "quitar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá a {banca} de la cola, ya habló",
+   "plantilla": "quitá a {banca} de la cola, ya habló",
+   "args": {
+    "quitar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá a {banca} a la cola, es urgente",
+   "plantilla": "agregá a {banca} a la cola, es urgente",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "anotá a {banca} en la cola",
+   "plantilla": "anotá a {banca} en la cola",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "anotá a {banca} que pidió la palabra",
+   "plantilla": "anotá a {banca} que pidió la palabra",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "anotá a {banca} en la cola de oradores",
+   "plantilla": "anotá a {banca} en la cola de oradores",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale, anotá a {banca} ya",
+   "plantilla": "dale, anotá a {banca} ya",
+   "args": {
+    "agregar": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "banca_terminar": [
+  {
+   "frase": "terminá la palabra del que habla",
+   "plantilla": "terminá la palabra del que habla",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya se pasó el tiempo, cortá al orador",
+   "plantilla": "ya se pasó el tiempo, cortá al orador",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá la intervención de quien habla",
+   "plantilla": "terminá la intervención de quien habla",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale por terminado al orador que tiene la palabra",
+   "plantilla": "dale por terminado al orador que tiene la palabra",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se le acabó el tiempo, cortálo",
+   "plantilla": "se le acabó el tiempo, cortálo",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá al de presencial que tiene la palabra",
+   "plantilla": "terminá al de presencial que tiene la palabra",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacalo del aire ya mismo",
+   "plantilla": "sacalo del aire ya mismo",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá la palabra del orador en el recinto",
+   "plantilla": "terminá la palabra del orador en el recinto",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya habló bastante, terminá su turno",
+   "plantilla": "ya habló bastante, terminá su turno",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "que deje de hablar, cortá el micro",
+   "plantilla": "que deje de hablar, cortá el micro",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cortale el micro al que está hablando",
+   "plantilla": "cortale el micro al que está hablando",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá el micro del orador que está al aire",
+   "plantilla": "cerrá el micro del orador que está al aire",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá el micro del que tiene la palabra",
+   "plantilla": "cerrá el micro del que tiene la palabra",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cortá el micro del presencial que habla",
+   "plantilla": "cortá el micro del presencial que habla",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "banca_tiempo": [
+  {
+   "frase": "sumale 30 segundos al que habla",
+   "plantilla": "sumale 30 segundos al que habla",
+   "args": {
+    "sumar_s": 30
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale 45 segundos más al orador",
+   "plantilla": "dale 45 segundos más al orador",
+   "args": {
+    "sumar_s": 45
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "restale 15 segundos, se fue de tiempo",
+   "plantilla": "restale 15 segundos, se fue de tiempo",
+   "args": {
+    "sumar_s": -15
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sumale 10 segundos más, pidió el tiempo",
+   "plantilla": "sumale 10 segundos más, pidió el tiempo",
+   "args": {
+    "sumar_s": 10
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "le faltan 5 segundos, dale 5 más",
+   "plantilla": "le faltan 5 segundos, dale 5 más",
+   "args": {
+    "sumar_s": 5
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale 2 minutos más al que está hablando",
+   "plantilla": "dale 2 minutos más al que está hablando",
+   "args": {
+    "sumar_s": 120
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "que el tiempo asignado sea de 5 minutos",
+   "plantilla": "que el tiempo asignado sea de 5 minutos",
+   "args": {
+    "asignado_s": 300
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitale 20 segundos al que está hablando",
+   "plantilla": "quitale 20 segundos al que está hablando",
+   "args": {
+    "sumar_s": -20
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregale un minuto más, está en lo mejor",
+   "plantilla": "agregale un minuto más, está en lo mejor",
+   "args": {
+    "sumar_s": 60
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitale medio minuto al orador",
+   "plantilla": "quitale medio minuto al orador",
+   "args": {
+    "sumar_s": -30
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitale 1 minuto, se pasó",
+   "plantilla": "quitale 1 minuto, se pasó",
+   "args": {
+    "sumar_s": -60
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "bancas_listar": [
+  {
+   "frase": "¿quién está hablando ahora?",
+   "plantilla": "¿quién está hablando ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién tiene la palabra?",
+   "plantilla": "¿quién tiene la palabra?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos hay en la fila?",
+   "plantilla": "¿cuántos hay en la fila?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hace cuánto que está hablando?",
+   "plantilla": "¿hace cuánto que está hablando?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quiénes están en el recinto?",
+   "plantilla": "¿quiénes están en el recinto?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿me pasás la lista de bancas?",
+   "plantilla": "¿me pasás la lista de bancas?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame quién anda en la fila",
+   "plantilla": "mostrame quién anda en la fila",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién se anotó para hablar?",
+   "plantilla": "¿quién se anotó para hablar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién es el que está al aire?",
+   "plantilla": "¿quién es el que está al aire?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuánto tiempo lleva el orador actual?",
+   "plantilla": "¿cuánto tiempo lleva el orador actual?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién habló más tiempo hasta ahora?",
+   "plantilla": "¿quién habló más tiempo hasta ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿están todas las bancas conectadas?",
+   "plantilla": "¿están todas las bancas conectadas?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién falta en la lista de oradores?",
+   "plantilla": "¿quién falta en la lista de oradores?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "listame los presenciales",
+   "plantilla": "listame los presenciales",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos oradores presenciales hay hoy?",
+   "plantilla": "¿cuántos oradores presenciales hay hoy?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué banca está libre?",
+   "plantilla": "¿qué banca está libre?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay alguien esperando para hablar?",
+   "plantilla": "¿hay alguien esperando para hablar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién lleva más tiempo al aire?",
+   "plantilla": "¿quién lleva más tiempo al aire?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ],
  "capture_feed": [
@@ -2280,6 +3178,148 @@
    "origen": "tc-sumar"
   }
  ],
+ "chat_destacar": [
+  {
+   "frase": "destacá el mensaje de Juan",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá lo que escribió Carla",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá el mensaje que mandó Lucía",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá el comentario de Marcos",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá lo que escribió Sofía, es buenísimo",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el mensaje de Tomás, destacalo",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá el de Nico, el más votado",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá lo que escribió Fer sobre la ley",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quiero destacar el mensaje de Rocío",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá el mensaje de Gabi así sale en pantalla",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá el mensaje de Walter",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá el de Pablo que habló de la escuela",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá lo de Ceci, el que tiene más reacciones",
+   "plantilla": "destacá {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacá ese mensaje",
+   "plantilla": "destacá {mensaje}",
+   "falta": "¿cuál mensaje destacamos?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "destacalo",
+   "plantilla": "destacá {mensaje}",
+   "falta": "¿cuál mensaje?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "poné en destacado el mensaje de Ana",
+   "plantilla": "poné en destacado {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "chat_history": [
   {
    "frase": "qué escribieron en el chat",
@@ -2398,6 +3438,282 @@
    "tipo_nueva": "sintoma",
    "nueva": true,
    "origen": "tc-sumar"
+  }
+ ],
+ "chat_quitar_destacado": [
+  {
+   "frase": "sacá los destacados del chat",
+   "plantilla": "sacá los destacados del chat",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá todos los destacados, está saturado",
+   "plantilla": "quitá todos los destacados, está saturado",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "limpiá los destacados del chat ya",
+   "plantilla": "limpiá los destacados del chat ya",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá todos los destacados del chat",
+   "plantilla": "bajá todos los destacados del chat",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacá todo lo destacado, arrancamos de cero",
+   "plantilla": "sacá todo lo destacado, arrancamos de cero",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacá todos los destacados antes del corte",
+   "plantilla": "sacá todos los destacados antes del corte",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacá los destacados, que el chat está muy cargado",
+   "plantilla": "sacá los destacados, que el chat está muy cargado",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá todos los destacados de una vez",
+   "plantilla": "quitá todos los destacados de una vez",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá el destacado del mensaje de Juan",
+   "plantilla": "quitá el destacado de {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale, sacá el destacado que puso Carla",
+   "plantilla": "sacá el destacado de {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacá lo que escribió Carla de los destacados",
+   "plantilla": "sacá {mensaje} de los destacados",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacá el mensaje de Juan de destacados, es spam",
+   "plantilla": "sacá {mensaje} de destacados, es spam",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá lo de Carla del destacado, está fuera de tema",
+   "plantilla": "quitá {mensaje} del destacado, está fuera de tema",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el mensaje de Juan no va más destacado, sacalo",
+   "plantilla": "sacá {mensaje} del destacado",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá el de Juan de los destacados, gracias",
+   "plantilla": "quitá {mensaje} de los destacados",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sacá el destacado del chat que puso Juan",
+   "plantilla": "sacá el destacado de {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "quitá el destacado de Carla, no corresponde",
+   "plantilla": "quitá el destacado de {mensaje}, no corresponde",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "limpiá el destacado de Juan",
+   "plantilla": "limpiá el destacado de {mensaje}",
+   "args": {
+    "key": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "chat_recientes": [
+  {
+   "frase": "¿qué escribió el chat en los últimos minutos?",
+   "plantilla": "¿qué escribió el chat en los últimos minutos?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay mensajes nuevos en el chat?",
+   "plantilla": "¿hay mensajes nuevos en el chat?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué dijeron en YouTube?",
+   "plantilla": "¿qué dijeron en YouTube?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay algo destacado en el chat?",
+   "plantilla": "¿hay algo destacado en el chat?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame los últimos mensajes del chat",
+   "plantilla": "mostrame los últimos mensajes del chat",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué hay en el chat de Twitch?",
+   "plantilla": "¿qué hay en el chat de Twitch?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿alguien preguntó algo en Facebook?",
+   "plantilla": "¿alguien preguntó algo en Facebook?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué comentarios llegaron de la sala?",
+   "plantilla": "¿qué comentarios llegaron de la sala?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué está diciendo la gente en el chat?",
+   "plantilla": "¿qué está diciendo la gente en el chat?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "necesito los últimos del chat para destacar uno",
+   "plantilla": "necesito los últimos del chat para destacar uno",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el chat está movido o tranquilo?",
+   "plantilla": "¿el chat está movido o tranquilo?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué mensajes hay destacados ahora?",
+   "plantilla": "¿qué mensajes hay destacados ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿Juan escribió algo en el chat?",
+   "plantilla": "¿Juan escribió algo en el chat?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay spam en el chat, o todo bien?",
+   "plantilla": "¿hay spam en el chat, o todo bien?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué está llegando por Facebook ahora?",
+   "plantilla": "¿qué está llegando por Facebook ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame lo último que llegó del chat",
+   "plantilla": "mostrame lo último que llegó del chat",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay mensajes del público sin mirar?",
+   "plantilla": "¿hay mensajes del público sin mirar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿llegó algo de Twitch o es todo YouTube?",
+   "plantilla": "¿llegó algo de Twitch o es todo YouTube?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ],
  "chat_send": [
@@ -2814,6 +4130,507 @@
    "tipo_nueva": "orden",
    "nueva": true,
    "origen": "tc-sumar"
+  }
+ ],
+ "debate_estado": [
+  {
+   "frase": "¿hay debate ahora?",
+   "plantilla": "¿hay debate ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién está debatiendo?",
+   "plantilla": "¿quién está debatiendo?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿de qué tipo es el debate?",
+   "plantilla": "¿de qué tipo es el debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿los dos están conectados al debate?",
+   "plantilla": "¿los dos están conectados al debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cómo está el debate, sala o remoto?",
+   "plantilla": "¿cómo está el debate, sala o remoto?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay un debate armado en este momento?",
+   "plantilla": "¿hay un debate armado en este momento?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quiénes son los que debaten?",
+   "plantilla": "¿quiénes son los que debaten?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿está el remoto en el debate?",
+   "plantilla": "¿está el remoto en el debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el debate es sala contra sala o con remoto?",
+   "plantilla": "¿el debate es sala contra sala o con remoto?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué debate tenemos en curso?",
+   "plantilla": "¿qué debate tenemos en curso?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién tiene que hablar en el debate?",
+   "plantilla": "¿quién tiene que hablar en el debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el debate sigue en vivo o ya terminó?",
+   "plantilla": "¿el debate sigue en vivo o ya terminó?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué canal usa el remoto del debate?",
+   "plantilla": "¿qué canal usa el remoto del debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay debate o es una sesión normal?",
+   "plantilla": "¿hay debate o es una sesión normal?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿están armados los dos lados del debate?",
+   "plantilla": "¿están armados los dos lados del debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el debate ya arrancó?",
+   "plantilla": "¿el debate ya arrancó?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuánto tiempo lleva el debate?",
+   "plantilla": "¿cuánto tiempo lleva el debate?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿el debate está trabado, no avanza?",
+   "plantilla": "¿el debate está trabado, no avanza?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "debate_iniciar": [
+  {
+   "frase": "arrancá un debate entre Pérez y la concejala Gómez",
+   "plantilla": "arrancá un debate entre {banca1} y {banca2}",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "debate entre Gómez y Pérez, que hable solo Gómez",
+   "plantilla": "debate entre {banca1} y {banca2}, que hable solo {banca1}",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "a"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "debate entre Pérez y Gómez, por ahora sin palabra",
+   "plantilla": "debate entre {banca1} y {banca2}, por ahora sin palabra",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "nadie"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "arrancá un debate entre Pérez y Gómez y dale la palabra a Gómez",
+   "plantilla": "arrancá un debate entre {banca1} y {banca2} y dale la palabra a {banca2}",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "b"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "debate entre la banca 2 y Ruiz, que hablen los dos",
+   "plantilla": "debate entre {banca1} y {banca2}, que hablen los dos",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "ambos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "arrancá el debate entre la concejala Gómez y el remoto de Pérez, sin palabra por ahora",
+   "plantilla": "arrancá el debate entre {banca1} y {banca2}, sin palabra por ahora",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "nadie"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "debate entre Pérez y Gómez, ojo que es en vivo",
+   "plantilla": "debate entre {banca1} y {banca2}, ojo que es en vivo",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "arrancá un debate entre la banca 4 y la banca 8, sin turno",
+   "plantilla": "arrancá un debate entre {banca1} y {banca2}, sin turno",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "nadie"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "debate entre Gómez y Ruiz, que hable la primera",
+   "plantilla": "debate entre {banca1} y {banca2}, que hable la primera",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "a"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá un debate entre la banca 12 y Pérez, dale",
+   "plantilla": "armá un debate entre {banca1} y {banca2}",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá un debate entre la banca 3 y la banca 7, que hablen los dos",
+   "plantilla": "armá un debate entre {banca1} y {banca2}, que hablen los dos",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "ambos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí un debate entre Ruiz y Pérez, nadie tiene la palabra",
+   "plantilla": "abrí un debate entre {banca1} y {banca2}, nadie tiene la palabra",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}",
+    "turno": "nadie"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá un debate ya",
+   "plantilla": "armá un debate ya",
+   "falta": "¿entre qué bancas?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "armá un debate con Pérez",
+   "plantilla": "armá un debate con {banca}",
+   "falta": "¿contra quién?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí un debate entre Pérez y la banca 21",
+   "plantilla": "abrí un debate entre {banca1} y {banca2}",
+   "args": {
+    "a": "{banca1}",
+    "b": "{banca2}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "debate_terminar": [
+  {
+   "frase": "terminá el debate",
+   "plantilla": "terminá el debate",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se acabó el debate, cerrá los micros de los dos",
+   "plantilla": "se acabó el debate, cerrá los micros de los dos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale por terminado el debate",
+   "plantilla": "dale por terminado el debate",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá el debate y quitales la palabra a los remotos",
+   "plantilla": "terminá el debate y quitales la palabra a los remotos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el debate se terminó, dejá la central como estaba",
+   "plantilla": "el debate se terminó, dejá la central como estaba",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá el debate antes de la pausa",
+   "plantilla": "terminá el debate antes de la pausa",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá el debate y dejá todo como estaba",
+   "plantilla": "terminá el debate y dejá todo como estaba",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "terminá el debate, que arranca el bloque de preguntas",
+   "plantilla": "terminá el debate, que arranca el bloque de preguntas",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá el debate y devolvé la central",
+   "plantilla": "cerrá el debate y devolvé la central",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá el debate ya, que se pasó el tiempo",
+   "plantilla": "cerrá el debate ya, que se pasó el tiempo",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá el debate, después pasamos al orden del día",
+   "plantilla": "cerrá el debate, después pasamos al orden del día",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá los micros de los dos y volvé a la central",
+   "plantilla": "cerrá los micros de los dos y volvé a la central",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bueno, cerrá el debate que ya hablaron todos",
+   "plantilla": "bueno, cerrá el debate que ya hablaron todos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "debate_turno": [
+  {
+   "frase": "dale la palabra al A",
+   "plantilla": "dale la palabra al A",
+   "args": {
+    "turno": "a"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra al B",
+   "plantilla": "dale la palabra al B",
+   "args": {
+    "turno": "b"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra a los dos a la vez",
+   "plantilla": "dale la palabra a los dos a la vez",
+   "args": {
+    "turno": "ambos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "que nadie hable por ahora",
+   "plantilla": "que nadie hable por ahora",
+   "args": {
+    "turno": "nadie"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "nadie tiene la palabra, pausa",
+   "plantilla": "nadie tiene la palabra, pausa",
+   "args": {
+    "turno": "nadie"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra al B y dale un minuto más",
+   "plantilla": "dale la palabra al B y dale un minuto más",
+   "args": {
+    "turno": "b",
+    "sumar": 60
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra al A y restale 15 segundos",
+   "plantilla": "dale la palabra al A y restale 15 segundos",
+   "args": {
+    "turno": "a",
+    "sumar": -15
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra al A, que tiene la réplica",
+   "plantilla": "dale la palabra al A, que tiene la réplica",
+   "args": {
+    "turno": "a"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra a los dos para la réplica",
+   "plantilla": "dale la palabra a los dos para la réplica",
+   "args": {
+    "turno": "ambos"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra al B, le sumás 45 segundos",
+   "plantilla": "dale la palabra al B, le sumás 45 segundos",
+   "args": {
+    "turno": "b",
+    "sumar": 45
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya contestó el A, pasale la palabra al B con 20 segundos más",
+   "plantilla": "ya contestó el A, pasale la palabra al B con 20 segundos más",
+   "args": {
+    "turno": "b",
+    "sumar": 20
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dale la palabra al A y sumale 30 segundos",
+   "plantilla": "dale la palabra al A y sumale 30 segundos",
+   "args": {
+    "turno": "a",
+    "sumar": 30
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sumale dos minutos al B y dale la palabra",
+   "plantilla": "sumale dos minutos al B y dale la palabra",
+   "args": {
+    "turno": "b",
+    "sumar": 120
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ],
  "derivar": [
@@ -3424,6 +5241,271 @@
    "tipo_nueva": "derivar",
    "nueva": true,
    "origen": "tc-sumar"
+  }
+ ],
+ "dsk_listar": [
+  {
+   "frase": "¿qué capas hay arriba?",
+   "plantilla": "¿qué capas hay arriba?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuáles son las capas del DSK?",
+   "plantilla": "¿cuáles son las capas del DSK?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué hay en cada capa?",
+   "plantilla": "¿qué hay en cada capa?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué capas están abajo?",
+   "plantilla": "¿qué capas están abajo?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué recuadro ocupa cada capa?",
+   "plantilla": "¿qué recuadro ocupa cada capa?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuál capa es la fija?",
+   "plantilla": "¿cuál capa es la fija?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿la de LSA está fija o se puede bajar?",
+   "plantilla": "¿la de LSA está fija o se puede bajar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué fuentes tiene cada capa?",
+   "plantilla": "¿qué fuentes tiene cada capa?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué está subido en el DSK ahora?",
+   "plantilla": "¿qué está subido en el DSK ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay algo arriba en el DSK?",
+   "plantilla": "¿hay algo arriba en el DSK?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿la capa del logo está visible?",
+   "plantilla": "¿la capa del logo está visible?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué capas tienen fundido?",
+   "plantilla": "¿qué capas tienen fundido?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿la capa 2 está arriba?",
+   "plantilla": "¿la capa 2 está arriba?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué escenas hay en las capas del DSK?",
+   "plantilla": "¿qué escenas hay en las capas del DSK?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame el estado de las capas",
+   "plantilla": "mostrame el estado de las capas",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "dsk_mostrar": [
+  {
+   "frase": "subí la capa del logo",
+   "plantilla": "subí {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá el intérprete de señas",
+   "plantilla": "bajá {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "subí la capa 2",
+   "plantilla": "subí {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá la capa 3, ya",
+   "plantilla": "bajá {capa}, ya",
+   "args": {
+    "capa": "{capa}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá visible la capa del logo",
+   "plantilla": "dejá visible {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá la capa de LSA y confirmá",
+   "plantilla": "bajá {capa} y confirmá",
+   "args": {
+    "capa": "{capa}",
+    "visible": false,
+    "confirmar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sí, bajá la capa 1, confirmo",
+   "plantilla": "sí, bajá {capa}, confirmo",
+   "args": {
+    "capa": "{capa}",
+    "visible": false,
+    "confirmar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "subí la capa de LSA",
+   "plantilla": "subí {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "subí el intérprete de señas",
+   "plantilla": "subí {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "subí la capa",
+   "plantilla": "subí la capa",
+   "falta": "¿qué capa subo?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá la capa",
+   "plantilla": "bajá la capa",
+   "falta": "¿cuál capa bajo?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "bajá la capa 4",
+   "plantilla": "bajá {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ocultá la capa del logo",
+   "plantilla": "ocultá {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá el intérprete de señas",
+   "plantilla": "mostrá {capa}",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ocultá la capa 2, que tapa el reloj",
+   "plantilla": "ocultá {capa}, que tapa el reloj",
+   "args": {
+    "capa": "{capa}",
+    "visible": false
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrá la capa 3 otra vez",
+   "plantilla": "mostrá {capa} otra vez",
+   "args": {
+    "capa": "{capa}",
+    "visible": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
   }
  ],
  "evento_correr": [
@@ -6184,6 +8266,227 @@
    "origen": "bucle"
   }
  ],
+ "orden_del_dia_punto": [
+  {
+   "frase": "pasá al punto que sigue",
+   "plantilla": "pasá al punto que sigue",
+   "args": {
+    "siguiente": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "siguiente punto del orden del día",
+   "plantilla": "siguiente punto del orden del día",
+   "args": {
+    "siguiente": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el punto 3 votado, rechazado",
+   "plantilla": "{punto} votado, rechazado",
+   "args": {
+    "n": "{punto}",
+    "estado": "votado",
+    "resultado": "rechazado"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el del presupuesto vuelve a comisión",
+   "plantilla": "{punto} vuelve a comisión",
+   "args": {
+    "n": "{punto}",
+    "estado": "comision"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el autor retiró el del presupuesto",
+   "plantilla": "el autor retiró {punto}",
+   "args": {
+    "n": "{punto}",
+    "estado": "retirado"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "me equivoqué, el del presupuesto queda pendiente todavía",
+   "plantilla": "me equivoqué, {punto} queda pendiente todavía",
+   "args": {
+    "n": "{punto}",
+    "estado": "pendiente"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "tratamos el punto 3 ahora",
+   "plantilla": "tratamos {punto} ahora",
+   "args": {
+    "n": "{punto}",
+    "estado": "en_tratamiento"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "empezá a tratar el punto 3",
+   "plantilla": "empezá a tratar {punto}",
+   "args": {
+    "n": "{punto}",
+    "estado": "en_tratamiento"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ya terminó este, abrí el próximo punto",
+   "plantilla": "ya terminó este, abrí el próximo punto",
+   "args": {
+    "siguiente": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el zócalo dice otro punto, abrí el punto 3",
+   "plantilla": "el zócalo dice otro punto, abrí {punto}",
+   "args": {
+    "n": "{punto}",
+    "estado": "en_tratamiento"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "abrí el tratamiento del punto",
+   "plantilla": "abrí el tratamiento del punto",
+   "falta": "¿qué punto?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "orden_del_dia_ver": [
+  {
+   "frase": "¿en qué punto estamos?",
+   "plantilla": "¿en qué punto estamos?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "mostrame el orden del día",
+   "plantilla": "mostrame el orden del día",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos puntos quedan pendientes?",
+   "plantilla": "¿cuántos puntos quedan pendientes?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué se trata ahora?",
+   "plantilla": "¿qué se trata ahora?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué punto sigue?",
+   "plantilla": "¿qué punto sigue?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cómo salió la votación del punto anterior?",
+   "plantilla": "¿cómo salió la votación del punto anterior?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿ya se votó algún punto?",
+   "plantilla": "¿ya se votó algún punto?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuáles fueron a comisión?",
+   "plantilla": "¿cuáles fueron a comisión?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "me perdí, ¿por qué punto va la sesión?",
+   "plantilla": "me perdí, ¿por qué punto va la sesión?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuánto falta para terminar el orden del día?",
+   "plantilla": "¿cuánto falta para terminar el orden del día?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿retiraron algún punto?",
+   "plantilla": "¿retiraron algún punto?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "orden del día",
+   "plantilla": "orden del día",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué puntos ya se votaron?",
+   "plantilla": "¿qué puntos ya se votaron?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el zócalo no coincide, ¿cuál es el punto actual?",
+   "plantilla": "el zócalo no coincide, ¿cuál es el punto actual?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué resultado tuvo cada punto?",
+   "plantilla": "¿qué resultado tuvo cada punto?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos puntos tiene la sesión de hoy?",
+   "plantilla": "¿cuántos puntos tiene la sesión de hoy?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "pantalla_mostrar": [
   {
    "frase": "QR del wifi en el monitor del buffet, abajo que diga Wifi gratis",
@@ -7780,6 +10083,130 @@
    "origen": "tc-sumar"
   }
  ],
+ "pregunta_desde_chat": [
+  {
+   "frase": "sumá el mensaje de Juan a la cola de preguntas",
+   "plantilla": "sumá {mensaje} a la cola de preguntas",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá lo que escribió Carla como pregunta",
+   "plantilla": "agregá {mensaje} como pregunta",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el mensaje de Juan a preguntas",
+   "plantilla": "{mensaje} a preguntas",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "está buena esa, sumá el mensaje de Juan a la cola",
+   "plantilla": "está buena esa, sumá {mensaje} a la cola",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "convertí lo que escribió Carla en pregunta",
+   "plantilla": "convertí {mensaje} en pregunta",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá a la cola de preguntas lo que escribió Carla",
+   "plantilla": "agregá a la cola de preguntas {mensaje}",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "preguntaron en YouTube, sumá el mensaje de Juan",
+   "plantilla": "preguntaron en YouTube, sumá {mensaje}",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "ese del chat va a preguntas: el mensaje de Juan",
+   "plantilla": "ese del chat va a preguntas: {mensaje}",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sumá a preguntas lo que escribió Carla",
+   "plantilla": "sumá a preguntas {mensaje}",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "lo que escribió Carla tiene que estar en la cola",
+   "plantilla": "{mensaje} tiene que estar en la cola",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá el mensaje de Juan para que lo lean",
+   "plantilla": "agregá {mensaje} para que lo lean",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "hay una pregunta en el chat de Twitch, encolá lo que escribió Carla",
+   "plantilla": "hay una pregunta en el chat de Twitch, encolá {mensaje}",
+   "args": {
+    "mensaje_id": "{mensaje}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "sumá ese mensaje del chat a preguntas",
+   "plantilla": "sumá ese mensaje del chat a preguntas",
+   "falta": "¿qué mensaje?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "agregá una pregunta del chat a la cola",
+   "plantilla": "agregá una pregunta del chat a la cola",
+   "falta": "¿qué mensaje del chat?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "pregunta_moderar": [
   {
    "frase": "elegí la pregunta {pregunta}",
@@ -7968,6 +10395,120 @@
   {
    "frase": "¿hay preguntas del público para el panel?",
    "plantilla": "¿hay preguntas del público para el panel?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "presidencia_silenciar": [
+  {
+   "frase": "callá a todos",
+   "plantilla": "callá a todos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá todos los micrófonos del recinto",
+   "plantilla": "cerrá todos los micrófonos del recinto",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "hablan todos a la vez, callá a todos",
+   "plantilla": "hablan todos a la vez, callá a todos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la presidencia pide silencio, cerrá las bancas",
+   "plantilla": "la presidencia pide silencio, cerrá las bancas",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "callá el recinto",
+   "plantilla": "callá el recinto",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá todos los micrófonos menos el de presidencia",
+   "plantilla": "cerrá todos los micrófonos menos el de presidencia",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se armó lío en las bancas, callá a todos ya",
+   "plantilla": "se armó lío en las bancas, callá a todos ya",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "callá todas las bancas",
+   "plantilla": "callá todas las bancas",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "hay micrófonos abiertos por todos lados, cerralos todos",
+   "plantilla": "hay micrófonos abiertos por todos lados, cerralos todos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "el presidente dice que se callen todos",
+   "plantilla": "el presidente dice que se callen todos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cerrá los micrófonos de la central",
+   "plantilla": "cerrá los micrófonos de la central",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se acopla el recinto, cerrá todos los micrófonos",
+   "plantilla": "se acopla el recinto, cerrá todos los micrófonos",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "callá a todos y que quede solo presidencia",
+   "plantilla": "callá a todos y que quede solo presidencia",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "callá a todos, al orador también",
+   "plantilla": "callá a todos, al orador también",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "orden de presidencia: todos los micrófonos cerrados",
+   "plantilla": "orden de presidencia: todos los micrófonos cerrados",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se pisan todos, callalos",
+   "plantilla": "se pisan todos, callalos",
    "args": {},
    "nueva": true,
    "origen": "tc-nuevas"
@@ -9278,6 +11819,385 @@
    "origen": "tc-nuevas"
   }
  ],
+ "ptz_rostros": [
+  {
+   "frase": "¿qué caras ves en la {camara}?",
+   "plantilla": "¿qué caras ves en {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿a quién tiene encuadrado {camara}?",
+   "plantilla": "¿a quién tiene encuadrado {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas caras hay en {camara}?",
+   "plantilla": "¿cuántas caras hay en {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quién aparece en {camara}?",
+   "plantilla": "¿quién aparece en {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿reconoce a alguien {camara}?",
+   "plantilla": "¿reconoce a alguien {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "detectá las caras en {camara}",
+   "plantilla": "detectá las caras en {camara}",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿hay alguien en cuadro en {camara}?",
+   "plantilla": "¿hay alguien en cuadro en {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "antes de seguir a nadie, ¿qué caras tiene {camara}?",
+   "plantilla": "antes de seguir a nadie, ¿qué caras tiene {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿dónde está la cara en {camara}?",
+   "plantilla": "¿dónde está la cara en {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿a quién reconocés en {camara}?",
+   "plantilla": "¿a quién reconocés en {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "no sé quién está en {camara}, ¿me decís?",
+   "plantilla": "no sé quién está en {camara}, ¿me decís?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántas personas tiene en cuadro {camara}?",
+   "plantilla": "¿cuántas personas tiene en cuadro {camara}?",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿qué caras hay en cámara?",
+   "plantilla": "¿qué caras hay en cámara?",
+   "falta": "¿en qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "detectá las caras",
+   "plantilla": "detectá las caras",
+   "falta": "¿en qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "ptz_seguir": [
+  {
+   "frase": "que {camara} siga a {persona}",
+   "plantilla": "que {camara} siga a {persona}",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "{persona}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "seguí a {persona} con {camara}",
+   "plantilla": "seguí a {persona} con {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "{persona}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{camara}, mantené encuadrado a {persona}",
+   "plantilla": "{camara}, mantené encuadrado a {persona}",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "{persona}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{persona} camina por el escenario, seguilo con {camara}",
+   "plantilla": "{persona} camina por el escenario, seguilo con {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "{persona}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se me escapa {persona} de cuadro en {camara}, seguilo",
+   "plantilla": "se me escapa {persona} de cuadro en {camara}, seguilo",
+   "args": {
+    "entrada": "{camara}",
+    "nombre": "{persona}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "seguí la cara más grande en {camara}",
+   "plantilla": "seguí la cara más grande en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "regla": "mayor"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{camara} que siga al que está más cerca",
+   "plantilla": "{camara} que siga al que está más cerca",
+   "args": {
+    "entrada": "{camara}",
+    "regla": "mayor"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "seguí la cara del centro en {camara}",
+   "plantilla": "seguí la cara del centro en {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "regla": "centro"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "con {camara} seguí al del medio del cuadro",
+   "plantilla": "con {camara} seguí al del medio del cuadro",
+   "args": {
+    "entrada": "{camara}",
+    "regla": "centro"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "seguí la cara 2 de {camara}",
+   "plantilla": "seguí la cara 2 de {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "cara": 2
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "en {camara} seguí la cara 1",
+   "plantilla": "en {camara} seguí la cara 1",
+   "args": {
+    "entrada": "{camara}",
+    "cara": 1
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{camara}, seguí a quien tengas",
+   "plantilla": "{camara}, seguí a quien tengas",
+   "args": {
+    "entrada": "{camara}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá de seguir con {camara}",
+   "plantilla": "dejá de seguir con {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "parar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "pará el seguimiento de {camara}",
+   "plantilla": "pará el seguimiento de {camara}",
+   "args": {
+    "entrada": "{camara}",
+    "parar": true
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "seguí a {persona}",
+   "plantilla": "seguí a {persona}",
+   "falta": "¿con qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejá de seguir",
+   "plantilla": "dejá de seguir",
+   "falta": "¿en qué cámara?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "quorum_estado": [
+  {
+   "frase": "¿cuántos presentes hay?",
+   "plantilla": "¿cuántos presentes hay?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos faltan para el quórum?",
+   "plantilla": "¿cuántos faltan para el quórum?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos se necesitan para sesionar?",
+   "plantilla": "¿cuántos se necesitan para sesionar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿llegamos al quórum?",
+   "plantilla": "¿llegamos al quórum?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "la presidenta quiere abrir la sesión, ¿hay quórum?",
+   "plantilla": "la presidenta quiere abrir la sesión, ¿hay quórum?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "se fueron varios, ¿seguimos con quórum?",
+   "plantilla": "se fueron varios, ¿seguimos con quórum?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos concejales con voto están presentes?",
+   "plantilla": "¿cuántos concejales con voto están presentes?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿alcanza la cantidad de presentes para votar?",
+   "plantilla": "¿alcanza la cantidad de presentes para votar?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos miembros tiene el cuerpo y cuántos están?",
+   "plantilla": "¿cuántos miembros tiene el cuerpo y cuántos están?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "fijate si hay quórum",
+   "plantilla": "fijate si hay quórum",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿quórum sí o no?",
+   "plantilla": "¿quórum sí o no?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "antes de votar, ¿cómo estamos de quórum?",
+   "plantilla": "antes de votar, ¿cómo estamos de quórum?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "¿cuántos presentes y cuántos necesarios?",
+   "plantilla": "¿cuántos presentes y cuántos necesarios?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "entraron dos más, ¿ya hay quórum?",
+   "plantilla": "entraron dos más, ¿ya hay quórum?",
+   "args": {},
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
  "receta_correr": [
   {
    "frase": "ejecutá apertura",
@@ -9398,6 +12318,87 @@
    "frase": "corré la receta",
    "plantilla": "corré la receta",
    "falta": "¿Qué receta corro?",
+   "nueva": true,
+   "origen": "tc-nuevas"
+  }
+ ],
+ "recinto_apuntar": [
+  {
+   "frase": "apuntá la cámara a {banca}",
+   "plantilla": "apuntá la cámara a {banca}",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "apuntá a {banca} sin abrir el micrófono",
+   "plantilla": "apuntá a {banca} sin abrir el micrófono",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "girá la PTZ hacia {banca}",
+   "plantilla": "girá la PTZ hacia {banca}",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "encuadrá a {banca}",
+   "plantilla": "encuadrá a {banca}",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "cámara a {banca}",
+   "plantilla": "cámara a {banca}",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "{banca} pidió la palabra, apuntale la cámara",
+   "plantilla": "{banca} pidió la palabra, apuntale la cámara",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "solo apuntá a {banca}, el micrófono todavía no",
+   "plantilla": "solo apuntá a {banca}, el micrófono todavía no",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "dejame encuadrada a {banca} por las dudas",
+   "plantilla": "dejame encuadrada a {banca} por las dudas",
+   "args": {
+    "banca": "{banca}"
+   },
+   "nueva": true,
+   "origen": "tc-nuevas"
+  },
+  {
+   "frase": "apuntá la cámara a la banca",
+   "plantilla": "apuntá la cámara a la banca",
+   "falta": "¿a qué banca?",
    "nueva": true,
    "origen": "tc-nuevas"
   }

@@ -398,6 +398,35 @@ nombre de la herramienta como valor, `guest:N`) quedan imposibles.
 La validación de `ArgumentosLocales` se mantiene como red: existencia,
 rangos, la cuenta del volumen.
 
+### 1 bis. El estado que manda la app (contrato por versión)
+
+El turno del usuario es `Estado: {json compacto}\nPedido: {frase}`. El modelo
+copia los nombres EXACTOS del estado, así que la app tiene que mandar las claves
+con las que se entrenó cada versión (`modelo.json` → `formato.estado_claves`).
+Hoy `McpService.cpp` arma solo las de la v3.
+
+| Clave | Desde | Forma |
+|---|---|---|
+| `escena_actual`, `escena_armada` | v2 | texto (nombre de escena; `""` si no hay armada) |
+| `escenas` | v2 | `["nombre", …]` |
+| `fuentes_de_la_escena_actual` | v2 | `[{"nombre", "visible"}]` |
+| `audio` | v2 | `[{"nombre", "volumen_db", "silenciada"}]` |
+| `participantes` | v2 | `[{"id", "nombre", "estado"}]` (en sala, en espera, al aire) |
+| `graficos`, `carruseles` | v2 | `["nombre", …]` |
+| `camaras` | v4 | `[{"nombre", "posiciones": ["nombre", …]}]` |
+| `discursos` | v4 | `["ruta", …]` |
+| `medios` | v4 | `[{"nombre", "ruta"}]` |
+| `preguntas` | v4 | `[{"id", "texto", "autor", "estado"}]` |
+| `pantallas` | v4 | `["nombre", …]` |
+| `recetas` | v4 | `[{"id", "nombre"}]` |
+| `bancas` | v5 | `[{"banca": número, "integrante": "apellido", "bloque", "al_aire"}]` (como `recinto_ver`) |
+| `capas` | v5 | `[{"capa": 1..4, "nombre", "arriba"}]` (como `dsk_listar`) |
+| `orden_del_dia` | v5 | `[{"n", "titulo", "estado"}]` (como `orden_del_dia_ver`) |
+| `chat` | v5 | `[{"key", "autor", "texto", "plataforma", "destacado"}]` (como `chat_recientes`, los últimos) |
+
+Si falta una clave, el modelo no tiene de dónde copiar el nombre y pregunta
+(`falta_dato`) o deriva: no se rompe, pero no atiende.
+
 ### 2. El corpus
 
 - **Frases**: `datos/semillas-reactivas.json` (84 herramientas, muchas frases).

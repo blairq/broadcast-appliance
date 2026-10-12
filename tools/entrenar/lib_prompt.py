@@ -62,6 +62,7 @@ INCLUIR = set()
 SOLO = None  # «herramientas»: la lista EXACTA (el perfil no crece solo cuando el MCP suma herramientas)
 ORDEN = None  # «grupos»: {grupo: [herramientas]}; la union es la lista exacta y el orden es el del prompt
 GRUPOS = None
+ESTADO = None
 FUERA = []  # «fuera»: las que se sacaron del perfil a proposito (sus anotaciones sirven de derivar)
 ENTRADAS = ["pedidos"]
 _perfil = RAIZ / "datos" / "perfiles" / f"{PERFIL}.json"
@@ -76,6 +77,7 @@ if _perfil.exists():
         ORDEN = [n for g in GRUPOS.values() for n in g]
         SOLO = set(ORDEN)
     FUERA = list(_p.get("fuera", []))
+    ESTADO = _p.get("estado")  # «v5»: el estado suma bancas, capas del DSK, orden del dia y chat
     ENTRADAS = list(_p.get("entradas", ["pedidos"]))
     # el juego de etiquetas del perfil, salvo que se pida otro a mano
     if _p.get("etiquetas") and "BA_ETIQUETAS" not in os.environ:

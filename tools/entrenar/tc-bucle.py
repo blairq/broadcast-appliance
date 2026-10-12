@@ -201,7 +201,7 @@ def main():
         if not (ad / "adapter_config.json").exists():
             # las dos placas como una (FSDP2; entrenar-rapido supervisa y reanuda)
             correr([PY, E / "entrenar-rapido.py", "--fsdp", "--recalcular", "--base", args.base, "--datos", corpus,
-                    "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200", "--lote", "16", "--micro", "4"]
+                    "--salida", ad, "--epocas", str(args.epocas), "--eval-cada", "200", "--lote", "16", "--micro", "2"]
                    + (["--reanudar"] if a_medias else []),
                    env={"PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"}, salida=d / "entrenar.log")
         m = medir(ad, corpus, d / "medidas.json", args.limite_banco)
