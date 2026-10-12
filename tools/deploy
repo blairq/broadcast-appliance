@@ -317,7 +317,15 @@ else
   : > "$MTMP/sabidos"
 fi
 # «hash  ruta» → «ruta\thash».
-( cd "$BUNDLE_DIR" && xargs -0 -n 64 -P "$JOBS" "${SHA[@]}" < "$MTMP/faltan" ) |
+# CADA TANDA ESCRIBE EN SU PROPIO ARCHIVO. Antes todas escribían al mismo pipe y,
+# cuando una salida pasaba de PIPE_BUF (4 KB), se mezclaba con la de otra tanda y se
+# perdía la línea de algún archivo: «falta el hash de …» al azar, cuando había miles
+# de archivos que hashear (p. ej. un test de coremltools, el 2026-10-12).
+mkdir -p "$MTMP/tandas"
+( cd "$BUNDLE_DIR" &&
+  xargs -0 -n 64 -P "$JOBS" sh -c 'salida=$(mktemp "$0/tanda.XXXXXX") && "$@" > "$salida"' \
+    "$MTMP/tandas" "${SHA[@]}" < "$MTMP/faltan" )
+cat "$MTMP"/tandas/tanda.* 2>/dev/null |
   awk '{ h = substr($0, 1, 64); p = substr($0, 67); sub(/^\*/, "", p); print p "\t" h }' > "$MTMP/nuevos"
 cat "$MTMP/sabidos" "$MTMP/nuevos" > "$MTMP/hashes"
 if [ -n "${BA_MANIFEST_CACHE:-}" ]; then
