@@ -40,6 +40,9 @@ class OutputWindowsModel : public QAbstractListModel {
 
     /// Abre una ventana con `keys` y `layout`. :returns: su id.
     Q_INVOKABLE int open(const QStringList& keys, const QString& layout);
+    /// Como open, pero ya ubicada: en ese monitor, con esa geometría y, si se pide, en pantalla completa.
+    int abrirEn(const QStringList& keys, const QString& layout, const QString& screen, const QRect& geometria,
+                bool pantallaCompleta);
     Q_INVOKABLE void close(int id);
     Q_INVOKABLE void setScreen(int id, const QString& screenName);
     Q_INVOKABLE void setFullscreen(int id, bool on);

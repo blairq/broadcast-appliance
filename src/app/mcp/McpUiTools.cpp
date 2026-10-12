@@ -71,8 +71,11 @@ void McpService::registerUiTools() {
             "`vista` (id o nombre) elige con cuál trabajar (si no, la elegida); `nueva` crea una con ese nombre (con "
             "`copiar`: copia de la elegida); `renombrar` y `borrar` (siempre queda una). Lo demás cambia SOLO lo que "
             "mandes en esa vista (se guarda y lo siguen sus ventanas en vivo). `ventana`: true abre una ventana de "
-            "salida con esa vista (para otro monitor). Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", "
-            "\"entrada:<nombre>\".";
+            "salida con esa vista: en `monitor` (nombre de monitores) y, con `pantalla_completa`, ocupándolo entero. "
+            "`todas_en_ventanas`: una ventana por multivista, una por monitor (los que no son el principal) en pantalla "
+            "completa; `cerrar_ventanas`: las cierra. La respuesta trae `ventana` de cada multivista (\"salida:<n>\"): "
+            "para acomodarlas como quieras (zona, tamaño exacto, maximizada, otro monitor) usá ventana_mover con ese id. "
+            "Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", \"entrada:<nombre>\".";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -91,8 +94,14 @@ void McpService::registerUiTools() {
               {"tamNombres", {{"type", "integer"}}},
               {"tally", {{"type", "boolean"}}},
               {"vumetros", {{"type", "boolean"}}},
-              {"ventana", {{"type", "boolean"}, {"default", false}}}}}};
-        t.examples = {R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
+              {"ventana", {{"type", "boolean"}, {"default", false}}},
+              {"monitor", {{"type", "string"}, {"description", "con ventana: nombre del monitor (ver `monitores`)"}}},
+              {"pantalla_completa", {{"type", "boolean"}, {"default", false}}},
+              {"todas_en_ventanas", {{"type", "boolean"}, {"default", false}}},
+              {"cerrar_ventanas", {{"type", "boolean"}, {"default", false}}}}}};
+        t.examples = {R"({"todas_en_ventanas": true})",
+                      R"({"vista": "Invitados", "ventana": true, "monitor": "HDMI-1", "pantalla_completa": true})",
+                      R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
                       R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
         t.run = [&vm, windows](const json& a, Done done) {
             QString id = vm.multiviewActual();
@@ -119,13 +128,26 @@ void McpService::registerUiTools() {
                                   "tamNombres", "tally", "vumetros"})
                 if (a.contains(k)) cambios[k] = jsonToQv(a[k]);
             if (!cambios.isEmpty()) vm.setMultiviewDe(id, cambios);
-            if (a.value("ventana", false)) windows->open({}, "multiview:" + id);
+            if (a.value("cerrar_ventanas", false)) vm.cerrarVentanasMultiview();
+            if (a.value("todas_en_ventanas", false)) vm.abrirTodasLasMultiviews();
+            else if (a.value("ventana", false))
+                vm.abrirMultiviewEnVentana(id, QString::fromStdString(a.value("monitor", std::string())),
+                                           a.value("pantalla_completa", false));
             json disp = json::array();
             for (const QString& k : static_cast<FrameService*>(vm.frames())->keys()) disp.push_back(k.toStdString());
             if (auto* vg = static_cast<video::VideoGrafos*>(vm.video()))
                 for (const QString& e : vg->entradas()) disp.push_back("entrada:" + e.toStdString());
+            // La ventana de cada multivista (para ventana_mover).
+            json vistas = qvToJson(vm.multiviews());
+            for (auto& v : vistas) {
+                v["ventana"] = nullptr;
+                for (const auto& w : windows->windows())
+                    if (w.layout == "multiview:" + QString::fromStdString(v.value("id", std::string())))
+                        v["ventana"] = "salida:" + std::to_string(w.id);
+            }
             done(ToolResult().data({{"elegida", vm.multiviewActual().toStdString()},
-                                    {"multivistas", qvToJson(vm.multiviews())},
+                                    {"multivistas", vistas},
+                                    {"monitores", qvToJson(vm.monitores())},
                                     {"fuentes_disponibles", disp}}));
         };
         core_.addTool(std::move(t));

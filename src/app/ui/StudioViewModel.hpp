@@ -290,6 +290,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QString multiviewActual READ multiviewActual WRITE setMultiviewActual NOTIFY multiviewChanged)
     /// La de la pestaña elegida.
     Q_PROPERTY(QVariantMap multiview READ multiview NOTIFY multiviewChanged)
+    /// Los ids de las multivistas que tienen una ventana abierta.
+    Q_PROPERTY(QStringList multiviewsConVentana READ multiviewsConVentana NOTIFY multiviewVentanasChanged)
     /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
     Q_PROPERTY(QObject* voz READ voz CONSTANT)
     /// «Voz del teleprompter»: el guion dicho en voz alta, siguiendo al teleprompter.
@@ -649,6 +651,17 @@ class StudioViewModel : public QObject {
     /// false si es la última (siempre queda una).
     Q_INVOKABLE bool borrarMultiview(const QString& id);
     Q_INVOKABLE void restablecerMultiview();
+    /// Los monitores: [{nombre, ancho, alto, principal}].
+    Q_INVOKABLE QVariantList monitores() const;
+    /// Abre la ventana de esa multivista (cierra la que tuviera) en `monitor` ("" =
+    /// el principal, en una ventana), en pantalla completa si se pide.
+    Q_INVOKABLE void abrirMultiviewEnVentana(const QString& id, const QString& monitor, bool pantallaCompleta);
+    /// Una ventana por multivista: una por monitor (los que no son el principal), en
+    /// pantalla completa; si sobran o no hay otros monitores, ventanas escalonadas.
+    /// Devuelve cuántas abrió.
+    Q_INVOKABLE int abrirTodasLasMultiviews();
+    Q_INVOKABLE int cerrarVentanasMultiview();
+    QStringList multiviewsConVentana() const;
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
@@ -836,6 +849,7 @@ class StudioViewModel : public QObject {
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
     void multiviewChanged();
+    void multiviewVentanasChanged();
     /// qr_mostrar: abrir una ventana con el QR de `texto`, su descripción, una
     /// explicación y un color (verde, azul… o #rrggbb), con el botón de copiar.
     void mostrarQr(const QString& texto, const QString& descripcion, const QString& mensaje, const QString& color);

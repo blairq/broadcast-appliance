@@ -220,6 +220,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
                                                                   : rt.dataRoot() / "Config" / "ui.json");
         marca("dashboard");
     }
+    if (auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows())) {
+        connect(wm, &QAbstractItemModel::rowsInserted, this, &StudioViewModel::multiviewVentanasChanged);
+        connect(wm, &QAbstractItemModel::rowsRemoved, this, &StudioViewModel::multiviewVentanasChanged);
+        connect(wm, &QAbstractItemModel::dataChanged, this, &StudioViewModel::multiviewVentanasChanged);
+    }
     frames_ = std::make_unique<FrameService>(rt.engine(), rt.config().guests);
     marca("frames");
     frames_->setLobbySlots(rt.gateway().lobbySlots);
@@ -4244,6 +4249,79 @@ bool StudioViewModel::borrarMultiview(const QString& id) {
     if (multiviewActual_ == id) multiviewActual_ = multiviews_[std::max(0, i - 1)].toMap().value("id").toString();
     guardarMultiviews();
     return true;
+}
+
+QVariantList StudioViewModel::monitores() const {
+    QVariantList out;
+    const QScreen* principal = QGuiApplication::primaryScreen();
+    for (const QScreen* sc : QGuiApplication::screens())
+        out << QVariantMap{{"nombre", sc->name()}, {"ancho", sc->geometry().width()}, {"alto", sc->geometry().height()},
+                           {"principal", sc == principal}};
+    return out;
+}
+
+QStringList StudioViewModel::multiviewsConVentana() const {
+    QStringList out;
+    if (!dashboard_) return out;
+    for (const auto& w : static_cast<OutputWindowsModel*>(dashboard_->windows())->windows())
+        if (w.layout.startsWith("multiview:")) out << w.layout.mid(10);
+    return out;
+}
+
+namespace {
+/// Una ventana de 16:9 centrada en el monitor (o escalonada en el principal).
+QRect geometriaEn(const QScreen* sc, int escalon) {
+    const QRect a = sc != nullptr ? sc->availableGeometry() : QRect(0, 0, 1920, 1080);
+    const int w = std::min(1280, a.width() - 80), h = w * 9 / 16;
+    return QRect(a.x() + (a.width() - w) / 2 + escalon * 40, a.y() + (a.height() - h) / 2 + escalon * 40, w, h);
+}
+} // namespace
+
+void StudioViewModel::abrirMultiviewEnVentana(const QString& id, const QString& monitor, bool pantallaCompleta) {
+    if (!dashboard_ || multiviewDe(id).isEmpty()) return;
+    auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows());
+    std::vector<int> cerrar;
+    for (const auto& w : wm->windows())
+        if (w.layout == "multiview:" + id) cerrar.push_back(w.id);
+    for (int c : cerrar) wm->close(c);
+    const QScreen* sc = nullptr;
+    for (const QScreen* s : QGuiApplication::screens())
+        if (s->name() == monitor) sc = s;
+    wm->abrirEn({}, "multiview:" + id, sc ? sc->name() : QString(), geometriaEn(sc ? sc : QGuiApplication::primaryScreen(), 0),
+                pantallaCompleta && sc != nullptr);
+}
+
+int StudioViewModel::abrirTodasLasMultiviews() {
+    if (!dashboard_) return 0;
+    cerrarVentanasMultiview();
+    auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows());
+    const QScreen* principal = QGuiApplication::primaryScreen();
+    std::vector<const QScreen*> otros;
+    for (const QScreen* s : QGuiApplication::screens())
+        if (s != principal) otros.push_back(s);
+    const QVariantList vistas = multiviews();
+    int escalon = 0;
+    for (int i = 0; i < vistas.size(); ++i) {
+        const QString id = vistas[i].toMap().value("id").toString();
+        if (i < static_cast<int>(otros.size())) {
+            const QScreen* sc = otros[static_cast<std::size_t>(i)];
+            wm->abrirEn({}, "multiview:" + id, sc->name(), geometriaEn(sc, 0), true); // una por monitor, completa
+        } else {
+            wm->abrirEn({}, "multiview:" + id, principal ? principal->name() : QString(), geometriaEn(principal, escalon++),
+                        false);
+        }
+    }
+    return vistas.size();
+}
+
+int StudioViewModel::cerrarVentanasMultiview() {
+    if (!dashboard_) return 0;
+    auto* wm = static_cast<OutputWindowsModel*>(dashboard_->windows());
+    std::vector<int> cerrar;
+    for (const auto& w : wm->windows())
+        if (w.layout.startsWith("multiview")) cerrar.push_back(w.id);
+    for (int c : cerrar) wm->close(c);
+    return static_cast<int>(cerrar.size());
 }
 
 void StudioViewModel::restablecerMultiview() {

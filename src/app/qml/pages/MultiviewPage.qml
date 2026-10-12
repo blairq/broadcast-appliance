@@ -69,6 +69,12 @@ Rectangle {
                                 width: nombrePestana.implicitWidth + 28
                                 color: elegida ? Qt.rgba(1, 0.42, 0.17, 0.28) : (pestMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03))
                                 border.color: elegida ? Theme.accent : Theme.glassBorder
+                                // Punto: esta multivista tiene una ventana abierta.
+                                Rectangle {
+                                    visible: (Studio.multiviewsConVentana || []).indexOf(modelData.id) >= 0
+                                    width: 7; height: 7; radius: 4; color: Theme.ok
+                                    anchors { right: parent.right; top: parent.top; margins: 4 }
+                                }
                                 Text {
                                     id: nombrePestana
                                     anchors.centerIn: parent
@@ -84,6 +90,17 @@ Rectangle {
                             }
                         }
                     }
+                }
+                GlassButton {
+                    compact: true; text: "Todas en ventanas"; icon: "⧉"
+                    ToolTip.visible: hovered; ToolTip.delay: 300
+                    ToolTip.text: "Una ventana por multivista: una en cada monitor (los que no son el principal), en pantalla completa; si sobran, escalonadas en el principal."
+                    onClicked: { const n = Studio.abrirTodasLasMultiviews(); Studio.notify(n + " multivistas en ventanas.", "ok") }
+                }
+                GlassButton {
+                    compact: true; text: "Cerrar ventanas"
+                    visible: (Studio.multiviewsConVentana || []).length > 0
+                    onClicked: Studio.cerrarVentanasMultiview()
                 }
                 GlassButton {
                     compact: true; text: "+"; implicitWidth: 34
@@ -149,8 +166,9 @@ Rectangle {
                         Layout.fillWidth: true
                         spacing: 8
                         GlassButton {
-                            text: "Sacar a una ventana"; icon: "⧉"; active: true
-                            onClicked: Studio.dashboard.windows.open([], "multiview:" + page.mv.id)
+                            text: (Studio.multiviewsConVentana || []).indexOf(page.mv.id) >= 0 ? "Llevar la ventana" : "Sacar a una ventana"
+                            icon: "⧉"; active: true
+                            onClicked: Studio.abrirMultiviewEnVentana(page.mv.id, monitorCombo.monitor, completaSw.checked)
                         }
                         GlassButton { compact: true; text: "Duplicar"; onClicked: Studio.nuevaMultiview((page.mv.nombre || "Multiview") + " (copia)", true) }
                         GlassButton { compact: true; text: "De fábrica"; onClicked: Studio.restablecerMultiview() }
@@ -165,9 +183,26 @@ Rectangle {
                             })
                         }
                     }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Text { text: "Monitor"; color: Theme.textDim; font.pixelSize: 12 }
+                        ComboBox {
+                            id: monitorCombo
+                            Layout.fillWidth: true
+                            readonly property var lista: Studio.monitores()
+                            readonly property string monitor: currentIndex >= 0 && currentIndex < lista.length ? lista[currentIndex].nombre : ""
+                            model: lista.map(m => m.nombre + "  (" + m.ancho + "×" + m.alto + (m.principal ? ", principal)" : ")"))
+                            currentIndex: Math.max(0, lista.findIndex(m => !m.principal))
+                        }
+                    }
+                    RowLayout {
+                        Switch { id: completaSw; checked: true }
+                        Text { text: "En pantalla completa"; color: Theme.text; font.pixelSize: 13 }
+                    }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                        text: "La ventana se puede llevar a otro monitor y poner en pantalla completa (doble clic). Sigue lo que cambies acá, en vivo."
+                        text: "La ventana sigue lo que cambies acá, en vivo. En la ventana (mové el mouse): elegir monitor, otra multivista, maximizar, pantalla completa (o doble clic) y cerrar."
                     }
 
                     Text { Layout.topMargin: 6; text: "Fuentes"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }

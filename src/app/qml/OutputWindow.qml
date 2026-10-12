@@ -26,7 +26,16 @@ Window {
     width: geometry.width; height: geometry.height
     minimumWidth: 320; minimumHeight: 180
     visible: true
-    visibility: fullscreen ? Window.FullScreen : Window.Windowed
+    /// Maximizada (botón «Maximizar»; ventana_mover también la deja así).
+    property bool maximizada: false
+    /// Para ventana_mover (MCP): normal | maximizada | pantalla-completa | minimizada,
+    /// por el mismo camino que los botones (así quedan bien sus textos y el modelo).
+    function ponerEstado(e) {
+        if (e === "minimizada") { w.showMinimized(); return }
+        w.maximizada = e === "maximizada"
+        Studio.dashboard.windows.setFullscreen(w.winId, e === "pantalla-completa")
+    }
+    visibility: fullscreen ? Window.FullScreen : (maximizada ? Window.Maximized : Window.Windowed)
 
     function screenByName(name) {
         for (let i = 0; i < Qt.application.screens.length; ++i)
@@ -209,6 +218,27 @@ Window {
                         }
                     }
                 }
+            }
+            // Qué multivista muestra esta ventana (las de la página Multiview).
+            GlassButton {
+                compact: true; visible: w.esMultiview; text: w.mv.nombre || "Multivista"; icon: "▥"
+                onClicked: vistaMenu.popup()
+                Menu {
+                    id: vistaMenu
+                    Repeater {
+                        model: Studio.multiviews
+                        delegate: MenuItem {
+                            required property var modelData
+                            text: modelData.nombre; checkable: true; checked: w.mv.id === modelData.id
+                            onTriggered: Studio.dashboard.windows.setLayout(w.winId, "multiview:" + modelData.id)
+                        }
+                    }
+                }
+            }
+            GlassButton {
+                compact: true; visible: !w.fullscreen
+                text: w.maximizada ? "Restaurar" : "Maximizar"; icon: w.maximizada ? "❐" : "□"
+                onClicked: w.maximizada = !w.maximizada
             }
             GlassButton {
                 compact: true

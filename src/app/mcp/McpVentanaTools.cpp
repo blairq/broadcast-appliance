@@ -404,6 +404,13 @@ void McpService::registerVentanaTools() {
 
             if (a.contains("estado")) {
                 const std::string e = a["estado"].get<std::string>();
+                // Las ventanas de video (salida:<n>) tienen su estado en QML y en el modelo:
+                // por sus botones, así no quedan desparejos.
+                if (w->objectName().startsWith("ba:salida:") &&
+                    QMetaObject::invokeMethod(w, "ponerEstado", Q_ARG(QVariant, QVariant(QString::fromStdString(e))))) {
+                    done(ToolResult::ok("«" + w->title().toStdString() + "»:" + hecho + " (" + e + ")."));
+                    return;
+                }
                 if (e == "pantalla-completa") {
                     // Salir y volver a entrar (ver la pausa de mas arriba): si
                     // ya estaba en pantalla completa en OTRO monitor, pedirla

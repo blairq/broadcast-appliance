@@ -134,6 +134,23 @@ void OutputWindowsModel::close(int id) {
     }
 }
 
+int OutputWindowsModel::abrirEn(const QStringList& keys, const QString& layout, const QString& screen,
+                                const QRect& geometria, bool pantallaCompleta) {
+    Win w;
+    w.id = nextId_++;
+    w.keys = keys;
+    w.layout = layout.isEmpty() ? "grid" : layout;
+    w.screen = screen;
+    w.fullscreen = pantallaCompleta;
+    if (geometria.isValid()) w.geometry = geometria;
+    const int row = rowCount();
+    beginInsertRows({}, row, row);
+    wins_.push_back(w);
+    endInsertRows();
+    if (onChange_) onChange_();
+    return w.id;
+}
+
 void OutputWindowsModel::setScreen(int id, const QString& screenName) {
     const int row = rowOf(id);
     if (row >= 0 && wins_[static_cast<std::size_t>(row)].screen != screenName) {
