@@ -167,6 +167,8 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE QString crear(const QString& nombre, const QString& enCarpeta = {});
     Q_INVOKABLE bool abrir(const QString& carpeta);
     Q_INVOKABLE void cerrar();
+    /// Lo borra del disco. Si es el abierto, primero lo cierra SIN guardar
+    /// (se tira entero: guardarlo para borrarlo no tiene sentido).
     Q_INVOKABLE bool borrar(const QString& carpeta);
 
     // --- Editar el guion ------------------------------------------------------

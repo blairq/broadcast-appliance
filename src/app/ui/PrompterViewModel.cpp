@@ -9,10 +9,14 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
+#include <QPointer>
 #include <QJsonObject>
 #include <QJsonValue>
 #include <QTimer>
 
+#include "sala/EnlacesSala.hpp"
+#include "sala/Teleprompter.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/Discursos.hpp"
@@ -270,7 +274,14 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
         if (cuando) cuando(false);
         return;
     }
-    d_->sala->client().get("/api/v1/prompter", [this, cuando](bool ok, const QJsonObject& r) {
+    QPointer<PrompterViewModel> yo(this);
+    d_->sala->teleprompter().ver([yo, cuando](const std::string& err, const nlohmann::json& j) {
+        if (!yo) return;
+        auto& d_ = yo->d_;
+        const bool ok = err.empty();
+        const QJsonObject r = QJsonDocument::fromJson(QByteArray::fromStdString(
+                                                          j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+                                  .object();
         const bool antes = d_->enLinea;
         d_->enLinea = ok;
         if (ok) {
@@ -284,71 +295,69 @@ void PrompterViewModel::consultar(std::function<void(bool)> cuando) {
             // ahorra copiarlo a QML dos veces por segundo.
             d_->estado.remove("texto");
         }
-        if (ok || antes) emit estadoCambio();
+        if (ok || antes) emit yo->estadoCambio();
         if (cuando) cuando(ok);
     });
 }
 
-namespace {
-/// Todas las órdenes van por el mismo lado: POST al gateway, que es el dueño
-/// del estado. Nada se guarda acá de antemano: se manda y se espera a que el
-/// estado vuelva con el cambio. Si el gateway no está, no pasa nada y la
-/// pantalla lo dice (`enLinea`), en vez de mostrar algo que no es.
-void mandar(ConferenceViewModel* sala, const QJsonObject& cmd) {
-    if (sala == nullptr) return;
-    sala->client().post("/api/v1/prompter", cmd);
-}
-} // namespace
+// Todas las órdenes son operaciones del modelo (sala::Teleprompter), las mismas
+// que usa el cue «teleprompter» del guion. Nada se guarda acá de antemano: se
+// manda y se espera a que el estado vuelva con el cambio. Si el gateway no
+// está, no pasa nada y la pantalla lo dice (`enLinea`).
 
 QString PrompterViewModel::cargar(const QString& rel) {
-    bool ok = false;
-    const QString texto = d_->docs.leer(rel, &ok);
-    if (!ok) return "No pude abrir «" + rel + "».";
-    // El título es el `rel`: así la lista sabe cuál está cargado, y el
-    // operador ve "Apertura/intendente.txt" y no solo "intendente.txt".
-    mandar(d_->sala, QJsonObject{{"titulo", rel}, {"texto", texto}});
-    return {};
+    if (d_->sala == nullptr) return "La sala no está disponible.";
+    return QString::fromStdString(d_->sala->teleprompter().cargarDiscurso(d_->docs, rel.toStdString()));
 }
 
 QString PrompterViewModel::cargarDelEditor() {
     if (d_->abierto.isEmpty()) return "No hay ningún documento abierto.";
-    mandar(d_->sala, QJsonObject{{"titulo", d_->abierto}, {"texto", d_->texto}});
+    if (d_->sala != nullptr) d_->sala->teleprompter().cargarTexto(d_->abierto.toStdString(), d_->texto.toStdString());
     return {};
 }
 
-void PrompterViewModel::arrancar(bool si) { mandar(d_->sala, QJsonObject{{"corriendo", si}}); }
-void PrompterViewModel::setPpm(int ppm) { mandar(d_->sala, QJsonObject{{"ppm", std::clamp(ppm, 40, 400)}}); }
-void PrompterViewModel::setTamano(int t) { mandar(d_->sala, QJsonObject{{"tamano", std::clamp(t, 1, 10)}}); }
-void PrompterViewModel::setEspejo(bool si) { mandar(d_->sala, QJsonObject{{"espejo", si}}); }
-void PrompterViewModel::avisar(const QString& texto) { mandar(d_->sala, QJsonObject{{"aviso", texto}}); }
-void PrompterViewModel::panico() { mandar(d_->sala, QJsonObject{{"panico", true}}); }
-
-void PrompterViewModel::irA(double fraccion) {
-    const double total = d_->estado.value("palabras", 0).toDouble();
-    mandar(d_->sala, QJsonObject{{"posicion", std::clamp(fraccion, 0.0, 1.0) * total}});
+void PrompterViewModel::arrancar(bool si) {
+    if (d_->sala != nullptr) d_->sala->teleprompter().arrancar(si);
+}
+void PrompterViewModel::setPpm(int ppm) {
+    if (d_->sala != nullptr) d_->sala->teleprompter().setPpm(ppm);
+}
+void PrompterViewModel::setTamano(int t) {
+    if (d_->sala != nullptr) d_->sala->teleprompter().setTamano(t);
+}
+void PrompterViewModel::setEspejo(bool si) {
+    if (d_->sala != nullptr) d_->sala->teleprompter().setEspejo(si);
+}
+void PrompterViewModel::avisar(const QString& texto) {
+    if (d_->sala != nullptr) d_->sala->teleprompter().avisar(texto.toStdString());
+}
+void PrompterViewModel::panico() {
+    if (d_->sala != nullptr) d_->sala->teleprompter().panico();
 }
 
-void PrompterViewModel::irAParrafo(int n) { mandar(d_->sala, QJsonObject{{"parrafo", std::max(0, n)}}); }
+void PrompterViewModel::irA(double fraccion) {
+    // La vista habla en fracción; el gateway, en palabras.
+    const double total = d_->estado.value("palabras", 0).toDouble();
+    if (d_->sala != nullptr) d_->sala->teleprompter().irA(std::clamp(fraccion, 0.0, 1.0) * total);
+}
+
+void PrompterViewModel::irAParrafo(int n) {
+    if (d_->sala != nullptr) d_->sala->teleprompter().irAParrafo(n);
+}
 
 void PrompterViewModel::pedirQr(const QString& target, const QString& vista, bool conClave) {
     if (d_->sala == nullptr) {
         emit qrListo({}, {}, "La sala no está corriendo", {});
         return;
     }
-    const QString t = target == "remote" ? "remote" : "local";
-    const QString v = vista == "orador" ? "orador" : "control";
-    d_->sala->client().get("/api/v1/prompter-link?target=" + t + "&vista=" + v +
-                               "&conClave=" + (conClave ? "1" : "0"),
-                           [this](bool ok, const QJsonObject& r) {
-                               QStringList filas;
-                               for (const QJsonValue& x : r.value("modules").toArray())
-                                   filas << x.toString();
-                               QString msg = r.value("message").toString();
-                               const bool bien = ok && r.value("ok").toBool();
-                               if (!bien && msg.isEmpty()) msg = "La sala no responde";
-                               emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg,
-                                            r.value("clave").toString());
-                           });
+    QPointer<PrompterViewModel> yo(this);
+    d_->sala->enlaces().prompter(target == "remote", vista.toStdString(), conClave, [yo](const sala::Enlace& e) {
+        if (!yo) return;
+        QStringList filas;
+        for (const std::string& f : e.filas) filas << QString::fromStdString(f);
+        emit yo->qrListo(QString::fromStdString(e.url), filas, QString::fromStdString(e.mensaje),
+                         QString::fromStdString(e.clave));
+    });
 }
 
 } // namespace ba::app

@@ -684,9 +684,13 @@ QStringList Despachador::modelosDe(const QString& proveedor) const {
 }
 
 QString Despachador::encargarDesdeUi(const QString& rol, const QString& texto) {
+    return encargarDesdeUiConId(rol, texto).value("error").toString();
+}
+
+QVariantMap Despachador::encargarDesdeUiConId(const QString& rol, const QString& texto) {
     std::string err;
-    encargar(rol.toStdString(), texto.trimmed().toStdString(), "operador", 0, &err);
-    return QString::fromStdString(err);
+    const std::string id = encargar(rol.toStdString(), texto.trimmed().toStdString(), "operador", 0, &err);
+    return QVariantMap{{"error", QString::fromStdString(err)}, {"id", QString::fromStdString(id)}};
 }
 
 void Despachador::detener(const QString& id) {

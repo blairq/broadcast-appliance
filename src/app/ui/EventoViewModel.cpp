@@ -27,6 +27,10 @@
 #include "graficos/Vinculos.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "ui/Discursos.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/OradoresSala.hpp"
+#include "sala/Teleprompter.hpp"
 #include "evento/EventoWeb.hpp"
 #include "platform/Paths.hpp"
 
@@ -631,12 +635,18 @@ void EventoViewModel::cerrar() {
 }
 
 bool EventoViewModel::borrar(const QString& carpeta) {
+    // Si es el abierto, se cierra ANTES de borrarlo y sin guardar: cerrar
+    // guarda lo pendiente, y hacerlo después volvía a escribir en el disco el
+    // evento recién borrado (por eso la página cerraba y borraba por su cuenta).
+    if (abierto_ == carpeta) {
+        sucio_ = false;
+        cerrar();
+    }
     std::string err;
     if (!store_.borrar(carpeta.toStdString(), &err)) {
         emit notify("No se pudo borrar: " + QString::fromStdString(err), "error");
         return false;
     }
-    if (abierto_ == carpeta) cerrar();
     emit listaChanged();
     return true;
 }
@@ -1067,8 +1077,6 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
 void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
                                       std::function<void(const QVariantMap&)> luego) {
     if (sala_ == nullptr) return luego(QVariantMap{{"ok", false}, {"motivo", "La sala no está disponible."}});
-    const QString ruta =
-        QString("/api/v1/publico-link?target=") + (remoto ? "remote" : "local") + "&conClave=1";
     const QString codigo = quien.value("codigo").toString();
     // El nombre y la fecha salen del evento; el enlace, del gateway.
     const QString nombreEvento = e_.nombre.empty() ? abierto_ : QString::fromStdString(e_.nombre);
@@ -1077,14 +1085,15 @@ void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
     if (!e_.huso.empty()) cuandoTexto += " (" + QString::fromStdString(e_.huso) + ")";
     const QString instante = cuando();
 
-    sala_->client().get(
-        ruta, [luego, quien, codigo, nombreEvento, cuandoTexto, instante](bool ok, const QJsonObject& r) {
-            if (!ok || !r.value("ok").toBool())
+    // El mismo enlace de la página del público (modelo: sala::EnlacesSala).
+    sala_->enlaces().publico(
+        remoto, [luego, quien, codigo, nombreEvento, cuandoTexto, instante](const sala::Enlace& e) {
+            if (!e.ok)
                 return luego(QVariantMap{
                     {"ok", false}, {"motivo", "No pude pedirle el enlace a la sala. Fijate `room_status`."}});
             // El código va en el FRAGMENTO, con la clave: no viaja en la petición
             // ni queda en los registros de ningún servidor por el que pase.
-            const QString url = r.value("url").toString() + "&c=" + codigo;
+            const QString url = QString::fromStdString(e.url) + "&c=" + codigo;
 
             QString t;
             t += "Te esperamos en " + nombreEvento + ".\n\n";
@@ -1101,8 +1110,8 @@ void EventoViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto,
                 t += "\nNota: " + quien.value("nota").toString() + "\n";
 
             QVariantList modulos;
-            for (const QJsonValue& fila : r.value("modules").toArray())
-                modulos.append(fila.toString());
+            for (const std::string& fila : e.filas)
+                modulos.append(QString::fromStdString(fila));
             luego(QVariantMap{{"ok", true}, {"texto", t}, {"url", url}, {"modulos", modulos}});
         });
 }
@@ -1648,8 +1657,9 @@ void EventoViewModel::ejecutarActual() {
                 anotar("No se pudo dar la palabra: no dice a quién", "error");
                 return;
             }
-            if (c->duracionSeg > 0) sala_->speakerTime(quien, c->duracionSeg);
-            sala_->speakerOnAir(quien, true);
+            // Las mismas operaciones que la página Sala y el MCP (sala::OradoresSala).
+            if (c->duracionSeg > 0) sala_->oradores().tiempo(quien.toStdString(), c->duracionSeg);
+            sala_->oradores().alAire(quien.toStdString(), true);
             anotar("Habla " + quien, "ok");
             return;
         }
@@ -1689,20 +1699,19 @@ void EventoViewModel::ejecutarActual() {
                 anotar("No se pudo cargar el discurso: no dice cuál", "error");
                 return;
             }
-            const QString ruta = discursoPathPriv(rel);
-            QFile f(ruta);
-            if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) {
-                anotar("No se pudo abrir el discurso: " + ruta, "error");
+            // La misma carga que la página Teleprompter (sala::Teleprompter): el
+            // discurso de Discursos/ con su ruta de título. `arrancar` en los
+            // datos del cue: por defecto el texto queda LISTO pero parado, que
+            // es lo que se quiere casi siempre (el orador todavia esta
+            // caminando hacia el atril).
+            const Discursos docs(carpetaDeDiscursos());
+            const std::string err =
+                sala_->teleprompter().cargarDiscurso(docs, rel.toStdString(), c->datos.value("arrancar", false));
+            if (!err.empty()) {
+                anotar("No se pudo abrir el discurso: " + rel, "error");
                 emit notify("No encontré el discurso \"" + rel + "\" en la carpeta del evento", "error");
                 return;
             }
-            const QString texto = QString::fromUtf8(f.readAll());
-            QJsonObject cmd{{"titulo", titulo}, {"texto", texto}};
-            // `arrancar` en los datos del cue: por defecto el texto queda
-            // LISTO pero parado, que es lo que se quiere casi siempre (el
-            // orador todavia esta caminando hacia el atril).
-            if (c->datos.value("arrancar", false)) cmd["corriendo"] = true;
-            sala_->client().post("/api/v1/prompter", cmd);
             anotar("Teleprompter: " + rel, "ok");
             return;
         }

@@ -114,6 +114,9 @@ class Despachador : public QObject {
     Q_INVOKABLE QStringList modelosDe(const QString& proveedor) const;
     /// Devuelve el error (vacio si se encolo).
     Q_INVOKABLE QString encargarDesdeUi(const QString& rol, const QString& texto);
+    /// Lo mismo, para la vista que después sigue esa corrida: {error, id}
+    /// (id vacío si no se encoló). Así no tiene que adivinar cuál es.
+    Q_INVOKABLE QVariantMap encargarDesdeUiConId(const QString& rol, const QString& texto);
     Q_INVOKABLE void detener(const QString& id);
     Q_INVOKABLE QVariantMap corridaQml(const QString& id) const;
 
