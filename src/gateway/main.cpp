@@ -730,7 +730,8 @@ int main(int argc, char** argv) {
         // este mismo certificado: acá solo se carga. Con WireGuard no: su puente manda la
         // línea PROXY antes del TLS, y eso lo entiende este terminador. Si ba-web después no
         // arranca, este terminador escucha en el mismo puerto (las URLs no cambian).
-        const bool webPuede = cfg.webActivo && !cfg.wgEnabled && std::filesystem::exists(cfg.webPath);
+        // web.lan (de fábrica, no en Windows: ver Config.hpp, el firewall por programa).
+        const bool webPuede = cfg.webActivo && cfg.webLan && !cfg.wgEnabled && std::filesystem::exists(cfg.webPath);
         if (webPuede && tls->cargarCertificado()) {
             tls->atendidoAfuera(cfg.httpsPort);
             httpsPorBaWeb = true;

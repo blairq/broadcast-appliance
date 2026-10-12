@@ -26,6 +26,13 @@ no cifra nada por cada visitante.
   del gateway; 1.0 y 1.1 se rechazan.
 - Cada escucha tiene su destino (`listen … ssl upstream=127.0.0.1:8787`): la red local va a la
   escucha local del gateway (ICE con el TURN local, como siempre); el túnel, a la del túnel.
+- **En Windows, de fábrica, no** (`web.lan: false`): el firewall de Windows pregunta por cada
+  programa que escucha en la red, y permitir pide ser administrador. `ba-gateway` ya está
+  permitido; `ba-web.exe` sería otro aviso, y si nadie lo acepta el firewall crea una regla
+  «Block» y la red local deja de entrar (pasó en la PC de pruebas). Ahí el HTTPS de la red local
+  lo sigue atendiendo el gateway, como antes; ba-web atiende el túnel (por 127.0.0.1, sin aviso).
+  Con `web {lan: true}` en la configuración del gateway lo atiende ba-web (hay que permitirlo en
+  el firewall).
 - Con WireGuard (cuyo puente manda la línea PROXY antes del TLS) sigue el terminador del gateway.
   Si ba-web no arranca, el terminador escucha en el mismo puerto: las URLs no cambian.
 - Probado: 20 000 pedidos por HTTPS con pipelining en 50 conexiones (~34 000/s), archivo de 5 MB

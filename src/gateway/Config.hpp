@@ -130,6 +130,15 @@ struct Config {
     bool webActivo = true;
     uint16_t webPuerto = 8785;
     int webProcesos = 0; // 0 = auto (los núcleos, hasta 4)
+    // ¿ba-web atiende también el HTTPS de la red local? En Windows, de fábrica no: el
+    // firewall pregunta por cada programa que escucha en la red (y permitir pide ser
+    // administrador); ba-gateway ya está permitido y ba-web sería otro aviso, y si nadie lo
+    // acepta, la red local deja de entrar. Ahí lo sigue atendiendo el gateway, como antes.
+#ifdef _WIN32
+    bool webLan = false;
+#else
+    bool webLan = true;
+#endif
     std::string webPath; // <root>/bin/64bit/ba-web[.exe]
     std::string configDir; // <datos>/Config
     std::string sharesDir; // <datos>/Shares (archivos de los invitados)
@@ -214,6 +223,7 @@ struct Config {
             webActivo = w.value("activo", webActivo);
             webPuerto = w.value("puerto", webPuerto);
             webProcesos = std::clamp(w.value("procesos", webProcesos), 0, 64);
+            webLan = w.value("lan", webLan);
             if (webPuerto == 0) webPuerto = 8785;
         }
         maxUploadMB = j.value("maxUploadMB", maxUploadMB);
