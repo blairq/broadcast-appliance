@@ -226,6 +226,22 @@ void quienes_estan() {
     r = p.resumen();
     CHECK(r.presentes == 2, "el que se fue ya no esta");
     CHECK(r.faltan == 1, "y no vuelve a contar como que falta");
+
+    // Sin canal previsto: lo dice por donde se acredito; el QR no dice nada.
+    Padron q;
+    Asistente s1, s2, s3;
+    s1.nombre = "Mostrador";
+    s2.nombre = "Lobby";
+    s3.nombre = "QR";
+    q.agregar(s1);
+    q.agregar(s2);
+    q.agregar(s3);
+    q.acreditar(q.gente()[0].id, "mostrador", 1);
+    q.acreditar(q.gente()[1].id, "lobby", 2);
+    q.acreditar(q.gente()[2].id, "qr", 3);
+    r = q.resumen();
+    CHECK(r.presentes == 3 && r.presenciales == 1 && r.enLinea == 1 && r.sinDato == 1,
+          "sin canal: mostrador en el lugar, lobby en linea, QR sin dato (la suma cierra)");
 }
 
 // --- 5) Ida y vuelta --------------------------------------------------------

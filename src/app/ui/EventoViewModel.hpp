@@ -464,6 +464,10 @@ class EventoViewModel : public QObject {
     /// Genera las páginas que falten del sitio (no pisa nada): al crear y al guardar.
     void asegurarWebBase();
     std::unique_ptr<evento::Guion> guionCorriendo_;
+    /// El último que se paró: su recorrido sigue sirviendo para el informe y los
+    /// capítulos (se piden al terminar). Se olvida al arrancar otro o cambiar de evento.
+    std::unique_ptr<evento::Guion> ultimoGuion_;
+    const evento::Guion* guionDelInforme() const { return guionCorriendo_ ? guionCorriendo_.get() : ultimoGuion_.get(); }
     QString abierto_;
     bool sucio_ = false;
     bool ensayo_ = false;

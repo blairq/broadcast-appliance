@@ -1388,8 +1388,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                   {"required", {"nombre"}},
                   {"properties",
                    {{"nombre", {{"type", "string"}}},
-                    {"papel", {{"type", "string"}}},
-                    {"canal", {{"type", "string"}}},
+                    {"papel", {{"type", "string"}, {"enum", {"orador", "panelista", "publico", "prensa", "staff"}}}},
+                    {"canal", {{"type", "string"}, {"enum", {"presencial", "online", "sin_definir"}}}},
                     {"contacto", {{"type", "string"}}},
                     {"nota", {{"type", "string"}}},
                     {"vota", {{"type", "boolean"}}}}}}}}}}}};

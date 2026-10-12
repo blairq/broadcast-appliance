@@ -297,7 +297,7 @@ void McpService::registerVentanaTools() {
              {{"ventana",
                {{"type", "string"},
                 {"description", "id de ventana_listar (p. ej. \"principal\", \"pagina:guion\")"}}},
-              {"monitor", {{"type", "string"}, {"description", "nombre o numero del monitor"}}},
+              {"monitor", {{"type", json::array({"string", "integer"})}, {"description", "nombre o numero del monitor"}}},
               {"zona", {{"type", "string"}, {"description", std::string("una de: ") + kZonas}}},
               {"x", {{"type", "integer"}}},
               {"y", {{"type", "integer"}}},

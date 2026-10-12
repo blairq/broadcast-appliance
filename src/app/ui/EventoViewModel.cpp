@@ -585,6 +585,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
         return false;
     }
     parar();
+    ultimoGuion_.reset();
     e_ = std::move(e);
     abierto_ = carpeta;
     sucio_ = false;
@@ -622,6 +623,7 @@ bool EventoViewModel::abrir(const QString& carpeta) {
 void EventoViewModel::cerrar() {
     if (sucio_) guardar();
     parar();
+    ultimoGuion_.reset();
     buzon_.stop();
     e_ = {};
     padron_ = {};
@@ -1012,9 +1014,10 @@ QVariantMap EventoViewModel::capitulos(qint64 recInicioMs) const {
     const auto fallo = [](const QString& motivo) {
         return QVariantMap{{"ok", false}, {"motivo", motivo}, {"capitulos", QVariantList{}}};
     };
-    if (!guionCorriendo_)
+    const evento::Guion* g = guionDelInforme();
+    if (g == nullptr)
         return fallo("El guion no se corrio en esta sesion: no hay de donde sacar los tiempos.");
-    const auto& pasos = guionCorriendo_->recorrido();
+    const auto& pasos = g->recorrido();
     if (pasos.empty()) return fallo("El guion no avanzo ningun cue todavia.");
     if (recInicioMs <= 0)
         return fallo("No se cuando arranco la grabacion. Los capitulos se miden desde ahi, no desde "
@@ -1134,11 +1137,12 @@ QString EventoViewModel::acta(const QJsonArray& votaciones) const {
     // votar no prueba nada.
     t += "## Asistencia\n\n";
     t += QString("- Presentes: **%1** de %2 en el padrón "
-                 "(%3 en el lugar, %4 en línea)\n")
+                 "(%3 en el lugar, %4 en línea%5)\n")
              .arg(r.presentes)
              .arg(r.total)
              .arg(r.presenciales)
-             .arg(r.enLinea);
+             .arg(r.enLinea)
+             .arg(r.sinDato > 0 ? QString(", %1 sin dato de por dónde").arg(r.sinDato) : QString());
     if (r.conVoto > 0)
         t += QString("- Con derecho a voto presentes: **%1** de %2 — **quórum**\n")
                  .arg(r.votoPresente)
@@ -1228,8 +1232,9 @@ QString EventoViewModel::hashActa(const QString& texto) {
 }
 
 QVariantMap EventoViewModel::informe() const {
-    if (!guionCorriendo_) return {};
-    const auto& pasos = guionCorriendo_->recorrido();
+    const evento::Guion* g = guionDelInforme();
+    if (g == nullptr) return {};
+    const auto& pasos = g->recorrido();
     if (pasos.empty()) return {};
 
     // Se agrupa por bloque respetando el ORDEN EN QUE PASO, no el del guion:
@@ -1501,6 +1506,7 @@ void EventoViewModel::arrancar() {
     }
     // Correrlo de verdad lo pone en curso: lo que pase desde ahora es de este evento.
     if (!ensayo_ && !abierto_.isEmpty() && store_.enCurso() != abierto_.toStdString()) iniciarEvento(abierto_);
+    ultimoGuion_.reset();
     guionCorriendo_ = std::make_unique<evento::Guion>(e_);
     guionCorriendo_->arrancar(ahoraMs());
     reloj_.start();
@@ -1536,6 +1542,7 @@ void EventoViewModel::retroceder() {
 
 void EventoViewModel::irA(int bloque, int cue) {
     if (!guionCorriendo_) {
+        ultimoGuion_.reset();
         guionCorriendo_ = std::make_unique<evento::Guion>(e_);
         reloj_.start();
     }
@@ -1563,7 +1570,8 @@ void EventoViewModel::reanudar() {
 void EventoViewModel::parar() {
     if (!guionCorriendo_) return;
     reloj_.stop();
-    guionCorriendo_.reset();
+    guionCorriendo_->terminar(ahoraMs());
+    ultimoGuion_ = std::move(guionCorriendo_);
     emit correChanged();
     emit relojChanged();
 }
@@ -1984,7 +1992,7 @@ QVariantMap EventoViewModel::resumenPadron() const {
     return QVariantMap{
         {"total", r.total},     {"presentes", r.presentes},      {"presenciales", r.presenciales},
         {"enLinea", r.enLinea}, {"confirmados", r.confirmados},  {"faltan", r.faltan},
-        {"conVoto", r.conVoto}, {"votoPresente", r.votoPresente}};
+        {"conVoto", r.conVoto}, {"votoPresente", r.votoPresente}, {"sinDato", r.sinDato}};
 }
 
 bool EventoViewModel::guardarPadronAhora() {

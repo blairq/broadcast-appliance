@@ -82,6 +82,7 @@ Item {
             }
             Text {
                 text: raiz.r.presenciales + " en el lugar · " + raiz.r.enLinea + " en línea"
+                      + (raiz.r.sinDato > 0 ? " · " + raiz.r.sinDato + " sin dato" : "")
                 color: Theme.textDim
                 font.pixelSize: 12
             }

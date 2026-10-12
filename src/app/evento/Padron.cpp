@@ -318,10 +318,16 @@ Resumen Padron::resumen() const {
         if (a.estado != Estado::Llego) continue;
         ++r.presentes;
         if (a.vota) ++r.votoPresente;
-        if (a.canal == Canal::Presencial)
+        // Sin canal previsto, lo dice por dónde se acreditó (el QR sirve en los dos lados).
+        const bool aca = a.canal == Canal::Presencial ||
+                         (a.canal == Canal::SinDefinir && (a.porDonde == "mostrador" || a.porDonde == "rostro"));
+        const bool online = a.canal == Canal::Online || (a.canal == Canal::SinDefinir && a.porDonde == "lobby");
+        if (aca)
             ++r.presenciales;
-        else if (a.canal == Canal::Online)
+        else if (online)
             ++r.enLinea;
+        else
+            ++r.sinDato;
     }
     return r;
 }

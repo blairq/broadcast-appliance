@@ -426,6 +426,13 @@ void Guion::arrancar(int64_t nowMs) {
     entrarA(primera, nowMs);
 }
 
+void Guion::terminar(int64_t nowMs) {
+    if (estado_ == Estado::Pausado) reanudar(nowMs);
+    cerrarPaso(nowMs);
+    pos_ = {};
+    estado_ = Estado::Terminado;
+}
+
 bool Guion::avanzar(int64_t nowMs) {
     if (estado_ == Estado::Parado) {
         arrancar(nowMs);

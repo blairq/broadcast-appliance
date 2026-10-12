@@ -317,6 +317,14 @@ void recorrido() {
     CHECK(r[2].hastaMs == 0, "el que esta corriendo todavia no tiene fin");
     const Posicion segundo{0, 1}; // fuera del CHECK: la coma de las llaves confunde al preprocesador
     CHECK(r[1].pos == segundo, "cada renglon sabe de que cue habla");
+
+    // Parado por el operador (pausado incluso): el cue en curso queda cerrado y el
+    // recorrido sigue ahi para el informe.
+    g.pausar(130000);
+    g.terminar(150000);
+    CHECK(g.estado() == Guion::Estado::Terminado, "parado queda terminado");
+    CHECK(g.recorrido().size() == 3 && g.recorrido()[2].hastaMs == 150000, "terminar cierra el cue en curso");
+    CHECK(g.cueActual() == nullptr, "y no queda parado en ningun cue");
 }
 
 /// La lista de auto-aceptar del lobby: va y vuelve del JSON, y una entrada sin
