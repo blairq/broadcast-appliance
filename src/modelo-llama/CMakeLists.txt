@@ -87,5 +87,30 @@ elseif(NOT WIN32 AND EXISTS "${_ba_llama}/bin/llama-server")
         file(GLOB _ba_libs_todas "${_ba_llama}/lib/*.so*")
     endif()
     install(FILES ${_ba_libs_todas} DESTINATION bin/64bit/llama COMPONENT bundle)
+    # Linux: llama-common y llama-server-impl piden libssl/libcrypto 3 (la release
+    # de Ubuntu las toma del sistema). Van al lado (su RUNPATH es $ORIGIN): las de
+    # extern/pinggy, ya vendoreadas y con versión fija (OpenSSL 3.x trae OPENSSL_3.0.0).
+    if(NOT APPLE)
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+            set(_ba_ossl "${CMAKE_SOURCE_DIR}/extern/pinggy/linux-aarch64")
+        else()
+            set(_ba_ossl "${CMAKE_SOURCE_DIR}/extern/pinggy/linux-x86_64")
+        endif()
+        if(EXISTS "${_ba_ossl}/libssl.so.3" AND EXISTS "${_ba_ossl}/libcrypto.so.3")
+            install(PROGRAMS "${_ba_ossl}/libssl.so.3" "${_ba_ossl}/libcrypto.so.3" DESTINATION bin/64bit/llama
+                    COMPONENT bundle)
+            find_program(BA_PATCHELF_LLAMA patchelf)
+            if(BA_PATCHELF_LLAMA)
+                install(CODE "
+                    foreach(_l libssl.so.3 libcrypto.so.3)
+                        execute_process(COMMAND \"${BA_PATCHELF_LLAMA}\" --set-rpath \"\\\$ORIGIN\"
+                                        \"\${CMAKE_INSTALL_PREFIX}/bin/64bit/llama/\${_l}\")
+                    endforeach()
+                " COMPONENT bundle)
+            endif()
+        else()
+            message(WARNING "llama-server: falta libssl/libcrypto en ${_ba_ossl} ('make deps-pinggy'): no va a arrancar")
+        endif()
+    endif()
 endif()
 message(STATUS "ba-modelo (llama.cpp): ${_ba_llama}")
