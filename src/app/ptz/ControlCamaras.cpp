@@ -7,6 +7,7 @@
 #include "emision/BroadcastEngine.hpp"
 #include "emision/InputSpecs.hpp"
 #include "net/Credentials.hpp"
+#include "ptz/Interlock.hpp"
 #include "ptz/OnvifBusqueda.hpp"
 #include "ptz/Posiciones.hpp"
 #include "ptz/PtzBackend.hpp"
@@ -984,6 +985,13 @@ bool ControlCamaras::alAire(const QString& entrada) const {
 
 QVariantMap ControlCamaras::interlock() const {
     return {{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}};
+}
+
+QString ControlCamaras::chequearMovimiento(const QString& entrada, bool forzar, const QString& modo) const {
+    // alAire() recorre las escenas: solo se pregunta si el interlock puede frenar.
+    if (entrada.isEmpty() || !interlockActivo_ || forzar) return {};
+    return motivoInterlock(entrada, alAire(entrada), AjusteInterlock{interlockActivo_, seguirSuavePermitido_}, forzar,
+                           modo);
 }
 
 void ControlCamaras::setInterlock(const QVariantMap& c) {

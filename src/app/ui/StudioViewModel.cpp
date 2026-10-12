@@ -982,7 +982,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Las bancas presenciales de la fila de oradores (asamblea/Bancas).
     {
         asamblea::Bancas::Ganchos g;
-        g.camaraAlAire = [this](const std::string& c) { return camaras_->alAire(QString::fromStdString(c)); };
+        // La regla del interlock es la de ControlCamaras (respeta su ajuste), no solo «está al aire».
+        g.camaraAlAire = [this](const std::string& c) {
+            return !camaras_->chequearMovimiento(QString::fromStdString(c)).isEmpty();
+        };
         g.irAPosicion = [this](const std::string& c, const std::string& p) {
             const QVariantMap r = camaras_->irAPosicion(QString::fromStdString(c), QString::fromStdString(p), -1);
             return r.value("ok").toBool() ? std::string() : r.value("error").toString().toStdString();

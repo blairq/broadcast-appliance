@@ -13,6 +13,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"
+#include "ptz/Interlock.hpp"
 #include "ui/Seguidor.hpp"
 #include "ui/StudioViewModel.hpp"
 
@@ -46,8 +47,10 @@ void McpService::registerPtzTools() {
                       "Y «Mejorar imagen».");
     const QPointer<ptz::ControlCamaras> c = cc;
     // Interlock: la cámara AL AIRE no se mueve por pedido de algo automático.
-    // Con `forzar` igual pasa por la confirmación de aire (McpAire). El
-    // `ptz_seguir` en modo suave puede seguir si el interlock lo permite.
+    // La regla es la del modelo (ControlCamaras::chequearMovimiento), la misma
+    // que consultan las páginas antes de preguntarle al operador. Con `forzar`
+    // igual pasa por la confirmación de aire (McpAire). El `ptz_seguir` en modo
+    // suave puede seguir si el interlock lo permite.
     const auto conInterlock = [c](Tool& t) {
         if (t.inputSchema.contains("properties"))
             t.inputSchema["properties"]["forzar"] = {
@@ -57,14 +60,15 @@ void McpService::registerPtzTools() {
         const std::string nombre = t.name;
         t.run = [c, run, nombre](const json& a, Done done) {
             if (c) {
-                const QString e = QString::fromStdString(a.value("entrada", std::string()));
-                const QVariantMap il = c->interlock();
-                const bool suave = nombre == "ptz_seguir" && a.value("modo", std::string()) == "suave" &&
-                                   il.value("seguir_suave_permitido").toBool();
-                if (!e.isEmpty() && il.value("activo").toBool() && c->alAire(e) && !a.value("forzar", false) && !suave) {
-                    ToolResult r = ToolResult::error("La camara «" + e.toStdString() +
-                                                     "» esta AL AIRE: moverla se ve. Usá otra camara, o `forzar`: true "
-                                                     "(pide confirmacion al operador).");
+                const QString e = qarg(a, "entrada");
+                const QString modo = nombre == "ptz_seguir" && a.value("modo", std::string()) == "suave"
+                                         ? QString::fromLatin1(ptz::kMovimientoSeguirSuave)
+                                         : QString();
+                const QString motivo = c->chequearMovimiento(e, a.value("forzar", false), modo);
+                if (!motivo.isEmpty()) {
+                    ToolResult r = ToolResult::error(motivo.toStdString() +
+                                                     " Usá otra camara, o `forzar`: true (pide confirmacion al "
+                                                     "operador).");
                     r.structured = json{{"camara_al_aire", true}};
                     return done(r);
                 }
