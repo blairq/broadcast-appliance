@@ -73,6 +73,26 @@ int main() {
         CHECK(!c.setRecinto({{"columnas", 2}}).empty(), "achicar la grilla con una banca afuera: error y no cambia");
         CHECK(Cuerpo(dir / "cuerpo.json").recinto()["columnas"] == 3, "el recinto se guarda");
     }
+    {
+        // El Cuerpo avisa él mismo cada cambio (la vista no depende del llamador):
+        // una vez por operación, y la importación una sola vez, no por fila.
+        Cuerpo c(dir / "cuerpo.json");
+        int avisos = 0;
+        c.alCambiar([&avisos]() { ++avisos; });
+        c.setNombre("Consejo");
+        CHECK(avisos == 1, "setNombre avisa");
+        std::string err;
+        const std::string id = c.guardar({{"nombre", "Rita"}, {"banca", "9"}}, &err);
+        CHECK(avisos == 2, "guardar avisa");
+        CHECK(c.guardar({{"nombre", "Otra"}, {"banca", "9"}}, &err).empty() && avisos == 2, "un guardar que falla no avisa");
+        CHECK(c.validar(id, "op") && avisos == 3, "validar avisa");
+        CHECK(!c.setRecinto({{"filas", 0}, {"columnas", 3}}).empty() && avisos == 3, "un recinto inválido no avisa");
+        CHECK(c.setRecinto({{"distribucion", "lista"}}).empty() && avisos == 4, "cambiar el recinto avisa");
+        c.importarCsv(dir / "p.csv", false);
+        CHECK(avisos == 5, "importar avisa una sola vez");
+        CHECK(c.borrar(id) && avisos == 6, "borrar avisa");
+        CHECK(!c.borrar(id) && avisos == 6, "borrar a nadie no avisa");
+    }
     CHECK(Cuerpo::escribirPlantilla(dir / "x" / "plantilla.csv"), "plantilla de ejemplo");
     fs::remove_all(dir);
     std::printf(fallas ? "\n%d FALLAS\n" : "\nTODO OK\n", fallas);

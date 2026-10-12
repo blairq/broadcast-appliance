@@ -2915,7 +2915,6 @@ void McpService::registerTools() {
                          {"properties", {{"archivo", {{"type", "string"}}}, {"reemplazar", {{"type", "boolean"}}}}}};
         t.run = [&vm](const json& a, Done done) {
             const json r = vm.cuerpo().cuerpo().importarCsv(a.value("archivo", std::string()), a.value("reemplazar", false));
-            emit vm.cuerpo().cambio();
             done(ToolResult().data(r));
         };
         core_.addTool(std::move(t));
@@ -3091,7 +3090,6 @@ void McpService::registerTools() {
         t.run = [&vm](const json& a, Done done) {
             const std::string e = vm.cuerpo().cuerpo().setRecinto(a);
             if (!e.empty()) return done(ToolResult::error(e));
-            emit vm.cuerpo().cambio();
             done(ToolResult().data(vm.cuerpo().cuerpo().recinto()));
         };
         core_.addTool(std::move(t));
