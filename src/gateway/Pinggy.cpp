@@ -346,6 +346,13 @@ void PinggySupervisor::leerLog() {
     in.read(nuevo.data(), static_cast<std::streamsize>(nuevo.size()));
     nuevo.resize(static_cast<size_t>(in.gcount()));
     logOffset_ = static_cast<std::uintmax_t>(desde) + nuevo.size();
+    // Ya leído: si pasa de 4 MiB se vacía (ba-pinggy escribe en modo agregar, así que sigue
+    // al final del archivo vacío). El estado ya está en memoria: no se pierde nada.
+    if (logOffset_ > (4u << 20)) {
+        std::error_code ec;
+        std::filesystem::resize_file(cfg_.logPath, 0, ec);
+        if (!ec) logOffset_ = 0;
+    }
     pendiente_ += nuevo;
     if (pendiente_.size() > 65536) pendiente_.erase(0, pendiente_.size() - 65536);
 

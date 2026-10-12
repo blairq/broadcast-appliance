@@ -237,6 +237,7 @@ struct Estado {
     bool fatal = false;       // y no tiene sentido reintentar
     std::string ultimoError;
     std::chrono::steady_clock::time_point ultimoUso{};
+    std::string ultimasVivas; // «"numLiveConnections":N» de la última línea de uso anotada
     // "listo"/"reconectado" esperan un momento al mapa de forwardings (llega justo
     // después del aviso de establecido) para decir qué URL es de cada forwarding.
     const char* pendiente = nullptr; // "listo" o "reconectado"
@@ -479,11 +480,19 @@ void cbErrorTunel(pinggy_void_p_t ud, pinggy_ref_t, pinggy_uint32_t, pinggy_cons
 
 void cbUso(pinggy_void_p_t ud, pinggy_ref_t, pinggy_const_char_p_t uso) {
     auto* e = static_cast<Estado*>(ud);
-    // Como mucho uno cada 5 s: el gateway no necesita más, y el log tampoco.
-    auto ahora = std::chrono::steady_clock::now();
-    if (e->ultimoUso.time_since_epoch().count() && ahora - e->ultimoUso < std::chrono::seconds(5)) return;
-    e->ultimoUso = ahora;
+    // Al log solo si cambió la cantidad de conexiones vivas (como mucho uno cada 5 s) o, si
+    // no, uno por minuto: antes era uno cada 5 s siempre (~4 MB por día con la caja prendida).
     std::string u = uso ? uso : "";
+    std::string vivas;
+    if (const auto p = u.find("\"numLiveConnections\":"); p != std::string::npos)
+        vivas = u.substr(p, u.find_first_of(",}", p) - p);
+    auto ahora = std::chrono::steady_clock::now();
+    const auto desde = ahora - e->ultimoUso;
+    const bool primera = !e->ultimoUso.time_since_epoch().count();
+    if (!primera && desde < std::chrono::seconds(5)) return;
+    if (!primera && vivas == e->ultimasVivas && desde < std::chrono::seconds(60)) return;
+    e->ultimoUso = ahora;
+    e->ultimasVivas = vivas;
     if (u.size() > 2 && u.front() == '{' && u.back() == '}')
         emitir("{\"ev\":\"uso\"," + u.substr(1));
 }

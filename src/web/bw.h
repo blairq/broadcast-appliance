@@ -189,6 +189,12 @@ void log_open(const char* path);
 void log_msg(const char* nivel, const char* fmt, ...);
 void access_open(const char* path);
 void access_line(const char* line);
+/* El worker manda sus líneas al master por este pipe (no bloqueante; si se llena, se tiran). */
+void log_pipe_worker(intptr_t fd);
+/* El worker de Windows: hay registro de accesos (lo escribe el master), sin abrir el archivo. */
+void access_marcar(int si);
+/* El master escribe (y rota) lo que le llegó por el pipe. */
+void log_master_volcar(const char* datos, size_t n);
 
 /* ---- gzip ---- */
 bw_blob* gz_compress(const char* data, size_t len, int level);

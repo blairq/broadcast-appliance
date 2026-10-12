@@ -62,6 +62,24 @@ python3 src/web/tests/ataques.py /tmp/ba-web-asan --fuzz 20000
 29 de 29 y 20 000 pedidos rotos sin errores de memoria. Con 3 000 conexiones mudas encima
 (más del doble de la capacidad) la gente real sigue entrando.
 
+## Registro (que no trabe ni llene el disco)
+
+- Los workers **no escriben archivos**: mandan cada línea al master por un pipe no bloqueante.
+  Si el pipe está lleno (el disco anda lento, o un ataque genera mucho), la línea se tira y
+  se cuenta («se perdieron N líneas»); el worker nunca espera. Probado: con el master
+  congelado (nadie vacía el pipe) siguió a ~81 000 pedidos/s sin un error.
+- Escribe el master (que no atiende a nadie) y **rota**: `Logs/ba-web.log` a los 5 MiB,
+  el registro de accesos (apagado de fábrica) a los 20 MiB; quedan el actual, `.1` y `.2`.
+  Probado: 900 000 pedidos con el registro de accesos prendido → tres archivos, ~49 MB.
+- Nada se anota por conexión ni por pedido (salvo el registro de accesos, si se prende).
+  Lo que se repite se resume: un worker que se cae seguido deja una línea cada 10 s; «sin
+  descriptores», una cada 10 s.
+- La salida cruda (`Logs/ba-web.log.salida`: errores antes de abrir el log) se vacía al
+  relanzar si pasa de 1 MiB.
+- pinggy: la línea de uso va al log solo si cambió la cantidad de conexiones o una vez por
+  minuto (antes, cada 5 s: ~4 MB por día), y el gateway vacía `pinggy.log` al pasar los 4 MiB
+  (después de leerlo; ba-pinggy escribe en modo agregar y sigue al final).
+
 ## Configuración
 
 La genera el gateway; la sintaxis es un subconjunto de la de nginx (ver `src/web/conf.c`):

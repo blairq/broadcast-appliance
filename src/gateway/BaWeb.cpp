@@ -99,7 +99,8 @@ bool WebSupervisor::start() {
     }
     std::filesystem::create_directories(cfg_.dir, ec);
     setEventoDir("");
-    if (!escribirAtomico(confPath_, armarConf(cfg_, aliasPath_, ""))) {
+    // ba-web escribe (y rota: 5 MiB, tres archivos) su propio log; lo de stderr va aparte.
+    if (!escribirAtomico(confPath_, armarConf(cfg_, aliasPath_, cfg_.logPath))) {
         log_.warn("ba-web: no se pudo escribir " + confPath_ + "; el túnel va directo al gateway", -1);
         return false;
     }
@@ -133,7 +134,11 @@ bool WebSupervisor::spawn() {
     o.envSet["BA_WEB_CLAVE"] = cfg_.clave; // por el entorno: por la línea de comandos se vería en `ps`
     o.killWithParent = true;
     o.hideWindow = true;
-    o.outputFile = cfg_.logPath;
+    // La salida cruda (solo errores antes de abrir su log, o un aborto): aparte y con tope.
+    const std::filesystem::path salida = cfg_.logPath + ".salida";
+    std::error_code ec;
+    if (std::filesystem::file_size(salida, ec) > (1u << 20) && !ec) std::filesystem::resize_file(salida, 0, ec);
+    o.outputFile = salida;
     std::lock_guard<std::mutex> l(procLock_);
     std::string err;
     if (!ba::platform::Process::spawn(o, proc_, &err)) {

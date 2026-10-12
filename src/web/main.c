@@ -23,6 +23,8 @@
 #ifndef _WIN32
 #include <errno.h>
 #include <sys/resource.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -80,10 +82,16 @@ typedef struct {
     int64_t desde;
 } wslot;
 
+static int g_log_pipe[2] = {-1, -1};
+
 static pid_t lanzar(const bw_conf* c, bw_sock* ls, int n, pid_t master) {
     const pid_t pid = fork();
     if (pid != 0) return pid;
-    /* el worker */
+    /* el worker: su registro va al master por el pipe (no escribe archivos) */
+    if (g_log_pipe[1] >= 0) {
+        close(g_log_pipe[0]);
+        log_pipe_worker(g_log_pipe[1]);
+    }
     signal(SIGTERM, al_salir_worker);
     signal(SIGQUIT, al_salir_worker);
     signal(SIGINT, SIG_IGN);
@@ -145,6 +153,11 @@ static int correr(const char* conf_path, int64_t padre) {
     signal(SIGQUIT, al_salir);
     signal(SIGHUP, al_releer);
     signal(SIGPIPE, SIG_IGN);
+    if (pipe(g_log_pipe) == 0) {
+        fcntl(g_log_pipe[0], F_SETFL, fcntl(g_log_pipe[0], F_GETFL, 0) | O_NONBLOCK);
+        fcntl(g_log_pipe[0], F_SETFD, FD_CLOEXEC);
+        fcntl(g_log_pipe[1], F_SETFD, FD_CLOEXEC);
+    }
     const pid_t yo = getpid();
     wslot w[MAXW];
     memset(w, 0, sizeof w);
@@ -166,8 +179,21 @@ static int correr(const char* conf_path, int64_t padre) {
                 const int de_ahora = w[i].gen == gen;
                 w[i].pid = 0;
                 if (de_ahora && !g_salir) {
-                    if (WIFSIGNALED(st)) log_msg("warn", "el worker %d se cayó (señal %d): se relanza", (int)p, WTERMSIG(st));
-                    else log_msg("warn", "el worker %d terminó (código %d): se relanza", (int)p, WEXITSTATUS(st));
+                    /* uno por cada 10 s; si se caen seguido, un resumen (no llena el disco) */
+                    static int64_t ultimo_aviso = 0;
+                    static int callados = 0;
+                    if (now_ms() - ultimo_aviso >= 10000) {
+                        if (WIFSIGNALED(st))
+                            log_msg("warn", "el worker %d se cayó (señal %d): se relanza%s", (int)p, WTERMSIG(st),
+                                    callados ? " (y se relanzaron otros antes, sin anotar)" : "");
+                        else
+                            log_msg("warn", "el worker %d terminó (código %d): se relanza", (int)p, WEXITSTATUS(st));
+                        if (callados) log_msg("warn", "%d relanzamientos más en los últimos 10 s", callados);
+                        ultimo_aviso = now_ms();
+                        callados = 0;
+                    } else {
+                        callados++;
+                    }
                     /* si se cae enseguida una y otra vez, que no gire: espera un poco */
                     if (now_ms() - w[i].desde < 1000) bw_sleep_ms(500);
                     w[i].pid = lanzar(conf, ls, conf->nlisten, yo);
@@ -218,7 +244,20 @@ static int correr(const char* conf_path, int64_t padre) {
                 g_salir = 1;
             }
         }
-        bw_sleep_ms(200);
+        /* lo que mandaron los workers, al archivo (acá sí se puede esperar al disco); se
+           espera en el pipe, así se vacía apenas llega algo */
+        if (g_log_pipe[0] >= 0) {
+            struct pollfd pf = {g_log_pipe[0], POLLIN, 0};
+            if (poll(&pf, 1, 100) > 0)
+                for (;;) {
+                    char tmp[65536];
+                    const ssize_t r = read(g_log_pipe[0], tmp, sizeof tmp);
+                    if (r <= 0) break;
+                    log_master_volcar(tmp, (size_t)r);
+                }
+        } else {
+            bw_sleep_ms(100);
+        }
     }
     for (int i = 0; i < MAXW; i++)
         if (w[i].pid) kill(w[i].pid, SIGTERM);
@@ -259,8 +298,10 @@ static int correr_worker(const char* conf_path, int64_t master) {
     bw_conf* conf = (bw_conf*)calloc(1, sizeof *conf);
     char err[512];
     if (conf_load(conf_path, conf, err, sizeof err)) return 1;
-    log_open(conf->error_log);
-    access_open(conf->access_log);
+    /* el registro va al master por el pipe de stderr (no se abren los archivos: si el worker
+       los tuviera abiertos, el master no los podría rotar) */
+    log_pipe_worker((intptr_t)GetStdHandle(STD_ERROR_HANDLE));
+    access_marcar(conf->access_log[0] != 0);
     HANDLE in = GetStdHandle(STD_INPUT_HANDLE);
     bw_sock ls[BW_MAX_LISTEN];
     for (int i = 0; i < conf->nlisten; i++) {
@@ -283,6 +324,8 @@ typedef struct {
     int64_t desde;
 } wslot;
 
+static HANDLE g_log_r = NULL, g_log_w = NULL;
+
 static int lanzar_win(const char* conf_path, bw_sock* ls, int n, wslot* w) {
     wchar_t exe[MAX_PATH];
     GetModuleFileNameW(NULL, exe, MAX_PATH);
@@ -299,8 +342,8 @@ static int lanzar_win(const char* conf_path, bw_sock* ls, int n, wslot* w) {
     si.cb = sizeof si;
     si.dwFlags = STARTF_USESTDHANDLES;
     si.hStdInput = rd;
-    si.hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-    si.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    si.hStdOutput = g_log_w ? g_log_w : GetStdHandle(STD_OUTPUT_HANDLE);
+    si.hStdError = g_log_w ? g_log_w : GetStdHandle(STD_ERROR_HANDLE);
     PROCESS_INFORMATION pi;
     if (!CreateProcessW(exe, linea, NULL, NULL, TRUE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
         CloseHandle(rd);
@@ -330,6 +373,7 @@ static int correr(const char* conf_path, int64_t padre) {
         return 1;
     }
     log_open(conf->error_log);
+    access_open(conf->access_log);
     bw_sock ls[BW_MAX_LISTEN];
     for (int i = 0; i < conf->nlisten; i++) {
         ls[i] = sock_listen(conf->listen[i].host, conf->listen[i].port, err, sizeof err);
@@ -339,6 +383,11 @@ static int correr(const char* conf_path, int64_t padre) {
         }
     }
     SetConsoleCtrlHandler(al_ctrl, TRUE);
+    {
+        SECURITY_ATTRIBUTES sa = {sizeof sa, NULL, TRUE};
+        if (CreatePipe(&g_log_r, &g_log_w, &sa, 1 << 16)) SetHandleInformation(g_log_r, HANDLE_FLAG_INHERIT, 0);
+        else g_log_r = g_log_w = NULL;
+    }
     /* los workers mueren con el master: un Job que los cierra al cerrarse */
     HANDLE job = CreateJobObjectW(NULL, NULL);
     if (job) {
@@ -371,7 +420,14 @@ static int correr(const char* conf_path, int64_t padre) {
             log_msg("warn", "el gateway ya no está: se cierra");
             break;
         }
-        bw_sleep_ms(250);
+        DWORD hay = 0;
+        while (g_log_r && PeekNamedPipe(g_log_r, NULL, 0, NULL, &hay, NULL) && hay) {
+            char tmp[16384];
+            DWORD leidos = 0;
+            if (!ReadFile(g_log_r, tmp, hay < sizeof tmp ? hay : (DWORD)sizeof tmp, &leidos, NULL) || !leidos) break;
+            log_master_volcar(tmp, leidos);
+        }
+        bw_sleep_ms(100);
     }
     for (int i = 0; i < nw; i++)
         if (w[i].proc) TerminateProcess(w[i].proc, 0);

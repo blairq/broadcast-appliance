@@ -466,18 +466,133 @@ int fs_realpath(const char* path, char* out, size_t outlen) {
 /* ------------------------------------------------------------------------- */
 /* Registro                                                                  */
 /* ------------------------------------------------------------------------- */
+/*
+ * Nada de esto puede trabar a un worker ni llenar el disco:
+ *   - El worker NO escribe archivos: manda cada línea al master por un pipe NO bloqueante.
+ *     Si el pipe está lleno (el disco anda lento, un ataque genera mucho), la línea se
+ *     tira y se cuenta; el worker nunca espera. Líneas cortas (< PIPE_BUF): llegan enteras.
+ *   - El master (que no atiende a nadie) las escribe, y rota: a los 5 MiB el archivo pasa a
+ *     .1 y el .1 a .2 (el registro de accesos, 20 MiB). Tope: tres archivos de cada uno.
+ *   - Sin pipe (antes de lanzar workers, o ba-web -t) escribe directo (el master).
+ */
 
-static FILE* g_log = NULL;
-static FILE* g_access = NULL;
+#define LOG_LINEA 480 /* < PIPE_BUF (512 en macOS): cada write llega entero */
+
+typedef struct rotativo {
+    char path[1024];
+    FILE* f;
+    long tope;
+} rotativo;
+
+static rotativo g_err = {"", NULL, 5L << 20};
+static rotativo g_acc = {"", NULL, 20L << 20};
+static int g_hay_acceso = 0;
+static long g_perdidas = 0;
+#ifdef _WIN32
+static HANDLE g_pipe_w = NULL;
+#else
+static int g_pipe_w = -1;
+#endif
+
+static void rot_abrir(rotativo* r) {
+    if (r->path[0] && !r->f) r->f = fopen(r->path, "a");
+}
+static void rot_escribir(rotativo* r, const char* linea, size_t n) {
+    FILE* f = r->f ? r->f : (r->path[0] ? NULL : stderr);
+    if (!f) return;
+    fwrite(linea, 1, n, f);
+    if (n == 0 || linea[n - 1] != '\n') fputc('\n', f);
+    fflush(f);
+    if (r->f && ftell(r->f) > r->tope) {
+        fclose(r->f);
+        r->f = NULL;
+        char a[1100], b[1100];
+        snprintf(a, sizeof a, "%s.1", r->path);
+        snprintf(b, sizeof b, "%s.2", r->path);
+        remove(b);
+        rename(a, b);
+        rename(r->path, a);
+        rot_abrir(r);
+    }
+}
 
 void log_open(const char* path) {
-    if (path && path[0]) g_log = fopen(path, "a");
+    snprintf(g_err.path, sizeof g_err.path, "%s", path ? path : "");
+    rot_abrir(&g_err);
 }
+void access_open(const char* path) {
+    snprintf(g_acc.path, sizeof g_acc.path, "%s", path ? path : "");
+    g_hay_acceso = g_acc.path[0] != 0;
+    rot_abrir(&g_acc);
+}
+
+void log_pipe_worker(intptr_t fd) {
+#ifdef _WIN32
+    g_pipe_w = (HANDLE)fd;
+    DWORD modo = PIPE_READMODE_BYTE | PIPE_NOWAIT;
+    SetNamedPipeHandleState(g_pipe_w, &modo, NULL, NULL);
+#else
+    g_pipe_w = (int)fd;
+    const int fl = fcntl(g_pipe_w, F_GETFL, 0);
+    fcntl(g_pipe_w, F_SETFL, fl | O_NONBLOCK);
+#endif
+}
+
+/* tipo: 'E' (error_log) o 'A' (acceso). */
+static void emitir(char tipo, const char* linea) {
+    size_t n = strlen(linea);
+#ifdef _WIN32
+    const int hay_pipe = g_pipe_w != NULL;
+#else
+    const int hay_pipe = g_pipe_w >= 0;
+#endif
+    if (!hay_pipe) {
+        rot_escribir(tipo == 'A' ? &g_acc : &g_err, linea, n);
+        return;
+    }
+    char buf[LOG_LINEA + 2];
+    if (g_perdidas) {
+        /* primero, cuántas se perdieron (si entra) */
+        const int k = snprintf(buf, sizeof buf, "E(se perdieron %ld líneas del registro: el disco no daba abasto)\n", g_perdidas);
+#ifdef _WIN32
+        DWORD w = 0;
+        if (WriteFile(g_pipe_w, buf, (DWORD)k, &w, NULL) && w == (DWORD)k) g_perdidas = 0;
+#else
+        if (write(g_pipe_w, buf, (size_t)k) == k) g_perdidas = 0;
+#endif
+    }
+    if (n > LOG_LINEA - 1) n = LOG_LINEA - 1;
+    buf[0] = tipo;
+    memcpy(buf + 1, linea, n);
+    buf[n + 1] = '\n';
+#ifdef _WIN32
+    DWORD w = 0;
+    if (!WriteFile(g_pipe_w, buf, (DWORD)(n + 2), &w, NULL) || w != (DWORD)(n + 2)) g_perdidas++;
+#else
+    if (write(g_pipe_w, buf, n + 2) != (ssize_t)(n + 2)) g_perdidas++;
+#endif
+}
+
+/* El master: lo que mandaron los workers, al archivo que corresponde. */
+void log_master_volcar(const char* datos, size_t n) {
+    static char resto[LOG_LINEA * 2];
+    static size_t nresto = 0;
+    for (size_t i = 0; i < n; i++) {
+        if (datos[i] == '\n' || nresto >= sizeof resto - 1) {
+            if (nresto > 1) rot_escribir(resto[0] == 'A' ? &g_acc : &g_err, resto + 1, nresto - 1);
+            nresto = 0;
+            continue;
+        }
+        resto[nresto++] = datos[i];
+    }
+}
+
 void log_msg(const char* nivel, const char* fmt, ...) {
-    FILE* f = g_log ? g_log : stderr;
+    char linea[LOG_LINEA];
     char fecha[32];
     const time_t t = time(NULL);
     struct tm tmv;
+    int k = 0;
 #ifdef _WIN32
     localtime_s(&tmv, &t);
 #else
@@ -485,22 +600,20 @@ void log_msg(const char* nivel, const char* fmt, ...) {
 #endif
     strftime(fecha, sizeof fecha, "%Y-%m-%dT%H:%M:%S", &tmv);
 #ifdef _WIN32
-    fprintf(f, "%s [%s] ba-web[%lu]: ", fecha, nivel, (unsigned long)GetCurrentProcessId());
+    k = snprintf(linea, sizeof linea, "%s [%s] ba-web[%lu]: ", fecha, nivel, (unsigned long)GetCurrentProcessId());
 #else
-    fprintf(f, "%s [%s] ba-web[%d]: ", fecha, nivel, (int)getpid());
+    k = snprintf(linea, sizeof linea, "%s [%s] ba-web[%d]: ", fecha, nivel, (int)getpid());
 #endif
+    if (k < 0 || k >= (int)sizeof linea) k = 0;
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(f, fmt, ap);
+    vsnprintf(linea + k, sizeof linea - (size_t)k, fmt, ap);
     va_end(ap);
-    fputc('\n', f);
-    fflush(f);
+    emitir('E', linea);
 }
-void access_open(const char* path) {
-    if (path && path[0]) g_access = fopen(path, "a");
-}
+
+void access_marcar(int si) { g_hay_acceso = si; }
+
 void access_line(const char* line) {
-    if (!g_access) return;
-    fputs(line, g_access);
-    fputc('\n', g_access);
+    if (g_hay_acceso) emitir('A', line);
 }
