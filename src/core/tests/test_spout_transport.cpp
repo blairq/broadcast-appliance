@@ -168,7 +168,21 @@ void testPlateWhenAbsent() {
 
 } // namespace
 
+// Caso 0: abrir por nombre una región ajena sabe su tamaño (en Windows salía
+// basura de GetFileSizeEx y los canales del gateway no llegaban a la app).
+void testRegionOpenSize() {
+    const wchar_t* name = L"BA.Test.Region.Tam";
+    const std::size_t bytes = 3u * 1280u * 720u * 4u + 4096u;
+    SharedMemoryRegion creada;
+    CHECK(SharedMemoryRegion::create(name, bytes, creada).ok);
+    SharedMemoryRegion abierta;
+    CHECK(SharedMemoryRegion::open(name, abierta).ok);
+    CHECK(abierta.size() >= bytes);
+    CHECK(abierta.size() < bytes + 65536u);
+}
+
 int main() {
+    testRegionOpenSize();
     testMetaRoundTrip();
     testSenderReceiverRoundTrip();
     testNoNewFrame();
