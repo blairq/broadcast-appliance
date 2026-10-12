@@ -689,6 +689,11 @@ int main() {
               "el PIN nuevo vale");
         const json gen = jsonBody(httpReq(aport, "POST", "/api/v1/pin", bearer, "{}"));
         CHECK(gen.value("pin", "").size() == 6, "PIN generado de 6 digitos");
+        // El PIN es uno por día: queda como el de hoy y una sesión nueva el mismo día no lo cambia.
+        CHECK(ba::gateway::SignalingServer::pinDeHoy() == gen.value("pin", ""), "el PIN queda como el de hoy");
+        const json mismo = jsonBody(httpReq(aport, "POST", "/api/v1/pin", bearer, R"({"si_cambio_el_dia":true})"));
+        CHECK(mismo.value("pin", "") == gen.value("pin", "") && !mismo.value("cambio", true),
+              "sesión nueva el mismo día: el mismo PIN");
 
         const json code = jsonBody(httpReq(aport, "POST", "/api/v1/login-code", bearer));
         const std::string c = code.value("code", "");

@@ -513,9 +513,16 @@ int main(int argc, char** argv) {
                  -1);
     }
     std::string roomPin = !cfg.pin.empty() ? cfg.pin : envOrEmpty(kEnvRoomPin);
-    if (roomPin.empty()) {
+    // Sin PIN fijo: el del día. Los reinicios de la sala del mismo día siguen
+    // con el mismo (los enlaces y el PIN que ya se pasaron siguen sirviendo).
+    const bool pinFijo = !roomPin.empty();
+    if (roomPin.empty()) roomPin = ba::gateway::SignalingServer::pinDeHoy();
+    if (!roomPin.empty()) {
+        if (!pinFijo) log.info("auth: PIN de sala: el de hoy");
+    } else {
         if (randomPin(6, roomPin)) {
-            log.info("auth: PIN de sala generado para este arranque: " + roomPin);
+            ba::gateway::SignalingServer::guardarPinDeHoy(roomPin);
+            log.info("auth: PIN de sala nuevo del día: " + roomPin);
         } else {
             log.error("auth: no se pudo generar un PIN; la sala queda cerrada hasta un ChangePin", -1);
         }

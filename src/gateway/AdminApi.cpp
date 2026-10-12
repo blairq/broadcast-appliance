@@ -69,6 +69,7 @@
 #include <cctype>
 #include <chrono>
 #include <cstdio>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
 #include <map>
@@ -79,6 +80,7 @@
 #include "Log.hpp"
 #include "qrcodegen.hpp"
 #include "Room.hpp"
+#include "security/CredentialStore.hpp"
 #include "security/SecretsStore.hpp"
 #include "ShareStore.hpp"
 #include "SignalingServer.hpp"
@@ -92,6 +94,22 @@ namespace ba::gateway {
 using json = nlohmann::json;
 
 namespace {
+
+/// La fecha local de hoy (AAAA-MM-DD): el PIN de la sala cambia una vez por día.
+std::string hoyLocal() {
+    const std::time_t t = std::time(nullptr);
+    std::tm tm{};
+#if defined(_WIN32)
+    localtime_s(&tm, &t);
+#else
+    localtime_r(&t, &tm);
+#endif
+    char buf[16];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm);
+    return buf;
+}
+
+constexpr const char* kPinDelDia = "sala-pin-del-dia";
 
 /// El reloj de pared, para fechar lo que entra por aca.
 inline std::int64_t nowMsAdmin() {
@@ -202,8 +220,23 @@ std::string SignalingServer::changePin(const std::string& pin) {
     auth_.setPin(p);
     const json snap = room_.snapshot();
     room_.setHostInfo(p, snap.value("guestUrl", ""));
+    guardarPinDeHoy(p); // los reinicios de la sala de hoy siguen con este
     log_.info("control: PIN de la sala cambiado");
     return p;
+}
+
+std::string SignalingServer::pinDeHoy() {
+    std::string datos;
+    if (!ba::security::CredentialStore::bundle().read(kPinDelDia, datos)) return {};
+    const json j = json::parse(datos, nullptr, false);
+    if (!j.is_object() || j.value("fecha", "") != hoyLocal()) return {};
+    const std::string pin = j.value("pin", "");
+    return pin.size() >= 4 && pin.size() <= 32 ? pin : std::string();
+}
+
+void SignalingServer::guardarPinDeHoy(const std::string& pin) {
+    if (pin.empty()) return;
+    ba::security::CredentialStore::bundle().write(kPinDelDia, json{{"fecha", hoyLocal()}, {"pin", pin}}.dump());
 }
 
 void SignalingServer::handleAdmin(long long fd, const std::string& method, const std::string& path,
@@ -994,12 +1027,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             sendErr(fd, 400, "pin");
             return;
         }
+        // {"si_cambio_el_dia": true}: solo si el PIN vigente no es el de hoy
+        // (al empezar una sesión en vivo: el mismo día, el mismo PIN).
+        if (pin.empty() && req.value("si_cambio_el_dia", false)) {
+            const std::string vigente = room_.snapshot().value("pin", "");
+            if (!vigente.empty() && vigente == pinDeHoy()) {
+                sendJson(fd, 200, json{{"ok", true}, {"pin", vigente}, {"cambio", false}});
+                return;
+            }
+        }
         const std::string now = changePin(pin);
         if (now.empty()) {
             sendErr(fd, 500, "entropy");
             return;
         }
-        sendJson(fd, 200, json{{"ok", true}, {"pin", now}});
+        sendJson(fd, 200, json{{"ok", true}, {"pin", now}, {"cambio", true}});
         return;
     }
     if (path == "/api/v1/chat" && method == "POST") {

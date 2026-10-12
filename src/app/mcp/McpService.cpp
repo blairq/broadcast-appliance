@@ -2346,7 +2346,8 @@ void McpService::registerTools() {
         t.title = "Seguridad: estado y ajustes";
         t.category = "config";
         t.description = "Lo que protege los accesos: si el token del MCP se rota en cada arranque, si la sala cambia de "
-                        "PIN al empezar cada sesion en vivo, y el modo en vivo. Con `rotar_token_mcp` o `pin_por_sesion` "
+                        "PIN al empezar una sesion en vivo en un dia nuevo (el PIN es uno por dia: los reinicios "
+                        "del mismo dia lo conservan), y el modo en vivo. Con `rotar_token_mcp` o `pin_por_sesion` "
                         "los cambia (fuera de vivo).";
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"rotar_token_mcp", {{"type", "boolean"}}}, {"pin_por_sesion", {{"type", "boolean"}}}}}};

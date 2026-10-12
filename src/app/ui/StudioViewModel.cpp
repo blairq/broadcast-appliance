@@ -3139,7 +3139,7 @@ void StudioViewModel::publicarEventos() {
         emit caidaChanged();
     }
     // T47: al arrancar una sesión en vivo (el guion corre), la sala cambia de PIN
-    // (los enlaces de sesiones anteriores dejan de servir).
+    // si cambió el día (el PIN es uno por día: el mismo día, el mismo PIN).
     {
         const bool ev = evento_ != nullptr && evento_->property("enVivo").toBool();
         if (ev && !eventoEnVivo_ && conference_) {
@@ -3150,8 +3150,9 @@ void StudioViewModel::publicarEventos() {
             if (pinPorSesion)
                 static_cast<ConferenceViewModel*>(conference_.get())
                     ->client()
-                    .post("/api/v1/pin", QJsonObject{}, [this](bool ok, const QJsonObject& r) {
-                        if (ok) emit notify("Sesión nueva: la sala tiene PIN nuevo (" + r.value("pin").toString() + ")", "info");
+                    .post("/api/v1/pin", QJsonObject{{"si_cambio_el_dia", true}}, [this](bool ok, const QJsonObject& r) {
+                        if (ok && r.value("cambio").toBool(true))
+                            emit notify("Día nuevo: la sala tiene PIN nuevo (" + r.value("pin").toString() + ")", "info");
                     });
         }
         eventoEnVivo_ = ev;
