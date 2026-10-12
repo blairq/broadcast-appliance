@@ -37,6 +37,7 @@
 #include "net/Credentials.hpp"
 #include "net/HttpsClient.hpp"
 #include "ui/ConferenceClient.hpp"
+#include "sala/ParticipantesSala.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -431,13 +432,12 @@ void McpService::registerImageTools() {
         if (!key.empty() && feedImage(vm, key, img)) return cb(img, "video en vivo (" + key + ")");
         if (!p.value("hasAvatar", false)) return cb(QImage(), "sin imagen (camara apagada o sin medios)");
         auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
-        conf->client().getRaw("/api/v1/participants/" + QString::fromStdString(p.value("id", "")) + "/avatar",
-                              [cb](bool ok, const QByteArray& jpeg) {
-                                  QImage a;
-                                  if (ok) a.loadFromData(jpeg, "JPEG");
-                                  cb(a, ok ? "foto de hace unos segundos (sin video en vivo en la app)"
-                                           : "sin imagen");
-                              });
+        // La misma foto que muestran las tarjetas de la GUI (modelo: sala::ParticipantesSala).
+        conf->participantes().foto(p.value("id", std::string()), [cb](bool ok, const QByteArray& jpeg) {
+            QImage a;
+            if (ok) a.loadFromData(jpeg, "JPEG");
+            cb(a, ok ? "foto de hace unos segundos (sin video en vivo en la app)" : "sin imagen");
+        });
     };
     {
         Tool t;

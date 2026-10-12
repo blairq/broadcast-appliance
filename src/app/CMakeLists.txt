@@ -800,6 +800,12 @@ endif()
     target_link_libraries(test_padron PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_padron COMMAND test_padron)
 
+    # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
+    add_executable(test_reglas_sala tests/test_reglas_sala.cpp sala/ReglasSala.cpp)
+    target_include_directories(test_reglas_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_reglas_sala PRIVATE nlohmann_json::nlohmann_json)
+    add_test(NAME test_reglas_sala COMMAND test_reglas_sala)
+
     # El carrusel de la escena: la tira, el salto y las etiquetas.
     add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp
                    carrusel/CarruselStore.cpp)

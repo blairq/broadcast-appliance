@@ -43,13 +43,9 @@ Rectangle {
     /// aire ni tocar el audio aunque el texto se lo pida. Esa contención es la
     /// mitad de por qué existe el rol.
     function armar(texto) {
-        const err = Studio.despachador.encargarDesdeUi("organizador", texto)
-        if (err !== "") { ev.notify(err, "error"); return }
-        // `encargarDesdeUi` devuelve el error, no el id: el de la corrida sale
-        // de la más nueva de este rol, que es la que se acaba de encargar.
-        const cs = Studio.despachador.corridas
-        for (let i = 0; i < cs.length; ++i)
-            if (cs[i].rol === "organizador") { corridaId = cs[i].id; break }
+        const r = Studio.despachador.encargarDesdeUiConId("organizador", texto)
+        if (r.error !== "") { ev.notify(r.error, "error"); return }
+        corridaId = r.id
     }
 
     function descartarLoArmado() {
@@ -59,7 +55,8 @@ Rectangle {
             title: "Descartar el evento armado",
             text: "Se borra «" + cual + "» con su guion y su padrón. No se puede deshacer.",
             accept: "Descartar", reject: "Dejarlo",
-            action: () => { ev.cerrar(); ev.borrar(cual); corridaId = ""; armando = false }
+            // borrar cierra el abierto sin guardarlo antes de tirarlo
+            action: () => { ev.borrar(cual); corridaId = ""; armando = false }
         })
     }
 

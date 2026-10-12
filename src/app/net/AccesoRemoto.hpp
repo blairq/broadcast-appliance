@@ -72,6 +72,12 @@ class AccesoRemoto : public QObject {
     Q_INVOKABLE void refrescar();
     /// Guarda el token de túnel (cifrado). "" si salió bien, si no el motivo.
     Q_INVOKABLE QString guardarToken(const QString& token);
+    /// Guarda el token de túnel y dice si hay que reiniciar la sala para que
+    /// rija: {error, reiniciarAhora}. La sala lo lee al arrancar, así que con
+    /// la sala andando y el túnel prendido hay que reiniciarla; salvo que haya
+    /// cambios de Configuración sin aplicar (`hayCambiosSinAplicar`): aplicarlos
+    /// ya la reinicia. La GUI y el MCP siguen esta misma regla.
+    Q_INVOKABLE QVariantMap guardarTokenTunel(const QString& token, bool hayCambiosSinAplicar);
     Q_INVOKABLE QString borrarToken();
     Q_INVOKABLE QString guardarTokenCloudflare(const QString& token);
     Q_INVOKABLE QString borrarTokenCloudflare();

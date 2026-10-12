@@ -378,18 +378,25 @@ Rectangle {
                          : "Estado desconocido"
                 }
                 function guardarSecreto(campo, esToken) {
-                    const e = esToken ? pg.ar.guardarToken(campo.text) : pg.ar.guardarApiKey(campo.text)
-                    if (e !== "") { Studio.notify(e, "error"); return }
+                    if (!esToken) {
+                        const e = pg.ar.guardarApiKey(campo.text)
+                        if (e !== "") { Studio.notify(e, "error"); return }
+                        campo.text = ""
+                        Studio.notify("API key guardada (cifrada).", "ok")
+                        return
+                    }
+                    // Si hay que reiniciar la sala para que rija lo decide el modelo.
+                    const r = pg.ar.guardarTokenTunel(campo.text, Studio.settings.dirty)
+                    if (r.error !== "") { Studio.notify(r.error, "error"); return }
                     campo.text = ""
-                    if (!esToken) { Studio.notify("API key guardada (cifrada).", "ok"); return }
-                    if (pg.ar.estado.sala && Studio.settings.value("pinggy.activo") === true && !Studio.settings.dirty) {
+                    if (r.reiniciarAhora) {
                         ApplicationWindow.window.confirm({
                             title: "Token guardado",
                             text: "La sala lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
                             accept: "Reiniciar la sala", reject: "Después",
                             action: function() {
-                                const r = Studio.conference.reiniciarSala()
-                                Studio.notify(r === "" ? "La sala se está reiniciando con el token nuevo." : r, r === "" ? "ok" : "error")
+                                const e = Studio.conference.reiniciarSala()
+                                Studio.notify(e === "" ? "La sala se está reiniciando con el token nuevo." : e, e === "" ? "ok" : "error")
                             }
                         })
                     } else {

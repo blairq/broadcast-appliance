@@ -24,6 +24,8 @@ void pedir(ConferenceClient& cliente, const std::string& metodo, const std::stri
     const QString q = QString::fromStdString(ruta);
     if (metodo == "GET") {
         cliente.get(q, alVolver);
+    } else if (metodo == "DELETE") {
+        cliente.del(q, alVolver);
     } else {
         const QJsonObject o =
             QJsonDocument::fromJson(QByteArray::fromStdString(cuerpo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))

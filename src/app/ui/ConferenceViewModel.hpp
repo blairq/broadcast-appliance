@@ -4,8 +4,11 @@
 // Adapta el estado que publica la API de control de B (via ConferenceClient)
 // a lo que necesita la vista QML: propiedades simples, listas (lobby, adentro,
 // archivos, chat) y comandos. No tiene reglas de sala propias: admitir,
-// expulsar, etc. son pedidos a la API, y el resultado vuelve por el flujo de
-// eventos como un snapshot nuevo (una sola fuente de verdad).
+// expulsar, el PIN, el chat, los oradores, los enlaces… son operaciones del
+// modelo (src/app/sala/: ControlSala, ParticipantesSala, OradoresSala,
+// EnlacesSala, PaginaPublico, Teleprompter), las mismas que usa el MCP. Las
+// crea y las tiene este view model porque usan su cliente; el resultado vuelve
+// por el flujo de eventos como un snapshot nuevo (una sola fuente de verdad).
 //
 // Lo unico que hace del lado de A es "tomar" un archivo compartido: lo copia
 // a <datos>/Media (B limpia su carpeta al reiniciar) y lo agrega como fuente
@@ -25,6 +28,15 @@
 
 #include <functional>
 #include <memory>
+
+namespace ba::app::sala {
+class ControlSala;
+class EnlacesSala;
+class OradoresSala;
+class PaginaPublico;
+class ParticipantesSala;
+class Teleprompter;
+} // namespace ba::app::sala
 
 namespace ba::app {
 
@@ -145,9 +157,16 @@ class ConferenceViewModel : public QObject {
     QObject* chat() const;
     /// Cliente de la API de control de B (lo usa tambien el servidor MCP).
     ConferenceClient& client() { return *client_; }
+    /// Las operaciones de la sala (modelo). La vista y el MCP piden por acá.
+    sala::ControlSala& control() { return *control_; }
+    sala::ParticipantesSala& participantes() { return *participantes_; }
+    sala::OradoresSala& oradores() { return *oradores_; }
+    sala::EnlacesSala& enlaces() { return *enlaces_; }
+    sala::PaginaPublico& paginaPublico() { return *paginaPublico_; }
+    sala::Teleprompter& teleprompter() { return *teleprompter_; }
     QVariantMap speakerCfg() const;
     bool speakerMode() const;
-    bool autoIntake() const { return autoIntake_; }
+    bool autoIntake() const;
     QObject* speakers() const;
     QVariantList onAir() const { return onAir_; }
     double clockOffset() const { return clockOffset_; }
@@ -181,6 +200,10 @@ class ConferenceViewModel : public QObject {
     void marcarAtendido(const QString& id) { intakeDone_.insert(id); }
     Q_INVOKABLE void setProfile(const QString& id, const QString& name, const QString& info,
                                 const QString& contact);
+    /// La ficha de un orador desde el diálogo: los datos y, si `tiempo` dice
+    /// algo que se entiende (ver parseDuration), su tiempo para hablar.
+    Q_INVOKABLE void guardarFicha(const QString& id, const QString& name, const QString& info,
+                                  const QString& contact, const QString& tiempo);
     /// "m:ss", "m" (minutos) o "Ns" -> segundos (0 = invalido).
     Q_INVOKABLE int parseDuration(const QString& text) const;
     /// Enlace + QR del tablero de oradores (tablet). Responde con qrReady,
@@ -204,8 +227,6 @@ class ConferenceViewModel : public QObject {
     /// túnel…) sin tocar el resto del programa. Los invitados se cortan y vuelven
     /// a entrar. "" o el error.
     Q_INVOKABLE QString reiniciarSala();
-    /// Lo que hay que decirle al operador según el resultado de la prueba.
-    static QString recomendacionPrueba(const QJsonObject& r);
     /// Elegir con que fuentes te ve/oye el lobby ("" = ninguna).
     Q_INVOKABLE void setOperatorFeed(const QString& video, const QString& audio);
     /// Refresca las listas de fuentes (se agregaron o quitaron fuentes).
@@ -272,19 +293,24 @@ class ConferenceViewModel : public QObject {
    private:
     void onSnapshot();
     void onChatMsg(const QJsonObject& msg, bool live);
-    void participantAction(const QString& id, const QString& action, const QJsonObject& body = {});
 
     AppRuntime& rt_;
     QVariantMap proxy_;
     QVariantMap bloqueosPin_;
 
-    bool autoIntake_ = false;
     int chatRev_ = 0;
 
     std::function<QString(const QString&, const QString&, bool)> intakeSink_;
 
     QSet<QString> intakeDone_; // a quienes ya se les encargo
     std::unique_ptr<ConferenceClient> client_;
+    // Usan el cliente: van después (se destruyen antes).
+    std::unique_ptr<sala::ControlSala> control_;
+    std::unique_ptr<sala::ParticipantesSala> participantes_;
+    std::unique_ptr<sala::OradoresSala> oradores_;
+    std::unique_ptr<sala::EnlacesSala> enlaces_;
+    std::unique_ptr<sala::PaginaPublico> paginaPublico_;
+    std::unique_ptr<sala::Teleprompter> teleprompter_;
     std::unique_ptr<JsonListModel> waiting_;
     std::unique_ptr<JsonListModel> inside_;
     std::unique_ptr<JsonListModel> shares_;

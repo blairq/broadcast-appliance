@@ -16,9 +16,10 @@
 #include "sala/VotacionSala.hpp"
 #include "asamblea/Votaciones.hpp"
 #include "sala/PreguntasSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/PaginaPublico.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 
-#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -39,15 +40,6 @@ namespace {
 
 using json = nlohmann::json;
 
-/// Tope de la imagen de fondo. La bajan TODOS los telefonos del salon: dos
-/// megas por doscientos aparatos son cuatrocientos megas de la red del lugar,
-/// que suele ser el wifi que tambien usa la transmision.
-constexpr qint64 kMaxFondo = 2 * 1024 * 1024;
-
-json aJson(const QJsonObject& o) {
-    return json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-}
-
 } // namespace
 
 void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
@@ -56,37 +48,6 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                      "moderarla y sacarla al aire.");
 
     const auto salaDe = [&vm]() { return static_cast<ConferenceViewModel*>(vm.conference()); };
-
-    /// Todo pasa por B. Si B no esta, se dice y no se inventa una cola vacia:
-    /// «no hay preguntas» y «no puedo ver las preguntas» son cosas muy
-    /// distintas para el que esta por salir al aire.
-    const auto pedir = [salaDe](const QString& metodo, const QString& ruta, const QJsonObject& cuerpo,
-                                Done done, const std::string& textoOk) {
-        ConferenceViewModel* conf = salaDe();
-        if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
-        const auto contestar = [done, textoOk](bool ok, const QJsonObject& r) {
-            if (!ok)
-                return done(ToolResult::error(
-                    "No pude hablar con la sala (gateway). Fijate `room_status`: si esta caida, las "
-                    "preguntas del publico no llegan a ningun lado."));
-            ToolResult res;
-            res.structured = aJson(r);
-            if (!textoOk.empty()) {
-                res.text(textoOk);
-            } else {
-                // Sin texto, el asistente que solo lee `content` no veía nada (el enlace del
-                // QR, por ejemplo). La matriz del QR no: es para dibujarlo.
-                nlohmann::json d = res.structured;
-                if (d.is_object()) d.erase("modules");
-                res.text(d.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
-            }
-            done(res);
-        };
-        if (metodo == "GET")
-            conf->client().get(ruta, contestar);
-        else
-            conf->client().post(ruta, cuerpo, contestar);
-    };
 
     /// Lo que contestó la sala, para el asistente (los errores dicen que mire la sala).
     const auto contestarSala = [](Done done, std::string texto) {
@@ -549,44 +510,41 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
               {"remoto",
                {{"type", "boolean"},
                 {"description", "el enlace por internet en vez del de la red local"}}}}}};
-        t.run = [pedir, salaDe](const json& a, Done done) {
+        t.run = [salaDe](const json& a, Done done) {
             ConferenceViewModel* conf = salaDe();
             if (conf == nullptr) return done(ToolResult::error("La sala no esta disponible en esta sesion."));
-            const bool cambia = a.contains("titulo") || a.contains("cuando") || a.contains("fondo");
-            const QString ruta = QString("/api/v1/publico-link?target=") +
-                                 (a.value("remoto", false) ? "remote" : "local") + "&conClave=1";
-            if (!cambia) return pedir("GET", ruta, {}, std::move(done), {});
-
-            QJsonObject info;
-            if (a.contains("titulo")) info["evento"] = QString::fromStdString(a["titulo"].get<std::string>());
-            if (a.contains("cuando")) info["cuando"] = QString::fromStdString(a["cuando"].get<std::string>());
-            QJsonObject cuerpo{{"info", info}};
-            if (a.contains("fondo")) {
-                const std::string ruta = a["fondo"].get<std::string>();
-                if (ruta.empty()) {
-                    cuerpo["fondo"] = QString();
-                } else {
-                    QFile f(QString::fromStdString(ruta));
-                    if (!f.open(QIODevice::ReadOnly))
-                        return done(ToolResult::error("No pude leer la imagen: " + ruta));
-                    const QByteArray bytes = f.read(kMaxFondo + 1);
-                    if (bytes.size() > kMaxFondo)
-                        return done(ToolResult::error(
-                            "Esa imagen pesa mas de 2 MB. La bajan todos los telefonos del salon: "
-                            "achicala antes."));
-                    cuerpo["fondo"] = QString::fromLatin1(bytes.toBase64());
-                    cuerpo["fondoTipo"] = QString::fromStdString(ruta).endsWith(".png", Qt::CaseInsensitive)
-                                              ? "image/png"
-                                              : "image/jpeg";
-                }
-            }
-            pedir("POST", "/api/v1/publico-info", cuerpo,
-                  [pedir, ruta, done](const ToolResult&) mutable {
-                      // Despues de cambiarla, se devuelve el enlace: quien la
-                      // configura casi siempre quiere el QR a continuacion.
-                      pedir("GET", ruta, {}, std::move(done), {});
-                  },
-                  {});
+            // El enlace y el cambio son operaciones del modelo (sala::EnlacesSala,
+            // sala::PaginaPublico), las mismas que usa la GUI (PublicoViewModel).
+            sala::EnlacesSala* enlaces = &conf->enlaces();
+            const bool remoto = a.value("remoto", false);
+            const auto darEnlace = [enlaces, remoto](Done done) {
+                enlaces->publico(remoto, [done](const sala::Enlace& e) {
+                    if (!e.ok) return done(ToolResult::error(e.mensaje));
+                    ToolResult res;
+                    res.structured = e.respuesta;
+                    // Sin texto, el asistente que solo lee `content` no veía nada (el
+                    // enlace del QR). La matriz del QR no: es para dibujarlo.
+                    json d = e.respuesta;
+                    if (d.is_object()) d.erase("modules");
+                    res.text(d.dump(2, ' ', false, json::error_handler_t::replace));
+                    done(res);
+                });
+            };
+            const auto texto = [&a](const char* k) {
+                return a.contains(k) && a[k].is_string() ? std::optional<std::string>(a[k].get<std::string>())
+                                                         : std::nullopt;
+            };
+            if (!a.contains("titulo") && !a.contains("cuando") && !a.contains("fondo")) return darEnlace(done);
+            const std::string e = conf->paginaPublico().cambiar(
+                texto("titulo"), texto("cuando"), texto("fondo"), [darEnlace, done](const std::string& err, const json&) {
+                    if (!err.empty())
+                        return done(ToolResult::error("No pude hablar con la sala (gateway): " + err +
+                                                      ". Fijate `room_status`."));
+                    // Despues de cambiarla, se devuelve el enlace: quien la
+                    // configura casi siempre quiere el QR a continuacion.
+                    darEnlace(done);
+                });
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core.addTool(std::move(t));
     }

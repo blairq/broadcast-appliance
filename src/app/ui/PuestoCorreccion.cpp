@@ -7,11 +7,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 
 namespace ba::app {
 
 PuestoCorreccion::PuestoCorreccion(ConferenceClient& sala, agent::FlujosTexto& flujos, QObject* parent)
-    : QObject(parent), sala_(sala), flujos_(flujos) {
+    : QObject(parent), sala_(sala), flujos_(flujos), enlaces_(sala) {
     // Varios cambios seguidos (una frase entra y otra sale) van en un solo envío.
     demora_.setSingleShot(true);
     demora_.setInterval(80);
@@ -34,19 +35,14 @@ void PuestoCorreccion::sincronizar() {
 }
 
 void PuestoCorreccion::pedirQr(const QString& target, const QString& /*vista*/, bool /*conClave*/) {
-    if (!sala_.online()) {
-        emit qrListo({}, {}, "La sala no está corriendo", {});
-        return;
-    }
-    sala_.get("/api/v1/correccion-link?target=" + QString(target == "remote" ? "remote" : "local"),
-              [this](bool ok, const QJsonObject& r) {
-                  QStringList filas;
-                  for (const QJsonValue& x : r.value("modules").toArray()) filas << x.toString();
-                  const bool bien = ok && r.value("ok").toBool();
-                  QString msg = r.value("message").toString();
-                  if (!bien && msg.isEmpty()) msg = "La sala no responde";
-                  emit qrListo(bien ? r.value("url").toString() : QString(), filas, msg, {});
-              });
+    // El mismo enlace que da el MCP (subtitulos_puesto): modelo sala::EnlacesSala.
+    QPointer<PuestoCorreccion> yo(this);
+    enlaces_.correccion(target == "remote", [yo](const sala::Enlace& e) {
+        if (!yo) return;
+        QStringList filas;
+        for (const std::string& f : e.filas) filas << QString::fromStdString(f);
+        emit yo->qrListo(QString::fromStdString(e.url), filas, QString::fromStdString(e.mensaje), {});
+    });
 }
 
 } // namespace ba::app

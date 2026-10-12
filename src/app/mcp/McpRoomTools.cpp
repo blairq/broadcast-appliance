@@ -1,10 +1,10 @@
 // ============================================================================
 // src/app/mcp/McpRoomTools.cpp — Sala de videoconferencia y modo oradores
 //
-// La sala vive en el Proceso B; estas herramientas usan la MISMA API de
-// control que la vista Qt y la consola web (ConferenceClient). El estado se lee
-// del snapshot vigente (llega por eventos, sin pedirlo) y las acciones son
-// POST/DELETE a B.
+// La sala vive en el Proceso B. Las acciones son las MISMAS operaciones del
+// modelo que usa la vista Qt (src/app/sala/: ControlSala, ParticipantesSala,
+// OradoresSala, EnlacesSala), y el error que se devuelve es el que contestó la
+// sala. El estado se lee del snapshot vigente (llega por eventos, sin pedirlo).
 // ============================================================================
 
 #include <QBuffer>
@@ -22,6 +22,11 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "sala/CupoSala.hpp"
+#include "sala/ControlSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/OradoresSala.hpp"
+#include "sala/ParticipantesSala.hpp"
+#include "sala/ReglasSala.hpp"
 #include <QMetaObject>
 #include <QCoreApplication>
 #include "mcp/McpService.hpp"
@@ -89,18 +94,6 @@ std::string personFeedKey(const json& p) {
 
 namespace {
 
-json fromQt(const QJsonObject& o) { return toJson(o); }
-
-std::string errorText(const json& reply) {
-    static const std::map<std::string, std::string> kText{{"full", "no hay lugar libre (sala llena)"},
-                                                          {"not_found", "ya no esta en la sala"},
-                                                          {"state", "no aplica en su estado actual"},
-                                                          {"empty", "no hay nadie mas en la fila"},
-                                                          {"offline", "la sala (gateway) no responde"}};
-    const std::string e = reply.value("error", std::string("offline"));
-    const auto it = kText.find(e);
-    return it != kText.end() ? it->second : e;
-}
 
 /// QR (matriz de '0'/'1') -> PNG en base64.
 std::string qrPng(const json& modules) {
@@ -138,12 +131,17 @@ void McpService::registerRoomTools() {
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
     ConferenceClient* client = &conf->client();
 
-    // POST generico a B con el resultado como texto.
-    const auto post = [client](const QString& path, const json& body, const std::string& okText, Done done) {
-        client->post(path, toQt(body), [okText, done](bool ok, const QJsonObject& reply) {
-            done(ok ? ToolResult::ok(okText)
-                    : ToolResult::error("La sala respondio: " + errorText(fromQt(reply))));
-        });
+    // Las operaciones de la sala (modelo): las mismas que usa la GUI.
+    sala::ControlSala& control = conf->control();
+    sala::ParticipantesSala& gente = conf->participantes();
+    sala::OradoresSala& oradores = conf->oradores();
+    sala::EnlacesSala& enlaces = conf->enlaces();
+    // El resultado de una operación como texto: el error, el que contestó la sala.
+    const auto contestar = [](const std::string& okText, Done done) -> sala::Listo {
+        return [okText, done](const std::string& err, const json&) {
+            done(err.empty() ? ToolResult::ok(okText)
+                             : ToolResult::error("La sala respondio: " + sala::explicarError(err)));
+        };
     };
     const auto withPerson = [&vm](const json& a, const char* field, json& p, Done& done) {
         std::string err;
@@ -152,10 +150,6 @@ void McpService::registerRoomTools() {
             return false;
         }
         return true;
-    };
-    const auto partPath = [](const json& p, const char* action) {
-        return "/api/v1/participants/" +
-               QString::fromUtf8(QUrl::toPercentEncoding(QString::fromStdString(p["id"]))) + "/" + action;
     };
     const json personProp = {{"type", "string"},
                              {"description", "Nombre (o prefijo unico) o id de la persona."}};
@@ -198,7 +192,7 @@ void McpService::registerRoomTools() {
              {{"lobby", {{"type", "boolean"}}},
               {"locked", {{"type", "boolean"}}},
               {"cupo", {{"type", "integer"}, {"minimum", 1}, {"maximum", 16}}}}}};
-        t.run = [post, &vm = vm_](const json& a, Done done) {
+        t.run = [&control, contestar, &vm = vm_](const json& a, Done done) {
             // El cupo es una operación del modelo (sala::CupoSala), la misma que usa la GUI.
             if (a.contains("cupo") && !a.contains("lobby") && !a.contains("locked")) {
                 const int n = a.value("cupo", 2);
@@ -213,10 +207,11 @@ void McpService::registerRoomTools() {
                 const std::string e = vm.cupoSala().cambiar(a.value("cupo", 2));
                 if (!e.empty()) return done(ToolResult::error(e));
             }
-            json b = json::object();
-            if (a.contains("lobby")) b["lobby"] = a["lobby"];
-            if (a.contains("locked")) b["locked"] = a["locked"];
-            post("/api/v1/room", b, "Sala actualizada.", done);
+            const auto si = [&a](const char* k) {
+                return a.contains(k) && a[k].is_boolean() ? std::optional<bool>(a[k].get<bool>()) : std::nullopt;
+            };
+            const std::string e = control.entrada(si("lobby"), si("locked"), contestar("Sala actualizada.", done));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }
@@ -230,13 +225,10 @@ void McpService::registerRoomTools() {
         t.inputSchema = {
             {"type", "object"},
             {"properties", {{"pin", {{"type", "string"}, {"description", "4 a 32 caracteres."}}}}}};
-        t.run = [client](const json& a, Done done) {
-            json b = json::object();
-            if (a.contains("pin")) b["pin"] = a["pin"];
-            client->post("/api/v1/pin", toQt(b), [done](bool ok, const QJsonObject& r) {
-                const json j = fromQt(r);
-                done(ok ? ToolResult::ok("PIN nuevo: " + j.value("pin", ""))
-                        : ToolResult::error(errorText(j)));
+        t.run = [&control](const json& a, Done done) {
+            control.cambiarPin(a.value("pin", std::string()), [done](const std::string& err, const json& r) {
+                done(err.empty() ? ToolResult::ok("PIN nuevo: " + r.value("pin", std::string()))
+                                 : ToolResult::error(sala::explicarError(err)));
             });
         };
         core_.addTool(std::move(t));
@@ -261,7 +253,7 @@ void McpService::registerRoomTools() {
                           {{"accion", {{"type", "string"}, {"enum", {"ver", "desbloquear"}}}},
                            {"ip", {{"type", "string"}, {"description", "Solo esta IP (al desbloquear)."}}}}}};
         t.examples = {R"({})", R"({"accion": "desbloquear"})", R"({"accion": "desbloquear", "ip": "190.12.34.56"})"};
-        t.run = [client](const json& a, Done done) {
+        t.run = [&control](const json& a, Done done) {
             const auto mostrar = [done](const json& r, const std::string& antes) {
                 const json b = r.value("bloqueos", json::object());
                 std::string txt = antes;
@@ -280,20 +272,18 @@ void McpService::registerRoomTools() {
                 done(ToolResult::ok(txt).data(b));
             };
             if (a.value("accion", std::string("ver")) == "desbloquear") {
-                json b = json::object();
-                if (a.contains("ip") && a["ip"].is_string() && !a["ip"].get<std::string>().empty()) b["ip"] = a["ip"];
-                client->post("/api/v1/pin/desbloquear", toQt(b), [done, mostrar, b](bool ok, const QJsonObject& r) {
-                    const json j = fromQt(r);
-                    if (!ok) return done(ToolResult::error("La sala respondio: " + errorText(j)));
-                    mostrar(j, b.contains("ip") ? "Desbloqueada " + b["ip"].get<std::string>() + ".\n"
-                                                : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
-                                                      " IP y el bloqueo global.\n");
+                const std::string ip = a.contains("ip") && a["ip"].is_string() ? a["ip"].get<std::string>() : "";
+                control.desbloquearPin(ip, [done, mostrar, ip](const std::string& err, const json& j) {
+                    if (!err.empty()) return done(ToolResult::error("La sala respondio: " + sala::explicarError(err)));
+                    mostrar(j, !ip.empty() ? "Desbloqueada " + ip + ".\n"
+                                           : "Desbloqueadas " + std::to_string(j.value("desbloqueadas", 0)) +
+                                                 " IP y el bloqueo global.\n");
                 });
                 return;
             }
-            client->get("/api/v1/pin/bloqueos", [done, mostrar](bool ok, const QJsonObject& r) {
-                if (!ok) return done(ToolResult::error("La sala (gateway) no respondió."));
-                mostrar(fromQt(r), "");
+            control.verBloqueosPin([done, mostrar](const std::string& err, const json& r) {
+                if (!err.empty()) return done(ToolResult::error("La sala (gateway) no respondió."));
+                mostrar(r, "");
             });
         };
         core_.addTool(std::move(t));
@@ -313,10 +303,10 @@ void McpService::registerRoomTools() {
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Marta"})"};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "requeue"), json::object(), "Vuelve a la fila.", done);
+            oradores.aLaFila(p["id"], contestar("Vuelve a la fila.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -336,10 +326,10 @@ void McpService::registerRoomTools() {
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
         t.examples = {R"({"participant": "Jorge"})"};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "admit"), json::object(), "Adentro.", done);
+            gente.admitir(p["id"], contestar("Adentro.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -354,10 +344,10 @@ void McpService::registerRoomTools() {
                     "esto: dejala en el lobby y avisale por `chat_send`.";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "reject"), json::object(), "Afuera.", done);
+            gente.rechazar(p["id"], contestar("Afuera.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -373,10 +363,10 @@ void McpService::registerRoomTools() {
                     "deshacer esto no.";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "kick"), json::object(), "Listo.", done);
+            gente.sacar(p["id"], contestar("Listo.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -386,15 +376,16 @@ void McpService::registerRoomTools() {
         t.title = "Admitir a todos";
         t.category = "sala";
         t.description = "Hace pasar a todos los que esperan en el lobby, en orden de llegada.";
-        t.run = [&vm, post](const json&, Done done) {
-            int n = 0;
-            for (const auto& p : roomSnapshot(vm).value("participants", json::array())) {
-                if (p.value("state", "") != "waiting") continue;
-                post("/api/v1/participants/" + QString::fromStdString(p["id"]) + "/admit", json::object(), "",
-                     [](ToolResult) {});
-                ++n;
-            }
-            done(ToolResult::ok(std::to_string(n) + " persona(s) admitidas (si habia lugar)."));
+        t.run = [&gente](const json&, Done done) {
+            // La misma operación que el botón «Admitir a todos»: de a uno, en
+            // orden de llegada, y corta al primer «sala llena».
+            gente.admitirATodos([done](int pedidos, int admitidos, const std::string& err) {
+                if (pedidos == 0) return done(ToolResult::ok("No hay nadie esperando en el lobby."));
+                const std::string cuenta = std::to_string(admitidos) + " de " + std::to_string(pedidos);
+                if (err.empty()) return done(ToolResult::ok("Pasaron " + cuenta + "."));
+                const std::string txt = "Pasaron " + cuenta + ". La sala respondio: " + sala::explicarError(err);
+                done(admitidos > 0 ? ToolResult::ok(txt) : ToolResult::error(txt));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -411,10 +402,10 @@ void McpService::registerRoomTools() {
             {"type", "object"},
             {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}, {"default", true}}}}},
             {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "talk"), json{{"on", a.value("on", true)}}, "Listo.", done);
+            gente.hablar(p["id"], a.value("on", true), contestar("Listo.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -429,12 +420,10 @@ void McpService::registerRoomTools() {
                         "a qué va, si es solo de la red local, y su certificado (acme = Let's Encrypt, casa = "
                         "autofirmado) con la fecha en que vence (segundos desde 1970). Más el estado de ACME: último "
                         "error y si está pidiendo ahora.";
-        t.run = [client, &rt](const json&, Done done) {
-            client->get("/api/v1/proxy", [done, &rt](bool ok, const QJsonObject& r) {
-                json out = fromQt(r);
-                out["configuracion"] = rt.gateway().proxy;
-                if (!ok) return done(ToolResult::error("la sala no contestó"));
-                done(ToolResult().data(out));
+        t.run = [&control](const json&, Done done) {
+            control.verProxy([done](const std::string& err, const json& r) {
+                if (!err.empty()) return done(ToolResult::error("la sala no contestó"));
+                done(ToolResult().data(r));
             });
         };
         core_.addTool(std::move(t));
@@ -513,22 +502,32 @@ void McpService::registerRoomTools() {
                   {"clave", {{"type", "string"}, {"description", "la clave (no hace falta para borrar)"}}},
                   {"borrar", {{"type", "boolean"}, {"default", false}}}}},
                 {"required", {"tipo"}}};
-            t.run = [acc](const json& a, Done done) {
+            t.run = [acc, &vm](const json& a, Done done) {
                 if (!acc) return done(ToolResult::error("no disponible"));
                 const std::string tipo = a.value("tipo", std::string());
                 const bool borrar = a.value("borrar", false);
                 const QString clave = QString::fromStdString(a.value("clave", std::string())).trimmed();
                 QString e;
-                if (tipo == "token") e = borrar ? acc->borrarToken() : acc->guardarToken(clave);
+                // Si hay que reiniciar la sala para que el token rija lo decide
+                // el modelo, con la misma regla que Configuración → Acceso remoto.
+                bool reiniciarAhora = false;
+                if (tipo == "token" && !borrar) {
+                    const QVariantMap r =
+                        acc->guardarTokenTunel(clave, static_cast<SettingsModel*>(vm.settings())->dirty());
+                    e = r.value("error").toString();
+                    reiniciarAhora = r.value("reiniciarAhora").toBool();
+                } else if (tipo == "token") e = acc->borrarToken();
                 else if (tipo == "api_key") e = borrar ? acc->borrarApiKey() : acc->guardarApiKey(clave);
                 else if (tipo == "cloudflare") e = borrar ? acc->borrarTokenCloudflare() : acc->guardarTokenCloudflare(clave);
                 else return done(ToolResult::error("tipo: \"token\", \"api_key\" o \"cloudflare\""));
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
                 done(ToolResult::ok(std::string(tipo == "token" ? "Token de túnel de pinggy " : tipo == "cloudflare" ? "Token de Cloudflare " : "API key ") +
                                     (borrar ? "borrado/a." : "guardado/a, cifrado/a en Credenciales/.") +
-                                    (tipo != "api_key" && !borrar ? " Rige al reiniciar la sala (gateway_restart o "
-                                                                  "aplicar Configuración)."
-                                                                : "") +
+                                    (reiniciarAhora ? " La sala lo lee al arrancar y está andando con el túnel "
+                                                      "prendido: reiniciala (gateway_restart) para que rija."
+                                     : tipo != "api_key" && !borrar ? " Rige al reiniciar la sala (gateway_restart o "
+                                                                      "aplicar Configuración)."
+                                                                    : "") +
                                     (acc->clavesIguales()
                                          ? " OJO: el token de túnel y la API key son la MISMA clave. Son dos cosas distintas del "
                                            "panel de pinggy: el token (el del comando del túnel, …@pro.pinggy.io) abre el túnel; la "
@@ -729,8 +728,8 @@ void McpService::registerRoomTools() {
         t.description = "Pide ya a Let's Encrypt el certificado de `host` (o de todos), aunque no esté por vencer. "
                         "Tarda; el resultado se ve en proxy_estado (acme.ultimo_error).";
         t.inputSchema = {{"type", "object"}, {"properties", {{"host", {{"type", "string"}}}}}};
-        t.run = [post](const json& a, Done done) {
-            post("/api/v1/proxy/renovar", json{{"host", a.value("host", std::string())}}, "Pedido: mirá proxy_estado en un rato.", done);
+        t.run = [&control, contestar](const json& a, Done done) {
+            control.renovarProxy(a.value("host", std::string()), contestar("Pedido: mirá proxy_estado en un rato.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -754,23 +753,14 @@ void McpService::registerRoomTools() {
                            {"puertoHttp", {{"type", "integer"}}},
                            {"servicios", {{"type", "array"}}},
                            {"acme", {{"type", "object"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
-            json& p = rt.gateway().proxy;
-            for (const char* k : {"activo", "dominio", "puertoTls", "puertoHttp", "servicios"})
-                if (a.contains(k)) p[k] = a[k];
-            if (a.contains("acme") && a["acme"].is_object())
-                for (const auto& [k, v] : a["acme"].items()) p["acme"][k] = v;
-            if (p.value("activo", false) && p.value("dominio", std::string()).empty())
-                return done(ToolResult::error("falta `dominio`"));
-            if (!rt.save()) return done(ToolResult::error(rt.lastError()));
-            // El reinicio, aparte (esperar el cierre del gateway trababa la interfaz).
-            rt.reiniciarSalaEnElFondo([done, p](const std::string& e) {
-                QMetaObject::invokeMethod(QCoreApplication::instance(), [done, p, e]() {
-                    json r{{"proxy", p}, {"sala_reiniciada", e.empty()}};
-                    if (!e.empty()) r["error"] = e;
-                    done(ToolResult().data(r));
-                }, Qt::QueuedConnection);
+        t.run = [&control, &rt](const json& a, Done done) {
+            // La misma operación que Configuración → Proxy: mezcla, guarda y reinicia la sala.
+            const std::string e = control.configurarProxy(a, [done, &rt](const std::string& err) {
+                json r{{"proxy", rt.gateway().proxy}, {"sala_reiniciada", err.empty()}};
+                if (!err.empty()) r["error"] = err;
+                done(ToolResult().data(r));
             });
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }
@@ -785,18 +775,13 @@ void McpService::registerRoomTools() {
             "parlante: auriculares), y lee su red (rtt, pérdida, jitter, semáforo). Mientras dura, el invitado "
             "escucha el tono y el programa más bajo: avisale antes. Devuelve `recomendacion` en castellano.";
         t.inputSchema = {{"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
-        t.run = [withPerson, partPath, client](const json& a, Done done) {
+        t.run = [withPerson, &gente](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            client->post(
-                partPath(p, "prueba"), QJsonObject{{"ms", 4000}},
-                [done](bool ok, const QJsonObject& reply) {
-                    json r = fromQt(reply);
-                    r["recomendacion"] = ConferenceViewModel::recomendacionPrueba(reply).toStdString();
-                    if (!ok) return done(ToolResult::error(r.value("error", std::string("la sala no pudo hacer la prueba"))));
-                    done(ToolResult().data(r));
-                },
-                15000);
+            gente.prueba(p["id"], [done](const std::string& err, const json& r) {
+                if (!err.empty()) return done(ToolResult::error(err));
+                done(ToolResult().data(r));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -817,10 +802,12 @@ void McpService::registerRoomTools() {
                 {"enum",
                  {"mute-mic", "mute-cam", "unmute-mic", "unmute-cam", "stop-screen", "lower-hand"}}}}}},
             {"required", {"participant", "what"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "request"), json{{"what", a["what"]}}, "Pedido enviado.", done);
+            const std::string e =
+                gente.pedirle(p["id"], a.value("what", std::string()), contestar("Pedido enviado.", done));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }
@@ -838,12 +825,13 @@ void McpService::registerRoomTools() {
                           {{"participant", personProp},
                            {"maximo", {{"type", "string"}, {"enum", {"1080p", "720p", "360p"}}}}}},
                          {"required", {"participant", "maximo"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const std::string m = a.value("maximo", std::string("720p"));
-            post(partPath(p, "request"), json{{"what", m == "1080p" ? "calidad-max" : "calidad-" + m}},
-                 "Pedido enviado: el navegador del invitado ajusta su camara.", done);
+            const std::string e = gente.pedirle(p["id"], m == "1080p" ? "calidad-max" : "calidad-" + m,
+                                                contestar("Pedido enviado: el navegador del invitado ajusta su camara.", done));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }
@@ -861,13 +849,14 @@ void McpService::registerRoomTools() {
                            {"info", {{"type", "string"}}},
                            {"contact", {{"type", "string"}}}}},
                          {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &gente, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            json b = json::object();
-            for (const char* k : {"name", "info", "contact"})
-                if (a.contains(k)) b[k] = a[k];
-            post(partPath(p, "profile"), b, "Datos actualizados.", done);
+            const auto campo = [&a](const char* k) {
+                return a.contains(k) && a[k].is_string() ? std::optional<std::string>(a[k].get<std::string>())
+                                                         : std::nullopt;
+            };
+            gente.perfil(p["id"], campo("name"), campo("info"), campo("contact"), contestar("Datos actualizados.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -882,7 +871,7 @@ void McpService::registerRoomTools() {
                           {{"text", {{"type", "string"}}},
                            {"to", {{"type", "string"}, {"description", "'all' (defecto) o una persona."}}}}},
                          {"required", {"text"}}};
-        t.run = [&vm, post](const json& a, Done done) {
+        t.run = [&vm, &control, contestar](const json& a, Done done) {
             std::string to = a.value("to", std::string("all"));
             if (to != "all") {
                 json p;
@@ -890,7 +879,8 @@ void McpService::registerRoomTools() {
                 if (!resolveParticipant(roomSnapshot(vm), to, p, err)) return done(ToolResult::error(err));
                 to = p["id"];
             }
-            post("/api/v1/chat", json{{"text", a["text"]}, {"to", to}}, "Enviado.", done);
+            const std::string e = control.chatear(to, a.value("text", std::string()), contestar("Enviado.", done));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }
@@ -1055,11 +1045,10 @@ void McpService::registerRoomTools() {
         t.description = "Borra un archivo compartido del gateway.";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"id", {{"type", "string"}}}}}, {"required", {"id"}}};
-        t.run = [client](const json& a, Done done) {
-            client->del("/api/v1/shares/" + QString::fromStdString(a["id"]),
-                        [done](bool ok, const QJsonObject& r) {
-                            done(ok ? ToolResult::ok("Borrado.") : ToolResult::error(errorText(fromQt(r))));
-                        });
+        t.run = [&control](const json& a, Done done) {
+            control.borrarArchivo(a.value("id", std::string()), [done](const std::string& err, const json&) {
+                done(err.empty() ? ToolResult::ok("Borrado.") : ToolResult::error(sala::explicarError(err)));
+            });
         };
         core_.addTool(std::move(t));
     }
@@ -1080,27 +1069,25 @@ void McpService::registerRoomTools() {
              {{"target", {{"type", "string"}, {"enum", {"local", "remote"}}, {"default", "local"}}},
               {"withPin", {{"type", "boolean"}, {"default", false}}},
               {"board", {{"type", "boolean"}, {"default", false}}}}}};
-        t.run = [client](const json& a, Done done) {
-            const QString target = QString::fromStdString(a.value("target", std::string("local")));
-            const QString path = a.value("board", false) ? "/api/v1/board-link?target=" + target
-                                                         : "/api/v1/qr?target=" + target +
-                                                               (a.value("withPin", false) ? "&pin=1" : "");
-            client->get(path, [done, target](bool ok, const QJsonObject& r) {
-                const json j = fromQt(r);
-                if (!ok || !j.value("ok", false))
-                    return done(
-                        ToolResult::error(j.value("message", std::string("sin enlace: ") + errorText(j))));
+        t.run = [&enlaces](const json& a, Done done) {
+            const bool remoto = a.value("target", std::string("local")) == "remote";
+            const auto alVolver = [done, remoto](const sala::Enlace& e) {
+                if (!e.ok) return done(ToolResult::error(e.mensaje.empty() ? std::string("sin enlace") : e.mensaje));
                 ToolResult res;
-                const std::string url = j.value("url", "");
+                const std::string url = e.url;
                 res.text(url + "\n\n(El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
                                "qr_mostrar {\"texto\": \"" + url + "\", \"descripcion\": \"…\"}." +
-                         (target == "local" ? std::string(" Es la dirección de la red local: para alguien de afuera, "
-                                                          "room_link {\"target\": \"remote\"}.")
-                                            : std::string()) + ")");
-                const std::string png = qrPng(j.value("modules", json::array()));
+                         (!remoto ? std::string(" Es la dirección de la red local: para alguien de afuera, "
+                                                "room_link {\"target\": \"remote\"}.")
+                                  : std::string()) + ")");
+                const std::string png = qrPng(json(e.filas));
                 if (!png.empty()) res.image(png, "image/png");
                 done(res);
-            });
+            };
+            if (a.value("board", false))
+                enlaces.tablero(remoto, alVolver);
+            else
+                enlaces.ingreso(remoto, a.value("withPin", false), alVolver);
         };
         core_.addTool(std::move(t));
     }
@@ -1112,9 +1099,9 @@ void McpService::registerRoomTools() {
         t.readOnly = true;
         t.description = "Como se llega por RED al aparato: HTTPS, tunel WireGuard, IPs locales, "
                         "enlaces y puertos WebRTC del gateway.";
-        t.run = [client](const json&, Done done) {
-            client->get("/api/v1/network", [done](bool ok, const QJsonObject& r) {
-                done(ok ? ToolResult().data(fromQt(r)) : ToolResult::error("La sala no responde."));
+        t.run = [&control](const json&, Done done) {
+            control.verRed([done](const std::string& err, const json& r) {
+                done(err.empty() ? ToolResult().data(r) : ToolResult::error("La sala no responde."));
             });
         };
         core_.addTool(std::move(t));
@@ -1231,7 +1218,7 @@ void McpService::registerRoomTools() {
               {"defaultSlot", {{"type", "integer"}, {"minimum", 1}}},
               {"carousel", {{"type", "string"}, {"enum", {"manual", "chain", "time"}}}},
               {"graceSec", {{"type", "integer"}, {"minimum", 0}, {"maximum", 600}}}}}};
-        t.run = [post](const json& a, Done done) {
+        t.run = [&oradores, contestar](const json& a, Done done) {
             json b = json::object();
             for (const char* k : {"enabled", "multi", "defaultSlot", "carousel", "graceSec"})
                 if (a.contains(k)) b[k] = a[k];
@@ -1240,7 +1227,8 @@ void McpService::registerRoomTools() {
                 if (s <= 0) return done(ToolResult::error("defaultTime invalido (segundos o 'm:ss')."));
                 b["defaultSec"] = s;
             }
-            post("/api/v1/speakers", b, "Modo oradores actualizado.", done);
+            const std::string e = oradores.configurar(b, contestar("Modo oradores actualizado.", done));
+            if (!e.empty()) done(ToolResult::error(e));
         };
         core_.addTool(std::move(t));
     }
@@ -1256,12 +1244,11 @@ void McpService::registerRoomTools() {
             {"type", "object"},
             {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}, {"default", true}}}}},
             {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const bool on = a.value("on", true);
-            post(partPath(p, "onair"), json{{"on", on}},
-                 p.value("name", "") + (on ? " al aire." : " fuera del aire."), done);
+            oradores.alAire(p["id"], on, contestar(p.value("name", "") + (on ? " al aire." : " fuera del aire."), done));
         };
         core_.addTool(std::move(t));
     }
@@ -1272,8 +1259,8 @@ void McpService::registerRoomTools() {
         t.category = "oradores";
         t.description = "Pasa al orador que SIGUE en la fila. Pone al aire al siguiente de la fila (en modo "
                         "'uno a la vez', el que estaba sale).";
-        t.run = [post](const json&, Done done) {
-            post("/api/v1/speakers/next", json::object(), "Siguiente al aire.", done);
+        t.run = [&oradores, contestar](const json&, Done done) {
+            oradores.siguiente(contestar("Siguiente al aire.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -1287,11 +1274,10 @@ void McpService::registerRoomTools() {
                          {"properties",
                           {{"participant", personProp}, {"position", {{"type", "integer"}, {"minimum", 1}}}}},
                          {"required", {"participant", "position"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "move"), json{{"index", a["position"].get<int>() - 1}}, "Fila reordenada.",
-                 done);
+            oradores.mover(p["id"], a.value("position", 1) - 1, contestar("Fila reordenada.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -1308,10 +1294,10 @@ void McpService::registerRoomTools() {
             "serlo.";
         t.inputSchema = {
             {"type", "object"}, {"properties", {{"participant", personProp}}}, {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
-            post(partPath(p, "requeue"), json::object(), "A la fila de oradores.", done);
+            oradores.aLaFila(p["id"], contestar("A la fila de oradores.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -1329,12 +1315,11 @@ void McpService::registerRoomTools() {
         t.inputSchema = {{"type", "object"},
                          {"properties", {{"participant", personProp}, {"on", {{"type", "boolean"}}}}},
                          {"required", {"participant"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const bool on = a.value("on", true);
-            post(partPath(p, "presenter"), json{{"on", on}},
-                 on ? "Presentador fijo." : "Ya no es presentador.", done);
+            oradores.presentador(p["id"], on, contestar(on ? "Presentador fijo." : "Ya no es presentador.", done));
         };
         core_.addTool(std::move(t));
     }
@@ -1350,12 +1335,12 @@ void McpService::registerRoomTools() {
             {"properties",
              {{"participant", personProp}, {"time", {{"type", json::array({"string", "integer"})}}}}},
             {"required", {"participant", "time"}}};
-        t.run = [withPerson, partPath, post](const json& a, Done done) {
+        t.run = [withPerson, &oradores, contestar](const json& a, Done done) {
             json p;
             if (!withPerson(a, "participant", p, done)) return;
             const int s = parseSeconds(a["time"]);
-            if (s <= 0) return done(ToolResult::error("Tiempo invalido (segundos o 'm:ss')."));
-            post(partPath(p, "time"), json{{"sec", s}}, "Tiempo: " + std::to_string(s) + " s.", done);
+            const std::string e = oradores.tiempo(p["id"], s, contestar("Tiempo: " + std::to_string(s) + " s.", done));
+            if (!e.empty()) done(ToolResult::error(e + " (segundos o 'm:ss')."));
         };
         core_.addTool(std::move(t));
     }

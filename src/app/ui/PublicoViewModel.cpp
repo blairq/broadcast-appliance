@@ -5,6 +5,8 @@
 #include <QPointer>
 #include "sala/VotacionSala.hpp"
 #include "sala/PreguntasSala.hpp"
+#include "sala/EnlacesSala.hpp"
+#include "sala/PaginaPublico.hpp"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -157,22 +159,37 @@ void PublicoViewModel::alVolverVotacion(const std::string& error, const nlohmann
 
 void PublicoViewModel::pedirEnlace(bool remoto) {
     if (sala_ == nullptr) return;
-    sala_->client().get(QString("/api/v1/publico-link?target=") + (remoto ? "remote" : "local") +
-                            "&conClave=1",
-                        [this](bool ok, const QJsonObject& r) {
-                            if (!ok || !r.value("ok").toBool()) {
-                                // Por qué no hay QR (sin red, solo esta máquina…): lo dice el gateway.
-                                enlace_ = QVariantMap{{"ok", false},
-                                                      {"mensaje", ok ? r.value("message").toString()
-                                                                     : QStringLiteral("No pude hablar con la sala (gateway).")}};
-                                emit enlaceCambio();
-                                return;
-                            }
-                            enlace_ = QVariantMap{{"ok", true},
-                                                  {"url", r.value("url").toString()},
-                                                  {"modulos", aLista(r.value("modules").toArray())}};
-                            emit enlaceCambio();
-                        });
+    QPointer<PublicoViewModel> yo(this);
+    sala_->enlaces().publico(remoto, [yo](const sala::Enlace& e) {
+        if (!yo) return;
+        if (!e.ok) {
+            // Por qué no hay QR (sin red, solo esta máquina…): lo dice el gateway.
+            yo->enlace_ = QVariantMap{{"ok", false}, {"mensaje", QString::fromStdString(e.mensaje)}};
+            emit yo->enlaceCambio();
+            return;
+        }
+        QVariantList modulos;
+        for (const std::string& f : e.filas) modulos.append(QString::fromStdString(f));
+        yo->enlace_ = QVariantMap{{"ok", true}, {"url", QString::fromStdString(e.url)}, {"modulos", modulos}};
+        emit yo->enlaceCambio();
+    });
+}
+
+void PublicoViewModel::cambiarPagina(const QVariantMap& cambios) {
+    if (sala_ == nullptr) return;
+    const auto campo = [&cambios](const char* k) {
+        return cambios.contains(k) ? std::optional<std::string>(cambios.value(k).toString().toStdString())
+                                   : std::nullopt;
+    };
+    QPointer<PublicoViewModel> yo(this);
+    const std::string e = sala_->paginaPublico().cambiar(campo("titulo"), campo("cuando"), campo("fondo"),
+                                                         [yo](const std::string& err, const nlohmann::json&) {
+                                                             if (!yo) return;
+                                                             if (!err.empty())
+                                                                 return emit yo->notify("No pude cambiar la página: " + QString::fromStdString(err), "error");
+                                                             emit yo->notify("Página del público actualizada.", "ok");
+                                                         });
+    if (!e.empty()) emit notify(QString::fromStdString(e), "error");
 }
 
 } // namespace ba::app
