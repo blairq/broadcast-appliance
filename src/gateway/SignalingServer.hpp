@@ -435,7 +435,15 @@ class SignalingServer {
     Votacion votacion_;
     mutable std::mutex publicoM_;
     nlohmann::json publicoInfo_ = nlohmann::json::object();
+    /// Los que miran la página del evento: id del navegador (lo manda el marco) → última vez.
+    std::map<std::string, std::int64_t> mirando_;
     mutable std::mutex eventoWebM_;
+    /// El caché de /api/evento (ver eventoPublicoCacheado): la respuesta armada, la de
+    /// /api/evento/vivos y cuándo se armó (0 = hay que rearmarla).
+    std::mutex eventoCacheM_;
+    std::string eventoCache_, eventoCacheVivos_;
+    std::int64_t eventoCacheMs_ = 0;
+    std::pair<std::string, std::string> eventoPublicoCacheado();
     nlohmann::json eventoWeb_ = nlohmann::json::object();
     /// Hay sitio del evento para mostrar (activo y su carpeta existe).
     bool eventoWebActivo(std::string* dir = nullptr) const;

@@ -220,6 +220,23 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .faq button[aria-expanded="true"]::after { transform: rotate(45deg); color: var(--accent); }
 .faq .respuesta { padding: 0 0 22px; color: var(--text-muted); max-width: 65ch; }
 
+/* --- Aviso, quién habla, gente conectada, participar ------------------------- */
+.aviso { background: var(--surface); border-bottom: 1px solid var(--border); padding: 12px 0; font-weight: 500; }
+.aviso.aviso-urgente { background: rgba(255, 59, 48, 0.14); border-color: rgba(255, 59, 48, 0.4); }
+.aviso .contenedor::before { content: "AVISO"; font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em;
+  color: var(--accent); margin-right: 12px; }
+.habla { display: flex; align-items: baseline; gap: 12px; margin: 20px 0 0; font-size: 1.15rem; }
+.habla .ceja { margin: 0; color: var(--vivo); }
+.conectados { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 28px; border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 16px 24px; margin-bottom: 16px; background: var(--surface); }
+.conectados b { font-family: var(--mono); font-weight: 500; font-size: 1.75rem; font-variant-numeric: tabular-nums; margin-right: 6px; }
+.participar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 16px; text-decoration: none; }
+.participar .letra { margin: 0; }
+.participar b { font-size: 1.1rem; }
+.cuando { display: flex; gap: 16px; align-items: center; }
+.estado-seccion.en_vivo { color: var(--vivo); }
+.programa li.esta .nombre { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 6px; }
+
 /* --- Cierre y pie ----------------------------------------------------------- */
 .cta { text-align: center; }
 .cta .hero-acciones { justify-content: center; }

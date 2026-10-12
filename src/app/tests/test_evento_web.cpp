@@ -35,6 +35,7 @@ std::string leer(const fs::path& p) {
 } // namespace
 
 int main() {
+    setCarpetaPlantillas(BA_PLANTILLAS_EVENTO);
     const fs::path dir = fs::temp_directory_path() / ("ba-evento-web-" + std::to_string(::time(nullptr)));
     fs::remove_all(dir);
     Evento e;
@@ -52,11 +53,14 @@ int main() {
     for (const char* f : {"portada.html", "seccion-b1.html", "seccion-b2.html", "cierre.html", "estilo.css", "sitio.json"})
         CHECK(fs::exists(dir / f), f);
     const std::string p1 = leer(dir / "seccion-b1.html");
-    CHECK(p1.find("Presentación") != std::string::npos, "la sección lleva su nombre");
-    CHECK(p1.find("/evento/_/vivo.js") != std::string::npos, "carga vivo.js");
+    CHECK(p1.find("data-seccion=\"b1\"") != std::string::npos, "la página sabe qué sección es");
+    CHECK(p1.find("Presentación") != std::string::npos, "y lleva su nombre en el título (sin JavaScript)");
+    CHECK(p1.find("/evento/_/vivo.js") != std::string::npos, "carga vivo.js (que arma el resto)");
+    CHECK(p1.find("{{") == std::string::npos, "no quedan marcas sin llenar");
     CHECK(p1.find("NOTA SECRETA") == std::string::npos && p1.find("instrucción interna") == std::string::npos,
           "ni notas ni cues en la página pública");
     CHECK(leer(dir / "seccion-b2.html").find("&lt;del público&gt;") != std::string::npos, "nombres escapados");
+    CHECK(leer(dir / "portada.html").find("data-vivo=\"agenda\"") != std::string::npos, "la portada arma el programa en vivo");
 
     // 2. Una página intacta se actualiza con el guion; una editada, no.
     {
@@ -64,8 +68,12 @@ int main() {
         Bloque nuevo; nuevo.id = "b3"; nuevo.nombre = "Sección nueva";
         e2.bloques.push_back(nuevo);
         generar(e2, dir, false);
-        CHECK(leer(dir / "portada.html").find("Sección nueva") != std::string::npos, "intacta: se actualiza con el guion");
         CHECK(fs::exists(dir / "seccion-b3.html"), "la sección nueva tiene su página");
+        SitioWeb sw = SitioWeb::leer(dir, e2);
+        sw.titulo = "Otro título";
+        sw.guardar(dir);
+        generar(e2, dir, false);
+        CHECK(leer(dir / "portada.html").find("Otro título") != std::string::npos, "intacta: se actualiza");
     }
     { std::ofstream(dir / "portada.html") << "MIA"; }
     r = generar(e, dir, false);
@@ -95,6 +103,22 @@ int main() {
     CHECK(resolverPagina(e, "../../etc/passwd").empty(), "nada fuera de Web/");
     CHECK(resolverPagina(e, "sub/x.html").empty(), "sin carpetas");
     CHECK(resolverPagina(e, "extra.html") == "extra.html", "un .html propio");
+
+    // 5b. Horario estimado: en vivo, las que siguen se corren desde ahora.
+    {
+        ExtrasVivo x;
+        x.inicioReal[0] = 500000;
+        x.restanteActualSeg = 120;
+        x.aviso = {{"texto", "Arrancamos en 5"}, {"nivel", "info"}};
+        x.habla = "Ana";
+        Evento e3 = e;
+        e3.bloques[1].cues.push_back(c);
+        nlohmann::json est3 = estadoPublico(e3, s, "en_vivo", 0, 400000, 400000, 1000000, x);
+        CHECK(est3["secciones"][0]["inicioRealMs"] == 500000, "inicio real de la actual");
+        CHECK(est3["secciones"][1]["inicioEstimadoMs"] == 1000000 + 120000, "la siguiente: ahora + lo que falta");
+        CHECK(est3["aviso"]["texto"] == "Arrancamos en 5" && est3["habla"] == "Ana", "aviso y quién habla");
+        CHECK(estadoPublico(e3, s, "proximo", -1, 400000, 0, 0, x)["habla"] == "", "antes de empezar no habla nadie");
+    }
 
     // 6. Dónde verlo en vivo
     CHECK(idDeYouTube("https://www.youtube.com/watch?v=jfKfPfyJRdk&t=3") == "jfKfPfyJRdk", "id de watch?v=");

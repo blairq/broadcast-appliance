@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>{{titulo}}</title>
+  <meta name="description" content="{{descripcion}}" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="{{titulo}}" />
+  <meta property="og:description" content="{{descripcion}}" />
+  <link rel="stylesheet" href="/evento/_/sitio.css" />
+  <link rel="stylesheet" href="estilo.css" />
+  <script src="/evento/_/vivo.js" defer></script>
+</head>
+<body>
+  <!--
+    LA PORTADA DEL EVENTO (antes de empezar y como inicio del sitio).
+    Plantilla del sistema (assets/web/evento/plantilla/portada.html): no lleva datos
+    escritos. Todo lo que dice «data-vivo» lo completa /evento/_/vivo.js con lo que da la
+    sala en /api/evento (el nombre, la fecha, las secciones del guion…), así que si cambia
+    el guion la página muestra lo nuevo sola. Lo que sí podés escribir a mano: textos
+    propios, imágenes (en la carpeta Web/ del evento), secciones nuevas. La lista de todo
+    lo que completa vivo.js está al principio de ese archivo.
+  -->
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="nav">
+    <div class="contenedor">
+      <a class="marca" href="portada.html" data-vivo="nombre">{{titulo}}</a>
+      <nav class="nav-links" aria-label="Secciones del sitio">
+        <a href="#vivo">En vivo</a>
+        <a href="#programa" data-vivo-si="secciones">Programa</a>
+        <a href="#como">Cómo seguirlo</a>
+        <a href="#preguntas">Preguntas</a>
+      </nav>
+      <div class="nav-acciones">
+        <span class="estado" data-vivo="estado">Próximamente</span>
+        <a class="boton primario chico" href="#vivo">Ver en vivo</a>
+        <button class="hamburguesa" type="button" data-menu aria-controls="menu-movil" aria-expanded="false" aria-label="Abrir el menú"><span></span></button>
+      </div>
+    </div>
+  </header>
+  <nav class="menu-movil" id="menu-movil" hidden aria-label="Menú">
+    <a href="#vivo">En vivo</a>
+    <a href="#programa">Programa</a>
+    <a href="#como">Cómo seguirlo</a>
+    <a href="#preguntas">Preguntas</a>
+    <a href="/invitados/">Entrar a la sala</a>
+  </nav>
+
+  <!-- Lo que publica el operador en el momento («Arrancamos en 5 minutos»). -->
+  <div class="aviso" data-vivo-si="aviso" hidden><div class="contenedor" data-vivo="aviso"></div></div>
+
+  <main id="contenido">
+    <!-- 1. Hero -->
+    <section class="hero">
+      <div class="hero-marca" data-vivo="marca" aria-hidden="true"></div>
+      <div class="contenedor">
+        <p class="ceja"><span data-vivo="fecha-corta">En vivo</span><span data-vivo-si="huso" hidden> · <span data-vivo="huso"></span></span> · <span data-vivo="estado">Próximamente</span></p>
+        <h1 class="h1" data-vivo="nombre">{{titulo}}</h1>
+        <p class="bajada" data-vivo="bajada"></p>
+        <p class="habla" data-vivo-si="habla" hidden><span class="ceja">Habla ahora</span> <b data-vivo="habla"></b></p>
+        <div class="hero-acciones">
+          <a class="boton primario" href="#vivo">Ver en vivo</a>
+          <a class="boton secundario" href="#programa" data-vivo-si="secciones">Ver el programa</a>
+        </div>
+        <p class="micro">En vivo por internet · Sin registrarse<span data-vivo-si="huso" hidden> · Hora de <span data-vivo="huso"></span></span></p>
+      </div>
+    </section>
+
+    <!-- Ahora mismo: solo se ve si hay gente conectada (en la sala o mirando). -->
+    <div class="contenedor" data-vivo-si="conectados" hidden>
+      <div class="conectados" role="status">
+        <span class="ceja" style="margin:0">Ahora mismo</span>
+        <span data-vivo-si="en-la-sala" hidden><b data-vivo="en-la-sala"></b> <span data-vivo="en-la-sala-texto">personas en la sala</span></span>
+        <span data-vivo-si="mirando" hidden><b data-vivo="mirando"></b> <span data-vivo="mirando-texto">mirando esta página</span></span>
+      </div>
+    </div>
+
+    <!-- 2. Cuándo y cuánto falta -->
+    <div class="contenedor" data-vivo-si="franja" hidden>
+      <div class="franja">
+        <div class="cuando">
+          <div class="fecha-bloque" data-vivo-si="fecha" hidden><div class="mes" data-vivo="mes"></div><div class="dia" data-vivo="dia"></div></div>
+          <div>
+            <p class="ceja" style="margin:0 0 4px"><span data-vivo-si="proximo">Empieza</span><span data-vivo-si="no-proximo" hidden>Ahora</span></p>
+            <b data-vivo-si="proximo"><span data-vivo="fecha-larga"></span></b>
+            <b data-vivo-si="no-proximo" hidden><span data-vivo="seccion"></span></b>
+            <p class="tenue mono" style="font-size:13px;margin:4px 0 0" data-vivo="cuenta"></p>
+          </div>
+        </div>
+        <div class="cuenta" data-vivo="cuenta-bloques" aria-label="Cuenta regresiva" hidden></div>
+      </div>
+    </div>
+
+    <!-- 3. Marquesina con las secciones -->
+    <div class="marquesina" aria-hidden="true" data-vivo-si="secciones" style="margin-top:64px"><div class="marquesina-pista" data-vivo="marquesina"></div></div>
+
+    <!-- 4. En vivo -->
+    <section class="seccion" id="vivo">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">01 / En vivo</p>
+          <h2 class="h2">Seguilo acá. Sin vueltas.</h2>
+          <p class="bajada">Elegí la plataforma. Arranca sin sonido: tocá el video para escucharlo.</p>
+        </div>
+        <div class="reproductor-caja">
+          <div data-vivo="reproductor" data-plataforma="youtube" data-vacio="El vivo aparece acá cuando empiece la transmisión."></div>
+          <nav class="plataformas" data-vivo="vivos" data-vivo-si="vivos" hidden aria-label="Verlo en cada plataforma"></nav>
+        </div>
+        <!-- Preguntar y votar (si el evento lo habilita). -->
+        <a class="tarjeta participar" data-vivo-si="participar" data-vivo-href="publico" hidden>
+          <span class="letra">Participá</span>
+          <b>Mandá tu pregunta y votá desde el celular.</b>
+          <span class="estado en_vivo" data-vivo-si="votacion" hidden>Votación abierta</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- 5. Programa (sale del guion) -->
+    <section class="seccion" id="programa" data-vivo-si="secciones">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">02 / Programa</p>
+          <h2 class="h2">El programa, de punta a punta.</h2>
+          <p class="bajada"><span data-vivo="bajada"></span> Tocá una sección para ver de qué se trata.</p>
+        </div>
+        <ol class="programa" data-vivo="agenda"></ol>
+      </div>
+    </section>
+
+    <!-- 6. Cómo seguirlo -->
+    <section class="seccion" id="como">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">03 / Cómo seguirlo</p>
+          <h2 class="h2">Tres formas de estar.</h2>
+        </div>
+        <div class="columnas">
+          <article class="tarjeta"><span class="letra">A</span><h3 class="h3">Mirá el vivo</h3>
+            <p>En esta misma página o en la plataforma que prefieras. Sin cuenta y desde el celular.</p>
+            <a class="enlace" href="#vivo">Ir al vivo →</a></article>
+          <article class="tarjeta"><span class="letra">B</span><h3 class="h3">Seguí cada parte</h3>
+            <p>La página cambia sola a la sección que se está tratando. Si llegás tarde, sabés dónde estamos.</p>
+            <a class="enlace" href="portada.html" data-vivo-href="primera">Ver la primera sección →</a></article>
+          <article class="tarjeta"><span class="letra">C</span><h3 class="h3">Participá</h3>
+            <p>Si te invitaron a hablar, entrá a la sala con tu enlace y tu PIN. Te ven y te escuchan en vivo.</p>
+            <a class="enlace" href="/invitados/">Entrar a la sala →</a></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. En números -->
+    <section class="seccion">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">04 / En números</p>
+          <h2 class="h2">Lo que hay que saber.</h2>
+        </div>
+        <div class="numeros">
+          <div><b data-vivo="n-secciones">—</b><span>Secciones</span></div>
+          <div><b data-vivo="minutos">—</b><span>Minutos de programa</span></div>
+          <div><b data-vivo="hora-inicio">—</b><span>Hora de inicio</span></div>
+          <div><b>0</b><span>Registros necesarios</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. Preguntas -->
+    <section class="seccion" id="preguntas">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">05 / Preguntas</p>
+          <h2 class="h2">Lo que siempre se pregunta.</h2>
+        </div>
+        <div class="faq" data-acordeon>
+          <h3><button type="button" aria-expanded="false" aria-controls="r0">¿Dónde lo veo?</button></h3>
+          <div class="respuesta" id="r0" hidden><p>Acá mismo, en «En vivo», o en la plataforma que prefieras con los botones de abajo del video.</p></div>
+          <h3><button type="button" aria-expanded="false" aria-controls="r1">¿Hay que registrarse?</button></h3>
+          <div class="respuesta" id="r1" hidden><p>No. Entrás y mirás. No pedimos cuenta, mail ni datos.</p></div>
+          <h3><button type="button" aria-expanded="false" aria-controls="r2">¿A qué hora empieza?</button></h3>
+          <div class="respuesta" id="r2" hidden><p>El <span data-vivo="fecha-larga">día y la hora se confirman acá</span><span data-vivo-si="huso" hidden> (hora de <span data-vivo="huso"></span>)</span>. La cuenta regresiva de arriba ya está en tu hora.</p></div>
+          <h3><button type="button" aria-expanded="false" aria-controls="r3">¿Queda grabado?</button></h3>
+          <div class="respuesta" id="r3" hidden><p>Sí. Cuando termine, la grabación queda en el mismo lugar del vivo.</p></div>
+          <h3><button type="button" aria-expanded="false" aria-controls="r4">¿Cómo participo?</button></h3>
+          <div class="respuesta" id="r4" hidden><p>Si te invitaron a hablar, entrá a la sala con tu enlace y tu PIN. Si solo querés mirar, no hace falta nada.</p></div>
+          <h3><button type="button" aria-expanded="false" aria-controls="r5">¿Lo puedo ver desde el celular?</button></h3>
+          <div class="respuesta" id="r5" hidden><p>Sí. La página está hecha para el celular y el video se adapta a la pantalla.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. Para cerrar -->
+    <section class="seccion cta">
+      <div class="contenedor">
+        <p class="ceja" data-vivo="fecha-corta">En vivo</p>
+        <h2 class="h2">Nos vemos ahí.</h2>
+        <div class="hero-acciones">
+          <a class="boton primario" href="#vivo">Ver en vivo</a>
+          <a class="boton secundario" href="#programa" data-vivo-si="secciones">Ver el programa</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <div class="pie-grilla">
+        <div>
+          <p class="h3" style="margin:0 0 10px" data-vivo="nombre">{{titulo}}</p>
+          <p><span data-vivo="fecha-larga"></span><span data-vivo-si="huso" hidden> (hora de <span data-vivo="huso"></span>)</span></p>
+          <p>Esta página se actualiza sola mientras el evento pasa.</p>
+        </div>
+        <div><h4>El evento</h4><ul>
+          <li><a href="#vivo">En vivo</a></li><li><a href="#programa">Programa</a></li>
+          <li><a href="#preguntas">Preguntas</a></li><li><a href="cierre.html">Cierre</a></li></ul></div>
+        <div data-vivo-si="secciones"><h4>Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
+        <div><h4>Participar</h4><ul>
+          <li><a href="/invitados/">Entrar a la sala</a></li>
+          <li data-vivo-si="participar" hidden><a data-vivo-href="publico">Preguntar y votar</a></li>
+          <li><a href="#como">Cómo seguirlo</a></li></ul></div>
+      </div>
+      <div class="pie-final"><span><span data-vivo="nombre">{{titulo}}</span> · <span data-vivo="anio"></span></span><span>En vivo. Sin vueltas.</span></div>
+    </div>
+  </footer>
+</body>
+</html>

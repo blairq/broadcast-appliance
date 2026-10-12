@@ -13,6 +13,14 @@ function aInvitados() {
 aInvitados();
 window.addEventListener("hashchange", aInvitados);
 
+// Un id por pestaña, para que la sala cuente cuántos miran (sin datos: un número al azar).
+const idMirada = (() => {
+  try {
+    let v = sessionStorage.getItem("ba-evento-v");
+    if (!v) { v = Math.random().toString(36).slice(2, 12); sessionStorage.setItem("ba-evento-v", v); }
+    return v;
+  } catch (e) { return Math.random().toString(36).slice(2, 12); }
+})();
 const $ = (id) => document.getElementById(id);
 let ultimo = null;      // el último estado
 let paginaActual = "";  // lo que muestra el iframe
@@ -75,7 +83,7 @@ function aplicar(e) {
 
 async function traer() {
   try {
-    const r = await fetch("/api/evento", { cache: "no-store" });
+    const r = await fetch("/api/evento?v=" + idMirada, { cache: "no-store" });
     if (r.ok) aplicar(await r.json());
   } catch (err) { /* sin conexión: se reintenta en la próxima vuelta */ }
 }

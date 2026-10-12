@@ -332,6 +332,10 @@ class EventoViewModel : public QObject {
     /// Le manda a la sala lo de la página del evento (lo hace solo al abrir, al
     /// avanzar el guion y cada 10 s; esto es para forzarlo).
     Q_INVOKABLE void publicarWeb();
+    /// El aviso que se ve arriba de la página del evento («Arrancamos en 5 minutos»).
+    /// `nivel`: info | urgente. Vacío lo saca. No se guarda en el evento (es del momento).
+    Q_INVOKABLE void setAvisoWeb(const QString& texto, const QString& nivel = "info");
+    Q_INVOKABLE QVariantMap avisoWeb() const;
 
    public:
     // Las dos de arriba, ademas, como propiedades: es lo que hace que la vista
@@ -426,6 +430,8 @@ class EventoViewModel : public QObject {
     qint64 webArranqueMs_ = 0;
     int webVersion_ = 1;
     QByteArray webUltimo_;
+    nlohmann::json webAviso_ = nlohmann::json::object();
+    std::map<int, qint64> webInicioReal_; ///< cuándo empezó de verdad cada sección (índice → ms)
     QString carpetaWebAbs() const;
     /// Genera las páginas que falten del sitio (no pisa nada): al crear y al guardar.
     void asegurarWebBase();

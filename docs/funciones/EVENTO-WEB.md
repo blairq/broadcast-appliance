@@ -7,6 +7,40 @@ sola cuando el guion avanza. Arriba va una franja «en vivo» (qué pasa ahora, 
 cuánto lleva). Los invitados a la sala entran por `/invitados/` (los enlaces viejos
 `/#room=…` se redirigen solos).
 
+## La página se arma sola con los datos de la app
+
+Las páginas no traen datos del evento escritos: todo lo pone `/evento/_/vivo.js` con lo
+que publica la app en `/api/evento`. Nombre, bajada, fecha y hora, huso, secciones,
+programa (con hora prevista y estimada), anterior/siguiente, números, marquesina, quién
+habla, aviso, dónde verlo y gente conectada. Si cambia el guion, la página muestra lo
+nuevo sin regenerar nada. Una sección recién agregada (todavía sin su archivo en el
+disco) la sirve la sala desde la plantilla.
+
+Las plantillas son del sistema: `assets/web/evento/plantilla/` (portada, seccion,
+cierre, estilo.css), en el programa como `Web/evento/plantilla`. El generador solo llena
+`{{titulo}}`, `{{evento}}`, `{{descripcion}}`, `{{seccion}}` (el id, en la página de cada
+sección), `{{color}}` y `{{fondo}}`. Al abrir y al guardar un evento, las páginas que nadie
+editó toman la plantilla de ahora; las editadas no se tocan.
+
+Lo que se publica además del guion:
+
+- **Aviso** del operador («Arrancamos en 5 minutos», nivel info o urgente): Guion →
+  Página web → «En el momento», o `evento_web {"accion": "aviso", "texto", "nivel"}`. Es del
+  momento: no se guarda en el evento.
+- **Quién habla**, si el cue que corre es de orador.
+- **Horario estimado**: en vivo, lo que falta de la sección actual más lo previsto de las
+  que siguen, desde ahora. Si se va atrasado, se corre.
+- **Gente conectada**: `enLaSala` (invitados adentro e integrantes conectados desde el
+  navegador) y `mirando` (navegadores con la página abierta en los últimos 15 s). El bloque
+  «Ahora mismo» se ve solo si hay alguien.
+- **Participar** (opcional, `sitio.json` → `participacion`): el enlace a `/publico/` con su
+  clave y si hay una votación abierta.
+
+`/api/evento` tiene caché: la sala arma la respuesta como mucho una vez por segundo
+(ajuste `evento.cacheMs`) y la reparte igual a todos. Así cientos de navegadores no
+consultan cada uno la sala, las conexiones y la urna. Un dato nuevo de la app la invalida
+al instante.
+
 ## Dónde vive
 
 En la carpeta del evento, así que es parte del evento y queda en el historial

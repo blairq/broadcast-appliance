@@ -114,6 +114,8 @@ class SesionBorde {
     /// Con usuario y contraseña: el id, o "" (`claveMal` si el usuario existe; `id` queda con el suyo).
     std::string autenticarUsuario(const std::string& usuario, const std::string& clave, std::string& id, bool& claveMal);
     void ponerCredenciales(const nlohmann::json& participantes);
+    /// Cuántos integrantes están conectados ahora desde el navegador (sin las consolas).
+    int conectados() const;
     bool bloqueado(const std::string& id) const;
     void anotarPinMal(const std::string& id);
 

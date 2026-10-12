@@ -33,6 +33,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -48,6 +49,9 @@ struct SitioWeb {
     bool barra = true;      ///< la franja «en vivo» arriba de cada página
     /// Al iniciar el evento, la dirección pública pasa a ser la de su subdominio.
     bool direccionAlIniciar = true;
+    /// La página ofrece preguntar y votar (/publico/, con su clave): la sala agrega el
+    /// enlace y si hay una votación abierta.
+    bool participacion = false;
     /// Dónde se ve en vivo, fijado a mano para este evento (pisa lo que se sabe de las
     /// cuentas): {youtube: URL o id del video/vivo o URL del canal, twitch: canal o URL,
     /// facebook: URL del vivo}.
@@ -62,6 +66,11 @@ struct SitioWeb {
 /// «Entrevista_Pepito 2026» → «entrevista-pepito-2026»: lo que acepta un DNS
 /// (letras, números y guiones; sin acentos ni guiones bajos), hasta 40 letras.
 std::string subdominioDe(const std::string& nombre);
+
+/// Dónde están las plantillas del sistema (assets/web/evento/plantilla, en el programa:
+/// Web/evento/plantilla). Las pone la app al arrancar; las pruebas, las del repositorio.
+void setCarpetaPlantillas(const std::filesystem::path& dir);
+std::filesystem::path carpetaPlantillas();
 
 /// Carpeta del sitio de un evento.
 inline std::filesystem::path carpetaWeb(const std::filesystem::path& carpetaEvento) { return carpetaEvento / "Web"; }
@@ -90,12 +99,29 @@ nlohmann::json armarVivos(const SitioWeb& s, const nlohmann::json& plataformas);
 /// suelto (11 letras). «» si no hay.
 std::string idDeYouTube(const std::string& texto);
 
+/// Lo que se agrega al estado en vivo además del guion.
+struct ExtrasVivo {
+    nlohmann::json vivos = nlohmann::json::array();
+    /// Lo que publica el operador: {texto, nivel: info|urgente, desdeMs}. Vacío = nada.
+    nlohmann::json aviso = nlohmann::json::object();
+    /// Quién tiene la palabra (el cue de orador que corre), si el guion lo dice.
+    std::string habla;
+    /// Cuándo empezó de verdad cada sección (índice → ms).
+    std::map<int, std::int64_t> inicioReal;
+    /// Lo que le falta a la sección actual según lo previsto (-1 = no se sabe).
+    int restanteActualSeg = -1;
+};
+
 /// Lo que ve cualquiera del evento en vivo. `estado`: proximo | en_vivo | pausa | terminado.
 /// `bloque` = el que se está tratando (-1 = ninguno). `inicioMs` = la hora prevista
 /// (0 = sin hora). `arrancoMs` = cuándo se arrancó el guion (0 = no arrancó).
 nlohmann::json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado, int bloque,
                              std::int64_t inicioMs, std::int64_t arrancoMs, std::int64_t ahoraMs,
                              const nlohmann::json& vivos = nlohmann::json::array());
+/// Con lo de más: horarios estimados (si se va atrasado se corren), aviso, quién habla.
+/// Cada sección trae `inicioRealMs` (si ya empezó) e `inicioEstimadoMs`.
+nlohmann::json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado, int bloque,
+                             std::int64_t inicioMs, std::int64_t arrancoMs, std::int64_t ahoraMs, const ExtrasVivo& x);
 
 /// Una página del sitio por nombre: «portada», «cierre», el id o el nombre de un
 /// bloque, o un archivo .html. Devuelve la ruta relativa a Web/ («» si no hay).

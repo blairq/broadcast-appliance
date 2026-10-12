@@ -107,6 +107,34 @@ ScrollView {
             }
         }
 
+        // --- En el momento: el aviso y la participación ---------------------------------------
+        Seccion {
+            visible: !!pw.w.hay
+            titulo: "En el momento"
+            subtitulo: "Un aviso arriba de la página (se ve ya, en todas las secciones) y si el público puede preguntar y votar desde ahí."
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                TextField {
+                    id: avisoCampo
+                    Layout.fillWidth: true
+                    placeholderText: "Arrancamos en 5 minutos · Hay un corte técnico, ya volvemos…"
+                    text: (pw.w.aviso || {}).texto || ""
+                    onAccepted: pw.ev.setAvisoWeb(text, urgente.checked ? "urgente" : "info")
+                }
+                CheckBox { id: urgente; text: "Urgente"; checked: (pw.w.aviso || {}).nivel === "urgente" }
+                GlassButton { compact: true; text: "Publicar"; active: avisoCampo.text !== ""
+                              onClicked: pw.ev.setAvisoWeb(avisoCampo.text, urgente.checked ? "urgente" : "info") }
+                GlassButton { compact: true; text: "Sacar"; enabled: !!(pw.w.aviso || {}).texto
+                              onClicked: { avisoCampo.text = ""; pw.ev.setAvisoWeb("", "info") } }
+            }
+            RowLayout {
+                spacing: 8
+                Toggle { checked: pw.sitio.participacion === true; onToggled: (v) => pw.guardar({ participacion: v }) }
+                Text { text: "Que el público pueda preguntar y votar desde la página (abre /publico/ con su clave)"; color: Theme.text; font.pixelSize: 12 }
+            }
+        }
+
         // --- Dónde se ve en vivo ----------------------------------------------------------------
         Seccion {
             visible: !!pw.w.hay

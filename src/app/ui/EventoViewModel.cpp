@@ -28,6 +28,7 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "evento/EventoWeb.hpp"
+#include "platform/Paths.hpp"
 
 namespace ba::app {
 namespace {
@@ -119,6 +120,9 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, ConferenceViewModel* sala, graf
     // sentido redibujar la lista de cues por eso.
     reloj_.setInterval(1000);
     connect(&reloj_, &QTimer::timeout, this, [this]() { emit relojChanged(); });
+    // Las plantillas de la página web del evento (Web/evento/plantilla del programa): ANTES
+    // de abrir el último evento, que al abrirse actualiza sus páginas con ellas.
+    evento::setCarpetaPlantillas(ba::platform::bundleRoot() / "Web" / "evento" / "plantilla");
     // Se abre solo el evento que se guardo ultimo: el operador trabaja en el
     // mismo durante dias, y abrir el programa para encontrarlo vacio es una
     // molestia diaria. No hace falta guardar "el ultimo abierto" en ningun
@@ -173,7 +177,8 @@ QVariantMap EventoViewModel::web() const {
     return {{"hay", hay},
             {"carpeta", carpetaWebAbs()},
             {"paginas", paginas},
-            {"sitio", QJsonDocument::fromJson(QByteArray::fromStdString(s.aJson().dump())).object().toVariantMap()}};
+            {"sitio", QJsonDocument::fromJson(QByteArray::fromStdString(s.aJson().dump())).object().toVariantMap()},
+            {"aviso", avisoWeb()}};
 }
 
 QVariantMap EventoViewModel::generarWeb(bool sobrescribir) {
@@ -201,6 +206,7 @@ QString EventoViewModel::setWebSitio(const QVariantMap& campos) {
     if (campos.contains("fondo")) s.fondo = campos.value("fondo").toString().toStdString();
     if (campos.contains("barra")) s.barra = campos.value("barra").toBool();
     if (campos.contains("direccion_al_iniciar")) s.direccionAlIniciar = campos.value("direccion_al_iniciar").toBool();
+    if (campos.contains("participacion")) s.participacion = campos.value("participacion").toBool();
     if (campos.contains("vivos")) {
         const QVariantMap v = campos.value("vivos").toMap();
         for (auto it = v.begin(); it != v.end(); ++it) {
@@ -249,6 +255,21 @@ QString EventoViewModel::escribirPaginaWeb(const QString& pagina, const QString&
     return {};
 }
 
+void EventoViewModel::setAvisoWeb(const QString& texto, const QString& nivel) {
+    const QString t = texto.trimmed().left(280);
+    webAviso_ = t.isEmpty() ? json::object()
+                            : json{{"texto", t.toStdString()},
+                                   {"nivel", nivel == "urgente" ? "urgente" : "info"},
+                                   {"desdeMs", QDateTime::currentMSecsSinceEpoch()}};
+    if (!t.isEmpty()) anotar("Aviso en la página del evento: " + t, "evento");
+    emit webChanged();
+    publicarWeb();
+}
+
+QVariantMap EventoViewModel::avisoWeb() const {
+    return QJsonDocument::fromJson(QByteArray::fromStdString(webAviso_.dump())).object().toVariantMap();
+}
+
 void EventoViewModel::publicarWeb() {
     if (sala_ == nullptr) return;
     json cuerpo{{"activo", false}};
@@ -279,8 +300,26 @@ void EventoViewModel::publicarWeb() {
             if (dt.isValid()) inicioMs = dt.toMSecsSinceEpoch();
         }
         const evento::SitioWeb s = evento::SitioWeb::leer(dir.toStdWString(), e_);
-        const json vivos = evento::armarVivos(s, plataformas_ ? plataformas_() : json::object());
-        json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, vivos);
+        evento::ExtrasVivo x;
+        x.vivos = evento::armarVivos(s, plataformas_ ? plataformas_() : json::object());
+        x.aviso = webAviso_;
+        // Cuándo empezó de verdad cada sección (para el horario estimado de las que siguen).
+        if (est == "proximo") webInicioReal_.clear();
+        if (bloque >= 0 && !webInicioReal_.count(bloque)) webInicioReal_[bloque] = QDateTime::currentMSecsSinceEpoch();
+        for (const auto& [b, ms] : webInicioReal_) x.inicioReal[b] = ms;
+        if (guionCorriendo_ && bloque >= 0) {
+            // Lo que le falta a la sección actual según lo previsto, y quién habla (si el cue
+            // que corre es de orador: el que tiene la palabra se ve al aire, no es privado).
+            const evento::Posicion p = guionCorriendo_->posicion();
+            const auto& cues = e_.bloques[static_cast<std::size_t>(bloque)].cues;
+            int falta = 0;
+            for (int c = p.cue; c < static_cast<int>(cues.size()); ++c)
+                falta += cues[static_cast<std::size_t>(c)].duracionSeg;
+            x.restanteActualSeg = std::max(0, falta - guionCorriendo_->enCueSeg(ahoraMs()));
+            if (const evento::Cue* c = guionCorriendo_->cueActual(); c != nullptr && c->tipo == evento::Tipo::Orador)
+                x.habla = c->datos.value("participante", std::string());
+        }
+        json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, x);
         estado["version"] = webVersion_;
         cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"estado", estado}};
     }
@@ -554,6 +593,10 @@ bool EventoViewModel::abrir(const QString& carpeta) {
         connect(&buzon_, &QTimer::timeout, this, &EventoViewModel::recogerAcreditaciones);
     }
     buzon_.start();
+    // Su página web: las páginas que nadie editó toman la plantilla de este programa (si se
+    // mejoró, se ve ya) y se crean las que falten. Lo editado no se toca. Los datos no
+    // están en los archivos: los publica la app (publicarWeb) y la página los dibuja.
+    asegurarWebBase();
     emit padronChanged();
     emit guionChanged();
     emit sucioChanged();

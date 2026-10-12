@@ -302,8 +302,55 @@ nlohmann::json SignalingServer::publicoInfo() const {
 }
 
 void SignalingServer::setEventoWeb(const nlohmann::json& e) {
-    std::lock_guard<std::mutex> g(eventoWebM_);
-    eventoWeb_ = e.is_object() ? e : nlohmann::json::object();
+    {
+        std::lock_guard<std::mutex> g(eventoWebM_);
+        eventoWeb_ = e.is_object() ? e : nlohmann::json::object();
+    }
+    // Dato nuevo de la app (el guion avanzó, cambió el sitio): el caché se tira ya.
+    std::lock_guard<std::mutex> g(eventoCacheM_);
+    eventoCacheMs_ = 0;
+}
+
+std::pair<std::string, std::string> SignalingServer::eventoPublicoCacheado() {
+    // EL CACHÉ DE /api/evento. Con cientos de navegadores preguntando cada 2 s, armar la
+    // respuesta cada vez es consultar cientos de veces por segundo la sala (la lista de
+    // invitados), las conexiones de la sesión remota y la urna. Se arma como mucho una vez
+    // por `evento.cacheMs` (1 s) y se reparte la misma a todos; setEventoWeb la invalida.
+    const std::int64_t ahora = nowMs();
+    std::lock_guard<std::mutex> g(eventoCacheM_);
+    if (eventoCacheMs_ > 0 && ahora - eventoCacheMs_ < ba::ajustes::entero("evento.cacheMs", 1000))
+        return {eventoCache_, eventoCacheVivos_};
+    const json e = eventoWeb();
+    json out = e.value("estado", json::object());
+    out["activo"] = eventoWebActivo();
+    out["ahoraMs"] = ahora; // la hora de la sala, para los relojes de la página
+    // Cuánta gente: los que miran (vistos en los últimos 15 s) y los que están en la sala
+    // (invitados adentro e integrantes conectados desde el navegador). Solo números.
+    {
+        std::lock_guard<std::mutex> g2(eventoWebM_);
+        for (auto it = mirando_.begin(); it != mirando_.end();) it = ahora - it->second > 15000 ? mirando_.erase(it) : std::next(it);
+        out["mirando"] = static_cast<int>(mirando_.size());
+    }
+    int enSala = 0;
+    const json snap = room_.snapshot();
+    for (const auto& p : snap.value("participants", json::array()))
+        if (p.value("state", std::string()) == "admitted") ++enSala;
+    if (sesion_) enSala += sesion_->conectados();
+    out["enLaSala"] = enSala;
+    // Participar (preguntar y votar en /publico/): solo si el evento lo prendió
+    // (sitio.json → participacion). La clave del público va en el enlace, como en su QR.
+    if (out.value("participacion", false) && !cfg_.publicoKey.empty()) {
+        out["publicoUrl"] = "/publico/#k=" + cfg_.publicoKey;
+        out["votacionAbierta"] = votacion_.hayAbierta();
+    } else {
+        out.erase("publicoUrl");
+        out["votacionAbierta"] = false;
+    }
+    eventoCache_ = out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    eventoCacheVivos_ = json{{"activo", out["activo"]}, {"vivos", out.value("vivos", json::array())}}
+                            .dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+    eventoCacheMs_ = ahora;
+    return {eventoCache_, eventoCacheVivos_};
 }
 
 nlohmann::json SignalingServer::eventoWeb() const {
@@ -628,25 +675,51 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         }
         std::string rel = path.substr(8);
         if (rel.empty()) rel = "portada.html";
+        // Una sección recién agregada al guion todavía no tiene su página en el disco (se
+        // escribe al guardar): se sirve la plantilla con su id, y vivo.js la completa.
+        {
+            std::error_code ec;
+            const std::string sinQuery = rel.substr(0, rel.find('?'));
+            if (sinQuery.rfind("seccion-", 0) == 0 && sinQuery.size() > 13 && sinQuery.ends_with(".html") &&
+                sinQuery.find('/') == std::string::npos && sinQuery.find("..") == std::string::npos &&
+                !std::filesystem::exists(std::filesystem::path(dir) / sinQuery, ec) && !cfg_.eventoWebroot.empty()) {
+                std::ifstream f(std::filesystem::path(cfg_.eventoWebroot) / "plantilla" / "seccion.html", std::ios::binary);
+                if (f) {
+                    std::ostringstream ss;
+                    ss << f.rdbuf();
+                    std::string html = ss.str(), id = sinQuery.substr(8, sinQuery.size() - 13);
+                    std::string seguro;
+                    for (char c : id)
+                        if (std::isalnum(static_cast<unsigned char>(c)) || c == '-' || c == '_') seguro += c;
+                    const auto poner = [&html](const std::string& de, const std::string& a) {
+                        for (std::size_t p = html.find(de); p != std::string::npos; p = html.find(de, p + a.size())) html.replace(p, de.size(), a);
+                    };
+                    poner("{{seccion}}", seguro);
+                    poner("{{titulo}}", "");
+                    poner("{{evento}}", "");
+                    poner("{{descripcion}}", "");
+                    http::sendResponse(fd, 200, "text/html; charset=utf-8", html, "Cache-Control: no-cache\r\n");
+                    return;
+                }
+            }
+        }
         serveStatic(fd, dir, rel);
         return;
     }
-    if (path == "/api/evento/vivos" && method == "GET") {
-        // Dónde se ve en vivo (YouTube, Twitch, Facebook): links para abrir y para embeber.
-        const json e = eventoWeb();
-        const json est = e.value("estado", json::object());
-        json out{{"activo", eventoWebActivo()}, {"vivos", est.value("vivos", json::array())}};
-        http::sendResponse(fd, 200, "application/json", out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
-                           "Cache-Control: no-store\r\n");
-        return;
-    }
-    if (path == "/api/evento" && method == "GET") {
-        // Lo público del evento en vivo (sin la carpeta del disco).
-        const json e = eventoWeb();
-        json out = e.value("estado", json::object());
-        out["activo"] = eventoWebActivo();
-        http::sendResponse(fd, 200, "application/json", out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
-                           "Cache-Control: no-store\r\n");
+    if ((path == "/api/evento" || path == "/api/evento/vivos") && method == "GET") {
+        // Cada navegador manda su id al preguntar: así se cuenta cuántos miran (los de
+        // los últimos 15 s). Anotarlo es barato; lo caro va en el caché de abajo.
+        {
+            const auto q = http::parseQuery(query);
+            if (q.count("v")) {
+                const std::string v = http::urlDecode(q.at("v")).substr(0, 40);
+                std::lock_guard<std::mutex> g(eventoWebM_);
+                if (!v.empty() && (mirando_.size() < 20000 || mirando_.count(v))) mirando_[v] = nowMs();
+            }
+        }
+        const auto [cuerpo, vivos] = eventoPublicoCacheado();
+        http::sendResponse(fd, 200, "application/json", path == "/api/evento" ? cuerpo : vivos,
+                           "Cache-Control: no-cache\r\n");
         return;
     }
     if (path == "/healthz") {

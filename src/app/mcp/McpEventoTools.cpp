@@ -129,13 +129,18 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "y un cierre, en la carpeta Web/ del evento (queda en el historial). La raíz de la dirección pública "
             "muestra la página de la sección que se está tratando y cambia sola cuando el guion avanza; los "
             "invitados entran por /invitados/. `accion`: ver | generar {sobrescribir} | leer {pagina} | escribir "
-            "{pagina, html} | sitio {titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar, vivos} | "
+            "{pagina, html} | sitio {titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar, vivos, participacion} | "
+            "aviso {texto, nivel: info|urgente} (el cartel de arriba de la página; texto vacío lo saca) | "
             "direccion {subdominio?} (pasa la dirección pública a <subdominio>.a.pinggy.link con la API key; reinicia "
             "la sala).";
         t.details =
             "`pagina`: «portada», «cierre», el id, el nombre o el número de una sección, o un .html/.css propio. "
-            "Las páginas son HTML completos y del usuario: personalizalas de verdad (textos, imágenes de la "
-            "carpeta Web/, colores) con `escribir`; `generar` no pisa lo que ya existe salvo `sobrescribir`. "
+            "LA PÁGINA SE ARMA SOLA CON LOS DATOS DEL EVENTO: las plantillas del sistema no traen datos escritos; "
+            "/evento/_/vivo.js pone el nombre, la fecha, las secciones, el programa, anterior/siguiente, quién habla "
+            "y la gente conectada con lo que da /api/evento, así que si cambia el guion la página se actualiza sola. "
+            "Para personalizar, sumá contenido propio (de qué va cada sección, fotos, links) con `escribir` y dejá los "
+            "atributos data-vivo (la lista completa está al principio de vivo.js; `leer` una página muestra cómo). "
+            "`generar` no pisa lo editado salvo `sobrescribir`. "
             "Mantené `<script src=\"/evento/_/vivo.js\" defer></script>` y usá data-vivo=\"estado|seccion|siguiente|"
             "cuenta|transcurrido|agenda\" para lo que cambia en vivo (ver el comentario al final de cada página). "
             "Nunca pongas en la página instrucciones del operador ni datos privados: es pública. "
@@ -149,7 +154,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.inputSchema = {{"type", "object"},
                          {"required", {"accion"}},
                          {"properties",
-                          {{"accion", {{"type", "string"}, {"enum", {"ver", "generar", "leer", "escribir", "sitio", "direccion"}}}},
+                          {{"accion", {{"type", "string"}, {"enum", {"ver", "generar", "leer", "escribir", "sitio", "direccion", "aviso"}}}},
                            {"sobrescribir", {{"type", "boolean"}}},
                            {"pagina", {{"type", "string"}}},
                            {"html", {{"type", "string"}}},
@@ -160,6 +165,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                            {"subdominio", {{"type", "string"}}},
                            {"barra", {{"type", "boolean"}}},
                            {"direccion_al_iniciar", {{"type", "boolean"}}},
+                           {"participacion", {{"type", "boolean"}, {"description", "la página ofrece preguntar y votar (/publico/)"}}},
+                           {"texto", {{"type", "string"}}},
+                           {"nivel", {{"type", "string"}, {"enum", {"info", "urgente"}}}},
                            {"vivos", {{"type", "object"},
                                       {"properties", {{"youtube", {{"type", "string"}}}, {"twitch", {{"type", "string"}}},
                                                       {"facebook", {{"type", "string"}}}}}}}}}};
@@ -186,7 +194,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 QVariantMap c;
                 for (const char* k : {"titulo", "bajada", "color", "fondo", "subdominio"})
                     if (a.contains(k) && a[k].is_string()) c[k] = QString::fromStdString(a[k].get<std::string>());
-                for (const char* k : {"barra", "direccion_al_iniciar"})
+                for (const char* k : {"barra", "direccion_al_iniciar", "participacion"})
                     if (a.contains(k) && a[k].is_boolean()) c[k] = a[k].get<bool>();
                 if (a.contains("vivos") && a["vivos"].is_object()) {
                     QVariantMap v;
@@ -196,6 +204,11 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 }
                 const QString e = ev.setWebSitio(c);
                 return done(e.isEmpty() ? ToolResult().data(qvToJson(ev.web().value("sitio"))) : ToolResult::error(e.toStdString()));
+            }
+            if (acc == "aviso") {
+                ev.setAvisoWeb(QString::fromStdString(a.value("texto", std::string())),
+                               QString::fromStdString(a.value("nivel", std::string("info"))));
+                return done(ToolResult::ok(a.value("texto", std::string()).empty() ? "Aviso sacado." : "Aviso publicado: se ve ya en la página."));
             }
             if (acc == "direccion") {
                 AccesoRemoto* ar = vm.accesoRemoto();

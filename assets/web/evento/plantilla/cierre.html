@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>{{titulo}} — Gracias</title>
+  <meta name="description" content="{{descripcion}}" />
+  <meta name="theme-color" content="#0b0b0c" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="{{titulo}}" />
+  <link rel="stylesheet" href="/evento/_/sitio.css" />
+  <link rel="stylesheet" href="estilo.css" />
+  <script src="/evento/_/vivo.js" defer></script>
+</head>
+<!--
+  EL CIERRE (cuando el evento terminó). Plantilla del sistema
+  (assets/web/evento/plantilla/cierre.html): los datos los completa /evento/_/vivo.js.
+-->
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="nav">
+    <div class="contenedor">
+      <a class="marca" href="portada.html" data-vivo="nombre">{{titulo}}</a>
+      <nav class="nav-links" aria-label="Secciones del sitio">
+        <a href="#vivo">La grabación</a>
+        <a href="#programa">Lo que pasó</a>
+        <a href="portada.html">Portada</a>
+      </nav>
+      <div class="nav-acciones">
+        <span class="estado" data-vivo="estado">Terminó</span>
+        <button class="hamburguesa" type="button" data-menu aria-controls="menu-movil" aria-expanded="false" aria-label="Abrir el menú"><span></span></button>
+      </div>
+    </div>
+  </header>
+  <nav class="menu-movil" id="menu-movil" hidden aria-label="Menú">
+    <a href="#vivo">La grabación</a>
+    <a href="#programa">Lo que pasó</a>
+    <a href="portada.html">Portada</a>
+  </nav>
+
+  <div class="aviso" data-vivo-si="aviso" hidden><div class="contenedor" data-vivo="aviso"></div></div>
+
+  <main id="contenido">
+    <section class="hero">
+      <div class="hero-marca" aria-hidden="true">Gracias</div>
+      <div class="contenedor">
+        <p class="ceja"><span data-vivo="fecha-corta"></span> · <span data-vivo="estado">Terminó</span></p>
+        <h1 class="h1">Gracias por estar.</h1>
+        <p class="bajada"><span data-vivo="nombre">{{titulo}}</span> terminó. Acá queda la grabación y todo lo que pasó.</p>
+        <div class="hero-acciones">
+          <a class="boton primario" href="#vivo">Volver a verlo</a>
+          <a class="boton secundario" href="#programa" data-vivo-si="secciones">Lo que pasó</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="contenedor">
+      <div class="numeros">
+        <div><b data-vivo="n-secciones">—</b><span>Secciones</span></div>
+        <div><b data-vivo="minutos">—</b><span>Minutos</span></div>
+        <div><b><span data-vivo="dia"></span> <span data-vivo="mes"></span></b><span>Fecha</span></div>
+        <div><b data-vivo="hora-inicio">—</b><span>Empezó</span></div>
+      </div>
+    </div>
+
+    <section class="seccion" id="vivo" style="margin-top:64px">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">01 / La grabación</p>
+          <h2 class="h2">Volvé a verlo.</h2>
+        </div>
+        <div class="reproductor-caja">
+          <div data-vivo="reproductor" data-plataforma="youtube" data-vacio="La grabación va a estar acá."></div>
+          <nav class="plataformas" data-vivo="vivos" data-vivo-si="vivos" hidden aria-label="Verlo en cada plataforma"></nav>
+        </div>
+      </div>
+    </section>
+
+    <section class="seccion" id="programa" data-vivo-si="secciones">
+      <div class="contenedor">
+        <div class="cabeza-seccion">
+          <p class="ceja">02 / Lo que pasó</p>
+          <h2 class="h2">Parte por parte.</h2>
+        </div>
+        <ol class="programa" data-vivo="agenda"></ol>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="contenedor">
+      <div class="pie-grilla">
+        <div>
+          <p class="h3" style="margin:0 0 10px" data-vivo="nombre">{{titulo}}</p>
+          <p data-vivo="fecha-larga"></p>
+        </div>
+        <div><h4>El evento</h4><ul>
+          <li><a href="#vivo">La grabación</a></li><li><a href="#programa">Lo que pasó</a></li>
+          <li><a href="portada.html">Portada</a></li></ul></div>
+        <div data-vivo-si="secciones"><h4>Secciones</h4><ul data-vivo="lista-secciones"></ul></div>
+        <div><h4>Seguí</h4><ul><li><a data-vivo-href="publico" data-vivo-si="participar" hidden>Preguntar y votar</a></li>
+          <li><a href="/invitados/">La sala</a></li></ul></div>
+      </div>
+      <div class="pie-final"><span><span data-vivo="nombre">{{titulo}}</span> · <span data-vivo="anio"></span></span><span>Gracias por estar.</span></div>
+    </div>
+  </footer>
+</body>
+</html>

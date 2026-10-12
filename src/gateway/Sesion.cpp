@@ -126,6 +126,14 @@ bool SesionBorde::intentoPermitido(const std::string& ip) {
     return true;
 }
 
+int SesionBorde::conectados() const {
+    std::lock_guard<std::mutex> g(mu_);
+    int n = 0;
+    for (const auto& [id, c] : conns_)
+        if (c && id.rfind("consola:", 0) != 0) ++n;
+    return n;
+}
+
 void SesionBorde::ponerCredenciales(const json& participantes) {
     std::lock_guard<std::mutex> l(mu_);
     std::map<std::string, Credencial> nuevas;
