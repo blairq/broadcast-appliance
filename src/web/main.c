@@ -14,6 +14,7 @@
  */
 #include "bw.h"
 
+#include <limits.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,6 +22,7 @@
 
 #ifndef _WIN32
 #include <errno.h>
+#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -93,6 +95,33 @@ static pid_t lanzar(const bw_conf* c, bw_sock* ls, int n, pid_t master) {
     _exit(worker_run(c, ls, n, (int64_t)master));
 }
 
+/* Cada worker necesita descriptores para sus conexiones, las del gateway y los archivos
+   grandes: se sube el tope blando hasta lo que haga falta (o el duro). Si no alcanza, se
+   achica worker_connections: aceptar sin descriptores haría girar al worker. */
+static void ajustar_descriptores(bw_conf* c) {
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) return;
+    const rlim_t quiero = (rlim_t)c->worker_connections * 2 + 128;
+    if (rl.rlim_cur < quiero) {
+        rlim_t nuevo = quiero;
+        if (rl.rlim_max != RLIM_INFINITY && nuevo > rl.rlim_max) nuevo = rl.rlim_max;
+#ifdef __APPLE__
+        if (nuevo > (rlim_t)OPEN_MAX) nuevo = (rlim_t)OPEN_MAX; /* macOS no acepta más que OPEN_MAX */
+#endif
+        rl.rlim_cur = nuevo;
+        setrlimit(RLIMIT_NOFILE, &rl);
+        getrlimit(RLIMIT_NOFILE, &rl);
+    }
+    if (rl.rlim_cur < quiero) {
+        const int maximo = rl.rlim_cur > 256 ? (int)((rl.rlim_cur - 128) / 2) : (int)(rl.rlim_cur / 3);
+        if (maximo < c->worker_connections) {
+            log_msg("warn", "solo %llu descriptores: worker_connections baja de %d a %d", (unsigned long long)rl.rlim_cur,
+                    c->worker_connections, maximo < 16 ? 16 : maximo);
+            c->worker_connections = maximo < 16 ? 16 : maximo;
+        }
+    }
+}
+
 static int correr(const char* conf_path, int64_t padre) {
     bw_conf* conf = (bw_conf*)calloc(1, sizeof *conf);
     char err[512];
@@ -102,6 +131,7 @@ static int correr(const char* conf_path, int64_t padre) {
     }
     log_open(conf->error_log);
     access_open(conf->access_log);
+    ajustar_descriptores(conf);
     bw_sock ls[BW_MAX_LISTEN];
     for (int i = 0; i < conf->nlisten; i++) {
         ls[i] = sock_listen(conf->listen[i].host, conf->listen[i].port, err, sizeof err);
@@ -153,6 +183,7 @@ static int correr(const char* conf_path, int64_t padre) {
                 log_msg("error", "no se releyó la configuración: %s", err);
                 free(nueva);
             } else {
+                ajustar_descriptores(nueva);
                 int mismas = nueva->nlisten == conf->nlisten;
                 for (int i = 0; mismas && i < conf->nlisten; i++)
                     mismas = !strcmp(nueva->listen[i].host, conf->listen[i].host) &&

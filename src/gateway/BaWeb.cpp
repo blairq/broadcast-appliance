@@ -54,7 +54,8 @@ std::string WebSupervisor::armarConf(const Cfg& c, const std::string& aliasFile,
     s += "# Generado por el gateway al arrancar (BaWeb.cpp): no se edita a mano.\n";
     s += "worker_processes " + procesos + ";\n";
     s += "worker_connections 4096;\n";
-    s += "listen 127.0.0.1:" + std::to_string(c.puerto) + " proxy_protocol;\n";
+    // real_ip_xff: la IP real es la última de X-Forwarded-For, la que agrega pinggy (--xff).
+    s += "listen 127.0.0.1:" + std::to_string(c.puerto) + (c.proxyProtocol ? " proxy_protocol" : "") + " real_ip_xff;\n";
     s += "upstream 127.0.0.1:" + std::to_string(c.upstream) + ";\n";
     s += "error_log " + (logPath.empty() ? std::string("stderr") : q(logPath)) + ";\n";
     s += "gzip on;\ngzip_comp_level 6;\n";

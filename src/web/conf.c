@@ -49,6 +49,13 @@ void conf_defaults(bw_conf* c) {
     c->file_cache_max = 1u << 20;
     c->file_cache_total = 64u << 20;
     c->proxy_buffer_max = 4u << 20;
+    /* generosos: detrás de un CGNAT (celulares) cientos de personas comparten la IP */
+    c->limit_conn_per_ip = 256;
+    c->limit_tunnels_per_ip = 32;
+    c->limit_up_rate = 20;
+    c->limit_up_burst = 60;
+    c->upstream_max_conns = 512;
+    c->vistos_per_ip = 16;
     snprintf(c->upstream_host, sizeof c->upstream_host, "127.0.0.1");
     c->upstream_port = 0;
 }
@@ -295,15 +302,31 @@ int conf_load(const char* path, bw_conf* c, char* err, size_t errlen) {
             if (tamano(args[1], &c->file_cache_total)) ERR("open_file_cache_total: tamaño inválido");
         } else if (!strcmp(d, "proxy_buffer_max") && n == 2) {
             if (tamano(args[1], &c->proxy_buffer_max)) ERR("proxy_buffer_max: tamaño inválido");
-        } else if (!strcmp(d, "listen") && (n == 2 || n == 3)) {
+        } else if (!strcmp(d, "listen") && n >= 2 && n <= 4) {
             if (c->nlisten >= BW_MAX_LISTEN) ERR("demasiados listen");
             bw_listen* l = &c->listen[c->nlisten++];
             memset(l, 0, sizeof *l);
             if (host_puerto(args[1], l->host, sizeof l->host, &l->port)) ERR("listen: dirección inválida");
-            if (n == 3) {
-                if (strcmp(args[2], "proxy_protocol")) ERR("listen: solo «proxy_protocol» como opción");
-                l->proxy_protocol = 1;
+            for (int i = 2; i < n; i++) {
+                if (!strcmp(args[i], "proxy_protocol")) l->proxy_protocol = 1;
+                else if (!strcmp(args[i], "real_ip_xff")) l->real_ip_xff = 1;
+                else ERR("listen: opciones «proxy_protocol» y «real_ip_xff»");
             }
+        } else if (!strcmp(d, "limit_conn_per_ip") && n == 2) {
+            c->limit_conn_per_ip = atoi(args[1]);
+            if (c->limit_conn_per_ip < 1) ERR("limit_conn_per_ip: al menos 1");
+        } else if (!strcmp(d, "limit_tunnels_per_ip") && n == 2) {
+            c->limit_tunnels_per_ip = atoi(args[1]);
+            if (c->limit_tunnels_per_ip < 1) ERR("limit_tunnels_per_ip: al menos 1");
+        } else if (!strcmp(d, "limit_upstream_rate") && n == 3) {
+            c->limit_up_rate = atof(args[1]);
+            c->limit_up_burst = atoi(args[2]);
+            if (c->limit_up_rate <= 0 || c->limit_up_burst < 1) ERR("limit_upstream_rate: <por segundo> <ráfaga>");
+        } else if (!strcmp(d, "upstream_max_conns") && n == 2) {
+            c->upstream_max_conns = atoi(args[1]);
+            if (c->upstream_max_conns < 1) ERR("upstream_max_conns: al menos 1");
+        } else if (!strcmp(d, "ba_vistos_per_ip") && n == 2) {
+            c->vistos_per_ip = atoi(args[1]);
         } else if (!strcmp(d, "upstream") && n == 2) {
             if (host_puerto(args[1], c->upstream_host, sizeof c->upstream_host, &c->upstream_port))
                 ERR("upstream: dirección inválida");

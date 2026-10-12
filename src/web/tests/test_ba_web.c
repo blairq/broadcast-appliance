@@ -558,7 +558,8 @@ int main(void) {
     CHECK(pedir("GET / HTTP/1.1\r\nHost : x\r\n\r\n", &r) == 0 && r.status == 400, "«Nombre :»: 400");
     CHECK(pedir("\r\n\r\nGET /s/index.html HTTP/1.1\r\nHost: x\r\n\r\n", &r) == 0 && r.status == 200,
           "líneas vacías antes del pedido: se ignoran");
-    CHECK(pedir("GET /s/index.html HTTP/1.1\nHost: x\n\n", &r) == 0 && r.status == 200, "LF solos: se aceptan");
+    CHECK(pedir("GET /s/index.html HTTP/1.1\nHost: x\n\n", &r) == 0 && r.status == 400,
+          "LF solos: 400 (el gateway lee CRLF: si no, entenderían distinto el pedido)");
 
     /* --- microcaché --- */
     const int antes = g_api_hits;

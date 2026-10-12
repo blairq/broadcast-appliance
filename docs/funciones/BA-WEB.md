@@ -30,10 +30,42 @@ visitante ──https──> pinggy ──> ba-web 127.0.0.1:8785 ──> gatewa
 | Proxy | Los GET/HEAD van al gateway con buffer y se comprimen si conviene (html, css, js, json, svg…); WebSocket, POST, subidas y SSE pasan como túnel crudo. La línea PROXY v1 de pinggy se le pasa al gateway (la IP real no se pierde). |
 | Microcaché | `/`, `/api/v1/evento` y `/api/v1/evento/vivos`: una respuesta del gateway sirve a todos por `evento.cacheMs`; vencida, se sirve la vieja mientras se trae la nueva y nunca hay dos pedidos iguales en vuelo. Los ids de mirada (`?v=`) los junta y se los manda al gateway (`X-BA-Vistos`, con la clave `BA_WEB_CLAVE`): el «N mirando» cuenta también a los que atendió el caché. |
 
+## Seguridad
+
+Lo que puede intentar alguien desde internet y qué hace ba-web:
+
+| Ataque | Defensa |
+|---|---|
+| Slowloris (cabecera de a un byte) | el plazo de la cabecera corre desde el primer byte y no se estira (`client_header_timeout`, 30 s) |
+| Conexiones mudas por miles | límite por IP desde la línea PROXY; casi lleno, se desalojan las ociosas más viejas |
+| Pipelining en cascada (miles de pedidos en un paquete) | una cola: un pedido por conexión y por vuelta del bucle; `keepalive_requests` 1000 |
+| Contrabando de pedidos (request smuggling) | CRLF estricto (ni CR ni LF sueltos, ni controles), CL+TE o dos CL distintos → 400; al gateway, una conexión nueva por pedido (nunca se mezclan dos visitantes) |
+| IP falsa (para saltear el límite de intentos de PIN del gateway) | la línea PROXY se acepta solo si pinggy la manda (sin TURN), desde loopback y con una IP válida; la IP real es la última de `X-Forwarded-For` (la pone pinggy); al gateway ba-web le manda su propia línea PROXY, nunca la del visitante |
+| Tapar al gateway (hilo por conexión) | `upstream_max_conns` (503), pedidos al gateway por IP con balde de fichas (`limit_upstream_rate`, 429), túneles por IP (`limit_tunnels_per_ip`) |
+| Envenenar el microcaché | el pedido del caché no lleva nada del visitante (ni su `Host`) |
+| Inflar el «N mirando» | pocos ids de mirada por IP y por ventana (`ba_vistos_per_ip`) |
+| Rutas | `..`, `%2e%2e`, `%2f`, `%00`, `\`, controles codificados → 400; enlaces que salen de la raíz, archivos ocultos (`.env`, `.git`), `::$DATA`, `CON`/`NUL`/`COM1`, nombres 8.3 (`SECRET~1`), `nombre.` → 404 sin preguntarle al gateway |
+| Inyectar cabeceras (`%0d%0a`) | prohibido en la ruta; la redirección del directorio va codificada y relativa |
+| TRACE, CONNECT | 405 |
+| Sin descriptores (EMFILE) | se sube el tope al arrancar (o se achica `worker_connections`); si igual falta, se pausa aceptar 100 ms en vez de girar al 100 % |
+| Memoria | cabecera hasta 16 KiB, 64 KiB por sentido en túneles, caché de archivos con tope, sin multipart en `Range` |
+
+**Probado** con `src/web/tests/ataques.py` (29 ataques y un fuzz de pedidos rotos) contra una versión
+compilada con AddressSanitizer y UBSan:
+
+```
+clang -std=c11 -g -O1 -fsanitize=address,undefined -Iextern/libdeflate src/web/*.c \
+      build/_deps/libdeflate-build/libdeflate.a -o /tmp/ba-web-asan
+python3 src/web/tests/ataques.py /tmp/ba-web-asan --fuzz 20000
+```
+
+29 de 29 y 20 000 pedidos rotos sin errores de memoria. Con 3 000 conexiones mudas encima
+(más del doble de la capacidad) la gente real sigue entrando.
+
 ## Configuración
 
 La genera el gateway; la sintaxis es un subconjunto de la de nginx (ver `src/web/conf.c`):
-`worker_processes`, `listen … proxy_protocol`, `upstream`, `gzip*`, `location [=] /ruta { root |
+`worker_processes`, `listen … [proxy_protocol] [real_ip_xff]`, `upstream`, `limit_conn_per_ip`, `limit_tunnels_per_ip`, `limit_upstream_rate`, `upstream_max_conns`, `gzip*`, `location [=] /ruta { root |
 alias | alias_file | proxy_pass | return; index; try_files $uri @upstream; proxy_cache_valid;
 proxy_cache_key; add_header }`. `ba-web -t -c archivo` la revisa.
 

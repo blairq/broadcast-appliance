@@ -724,7 +724,14 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
             }
             // Los que atendió el caché de ba-web: los manda él, con su clave, como hashes de
             // 8 cifras hex («h:» adelante, para no mezclarse con los ids que llegan directo).
-            if (!cfg_.webClave.empty() && http::getHeader(headers, "X-BA-Clave") == cfg_.webClave) {
+            const auto igualesSinFiltrar = [](const std::string& a, const std::string& b) {
+                // en tiempo constante: el tiempo de la comparación no cuenta cuánto se acertó
+                if (a.size() != b.size()) return false;
+                unsigned char d = 0;
+                for (std::size_t i = 0; i < a.size(); ++i) d |= static_cast<unsigned char>(a[i] ^ b[i]);
+                return d == 0;
+            };
+            if (!cfg_.webClave.empty() && igualesSinFiltrar(http::getHeader(headers, "X-BA-Clave"), cfg_.webClave)) {
                 const std::string vistos = http::getHeader(headers, "X-BA-Vistos");
                 const std::int64_t ahora = nowMs();
                 std::lock_guard<std::mutex> g(eventoWebM_);

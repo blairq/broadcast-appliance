@@ -940,6 +940,7 @@ int main(int argc, char** argv) {
         wc.procesos = cfg.webProcesos;
         wc.cacheMs = ba::ajustes::entero("evento.cacheMs", 1000);
         wc.clave = sigCfg.webClave;
+        wc.proxyProtocol = !turnActivo; // como pc.haproxy de pinggy, más abajo
         if (!wc.dir.empty()) {
             baWeb = std::make_unique<WebSupervisor>(std::move(wc), log);
             WebSupervisor* bw = baWeb.get();

@@ -39,6 +39,9 @@ class WebSupervisor {
         int procesos = 0;          ///< 0 = auto
         int cacheMs = 1000;        ///< el microcaché de /api/v1/evento
         std::string clave;         ///< para X-BA-Vistos
+        /// pinggy manda la línea PROXY v1 (sin TURN). Si no la manda, ba-web NO la acepta:
+        /// si la aceptara, un visitante podría mandar la suya e inventarse la IP.
+        bool proxyProtocol = false;
     };
     WebSupervisor(Cfg cfg, Log& log);
     ~WebSupervisor();

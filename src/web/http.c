@@ -51,8 +51,10 @@ enum { O_LISTEN = 1, O_CONN, O_UP };
 enum { C_READ = 0, C_WRITE, C_PROXY, C_CACHE, C_TUNNEL };
 enum { U_BUF = 0, U_STREAM, U_TUNNEL, U_CACHE };
 
-#define HEAD_MAX (64 * 1024)
-#define STREAM_HIGH (256 * 1024)
+/* La cabecera de un pedido (nginx: 4 × 8 KiB): el sitio no usa cookies grandes. */
+#define HEAD_MAX (16 * 1024)
+/* Lo que se junta para mandar en un túnel o un stream antes de frenar al otro lado. */
+#define STREAM_HIGH (64 * 1024)
 
 typedef struct lst {
     int tipo;
@@ -75,6 +77,7 @@ typedef struct req {
     const char* range;
     const char* ifrange;
     const char* upgrade;
+    const char* xff;
     int conn_close, conn_keep;
     int64_t clen;
     int chunked;
@@ -86,6 +89,19 @@ typedef struct req {
 struct centry;
 struct up;
 
+/* Lo que se lleva por IP real (para los límites). */
+typedef struct ipent {
+    char ip[48];
+    uint32_t h;
+    int conns, tuneles;
+    double fichas;      /* el balde de pedidos al gateway */
+    int64_t repuesto;   /* cuándo se repusieron las fichas */
+    int vistos;         /* ids de mirada en esta ventana */
+    int64_t vistos_desde;
+    int64_t usado;
+    struct ipent* sig;
+} ipent;
+
 typedef struct conn {
     int tipo;
     bw_sock fd;
@@ -93,7 +109,8 @@ typedef struct conn {
     int ev_rd, ev_wr;
     int muerto;
     const bw_listen* lc;
-    char ip[64];
+    char peer[64];  /* la IP del socket (127.0.0.1 si viene del túnel) */
+    char ip[64];    /* la de la línea PROXY, o la del socket */
     char proxy_line[160];
     int proxy_visto;
     int state;
@@ -118,6 +135,10 @@ typedef struct conn {
     struct conn *prev, *next;
     int status;
     int64_t enviados;
+    ipent* ipe;           /* la IP real (contada en limit_conn) */
+    int es_tunel;         /* contado en limit_tunnels */
+    int en_cola;          /* tiene pedidos esperando (pipelining) */
+    int64_t pedido_desde; /* cuándo llegó el primer byte del pedido (slowloris) */
 } conn;
 
 typedef struct up {
@@ -164,8 +185,12 @@ typedef struct centry {
 
 static conn* g_conns = NULL;
 static up* g_ups = NULL;
-static void* g_cementerio[4096];
-static int g_ncem = 0;
+static void** g_cementerio = NULL;
+static int g_ncem = 0, g_capcem = 0;
+static conn** g_cola = NULL; /* conexiones con pedidos ya recibidos (pipelining) */
+static int g_ncola = 0, g_capcola = 0;
+static int g_nups = 0;        /* conexiones al gateway abiertas */
+static int64_t g_accept_pausa = 0; /* sin descriptores: no aceptar hasta acá */
 static lst* g_lst[BW_MAX_LISTEN];
 static int g_nlst = 0;
 static centry* g_cache = NULL;
@@ -188,8 +213,27 @@ static void finish_response(conn* c);
 /* ------------------------------------------------------------------------- */
 
 static void enterrar(void* p) {
-    if (g_ncem < (int)(sizeof g_cementerio / sizeof g_cementerio[0])) g_cementerio[g_ncem++] = p;
-    /* si se llena (no debería: se vacía en cada vuelta) se pierde la memoria, no se rompe */
+    if (g_ncem == g_capcem) {
+        const int cap = g_capcem ? g_capcem * 2 : 1024;
+        void** n = (void**)realloc(g_cementerio, sizeof *n * (size_t)cap);
+        if (!n) return; /* sin memoria: se pierde este objeto, no se rompe nada */
+        g_cementerio = n;
+        g_capcem = cap;
+    }
+    g_cementerio[g_ncem++] = p;
+}
+
+static void encolar(conn* c) {
+    if (c->en_cola) return;
+    if (g_ncola == g_capcola) {
+        const int cap = g_capcola ? g_capcola * 2 : 256;
+        conn** n = (conn**)realloc(g_cola, sizeof *n * (size_t)cap);
+        if (!n) return;
+        g_cola = n;
+        g_capcola = cap;
+    }
+    g_cola[g_ncola++] = c;
+    c->en_cola = 1;
 }
 
 static void set_io(int tipo, void* o, bw_sock fd, int* slot, int* ev_rd, int* ev_wr, int rd, int wr) {
@@ -269,6 +313,93 @@ static int tiene_token(const char* lista, const char* tok) {
 
 static int es_loopback(const char* ip) {
     return !strncmp(ip, "127.", 4) || !strcmp(ip, "::1") || !strncmp(ip, "::ffff:127.", 11);
+}
+
+/* ------------------------------------------------------------------------- */
+/* IPs reales y límites                                                      */
+/* ------------------------------------------------------------------------- */
+
+#define IPBUCKETS 8192
+static ipent* g_ips[IPBUCKETS];
+static int g_nips = 0;
+static ipent g_ip_desborde; /* si la tabla se llena, las IPs nuevas comparten esta */
+
+/* ¿Es una IP (v4 o v6) bien escrita? Lo que vaya en la línea PROXY al gateway tiene que serlo. */
+static int ip_valida(const char* s) {
+    struct in6_addr a6;
+    struct in_addr a4;
+    return inet_pton(AF_INET, s, &a4) == 1 || inet_pton(AF_INET6, s, &a6) == 1;
+}
+
+static ipent* ip_buscar(const char* ip) {
+    const uint32_t h = fnv32(ip, strlen(ip));
+    for (ipent* e = g_ips[h % IPBUCKETS]; e; e = e->sig)
+        if (e->h == h && !strcmp(e->ip, ip)) {
+            e->usado = g_now;
+            return e;
+        }
+    if (g_nips >= 100000) return &g_ip_desborde;
+    ipent* e = (ipent*)calloc(1, sizeof *e);
+    if (!e) return &g_ip_desborde;
+    snprintf(e->ip, sizeof e->ip, "%s", ip);
+    e->h = h;
+    e->fichas = C->limit_up_burst;
+    e->repuesto = g_now;
+    e->usado = g_now;
+    e->sig = g_ips[h % IPBUCKETS];
+    g_ips[h % IPBUCKETS] = e;
+    g_nips++;
+    return e;
+}
+
+/* Las que no se usan hace un rato y no tienen nada abierto, afuera. */
+static void ips_limpiar(void) {
+    for (int i = 0; i < IPBUCKETS; i++) {
+        ipent** pp = &g_ips[i];
+        while (*pp) {
+            ipent* e = *pp;
+            if (!e->conns && !e->tuneles && g_now - e->usado > 120000) {
+                *pp = e->sig;
+                free(e);
+                g_nips--;
+            } else {
+                pp = &e->sig;
+            }
+        }
+    }
+}
+
+/* Una ficha del balde para ir al gateway (como limit_req de nginx). */
+static int ip_ficha(ipent* e) {
+    e->fichas += (double)(g_now - e->repuesto) * C->limit_up_rate / 1000.0;
+    if (e->fichas > C->limit_up_burst) e->fichas = C->limit_up_burst;
+    e->repuesto = g_now;
+    if (e->fichas < 1.0) return 0;
+    e->fichas -= 1.0;
+    return 1;
+}
+
+/* La IP real del que pide: la última de X-Forwarded-For si la escucha confía en ella (la
+   agrega el túnel; lo de antes lo pudo escribir cualquiera), si no la de la línea PROXY,
+   si no la del socket. */
+static void ip_real(const conn* c, const char* xff, char* out, size_t outlen) {
+    if (xff && c->lc->real_ip_xff && es_loopback(c->peer)) {
+        const char* ult = strrchr(xff, ',');
+        ult = ult ? ult + 1 : xff;
+        while (*ult == ' ' || *ult == '\t') ult++;
+        char tmp[64];
+        size_t n = 0;
+        while (ult[n] && ult[n] != ' ' && n + 1 < sizeof tmp) {
+            tmp[n] = ult[n];
+            n++;
+        }
+        tmp[n] = 0;
+        if (ip_valida(tmp)) {
+            snprintf(out, outlen, "%s", tmp);
+            return;
+        }
+    }
+    snprintf(out, outlen, "%s", c->ip);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -670,6 +801,51 @@ static void servir_archivo(conn* c, const bw_location* l, fentry* e) {
     conn_write(c);
 }
 
+/* ¿Un tramo de la ruta que no se sirve nunca? Archivos ocultos («.git», «.env»), y lo que
+   en Windows no es lo que parece: «a.txt::$DATA» (otro flujo del archivo), «CON», «NUL»,
+   «COM1»… (dispositivos), «nombre.» o «nombre » (Windows los recorta) y los nombres cortos
+   8.3 («SECRET~1», que pueden apuntar a un archivo oculto). Igual en todos los sistemas. */
+static int ruta_prohibida(const char* rel) {
+    static const char* kRes[] = {"CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$", "CLOCK$", NULL};
+    const char* p = rel;
+    while (*p) {
+        while (*p == '/') p++;
+        if (!*p) break;
+        const char* ini = p;
+        while (*p && *p != '/') p++;
+        const size_t n = (size_t)(p - ini);
+        if (ini[0] == '.') return 1;
+        if (memchr(ini, ':', n)) return 1;
+        if (ini[n - 1] == '.' || ini[n - 1] == ' ') return 1;
+        for (size_t i = 0; i + 1 < n; i++)
+            if (ini[i] == '~' && isdigit((unsigned char)ini[i + 1])) return 1;
+        size_t base = 0; /* el nombre sin extensión */
+        while (base < n && ini[base] != '.') base++;
+        for (int i = 0; kRes[i]; i++)
+            if (strlen(kRes[i]) == base && !strncasecmp(ini, kRes[i], base)) return 1;
+        if (base == 4 && (!strncasecmp(ini, "COM", 3) || !strncasecmp(ini, "LPT", 3)) &&
+            (isdigit((unsigned char)ini[3]) || (unsigned char)ini[3] >= 0x80))
+            return 1;
+    }
+    return 0;
+}
+
+/* Para una cabecera Location: la ruta con lo que no sea seguro en %XX. */
+static void codificar_ruta(const char* s, char* out, size_t outlen) {
+    static const char hx[] = "0123456789ABCDEF";
+    size_t o = 0;
+    for (; *s && o + 4 < outlen; s++) {
+        const unsigned char ch = (unsigned char)*s;
+        if (isalnum(ch) || strchr("/-._~!$&'()*+,;=@", ch)) out[o++] = (char)ch;
+        else {
+            out[o++] = '%';
+            out[o++] = hx[ch >> 4];
+            out[o++] = hx[ch & 15];
+        }
+    }
+    out[o] = 0;
+}
+
 /* 1 si respondió, 0 si no está (y se puede probar el upstream). */
 static int servir_estatico(conn* c, const bw_location* l) {
     req* r = &c->r;
@@ -688,23 +864,38 @@ static int servir_estatico(conn* c, const bw_location* l) {
         return 0;
     }
     while (*rel == '/') rel++;
+    if (ruta_prohibida(rel)) {
+        respuesta_simple(c, 404, NULL, NULL, 0); /* ni siquiera se le pregunta al gateway */
+        return 1;
+    }
     char path[4096];
     const size_t nb = strlen(base);
     const int dir_uri = r->uri[strlen(r->uri) - 1] == '/';
-    snprintf(path, sizeof path, "%s%s%s", base, (nb && base[nb - 1] == '/') ? "" : "/", rel);
+    int k = snprintf(path, sizeof path, "%s%s%s", base, (nb && base[nb - 1] == '/') ? "" : "/", rel);
+    if (k < 0 || (size_t)k >= sizeof path) {
+        respuesta_simple(c, 414, NULL, NULL, 0); /* cortada sería otra ruta */
+        return 1;
+    }
     if (dir_uri || !*rel) {
         if (!l->index[0]) return 0;
         const size_t n = strlen(path);
-        snprintf(path + n, sizeof path - n, "%s%s", (n && path[n - 1] == '/') ? "" : "/", l->index);
+        k = snprintf(path + n, sizeof path - n, "%s%s", (n && path[n - 1] == '/') ? "" : "/", l->index);
+        if (k < 0 || (size_t)k >= sizeof path - n) {
+            respuesta_simple(c, 414, NULL, NULL, 0);
+            return 1;
+        }
     }
     fentry* e = fcache_get(path, base);
     if (!e || !e->existe || !e->permitido) return 0;
     if (e->es_dir) {
         if (!dir_uri) {
             /* como nginx: el directorio sin la barra se redirige con la barra */
-            char loc[4400];
-            snprintf(loc, sizeof loc, "Location: %s/%s%s\r\n", r->uri, r->query ? "?" : "", r->query ? r->query : "");
-            if (strpbrk(loc + 10, "\r\n") != loc + strlen(loc) - 2) return 0;
+            char ruta[12400];
+            codificar_ruta(r->uri, ruta, sizeof ruta);
+            char loc[12600];
+            const int n = snprintf(loc, sizeof loc, "Location: %s/%s%s\r\n", ruta, r->query ? "?" : "",
+                                   r->query ? r->query : "");
+            if (n < 0 || (size_t)n >= sizeof loc) return 0;
             respuesta_simple(c, 301, loc, NULL, 0);
             return 1;
         }
@@ -739,6 +930,7 @@ static up* up_nuevo(void) {
     u->next = g_ups;
     if (g_ups) g_ups->prev = u;
     g_ups = u;
+    g_nups++;
     return u;
 }
 
@@ -751,6 +943,7 @@ static void up_close(up* u) {
     else g_ups = u->next;
     if (u->next) u->next->prev = u->prev;
     if (u->c && u->c->up == u) u->c->up = NULL;
+    g_nups--;
     buf_free(&u->out);
     buf_free(&u->in);
     enterrar(u);
@@ -764,7 +957,10 @@ static void proxy_iniciar(conn* c, int tunel) {
     }
     u->c = c;
     c->up = u;
-    if (c->proxy_line[0]) buf_adds(&u->out, c->proxy_line);
+    /* La línea PROXY al gateway la arma ba-web con la IP real ya verificada (nunca se pasa
+       una que haya mandado el cliente): el gateway cuenta los intentos de PIN por IP. */
+    if (c->ipe && c->ipe != &g_ip_desborde && !es_loopback(c->ipe->ip))
+        buf_printf(&u->out, "PROXY %s %s 127.0.0.1 0 0\r\n", strchr(c->ipe->ip, ':') ? "TCP6" : "TCP4", c->ipe->ip);
     if (tunel) {
         /* todo lo que mandó el cliente, tal cual (cuerpo y lo que venga después) */
         buf_add(&u->out, c->in.p + c->r.ini, c->in.len - c->r.ini);
@@ -979,8 +1175,17 @@ static void proxy_decidir(conn* c, up* u) {
 /* Microcaché (proxy_cache_valid)                                            */
 /* ------------------------------------------------------------------------- */
 
-static void vistos_anotar(const char* query, const char* nombre) {
+static void vistos_anotar(const char* query, const char* nombre, ipent* ipe) {
     if (!query || !nombre[0] || !g_clave[0]) return;
+    /* cada IP aporta pocos ids por ventana: nadie infla el «N mirando» inventando ids */
+    if (ipe) {
+        if (g_now - ipe->vistos_desde > 2000) {
+            ipe->vistos_desde = g_now;
+            ipe->vistos = 0;
+        }
+        if (ipe->vistos >= C->vistos_per_ip) return;
+        ipe->vistos++;
+    }
     const size_t n = strlen(nombre);
     const char* p = query;
     while (p && *p) {
@@ -1066,12 +1271,11 @@ static void cache_traer(centry* e, const conn* quien) {
     u->modo = U_CACHE;
     u->ce = e;
     e->fetch = u;
-    const char* host = quien && quien->r.host ? quien->r.host : "127.0.0.1";
-    char limpio[256];
-    snprintf(limpio, sizeof limpio, "%s", host);
-    if (strpbrk(limpio, "\r\n")) snprintf(limpio, sizeof limpio, "127.0.0.1");
-    buf_printf(&u->out, "GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: ba-web/" BW_VERSION "\r\nConnection: close\r\n",
-               e->key, limpio);
+    (void)quien;
+    /* Nada del visitante va en este pedido (ni su Host): la respuesta se reparte a todos, y
+       si dependiera de lo que mandó uno, ese uno podría envenenársela al resto. */
+    buf_printf(&u->out, "GET %s HTTP/1.1\r\nHost: 127.0.0.1\r\nUser-Agent: ba-web/" BW_VERSION "\r\nConnection: close\r\n",
+               e->key);
     if (g_clave[0] && g_nvistos) {
         buf_printf(&u->out, "X-BA-Clave: %s\r\nX-BA-Vistos: ", g_clave);
         int k = 0;
@@ -1168,7 +1372,7 @@ static void cache_pedido(conn* c, const bw_location* l) {
             proxy_iniciar(c, 0);
             return;
         }
-    vistos_anotar(r->query, l->vistos);
+    vistos_anotar(r->query, l->vistos, c->ipe);
     centry* e = cache_buscar(key, l->cache_valid_ms);
     if (!e) {
         proxy_iniciar(c, 0);
@@ -1216,9 +1420,9 @@ static int normalizar(const char* path, size_t n, char* out, size_t outlen) {
             if (a < 0 || b < 0) return -1;
             ch = (char)(a * 16 + b);
             i += 2;
-            if (ch == 0) return -1;
         }
-        if (ch == '\\') return -1;
+        /* sin controles (tampoco codificados: %00, %0d%0a…) ni '\\' (separador en Windows) */
+        if ((unsigned char)ch < 0x20 || ch == 0x7f || ch == '\\') return -1;
         if (k + 1 >= sizeof dec) return -2;
         dec[k++] = ch;
     }
@@ -1268,6 +1472,18 @@ static int parsear(conn* c, size_t ini, size_t largo) {
     buf_add(&c->head, c->in.p + ini, largo);
     char* p = c->head.p;
     char* fin = p + c->head.len;
+    /* Cada línea termina en CRLF; ni CR ni LF sueltos, ni otros controles (salvo el
+       tabulador). El gateway lee CRLF: si acá se aceptara otra cosa, los dos podrían
+       entender distinto el mismo pedido (la base del contrabando de pedidos). */
+    for (char* x = p; x < fin; x++) {
+        const unsigned char ch = (unsigned char)*x;
+        if (ch == '\r') {
+            if (x + 1 >= fin || x[1] != '\n') return 400;
+            x++;
+        } else if (ch == '\n' || (ch < 0x20 && ch != '\t') || ch == 0x7f) {
+            return 400;
+        }
+    }
     /* línea de pedido */
     char* eol = memchr(p, '\n', (size_t)(fin - p));
     if (!eol) return 400;
@@ -1340,6 +1556,8 @@ static int parsear(conn* c, size_t ini, size_t largo) {
             r->ifrange = v;
         } else if (!strcasecmp(p, "Upgrade")) {
             r->upgrade = v;
+        } else if (!strcasecmp(p, "X-Forwarded-For")) {
+            r->xff = v; /* la última línea: la que agrega el túnel */
         }
         p = eol + 1;
     }
@@ -1405,6 +1623,13 @@ static void conn_close(conn* c) {
     if (c->state != C_READ || c->in.len) registrar(c);
     if (c->up) up_close(c->up);
     sacar_de_espera(c);
+    if (c->ipe) {
+        c->ipe->conns--;
+        if (c->es_tunel) c->ipe->tuneles--;
+    }
+    if (c->en_cola)
+        for (int i = 0; i < g_ncola; i++)
+            if (g_cola[i] == c) g_cola[i] = NULL;
     ev_del(c->fd, &c->slot);
     sock_close(c->fd);
     if (c->prev) c->prev->next = c->next;
@@ -1438,9 +1663,14 @@ static void finish_response(conn* c) {
     c->status = 0;
     c->enviados = 0;
     c->state = C_READ;
+    if (c->es_tunel && c->ipe) c->ipe->tuneles--;
+    c->es_tunel = 0;
+    c->pedido_desde = c->in.len ? g_now : 0;
     c->deadline = g_now + (c->in.len ? C->header_timeout_ms : C->keepalive_timeout_ms);
-    CONN_IO(c, 1, 0);
-    if (c->in.len) conn_process(c);
+    CONN_IO(c, c->in.len < HEAD_MAX, 0);
+    /* El próximo pedido (pipelining) se atiende en la vuelta siguiente del bucle, no acá:
+       miles de pedidos en un paquete no pueden apilar llamadas (ni acaparar el worker). */
+    if (c->in.len) encolar(c);
 }
 
 static void conn_write(conn* c) {
@@ -1509,10 +1739,37 @@ static void conn_write(conn* c) {
     CONN_IO(c, c->state == C_TUNNEL && c->up && !c->up->cliente_eof, 1);
 }
 
+/* Todo lo que va al gateway pasa por acá: el gateway tiene un hilo por conexión, así que
+   se le cuida la cantidad (por worker), los pedidos por segundo de cada IP y sus túneles. */
+static void ir_al_gateway(conn* c, int tunel) {
+    if (g_nups >= C->upstream_max_conns) {
+        respuesta_simple(c, 503, "Retry-After: 2\r\n", NULL, 1);
+        return;
+    }
+    if (c->ipe && !ip_ficha(c->ipe)) {
+        respuesta_simple(c, 429, "Retry-After: 1\r\n", NULL, 1);
+        return;
+    }
+    if (tunel && c->ipe) {
+        if (c->ipe->tuneles >= C->limit_tunnels_per_ip) {
+            respuesta_simple(c, 429, "Retry-After: 2\r\n", NULL, 1);
+            return;
+        }
+        c->ipe->tuneles++;
+        c->es_tunel = 1;
+    }
+    proxy_iniciar(c, tunel);
+}
+
 static void despachar(conn* c) {
     req* r = &c->r;
+    /* TRACE refleja las cabeceras (cookies incluidas); CONNECT abre túneles a cualquier lado */
+    if (!strcmp(r->metodo, "TRACE") || !strcmp(r->metodo, "CONNECT") || !strcmp(r->metodo, "TRACK")) {
+        respuesta_simple(c, 405, "Allow: GET, HEAD, POST, OPTIONS\r\n", NULL, 1);
+        return;
+    }
     if (!r->uri[0]) { /* OPTIONS * */
-        if (C->upstream_port) proxy_iniciar(c, 1);
+        if (C->upstream_port) ir_al_gateway(c, 1);
         else respuesta_simple(c, 204, "Allow: GET, HEAD, OPTIONS\r\n", NULL, 0);
         return;
     }
@@ -1536,18 +1793,18 @@ static void despachar(conn* c) {
     }
     case H_STATIC:
         if (!(r->es_get || r->es_head) || r->upgrade) {
-            if (l->try_upstream) proxy_iniciar(c, 1);
+            if (l->try_upstream) ir_al_gateway(c, 1);
             else respuesta_simple(c, 405, "Allow: GET, HEAD\r\n", NULL, con_cuerpo);
             return;
         }
         if (con_cuerpo) c->cerrar_despues = 1; /* un GET con cuerpo: no se lee, se cierra al final */
         if (servir_estatico(c, l)) return;
-        if (l->try_upstream) proxy_iniciar(c, tunel);
+        if (l->try_upstream) ir_al_gateway(c, tunel);
         else respuesta_simple(c, 404, NULL, NULL, 0);
         return;
     case H_PROXY:
         if (l->cache_valid_ms > 0 && !tunel) cache_pedido(c, l);
-        else proxy_iniciar(c, tunel);
+        else ir_al_gateway(c, tunel);
         return;
     default:
         respuesta_simple(c, 500, NULL, NULL, 1);
@@ -1570,15 +1827,28 @@ static void conn_process(conn* c) {
                 return;
             }
             const size_t n = (size_t)(eol - c->in.p) + 1;
-            if (!es_loopback(c->ip) || n >= sizeof c->proxy_line || eol == c->in.p || eol[-1] != '\r') {
+            if (!es_loopback(c->peer) || n >= sizeof c->proxy_line || eol == c->in.p || eol[-1] != '\r') {
                 conn_close(c);
                 return;
             }
             memcpy(c->proxy_line, c->in.p, n);
             c->proxy_line[n] = 0;
             char fam[8], src[64];
-            if (sscanf(c->proxy_line, "PROXY %7s %63s", fam, src) == 2 && strcmp(fam, "UNKNOWN"))
+            const int k = sscanf(c->proxy_line, "PROXY %7s %63s", fam, src);
+            if (k == 2 && (!strcmp(fam, "TCP4") || !strcmp(fam, "TCP6")) && ip_valida(src)) {
                 snprintf(c->ip, sizeof c->ip, "%s", src);
+                /* con la IP ya se sabe de quién es: cuenta para su límite desde ahora */
+                c->ipe = ip_buscar(c->ip);
+                c->ipe->conns++;
+                if (c->ipe != &g_ip_desborde && c->ipe->conns > C->limit_conn_per_ip) {
+                    conn_close(c);
+                    return;
+                }
+            }
+            else if (!(k >= 1 && !strcmp(fam, "UNKNOWN"))) {
+                conn_close(c);
+                return;
+            }
             buf_consume(&c->in, n);
         }
         c->proxy_visto = 1;
@@ -1601,14 +1871,29 @@ static void conn_process(conn* c) {
             c->r.ini = ini;
             respuesta_simple(c, 431, NULL, NULL, 1);
         } else {
-            c->deadline = g_now + C->header_timeout_ms;
+            /* el plazo corre desde el primer byte y no se estira (slowloris) */
+            if (!c->pedido_desde) c->pedido_desde = g_now;
+            c->deadline = c->pedido_desde + C->header_timeout_ms;
+            CONN_IO(c, 1, 0);
         }
         return;
     }
+    c->pedido_desde = 0;
     const int err = parsear(c, ini, fin - ini);
     if (err) {
         respuesta_simple(c, err, NULL, NULL, 1);
         return;
+    }
+    /* la IP real y su límite de conexiones (se cuenta una vez por conexión) */
+    if (!c->ipe) {
+        char ip[64];
+        ip_real(c, c->r.xff, ip, sizeof ip);
+        c->ipe = ip_buscar(ip);
+        c->ipe->conns++;
+        if (c->ipe != &g_ip_desborde && c->ipe->conns > C->limit_conn_per_ip) {
+            respuesta_simple(c, 429, "Retry-After: 2\r\n", NULL, 1);
+            return;
+        }
     }
     despachar(c);
 }
@@ -1642,7 +1927,7 @@ static void conn_leer(conn* c) {
             return;
         }
         u->out.len += (size_t)n;
-        c->deadline = u->deadline = g_now + C->proxy_stream_ms;
+        c->deadline = u->deadline = g_now + (c->r.upgrade ? C->proxy_stream_ms : C->proxy_read_ms);
         if (u->conectado) UP_IO(u, u->ev_rd, 1);
         if (u->out.len - u->out_off >= STREAM_HIGH) CONN_IO(c, 0, c->ev_wr);
         return;
@@ -1653,6 +1938,12 @@ static void conn_leer(conn* c) {
         const int n = (int)recv(c->fd, tmp, 0, 0);
         (void)n;
         CONN_IO(c, 0, c->ev_wr);
+        return;
+    }
+    if (c->in.len >= HEAD_MAX) {
+        /* ya hay de sobra para atender (pipelining): no se lee más hasta despachar lo que hay */
+        CONN_IO(c, 0, c->ev_wr);
+        encolar(c);
         return;
     }
     if (buf_reserve(&c->in, 16384)) {
@@ -1667,6 +1958,10 @@ static void conn_leer(conn* c) {
     if (n == 0) {
         conn_close(c);
         return;
+    }
+    if (!c->in.len && !c->pedido_desde) {
+        c->pedido_desde = g_now;
+        c->deadline = g_now + C->header_timeout_ms;
     }
     c->in.len += (size_t)n;
     c->in.p[c->in.len] = 0;
@@ -1708,7 +2003,7 @@ static void up_escribir(up* u) {
             return;
         }
         u->conectado = 1;
-        u->deadline = g_now + (u->modo == U_TUNNEL ? C->proxy_stream_ms : C->proxy_read_ms);
+        u->deadline = g_now + ((u->modo == U_TUNNEL && u->c && u->c->r.upgrade) ? C->proxy_stream_ms : C->proxy_read_ms);
     }
     while (u->out_off < u->out.len) {
         const int n = (int)send(u->fd, u->out.p + u->out_off, (int)(u->out.len - u->out_off), BW_SEND_FLAGS);
@@ -1772,7 +2067,8 @@ static void up_leer(up* u) {
         c->out.len += (size_t)n;
         u->recibidos += n;
         u->deadline = c->deadline =
-            g_now + ((u->modo == U_TUNNEL || u->clen < 0) ? C->proxy_stream_ms : C->proxy_read_ms);
+            g_now + (((u->modo == U_TUNNEL && c->r.upgrade) || (u->modo == U_STREAM && u->clen < 0)) ? C->proxy_stream_ms
+                                                                                                    : C->proxy_read_ms);
         if (u->modo == U_STREAM && u->clen >= 0 && u->recibidos >= u->clen) {
             up_close(u);
             c->resp_lista = 1;
@@ -1853,12 +2149,53 @@ static void lst_armar(int si) {
     }
 }
 
+/* Casi lleno: se cierran las conexiones ociosas más viejas (keep-alive sin pedido, o que
+   nunca mandaron nada) para hacerle lugar a las nuevas. Un ataque de conexiones mudas no
+   deja afuera a la gente. */
+static void desalojar_ociosas(int cuantas) {
+    conn* c = g_conns;
+    if (!c) return;
+    while (c->next) c = c->next; /* la más vieja está al final */
+    while (c && cuantas > 0) {
+        conn* ant = c->prev;
+        if (!c->muerto && c->state == C_READ && c->in.len == 0 && !c->en_cola) {
+            conn_close(c);
+            cuantas--;
+        }
+        c = ant;
+    }
+}
+
+static int sin_descriptores(void) {
+#ifdef _WIN32
+    const int e = WSAGetLastError();
+    return e == WSAEMFILE || e == WSAENOBUFS;
+#else
+    return errno == EMFILE || errno == ENFILE || errno == ENOBUFS || errno == ENOMEM;
+#endif
+}
+
 static void aceptar(lst* l) {
+    if (g_nconns >= C->worker_connections * 9 / 10) desalojar_ociosas(64);
     for (int k = 0; k < 64 && g_nconns < C->worker_connections; k++) {
         struct sockaddr_storage sa;
         socklen_t len = sizeof sa;
         bw_sock s = accept(l->fd, (struct sockaddr*)&sa, &len);
-        if (s == BW_BAD) return; /* otro worker se la llevó, o no hay más */
+        if (s == BW_BAD) {
+            if (sin_descriptores()) {
+                /* Sin descriptores: la escucha sigue «lista» y aceptar fallaría en un bucle
+                   al 100 % de CPU. Se deja de escuchar un rato y se hace lugar. */
+                static int64_t avisado = 0;
+                if (g_now - avisado > 10000) {
+                    log_msg("warn", "sin descriptores libres (%d conexiones): se pausa aceptar", g_nconns);
+                    avisado = g_now;
+                }
+                g_accept_pausa = g_now + 100;
+                lst_armar(0);
+                desalojar_ociosas(64);
+            }
+            return; /* otro worker se la llevó, no hay más, o no hay lugar */
+        }
         sock_nonblock(s);
         conn* c = (conn*)calloc(1, sizeof *c);
         if (!c) {
@@ -1872,9 +2209,10 @@ static void aceptar(lst* l) {
         c->file.fd = -1;
 #endif
         if (sa.ss_family == AF_INET)
-            inet_ntop(AF_INET, &((struct sockaddr_in*)&sa)->sin_addr, c->ip, sizeof c->ip);
+            inet_ntop(AF_INET, &((struct sockaddr_in*)&sa)->sin_addr, c->peer, sizeof c->peer);
         else if (sa.ss_family == AF_INET6)
-            inet_ntop(AF_INET6, &((struct sockaddr_in6*)&sa)->sin6_addr, c->ip, sizeof c->ip);
+            inet_ntop(AF_INET6, &((struct sockaddr_in6*)&sa)->sin6_addr, c->peer, sizeof c->peer);
+        memcpy(c->ip, c->peer, sizeof c->ip);
         c->deadline = g_now + C->header_timeout_ms;
         if (ev_add(s, c, 1, 0, &c->slot)) {
             sock_close(s);
@@ -1951,7 +2289,7 @@ int worker_run(const bw_conf* conf, bw_sock* listeners, int n, int64_t master_pi
     int64_t ultimo_barrido = g_now;
     int64_t quit_desde = 0;
     for (;;) {
-        const int k = ev_wait(evs, 512, 500);
+        const int k = ev_wait(evs, 512, g_ncola ? 0 : 500);
         g_now = now_ms();
         for (int i = 0; i < k; i++) {
             const int tipo = *(int*)evs[i].ptr;
@@ -1980,12 +2318,35 @@ int worker_run(const bw_conf* conf, bw_sock* listeners, int n, int64_t master_pi
                 }
             }
         }
+        /* los pedidos que ya estaban recibidos (pipelining): uno por conexión y por vuelta */
+        if (g_ncola) {
+            const int n0 = g_ncola;
+            for (int i = 0; i < n0; i++) {
+                conn* c = g_cola[i];
+                g_cola[i] = NULL;
+                if (!c) continue;
+                c->en_cola = 0;
+                if (!c->muerto && c->state == C_READ) {
+                    conn_process(c);
+                    if (!c->muerto && c->state == C_READ && c->in.len < HEAD_MAX) CONN_IO(c, 1, c->ev_wr);
+                }
+            }
+            int j = 0;
+            for (int i = n0; i < g_ncola; i++)
+                if (g_cola[i]) g_cola[j++] = g_cola[i];
+            g_ncola = j;
+        }
         for (int i = 0; i < g_ncem; i++) free(g_cementerio[i]);
         g_ncem = 0;
-        if (g_nconns < C->worker_connections && !g_worker_quit) lst_armar(1);
+        if (g_nconns < C->worker_connections && !g_worker_quit && g_now >= g_accept_pausa) lst_armar(1);
         if (g_now - ultimo_barrido >= 500) {
+            static int64_t ultima_limpieza = 0;
             ultimo_barrido = g_now;
             vencimientos();
+            if (g_now - ultima_limpieza > 30000) {
+                ultima_limpieza = g_now;
+                ips_limpiar();
+            }
             for (int i = 0; i < g_ncem; i++) free(g_cementerio[i]);
             g_ncem = 0;
             if (!master_vivo(master_pid)) g_worker_quit = 1;

@@ -103,6 +103,7 @@ typedef struct bw_listen {
     char host[64];
     int port;
     int proxy_protocol; /* acepta la línea PROXY v1 desde loopback */
+    int real_ip_xff;    /* la IP real es la última de X-Forwarded-For (la pone el túnel) */
 } bw_listen;
 
 typedef struct bw_conf {
@@ -129,6 +130,13 @@ typedef struct bw_conf {
     int upstream_port;
     int nloc;
     bw_location loc[BW_MAX_LOC];
+    /* Límites contra abusos (por IP real y por worker; con N workers, hasta N veces). */
+    int limit_conn_per_ip;     /* conexiones abiertas a la vez */
+    int limit_tunnels_per_ip;  /* túneles al gateway (WebSocket, POST…) a la vez */
+    double limit_up_rate;      /* pedidos por segundo que llegan al gateway */
+    int limit_up_burst;        /* ráfaga permitida */
+    int upstream_max_conns;    /* conexiones al gateway a la vez (protege su hilo por conexión) */
+    int vistos_per_ip;         /* ids de mirada por IP y por ventana */
     char error_log[1024]; /* "" = stderr */
     char access_log[1024]; /* "" = sin registro */
 } bw_conf;
