@@ -431,20 +431,38 @@ void McpService::registerUiTools() {
         t.name = "dashboard_background";
         t.title = "Fondo del dashboard";
         t.category = "interfaz";
-        t.description = "Videos de fondo del dashboard (claves de feeds_list), disposicion y oscurecido.";
+        t.description = "Fondo del dashboard: videos sueltos (claves de feeds_list) con su disposición, o una de las "
+                        "multivistas de la página Multiview (`multiview`: su id o su nombre; sale con sus fuentes y su "
+                        "estilo, en vivo). `feeds` vuelve a los videos sueltos. `dim` oscurece (0..1).";
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"feeds", {{"type", "array"}, {"items", {{"type", "string"}}}}},
+                           {"multiview", {{"type", "string"}, {"description", "id o nombre de una multivista (ver multiview listar)"}}},
                            {"layout", {{"type", "string"}, {"enum", {"grid", "focus", "pip", "row", "control", "multiview"}}, {"description", "multiview: sigue a la página Multiview (fuentes y estilo)"}}},
                            {"dim", {{"type", "number"}, {"minimum", 0}, {"maximum", 1}}}}}};
-        t.run = [dash](const json& a, Done done) {
+        t.run = [dash, &vm](const json& a, Done done) {
             if (a.contains("feeds")) {
                 QStringList l;
                 for (const auto& k : a["feeds"])
                     l << QString::fromStdString(k.get<std::string>());
                 dash->setBackground(l);
+                if (dash->backgroundLayout().startsWith("multiview")) dash->setBackgroundLayout("grid");
             }
             if (a.contains("layout")) dash->setBackgroundLayout(QString::fromStdString(a["layout"]));
+            if (a.contains("multiview")) {
+                const QString pedida = QString::fromStdString(a.value("multiview", std::string())).trimmed();
+                QString id;
+                QStringList hay;
+                for (const QVariant& v : vm.multiviews()) {
+                    const QVariantMap m = v.toMap();
+                    hay << m.value("nombre").toString();
+                    if (m.value("id").toString() == pedida || m.value("nombre").toString().compare(pedida, Qt::CaseInsensitive) == 0)
+                        id = m.value("id").toString();
+                }
+                if (id.isEmpty())
+                    return done(ToolResult::error(("No hay ninguna multivista «" + pedida + "». Hay: " + hay.join(", ")).toStdString()));
+                dash->setBackgroundLayout("multiview:" + id);
+            }
             if (a.contains("dim")) dash->setBackgroundDim(a["dim"]);
             done(ToolResult::ok("Fondo actualizado."));
         };
