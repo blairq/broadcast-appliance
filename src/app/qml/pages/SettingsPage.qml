@@ -365,6 +365,59 @@ Rectangle {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                     text: "Saca las páginas de la sala a internet por pinggy.io (una dirección para todo: invitados, sesión remota, público) y el video de los de afuera por un TURN propio. Lo de la red local sigue igual."
                 }
+                // Gratis o Pro: qué se puede y qué no (lo de Pro, según pinggy: probado solo el gratis).
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    Repeater {
+                        model: [
+                            { titulo: "Sin token (gratis)", color: Theme.warn, items: [
+                                "Para probar: anda sin cargar nada.",
+                                "La dirección es al azar, lleva la IP pública del equipo y cambia cada vez que se prende (el enlace y el QR también).",
+                                "El túnel dura 60 minutos: después hay que volver a prenderlo y la dirección cambia.",
+                                "A cada navegador pinggy le muestra antes un aviso («Caution – you are about to visit…») que hay que aceptar con un botón: los invitados se confunden.",
+                                "Sin subdominio fijo, sin dominio propio y sin puertos fijos.",
+                                "El video de los de afuera anda (por el TURN por TCP)."
+                            ] },
+                            { titulo: "Con token (plan Pro)", color: Theme.ok, items: [
+                                "Sin límite de tiempo y sin el aviso intermedio: se entra directo.",
+                                "Dirección fija: un subdominio de pinggy o el dominio de la organización (con un CNAME; el certificado lo pone pinggy).",
+                                "Puertos fijos para el TURN, si se reservan.",
+                                "La API key permite ver desde acá los túneles activos de la cuenta.",
+                                "Un túnel por token: cada equipo necesita su propio token.",
+                                "Se configura en dashboard.pinggy.io: el token de túnel va acá abajo."
+                            ] }
+                        ]
+                        delegate: Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            Layout.preferredHeight: col.implicitHeight + 20
+                            radius: 10
+                            color: Qt.rgba(1, 1, 1, 0.03)
+                            border.color: modelData.color
+                            border.width: 1
+                            ColumnLayout {
+                                id: col
+                                anchors { left: parent.left; right: parent.right; top: parent.top; margins: 10 }
+                                spacing: 4
+                                Text { text: modelData.titulo; color: modelData.color; font { pixelSize: 14; weight: Font.DemiBold } }
+                                Repeater {
+                                    model: modelData.items
+                                    delegate: Text {
+                                        required property string modelData
+                                        Layout.fillWidth: true; wrapMode: Text.WordWrap
+                                        text: "• " + modelData; color: Theme.textDim; font.pixelSize: 12
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                    text: "En los dos: el tráfico no tiene tope y todo pasa por los servidores de pinggy (desde Argentina, la región automática da São Paulo, unos 200 ms de ida y vuelta). La red local no cambia. Si hay un servidor propio con WireGuard, para el video sigue siendo mejor camino. Probado en este programa: el plan gratis; lo de Pro es lo que publica pinggy."
+                }
                 Text {
                     Layout.topMargin: 14
                     text: "Estado"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
@@ -430,7 +483,7 @@ Rectangle {
                     text: "Token de túnel"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 Text {
-                    text: pg.ar.tokenGuardado ? "● Guardado (cifrado en Credenciales/)" : "● Falta: sin token, el túnel no arranca"
+                    text: pg.ar.tokenGuardado ? "● Guardado (cifrado en Credenciales/)" : "● Sin token: anda en modo gratis (60 minutos, dirección al azar, con el aviso de pinggy)"
                     color: pg.ar.tokenGuardado ? Theme.ok : Theme.warn; font.pixelSize: 12
                 }
                 RowLayout {

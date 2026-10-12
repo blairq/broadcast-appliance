@@ -395,7 +395,10 @@ void McpService::registerRoomTools() {
             "`token_tunel` dice solo si está guardado o falta: el token lo carga el operador en Configuración → Acceso "
             "remoto, vos nunca lo pedís ni lo ves. Con dominio propio trae `instrucciones_dns` para pasarle al que "
             "administra el DNS. Para cambiar la configuración: settings_set con las claves pinggy.* (reinicia la sala). "
-            "`disponible` false = la sala no está andando o es una versión que no informa el túnel.";
+            "`disponible` false = la sala no está andando o es una versión que no informa el túnel. "
+            "SIN TOKEN (gratis): dirección al azar que cambia cada vez, 60 minutos por túnel y pinggy le muestra a cada "
+            "navegador un aviso que hay que aceptar. CON TOKEN (Pro): sin límite ni aviso, dirección fija (subdominio de "
+            "pinggy o dominio propio con CNAME), puertos fijos; un token por equipo.";
         t.run = [acc](const json&, Done done) {
             if (!acc) return done(ToolResult::error("no disponible"));
             acc->consultar([done](json r) { done(ToolResult().data(r)); });
