@@ -77,19 +77,10 @@ Rectangle {
     property string updateError: ""
 
     // Actualizar o volver atras cierra la app: emitiendo, grabando o con gente en
-    // la sala (lobby, programa o fila de oradores) eso corta todo, asi que se advierte y se pide una confirmacion explicita.
-    readonly property bool onAir: Studio.streaming || Studio.recording || Studio.conference.peopleConnected > 0
-    function onAirWarning(what) {
-        const people = Studio.conference.peopleConnected > 0
-        const head = Studio.streaming ? "Estás AL AIRE" : Studio.recording ? "Estás GRABANDO" : "Hay gente en la sala"
-        const lost = []
-        if (Studio.streaming) lost.push("corta la emisión")
-        if (Studio.recording) lost.push("corta la grabación")
-        if (people) lost.push(lost.length > 0 ? "desconecta a quienes están en la sala" : "la desconecta")
-        if (lost.length === 0) return ""
-        const last = lost.pop()
-        return head + ": " + what + " cierra la aplicación y " + (lost.length > 0 ? lost.join(", ") + " y " : "") + last + "."
-    }
+    // la sala o en la sesion remota eso corta todo, asi que se advierte y se pide una
+    // confirmacion explicita. Lo que se corta lo dice Studio (Main.qml usa lo mismo).
+    readonly property bool onAir: Studio.impactoDeCerrar.hay
+    function onAirWarning(what) { return Studio.avisoDeCerrar(what) }
     function confirmUpdate(folder) {
         ApplicationWindow.window.confirm({
             title: "¿Actualizar ahora?",

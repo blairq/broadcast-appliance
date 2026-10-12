@@ -489,9 +489,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             return out;
         },
         [this]() {
-            // Los invitados de la sala (los que están adentro) y los integrantes conectados
-            // desde el navegador (sesión remota; se crea más tarde, puede no estar).
-            return conference_->peopleConnected() + (sesionRemota_ ? sesionRemota_->conectados() : 0);
+            return personasConectadas();
         });
     connect(publico_.get(), &PublicoViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
     // Lo que sabe el resto del sistema y es público, para la página del evento. Cada cosa
@@ -3544,6 +3542,54 @@ std::string StudioViewModel::setModoVivoAjustes(const nlohmann::json& a) {
     const std::string e = modoVivoCfg_->cambiar(a);
     emit statusChanged();
     return e;
+}
+
+int StudioViewModel::personasConectadas() const {
+    // Los invitados de la sala (lobby, programa, fila de oradores) y los integrantes
+    // conectados desde el navegador (sesión remota; se crea más tarde, puede no estar).
+    return (conference_ ? conference_->peopleConnected() : 0) + (sesionRemota_ ? sesionRemota_->conectados() : 0);
+}
+
+QVariantMap StudioViewModel::impactoDeCerrar() const {
+    const int n = personasConectadas();
+    return {{"transmitiendo", streaming_}, {"grabando", recording_}, {"personas", n},
+            {"hay", streaming_ || recording_ || n > 0}};
+}
+
+namespace {
+/// «a», «a y b», «a, b y c».
+QString enumerar(QStringList l) {
+    if (l.isEmpty()) return {};
+    const QString ultimo = l.takeLast();
+    return l.isEmpty() ? ultimo : l.join(", ") + " y " + ultimo;
+}
+} // namespace
+
+QString StudioViewModel::avisoDeCerrar(const QString& accion) const {
+    const int n = personasConectadas();
+    if (!streaming_ && !recording_ && n == 0) return {};
+    QStringList corta;
+    if (accion.isEmpty()) {
+        // Cerrar la ventana: «Estás AL AIRE y hay 2 personas en la sala. Si cerrás, …».
+        QString que = streaming_ && recording_ ? "Estás AL AIRE y grabando"
+                      : streaming_             ? "Estás AL AIRE"
+                      : recording_             ? "Estás grabando"
+                                               : QString();
+        if (n > 0) {
+            const QString gente = n == 1 ? "1 persona en la sala" : QString::number(n) + " personas en la sala";
+            que = que.isEmpty() ? "Hay " + gente : que + (streaming_ && recording_ ? ", y hay " : " y hay ") + gente;
+        }
+        if (streaming_) corta << "se corta la emisión";
+        if (recording_) corta << "se detiene la grabación";
+        if (n > 0) corta << (n == 1 ? "esa persona queda afuera" : "esas personas quedan afuera");
+        return que + ". Si cerrás, " + enumerar(corta) + ".";
+    }
+    // Actualizar, volver atrás…: «Estás AL AIRE: actualizar cierra la aplicación y …».
+    const QString que = streaming_ ? "Estás AL AIRE" : recording_ ? "Estás GRABANDO" : "Hay gente en la sala";
+    if (streaming_) corta << "corta la emisión";
+    if (recording_) corta << "corta la grabación";
+    if (n > 0) corta << (corta.isEmpty() ? "la desconecta" : "desconecta a quienes están en la sala");
+    return que + ": " + accion + " cierra la aplicación y " + enumerar(corta) + ".";
 }
 
 } // namespace ba::app

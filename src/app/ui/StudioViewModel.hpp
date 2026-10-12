@@ -173,6 +173,8 @@ class StudioViewModel : public QObject {
     // --- Estado ---------------------------------------------------------------
     Q_PROPERTY(bool recording READ recording NOTIFY statusChanged)
     Q_PROPERTY(bool streaming READ streaming NOTIFY statusChanged)
+    /// Lo que se corta si se cierra (o se actualiza) la app: {transmitiendo, grabando, personas, hay}.
+    Q_PROPERTY(QVariantMap impactoDeCerrar READ impactoDeCerrar NOTIFY statusChanged)
     /// Las entradas de video que se quedaron sin señal (el multiview las marca).
     Q_PROPERTY(QStringList sinSenal READ sinSenal NOTIFY senalChanged)
     /// El cuerpo deliberativo (integrantes, bancas, presets, micrófonos): asamblea/CuerpoViewModel.
@@ -388,6 +390,12 @@ class StudioViewModel : public QObject {
     void restaurarPlaca();
     /// Hay aire: transmitiendo o grabando.
     Q_INVOKABLE bool alAire() const { return streaming_ || recording_; }
+    /// {transmitiendo, grabando, personas, hay}. `personas`: los de la sala (lobby,
+    /// programa, fila de oradores) y los integrantes de la sesión remota.
+    QVariantMap impactoDeCerrar() const;
+    /// El aviso para confirmar: `accion` vacía = cerrar la ventana; si no, lo que
+    /// cierra la app (p. ej. "actualizar"). "" si no se corta nada.
+    Q_INVOKABLE QString avisoDeCerrar(const QString& accion = {}) const;
     /// «Apretar para hablar» desde la app (asamblea::Presidencia): mientras `activo`, el
     /// remoto oye la voz del operador en su celular. "" o el error.
     Q_INVOKABLE QString hablarARemoto(const QString& integrante, bool activo);
@@ -1006,6 +1014,8 @@ class StudioViewModel : public QObject {
     std::unique_ptr<config::ModoVivoConfig> modoVivoCfg_; ///< Config/modo-vivo.json (modelo)
     QSet<QString> desbloqueadas_;
     bool estabaEnVivo_ = false;
+    /// Los conectados que se cortan al cerrar: sala + sesión remota.
+    int personasConectadas() const;
     bool eventoEnVivo_ = false;
     QVariantMap caida_;
     QVariantMap tally_;

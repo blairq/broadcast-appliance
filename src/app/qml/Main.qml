@@ -116,12 +116,11 @@ ApplicationWindow {
 
     // Cerrar la ventana principal cierra la aplicacion aunque haya ventanas de
     // salida abiertas (esas se recuerdan y vuelven al proximo arranque).
-    // Con algo en curso (emision, grabacion, gente en la sala) antes se pregunta.
+    // Con algo en curso (emision, grabacion, gente en la sala o en la sesion remota)
+    // antes se pregunta: lo que se corta lo dice Studio (SettingsPage usa lo mismo).
     property bool quitting: false // el cierre ya esta decidido: la guardia no pregunta
-    // Todos los conectados: lobby, programa y fila de oradores (SettingsPage usa lo mismo).
-    readonly property int peopleConnected: Studio.conference.peopleConnected
     onClosing: (close) => {
-        if (quitting || !(Studio.streaming || Studio.recording || peopleConnected > 0)) { Qt.quit(); return }
+        if (quitting || !Studio.impactoDeCerrar.hay) { Qt.quit(); return }
         close.accepted = false
         // Diferido: QGuiApplication::quit() tambien cierra las ventanas, asi que
         // un cierre pedido por la app pasa por aca; su quitRequested llega en
@@ -130,22 +129,9 @@ ApplicationWindow {
     }
     function askClose() {
         if (quitting) return
-        const n = peopleConnected
-        let what = Studio.streaming && Studio.recording ? "Estás AL AIRE y grabando"
-                 : Studio.streaming ? "Estás AL AIRE" : Studio.recording ? "Estás grabando" : ""
-        if (n > 0) {
-            const g = n === 1 ? "hay 1 persona en la sala" : "hay " + n + " personas en la sala"
-            what = what === "" ? "Hay" + g.substring(3)
-                               : what + (Studio.streaming && Studio.recording ? ", y " : " y ") + g
-        }
-        const lost = []
-        if (Studio.streaming) lost.push("se corta la emisión")
-        if (Studio.recording) lost.push("se detiene la grabación")
-        if (n > 0) lost.push(n === 1 ? "esa persona queda afuera" : "esas personas quedan afuera")
-        const last = lost.pop()
         confirm({
             title: "¿Cerrar Broadcast Appliance?",
-            text: what + ". Si cerrás, " + (lost.length > 0 ? lost.join(", ") + " y " : "") + last + ".",
+            text: Studio.avisoDeCerrar(""),
             accept: "Cerrar",
             reject: "Cancelar",
             action: function() { win.quitting = true; Qt.quit() }
