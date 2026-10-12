@@ -461,3 +461,18 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/assets/web/rotulos")
         DESTINATION Web/rotulos
     )
 endif()
+
+# --- TURN de la caja (src/gateway/turn, docs/funciones/TURN.md) --------------
+# BA_GATEWAY_LIB_SOURCES no es recursivo y no ve turn/: se suman a TODOS los
+# tests (test_turn los usa directo; los demás los necesitan en cuanto
+# SignalingServer/main los llamen). ba-gateway ya los tiene por GLOB_RECURSE.
+file(GLOB BA_GATEWAY_TURN_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/turn/*.cpp")
+foreach(test_source ${BA_GATEWAY_TESTS})
+    get_filename_component(test_name ${test_source} NAME_WE)
+    if(TARGET ${test_name})
+        target_sources(${test_name} PRIVATE ${BA_GATEWAY_TURN_SOURCES})
+    endif()
+endforeach()
+if(TARGET test_webrtc_loopback)
+    target_sources(test_webrtc_loopback PRIVATE ${BA_GATEWAY_TURN_SOURCES})
+endif()

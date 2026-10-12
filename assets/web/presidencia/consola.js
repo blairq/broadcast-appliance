@@ -463,7 +463,7 @@ function rtcVivo(id) { const c = conexiones.get(id); return !!(c && c.flujo && c
 function abrirConexion(id) {
   let c = conexiones.get(id);
   if (c && c.pc.connectionState !== "failed" && c.pc.connectionState !== "closed") return c;
-  const pc = new RTCPeerConnection({ iceServers: [] });
+  const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] }); // desde afuera, por el TURN de la caja
   c = { pc, flujo: null, audio: null };
   conexiones.set(id, c);
   pc.addTransceiver("video", { direction: "recvonly" });

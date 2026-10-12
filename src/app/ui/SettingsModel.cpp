@@ -8,6 +8,7 @@
 
 #include <QHostInfo>
 #include <QNetworkInterface>
+#include <QRegularExpression>
 #include <QSet>
 #include <QVariantMap>
 
@@ -174,6 +175,17 @@ SettingsModel::SettingsModel(AppRuntime& rt, QObject* parent) : QAbstractListMod
         {"wg.httpPort", "Acceso remoto", "WireGuard: puerto web que redirige el servidor", "int", {}, 1, 65535, "", "", "gateway", 80},
         {"wg.httpsPort", "Acceso remoto", "WireGuard: puerto seguro que redirige el servidor", "int", {}, 1, 65535, "", "", "gateway", 443},
         {"wg.keepalive", "Acceso remoto", "Keepalive", "int", {}, 0, 120, "s", "Mantiene abierto el NAT del lado de este equipo.", "gateway", 25},
+        {"pinggy.activo", "Acceso remoto", "Túnel de pinggy", "bool", {}, 0, 0, "", "Saca todas las páginas de la sala (invitados, sesión remota, público, botonera) por una sola dirección pública de pinggy.io, sin abrir puertos ni tener IP pública. Necesita el token de túnel guardado acá abajo. La API de control y el MCP nunca salen por el túnel.", "gateway", false},
+        {"pinggy.region", "Acceso remoto", "Región del servidor", "choice", choices({{"auto","Automática (la más cercana)"},{"us","Estados Unidos"},{"eu","Europa"},{"ap","Asia-Pacífico"}}), 0, 0, "", "Por dónde pasa el tráfico. La automática elige la de menos demora; si se corta seguido, probá con Estados Unidos.", "gateway", "auto"},
+        {"pinggy.dominioTipo", "Acceso remoto", "Dirección pública", "choice", choices({{"azar","La que dé pinggy (al azar, cambia cada vez)"},{"pinggy","Subdominio fijo de pinggy"},{"propio","Dominio propio"}}), 0, 0, "", "Al azar: anda sin configurar nada, pero el enlace (y el QR) cambia cada vez que se conecta. Subdominio fijo (plan Pro): el que pinggy le asigna al token en dashboard.pinggy.io → Domains. Dominio propio (plan Pro): un nombre de la organización (p. ej. sala.miorganismo.gob.ar) cargado en el panel de pinggy y apuntado con un CNAME.", "gateway", "azar"},
+        {"pinggy.host", "Acceso remoto", "Subdominio o dominio", "text", {}, 0, 0, "", "Tal cual figura en el panel de pinggy: p. ej. sala-concejo.a.pinggy.link (subdominio fijo) o sala.miorganismo.gob.ar (dominio propio). Sin https:// ni barras.", "gateway", ""},
+        {"pinggy.cnameDestino", "Acceso remoto", "Destino del CNAME", "text", {}, 0, 0, "", "Lo muestra el panel de pinggy al cargar el dominio propio, del estilo <id>.a.pinggy.link. Es a donde tiene que apuntar el registro CNAME del dominio (las instrucciones para el que administra el DNS están acá abajo).", "gateway", ""},
+        {"pinggy.turn", "Acceso remoto", "TURN por el túnel (video de los invitados de afuera)", "bool", {}, 0, 0, "", "El audio y el video de los invitados que entran por internet viajan por el túnel (un servidor TURN propio dentro de este equipo). Apagado, solo pasan las páginas: el video de los de afuera puede no conectar.", "gateway", true},
+        {"pinggy.turnTcpPuerto", "Acceso remoto", "TURN: puerto TCP fijo", "int", {}, 0, 65535, "", "Con plan Pro se puede reservar un puerto TCP fijo en pinggy. 0 = el que dé pinggy.", "gateway", 0},
+        {"pinggy.turnUdp", "Acceso remoto", "TURN también por UDP", "bool", {}, 0, 0, "", "Menos demora que por TCP, si la red del invitado lo deja pasar. Necesita un puerto UDP de pinggy (Pro).", "gateway", false},
+        {"pinggy.turnUdpPuerto", "Acceso remoto", "TURN: puerto UDP fijo", "int", {}, 0, 65535, "", "0 = el que dé pinggy.", "gateway", 0},
+        {"pinggy.listaBlanca", "Acceso remoto", "Solo desde estas direcciones", "text", {}, 0, 0, "", "IPs o redes separadas por coma (p. ej. 200.45.10.0/24, 181.1.2.3). Vacío: desde cualquier lado (el PIN sigue protegiendo).", "gateway", ""},
+        {"pinggy.puertoTunel", "Acceso remoto", "Puerto local del túnel", "int", {}, 1024, 65535, "", "Lo que entra por pinggy llega a este puerto de esta máquina (solo 127.0.0.1) y se marca como «de afuera». Cambialo solo si otro programa lo usa.", "gateway", 8786},
         // --- Asistente de IA (MCP) -------------------------------------------------
         {"mcp.enabled", "Asistente (MCP)", "Servidor MCP", "bool", {}, 0, 0, "", "Permite que un asistente de IA (Claude u otro cliente MCP) maneje y vea toda la app. Solo en esta máquina y con token (cifrado en Credenciales/; bin/64bit/ba-mcp --token lo muestra).", "restart", true},
         {"mcp.port", "Asistente (MCP)", "Puerto MCP", "int", {}, 1024, 65535, "", "http://127.0.0.1:<puerto>/mcp. Para clientes que lanzan un proceso: bin/64bit/ba-mcp.", "restart", 8790},
@@ -326,6 +338,17 @@ QVariantMap SettingsModel::currentBasicos() const {
         {"gateway.metricsPort", g.metricsPort},
         {"wg.httpPort", g.wgHttpPort},
         {"wg.httpsPort", g.wgHttpsPort},
+        {"pinggy.activo", g.pinggyActivo},
+        {"pinggy.region", qs(g.pinggyRegion)},
+        {"pinggy.dominioTipo", qs(g.pinggyDominioTipo)},
+        {"pinggy.host", qs(g.pinggyHost)},
+        {"pinggy.cnameDestino", qs(g.pinggyCnameDestino)},
+        {"pinggy.turn", g.pinggyTurn},
+        {"pinggy.turnTcpPuerto", g.pinggyTurnTcpPuerto},
+        {"pinggy.turnUdp", g.pinggyTurnUdp},
+        {"pinggy.turnUdpPuerto", g.pinggyTurnUdpPuerto},
+        {"pinggy.listaBlanca", qs(g.pinggyListaBlanca)},
+        {"pinggy.puertoTunel", g.pinggyPuertoTunel},
         {"launcher.shadow", l.shadowCopy},
         {"launcher.recoveryUi", l.recoveryUi},
         {"ui.theme", qs(c.theme)},
@@ -342,6 +365,7 @@ void SettingsModel::load() {
     draft_ = saved_;
     endResetModel();
     emit dirtyChanged();
+    emit draftChanged();
 }
 
 int SettingsModel::rowCount(const QModelIndex&) const { return static_cast<int>(fields_.size()); }
@@ -406,6 +430,7 @@ void SettingsModel::setValue(const QString& key, const QVariant& value) {
     const bool wasDirty = dirty();
     draft_[key] = value;
     emit dataChanged(index(row), index(row), {ValueRole, ModifiedRole});
+    emit draftChanged();
     if (wasDirty != dirty()) {
         emit dirtyChanged();
     }
@@ -417,6 +442,7 @@ void SettingsModel::revert() {
     draft_ = saved_;
     emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole});
     emit dirtyChanged();
+    emit draftChanged();
 }
 
 bool SettingsModel::tieneBasicos(const QString& section) const {
@@ -564,7 +590,7 @@ QString SettingsModel::apply() {
     bool restartB = false;
     // El cupo, sin reiniciar la sala, si entra en lo reservado y no cambió nada más de la sala.
     const bool soloCupo = changed("guests.count") && !changed("gateway.") && !changed("room.") && !changed("direct.") &&
-                          !changed("wg.") && !changed("guests.reserva") && cupoEnCaliente_ &&
+                          !changed("wg.") && !changed("pinggy.") && !changed("guests.reserva") && cupoEnCaliente_ &&
                           i("guests.count") <= rt_.gateway().guestsReserva;
     if (soloCupo) {
         const std::string e = cupoEnCaliente_(i("guests.count"));
@@ -593,7 +619,7 @@ QString SettingsModel::apply() {
     rt_.launcher().ajustes = ajLauncher;
     if (cambiaLauncher) notes << "Los avanzados del arranque rigen al volver a abrir el programa.";
     if (!soloCupo && (changed("gateway.") || changed("guests.count") || changed("guests.reserva") || changed("room.") ||
-                      changed("direct.") || changed("wg.") || cambiaSala)) {
+                      changed("direct.") || changed("wg.") || changed("pinggy.") || cambiaSala)) {
         GatewaySettings& g = rt_.gateway();
         g.ajustes = ajSala;
         g.room = s("gateway.room");
@@ -635,6 +661,28 @@ QString SettingsModel::apply() {
         g.metricsPort = static_cast<std::uint16_t>(i("gateway.metricsPort"));
         g.wgHttpPort = static_cast<std::uint16_t>(i("wg.httpPort"));
         g.wgHttpsPort = static_cast<std::uint16_t>(i("wg.httpsPort"));
+        g.pinggyActivo = b("pinggy.activo");
+        g.pinggyRegion = s("pinggy.region");
+        g.pinggyDominioTipo = s("pinggy.dominioTipo");
+        {
+            // Lo que se pega del panel: sin esquema, barras ni espacios, en minúsculas.
+            QString h = QString::fromStdString(s("pinggy.host")).trimmed().toLower();
+            h.remove(QRegularExpression("^[a-z]+://"));
+            h = h.section('/', 0, 0);
+            if (h.endsWith('.')) h.chop(1);
+            g.pinggyHost = h.toStdString();
+            QString d = QString::fromStdString(s("pinggy.cnameDestino")).trimmed().toLower();
+            if (d.endsWith('.')) d.chop(1);
+            g.pinggyCnameDestino = d.toStdString();
+        }
+        g.pinggyTurn = b("pinggy.turn");
+        g.pinggyTurnTcpPuerto = static_cast<std::uint16_t>(i("pinggy.turnTcpPuerto"));
+        g.pinggyTurnUdp = b("pinggy.turnUdp");
+        g.pinggyTurnUdpPuerto = static_cast<std::uint16_t>(i("pinggy.turnUdpPuerto"));
+        g.pinggyListaBlanca = s("pinggy.listaBlanca");
+        g.pinggyPuertoTunel = static_cast<std::uint16_t>(i("pinggy.puertoTunel"));
+        if (g.pinggyActivo && g.pinggyDominioTipo != "azar" && g.pinggyHost.empty())
+            notes << "Pinggy: falta el subdominio o dominio; mientras tanto se usa la dirección al azar.";
         c.guests = i("guests.count");
         g.guestsReserva = std::max(i("guests.reserva"), c.guests);
         restartB = true;

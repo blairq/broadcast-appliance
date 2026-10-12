@@ -11,6 +11,7 @@
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QPainter>
+#include <QPointer>
 #include <QTimer>
 #include <QUrl>
 
@@ -22,6 +23,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "net/AccesoRemoto.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
@@ -371,6 +373,30 @@ void McpService::registerRoomTools() {
                 if (!ok) return done(ToolResult::error("la sala no contestó"));
                 done(ToolResult().data(out));
             });
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Acceso remoto por pinggy (docs/planes/PINGGY.md) ---------------------------
+    if (AccesoRemoto* ar = vm.accesoRemoto(); ar != nullptr) {
+        const QPointer<AccesoRemoto> acc = ar;
+        Tool t;
+        t.name = "acceso_remoto_estado";
+        t.title = "Acceso remoto por pinggy: estado y direcciones";
+        t.category = "sala";
+        t.readOnly = true;
+        t.openWorld = true;
+        t.description =
+            "El túnel de pinggy.io por el que entran los de afuera: `pinggy.estado` (apagado, conectando, listo, "
+            "reconectando, error), la dirección pública (`pinggy.urlPublica`) y `enlaces` (invitados, sesión remota, "
+            "público, botonera), el último `pinggy.error` y el TURN (`pinggy.turn`). `configuracion`: activo, región, "
+            "tipo de dirección (azar | pinggy = subdominio fijo | propio = dominio propio), host y destino del CNAME. "
+            "`token_tunel` dice solo si está guardado o falta: el token lo carga el operador en Configuración → Acceso "
+            "remoto, vos nunca lo pedís ni lo ves. Con dominio propio trae `instrucciones_dns` para pasarle al que "
+            "administra el DNS. Para cambiar la configuración: settings_set con las claves pinggy.* (reinicia la sala). "
+            "`disponible` false = la sala no está andando o es una versión que no informa el túnel.";
+        t.run = [acc](const json&, Done done) {
+            if (!acc) return done(ToolResult::error("no disponible"));
+            acc->consultar([done](json r) { done(ToolResult().data(r)); });
         };
         core_.addTool(std::move(t));
     }

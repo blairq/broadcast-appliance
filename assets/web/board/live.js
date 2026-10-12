@@ -58,7 +58,8 @@
 
     async function open(id, e) {
       e.opening = true;
-      const pc = new RTCPeerConnection();
+      if (window.BAIce) await BAIce.listo().catch(() => {});
+      const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
       e.pc = pc;
       try {
         pc.addTransceiver("video", { direction: "recvonly" });

@@ -233,13 +233,16 @@ bool BotoneraBorde::apiRemota(long long fd, const std::string& method, const std
 }
 
 bool BotoneraBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
-                            const std::string& headers, const std::string& body, std::uint32_t clientIp) {
+                            const std::string& headers, const std::string& body, std::uint32_t clientIp,
+                            bool externo) {
     const bool ws = path == "/ws" && http::parseQuery(query).count("botonera") > 0;
     const bool pagina = path == "/botonera" || path.rfind("/botonera/", 0) == 0;
     const bool api = path == "/api/botonera/emparejar";
     const bool remota = !api && path.rfind("/api/botonera/", 0) == 0;
     if (!ws && !pagina && !api && !remota) return false;
-    if (!ipLocal(clientIp) || !origenValido(headers)) {
+    // Por el túnel de pinggy llega desde 127.0.0.1 (o con la IP real en PROXY v1,
+    // que podría ser cualquiera): la marca de la escucha manda, no la IP.
+    if (externo || !ipLocal(clientIp) || !origenValido(headers)) {
         log_.warn("botonera: rechazado " + ipTexto(clientIp) + " " + path + " (fuera de la red local u origen ajeno)", -1);
         http::sendResponse(fd, 403, "text/plain", "solo desde la red local\n");
         return true;

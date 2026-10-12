@@ -1,0 +1,358 @@
+// ============================================================================
+// src/app/net/AccesoRemoto.cpp — ver AccesoRemoto.hpp
+// ============================================================================
+
+#include "net/AccesoRemoto.hpp"
+
+#include "arranque/AppRuntime.hpp"
+#include "net/AsyncHttp.hpp"
+#include "security/CredentialStore.hpp"
+#include "ui/ConferenceClient.hpp"
+
+#include <QDnsLookup>
+#include <QHostAddress>
+#include <QHostInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QPointer>
+#include <QRegularExpression>
+
+#include <algorithm>
+
+namespace ba::app {
+
+using json = nlohmann::json;
+
+namespace {
+
+constexpr const char* kToken = "pinggy-token";
+constexpr const char* kApiKey = "pinggy-api-key";
+constexpr const char* kSesionesActivas = "https://dashboard.pinggy.io/backend/api/v1/session/active";
+
+/// Un secreto pegado del panel: sin espacios alrededor; adentro, nada de blancos.
+QString validarSecreto(const QString& crudo, QString& limpio) {
+    limpio = crudo.trimmed();
+    if (limpio.isEmpty()) return "Está vacío.";
+    if (limpio.contains(QRegularExpression("\\s"))) return "Tiene espacios o saltos de línea: copialo de nuevo, entero.";
+    if (limpio.size() < 6) return "Es demasiado corto: copialo entero del panel de pinggy.";
+    if (limpio.size() > 1024) return "Es demasiado largo: ¿se pegó otra cosa?";
+    return {};
+}
+
+QString normalHost(QString h) {
+    h = h.trimmed().toLower();
+    h.remove(QRegularExpression("^[a-z]+://"));
+    h = h.section('/', 0, 0);
+    while (h.endsWith('.')) h.chop(1);
+    return h;
+}
+
+/// Nada que se llame token, clave o secreto sale a la vista (la respuesta del panel
+/// de pinggy podría traer el token del túnel).
+void taparSecretos(json& j) {
+    if (j.is_object()) {
+        for (auto it = j.begin(); it != j.end(); ++it) {
+            std::string k = it.key();
+            std::transform(k.begin(), k.end(), k.begin(), [](unsigned char c) { return std::tolower(c); });
+            if (k.find("token") != std::string::npos || k.find("key") != std::string::npos ||
+                k.find("secret") != std::string::npos || k.find("pass") != std::string::npos)
+                it.value() = "(oculto)";
+            else
+                taparSecretos(it.value());
+        }
+    } else if (j.is_array()) {
+        for (auto& e : j) taparSecretos(e);
+    }
+}
+
+} // namespace
+
+AccesoRemoto::AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* parent)
+    : QObject(parent), rt_(rt), cli_(cli) {
+    poll_.setInterval(5000);
+    connect(&poll_, &QTimer::timeout, this, &AccesoRemoto::refrescar);
+    estado_ = {{"disponible", false}, {"sala", false}, {"texto", "Sin consultar todavía."}};
+}
+
+bool AccesoRemoto::tokenGuardado() const { return ba::security::CredentialStore::bundle().exists(kToken); }
+bool AccesoRemoto::apiKeyGuardada() const { return ba::security::CredentialStore::bundle().exists(kApiKey); }
+
+void AccesoRemoto::setSiguiendo(bool on) {
+    if (on == siguiendo_) return;
+    siguiendo_ = on;
+    if (on) {
+        refrescar();
+        poll_.start();
+    } else {
+        poll_.stop();
+    }
+    emit siguiendoChanged();
+}
+
+void AccesoRemoto::pedirEstado(std::function<void(bool, const QVariantMap&)> done) {
+    if (!cli_.online()) return done(false, {});
+    // getRaw: un 404 (gateway viejo) no es un error para avisarle al operador.
+    QPointer<AccesoRemoto> self(this);
+    cli_.getRaw(ruta_, [self, done](bool ok, const QByteArray& body) {
+        if (!self) return;
+        if (ok) return done(true, QJsonDocument::fromJson(body).object().toVariantMap());
+        // Por si la ruta quedó con la versión en el camino, como las demás de la API.
+        const QString otra = self->ruta_ == "/api/remoto" ? "/api/v1/remoto" : "/api/remoto";
+        self->cli_.getRaw(otra, [self, done, otra](bool ok2, const QByteArray& body2) {
+            if (!self) return;
+            if (ok2) self->ruta_ = otra;
+            done(ok2, ok2 ? QJsonDocument::fromJson(body2).object().toVariantMap() : QVariantMap{});
+        });
+    });
+}
+
+void AccesoRemoto::refrescar() {
+    QPointer<AccesoRemoto> self(this);
+    pedirEstado([self](bool ok, const QVariantMap& r) {
+        if (self) self->aplicarEstado(ok, r);
+    });
+}
+
+void AccesoRemoto::aplicarEstado(bool ok, const QVariantMap& r) {
+    QVariantMap m;
+    m["sala"] = cli_.online();
+    m["disponible"] = ok;
+    if (!cli_.online())
+        m["texto"] = "La sala no está andando: el estado del túnel se ve cuando arranca.";
+    else if (!ok)
+        m["texto"] = "La sala no informa el estado del túnel (el gateway es de una versión anterior).";
+    const QVariantMap p = r.value("pinggy").toMap();
+    m["pinggy"] = p;
+
+    // La dirección de cada página, a partir de la pública.
+    QString base = p.value("urlPublica").toString();
+    if (base.isEmpty())
+        for (const QVariant& u : p.value("urls").toList())
+            if (u.toString().startsWith("https://")) {
+                base = u.toString();
+                break;
+            }
+    while (base.endsWith('/')) base.chop(1);
+    QVariantList enl;
+    if (!base.isEmpty()) {
+        const QString sala = QString::fromStdString(rt_.gateway().room);
+        enl << QVariantMap{{"nombre", "Invitados"}, {"url", base + "/#room=" + sala}}
+            << QVariantMap{{"nombre", "Sesión remota (integrantes)"}, {"url", base + "/sesion/"}}
+            << QVariantMap{{"nombre", "Público"}, {"url", base + "/publico/"}}
+            << QVariantMap{{"nombre", "Botonera (tablets)"}, {"url", base + "/botonera/"}};
+    }
+    const bool cambio = m != estado_ || enl != enlaces_;
+    estado_ = m;
+    enlaces_ = enl;
+    if (cambio) emit estadoChanged();
+}
+
+QString AccesoRemoto::guardarToken(const QString& token) {
+    QString limpio;
+    if (const QString e = validarSecreto(token, limpio); !e.isEmpty()) return e;
+    if (!ba::security::CredentialStore::bundle().write(kToken, limpio.toStdString()))
+        return "No se pudo guardar en Credenciales/ (¿el disco está lleno o es de solo lectura?).";
+    emit credencialesChanged();
+    return {};
+}
+
+QString AccesoRemoto::borrarToken() {
+    if (!ba::security::CredentialStore::bundle().remove(kToken) && tokenGuardado())
+        return "No se pudo borrar de Credenciales/.";
+    emit credencialesChanged();
+    return {};
+}
+
+QString AccesoRemoto::guardarApiKey(const QString& clave) {
+    QString limpio;
+    if (const QString e = validarSecreto(clave, limpio); !e.isEmpty()) return e;
+    if (!ba::security::CredentialStore::bundle().write(kApiKey, limpio.toStdString()))
+        return "No se pudo guardar en Credenciales/.";
+    emit credencialesChanged();
+    return {};
+}
+
+QString AccesoRemoto::borrarApiKey() {
+    if (!ba::security::CredentialStore::bundle().remove(kApiKey) && apiKeyGuardada())
+        return "No se pudo borrar de Credenciales/.";
+    panel_ = {};
+    emit panelChanged();
+    emit credencialesChanged();
+    return {};
+}
+
+QString AccesoRemoto::instruccionesDns(const QString& hostCrudo, const QString& destinoCrudo) const {
+    const QString host = normalHost(hostCrudo);
+    const QString destino = normalHost(destinoCrudo);
+    const QString h = host.isEmpty() ? "sala.miorganismo.gob.ar" : host;
+    const QString d = destino.isEmpty() ? "<el destino que muestra el panel de pinggy>" : destino;
+    const QString primero = h.section('.', 0, 0);
+    const QString zona = h.section('.', 1);
+    QStringList t;
+    t << "Para que " + h + " lleve a la sala por pinggy:"
+      << ""
+      << "1) En el DNS de " + (zona.isEmpty() ? h : zona) + " (lo hace quien administra el dominio), crear este registro:"
+      << "     Tipo:     CNAME"
+      << "     Nombre:   " + h + "   (si el panel pide solo la parte de adelante: " + primero + ")"
+      << "     Destino:  " + d + "."
+      << "     TTL:      300 (5 minutos)"
+      << "   Si el DNS está en Cloudflare: con la nube GRIS («solo DNS», sin proxy). Con la nube naranja no anda."
+      << ""
+      << "2) En el panel de pinggy (dashboard.pinggy.io, cuenta Pro):"
+      << "   a. Domains → agregar el dominio " + h + "."
+      << "   b. Asignarlo al token de túnel que usa este equipo."
+      << "   c. Con el túnel APAGADO (en este equipo: Configuración → Acceso remoto → «Túnel de pinggy» apagado),"
+      << "      validar el dominio y emitir el certificado."
+      << "   d. Recién después prender el túnel."
+      << "   Guía de pinggy: https://pinggy.io/docs/custom_domain/"
+      << ""
+      << "3) Opcional, para más adelante (todavía no se usa): un nombre por servicio"
+      << "   (sesion." + h + ", botonera." + h + "…) con un comodín:"
+      << "     CNAME   *." + h + "   →   " + d + "."
+      << ""
+      << "4) El dominio raíz (" + (zona.isEmpty() ? h : zona) + ", sin «" + primero + ".» adelante) no se puede apuntar con CNAME."
+      << "   Para eso pinggy usa «relays» (registros TXT más A/AAAA de la región): https://pinggy.io/docs/relays/"
+      << "   Ojo: por un relay no pasa UDP (el video de los invitados iría solo por TCP).";
+    return t.join('\n');
+}
+
+void AccesoRemoto::verificarDns(const QString& hostCrudo, const QString& destinoCrudo) {
+    const QString host = normalHost(hostCrudo);
+    const QString destino = normalHost(destinoCrudo);
+    if (host.isEmpty() || !host.contains('.')) {
+        dns_ = {{"estado", "error"}, {"texto", "Falta el dominio (p. ej. sala.miorganismo.gob.ar)."}};
+        emit dnsChanged();
+        return;
+    }
+    dns_ = {{"estado", "verificando"}, {"texto", "Consultando el DNS de " + host + "…"}};
+    emit dnsChanged();
+    // QDnsLookup es asincrónico (no cuelga la interfaz) y no usa programas del sistema.
+    auto* q = new QDnsLookup(QDnsLookup::CNAME, host, this);
+    QPointer<AccesoRemoto> self(this);
+    connect(q, &QDnsLookup::finished, this, [self, q, host, destino]() {
+        q->deleteLater();
+        if (!self) return;
+        QString cname;
+        for (const QDnsDomainNameRecord& r : q->canonicalNameRecords()) {
+            cname = normalHost(r.value());
+            if (!cname.isEmpty()) break;
+        }
+        const bool fallo = q->error() != QDnsLookup::NoError && q->error() != QDnsLookup::NotFoundError;
+        const QString errDns = q->errorString();
+        // Y a qué direcciones llega, para decir algo útil aunque no haya CNAME.
+        QHostInfo::lookupHost(host, self.data(), [self, host, destino, cname, fallo, errDns](const QHostInfo& hi) {
+            if (!self) return;
+            QStringList ips;
+            for (const QHostAddress& a : hi.addresses()) ips << a.toString();
+            const QString llega = ips.isEmpty() ? QString("no resuelve a ninguna dirección")
+                                                : "resuelve a " + ips.mid(0, 4).join(", ");
+            QString estado, texto;
+            if (!cname.isEmpty() && !destino.isEmpty() && cname == destino) {
+                estado = "ok";
+                texto = "Bien: " + host + " apunta a " + cname + " (" + llega + "). Si recién se cargó en pinggy, "
+                        "falta validar el dominio y emitir el certificado con el túnel apagado.";
+            } else if (!cname.isEmpty()) {
+                estado = "mal";
+                texto = destino.isEmpty()
+                            ? host + " apunta a " + cname + ". Cargá el «Destino del CNAME» para comparar."
+                            : host + " apunta a " + cname + ", pero tendría que apuntar a " + destino +
+                                  ". Hay que corregir el registro CNAME.";
+            } else if (fallo) {
+                estado = "error";
+                texto = "No se pudo consultar el DNS (" + errDns + "). ¿Hay internet en este equipo?";
+            } else {
+                estado = "mal";
+                texto = host + " no tiene un registro CNAME (" + llega + "). Falta crear el registro, o todavía no "
+                        "se propagó (con TTL 300, unos minutos).";
+                if (!ips.isEmpty())
+                    texto += " Si el DNS está en Cloudflare con la nube naranja, pasala a gris: así se ve como "
+                             "direcciones de Cloudflare y no como CNAME.";
+            }
+            self->dns_ = {{"estado", estado}, {"texto", texto}};
+            emit self->dnsChanged();
+        });
+    });
+    q->lookup();
+}
+
+void AccesoRemoto::verEnPinggy() {
+    std::string clave;
+    if (!ba::security::CredentialStore::bundle().read(kApiKey, clave) || clave.empty()) {
+        panel_ = {{"estado", "error"}, {"texto", "Falta la API key de pinggy (guardala acá arriba)."}};
+        emit panelChanged();
+        return;
+    }
+    panel_ = {{"estado", "consultando"}, {"texto", "Consultando el panel de pinggy…"}};
+    emit panelChanged();
+    net::HttpRequest req;
+    req.url = kSesionesActivas;
+    req.headers = {{"Authorization", "Bearer " + clave}, {"Accept", "application/json"}};
+    req.timeoutMs = 15000;
+    QPointer<AccesoRemoto> self(this);
+    net::asyncRequest(this, std::move(req), [self](const net::HttpResponse& res) {
+        if (!self) return;
+        QString estado = "ok", texto;
+        if (res.status == 0) {
+            estado = "error";
+            texto = "No se pudo llegar a pinggy: " + QString::fromStdString(res.error);
+        } else if (res.status == 401 || res.status == 403) {
+            estado = "error";
+            texto = "Pinggy no aceptó la API key (¿es la del plan Pro? ¿la copiaste entera?).";
+        } else if (res.status < 200 || res.status >= 300) {
+            estado = "error";
+            texto = QString("Pinggy contestó %1.").arg(res.status);
+        } else {
+            json j = json::parse(res.body, nullptr, false);
+            if (j.is_discarded()) {
+                texto = "Pinggy contestó algo que no es JSON.";
+            } else {
+                taparSecretos(j);
+                const bool vacio = (j.is_array() && j.empty()) || (j.is_object() && j.empty());
+                texto = vacio ? QString("Pinggy no tiene ningún túnel activo con esta cuenta.")
+                              : QString::fromStdString(j.dump(2, ' ', false, json::error_handler_t::replace)).left(4000);
+            }
+        }
+        self->panel_ = {{"estado", estado}, {"texto", texto}};
+        emit self->panelChanged();
+    });
+}
+
+QVariantMap AccesoRemoto::configuracion() const {
+    const GatewaySettings& g = rt_.gateway();
+    return {{"activo", g.pinggyActivo},
+            {"region", QString::fromStdString(g.pinggyRegion)},
+            {"dominioTipo", QString::fromStdString(g.pinggyDominioTipo)},
+            {"host", QString::fromStdString(g.pinggyHost)},
+            {"cnameDestino", QString::fromStdString(g.pinggyCnameDestino)},
+            {"turn", g.pinggyTurn},
+            {"turnUdp", g.pinggyTurnUdp},
+            {"listaBlanca", QString::fromStdString(g.pinggyListaBlanca)}};
+}
+
+void AccesoRemoto::consultar(std::function<void(json)> done) {
+    QPointer<AccesoRemoto> self(this);
+    pedirEstado([self, done](bool ok, const QVariantMap& r) {
+        if (!self) return done(json{{"error", "no disponible"}});
+        self->aplicarEstado(ok, r);
+        const auto aJson = [](const QVariant& v) {
+            return json::parse(QJsonDocument::fromVariant(v).toJson(QJsonDocument::Compact).toStdString(), nullptr,
+                               false);
+        };
+        json out = aJson(self->estado_);
+        if (out.is_discarded() || !out.is_object()) out = json::object();
+        json enl = aJson(self->enlaces_);
+        out["enlaces"] = enl.is_discarded() ? json::array() : enl;
+        json cfg = aJson(self->configuracion());
+        out["configuracion"] = cfg.is_discarded() ? json::object() : cfg;
+        // Solo si está o falta: el token nunca pasa por el asistente.
+        out["token_tunel"] = self->tokenGuardado() ? "guardado" : "falta";
+        out["api_key"] = self->apiKeyGuardada() ? "guardada" : "falta";
+        if (self->rt_.gateway().pinggyDominioTipo == "propio")
+            out["instrucciones_dns"] = self->instruccionesDns(QString::fromStdString(self->rt_.gateway().pinggyHost),
+                                                              QString::fromStdString(self->rt_.gateway().pinggyCnameDestino))
+                                           .toStdString();
+        done(out);
+    });
+}
+
+} // namespace ba::app

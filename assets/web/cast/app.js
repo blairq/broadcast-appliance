@@ -155,7 +155,7 @@
 
   function armarPeer() {
     if (st.pc) { try { st.pc.close(); } catch (e) {} }
-    const pc = new RTCPeerConnection();
+    const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] }); // desde afuera, por el TURN de la caja
     st.pc = pc;
 
     // Solo recibir, y el servidor lo VERIFICA: si el offer ofreciera subir

@@ -111,6 +111,19 @@ struct Config {
     int wgKeepalive = 25;
     uint16_t wgHttpPort = 80; // puertos que el servidor redirige a nuestra IP del tunel
     uint16_t wgHttpsPort = 443;
+    // pinggy.io (docs/planes/PINGGY.md): túnel de ba-pinggy hacia la escucha
+    // propia del túnel (puertoTunel, todo lo que entra es externo) y, con el TURN
+    // de la caja, sus forwardings. El token NO va acá: BA_PINGGY_TOKEN o la
+    // credencial "pinggy-token".
+    bool pinggyActivo = false;
+    std::string pinggyRegion = "auto"; // auto|us|eu|ap
+    std::string pinggyHost;            // dominio propio o subdominio persistente (Pro)
+    uint16_t pinggyPuertoTunel = 8786; // 127.0.0.1: la escucha del túnel en la señalización
+    uint16_t pinggyTurnTcpPuerto = 0;  // puerto público TCP fijo del TURN (Pro); 0 = el que dé pinggy
+    bool pinggyTurnUdp = false;
+    bool pinggyTurn = true; // TURN por el túnel (el video de los invitados de afuera)
+    uint16_t pinggyTurnUdpPuerto = 0;
+    std::string pinggyListaBlanca; // IPs/CIDR separadas por coma; vacío = todas
     std::string configDir; // <datos>/Config
     std::string sharesDir; // <datos>/Shares (archivos de los invitados)
 
@@ -118,6 +131,8 @@ struct Config {
     std::string appRoot;         // raiz del layout portable
     std::string cloudflaredPath; // <root>/bin/64bit/cloudflared.exe
     std::string cloudflaredLog;  // <root>/Logs/cloudflared.log
+    std::string pinggyPath;      // <root>/bin/64bit/ba-pinggy[.exe]
+    std::string pinggyLog;       // <root>/Logs/pinggy.log
 
     /// Parsea los argumentos de linea de comandos.
     ///
@@ -172,6 +187,20 @@ struct Config {
             wgKeepalive = w.value("keepalive", wgKeepalive);
             wgHttpPort = w.value("httpPort", wgHttpPort);
             wgHttpsPort = w.value("httpsPort", wgHttpsPort);
+        }
+        if (j.contains("pinggy") && j["pinggy"].is_object()) {
+            const auto& pg = j["pinggy"];
+            pinggyActivo = pg.value("activo", pinggyActivo);
+            pinggyRegion = pg.value("region", pinggyRegion);
+            pinggyHost = pg.value("host", pinggyHost);
+            pinggyPuertoTunel = pg.value("puertoTunel", pinggyPuertoTunel);
+            pinggyTurnTcpPuerto = pg.value("turnTcpPuerto", pinggyTurnTcpPuerto);
+            pinggyTurnUdp = pg.value("turnUdp", pinggyTurnUdp);
+            pinggyTurn = pg.value("turn", pinggyTurn);
+            pinggyTurnUdpPuerto = pg.value("turnUdpPuerto", pinggyTurnUdpPuerto);
+            pinggyListaBlanca = pg.value("listaBlanca", pinggyListaBlanca);
+            if (pinggyRegion != "us" && pinggyRegion != "eu" && pinggyRegion != "ap") pinggyRegion = "auto";
+            if (pinggyPuertoTunel == 0) pinggyPuertoTunel = 8786;
         }
         maxUploadMB = j.value("maxUploadMB", maxUploadMB);
         sinVideoPlacaMs = std::clamp(j.value("sinVideoPlacaMs", sinVideoPlacaMs), 200, 30000);
@@ -281,13 +310,17 @@ struct Config {
         const std::filesystem::path binDir = bundle / "bin" / "64bit";
 #ifdef _WIN32
         const char* exe = "cloudflared.exe";
+        const char* exePinggy = "ba-pinggy.exe";
 #else
         const char* exe = "cloudflared";
+        const char* exePinggy = "ba-pinggy";
 #endif
         appRoot = utf8(root);
         cloudflaredPath = utf8(binDir / exe);
         if (logsDir.empty()) logsDir = utf8(root / "Logs");
         cloudflaredLog = utf8(root / "Logs" / "cloudflared.log");
+        pinggyPath = utf8(binDir / exePinggy);
+        pinggyLog = utf8(root / "Logs" / "pinggy.log");
         // La web viene con el programa: del bundle; si no está (la copia
         // sombra solo trae bin/, obs-plugins/ y data/), de la raíz real.
         std::error_code ec;

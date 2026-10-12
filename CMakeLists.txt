@@ -280,6 +280,11 @@ else()
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
 endif()
+# ba-pinggy (túnel de pinggy.io, lo supervisa el gateway) si se bajó libpinggy
+# con `make deps-pinggy`. Fuera del sub-build /MT de Windows: no enlaza ba_core.
+if(EXISTS "${CMAKE_SOURCE_DIR}/extern/pinggy")
+    add_subdirectory(src/pinggy)
+endif()
 # El motor de emisión es GStreamer (src/motor) y sus plugins propios: la app
 # los necesita (sin GStreamer, ba-app se compila sin motor: solo herramientas).
 set(BA_HAVE_MOTOR ${BA_HAVE_GST})

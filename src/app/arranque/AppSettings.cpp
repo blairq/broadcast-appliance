@@ -483,6 +483,18 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.wgHttpPort = get(w, "httpPort", s.wgHttpPort);
     s.wgHttpsPort = get(w, "httpsPort", s.wgHttpsPort);
     if (j.contains("proxy") && j["proxy"].is_object()) s.proxy = j["proxy"];
+    const json pg = j.value("pinggy", json::object());
+    s.pinggyActivo = get(pg, "activo", s.pinggyActivo);
+    s.pinggyRegion = get<std::string>(pg, "region", s.pinggyRegion);
+    s.pinggyDominioTipo = get<std::string>(pg, "dominioTipo", s.pinggyDominioTipo);
+    s.pinggyHost = get<std::string>(pg, "host", s.pinggyHost);
+    s.pinggyCnameDestino = get<std::string>(pg, "cnameDestino", s.pinggyCnameDestino);
+    s.pinggyPuertoTunel = get(pg, "puertoTunel", s.pinggyPuertoTunel);
+    s.pinggyTurn = get(pg, "turn", s.pinggyTurn);
+    s.pinggyTurnTcpPuerto = get(pg, "turnTcpPuerto", s.pinggyTurnTcpPuerto);
+    s.pinggyTurnUdp = get(pg, "turnUdp", s.pinggyTurnUdp);
+    s.pinggyTurnUdpPuerto = get(pg, "turnUdpPuerto", s.pinggyTurnUdpPuerto);
+    s.pinggyListaBlanca = get<std::string>(pg, "listaBlanca", s.pinggyListaBlanca);
     return s;
 }
 
@@ -533,10 +545,28 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                             {"keepalive", s.wgKeepalive},
                             {"httpPort", s.wgHttpPort},
                             {"httpsPort", s.wgHttpsPort}}},
-                          {"proxy", s.proxy}};
+                          {"proxy", s.proxy},
+                          {"pinggy",
+                           {{"activo", s.pinggyActivo},
+                            {"region", s.pinggyRegion},
+                            {"dominioTipo", s.pinggyDominioTipo},
+                            // Con «la que dé pinggy» el gateway no pide nombre.
+                            {"host", s.pinggyDominioTipo == "azar" ? std::string() : s.pinggyHost},
+                            {"cnameDestino", s.pinggyCnameDestino},
+                            {"puertoTunel", s.pinggyPuertoTunel},
+                            {"turn", s.pinggyTurn},
+                            {"turnTcpPuerto", s.pinggyTurnTcpPuerto},
+                            {"turnUdp", s.pinggyTurnUdp},
+                            {"turnUdpPuerto", s.pinggyTurnUdpPuerto},
+                            {"listaBlanca", s.pinggyListaBlanca}}}};
     if (wgPrevio.is_object()) {
         wgPrevio.update(nuevo["wireguard"]);
         nuevo["wireguard"] = wgPrevio;
+    }
+    // Lo de pinggy que no maneja la interfaz (lo agregado a mano) se conserva.
+    if (json pgPrevio = previo.value("pinggy", json::object()); pgPrevio.is_object()) {
+        pgPrevio.update(nuevo["pinggy"]);
+        nuevo["pinggy"] = pgPrevio;
     }
     previo.update(nuevo);
     return writeJson(path, previo, err);

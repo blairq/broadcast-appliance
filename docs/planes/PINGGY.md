@@ -2,8 +2,29 @@
 
 Análisis del 2026-10-11 (pedido: «implementar pinggy.io para conexiones remotas de
 clientes: todos los servicios por ahí, DNS, ver si hace falta un proxy local para una
-URL de todos los servicios web, y para WebRTC configurar bien ICE»). Nada implementado
-todavía.
+URL de todos los servicios web, y para WebRTC configurar bien ICE»).
+
+## Estado (2026-10-11): implementado y probado de punta a punta en la Mac con un túnel gratis
+
+- `ba-pinggy` (src/pinggy, libpinggy 0.3.1 fijada por sha256: `make deps-pinggy`), supervisado
+  por la sala (src/gateway/Pinggy.*); TURN propio (src/gateway/turn/*); `/api/ice`;
+  Configuración → Acceso remoto → Pinggy (token y API key en la bóveda, dirección pública:
+  al azar / subdominio fijo / dominio propio con instrucciones de DNS y «Verificar DNS»);
+  MCP `acceso_remoto_estado`. Detalle: docs/funciones/PINGGY.md y docs/funciones/TURN.md.
+- Probado (túnel gratis, Argentina → región automática São Paulo, ~220 ms ida y vuelta):
+  páginas por la URL pública (invitados, sesión, público), botonera rechazada desde afuera
+  (403), `/api/ice` con TURN `turn:<host>:<puerto>?transport=tcp` y política «relay», TURN
+  por pinggy (asigna con la credencial efímera, rechaza una clave mala), y un invitado de
+  afuera con Chrome (cámara falsa) admitido al programa: 1280×720 entrando a ~670 kbps y el
+  retorno saliendo, todo por el TURN.
+- Hallazgos: en el plan GRATIS pinggy muestra a los navegadores un aviso intermedio
+  («Caution – you are about to visit…») que hay que aceptar; con Pro no. El forwarding
+  `tlstcp` no se permite en el gratis y tira la sesión: el TURN va por TCP (y UDP opcional).
+  El WebSocket pasa por el túnel HTTP. La cabecera PROXY es de toda la sesión: con el TURN
+  prendido va sin PROXY y la IP real sale de `X-Forwarded-For`.
+- Falta: probar con la cuenta Pro (token, subdominio fijo/dominio propio, puertos fijos),
+  Windows y Linux (libpinggy ya está bajada para las tres plataformas), y un corte de red
+  con reconexión.
 
 ## Lo que ofrece pinggy
 

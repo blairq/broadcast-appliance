@@ -96,6 +96,7 @@
 #include "ui/FuenteQrPintor.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
+#include "net/AccesoRemoto.hpp"
 #include "ui/DashboardModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/HistoricoViewModel.hpp"
@@ -231,6 +232,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         return assistantIntake(id, name, yaAdentro);
     });
     connect(conference_.get(), &ConferenceViewModel::notify, this, &StudioViewModel::notify);
+    accesoRemoto_ = std::make_unique<AccesoRemoto>(rt, conference_->client());
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
@@ -3023,6 +3025,7 @@ QObject* StudioViewModel::dskQml() const { return dsk_.get(); }
 QObject* StudioViewModel::accionesQml() const { return acciones_.get(); }
 double StudioViewModel::picoDe(const QString& fuente) const { return mixer_ ? mixer_->picoDe(fuente.toStdString()) : -100.0; }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
+QObject* StudioViewModel::accesoRemotoQml() const { return accesoRemoto_.get(); }
 QObject* StudioViewModel::seguirMicrofonoQml() const { return seguirMic_.get(); }
 QObject* StudioViewModel::ordenDelDiaQml() const { return ordenDia_.get(); }
 QObject* StudioViewModel::quorumQml() const { return quorum_.get(); }

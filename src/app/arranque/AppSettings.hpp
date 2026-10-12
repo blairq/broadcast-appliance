@@ -188,6 +188,19 @@ struct GatewaySettings {
     int wgKeepalive = 25;
     std::uint16_t wgHttpPort = 80;   ///< puertos que el servidor redirige a nuestra IP del túnel
     std::uint16_t wgHttpsPort = 443;
+    // --- Pinggy (gateway.json "pinggy"; ver docs/planes/PINGGY.md) ------------
+    // El token de túnel NO va acá: vive cifrado en Credenciales/ como "pinggy-token".
+    bool pinggyActivo = false;
+    std::string pinggyRegion = "auto";        ///< auto | us | eu | ap
+    std::string pinggyDominioTipo = "azar";   ///< azar | pinggy | propio
+    std::string pinggyHost;                   ///< subdominio fijo o dominio propio ("" con "azar")
+    std::string pinggyCnameDestino;           ///< dominio propio: a dónde apunta el CNAME (<id>.a.pinggy.link)
+    std::uint16_t pinggyPuertoTunel = 8786;   ///< escucha local propia del túnel (127.0.0.1)
+    bool pinggyTurn = true;                   ///< TURN por el túnel (video de los de afuera)
+    std::uint16_t pinggyTurnTcpPuerto = 0;    ///< puerto TCP fijo (Pro); 0 = el que dé pinggy
+    bool pinggyTurnUdp = false;
+    std::uint16_t pinggyTurnUdpPuerto = 0;
+    std::string pinggyListaBlanca;            ///< IPs/redes permitidas, separadas por coma ("" = todas)
 };
 
 /// Configuracion del launcher (launcher.json).

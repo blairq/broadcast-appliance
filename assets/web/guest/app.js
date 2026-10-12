@@ -519,7 +519,8 @@
   // --- 4) WebRTC ----------------------------------------------------------
   function startPeer() {
     teardownPeer();
-    const pc = new RTCPeerConnection({ iceServers: [] }); // el medio NO pasa por el tunel (spec §8.4)
+    // En la LAN, directo; desde afuera, por el TURN de la caja (../comun/ice.js).
+    const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
     state.pc = pc;
     if (state.localStream) for (const t of state.localStream.getTracks()) pc.addTrack(t, state.localStream);
     if (state.screenStream) {

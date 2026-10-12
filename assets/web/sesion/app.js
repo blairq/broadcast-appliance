@@ -214,7 +214,8 @@ function microfono(abierto) {
 
 // --- La conexión directa con la consola de la presidencia (WebRTC) -----------------------
 // La consola ofrece; acá se contesta con la cámara y el micrófono. El gateway solo pasa
-// los mensajes (sin medios): anda en la red de la sala; desde afuera necesita TURN (R5).
+// los mensajes (sin medios): en la red de la sala va directo; desde afuera, por el TURN de
+// la caja (../comun/ice.js, docs/funciones/TURN.md).
 const conexiones = new Map(); // consola -> RTCPeerConnection
 let pttActivo = false;
 
@@ -224,7 +225,7 @@ async function rtc(m) {
   let pc = conexiones.get(de);
   if (m.tipo === "offer") {
     if (pc) pc.close();
-    pc = new RTCPeerConnection({ iceServers: [] });
+    pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] }); // desde afuera, por el TURN de la caja
     conexiones.set(de, pc);
     if (local) for (const t of local.getTracks()) pc.addTrack(t, local);
     pc.ontrack = (ev) => { $("presidencia").srcObject = ev.streams[0] || new MediaStream([ev.track]); };
@@ -254,8 +255,9 @@ let pcSala = null;
 async function iniciarSala() {
   cerrarSala();
   if (!local) await prenderCamara();
+  if (window.BAIce) await BAIce.listo();
   if (!local || !ws || ws.readyState !== 1) return;
-  const pc = new RTCPeerConnection({ iceServers: [] });
+  const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pcSala = pc;
   for (const t of local.getTracks()) pc.addTransceiver(t, { direction: "sendonly", streams: [local] });
   pc.onicecandidate = (ev) => {
@@ -392,8 +394,9 @@ function pintarVista() {
 }
 
 async function iniciarVista() {
+  if (window.BAIce) await BAIce.listo();
   if (pcVista || !ws || ws.readyState !== 1) return;
-  const pc = new RTCPeerConnection({ iceServers: [] });
+  const pc = new RTCPeerConnection(window.BAIce ? BAIce.config() : { iceServers: [] });
   pcVista = pc;
   pc.addTransceiver("video", { direction: "recvonly" });
   pc.addTransceiver("audio", { direction: "recvonly" });

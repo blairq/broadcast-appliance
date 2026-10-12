@@ -51,7 +51,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host \
+.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
         deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -103,6 +103,8 @@ help:
 	@echo "  make deps-sherpa-onnx sherpa-onnx (voz: reconocer, VAD, hablar) -> extern/sherpa-onnx"
 	@echo "  make deps-spout       SDK Spout2 (2.007h) -> extern/Spout2"
 	@echo "  make deps-cloudflared cloudflared 2024.11.0 -> extern/cloudflared"
+	@echo "  make deps-pinggy      libpinggy 0.3.1 (tunel de pinggy.io, la del host) -> extern/pinggy"
+	@echo "  make deps-pinggy-win  libpinggy 0.3.1 de Windows -> extern/pinggy/windows-x86_64"
 	@echo "  make deps-vcredist    Redist VC++ -> extern/vcredist"
 	@echo "  make deps-lsp         Modulos LSP 1.2.35 (CLAP, Linux) -> extern/lsp"
 	@echo "  make deps-lsp-win     Modulos LSP 1.2.35 para Windows (compilados desde fuente) -> extern/lsp"
@@ -242,7 +244,7 @@ deps-webrtc-win:
 # en Linux), GStreamer oficial de MSVC (trae su FFmpeg), libwebrtc de Windows y
 # las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
-          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-clap deps-lsp-win \
+          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win \
           deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
 
@@ -294,7 +296,7 @@ dist-win: release-win
 # Todo lo que el build completo de Linux necesita (las bibliotecas de terceros
 # y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
 # compartidas...).
-deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host \
+deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
             deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
             deps-llamacpp-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
@@ -322,7 +324,7 @@ check-macos-tools:
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con las de terceros (deps-terceros-linux).
 deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts \
-            deps-cloudflared-host deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
+            deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-libreoffice-mac deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
@@ -1019,6 +1021,16 @@ deps-cloudflared:
 	    && printf '%s  %s\n' "$(CFL_SHA)" "$(CFL_EXE)" | $(SHA256_CHECK) \
 	    || { echo "[deps] ERROR cloudflared: fallo de descarga o hash" >&2; rm -f "$(CFL_EXE).part"; exit 1; }; \
 	fi
+
+# libpinggy (el túnel de pinggy.io de ba-pinggy, src/pinggy): binario oficial
+# fijado por versión y SHA-256 (tools/deps/pinggy.sh). deps-pinggy baja la del
+# host (macOS universal, Linux x86_64/aarch64); deps-pinggy-win la de Windows
+# (se compila desde Linux).
+deps-pinggy:
+	tools/deps/pinggy.sh
+
+deps-pinggy-win:
+	tools/deps/pinggy.sh windows-x86_64
 
 # cloudflared del host (Linux amd64/arm64 o macOS arm64), verificado por
 # SHA-256. En macOS el asset es un .tgz con el binario adentro.

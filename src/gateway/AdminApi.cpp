@@ -945,6 +945,21 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             return;
         }
     }
+    // Acceso remoto (pinggy; docs/planes/PINGGY.md). La lee la app (Configuración
+    // → Acceso remoto y el MCP). La forma de "pinggy" es fija: sin proveedor, apagado.
+    if ((path == "/api/remoto" || path == "/api/v1/remoto") && method == "GET") {
+        json out = remotoStatus_ ? remotoStatus_() : json::object();
+        if (!out.is_object()) out = json::object();
+        if (!out.contains("pinggy"))
+            out["pinggy"] = json{{"activo", false},
+                                 {"estado", "apagado"},
+                                 {"urls", json::array()},
+                                 {"urlPublica", ""},
+                                 {"error", ""},
+                                 {"turn", {{"publico", ""}, {"tipo", ""}, {"udp", ""}}}};
+        sendJson(fd, 200, out);
+        return;
+    }
     if (path == "/api/v1/network" && method == "GET") {
         sendJson(fd, 200, networkStatus_ ? networkStatus_() : json::object());
         return;

@@ -11,6 +11,8 @@
 //                          WebRTC, y el uplink del invitado → BA.Guest.<n>.
 //     - SignalingServer  : HTTP + WebSocket en 127.0.0.1 (señalización + app web).
 //     - CloudflaredSupervisor : tunel cloudflared (autostart + recovery).
+//     - PinggySupervisor : tunel de pinggy.io (ba-pinggy) hacia la escucha
+//                          propia del tunel (todo externo) y el TURN de la caja.
 //     - HealthBlock      : publica su salud en BA.Health slot 0 (B).
 //
 // Modelo de threading:
@@ -76,12 +78,15 @@
 #include "Cloudflared.hpp"
 #include "Config.hpp"
 #include "Log.hpp"
+#include "Pinggy.hpp"
 
 #include "diag/Caidas.hpp"
 #include "diag/Perfil.hpp"
 #include "diag/SalidaAsincrona.hpp"
 #include "MediaPump.hpp"
 #include "net/NetUtil.hpp"
+#include "turn/Ice.hpp"
+#include "turn/Servidor.hpp"
 #include "net/TlsTerminator.hpp"
 #include "proxy/GestorProxy.hpp"
 #include "net/WgCrypto.hpp"
@@ -152,6 +157,10 @@ constexpr const char* kEnvHmacSecret = "BA_GATEWAY_HMAC_SECRET";
 constexpr const char* kEnvRoomPin = "BA_GATEWAY_PIN";
 /// Token del tunel de Cloudflare (se pasa al hijo como TUNNEL_TOKEN).
 constexpr const char* kEnvTunnelToken = "BA_TUNNEL_TOKEN";
+
+/// Token de pinggy.io (se pasa al hijo ba-pinggy por su entorno, nunca por argv).
+/// Si no esta, la credencial "pinggy-token" (cifrada en Credenciales/).
+constexpr const char* kEnvPinggyToken = "BA_PINGGY_TOKEN";
 
 /// Token de la API de control del operador (si el launcher lo inyecta).
 constexpr const char* kEnvAdminToken = "BA_ADMIN_TOKEN";
@@ -651,6 +660,10 @@ int main(int argc, char** argv) {
     // las preguntas del evento de ayer no son las de hoy.
     if (!ba::security::randomSecretHex(16, sigCfg.publicoKey)) sigCfg.publicoKey.clear();
     sigCfg.adminToken = adminToken;
+    // La escucha propia del tunel de pinggy (127.0.0.1:8786): todo lo que entra
+    // por ahi es externo, venga con la IP que venga (ver SignalingServer.hpp).
+    sigCfg.tunel = cfg.pinggyActivo;
+    sigCfg.tunnelPort = cfg.pinggyPuertoTunel;
     SignalingServer server(sigCfg, auth, hub, room, shares, log);
     server.setPump(&pump);
 
@@ -856,18 +869,151 @@ int main(int argc, char** argv) {
         return out;
     });
 
+    // --- TURN de la caja (docs/planes/PINGGY.md, P3) ---------------------------
+    // >>> ENGANCHE DEL TURN: aca se construye y arranca el servidor TURN
+    // (ba::gateway::turn::Servidor, src/gateway/turn/) en 127.0.0.1:turnPuertoLocal,
+    // ANTES del supervisor de pinggy, y se pone turnActivo = true si arranco.
+    // Con eso pinggy suma los forwardings tlstcp/tcp (y udp) hacia el TURN, y
+    // pinggy->turnPublico() (host:puerto, tipo en pinggy->estado().turnTipo)
+    // es lo que va en los iceServers de los navegadores (turns: si es tlstcp,
+    // turn:?transport=tcp si es tcp; estado().turnUdp para turn: por UDP).
+    // Detenerlo en el cierre ordenado, despues de pinggy (ver abajo). <<<
+    bool turnActivo = false;
+    const uint16_t turnPuertoLocal = 3478;
+    // El TURN de la caja (src/gateway/turn): solo con pinggy y «TURN por el túnel».
+    // Relaya únicamente hacia las IP de esta máquina y el rango de WebRTC.
+    ba::gateway::turn::Servidor::Config turnCfg;
+    std::unique_ptr<ba::gateway::turn::Servidor> turnSrv;
+    if (cfg.pinggyActivo && cfg.pinggyTurn) {
+        turnCfg.puertoTcp = turnPuertoLocal;
+        turnCfg.puertoUdp = cfg.pinggyTurnUdp ? turnPuertoLocal : 0;
+        turnCfg.direccion = "127.0.0.1";
+        const std::vector<std::string> ips = ba::gateway::net::localIPv4s();
+        turnCfg.peersPermitidos = ips;
+        turnCfg.peersPermitidos.push_back("127.0.0.1");
+        turnCfg.direccionRelay = ips.empty() ? std::string("127.0.0.1") : ips.front();
+        turnCfg.bindRelay = "0.0.0.0";
+        turnCfg.rtcMin = cfg.rtcPortMin;
+        turnCfg.rtcMax = cfg.rtcPortMax;
+        turnCfg.secreto = ba::gateway::turn::secretoAleatorio();
+        turnSrv = std::make_unique<ba::gateway::turn::Servidor>(turnCfg);
+        std::string e;
+        if (turnSrv->start(&e)) {
+            turnActivo = true;
+            log.info("turn: escuchando en 127.0.0.1:" + std::to_string(turnPuertoLocal) +
+                     (turnCfg.puertoUdp ? " (TCP y UDP)" : " (TCP)"));
+        } else {
+            log.warn("turn: no arrancó (" + e + "): los invitados de afuera no van a tener video", -1);
+            turnSrv.reset();
+        }
+    }
+
+    // --- Supervisor de pinggy (acceso remoto; docs/planes/PINGGY.md) ----------
+    // Precedencia para enlaces y QR remotos (setJoinUrlProvider y origenSeguro):
+    // pinggy si esta listo, si no el dominio de Cloudflare, si no WireGuard. Los
+    // dos tuneles pueden estar prendidos a la vez: cada uno llega a su escucha.
+    std::unique_ptr<PinggySupervisor> pinggy;
+    if (cfg.pinggyActivo) {
+        PinggySupervisor::Cfg pc;
+        pc.exe = cfg.pinggyPath;
+        pc.logPath = cfg.pinggyLog;
+        pc.region = cfg.pinggyRegion;
+        pc.host = cfg.pinggyHost;
+        pc.listaBlanca = cfg.pinggyListaBlanca;
+        pc.puertoTunel = cfg.pinggyPuertoTunel;
+        pc.turn = turnActivo;
+        pc.turnLocal = turnPuertoLocal;
+        pc.turnTcpPuerto = cfg.pinggyTurnTcpPuerto;
+        pc.turnUdp = cfg.pinggyTurnUdp;
+        pc.turnUdpPuerto = cfg.pinggyTurnUdpPuerto;
+        // ba-pinggy pone PROXY v1 en TODOS los forwardings (es global): con el
+        // TURN prendido va sin (el TURN no lo entiende) y la IP real sale del
+        // X-Forwarded-For que agrega pinggy (--xff). Igual es todo externo.
+        pc.haproxy = turnActivo ? "no" : "v1";
+        // Nunca por el tunel: la señalizacion comun (confia en 127.0.0.1 como red
+        // local), su HTTPS, la API de control, el MCP y las metricas.
+        pc.prohibidos.insert({cfg.port, cfg.httpsPort, cfg.adminPort, cfg.metricsPort});
+        pc.token = envOrEmpty(kEnvPinggyToken);
+        if (pc.token.empty()) {
+            std::string t;
+            if (ba::security::CredentialStore::bundle().read("pinggy-token", t)) {
+                while (!t.empty() && (t.back() == '\n' || t.back() == '\r' || t.back() == ' ')) t.pop_back();
+                pc.token = t;
+            }
+        }
+        pinggy = std::make_unique<PinggySupervisor>(std::move(pc), log);
+    }
+    const auto urlPinggy = [&]() { return pinggy ? pinggy->urlPublica() : std::string(); };
+
+    // GET /api/ice: los iceServers para los navegadores. Los extremos públicos del
+    // TURN cambian si pinggy reconecta: se arman en cada pedido, no al arrancar.
+    server.setIce([&](bool externo) {
+        ba::gateway::turn::ExtremosIce x;
+        if (pinggy && turnSrv) {
+            const PinggySupervisor::Estado st = pinggy->estado();
+            const auto partir = [](const std::string& hp, std::string& host, uint16_t& puerto) {
+                const auto dos = hp.rfind(':');
+                if (dos == std::string::npos) return false;
+                host = hp.substr(0, dos);
+                puerto = static_cast<uint16_t>(std::atoi(hp.c_str() + dos + 1));
+                return !host.empty() && puerto != 0;
+            };
+            std::string host;
+            uint16_t puerto = 0;
+            if (partir(st.turnPublico, host, puerto)) {
+                if (st.turnTipo == "tlstcp") {
+                    x.hostPublico = host; // turns:host:puerto (pinggy termina el TLS)
+                    x.puertoTls = puerto;
+                } else {
+                    x.tcpPublico = st.turnPublico; // turn:host:puerto?transport=tcp
+                }
+            }
+            x.udpPublico = st.turnUdp;
+        }
+        return ba::gateway::turn::respuestaIce(turnCfg, turnSrv && turnSrv->activo(), x, externo);
+    });
+
+    server.setRemotoStatus([&]() {
+        nlohmann::json pg = pinggy ? pinggy->estadoJson()
+                                   : nlohmann::json{{"estado", "apagado"},
+                                                    {"urls", nlohmann::json::array()},
+                                                    {"urlPublica", ""},
+                                                    {"error", ""},
+                                                    {"turn", {{"publico", ""}, {"tipo", ""}, {"udp", ""}}}};
+        pg["activo"] = cfg.pinggyActivo; // lo configurado (el estado dice si anda)
+        pg["puertoTunel"] = server.tunnelPort();
+        pg["turnServidor"] = turnSrv ? turnSrv->estado() : nlohmann::json{{"activo", false}};
+        return nlohmann::json{
+            {"pinggy", pg},
+            {"cloudflare",
+             {{"activo", cfg.tunnel && !cfg.tunnelToken.empty()},
+              {"hostname", cfg.tunnelHostname}}},
+            // Que URL usan los enlaces y el QR remotos.
+            {"urlRemota", !urlPinggy().empty()             ? urlPinggy()
+                          : !cfg.tunnelHostname.empty() ? "https://" + cfg.tunnelHostname
+                                                        : std::string()},
+            {"precedencia", nlohmann::json::array({"pinggy", "cloudflare", "wireguard"})}};
+    });
+
     server.setJoinUrlProvider([&](const std::string& target) -> nlohmann::json {
         // La sala va en el fragmento (#room=): la app del invitado la precarga
         // y el fragmento nunca viaja al servidor. El PIN NO va en el QR.
         const std::string frag = "#room=" + cfg.room;
         if (target == "remote") {
+            // pinggy primero si esta listo (ver la precedencia arriba).
+            if (const std::string pg = urlPinggy(); !pg.empty()) return {{"url", pg + "/" + frag}};
             if (!cfg.tunnelHostname.empty()) return {{"url", "https://" + cfg.tunnelHostname + "/" + frag}};
             if (wg && !publicHost.empty())
                 return {{"url", (tls ? "https://" : "http://") + publicHost + "/" + frag}};
+            if (pinggy)
+                return {{"error", "remote"},
+                        {"message", "El tunel de pinggy todavia no esta listo (" + pinggy->estado().estado +
+                                        "). Mira Configuracion > Acceso remoto."}};
             return {
                 {"error", "remote"},
                 {"message",
-                 "Falta el dominio del tunel de Cloudflare (Configuracion > Gateway > Dominio publico)."}};
+                 "Falta el acceso remoto: pinggy (Configuracion > Acceso remoto) o el dominio del tunel de "
+                 "Cloudflare (Configuracion > Gateway > Dominio publico)."}};
         }
         if (cfg.bindAddress == "127.0.0.1") {
             return {{"error", "local"},
@@ -899,6 +1045,7 @@ int main(int argc, char** argv) {
             }
         }
         if (!publicHost.empty() && wg) urls.push_back((tls ? "https://" : "http://") + publicHost + "/");
+        if (const std::string pg = urlPinggy(); !pg.empty()) urls.push_back(pg + "/");
         st["urls"] = urls;
         st["bestUrl"] = bestUrl;
         st["lan"] = lanIps;
@@ -909,8 +1056,12 @@ int main(int argc, char** argv) {
         // nuestro HTTPS autofirmado tampoco le sirve. Sin tunel, no hay forma
         // de mostrarle una pagina NUESTRA, y conviene decirlo que descubrirlo
         // con un televisor colgado en "cargando".
-        st["origenSeguro"] =
-            cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
+        // pinggy (si esta listo) antes que Cloudflare: los dos tienen certificado de verdad.
+        if (const std::string pg = urlPinggy(); !pg.empty())
+            st["origenSeguro"] = pg;
+        else
+            st["origenSeguro"] =
+                cfg.tunnelHostname.empty() ? nlohmann::json() : nlohmann::json("https://" + cfg.tunnelHostname);
         st["bindAddress"] = cfg.bindAddress;
         st["rtcPorts"] = {cfg.rtcPortMin, cfg.rtcPortMax};
         st["https"] = tls ? nlohmann::json{{"enabled", true},
@@ -969,6 +1120,14 @@ int main(int argc, char** argv) {
         }
     }
     pump.start();
+    if (pinggy) {
+        if (server.tunnelPort() == 0)
+            log.error("pinggy: sin la escucha del tunel (127.0.0.1:" + std::to_string(cfg.pinggyPuertoTunel) +
+                          "); no se lanza",
+                      -1);
+        else
+            pinggy->start();
+    }
     if (cfg.tunnel) {
         cloudflared.start();
     } else {
@@ -1025,6 +1184,8 @@ int main(int argc, char** argv) {
 #endif
     if (wg) wg->stop();
     if (tls) tls->stop();
+    if (pinggy) pinggy->stop(); // antes que la escucha del tunel
+    if (turnSrv) turnSrv->stop();
     server.stop();
     if (!adminFile.empty()) {
         std::error_code ec;

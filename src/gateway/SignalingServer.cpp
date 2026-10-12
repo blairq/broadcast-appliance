@@ -18,6 +18,7 @@
 #include <cctype>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -182,7 +183,7 @@ bool SignalingServer::start() {
     }
     stop_.store(false);
     guestBoundPort_ = http::localPort(listenFd_);
-    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false);
+    acceptThread_ = std::thread(&SignalingServer::acceptLoop, this, listenFd_, false, false);
     // La calidad de la conexion de cada invitado (bitrate, perdida, jitter, RTT).
     statsThread_ = std::thread([this] {
         while (!stop_.load()) {
@@ -215,11 +216,72 @@ bool SignalingServer::start() {
                        -1);
         } else {
             adminBoundPort_ = http::localPort(adminListenFd_);
-            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true);
+            adminAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, adminListenFd_, true, false);
             log_.info("control: API del operador en 127.0.0.1:" + std::to_string(adminBoundPort_));
         }
     }
+    // La escucha del tunel de pinggy: SIEMPRE loopback (solo ba-pinggy llega
+    // aca) y todo lo que entra es externo (ver el header).
+    if (cfg_.tunel) {
+        tunnelListenFd_ = http::makeListen("127.0.0.1", cfg_.tunnelPort);
+        if (tunnelListenFd_ < 0) {
+            log_.error("tunel: no se pudo abrir 127.0.0.1:" + std::to_string(cfg_.tunnelPort) +
+                           " (pinggy queda sin destino)",
+                       -1);
+        } else {
+            tunnelBoundPort_ = http::localPort(tunnelListenFd_);
+            tunnelAcceptThread_ = std::thread(&SignalingServer::acceptLoop, this, tunnelListenFd_, false, true);
+            log_.info("tunel: escucha de pinggy en 127.0.0.1:" + std::to_string(tunnelBoundPort_) +
+                      " (todo externo)");
+        }
+    }
     return true;
+}
+
+bool SignalingServer::ipDeTexto(const std::string& texto, std::uint32_t& ipRed) {
+    if (texto.empty() || texto.size() > 45) return false;
+    in_addr a{};
+    if (inet_pton(AF_INET, texto.c_str(), &a) == 1) {
+        ipRed = static_cast<std::uint32_t>(a.s_addr);
+        return true;
+    }
+    in6_addr a6{};
+    if (inet_pton(AF_INET6, texto.c_str(), &a6) != 1) return false;
+    const auto* b = reinterpret_cast<const unsigned char*>(&a6);
+    static const unsigned char kMapeada[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
+    if (std::memcmp(b, kMapeada, 12) == 0) {
+        std::memcpy(&ipRed, b + 12, 4);
+        return true;
+    }
+    // FNV-1a del /64 (lo que suele ser UN cliente) -> 240.x.y.z.
+    std::uint32_t h = 2166136261u;
+    for (int i = 0; i < 8; ++i) h = (h ^ b[i]) * 16777619u;
+    const unsigned char ip4[4] = {240, static_cast<unsigned char>(h >> 16), static_cast<unsigned char>(h >> 8),
+                                  static_cast<unsigned char>(h)};
+    std::memcpy(&ipRed, ip4, 4);
+    return true;
+}
+
+bool SignalingServer::ipDeProxyV1(const std::string& linea, std::uint32_t& ipRed) {
+    char src[64] = {0};
+    char dst[64] = {0};
+    unsigned sp = 0;
+    unsigned dp = 0;
+    if (std::sscanf(linea.c_str(), "PROXY TCP4 %63s %63s %u %u", src, dst, &sp, &dp) == 4 ||
+        std::sscanf(linea.c_str(), "PROXY TCP6 %63s %63s %u %u", src, dst, &sp, &dp) == 4)
+        return ipDeTexto(src, ipRed);
+    return false;
+}
+
+bool SignalingServer::ipDeXff(const std::string& valor, std::uint32_t& ipRed) {
+    // El ULTIMO de la lista es el que agrego pinggy; los de antes los pudo
+    // escribir el cliente.
+    const size_t coma = valor.rfind(',');
+    std::string ultimo = coma == std::string::npos ? valor : valor.substr(coma + 1);
+    const auto ini = ultimo.find_first_not_of(" \t");
+    const auto fin = ultimo.find_last_not_of(" \t");
+    if (ini == std::string::npos) return false;
+    return ipDeTexto(ultimo.substr(ini, fin - ini + 1), ipRed);
 }
 
 std::vector<std::string> SignalingServer::tomarAcreditaciones() {
@@ -247,8 +309,9 @@ void SignalingServer::setPublicoFondo(std::string bytes, std::string tipo) {
 
 void SignalingServer::stop() {
     // Idempotente: el destructor llama a stop() y main() tambien.
-    if (listenFd_ < 0 && adminListenFd_ < 0 && activeConns_.load() == 0 && !acceptThread_.joinable() &&
-        !adminAcceptThread_.joinable() && !statsThread_.joinable()) {
+    if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && activeConns_.load() == 0 &&
+        !acceptThread_.joinable() && !adminAcceptThread_.joinable() && !tunnelAcceptThread_.joinable() &&
+        !statsThread_.joinable()) {
         return;
     }
     stop_.store(true);
@@ -257,11 +320,15 @@ void SignalingServer::stop() {
     if (acceptThread_.joinable()) acceptThread_.join();
     if (statsThread_.joinable()) statsThread_.join();
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
+    if (tunnelAcceptThread_.joinable()) tunnelAcceptThread_.join();
     http::closeFd(listenFd_);
     listenFd_ = -1;
     http::closeFd(adminListenFd_);
     adminListenFd_ = -1;
     adminBoundPort_ = 0;
+    http::closeFd(tunnelListenFd_);
+    tunnelListenFd_ = -1;
+    tunnelBoundPort_ = 0;
 
     // 2) WS y SSE pueden estar en un recv sin timeout: shutdown de todos.
     closeActiveConns();
@@ -309,7 +376,7 @@ void SignalingServer::closeActiveConns() {
 // Accept + despacho
 // ============================================================================
 
-void SignalingServer::acceptLoop(long long listenFd, bool admin) {
+void SignalingServer::acceptLoop(long long listenFd, bool admin, bool externo) {
     constexpr int kAcceptPollMs = 200;
     while (!stop_.load(std::memory_order_relaxed)) {
         const int ready = http::waitReadable(listenFd, kAcceptPollMs);
@@ -351,9 +418,9 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
 #endif
         // Ultima red: un JSON con tipos inesperados (nlohmann lanza) no debe
         // tumbar el proceso desde un thread detachado.
-        std::thread([this, fd, clientIp, admin] {
+        std::thread([this, fd, clientIp, admin, externo] {
             try {
-                handleConnection(fd, clientIp, admin);
+                handleConnection(fd, clientIp, admin, externo);
             } catch (const std::exception& e) {
                 log_.warn(std::string("conexion: excepcion ") + e.what(), -1);
             }
@@ -361,7 +428,7 @@ void SignalingServer::acceptLoop(long long listenFd, bool admin) {
     }
 }
 
-void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin) {
+void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo) {
     // El thread esta detachado: el contador DEBE bajar por cualquier salida.
     struct ConnGuard {
         SignalingServer* self;
@@ -376,20 +443,20 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     std::string headers;
     if (!http::readHeaders(fd, headers)) return;
 
-    // PROXY v1 (del puente del tunel WireGuard o del terminador HTTPS, ambos
-    // locales): la conexion llega desde 127.0.0.1 pero la IP que cuenta
-    // (rate-limit, registro) es la del invitado. Solo se acepta desde loopback.
+    // PROXY v1 (del puente del tunel WireGuard, del terminador HTTPS, del proxy
+    // por nombre o de ba-pinggy, todos locales): la conexion llega desde
+    // 127.0.0.1 pero la IP que cuenta (rate-limit, registro) es la del
+    // invitado. Solo se acepta desde loopback. En la escucha del tunel la IP
+    // que venga NO cambia que la conexion sea externa.
+    bool ipDeProxy = false;
     if (headers.rfind("PROXY ", 0) == 0) {
         const size_t eol = headers.find("\r\n");
         const bool fromLoopback = ntohl(clientIp) == INADDR_LOOPBACK;
         if (eol == std::string::npos || !fromLoopback) return;
-        char src[64] = {0};
-        char dst[64] = {0};
-        unsigned sp = 0;
-        unsigned dp = 0;
-        if (std::sscanf(headers.c_str(), "PROXY TCP4 %63s %63s %u %u", src, dst, &sp, &dp) == 4) {
-            in_addr a{};
-            if (inet_pton(AF_INET, src, &a) == 1) clientIp = static_cast<std::uint32_t>(a.s_addr);
+        std::uint32_t real = 0;
+        if (ipDeProxyV1(headers.substr(0, eol), real)) {
+            clientIp = real;
+            ipDeProxy = true;
         }
         headers.erase(0, eol + 2);
         // La cabecera PROXY puede haber llegado sola: se completa la peticion.
@@ -398,6 +465,14 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
             if (!http::readHeaders(fd, rest)) return;
             headers += rest;
         }
+    }
+
+    // Por el tunel de pinggy sin PROXY v1 (con el TURN prendido va sin, ver
+    // main.cpp): la IP real del X-Forwarded-For que agrega ba-pinggy (--xff).
+    // Solo en esa escucha: en la comun esa cabecera la pone cualquiera.
+    if (externo && !ipDeProxy) {
+        std::uint32_t real = 0;
+        if (ipDeXff(http::getHeader(headers, "X-Forwarded-For"), real)) clientIp = real;
     }
 
     // Linea de peticion: METHOD TARGET HTTP/1.1
@@ -447,9 +522,17 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, boo
     }
 
     // La botonera (página, emparejamiento y su WebSocket) antes que la sala.
-    if (botonera_->atender(fd, method, path, query, headers, body, clientIp)) return;
+    if (botonera_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
     // La sesión remota (página y su WebSocket), también antes que la sala.
-    if (sesion_->atender(fd, method, path, query, headers, clientIp)) return;
+    if (sesion_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    if (path == "/api/ice" && method == "GET" && !admin) {
+        // Los servidores ICE (TURN de la caja) para el RTCPeerConnection del
+        // navegador. Sin servidor TURN (o sin setIce): lo de siempre, sin ICE.
+        const std::string cuerpo =
+            ice_ ? ice_(externo) : std::string(R"({"iceServers":[],"politica":"all","ttl":0})");
+        http::sendResponse(fd, 200, "application/json", cuerpo, "Cache-Control: no-store\r\n");
+        return;
+    }
     std::string upgrade = http::getHeader(headers, "Upgrade");
     for (auto& ch : upgrade)
         ch = static_cast<char>(::tolower(static_cast<unsigned char>(ch)));

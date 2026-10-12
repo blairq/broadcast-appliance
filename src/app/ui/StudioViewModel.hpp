@@ -105,6 +105,7 @@ class Quorum;
 }
 
 class AppRuntime;
+class AccesoRemoto;
 class ConferenceViewModel;
 class EventoViewModel;
 class HistoricoViewModel;
@@ -184,6 +185,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* acciones READ accionesQml CONSTANT)
     /// Avisos fuera del programa (webhook, Telegram, mail) para los disparadores.
     Q_PROPERTY(QObject* notificador READ notificadorQml CONSTANT)
+    /// El túnel de pinggy: estado, token (solo guardado/falta) y DNS (net/AccesoRemoto).
+    Q_PROPERTY(QObject* accesoRemoto READ accesoRemotoQml CONSTANT)
     /// Modo en vivo (T48): transmitiendo o con el evento en vivo; protege páginas y ajustes que cortan.
     Q_PROPERTY(bool modoVivo READ modoVivo NOTIFY statusChanged)
     /// La caída de la que se acaba de volver (T24): {causa, componente, hace_s, aire_vuelta_s?} o vacío.
@@ -430,6 +433,8 @@ class StudioViewModel : public QObject {
     control::Acciones& acciones() { return *acciones_; }
     QObject* notificadorQml() const;
     agent::Notificador& notificador() { return *notificador_; }
+    QObject* accesoRemotoQml() const;
+    AccesoRemoto* accesoRemoto() { return accesoRemoto_.get(); }
     bool modoVivo() const;
     QVariantMap caidaReciente() const { return caida_; }
     QVariantMap tally() const { return tally_; }
@@ -847,6 +852,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<FrameService> frames_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
+    std::unique_ptr<AccesoRemoto> accesoRemoto_; ///< usa el cliente de conference_: va después (se destruye antes)
     std::unique_ptr<EventoViewModel> evento_;
     std::unique_ptr<graficos::Emisor> emisor_;
     std::unique_ptr<GraficoViewModel> grafico_;

@@ -23,6 +23,14 @@
 //        POST /api/v1/board/view     {participant, sdp} -> video en vivo de
 //                                    un orador (relay, ver Webrtc.hpp)
 //
+//   1b) TUNEL — 127.0.0.1:tunnelPort (8786; solo con Cfg::tunel): lo mismo
+//      que la de invitados, pero para ba-pinggy (pinggy.io). TODA conexion que
+//      entra por aca es EXTERNA, sin importar la IP ni las cabeceras: llega
+//      desde 127.0.0.1 (el proceso de ba-pinggy) y sin esta marca se tomaria
+//      como de la red local (la botonera, por ejemplo, la atenderia). La IP
+//      real llega en una cabecera PROXY v1 (opcional) y es la que cuenta para
+//      los limites por IP y el registro.
+//
 //   2) CONTROL DEL OPERADOR — SIEMPRE 127.0.0.1:adminPort (nunca por el
 //      tunel). Es la API de la que cuelgan la vista web (Web/admin) y la vista
 //      Qt de la app. Ver AdminApi.cpp para las rutas.
@@ -139,6 +147,9 @@ class SignalingServer {
         std::string botoneraWebroot; // Web/botonera (la superficie de control de la tablet)
         std::string carasBotonera;   // <datos>/Media/botonera (las caras propias, /botonera/caras/)
         std::string sesionWebroot;   // Web/sesion (la sesión remota de los integrantes)
+        // --- Escucha del tunel de pinggy (siempre 127.0.0.1, todo externo) ---
+        bool tunel = false;         // abrirla (main: pinggy activo)
+        uint16_t tunnelPort = 8786; // 0 = puerto efimero (tests)
     };
 
     SignalingServer(const Cfg& cfg, TokenAuth& auth, WebrtcHub& hub, Room& room, ShareStore& shares,
@@ -163,6 +174,20 @@ class SignalingServer {
     uint16_t guestPort() const { return guestBoundPort_; }
     /// Puerto real de la API de control (0 si no esta abierta).
     uint16_t adminPort() const { return adminBoundPort_; }
+    /// Puerto real de la escucha del tunel (0 si no esta abierta).
+    uint16_t tunnelPort() const { return tunnelBoundPort_; }
+
+    /// La IP de origen de una cabecera PROXY v1 ("PROXY TCP4 <src> <dst> <sp>
+    /// <dp>"), en orden de red. TCP6: la IPv4 mapeada (::ffff:a.b.c.d) o, si
+    /// no, una seudo-IP estable 240.x.y.z por /64 (clase E: nunca es la red
+    /// local y separa a los clientes para los limites). :returns: false si la
+    /// linea no se entiende (UNKNOWN incluido).
+    static bool ipDeProxyV1(const std::string& linea, std::uint32_t& ipRed);
+    /// La IP real del X-Forwarded-For (el ULTIMO de la lista: el que agrego el
+    /// proxy de adelante). Solo se usa en la escucha del tunel sin PROXY v1.
+    static bool ipDeXff(const std::string& valor, std::uint32_t& ipRed);
+    /// Una IP en texto (IPv4, o IPv6 como en ipDeProxyV1) en orden de red.
+    static bool ipDeTexto(const std::string& texto, std::uint32_t& ipRed);
 
     /// IP publica del tunel WireGuard: los candidatos ICE de loopback (los que
     /// atiende el puente del tunel) se anuncian con esta IP. Vacio = no.
@@ -213,6 +238,12 @@ class SignalingServer {
     void setServerConfigGenerator(std::function<nlohmann::json(const nlohmann::json&)> fn) {
         serverConfig_ = std::move(fn);
     }
+    /// Estado del acceso remoto para GET /api/remoto: {"pinggy":{...}, ...}.
+    /// Sin proveedor: pinggy apagado.
+    void setRemotoStatus(std::function<nlohmann::json()> fn) { remotoStatus_ = std::move(fn); }
+    /// GET /api/ice: los iceServers para los navegadores (turn/Ice.hpp). Recibe si
+    /// la conexión vino por el túnel (externa) y devuelve el cuerpo JSON.
+    void setIce(std::function<std::string(bool externo)> fn) { ice_ = std::move(fn); }
 
     /// Cambia el PIN de la sala (API de control). Vacio = generar uno.
     /// :returns: el PIN vigente, o vacio si no se pudo generar.
@@ -222,8 +253,9 @@ class SignalingServer {
 
    private:
     // --- Conexiones ---------------------------------------------------------
-    void acceptLoop(long long listenFd, bool admin);
-    void handleConnection(long long fd, std::uint32_t clientIp, bool admin);
+    /// `externo`: la escucha del tunel (ver el header): toda conexion es de afuera.
+    void acceptLoop(long long listenFd, bool admin, bool externo = false);
+    void handleConnection(long long fd, std::uint32_t clientIp, bool admin, bool externo);
     void trackFd(long long fd);
     void untrackFd(long long fd);
     void closeActiveConns();
@@ -411,6 +443,8 @@ class SignalingServer {
     std::function<nlohmann::json()> networkStatus_;
     std::function<nlohmann::json(const nlohmann::json&)> serverConfig_;
     std::function<nlohmann::json(const std::string&)> joinUrl_;
+    std::function<nlohmann::json()> remotoStatus_;
+    std::function<std::string(bool externo)> ice_;
     std::map<std::string, std::string> avatars_; // pid -> JPEG (solo en memoria)
     std::mutex avatarsLock_;
     std::string boardToken_;
@@ -422,8 +456,11 @@ class SignalingServer {
     long long adminListenFd_ = -1;
     uint16_t adminBoundPort_ = 0;
     uint16_t guestBoundPort_ = 0;
+    long long tunnelListenFd_ = -1;
+    uint16_t tunnelBoundPort_ = 0;
     std::thread acceptThread_;
     std::thread adminAcceptThread_;
+    std::thread tunnelAcceptThread_;
 
     std::atomic<int> activeConns_{0};
     static int kMaxConcurrentConns() { return ba::ajustes::entero("room.maxConexiones", 64); }

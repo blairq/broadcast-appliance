@@ -31,6 +31,9 @@ class SettingsModel : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
     Q_PROPERTY(QStringList sections READ sections CONSTANT)
+    /// El borrador entero (clave -> valor): para que la vista muestre u oculte campos
+    /// según otro (p. ej. el dominio de pinggy según «Dirección pública»).
+    Q_PROPERTY(QVariantMap draft READ draft NOTIFY draftChanged)
    public:
     enum Roles {
         KeyRole = Qt::UserRole + 1,
@@ -55,6 +58,7 @@ class SettingsModel : public QAbstractListModel {
 
     bool dirty() const;
     QStringList sections() const;
+    QVariantMap draft() const { return draft_; }
 
     Q_INVOKABLE void setValue(const QString& key, const QVariant& value);
     Q_INVOKABLE QVariant value(const QString& key) const;
@@ -75,6 +79,7 @@ class SettingsModel : public QAbstractListModel {
 
    signals:
     void dirtyChanged();
+    void draftChanged();
     void applied(const QString& summary);
 
    private:

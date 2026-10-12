@@ -214,18 +214,20 @@ std::string SesionBorde::autenticarUsuario(const std::string& usuario, const std
 }
 
 bool SesionBorde::atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
-                          const std::string& headers, std::uint32_t clientIp) {
+                          const std::string& headers, std::uint32_t clientIp, bool externo) {
     const auto q = http::parseQuery(query);
     const bool wsConsola = path == "/ws" && q.count("presidencia") > 0;
     const bool ws = (path == "/ws" && q.count("sesion") > 0) || wsConsola;
     const bool pagina = path == "/sesion" || path.rfind("/sesion/", 0) == 0;
     const bool paginaConsola = path == "/presidencia" || path.rfind("/presidencia/", 0) == 0;
     if (!ws && !pagina && !paginaConsola) return false;
-    // La IP real si viene por el túnel (para el registro y los límites).
-    std::string ip = http::getHeader(headers, "CF-Connecting-IP");
-    // En la sala (red local) o afuera (por el túnel o una IP pública): la página lo
+    // La IP real si viene por el túnel de Cloudflare (para el registro y los
+    // límites). Por el de pinggy la cabecera no vale (la pone cualquiera): la IP
+    // es la de la conexión, que ya trae la real si vino PROXY v1.
+    std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
+    // En la sala (red local) o afuera (por un túnel o una IP pública): la página lo
     // usa para no reproducir la sala en un celular que está adentro (acoplaría).
-    const bool tunel = !ip.empty();
+    const bool tunel = externo || !ip.empty();
     if (ip.empty() || ip.size() > 45) ip = ipTexto(clientIp);
     const std::string lugar = !tunel && BotoneraBorde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!origenValido(headers)) {
