@@ -102,12 +102,13 @@ struct Opciones {
     std::string haproxy; // "" = por defecto (v1 si hay tcp/tls/tlstcp), "no", "v1", "v2"
     bool xff = false;
     bool reconectar = false;
+    bool probar = false; // --probar: ver si pinggy acepta la dirección y salir (sin desplazar otro túnel)
 };
 
 const char* const kUso =
     "uso: ba-pinggy --forward <tipo>=<host:puerto>[@<binding>] [...]\n"
     "               [--region auto|us|eu|ap] [--host <dominio>] [--listablanca <ip,...>]\n"
-    "               [--haproxy v1|v2|no] [--xff] [--reconectar]\n"
+    "               [--haproxy v1|v2|no] [--xff] [--reconectar] [--probar]\n"
     "  tipo: http, tcp, tls, tlstcp, udp. El token va en BA_PINGGY_TOKEN (vacío = gratis).\n";
 
 std::vector<std::string> partir(const std::string& s, char sep) {
@@ -198,6 +199,8 @@ bool leerOpciones(int argc, char** argv, Opciones& o, std::string& problema) {
             o.xff = true;
         } else if (a == "--reconectar") {
             o.reconectar = true;
+        } else if (a == "--probar") {
+            o.probar = true;
         } else if (a == "--token" || a.rfind("--token=", 0) == 0) {
             problema = "el token no va por la línea de comandos: BA_PINGGY_TOKEN";
             return false;
@@ -390,6 +393,8 @@ void soltarPendiente(Estado& e) {
     emitir(std::string("{\"ev\":") + json(ev) + ",\"urls\":" + jsonLista(e.urlsPendientes) +
            ",\"forwardings\":" + forwardingsJson(*e.op, e.urlsPendientes, e.mapa) + "}");
     if (!g.empty() && g != "[]" && g != "null" && g != "\"\"") aviso("pinggy: " + g);
+    // Probando: ya se sabe que pinggy aceptó la dirección; se corta.
+    if (e.op->probar) gParar = true;
 }
 
 void dejarPendiente(Estado& e, const char* ev, std::vector<std::string> urls) {
@@ -618,7 +623,8 @@ bool sesion(const Opciones& op, const std::string& token, long padre, Estado& e)
     }
     // Un túnel por token: si quedó colgada una sesión vieja (el gateway se
     // reinició), esta la desplaza en vez de fallar.
-    pinggy_config_set_force(cfg, pinggy_true);
+    // Probando una dirección NO: si otro túnel la usa, que pinggy lo diga en vez de tirarlo.
+    pinggy_config_set_force(cfg, op.probar ? pinggy_false : pinggy_true);
 
     bool primeroHttp = true;
     bool hayTcp = false;

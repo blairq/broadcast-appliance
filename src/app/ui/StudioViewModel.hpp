@@ -815,6 +815,9 @@ class StudioViewModel : public QObject {
     void seccionConfigChanged();
     /// Pide a una página que muestre una parte suya (ui_show_page {page, seccion}).
     void mostrarSeccion(const QString& pagina, const QString& seccion);
+    /// qr_mostrar: abrir una ventana con el QR de `texto`, su descripción, una
+    /// explicación y un color (verde, azul… o #rrggbb), con el botón de copiar.
+    void mostrarQr(const QString& texto, const QString& descripcion, const QString& mensaje, const QString& color);
     /// Pide a una página que abra (o cierre: "cerrar") un panel o diálogo suyo
     /// (ui_abrir_panel {page, panel}): lo que el operador abre con un botón.
     void abrirPanel(const QString& pagina, const QString& panel);

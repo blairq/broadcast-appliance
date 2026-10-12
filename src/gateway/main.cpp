@@ -887,7 +887,11 @@ int main(int argc, char** argv) {
     if (cfg.pinggyActivo && cfg.pinggyTurn) {
         turnCfg.puertoTcp = turnPuertoLocal;
         turnCfg.puertoUdp = cfg.pinggyTurnUdp ? turnPuertoLocal : 0;
-        turnCfg.direccion = "127.0.0.1";
+        // También en la red local: en la sesión remota de la asamblea los navegadores
+        // se conectan ENTRE ELLOS (integrante con integrante); uno de la sala y uno de
+        // afuera solo se encuentran si los dos tienen un relay en esta caja. Pinggy
+        // sigue entrando por 127.0.0.1. La política de peers no cambia.
+        turnCfg.direccion = "0.0.0.0";
         const std::vector<std::string> ips = ba::gateway::net::localIPv4s();
         turnCfg.peersPermitidos = ips;
         turnCfg.peersPermitidos.push_back("127.0.0.1");
@@ -900,7 +904,7 @@ int main(int argc, char** argv) {
         std::string e;
         if (turnSrv->start(&e)) {
             turnActivo = true;
-            log.info("turn: escuchando en 127.0.0.1:" + std::to_string(turnPuertoLocal) +
+            log.info("turn: escuchando en el puerto " + std::to_string(turnPuertoLocal) +
                      (turnCfg.puertoUdp ? " (TCP y UDP)" : " (TCP)"));
         } else {
             log.warn("turn: no arrancó (" + e + "): los invitados de afuera no van a tener video", -1);
@@ -969,6 +973,12 @@ int main(int argc, char** argv) {
                 }
             }
             x.udpPublico = st.turnUdp;
+        }
+        // Desde la red local: el TURN por la IP de la caja (para el P2P con los de afuera).
+        if (turnSrv && !externo && turnCfg.direccionRelay != "127.0.0.1") {
+            x.hostLan = turnCfg.direccionRelay;
+            x.puertoLanTcp = turnCfg.puertoTcp;
+            x.puertoLanUdp = turnCfg.puertoUdp;
         }
         return ba::gateway::turn::respuestaIce(turnCfg, turnSrv && turnSrv->activo(), x, externo);
     });

@@ -6,10 +6,13 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "net/AsyncHttp.hpp"
+#include "plugins/Hijo.hpp"
 #include "security/CredentialStore.hpp"
 #include "ui/ConferenceClient.hpp"
 
+#include <QCoreApplication>
 #include <QDnsLookup>
+#include <QProcessEnvironment>
 #include <QHostAddress>
 #include <QHostInfo>
 #include <QJsonDocument>
@@ -201,7 +204,7 @@ QString AccesoRemoto::instruccionesDns(const QString& hostCrudo, const QString& 
       << "2) En el panel de pinggy (dashboard.pinggy.io, cuenta Pro):"
       << "   a. Domains → agregar el dominio " + h + "."
       << "   b. Asignarlo al token de túnel que usa este equipo."
-      << "   c. Con el túnel APAGADO (en este equipo: Configuración → Acceso remoto → «Túnel de pinggy» apagado),"
+      << "   c. Con el túnel APAGADO (en este equipo: Configuración → Pinggy → «Túnel de pinggy» apagado),"
       << "      validar el dominio y emitir el certificado."
       << "   d. Recién después prender el túnel."
       << "   Guía de pinggy: https://pinggy.io/docs/custom_domain/"
@@ -352,6 +355,106 @@ void AccesoRemoto::consultar(std::function<void(json)> done) {
                                                               QString::fromStdString(self->rt_.gateway().pinggyCnameDestino))
                                            .toStdString();
         done(out);
+    });
+}
+
+} // namespace ba::app
+
+// --- Probar una dirección -------------------------------------------------------------------
+
+namespace ba::app {
+
+void AccesoRemoto::ponerPrueba(const QString& estado, const QString& texto) {
+    prueba_ = {{"estado", estado}, {"texto", texto}};
+    emit pruebaChanged();
+}
+
+void AccesoRemoto::probarDireccion(const QString& tipo, const QString& hostCrudo) {
+    QString host = hostCrudo.trimmed().toLower();
+    host.remove(QRegularExpression("^https?://"));
+    host = host.section('/', 0, 0);
+    while (host.endsWith('.')) host.chop(1);
+    if (tipo == "azar")
+        return ponerPrueba("ok", "Al azar no hay nada que probar: la da pinggy cada vez que arranca el túnel.");
+    if (host.isEmpty()) return ponerPrueba("error", "Escribí primero el subdominio o el dominio.");
+    if (!tokenGuardado())
+        return ponerPrueba("error", "Falta el token de túnel: sin él pinggy no puede dar una dirección fija.");
+    // El túnel de este equipo usa el mismo token: pinggy deja uno por token.
+    const QVariantMap p = estado_.value("pinggy").toMap();
+    const QString est = p.value("estado").toString();
+    if (est == "listo" || est == "conectando" || est == "reconectando") {
+        if (est == "listo" && p.value("urlPublica").toString().contains(host))
+            return ponerPrueba("ok", "Ya anda: el túnel de este equipo está saliendo por " + host + ".");
+        return ponerPrueba("error", "El túnel de este equipo está prendido y pinggy deja un solo túnel por token: "
+                                    "apagalo (y aplicá) para probar otra dirección.");
+    }
+    ponerPrueba("probando", "Probando " + host + " en pinggy…");
+    // Con la API key: ¿ya la usa un túnel activo de la cuenta (otro equipo)?
+    std::string clave;
+    if (!ba::security::CredentialStore::bundle().read(kApiKey, clave) || clave.empty()) return probarConTunel(host);
+    net::HttpRequest req;
+    req.url = kSesionesActivas;
+    req.headers = {{"Authorization", "Bearer " + clave}, {"Accept", "application/json"}};
+    req.timeoutMs = 15000;
+    QPointer<AccesoRemoto> self(this);
+    net::asyncRequest(this, std::move(req), [self, host](const net::HttpResponse& res) {
+        if (!self) return;
+        if (res.status >= 200 && res.status < 300 && QString::fromStdString(res.body).toLower().contains(host))
+            return self->ponerPrueba("mal", "Esa dirección la está usando ahora un túnel de tu cuenta (¿otro equipo "
+                                            "con el mismo token?). Apagalo allá o usá otra.");
+        self->probarConTunel(host);
+    });
+}
+
+void AccesoRemoto::probarConTunel(const QString& host) {
+    std::string token;
+    ba::security::CredentialStore::bundle().read(kToken, token);
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert("BA_PINGGY_TOKEN", QString::fromStdString(token).trimmed());
+#ifdef _WIN32
+    const QString exe = QCoreApplication::applicationDirPath() + "/ba-pinggy.exe";
+#else
+    const QString exe = QCoreApplication::applicationDirPath() + "/ba-pinggy";
+#endif
+    const auto& g = rt_.gateway();
+    // Hacia el puerto del túnel (nadie lo atiende si el túnel está apagado: no importa,
+    // solo se mira qué dirección da pinggy).
+    const QStringList args{"--forward", QString("http=127.0.0.1:%1").arg(g.pinggyPuertoTunel > 0 ? g.pinggyPuertoTunel : 8786),
+                           "--host", host, "--region", QString::fromStdString(g.pinggyRegion.empty() ? "auto" : g.pinggyRegion),
+                           "--haproxy", "no", "--probar"};
+    QPointer<AccesoRemoto> self(this);
+    plugins::Hijo::correr(this, exe, args, env, 30000, [self, host](int codigo, QByteArray out, QByteArray) {
+        if (!self) return;
+        QStringList urls;
+        QString error;
+        for (const QByteArray& l : out.split('\n')) {
+            const json j = json::parse(l.toStdString(), nullptr, false);
+            if (!j.is_object()) continue;
+            const std::string ev = j.value("ev", std::string());
+            if (ev == "listo" || ev == "reconectado")
+                for (const auto& u : j.value("urls", json::array()))
+                    if (u.is_string()) urls << QString::fromStdString(u.get<std::string>());
+            if (ev == "error") error = QString::fromStdString(j.value("error", std::string()));
+        }
+        const QString err = error.toLower();
+        if (!urls.isEmpty()) {
+            for (const QString& u : urls)
+                if (u.toLower().contains(host))
+                    return self->ponerPrueba("ok", "Pinggy dio " + host + ": está asignada a tu token y libre. "
+                                                   "Prendé el túnel y aplicá.");
+            return self->ponerPrueba("mal", "Pinggy NO dio " + host + " (dio otra al azar: " + urls.first() +
+                                                "): no está asignada a tu token. En dashboard.pinggy.io → Domains, "
+                                                "cargala y asignala a este token.");
+        }
+        if (err.contains("already") || err.contains("in use") || err.contains("bound") || err.contains("en uso"))
+            return self->ponerPrueba("mal", "Esa dirección está en uso por otro túnel (¿otro equipo con el mismo "
+                                            "token?): " + error);
+        if (err.contains("token"))
+            return self->ponerPrueba("error", "Pinggy no aceptó el token guardado: " + error);
+        if (codigo == -1 && error.isEmpty())
+            return self->ponerPrueba("error", "No arrancó la prueba (¿falta ba-pinggy en el programa?) o pinggy no "
+                                              "contestó en 30 s.");
+        self->ponerPrueba("error", error.isEmpty() ? QString("Pinggy no contestó como se esperaba.") : error);
     });
 }
 

@@ -45,6 +45,8 @@ class AccesoRemoto : public QObject {
     Q_PROPERTY(QVariantMap dns READ dns NOTIFY dnsChanged)
     /// {estado: ""|"consultando"|"ok"|"error", texto}
     Q_PROPERTY(QVariantMap panel READ panel NOTIFY panelChanged)
+    /// «Probar dirección»: {estado: probando|ok|mal|error, texto}.
+    Q_PROPERTY(QVariantMap prueba READ prueba NOTIFY pruebaChanged)
    public:
     AccesoRemoto(AppRuntime& rt, ConferenceClient& cli, QObject* parent = nullptr);
 
@@ -56,6 +58,7 @@ class AccesoRemoto : public QObject {
     void setSiguiendo(bool on);
     QVariantMap dns() const { return dns_; }
     QVariantMap panel() const { return panel_; }
+    QVariantMap prueba() const { return prueba_; }
 
     Q_INVOKABLE void refrescar();
     /// Guarda el token de túnel (cifrado). "" si salió bien, si no el motivo.
@@ -69,6 +72,11 @@ class AccesoRemoto : public QObject {
     Q_INVOKABLE void verificarDns(const QString& host, const QString& destino);
     /// Consulta los túneles activos en el panel de pinggy con la API key (resultado en `panel`).
     Q_INVOKABLE void verEnPinggy();
+    /// Prueba si pinggy da esa dirección con el token guardado: abre un túnel de
+    /// prueba corto (sin desplazar a otro) y compara la dirección que devuelve.
+    /// Con la API key, mira antes si ya la usa un túnel activo de la cuenta.
+    /// Resultado en `prueba`. `tipo`: azar|pinggy|propio.
+    Q_INVOKABLE void probarDireccion(const QString& tipo, const QString& host);
 
     /// Para el MCP: el estado de la sala más la configuración (nunca el token).
     void consultar(std::function<void(nlohmann::json)> done);
@@ -79,6 +87,7 @@ class AccesoRemoto : public QObject {
     void siguiendoChanged();
     void dnsChanged();
     void panelChanged();
+    void pruebaChanged();
 
    private:
     void pedirEstado(std::function<void(bool ok, const QVariantMap& r)> done);
@@ -94,6 +103,9 @@ class AccesoRemoto : public QObject {
     QVariantList enlaces_;
     QVariantMap dns_;
     QVariantMap panel_;
+    QVariantMap prueba_;
+    void ponerPrueba(const QString& estado, const QString& texto);
+    void probarConTunel(const QString& host);
 };
 
 } // namespace ba::app

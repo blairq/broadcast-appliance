@@ -470,8 +470,7 @@ void McpService::registerRoomTools() {
             t.title = "Acceso remoto: configurar pinggy";
             t.category = "sala";
             t.description =
-                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Acceso remoto → "
-                "Pinggy). Solo cambia lo que mandes. Reinicia la sala (corta a los invitados un momento). "
+                "Prende o apaga el túnel de pinggy y lo configura (lo mismo que Configuración → Pinggy). Solo cambia lo que mandes. Reinicia la sala (corta a los invitados un momento). "
                 "`direccion`: \"azar\" (la que dé pinggy), \"pinggy\" (subdominio fijo del token) o \"propio\" (dominio "
                 "propio: va con `host` y `cname_destino`).";
             t.inputSchema = {
@@ -558,6 +557,36 @@ void McpService::registerRoomTools() {
                 const QString dest = QString::fromStdString(a.value("cname_destino", rt.gateway().pinggyCnameDestino));
                 acc->verificarDns(host, dest);
                 esperar(&AccesoRemoto::dnsChanged, [acc]() { return acc ? acc->dns() : QVariantMap{}; }, done);
+            };
+            core_.addTool(std::move(t));
+        }
+        {
+            Tool t;
+            t.name = "acceso_remoto_probar_direccion";
+            t.title = "Acceso remoto: probar si pinggy da esa dirección";
+            t.category = "sala";
+            t.readOnly = true;
+            t.openWorld = true;
+            t.description =
+                "Prueba un subdominio fijo o un dominio propio con el token guardado: abre un túnel de prueba de unos "
+                "segundos (sin desplazar a otro) y se fija si pinggy da esa dirección. ok = asignada al token y libre; "
+                "mal = no asignada (pinggy dio otra al azar) o en uso por otro túnel (con la API key también mira los "
+                "túneles activos de la cuenta); error = falta el token, el túnel de este equipo está prendido, etc. "
+                "Sin argumentos, con lo configurado.";
+            t.inputSchema = {{"type", "object"},
+                             {"properties",
+                              {{"direccion", {{"type", "string"}, {"enum", {"pinggy", "propio"}}}},
+                               {"host", {{"type", "string"}}}}}};
+            t.run = [acc, esperar, &rt = rt_](const json& a, Done done) {
+                if (!acc) return done(ToolResult::error("no disponible"));
+                const QString tipo = QString::fromStdString(a.value("direccion", rt.gateway().pinggyDominioTipo));
+                const QString host = QString::fromStdString(a.value("host", rt.gateway().pinggyHost));
+                acc->probarDireccion(tipo, host);
+                esperar(&AccesoRemoto::pruebaChanged, [acc]() {
+                    QVariantMap m = acc ? acc->prueba() : QVariantMap{};
+                    if (m.value("estado") == "probando") m["estado"] = "consultando"; // sigue esperando
+                    return m;
+                }, done);
             };
             core_.addTool(std::move(t));
         }

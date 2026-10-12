@@ -23,12 +23,15 @@ Rectangle {
     readonly property string vozSection: "Voz del operador"
     readonly property string traduccionSection: "Traducción"
     readonly property string controlSection: "Control de Windows"
+    readonly property string pinggySection: "Pinggy"
+    /// Los avanzados de la sección Pinggy (los del TURN), al final de su página.
+    readonly property var clavesAvanzadasPinggy: ["turn.maxAsignaciones", "turn.maxConexiones", "turn.vidaMaxS", "turn.nonceS", "turn.colaTcpKB", "turn.credencialS"]
     /// El orden de la lista de la izquierda. Las secciones del esquema
     /// (SettingsModel) y las de vista propia, juntas por tema.
     readonly property var grupos: [
         { titulo: "Imagen y sonido", secciones: ["Video", "Cámaras y entradas", "Audio", page.traduccionSection] },
         { titulo: "Salida", secciones: ["Transmisión", "Grabación", "Codificación"] },
-        { titulo: "Sala de invitados", secciones: ["Invitados", "Sala", "Red de la sala", "Acceso remoto"] },
+        { titulo: "Sala de invitados", secciones: ["Invitados", "Sala", "Red de la sala", "Acceso remoto", page.pinggySection] },
         { titulo: "Asistente", secciones: ["Asistente (MCP)", page.vozSection, page.modelosSection, page.controlSection] },
         { titulo: "Sistema", secciones: [page.aparienciaSection, "Plugins y descargas", page.systemSection] }
     ]
@@ -38,9 +41,9 @@ Rectangle {
 
     /// Las que tienen vista propia (el formulario del esquema, si tienen campos, va adentro).
     readonly property var propias: [page.systemSection, page.aparienciaSection, page.modelosSection,
-                                    page.vozSection, page.traduccionSection, page.controlSection]
+                                    page.vozSection, page.traduccionSection, page.controlSection, page.pinggySection]
     /// Las que reinician la sala al aplicar (y ofrecen reiniciarla a mano).
-    readonly property var deLaSala: ["Invitados", "Sala", "Red de la sala", "Acceso remoto"]
+    readonly property var deLaSala: ["Invitados", "Sala", "Red de la sala", "Acceso remoto", "Pinggy"]
     /// Subtítulos dentro de una sección: van arriba del campo con esa clave.
     readonly property var subtitulos: ({
         "video.width": "Lienzo y salida", "video.formato": "Color", "transition.type": "Transiciones",
@@ -51,7 +54,7 @@ Rectangle {
         "gateway.room": "Entrada", "room.maxBackstage": "Modo oradores", "room.vistasRemotas": "Pantallas y celulares",
         "room.pinIntentos": "Seguridad", "room.maxUploadMB": "Archivos",
         "gateway.port": "Dónde escucha", "direct.https": "Conexión directa (HTTPS y WebRTC)", "room.adminPort": "Control",
-        "gateway.tunnel": "Cloudflare", "wg.enabled": "Servidor propio (WireGuard)", "pinggy.activo": "Pinggy",
+        "gateway.tunnel": "Cloudflare", "wg.enabled": "Servidor propio (WireGuard)", "turn.maxAsignaciones": "Avanzado",
         "mcp.approval": "Aprobaciones", "video.esperaCorteMs": "Avanzado", "entradas.congelarMs": "Avanzado", "audio.margenMezclaMs": "Avanzado", "stream.sinDatosS": "Avanzado", "record.colchonIsoS": "Avanzado", "room.oradorSeg": "Avanzado", "room.maxConexiones": "Avanzado", "gateway.tunelReintentoMaxS": "Avanzado", "asistente.demoraArranqueMs": "Avanzado", "modelo.maxTokens": "Avanzado", "traductor.maxCaidas": "Avanzado", "vozPrompter.consultaMs": "Avanzado", "descargas.simultaneas": "Avanzado", "launcher.primerLatidoS": "Avanzado", "modelo.contexto": "El chat sin internet (pestaña Asistente)", "launcher.cuelgue": "Si se cuelga o se cae",
     })
     /// Campos que dependen de otro (se ocultan si no aplican).
@@ -132,7 +135,7 @@ Rectangle {
                     required property int index
                     readonly property bool esGrupo: modelData.grupo !== undefined
                     width: ListView.view.width
-                    height: esGrupo ? (index === 0 ? 16 : 22) : 28
+                    height: esGrupo ? (index === 0 ? 14 : 20) : 26
                     Text {
                         visible: parent.esGrupo
                         anchors { left: parent.left; leftMargin: 8; bottom: parent.bottom; bottomMargin: 4 }
@@ -176,12 +179,6 @@ Rectangle {
                     width: parent.width
                     spacing: 14
                     CamposDeSeccion { Layout.fillWidth: true; seccion: page.section }
-                    Loader {
-                        Layout.fillWidth: true
-                        active: page.section === "Acceso remoto"
-                        visible: active
-                        sourceComponent: pinggyComp
-                    }
                     GlassButton {
                         Layout.topMargin: 10
                         text: "Valores por defecto de esta sección"; compact: true
@@ -243,6 +240,11 @@ Rectangle {
                 active: page.section === page.controlSection
                 sourceComponent: controlComp
             }
+            Loader {
+                anchors.fill: parent
+                active: page.section === page.pinggySection
+                sourceComponent: pinggyComp
+            }
         }
     }
 
@@ -252,6 +254,8 @@ Rectangle {
     component CamposDeSeccion: ColumnLayout {
         id: campos
         property string seccion: ""
+        /// Si no está vacía, solo estas claves (para intercalar campos con otros bloques).
+        property var claves: []
         spacing: 14
         Repeater {
             model: Studio.settings
@@ -271,7 +275,7 @@ Rectangle {
                 required property string scope
                 required property int index
                 required property bool avanzado
-                visible: section === campos.seccion && (!avanzado || page.verAvanzados || !Studio.settings.tieneBasicos(section)) && page.campoVisible(key)
+                visible: section === campos.seccion && (campos.claves.length === 0 || campos.claves.indexOf(key) >= 0) && (!avanzado || page.verAvanzados || !Studio.settings.tieneBasicos(section)) && page.campoVisible(key)
                 Layout.fillWidth: true
                 Layout.preferredHeight: visible ? implicitHeight : 0
                 spacing: 8
@@ -301,228 +305,312 @@ Rectangle {
         }
     }
 
-    // --- Acceso remoto: pinggy (estado, token, DNS del dominio propio) ---------------
-    // Debajo de los campos de la sección. El token y la API key van solo a
+    // --- Pinggy: acceso remoto por pinggy.io (sección propia) ---------------------------
+    // Estado y direcciones, conexión, token, dirección pública y DNS, video de los
+    // de afuera (TURN), seguridad y monitoreo. Los campos son los del esquema
+    // (sección «Pinggy», con Aplicar); el token y la API key van solo a
     // Credenciales/ (cifrados): acá se guardan o se borran, nunca se muestran.
     Component {
         id: pinggyComp
-        ColumnLayout {
-            id: pg
-            spacing: 10
-            readonly property var ar: Studio.accesoRemoto
-            readonly property var st: pg.ar.estado
-            readonly property var pk: pg.st.pinggy || ({})
-            readonly property string estado: pg.pk.estado || (pg.st.disponible ? "apagado" : "")
-            readonly property var borrador: Studio.settings.draft
-            readonly property bool propio: pg.borrador["pinggy.dominioTipo"] === "propio"
-            Component.onCompleted: pg.ar.siguiendo = true
-            Component.onDestruction: pg.ar.siguiendo = false
-
-            function colorEstado(e) {
-                return e === "listo" ? Theme.ok : e === "conectando" || e === "reconectando" ? Theme.amber
-                     : e === "error" ? Theme.live : Theme.textFaint
-            }
-            function textoEstado(e) {
-                return e === "listo" ? "Túnel listo: se entra desde internet"
-                     : e === "conectando" ? "Conectando con pinggy…"
-                     : e === "reconectando" ? "Se cortó: reconectando…"
-                     : e === "error" ? "El túnel no anda"
-                     : e === "apagado" ? "Túnel apagado"
-                     : "Estado desconocido"
-            }
-            function guardarSecreto(campo, esToken) {
-                const e = esToken ? pg.ar.guardarToken(campo.text) : pg.ar.guardarApiKey(campo.text)
-                if (e !== "") { Studio.notify(e, "error"); return }
-                campo.text = ""
-                if (!esToken) { Studio.notify("API key guardada (cifrada).", "ok"); return }
-                if (pg.ar.estado.sala && Studio.settings.value("pinggy.activo") === true && !Studio.settings.dirty) {
-                    ApplicationWindow.window.confirm({
-                        title: "Token guardado",
-                        text: "La sala lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
-                        accept: "Reiniciar la sala", reject: "Después",
-                        action: function() {
-                            const r = Studio.conference.reiniciarSala()
-                            Studio.notify(r === "" ? "La sala se está reiniciando con el token nuevo." : r, r === "" ? "ok" : "error")
-                        }
-                    })
-                } else {
-                    Studio.notify("Token guardado (cifrado). Rige cuando la sala arranca: prendé «Túnel de pinggy» y aplicá, o reiniciá la sala.", "ok")
-                }
-            }
-
-            Text {
-                Layout.topMargin: 10
-                text: "Pinggy: estado"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
-            }
-            RowLayout {
-                Layout.fillWidth: true
+        ScrollView {
+            clip: true
+            contentWidth: availableWidth
+            ColumnLayout {
+                id: pg
+                width: parent.width
                 spacing: 10
-                Rectangle { width: 10; height: 10; radius: 5; color: pg.colorEstado(pg.estado) }
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 1
-                    Text { text: pg.textoEstado(pg.estado); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
-                    Text {
-                        visible: !pg.st.disponible && (pg.st.texto || "") !== ""
-                        Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        text: pg.st.texto || ""; color: Theme.textDim; font.pixelSize: 11
-                    }
-                    Text {
-                        visible: (pg.pk.error || "") !== ""
-                        Layout.fillWidth: true; wrapMode: Text.WordWrap
-                        text: "Último error: " + (pg.pk.error || ""); color: Theme.live; font.pixelSize: 11
+                readonly property var ar: Studio.accesoRemoto
+                readonly property var st: pg.ar.estado
+                readonly property var pk: pg.st.pinggy || ({})
+                readonly property string estado: pg.pk.estado || (pg.st.disponible ? "apagado" : "")
+                readonly property var borrador: Studio.settings.draft
+                readonly property bool propio: pg.borrador["pinggy.dominioTipo"] === "propio"
+                Component.onCompleted: pg.ar.siguiendo = true
+                Component.onDestruction: pg.ar.siguiendo = false
+
+                function colorEstado(e) {
+                    return e === "listo" ? Theme.ok : e === "conectando" || e === "reconectando" ? Theme.amber
+                         : e === "error" ? Theme.live : Theme.textFaint
+                }
+                function textoEstado(e) {
+                    return e === "listo" ? "Túnel listo: se entra desde internet"
+                         : e === "conectando" ? "Conectando con pinggy…"
+                         : e === "reconectando" ? "Se cortó: reconectando…"
+                         : e === "error" ? "El túnel no anda"
+                         : e === "apagado" ? "Túnel apagado"
+                         : "Estado desconocido"
+                }
+                function guardarSecreto(campo, esToken) {
+                    const e = esToken ? pg.ar.guardarToken(campo.text) : pg.ar.guardarApiKey(campo.text)
+                    if (e !== "") { Studio.notify(e, "error"); return }
+                    campo.text = ""
+                    if (!esToken) { Studio.notify("API key guardada (cifrada).", "ok"); return }
+                    if (pg.ar.estado.sala && Studio.settings.value("pinggy.activo") === true && !Studio.settings.dirty) {
+                        ApplicationWindow.window.confirm({
+                            title: "Token guardado",
+                            text: "La sala lo lee al arrancar. ¿La reinicio ahora? Los invitados se cortan y vuelven a entrar.",
+                            accept: "Reiniciar la sala", reject: "Después",
+                            action: function() {
+                                const r = Studio.conference.reiniciarSala()
+                                Studio.notify(r === "" ? "La sala se está reiniciando con el token nuevo." : r, r === "" ? "ok" : "error")
+                            }
+                        })
+                    } else {
+                        Studio.notify("Token guardado (cifrado). Rige cuando la sala arranca: prendé «Túnel de pinggy» y aplicá, o reiniciá la sala.", "ok")
                     }
                 }
-                GlassButton { compact: true; text: "Actualizar"; icon: "↻"; onClicked: pg.ar.refrescar() }
-            }
-            // La dirección pública y la de cada página, copiables.
-            Repeater {
-                model: pg.ar.enlaces
-                delegate: RowLayout {
-                    required property var modelData
+
+
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                    text: "Saca las páginas de la sala a internet por pinggy.io (una dirección para todo: invitados, sesión remota, público) y el video de los de afuera por un TURN propio. Lo de la red local sigue igual."
+                }
+                Text {
+                    Layout.topMargin: 14
+                    text: "Estado"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Rectangle { width: 10; height: 10; radius: 5; color: pg.colorEstado(pg.estado) }
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+                        Text { text: pg.textoEstado(pg.estado); color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                        Text {
+                            visible: !pg.st.disponible && (pg.st.texto || "") !== ""
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            text: pg.st.texto || ""; color: Theme.textDim; font.pixelSize: 11
+                        }
+                        Text {
+                            visible: (pg.pk.error || "") !== ""
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap
+                            text: "Último error: " + (pg.pk.error || ""); color: Theme.live; font.pixelSize: 11
+                        }
+                    }
+                    GlassButton { compact: true; text: "Actualizar"; icon: "↻"; onClicked: pg.ar.refrescar() }
+                }
+                // La dirección pública y la de cada página, copiables.
+                Repeater {
+                    model: pg.ar.enlaces
+                    delegate: RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        spacing: 8
+                        Text { Layout.preferredWidth: 190; text: modelData.nombre; color: Theme.textDim; font.pixelSize: 12; elide: Text.ElideRight }
+                        TextEdit {
+                            Layout.fillWidth: true; readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
+                            text: modelData.url; color: Theme.text; font { pixelSize: 12; family: Theme.mono }
+                        }
+                        GlassButton { compact: true; text: "Copiar"; onClicked: Studio.copiar(modelData.url) }
+                    }
+                }
+                Text {
+                    visible: (pg.pk.urls || []).length > 1
+                    Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                    text: "Direcciones del túnel: " + (pg.pk.urls || []).join("  ·  ")
+                    color: Theme.textFaint; font.pixelSize: 11
+                }
+                Text {
+                    visible: pg.pk.turn !== undefined && (pg.pk.turn.publico || "") !== ""
+                    Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                    text: pg.pk.turn ? "TURN (video de los de afuera): " + pg.pk.turn.publico + (pg.pk.turn.tipo ? " · " + pg.pk.turn.tipo : "")
+                                       + (typeof pg.pk.turn.udp === "string" && pg.pk.turn.udp !== "" ? " · UDP: " + pg.pk.turn.udp
+                                          : pg.pk.turn.udp === true ? " · también UDP" : " · solo TCP") : ""
+                    color: Theme.textDim; font.pixelSize: 11
+                }
+
+                Text {
+                    Layout.topMargin: 14
+                    text: "Conexión"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                }
+                CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.activo", "pinggy.region"] }
+                Text {
+                    Layout.topMargin: 14
+                    text: "Token de túnel"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                }
+                Text {
+                    text: pg.ar.tokenGuardado ? "● Guardado (cifrado en Credenciales/)" : "● Falta: sin token, el túnel no arranca"
+                    color: pg.ar.tokenGuardado ? Theme.ok : Theme.warn; font.pixelSize: 12
+                }
+                RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    Text { Layout.preferredWidth: 190; text: modelData.nombre; color: Theme.textDim; font.pixelSize: 12; elide: Text.ElideRight }
-                    TextEdit {
-                        Layout.fillWidth: true; readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
-                        text: modelData.url; color: Theme.text; font { pixelSize: 12; family: Theme.mono }
+                    TextField {
+                        id: tokenCampo
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
+                        placeholderText: pg.ar.tokenGuardado ? "Pegá uno nuevo para reemplazarlo" : "Pegá acá el token de túnel"
+                        onAccepted: if (text !== "") pg.guardarSecreto(tokenCampo, true)
                     }
-                    GlassButton { compact: true; text: "Copiar"; onClicked: Studio.copiar(modelData.url) }
+                    GlassButton { compact: true; text: "Guardar token"; enabled: tokenCampo.text !== ""; onClicked: pg.guardarSecreto(tokenCampo, true) }
+                    GlassButton {
+                        compact: true; text: "Borrar"; enabled: pg.ar.tokenGuardado
+                        onClicked: ApplicationWindow.window.confirm({
+                            title: "¿Borrar el token de pinggy?",
+                            text: "Cuando la sala vuelva a arrancar, el túnel no va a conectar hasta que guardes otro.",
+                            accept: "Borrar", reject: "Cancelar",
+                            action: function() { const e = pg.ar.borrarToken(); Studio.notify(e === "" ? "Token borrado." : e, e === "" ? "ok" : "error") }
+                        })
+                    }
                 }
-            }
-            Text {
-                visible: (pg.pk.urls || []).length > 1
-                Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                text: "Direcciones del túnel: " + (pg.pk.urls || []).join("  ·  ")
-                color: Theme.textFaint; font.pixelSize: 11
-            }
-            Text {
-                visible: pg.pk.turn !== undefined && (pg.pk.turn.publico || "") !== ""
-                Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                text: pg.pk.turn ? "TURN (video de los de afuera): " + pg.pk.turn.publico + (pg.pk.turn.tipo ? " · " + pg.pk.turn.tipo : "")
-                                   + (typeof pg.pk.turn.udp === "string" && pg.pk.turn.udp !== "" ? " · UDP: " + pg.pk.turn.udp
-                                      : pg.pk.turn.udp === true ? " · también UDP" : " · solo TCP") : ""
-                color: Theme.textDim; font.pixelSize: 11
-            }
-
-            // --- Token de túnel ---
-            Text {
-                Layout.topMargin: 10
-                text: "Token de túnel"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
-            }
-            Text {
-                text: pg.ar.tokenGuardado ? "● Guardado (cifrado en Credenciales/)" : "● Falta: sin token, el túnel no arranca"
-                color: pg.ar.tokenGuardado ? Theme.ok : Theme.warn; font.pixelSize: 12
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                TextField {
-                    id: tokenCampo
-                    Layout.fillWidth: true
-                    echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
-                    placeholderText: pg.ar.tokenGuardado ? "Pegá uno nuevo para reemplazarlo" : "Pegá acá el token de túnel"
-                    onAccepted: if (text !== "") pg.guardarSecreto(tokenCampo, true)
-                }
-                GlassButton { compact: true; text: "Guardar token"; enabled: tokenCampo.text !== ""; onClicked: pg.guardarSecreto(tokenCampo, true) }
-                GlassButton {
-                    compact: true; text: "Borrar"; enabled: pg.ar.tokenGuardado
-                    onClicked: ApplicationWindow.window.confirm({
-                        title: "¿Borrar el token de pinggy?",
-                        text: "Cuando la sala vuelva a arrancar, el túnel no va a conectar hasta que guardes otro.",
-                        accept: "Borrar", reject: "Cancelar",
-                        action: function() { const e = pg.ar.borrarToken(); Studio.notify(e === "" ? "Token borrado." : e, e === "" ? "ok" : "error") }
-                    })
-                }
-            }
-            Text {
-                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                textFormat: Text.StyledText
-                onLinkActivated: (l) => Qt.openUrlExternally(l)
-                text: "De dónde sale: entrá a <a href=\"https://dashboard.pinggy.io\">dashboard.pinggy.io</a> con la cuenta Pro y copiá el "
-                      + "<b>token de túnel</b> (el que se usa para conectar). La <b>API key</b> sola no abre túneles: sirve para el "
-                      + "monitoreo de abajo. El token se guarda cifrado en este equipo, no se muestra nunca más y el asistente no lo ve."
-            }
-
-            // --- DNS del dominio propio ---
-            ColumnLayout {
-                visible: pg.propio
-                Layout.fillWidth: true
-                spacing: 8
                 Text {
-                    Layout.topMargin: 10
-                    text: "DNS del dominio propio"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                    textFormat: Text.StyledText
+                    linkColor: Theme.accent
+                    onLinkActivated: (l) => Qt.openUrlExternally(l)
+                    text: "De dónde sale: entrá a <a href=\"https://dashboard.pinggy.io\">dashboard.pinggy.io</a> con la cuenta Pro y copiá el "
+                          + "<b>token de túnel</b> (el que se usa para conectar). La <b>API key</b> sola no abre túneles: sirve para el "
+                          + "monitoreo de abajo. El token se guarda cifrado en este equipo, no se muestra nunca más y el asistente no lo ve."
+                }
+
+                Text {
+                    Layout.topMargin: 14
+                    text: "Dirección pública"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                }
+                CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.dominioTipo", "pinggy.host", "pinggy.cnameDestino"] }
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                    text: pg.borrador["pinggy.dominioTipo"] === "azar"
+                          ? "Al azar cambia cada vez que arranca el túnel (y el QR con él). Para una dirección fija: subdominio fijo de pinggy o dominio propio (plan Pro)."
+                          : pg.borrador["pinggy.dominioTipo"] === "pinggy"
+                          ? "El subdominio se crea en dashboard.pinggy.io → Domains y se asigna al token (queda del estilo nombre.a.pinggy.link). Escribilo tal cual y probalo."
+                          : "Tu dominio (p. ej. sala.miorganismo.gob.ar): se carga en dashboard.pinggy.io → Domains, se asigna al token y se apunta con un CNAME (abajo, las instrucciones)."
+                }
+                // Probar la dirección: si pinggy la da con este token (asignada y libre).
+                RowLayout {
+                    visible: pg.borrador["pinggy.dominioTipo"] !== "azar"
+                    spacing: 8
+                    GlassButton {
+                        compact: true; text: "Probar dirección"; icon: "✓"
+                        enabled: pg.ar.prueba.estado !== "probando"
+                        onClicked: pg.ar.probarDireccion(pg.borrador["pinggy.dominioTipo"] || "", pg.borrador["pinggy.host"] || "")
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                        text: "Abre un túnel de prueba de unos segundos con tu token y se fija si pinggy te da esa dirección (no la tiene otro túnel y está asignada a tu token). Con el túnel de este equipo apagado."
+                    }
+                }
+                Text {
+                    visible: (pg.ar.prueba.texto || "") !== "" && pg.borrador["pinggy.dominioTipo"] !== "azar"
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+                    text: pg.ar.prueba.texto || ""
+                    color: pg.ar.prueba.estado === "ok" ? Theme.ok : pg.ar.prueba.estado === "probando" ? Theme.textDim
+                         : pg.ar.prueba.estado === "error" ? Theme.live : Theme.warn
+                }
+                ColumnLayout {
+                    visible: pg.propio
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Text {
+                        Layout.topMargin: 6
+                        text: "DNS del dominio propio"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold }
+                    }
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                        text: "Esto es lo que tiene que hacer quien administra el dominio. Se arma con lo que cargaste arriba: copialo y mandáselo."
+                    }
+                    TextArea {
+                        id: instrucciones
+                        Layout.fillWidth: true
+                        readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
+                        font { pixelSize: 12; family: Theme.mono }
+                        color: Theme.text
+                        background: Rectangle { color: Theme.field; radius: 6 }
+                        text: pg.propio ? pg.ar.instruccionesDns(pg.borrador["pinggy.host"] || "", pg.borrador["pinggy.cnameDestino"] || "") : ""
+                    }
+                    RowLayout {
+                        spacing: 8
+                        GlassButton { compact: true; text: "Copiar instrucciones"; onClicked: Studio.copiar(instrucciones.text) }
+                        GlassButton {
+                            compact: true; text: "Verificar DNS"
+                            enabled: pg.ar.dns.estado !== "verificando"
+                            onClicked: pg.ar.verificarDns(pg.borrador["pinggy.host"] || "", pg.borrador["pinggy.cnameDestino"] || "")
+                        }
+                    }
+                    Text {
+                        visible: (pg.ar.dns.texto || "") !== ""
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+                        text: pg.ar.dns.texto || ""
+                        color: pg.ar.dns.estado === "ok" ? Theme.ok : pg.ar.dns.estado === "verificando" ? Theme.textDim
+                             : pg.ar.dns.estado === "error" ? Theme.live : Theme.warn
+                    }
+                }
+                Text {
+                    Layout.topMargin: 14
+                    text: "Video de los invitados de afuera"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
-                    text: "Esto es lo que tiene que hacer quien administra el dominio. Se arma con lo que cargaste arriba: copialo y mandáselo."
+                    text: "Por el túnel solo pasa TCP o UDP hacia un TURN dentro de esta caja: el video de los de afuera entra por ahí (cifrado de punta a punta). Sin esto ven la página pero no se conectan con video."
                 }
-                TextArea {
-                    id: instrucciones
-                    Layout.fillWidth: true
-                    readOnly: true; selectByMouse: true; wrapMode: TextEdit.Wrap
-                    font { pixelSize: 12; family: Theme.mono }
-                    color: Theme.text
-                    background: Rectangle { color: Theme.field; radius: 6 }
-                    text: pg.propio ? pg.ar.instruccionesDns(pg.borrador["pinggy.host"] || "", pg.borrador["pinggy.cnameDestino"] || "") : ""
+                CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.turn", "pinggy.turnTcpPuerto", "pinggy.turnUdp", "pinggy.turnUdpPuerto"] }
+                Text {
+                    Layout.topMargin: 14
+                    text: "Seguridad"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                }
+                CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: ["pinggy.listaBlanca", "pinggy.puertoTunel"] }
+                Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                    text: "Lo que entra por el túnel cuenta siempre como «de afuera»: la botonera no se abre desde internet y la API de control y el asistente nunca pasan por el túnel."
+                }
+                Text {
+                    Layout.topMargin: 14
+                    text: "Monitoreo en pinggy (opcional)"; color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                }
+                Text {
+                    text: pg.ar.apiKeyGuardada ? "● API key guardada (cifrada)" : "● Sin API key"
+                    color: pg.ar.apiKeyGuardada ? Theme.ok : Theme.textFaint; font.pixelSize: 12
                 }
                 RowLayout {
+                    Layout.fillWidth: true
                     spacing: 8
-                    GlassButton { compact: true; text: "Copiar instrucciones"; onClicked: Studio.copiar(instrucciones.text) }
+                    TextField {
+                        id: apiCampo
+                        Layout.fillWidth: true
+                        echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
+                        placeholderText: "API key del panel de pinggy (plan Pro)"
+                        onAccepted: if (text !== "") pg.guardarSecreto(apiCampo, false)
+                    }
+                    GlassButton { compact: true; text: "Guardar"; enabled: apiCampo.text !== ""; onClicked: pg.guardarSecreto(apiCampo, false) }
                     GlassButton {
-                        compact: true; text: "Verificar DNS"
-                        enabled: pg.ar.dns.estado !== "verificando"
-                        onClicked: pg.ar.verificarDns(pg.borrador["pinggy.host"] || "", pg.borrador["pinggy.cnameDestino"] || "")
+                        compact: true; text: "Borrar"; enabled: pg.ar.apiKeyGuardada
+                        onClicked: { const e = pg.ar.borrarApiKey(); Studio.notify(e === "" ? "API key borrada." : e, e === "" ? "ok" : "error") }
+                    }
+                    GlassButton {
+                        compact: true; text: "Ver en pinggy"; enabled: pg.ar.apiKeyGuardada && pg.ar.panel.estado !== "consultando"
+                        onClicked: pg.ar.verEnPinggy()
                     }
                 }
                 Text {
-                    visible: (pg.ar.dns.texto || "") !== ""
-                    Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
-                    text: pg.ar.dns.texto || ""
-                    color: pg.ar.dns.estado === "ok" ? Theme.ok : pg.ar.dns.estado === "verificando" ? Theme.textDim
-                         : pg.ar.dns.estado === "error" ? Theme.live : Theme.warn
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                    text: "Con la API key, «Ver en pinggy» muestra qué túnel tiene activo la cuenta (dirección y puertos), visto desde pinggy. No hace falta para que el túnel ande."
                 }
-            }
-
-            // --- Monitoreo con la API key (opcional) ---
-            Text {
-                Layout.topMargin: 10
-                text: "Monitoreo en pinggy (opcional)"; color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold }
-            }
-            Text {
-                text: pg.ar.apiKeyGuardada ? "● API key guardada (cifrada)" : "● Sin API key"
-                color: pg.ar.apiKeyGuardada ? Theme.ok : Theme.textFaint; font.pixelSize: 12
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                TextField {
-                    id: apiCampo
-                    Layout.fillWidth: true
-                    echoMode: TextInput.Password; inputMethodHints: Qt.ImhSensitiveData | Qt.ImhNoPredictiveText
-                    placeholderText: "API key del panel de pinggy (plan Pro)"
-                    onAccepted: if (text !== "") pg.guardarSecreto(apiCampo, false)
+                Text {
+                    visible: (pg.ar.panel.texto || "") !== ""
+                    Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
+                    text: pg.ar.panel.texto || ""
+                    color: pg.ar.panel.estado === "error" ? Theme.live : Theme.textDim
+                    font { pixelSize: 11; family: pg.ar.panel.estado === "ok" ? Theme.mono : Theme.font }
                 }
-                GlassButton { compact: true; text: "Guardar"; enabled: apiCampo.text !== ""; onClicked: pg.guardarSecreto(apiCampo, false) }
-                GlassButton {
-                    compact: true; text: "Borrar"; enabled: pg.ar.apiKeyGuardada
-                    onClicked: { const e = pg.ar.borrarApiKey(); Studio.notify(e === "" ? "API key borrada." : e, e === "" ? "ok" : "error") }
+                CamposDeSeccion { Layout.fillWidth: true; seccion: "Pinggy"; claves: page.clavesAvanzadasPinggy }
+                RowLayout {
+                    Layout.topMargin: 10
+                    spacing: 10
+                    GlassButton { compact: true; text: "Valores por defecto de esta sección"; onClicked: Studio.settings.resetSection("Pinggy") }
+                    GlassButton {
+                        compact: true; text: "Reiniciar la sala ahora"; icon: "↻"
+                        onClicked: ApplicationWindow.window.confirm({
+                            title: "¿Reiniciar la sala?",
+                            text: "Se reinicia solo el servidor de la sala (y el túnel) con la configuración guardada. Los invitados se cortan y vuelven a entrar.",
+                            accept: "Reiniciar", reject: "Cancelar",
+                            action: function() {
+                                const e = Studio.conference.reiniciarSala()
+                                Studio.notify(e === "" ? "La sala se está reiniciando." : e, e === "" ? "ok" : "error")
+                            }
+                        })
+                    }
                 }
-                GlassButton {
-                    compact: true; text: "Ver en pinggy"; enabled: pg.ar.apiKeyGuardada && pg.ar.panel.estado !== "consultando"
-                    onClicked: pg.ar.verEnPinggy()
-                }
-            }
-            Text {
-                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
-                text: "Con la API key, «Ver en pinggy» muestra qué túnel tiene activo la cuenta (dirección y puertos), visto desde pinggy. No hace falta para que el túnel ande."
-            }
-            Text {
-                visible: (pg.ar.panel.texto || "") !== ""
-                Layout.fillWidth: true; wrapMode: Text.WrapAnywhere
-                text: pg.ar.panel.texto || ""
-                color: pg.ar.panel.estado === "error" ? Theme.live : Theme.textDim
-                font { pixelSize: 11; family: pg.ar.panel.estado === "ok" ? Theme.mono : Theme.font }
             }
         }
     }

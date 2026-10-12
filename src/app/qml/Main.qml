@@ -725,6 +725,28 @@ ApplicationWindow {
     }
     ConfirmDialog { id: confirmDlg }
     PanelDescargas { id: descargasDlg }
+    // Los QR que manda el asistente (qr_mostrar): una ventana por QR, cada una de
+    // su color («escaneá el QR verde»), escalonadas para que se vean todas.
+    Component { id: qrMostrarComp; QrMostrar {} }
+    property int qrAbiertos: 0
+    Connections {
+        target: Studio
+        function onMostrarQr(texto, descripcion, mensaje, color) {
+            const n = win.qrAbiertos
+            const d = qrMostrarComp.createObject(win.contentItem, {
+                texto: texto, descripcion: descripcion, mensaje: mensaje, colorNombre: color || "verde"
+            })
+            // Una al lado de la otra mientras entren; después, escalonadas encima.
+            const w = d.width
+            const cols = Math.max(1, Math.floor((win.width - 32 + 16) / (w + 16)))
+            const x0 = Math.max(16, (win.width - cols * w - (cols - 1) * 16) / 2)
+            d.x = x0 + (n % cols) * (w + 16)
+            d.y = Math.max(16, 60 + Math.floor(n / cols) * 40)
+            win.qrAbiertos = n + 1
+            d.cerrada.connect(function() { win.qrAbiertos = Math.max(0, win.qrAbiertos - 1); d.destroy() })
+            d.open()
+        }
+    }
 
     // --- Lo que se está bajando, visible en todas las páginas (abre las Descargas) ----
     StatusPill {

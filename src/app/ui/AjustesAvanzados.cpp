@@ -179,12 +179,12 @@ const std::vector<AjusteAvanzado>& ajustesAvanzados() {
         {"limites.mediosArchivos", "Sistema y datos", "Medios: archivos por carpeta", "int", {}, 100, 1000000, "", "", "live", QVariant(5000), Destino::App},
         {"limites.frases", "Sistema y datos", "Frases transcriptas que se guardan", "int", {}, 100, 100000, "", "", "live", QVariant(2000), Destino::App},
         {"limites.carrusel", "Sistema y datos", "Carrusel: elementos", "int", {}, 10, 100000, "", "", "live", QVariant(500), Destino::App},
-        {"turn.maxAsignaciones", "Acceso remoto", "TURN: conexiones de video a la vez", "int", {}, 1, 4096, "", "Cuántos invitados de afuera pueden tener video por el túnel a la vez.", "gateway", QVariant(64), Destino::Sala},
-        {"turn.maxConexiones", "Acceso remoto", "TURN: conexiones abiertas", "int", {}, 1, 8192, "", "", "gateway", QVariant(128), Destino::Sala},
-        {"turn.vidaMaxS", "Acceso remoto", "TURN: vida máxima sin renovar", "int", {}, 60, 86400, "s", "Una conexión de video que no se renueva se cierra pasado este tiempo.", "gateway", QVariant(3600), Destino::Sala},
-        {"turn.nonceS", "Acceso remoto", "TURN: renovar el desafío cada", "int", {}, 30, 86400, "s", "", "gateway", QVariant(600), Destino::Sala},
-        {"turn.colaTcpKB", "Acceso remoto", "TURN: cola por conexión", "int", {}, 64, 65536, "KB", "Lo que se guarda si la conexión con el navegador no da abasto (después se descarta).", "gateway", QVariant(1024), Destino::Sala},
-        {"turn.credencialS", "Acceso remoto", "TURN: vida de la credencial", "int", {}, 60, 86400, "s", "La que reciben los navegadores para usar el TURN (se renueva sola).", "gateway", QVariant(3600), Destino::Sala},
+        {"turn.maxAsignaciones", "Pinggy", "TURN: conexiones de video a la vez", "int", {}, 1, 4096, "", "Cuántos invitados de afuera pueden tener video por el túnel a la vez.", "gateway", QVariant(64), Destino::Sala},
+        {"turn.maxConexiones", "Pinggy", "TURN: conexiones abiertas", "int", {}, 1, 8192, "", "", "gateway", QVariant(128), Destino::Sala},
+        {"turn.vidaMaxS", "Pinggy", "TURN: vida máxima sin renovar", "int", {}, 60, 86400, "s", "Una conexión de video que no se renueva se cierra pasado este tiempo.", "gateway", QVariant(3600), Destino::Sala},
+        {"turn.nonceS", "Pinggy", "TURN: renovar el desafío cada", "int", {}, 30, 86400, "s", "", "gateway", QVariant(600), Destino::Sala},
+        {"turn.colaTcpKB", "Pinggy", "TURN: cola por conexión", "int", {}, 64, 65536, "KB", "Lo que se guarda si la conexión con el navegador no da abasto (después se descarta).", "gateway", QVariant(1024), Destino::Sala},
+        {"turn.credencialS", "Pinggy", "TURN: vida de la credencial", "int", {}, 60, 86400, "s", "La que reciben los navegadores para usar el TURN (se renueva sola).", "gateway", QVariant(3600), Destino::Sala},
     };
     // clang-format on
     return tabla;

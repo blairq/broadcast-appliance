@@ -14,6 +14,7 @@
 #include <QPainter>
 #include <QRandomGenerator>
 #include <QSvgRenderer>
+#include <QUrl>
 
 #include <nlohmann/json.hpp>
 
@@ -776,7 +777,15 @@ QImage QrImageProvider::requestImage(const QString& id, QSize* size, const QSize
     const int lado = pedido.width() > 0 ? pedido.width() : 512;
     QImage img(lado, lado, QImage::Format_ARGB32);
     img.fill(Qt::transparent);
-    const QString s = vm_.svgDe(cual);
+    // "texto/<texto con %>": el QR de cualquier texto o URL (lo usa qr_mostrar:
+    // el asistente le muestra al operador un enlace que no puede copiar).
+    QString s;
+    if (cual.startsWith("texto/")) {
+        const QString texto = QUrl::fromPercentEncoding(cual.mid(6).toUtf8());
+        s = QString::fromStdString(ba::qr::svg(texto.toStdString(), ba::qr::Estilo{}));
+    } else {
+        s = vm_.svgDe(cual);
+    }
     if (!s.isEmpty()) {
         QPainter p(&img);
         QSvgRenderer r(s.toUtf8());
