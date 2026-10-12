@@ -300,6 +300,9 @@ class AgentViewModel : public QObject {
                                bool consola, bool conControl = false);
     /// Programa, entorno y credenciales de un proveedor, sin los argumentos
     /// del modo (interactivo o de un tiro): eso lo agrega quien la llama.
+    /// HOME, XDG, AppData y llavero: todo lo del agente adentro de la carpeta de datos.
+    static void aislarEnLaCarpetaDeDatos(term::Pty::Options& o, const QString& runtime, const QString& profile,
+                                         const QString& root);
     term::Pty::Options baseLaunch(const QString& proveedor, const QString& modelo, const QString& ws,
                                   QString* error);
     /// Carpeta DESTINO de una instalacion nueva: la version que fija esta

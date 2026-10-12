@@ -1449,7 +1449,40 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
     } else if (error != nullptr) {
         *error = "Proveedor desconocido: " + proveedor;
     }
+    if (!o.program.isEmpty()) aislarEnLaCarpetaDeDatos(o, runtime, profile, root);
     return o;
+}
+
+// NADA DEL AGENTE QUEDA EN EL SISTEMA: ni su login ni sus cachés ni sus registros.
+// Antes Claude Code guardaba su sesión en el llavero de macOS («Claude Code-
+// credentials-<hash>») y sus registros en ~/Library/Caches/claude-cli-nodejs; Gemini CLI
+// usa el llavero si lo encuentra. Con HOME en el perfil (dentro de Credenciales/) no
+// encuentran el llavero del usuario (`security` lo busca desde $HOME) y guardan todo en
+// archivos del perfil; Gemini, además, por su variable. XDG y AppData para Linux y
+// Windows. Probado con `claude auth status` (2026-10-12): sin llavero lee y guarda la
+// sesión en <CLAUDE_CONFIG_DIR>/.credentials.json.
+void AgentViewModel::aislarEnLaCarpetaDeDatos(term::Pty::Options& o, const QString& runtime, const QString& profile,
+                                              const QString& root) {
+    const auto poner = [&o](const QString& k, const QString& v) {
+        if (!o.env.contains(k)) o.env[k] = v;
+    };
+    o.env["HOME"] = profile;
+    o.env["USERPROFILE"] = profile;
+    poner("XDG_CONFIG_HOME", profile + "/config");
+    poner("XDG_DATA_HOME", profile + "/data");
+    poner("XDG_STATE_HOME", profile + "/state");
+    poner("XDG_CACHE_HOME", root + "/Cache/agentes/" + runtime);
+#ifdef _WIN32
+    o.env["APPDATA"] = profile + "/AppData/Roaming";
+    o.env["LOCALAPPDATA"] = profile + "/AppData/Local";
+    QDir().mkpath(profile + "/AppData/Roaming");
+    QDir().mkpath(profile + "/AppData/Local");
+#endif
+    o.env["NPM_CONFIG_CACHE"] = root + "/Cache/npm";
+    // Gemini CLI: su login y los tokens de MCP a archivo (en el HOME del perfil), nunca
+    // al llavero del sistema.
+    o.env["GEMINI_FORCE_FILE_STORAGE"] = "true";
+    o.env["GEMINI_FORCE_ENCRYPTED_FILE_STORAGE"] = "true";
 }
 
 term::Pty::Options AgentViewModel::launchOptions(QString* error) {
@@ -1852,7 +1885,7 @@ std::uintmax_t bytesDe(const fs::path& p) {
 std::vector<std::string> chatsDe(const std::string& runtime) {
     if (runtime == "claude")
         return {"projects", "sessions", "session-env", "shell-snapshots", "todos", "file-history", "paste-cache",
-                "debug", "backups", "history.jsonl", "statsig", "telemetry", "cache"};
+                "debug", "backups", "history.jsonl", "statsig", "telemetry", "cache", "Library/Caches"};
     if (runtime == "gemini") return {".gemini/tmp", ".gemini/history", ".gemini/logs"};
     if (runtime == "pi") return {"sessions", "mcp.log", "mcp.log.1"};
     if (runtime == "opencode")
