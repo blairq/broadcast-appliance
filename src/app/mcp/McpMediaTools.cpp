@@ -327,7 +327,7 @@ void McpService::registerMediaTools() {
             {"required", {"path"}}};
         t.examples = {
             R"({"path": "Media/logos/sponsor.png", "scene": "Escena 4", "name": "Logo sponsor", "layout": "pip-tr"})"};
-        t.run = [&rt, &vm, root](const json& a, Done done) {
+        t.run = [&rt, root](const json& a, Done done) {
             const QString abs = resolveInside(root, QString::fromStdString(a["path"]));
             if (abs.isEmpty() || !QFileInfo::exists(abs))
                 return done(ToolResult::error(
@@ -361,7 +361,6 @@ void McpService::registerMediaTools() {
                     ToolResult::error("No existe la escena '" + scene + "' (scene_list las muestra)."));
             if (!rt.addSource(scene, spec)) return done(ToolResult::error(rt.lastError()));
             rt.save();
-            vm.refreshModels();
             done(ToolResult::ok("'" + spec.name + "' (" + kind.toStdString() + ") agregada a '" + scene +
                                 "'. Verifica con capture_source {\"name\": \"" + scene + "\"}."));
         };

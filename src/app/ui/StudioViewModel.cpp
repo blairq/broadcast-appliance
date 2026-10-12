@@ -1588,6 +1588,15 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         video_->setLegalizar(rt_.config().legalizar);
     });
 
+    // Lo que cambia en el runtime (escenas, fuentes, salidas), lo pida quien lo
+    // pida (la interfaz, el MCP, un plugin, el guion), se refleja acá solo. Los
+    // avisos se juntan y se aplican en una pasada por vuelta del bucle: arrastrar
+    // una capa o crear escenas en tanda no recarga las listas en cada paso.
+    observadorRt_ = rt_.observar([this](AppRuntime::Cambio c) {
+        const unsigned bit = 1u << static_cast<unsigned>(c);
+        if (avisosPendientes_.fetch_or(bit) == 0)
+            QMetaObject::invokeMethod(this, &StudioViewModel::refrescarAvisos, Qt::QueuedConnection);
+    });
     connect(&tick_, &QTimer::timeout, this, &StudioViewModel::onTick);
     tick_.start(100);
     connect(&frameTick_, &QTimer::timeout, frames_.get(), &FrameService::poll);
@@ -1601,6 +1610,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
 
 StudioViewModel::~StudioViewModel() {
     rt_.engine().alFallarMotor(nullptr);
+    rt_.dejarDeObservar(observadorRt_); // el runtime vive más que la vista
     // El runtime y los flujos de texto viven más que el evento: que no le
     // pregunten la carpeta a un EventoViewModel que ya no está.
     rt_.setCarpetaDelEvento(nullptr);
@@ -2846,6 +2856,54 @@ void StudioViewModel::refreshModels() {
     mixer_->reload();
     emit sceneChanged();
     emit statusChanged();
+}
+
+void StudioViewModel::refrescarAvisos() {
+    const unsigned b = avisosPendientes_.exchange(0);
+    const auto hubo = [b](AppRuntime::Cambio c) { return (b & (1u << static_cast<unsigned>(c))) != 0; };
+    using C = AppRuntime::Cambio;
+    // Las listas se recargan SOLO si quedaron distintas: si el cambio lo hizo la
+    // vista, ya las recargó ella, y otra recarga le borraría la selección.
+    if (hubo(C::Escenas)) {
+        const std::vector<std::string> names = rt_.orderedSceneNames();
+        bool distinta = scenes_->rowCount() != static_cast<int>(names.size());
+        for (int i = 0; !distinta && i < scenes_->rowCount(); ++i)
+            distinta = scenes_->data(scenes_->index(i), ScenesModel::NameRole).toString() !=
+                       qs(names[static_cast<std::size_t>(i)]);
+        if (distinta)
+            scenes_->reload();
+        else if (scenes_->rowCount() > 0) // carpeta o protección: las filas las leen en vivo
+            emit scenes_->dataChanged(scenes_->index(0), scenes_->index(scenes_->rowCount() - 1),
+                                      {ScenesModel::FolderRole, ScenesModel::ProtegidaRole});
+        emit escenasCambiaron(); // el árbol por carpetas se rearma (barato)
+        // Si la escena que mostraba el editor ya no existe, sigue a la del aire.
+        if (std::find(names.begin(), names.end(), sources_->scene().toStdString()) == names.end())
+            sources_->setScene(currentScene());
+    }
+    if (hubo(C::Escenas) || hubo(C::Fuentes)) {
+        // El editor muestra de arriba hacia abajo: la última del motor es la fila 0.
+        const std::vector<std::string> fuentes = rt_.engine().sceneSources(sources_->scene().toStdString());
+        bool distinta = sources_->rowCount() != static_cast<int>(fuentes.size());
+        for (int i = 0; !distinta && i < sources_->rowCount(); ++i)
+            distinta = sources_->data(sources_->index(i), SourcesModel::NameRole).toString() !=
+                       qs(fuentes[fuentes.size() - 1 - static_cast<std::size_t>(i)]);
+        if (distinta) sources_->reload();
+    }
+    // Una capa o un volumen: las filas leen el estado en vivo, alcanza con decir
+    // que cambiaron (sin recargar: no se corta un arrastre a medias).
+    if (hubo(C::Capa) && sources_->rowCount() > 0)
+        emit sources_->dataChanged(sources_->index(0), sources_->index(sources_->rowCount() - 1));
+    if (hubo(C::Audio) && mixer_->rowCount() > 0)
+        emit mixer_->dataChanged(mixer_->index(0), mixer_->index(mixer_->rowCount() - 1),
+                                 {MixerModel::VolumeDbRole, MixerModel::MutedRole});
+    if (hubo(C::Escenas) || hubo(C::Aire)) {
+        scenes_->liveChanged();
+        emit sceneChanged();
+    }
+    if (hubo(C::Salidas)) {
+        emit statusChanged();
+        emit destinosChanged();
+    }
 }
 
 void StudioViewModel::setScenePreview(const QString& name) {
