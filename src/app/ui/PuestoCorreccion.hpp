@@ -7,13 +7,16 @@
 //     (POST /api/v1/correccion/pendientes); la página las pide cada 500 ms;
 //   - lo que el corrector aprueba, corrige o descarta llega por el SSE
 //     (evento «correccion») y se aplica con FlujosTexto::corregir;
-//   - el enlace con su clave (por arranque) y el QR, para QrDialog.
+//   - el enlace con su clave (por arranque) y el QR, para QrDialog (lo da el
+//     modelo sala::EnlacesSala, el mismo que usa el MCP).
 // ============================================================================
 #pragma once
 
 #include <QObject>
 #include <QStringList>
 #include <QTimer>
+
+#include "sala/EnlacesSala.hpp"
 
 namespace ba::app {
 class ConferenceClient;
@@ -36,6 +39,7 @@ class PuestoCorreccion : public QObject {
     ConferenceClient& sala_;
     agent::FlujosTexto& flujos_;
     QTimer demora_;
+    sala::EnlacesSala enlaces_;
 };
 
 } // namespace ba::app

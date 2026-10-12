@@ -18,7 +18,7 @@ namespace ba::app::sala {
 
 using Listo = std::function<void(const std::string& error, const nlohmann::json& respuesta)>;
 
-/// `metodo`: "GET" o "POST" (`cuerpo` solo para POST).
+/// `metodo`: "GET", "POST" o "DELETE" (`cuerpo` solo para POST).
 void pedir(ConferenceClient& cliente, const std::string& metodo, const std::string& ruta, const nlohmann::json& cuerpo,
            Listo listo);
 

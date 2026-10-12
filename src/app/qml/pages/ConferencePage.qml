@@ -1270,12 +1270,8 @@ Rectangle {
             profTime.text = ""
             open()
         }
-        onAccepted: {
-            conf.setProfile(who, profName.text, profInfo.text, profContact.text)
-            if (!withTime) return
-            const s = conf.parseDuration(profTime.text)
-            if (s > 0) conf.speakerTime(who, s)
-        }
+        onAccepted: conf.guardarFicha(who, profName.text, profInfo.text, profContact.text,
+                                      withTime ? profTime.text : "")
         GridLayout {
             columns: 2
             columnSpacing: 10

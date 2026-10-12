@@ -81,6 +81,10 @@ class PublicoViewModel : public QObject {
     Q_INVOKABLE void mostrarEnVivo(bool si);
     /// Pide el enlace de la página del público (llega por `enlaceCambio`).
     Q_INVOKABLE void pedirEnlace(bool remoto = false);
+    /// Cambia cómo se ve la página del público: {titulo?, cuando?, fondo?}
+    /// (fondo = ruta de una imagen; "" lo saca). Las reglas (2 MB…) son del
+    /// modelo (sala::PaginaPublico), las mismas que usa el MCP (publico_pagina).
+    Q_INVOKABLE void cambiarPagina(const QVariantMap& cambios);
 
    signals:
     void cambio();
