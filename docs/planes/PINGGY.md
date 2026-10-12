@@ -8,7 +8,7 @@ URL de todos los servicios web, y para WebRTC configurar bien ICE»).
 
 - `ba-pinggy` (src/pinggy, libpinggy 0.3.1 fijada por sha256: `make deps-pinggy`), supervisado
   por la sala (src/gateway/Pinggy.*); TURN propio (src/gateway/turn/*); `/api/ice`;
-  Configuración → Acceso remoto → Pinggy (token y API key en la bóveda, dirección pública:
+  Configuración → Pinggy (token y API key en la bóveda, dirección pública:
   al azar / subdominio fijo / dominio propio con instrucciones de DNS y «Verificar DNS»);
   MCP `acceso_remoto_estado`. Detalle: docs/funciones/PINGGY.md y docs/funciones/TURN.md.
 - Probado (túnel gratis, Argentina → región automática São Paulo, ~220 ms ida y vuelta):
