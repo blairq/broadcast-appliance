@@ -13,7 +13,15 @@ DE DONDE SALE CADA COSA, y por que no de un solo lado:
   - El CODIGO da lo que no viaja en el protocolo: la categoria, las etiquetas
     del buscador, y donde vive cada herramienta.
 
-Uso:  tools/docs/mcp-inventario.py [salida.json]      (con el aparato andando)
+Uso:  tools/docs/mcp-inventario.py [salida.json]                  (con el aparato andando)
+      tools/docs/mcp-inventario.py --desde-codigo [salida.json]   (sin el aparato)
+
+--desde-codigo: lo que el aparato manda en tools/list (titulo, descripcion,
+esquema, anotaciones) sale de leer los registros (tools/docs/mcp_codigo.py),
+validado contra el ultimo inventario del aparato: tiene que reproducir
+exactamente las herramientas que no cambiaron. Las pocas que no se pueden leer
+sin el aparato (esquemas armados en tiempo de ejecucion, las del rack de audio
+que salen de un bucle) se toman del inventario anterior, marcadas `origen`.
 """
 import json
 import pathlib
@@ -134,9 +142,51 @@ def roles():
     return out
 
 
+def desde_codigo(anterior):
+    """Las herramientas en la forma de tools/list, leidas del codigo; las que no
+    se pueden leer, del inventario anterior del aparato (si estan)."""
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+    import mcp_codigo
+    cod = mcp_codigo.herramientas()
+    viejo = {}
+    if anterior.exists():
+        viejo = {h["nombre"]: h for h in json.loads(anterior.read_text(encoding="utf-8"))["herramientas"]}
+    herr, origen, faltan = [], {}, []
+    for n, c in sorted(cod.items()):
+        if "sin_extraer" in c:
+            if n in viejo:
+                v = viejo[n]
+                herr.append({"name": n, "title": v.get("titulo", ""), "description": v.get("descripcion", ""),
+                             "inputSchema": v.get("esquema", {}),
+                             "annotations": {"readOnlyHint": v.get("soloLectura", False),
+                                             "destructiveHint": v.get("destructiva", False)}})
+                origen[n] = "inventario_anterior"
+            else:
+                faltan.append(f"{n} ({c['sin_extraer']})")
+            continue
+        herr.append({"name": n, "title": c["titulo"], "description": c["descripcion"], "inputSchema": c["esquema"],
+                     "annotations": {"readOnlyHint": c["soloLectura"], "destructiveHint": c["destructiva"],
+                                     "idempotentHint": c["idempotente"], "openWorldHint": c["mundoAbierto"]}})
+        origen[n] = "codigo"
+    for n, v in sorted(viejo.items()):  # registradas sin nombre literal (el rack de audio, en un bucle)
+        if n not in cod:
+            herr.append({"name": n, "title": v.get("titulo", ""), "description": v.get("descripcion", ""),
+                         "inputSchema": v.get("esquema", {}),
+                         "annotations": {"readOnlyHint": v.get("soloLectura", False),
+                                         "destructiveHint": v.get("destructiva", False)}})
+            origen[n] = "inventario_anterior"
+    return herr, origen, faltan
+
+
 def main():
-    salida = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else RAIZ / "docs" / "mcp.json"
-    herr = del_aparato()
+    argv = [a for a in sys.argv[1:] if a != "--desde-codigo"]
+    codigo = "--desde-codigo" in sys.argv
+    salida = pathlib.Path(argv[0]) if argv else RAIZ / "docs" / "mcp.json"
+    origen, faltan = {}, []
+    if codigo:
+        herr, origen, faltan = desde_codigo(salida)
+    else:
+        herr = del_aparato()
     donde, cats = del_codigo([t["name"] for t in herr])
     exactas, prefijos = etiquetas()
     juegos = roles()
@@ -165,7 +215,7 @@ def main():
             "etiquetas": tags,
             "donde": {"archivo": d.get("archivo"), "linea": d.get("linea")},
             "roles": puede,
-        })
+        } | ({"origen": origen[n]} if origen.get(n) == "inventario_anterior" else {}))
     fuera.sort(key=lambda x: (x["categoria"] or "zzz", x["nombre"]))
     # Una herramienta publicada dos veces le llega al modelo como dos fichas
     # con el mismo nombre. No rompe nada y por eso no se nota: hay que contarlo.
@@ -176,12 +226,15 @@ def main():
     doc = {
         "_comentario": [
             "Inventario del servidor MCP del Broadcast Appliance.",
-            "GENERADO: no se edita a mano. Lo arma tools/docs/mcp-inventario.py con el aparato andando.",
+            ("GENERADO: no se edita a mano. Lo arma tools/docs/mcp-inventario.py "
+             + ("LEYENDO EL CODIGO (--desde-codigo; `origen` marca las que salen del inventario anterior)."
+                if codigo else "con el aparato andando.")),
             "`roles` de cada herramienta = los que la pueden usar (su categoria esta en su juego).",
             "`etiquetas` son las del buscador (McpIndice), no del protocolo: es lo que hace que",
             "«hay acople» llegue a audio_set sin que nadie nombre la herramienta.",
         ],
         "generado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "fuente": "codigo" if codigo else "aparato",
         "cuantas": len(fuera),
         "repetidas": sorted(set(repetidas)),
         "categorias": [{"id": k, "titulo": v,
@@ -204,6 +257,11 @@ def main():
         print(f"  SIN ETIQUETAS ({len(sin_tag)}): {', '.join(sin_tag[:12])}")
     if repetidas:
         print(f"  PUBLICADAS DOS VECES ({len(repetidas)}): {', '.join(sorted(set(repetidas)))}")
+    if codigo:
+        n_ant = sum(1 for v in origen.values() if v == "inventario_anterior")
+        print(f"  desde el codigo: {len(fuera) - n_ant} · del inventario anterior: {n_ant}")
+        if faltan:
+            print(f"  NO SE PUDIERON LEER Y NO ESTABAN ANTES ({len(faltan)}): {'; '.join(faltan)}")
 
 
 if __name__ == "__main__":

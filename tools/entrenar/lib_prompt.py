@@ -59,6 +59,7 @@ NO_REACTIVAS = {
 # el modelo ve: «pedidos» del operador hoy, «eventos» del aparato despues.
 PERFIL = os.environ.get("BA_PERFIL") or "reactivo"
 INCLUIR = set()
+SOLO = None  # «herramientas»: la lista EXACTA (el perfil no crece solo cuando el MCP suma herramientas)
 ENTRADAS = ["pedidos"]
 _perfil = RAIZ / "datos" / "perfiles" / f"{PERFIL}.json"
 if _perfil.exists():
@@ -66,6 +67,7 @@ if _perfil.exists():
     REACTIVAS = list(_p.get("categorias", REACTIVAS))
     NO_REACTIVAS = set(_p.get("excluir", []))
     INCLUIR = set(_p.get("incluir", []))
+    SOLO = set(_p["herramientas"]) if "herramientas" in _p else None
     ENTRADAS = list(_p.get("entradas", ["pedidos"]))
     # el juego de etiquetas del perfil, salvo que se pida otro a mano
     if _p.get("etiquetas") and "BA_ETIQUETAS" not in os.environ:
@@ -76,7 +78,12 @@ elif PERFIL != "reactivo":
 
 
 def en_perfil(h):
-    """Si una herramienta del inventario entra en el perfil."""
+    """Si una herramienta del inventario entra en el perfil. Con una lista exacta
+    (`herramientas`), solo esas: definido por categorias, el perfil sumaba solo
+    las nuevas del MCP (vivo4 paso de 104 a 172 al regenerar el inventario) y el
+    prompt cambiaba sin que nadie lo decidiera."""
+    if SOLO is not None:
+        return h["nombre"] in SOLO
     return h["nombre"] in INCLUIR or (h["categoria"] in REACTIVAS and h["nombre"] not in NO_REACTIVAS)
 
 # LA VALVULA DE ESCAPE. Tiene que ser un nombre mas: la gramatica solo deja

@@ -38,10 +38,24 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--perfil", default=os.environ.get("BA_PERFIL") or "reactivo")
     ap.add_argument("--regenerar", action="store_true", help="correr tools/docs/mcp-inventario.py (aparato andando)")
+    ap.add_argument("--desde-codigo", action="store_true",
+                    help="regenerar leyendo el codigo (tools/docs/mcp_codigo.py), sin el aparato; antes se valida "
+                         "contra el inventario actual: las herramientas que no cambiaron tienen que salir iguales")
     ap.add_argument("--anterior", help="foto anterior {nombre: huella}")
     ap.add_argument("--salida")
     ap.add_argument("--guardar", action="store_true", help="la foto actual pasa a ser la anterior")
     args = ap.parse_args()
+    if args.desde_codigo:
+        sys.path.insert(0, str(RAIZ / "tools/docs"))
+        import mcp_codigo
+        res, _, _ = mcp_codigo.verificar(INV)
+        print(f"validacion contra {INV.relative_to(RAIZ)}: {res['iguales']} iguales de {res['en_los_dos']} en los dos"
+              f" · distintas {len(res['distintas'])} (cambiaron en el codigo o el lector falla) · sin leer "
+              f"{len(res['sin_extraer'])}")
+        r = subprocess.run([sys.executable, str(RAIZ / "tools/docs/mcp-inventario.py"), "--desde-codigo", str(INV)],
+                           cwd=RAIZ)
+        if r.returncode:
+            sys.exit("no se pudo armar el inventario desde el codigo")
     if args.regenerar:
         r = subprocess.run([sys.executable, str(RAIZ / "tools/docs/mcp-inventario.py"), str(INV)], cwd=RAIZ)
         if r.returncode:
