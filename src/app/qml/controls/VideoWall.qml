@@ -116,7 +116,13 @@ Item {
                 border { color: Theme.live; width: 3 }
                 SequentialAnimation on opacity { running: parent.visible; loops: Animation.Infinite
                     NumberAnimation { to: 0.35; duration: 450 } NumberAnimation { to: 1; duration: 450 } }
-                Text { anchors.centerIn: parent; text: "SIN SEÑAL"; color: Theme.live; font { pixelSize: 18; weight: Font.Black } }
+                // Arriba, no al centro: al centro está el texto de la placa de la entrada.
+                Rectangle {
+                    anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 8 }
+                    radius: 6; width: sinTxt.implicitWidth + 16; height: sinTxt.implicitHeight + 6
+                    color: Qt.rgba(0, 0, 0, 0.6)
+                    Text { id: sinTxt; anchors.centerIn: parent; text: "SIN SEÑAL"; color: Theme.live; font { pixelSize: 16; weight: Font.Black } }
+                }
             }
             // Tally: rojo si está al aire (o es el programa), verde si está armada.
             Rectangle {

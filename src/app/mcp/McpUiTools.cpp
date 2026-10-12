@@ -63,17 +63,25 @@ void McpService::registerUiTools() {
     {
         Tool t;
         t.name = "multiview";
-        t.title = "Multiview: ver y armar (y sacarlo a una ventana)";
+        t.title = "Multiview: ver y armar las multivistas (y sacarlas a una ventana)";
         t.category = "interfaz";
         t.description =
-            "El multiview (página Multiview): varias fuentes en un muro con separación de color y borde por cuadro. "
-            "Sin argumentos devuelve cómo está y qué fuentes se pueden poner. Con argumentos cambia SOLO lo que mandes "
-            "(se guarda y lo siguen sus ventanas en vivo). `ventana`: true abre una ventana de salida con el multiview "
-            "(para llevar a otro monitor). Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", \"entrada:<nombre>\".";
+            "Las multivistas (pestañas de la página Multiview): varias fuentes en un muro con separación de color y "
+            "borde por cuadro. Sin argumentos devuelve todas y cuál está elegida, y qué fuentes se pueden poner. "
+            "`vista` (id o nombre) elige con cuál trabajar (si no, la elegida); `nueva` crea una con ese nombre (con "
+            "`copiar`: copia de la elegida); `renombrar` y `borrar` (siempre queda una). Lo demás cambia SOLO lo que "
+            "mandes en esa vista (se guarda y lo siguen sus ventanas en vivo). `ventana`: true abre una ventana de "
+            "salida con esa vista (para otro monitor). Fuentes: \"program\", \"armada\", \"guest:N\", \"share:N\", "
+            "\"entrada:<nombre>\".";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
-             {{"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
+             {{"vista", {{"type", "string"}, {"description", "id o nombre de la multivista"}}},
+              {"nueva", {{"type", "string"}, {"description", "nombre de una multivista nueva (queda elegida)"}}},
+              {"copiar", {{"type", "boolean"}, {"default", false}}},
+              {"renombrar", {{"type", "string"}}},
+              {"borrar", {{"type", "boolean"}, {"default", false}}},
+              {"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
               {"distribucion", {{"type", "string"}, {"enum", {"control", "grid", "focus", "pip", "row"}}}},
               {"separacion", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 0-60"}}},
               {"fondo", {{"type", "string"}, {"description", "color de la separación (#rrggbb)"}}},
@@ -84,19 +92,41 @@ void McpService::registerUiTools() {
               {"tally", {{"type", "boolean"}}},
               {"vumetros", {{"type", "boolean"}}},
               {"ventana", {{"type", "boolean"}, {"default", false}}}}}};
-        t.examples = {R"({"fuentes": ["program", "armada", "entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
+        t.examples = {R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
+                      R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
         t.run = [&vm, windows](const json& a, Done done) {
+            QString id = vm.multiviewActual();
+            if (a.contains("vista")) {
+                const QString q = QString::fromStdString(a.value("vista", std::string()));
+                QString hallado;
+                for (const QVariant& v : vm.multiviews()) {
+                    const QVariantMap m = v.toMap();
+                    if (m.value("id").toString() == q || m.value("nombre").toString().compare(q, Qt::CaseInsensitive) == 0)
+                        hallado = m.value("id").toString();
+                }
+                if (hallado.isEmpty()) return done(ToolResult::error("no hay una multivista «" + q.toStdString() + "»"));
+                id = hallado;
+                vm.setMultiviewActual(id);
+            }
+            if (a.contains("nueva")) id = vm.nuevaMultiview(QString::fromStdString(a.value("nueva", std::string())), a.value("copiar", false));
+            if (a.value("borrar", false)) {
+                if (!vm.borrarMultiview(id)) return done(ToolResult::error("es la única multivista: siempre queda una"));
+                id = vm.multiviewActual();
+            }
+            if (a.contains("renombrar")) vm.renombrarMultiview(id, QString::fromStdString(a.value("renombrar", std::string())));
             QVariantMap cambios;
             for (const char* k : {"fuentes", "distribucion", "separacion", "fondo", "borde", "colorBorde", "nombres",
                                   "tamNombres", "tally", "vumetros"})
                 if (a.contains(k)) cambios[k] = jsonToQv(a[k]);
-            if (!cambios.isEmpty()) vm.setMultiview(cambios);
-            if (a.value("ventana", false)) windows->open({}, "multiview");
+            if (!cambios.isEmpty()) vm.setMultiviewDe(id, cambios);
+            if (a.value("ventana", false)) windows->open({}, "multiview:" + id);
             json disp = json::array();
             for (const QString& k : static_cast<FrameService*>(vm.frames())->keys()) disp.push_back(k.toStdString());
             if (auto* vg = static_cast<video::VideoGrafos*>(vm.video()))
                 for (const QString& e : vg->entradas()) disp.push_back("entrada:" + e.toStdString());
-            done(ToolResult().data({{"multiview", qvToJson(vm.multiview())}, {"fuentes_disponibles", disp}}));
+            done(ToolResult().data({{"elegida", vm.multiviewActual().toStdString()},
+                                    {"multivistas", qvToJson(vm.multiviews())},
+                                    {"fuentes_disponibles", disp}}));
         };
         core_.addTool(std::move(t));
     }

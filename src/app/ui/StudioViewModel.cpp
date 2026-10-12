@@ -4114,6 +4114,9 @@ nlohmann::json StudioViewModel::saludSerie(const std::string& destino, int minut
 } // namespace ba::app
 
 // --- Multiview ----------------------------------------------------------------------------
+// Varias multivistas (pestañas de la página Multiview). Config/multiview.json:
+// {"vistas": [{id, nombre, fuentes, distribucion, ...}], "actual": id}. El formato
+// viejo (una sola, plana) se lee como «Multiview 1».
 
 namespace ba::app {
 
@@ -4130,38 +4133,124 @@ QVariantMap multiviewDeFabrica() {
             {"tally", true},
             {"vumetros", true}};
 }
+QString idNuevo() { return QString::number(QDateTime::currentMSecsSinceEpoch(), 36); }
 } // namespace
 
-QVariantMap StudioViewModel::multiview() const {
-    if (!multiviewLeido_) {
-        auto* yo = const_cast<StudioViewModel*>(this);
-        yo->multiviewLeido_ = true;
-        yo->multiview_ = multiviewDeFabrica();
-        QFile f(QString::fromStdWString((rt_.dataRoot() / "Config" / "multiview.json").wstring()));
-        if (f.open(QIODevice::ReadOnly)) {
-            const QVariantMap m = QJsonDocument::fromJson(f.readAll()).object().toVariantMap();
-            for (auto it = m.begin(); it != m.end(); ++it) yo->multiview_[it.key()] = it.value();
-        }
+void StudioViewModel::leerMultiviews() const {
+    if (multiviewLeido_) return;
+    auto* yo = const_cast<StudioViewModel*>(this);
+    yo->multiviewLeido_ = true;
+    QFile f(QString::fromStdWString((rt_.dataRoot() / "Config" / "multiview.json").wstring()));
+    QVariantMap raiz;
+    if (f.open(QIODevice::ReadOnly)) raiz = QJsonDocument::fromJson(f.readAll()).object().toVariantMap();
+    QVariantList vistas = raiz.value("vistas").toList();
+    if (vistas.isEmpty()) {
+        QVariantMap v = multiviewDeFabrica();
+        for (auto it = raiz.begin(); it != raiz.end(); ++it)
+            if (it.key() != "vistas" && it.key() != "actual") v[it.key()] = it.value(); // formato viejo
+        v["id"] = "1";
+        v["nombre"] = "Multiview 1";
+        vistas << v;
     }
-    return multiview_;
+    // Lo que falte en una vista (de una versión vieja), de fábrica.
+    for (QVariant& x : vistas) {
+        QVariantMap v = x.toMap();
+        const QVariantMap fab = multiviewDeFabrica();
+        for (auto it = fab.begin(); it != fab.end(); ++it)
+            if (!v.contains(it.key())) v[it.key()] = it.value();
+        x = v;
+    }
+    yo->multiviews_ = vistas;
+    yo->multiviewActual_ = raiz.value("actual").toString();
+    if (indiceMultiview(multiviewActual_) < 0) yo->multiviewActual_ = vistas.first().toMap().value("id").toString();
 }
 
-void StudioViewModel::setMultiview(const QVariantMap& cambios) {
-    QVariantMap m = multiview();
-    for (auto it = cambios.begin(); it != cambios.end(); ++it) m[it.key()] = it.value();
-    multiview_ = m;
+int StudioViewModel::indiceMultiview(const QString& id) const {
+    for (int i = 0; i < multiviews_.size(); ++i)
+        if (multiviews_[i].toMap().value("id").toString() == id) return i;
+    return -1;
+}
+
+void StudioViewModel::guardarMultiviews() {
     const std::filesystem::path dir = rt_.dataRoot() / "Config";
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
     QFile f(QString::fromStdWString((dir / "multiview.json").wstring()));
     if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(QJsonObject::fromVariantMap(m)).toJson(QJsonDocument::Indented));
+        f.write(QJsonDocument(QJsonObject::fromVariantMap({{"vistas", multiviews_}, {"actual", multiviewActual_}}))
+                    .toJson(QJsonDocument::Indented));
     emit multiviewChanged();
 }
 
+QVariantList StudioViewModel::multiviews() const {
+    leerMultiviews();
+    return multiviews_;
+}
+
+QString StudioViewModel::multiviewActual() const {
+    leerMultiviews();
+    return multiviewActual_;
+}
+
+QVariantMap StudioViewModel::multiview() const { return multiviewDe(multiviewActual()); }
+
+QVariantMap StudioViewModel::multiviewDe(const QString& id) const {
+    leerMultiviews();
+    const int i = indiceMultiview(id.isEmpty() ? multiviewActual_ : id);
+    return i >= 0 ? multiviews_[i].toMap() : QVariantMap{};
+}
+
+void StudioViewModel::setMultiview(const QVariantMap& cambios) { setMultiviewDe(multiviewActual(), cambios); }
+
+void StudioViewModel::setMultiviewDe(const QString& id, const QVariantMap& cambios) {
+    leerMultiviews();
+    const int i = indiceMultiview(id);
+    if (i < 0) return;
+    QVariantMap v = multiviews_[i].toMap();
+    for (auto it = cambios.begin(); it != cambios.end(); ++it)
+        if (it.key() != "id") v[it.key()] = it.value();
+    multiviews_[i] = v;
+    guardarMultiviews();
+}
+
+void StudioViewModel::setMultiviewActual(const QString& id) {
+    leerMultiviews();
+    if (indiceMultiview(id) < 0 || id == multiviewActual_) return;
+    multiviewActual_ = id;
+    guardarMultiviews();
+}
+
+QString StudioViewModel::nuevaMultiview(const QString& nombre, bool copiarActual) {
+    leerMultiviews();
+    QVariantMap v = copiarActual ? multiview() : multiviewDeFabrica();
+    v["id"] = idNuevo();
+    v["nombre"] = nombre.trimmed().isEmpty() ? QString("Multiview %1").arg(multiviews_.size() + 1) : nombre.trimmed();
+    multiviews_ << v;
+    multiviewActual_ = v["id"].toString();
+    guardarMultiviews();
+    return multiviewActual_;
+}
+
+void StudioViewModel::renombrarMultiview(const QString& id, const QString& nombre) {
+    if (nombre.trimmed().isEmpty()) return;
+    setMultiviewDe(id, {{"nombre", nombre.trimmed()}});
+}
+
+bool StudioViewModel::borrarMultiview(const QString& id) {
+    leerMultiviews();
+    const int i = indiceMultiview(id);
+    if (i < 0 || multiviews_.size() <= 1) return false; // siempre queda una
+    multiviews_.removeAt(i);
+    if (multiviewActual_ == id) multiviewActual_ = multiviews_[std::max(0, i - 1)].toMap().value("id").toString();
+    guardarMultiviews();
+    return true;
+}
+
 void StudioViewModel::restablecerMultiview() {
-    multiview_.clear();
-    setMultiview(multiviewDeFabrica());
+    const QVariantMap v = multiview();
+    QVariantMap fab = multiviewDeFabrica();
+    fab["nombre"] = v.value("nombre");
+    setMultiview(fab);
 }
 
 } // namespace ba::app

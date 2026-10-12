@@ -20,7 +20,7 @@ Window {
     required property rect geometry
 
     objectName: "ba:salida:" + winId // ver PageWindow.qml
-    title: "Broadcast Appliance — " + (layout === "multiview" ? "Multiview" : keys.length === 1 ? Studio.frames.label(keys[0]) : "Salida de video")
+    title: "Broadcast Appliance — " + (layout.startsWith("multiview") ? (mv.nombre || "Multiview") : keys.length === 1 ? Studio.frames.label(keys[0]) : "Salida de video")
     color: "black"
     x: geometry.x; y: geometry.y
     width: geometry.width; height: geometry.height
@@ -44,8 +44,10 @@ Window {
 
     // layout «multiview»: la ventana sigue a la página Multiview (fuentes, distribución
     // y estilo), en vivo.
-    readonly property bool esMultiview: w.layout === "multiview"
-    readonly property var mv: Studio.multiview
+    readonly property bool esMultiview: w.layout === "multiview" || w.layout.startsWith("multiview:")
+    // «multiview:<id>»: esa multivista (si se borró, la elegida); «multiview» solo: la elegida.
+    readonly property var mv: (Studio.multiviews, w.layout.startsWith("multiview:") && Studio.multiviewDe(w.layout.slice(10)).id !== undefined
+                               ? Studio.multiviewDe(w.layout.slice(10)) : Studio.multiview)
     readonly property var claves: w.esMultiview ? (w.mv.fuentes || []) : w.keys
     Rectangle { anchors.fill: parent; color: "black"; visible: w.esMultiview }
     VideoWall {

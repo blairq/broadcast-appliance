@@ -284,8 +284,11 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* modelos READ modelos CONSTANT)
     /// La cola única de descargas (Descargas, arriba a la derecha): ver net/Descargas.hpp.
     Q_PROPERTY(QObject* descargas READ descargas CONSTANT)
-    /// El multiview (página Multiview y sus ventanas): {fuentes, distribucion, separacion,
-    /// fondo, borde, colorBorde, nombres, tamNombres, tally, vumetros}. Config/multiview.json.
+    /// Las multivistas (pestañas de la página Multiview): [{id, nombre, fuentes, distribucion,
+    /// separacion, fondo, borde, colorBorde, nombres, tamNombres, tally, vumetros}]. Config/multiview.json.
+    Q_PROPERTY(QVariantList multiviews READ multiviews NOTIFY multiviewChanged)
+    Q_PROPERTY(QString multiviewActual READ multiviewActual WRITE setMultiviewActual NOTIFY multiviewChanged)
+    /// La de la pestaña elegida.
     Q_PROPERTY(QVariantMap multiview READ multiview NOTIFY multiviewChanged)
     /// Hablarle al asistente (push-to-talk): ver agent/Voz.hpp.
     Q_PROPERTY(QObject* voz READ voz CONSTANT)
@@ -633,8 +636,18 @@ class StudioViewModel : public QObject {
     QObject* modelos() const;
     QObject* descargas() const;
     QVariantMap multiview() const;
-    /// Cambia lo que venga en `cambios` (lo demás queda) y lo guarda.
+    QVariantList multiviews() const;
+    QString multiviewActual() const;
+    void setMultiviewActual(const QString& id);
+    Q_INVOKABLE QVariantMap multiviewDe(const QString& id) const;
+    /// Cambia lo que venga en `cambios` (lo demás queda) y lo guarda: la elegida / la de `id`.
     Q_INVOKABLE void setMultiview(const QVariantMap& cambios);
+    Q_INVOKABLE void setMultiviewDe(const QString& id, const QVariantMap& cambios);
+    /// Una pestaña nueva (de fábrica o copia de la elegida); queda elegida. Devuelve su id.
+    Q_INVOKABLE QString nuevaMultiview(const QString& nombre, bool copiarActual);
+    Q_INVOKABLE void renombrarMultiview(const QString& id, const QString& nombre);
+    /// false si es la última (siempre queda una).
+    Q_INVOKABLE bool borrarMultiview(const QString& id);
     Q_INVOKABLE void restablecerMultiview();
     QObject* voz() const;
     QObject* vozPrompter() const;
@@ -1044,8 +1057,12 @@ class StudioViewModel : public QObject {
     bool gatewayAlive_ = false;
     double peakL_ = -100;
     double peakR_ = -100;
-    QVariantMap multiview_;
+    QVariantList multiviews_;
+    QString multiviewActual_;
     bool multiviewLeido_ = false;
+    void leerMultiviews() const;
+    int indiceMultiview(const QString& id) const;
+    void guardarMultiviews();
 };
 
 } // namespace ba::app

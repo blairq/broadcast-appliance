@@ -1,7 +1,7 @@
 // Multiview: varias fuentes en un muro, con separación de color y marco por
-// cuadro, tally, vúmetros y nombres. Lo que se arma acá se guarda
-// (Config/multiview.json) y lo siguen las ventanas que se sacan a otro monitor
-// («Sacar a una ventana»), en vivo. MCP: multiview.
+// cuadro, tally, vúmetros y nombres. Varias multivistas, en pestañas. Lo que se
+// arma se guarda (Config/multiview.json) y lo siguen, en vivo, las ventanas que
+// se sacan a otro monitor (cada una la suya). MCP: multiview.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -45,10 +45,55 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            title: "Multiview"
+            title: ""
+            // Las pestañas: una por multivista, y «+» para otra.
+            RowLayout {
+                id: pestanas
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                spacing: 6
+                Flickable {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 34
+                    contentWidth: filaPestanas.implicitWidth
+                    clip: true
+                    flickableDirection: Flickable.HorizontalFlick
+                    Row {
+                        id: filaPestanas
+                        spacing: 4
+                        Repeater {
+                            model: Studio.multiviews
+                            delegate: Rectangle {
+                                required property var modelData
+                                readonly property bool elegida: modelData.id === Studio.multiviewActual
+                                height: 32; radius: 8
+                                width: nombrePestana.implicitWidth + 28
+                                color: elegida ? Qt.rgba(1, 0.42, 0.17, 0.28) : (pestMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.03))
+                                border.color: elegida ? Theme.accent : Theme.glassBorder
+                                Text {
+                                    id: nombrePestana
+                                    anchors.centerIn: parent
+                                    text: modelData.nombre || "Multiview"
+                                    color: parent.elegida ? Theme.text : Theme.textDim
+                                    font { pixelSize: 13; weight: parent.elegida ? Font.DemiBold : Font.Normal }
+                                }
+                                MouseArea {
+                                    id: pestMa; anchors.fill: parent; hoverEnabled: true
+                                    onClicked: Studio.multiviewActual = modelData.id
+                                    onDoubleClicked: { Studio.multiviewActual = modelData.id; nombreCampo.forceActiveFocus(); nombreCampo.selectAll() }
+                                }
+                            }
+                        }
+                    }
+                }
+                GlassButton {
+                    compact: true; text: "+"; implicitWidth: 34
+                    ToolTip.visible: hovered; ToolTip.text: "Otra multivista"; ToolTip.delay: 300
+                    onClicked: Studio.nuevaMultiview("", false)
+                }
+            }
             Item {
                 id: marco
-                anchors.fill: parent
+                anchors { left: parent.left; right: parent.right; bottom: parent.bottom; top: pestanas.bottom; topMargin: 10 }
                 readonly property real ancho: Math.min(width, height * 16 / 9)
                 Rectangle {
                     anchors.centerIn: parent
@@ -92,13 +137,33 @@ Rectangle {
                     width: parent.width
                     spacing: 10
 
-                    RowLayout {
+                    Text { text: "Nombre"; color: Theme.textDim; font.pixelSize: 12 }
+                    TextField {
+                        id: nombreCampo
+                        Layout.fillWidth: true
+                        text: page.mv.nombre || ""
+                        placeholderText: "Nombre de esta multivista (p. ej. «Control», «Sala», «Cámaras»)"
+                        onEditingFinished: if (text.trim() !== "" && text !== page.mv.nombre) Studio.renombrarMultiview(page.mv.id, text)
+                    }
+                    Flow {
+                        Layout.fillWidth: true
                         spacing: 8
                         GlassButton {
                             text: "Sacar a una ventana"; icon: "⧉"; active: true
-                            onClicked: Studio.dashboard.windows.open([], "multiview")
+                            onClicked: Studio.dashboard.windows.open([], "multiview:" + page.mv.id)
                         }
+                        GlassButton { compact: true; text: "Duplicar"; onClicked: Studio.nuevaMultiview((page.mv.nombre || "Multiview") + " (copia)", true) }
                         GlassButton { compact: true; text: "De fábrica"; onClicked: Studio.restablecerMultiview() }
+                        GlassButton {
+                            compact: true; text: "Borrar"
+                            enabled: (Studio.multiviews || []).length > 1
+                            onClicked: ApplicationWindow.window.confirm({
+                                title: "¿Borrar «" + (page.mv.nombre || "") + "»?",
+                                text: "Se borra esta multivista. Las ventanas que la mostraban pasan a mostrar otra.",
+                                accept: "Borrar", reject: "Cancelar",
+                                action: function() { Studio.borrarMultiview(page.mv.id) }
+                            })
+                        }
                     }
                     Text {
                         Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
