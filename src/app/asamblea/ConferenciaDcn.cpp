@@ -118,7 +118,12 @@ QString ConferenciaDcn::pasarAQuorumUi() {
 }
 QVariantMap ConferenciaDcn::configUi() const { return aQv(config_).toMap(); }
 
-void ConferenciaDcn::control(const std::string& nombre, const json& args, Listo listo, int timeoutMs) {
+void ConferenciaDcn::control(const std::string& nombre, const json& argsPedidos, Listo listo, int timeoutMs) {
+    // Preparar una votación sin número: la que sigue a la última de la central
+    // (la numeración es de la central, no de quien la pide).
+    json args = argsPedidos;
+    if (nombre == "votacion" && args.value("accion", std::string()) == "preparar" && !args.contains("numero"))
+        args["numero"] = estado_.value("votacion", json::object()).value("numero", 0) + 1;
     plugins::Plugins* p = plugins_ ? plugins_() : nullptr;
     if (p == nullptr) return listo(false, {}, "los plugins no están disponibles");
     if (p->estado(kPlugin).value("estado", std::string()) != "corriendo")

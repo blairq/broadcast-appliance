@@ -64,6 +64,7 @@ class ConferenciaDcn : public QObject {
     bool tieneUnidad(const std::string& banca) const;
 
     /// Le pide un control al plugin (los de plugin.py). Si el plugin no corre, falla con un texto claro.
+    /// `votacion` {accion: preparar} sin `numero`: la que sigue a la última de la central.
     void control(const std::string& nombre, const json& args, Listo listo, int timeoutMs = 15000);
     /// Instala el plugin desde el ejemplo si falta, lo prende y conecta con `config` (se guarda).
     void conectar(const json& config, Listo listo);

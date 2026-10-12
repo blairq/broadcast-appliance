@@ -7,6 +7,7 @@
 #include "sala/VotacionSala.hpp"
 #include "sala/PreguntasSala.hpp"
 #include "escenas/Conmutador.hpp"
+#include "asamblea/Votaciones.hpp"
 #include "escenas/RespaldoEntradas.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Paths.hpp"
@@ -1262,16 +1263,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     plugins_->setEnVivo([this]() { return modoVivo(); });
     // La central de conferencia (plugin bosch-dcn): su estado sale del bus.
     dcn_ = std::make_unique<asamblea::ConferenciaDcn>([this]() { return plugins_.get(); }, *bus_, rt.dataRoot());
-    dcn_->setAQuorum([this](const nlohmann::json& r) {
-        if (!quorum_) return nlohmann::json{{"error", "Quórum no está"}};
-        // Con votos por los celulares en la misma votación: un voto por integrante (vale el último).
-        if (sesionRemota_ && !sesionRemota_->votacion().value("votos", nlohmann::json::array()).empty())
-            return quorum_->cargarOficial(votacionCombinada(r));
-        return quorum_->cargarOficial(r);
-    });
-    // La votación de la central también en los celulares (abrir, pausar, cerrar).
+    // Las votaciones (central, celulares, Quórum) son del modelo.
+    if (sesionRemota_ && quorum_)
+        votaciones_ = std::make_unique<asamblea::Votaciones>(*sesionRemota_, *dcn_, *quorum_, *bus_, this);
     connect(dcn_.get(), &asamblea::ConferenciaDcn::cambio, this, [this]() {
-        seguirVotacionCentral();
         // El presidente apretó prioridad en su unidad: la central ya calló a los suyos; los
         // remotos también se callan (si no, el que habla por el celular seguía sonando).
         const bool prio = hijoObjeto(dcn_->estado(), "prioridad").value("activa", false);
@@ -2992,6 +2987,7 @@ QObject* StudioViewModel::debateQml() const { return debate_.get(); }
 QObject* StudioViewModel::configuracionesQml() const { return configuraciones_.get(); }
 QObject* StudioViewModel::dcnQml() const { return dcn_.get(); }
 QObject* StudioViewModel::sesionRemotaQml() const { return sesionRemota_.get(); }
+QObject* StudioViewModel::votacionesQml() const { return votaciones_.get(); }
 
 QVariantMap StudioViewModel::respaldoEntrada(const QString& entrada) const {
     const nlohmann::json r = respaldo_->respaldo(entrada.toStdString());
@@ -3249,42 +3245,6 @@ QStringList StudioViewModel::nombresParaDsk() const {
     return out;
 }
 
-nlohmann::json StudioViewModel::votacionCombinada(const nlohmann::json& rCentral) const {
-    nlohmann::json r = rCentral;
-    const nlohmann::json c = sesionRemota_->resultadoCombinado(rCentral.value("nominal", nlohmann::json::array()));
-    const nlohmann::json t = c.value("totales", nlohmann::json::object());
-    r["nominal"] = c.value("nominal", nlohmann::json::array());
-    r["afirmativos"] = t.value("afirmativo", 0);
-    r["negativos"] = t.value("negativo", 0);
-    r["abstenciones"] = t.value("abstencion", 0);
-    r["origen"] = rCentral.value("origen", std::string("sala")) + " + celulares";
-    if (!c.value("observaciones", nlohmann::json::array()).empty()) r["observaciones"] = c["observaciones"];
-    return r;
-}
-
-void StudioViewModel::seguirVotacionCentral() {
-    if (!sesionRemota_ || !dcn_) return;
-    const nlohmann::json v = dcn_->estado().value("votacion", nlohmann::json::object());
-    const std::string est = v.value("estado", std::string());
-    const nlohmann::json actual = sesionRemota_->votacion();
-    const std::string remoto = actual.value("estado", std::string());
-    const bool deLaCentral = actual.value("origen", std::string()) == "central";
-    const int numero = v.value("numero", 0);
-    if (est == "abierta" && (remoto == "sin" || remoto == "cerrada" || !deLaCentral || actual.value("numero", -1) != numero)) {
-        sesionRemota_->abrirVotacion(numero, v.value("tema", std::string()),
-                                     asamblea::SesionRemota::opcionesDeMenu(v.value("menu", std::string())),
-                                     sesionRemota_->votoSegundos(), "central");
-    } else if (deLaCentral && est == "pausada" && remoto == "abierta") {
-        sesionRemota_->pausarVotacion(true);
-    } else if (deLaCentral && est == "abierta" && remoto == "pausada") {
-        sesionRemota_->pausarVotacion(false);
-    } else if (deLaCentral && est == "cerrada" && (remoto == "abierta" || remoto == "pausada")) {
-        sesionRemota_->cerrarVotacion();
-        const nlohmann::json c = sesionRemota_->resultadoCombinado(v.value("nominal", nlohmann::json::array()));
-        sesionRemota_->mostrarResultado(c.value("totales", nlohmann::json::object()));
-    }
-}
-
 nlohmann::json StudioViewModel::estadoConsola() const {
     using nlohmann::json;
     json e{{"type", "estado"}, {"ahora_ms", QDateTime::currentMSecsSinceEpoch()}};
@@ -3400,49 +3360,12 @@ void StudioViewModel::accionConsola(const QString& consola, const nlohmann::json
         bancas_->sumarTiempo(m.value("segundos", 60));
     } else if (t == "tiempo") {
         bancas_->setAsignado(m.value("asignado_s", 180));
-    } else if (t == "votacion") {
-        const std::string acc = m.value("accion", std::string());
-        if (dcn_ && dcn_->conectada() && acc != "a_quorum") {
-            // Con la central, la votación la lleva la central (los celulares la siguen).
-            json a{{"accion", acc}, {"quien", quien}};
-            if (acc == "abrir") {
-                // Preparar y abrir.
-                QPointer<StudioViewModel> yo(this);
-                dcn_->control("votacion", {{"accion", "preparar"}, {"tema", m.value("tema", std::string())},
-                                           {"menu", m.value("menu", std::string("si_no_abstencion"))}, {"quien", quien}},
-                              [yo, quien](bool ok, const json&, const std::string& e) {
-                                  if (!yo) return;
-                                  if (!ok) { emit yo->notify(QString::fromStdString("Central: " + e), "error"); return; }
-                                  yo->dcn_->control("votacion", {{"accion", "abrir"}, {"quien", quien}},
-                                                    [](bool, const json&, const std::string&) {});
-                              });
-            } else {
-                dcn_->control("votacion", a, [](bool, const json&, const std::string&) {});
-            }
-        } else if (acc == "abrir") {
-            error = sesionRemota_->abrirVotacionUi(QString::fromStdString(m.value("tema", std::string())),
-                                                   QString::fromStdString(m.value("menu", std::string("si_no_abstencion"))),
-                                                   m.value("segundos", sesionRemota_->votoSegundos())).toStdString();
-        } else if (acc == "pausar" || acc == "reanudar") {
-            sesionRemota_->pausarVotacion(acc == "pausar");
-        } else if (acc == "cerrar") {
-            sesionRemota_->cerrarVotacionUi();
-        } else if (acc == "a_quorum" && quorum_) {
-            if (dcn_ && dcn_->conectada()) {
-                error = dcn_->pasarAQuorum().value("error", std::string());
-            } else {
-                const json c = sesionRemota_->resultadoCombinado(json::array());
-                const json tt = c.value("totales", json::object());
-                const json r = quorum_->cargarOficial({{"asunto", sesionRemota_->votacion().value("tema", std::string())},
-                                                       {"afirmativos", tt.value("afirmativo", 0)},
-                                                       {"negativos", tt.value("negativo", 0)},
-                                                       {"abstenciones", tt.value("abstencion", 0)},
-                                                       {"presentes", sesionRemota_->presentes()},
-                                                       {"nominal", c.value("nominal", json::array())},
-                                                       {"origen", "celulares"}});
-                error = r.value("error", std::string());
-            }
-        }
+    } else if (t == "votacion" && votaciones_) {
+        // Central o celulares lo decide el modelo; lo que falle (también lo de la central, que contesta después) se avisa.
+        QPointer<StudioViewModel> yo(this);
+        votaciones_->accion(m.value("accion", std::string()), m, quien, [yo](const std::string& e) {
+            if (yo && !e.empty()) emit yo->notify(QString::fromStdString(e), "error");
+        });
     } else if (t == "ptt") {
         // «Apretar para hablar»: le avisa al integrante; el audio y el video van
         // directo entre la consola y su navegador (WebRTC, señalizado por el gateway).

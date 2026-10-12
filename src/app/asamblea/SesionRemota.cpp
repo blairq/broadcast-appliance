@@ -798,18 +798,6 @@ json SesionRemota::opcionesDeMenu(const std::string& menu) {
 
 QVariantMap SesionRemota::votacionUi() const { return aQv(votacion()).toMap(); }
 
-QString SesionRemota::abrirVotacionUi(const QString& tema, const QString& menu, int segundos) {
-    if (tema.trimmed().isEmpty()) return "falta el tema";
-    const int n = vot_.origen == "app" ? vot_.numero + 1 : 1;
-    return QString::fromStdString(abrirVotacion(n, tema.trimmed().toStdString(), opcionesDeMenu(menu.toStdString()),
-                                                segundos, "app"));
-}
-
-void SesionRemota::cerrarVotacionUi() {
-    cerrarVotacion();
-    mostrarResultado(resultadoCombinado(json::array()).value("totales", json::object()));
-}
-
 // --- Registro ---------------------------------------------------------------------------
 
 std::string SesionRemota::anexoActa() const {

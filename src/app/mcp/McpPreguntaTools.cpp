@@ -14,6 +14,7 @@
 // cola, elegir, sacar al aire y dar por respondida.
 // ============================================================================
 #include "sala/VotacionSala.hpp"
+#include "asamblea/Votaciones.hpp"
 #include "sala/PreguntasSala.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 
@@ -248,9 +249,10 @@ void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
                            {"mayoria", {{"type", "string"}, {"enum", {"simple", "absoluta", "dos_tercios_presentes", "dos_tercios_miembros"}}}},
                            {"punto", {{"type", "integer"}, {"minimum", 1}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const json r = vm.quorum().cargarOficial(a);
+            // Por el modelo de votaciones: a Quórum y al bus, como la central y los celulares.
+            if (vm.votaciones() == nullptr) return done(ToolResult::error("Las votaciones de la asamblea no están disponibles."));
+            const json r = vm.votaciones()->cargarOficial(a);
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
-            vm.bus().publicar("sesion/votacion", r, true);
             done(ToolResult().text(std::string(r.value("aprobado", false) ? "APROBADO" : "RECHAZADO") + ": " +
                                    std::to_string(r.value("afirmativos", 0)) + " a " + std::to_string(r.value("negativos", 0)))
                      .data(r));

@@ -188,9 +188,6 @@ class SesionRemota : public QObject {
     Q_INVOKABLE void pedirFoto(const QString& integrante);
     QVariantMap votacionUi() const;
     /// Sin la central: abrir con un menú (si_no, si_no_abstencion…) o cerrar.
-    Q_INVOKABLE QString abrirVotacionUi(const QString& tema, const QString& menu, int segundos);
-    Q_INVOKABLE void pausarVotacionUi(bool pausa) { pausarVotacion(pausa); }
-    Q_INVOKABLE void cerrarVotacionUi();
     Q_PROPERTY(QVariantList consolasUi READ consolasUi NOTIFY cambio)
     QVariantList consolasUi() const;
     Q_INVOKABLE QVariantMap generarConsolaUi(const QString& nombre);

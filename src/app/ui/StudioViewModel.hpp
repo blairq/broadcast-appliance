@@ -108,6 +108,7 @@ class Bancas;
 class Debate;
 class ConferenciaDcn;
 class SesionRemota;
+class Votaciones;
 class SeguirMicrofono;
 class OrdenDelDia;
 class Quorum;
@@ -172,6 +173,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* dcn READ dcnQml CONSTANT)
     /// La banca virtual (sesión remota, en la sala o afuera): asamblea/SesionRemota.
     Q_PROPERTY(QObject* sesionRemota READ sesionRemotaQml CONSTANT)
+    /// Las votaciones de la asamblea (central y celulares; modelo).
+    Q_PROPERTY(QObject* votaciones READ votacionesQml CONSTANT)
     /// Subtítulos ocultos (CC) en la transmisión: agent/SubtitulosCC.
     Q_PROPERTY(QObject* cc READ ccQml CONSTANT)
     /// El bus de eventos de la app (control/BusEventos): superficies, plugins, MCP.
@@ -397,6 +400,8 @@ class StudioViewModel : public QObject {
     asamblea::Debate* debate() { return debate_.get(); }
     QObject* dcnQml() const;
     QObject* sesionRemotaQml() const;
+    QObject* votacionesQml() const;
+    asamblea::Votaciones* votaciones() { return votaciones_.get(); }
     QObject* ccQml() const;
     agent::SubtitulosCC& cc() { return *cc_; }
     asamblea::Bancas& bancas() { return *bancas_; }
@@ -570,13 +575,11 @@ class StudioViewModel : public QObject {
     /// Los remotos que tienen la palabra (y el orador remoto al aire) dejan de hablar.
     void silenciarRemotos();
     int unidadPresidente() const;
-    void seguirVotacionCentral();
     nlohmann::json estadoConsola() const;
     void mandarEstadoConsola();
     void enlaceProgramaConsola(const QString& consola);
     void accionConsola(const QString& consola, const nlohmann::json& m);
     QTimer consolaTimer_;
-    nlohmann::json votacionCombinada(const nlohmann::json& rCentral) const;
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     /// Reconoce una (id del evento) o todas (0).
@@ -1037,6 +1040,7 @@ class StudioViewModel : public QObject {
     nlohmann::json centralAntesDelDebate_; ///< modo y máximo de abiertos para devolverle a la central
     std::unique_ptr<asamblea::ConferenciaDcn> dcn_;
     std::unique_ptr<asamblea::SesionRemota> sesionRemota_;
+    std::unique_ptr<asamblea::Votaciones> votaciones_; ///< usa sesionRemota_, dcn_, quorum_ y bus_: va después (se destruye antes)
     qint64 retornoVistoMs_ = 0; ///< la última vez que alguien miraba el retorno (ver onTick)
     /// Las caras de los botones ya achicadas (ruta|fecha -> data: URL).
     std::map<QString, std::string> imagenesBotonera_;
