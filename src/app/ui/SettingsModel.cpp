@@ -451,6 +451,11 @@ void SettingsModel::setValue(const QString& key, const QVariant& value) {
 QVariant SettingsModel::value(const QString& key) const { return draft_.value(key); }
 
 void SettingsModel::revert() {
+    // Lo vigente se relee de la configuración: puede haber cambiado después de la
+    // última carga (el cupo en caliente se guarda cuando contesta la sala, otro
+    // formulario aplicó). Volver a la foto vieja hacía que un pedido igual a esa
+    // foto pareciera «sin cambios» y no se aplicara.
+    saved_ = current();
     draft_ = saved_;
     emit dataChanged(index(0), index(rowCount() - 1), {ValueRole, ModifiedRole});
     emit dirtyChanged();
