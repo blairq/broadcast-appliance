@@ -1005,8 +1005,10 @@ void McpService::registerRoomTools() {
         t.category = "sala";
         t.readOnly = true;
         t.description =
-            "Enlace para entrar a la sala (target local = misma red, remote = dominio publico) con su "
-            "QR como imagen; con withPin el PIN va incluido. Con board=true, el del tablero de oradores.";
+            "Enlace para entrar a la sala (target local = misma red; remote = la dirección pública de pinggy, "
+            "Cloudflare o WireGuard, para los de afuera) con su QR como imagen; con withPin el PIN va incluido. "
+            "Con board=true, el del tablero de oradores. La imagen la ves solo vos: para que el operador vea el QR "
+            "y lo pueda copiar, después llamá a qr_mostrar con la URL.";
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -1018,13 +1020,18 @@ void McpService::registerRoomTools() {
             const QString path = a.value("board", false) ? "/api/v1/board-link?target=" + target
                                                          : "/api/v1/qr?target=" + target +
                                                                (a.value("withPin", false) ? "&pin=1" : "");
-            client->get(path, [done](bool ok, const QJsonObject& r) {
+            client->get(path, [done, target](bool ok, const QJsonObject& r) {
                 const json j = fromQt(r);
                 if (!ok || !j.value("ok", false))
                     return done(
                         ToolResult::error(j.value("message", std::string("sin enlace: ") + errorText(j))));
                 ToolResult res;
-                res.text(j.value("url", ""));
+                const std::string url = j.value("url", "");
+                res.text(url + "\n\n(El operador NO ve esta imagen. Para mostrarle el QR y que lo pueda copiar: "
+                               "qr_mostrar {\"texto\": \"" + url + "\", \"descripcion\": \"…\"}." +
+                         (target == "local" ? std::string(" Es la dirección de la red local: para alguien de afuera, "
+                                                          "room_link {\"target\": \"remote\"}.")
+                                            : std::string()) + ")");
                 const std::string png = qrPng(j.value("modules", json::array()));
                 if (!png.empty()) res.image(png, "image/png");
                 done(res);
