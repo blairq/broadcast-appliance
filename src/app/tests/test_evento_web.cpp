@@ -58,7 +58,15 @@ int main() {
           "ni notas ni cues en la página pública");
     CHECK(leer(dir / "seccion-b2.html").find("&lt;del público&gt;") != std::string::npos, "nombres escapados");
 
-    // 2
+    // 2. Una página intacta se actualiza con el guion; una editada, no.
+    {
+        Evento e2 = e;
+        Bloque nuevo; nuevo.id = "b3"; nuevo.nombre = "Sección nueva";
+        e2.bloques.push_back(nuevo);
+        generar(e2, dir, false);
+        CHECK(leer(dir / "portada.html").find("Sección nueva") != std::string::npos, "intacta: se actualiza con el guion");
+        CHECK(fs::exists(dir / "seccion-b3.html"), "la sección nueva tiene su página");
+    }
     { std::ofstream(dir / "portada.html") << "MIA"; }
     r = generar(e, dir, false);
     CHECK(leer(dir / "portada.html") == "MIA", "no pisa lo editado");
@@ -87,6 +95,30 @@ int main() {
     CHECK(resolverPagina(e, "../../etc/passwd").empty(), "nada fuera de Web/");
     CHECK(resolverPagina(e, "sub/x.html").empty(), "sin carpetas");
     CHECK(resolverPagina(e, "extra.html") == "extra.html", "un .html propio");
+
+    // 6. Dónde verlo en vivo
+    CHECK(idDeYouTube("https://www.youtube.com/watch?v=jfKfPfyJRdk&t=3") == "jfKfPfyJRdk", "id de watch?v=");
+    CHECK(idDeYouTube("https://youtu.be/jfKfPfyJRdk") == "jfKfPfyJRdk", "id de youtu.be");
+    CHECK(idDeYouTube("https://www.youtube.com/live/jfKfPfyJRdk?si=x") == "jfKfPfyJRdk", "id de /live/");
+    CHECK(idDeYouTube("hola").empty(), "sin id");
+    SitioWeb sv;
+    nlohmann::json pl{{"youtube", {{"liveId", "AAAAAAAAAAA"}, {"canalId", "UCxxxxxxxxxxxxxxxxxxxxxx"}}},
+                      {"twitch", {{"login", "micanal"}, {"enVivo", true}}},
+                      {"facebook", {{"liveId", "123"}, {"pageId", "456"}}}};
+    nlohmann::json v = armarVivos(sv, pl);
+    CHECK(v.size() == 3, "tres plataformas");
+    CHECK(v[0]["embed"].get<std::string>().find("/embed/AAAAAAAAAAA") != std::string::npos && v[0]["enVivo"] == true, "youtube en vivo");
+    CHECK(v[1]["url"] == "https://www.twitch.tv/micanal", "twitch");
+    CHECK(v[2]["url"] == "https://www.facebook.com/456/videos/123/", "facebook");
+    pl["youtube"]["liveId"] = "";
+    v = armarVivos(sv, pl);
+    CHECK(v[0]["embed"].get<std::string>().find("live_stream?channel=UCxxxxxxxxxxxxxxxxxxxxxx") != std::string::npos, "youtube: el vivo del canal");
+    sv.vivos = {{"youtube", "https://youtu.be/jfKfPfyJRdk"}, {"twitch", "https://www.twitch.tv/Otro"}};
+    v = armarVivos(sv, pl);
+    CHECK(v[0]["url"] == "https://www.youtube.com/watch?v=jfKfPfyJRdk", "lo fijado a mano manda");
+    CHECK(v[1]["url"] == "https://www.twitch.tv/otro", "twitch fijado");
+    CHECK(armarVivos(SitioWeb{}, nlohmann::json::object()).empty(), "sin cuentas ni nada fijado: vacío");
+    CHECK(estadoPublico(e, s, "proximo", -1, 0, 0, 0, v)["vivos"].size() == 3, "van en el estado");
 
     fs::remove_all(dir);
     std::printf(g_fallos ? "test_evento_web: %d fallos\n" : "test_evento_web: OK\n", g_fallos);

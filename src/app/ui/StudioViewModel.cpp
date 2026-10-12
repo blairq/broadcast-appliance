@@ -394,6 +394,20 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     facebook_ = std::make_unique<FacebookViewModel>(rt);
     marca("facebook");
     connect(facebook_.get(), &FacebookViewModel::notify, this, &StudioViewModel::notify);
+    // «Dónde verlo en vivo» de la página web del evento: lo que saben las cuentas.
+    evento_->setPlataformas([this]() {
+        nlohmann::json yt{{"liveId", youtube_->liveBroadcastId().toStdString()},
+                          {"canalId", youtube_->account().value("id").toString().toStdString()},
+                          {"handle", youtube_->account().value("customUrl").toString().toStdString()}};
+        nlohmann::json tw{{"login", twitch_->user().value("login").toString().toStdString()},
+                          {"enVivo", twitch_->streamingHere() || !twitch_->stream().isEmpty()}};
+        nlohmann::json fb{{"liveId", facebook_->liveId().toStdString()}, {"pageId", facebook_->pageId().toStdString()}};
+        return nlohmann::json{{"youtube", yt}, {"twitch", tw}, {"facebook", fb}};
+    });
+    connect(youtube_.get(), &YouTubeViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(twitch_.get(), &TwitchViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(twitch_.get(), &TwitchViewModel::channelChanged, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(facebook_.get(), &FacebookViewModel::stateChanged, evento_.get(), &EventoViewModel::publicarWeb);
     system_ = std::make_unique<SystemViewModel>();
     // Cambiar de configuración = anotarla y reiniciar por el launcher (como una actualización).
     configuraciones_ = std::make_unique<Configuraciones>([this]() {

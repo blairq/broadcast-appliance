@@ -129,7 +129,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "y un cierre, en la carpeta Web/ del evento (queda en el historial). La raíz de la dirección pública "
             "muestra la página de la sección que se está tratando y cambia sola cuando el guion avanza; los "
             "invitados entran por /invitados/. `accion`: ver | generar {sobrescribir} | leer {pagina} | escribir "
-            "{pagina, html} | sitio {titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar} | "
+            "{pagina, html} | sitio {titulo, bajada, color, fondo, subdominio, barra, direccion_al_iniciar, vivos} | "
             "direccion {subdominio?} (pasa la dirección pública a <subdominio>.a.pinggy.link con la API key; reinicia "
             "la sala).";
         t.details =
@@ -139,6 +139,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "Mantené `<script src=\"/evento/_/vivo.js\" defer></script>` y usá data-vivo=\"estado|seccion|siguiente|"
             "cuenta|transcurrido|agenda\" para lo que cambia en vivo (ver el comentario al final de cada página). "
             "Nunca pongas en la página instrucciones del operador ni datos privados: es pública. "
+            "DÓNDE VERLO EN VIVO: el estado trae `vivos` [{plataforma, nombre, url, embed, enVivo}] (YouTube, Twitch, "
+            "Facebook: salen solos de las cuentas conectadas; `sitio {vivos: {youtube: link o id, twitch: canal, facebook: "
+            "link}}` los fija para este evento, \"\" los saca). En la página: data-vivo=\"reproductor\" (el vivo embebido) y "
+            "data-vivo=\"vivos\" (botones); en JSON, GET /api/evento/vivos. "
             "El subdominio por defecto sale del nombre del evento («Entrevista Pepito» → entrevista-pepito); con "
             "`direccion_al_iniciar` la dirección cambia sola al poner el evento en curso. Pasale al operador la "
             "dirección con qr_mostrar.";
@@ -155,7 +159,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                            {"fondo", {{"type", "string"}}},
                            {"subdominio", {{"type", "string"}}},
                            {"barra", {{"type", "boolean"}}},
-                           {"direccion_al_iniciar", {{"type", "boolean"}}}}}};
+                           {"direccion_al_iniciar", {{"type", "boolean"}}},
+                           {"vivos", {{"type", "object"},
+                                      {"properties", {{"youtube", {{"type", "string"}}}, {"twitch", {{"type", "string"}}},
+                                                      {"facebook", {{"type", "string"}}}}}}}}}};
         t.run = [&ev, &vm](const json& a, Done done) {
             const std::string acc = a.value("accion", std::string("ver"));
             if (ev.abierto().isEmpty()) return done(ToolResult::error("No hay ningún evento abierto: evento_abrir."));
@@ -181,6 +188,12 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                     if (a.contains(k) && a[k].is_string()) c[k] = QString::fromStdString(a[k].get<std::string>());
                 for (const char* k : {"barra", "direccion_al_iniciar"})
                     if (a.contains(k) && a[k].is_boolean()) c[k] = a[k].get<bool>();
+                if (a.contains("vivos") && a["vivos"].is_object()) {
+                    QVariantMap v;
+                    for (auto it = a["vivos"].begin(); it != a["vivos"].end(); ++it)
+                        if (it.value().is_string()) v[QString::fromStdString(it.key())] = QString::fromStdString(it.value().get<std::string>());
+                    c["vivos"] = v;
+                }
                 const QString e = ev.setWebSitio(c);
                 return done(e.isEmpty() ? ToolResult().data(qvToJson(ev.web().value("sitio"))) : ToolResult::error(e.toStdString()));
             }

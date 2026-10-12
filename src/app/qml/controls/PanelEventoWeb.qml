@@ -107,6 +107,38 @@ ScrollView {
             }
         }
 
+        // --- Dónde se ve en vivo ----------------------------------------------------------------
+        Seccion {
+            visible: !!pw.w.hay
+            titulo: "Dónde se ve en vivo"
+            subtitulo: "La página muestra el vivo embebido (YouTube primero) y botones para abrirlo en cada plataforma. Se toman solos de las cuentas "
+                       + "conectadas (el vivo que transmite la app, el canal de Twitch, el vivo de la página de Facebook); acá se pueden fijar para este evento, "
+                       + "p. ej. un vivo programado de YouTube. También en /api/evento/vivos."
+            component CampoVivo: RowLayout {
+                property string clave
+                property string etiqueta
+                property string ayuda
+                Layout.fillWidth: true
+                spacing: 8
+                Text { text: etiqueta; color: Theme.textDim; font.pixelSize: 12; Layout.preferredWidth: 80 }
+                TextField {
+                    Layout.fillWidth: true
+                    text: (pw.sitio.vivos || {})[parent.clave] || ""
+                    placeholderText: parent.ayuda
+                    inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText | Qt.ImhUrlCharactersOnly
+                    onEditingFinished: {
+                        if (text === ((pw.sitio.vivos || {})[parent.clave] || "")) return
+                        const v = {}
+                        v[parent.clave] = text
+                        pw.guardar({ vivos: v })
+                    }
+                }
+            }
+            CampoVivo { clave: "youtube"; etiqueta: "YouTube"; ayuda: "vacío = el vivo de la cuenta; o el link del vivo (youtu.be/…) o del canal" }
+            CampoVivo { clave: "twitch"; etiqueta: "Twitch"; ayuda: "vacío = el canal de la cuenta; o el nombre del canal" }
+            CampoVivo { clave: "facebook"; etiqueta: "Facebook"; ayuda: "vacío = el vivo de la página; o el link del vivo" }
+        }
+
         // --- Cómo se ve -------------------------------------------------------------------
         Seccion {
             visible: !!pw.w.hay

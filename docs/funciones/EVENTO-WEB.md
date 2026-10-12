@@ -57,6 +57,25 @@ El estado (solo lo público: nunca el texto de los cues ni las notas del operado
 }
 ```
 
+## Dónde verlo en vivo (YouTube, Twitch, Facebook)
+
+`GET /api/evento/vivos` → `{activo, vivos: [{plataforma, nombre, url, embed, enVivo}]}` (también
+va como `vivos` dentro de `/api/evento`). Salen solos de las cuentas conectadas
+(`evento::armarVivos`, lo que sabe StudioViewModel):
+
+- **YouTube**: el vivo que está transmitiendo la app (`watch?v=` y `/embed/<id>`); si no, el vivo
+  del canal (`/channel/<id>/live` y `/embed/live_stream?channel=<id>`).
+- **Twitch**: el canal de la cuenta (`twitch.tv/<canal>`, `player.twitch.tv/?channel=`; vivo.js
+  le agrega el `parent` que Twitch exige).
+- **Facebook**: el vivo que creó la app en la página (`facebook.com/<página>/videos/<id>/`, embebido
+  con el plugin de video).
+
+Por evento se fijan en `sitio.json` → `vivos {youtube, twitch, facebook}` (Guion → Página web →
+«Dónde se ve en vivo», o `evento_web {"accion": "sitio", "vivos": {…}}`): un link o id de un vivo
+programado de YouTube, otro canal… Lo fijado manda. En el HTML: `data-vivo="reproductor"`
+(el vivo embebido; `data-plataforma` para elegir), `data-vivo="vivos"` (botones) y
+`data-vivo="donde"` (se esconde si no hay dónde verlo). La plantilla trae las tres cosas.
+
 ## Cómo llega a la sala
 
 La app (EventoViewModel::publicarWeb) le manda al gateway `POST /api/v1/evento-web`
@@ -70,6 +89,7 @@ cada 10 s (por si la sala se reinició). El gateway sirve:
 | `/evento/<archivo>` | la carpeta Web/ del evento (sin salirse de ella) |
 | `/evento/_/<archivo>` | lo del programa: `vivo.js`, `marco.js`, `marco.css` |
 | `/api/evento` | el estado público |
+| `/api/evento/vivos` | dónde verlo en vivo (YouTube, Twitch, Facebook) |
 
 Un ensayo no se publica (la página queda en «próximamente»).
 

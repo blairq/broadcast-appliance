@@ -48,6 +48,10 @@ struct SitioWeb {
     bool barra = true;      ///< la franja «en vivo» arriba de cada página
     /// Al iniciar el evento, la dirección pública pasa a ser la de su subdominio.
     bool direccionAlIniciar = true;
+    /// Dónde se ve en vivo, fijado a mano para este evento (pisa lo que se sabe de las
+    /// cuentas): {youtube: URL o id del video/vivo o URL del canal, twitch: canal o URL,
+    /// facebook: URL del vivo}.
+    nlohmann::json vivos = nlohmann::json::object();
     nlohmann::json resto = nlohmann::json::object();
 
     static SitioWeb leer(const std::filesystem::path& carpetaWeb, const Evento& e);
@@ -75,11 +79,23 @@ struct ResultadoWeb {
 /// No pisa lo que ya existe salvo `sobrescribir`.
 ResultadoWeb generar(const Evento& e, const std::filesystem::path& carpetaWeb, bool sobrescribir);
 
+/// Lo que la app sabe de las cuentas conectadas (lo arma StudioViewModel):
+/// {youtube: {liveId, canalId, handle}, twitch: {login, enVivo}, facebook: {liveId, pageId, url}}.
+/// Con lo fijado a mano en el sitio, la lista pública de dónde verlo:
+/// [{plataforma, nombre, url (para abrir), embed (para un <iframe>), enVivo}].
+/// El embed de Twitch necesita `&parent=<el host de la página>` (lo agrega vivo.js).
+nlohmann::json armarVivos(const SitioWeb& s, const nlohmann::json& plataformas);
+
+/// El id de un video de YouTube en una URL (watch?v=, youtu.be/, /live/, /embed/) o
+/// suelto (11 letras). «» si no hay.
+std::string idDeYouTube(const std::string& texto);
+
 /// Lo que ve cualquiera del evento en vivo. `estado`: proximo | en_vivo | pausa | terminado.
 /// `bloque` = el que se está tratando (-1 = ninguno). `inicioMs` = la hora prevista
 /// (0 = sin hora). `arrancoMs` = cuándo se arrancó el guion (0 = no arrancó).
 nlohmann::json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado, int bloque,
-                             std::int64_t inicioMs, std::int64_t arrancoMs, std::int64_t ahoraMs);
+                             std::int64_t inicioMs, std::int64_t arrancoMs, std::int64_t ahoraMs,
+                             const nlohmann::json& vivos = nlohmann::json::array());
 
 /// Una página del sitio por nombre: «portada», «cierre», el id o el nombre de un
 /// bloque, o un archivo .html. Devuelve la ruta relativa a Web/ («» si no hay).

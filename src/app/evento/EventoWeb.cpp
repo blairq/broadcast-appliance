@@ -47,6 +47,22 @@ bool escribir(const fs::path& p, const std::string& texto) {
     return !ec;
 }
 
+/// FNV-1a de 64 bits en hex: para reconocer una página que sigue tal cual la dejó la plantilla.
+std::string huella(const std::string& t) {
+    std::uint64_t h = 1469598103934665603ULL;
+    for (unsigned char c : t) { h ^= c; h *= 1099511628211ULL; }
+    char b[17];
+    std::snprintf(b, sizeof b, "%016llx", static_cast<unsigned long long>(h));
+    return b;
+}
+
+std::string leerArchivo(const fs::path& p) {
+    std::ifstream f(p, std::ios::binary);
+    std::ostringstream o;
+    o << f.rdbuf();
+    return o.str();
+}
+
 std::string mmss(int seg) {
     if (seg <= 0) return "";
     const int m = (seg + 59) / 60;
@@ -103,6 +119,13 @@ nav.arriba a:hover { color: var(--color); }
 .vivo::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--tenue); }
 .vivo.en_vivo::before { background: #ff3b30; box-shadow: 0 0 10px #ff3b30; animation: latido 1.2s infinite; }
 @keyframes latido { 50% { opacity: 0.35; } }
+.reproductor { position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: #000; margin: 12px 0; }
+.reproductor iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.plataformas { display: flex; gap: 10px; flex-wrap: wrap; }
+.plataforma { padding: 10px 16px; border-radius: 12px; font-weight: 700; text-decoration: none; color: #fff; }
+.plataforma.youtube { background: #ff0000; }
+.plataforma.twitch { background: #9146ff; }
+.plataforma.facebook { background: #1877f2; }
 footer { margin-top: 48px; color: var(--tenue); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .vivo.en_vivo::before { animation: none; } }
 )css";
@@ -139,6 +162,14 @@ const char* kAyuda = R"html(
     data-vivo="agenda"       una <ol> con todas las secciones (marca la actual y
                              se rehace sola si cambia el guion)
     data-vivo="programa"     se esconde mientras el guion no tiene secciones
+    data-vivo="vivos"        botones «Ver en YouTube / Twitch / Facebook» (los que haya)
+    data-vivo="reproductor"  el vivo embebido; data-plataforma="youtube" para elegir cuál
+    data-vivo="donde"        se esconde si no hay dónde verlo
+
+  Un YouTube embebido fijo, sin la API (cambiá ID_DEL_VIDEO por el del vivo):
+    <div class="reproductor"><iframe src="https://www.youtube.com/embed/ID_DEL_VIDEO?autoplay=1&mute=1"
+      allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div>
+  Dónde verlo, en JSON: GET /api/evento/vivos → {vivos: [{plataforma, nombre, url, embed, enVivo}]}
 
   La API del evento, para dibujar lo que quieras en vivo (docs/funciones/EVENTO-WEB.md):
     BAEvento.on((e) => { … })  te llama con el estado al cargar y cada vez que cambia
@@ -147,7 +178,7 @@ const char* kAyuda = R"html(
   El estado: { nombre, bajada, fecha, inicio, huso, inicioMs, arrancoMs, estado
   (proximo|en_vivo|pausa|terminado), seccion {id, nombre, pagina, inicioPrevistoMs},
   siguiente, secciones [{id, nombre, duracionSeg, pagina, inicioPrevistoMs, estado
-  (hecha|actual|pendiente)}], pagina, color }
+  (hecha|actual|pendiente)}], vivos [{plataforma, nombre, url, embed, enVivo}], pagina, color }
 -->
 </body>
 </html>
@@ -199,6 +230,7 @@ SitioWeb SitioWeb::leer(const fs::path& carpetaWeb, const Evento& e) {
     s.subdominio = j.value("subdominio", s.subdominio);
     s.barra = j.value("barra", s.barra);
     s.direccionAlIniciar = j.value("direccion_al_iniciar", s.direccionAlIniciar);
+    if (j.contains("vivos") && j["vivos"].is_object()) s.vivos = j["vivos"];
     return s;
 }
 
@@ -211,6 +243,7 @@ json SitioWeb::aJson() const {
     j["subdominio"] = subdominio;
     j["barra"] = barra;
     j["direccion_al_iniciar"] = direccionAlIniciar;
+    j["vivos"] = vivos.is_object() ? vivos : json::object();
     return j;
 }
 
@@ -260,17 +293,28 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
         return r;
     }
     SitioWeb s = SitioWeb::leer(dir, e);
-    if (!fs::exists(dir / "sitio.json")) s.guardar(dir);
+    // Lo que escribió la plantilla, por archivo: si sigue igual (nadie lo tocó), se
+    // actualiza con la plantilla y el guion de ahora; si lo editaron, no se toca.
+    json huellas = s.resto.value("plantillas", json::object());
+    if (!huellas.is_object()) huellas = json::object();
     const std::string titulo = s.titulo.empty() ? (e.nombre.empty() ? std::string("El evento") : e.nombre) : s.titulo;
     const auto poner = [&](const std::string& rel, std::string texto) {
         reemplazar(texto, "{{color}}", s.color);
         reemplazar(texto, "{{fondo}}", s.fondo);
         if (fs::exists(dir / rel) && !sobrescribir) {
-            r.salteadas.push_back(rel);
-            return;
+            const std::string actual = leerArchivo(dir / rel);
+            const bool intacta = huellas.contains(rel) && huellas[rel] == huella(actual);
+            if (!intacta || actual == texto) {
+                if (!intacta) r.salteadas.push_back(rel);
+                return;
+            }
         }
-        if (escribir(dir / rel, texto)) r.escritas.push_back(rel);
-        else r.error = "no se pudo escribir " + rel;
+        if (escribir(dir / rel, texto)) {
+            r.escritas.push_back(rel);
+            huellas[rel] = huella(texto);
+        } else {
+            r.error = "no se pudo escribir " + rel;
+        }
     };
     poner("estilo.css", kEstilo);
 
@@ -291,6 +335,12 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
           << bajada;
         if (!cuando.empty()) o << "    <div class=\"tarjeta\"><div class=\"cuando\">" << escapar(cuando) << "</div>\n"
                                << "      <div class=\"cuenta\" data-vivo=\"cuenta\"></div></div>\n";
+        o     << "    <section class=\"en-vivo\" data-vivo=\"donde\">\n"
+          << "      <h2>Miralo en vivo</h2>\n"
+          << "      <!-- El reproductor del vivo (YouTube primero) y los botones de cada plataforma: los completa vivo.js. -->\n"
+          << "      <div class=\"reproductor\" data-vivo=\"reproductor\" data-plataforma=\"youtube\"></div>\n"
+          << "      <nav class=\"plataformas\" data-vivo=\"vivos\"></nav>\n"
+          << "    </section>\n";
         o << "    <section data-vivo=\"programa\">\n    <h2>Programa</h2>\n" << agendaHtml(e) << "    </section>\n";
         o << "    <div class=\"tarjeta\"><p>¿Te invitaron a participar? <a href=\"/invitados/\">Entrá a la sala</a>.</p></div>\n"
           << "    <footer>Esta página se actualiza sola cuando empieza el evento.</footer>\n  </main>\n" << kAyuda;
@@ -316,6 +366,12 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
                                               : std::string("el cierre"))
           << "</span></p>\n"
           << "    </div>\n"
+<< "    <section class=\"en-vivo\" data-vivo=\"donde\">\n"
+          << "      <h2>Miralo en vivo</h2>\n"
+          << "      <!-- El reproductor del vivo (YouTube primero) y los botones de cada plataforma: los completa vivo.js. -->\n"
+          << "      <div class=\"reproductor\" data-vivo=\"reproductor\" data-plataforma=\"youtube\"></div>\n"
+          << "      <nav class=\"plataformas\" data-vivo=\"vivos\"></nav>\n"
+          << "    </section>\n"
           << "    <div class=\"tarjeta\"><div class=\"progreso\"><div id=\"barraProgreso\"></div></div>\n"
           << "      <p id=\"textoProgreso\"></p></div>\n"
           << "    <script>\n"
@@ -350,13 +406,114 @@ ResultadoWeb generar(const Evento& e, const fs::path& dir, bool sobrescribir) {
         o << "  </main>\n" << kAyuda;
         poner("cierre.html", o.str());
     }
+    s.resto["plantillas"] = huellas;
+    s.guardar(dir);
     return r;
+}
+
+// --- Dónde se ve en vivo ---------------------------------------------------------------
+
+std::string idDeYouTube(const std::string& t) {
+    const auto valido = [](const std::string& id) {
+        if (id.size() != 11) return false;
+        for (char c : id)
+            if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-' && c != '_') return false;
+        return true;
+    };
+    if (valido(t)) return t;
+    for (const char* m : {"v=", "youtu.be/", "/live/", "/embed/", "/shorts/"}) {
+        const auto p = t.find(m);
+        if (p == std::string::npos) continue;
+        const std::string id = t.substr(p + std::char_traits<char>::length(m), 11);
+        if (valido(id)) return id;
+    }
+    return {};
+}
+
+namespace {
+std::string urlCodificada(const std::string& s) {
+    static const char* hex = "0123456789ABCDEF";
+    std::string o;
+    for (unsigned char c : s) {
+        if (std::isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') o += static_cast<char>(c);
+        else { o += '%'; o += hex[c >> 4]; o += hex[c & 15]; }
+    }
+    return o;
+}
+std::string loginDeTwitch(std::string t) {
+    for (const char* m : {"twitch.tv/"}) {
+        const auto p = t.find(m);
+        if (p != std::string::npos) t = t.substr(p + std::char_traits<char>::length(m));
+    }
+    std::string l;
+    for (char c : t) {
+        if (c == '/' || c == '?' || c == '#') break;
+        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') l += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    return l;
+}
+} // namespace
+
+json armarVivos(const SitioWeb& s, const json& pl) {
+    json out = json::array();
+    const json man = s.vivos.is_object() ? s.vivos : json::object();
+    const json yt = pl.value("youtube", json::object()), tw = pl.value("twitch", json::object()),
+               fb = pl.value("facebook", json::object());
+    // YouTube: lo fijado (un video/vivo o un canal), el vivo que transmite la app, o el del canal.
+    {
+        const std::string m = man.value("youtube", std::string());
+        std::string id = idDeYouTube(m);
+        std::string canal;
+        if (id.empty() && m.find("/channel/") != std::string::npos) {
+            canal = m.substr(m.find("/channel/") + 9, 24);
+        }
+        bool enVivo = false;
+        if (id.empty() && canal.empty()) {
+            id = yt.value("liveId", std::string());
+            enVivo = !id.empty();
+            if (id.empty()) canal = yt.value("canalId", std::string());
+        }
+        if (!id.empty())
+            out.push_back({{"plataforma", "youtube"}, {"nombre", "YouTube"}, {"enVivo", enVivo},
+                           {"url", "https://www.youtube.com/watch?v=" + id},
+                           {"embed", "https://www.youtube.com/embed/" + id + "?autoplay=1&mute=1&playsinline=1"}});
+        else if (!canal.empty())
+            out.push_back({{"plataforma", "youtube"}, {"nombre", "YouTube"}, {"enVivo", false},
+                           {"url", "https://www.youtube.com/channel/" + canal + "/live"},
+                           {"embed", "https://www.youtube.com/embed/live_stream?channel=" + canal + "&autoplay=1&mute=1"}});
+    }
+    // Twitch: el canal (fijado o el de la cuenta).
+    {
+        std::string login = loginDeTwitch(man.value("twitch", std::string()));
+        if (login.empty()) login = tw.value("login", std::string());
+        if (!login.empty())
+            out.push_back({{"plataforma", "twitch"}, {"nombre", "Twitch"}, {"enVivo", tw.value("enVivo", false)},
+                           {"url", "https://www.twitch.tv/" + login},
+                           {"embed", "https://player.twitch.tv/?channel=" + login + "&muted=true"}});
+    }
+    // Facebook: el vivo (fijado, o el que creó la app en la página).
+    {
+        std::string url = man.value("facebook", std::string());
+        bool enVivo = false;
+        if (url.empty()) {
+            url = fb.value("url", std::string());
+            const std::string live = fb.value("liveId", std::string()), page = fb.value("pageId", std::string());
+            if (url.empty() && !live.empty() && !page.empty()) url = "https://www.facebook.com/" + page + "/videos/" + live + "/";
+            enVivo = !live.empty();
+        }
+        if (url.rfind("http", 0) != 0 && !url.empty()) url = "https://www.facebook.com/" + url;
+        if (!url.empty())
+            out.push_back({{"plataforma", "facebook"}, {"nombre", "Facebook"}, {"enVivo", enVivo}, {"url", url},
+                           {"embed", "https://www.facebook.com/plugins/video.php?href=" + urlCodificada(url) +
+                                         "&show_text=false&autoplay=true&mute=true"}});
+    }
+    return out;
 }
 
 // --- Estado público ------------------------------------------------------------------
 
 json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado, int bloque, std::int64_t inicioMs,
-                   std::int64_t arrancoMs, std::int64_t ahoraMs) {
+                   std::int64_t arrancoMs, std::int64_t ahoraMs, const json& vivos) {
     json secciones = json::array();
     std::int64_t previsto = inicioMs; // la hora prevista de cada sección, sumando duraciones
     for (std::size_t i = 0; i < e.bloques.size(); ++i) {
@@ -395,7 +552,8 @@ json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado
             {"secciones", secciones},
             {"pagina", pagina},
             {"barra", s.barra},
-            {"color", s.color}};
+            {"color", s.color},
+            {"vivos", vivos.is_array() ? vivos : json::array()}};
 }
 
 std::string resolverPagina(const Evento& e, const std::string& pedidaCruda) {

@@ -631,6 +631,15 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
         serveStatic(fd, dir, rel);
         return;
     }
+    if (path == "/api/evento/vivos" && method == "GET") {
+        // Dónde se ve en vivo (YouTube, Twitch, Facebook): links para abrir y para embeber.
+        const json e = eventoWeb();
+        const json est = e.value("estado", json::object());
+        json out{{"activo", eventoWebActivo()}, {"vivos", est.value("vivos", json::array())}};
+        http::sendResponse(fd, 200, "application/json", out.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace),
+                           "Cache-Control: no-store\r\n");
+        return;
+    }
     if (path == "/api/evento" && method == "GET") {
         // Lo público del evento en vivo (sin la carpeta del disco).
         const json e = eventoWeb();

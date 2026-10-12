@@ -201,6 +201,16 @@ QString EventoViewModel::setWebSitio(const QVariantMap& campos) {
     if (campos.contains("fondo")) s.fondo = campos.value("fondo").toString().toStdString();
     if (campos.contains("barra")) s.barra = campos.value("barra").toBool();
     if (campos.contains("direccion_al_iniciar")) s.direccionAlIniciar = campos.value("direccion_al_iniciar").toBool();
+    if (campos.contains("vivos")) {
+        const QVariantMap v = campos.value("vivos").toMap();
+        for (auto it = v.begin(); it != v.end(); ++it) {
+            const std::string k = it.key().toStdString();
+            if (k != "youtube" && k != "twitch" && k != "facebook") continue;
+            const std::string val = it.value().toString().trimmed().toStdString();
+            if (val.empty()) s.vivos.erase(k);
+            else s.vivos[k] = val;
+        }
+    }
     if (campos.contains("subdominio")) {
         const std::string sub = evento::subdominioDe(campos.value("subdominio").toString().toStdString());
         if (sub.empty() && !campos.value("subdominio").toString().trimmed().isEmpty())
@@ -269,7 +279,8 @@ void EventoViewModel::publicarWeb() {
             if (dt.isValid()) inicioMs = dt.toMSecsSinceEpoch();
         }
         const evento::SitioWeb s = evento::SitioWeb::leer(dir.toStdWString(), e_);
-        json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0);
+        const json vivos = evento::armarVivos(s, plataformas_ ? plataformas_() : json::object());
+        json estado = evento::estadoPublico(e_, s, est, bloque, inicioMs, webArranqueMs_, 0, vivos);
         estado["version"] = webVersion_;
         cuerpo = {{"activo", true}, {"dir", dir.toStdString()}, {"estado", estado}};
     }

@@ -249,6 +249,9 @@ class EventoViewModel : public QObject {
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);
     /// Los vinculos se crean despues que el guion, asi que se enchufan aparte.
     void setVinculos(graficos::Vinculos* v) { vinculos_ = v; }
+    /// Lo que se sabe de YouTube, Twitch y Facebook para «dónde verlo en vivo» de la
+    /// página web (ver evento::armarVivos). Lo pone StudioViewModel.
+    void setPlataformas(std::function<nlohmann::json()> f) { plataformas_ = std::move(f); }
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
@@ -419,6 +422,7 @@ class EventoViewModel : public QObject {
     /// cuándo arrancó el guion, la versión del sitio (cambia al regenerar/editar) y lo
     /// último que se mandó (para no repetir).
     QTimer webTimer_;
+    std::function<nlohmann::json()> plataformas_;
     qint64 webArranqueMs_ = 0;
     int webVersion_ = 1;
     QByteArray webUltimo_;

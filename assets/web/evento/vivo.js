@@ -9,6 +9,9 @@
 //   cuenta        cuánto falta para empezar
 //   transcurrido  cuánto lleva el evento
 //   agenda        una lista con <li data-seccion="<id>">: marca hecha / actual
+//   vivos         botones «Ver en YouTube / Twitch / Facebook»
+//   reproductor   el vivo embebido (data-plataforma="youtube" para elegir cuál)
+//   donde         se esconde si no hay dónde verlo
 // Y avisa en window con el evento «evento» (e.detail = el estado entero).
 "use strict";
 (function () {
@@ -63,6 +66,45 @@
       }
     }
   }
+  // Dónde verlo en vivo: botones (data-vivo="vivos") y el reproductor embebido
+  // (data-vivo="reproductor", data-plataforma="youtube|twitch|facebook" para preferir uno).
+  function embedDe(v) {
+    // Twitch exige el host de la página que lo embebe.
+    return v.plataforma === "twitch" ? v.embed + "&parent=" + encodeURIComponent(location.hostname) : v.embed;
+  }
+  function pintarVivos(vivos) {
+    for (const el of document.querySelectorAll('[data-vivo="donde"]')) el.hidden = !vivos.length;
+    for (const nav of document.querySelectorAll('[data-vivo="vivos"]')) {
+      const firma = JSON.stringify(vivos.map((v) => [v.plataforma, v.url, v.enVivo]));
+      if (nav.dataset.firma === firma) continue;
+      nav.dataset.firma = firma;
+      nav.textContent = "";
+      for (const v of vivos) {
+        const a = document.createElement("a");
+        a.href = v.url; a.target = "_blank"; a.rel = "noopener";
+        a.className = "plataforma " + v.plataforma + (v.enVivo ? " al-aire" : "");
+        a.textContent = (v.enVivo ? "● " : "") + "Ver en " + v.nombre;
+        nav.appendChild(a);
+      }
+    }
+    for (const caja of document.querySelectorAll('[data-vivo="reproductor"]')) {
+      const pref = caja.dataset.plataforma;
+      const v = vivos.find((x) => x.plataforma === pref) || vivos.find((x) => x.enVivo) || vivos[0];
+      const src = v ? embedDe(v) : "";
+      if (caja.dataset.src === src) continue;
+      caja.dataset.src = src;
+      caja.textContent = "";
+      caja.hidden = !src;
+      if (!src) continue;
+      const f = document.createElement("iframe");
+      f.src = src;
+      f.title = "En vivo por " + v.nombre;
+      f.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+      f.allowFullscreen = true;
+      f.setAttribute("frameborder", "0");
+      caja.appendChild(f);
+    }
+  }
   function aplicar(e) {
     if (!e) return;
     ultimo = e;
@@ -75,6 +117,7 @@
     poner("seccion", e.seccion ? e.seccion.nombre : "");
     poner("siguiente", e.siguiente ? e.siguiente.nombre : (e.estado === "terminado" ? "" : "el cierre"));
     rehacerAgendas(e.secciones || []);
+    pintarVivos(e.vivos || []);
     for (const el of document.querySelectorAll('[data-vivo="programa"]')) el.hidden = !(e.secciones || []).length;
     const porId = {};
     for (const s of e.secciones || []) porId[s.id] = s.estado;
