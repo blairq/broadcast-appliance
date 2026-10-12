@@ -1478,7 +1478,7 @@ void McpService::registerTools() {
                       kDefaultFontFace +
                       R"(", "size": 96}}, "layout": {"x": 0.1, "y": 0.4, "w": 0.8, "h": 0.2}}
 ], "switch": true})"};
-        t.run = [&rt, persist, sceneExists](const json& a, Done done) {
+        t.run = [&rt, &vm, persist, sceneExists](const json& a, Done done) {
             const std::string name = a["name"];
             std::vector<std::string> log;
             // Las que vienen en la lista nueva: si ya están en la escena, se
@@ -1559,7 +1559,8 @@ void McpService::registerTools() {
                         rt.moveSource(name, n, 1);
                 }
             }
-            if (a.value("switch", false)) rt.setScene(name);
+            // Como scene_switch: con la transición de entrada, el AFV y el tally.
+            if (a.value("switch", false)) vm.takeScene(QString::fromStdString(name));
             persist();
             std::string msg = "Escena '" + name + "': " + std::to_string(added) + " fuente(s).";
             for (const auto& l : log)
