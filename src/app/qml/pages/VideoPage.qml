@@ -1119,20 +1119,8 @@ Rectangle {
                                 }
                                 return puerto
                             }
-                            function armar(cual) {
-                                const ps = compPanel.puertos
-                                const c = {}
-                                // Primero se borra todo (null) y después se pone lo del armado.
-                                for (const p of ps) c[p] = null
-                                if (cual === "pip" && ps.length >= 2) {
-                                    c[ps[0]] = { x: 0, y: 0, ancho: 1, alto: 1, orden: 0 }
-                                    c[ps[1]] = { x: 0.68, y: 0.06, ancho: 0.28, alto: 0.28, orden: 1 }
-                                } else if (cual === "lado" && ps.length >= 2) {
-                                    c[ps[0]] = { x: 0, y: 0.25, ancho: 0.5, alto: 0.5 }
-                                    c[ps[1]] = { x: 0.5, y: 0.25, ancho: 0.5, alto: 0.5 }
-                                }
-                                page.avisar(page.vg.ajustar(page.sel, { capas: c }))
-                            }
+                            // La disposición la arma el modelo (VideoGrafos::aplicarDisposicion), la misma que video_mosaico.
+                            function armar(cual) { page.avisar(page.vg.aplicarDisposicionUi(page.sel, cual)) }
                             Text { text: "Nombre de la fuente"; color: Theme.textDim; font.pixelSize: 12 }
                             TextField {
                                 Layout.fillWidth: true

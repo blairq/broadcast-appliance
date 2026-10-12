@@ -79,6 +79,13 @@ class ControlCamaras : public QObject {
     /// {activo, seguir_suave_permitido} (Config/ptz-interlock.json).
     Q_INVOKABLE QVariantMap interlock() const;
     Q_INVOKABLE void setInterlock(const QVariantMap& cambios);
+    /// Si mover la cámara de `entrada` necesita que alguien confirme: "" si se
+    /// puede mover ya, o el porqué (está al aire y el interlock está prendido).
+    /// Lo consultan todos antes de mover (las páginas, que preguntan; el MCP,
+    /// que lo devuelve como error salvo `forzar`). `forzar`: ya se confirmó.
+    /// `modo`: "" (movimiento común) o "seguir_suave" (ptz/Interlock.hpp).
+    Q_INVOKABLE QString chequearMovimiento(const QString& entrada, bool forzar = false,
+                                           const QString& modo = QString()) const;
     Q_INVOKABLE QString mover(const QString& entrada, double pan, double tilt, double zoom);
     Q_INVOKABLE QString parar(const QString& entrada);
     Q_INVOKABLE QString enfocar(const QString& entrada, double velocidad);

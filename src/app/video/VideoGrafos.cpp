@@ -2685,6 +2685,73 @@ std::string VideoGrafos::armarPanoramica(const std::vector<std::string>& camaras
     return {};
 }
 
+json VideoGrafos::capasDeDisposicion(const std::string& disposicion, const std::vector<std::string>& puertos,
+                                     std::string* error) {
+    const auto falla = [error](const std::string& m) {
+        if (error != nullptr) *error = m;
+        return json();
+    };
+    const std::string d = disposicion.empty() ? std::string("mosaico") : disposicion;
+    if (d != "mosaico" && d != "pip" && d != "lado")
+        return falla("no conozco la disposición «" + disposicion + "» (mosaico, pip o lado)");
+    if (d != "mosaico" && puertos.size() < 2) return falla("hacen falta al menos dos entradas");
+    const size_t n = puertos.size();
+    json capas = json::object();
+    for (size_t i = 0; i < n; ++i) {
+        json k;
+        if (d == "pip") {
+            k = i == 0 ? json{{"x", 0}, {"y", 0}, {"ancho", 1}, {"alto", 1}, {"orden", 0}}
+                       : json{{"x", 0.68},
+                              {"y", 0.06 + 0.3 * static_cast<double>(i - 1)},
+                              {"ancho", 0.28},
+                              {"alto", 0.28},
+                              {"orden", static_cast<int>(i)}};
+        } else if (d == "lado") {
+            const double w = 1.0 / static_cast<double>(n);
+            // Cada una en su franja de toda la altura: el encaje la centra (con
+            // dos de 16:9 queda en y 0,25 y alto 0,5; con otras, sin estirarlas).
+            k = {{"x", w * static_cast<double>(i)}, {"y", 0}, {"ancho", w}, {"alto", 1}};
+        } else if (n == 3) {
+            // Tres en una grilla de 2x2 dejan un hueco negro: la primera
+            // arriba al centro y las otras dos abajo.
+            k = i == 0 ? json{{"x", 0.25}, {"y", 0}, {"ancho", 0.5}, {"alto", 0.5}}
+                       : json{{"x", 0.5 * static_cast<double>(i - 1)}, {"y", 0.5}, {"ancho", 0.5}, {"alto", 0.5}};
+        } else {
+            k = nullptr; // mosaico: sin posición, la grilla
+        }
+        capas[puertos[i]] = k;
+    }
+    return capas;
+}
+
+std::string VideoGrafos::disponerEn(GrafoVideo& g, const std::string& comp, const std::string& disposicion,
+                                    const std::vector<std::string>& puertos) {
+    std::string e;
+    const json capas = capasDeDisposicion(disposicion, puertos, &e);
+    if (capas.is_null()) return e;
+    const GrafoVideo::Nodo* n = g.nodo(comp);
+    if (n == nullptr || n->tipo != "compositor") return "«" + comp + "» no es un compositor";
+    // Las capas se mezclan clave por clave: primero se borran todas las que
+    // había (si no, quedaría el `orden` de un pip o la opacidad de antes).
+    json borrar = json::object();
+    for (const auto& [puerto, k] : n->params.value("capas", json::object()).items()) borrar[puerto] = nullptr;
+    if (!borrar.empty() && !g.ajustar(comp, json{{"capas", borrar}}, &e)) return e;
+    if (!capas.empty() && !g.ajustar(comp, json{{"capas", capas}}, &e)) return e;
+    return {};
+}
+
+std::string VideoGrafos::aplicarDisposicion(const std::string& compositor, const std::string& disposicion) {
+    return editar([&](GrafoVideo& g) {
+        const GrafoVideo::Nodo* n = g.nodo(compositor);
+        if (n == nullptr || n->tipo != "compositor") return "«" + compositor + "» no es un compositor";
+        // Sus entradas conectadas, en el orden de sus puertos (la primera es el fondo del pip).
+        std::vector<std::string> puertos;
+        for (const auto& p : g.puertosEntrada(*n))
+            if (!p.pedido && p.tipo == "video") puertos.push_back(p.id);
+        return disponerEn(g, compositor, disposicion, puertos);
+    });
+}
+
 std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vector<std::string>& entradas,
                                       const std::string& disposicion, const std::string& nombre,
                                       bool ocultarSueltas, json* hecho) {
@@ -2693,6 +2760,10 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
     if (entradas.size() < 2) return "hacen falta al menos dos entradas";
     for (const auto& e : entradas)
         if (!esEntrada(e)) return "«" + e + "» no es una entrada de video";
+    {
+        std::string e;
+        if (capasDeDisposicion(disposicion, entradas, &e).is_null()) return e;
+    }
     std::string comp;
     const std::string err = editar([&](GrafoVideo& g) {
         std::string e;
@@ -2717,40 +2788,17 @@ std::string VideoGrafos::armarMosaico(const std::string& escena, const std::vect
         if (!g.ajustar(comp, params, &e)) return e;
         if (!nombre.empty()) g.ajustar(comp, json{{"etiqueta", nombre}}, nullptr);
         // De cada entrada, lo que llega a su escena (con sus tarjetas).
-        json capas = json::object();
-        for (size_t i = 0; i < entradas.size(); ++i) {
-            std::string desde = GrafoVideo::idEntrada(entradas[i]);
+        std::vector<std::string> puertos;
+        for (const auto& entrada : entradas) {
+            std::string desde = GrafoVideo::idEntrada(entrada);
             for (const auto& c : g.cables())
-                if (c.hacia == GrafoVideo::idEscena(entradas[i]) && c.entrada == "in") desde = c.desde;
+                if (c.hacia == GrafoVideo::idEscena(entrada) && c.entrada == "in") desde = c.desde;
             const std::string puerto = g.conectar(desde, "out", comp, "", &e);
             if (puerto.empty()) return e;
-            json k;
-            if (disposicion == "pip") {
-                k = i == 0 ? json{{"x", 0}, {"y", 0}, {"ancho", 1}, {"alto", 1}, {"orden", 0}}
-                           : json{{"x", 0.68},
-                                  {"y", 0.06 + 0.3 * static_cast<double>(i - 1)},
-                                  {"ancho", 0.28},
-                                  {"alto", 0.28},
-                                  {"orden", static_cast<int>(i)}};
-            } else if (disposicion == "lado") {
-                const double w = 1.0 / static_cast<double>(entradas.size());
-                // Cada una en su franja de toda la altura: el encaje la centra.
-                k = {{"x", w * static_cast<double>(i)}, {"y", 0}, {"ancho", w}, {"alto", 1}};
-            } else if (entradas.size() == 3) {
-                // Tres en una grilla de 2x2 dejan un hueco negro: la primera
-                // arriba al centro y las otras dos abajo.
-                k = i == 0 ? json{{"x", 0.25}, {"y", 0}, {"ancho", 0.5}, {"alto", 0.5}}
-                           : json{{"x", 0.5 * static_cast<double>(i - 1)},
-                                  {"y", 0.5},
-                                  {"ancho", 0.5},
-                                  {"alto", 0.5}};
-            } else {
-                k = nullptr; // mosaico: sin posición, la grilla
-            }
-            capas[puerto] = k;
+            puertos.push_back(puerto);
         }
-        g.ajustar(comp, json{{"capas", capas}}, nullptr);
-        return std::string();
+        // La misma disposición que el botón de la página Video.
+        return disponerEn(g, comp, disposicion, puertos);
     });
     if (!err.empty()) return err;
     const std::string pe = ponerEnEscena(comp, escena);

@@ -10,6 +10,7 @@
 //
 // Sin red de verdad ni cámaras: corre en cualquier máquina (y en CI).
 
+#include "ptz/Interlock.hpp"
 #include "ptz/OnvifBusqueda.hpp"
 #include "ptz/Posiciones.hpp"
 #include "ptz/PtzOnvif.hpp"
@@ -537,9 +538,27 @@ void pruebaBusqueda() {
 
 } // namespace
 
+// El interlock: la cámara al aire no se mueve sin confirmar (la regla que
+// aplican la GUI, el MCP y las bancas por ControlCamaras::chequearMovimiento).
+void pruebaInterlock() {
+    const AjusteInterlock fabrica;
+    CHECK(motivoInterlock("Cam 1", false, fabrica, false, "").isEmpty(), "Interlock: fuera del aire se mueve");
+    const QString m = motivoInterlock("Cam 1", true, fabrica, false, "");
+    CHECK(!m.isEmpty() && m.contains("«Cam 1»"), "Interlock: al aire pide confirmar y nombra la cámara");
+    CHECK(motivoInterlock("Cam 1", true, fabrica, true, "").isEmpty(), "Interlock: forzar ya confirmó");
+    CHECK(motivoInterlock("Cam 1", true, AjusteInterlock{false, true}, false, "").isEmpty(),
+          "Interlock: apagado no frena");
+    CHECK(motivoInterlock("Cam 1", true, fabrica, false, kMovimientoSeguirSuave).isEmpty(),
+          "Interlock: el seguimiento suave pasa si está permitido");
+    CHECK(!motivoInterlock("Cam 1", true, AjusteInterlock{true, false}, false, kMovimientoSeguirSuave).isEmpty(),
+          "Interlock: el seguimiento suave frena si no está permitido");
+    CHECK(motivoInterlock("", true, fabrica, false, "").isEmpty(), "Interlock: sin entrada no hay qué frenar");
+}
+
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     pruebaVisca();
+    pruebaInterlock();
     pruebaPanasonic();
     pruebaOnvif();
     pruebaPosiciones();

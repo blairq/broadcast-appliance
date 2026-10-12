@@ -12,12 +12,13 @@ import "../controls"
 
 Rectangle {
     id: page
-    // Interlock: la cámara AL AIRE no se mueve sin preguntar (se vería el movimiento).
+    // Interlock: la regla es del modelo (chequearMovimiento); si pide confirmar, se pregunta.
     function siNoAlAire(accion) {
-        if (!page.cc || !page.cc.alAire(page.sel) || !page.cc.interlock().activo) { accion(); return }
+        const motivo = page.cc ? page.cc.chequearMovimiento(page.sel, false, "") : ""
+        if (motivo === "") { accion(); return }
         ApplicationWindow.window.confirm({
             title: "La cámara «" + page.sel + "» está al aire",
-            text: "Moverla se ve en la transmisión. ¿Mover igual?",
+            text: motivo + " ¿Mover igual?",
             accept: "Mover igual", reject: "Cancelar",
             action: accion
         })

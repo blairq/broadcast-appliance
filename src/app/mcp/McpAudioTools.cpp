@@ -31,6 +31,7 @@
 #include "audio/Modules.hpp"
 #include "audio/RackManager.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "ui/RielConfig.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -978,7 +979,12 @@ void McpService::registerAudioTools() {
                 return done(ToolResult::error("La interfaz grafica no esta abierta."));
             au->selectSource(QString::fromStdString(a.value("source", "")));
             if (!a.value("node", "").empty()) au->select(QString::fromStdString(a.value("node", "")));
-            w->setProperty("page", 9);
+            // El índice de la página lo sabe el riel (ui/RielConfig), como en
+            // ui_show_page: si se reordenan las páginas, esto sigue cayendo en Audio.
+            auto* riel = static_cast<RielConfig*>(vm->riel());
+            const int pagina = riel == nullptr ? -1 : riel->paginaDeId("audio");
+            if (pagina < 0) return done(ToolResult::error("No está la página Audio."));
+            w->setProperty("page", pagina);
             done(ToolResult::ok("Pestaña Audio: " + a.value("source", "")));
         };
         core_.addTool(std::move(t));

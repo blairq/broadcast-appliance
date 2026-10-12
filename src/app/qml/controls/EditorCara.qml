@@ -56,12 +56,13 @@ Popup {
         interval: 150; repeat: true; running: dlg.opened && dlg.digital
         onTriggered: dlg.pos = dlg.cc.posicion(dlg.entrada)
     }
-    // Interlock: la cámara AL AIRE no se mueve sin preguntar.
+    // Interlock: la regla es del modelo (chequearMovimiento); si pide confirmar, se pregunta.
     function siNoAlAire(accion) {
-        if (!dlg.cc || !dlg.cc.alAire(dlg.entrada) || !dlg.cc.interlock().activo) { accion(); return }
+        const motivo = dlg.cc ? dlg.cc.chequearMovimiento(dlg.entrada, false, "") : ""
+        if (motivo === "") { accion(); return }
         ApplicationWindow.window.confirm({
             title: "La cámara «" + dlg.entrada + "» está al aire",
-            text: "Moverla se ve en la transmisión. ¿Mover igual?",
+            text: motivo + " ¿Mover igual?",
             accept: "Mover igual", reject: "Cancelar", action: accion
         })
     }

@@ -772,11 +772,12 @@ void McpService::registerVideoTools() {
             "mosaico "
             "las sigue recibiendo: no se apagan). `disposicion`: mosaico (grilla; con 3, una arriba al "
             "centro y dos abajo, sin hueco), pip (la primera de fondo y las "
-            "demás chicas arriba a la derecha) o lado (una al lado de la otra). Para retocar después: "
-            "video_tarjeta_ajustar sobre el compositor (`capas`).";
+            "demás chicas arriba a la derecha) o lado (una al lado de la otra). Con `compositor` (su id) y sin "
+            "`entradas`, solo rearma ese compositor en la `disposicion` con lo que ya tiene conectado (lo mismo "
+            "que los botones «Armado» de Video). Para retocar después: video_tarjeta_ajustar sobre el compositor "
+            "(`capas`).";
         t.inputSchema = {
             {"type", "object"},
-            {"required", {"escena", "entradas"}},
             {"properties",
              {{"escena", {{"type", "string"}}},
               {"entradas", {{"type", "array"}, {"items", {{"type", "string"}}}}},
@@ -784,14 +785,28 @@ void McpService::registerVideoTools() {
               {"nombre",
                {{"type", "string"},
                 {"description", "el de la fuente del mosaico (de fábrica, «Estudio · compositor»)"}}},
-              {"ocultar_sueltas", {{"type", "boolean"}}}}}};
+              {"ocultar_sueltas", {{"type", "boolean"}}},
+              {"compositor",
+               {{"type", "string"},
+                {"description", "id de un compositor que ya está: sin `entradas`, solo lo rearma en la `disposicion`"}}}}}};
         t.examples = {
-            R"({"escena": "Exterior", "entradas": ["Cámara 1", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})"};
+            R"({"escena": "Exterior", "entradas": ["Cámara 1", "SRT 1", "SRT 2"], "nombre": "Mosaico Exterior"})",
+            R"({"compositor": "estudio.compositor", "disposicion": "lado"})"};
         t.run = [v](const json& a, Done done) {
             if (!v) return done(ToolResult::error("el video no está disponible"));
             std::vector<std::string> es;
             for (const auto& x : a.value("entradas", json::array()))
                 es.push_back(x.get<std::string>());
+            // Rearmar uno que ya está: la misma operación que los botones de la página Video.
+            if (es.empty() && a.contains("compositor")) {
+                const std::string comp = a.value("compositor", std::string());
+                const std::string disp = a.value("disposicion", std::string("mosaico"));
+                const std::string err = v->aplicarDisposicion(comp, disp);
+                if (!err.empty()) return done(ToolResult::error(err));
+                return done(ToolResult().data(json{{"compositor", comp}, {"disposicion", disp}}));
+            }
+            if (!a.contains("escena") || es.empty())
+                return done(ToolResult::error("faltan `escena` y `entradas` (o `compositor` para rearmar uno)"));
             json hecho;
             const std::string err = v->armarMosaico(
                 a.value("escena", std::string()), es, a.value("disposicion", std::string("mosaico")),

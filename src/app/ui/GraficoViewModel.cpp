@@ -6,39 +6,16 @@
 #include <algorithm>
 
 #include <QBuffer>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
-#include <QJsonDocument>
 #include <QJsonObject>
 
 #include "arranque/AppRuntime.hpp"
+#include "graficos/Catalogo.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
 
 namespace ba::app {
-namespace {
-
-QJsonObject leerJson(const QString& ruta) {
-    QFile f(ruta);
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    return QJsonDocument::fromJson(f.readAll()).object();
-}
-
-bool escribir(const QString& ruta, const QByteArray& datos) {
-    // A un temporal y renombrar: si se corta la luz, el archivo que estaba
-    // sigue entero.
-    QFile f(ruta + ".nuevo");
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
-    f.write(datos);
-    f.close();
-    QFile::remove(ruta);
-    return QFile::rename(ruta + ".nuevo", ruta);
-}
-
-} // namespace
 
 struct GraficoViewModel::Impl {
     AppRuntime& rt;
@@ -58,35 +35,17 @@ struct GraficoViewModel::Impl {
     Impl(AppRuntime& r, graficos::Emisor& e) : rt(r), em(e) {}
     graficos::GraficoProceso& proc() const { return em.proceso(); }
 
-    QString raiz() const { return em.raiz(); }
-    QString carpeta(const QString& n) const { return QDir(raiz()).filePath(n); }
+    graficos::Catalogo& catalogo() const { return em.catalogo(); }
     bool esDeclarativo() const { return ficha.contains("declarativo"); }
 
     /// El pedido para el renderizador con lo que hay EN EL EDITOR (no en
     /// disco): es lo que hace que la vista previa muestre lo que se escribe.
-    QJsonObject pedido(QString* err) const {
-        QJsonObject p{{"parametros", valores}};
-        if (esDeclarativo()) {
-            QJsonParseError pe{};
-            const QJsonDocument d = QJsonDocument::fromJson(fuente.toUtf8(), &pe);
-            if (!d.isObject()) {
-                if (err != nullptr) *err = "la descripción no es JSON válido: " + pe.errorString();
-                return {};
-            }
-            p["declarativo"] = d.object();
-        } else {
-            p["fuente"] = fuente;
-            p["ancho"] = ficha.value("ancho").toInt(900);
-            p["alto"] = ficha.value("alto").toInt(220);
-        }
-        return p;
-    }
+    /// Lo arma el catálogo, igual que para lo guardado.
+    QJsonObject pedido(QString* err) const { return graficos::Catalogo::pedidoCon(ficha, fuente, valores, err); }
 };
 
 GraficoViewModel::GraficoViewModel(AppRuntime& rt, graficos::Emisor& emisor, QObject* parent)
-    : QObject(parent), d_(std::make_unique<Impl>(rt, emisor)) {
-    QDir().mkpath(d_->raiz());
-}
+    : QObject(parent), d_(std::make_unique<Impl>(rt, emisor)) {}
 
 GraficoViewModel::~GraficoViewModel() = default;
 
@@ -131,26 +90,7 @@ void GraficoViewModel::setMomentoMs(int ms) {
     redibujar();
 }
 
-QVariantList GraficoViewModel::graficos() const {
-    QVariantList out;
-    for (const QString& n : QDir(d_->raiz()).entryList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-        const QJsonObject f = leerJson(QDir(d_->carpeta(n)).filePath("grafico.json"));
-        out.append(QVariantMap{{"nombre", n},
-                               {"titulo", f.value("nombre").toString(n)},
-                               {"descripcion", f.value("descripcion").toString()},
-                               {"categoria", f.value("categoria").toString("General")},
-                               {"declarativo", f.contains("declarativo")}});
-    }
-    // Agrupados por categoría (la lista los muestra con su título): «General» primero.
-    std::stable_sort(out.begin(), out.end(), [](const QVariant& a, const QVariant& b) {
-        const QString ca = a.toMap()["categoria"].toString(), cb = b.toMap()["categoria"].toString();
-        if (ca == cb) return false;
-        if (ca == "General") return true;
-        if (cb == "General") return false;
-        return ca < cb;
-    });
-    return out;
-}
+QVariantList GraficoViewModel::graficos() const { return d_->catalogo().lista().toVariantList(); }
 
 QVariantList GraficoViewModel::parametros() const {
     QVariantList out;
@@ -181,30 +121,17 @@ void GraficoViewModel::refrescar() {
 }
 
 bool GraficoViewModel::abrir(const QString& nombre) {
-    const QString c = d_->carpeta(nombre);
-    if (!QFileInfo(c).isDir()) {
-        emit notify("No existe el gráfico «" + nombre + "»", "error");
+    QString err;
+    if (d_->catalogo().carpeta(nombre, &err).isEmpty()) {
+        emit notify(err, "error");
         return false;
     }
     d_->abierto = nombre;
-    d_->ficha = leerJson(QDir(c).filePath("grafico.json"));
-
-    if (d_->esDeclarativo()) {
-        // Se edita la DESCRIPCIÓN, no el QML: el QML lo genera el motor.
-        d_->fuente = QString::fromUtf8(
-            QJsonDocument(d_->ficha.value("declarativo").toObject()).toJson(QJsonDocument::Indented));
-    } else {
-        QFile f(QDir(c).filePath("grafico.qml"));
-        d_->fuente = f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
-    }
+    d_->ficha = d_->catalogo().ficha(nombre);
+    d_->fuente = d_->catalogo().texto(nombre);
     d_->fuenteEnDisco = d_->fuente;
-
     // Los valores arrancan en los que el gráfico declara por defecto.
-    d_->valores = {};
-    for (const QJsonValue& v : d_->ficha.value("parametros").toArray()) {
-        const QJsonObject p = v.toObject();
-        d_->valores[p.value("clave").toString()] = p.value("porDefecto");
-    }
+    d_->valores = graficos::Catalogo::valoresPorDefecto(d_->ficha);
     d_->momentoMs = 0;
     emit abiertoChanged();
     emit fuenteChanged();
@@ -215,70 +142,22 @@ bool GraficoViewModel::abrir(const QString& nombre) {
 }
 
 QString GraficoViewModel::crear(const QString& nombre, bool declarativo) {
-    const QString limpio = QString(nombre).remove(QRegularExpression("[^A-Za-z0-9 _-]")).trimmed();
-    if (limpio.isEmpty()) return "ese nombre no sirve";
-    const QString c = d_->carpeta(limpio);
-    if (QFileInfo::exists(c)) return "ya hay un gráfico con ese nombre";
-    if (!QDir().mkpath(c)) return "no se pudo crear la carpeta";
-
-    QJsonObject ficha{{"nombre", limpio},
-                      {"descripcion", ""},
-                      {"ancho", 900},
-                      {"alto", 220},
-                      {"parametros", QJsonArray{QJsonObject{{"clave", "texto"},
-                                                            {"titulo", "Texto"},
-                                                            {"tipo", "texto"},
-                                                            {"porDefecto", "Hola"},
-                                                            {"ayuda", "Lo que dice el gráfico."}}}}};
-    if (declarativo) {
-        ficha["declarativo"] =
-            QJsonObject{{"ancho", 900},
-                        {"alto", 220},
-                        {"capas", QJsonArray{QJsonObject{{"tipo", "panel"},
-                                                         {"izquierda", 0},
-                                                         {"abajo", 30},
-                                                         {"alto", 100},
-                                                         {"ancho", 500},
-                                                         {"color", "#12151a"}},
-                                             QJsonObject{{"tipo", "texto"},
-                                                         {"id", "t"},
-                                                         {"valor", "{texto}"},
-                                                         {"tamano", 40},
-                                                         {"izquierda", 28},
-                                                         {"abajo", 60},
-                                                         {"aparece", 200}}}},
-                        {"entrada", QJsonObject{{"efecto", "desliza-izquierda"}, {"duracion", 450}}}};
-    } else {
-        escribir(QDir(c).filePath("grafico.qml"),
-                 "import QtQuick\n\nItem {\n    id: raiz\n    width: 900\n    height: 220\n\n"
-                 "    property string texto: \"Hola\"\n\n"
-                 "    Text {\n        text: raiz.texto\n        color: \"white\"\n"
-                 "        font.pixelSize: 40\n        renderType: Text.QtRendering\n"
-                 "        y: raiz.height - 90\n        opacity: 0\n"
-                 "        NumberAnimation on opacity { to: 1; duration: 400; running: true }\n"
-                 "    }\n}\n");
-    }
-    escribir(QDir(c).filePath("grafico.json"), QJsonDocument(ficha).toJson());
+    QString creado;
+    const QString err = d_->catalogo().crear(nombre, declarativo, &creado);
+    if (!err.isEmpty()) return err;
     emit listaChanged();
-    abrir(limpio);
+    abrir(creado);
     return {};
 }
 
 bool GraficoViewModel::guardar() {
     if (d_->abierto.isEmpty()) return false;
-    const QString c = d_->carpeta(d_->abierto);
-    if (d_->esDeclarativo()) {
-        QJsonParseError pe{};
-        const QJsonDocument doc = QJsonDocument::fromJson(d_->fuente.toUtf8(), &pe);
-        if (!doc.isObject()) {
-            emit notify("No se guardó: la descripción no es JSON válido (" + pe.errorString() + ")", "error");
-            return false;
-        }
-        d_->ficha["declarativo"] = doc.object();
-        escribir(QDir(c).filePath("grafico.json"), QJsonDocument(d_->ficha).toJson());
-    } else {
-        escribir(QDir(c).filePath("grafico.qml"), d_->fuente.toUtf8());
+    const QString err = d_->catalogo().guardar(d_->abierto, d_->fuente);
+    if (!err.isEmpty()) {
+        emit notify("No se guardó: " + err, "error");
+        return false;
     }
+    d_->ficha = d_->catalogo().ficha(d_->abierto);
     d_->fuenteEnDisco = d_->fuente;
     emit sucioChanged();
     emit notify("Gráfico guardado", "ok");
