@@ -268,6 +268,10 @@ class EventoViewModel : public QObject {
 
     // --- Correr ---------------------------------------------------------------
     Q_INVOKABLE void arrancar();
+    /// Arrancar con la revisión previa: revisa y, si encontró problemas graves y no
+    /// se pide `forzar`, NO arranca y devuelve cuántos son (la GUI pregunta, el MCP
+    /// pide forzar). 0 = arrancó.
+    Q_INVOKABLE int arrancarRevisando(bool forzar);
     Q_INVOKABLE void avanzar();
     Q_INVOKABLE void retroceder();
     Q_INVOKABLE void irA(int bloque, int cue);

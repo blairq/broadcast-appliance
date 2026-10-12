@@ -1269,13 +1269,19 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
                 {"enum", {"arrancar", "siguiente", "atras", "ir", "pausar", "reanudar", "parar"}}}},
               {"bloque", {{"type", "integer"}, {"minimum", 0}}},
               {"cue", {{"type", "integer"}, {"minimum", 0}}},
-              {"ensayo", {{"type", "boolean"}, {"description", "Recorrer sin salir al aire."}}}}},
+              {"ensayo", {{"type", "boolean"}, {"description", "Recorrer sin salir al aire."}}},
+              {"forzar", {{"type", "boolean"}, {"description", "arrancar aunque la revisión encuentre problemas graves"}}}}},
             {"required", {"accion"}}};
         t.run = [&ev](const json& a, Done done) {
             if (a.contains("ensayo")) ev.setEnsayo(a["ensayo"].get<bool>());
             const std::string accion = a["accion"];
-            if (accion == "arrancar")
-                ev.arrancar();
+            if (accion == "arrancar") {
+                // La misma revisión previa que la GUI: con problemas graves no arranca sin `forzar`.
+                if (const int graves = ev.arrancarRevisando(a.value("forzar", false)); graves > 0)
+                    return done(ToolResult::error("La revisión encontró " + std::to_string(graves) +
+                                                  " problema(s) grave(s): mirá evento_revisar (o evento_verificar) "
+                                                  "y corregilos, o repetí con `forzar`: true."));
+            }
             else if (accion == "siguiente")
                 ev.avanzar();
             else if (accion == "atras")

@@ -1476,6 +1476,14 @@ void EventoViewModel::anotar(const QString& texto, const QString& tipo) {
     emit bitacoraChanged();
 }
 
+int EventoViewModel::arrancarRevisando(bool forzar) {
+    revisar();
+    const int graves = static_cast<int>(std::count_if(reparos_.begin(), reparos_.end(), [](const evento::Reparo& r) { return r.grave; }));
+    if (graves > 0 && !forzar) return graves;
+    arrancar();
+    return 0;
+}
+
 void EventoViewModel::arrancar() {
     if (e_.cantidadDeCues() == 0) {
         emit notify("El guion no tiene ningún cue", "error");

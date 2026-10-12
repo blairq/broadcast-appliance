@@ -847,15 +847,14 @@ Rectangle {
                                 Layout.fillWidth: true
                                 onClicked: {
                                     if (page.ev.estado !== "parado") { page.ev.avanzar(); return }
-                                    // Antes de arrancar: si la revisión encontró algo grave, se pregunta.
-                                    page.ev.revisar()
-                                    const graves = page.ev.reparos.filter(r => r.grave).length
-                                    if (graves === 0) { page.ev.arrancar(); return }
+                                    // La revisión previa la hace el view model; si hay algo grave, se pregunta.
+                                    const graves = page.ev.arrancarRevisando(false)
+                                    if (graves === 0) return
                                     ApplicationWindow.window.confirm({
                                         title: "¿Correr el guion igual?",
                                         text: "La revisión encontró " + graves + " problema(s) grave(s). Mirá «Revisión» antes de salir.",
                                         accept: "Correr igual", reject: "Revisar",
-                                        action: function() { page.ev.arrancar() }
+                                        action: function() { page.ev.arrancarRevisando(true) }
                                     })
                                 }
                             }
