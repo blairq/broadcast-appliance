@@ -258,6 +258,70 @@ int main(int argc, char** argv) {
         CHECK(bot.revocar(dev) == 1 && bot.accesosHttp().empty(), "se revoca como cualquier aparato");
     }
 
+    // Operaciones de una celda (las del panel del escritorio y del MCP): el
+    // formulario, la cara y «al tocar, poner este medio al aire».
+    {
+        auto herrAntes = bot.ganchos().herramientas;
+        bot.ganchos().herramientas = [herrAntes] {
+            auto s = herrAntes();
+            s.insert("media_use");
+            return s;
+        };
+        bot.ganchos().medioDeCara = [](const std::string& id) {
+            // «cam»: un video de cámara (no tiene medio para poner al aire).
+            return id == "cam" ? json{{"medio", ""}, {"video", true}} : json{{"medio", "Caras/" + id + "/medio.mp4"}, {"video", true}};
+        };
+        std::string pg;
+        CHECK(bot.crearPagina(pid, "Celdas", 4, 3, &pg).empty(), "página para probar celdas");
+        CHECK(!bot.validarLugar(pid, pg, 4, 0).empty() && !bot.validarLugar(pid, "no-existe", 0, 0).empty() &&
+                  bot.validarLugar(pid, pg, 3, 2).empty(),
+              "validarLugar: fuera de la grilla o sin página, no");
+        CHECK(!bot.formularioCelda(pid, pg, 0, 0)["existe"].get<bool>(), "formulario de una casilla vacía");
+
+        CHECK(bot.editarCelda(pid, pg, 0, 0, {{"tipo", "boton"}, {"texto", "Cam 1"}, {"fondo", "#123456"},
+                                               {"herramienta", "scene_take"}, {"args", {{"name", "Cámara 1"}}}})
+                  .empty(),
+              "editarCelda crea la celda");
+        json f = bot.formularioCelda(pid, pg, 0, 0);
+        CHECK(f["existe"] == true && f["texto"] == "Cam 1" && f["fondo"] == "#123456" && f["herramienta"] == "scene_take" &&
+                  json::parse(f["args"].get<std::string>())["name"] == "Cámara 1",
+              "el formulario muestra lo guardado");
+        CHECK(bot.editarCelda(pid, pg, 0, 0, {{"fondo", ""}, {"herramienta", ""}}).empty(), "editarCelda: vaciar");
+        f = bot.formularioCelda(pid, pg, 0, 0);
+        CHECK(f["fondo"] == "" && f["herramienta"] == "" && f["texto"] == "Cam 1", "fondo vacío se saca, sin herramienta no hay acción");
+        CHECK(bot.setCeldaEn(pid, pg, 1, 0, {{"accion", {{"tipo", "pagina"}, {"ir_a", pg}}}, {"x", 9}}).empty(),
+              "setCeldaEn: manda el lugar, no el x de adentro");
+        CHECK(bot.editarCelda(pid, pg, 1, 0, {{"texto", "Ir"}, {"herramienta", ""}}).empty() &&
+                  json::parse(bot.formularioCelda(pid, pg, 1, 0)["json"].get<std::string>())["accion"]["tipo"] == "pagina",
+              "el formulario no borra una acción de página (no la muestra)");
+
+        CHECK(bot.ponerCara(pid, pg, 2, 0, "c1", false).empty(), "ponerCara sin celda crea el botón");
+        f = bot.formularioCelda(pid, pg, 2, 0);
+        CHECK(f["imagen"] == "medio:c1" && f["herramienta"] == "" && !f["al_tocar"].get<bool>(), "la cara, sin acción");
+        CHECK(bot.setAlTocarCara(pid, pg, 2, 0, true).empty(), "al tocar: prender");
+        f = bot.formularioCelda(pid, pg, 2, 0);
+        CHECK(f["al_tocar"] == true && f["herramienta"] == "media_use" &&
+                  json::parse(f["args"].get<std::string>())["path"] == "Caras/c1/medio.mp4",
+              "la acción es media_use con el medio de la cara");
+        CHECK(bot.ponerCara(pid, pg, 2, 0, "c2", false).empty() && !bot.formularioCelda(pid, pg, 2, 0)["al_tocar"].get<bool>(),
+              "otra cara sin al_tocar: la acción queda, pero ya no es de esta cara");
+        CHECK(bot.ponerCara(pid, pg, 2, 0, "c2", true).empty() && bot.formularioCelda(pid, pg, 2, 0)["al_tocar"] == true,
+              "ponerCara con al_tocar (como botonera_cara)");
+        CHECK(bot.setAlTocarCara(pid, pg, 2, 0, false).empty() && bot.formularioCelda(pid, pg, 2, 0)["herramienta"] == "",
+              "al tocar: apagar saca la acción");
+        std::string aviso;
+        CHECK(bot.ponerCara(pid, pg, 3, 0, "cam", true, &aviso).empty() && !aviso.empty() &&
+                  bot.formularioCelda(pid, pg, 3, 0)["herramienta"] == "",
+              "un video de cámara: la cara sí, al aire no (con aviso)");
+        CHECK(!bot.setAlTocarCara(pid, pg, 3, 0, true).empty(), "al tocar con una cara de cámara: error");
+        CHECK(bot.quitarCara(pid, pg, 3, 0).empty() && bot.formularioCelda(pid, pg, 3, 0)["imagen"] == "", "quitarCara");
+
+        CHECK(!bot.avisoPermisos(pid, {{"accion", {{"tipo", "herramienta"}, {"herramienta", "media_use"}}}}).empty(),
+              "avisoPermisos: media_use no está en el perfil Director");
+        bot.borrarPagina(pid, pg);
+        bot.ganchos().herramientas = herrAntes;
+    }
+
     // Persistencia del modelo.
     {
         Botonera otra(dir.path().toStdString(), bus, g);

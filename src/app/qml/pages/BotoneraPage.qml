@@ -67,8 +67,7 @@ Rectangle {
         const c = celdaRender(x, y)
         page.selX = c ? c.x : x
         page.selY = c ? c.y : y
-        const txt = page.bot.celdaJsonUi(page.perfilId, page.paginaId, page.selX, page.selY)
-        editor.cargar(txt)
+        editor.recargar()
     }
     Component.onCompleted: refrescar()
     // El selector es un Popup (vive encima de toda la ventana): al irse de la página se cierra.
@@ -283,7 +282,7 @@ Rectangle {
                         }
                         GlassButton {
                             compact: true; text: "Exportar"
-                            onClicked: { editor.cargar(page.bot.exportarUi(page.perfilId)); editor.modo = "perfil" }
+                            onClicked: editor.mostrarPerfil(page.bot.exportarUi(page.perfilId))
                         }
                     }
                     Item { Layout.fillHeight: true }
@@ -398,43 +397,38 @@ Rectangle {
                     anchors.fill: parent
                     spacing: 8
                     property string modo: "celda"   // celda | perfil (importar/exportar)
-                    property var actual: ({})
                     property string caraRef: ""      // estilo.imagen: «medio:<id>», «ptz:…», «cuerpo:…»
+                    property bool alTocar: false     // la acción pone la cara al aire (lo decide el modelo)
                     readonly property var caraInfo: caraRef.startsWith("medio:") ? Studio.carasBotonera.info(caraRef.substring(6)) : ({})
-                    function cargar(txt) {
+                    // La celda elegida tal como la guarda el modelo (Botonera::formularioCelda).
+                    function cargar(f) {
                         editor.modo = "celda"
-                        let c = {}
-                        try { c = txt ? JSON.parse(txt) : {} } catch (e) { c = {} }
-                        editor.actual = c
-                        const est = c.estilo || {}
-                        tipoBox.currentIndex = Math.max(0, tipoBox.model.indexOf(c.tipo || "boton"))
-                        textoF.text = est.texto || ""
-                        fondoF.text = est.fondo || ""
-                        colorF.text = est.color || ""
-                        editor.caraRef = est.imagen || ""
-                        const a = c.accion || {}
-                        herrF.text = a.herramienta || ""
-                        argsF.text = a.args ? JSON.stringify(a.args) : ""
-                        jsonF.text = txt || ""
+                        f = f || {}
+                        tipoBox.currentIndex = Math.max(0, tipoBox.model.indexOf(f.tipo || "boton"))
+                        textoF.text = f.texto || ""
+                        fondoF.text = f.fondo || ""
+                        colorF.text = f.color || ""
+                        herrF.text = f.herramienta || ""
+                        argsF.text = f.args || ""
+                        editor.cargarCara(f)
                     }
-                    function armar() {
-                        const c = Object.assign({}, editor.actual)
-                        c.x = page.selX
-                        c.y = page.selY
-                        c.tipo = tipoBox.currentText
-                        c.estilo = Object.assign({}, c.estilo || {}, { texto: textoF.text })
-                        if (fondoF.text !== "") c.estilo.fondo = fondoF.text
-                        if (colorF.text !== "") c.estilo.color = colorF.text
-                        if (editor.caraRef !== "") c.estilo.imagen = editor.caraRef
-                        else delete c.estilo.imagen
-                        if (herrF.text.trim() !== "") {
-                            let args = {}
-                            if (argsF.text.trim() !== "") args = JSON.parse(argsF.text)
-                            c.accion = { tipo: "herramienta", herramienta: herrF.text.trim(), args: args }
-                        } else {
-                            delete c.accion
-                        }
-                        return c
+                    // Solo lo que puede cambiar una operación de la cara (la cara y su acción);
+                    // el texto y los colores sin guardar quedan escritos.
+                    function cargarCara(f) {
+                        editor.caraRef = f.imagen || ""
+                        editor.alTocar = !!f.al_tocar
+                        herrF.text = f.herramienta || ""
+                        argsF.text = f.args || ""
+                        jsonF.text = f.json || ""
+                    }
+                    function recargar() { editor.cargar(page.bot.celdaFormularioUi(page.perfilId, page.paginaId, page.selX, page.selY)) }
+                    function recargarCara() { editor.cargarCara(page.bot.celdaFormularioUi(page.perfilId, page.paginaId, page.selX, page.selY)) }
+                    function mostrarPerfil(txt) { editor.modo = "perfil"; jsonF.text = txt }
+                    // El resultado de una operación: el error, o lo que quedó guardado.
+                    function hecho(e, todo) {
+                        if (e !== "") Studio.notify(e, "error")
+                        else if (todo) editor.recargar()
+                        else editor.recargarCara()
                     }
                     Text {
                         text: editor.modo === "perfil" ? "Perfil (JSON)" : page.selX < 0 ? "Tocá una celda" : "Celda " + page.selX + ", " + page.selY
@@ -472,7 +466,8 @@ Rectangle {
                             }
                             GlassButton { compact: true; text: "Archivo…"; onClicked: editorCara.abrir(false) }
                             GlassButton { compact: true; text: "Cámara…"; onClicked: editorCara.abrir(true) }
-                            GlassButton { compact: true; text: "✕"; visible: editor.caraRef !== ""; onClicked: editor.caraRef = "" }
+                            GlassButton { compact: true; text: "✕"; visible: editor.caraRef !== ""
+                                          onClicked: editor.hecho(page.bot.quitarCaraUi(page.perfilId, page.paginaId, page.selX, page.selY), false) }
                             Item { Layout.fillWidth: true }
                         }
                         Item { width: 1; height: 1; visible: !!editor.caraInfo.medio }
@@ -480,12 +475,11 @@ Rectangle {
                             id: alAireCara
                             visible: !!editor.caraInfo.medio
                             text: "Al tocar, poner este medio en la escena al aire"
-                            function usa() { return herrF.text.trim() === "media_use" && argsF.text.indexOf(editor.caraInfo.medio || "\u0000") >= 0 }
-                            checked: usa()
+                            checked: editor.alTocar
                             onToggled: {
-                                if (checked) { herrF.text = "media_use"; argsF.text = JSON.stringify({ path: editor.caraInfo.medio, loop: !!editor.caraInfo.video }) }
-                                else if (herrF.text.trim() === "media_use") { herrF.text = ""; argsF.text = "" }
-                                checked = Qt.binding(usa)
+                                const on = checked
+                                checked = Qt.binding(() => editor.alTocar)
+                                editor.hecho(page.bot.alTocarCaraUi(page.perfilId, page.paginaId, page.selX, page.selY, on), false)
                             }
                         }
                         Text { text: "Herramienta"; color: Theme.textDim; font.pixelSize: 12 }
@@ -541,29 +535,19 @@ Rectangle {
                         visible: editor.modo === "celda" && page.selX >= 0
                         GlassButton {
                             compact: true; text: "Guardar"; active: true
-                            onClicked: {
-                                let c
-                                try { c = editor.armar() } catch (e) { return Studio.notify("Los argumentos no son JSON válido", "error") }
-                                const e = page.bot.setCeldaUi(page.perfilId, page.paginaId, JSON.stringify(c))
-                                if (e !== "") Studio.notify(e, "error")
-                                else editor.cargar(page.bot.celdaJsonUi(page.perfilId, page.paginaId, page.selX, page.selY))
-                            }
+                            onClicked: editor.hecho(page.bot.editarCeldaUi(page.perfilId, page.paginaId, page.selX, page.selY, {
+                                tipo: tipoBox.currentText, texto: textoF.text, fondo: fondoF.text, color: colorF.text,
+                                herramienta: herrF.text.trim(), args: argsF.text
+                            }), true)
                         }
                         GlassButton {
                             compact: true; text: "Guardar JSON"
-                            onClicked: {
-                                let c
-                                try { c = JSON.parse(jsonF.text) } catch (e) { return Studio.notify("El JSON no se entiende", "error") }
-                                c.x = page.selX
-                                c.y = page.selY
-                                const e = page.bot.setCeldaUi(page.perfilId, page.paginaId, JSON.stringify(c))
-                                if (e !== "") Studio.notify(e, "error")
-                            }
+                            onClicked: editor.hecho(page.bot.guardarCeldaJsonUi(page.perfilId, page.paginaId, page.selX, page.selY, jsonF.text), true)
                         }
                         GlassButton { compact: true; text: "Probar"; onClicked: page.bot.probarUi(page.perfilId, page.paginaId, page.selX, page.selY) }
                         GlassButton {
                             compact: true; text: "Borrar"
-                            onClicked: { page.bot.borrarCeldaUi(page.perfilId, page.paginaId, page.selX, page.selY); editor.cargar("") }
+                            onClicked: { page.bot.borrarCeldaUi(page.perfilId, page.paginaId, page.selX, page.selY); editor.cargar({}) }
                         }
                     }
                     RowLayout {
@@ -576,7 +560,7 @@ Rectangle {
                                 else { page.perfilId = r; editor.modo = "celda"; page.refrescar(); Studio.notify("Importado (sin permisos: dalos a mano)", "info") }
                             }
                         }
-                        GlassButton { compact: true; text: "Cerrar"; onClicked: editor.cargar("") }
+                        GlassButton { compact: true; text: "Cerrar"; onClicked: editor.recargar() }
                     }
                 }
             }
@@ -1065,15 +1049,8 @@ Rectangle {
     // La cara del botón: foto o video corto, de un archivo o de una cámara.
     EditorCara {
         id: editorCara
-        onElegida: (id) => {
-            editor.caraRef = "medio:" + id
-            // Se guarda ya (si no, cerrar el editor la perdía).
-            let c
-            try { c = editor.armar() } catch (e) { return }
-            const e = page.bot.setCeldaUi(page.perfilId, page.paginaId, JSON.stringify(c))
-            if (e !== "") Studio.notify(e, "error")
-            else editor.cargar(page.bot.celdaJsonUi(page.perfilId, page.paginaId, page.selX, page.selY))
-        }
+        // Se guarda ya (si no, cerrar el editor la perdía); si no hay celda, el modelo crea un botón.
+        onElegida: (id) => editor.hecho(page.bot.ponerCaraUi(page.perfilId, page.paginaId, page.selX, page.selY, id), false)
     }
 
     // El catálogo de herramientas para la celda (ver controls/SelectorHerramientas.qml).

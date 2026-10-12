@@ -82,6 +82,9 @@ class Botonera : public QObject {
         /// {id, cuadros, fps} para que cada superficie traiga los cuadros a su
         /// medida (null si no).
         std::function<json(const std::string& ref)> cara;
+        /// De una cara propia (el id, sin «medio:»): {medio (ruta para media_use;
+        /// vacía si no se puede poner al aire, p. ej. un video de cámara), video}.
+        std::function<json(const std::string& id)> medioDeCara;
         /// Las bancas que son de presidente (la central), para pedir confirmación.
         std::function<std::set<std::string>()> presidentes;
         /// Nombres de herramientas que existen (para validar y el selector).
@@ -115,6 +118,31 @@ class Botonera : public QObject {
     /// Pone (o reemplaza) la celda en (x, y). Valida tipo, acción y ligaduras.
     std::string setCelda(const std::string& perfil, const std::string& pagina, const json& celda);
     bool borrarCelda(const std::string& perfil, const std::string& pagina, int x, int y);
+    /// ¿Se puede poner una celda en (x, y)? "" o por qué no (no hay página, fuera de la grilla).
+    std::string validarLugar(const std::string& perfil, const std::string& pagina, int x, int y) const;
+    /// La celda entera `celda` en (x, y) (manda el lugar, no lo que diga adentro).
+    std::string setCeldaEn(const std::string& perfil, const std::string& pagina, int x, int y, const json& celda);
+    /// Lo que edita el formulario del escritorio, sobre la celda que haya (o una
+    /// nueva): {tipo, texto, fondo, color, herramienta, args}. Solo los campos
+    /// presentes; fondo/color vacíos se sacan; herramienta vacía saca la acción de
+    /// herramienta (una de página, secuencia o receta queda, el formulario no la muestra).
+    std::string editarCelda(const std::string& perfil, const std::string& pagina, int x, int y, const json& campos);
+    /// La cara (CarasBotonera «medio:<id>») de la celda en (x, y); si no hay
+    /// celda, crea un botón. `alTocar`: además, tocar el botón pone ese medio en
+    /// la escena al aire (media_use); si la cara no se puede poner al aire, queda
+    /// solo la cara y `aviso` lo dice. Sin `alTocar`, la acción queda como estaba.
+    std::string ponerCara(const std::string& perfil, const std::string& pagina, int x, int y, const std::string& idCara,
+                          bool alTocar, std::string* aviso = nullptr);
+    /// Saca la cara de la celda (la acción queda como estaba).
+    std::string quitarCara(const std::string& perfil, const std::string& pagina, int x, int y);
+    /// Prende o apaga «al tocar, poner este medio al aire» para la cara de la celda.
+    std::string setAlTocarCara(const std::string& perfil, const std::string& pagina, int x, int y, bool on);
+    /// La celda en (x, y) para el formulario: {existe, x, y, tipo, texto, fondo,
+    /// color, imagen, herramienta, args (texto JSON), al_tocar, json (la celda entera)}.
+    json formularioCelda(const std::string& perfil, const std::string& pagina, int x, int y) const;
+    /// Un aviso si alguna acción de la celda usa una herramienta que el perfil no
+    /// permite (hasta que una persona la sume, el botón avisa y no hace nada). "" si no.
+    std::string avisoPermisos(const std::string& perfil, const json& celda) const;
     /// Las celdas de una página con su estado renderizado ahora.
     json celdas(const std::string& perfil, const std::string& pagina) const;
     json plantillas() const;
@@ -184,9 +212,14 @@ class Botonera : public QObject {
     Q_INVOKABLE QString crearPaginaUi(const QString& perfil, const QString& nombre, int columnas, int filas);
     Q_INVOKABLE QString editarPaginaUi(const QString& perfil, const QString& pagina, const QVariantMap& cambios);
     Q_INVOKABLE bool borrarPaginaUi(const QString& perfil, const QString& pagina);
-    /// La celda como texto JSON (lo edita el panel derecho). "" o el error.
-    Q_INVOKABLE QString setCeldaUi(const QString& perfil, const QString& pagina, const QString& celdaJson);
-    Q_INVOKABLE QString celdaJsonUi(const QString& perfil, const QString& pagina, int x, int y) const;
+    /// El panel derecho: formularioCelda, editarCelda («Guardar»), setCeldaEn con
+    /// el texto JSON («Guardar JSON»), ponerCara / quitarCara / setAlTocarCara. "" o el error.
+    Q_INVOKABLE QVariantMap celdaFormularioUi(const QString& perfil, const QString& pagina, int x, int y) const;
+    Q_INVOKABLE QString editarCeldaUi(const QString& perfil, const QString& pagina, int x, int y, const QVariantMap& campos);
+    Q_INVOKABLE QString guardarCeldaJsonUi(const QString& perfil, const QString& pagina, int x, int y, const QString& texto);
+    Q_INVOKABLE QString ponerCaraUi(const QString& perfil, const QString& pagina, int x, int y, const QString& idCara);
+    Q_INVOKABLE QString quitarCaraUi(const QString& perfil, const QString& pagina, int x, int y);
+    Q_INVOKABLE QString alTocarCaraUi(const QString& perfil, const QString& pagina, int x, int y, bool on);
     Q_INVOKABLE bool borrarCeldaUi(const QString& perfil, const QString& pagina, int x, int y);
     Q_INVOKABLE QVariantList plantillasUi() const;
     Q_INVOKABLE QString exportarUi(const QString& perfil) const;
@@ -229,6 +262,11 @@ class Botonera : public QObject {
     json* buscarDispositivo(const std::string& id);
     const json* buscarDispositivo(const std::string& id) const;
     const json* celdaEn(const json& pagina, int x, int y) const;
+    /// La celda que cubre (x, y) para editarla, o una nueva {x, y, tipo: boton}. Null + error si no se puede.
+    json celdaParaEditar(const std::string& perfil, const std::string& pagina, int x, int y, std::string* error) const;
+    /// La ruta de media_use de la cara de la celda ("" si no tiene o no se puede poner al aire) y si es video.
+    std::string medioDeCelda(const json& celda, bool* video = nullptr) const;
+    bool alTocarCara(const json& celda) const;
     json renderCelda(const json& celda, const std::string& claveValor) const;
     json renderPagina(const json& perfil, const json& pagina, const std::string& dispositivo) const;
     std::string validarCelda(const json& c) const;
