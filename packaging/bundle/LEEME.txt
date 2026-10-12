@@ -10,7 +10,8 @@ Windows 10 (1809 o posterior) / 11, 64 bits
   1. Descomprimí el .zip completo en una carpeta (no lo abras desde adentro del zip).
   2. Doble clic en BroadcastAppliance.exe.
   3. Si Windows muestra "Windows protegió su PC": Más información -> Ejecutar de
-     todas formas. Si el firewall pregunta, permití el acceso en redes privadas
+     todas formas. Si el firewall pregunta (por ba-gateway y por ba-web, que atiende
+     la página y el HTTPS de la red local), permití el acceso en redes privadas
      (hace falta para que entren los invitados).
 
 Linux de 64 bits (escritorio con OpenGL)
