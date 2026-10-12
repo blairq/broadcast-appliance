@@ -14,6 +14,7 @@
 #include "agent/Actualizacion.hpp"
 #include "agent/ControlWindows.hpp"
 #include "agent/ModeloPropio.hpp"
+#include "agent/ModelosLocales.hpp"
 
 #if defined(_WIN32)
 #include <intrin.h>
@@ -1125,7 +1126,13 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
     // y los de chat, como OxCoder 9B), en cualquier plataforma: llama-server los
     // carga todos (la Mac también). Vacío = el del modelo local activo. Los MLX
     // todavía no: hace falta un servidor de MLX que hable el protocolo de OpenAI.
+    // Solo los INSTALADOS (bajados y verificados: su carpeta tiene «.ok», como
+    // ModelosLocales::instalado): los demás se bajan desde Modelos locales.
     if (proveedor == "local") {
+        const auto instalado = [](const std::string& repo) {
+            std::error_code ec;
+            return std::filesystem::exists(ba::platform::dataRoot() / "Modelos" / carpetaDeRepo(repo) / ".ok", ec);
+        };
         QStringList out;
         QFile f(":/agent/modelos-catalogo.json");
         if (f.open(QIODevice::ReadOnly)) {
@@ -1133,8 +1140,10 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
             if (c.is_object())
                 for (const json& m : c.value("modelos", json::array())) {
                     const std::string tipo = m.value("tipo", std::string("reactivo"));
-                    if (m.value("formato", std::string()) == "gguf" && (tipo == "reactivo" || tipo == "chat"))
-                        out << QString::fromStdString(m.value("repo", std::string()));
+                    const std::string repo = m.value("repo", std::string());
+                    if (m.value("formato", std::string()) == "gguf" && (tipo == "reactivo" || tipo == "chat") &&
+                        instalado(repo))
+                        out << QString::fromStdString(repo);
                 }
         }
         return out;

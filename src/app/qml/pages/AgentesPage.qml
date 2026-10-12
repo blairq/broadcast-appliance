@@ -131,22 +131,31 @@ Rectangle {
                             }
                             ComboBox {
                                 id: provBox
-                                Layout.preferredWidth: 220
+                                Layout.preferredWidth: 250
                                 model: page.d.proveedores
                                 textRole: "name"; valueRole: "id"
                                 displayText: fila.modelData.proveedor === "" ? "El del asistente" : currentText
                                 currentIndex: { for (let i = 0; i < page.d.proveedores.length; ++i) if (page.d.proveedores[i].id === fila.modelData.proveedor) return i; return -1 }
                                 onActivated: (i) => page.d.setProveedor(fila.modelData.id, page.d.proveedores[i].id)
-                                ToolTip.visible: hovered; ToolTip.text: "Motor de este rol. Vacío: el mismo que el asistente ✦."
+                                ToolTip.visible: hovered
+                                ToolTip.text: (fila.modelData.proveedor !== "" ? currentText + "\n" : "") + "Motor de este rol. Vacío: el mismo que el asistente ✦."
                             }
                             ComboBox {
-                                Layout.preferredWidth: 200
+                                id: modeloBox
+                                // Ocupa lo que sobra de la fila: los nombres son largos.
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 300
                                 editable: true
                                 model: page.d.modelosDe(fila.modelData.proveedor)
                                 editText: fila.modelData.modelo
                                 onAccepted: page.d.setModelo(fila.modelData.id, editText)
                                 onActivated: page.d.setModelo(fila.modelData.id, currentText)
-                                ToolTip.visible: hovered; ToolTip.text: "Modelo (vacío: el de fábrica del motor)"
+                                // Los nombres son largos (org/repo-GGUF): la lista se abre
+                                // más ancha que el campo y el nombre entero va en el tooltip.
+                                popup.width: Math.max(modeloBox.width, 520)
+                                ToolTip.visible: hovered
+                                ToolTip.text: editText !== "" ? editText + "\n(vacío: el de fábrica del motor)"
+                                                              : "Modelo (vacío: el de fábrica del motor)"
                             }
                             StatusPill {
                                 text: fila.modelData.corriendo ? "trabajando" : (fila.modelData.enCola > 0 ? fila.modelData.enCola + " en cola" : (fila.modelData.activo ? "escuchando" : "apagado"))
@@ -154,7 +163,6 @@ Rectangle {
                                 pulse: fila.modelData.corriendo
                                 medidaDe: "escuchando"
                             }
-                            Item { Layout.fillWidth: true }
                             GlassButton {
                                 compact: true; text: "Encargar"; icon: "✎"
                                 enabled: fila.modelData.activo
