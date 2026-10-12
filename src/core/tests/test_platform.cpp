@@ -45,6 +45,8 @@
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#include <fcntl.h>
+#include <io.h>
 #include <process.h>
 #include <windows.h>
 #else
@@ -192,9 +194,20 @@ int childMain(int argc, char** argv) {
         return 0;
     }
     if (mode == "stdin") {
-        // Lee la entrada hasta el fin y sale 0 si es exactamente argv[3].
-        const std::string todo((std::istreambuf_iterator<char>(std::cin)), std::istreambuf_iterator<char>());
-        return todo == arg(3) ? 0 : 5;
+        // Lee la entrada hasta el fin (en binario) y sale 0 si es exactamente lo esperado,
+        // que viene en hexadecimal en argv[3]: en Windows, argv pasa por la página de
+        // códigos ANSI y una «ñ» o un salto de línea no llegarían iguales.
+#ifdef _WIN32
+        _setmode(_fileno(stdin), _O_BINARY);
+#endif
+        std::string todo;
+        char buf[4096];
+        size_t n;
+        while ((n = std::fread(buf, 1, sizeof buf, stdin)) > 0) todo.append(buf, n);
+        std::string esperado;
+        const std::string hx = arg(3);
+        for (size_t i = 0; i + 1 < hx.size(); i += 2) esperado += static_cast<char>(std::stoi(hx.substr(i, 2), nullptr, 16));
+        return todo == esperado ? 0 : 5;
     }
     if (mode == "cwd") {
         std::error_code ec;
@@ -426,15 +439,21 @@ void testProcessOutputFile() {
 
 void testProcessStdinData() {
     // Lo de stdinData le llega entero al hijo por su entrada (y el pipe se cierra).
-    const std::string datos = "-----BEGIN CERTIFICATE-----\nlinea con acentos: año\n-----END-----\n";
-    ProcessOptions o = childOpts({"stdin", datos});
+    const std::string datos = "-----BEGIN CERTIFICATE-----\nlinea con acentos: año\r\n-----END-----\n";
+    std::string hx;
+    for (unsigned char c : datos) {
+        char b[3];
+        std::snprintf(b, sizeof b, "%02x", c);
+        hx += b;
+    }
+    ProcessOptions o = childOpts({"stdin", hx});
     o.stdinData = datos;
     Process p;
     CHECK(Process::spawn(o, p));
     const auto code = p.wait(10000);
     CHECK(code.has_value() && *code == 0);
     // Y con otros datos que no coinciden, el hijo lo nota (la prueba prueba algo).
-    ProcessOptions mal = childOpts({"stdin", datos});
+    ProcessOptions mal = childOpts({"stdin", hx});
     mal.stdinData = "otra cosa";
     Process q;
     CHECK(Process::spawn(mal, q));

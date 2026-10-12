@@ -200,6 +200,8 @@ static bw_sock conectar(void) {
 #ifdef _WIN32
     u_long cero = 0;
     ioctlsocket(s, FIONBIO, &cero);
+    DWORD ms = 5000; /* que un fallo no deje la prueba trabada para siempre */
+    setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, (const char*)&ms, sizeof ms);
 #else
     int fl = fcntl(s, F_GETFL, 0);
     fcntl(s, F_SETFL, fl & ~O_NONBLOCK);
@@ -304,8 +306,23 @@ static bw_blob* gunzip(const bw_buf* b, size_t esperado) {
 }
 
 /* ------------------------------------------------------------------ armado */
+#ifdef _WIN32
+/* En Windows, fopen y CreateDirectoryA toman los bytes como ANSI: una «é» en UTF-8 crearía
+   otro nombre. Con la API de UTF-16, el nombre es el mismo que pide el navegador. */
+static wchar_t* ancho(const char* s) {
+    static wchar_t w[2048];
+    MultiByteToWideChar(CP_UTF8, 0, s, -1, w, 2048);
+    return w;
+}
+#define CREAR_DIR(p) CreateDirectoryW(ancho(p), NULL)
+#endif
+
 static void escribir(const char* path, const char* datos, size_t n) {
+#ifdef _WIN32
+    FILE* f = _wfopen(ancho(path), L"wb");
+#else
     FILE* f = fopen(path, "wb");
+#endif
     fwrite(datos, 1, n, f);
     fclose(f);
 }
@@ -329,7 +346,7 @@ int main(void) {
     char dir[512];
 #ifdef _WIN32
     snprintf(dir, sizeof dir, "%s\\ba-web-test-%lu", getenv("TEMP"), (unsigned long)GetCurrentProcessId());
-    CreateDirectoryA(dir, NULL);
+    CREAR_DIR(dir);
 #else
     snprintf(dir, sizeof dir, "/tmp/ba-web-test-%d", (int)getpid());
     mkdir(dir, 0755);
@@ -337,11 +354,11 @@ int main(void) {
     char p[1024];
     snprintf(p, sizeof p, "%s/s", dir);
 #ifdef _WIN32
-    CreateDirectoryA(p, NULL);
+    CREAR_DIR(p);
     snprintf(p, sizeof p, "%s/s/sub", dir);
-    CreateDirectoryA(p, NULL);
+    CREAR_DIR(p);
     snprintf(p, sizeof p, "%s/s/Armée", dir);
-    CreateDirectoryA(p, NULL);
+    CREAR_DIR(p);
 #else
     mkdir(p, 0755);
     snprintf(p, sizeof p, "%s/s/sub", dir);
@@ -395,11 +412,13 @@ int main(void) {
                g_port, g_up_port, dir, alias_file);
     escribir(conf, cf.p, cf.len);
 
-    /* ba-web -t y después de verdad */
+    /* ba-web -t y después de verdad (BA_WEB_EXE en el entorno manda: para correr la prueba en
+       otra máquina que la que compiló, p. ej. la PC con Windows) */
+    const char* exe = getenv("BA_WEB_EXE") && *getenv("BA_WEB_EXE") ? getenv("BA_WEB_EXE") : BA_WEB_EXE;
 #ifdef _WIN32
     _putenv("BA_WEB_CLAVE=clave-de-prueba");
     char linea[2048];
-    snprintf(linea, sizeof linea, "\"%s\" -c \"%s\"", BA_WEB_EXE, conf);
+    snprintf(linea, sizeof linea, "\"%s\" -c \"%s\"", exe, conf);
     STARTUPINFOA si;
     memset(&si, 0, sizeof si);
     si.cb = sizeof si;
@@ -407,14 +426,14 @@ int main(void) {
     CHECK(CreateProcessA(NULL, linea, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi), "lanzar ba-web");
 #else
     setenv("BA_WEB_CLAVE", "clave-de-prueba", 1);
-    char* targ[] = {(char*)BA_WEB_EXE, (char*)"-t", (char*)"-c", conf, NULL};
+    char* targ[] = {(char*)exe, (char*)"-t", (char*)"-c", conf, NULL};
     pid_t pid;
     int st = 0;
-    posix_spawn(&pid, BA_WEB_EXE, NULL, NULL, targ, environ);
+    posix_spawn(&pid, exe, NULL, NULL, targ, environ);
     waitpid(pid, &st, 0);
     CHECK(WIFEXITED(st) && WEXITSTATUS(st) == 0, "ba-web -t acepta la configuración");
-    char* args[] = {(char*)BA_WEB_EXE, (char*)"-c", conf, NULL};
-    posix_spawn(&pid, BA_WEB_EXE, NULL, NULL, args, environ);
+    char* args[] = {(char*)exe, (char*)"-c", conf, NULL};
+    posix_spawn(&pid, exe, NULL, NULL, args, environ);
 #endif
     resp r;
     char v[256], q[4096];

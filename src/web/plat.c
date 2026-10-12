@@ -379,7 +379,10 @@ static int64_t file_pread(bw_file* f, char* p, int64_t n, int64_t off) {
     o.Offset = (DWORD)(off & 0xffffffff);
     o.OffsetHigh = (DWORD)(off >> 32);
     DWORD leidos = 0;
-    if (!ReadFile(f->h, p, (DWORD)n, &leidos, &o)) return -1;
+    if (!ReadFile(f->h, p, (DWORD)n, &leidos, &o))
+        // Con posición (OVERLAPPED) en un handle sincrónico, leer en el final del archivo
+        // no devuelve 0 bytes: falla con ERROR_HANDLE_EOF. Es el fin, no un error.
+        return GetLastError() == ERROR_HANDLE_EOF ? 0 : -1;
     return (int64_t)leidos;
 #else
     ssize_t r;
