@@ -21,6 +21,7 @@
 #pragma once
 
 #include <QObject>
+#include <QStringList>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -68,6 +69,8 @@ class Playlist : public QObject {
     QVariantList itemsUi() const;
     QVariantMap estadoUi() const;
     Q_INVOKABLE QString agregarUi(const QString& archivo);
+    /// Varios de una vez (todos o ninguno: si uno no sirve, no se suma nada).
+    Q_INVOKABLE QString agregarVariosUi(const QStringList& archivos);
     Q_INVOKABLE QString quitarUi(int indice);
     Q_INVOKABLE QString moverUi(int indice, int destino);
     Q_INVOKABLE QString controlUi(const QString& accion, int indice = -1);

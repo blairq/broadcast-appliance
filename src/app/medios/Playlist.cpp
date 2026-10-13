@@ -239,6 +239,12 @@ QString Playlist::agregarUi(const QString& archivo) {
     return qs(setItems(nuevos));
 }
 
+QString Playlist::agregarVariosUi(const QStringList& archivos) {
+    json nuevos = items_;
+    for (const QString& a : archivos) nuevos.push_back({{"archivo", a.toStdString()}});
+    return qs(setItems(nuevos));
+}
+
 QString Playlist::quitarUi(int indice) {
     if (indice < 0 || indice >= static_cast<int>(items_.size())) return "no hay ese ítem";
     json nuevos = items_;
