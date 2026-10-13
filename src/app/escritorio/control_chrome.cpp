@@ -21,6 +21,7 @@
 #include <chrono>
 #include <cstring>
 #include <random>
+#include <thread>
 
 #if defined(_WIN32)
 #include <winsock2.h>
@@ -38,7 +39,6 @@
 
 #include <cstdlib>
 #include <filesystem>
-#include <thread>
 extern char** environ;
 using SOCKET = int;
 constexpr SOCKET INVALID_SOCKET = -1;
