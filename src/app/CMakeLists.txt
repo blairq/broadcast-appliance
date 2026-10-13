@@ -227,6 +227,21 @@ if(BA_HAVE_CLAP)
         install(FILES ${_ba_lsp_lic} DESTINATION data/licencias/lsp-plugins)
     endif()
 endif()
+# ba-lspdsp: el DSP de LSP con API en C (tools/deps/lspdsp.sh), junto a los
+# ejecutables (bin/64bit). La app la carga en tiempo de ejecución (audio/LspDsp).
+if(WIN32)
+    set(BA_LSPDSP_DIR "${CMAKE_SOURCE_DIR}/extern/lsp/windows-x86_64/dsp")
+    set(_ba_lspdsp_lib "${BA_LSPDSP_DIR}/ba-lspdsp.dll")
+elseif(APPLE)
+    set(BA_LSPDSP_DIR "${CMAKE_SOURCE_DIR}/extern/lsp/macos-arm64/dsp")
+    set(_ba_lspdsp_lib "${BA_LSPDSP_DIR}/libba-lspdsp.dylib")
+else()
+    set(BA_LSPDSP_DIR "${CMAKE_SOURCE_DIR}/extern/lsp/linux-x86_64/dsp")
+    set(_ba_lspdsp_lib "${BA_LSPDSP_DIR}/libba-lspdsp.so")
+endif()
+if(BA_HAVE_CLAP AND EXISTS "${_ba_lspdsp_lib}")
+    install(FILES "${_ba_lspdsp_lib}" DESTINATION bin/64bit)
+endif()
 # LSP para los tests (en el bundle: plugins/lsp/).
 if(WIN32)
     set(BA_LSP_CLAP "${CMAKE_SOURCE_DIR}/extern/lsp/windows-x86_64/lsp-plugins.clap")
@@ -473,7 +488,9 @@ endif()
     target_link_libraries(ba-app PRIVATE ba_vterm)
     if(BA_HAVE_CLAP)
         target_include_directories(ba-app PRIVATE "${BA_CLAP_INC}")
-        target_compile_definitions(ba-app PRIVATE BA_HAVE_CLAP=1 BA_DEV_LSP_CLAP="${BA_LSP_CLAP}")
+        target_compile_definitions(ba-app PRIVATE BA_HAVE_CLAP=1 BA_DEV_LSP_CLAP="${BA_LSP_CLAP}"
+                                   BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_include_directories(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/src/lspdsp")
         # ClapEditor (las ventanas de los plugins) usa X11 en Linux; antes llegaba de rebote por libobs.
         if(UNIX AND NOT APPLE)
             find_package(X11 REQUIRED)
@@ -851,6 +868,14 @@ endif()
         target_include_directories(test_audio_dsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
         target_link_libraries(test_audio_dsp PRIVATE nlohmann_json::nlohmann_json)
         add_test(NAME test_audio_dsp COMMAND test_audio_dsp)
+
+        # ba-lspdsp (el DSP de LSP) contra señales conocidas, cargada como la carga la app.
+        add_executable(test_lspdsp tests/test_lspdsp.cpp audio/LspDsp.cpp)
+        target_include_directories(test_lspdsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/lspdsp")
+        target_compile_definitions(test_lspdsp PRIVATE BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_link_libraries(test_lspdsp PRIVATE ba_core ${CMAKE_DL_LIBS})
+        add_test(NAME test_lspdsp COMMAND test_lspdsp)
+        set_tests_properties(test_lspdsp PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     # Host CLAP contra los plugins LSP reales (sin interfaz grafica). Lo que
     # pide ClapEditor.cpp para enlazar: X11 (Linux) o Qt Gui (macOS, QWindow).

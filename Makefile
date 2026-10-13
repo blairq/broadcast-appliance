@@ -51,7 +51,7 @@ endif
 PY        ?= .venv/bin/python
 PIP       ?= .venv/bin/pip
 
-.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
+.PHONY: app-macos-rapida modelo-mac deps-mlx-swift-lm publicar subir dist-linux-docker dist-win-docker publicar-macos publicar-linux publicar-win app-macos dmg-macos check-macos-tools deps-macos deps-lsp-macos deps-lspdsp-win deps-lspdsp-linux deps-lspdsp-macos macos release-macos dist-macos deps-lsp-win deps-clap deps-ndi-src deps-terceros-linux deps-linux test-win deps-win deps-win-toolchain deps-webrtc-win release-win dist-win dist-linux deps-lwip deps-cacert help dev build prod test test-unit pytest test-all lint docs release win deps-cloudflared-host deps-qt-host deps-pinggy deps-pinggy-win \
         clean clean-all \
         deps deps-qt deps-webrtc deps-spout deps-cloudflared deps-vcredist \
         deps-lsp deps-status deps-clean deps-libreoffice deps-libreoffice-linux deps-libreoffice-win deps-libreoffice-mac \
@@ -244,13 +244,22 @@ deps-webrtc-win:
 # en Linux), GStreamer oficial de MSVC (trae su FFmpeg), libwebrtc de Windows y
 # las fuentes compartidas.
 deps-win: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
-          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win \
+          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
           deps-libreoffice-win deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win
 
 # Plugins LSP (CLAP) para Windows: compilados desde fuente (tools/deps/lsp-win.sh).
 deps-lsp-win: deps-win-toolchain
 	tools/deps/lsp-win.sh $(JOBS)
+
+# ba-lspdsp: el DSP de LSP con API en C (el Mezclador mide con eso). Solo sus
+# bibliotecas, desde la fuente de LSP, con el compilador de LSP de cada sistema.
+deps-lspdsp-win: deps-win-toolchain
+	tools/deps/lspdsp.sh windows-x86_64 $(JOBS)
+deps-lspdsp-linux:
+	tools/deps/lspdsp.sh linux-x86_64 $(JOBS)
+deps-lspdsp-macos:
+	tools/deps/lspdsp.sh macos-arm64 $(JOBS)
 
 # Recepcion NDI abierta: libNoIDea + libmicrodns por commit fijado.
 deps-ndi-src:
@@ -297,7 +306,7 @@ dist-win: release-win
 # y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
 # compartidas...).
 deps-linux: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
-            deps-clap deps-lsp deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
+            deps-clap deps-lsp deps-lspdsp-linux deps-libreoffice-linux deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
             deps-llamacpp-linux
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
@@ -329,6 +338,7 @@ deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-l
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
 	@# sin el, el rack funciona con el analizador y el generador.
 	-$(MAKE) deps-lsp-macos
+	$(MAKE) deps-lspdsp-macos
 
 macos: modelo-mac
 	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 \
