@@ -579,6 +579,9 @@ endif()
                                                  "-framework CoreGraphics" "-framework ImageIO" "-framework IOKit"
                                                  "-framework UniformTypeIdentifiers" "-weak_framework ScreenCaptureKit")
     elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        # El motor de Linux: X11 se carga al usar (dlopen), no es una dependencia.
+        target_sources(ba-control PRIVATE escritorio/control_linux.cpp)
+        target_link_libraries(ba-control PRIVATE ${CMAKE_DL_LIBS})
         target_link_options(ba-control PRIVATE -static-libstdc++ -static-libgcc)
     endif()
     install(TARGETS ba-control RUNTIME DESTINATION bin/64bit)

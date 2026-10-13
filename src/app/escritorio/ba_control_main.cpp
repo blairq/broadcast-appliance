@@ -1125,7 +1125,7 @@ json ejecutarHerramienta(const json& id, const std::string& nombre, const json& 
     }
     return resultadoTexto(id, "herramienta desconocida: " + nombre, true);
 }
-#elif !defined(__APPLE__)  // Linux (en camino; macOS: control_mac.mm)
+#elif !defined(__APPLE__) && !defined(__linux__)  // otro sistema (macOS: control_mac.mm; Linux: control_linux.cpp)
 json ejecutarHerramienta(const json& id, const std::string& nombre, const json& a, const Permisos& p) {
     json out;
     // Los archivos y Chrome ya andan (POSIX y el protocolo de Chrome).

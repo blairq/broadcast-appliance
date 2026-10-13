@@ -935,7 +935,7 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
     return false;
 }
 
-#elif !defined(__APPLE__) // macOS: control_mac.mm (Accesibilidad); Linux: en camino (AT-SPI)
+#elif !defined(__APPLE__) && !defined(__linux__) // macOS: control_mac.mm; Linux: control_linux.cpp
 
 bool atenderUia(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
     if (nombre.rfind("system_ui_", 0) != 0) return false;
