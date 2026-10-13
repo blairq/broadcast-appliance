@@ -88,6 +88,8 @@ class Mezcla {
     nlohmann::json estado() const;
     /// El pico del bus (dBFS, el mayor de los canales; -120 sin señal).
     double picoDb() const;
+    /// El maestro por canal (L, R), en dB: pico (300 ms) y RMS del último `level` (50 ms).
+    void nivelMaestro(double pico[2], double rms[2]) const;
     /// Cuánto después de su hora sale lo que entrega el bus (ns): lo que tiene
     /// que esperar quien lo consume (la escucha, la grabación, el gateway), o
     /// todo le llega tarde.
@@ -124,6 +126,7 @@ class Mezcla {
     std::int64_t consultaNs_ = 0;
     LatenciaAparte latencia_;
     double picoDb_ = -120, rmsDb_ = -120;
+    double picoCanal_[2] = {-120, -120}, rmsCanal_[2] = {-120, -120}; ///< el maestro, por canal
     bool medidores_ = true;
     std::int64_t latenciaFijaNs_ = -1;
 };

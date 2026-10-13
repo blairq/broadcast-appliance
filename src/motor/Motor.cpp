@@ -206,6 +206,10 @@ void Motor::bucle() {
                 Tramo t("tic de las vistas");
                 vistas_->tic();
             }
+            if (vueltas % 2 == 0) {
+                Tramo t("niveles para los vúmetros");
+                publicarNiveles();
+            }
             if (revisarUso || fotoPedida_.exchange(false)) {
                 Tramo t("foto del estado");
                 publicarInstantanea();
@@ -1278,6 +1282,42 @@ std::string Motor::productorDeBus(const std::string& bus, std::int64_t* latencia
     if (m == nullptr) return {};
     if (latenciaNs != nullptr) *latenciaNs = m->latenciaSalidaNs();
     return m->productor();
+}
+
+std::shared_ptr<const std::vector<Motor::NivelAudio>> Motor::niveles() const {
+    std::lock_guard<std::mutex> l(nivelesM_);
+    return niveles_;
+}
+
+void Motor::publicarNiveles() {
+    auto v = std::make_shared<std::vector<NivelAudio>>();
+    v->reserve(canales_.size() + pistas_.size() + retornos_.size() + 1);
+    for (const auto& [id, c] : canales_) {
+        if (!c.entrada || !c.entrada->daAudio()) continue;
+        NivelAudio n;
+        n.id = id;
+        c.entrada->nivelAudio(n.pico, n.rms);
+        v->push_back(std::move(n));
+    }
+    const auto deBus = [&](const std::string& id, const Mezcla* m) {
+        if (m == nullptr) return;
+        NivelAudio n;
+        n.id = id;
+        n.bus = true;
+        double p[2], r[2];
+        m->nivelMaestro(p, r);
+        for (int k = 0; k < 2; ++k) {
+            n.pico[k] = static_cast<float>(std::max(-100.0, p[k]));
+            n.rms[k] = static_cast<float>(std::max(-100.0, r[k]));
+        }
+        v->push_back(std::move(n));
+    };
+    deBus("programa", programa_.get());
+    for (const auto& [num, m] : pistas_) deBus("pista" + std::to_string(num), m.get());
+    for (const auto& [num, r] : retornos_) deBus("retorno" + std::to_string(num), r.bus.get());
+    std::shared_ptr<const std::vector<NivelAudio>> listo = std::move(v);
+    std::lock_guard<std::mutex> l(nivelesM_);
+    niveles_ = std::move(listo);
 }
 
 std::shared_ptr<const json> Motor::instantanea() const {

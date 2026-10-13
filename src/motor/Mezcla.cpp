@@ -20,6 +20,24 @@ namespace {
 
 std::int64_t ahoraNs() { return g_get_monotonic_time() * 1000; }
 
+/// El canal `i` de un mensaje de `level` (dBFS; el último si hay menos).
+double deCanal(const GstStructure* s, const char* campo, guint i) {
+    const GValue* v = gst_structure_get_value(s, campo);
+    if (v == nullptr) return -120;
+    G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+    if (G_VALUE_HOLDS(v, G_TYPE_VALUE_ARRAY)) {
+        auto* a = static_cast<GValueArray*>(g_value_get_boxed(v));
+        if (a == nullptr || a->n_values == 0) return -120;
+        return g_value_get_double(g_value_array_get_nth(a, std::min(i, a->n_values - 1)));
+    }
+    G_GNUC_END_IGNORE_DEPRECATIONS
+    if (GST_VALUE_HOLDS_ARRAY(v)) {
+        const guint n = gst_value_array_get_size(v);
+        return n == 0 ? -120 : g_value_get_double(gst_value_array_get_value(v, std::min(i, n - 1)));
+    }
+    return -120;
+}
+
 /// El mayor de los canales de un mensaje de `level` (dBFS).
 double mayor(const GstStructure* s, const char* campo) {
     const GValue* v = gst_structure_get_value(s, campo);
@@ -272,6 +290,10 @@ void Mezcla::tic() {
                     if (src == "nivel") {
                         picoDb_ = pico;
                         rmsDb_ = rms;
+                        for (guint c = 0; c < 2; ++c) {
+                            picoCanal_[c] = deCanal(s, "peak", c);
+                            rmsCanal_[c] = deCanal(s, "rms", c);
+                        }
                     } else {
                         for (auto& [id, r] : ramas_)
                             if (r.nivel != nullptr && GST_OBJECT_NAME(r.nivel) == src) {
@@ -310,6 +332,14 @@ void Mezcla::tic() {
 std::int64_t Mezcla::latenciaSalidaNs() const {
     std::lock_guard<std::mutex> l(mu_);
     return std::max(salidaNs_, latenciaNs_);
+}
+
+void Mezcla::nivelMaestro(double pico[2], double rms[2]) const {
+    std::lock_guard<std::mutex> l(mu_);
+    for (int c = 0; c < 2; ++c) {
+        pico[c] = picoCanal_[c];
+        rms[c] = rmsCanal_[c];
+    }
 }
 
 double Mezcla::picoDb() const {

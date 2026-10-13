@@ -530,6 +530,16 @@ void Entrada::leer(const json& a) {
 bool Entrada::daVideo() const {
     return !camara_.empty() || !descripcion_.empty() || !uri_.empty() || !ventanaApp_.empty() || !ventanaTitulo_.empty();
 }
+void Entrada::nivelAudio(float pico[2], float rms[2]) const {
+    std::lock_guard<std::mutex> l(medMu_);
+    const bool fresco = picoAudioNs_ != 0 && ahoraNs() - picoAudioNs_ < 1'000'000'000ULL;
+    for (int c = 0; c < 2; ++c) {
+        const double p = picoCanal_[c], r = std::sqrt(cuadradoCanal_[c]);
+        pico[c] = fresco && p > 1e-5 ? static_cast<float>(20.0 * std::log10(p)) : -100.0f;
+        rms[c] = fresco && r > 1e-5 ? static_cast<float>(20.0 * std::log10(r)) : -100.0f;
+    }
+}
+
 bool Entrada::daAudio() const { return conAudio_ && (!descripcionAudio_.empty() || !uri_.empty()); }
 
 void Entrada::actualizar(const json& ajustes, std::function<void()> despues) {
@@ -1006,13 +1016,32 @@ GstPadProbeReturn Entrada::alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer 
         GstMapInfo mi;
         if (gst_buffer_map(b, &mi, GST_MAP_READ)) {
             const auto* s = reinterpret_cast<const float*>(mi.data);
-            float pico = 0;
-            for (gsize i = 0; i < mi.size / sizeof(float); ++i) pico = std::max(pico, std::fabs(s[i]));
+            // Estéreo intercalado (L R L R…): pico y suma de cuadrados por canal.
+            const gsize n = mi.size / sizeof(float);
+            float picoC[2] = {0, 0};
+            double sumaC[2] = {0, 0};
+            for (gsize i = 0; i + 1 < n; i += 2)
+                for (int c = 0; c < 2; ++c) {
+                    const float v = std::fabs(s[i + static_cast<gsize>(c)]);
+                    picoC[c] = std::max(picoC[c], v);
+                    sumaC[c] += static_cast<double>(v) * v;
+                }
             gst_buffer_unmap(b, &mi);
+            const float pico = std::max(picoC[0], picoC[1]);
             const std::uint64_t ahora = ahoraNs();
             if (pico >= e->picoAudio_ || ahora - e->picoAudioNs_ > 300'000'000ULL) {
                 e->picoAudio_ = pico;
                 e->picoAudioNs_ = ahora;
+            }
+            // RMS integrado a 300 ms (exponencial con la duración del bloque, a 48 kHz).
+            const double cuadros = static_cast<double>(n / 2);
+            const double k = cuadros > 0 ? 1.0 - std::exp(-(cuadros / 48000.0) / 0.3) : 0.0;
+            for (int c = 0; c < 2; ++c) {
+                if (picoC[c] >= e->picoCanal_[c] || ahora - e->picoCanalNs_[c] > 300'000'000ULL) {
+                    e->picoCanal_[c] = picoC[c];
+                    e->picoCanalNs_[c] = ahora;
+                }
+                if (cuadros > 0) e->cuadradoCanal_[c] += (sumaC[c] / cuadros - e->cuadradoCanal_[c]) * k;
             }
         }
         if (edad > -1e8) {
@@ -1621,6 +1650,13 @@ json Entrada::estadoYa() const {
         // El pico de lo que entrega (dB; −100 sin audio o si hace más de 1 s que no llega nada).
         const bool fresco = picoAudioNs_ != 0 && ahoraNs() - picoAudioNs_ < 1'000'000'000ULL;
         j["pico_audio_db"] = fresco && picoAudio_ > 1e-5f ? 20.0 * std::log10(picoAudio_) : -100.0;
+        {
+            // Por canal: pico (lo más alto de 300 ms) y RMS (300 ms), en dB; -100 sin audio.
+            const auto db = [](double lineal) { return lineal > 1e-5 ? 20.0 * std::log10(lineal) : -100.0; };
+            j["audio_db"] = {{"pico", {fresco ? db(picoCanal_[0]) : -100.0, fresco ? db(picoCanal_[1]) : -100.0}},
+                             {"rms", {fresco ? db(std::sqrt(cuadradoCanal_[0])) : -100.0,
+                                      fresco ? db(std::sqrt(cuadradoCanal_[1])) : -100.0}}};
+        }
         j["edad_p50_ms"] = edadP50_;
         j["edad_p95_ms"] = edadP95_;
         j["origen"] = origen_;

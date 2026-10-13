@@ -135,6 +135,19 @@ int main() {
     CHECK(st1.value("bloques_audio", 0) > 20, "da audio");
     std::printf("programa con un tono: %.2f dBFS (latencia %.0f ms)\n", banco.rms(), programa->estado().value("latencia_ms", 0.0));
     CHECK(cerca(banco.rms(), -15.05, 1.0), "un seno de 0,25 sale a -15 dBFS");
+    {
+        // Los niveles del Mezclador: lo que entrega la entrada y el maestro del bus, por canal.
+        float pico[2], rms[2];
+        e1->nivelAudio(pico, rms);
+        std::printf("tono1 por canal: pico %.2f/%.2f, RMS %.2f/%.2f dB\n", pico[0], pico[1], rms[0], rms[1]);
+        CHECK(cerca(pico[0], -12.04, 0.5) && cerca(pico[1], -12.04, 0.5), "la entrada: pico -12 dB en L y R");
+        CHECK(cerca(rms[0], -15.05, 0.7) && cerca(rms[1], -15.05, 0.7), "la entrada: RMS -15 dB en L y R");
+        double mp[2], mr[2];
+        programa->nivelMaestro(mp, mr);
+        std::printf("maestro por canal: pico %.2f/%.2f, RMS %.2f/%.2f dB\n", mp[0], mp[1], mr[0], mr[1]);
+        CHECK(cerca(mp[0], -12.04, 0.5) && cerca(mp[1], -12.04, 0.5), "el maestro: pico -12 dB en L y R");
+        CHECK(cerca(mr[0], -15.05, 0.7) && cerca(mr[1], -15.05, 0.7), "el maestro: RMS -15 dB en L y R");
+    }
 
     // Una segunda que entra andando: suma (+3 dB, frecuencias distintas).
     const json tono2{{"pipeline_audio", "audiotestsrc is-live=true wave=sine freq=1000 volume=0.25"}};

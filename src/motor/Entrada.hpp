@@ -136,6 +136,9 @@ class Entrada {
     void ponerEnUso(bool si);
     bool enUso() const { return enUso_; }
     bool daAudio() const;
+    /// El nivel del audio que entrega (después de su cadena), por canal y en dB:
+    /// pico (lo más alto de 300 ms) y RMS (300 ms); -100 si hace más de 1 s que no llega.
+    void nivelAudio(float pico[2], float rms[2]) const;
     std::string productorVideo() const { return id_ + ":video"; }
     /// ¿Está mostrando la placa «sin señal»?
     bool enPlaca() const;
@@ -268,6 +271,11 @@ class Entrada {
     /// lineal, el más alto de los últimos 300 ms. Bajo medMu_.
     float picoAudio_ = 0;
     std::uint64_t picoAudioNs_ = 0;
+    /// Lo mismo por canal (L, R) y el RMS por canal integrado a 300 ms (cuadrado
+    /// medio, lineal): los vúmetros del Mezclador. Bajo medMu_.
+    float picoCanal_[2] = {0, 0};
+    std::uint64_t picoCanalNs_[2] = {0, 0};
+    double cuadradoCanal_[2] = {0, 0};
     nlohmann::json origen_ = nlohmann::json::object(); ///< cómo llega la señal (antes de normalizar)
     nlohmann::json sale_ = nlohmann::json::object();   ///< cómo sale
     double declaradoMs_ = 0, edadP50_ = 0, edadP95_ = 0;
