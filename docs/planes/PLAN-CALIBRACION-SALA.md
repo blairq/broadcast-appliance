@@ -151,3 +151,22 @@ correcciones propone.
 - **C3** — Sesión multipunto con croquis, promedio espacial, modos, llegadas.
 - **C4** — Propuesta, aplicación (EQ de LSP en la salida de sala, retardos),
   verificación antes/después, versiones.
+
+## Estado (2026-10-13)
+
+Hecho C1–C4 en código, probado con la **sala simulada** (sin sonido):
+
+- Medición: `ba_medicion_*` en ba-lspdsp (SyncChirpProcessor + ResponseTaker del
+  Profiler). Se procesa de a una muestra: con bloques, el «time warp» del
+  ResponseTaker da un comienzo de captura negativo y LSP lee fuera del buffer. El
+  directo es la PRIMERA llegada (no el pico: piso y techo a la misma distancia suman
+  más que él). RT por banda con el rango dinámico de ISO 3382 (25/35/45 dB).
+- `audio::Calibracion` (modelo), `CalibracionAnalisis` (cuentas, `test_calibracion`),
+  `LazoMedicion` (QAudioSink/QAudioSource compartidos; sala simulada con `--test` o
+  `BA_SALA_SIMULADA`), pestaña Calibración del Mezclador, MCP `calibracion_*`.
+- Micrófonos: plano, curva del modelo (SM58, SM57, Beta 58A, e835, desconocido),
+  archivo (REW/miniDSP) y sustitución contra una referencia.
+
+Falta: medir con audio real (de día), probar «Aplicar» sobre un rack de prueba (en
+la Mac no se tocan los racks del usuario), aplicar retardos y niveles por parlante
+(hoy se informan), distorsión armónica (la convolución no lineal de LSP).
