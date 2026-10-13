@@ -145,8 +145,17 @@ void AudioViewModel::rebuildGraph() {
     // nodo (con fuentes en silencio no se notaba, porque el medidor no variaba).
     if (d.contains("nodos")) {
         for (auto& n : d["nodos"]) {
-            meters[n.value("id", "")] = n.value("medidores", json::object());
+            json m = n.value("medidores", json::object());
             n.erase("medidores");
+            // Lo mismo con lo que tarda cada módulo (el vigía): cambia en cada vuelta y
+            // rehacía las tarjetas (la barra del medidor parpadeaba y un clic caía en una
+            // tarjeta que ya no existía). Va con los medidores; el panel lo lee del detalle.
+            for (const char* k : {"ms_ultimo", "ms_medio", "ms_max"})
+                if (n.contains(k)) {
+                    m[k] = n[k];
+                    n.erase(k);
+                }
+            meters[n.value("id", "")] = m;
         }
     }
     const QVariantMap g = toVariant(d).toMap();
