@@ -129,7 +129,7 @@ fs::path dentroDe(const fs::path& base, const std::string& sub, std::string rel)
 
 } // namespace
 
-std::vector<Reparo> revisarArchivos(const Evento& e, const fs::path& carpeta) {
+std::vector<Reparo> revisarArchivos(const Evento& e, const fs::path& carpeta, const fs::path& medios) {
     std::vector<Reparo> rs;
     std::error_code ec;
     for (std::size_t bi = 0; bi < e.bloques.size(); ++bi) {
@@ -158,7 +158,20 @@ std::vector<Reparo> revisarArchivos(const Evento& e, const fs::path& carpeta) {
             if (rel.empty()) continue; // ya lo dijo la revision del guion
             const int ib = static_cast<int>(bi);
             const int ic = static_cast<int>(ci);
-            const fs::path p = dentroDe(carpeta, sub, rel);
+            fs::path p = dentroDe(carpeta, sub, rel);
+            // La música y los videos: primero los medios del evento (Media/).
+            if (sub == "Medios" && !medios.empty()) {
+                std::string r2 = rel;
+                for (const char* pre : {"Media/", "Medios/"})
+                    if (r2.rfind(pre, 0) == 0) r2 = r2.substr(std::string(pre).size());
+                const fs::path enMedia = dentroDe(medios.parent_path(), medios.filename().string(), r2);
+                if (!enMedia.empty() && fs::exists(enMedia, ec)) p = enMedia;
+                else if (p.empty() || !fs::exists(p, ec)) {
+                    rs.push_back({static_cast<int>(bi), static_cast<int>(ci), true,
+                                  "falta «" + rel + "» en los medios del evento"});
+                    continue;
+                }
+            }
             if (p.empty()) {
                 rs.push_back({ib, ic, true, "\"" + rel + "\" apunta fuera de " + sub + "/"});
                 continue;

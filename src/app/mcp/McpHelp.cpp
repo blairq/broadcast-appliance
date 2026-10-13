@@ -196,14 +196,14 @@ Un servidor propio con IP pública: `settings_set` con `wg.enabled`, `wg.endpoin
     {"evento", "Guion del evento (storyboard)",
      "Bloques, cues, tiempos previstos, revision previa, ensayo y teleprompter.",
      R"md(## Que es
-Un **evento** es el guion de lo que va a pasar: **bloques** (Apertura, Palabras del intendente, Cierre) y dentro de cada uno los **cues** concretos. Vive en su propia carpeta (`Eventos/<nombre>/`) con `Medios/`, `Discursos/` y `Respaldos/` adentro, para poder llevarselo entero a otra maquina.
+Un **evento** es el guion de lo que va a pasar: **bloques** (Apertura, Palabras del intendente, Cierre) y dentro de cada uno los **cues** concretos. El evento tiene TODO lo suyo (escenas, mezclador, medios, asamblea, web): la carpeta del evento entera se puede llevar a otra máquina. Los archivos de los cues de música y video son los **medios del evento** (la página Medios, `media_list`); los discursos van en `Discursos/` del guion.
 
 ## Los tipos de cue y que necesita cada uno en `datos`
 | Tipo | `datos` | ¿Se ejecuta hoy? |
 |---|---|---|
 | `escena` | `{escena}` | si |
 | `orador` | `{participante}` + `duracionSeg > 0` | si |
-| `musica` | `{archivo, accion, repetir}` — archivo en `Medios/` | si |
+| `musica` | `{archivo, accion, repetir}` — un archivo de los medios del evento (`media_list`) | si |
 | `teleprompter` | `{discurso, arrancar}` — texto en `Discursos/` | si |
 | `audio` | `{accion: silenciar\|activar\|volumen, fuente, db}` | si |
 | `video` | `{archivo, alTerminar}` | todavia no |
@@ -318,7 +318,7 @@ Para probar o mostrar todo esto sin tocar lo de verdad hay una demo completa (un
 |---|---|
 | El evento y su guion: bloques con tiempos y cues (escena, orador con su tiempo, video, música, gráfico, teleprompter, nota, espera) | `evento_armar {nombre, fecha, inicio, huso, invitados, preguntas, bloques}`; después `evento_bloque` / `evento_cue` |
 | Las escenas: cada cámara, plano general, pantalla compartida, invitados | `scene_define`, `scene_list` (help escenas) |
-| Música y videos en Medios/ (los cues los nombran) | `media_list`, `media_find` (help medios) |
+| Música y videos del evento (los cues los nombran) | `media_list`, `media_find` (help medios) |
 | Zócalos de cada orador (nombre y cargo bien escritos) | gráfico `zocalo` en cues de tipo gráfico; `grafico_listar`, `grafico_probar` |
 | Micrófonos de la sala y niveles | `audio_input_add`, `audio_measure`, `audio_loudness` (help audio) |
 | Adónde se transmite | cuentas: `account_setup_guide`, `accounts_status`; servidor propio: `stream_destino_agregar` |
@@ -1124,7 +1124,7 @@ Como armarlo bien:
 - **Duraciones realistas**: un himno son 3-4 minutos, un discurso de intendente 5-8, una placa 20-40 segundos. De las duraciones sale el desvio en vivo, asi que inventar numeros lindos lo arruina.
 - **`automatico` casi nunca.** Que algo salga solo cuando el operador no lo esperaba es peor que llegar tarde. Usalo para encadenar cosas cortas y seguras (poner una escena y cargar el teleprompter), nunca para salir al aire ni para darle la palabra a alguien.
 - Un cue `espera` antes de cada momento delicado (que el orador llegue al atril) y `nota` para lo que el operador tiene que saber pero el sistema no hace.
-- Los archivos van en `Medios/` y los discursos en `Discursos/`, dentro de la carpeta del evento: si no estan, `evento_revisar` lo dice.
+- La música y los videos son los medios del evento (`media_list`, `media_find`); los discursos van en `Discursos/`: si falta alguno, `evento_revisar` lo dice.
 
 Correrlo es otra cosa: `evento_correr` SALE AL AIRE. Eso lo decide el operador, no vos. Si queres mostrarle como quedo, `evento_ensayo_rapido` recorre todo sin tocar nada.
 

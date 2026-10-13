@@ -17,6 +17,7 @@
 #include <QDateTime>
 #include <QPointer>
 #include <QDir>
+#include <QFileInfo>
 #include <QCryptographicHash>
 #include <QFile>
 #include <QJsonDocument>
@@ -106,8 +107,8 @@ struct CampoDeTipo {
 
 constexpr CampoDeTipo kTipos[] = {
     {"escena", "Escena", "Pone una escena al aire.", "escena"},
-    {"musica", "Música", "Arranca o para un tema de Medios/.", "archivo,accion,repetir"},
-    {"video", "Video", "Reproduce un video de Medios/ en su propia escena.", "archivo,accion,repetir,alAire"},
+    {"musica", "Música", "Arranca o para un tema de los medios del evento.", "archivo,accion,repetir"},
+    {"video", "Video", "Reproduce un video de los medios del evento en su propia escena.", "archivo,accion,repetir,alAire"},
     {"teleprompter", "Teleprompter", "Carga un discurso y lo deja listo.", "discurso,arrancar"},
     {"orador", "Orador", "Le da la palabra a alguien, con su tiempo.", "participante"},
     {"grafico", "Gráfico", "Saca al aire un gráfico animado en una fuente de escena.",
@@ -1368,7 +1369,7 @@ void EventoViewModel::revisar() {
     }
     // Y lo que hay que ir a mirar al disco: los archivos que el guion nombra.
     if (!abierto_.isEmpty()) {
-        for (const evento::Reparo& r : evento::revisarArchivos(e_, store_.carpetaDe(abierto_.toStdString())))
+        for (const evento::Reparo& r : evento::revisarArchivos(e_, store_.carpetaDe(abierto_.toStdString()), rt_.dataRoot() / "Media"))
             reparos_.push_back(r);
     }
     // Lo del aparato: disco, destino de la transmisión, entradas con señal,
@@ -1649,7 +1650,21 @@ bool EventoViewModel::prepararEscenaDeVideo() {
     return true;
 }
 
-QString EventoViewModel::medioPath(const QString& rel) const { return dentroDelEvento("Medios", rel); }
+QString EventoViewModel::medioPath(const QString& rel) const {
+    // Los medios del evento son su biblioteca (Media/, la de la página Medios: cada
+    // evento tiene la suya). Los guiones de antes nombraban Medios/ de la carpeta del
+    // guion: si no está en Media/, se busca ahí.
+    if (rel.isEmpty()) return {};
+    QString limpio = rel;
+    for (const QString& pre : {QStringLiteral("Media/"), QStringLiteral("Medios/"), QStringLiteral("Media\\"),
+                               QStringLiteral("Medios\\")})
+        if (limpio.startsWith(pre)) limpio = limpio.mid(pre.size());
+    const QDir media(QString::fromStdString((rt_.dataRoot() / "Media").string()));
+    const QString abs = QDir::cleanPath(media.filePath(limpio));
+    // Fuera de la biblioteca no se lee nada (un «..» en un guion que vino de otro lado).
+    if (abs.startsWith(QDir::cleanPath(media.absolutePath()) + "/") && QFileInfo::exists(abs)) return abs;
+    return dentroDelEvento("Medios", rel);
+}
 
 void EventoViewModel::ejecutarActual() {
     const evento::Cue* c = guionCorriendo_ ? guionCorriendo_->cueActual() : nullptr;
@@ -1702,8 +1717,8 @@ void EventoViewModel::ejecutarActual() {
             const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
             const QString ruta = medioPath(rel);
             if (ruta.isEmpty() || !QFile::exists(ruta)) {
-                anotar("No encontré la música \"" + rel + "\" en Medios/", "error");
-                emit notify("El cue no se pudo ejecutar: falta Medios/" + rel, "error");
+                anotar("No encontré la música \"" + rel + "\" en los medios del evento", "error");
+                emit notify("El cue no se pudo ejecutar: falta «" + rel + "» en los medios del evento", "error");
                 return;
             }
             const bool repetir = c->datos.value("repetir", false);
@@ -1860,8 +1875,8 @@ void EventoViewModel::ejecutarActual() {
             const QString rel = QString::fromStdString(c->datos.value("archivo", std::string()));
             const QString ruta = medioPath(rel);
             if (ruta.isEmpty() || !QFile::exists(ruta)) {
-                anotar("No encontré el video \"" + rel + "\" en Medios/", "error");
-                emit notify("El cue no se pudo ejecutar: falta Medios/" + rel, "error");
+                anotar("No encontré el video \"" + rel + "\" en los medios del evento", "error");
+                emit notify("El cue no se pudo ejecutar: falta «" + rel + "» en los medios del evento", "error");
                 return;
             }
             if (!prepararEscenaDeVideo()) return;

@@ -88,5 +88,8 @@ grabando.
 - **Migración hecha** (Configuraciones::separarEventos, test_eventos_separar): una vez,
   con respaldo en <datos>/Respaldos/eventos-antes-de-separar-*. En la Mac: «Debate: La
   Grande Armée y la derrota» pasó a su carpeta; «Principal» quedó con «Prueba Mac 1012».
-- Falta: Histórico de todas las carpetas (hoy muestra los de la abierta); medios de los
-  cues y de la página Medios en un solo lugar (E3).
+- **Histórico de todos los eventos** y cuánto ocupa cada uno (medido en otro hilo; las
+  grabaciones aparte). Los registros de otro evento se nombran «@<evento>/<carpeta>».
+- **E3 hecho**: los cues de música y video usan los medios del evento (Media/, la página
+  Medios); si no está, Medios/ de la carpeta del guion (los guiones de antes).
+  evento_revisar busca en los dos.
