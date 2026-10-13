@@ -8,67 +8,103 @@
 # Windows 10+ (tools/deps/windows-baseline.txt). Si algo depende de un
 # instalable (VC++ Redistributable, un driver, otro programa), falla.
 #
+# Rápido: las importaciones de cada archivo se guardan por su sha256 en un
+# caché al lado del bundle (<bundle>.importaciones), así que solo se lee lo que
+# cambió, y eso en paralelo. Las comparaciones no lanzan procesos (eran decenas
+# de miles de `echo | tr` bajo la emulación x86 de Docker: 6 minutos).
+#
 # Uso: tools/deps/check-portable-win.sh <release-win>
 # ============================================================================
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-BUNDLE="${1:?uso: $0 <bundle>}"
-OBJDUMP="$ROOT/extern/toolchain/llvm/bin/llvm-objdump"
+BUNDLE="$(cd "${1:?uso: $0 <bundle>}" && pwd)"
+OBJDUMP="${OBJDUMP:-$ROOT/extern/toolchain/llvm/bin/llvm-objdump}"
 BASELINE="$ROOT/tools/deps/windows-baseline.txt"
+CACHE="${BA_PORTABLE_CACHE:-$BUNDLE.importaciones}"
 
-# Nombres (en minusculas) de todas las DLL del bundle.
-declare -A have=()
-while IFS= read -r f; do
-    have["$(basename "$f" | tr '[:upper:]' '[:lower:]')"]=1
-done < <(find "$BUNDLE" -type f \( -iname '*.dll' -o -iname '*.clap' -o -iname '*.pyd' \))
+# Todos los archivos del bundle, por ruta relativa en minúsculas (para buscar
+# una DLL junto a quien la importa), y los nombres de las DLL.
+declare -A archivo=() have=()
+while IFS= read -r -d '' f; do
+    rel="${f#"$BUNDLE"/}"
+    archivo["${rel,,}"]=1
+    case "${f,,}" in *.dll | *.clap | *.pyd) n="${f##*/}"; have["${n,,}"]=1 ;; esac
+done < <(find "$BUNDLE" -type f -print0)
 
-declare -A base=()
-while IFS= read -r l; do
-    l="${l%%#*}"
-    l="$(echo "$l" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
-    [ -n "$l" ] && base["$l"]=1
-done <"$BASELINE"
-# Lo que ademas puede pedir LibreOffice, y solo el (ver el archivo).
-declare -A base_lo=()
-if [ -f "$ROOT/tools/deps/windows-baseline-libreoffice.txt" ]; then
-    while IFS= read -r l; do
+leer_base() { # $1 = archivo, $2 = nombre del arreglo
+    local -n dst="$2"
+    local l
+    [ -f "$1" ] || return 0
+    while IFS= read -r l || [ -n "$l" ]; do
         l="${l%%#*}"
-        l="$(echo "$l" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
-        [ -n "$l" ] && base_lo["$l"]=1
-    done <"$ROOT/tools/deps/windows-baseline-libreoffice.txt"
+        l="${l//[[:space:]]/}"
+        [ -n "$l" ] && dst["${l,,}"]=1
+    done <"$1"
+}
+declare -A base=() base_lo=()
+leer_base "$BASELINE" base
+# Lo que ademas puede pedir LibreOffice, y solo el (ver el archivo).
+leer_base "$ROOT/tools/deps/windows-baseline-libreoffice.txt" base_lo
+
+# Los PE y su sha256.
+mapfile -d '' pes < <(find "$BUNDLE" -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.clap' \) -print0)
+declare -A sha=()
+while read -r h p; do sha["$p"]="$h"; done < <(printf '%s\0' "${pes[@]}" | xargs -0 -r sha256sum)
+
+# El caché: sha<TAB>dll dll dll
+declare -A importa=()
+if [ -f "$CACHE" ]; then
+    while IFS=$'\t' read -r h dlls; do [ -n "$h" ] && importa["$h"]="$dlls"; done <"$CACHE"
 fi
+faltan=()
+for p in "${pes[@]}"; do [ -n "${importa[${sha[$p]}]+x}" ] || faltan+=("$p"); done
+if [ "${#faltan[@]}" -gt 0 ]; then
+    # Una línea por archivo: <ruta><TAB><dll dll ...> (objdump en paralelo).
+    export OBJDUMP
+    while IFS=$'\t' read -r p dlls; do
+        importa["${sha[$p]}"]="$dlls"
+    done < <(printf '%s\0' "${faltan[@]}" | xargs -0 -r -P "$(nproc 2>/dev/null || echo 4)" -n 16 bash -c '
+        for f in "$@"; do
+            printf "%s\t%s\n" "$f" "$("$OBJDUMP" -p "$f" 2>/dev/null | awk "/DLL Name:/{printf \"%s \", \$3}")"
+        done' _)
+fi
+# El caché vuelve a escribirse con lo de este bundle (lo viejo se cae solo).
+tmp="$CACHE.tmp.$$"
+for p in "${pes[@]}"; do printf '%s\t%s\n' "${sha[$p]}" "${importa[${sha[$p]}]}"; done | sort -u >"$tmp"
+mv -f "$tmp" "$CACHE"
 
 fail=0
-count=0
-while IFS= read -r pe; do
-    count=$((count + 1))
+for pe in "${pes[@]}"; do
+    rel="${pe#"$BUNDLE"/}"
+    dir="${rel%/*}"
+    [ "$dir" = "$rel" ] && dir=""
     # LibreOffice corre desde bin/libreoffice/program/ y Windows busca sus DLL
     # AHI (la carpeta del programa) o en el sistema: que este en bin/64bit no
     # le sirve. Asi se escapo el runtime de Visual C++, que el .msi pone en
     # System32 y no en program/.
     es_lo=0
-    case "$pe" in "$BUNDLE"/bin/libreoffice/*) es_lo=1 ;; esac
-    while IFS= read -r dll; do
-        k="$(echo "$dll" | tr '[:upper:]' '[:lower:]')"
+    case "$rel" in bin/libreoffice/*) es_lo=1 ;; esac
+    for dll in ${importa[${sha[$pe]}]}; do
+        k="${dll,,}"
         [ -n "${base[$k]:-}" ] && continue
-        case "$k" in api-ms-win-*|ext-ms-win-*) continue ;; esac
+        case "$k" in api-ms-win-* | ext-ms-win-*) continue ;; esac
         if [ "$es_lo" = 1 ]; then
             [ -n "${base_lo[$k]:-}" ] && continue
             # Su carpeta, o la del .exe que arranco el proceso (program/).
-            ls "$(dirname "$pe")" "$BUNDLE/bin/libreoffice/program" 2>/dev/null | grep -qixF "$dll" && continue
-            echo "FALTA: ${pe#"$BUNDLE"/} importa $dll (ni en su carpeta, ni en program/, ni en Windows)"
+            [ -n "${archivo[${dir,,}/$k]:-}" ] && continue
+            [ -n "${archivo[bin/libreoffice/program/$k]:-}" ] && continue
+            echo "FALTA: $rel importa $dll (ni en su carpeta, ni en program/, ni en Windows)"
             fail=1
             continue
         fi
         [ -n "${have[$k]:-}" ] && continue
-        case "$k" in api-ms-win-*|ext-ms-win-*) continue ;; esac
-        echo "FALTA: ${pe#"$BUNDLE"/} importa $dll (ni en el bundle ni en Windows)"
+        echo "FALTA: $rel importa $dll (ni en el bundle ni en Windows)"
         fail=1
-    done < <("$OBJDUMP" -p "$pe" 2>/dev/null | awk '/DLL Name:/{print $3}')
-done < <(find "$BUNDLE" -type f \( -iname '*.exe' -o -iname '*.dll' -o -iname '*.clap' \))
+    done
+done
 
-echo "PE revisados: $count"
+echo "PE revisados: ${#pes[@]} (${#faltan[@]} leídos, el resto del caché)"
 if [ "$fail" -ne 0 ]; then
     echo "ERROR: el bundle de Windows depende de DLLs que no lleva." >&2
     exit 1
