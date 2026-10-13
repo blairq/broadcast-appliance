@@ -244,8 +244,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.details =
             "`falta` es lo importante: dice por que ese cue no se podria ejecutar (una escena sin nombre, "
             "un orador sin tiempo, un video sin archivo). Un guion sano tiene todos los `falta` vacios.\n\n"
-            "`offsetSeg` de cada cue son los segundos desde el arranque del evento: con `inicio` sale la "
-            "hora prevista de cada cosa.\n\n"
+            "`offsetSeg` de cada cue son los segundos desde el arranque del evento y `horaPrevista` la "
+            "hora («HH:MM») a la que le toca, si el evento tiene `inicio`.\n\n"
             "`cuando` es el arranque como instante absoluto con desfasaje "
             "(\"2026-09-24T19:00:00-03:00\"): es lo unico que le sirve a alguien que esta en otro huso. "
             "Viene vacio si falta la fecha o la hora.\n\n"

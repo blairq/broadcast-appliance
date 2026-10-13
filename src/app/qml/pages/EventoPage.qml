@@ -85,13 +85,6 @@ Rectangle {
         return f + " · " + h
     }
 
-    function horaDe(offsetSeg) {
-        const inicio = ev.guion.inicio || ""
-        if (!/^\d{1,2}:\d{2}$/.test(inicio) || offsetSeg < 0) return ""
-        const p = inicio.split(":")
-        const total = parseInt(p[0]) * 60 + parseInt(p[1]) + Math.floor(offsetSeg / 60)
-        return String(Math.floor(total / 60) % 24).padStart(2, "0") + ":" + String(total % 60).padStart(2, "0")
-    }
     function colorDeTipo(tipo) {
         switch (tipo) {
         case "escena": return Theme.accent
@@ -614,8 +607,9 @@ Rectangle {
                                                 onEditingFinished: page.ev.renombrarBloque(index, text)
                                             }
                                             Text {
-                                                text: page.horaDe(modelData.offsetSeg) !== ""
-                                                      ? page.horaDe(modelData.offsetSeg) + " · " + page.mmss(modelData.duracionSeg)
+                                                // La hora la calcula el modelo (la misma que lee el asistente).
+                                                text: (modelData.horaPrevista || "") !== ""
+                                                      ? modelData.horaPrevista + " · " + page.mmss(modelData.duracionSeg)
                                                       : page.mmss(modelData.duracionSeg)
                                                 color: Theme.textDim
                                                 font { family: Theme.mono; pixelSize: 12 }

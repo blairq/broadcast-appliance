@@ -2,6 +2,8 @@
 // src/app/ui/EventoViewModel.cpp — ver EventoViewModel.hpp
 // ============================================================================
 #include "ui/EventoViewModel.hpp"
+
+#include <cstdio>
 #include "sala/ControlSala.hpp"
 #include <QPointer>
 #include "ajustes/Ajustes.hpp"
@@ -668,6 +670,19 @@ QVariantMap EventoViewModel::cueAMap(const evento::Cue& c, int bloque, int cue) 
                        {"cue", cue}};
 }
 
+namespace {
+// La hora prevista de algo que arranca `offsetSeg` después de `inicio` («HH:MM»): «HH:MM»
+// (da la vuelta a medianoche), o "" si no hay hora de inicio válida.
+QString horaPrevista(const std::string& inicio, int offsetSeg) {
+    int h = 0, m = 0;
+    char sobra = 0;
+    if (offsetSeg < 0 || std::sscanf(inicio.c_str(), "%d:%d%c", &h, &m, &sobra) != 2 || h < 0 || h > 23 || m < 0 || m > 59)
+        return {};
+    const int total = h * 60 + m + offsetSeg / 60;
+    return QString("%1:%2").arg((total / 60) % 24, 2, 10, QChar('0')).arg(total % 60, 2, 10, QChar('0'));
+}
+} // namespace
+
 QVariantMap EventoViewModel::guion() const {
     QVariantList bs;
     int nro = 0;
@@ -678,6 +693,7 @@ QVariantMap EventoViewModel::guion() const {
             QVariantMap m = cueAMap(b.cues[ci], static_cast<int>(bi), static_cast<int>(ci));
             m["nro"] = ++nro; // numeracion corrida, como un rundown de verdad
             m["offsetSeg"] = e_.offsetDeCueSeg(bi, ci);
+            m["horaPrevista"] = horaPrevista(e_.inicio, e_.offsetDeCueSeg(bi, ci));
             cs.append(m);
         }
         bs.append(QVariantMap{{"id", QString::fromStdString(b.id)},
@@ -685,6 +701,7 @@ QVariantMap EventoViewModel::guion() const {
                               {"nota", QString::fromStdString(b.nota)},
                               {"duracionSeg", b.duracionSeg()},
                               {"offsetSeg", e_.offsetDeBloqueSeg(bi)},
+                              {"horaPrevista", horaPrevista(e_.inicio, e_.offsetDeBloqueSeg(bi))},
                               {"indice", static_cast<int>(bi)},
                               {"cues", cs}});
     }
