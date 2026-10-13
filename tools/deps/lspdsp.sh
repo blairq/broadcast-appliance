@@ -83,6 +83,7 @@ case "$PLAT" in
         WRAP="$SRC/bin"
         mkdir -p "$WRAP"
         cat >"$WRAP/ld" <<EOS
+#!/usr/bin/env bash
 set -e
 out=; ins=()
 while [ \$# -gt 0 ]; do
@@ -97,6 +98,7 @@ rm -f "\$out"
 exec "$LLVM/llvm-ar" qcT "\$out" "\${ins[@]}"
 EOS
         cat >"$WRAP/cxx" <<EOS
+#!/usr/bin/env bash
 args=()
 for a in "\$@"; do
     if [[ "\$a" != -* && "\$a" == *.o && -f "\$a" ]] && [ "\$(head -c 7 "\$a")" = '!<thin>' ]; then
