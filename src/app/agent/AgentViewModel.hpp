@@ -196,6 +196,13 @@ class AgentViewModel : public QObject {
     Q_INVOKABLE void start();
     Q_INVOKABLE void stop();
     Q_INVOKABLE void restart();
+    /// La conversación de Claude que se puede retomar (su id), o "" si no hay: la
+    /// sesión interactiva andando y con algo ya guardado. La app la pasa al reiniciarse
+    /// (--reanudar-asistente=<id>) para no perderla.
+    QString sesionParaReanudar() const;
+    /// Al arrancar con --reanudar-asistente: lanza el asistente retomando esa
+    /// conversación (claude --resume) y pide que se lo muestre.
+    void reanudarAlArrancar(const QString& id);
     /// Guardas de aire: con la transmisión o la grabación andando, el asistente
     /// interactivo corre SIN consola (Bash/PowerShell); si estaba con consola,
     /// se relanza sin ella.
@@ -272,6 +279,8 @@ class AgentViewModel : public QObject {
     void setReclamado(std::function<bool(const nlohmann::json&)> fn) { reclamado_ = std::move(fn); }
 
    signals:
+    /// Se retomó una conversación al arrancar: la interfaz muestra el asistente.
+    void mostrarseAlReanudar();
     void configChanged();
     void installChanged();
     void latestChanged();
@@ -361,6 +370,8 @@ class AgentViewModel : public QObject {
     QStringList pendingAlerts_;
     bool flushScheduled_ = false;
     bool expectedStop_ = false; ///< lo detuvimos nosotros: no es un error
+    QString sesion_;    ///< el id de la conversación de Claude que corre (--session-id / --resume)
+    QString reanudar_;  ///< la que el próximo arranque retoma (una vez)
     std::function<bool(const nlohmann::json&)> reclamado_;
     std::function<bool()> hayAire_;
     bool conConsola_ = false; ///< el interactivo arrancó con Bash/PowerShell

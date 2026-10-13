@@ -391,6 +391,15 @@ ApplicationWindow {
         }
     }
 
+    // El asistente retomó la conversación de antes del reinicio: a su pestaña.
+    Connections {
+        target: Studio.agent
+        function onMostrarseAlReanudar() {
+            const p = Studio.riel.paginaDeId("asistente")
+            if (p >= 0) win.showPage(p)
+        }
+    }
+
     // Los carteles que dicen cuál monitor es cuál (Studio.identificarPantallas).
     IdentificarPantallas { id: identificar }
     Connections {

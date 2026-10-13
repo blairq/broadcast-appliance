@@ -680,6 +680,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         QStringList args{"--reiniciar"};
         for (const QString& a : QCoreApplication::arguments())
             if (a == "--test" || a == "--debug") args << a;
+        // La conversación del asistente sigue después del reinicio (la retoma al abrir).
+        if (agent_)
+            if (const QString s = agent_->sesionParaReanudar(); !s.isEmpty()) args << "--app-arg=--reanudar-asistente=" + s;
         return system_->launch(args);
     });
     // Terminó un evento nuevo hecho aparte (una copia puede tardar): un solo aviso.
@@ -901,6 +904,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         agent_ = std::make_unique<agent::AgentViewModel>(rt, *alerts_);
         marca("agent");
         connect(agent_.get(), &agent::AgentViewModel::notify, this, &StudioViewModel::notify);
+        // Reiniciada con una conversación para retomar (--reanudar-asistente=<id>, ver
+        // el reinicio de Configuraciones): el asistente arranca con ella y se muestra.
+        for (const QString& a : QCoreApplication::arguments())
+            if (a.startsWith("--reanudar-asistente=")) agent_->reanudarAlArrancar(a.mid(21));
         // Las reglas las cambia el motor (interfaz, MCP, plugins): la lista del
         // asistente se entera por él, sin que cada llamador se acuerde de avisar.
         connect(alerts_.get(), &agent::AlertEngine::reglasCambio, agent_.get(), &agent::AgentViewModel::alertsChanged);
