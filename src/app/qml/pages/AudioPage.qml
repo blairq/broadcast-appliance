@@ -341,8 +341,7 @@ Rectangle {
                     onTriggered: {
                         page.msg = Studio.inputs.addAudioInput(modelData.value, "")
                         if (page.msg) return
-                        // La lista de fuentes con audio se arma aparte: sin esto
-                        // la entrada nueva no aparecia hasta tocar otra cosa.
+                        // La lista se rehace sola (el modelo se entera); acá solo se la elige.
                         page.au.refresh()
                         page.au.selectSource(Studio.inputs.audioInputName(modelData.value))
                     }

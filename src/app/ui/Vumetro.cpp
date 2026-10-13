@@ -93,6 +93,19 @@ void Vumetro::setRojoDb(qreal x) {
     emit cambio();
     update();
 }
+void Vumetro::setHorizontal(bool h) {
+    if (h == horizontal_) return;
+    horizontal_ = h;
+    emit cambio();
+    update();
+}
+void Vumetro::setSegmentos(int n) {
+    n = std::clamp(n, 0, 64);
+    if (n == segmentos_) return;
+    segmentos_ = n;
+    emit cambio();
+    update();
+}
 void Vumetro::setApagado(bool a) {
     if (a == apagado_) return;
     apagado_ = a;
@@ -116,36 +129,56 @@ QSGNode* Vumetro::updatePaintNode(QSGNode* viejo, UpdatePaintNodeData*) {
         nodo->setMaterial(new QSGVertexColorMaterial);
         nodo->setFlag(QSGNode::OwnsMaterial);
     }
-    const float w = static_cast<float>(width()), h = static_cast<float>(height());
+    // Se dibuja parado: `ancho` a lo ancho y `alto` a lo largo (arriba = el máximo). Acostado,
+    // cada rectángulo se gira: lo de arriba queda a la derecha.
+    const float W = static_cast<float>(width()), H = static_cast<float>(height());
+    const float w = horizontal_ ? H : W, h = horizontal_ ? W : H;
     std::vector<QSGGeometry::ColoredPoint2D> v;
     v.reserve(200);
+    const auto r = [&](float x0, float y0, float x1, float y1, Color col) {
+        if (horizontal_) rect(v, h - y1, x0, h - y0, x1, col);
+        else rect(v, x0, y0, x1, y1, col);
+    };
     const auto y = [&](qreal db) { return h - static_cast<float>(fraccion(db)) * h; };
-    const float yAmarillo = y(amarillo_), yRojo = y(rojo_);
     const float hueco = canales_ == 2 ? std::max(1.0f, w * 0.08f) : 0.0f;
     const float ancho = canales_ == 2 ? (w - hueco) / 2.0f : w;
     for (int c = 0; c < canales_; ++c) {
         const float x0 = c == 0 ? 0.0f : ancho + hueco, x1 = x0 + ancho;
-        rect(v, x0, 0, x1, h, kFondo);
+        if (segmentos_ > 0) {
+            // LED: cada segmento se enciende si el pico pasa su comienzo; color por zona.
+            const float paso = h / static_cast<float>(segmentos_);
+            for (int k = 0; k < segmentos_; ++k) {
+                const qreal desde = min_ + (max_ - min_) * k / segmentos_;
+                Color col = desde >= rojo_ ? kRojo : desde >= amarillo_ ? kAmbar : kVerde;
+                const bool on = v_[c] > desde && !apagado_;
+                if (!on) col.a = 30;
+                const float yb = h - k * paso, yt = yb - paso + 1.0f;
+                r(x0, yt, x1, yb, col);
+            }
+            continue;
+        }
+        r(x0, 0, x1, h, kFondo);
         // Las líneas de la escala (cada 6 dB), finitas, detrás de la barra.
         for (qreal db = std::ceil(min_ / 6.0) * 6.0; db < max_; db += 6.0) {
             const float yy = y(db);
-            rect(v, x0, yy, x1, yy + 1.0f, kEscala);
+            r(x0, yy, x1, yy + 1.0f, kEscala);
         }
+        const float yAmarillo = y(amarillo_), yRojo = y(rojo_);
         // La barra del RMS, por zonas.
         const float yRms = y(v_[2 + c]);
-        rect(v, x0, std::max(yRms, yAmarillo), x1, h, apagar(kVerde, apagado_));
-        rect(v, x0, std::max(yRms, yRojo), x1, std::min(h, yAmarillo), apagar(kAmbar, apagado_));
-        rect(v, x0, yRms, x1, std::min(h, yRojo), apagar(kRojo, apagado_));
+        r(x0, std::max(yRms, yAmarillo), x1, h, apagar(kVerde, apagado_));
+        r(x0, std::max(yRms, yRojo), x1, std::min(h, yAmarillo), apagar(kAmbar, apagado_));
+        r(x0, yRms, x1, std::min(h, yRojo), apagar(kRojo, apagado_));
         // El pico (línea) y la retención (marca del color de su zona).
         const qreal pico = v_[c], ret = v_[4 + c];
         if (pico > min_) {
             const float yp = y(pico);
-            rect(v, x0, yp, x1, yp + 1.5f, apagar(kPico, apagado_));
+            r(x0, yp, x1, yp + 1.5f, apagar(kPico, apagado_));
         }
         if (ret > min_) {
             const float yr = y(ret);
             const Color col = ret >= rojo_ ? kRojo : ret >= amarillo_ ? kAmbar : kVerde;
-            rect(v, x0, yr, x1, yr + 2.0f, apagar(col, apagado_));
+            r(x0, yr, x1, yr + 2.0f, apagar(col, apagado_));
         }
     }
     QSGGeometry* geo = nodo->geometry();

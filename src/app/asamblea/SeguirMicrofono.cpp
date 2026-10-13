@@ -30,7 +30,9 @@ SeguirMicrofono::SeguirMicrofono(const fs::path& datos, control::BusEventos& bus
         soltarMs_ = j.value("soltar_ms", 2500);
     }
     connect(&reloj_, &QTimer::timeout, this, &SeguirMicrofono::mirar);
-    reloj_.start(100);
+    // Solo corre con la función prendida (apagada eran 10 despertadas por segundo para nada).
+    reloj_.setInterval(100);
+    if (activo_) reloj_.start();
     // El sistema de conferencia del recinto (un plugin publica «conferencia/microfono» {banca, abierto}).
     sub_ = bus_.suscribir("plugin/+/conferencia/microfono", [this](const std::string&, const json& v) {
         if (!v.is_object()) return;
@@ -75,6 +77,8 @@ std::string SeguirMicrofono::configurar(const json& c) {
     if (c.contains("activo")) {
         activo_ = c.value("activo", false);
         if (!activo_) propuesta_ = nullptr;
+        if (activo_) reloj_.start();
+        else reloj_.stop();
     }
     guardar();
     emit cambio();

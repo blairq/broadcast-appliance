@@ -32,7 +32,8 @@ Rectangle {
         anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
         color: pill.on ? pill.dot : Theme.textFaint
         SequentialAnimation on opacity {
-            running: pill.on && pill.pulse
+            // Solo a la vista: una animación infinita oculta mantiene el render a 60 Hz.
+            running: pill.on && pill.pulse && pill.visible
             loops: Animation.Infinite
             NumberAnimation { to: 0.25; duration: 650; easing.type: Easing.InOutSine }
             NumberAnimation { to: 1.0; duration: 650; easing.type: Easing.InOutSine }

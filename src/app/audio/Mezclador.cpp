@@ -163,7 +163,9 @@ void Mezclador::tic() {
     }
     nivelesE_ = std::move(ne);
     nivelesS_ = std::move(ns);
-    loudness_ = aMapa(rt_.engine().loudness().json());
+    // El loudness cambia despacio (el momentáneo integra 400 ms): 5 veces por segundo
+    // alcanza, y se ahorra la vuelta por JSON en cada cuadro.
+    if (vueltas % 6 == 0 || loudness_.isEmpty()) loudness_ = aMapa(rt_.engine().loudness().json());
     emit nivelesCambio();
 }
 

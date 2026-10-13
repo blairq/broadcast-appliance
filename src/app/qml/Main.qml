@@ -619,7 +619,6 @@ ApplicationWindow {
         color: Qt.rgba(0.1, 0.1, 0.12, 0.96)
         border.color: Theme.amber
         border.width: 2
-        Timer { running: cartelCaida.visible && !!cartelCaida.c.aire_vuelta_s; interval: 30000; onTriggered: Studio.cerrarCartelCaida() }
         ColumnLayout {
             id: cartelCol
             anchors { fill: parent; margins: 14 }

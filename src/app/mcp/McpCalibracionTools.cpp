@@ -90,11 +90,13 @@ void McpService::registerCalibracionTools() {
                          {"required", {"pestana"}},
                          {"properties",
                           {{"pestana", {{"type", "string"}, {"enum", {"consola", "calibracion"}}}},
+                           {"matriz", {{"type", "boolean"}, {"description", "en consola: la matriz desplegada abajo"}}},
                            {"vista", {{"type", "string"},
                                       {"enum", {"respuesta", "impulso", "rt", "propuesta"}},
                                       {"description", "en calibracion: curvas, impulso y ETC, RT60 por banda o la propuesta"}}}}}};
         t.run = [mz](const json& a, Done done) {
             mz->setPestana(QString::fromStdString(a.value("pestana", "consola")));
+            if (a.contains("matriz")) mz->setMatrizAbierta(a.value("matriz", false));
             if (a.contains("vista")) mz->calibracion()->setVista(QString::fromStdString(a.value("vista", "respuesta")));
             done(ToolResult::ok("Pestaña: " + mz->pestana().toStdString() + " (la ventana: ui_panel_window {panel: mezclador})."));
         };

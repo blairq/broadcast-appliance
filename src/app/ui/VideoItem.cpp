@@ -49,6 +49,9 @@ void VideoItem::refresh() {
         return;
     }
     const bool had = !image_.isNull();
+    // Oculto (una página precargada que no se ve) no copia cuadros: al mostrarse los pide.
+    // El primero sí, por si alguien mira hasFrame para decidir si mostrarlo.
+    if (had && !isVisible()) return;
     const QSize antes = image_.size();
     if (service_->latest(source_, image_, serial_)) {
         dirty_ = true;
@@ -60,6 +63,11 @@ void VideoItem::refresh() {
             emit frameSizeChanged();
         }
     }
+}
+
+void VideoItem::itemChange(ItemChange change, const ItemChangeData& value) {
+    QQuickItem::itemChange(change, value);
+    if (change == ItemVisibleHasChanged && value.boolValue) refresh();
 }
 
 QSGNode* VideoItem::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {

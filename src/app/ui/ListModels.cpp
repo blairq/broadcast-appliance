@@ -349,13 +349,20 @@ void MixerModel::refreshLevels() {
         reload();
         return;
     }
+    // Solo se avisa lo que cambió (en silencio todo queda en -100: sin avisos, las
+    // vistas no reevalúan nada diez veces por segundo).
+    int desde = -1, hasta = -1;
     for (std::size_t i = 0; i < names_.size(); ++i) {
         // Caida suave: 1,5 dB por vuelta del tick (100 ms).
+        const float antes = peaks_[i];
         peaks_[i] = std::max(rt_.engine().sourcePeakDb(names_[i]), peaks_[i] - 1.5f);
+        if (peaks_[i] < -100.0f) peaks_[i] = -100.0f;
+        if (std::abs(peaks_[i] - antes) > 0.1f) {
+            if (desde < 0) desde = static_cast<int>(i);
+            hasta = static_cast<int>(i);
+        }
     }
-    if (!names_.empty()) {
-        emit dataChanged(index(0), index(rowCount() - 1), {PeakDbRole});
-    }
+    if (desde >= 0) emit dataChanged(index(desde), index(hasta), {PeakDbRole});
 }
 
 double MixerModel::picoDe(const std::string& nombre) const {

@@ -31,9 +31,11 @@ Item {
     property string hBus: ""
     readonly property bool hayHover: hFila !== "" || hBus !== ""
 
-    readonly property int celda: 46
-    readonly property int anchoFila: 230
-    readonly property int altoCab: 140
+    // Compacta: en el desplegable del Mezclador (entran más filas a la vista).
+    property bool compacta: false
+    readonly property int celda: compacta ? 36 : 46
+    readonly property int anchoFila: compacta ? 190 : 230
+    readonly property int altoCab: compacta ? 96 : 140
 
     // Mide mientras esta vista se ve (por vista: la de la página Audio y la del
     // Mezclador no se apagan una a la otra).
@@ -51,44 +53,52 @@ Item {
         if (c.tipo === "fisica") return "#38bdf8"
         return "#14b8a6"
     }
-    function idxCol(id) { for (let i = 0; i < cols.length; ++i) if (cols[i].id === id) return i; return -1 }
-    function idxFila(n) { for (let i = 0; i < filas.length; ++i) if (filas[i].nombre === n) return i; return -1 }
+    // Índices y alcances, calculados una vez por cambio de la matriz (no en cada cruce
+    // y en cada movimiento del mouse): cada cruce los lee en O(1).
+    readonly property var idxColDe: { const r = {}; for (let i = 0; i < cols.length; ++i) r[cols[i].id] = i; return r }
+    readonly property var idxFilaDe: { const r = {}; for (let i = 0; i < filas.length; ++i) r[filas[i].nombre] = i; return r }
+    readonly property var ultimaColDe: {
+        const r = {}
+        for (let f = 0; f < filas.length; ++f) {
+            let u = -1
+            for (let i = 0; i < cols.length; ++i) if (on(filas[f].nombre, cols[i].id)) u = i
+            r[filas[f].nombre] = u
+        }
+        return r
+    }
+    readonly property var ultimaFilaDe: {
+        const r = {}
+        for (let i = 0; i < cols.length; ++i) {
+            let u = -1
+            for (let f = 0; f < filas.length; ++f) if (on(filas[f].nombre, cols[i].id)) u = f
+            r[cols[i].id] = u
+        }
+        return r
+    }
+    function idxCol(id) { const v = idxColDe[id]; return v === undefined ? -1 : v }
+    function idxFila(n) { const v = idxFilaDe[n]; return v === undefined ? -1 : v }
     function filaLit(f) { return f === hFila || (hBus !== "" && on(f, hBus)) }
     function colLit(b) { return b === hBus || (hFila !== "" && on(hFila, b)) }
     // Hasta dónde llega el cable de una fila (la última columna a la que va) y
     // el de una columna (la última fila que le manda).
-    function ultimaCol(f) { let u = -1; for (let i = 0; i < cols.length; ++i) if (on(f, cols[i].id)) u = i; return u }
-    function ultimaFila(b) { let u = -1; for (let i = 0; i < filas.length; ++i) if (on(filas[i].nombre, b)) u = i; return u }
+    function ultimaCol(f) { const v = ultimaColDe[f]; return v === undefined ? -1 : v }
+    function ultimaFila(b) { const v = ultimaFilaDe[b]; return v === undefined ? -1 : v }
     function db(k) { const v = med[k]; return v === undefined ? -100 : v }
 
     // --- Medidor LED (segmentos, como los de una consola) -------------------------------
-    component Led: Item {
-        id: led
+    // Un solo nodo de la GPU (Vumetro por segmentos), no un Rectangle por segmento:
+    // con veinte filas y columnas a 20 Hz eran cientos de bindings por cuadro.
+    component Led: Vumetro {
         property real db: -100
         property bool vertical: false
         property int segs: 14
+        canales: 1
+        horizontal: !vertical
+        segmentos: segs
+        minDb: -60; maxDb: 0; amarilloDb: -18; rojoDb: -6
+        picoL: db
         implicitWidth: vertical ? 6 : 90
         implicitHeight: vertical ? 70 : 6
-        Grid {
-            anchors.fill: parent
-            columns: led.vertical ? 1 : led.segs
-            rows: led.vertical ? led.segs : 1
-            spacing: 1
-            Repeater {
-                model: led.segs
-                delegate: Rectangle {
-                    required property int index
-                    // 0 = abajo / izquierda. -60 dBFS .. 0 dBFS.
-                    readonly property int k: led.vertical ? led.segs - 1 - index : index
-                    readonly property real umbral: -60 + k * (60 / led.segs)
-                    readonly property color base: k >= led.segs - 2 ? "#ef4444" : k >= led.segs - 5 ? "#f5b83d" : "#22c55e"
-                    width: led.vertical ? led.width : (led.width - (led.segs - 1)) / led.segs
-                    height: led.vertical ? (led.height - (led.segs - 1)) / led.segs : led.height
-                    radius: 1
-                    color: led.db > umbral ? base : Qt.rgba(base.r, base.g, base.b, 0.12)
-                }
-            }
-        }
     }
 
     ColumnLayout {
@@ -191,8 +201,8 @@ Item {
                                     color: cab.col; font { pixelSize: 11; weight: Font.Bold; family: Theme.mono }
                                 }
                                 Led {
-                                    anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: 30 }
-                                    vertical: true; width: 10; height: 62; segs: 16
+                                    anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: mx.compacta ? 26 : 30 }
+                                    vertical: true; width: 10; height: mx.compacta ? 34 : 62; segs: mx.compacta ? 10 : 16
                                     db: mx.db("bus:" + cab.modelData.id)
                                 }
                             }
@@ -366,7 +376,7 @@ Item {
                                     Rectangle {
                                         id: tecla
                                         anchors.centerIn: parent
-                                        width: x0.activo ? 26 : 20
+                                        width: x0.activo ? (mx.compacta ? 22 : 26) : (mx.compacta ? 16 : 20)
                                         height: width
                                         radius: width / 2
                                         Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutBack } }

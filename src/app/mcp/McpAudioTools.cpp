@@ -476,6 +476,24 @@ void McpService::registerAudioTools() {
     }
     {
         Tool t;
+        t.name = "audio_entrada_fuente";
+        t.title = "Cambiar de dónde trae el audio una tarjeta Entrada";
+        t.category = "audio_rack";
+        t.idempotent = true;
+        t.description = "La tarjeta Entrada `node` del rack de `source` pasa a traer el audio de `fuente` (otra entrada "
+                        "con audio), sin perder sus cables. No acepta lazos entre racks.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties", {{"source", kSource}, {"node", kNode}, {"fuente", {{"type", "string"}}}}},
+                         {"required", {"source", "node", "fuente"}}};
+        t.run = [mgr](const json& a, Done done) {
+            const std::string e = mgr()->setEntradaFuente(a.value("source", ""), a.value("node", ""), a.value("fuente", ""));
+            if (!e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("La tarjeta trae ahora el audio de «" + a.value("fuente", "") + "»."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "audio_patch";
         t.title = "Conectar cables";
         t.category = "audio_rack";

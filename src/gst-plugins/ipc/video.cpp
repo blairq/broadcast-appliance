@@ -27,6 +27,7 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <mutex>
@@ -59,9 +60,9 @@ static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     GST_STATIC_CAPS("video/x-raw, format=(string)BGRA, width=(int)[1, MAX], height=(int)[1, MAX], framerate=(fraction)0/1"));
 
 static bool esperar(BaVideoAnillo* v, int ms) {
-    for (int i = 0; i < ms; i += 2) {
+    for (int i = 0; i < ms; i += 4) {
         if (v->parar.load()) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(4, ms - i)));
     }
     return !v->parar.load();
 }
@@ -111,13 +112,15 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             v->suscripto = true;
             *v->suscriptoCanal = canal;
         }
+        // Sin cuadro nuevo: se vuelve a mirar en 4 ms (un cuadro dura 33). A 2 ms eran 500
+        // despertadas por segundo por invitado.
         if (!v->rx->hasData()) {
-            if (!esperar(v, 2)) return GST_FLOW_FLUSHING;
+            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         const int w = v->rx->width(), h = v->rx->height();
         if (w <= 0 || h <= 0) {
-            if (!esperar(v, 2)) return GST_FLOW_FLUSHING;
+            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         if (w != v->ancho || h != v->alto) {
@@ -136,7 +139,10 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
         const bool hay = v->rx->receive(map.data, map.size, meta);
         gst_buffer_unmap(b, &map);
         if (!hay) {
+            // Sin esto, un cuadro que no se pudo leer era una vuelta sin pausa (y un buffer
+            // del tamaño del cuadro por vuelta).
             gst_buffer_unref(b);
+            if (!esperar(v, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         // La hora: la que le puso el gateway, en el reloj del pipeline.

@@ -36,9 +36,9 @@ Item {
         RowLayout {
             anchors { fill: parent; leftMargin: 10; rightMargin: 6 }
             spacing: 8
-            Rectangle { width: 9; height: 9; radius: 5; color: f.prendida ? f.tono : Qt.rgba(1, 1, 1, 0.2)
+            Rectangle { id: luz; width: 9; height: 9; radius: 5; color: f.prendida ? f.tono : Qt.rgba(1, 1, 1, 0.2)
                         SequentialAnimation on opacity {
-                            running: f.prendida; loops: Animation.Infinite
+                            running: f.prendida && luz.visible; loops: Animation.Infinite
                             NumberAnimation { to: 0.35; duration: 600 }
                             NumberAnimation { to: 1.0; duration: 600 }
                         } }

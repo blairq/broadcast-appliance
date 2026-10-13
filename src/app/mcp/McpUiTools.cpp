@@ -83,6 +83,7 @@ void McpService::registerUiTools() {
               {"copiar", {{"type", "boolean"}, {"default", false}}},
               {"renombrar", {{"type", "string"}}},
               {"borrar", {{"type", "boolean"}, {"default", false}}},
+              {"restablecer", {{"type", "boolean"}, {"default", false}, {"description", "vuelve la multivista elegida a la de fábrica (con su nombre)"}}},
               {"fuentes", {{"type", "array"}, {"items", {{"type", "string"}}}, {"description", "en orden"}}},
               {"distribucion", {{"type", "string"}, {"enum", {"control", "grid", "focus", "pip", "row"}}}},
               {"separacion", {{"type", "integer"}, {"description", "px (a 1920 de ancho), 0-60"}}},
@@ -104,6 +105,10 @@ void McpService::registerUiTools() {
                       R"({"nueva": "Cámaras", "fuentes": ["entrada:Cámara 1", "entrada:Cámara 2"], "distribucion": "grid", "ventana": true})",
                       R"({"vista": "Control", "separacion": 10, "fondo": "#000000", "borde": 3, "colorBorde": "#ffffff"})"};
         t.run = [&vm, windows](const json& a, Done done) {
+            if (a.value("restablecer", false)) {
+                vm.restablecerMultiview();
+                return done(ToolResult::ok("La multivista elegida volvió a la de fábrica."));
+            }
             QString id = vm.multiviewActual();
             if (a.contains("vista")) {
                 const QString q = QString::fromStdString(a.value("vista", std::string()));

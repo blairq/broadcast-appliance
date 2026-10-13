@@ -47,7 +47,7 @@ GridLayout {
         ToolTip.visible: hovered; ToolTip.delay: 400
         ToolTip.text: "Fundido a negro de todo lo que sale"
         SequentialAnimation on opacity {
-            running: !!seg.estado.ftb; loops: Animation.Infinite
+            running: !!seg.estado.ftb && seg.visible; loops: Animation.Infinite
             NumberAnimation { to: 0.5; duration: 500 }
             NumberAnimation { to: 1.0; duration: 500 }
         }
@@ -61,7 +61,7 @@ GridLayout {
         Layout.preferredWidth: seg.angosta ? 96 : 120
         onClicked: seg.poner("placa", !seg.estado.placa)
         SequentialAnimation on opacity {
-            running: !!seg.estado.placa; loops: Animation.Infinite
+            running: !!seg.estado.placa && seg.visible; loops: Animation.Infinite
             NumberAnimation { to: 0.5; duration: 500 }
             NumberAnimation { to: 1.0; duration: 500 }
         }

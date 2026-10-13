@@ -239,8 +239,10 @@ Botonera::Botonera(const fs::path& datos, BusEventos& bus, Ganchos g, QObject* p
             if (p != nullptr) correr(dev, *p, ad.first, k.substr(k.find('|') + 1), 0, ad.second, false);
         }
         enCoalescer_ = false;
+        // Sin nada pendiente se apaga; lo prende el próximo movimiento.
+        if (faderPend_.empty() && perillaPend_.empty()) coalescer_.stop();
     });
-    coalescer_.start(33);
+    coalescer_.setInterval(33);
     // Los aparatos que hace mucho que no se usan, una vez por hora.
     auto* vencer = new QTimer(this);
     connect(vencer, &QTimer::timeout, this, &Botonera::vencerDispositivos);
@@ -1556,6 +1558,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
             auto& pend = perillaPend_[kd];
             pend.first = (*c)["accion"];
             pend.second += numero(msg.value("delta", json(0)), 0);
+            if (!coalescer_.isActive()) coalescer_.start();
             return;
         }
         double nuevo;
@@ -1566,6 +1569,7 @@ void Botonera::entrada(const std::string& dev, const json& msg) {
         nuevo = std::clamp(std::round(nuevo / paso) * paso, mn, mx);
         valores_[kv] = nuevo;
         faderPend_[kd] = {(*c)["accion"], nuevo};
+        if (!coalescer_.isActive()) coalescer_.start();
         sucio_ = true;
         return;
     }

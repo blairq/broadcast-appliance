@@ -63,6 +63,10 @@ class Analyzer {
     void reset();
     void publish();
     void fftFrame();
+    // El espectro solo se calcula si alguien lo mira: snapshot() lo marca y el hilo de
+    // audio deja de hacer la FFT a los 3 s sin lecturas (niveles y loudness siguen).
+    mutable std::atomic<bool> leido_{true};
+    int bloquesSinLeer_ = 0;
 
     double sr_ = 48000;
     std::atomic<bool> resetRequested_{false};

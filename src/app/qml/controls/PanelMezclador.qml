@@ -29,7 +29,7 @@ Item {
     readonly property var nS: mz ? mz.nivelesSalidas : []
     readonly property var lu: mz ? mz.loudness : ({})
     property var tiras: ({})     // nombre -> {volumenDb, mute, pfl, envios}
-    property bool matrizAbierta: false
+    readonly property bool matrizAbierta: mz ? mz.matrizAbierta : false // del modelo (mezclador_pestana)
     property string elegida: ""
     // La pestaña es del modelo (el asistente la cambia: mezclador_pestana).
     readonly property string pestana: mz ? mz.pestana : "consola"
@@ -80,7 +80,7 @@ Item {
         if (e !== "") Studio.notify(e, "error")
     }
     function mostrarEnMatriz(fila, bus) {
-        m.matrizAbierta = true
+        m.mz.matrizAbierta = true
         matriz.hFila = fila || ""
         matriz.hBus = bus || ""
     }
@@ -326,8 +326,7 @@ Item {
         required property var modelData
         readonly property int i: m.indiceSalida(modelData.id)
         readonly property real ret: Math.max(m.nv(m.nS, i, 4), m.nv(m.nS, i, 5))
-        width: 70
-        height: parent ? parent.height : 400
+        width: 62
         radius: 12
         color: Qt.rgba(1, 1, 1, 0.035)
         border.color: Qt.alpha(m.colorDestino(modelData), 0.6)
@@ -410,7 +409,7 @@ Item {
                 compact: true
                 text: m.matrizAbierta ? "Matriz ▴" : "Matriz ▾"
                 active: m.matrizAbierta
-                onClicked: { m.matrizAbierta = !m.matrizAbierta; if (!m.matrizAbierta) { matriz.hFila = ""; matriz.hBus = "" } }
+                onClicked: { m.mz.matrizAbierta = !m.matrizAbierta; if (!m.mz.matrizAbierta) { matriz.hFila = ""; matriz.hBus = "" } }
                 ToolTip.visible: hovered; ToolTip.delay: 400
                 ToolTip.text: "La matriz de salida: qué entrada va a qué pista, bus o salida de la placa."
             }
@@ -503,21 +502,26 @@ Item {
                     }
                 }
             }
-            // El resto de las salidas.
-            Row {
+            // El resto de las salidas: hasta un tercio del ancho (las entradas son lo que se
+            // opera); si no entran, se corren.
+            ListView {
+                id: otrasSalidas
                 Layout.fillHeight: true
+                Layout.preferredWidth: Math.min(contentWidth, m.width * 0.32)
+                orientation: ListView.Horizontal
                 spacing: 6
-                Repeater {
-                    model: m.salidas.filter((s) => s.id !== "pista1")
-                    delegate: TiraSalida {}
-                }
+                clip: true
+                interactive: contentWidth > width
+                model: m.salidas.filter((s) => s.id !== "pista1")
+                delegate: TiraSalida { height: otrasSalidas.height }
+                ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
             }
         }
 
         // --- La matriz (desplegable) ------------------------------------------------
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: m.matrizAbierta ? Math.max(260, m.height * 0.42) : 0
+            Layout.preferredHeight: m.matrizAbierta ? Math.max(300, m.height * 0.5) : 0
             visible: m.matrizAbierta && m.pestana === "consola"
             radius: 12
             color: Qt.rgba(1, 1, 1, 0.03)
@@ -526,6 +530,7 @@ Item {
             Behavior on Layout.preferredHeight { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
             MatrizAudio {
                 id: matriz
+                compacta: true
                 anchors { fill: parent; margins: 8 }
                 visible: m.matrizAbierta
             }

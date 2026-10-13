@@ -30,6 +30,7 @@
 #include <chrono>
 #include <mutex>
 #include <string>
+#include <algorithm>
 #include <thread>
 #include <vector>
 
@@ -63,9 +64,9 @@ static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC,
 
 /// Espera `ms` en pasos cortos; false si mientras tanto pidieron parar.
 static bool esperar(BaAnillo* a, int ms) {
-    for (int i = 0; i < ms; i += 2) {
+    for (int i = 0; i < ms; i += 4) {
         if (a->parar.load()) return false;
-        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+        std::this_thread::sleep_for(std::chrono::milliseconds(std::min(4, ms - i)));
     }
     return !a->parar.load();
 }
@@ -98,12 +99,14 @@ static GstFlowReturn crear(GstPushSrc* ps, GstBuffer** out) {
             a->proxima = GST_CLOCK_TIME_NONE;
         }
         ba::ipc::PoppedBlock meta;
+        // Sin bloque: se vuelve a mirar en 4 ms (menos de medio bloque de 10 ms). A 2 ms eran
+        // 500 despertadas por segundo por canal, con candado, aunque nadie hablara.
         if (!a->ring->pop(a->bloque->data(), meta)) {
-            if (!esperar(a, 2)) return GST_FLOW_FLUSHING;
+            if (!esperar(a, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         if (meta.isSilence) { // underrun (pop da silencio y true): no habla o no está
-            if (!esperar(a, 2)) return GST_FLOW_FLUSHING;
+            if (!esperar(a, 4)) return GST_FLOW_FLUSHING;
             continue;
         }
         // La hora: la del gateway (al escribir el bloque, que empezó un bloque

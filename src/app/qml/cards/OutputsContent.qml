@@ -182,7 +182,7 @@ Item {
             id: isos
             Layout.fillWidth: true
             property var lista: Studio.isosUi()
-            Timer { interval: 3000; running: true; repeat: true; onTriggered: isos.lista = Studio.isosUi() }
+            Timer { interval: 3000; running: isos.visible; repeat: true; triggeredOnStart: true; onTriggered: isos.lista = Studio.isosUi() }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: isos.lista.length === 0 ? "ISO: ninguna entrada se graba aparte"
@@ -198,7 +198,7 @@ Item {
             id: limpia
             Layout.fillWidth: true
             property var e: Studio.limpiaUi()
-            Timer { interval: 2000; running: true; repeat: true; onTriggered: limpia.e = Studio.limpiaUi() }
+            Timer { interval: 2000; running: limpia.visible; repeat: true; triggeredOnStart: true; onTriggered: limpia.e = Studio.limpiaUi() }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: !limpia.e.activa ? "Señal limpia (sin zócalos ni placa): apagada"
@@ -228,7 +228,7 @@ Item {
             id: grab
             Layout.fillWidth: true
             property var g: Studio.grabacionUi()
-            Timer { interval: 2000; running: true; repeat: true; onTriggered: grab.g = Studio.grabacionUi() }
+            Timer { interval: 2000; running: grab.visible; repeat: true; triggeredOnStart: true; onTriggered: grab.g = Studio.grabacionUi() }
             Text {
                 Layout.fillWidth: true; elide: Text.ElideRight
                 text: (grab.g.calidad === "archivo" ? "Calidad de archivo" : "Como la transmisión") +
@@ -251,7 +251,7 @@ Item {
             id: disco
             property var d: Studio.discoUi()
             property var r: Studio.remuxUi()
-            Timer { interval: 5000; running: true; repeat: true; onTriggered: { disco.d = Studio.discoUi(); disco.r = Studio.remuxUi() } }
+            Timer { interval: 5000; running: disco.visible; repeat: true; triggeredOnStart: true; onTriggered: { disco.d = Studio.discoUi(); disco.r = Studio.remuxUi() } }
             Layout.fillWidth: true; elide: Text.ElideRight
             text: (d.horas >= 0 ? "Disco: " + Math.floor(d.horas) + " h " + Math.round((d.horas % 1) * 60) + " min a este bitrate" : "Disco: ?") +
                   (r.andando ? " · pasando a " + String(r.destino).split(".").pop().toUpperCase() + " " + Math.round(r.pct) + "%" :

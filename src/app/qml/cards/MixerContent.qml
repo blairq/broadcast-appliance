@@ -68,7 +68,8 @@ Item {
     }
 
     RowLayout {
-        anchors.fill: parent
+        // Debajo del botón ⧉ (si no, tapaba el fader de la última tira).
+        anchors { fill: parent; topMargin: 34 }
         spacing: 14
 
         // Programa (mezcla final). Ancho FIJO: el botón de balística de abajo

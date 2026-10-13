@@ -209,9 +209,15 @@ void McpService::registerPrompterTools() {
                            {"avancePct", {{"type", "integer"}, {"minimum", 0}, {"maximum", 100}}},
                            {"parrafo", {{"type", "integer"}, {"minimum", 0}}},
                            {"aviso", {{"type", "string"}, {"description", "vacio lo saca"}}},
-                           {"panico", {{"type", "boolean"}}}}}};
+                           {"panico", {{"type", "boolean"}}},
+                           {"espejo", {{"type", "boolean"}, {"description", "texto espejado (para el vidrio del prompter)"}}}}}};
         t.examples = {R"({"aviso": "Redondeá"})", R"({"ppm": 130})"};
         t.run = [p](const json& a, Done done) {
+            // El espejo es de la pantalla del prompter: vale aunque la sala no esté corriendo.
+            if (a.contains("espejo")) {
+                p->setEspejo(a.value("espejo", false));
+                if (a.size() == 1) return done(ToolResult::ok(a.value("espejo", false) ? "Espejado." : "Sin espejo."));
+            }
             if (!p->enLinea()) {
                 done(ToolResult::error("El teleprompter no contesta: la sala no esta corriendo."));
                 return;

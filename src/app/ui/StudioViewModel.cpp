@@ -1438,6 +1438,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("racks");
     racks_->restore();
     audio_ = std::make_unique<audio::AudioViewModel>(*racks_);
+    // Una entrada de audio nueva (o una que se va), la agregue quien la agregue (la
+    // interfaz, el asistente, una receta): la lista del modelo de Audio se rehace sola.
+    // El mezclador de las tarjetas la nota en su vuelta de 100 ms (reload = modelReset).
+    connect(mixer_.get(), &QAbstractItemModel::modelReset, audio_.get(), [this]() { audio_->refresh(); });
     marca("audio");
     if (voz_) voz_->setRacks(racks_.get()); // la voz sale de los nodos «Voz a texto»
     // Las salidas de texto: las de las tarjetas «Voz a texto» y las traducidas.
@@ -2080,13 +2084,23 @@ QString StudioViewModel::joinUrl() const {
     const GatewaySettings& g = const_cast<AppRuntime&>(rt_).gateway();
     QString host = "127.0.0.1";
     if (g.bindAddress != "127.0.0.1") {
-        // Red local: la primera IPv4 no loopback.
-        for (const QHostAddress& a : QNetworkInterface::allAddresses()) {
-            if (a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLoopback()) {
-                host = a.toString();
-                break;
+        // Red local: la primera IPv4 no loopback. Se relee cada 5 s como mucho: esto lo
+        // evalúa QML con cada statusChanged (10 veces por segundo) y pedirle las
+        // interfaces al sistema no es gratis.
+        static QString cache;
+        static qint64 cuando = 0;
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        if (cache.isEmpty() || ahora - cuando > 5000) {
+            cache.clear();
+            for (const QHostAddress& a : QNetworkInterface::allAddresses()) {
+                if (a.protocol() == QAbstractSocket::IPv4Protocol && !a.isLoopback()) {
+                    cache = a.toString();
+                    break;
+                }
             }
+            cuando = ahora;
         }
+        if (!cache.isEmpty()) host = cache;
     }
     return QString("http://%1:%2").arg(host).arg(g.port);
 }
@@ -2981,6 +2995,12 @@ void StudioViewModel::publicarEventos() {
     if (!caida_.isEmpty() && !caida_.contains("aire_vuelta_s") && (streaming_ || recording_) && caidaMs_ > 0) {
         caida_["aire_vuelta_s"] = (QDateTime::currentMSecsSinceEpoch() - caidaMs_) / 1000.0;
         emit caidaChanged();
+        // Volvió el aire: el aviso dura 30 s más y se cierra solo (en el modelo, no en la
+        // vista: el MCP deja de informarla aunque la ventana no la muestre).
+        const qint64 marca = caidaMs_;
+        QTimer::singleShot(30000, this, [this, marca]() {
+            if (caidaMs_ == marca && caida_.contains("aire_vuelta_s")) cerrarCartelCaida();
+        });
     }
     // T47: al arrancar una sesión en vivo (el guion corre), la sala cambia de PIN
     // si cambió el día (el PIN es uno por día: el mismo día, el mismo PIN).

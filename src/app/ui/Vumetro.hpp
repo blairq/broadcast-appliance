@@ -3,7 +3,8 @@
 //
 // Un solo nodo de geometría con colores por vértice: el fondo, la barra del RMS
 // por zonas (verde, amarillo, rojo), la línea del pico, la marca de retención y
-// las líneas de la escala, para 1 o 2 canales. Sin Timers de JS ni un Rectangle
+// las líneas de la escala, para 1 o 2 canales; o, con `segmentos`, un LED por
+// segmentos (la matriz), parado o acostado. Sin Timers de JS ni un Rectangle
 // por segmento: con treinta vúmetros a 30 Hz en otra pantalla, el costo es un
 // puñado de vértices por cuadro. Los valores vienen del modelo (audio::Mezclador).
 // ============================================================================
@@ -32,6 +33,10 @@ class Vumetro : public QQuickItem {
     Q_PROPERTY(qreal rojoDb READ rojoDb WRITE setRojoDb NOTIFY cambio)
     /// Apagado (muteado): los colores bajan.
     Q_PROPERTY(bool apagado READ apagado WRITE setApagado NOTIFY cambio)
+    /// Acostado (el máximo a la derecha).
+    Q_PROPERTY(bool horizontal READ horizontal WRITE setHorizontal NOTIFY cambio)
+    /// LED por segmentos (como los de una consola; se encienden con el pico): 0 = barra continua.
+    Q_PROPERTY(int segmentos READ segmentos WRITE setSegmentos NOTIFY cambio)
 
    public:
     explicit Vumetro(QQuickItem* parent = nullptr);
@@ -60,6 +65,10 @@ class Vumetro : public QQuickItem {
     void setRojoDb(qreal x);
     bool apagado() const { return apagado_; }
     void setApagado(bool a);
+    bool horizontal() const { return horizontal_; }
+    void setHorizontal(bool h);
+    int segmentos() const { return segmentos_; }
+    void setSegmentos(int n);
 
     /// Dónde cae un nivel (0 abajo … 1 arriba): para la escala dibujada en QML.
     Q_INVOKABLE qreal fraccion(qreal db) const;
@@ -77,6 +86,8 @@ class Vumetro : public QQuickItem {
     int canales_ = 2;
     qreal min_ = -60, max_ = 6, amarillo_ = -18, rojo_ = -6;
     bool apagado_ = false;
+    bool horizontal_ = false;
+    int segmentos_ = 0;
 };
 
 } // namespace ba::app

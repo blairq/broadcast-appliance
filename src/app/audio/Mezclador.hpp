@@ -60,6 +60,8 @@ class Mezclador : public QObject {
     /// La pestaña a la vista en la ventana: consola o calibracion (en el modelo: el
     /// asistente la cambia con mezclador_pestana).
     Q_PROPERTY(QString pestana READ pestana WRITE setPestana NOTIFY pestanaCambio)
+    /// La matriz desplegada abajo de la consola.
+    Q_PROPERTY(bool matrizAbierta READ matrizAbierta WRITE setMatrizAbierta NOTIFY pestanaCambio)
     /// La calibración de sala (audio::Calibracion), la pestaña Calibración.
     Q_PROPERTY(QObject* calibracion READ calibracionQml CONSTANT)
 
@@ -88,6 +90,12 @@ class Mezclador : public QObject {
     void setRacks(RackManager* r);
     QString pestana() const { return pestana_; }
     void setPestana(const QString& p);
+    bool matrizAbierta() const { return matrizAbierta_; }
+    void setMatrizAbierta(bool a) {
+        if (a == matrizAbierta_) return;
+        matrizAbierta_ = a;
+        emit pestanaCambio();
+    }
     Calibracion* calibracion() const { return calibracion_.get(); }
     QObject* calibracionQml() const;
 
@@ -111,6 +119,7 @@ class Mezclador : public QObject {
     RackManager* racks_ = nullptr;
     std::unique_ptr<Calibracion> calibracion_;
     QString pestana_ = "consola";
+    bool matrizAbierta_ = false;
     QTimer timer_;
     QSet<QObject*> usuarios_;
     QStringList entradas_;
