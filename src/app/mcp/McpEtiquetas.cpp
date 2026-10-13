@@ -119,6 +119,7 @@ const Fila kPropias[] = {
     {"proxy_estado", "proxy dominio dns certificado https lets encrypt vence traefik nombres servicios"},
     {"proxy_renovar", "renovar certificado lets encrypt acme proxy"},
     {"acceso_remoto_configurar_con_api_key", "pinggy api key armar todo solo token automatico subdominio fijo cambiar subdominio elegir nombre dns tunel pro sin entrar al panel"},
+    {"mezclador_estado", "mezclador niveles vumetros entradas salidas loudness lufs pico rms programa sin salida mezcla consola"},
     {"acceso_remoto_conectar", "conectar vpn internet afuera tunel prender apagar desconectar pinggy cloudflare sacar la sala"},
     {"acceso_remoto_cortar_tuneles", "pinggy cortar bajar tunel matar sesion activa otro equipo mismo token liberar"},
     {"evento_web", "pagina web del evento sitio frontend en vivo seccion portada cierre html personalizar dominio subdominio url del evento pagina publica"},

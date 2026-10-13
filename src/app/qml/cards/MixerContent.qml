@@ -55,6 +55,18 @@ Item {
         }
     }
 
+    // ⧉ El Mezclador entero en su propia ventana (entradas, salidas, matriz): para
+    // otro monitor. Ahí se ve lo que sale de cada entrada y adónde va.
+    GlassButton {
+        anchors { top: parent.top; right: parent.right }
+        z: 10
+        compact: true
+        text: "⧉ Mezclador"
+        onClicked: ApplicationWindow.window.sacarPanel("mezclador", "Mezclador")
+        ToolTip.visible: hovered; ToolTip.delay: 400
+        ToolTip.text: "Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz."
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 14

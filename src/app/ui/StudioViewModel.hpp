@@ -56,6 +56,7 @@ class RotuloTraduccionConfig;
 namespace ba::app::audio {
 class RackManager;
 class Matriz;
+class Mezclador;
 class AudioViewModel;
 class ObjetivoLoudness;
 } // namespace ba::app::audio
@@ -326,6 +327,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* vozPrompter READ vozPrompter CONSTANT)
     /// La matriz de mezcla (fuentes × pistas y buses virtuales): audio/Matriz.hpp.
     Q_PROPERTY(QObject* matriz READ matriz CONSTANT)
+    /// El Mezclador (la ventana propia): audio/Mezclador.hpp.
+    Q_PROPERTY(QObject* mezclador READ mezcladorQml CONSTANT)
     /// El PTZ de cada entrada de video (digital + hardware) y Mejorar imagen:
     /// ptz/ControlCamaras.hpp.
     Q_PROPERTY(QObject* camaras READ camaras CONSTANT)
@@ -688,6 +691,7 @@ class StudioViewModel : public QObject {
     QObject* voz() const;
     QObject* vozPrompter() const;
     QObject* matriz() const;
+    QObject* mezcladorQml() const;
     QObject* camaras() const;
     QObject* video() const;
     video::VideoGrafos* videoGrafos() const { return video_.get(); }
@@ -951,6 +955,7 @@ class StudioViewModel : public QObject {
 #if defined(BA_HAVE_CLAP)
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
+    std::unique_ptr<audio::Mezclador> mezclador_;
     std::unique_ptr<ptz::ControlCamaras> camaras_;
     std::unique_ptr<video::VideoGrafos> video_;
     std::unique_ptr<red::Red> red_;

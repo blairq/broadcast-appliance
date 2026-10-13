@@ -282,6 +282,24 @@ QVariantMap Matriz::cruces() const {
     return out;
 }
 
+double Matriz::picoDbDe(const std::string& columna) const {
+    for (const auto& b : buses_)
+        if (b->id == columna) return linealADb(b->pico->load());
+    const auto it = picosEquipo_.find(columna);
+    return it != picosEquipo_.end() ? linealADb(it->second->load()) : -100.0;
+}
+
+QStringList Matriz::enviosDe(const QString& fuente) const {
+    QStringList out;
+    const std::string f = fuente.toStdString();
+    const std::uint32_t mx = mascara(f);
+    for (int i = 0; i < kPistas; ++i)
+        if ((mx & (1u << i)) != 0) out << QString("pista%1").arg(i + 1);
+    for (const auto& [k, e] : envios_)
+        if (k.first == f) out << QString::fromStdString(k.second);
+    return out;
+}
+
 QVariantList Matriz::dispositivos() const {
     QVariantList out;
     for (const QAudioDevice& d : QMediaDevices::audioOutputs())
@@ -741,6 +759,20 @@ void Matriz::setActiva(bool on) {
         return;
     }
     timer_.stop();
+}
+
+void Matriz::usar(QObject* vista, bool si) {
+    if (vista == nullptr) return;
+    if (si && !vistas_.contains(vista)) {
+        vistas_.insert(vista);
+        connect(vista, &QObject::destroyed, this, [this](QObject* o) {
+            vistas_.remove(o);
+            setActiva(!vistas_.isEmpty());
+        });
+    } else if (!si) {
+        vistas_.remove(vista);
+    }
+    setActiva(!vistas_.isEmpty());
 }
 
 void Matriz::leerMedidores() {

@@ -328,12 +328,15 @@ ApplicationWindow {
     // El PTZ de una cámara afuera, con su imagen para apuntar con el mouse.
     // Uno por cámara: el id es «ptz:<entrada>».
     Component { id: cmpPanelPtz;       PtzContent {} }
+    // El Mezclador: entradas, salidas y la matriz (controls/PanelMezclador.qml).
+    Component { id: cmpPanelMezclador; PanelMezclador {} }
 
     function componenteDePanel(id) {
         return id === "padron" ? cmpPanelPadron
              : id === "preguntas" ? cmpPanelPreguntas
              : id === "votacion" ? cmpPanelVotacion
              : id === "carrusel" ? cmpPanelCarrusel
+             : id === "mezclador" ? cmpPanelMezclador
              : id.startsWith("ptz:") ? cmpPanelPtz : null
     }
 

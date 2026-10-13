@@ -17,6 +17,7 @@
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
 #include "audio/Matriz.hpp"
+#include "audio/Mezclador.hpp"
 #endif
 
 namespace ba::app::mcp {
@@ -26,6 +27,28 @@ void McpService::registerMatrizTools() {
     auto* m = qobject_cast<audio::Matriz*>(vm_.matriz());
     if (m == nullptr) return;
     const auto err = [](const QString& e) { return ToolResult::error(e.toStdString()); };
+
+    if (auto* mz = qobject_cast<audio::Mezclador*>(vm_.mezcladorQml())) {
+        Tool t;
+        t.name = "mezclador_estado";
+        t.title = "El Mezclador: niveles de cada entrada y salida, y adónde va cada una";
+        t.category = "audio_rack";
+        t.readOnly = true;
+        t.description =
+            "Lo mismo que muestra la ventana del Mezclador: por entrada (lo que SALE de ella, después de su "
+            "rack, vaya a donde vaya) su pico, RMS y retención (2 s) por canal en dB, el fader, mute, escucha "
+            "y a qué destinos va; por salida (Programa, pistas, buses, placa) su nivel; y el loudness del "
+            "programa (EBU R128).";
+        t.details = "Niveles en dBFS, [L, R]; -100 = nada. Una entrada «sin salida» (envios vacío) suena pero no "
+                    "va a ningún lado: suele ser un error de la matriz (audio_matriz_cruce la conecta). La "
+                    "ventana se abre con ui_panel_window {panel: mezclador}.";
+        t.run = [mz](const json&, Done done) {
+            // Sin la ventana abierta no corre su temporizador: se mide una vez acá.
+            if (!mz->activo()) mz->medirYa();
+            done(ToolResult().data(mz->estado()));
+        };
+        core_.addTool(std::move(t));
+    }
 
     {
         Tool t;

@@ -33,6 +33,7 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -87,6 +88,12 @@ class Matriz : public QObject {
     QVariantList filas() const;
     QVariantList columnas() const;
     QVariantMap cruces() const;
+    /// El pico (dB) de un bus virtual o una salida física (los de las pistas los da
+    /// el motor: Motor::niveles). -100 si no existe o no suena. Barato: para los
+    /// vúmetros del Mezclador.
+    double picoDbDe(const std::string& columna) const;
+    /// A qué destinos va una fuente (ids de columnas: pista<n>, buses, físicas).
+    QStringList enviosDe(const QString& fuente) const;
     QVariantMap medidores() const { return medidores_; }
     QVariantList dispositivos() const;
     bool mostrarEquipo() const;
@@ -99,6 +106,10 @@ class Matriz : public QObject {
 
     /// La matriz está a la vista: medidores y relectura de fuentes.
     Q_INVOKABLE void setActiva(bool on);
+    /// Una vista empieza o deja de mostrar los medidores (los mide mientras haya
+    /// alguna: la matriz de la página Audio escondida no le apaga los medidores a la
+    /// del Mezclador). Si la vista se destruye sin avisar, se la saca sola.
+    Q_INVOKABLE void usar(QObject* vista, bool si);
     Q_INVOKABLE void refrescar();
     /// Prender o apagar un cruce. Devuelve el error o "".
     Q_INVOKABLE QString alternar(const QString& fuente, const QString& bus);
@@ -161,6 +172,7 @@ class Matriz : public QObject {
     std::unique_ptr<EquipoAudio> equipo_;
     bool pistasPlegadas_ = true;
     std::map<std::string, std::shared_ptr<std::atomic<float>>> picosEquipo_; ///< columna física -> pico
+    QSet<QObject*> vistas_; ///< las que están mostrando los medidores (usar)
     std::map<std::pair<std::string, std::string>, Envio> envios_;            ///< (fuente, bus)
     std::vector<std::string> filas_;                                         ///< fuentes conocidas
 

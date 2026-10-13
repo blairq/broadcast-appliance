@@ -36,6 +36,7 @@
 #if defined(BA_HAVE_CLAP)
 #include "audio/AudioViewModel.hpp"
 #include "audio/Matriz.hpp"
+#include "audio/Mezclador.hpp"
 #include "audio/RackManager.hpp"
 #endif
 
@@ -1473,6 +1474,8 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     }
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot());
     marca("matriz");
+    // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
+    mezclador_ = std::make_unique<audio::Mezclador>(rt, matriz_.get());
     // Una entrada de placa se abre si la trae la tarjeta «Entrada» de un rack, o si su
     // propio rack tiene algo (un filtro, voz a texto): sin salida en la matriz igual
     // tiene que llegarles el audio.
@@ -2103,6 +2106,13 @@ QObject* StudioViewModel::modelos() const { return modelos_.get(); }
 QObject* StudioViewModel::descargas() const { return &net::Descargas::la(); }
 QObject* StudioViewModel::voz() const { return voz_.get(); }
 QObject* StudioViewModel::vozPrompter() const { return vozPrompter_.get(); }
+QObject* StudioViewModel::mezcladorQml() const {
+#if defined(BA_HAVE_CLAP)
+    return mezclador_.get();
+#else
+    return nullptr;
+#endif
+}
 QObject* StudioViewModel::matriz() const {
 #if defined(BA_HAVE_CLAP)
     return matriz_.get();

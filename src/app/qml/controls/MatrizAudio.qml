@@ -35,8 +35,11 @@ Item {
     readonly property int anchoFila: 230
     readonly property int altoCab: 140
 
-    onVisibleChanged: if (mz) mz.setActiva(visible)
-    Component.onCompleted: if (mz) mz.setActiva(visible)
+    // Mide mientras esta vista se ve (por vista: la de la página Audio y la del
+    // Mezclador no se apagan una a la otra).
+    onVisibleChanged: if (mz) mz.usar(mx, visible)
+    Component.onCompleted: if (mz) mz.usar(mx, visible)
+    Component.onDestruction: if (mz) mz.usar(mx, false)
 
     function on(f, b) { const c = cruces[f + "|" + b]; return !!(c && c.activo) }
     function cruce(f, b) { return cruces[f + "|" + b] || ({}) }

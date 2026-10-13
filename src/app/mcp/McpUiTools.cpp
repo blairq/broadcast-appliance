@@ -307,6 +307,8 @@ void McpService::registerUiTools() {
             "- `preguntas`: la cola del publico, para moderarla.\n"
             "- `votacion`: la urna, para abrirla y cerrarla en vivo.\n"
             "- `carrusel`: el control del carrusel.\n"
+            "- `mezclador`: el Mezclador (lo que sale de cada entrada, las salidas con el loudness "
+            "y la matriz desplegable). Lo que muestra lo lee `mezclador_estado`.\n"
             "- `ptz`: el control PTZ de la camara `entrada`, con su imagen en vivo para apuntar "
             "con el mouse (clic: centrar; cuadro: encuadrar). Uno por camara: `ba:panel:ptz:<entrada>`.\n\n"
             "No saca nada de la ventana principal: abre otra vista de lo mismo, y las dos se "
@@ -320,7 +322,7 @@ void McpService::registerUiTools() {
             {"required", {"panel"}},
             {"properties",
              {{"panel",
-               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "ptz"}}}},
+               {{"type", "string"}, {"enum", {"padron", "preguntas", "votacion", "carrusel", "mezclador", "ptz"}}}},
               {"entrada", {{"type", "string"}, {"description", "Con panel=ptz: la entrada de video."}}}}}};
         t.examples = {R"({"panel": "preguntas"})", R"({"panel": "ptz", "entrada": "Cámara 1"})"};
         t.run = [self](const json& a, Done done) {
@@ -330,6 +332,7 @@ void McpService::registerUiTools() {
             QString titulo = id == "padron"      ? "Padrón"
                              : id == "preguntas" ? "Preguntas"
                              : id == "carrusel"  ? "Carrusel"
+                             : id == "mezclador" ? "Mezclador"
                                                  : "Votación";
             if (id == "ptz") {
                 const std::string entrada = a.value("entrada", std::string());

@@ -1,0 +1,450 @@
+// PanelMezclador.qml — el Mezclador, en su propia ventana (docs/planes/PLAN-MEZCLADOR.md, M1)
+//
+// Lo que maneja: lo que SALE de cada entrada (después de su rack: los racks siguen
+// en la página Audio) y ADÓNDE va (la matriz de salida, desplegable abajo).
+//   - Entradas: una tira por fuente con audio: vúmetro (pico, RMS y retención por
+//     canal, dibujado en la GPU: Vumetro), fader, mute, escucha (PFL), AFV,
+//     retardo, y los chips de sus envíos (clic: su fila en la matriz).
+//   - Salidas: Programa (con el loudness EBU R128 contra el objetivo), las pistas
+//     que reciben algo, los buses virtuales y las salidas de la placa.
+//   - Matriz: la misma de la página Audio (MatrizAudio), a un botón.
+// Los niveles salen de Studio.mezclador (un temporizador de 30 Hz que corre solo
+// mientras esta vista se ve); las acciones son las mismas de la tarjeta.
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
+import BA
+
+Item {
+    id: m
+    // El tamaño con que abre su ventana (PanelWindow).
+    readonly property int anchoVentana: 1440
+    readonly property int altoVentana: 880
+    property bool enVentana: false
+
+    readonly property var mz: Studio.mezclador
+    readonly property var entradas: mz ? mz.entradas : []
+    readonly property var todasSalidas: mz ? mz.salidas : []
+    readonly property var nE: mz ? mz.nivelesEntradas : []
+    readonly property var nS: mz ? mz.nivelesSalidas : []
+    readonly property var lu: mz ? mz.loudness : ({})
+    property var tiras: ({})     // nombre -> {volumenDb, mute, pfl, envios}
+    property bool matrizAbierta: false
+    property string elegida: ""
+
+    Component.onCompleted: if (mz) mz.usar(m, visible)
+    onVisibleChanged: if (mz) mz.usar(m, visible)
+    Component.onDestruction: if (mz) mz.usar(m, false)
+
+    // El estado de las tiras (fader, mute, envíos) cambia poco: se relee seguido sin
+    // pedir un aviso por cada cosa.
+    Timer { interval: 400; running: m.visible; repeat: true; triggeredOnStart: true; onTriggered: m.leerTiras() }
+    function leerTiras() {
+        if (!mz) return
+        const t = {}
+        for (let i = 0; i < entradas.length; ++i) t[entradas[i]] = mz.tira(entradas[i])
+        tiras = t
+    }
+    function nv(arr, i, k) { const v = arr[i * 6 + k]; return v === undefined ? -100 : v }
+    // Las salidas que se muestran: Programa siempre; las pistas 2–6 solo si alguien les manda.
+    readonly property var salidas: todasSalidas.filter((s) => {
+        if (s.tipo !== "pista" || s.id === "pista1") return true
+        for (const n in tiras) if ((tiras[n].envios || []).indexOf(s.id) >= 0) return true
+        return false
+    })
+    function indiceSalida(id) { for (let i = 0; i < todasSalidas.length; ++i) if (todasSalidas[i].id === id) return i; return -1 }
+    function colorDestino(s) {
+        if (!s) return Theme.accent
+        if (s.tipo === "pista") return s.id === "pista1" ? "#ef4444" : "#f59e0b"
+        if (s.tipo === "salida") return "#a78bfa"
+        if (s.tipo === "escucha") return "#22c55e"
+        if (s.tipo === "fisica") return "#38bdf8"
+        return "#14b8a6"
+    }
+    function salidaDe(id) { for (let i = 0; i < todasSalidas.length; ++i) if (todasSalidas[i].id === id) return todasSalidas[i]; return null }
+    function abreviar(s) {
+        if (!s) return "?"
+        if (s.tipo === "pista") return s.id === "pista1" ? "PGM" : "P" + s.id.substring(5)
+        if (s.tipo === "escucha") return "ESC"
+        const w = (s.nombre || "").split(/\s+/)
+        return w.length > 1 ? (w[0][0] + w[1][0]).toUpperCase() : (s.nombre || "?").substring(0, 3).toUpperCase()
+    }
+    function texto(db) { return db <= -99 ? "−∞" : (db > 0 ? "+" : "") + db.toFixed(1) }
+    function mostrarEnMatriz(fila, bus) {
+        m.matrizAbierta = true
+        matriz.hFila = fila || ""
+        matriz.hBus = bus || ""
+    }
+
+    // --- Una tira de entrada ---------------------------------------------------------
+    component TiraEntrada: Rectangle {
+        id: t
+        required property int index
+        required property string modelData
+        readonly property string nombre: modelData
+        readonly property var st: m.tiras[nombre] || ({})
+        readonly property real ret: Math.max(m.nv(m.nE, index, 4), m.nv(m.nE, index, 5))
+        readonly property bool elegida: m.elegida === nombre
+        width: 92
+        height: ListView.view ? ListView.view.height : 400
+        radius: 12
+        color: elegida ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.035)
+        border.color: elegida ? Theme.accent : Qt.rgba(1, 1, 1, 0.08)
+
+        ColumnLayout {
+            anchors { fill: parent; margins: 6 }
+            spacing: 5
+            // El nombre (clic: el análisis mira esta entrada).
+            Text {
+                Layout.fillWidth: true
+                text: t.nombre
+                color: t.st.mute ? Theme.textFaint : Theme.text
+                font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
+                HoverHandler { id: nomHov }
+                ToolTip.visible: nomHov.hovered; ToolTip.delay: 500; ToolTip.text: t.nombre
+                TapHandler { onTapped: m.elegida = t.elegida ? "" : t.nombre }
+            }
+            // La retención más alta (rojo si toca 0 dBFS).
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: m.texto(t.ret)
+                color: t.ret > -1 ? Theme.live : t.ret > -6 ? Theme.amber : Theme.textDim
+                font { family: Theme.font; pixelSize: 10 }
+            }
+            // Vúmetro + escala + fader.
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Vumetro {
+                    id: vu
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    width: 22
+                    picoL: m.nv(m.nE, t.index, 0); picoR: m.nv(m.nE, t.index, 1)
+                    rmsL: m.nv(m.nE, t.index, 2); rmsR: m.nv(m.nE, t.index, 3)
+                    retencionL: m.nv(m.nE, t.index, 4); retencionR: m.nv(m.nE, t.index, 5)
+                    apagado: !!t.st.mute
+                }
+                // La escala (cada 12 dB y el 0).
+                Repeater {
+                    model: [0, -6, -12, -24, -36, -48]
+                    delegate: Text {
+                        required property var modelData
+                        x: vu.width + 2
+                        y: vu.y + (1 - vu.fraccion(modelData)) * vu.height - height / 2
+                        text: modelData === 0 ? "0" : String(modelData)
+                        color: Theme.textFaint
+                        font { family: Theme.font; pixelSize: 8 }
+                    }
+                }
+                Fader {
+                    id: fader
+                    anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+                    width: 30
+                    db: t.st.volumenDb !== undefined ? t.st.volumenDb : 0
+                    alMover: (v) => Studio.mixer.setVolumeDb(t.nombre, v)
+                    alCero: () => { Studio.mixer.setVolumeDb(t.nombre, 0); m.leerTiras() }
+                }
+            }
+            // El nivel del fader.
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: (t.st.volumenDb === undefined || t.st.volumenDb <= -60) ? "−∞" : t.st.volumenDb.toFixed(1)
+                color: Theme.textDim
+                font { family: Theme.font; pixelSize: 10 }
+            }
+            // Mute, escucha, AFV.
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 3
+                Boton { texto: "M"; on: !!t.st.mute; colorOn: Theme.live; ayuda: "Mute"
+                        alTocar: () => { Studio.mixer.setMuted(t.nombre, !t.st.mute); m.leerTiras() } }
+                Boton { texto: "PFL"; on: !!t.st.pfl; colorOn: "#22c55e"; ayuda: "Escucharla sola en los auriculares"
+                        alTocar: () => { const e = Studio.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
+                Boton { texto: "AFV"; on: Studio.afv(t.nombre); colorOn: Theme.accent; ayuda: "Sigue al video: sube cuando su escena sale al aire"
+                        alTocar: () => { Studio.setAfv(t.nombre, !Studio.afv(t.nombre)); m.leerTiras() } }
+            }
+            // Los envíos: a qué destinos va (clic: su fila en la matriz).
+            Flow {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 35
+                clip: true
+                spacing: 3
+                Repeater {
+                    model: t.st.envios || []
+                    delegate: Rectangle {
+                        required property string modelData
+                        readonly property var s: m.salidaDe(modelData)
+                        width: chipTxt.implicitWidth + 8; height: 16; radius: 8
+                        color: Qt.alpha(m.colorDestino(s), 0.25)
+                        border.color: m.colorDestino(s)
+                        Text { id: chipTxt; anchors.centerIn: parent; text: m.abreviar(parent.s); color: Theme.text
+                               font { family: Theme.font; pixelSize: 9; weight: Font.DemiBold } }
+                        HoverHandler { id: chipHov }
+                        ToolTip.visible: chipHov.hovered; ToolTip.delay: 300
+                        ToolTip.text: "Va a " + (s ? s.nombre : modelData) + " (clic: verlo en la matriz)"
+                        TapHandler { onTapped: m.mostrarEnMatriz(t.nombre, "") }
+                    }
+                }
+                Text { visible: (t.st.envios || []).length === 0; text: "sin salida"; color: Theme.amber
+                       font { family: Theme.font; pixelSize: 9 } }
+            }
+        }
+    }
+
+    // El fader de una consola: ranura oscura, marca de 0 dB y perilla rectangular.
+    // -60 dB (−∞) abajo, +12 dB arriba; la rueda ajusta de a 1 dB (Shift: 0,5).
+    component Fader: Item {
+        id: fd
+        property real db: 0
+        property var alMover: null
+        property var alCero: null
+        readonly property real desde: -60
+        readonly property real hasta: 12
+        property bool arrastrando: false
+        property real dbArrastre: 0
+        readonly property real mostrado: arrastrando ? dbArrastre : Math.max(desde, db)
+        function aY(v) { return (1 - (v - desde) / (hasta - desde)) * (height - perilla.height) }
+        function deY(y) { return Math.max(desde, Math.min(hasta, hasta - (y / (height - perilla.height)) * (hasta - desde))) }
+        Rectangle { // la ranura
+            anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; bottom: parent.bottom
+                      topMargin: perilla.height / 2; bottomMargin: perilla.height / 2 }
+            width: 4; radius: 2
+            color: Qt.rgba(0, 0, 0, 0.6)
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+        }
+        Rectangle { // la marca de 0 dB
+            x: 2; width: parent.width - 4; height: 1
+            y: fd.aY(0) + perilla.height / 2
+            color: Qt.rgba(1, 1, 1, 0.35)
+        }
+        Rectangle {
+            id: perilla
+            width: parent.width; height: 16; radius: 3
+            y: fd.aY(fd.mostrado)
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "#d4d4d8" }
+                GradientStop { position: 0.45; color: "#a1a1aa" }
+                GradientStop { position: 0.5; color: "#f4f4f5" }
+                GradientStop { position: 1.0; color: "#71717a" }
+            }
+            border.color: Qt.rgba(0, 0, 0, 0.5)
+        }
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.SizeVerCursor
+            hoverEnabled: true
+            preventStealing: true
+            onPressed: (e) => { fd.arrastrando = true; fd.dbArrastre = fd.deY(e.y - perilla.height / 2) }
+            onPositionChanged: (e) => {
+                if (!fd.arrastrando) return
+                fd.dbArrastre = Math.round(fd.deY(e.y - perilla.height / 2) * 2) / 2
+                if (fd.alMover) fd.alMover(fd.dbArrastre)
+            }
+            onReleased: fd.arrastrando = false
+            onDoubleClicked: if (fd.alCero) fd.alCero()
+            onWheel: (w) => {
+                const paso = (w.modifiers & Qt.ShiftModifier) ? 0.5 : 1
+                const v = Math.max(fd.desde, Math.min(fd.hasta, Math.max(fd.desde, fd.db) + (w.angleDelta.y > 0 ? paso : -paso)))
+                if (fd.alMover) fd.alMover(v)
+            }
+            ToolTip.visible: containsMouse || fd.arrastrando; ToolTip.delay: 300
+            ToolTip.text: (fd.mostrado <= fd.desde ? "−∞" : fd.mostrado.toFixed(1)) + " dB (doble clic: 0 dB)"
+        }
+    }
+
+    // Un botón chico de la tira (M, PFL, AFV).
+    component Boton: Rectangle {
+        id: b
+        property string texto
+        property bool on: false
+        property color colorOn: Theme.accent
+        property string ayuda
+        property var alTocar: null
+        Layout.fillWidth: true
+        height: 20; radius: 5
+        color: on ? colorOn : Qt.rgba(1, 1, 1, 0.07)
+        border.color: on ? Qt.lighter(colorOn, 1.3) : Qt.rgba(1, 1, 1, 0.12)
+        Text { anchors.centerIn: parent; text: b.texto; color: b.on ? "white" : Theme.textDim
+               font { family: Theme.font; pixelSize: 9; weight: Font.Bold } }
+        HoverHandler { id: bHov; cursorShape: Qt.PointingHandCursor }
+        ToolTip.visible: bHov.hovered && b.ayuda !== ""; ToolTip.delay: 500; ToolTip.text: b.ayuda
+        TapHandler { onTapped: if (b.alTocar) b.alTocar() }
+    }
+
+    // Una salida (bus, pista, placa).
+    component TiraSalida: Rectangle {
+        id: so
+        required property var modelData
+        readonly property int i: m.indiceSalida(modelData.id)
+        readonly property real ret: Math.max(m.nv(m.nS, i, 4), m.nv(m.nS, i, 5))
+        width: 70
+        height: parent ? parent.height : 400
+        radius: 12
+        color: Qt.rgba(1, 1, 1, 0.035)
+        border.color: Qt.alpha(m.colorDestino(modelData), 0.6)
+        ColumnLayout {
+            anchors { fill: parent; margins: 6 }
+            spacing: 5
+            Text {
+                Layout.fillWidth: true
+                text: so.modelData.nombre
+                color: m.colorDestino(so.modelData)
+                font { family: Theme.font; pixelSize: 11; weight: Font.DemiBold }
+                elide: Text.ElideRight
+                horizontalAlignment: Text.AlignHCenter
+                HoverHandler { id: soHov }
+                ToolTip.visible: soHov.hovered; ToolTip.delay: 500; ToolTip.text: so.modelData.nombre + " (clic: quién le manda, en la matriz)"
+                TapHandler { onTapped: m.mostrarEnMatriz("", so.modelData.id) }
+            }
+            Text {
+                Layout.fillWidth: true
+                horizontalAlignment: Text.AlignHCenter
+                text: m.texto(so.ret)
+                color: so.ret > -1 ? Theme.live : so.ret > -6 ? Theme.amber : Theme.textDim
+                font { family: Theme.font; pixelSize: 10 }
+            }
+            Vumetro {
+                Layout.alignment: Qt.AlignHCenter
+                Layout.fillHeight: true
+                implicitWidth: 26
+                picoL: m.nv(m.nS, so.i, 0); picoR: m.nv(m.nS, so.i, 1)
+                rmsL: m.nv(m.nS, so.i, 2); rmsR: m.nv(m.nS, so.i, 3)
+                retencionL: m.nv(m.nS, so.i, 4); retencionR: m.nv(m.nS, so.i, 5)
+            }
+        }
+    }
+
+    ColumnLayout {
+        anchors.fill: parent
+        spacing: 10
+
+        // --- La barra de arriba --------------------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+            Text {
+                text: m.entradas.length + " entradas · " + m.salidas.length + " salidas"
+                color: Theme.textFaint
+                font { family: Theme.font; pixelSize: 12 }
+            }
+            Item { Layout.fillWidth: true }
+            GlassButton {
+                compact: true
+                text: m.matrizAbierta ? "Matriz ▴" : "Matriz ▾"
+                active: m.matrizAbierta
+                onClicked: { m.matrizAbierta = !m.matrizAbierta; if (!m.matrizAbierta) { matriz.hFila = ""; matriz.hBus = "" } }
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: "La matriz de salida: qué entrada va a qué pista, bus o salida de la placa."
+            }
+        }
+
+        // --- Entradas y salidas -------------------------------------------------------
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 10
+            ListView {
+                id: lista
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                orientation: ListView.Horizontal
+                spacing: 6
+                clip: true
+                model: m.entradas
+                delegate: TiraEntrada {}
+                ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                Text {
+                    anchors.centerIn: parent
+                    visible: m.entradas.length === 0
+                    text: m.mz ? "No hay entradas con audio." : "El audio no está disponible en esta compilación."
+                    color: Theme.textFaint
+                }
+            }
+            Rectangle { Layout.fillHeight: true; width: 1; color: Qt.rgba(1, 1, 1, 0.1) }
+
+            // Programa: la salida que importa, ancha y con su loudness.
+            Rectangle {
+                id: pgm
+                readonly property int i: m.indiceSalida("pista1")
+                readonly property var obj: m.lu.objetivo || ({})
+                readonly property real objetivo: obj.lufs !== undefined ? obj.lufs : -23
+                Layout.fillHeight: true
+                Layout.preferredWidth: 196
+                radius: 12
+                color: Qt.rgba(1, 1, 1, 0.045)
+                border.color: "#ef4444"
+                ColumnLayout {
+                    anchors { fill: parent; margins: 8 }
+                    spacing: 6
+                    Text { text: "PROGRAMA"; color: "#ef4444"; Layout.alignment: Qt.AlignHCenter
+                           font { family: Theme.font; pixelSize: 12; weight: Font.Bold; letterSpacing: 1 } }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 8
+                        Vumetro {
+                            Layout.fillHeight: true
+                            implicitWidth: 52
+                            picoL: m.nv(m.nS, pgm.i, 0); picoR: m.nv(m.nS, pgm.i, 1)
+                            rmsL: m.nv(m.nS, pgm.i, 2); rmsR: m.nv(m.nS, pgm.i, 3)
+                            retencionL: m.nv(m.nS, pgm.i, 4); retencionR: m.nv(m.nS, pgm.i, 5)
+                        }
+                        // El loudness (EBU R128) contra el objetivo.
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.alignment: Qt.AlignTop
+                            spacing: 4
+                            component Dato: Column {
+                                property string etiqueta
+                                property string valor
+                                property color tinte: Theme.text
+                                Text { text: parent.etiqueta; color: Theme.textFaint; font { family: Theme.font; pixelSize: 9 } }
+                                Text { text: parent.valor; color: parent.tinte; font { family: Theme.font; pixelSize: 15; weight: Font.DemiBold } }
+                            }
+                            function lufs(v) { return v === undefined || v <= -70 ? "—" : v.toFixed(1) }
+                            Dato { etiqueta: "MOMENTÁNEO"; valor: parent.lufs(m.lu.momentaneo) }
+                            Dato { etiqueta: "CORTO (3 s)"; valor: parent.lufs(m.lu.corto)
+                                   tinte: m.lu.corto !== undefined && m.lu.corto > pgm.objetivo + 2 ? Theme.amber : Theme.text }
+                            Dato { etiqueta: "INTEGRADO"; valor: parent.lufs(m.lu.integrado)
+                                   tinte: m.lu.integrado !== undefined && Math.abs(m.lu.integrado - pgm.objetivo) <= 1 ? Theme.ok : Theme.text }
+                            Dato { etiqueta: "LRA"; valor: m.lu.lra !== undefined ? m.lu.lra.toFixed(1) : "—" }
+                            Dato { etiqueta: "TRUE PEAK"; valor: m.lu.true_peak_db !== undefined && m.lu.true_peak_db > -70 ? m.lu.true_peak_db.toFixed(1) : "—"
+                                   tinte: m.lu.true_peak_db !== undefined && m.lu.true_peak_db > -1 ? Theme.live : Theme.text }
+                            Text { text: "Objetivo " + pgm.objetivo.toFixed(0) + " LUFS"; color: Theme.textFaint; font { family: Theme.font; pixelSize: 10 } }
+                        }
+                    }
+                }
+            }
+            // El resto de las salidas.
+            Row {
+                Layout.fillHeight: true
+                spacing: 6
+                Repeater {
+                    model: m.salidas.filter((s) => s.id !== "pista1")
+                    delegate: TiraSalida {}
+                }
+            }
+        }
+
+        // --- La matriz (desplegable) ------------------------------------------------
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: m.matrizAbierta ? Math.max(260, m.height * 0.42) : 0
+            visible: m.matrizAbierta
+            radius: 12
+            color: Qt.rgba(1, 1, 1, 0.03)
+            border.color: Qt.rgba(1, 1, 1, 0.08)
+            clip: true
+            Behavior on Layout.preferredHeight { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+            MatrizAudio {
+                id: matriz
+                anchors { fill: parent; margins: 8 }
+                visible: m.matrizAbierta
+            }
+        }
+    }
+}
