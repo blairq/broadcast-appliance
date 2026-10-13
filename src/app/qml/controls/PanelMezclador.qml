@@ -134,7 +134,7 @@ Item {
                 horizontalAlignment: Text.AlignHCenter
                 HoverHandler { id: nomHov }
                 ToolTip.visible: nomHov.hovered; ToolTip.delay: 500; ToolTip.text: t.nombre
-                TapHandler { onTapped: m.elegida = t.elegida ? "" : t.nombre }
+                TapHandler { onTapped: { m.elegida = t.elegida ? "" : t.nombre; lista.forceActiveFocus() } }
             }
             // La retención más alta (rojo si toca 0 dBFS).
             Text {
@@ -305,6 +305,9 @@ Item {
             onReleased: fd.arrastrando = false
             onDoubleClicked: if (fd.alCero) fd.alCero()
             onWheel: (w) => {
+                // De costado (rueda inclinada, trackpad, Shift+rueda en macOS): desplaza la
+                // consola, no el fader.
+                if (Math.abs(w.angleDelta.x) > Math.abs(w.angleDelta.y)) { w.accepted = false; return }
                 const paso = (w.modifiers & Qt.ShiftModifier) ? 0.5 : 1
                 const v = Math.max(fd.desde, Math.min(fd.hasta, Math.max(fd.desde, fd.db) + (w.angleDelta.y > 0 ? paso : -paso)))
                 if (fd.alMover) fd.alMover(v)
@@ -453,6 +456,70 @@ Item {
                 model: m.entradas
                 delegate: TiraEntrada {}
                 ScrollBar.horizontal: ScrollBar { policy: ScrollBar.AsNeeded }
+                // CON EL TECLADO (un clic en una tira o Tab le da el foco): ← → o Tab elige
+                // la tira y la trae a la vista; ↑ ↓ el fader de a 1 dB (Shift: 3); M mute;
+                // Inicio y Fin. Como la tarjeta del Mezclador.
+                activeFocusOnTab: true
+                keyNavigationEnabled: false // las flechas las maneja esto (eligen tira, no mueven el índice)
+                function elegirPaso(paso) {
+                    const n = m.entradas.length
+                    if (n === 0) return
+                    const i = m.entradas.indexOf(m.elegida)
+                    const j = i < 0 ? (paso > 0 ? 0 : n - 1) : Math.max(0, Math.min(n - 1, i + paso))
+                    m.elegida = m.entradas[j]
+                    lista.positionViewAtIndex(j, ListView.Contain)
+                }
+                function ajustar(db) {
+                    if (m.elegida === "") return
+                    const t = m.tiras[m.elegida] || {}
+                    const v = t.volumenDb !== undefined ? t.volumenDb : 0
+                    Studio.mixer.setVolumeDb(m.elegida, Math.max(-60, Math.min(12, v + db)))
+                    m.leerTiras()
+                }
+                Keys.onPressed: (e) => {
+                    const grande = (e.modifiers & Qt.ShiftModifier) !== 0
+                    switch (e.key) {
+                        case Qt.Key_Left: lista.elegirPaso(-1); e.accepted = true; break
+                        case Qt.Key_Right: lista.elegirPaso(1); e.accepted = true; break
+                        case Qt.Key_Tab: lista.elegirPaso(1); e.accepted = true; break
+                        case Qt.Key_Backtab: lista.elegirPaso(-1); e.accepted = true; break
+                        case Qt.Key_Home: lista.elegirPaso(-m.entradas.length); e.accepted = true; break
+                        case Qt.Key_End: lista.elegirPaso(m.entradas.length); e.accepted = true; break
+                        case Qt.Key_Up: lista.ajustar(grande ? 3 : 1); e.accepted = true; break
+                        case Qt.Key_Down: lista.ajustar(grande ? -3 : -1); e.accepted = true; break
+                        case Qt.Key_M:
+                            if (m.elegida !== "") { Studio.mixer.setMuted(m.elegida, !(m.tiras[m.elegida] || {}).mute); m.leerTiras() }
+                            e.accepted = true; break
+                    }
+                }
+                // Un clic en cualquier lado de la consola le da el foco del teclado (sin
+                // quitarle el clic al fader o a los botones).
+                TapHandler { gesturePolicy: TapHandler.DragThreshold; grabPermissions: PointerHandler.ApproveAnyGrab
+                             onTapped: lista.forceActiveFocus() }
+                // La rueda común (vertical) fuera de un fader desplaza los canales de costado; los
+                // faders están encima y la toman antes (su volumen); de costado la maneja la lista.
+                WheelHandler {
+                    orientation: Qt.Vertical
+                    acceptedDevices: PointerDevice.Mouse
+                    onWheel: (ev) => {
+                        const max = Math.max(lista.originX, lista.originX + lista.contentWidth - lista.width)
+                        lista.contentX = Math.max(lista.originX, Math.min(max, lista.contentX - ev.angleDelta.y / 120 * 60))
+                    }
+                }
+                // Arrastrar con el botón del medio (la rueda apretada) desplaza la consola.
+                MouseArea {
+                    anchors.fill: parent
+                    z: 100
+                    acceptedButtons: Qt.MiddleButton
+                    cursorShape: pressed ? Qt.ClosedHandCursor : Qt.ArrowCursor
+                    property real x0: 0
+                    property real cx0: 0
+                    onPressed: (e) => { x0 = e.x; cx0 = lista.contentX; lista.forceActiveFocus() }
+                    onPositionChanged: (e) => {
+                        const max = Math.max(lista.originX, lista.originX + lista.contentWidth - lista.width)
+                        lista.contentX = Math.max(lista.originX, Math.min(max, cx0 - (e.x - x0)))
+                    }
+                }
                 Text {
                     anchors.centerIn: parent
                     visible: m.entradas.length === 0

@@ -21,6 +21,8 @@ Item {
 
     /// Que canal manda el teclado. -1 = ninguno todavia.
     property int elegido: -1
+    // El canal elegido con el teclado se trae a la vista (si no, con muchos quedaba oculto).
+    onElegidoChanged: if (elegido >= 0) canales.positionViewAtIndex(elegido, ListView.Contain)
 
     function cuantos() { return Studio.mixer ? Studio.mixer.rowCount() : 0 }
 
@@ -46,6 +48,8 @@ Item {
         switch (e.key) {
             case Qt.Key_Left:  tarjeta.mover(-1); e.accepted = true; break
             case Qt.Key_Right: tarjeta.mover(1);  e.accepted = true; break
+            case Qt.Key_Tab:     tarjeta.mover(1);  e.accepted = true; break
+            case Qt.Key_Backtab: tarjeta.mover(-1); e.accepted = true; break
             case Qt.Key_Up:    tarjeta.ajustar(grande ? 3 : 1);  e.accepted = true; break
             case Qt.Key_Down:  tarjeta.ajustar(grande ? -3 : -1); e.accepted = true; break
             case Qt.Key_Home:  tarjeta.elegido = 0; e.accepted = true; break
@@ -162,6 +166,30 @@ Item {
             model: Studio.mixer
             // Si no entran todos, que se vea que hay más (y se puedan arrastrar).
             ScrollBar.horizontal: ScrollBar { policy: canales.contentWidth > canales.width ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff }
+            // La rueda común (vertical) fuera de un fader desplaza los canales de costado; los
+            // faders están encima y la toman antes (su volumen); de costado la maneja la lista.
+            WheelHandler {
+                orientation: Qt.Vertical
+                acceptedDevices: PointerDevice.Mouse
+                onWheel: (ev) => {
+                    const max = Math.max(canales.originX, canales.originX + canales.contentWidth - canales.width)
+                    canales.contentX = Math.max(canales.originX, Math.min(max, canales.contentX - ev.angleDelta.y / 120 * 60))
+                }
+            }
+            // Arrastrar con el botón del medio (la rueda apretada) desplaza los canales.
+            MouseArea {
+                anchors.fill: parent
+                z: 100
+                acceptedButtons: Qt.MiddleButton
+                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.ArrowCursor
+                property real x0: 0
+                property real cx0: 0
+                onPressed: (e) => { x0 = e.x; cx0 = canales.contentX }
+                onPositionChanged: (e) => {
+                    const max = Math.max(canales.originX, canales.originX + canales.contentWidth - canales.width)
+                    canales.contentX = Math.max(canales.originX, Math.min(max, cx0 - (e.x - x0)))
+                }
+            }
             delegate: ColumnLayout {
                 required property int index
                 required property string name
