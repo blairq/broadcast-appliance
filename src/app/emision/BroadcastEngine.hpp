@@ -512,7 +512,7 @@ class BroadcastEngine {
     /// su error llega por acá, desde el hilo del motor.
     void alFallarMotor(std::function<void(const std::string&)> fn);
     /// Avisa cuando cambia el audio de una fuente: `que` es "escucha" (fija o PFL),
-    /// "pistas", "retardo", "volumen" o "mute". Lo pida quien lo pida (la matriz, el
+    /// "pistas", "retardo", "volumen", "mute" o "alta" (se creó, se rehízo o se renombró). Lo pida quien lo pida (la matriz, el
     /// Mezclador, el asistente, el AFV, una escena que se carga, volver como estaba):
     /// quien lo muestra se entera siempre. Se llama en el hilo que hizo el cambio.
     void alCambiarAudioFuente(std::function<void(const std::string& fuente, const char* que)> fn);

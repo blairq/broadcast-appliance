@@ -4,6 +4,7 @@
 
 #include "arranque/AppRuntime.hpp"
 
+#include <QSaveFile>
 #include <QTimer>
 
 #include <algorithm>
@@ -18,6 +19,10 @@ Conmutador::Conmutador(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(r
         transicionesEntrada_ = j.value("entrada", nlohmann::json::object());
         for (const auto& x : j.value("afv", nlohmann::json::array()))
             if (x.is_string()) afv_.insert(QString::fromStdString(x.get<std::string>()));
+        // El nivel al que vuelve cada fuente AFV cuando entra (el del operador): sin
+        // esto, tras reiniciar el primer fundido subía a 0 dB.
+        for (const auto& [f, v] : j.value("afv_niveles", nlohmann::json::object()).items())
+            if (v.is_number()) afvVolumen_[QString::fromStdString(f)] = v.get<float>();
     }
 }
 
@@ -90,12 +95,16 @@ void Conmutador::setArmadaYAvisar(const std::string& escena) {
 
 void Conmutador::aplicarAfv(const std::string& destino, int ms) {
     if (afv_.isEmpty()) return;
+    bool guardarNiveles = false;
     const auto enDestino = rt_.engine().sceneSources(destino);
     for (const QString& f : afv_) {
         const std::string n = f.toStdString();
         const bool entra = std::find(enDestino.begin(), enDestino.end(), n) != enDestino.end();
         const float actual = rt_.engine().sourceVolume(n);
-        if (!entra && actual > 0.001f) afvVolumen_[f] = actual;
+        if (!entra && actual > 0.001f && afvVolumen_.value(f, -1.0f) != actual) {
+            afvVolumen_[f] = actual;
+            guardarNiveles = true;
+        }
         const float objetivo = entra ? afvVolumen_.value(f, 1.0f) : 0.0f;
         // Fundido en pasos de 30 ms, con la duración de la transición.
         const int pasos = std::max(1, ms / 30);
@@ -104,6 +113,7 @@ void Conmutador::aplicarAfv(const std::string& destino, int ms) {
             QTimer::singleShot(i * 30, this, [this, n, v]() { rt_.engine().setSourceVolume(n, v); });
         }
     }
+    if (guardarNiveles) guardar();
 }
 
 std::string Conmutador::setTransicionEntrada(const std::string& escena, const std::string& tipo, int ms) {
@@ -143,9 +153,15 @@ std::vector<std::string> Conmutador::afvFuentes() const {
 void Conmutador::guardar() const {
     nlohmann::json afv = nlohmann::json::array();
     for (const std::string& f : afvFuentes()) afv.push_back(f);
-    std::ofstream o(rt_.dataRoot() / "Config" / "transiciones.json");
-    o << nlohmann::json{{"entrada", transicionesEntrada_}, {"afv", afv}}.dump(1, ' ', false,
-                                                                             nlohmann::json::error_handler_t::replace);
+    nlohmann::json niveles = nlohmann::json::object();
+    for (auto it = afvVolumen_.begin(); it != afvVolumen_.end(); ++it)
+        if (afv_.contains(it.key())) niveles[it.key().toStdString()] = it.value();
+    const nlohmann::json j{{"entrada", transicionesEntrada_}, {"afv", afv}, {"afv_niveles", niveles}};
+    // Aparte y reemplazar: un corte a mitad no deja el archivo trunco.
+    QSaveFile o(QString::fromStdString((rt_.dataRoot() / "Config" / "transiciones.json").string()));
+    if (!o.open(QIODevice::WriteOnly)) return;
+    o.write(QByteArray::fromStdString(j.dump(1, ' ', false, nlohmann::json::error_handler_t::replace)));
+    o.commit();
 }
 
 } // namespace ba::app::escenas

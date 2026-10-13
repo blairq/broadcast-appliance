@@ -1483,10 +1483,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     marca("matriz");
     // El ruteo (escucha, pistas) es del motor: cuando cambia, por el camino que sea,
     // la matriz avisa a sus vistas y el PFL de la tarjeta y del Mezclador se entera.
+    // El audio de cada fuente es del motor: cuando cambia, por el camino que sea, la
+    // matriz lo anota y guarda (y se lo pone a una fuente que nace), y el mezclador
+    // refresca esa tira. La matriz solo se redibuja si cambió el ruteo.
     rt.engine().alCambiarAudioFuente([m = matriz_.get(), mx = mixer_.get()](const std::string& f, const char* que) {
-        // La matriz solo muestra el ruteo (escucha, pistas): con el fader no se rehace.
-        if (std::strcmp(que, "escucha") == 0 || std::strcmp(que, "pistas") == 0) m->avisarRuteo();
-        mx->avisarCambio(f);
+        m->avisarFuente(f, que);
+        if (std::strcmp(que, "alta") != 0) mx->avisarCambio(f);
     });
     connect(matriz_.get(), &audio::Matriz::cambio, this, &StudioViewModel::pflChanged);
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.

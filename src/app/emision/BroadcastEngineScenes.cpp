@@ -540,6 +540,9 @@ bool BroadcastEngine::crearFuente(const SourceSpec& pedida, bool global) {
     sources_[spec.name] = f;
     ordenFuentes_.push_back(spec.name);
     if (esDeApp(spec.id)) fuentes::alta(spec.name, spec.id, json::parse(spec.settingsJson, nullptr, false));
+    // Una fuente nueva (o rehecha: una placa que cambió de canales): lo guardado de su
+    // audio se le vuelve a poner (Matriz).
+    if (cambioAudio_) cambioAudio_(spec.name, "alta");
     // Los compositores que la juntan (creados antes que ella, p. ej. al arrancar) se rearman.
     for (const auto& [n, c] : sources_) {
         if (c.compProductor.empty()) continue;
@@ -742,6 +745,7 @@ bool BroadcastEngine::renameSource(const std::string& from, const std::string& t
     if (pfl_ == from) pfl_ = to;
     fuentes::baja(from);
     if (esDeApp(f.spec.id)) fuentes::alta(to, f.spec.id, json::parse(f.spec.settingsJson, nullptr, false));
+    if (cambioAudio_) cambioAudio_(to, "alta");
     std::replace(ordenFuentes_.begin(), ordenFuentes_.end(), from, to);
     std::replace(micInputs_.begin(), micInputs_.end(), from, to);
     for (auto& sc : scenes_) {

@@ -17,6 +17,7 @@
 #include <QFile>
 #include <QMetaObject>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QSocketNotifier>
 #include <QThread>
 
@@ -455,8 +456,12 @@ void RackManager::saveMonitor() const {
     const fs::path file = root_ / "Config" / "audio-escucha.json";
     std::error_code ec;
     fs::create_directories(file.parent_path(), ec);
-    std::ofstream out(file, std::ios::binary);
-    if (out) out << json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace);
+    // Aparte y reemplazar: un corte a mitad no deja el archivo trunco.
+    QSaveFile out(QString::fromStdString(file.string()));
+    if (!out.open(QIODevice::WriteOnly)) return;
+    out.write(QByteArray::fromStdString(
+        json{{"id", monitorId_}, {"nombre", monitorName_}}.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+    out.commit();
 }
 
 void RackManager::restoreMonitor() {

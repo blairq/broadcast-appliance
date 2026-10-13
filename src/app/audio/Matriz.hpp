@@ -44,6 +44,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <string>
 #include <thread>
@@ -119,10 +120,12 @@ class Matriz : public QObject {
     /// sigue sonando). Lo usan el Mezclador, la tarjeta y audio_escuchar; el aviso
     /// llega por el motor y la matriz, las tiras y el PFL lo ven.
     Q_INVOKABLE QString ponerPfl(const QString& fuente);
-    /// El motor cambió el ruteo de una fuente (escucha o pistas: BroadcastEngine::
-    /// alCambiarAudioFuente), lo haya pedido quien sea. Desde cualquier hilo; varios
-    /// seguidos dan un solo cambio(), en el hilo de la matriz.
-    void avisarRuteo();
+    /// El motor cambió el audio de una fuente (BroadcastEngine::alCambiarAudioFuente:
+    /// escucha, pistas, volumen, mute, retardo o «alta»), lo haya pedido quien sea.
+    /// Desde cualquier hilo; los de una misma vuelta se atienden juntos en el hilo de
+    /// la matriz: se anota y se guarda, a una fuente que nace se le pone lo guardado, y
+    /// si cambió el ruteo sale un solo cambio().
+    void avisarFuente(const std::string& fuente, const char* que);
     /// Mostrar (o no) nivel, pan y mute de un cruce de bus virtual.
     Q_INVOKABLE void setAjustes(const QString& fuente, const QString& bus, bool on);
     Q_INVOKABLE void ajustar(const QString& fuente, const QString& bus, double nivelDb, double pan,
@@ -194,12 +197,30 @@ class Matriz : public QObject {
     std::atomic<bool> salir_{false};
     std::thread hilo_;
 
+    // Lo guardado del audio de cada fuente, ESTÉ O NO (una placa desenchufada, un
+    // invitado que todavía no entró): sus pistas, la escucha fija, volumen, mute y
+    // retardo. Se le pone cuando aparece (aplicarGuardado) y se anota cuando cambia.
+    struct Canal {
+        std::optional<std::uint32_t> pistas;
+        std::optional<bool> escucha;
+        std::optional<float> volumen;
+        std::optional<bool> mute;
+        std::optional<int> retardoMs;
+    };
+    mutable std::map<std::string, Canal> canales_;
+    std::set<std::string> aplicadas_; ///< las que ya tienen lo guardado (desde ahí se anotan)
+    std::mutex avisosM_;
+    std::map<std::string, std::set<std::string>> avisos_; ///< avisarFuente: lo que falta atender
+    QTimer guardarLuego_; ///< el fader se mueve seguido: se guarda un rato después
+    void aplicarGuardado(const std::string& fuente);
+    void anotar(const std::string& fuente) const; ///< del motor a canales_
+    void atenderAvisos();
+
     bool cargando_ = false; ///< no guardar a medio cargar
     QTimer lento_;          ///< engancha las tomas de fuentes que aparecen después
 
     // Medidores
     bool activa_ = false;
-    std::atomic<bool> avisoRuteo_{false}; ///< avisarRuteo: ya hay un cambio() en camino
     QTimer timer_;
     QVariantMap medidores_;
 };
