@@ -681,6 +681,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             if (a == "--test" || a == "--debug") args << a;
         return system_->launch(args);
     });
+    // Terminó un evento nuevo hecho aparte (una copia puede tardar): un solo aviso.
+    connect(configuraciones_.get(), &Configuraciones::nuevoEventoListo, this,
+            [this](const QString& nombre, const QString& error, bool abriendo) {
+                if (!error.isEmpty()) emit notify("No se pudo crear «" + nombre + "»: " + error, "error");
+                else if (!abriendo) emit notify("Evento «" + nombre + "» listo: abrilo con «Abrir otro…»", "info");
+            });
     marca("system");
     connect(system_.get(), &SystemViewModel::quitForUpdate, this, [this]() {
         emit notify("Cerrando para actualizar: el sistema vuelve a abrir solo en unos segundos.", "info");

@@ -214,6 +214,28 @@ Rectangle {
             }
         }
 
+        // --- Copiando un evento (en otro hilo): cuánto va --------------------------
+        Panel {
+            readonly property var c: Studio.configuraciones ? Studio.configuraciones.copia : ({})
+            visible: !!c.nombre
+            Layout.fillWidth: true
+            Layout.preferredHeight: 44
+            RowLayout {
+                anchors.fill: parent
+                spacing: 10
+                BusyIndicator { running: parent.parent.visible; Layout.preferredWidth: 22; Layout.preferredHeight: 22 }
+                Text {
+                    Layout.fillWidth: true
+                    readonly property var c: parent.parent.c
+                    color: Theme.text; font.pixelSize: 13
+                    text: "Copiando «" + (c.nombre || "") + "»… " +
+                          (c.total > 0 ? Math.min(100, Math.round(100 * c.hechos / c.total)) + " % (" +
+                                         page.bytesLegibles(c.hechos) + " de " + page.bytesLegibles(c.total) + ")"
+                                       : page.bytesLegibles(c.hechos))
+                }
+            }
+        }
+
         // --- El evento EN CURSO: el que recibe todo lo que pasa (histórico) ------
         Panel {
             Layout.fillWidth: true
@@ -1391,17 +1413,18 @@ Rectangle {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
                 text: "Un evento tiene TODO lo suyo: escenas, mezclador, medios, gráficos, distribución de la asamblea, " +
-                      "orden del día, votaciones, página web y guion. El evento abierto no se toca."
+                      "orden del día, votaciones, página web y guion. Copiar es copia total (también la web, el historial y " +
+                      "las grabaciones). El evento abierto no se toca."
             }
             TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: "Sesión ordinaria del 20 de octubre"; color: Theme.text }
             ButtonGroup { id: grupoDesde }
             RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "cero"; onClicked: nuevoEventoDlg.modo = "cero"
                           text: "Desde cero (de fábrica: escenas base, sin medios ni asamblea)" }
             RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "actual"; onClicked: nuevoEventoDlg.modo = "actual"
-                          text: "Copiando este («" + (nuevoEventoDlg.cf ? nuevoEventoDlg.cf.activa : "") + "», sin grabaciones ni historial)" }
+                          text: "Copiando este («" + (nuevoEventoDlg.cf ? nuevoEventoDlg.cf.activa : "") + "»): copia total" }
             RowLayout {
                 RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "anterior"; onClicked: nuevoEventoDlg.modo = "anterior"
-                              text: "Desde otro evento" }
+                              text: "Copiando otro evento" }
                 ComboBox {
                     id: anterior
                     Layout.fillWidth: true
@@ -1434,9 +1457,9 @@ Rectangle {
                     onClicked: {
                         const m = nuevoEventoDlg.modo
                         const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentText : m
+                        // En otro hilo (una copia puede tardar): el progreso arriba, el aviso al terminar.
                         const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording))
                         if (e !== "") { Studio.notify(e, "error"); return }
-                        if (!abrirlo.checked) Studio.notify("Evento «" + nombreEv.text.trim() + "» creado: abrilo con «Abrir otro…»", "info")
                         nuevoEventoDlg.close()
                     }
                 }

@@ -81,10 +81,46 @@ void sembrar(const fs::path& a) {
             fs::copy(de, a / d, fs::copy_options::recursive | fs::copy_options::skip_existing, ec);
     }
 }
+/// Copia TOTAL de un evento (copia es copia: web, guion, padrón, medios, orden del día,
+/// votaciones, historial, grabaciones, lo compartido…). Solo quedan afuera lo de la app
+/// andando (Logs/, Runtime/), su ficha (configuracion.json: la nueva tiene la suya) y el
+/// estado al aire (al-aire.json: una copia no sale al aire sola al abrirla). Va sumando
+/// en `hechos` los bytes copiados (el progreso que ve el operador).
+std::string copiarTodo(const fs::path& de, const fs::path& a, std::atomic<std::uintmax_t>* hechos) {
+    std::error_code ec;
+    fs::create_directories(a, ec);
+    if (ec) return "no se pudo crear " + aU8(a) + ": " + ec.message();
+    for (auto it = fs::recursive_directory_iterator(de, fs::directory_options::skip_permission_denied, ec);
+         !ec && it != fs::recursive_directory_iterator(); it.increment(ec)) {
+        const fs::path rel = fs::relative(it->path(), de, ec);
+        if (ec) return "no se pudo copiar: " + ec.message();
+        const std::string arriba = aU8(*rel.begin());
+        if (arriba == "configuracion.json" || arriba == "Logs" || arriba == "Runtime" ||
+            (it.depth() == 1 && arriba == "Config" && aU8(rel.filename()) == "al-aire.json") ||
+            (arriba == "Config" && rel.string().find(".restaurar") != std::string::npos)) {
+            if (it->is_directory(ec)) it.disable_recursion_pending();
+            continue;
+        }
+        std::error_code e2;
+        if (it->is_symlink(e2))
+            fs::copy_symlink(it->path(), a / rel, e2);
+        else if (it->is_directory(e2))
+            fs::create_directories(a / rel, e2);
+        else if (it->is_regular_file(e2)) {
+            fs::create_directories((a / rel).parent_path(), e2);
+            fs::copy_file(it->path(), a / rel, fs::copy_options::overwrite_existing, e2);
+            if (!e2 && hechos) *hechos += it->file_size(e2);
+        }
+        if (e2) return "no se pudo copiar " + aU8(rel) + ": " + e2.message();
+    }
+    return ec ? "no se pudo recorrer " + aU8(de) + ": " + ec.message() : std::string();
+}
 } // namespace
 
 Configuraciones::Configuraciones(std::function<QString()> reiniciar, QObject* parent)
     : QObject(parent), reiniciar_(std::move(reiniciar)) {
+    progresoCopia_.setInterval(300);
+    connect(&progresoCopia_, &QTimer::timeout, this, &Configuraciones::copiaCambio);
     // Cada vez que cambia la lista (crear, borrar, renombrar), se vuelve a medir.
     connect(this, &Configuraciones::cambio, this, [this]() {
         if (avisandoTamanos_) return; // el aviso de la medición misma
@@ -177,6 +213,13 @@ json Configuraciones::demos() const {
 
 std::string Configuraciones::crear(const std::string& nombre, const std::string& desde, const std::string& descripcion,
                                    bool conGrabaciones) {
+    const std::string e = crearSinAvisar(nombre, desde, descripcion, conGrabaciones);
+    if (e.empty()) emit cambio();
+    return e;
+}
+
+std::string Configuraciones::crearSinAvisar(const std::string& nombre, const std::string& desde,
+                                            const std::string& descripcion, bool conGrabaciones) {
     if (const std::string e = nombreValido(nombre); !e.empty()) return e;
     const fs::path dst = carpeta(nombre);
     std::error_code ec;
@@ -226,58 +269,130 @@ std::string Configuraciones::crear(const std::string& nombre, const std::string&
     escribirJson(dst / "configuracion.json", {{"descripcion", desc},
                                               {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
                                               {"desde", desde.empty() ? std::string("vacia") : desde}});
-    emit cambio();
     return {};
 }
 
 std::string Configuraciones::nuevoEvento(const std::string& nombre, const std::string& desde,
                                          const std::string& descripcion) {
+    const std::string e = crearEvento(nombre, desde, descripcion, nullptr);
+    if (e.empty()) emit cambio();
+    return e;
+}
+
+std::string Configuraciones::origenDe(const std::string& desde, std::filesystem::path* de) const {
+    std::error_code ec;
+    const std::string origen = desde.empty() ? std::string("cero") : desde;
+    if (origen == "cero" || origen.rfind("evento:", 0) == 0) return {};
+    if (origen.rfind("plantilla:", 0) == 0 || origen.rfind("demo:", 0) == 0) {
+        const std::string n = origen.substr(origen.find(':') + 1);
+        const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(n);
+        *de = fs::is_directory(demo, ec) ? demo : carpeta(n);
+        return fs::is_directory(*de, ec) ? std::string() : "no hay ninguna plantilla «" + n + "»";
+    }
+    *de = origen == "actual" ? ba::platform::configRoot() : carpeta(origen);
+    return fs::is_directory(*de, ec) ? std::string() : "no hay ningún evento «" + origen + "»";
+}
+
+std::string Configuraciones::crearEvento(const std::string& nombre, const std::string& desde,
+                                         const std::string& descripcion, std::atomic<std::uintmax_t>* hechos) {
     if (const std::string e = nombreValido(nombre); !e.empty()) return e;
     const fs::path dst = carpeta(nombre);
     std::error_code ec;
     if (fs::exists(dst, ec)) return "ya hay un evento «" + nombre + "»";
     std::string err;
-    std::string origen = desde.empty() ? std::string("cero") : desde;
+    const std::string origen = desde.empty() ? std::string("cero") : desde;
+    fs::path de;
     if (origen == "cero") {
         fs::create_directories(dst / "Config", ec);
         if (ec) return "no se pudo crear " + aU8(dst) + ": " + ec.message();
-    } else if (origen.rfind("plantilla:", 0) == 0 || origen.rfind("demo:", 0) == 0) {
-        const std::string n = origen.substr(origen.find(':') + 1);
-        const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(n);
-        const fs::path de = fs::is_directory(demo, ec) ? demo : carpeta(n);
-        if (!fs::is_directory(de, ec)) return "no hay ninguna plantilla «" + n + "»";
-        err = copiar(de, dst, false, true);
     } else if (origen.rfind("evento:", 0) == 0) {
-        err = crear(nombre, origen, descripcion); // la foto de Config/ de un evento cerrado
+        // Cómo estaba un evento cerrado: la foto de su Config/ (no es una copia del evento).
+        err = crearSinAvisar(nombre, origen, descripcion);
         if (err.empty()) {
             for (const char* d : {"Eventos", "Recordings", "Exportado"}) fs::remove_all(dst / d, ec);
             for (const char* f : {"orden-del-dia.json", "quorum.json", "votaciones-oficiales.json", "al-aire.json"})
                 fs::remove(dst / "Config" / f, ec);
         }
     } else {
-        const fs::path de = origen == "actual" ? ba::platform::configRoot() : carpeta(origen);
-        if (!fs::is_directory(de, ec)) return "no hay ningún evento «" + origen + "»";
-        err = copiar(de, dst, false, true);
+        // Copiando el actual, otro evento o una plantilla: COPIA TOTAL.
+        if (const std::string e = origenDe(origen, &de); !e.empty()) return e;
+        err = copiarTodo(de, dst, hechos);
     }
     if (!err.empty()) {
         fs::remove_all(dst, ec);
         return err;
     }
     sembrar(dst);
-    // Su evento: el guion, el padrón, la web… en curso desde ya.
+    // Su evento en curso: el de la copia (su guion, su web, su padrón…) o, si no tiene
+    // ninguno (de cero, de una foto), uno nuevo con su nombre.
     evento::EventoStore store(dst / "Eventos");
-    std::string e2;
-    const std::string ruta = store.crear(nombre, &e2);
+    std::string ruta = store.enCurso();
     if (ruta.empty()) {
-        fs::remove_all(dst, ec);
-        return "no se pudo crear su guion: " + e2;
+        std::string e2;
+        ruta = store.crear(nombre, &e2);
+        if (ruta.empty()) {
+            fs::remove_all(dst, ec);
+            return "no se pudo crear su guion: " + e2;
+        }
+        store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
     }
-    store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
     escribirJson(dst / "configuracion.json", {{"descripcion", descripcion},
                                               {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
                                               {"desde", origen},
                                               {"evento", ruta}});
-    emit cambio();
+    return {};
+}
+
+QString Configuraciones::nuevoEventoAparte(const QString& nombre, const QString& desde, bool abrir,
+                                           std::function<void(QString)> listo) {
+    const std::string n = nombre.toStdString(), d = desde.toStdString();
+    if (!copia_.isEmpty()) return "ya se está copiando «" + copia_.value("nombre").toString() + "»";
+    if (const std::string e = nombreValido(n); !e.empty()) return QString::fromStdString(e);
+    std::error_code ec;
+    if (fs::exists(carpeta(n), ec)) return "ya hay un evento «" + nombre + "»";
+    fs::path de;
+    if (const std::string e = origenDe(d, &de); !e.empty()) return QString::fromStdString(e);
+    // Lo que va a copiar (para el progreso): lo medido, o se mide ahora.
+    std::uintmax_t total = 0;
+    if (!de.empty()) {
+        std::lock_guard<std::mutex> l(tamanosM_);
+        const auto it = tamanos_.find(aU8(de.filename()));
+        if (it != tamanos_.end()) total = it->second.total;
+    }
+    copia_ = QVariantMap{{"nombre", nombre}, {"hechos", 0.0}, {"total", static_cast<double>(total)}};
+    emit copiaCambio();
+    progresoCopia_.start();
+    QPointer<Configuraciones> yo(this);
+    auto hechos = std::make_shared<std::atomic<std::uintmax_t>>(0);
+    copiaContador_ = hechos;
+    QThreadPool::globalInstance()->start([yo, n, d, abrir, hechos, listo = std::move(listo), total, de]() mutable {
+        std::uintmax_t t = total;
+        if (t == 0 && !de.empty()) t = bytesDe(de);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(), [yo, t]() { if (yo && !yo->copia_.isEmpty()) yo->copia_["total"] = static_cast<double>(t); },
+            Qt::QueuedConnection);
+        const std::string e = yo ? yo->crearEvento(n, d, {}, hechos.get()) : std::string("se cerró la app");
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, n, e, abrir, listo = std::move(listo)]() {
+                if (!yo) return;
+                yo->progresoCopia_.stop();
+                yo->copia_.clear();
+                yo->copiaContador_.reset();
+                emit yo->copiaCambio();
+                QString res = QString::fromStdString(e);
+                if (e.empty()) {
+                    emit yo->cambio();
+                    if (abrir) {
+                        if (const std::string e2 = yo->activar(n); !e2.empty()) res = QString::fromStdString(e2);
+                    }
+                }
+                emit yo->nuevoEventoListo(QString::fromStdString(n), res, abrir && res.isEmpty());
+                if (listo) listo(res);
+                if (abrir && res.isEmpty()) yo->reiniciar();
+            },
+            Qt::QueuedConnection);
+    });
     return {};
 }
 
@@ -430,9 +545,9 @@ QString Configuraciones::crearUi(const QString& n, const QString& d, const QStri
     return QString::fromStdString(crear(n.toStdString(), d.toStdString(), desc.toStdString()));
 }
 QString Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir) {
-    if (const std::string e = nuevoEvento(n.toStdString(), desde.toStdString()); !e.empty())
-        return QString::fromStdString(e);
-    return abrir ? cambiarUi(n) : QString();
+    // Una copia puede ser de varios GB (grabaciones): en otro hilo, con progreso (`copia`).
+    if (n.toStdString() == activa() && abrir) return "ya es el evento abierto";
+    return nuevoEventoAparte(n, desde, abrir, {});
 }
 QString Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
     return QString::fromStdString(marcarPlantilla(n.toStdString(), p));

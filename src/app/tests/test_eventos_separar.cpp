@@ -70,6 +70,28 @@ int main(int argc, char** argv) {
     CHECK(fs::exists(datos / "Respaldos"), "respaldó los eventos antes");
     CHECK(ba::app::Configuraciones::separarEventos(datos).empty(), "la segunda vez no hace nada");
 
+    // Copiar un evento es copia TOTAL: la web, el guion, la sesión, el historial y las
+    // grabaciones; menos lo de la app andando y el estado al aire.
+    {
+        qputenv("BA_DATA_ROOT", QByteArray::fromStdString(datos.string()));
+        escribir(a / "Eventos" / dos / "Web" / "portada.html", "<h1>Mi portada</h1>");
+        escribir(a / "Config" / "al-aire.json", R"({"transmitiendo": true})");
+        escribir(a / "Logs" / "app.log", "registro");
+        escribir(a / "Runtime" / "x.sock", "");
+        ba::app::Configuraciones cf({});
+        const std::string e = cf.nuevoEvento("Copia de trabajo", "Principal");
+        CHECK(e.empty(), "copia el evento");
+        const fs::path c = datos / "Configuraciones" / "Copia de trabajo";
+        CHECK(fs::exists(c / "Eventos" / dos / "Web" / "portada.html"), "lleva la página web");
+        CHECK(fs::exists(c / "Config" / "orden-del-dia.json"), "lleva la sesión (orden del día)");
+        CHECK(fs::exists(c / "Recordings" / "grabacion.mp4") && fs::exists(c / "Papelera" / "viejo.txt"),
+              "lleva las grabaciones y todo lo demás");
+        CHECK(!fs::exists(c / "Config" / "al-aire.json"), "no sale al aire sola");
+        CHECK(!fs::exists(c / "Logs") && !fs::exists(c / "Runtime"), "sin lo de la app andando");
+        ba::evento::EventoStore copia(c / "Eventos");
+        CHECK(copia.enCurso() == dos, "su evento en curso es el de la copia (no uno nuevo vacío)");
+    }
+
     fs::remove_all(datos);
     if (g_failures == 0) std::printf("OK\n");
     return g_failures == 0 ? 0 : 1;

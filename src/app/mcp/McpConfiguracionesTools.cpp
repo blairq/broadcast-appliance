@@ -43,12 +43,13 @@ void McpService::registerConfiguracionesTools() {
         t.title = "Crear un evento nuevo (arrancar de cero o desde otro)";
         t.category = "eventos";
         t.description = "Crea un evento APARTE con todo lo suyo, sin tocar el abierto. Es lo que corresponde cuando "
-                        "piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica), "
-                        "«actual» (copia del abierto: escenas, mezclador, medios, asamblea; sin grabaciones, sin "
-                        "historial, sin el orden del día ni las votaciones), el nombre de otro evento, "
-                        "«plantilla:<nombre>» (eventos_listar dice cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» "
-                        "(cómo estaba un evento cerrado del histórico). Si no dijeron desde dónde, preguntá. "
-                        "`abrir: true` pasa a él (reinicia la app: no con algo al aire).";
+                        "piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica, "
+                        "vacío), «actual» (COPIA TOTAL del abierto: escenas, mezclador, medios, asamblea, página web, "
+                        "guion, padrón, orden del día, votaciones, historial y grabaciones), el nombre de otro evento "
+                        "(copia total de ese), «plantilla:<nombre>» (copia total de una plantilla; eventos_listar dice "
+                        "cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» (solo los ajustes con que se hizo un "
+                        "evento cerrado). Una copia puede tardar (grabaciones): la respuesta llega al terminar. Si no "
+                        "dijeron desde dónde, preguntá. `abrir: true` pasa a él (reinicia la app: no con algo al aire).";
         t.inputSchema = {{"type", "object"},
                          {"required", {"nombre", "desde"}},
                          {"properties",
@@ -59,17 +60,21 @@ void McpService::registerConfiguracionesTools() {
         StudioViewModel* vm = &vm_;
         t.run = [cf, vm](const json& a, Done done) {
             const std::string n = a.value("nombre", std::string());
-            if (const std::string e = cf->nuevoEvento(n, a.value("desde", std::string("cero")), a.value("descripcion", std::string()));
-                !e.empty())
-                return done(ToolResult::error(e));
-            if (!a.value("abrir", false))
-                return done(ToolResult::ok("Creado «" + n + "». Para abrirlo: evento_cambiar (reinicia la app)."));
-            if (vm->alAire())
-                return done(ToolResult::ok("Creado «" + n + "», pero no lo abro: hay una transmisión o una grabación en "
-                                           "curso (abrirlo reinicia la app). Abrilo con evento_cambiar cuando termine."));
-            if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
-            done(ToolResult::ok("Creado «" + n + "»: la app se reinicia con él."));
-            cf->reiniciar();
+            const bool alAire = vm->alAire();
+            const bool abrir = a.value("abrir", false) && !alAire;
+            // En otro hilo (una copia total puede ser de varios GB): contesta al terminar.
+            const QString e = cf->nuevoEventoAparte(
+                QString::fromStdString(n), QString::fromStdString(a.value("desde", std::string("cero"))), abrir,
+                [done, n, abrir, alAire, pidio = a.value("abrir", false)](const QString& err) {
+                    if (!err.isEmpty()) return done(ToolResult::error(err.toStdString()));
+                    if (abrir) return done(ToolResult::ok("Creado «" + n + "»: la app se reinicia con él."));
+                    if (pidio && alAire)
+                        return done(ToolResult::ok("Creado «" + n + "», pero no lo abro: hay una transmisión o una "
+                                                   "grabación en curso (abrirlo reinicia la app). Abrilo con "
+                                                   "evento_cambiar cuando termine."));
+                    done(ToolResult::ok("Creado «" + n + "». Para abrirlo: evento_cambiar (reinicia la app)."));
+                });
+            if (!e.isEmpty()) done(ToolResult::error(e.toStdString()));
         };
         core_.addTool(std::move(t));
     }

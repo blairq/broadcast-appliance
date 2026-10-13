@@ -33,11 +33,12 @@ No se mueven carpetas: cambia lo que significan y cómo se muestran.
   configuración; avisando si hay algo al aire o grabando).
 - **Evento nuevo** (diálogo único en la página del evento y por MCP):
   - **desde cero**: carpeta de fábrica (escenas base, sin medios ni asamblea);
-  - **copiando el actual**: ajustes, escenas, mezclador, medios, gráficos, plugins y
-    asamblea; SIN historial (grabaciones, bitácora, votaciones, eventos anteriores);
-  - **desde uno anterior**: igual, a partir de otra carpeta, o de la foto de Config/
-    con que se hizo un evento cerrado;
-  - **desde plantilla**: las demos del programa y las carpetas marcadas como plantilla.
+  - **copiando el actual**, **copiando otro** o **desde plantilla**: **COPIA TOTAL**
+    (decisión del usuario: «copia es copia, copia total»): escenas, mezclador, medios,
+    asamblea, página web, guion, padrón, orden del día, votaciones, historial y
+    grabaciones. Solo quedan afuera Logs/, Runtime/ y el estado al aire (al-aire.json:
+    una copia no sale al aire sola). En otro hilo, con progreso;
+  - **la foto de un evento cerrado**: solo los ajustes con que se hizo.
   Siempre se pide el nombre; nunca se toca el evento abierto.
 - **Histórico**: lista los eventos de TODAS las carpetas (no solo los de la abierta).
 
@@ -93,3 +94,5 @@ grabando.
 - **E3 hecho**: los cues de música y video usan los medios del evento (Media/, la página
   Medios); si no está, Medios/ de la carpeta del guion (los guiones de antes).
   evento_revisar busca en los dos.
+- **Copia total** (copiarTodo, nuevoEventoAparte en otro hilo con progreso;
+  test_eventos_separar): la web y todo lo del evento van con la copia.

@@ -77,9 +77,9 @@ ColumnLayout {
         spacing: 8
         property string desde: "cero"
         readonly property var opciones: {
-            const l = [{ t: "Desde cero (de fábrica)", v: "cero" }, { t: "Copiando el abierto", v: "actual" }]
+            const l = [{ t: "Desde cero (de fábrica)", v: "cero" }, { t: "Copia total del abierto", v: "actual" }]
             for (const d of (pc.cf ? pc.cf.plantillasUi() : [])) l.push({ t: "Plantilla: " + d.nombre, v: "plantilla:" + d.nombre })
-            for (const c of (pc.cf ? pc.cf.lista : [])) if (!c.activa) l.push({ t: "Desde " + c.nombre, v: c.nombre })
+            for (const c of (pc.cf ? pc.cf.lista : [])) if (!c.activa) l.push({ t: "Copia total de " + c.nombre, v: c.nombre })
             return l
         }
         TextField { id: nombreNuevo; Layout.preferredWidth: 220; color: Theme.text; placeholderText: "Nombre del evento nuevo" }
@@ -95,11 +95,19 @@ ColumnLayout {
             onClicked: {
                 const e = pc.cf.nuevoEventoUi(nombreNuevo.text.trim(), nuevo.desde, false)
                 if (e !== "") { pc.avisar(e); return }
-                Studio.notify("Evento «" + nombreNuevo.text.trim() + "» creado: «Abrir» para pasar a él.", "info")
                 nombreNuevo.text = ""
             }
         }
         Item { Layout.fillWidth: true }
+    }
+
+    // La copia en curso (en otro hilo) y su aviso al terminar.
+    Text {
+        readonly property var c: pc.cf ? pc.cf.copia : ({})
+        visible: !!c.nombre
+        Layout.fillWidth: true
+        color: Theme.accent; font.pixelSize: 12
+        text: "Copiando «" + (c.nombre || "") + "»… " + (c.total > 0 ? Math.min(100, Math.round(100 * c.hechos / c.total)) + " %" : "")
     }
 
     Dialog {

@@ -31,6 +31,8 @@
 #pragma once
 
 #include <QObject>
+#include <QTimer>
+#include <QVariantMap>
 #include <QVariantList>
 
 #include <nlohmann/json.hpp>
@@ -39,6 +41,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 
@@ -49,6 +52,8 @@ class Configuraciones : public QObject {
     Q_PROPERTY(QVariantList lista READ listaUi NOTIFY cambio)
     Q_PROPERTY(QString activa READ activaUi NOTIFY cambio)
     Q_PROPERTY(QVariantList demos READ demosUi CONSTANT)
+    /// La copia que se está haciendo: {nombre, hechos, total} (bytes), o vacío.
+    Q_PROPERTY(QVariantMap copia READ copia NOTIFY copiaCambio)
 
    public:
     using json = nlohmann::json;
@@ -64,10 +69,21 @@ class Configuraciones : public QObject {
     /// Crea `nombre` desde `desde` (ver arriba). "" o el error.
     std::string crear(const std::string& nombre, const std::string& desde, const std::string& descripcion,
                       bool conGrabaciones = false);
-    /// Un evento nuevo: su carpeta (desde "cero", "actual", otra carpeta,
-    /// "plantilla:<nombre>" o "evento:<carpeta>/<foto>"), sin historial, con su evento
-    /// en curso ya creado. No la activa. "" o el error.
+    /// Un evento nuevo: su carpeta. "cero": de fábrica, con un evento en curso nuevo;
+    /// "actual", otra carpeta o "plantilla:<nombre>": COPIA TOTAL (web, guion, medios,
+    /// historial, grabaciones; ver copiarTodo); "evento:<carpeta>/<foto>": la foto de
+    /// ajustes de un evento cerrado. No la activa. "" o el error. (En este hilo.)
     std::string nuevoEvento(const std::string& nombre, const std::string& desde, const std::string& descripcion = {});
+    /// Lo mismo en otro hilo (una copia puede tardar): progreso en `copia`; al terminar,
+    /// nuevoEventoListo y `listo(error)` en el hilo principal; con `abrir`, pasa a él
+    /// (reinicia). "" si arrancó, o el error de entrada.
+    QString nuevoEventoAparte(const QString& nombre, const QString& desde, bool abrir,
+                              std::function<void(QString)> listo);
+    QVariantMap copia() const {
+        QVariantMap c = copia_;
+        if (!c.isEmpty() && copiaContador_) c["hechos"] = static_cast<double>(copiaContador_->load());
+        return c;
+    }
     /// Marcar una carpeta como plantilla (aparece en «Evento nuevo › desde plantilla»).
     std::string marcarPlantilla(const std::string& nombre, bool plantilla);
     /// Las plantillas: las demos del programa y las carpetas marcadas. [{nombre, descripcion, demo}].
@@ -106,6 +122,9 @@ class Configuraciones : public QObject {
 
    signals:
     void cambio();
+    void copiaCambio();
+    /// Terminó nuevoEventoAparte: `error` vacío si salió bien; `abriendo` si se reinicia con él.
+    void nuevoEventoListo(const QString& nombre, const QString& error, bool abriendo);
 
    private:
     // Cuánto ocupa cada carpeta: se mide en otro hilo (con grabaciones grandes,
@@ -121,6 +140,17 @@ class Configuraciones : public QObject {
     bool avisandoTamanos_ = false; ///< el cambio() que sale de la medición (no vuelve a medir)
     std::filesystem::path datos() const;
     std::filesystem::path carpeta(const std::string& nombre) const;
+    /// crear() sin avisar (lo llama otro hilo).
+    std::string crearSinAvisar(const std::string& nombre, const std::string& desde, const std::string& descripcion,
+                               bool conGrabaciones = false);
+    /// El trabajo de nuevoEvento, sin avisar (se puede llamar desde otro hilo).
+    std::string crearEvento(const std::string& nombre, const std::string& desde, const std::string& descripcion,
+                            std::atomic<std::uintmax_t>* hechos);
+    /// La carpeta de donde se copia `desde` ("" en `de` si no se copia nada). "" o el error.
+    std::string origenDe(const std::string& desde, std::filesystem::path* de) const;
+    QVariantMap copia_;
+    std::shared_ptr<std::atomic<std::uintmax_t>> copiaContador_;
+    QTimer progresoCopia_; ///< mientras copia, avisa el progreso
     static std::string nombreValido(const std::string& nombre);
     std::function<QString()> reiniciar_;
 };
