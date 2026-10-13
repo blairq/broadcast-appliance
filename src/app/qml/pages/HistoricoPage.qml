@@ -55,6 +55,12 @@ Rectangle {
             page.sel = partes.join("/")
             page.version++
         }
+        // ui_abrir_panel {page: "historico", panel: "registro"}: el de «Qué se registra…».
+        function onAbrirPanel(pagina, panel) {
+            if (pagina !== "historico") return
+            if (panel === "cerrar") ajustes.close()
+            else if (panel === "registro") ajustes.open()
+        }
     }
     Connections {
         target: page.h
@@ -786,12 +792,22 @@ Rectangle {
     Popup {
         id: ajustes
         anchors.centerIn: parent
-        width: 520
+        // El alto lo da el contenido (antes iba con anchors.fill y el modal lo cortaba
+        // abajo); el ancho, la ventana.
+        width: Math.min(600, page.width - 40)
+        height: Math.min(implicitHeight, page.height - 40)
+        padding: 18
         modal: true
         background: Rectangle { color: Theme.panel; radius: 12; border.color: Theme.glassBorder }
         readonly property var a: page.h ? page.h.ajustes : ({})
+        contentItem: ScrollView {
+            id: ajustesScroll
+            contentWidth: availableWidth
+            clip: true
+            implicitHeight: ajustesCol.implicitHeight
         ColumnLayout {
-            anchors { fill: parent; margins: 14 }
+            id: ajustesCol
+            width: ajustesScroll.availableWidth
             spacing: 8
             Text { text: "Qué se registra en cada evento"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
             Repeater {
@@ -843,31 +859,39 @@ Rectangle {
                 }
             }
             Text { text: "Disco y retención"; color: Theme.textDim; font.pixelSize: 11; Layout.topMargin: 6 }
+            // Cada ajuste: el texto arriba (se corta en renglones) y el número abajo, así
+            // nada se sale del marco por la derecha.
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
+                   text: "Borrar las grabaciones de eventos terminados hace más de" }
             RowLayout {
-                Layout.fillWidth: true
-                Text { text: "Borrar las grabaciones de eventos terminados hace más de"; color: Theme.text; font.pixelSize: 12 }
                 SpinBox {
                     from: 0; to: 3650
+                    editable: true
                     value: ajustes.a.retencion ? ajustes.a.retencion.grabaciones_dias : 0
                     onValueModified: page.h.guardarAjustes({ retencion: { grabaciones_dias: value } })
                 }
                 Text { text: "días (0 = nunca)"; color: Theme.textDim; font.pixelSize: 12 }
             }
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.text; font.pixelSize: 12
+                   text: "Avisar cuando el disco pase del" }
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Avisar cuando el disco pase del"; color: Theme.text; font.pixelSize: 12 }
                 SpinBox {
                     from: 0; to: 100
+                    editable: true
                     value: ajustes.a.retencion ? ajustes.a.retencion.aviso_disco_pct : 90
                     onValueModified: page.h.guardarAjustes({ retencion: { aviso_disco_pct: value } })
                 }
                 Text {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap
                     readonly property var d: { page.version; return ajustes.visible ? page.h.discoUi() : ({}) }
                     text: "% (ahora " + (d.usado_pct || 0) + " %, quedan " + (d.libre_gb || 0) + " GB)"
                     color: Theme.textDim; font.pixelSize: 12
                 }
             }
             RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
                 GlassButton {
                     compact: true; text: "¿Qué borraría?"
                     onClicked: {
@@ -878,6 +902,7 @@ Rectangle {
                 Item { Layout.fillWidth: true }
                 GlassButton { text: "Listo"; onClicked: ajustes.close() }
             }
+        }
         }
     }
 }
