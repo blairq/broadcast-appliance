@@ -33,7 +33,7 @@ namespace bactl {
 json herramientasChrome() {
     json t = json::array();
     t.push_back(herramienta(
-        "windows_chrome",
+        "system_chrome",
         "Chrome o Edge por su protocolo de depuración: lo que UI Automation no da de una página. `accion`:\n"
         "- estado: las ventanas de navegador abiertas y si hay uno con depuración (y sus pestañas).\n"
         "- abrir: lanza Chrome (o `navegador`: edge) con depuración y un perfil propio del asistente (no el del "
@@ -388,7 +388,7 @@ json mensajes(const std::vector<json>& evs) {
 } // namespace
 
 bool atenderChrome(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
-    if (nombre != "windows_chrome") return false;
+    if (nombre != "system_chrome") return false;
     if (!p.navegador) return out = sinPermiso(id, "navegador"), true;
     const std::string accion = a.value("accion", std::string("estado"));
     const int puerto = a.value("puerto", 9222);
@@ -397,7 +397,7 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
         return resultadoTexto(id,
                               "No hay un navegador con depuración en el puerto " + std::to_string(puerto) +
                                   ". El Chrome que ya está abierto no deja conectarse (es el perfil del usuario): "
-                                  "windows_chrome {accion: abrir, url} abre uno propio del asistente.",
+                                  "system_chrome {accion: abrir, url} abre uno propio del asistente.",
                               true);
     };
 
@@ -539,8 +539,8 @@ bool atenderChrome(const json& id, const std::string& nombre, const json& a, con
 #else
 
 bool atenderChrome(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
-    if (nombre != "windows_chrome") return false;
-    out = resultadoTexto(id, "El control del escritorio es solo para Windows.", true);
+    if (nombre != "system_chrome") return false;
+    out = resultadoTexto(id, todaviaNo(nombre), true);
     return true;
 }
 

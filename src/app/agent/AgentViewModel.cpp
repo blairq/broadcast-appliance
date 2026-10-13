@@ -12,7 +12,7 @@
 #include <thread>
 
 #include "agent/Actualizacion.hpp"
-#include "agent/ControlWindows.hpp"
+#include "agent/ControlSistema.hpp"
 #include "agent/ModeloPropio.hpp"
 #include "agent/ModelosLocales.hpp"
 
@@ -1085,23 +1085,30 @@ QString AgentViewModel::controlPath() const {
 #endif
 }
 
-QVariantMap AgentViewModel::controlWindows() const {
-    const ControlWindows c = ControlWindows::leer(ba::platform::dataRoot());
+QVariantMap AgentViewModel::controlSistema() const {
+    const ControlSistema c = ControlSistema::leer(ba::platform::dataRoot());
     QVariantMap m = QJsonDocument::fromJson(QByteArray::fromStdString(c.comoJson().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
     QVariantList caps;
-    for (const auto& [k, etiqueta] : ControlWindows::capacidades())
+    for (const auto& [k, etiqueta] : ControlSistema::capacidades())
         caps << QVariantMap{{"clave", QString::fromStdString(k)}, {"etiqueta", QString::fromStdString(etiqueta)}};
     m["capacidades"] = caps;
-#ifdef _WIN32
-    m["windows"] = true;
+    // En qué sistema está y si su motor ya está hecho (PLAN-CONTROL-SISTEMA: Windows
+    // primero; macOS y Linux en camino). Las herramientas son las mismas en los tres.
+#if defined(_WIN32)
+    m["sistema"] = "Windows";
+    m["soportado"] = true;
+#elif defined(__APPLE__)
+    m["sistema"] = "macOS";
+    m["soportado"] = false;
 #else
-    m["windows"] = false;
+    m["sistema"] = "Linux";
+    m["soportado"] = false;
 #endif
     return m;
 }
 
-QString AgentViewModel::setControlWindows(const QVariantMap& cambios) {
-    ControlWindows c = ControlWindows::leer(ba::platform::dataRoot());
+QString AgentViewModel::setControlSistema(const QVariantMap& cambios) {
+    ControlSistema c = ControlSistema::leer(ba::platform::dataRoot());
     c.aplicar(json::parse(QJsonDocument(QJsonObject::fromVariantMap(cambios)).toJson().toStdString(), nullptr, false));
     if (!c.guardar(ba::platform::dataRoot())) return "No se pudo guardar la configuración.";
     return {};
@@ -1156,7 +1163,7 @@ QString AgentViewModel::prepareWorkspace(QString* error) {
     const QString prompt = systemPrompt_ ? systemPrompt_() : QString();
     // Con su juego de herramientas (ver Roles::juegoDelAsistente) y CON
     // consola: es el asistente del operador, no un agente de un tiro.
-    // El control de Windows solo para el asistente del operador (los roles
+    // El control del sistema solo para el asistente del operador (los roles
     // automáticos corren solos, sin nadie que apruebe cada paso).
     return prepareWorkspaceEn(root + "/Runtime/agente", provider_, model_, {"--rol", "asistente"}, prompt,
                               error, true, true);
@@ -1192,7 +1199,7 @@ QString AgentViewModel::prepareWorkspaceEn(const QString& ws, const QString& pro
     // El control del escritorio (ba-control): solo si está prendido en
     // Configuración y es el asistente del operador. Con `preguntar`, el cliente
     // le pide permiso al operador antes de cada acción (no va en las permitidas).
-    const ControlWindows ctl = ControlWindows::leer(ba::platform::dataRoot());
+    const ControlSistema ctl = ControlSistema::leer(ba::platform::dataRoot());
     const bool control = conControl && ctl.habilitado && QFile::exists(controlPath());
     const json mcpControl{{"command", controlPath().toStdString()},
                           {"args", json::array()},
@@ -1512,7 +1519,7 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // El control del escritorio (mcp__control): permitido de antemano solo si
         // en Configuración apagaron «preguntar»; si no, Claude le pide permiso al
         // operador en su consola antes de cada acción.
-        const ControlWindows ctl = ControlWindows::leer(ba::platform::dataRoot());
+        const ControlSistema ctl = ControlSistema::leer(ba::platform::dataRoot());
         QStringList permitidas{"mcp__broadcast"};
         if (ctl.habilitado && !ctl.preguntar) permitidas << "mcp__control";
         // Fuera del aire: consola (PowerShell, Bash) y archivos (Write, Edit).

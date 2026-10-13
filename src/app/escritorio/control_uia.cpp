@@ -42,7 +42,7 @@ json herramientasUia() {
     const json ventana = {{"type", "integer"}, {"description", "id de la ventana (windows_ventanas); sin esto, la que tiene el foco"}};
     const json titulo = {{"type", "string"}, {"description", "o parte del título de la ventana"}};
     t.push_back(herramienta(
-        "windows_ui_leer",
+        "system_ui_leer",
         "LEE lo que hay en una ventana, como un lector de pantalla (UI Automation): los elementos que se pueden "
         "tocar —botones, campos, casillas, desplegables, menús, enlaces, pestañas, ítems— con número, rol, nombre, "
         "valor, estado (foco, marcado, desplegado, elegido), atajo y el centro de lo que se ve; las zonas que se "
@@ -59,7 +59,7 @@ json herramientasUia() {
                  {"filtro", {{"type", "string"}}},
                  {"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 3000}}}})));
     t.push_back(herramienta(
-        "windows_ui_clic",
+        "system_ui_clic",
         "Clic en un elemento: `n` (el número de la última windows_ui_leer) o `nombre` (parte del nombre; `rol` para "
         "desempatar: boton, enlace, casilla, item, pestaña…) en la ventana. Usa la acción del elemento (invocar, "
         "marcar, elegir, desplegar), que anda aunque la ventana esté tapada; si no tiene, un clic de mouse en su "
@@ -73,7 +73,7 @@ json herramientasUia() {
                  {"boton", {{"type", "string"}, {"enum", {"izq", "der"}}}},
                  {"doble", {{"type", "boolean"}}}})));
     t.push_back(herramienta(
-        "windows_ui_escribir",
+        "system_ui_escribir",
         "Le pone `texto` a un campo: `n` (de windows_ui_leer) o `nombre`. Pone el valor directo si el campo lo deja; "
         "si no, le da el foco y lo escribe. `reemplazar` (true): borra lo que había; `enter`: aprieta Enter al final. "
         "Permiso: teclado.",
@@ -87,12 +87,12 @@ json herramientasUia() {
                  {"titulo", titulo}},
                 {"texto"})));
     t.push_back(herramienta(
-        "windows_ui_texto",
+        "system_ui_texto",
         "El TEXTO de una ventana: lo que dice una página web (Chrome, Edge), un documento, un diálogo. `max` "
         "caracteres (20000). Permiso: pantalla.",
         esquema({{"ventana", ventana}, {"titulo", titulo}, {"max", {{"type", "integer"}, {"minimum", 100}, {"maximum", 200000}}}})));
     t.push_back(herramienta(
-        "windows_ui_esperar",
+        "system_ui_esperar",
         "Espera hasta que en la ventana aparezca un elemento cuyo nombre contenga `nombre` (y `rol` si se da): un "
         "botón que se habilita, un mensaje, una página que terminó de cargar. `ms` lo más que espera (10000, hasta "
         "30000). Permiso: pantalla.",
@@ -833,12 +833,12 @@ json texto(const json& id, const json& a) {
 } // namespace
 
 bool atenderUia(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
-    if (nombre.rfind("windows_ui_", 0) != 0) return false;
+    if (nombre.rfind("system_ui_", 0) != 0) return false;
     if (uia() == nullptr) {
         out = resultadoTexto(id, "UI Automation no está disponible en esta máquina", true);
         return true;
     }
-    if (nombre == "windows_ui_leer") {
+    if (nombre == "system_ui_leer") {
         if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
         // Las ventanas: la pedida, la del foco, o `todas` las visibles (la del foco primero).
         std::vector<HWND> hs;
@@ -907,13 +907,13 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
         out = resultadoDatos(id, d);
         return true;
     }
-    if (nombre == "windows_ui_clic") return out = clic(id, a, p), true;
-    if (nombre == "windows_ui_escribir") return out = escribir(id, a, p), true;
-    if (nombre == "windows_ui_texto") {
+    if (nombre == "system_ui_clic") return out = clic(id, a, p), true;
+    if (nombre == "system_ui_escribir") return out = escribir(id, a, p), true;
+    if (nombre == "system_ui_texto") {
         if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
         return out = texto(id, a), true;
     }
-    if (nombre == "windows_ui_esperar") {
+    if (nombre == "system_ui_esperar") {
         if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
         const int ms = std::clamp(a.value("ms", 10000), 0, 30000);
         const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
@@ -938,8 +938,8 @@ bool atenderUia(const json& id, const std::string& nombre, const json& a, const 
 #else
 
 bool atenderUia(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
-    if (nombre.rfind("windows_ui_", 0) != 0) return false;
-    out = resultadoTexto(id, "El control del escritorio es solo para Windows.", true);
+    if (nombre.rfind("system_ui_", 0) != 0) return false;
+    out = resultadoTexto(id, todaviaNo(nombre), true);
     return true;
 }
 

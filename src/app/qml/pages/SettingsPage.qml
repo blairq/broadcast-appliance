@@ -22,7 +22,7 @@ Rectangle {
     readonly property string modelosSection: "Modelos locales"
     readonly property string vozSection: "Voz del operador"
     readonly property string traduccionSection: "Traducción"
-    readonly property string controlSection: "Control de Windows"
+    readonly property string controlSection: "Control del sistema"
     readonly property string pinggySection: "Pinggy"
     /// Los avanzados de la sección Pinggy (los del TURN), al final de su página.
     readonly property var clavesAvanzadasPinggy: ["turn.maxAsignaciones", "turn.maxConexiones", "turn.vidaMaxS", "turn.nonceS", "turn.colaTcpKB", "turn.credencialS"]
@@ -783,10 +783,10 @@ Rectangle {
         }
     }
 
-    // --- Control de Windows --------------------------------------------------------
+    // --- Control del sistema --------------------------------------------------------
     // ba-control (src/app/escritorio): el servidor MCP con el que el asistente
     // maneja el escritorio de esta máquina. Los permisos viven en
-    // Config/control-windows.json (agent/ControlWindows) y se aplican en la
+    // Config/control-sistema.json (agent/ControlSistema) y se aplican en la
     // llamada siguiente; prender o apagar todo, o «preguntar», al relanzar.
     Component {
         id: controlComp
@@ -797,11 +797,11 @@ Rectangle {
                 id: ctl
                 width: parent.width
                 spacing: 12
-                property var estado: Studio.agent.controlWindows()
+                property var estado: Studio.agent.controlSistema()
                 function cambiar(c) {
-                    const e = Studio.agent.setControlWindows(c)
+                    const e = Studio.agent.setControlSistema(c)
                     if (e !== "") Studio.notify(e, "error")
-                    ctl.estado = Studio.agent.controlWindows()
+                    ctl.estado = Studio.agent.controlSistema()
                 }
                 Text {
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
@@ -809,13 +809,14 @@ Rectangle {
                           + "mover el mouse, escribir, abrir programas, buscar archivos y acomodar ventanas. De fábrica está apagado."
                 }
                 Text {
-                    visible: !ctl.estado.windows
+                    visible: ctl.estado.soportado === false
                     Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.warn; font.pixelSize: 12
-                    text: "Este sistema no es Windows: estos permisos se guardan pero el control no hace nada acá."
+                    text: "En " + (ctl.estado.sistema || "este sistema") + " el control todavía está en camino: los permisos se guardan, "
+                          + "pero las herramientas contestan que aún no están hechas acá (las mismas que en Windows)."
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { Layout.fillWidth: true; text: "Permitir el control de Windows"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                    Text { Layout.fillWidth: true; text: "Permitir el control del sistema"; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                     Toggle { checked: ctl.estado.habilitado === true; onToggled: (quiero) => ctl.cambiar({ habilitado: quiero }) }
                 }
                 RowLayout {

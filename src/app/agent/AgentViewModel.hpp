@@ -216,10 +216,10 @@ class AgentViewModel : public QObject {
     /// Crea un disparador desde el editor ({type, name, params, sonido, reconocer, notificar, actions}). "" o el error.
     Q_INVOKABLE QString createAlertUi(const QVariantMap& spec);
     Q_INVOKABLE void openAgentsFolder() const;
-    /// Control de Windows (agent/ControlWindows): {habilitado, preguntar, permisos{}, capacidades[]}.
-    Q_INVOKABLE QVariantMap controlWindows() const;
+    /// Control del sistema (agent/ControlSistema): {habilitado, preguntar, permisos{}, capacidades[]}.
+    Q_INVOKABLE QVariantMap controlSistema() const;
     /// Aplica {habilitado?, preguntar?, permisos?{}} y guarda. "" o el error.
-    Q_INVOKABLE QString setControlWindows(const QVariantMap& cambios);
+    Q_INVOKABLE QString setControlSistema(const QVariantMap& cambios);
 
     // --- Limpieza -----------------------------------------------------------------
     QVariantList limpieza() const { return limpieza_; }

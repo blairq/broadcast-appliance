@@ -30,7 +30,7 @@ namespace bactl {
 json herramientasArchivos() {
     json t = json::array();
     t.push_back(herramienta(
-        "windows_archivos",
+        "system_archivos",
         "Archivos y carpetas de esta máquina. `accion`:\n"
         "- leer `ruta`: el texto (desde la línea `desde`, `lineas` como mucho, 2000); una imagen (png, jpg, gif, bmp) "
         "vuelve como imagen.\n"
@@ -56,7 +56,7 @@ json herramientasArchivos() {
                  {"max", {{"type", "integer"}, {"minimum", 1}, {"maximum", 5000}}}},
                 {"accion", "ruta"})));
     t.push_back(herramienta(
-        "windows_registro",
+        "system_registro",
         "El registro de Windows. `clave`: «HKCU\\Software\\…» (HKCU, HKLM, HKCR, HKU, HKCC). `accion`: leer (el valor "
         "`nombre`; vacío = el predeterminado), listar (subclaves y valores), escribir (`nombre`, `valor`, `tipo`: sz, "
         "expand_sz, multi_sz —una lista—, dword, qword), borrar (el valor `nombre`; nunca una clave entera). Permiso: "
@@ -68,7 +68,7 @@ json herramientasArchivos() {
                  {"tipo", {{"type", "string"}, {"enum", {"sz", "expand_sz", "multi_sz", "dword", "qword"}}}}},
                 {"accion", "clave"})));
     t.push_back(herramienta(
-        "windows_aviso",
+        "system_aviso",
         "Muestra un aviso de Windows (abajo a la derecha): `titulo` y `texto`, `tipo`: info, aviso, error. Para "
         "avisarle algo a la persona que está en la máquina. Permiso: avisos.",
         esquema({{"titulo", {{"type", "string"}}}, {"texto", {{"type", "string"}}}, {"tipo", {{"type", "string"}, {"enum", {"info", "aviso", "error"}}}}},
@@ -477,17 +477,17 @@ json aviso(const json& id, const json& a, const Permisos& p) {
 } // namespace
 
 bool atenderArchivos(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
-    if (nombre == "windows_archivos") return out = archivos(id, a, p), true;
-    if (nombre == "windows_registro") return out = registro(id, a, p), true;
-    if (nombre == "windows_aviso") return out = aviso(id, a, p), true;
+    if (nombre == "system_archivos") return out = archivos(id, a, p), true;
+    if (nombre == "system_registro") return out = registro(id, a, p), true;
+    if (nombre == "system_aviso") return out = aviso(id, a, p), true;
     return false;
 }
 
 #else
 
 bool atenderArchivos(const json& id, const std::string& nombre, const json&, const Permisos&, json& out) {
-    if (nombre != "windows_archivos" && nombre != "windows_registro" && nombre != "windows_aviso") return false;
-    out = resultadoTexto(id, "El control del escritorio es solo para Windows.", true);
+    if (nombre != "system_archivos" && nombre != "system_registro" && nombre != "system_aviso") return false;
+    out = resultadoTexto(id, todaviaNo(nombre), true);
     return true;
 }
 

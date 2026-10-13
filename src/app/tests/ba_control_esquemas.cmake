@@ -2,7 +2,7 @@
 #
 # Cada herramienta de tools/list tiene que tener inputSchema con type "object" y
 # `properties` OBJETO (aunque esté vacío): con `properties: null` Claude no
-# cargaba el servidor entero (pasó con windows_monitores y windows_ventanas).
+# cargaba el servidor entero (pasó con system_monitores y system_ventanas).
 # Uso: cmake -DBIN=<ba-control> -DPEDIDO=<archivo con el tools/list> -P este.cmake
 execute_process(COMMAND "${BIN}" INPUT_FILE "${PEDIDO}" OUTPUT_VARIABLE salida RESULT_VARIABLE rc)
 string(JSON n LENGTH "${salida}" result tools)

@@ -417,7 +417,7 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
      R"md(- `settings_list` (o `{"section": ...}`): clave, valor, tipo, opciones, rango, ayuda y alcance.
 - `settings_set {"values": {"clave": valor, ...}}` aplica y guarda. `{"resetSection": "Video"}` vuelve a los valores por defecto.
 - Alcance: `live` (en el momento), `gateway` (reinicia la sala: los invitados se reconectan), `restart` (al proximo arranque).
-- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Sala, Red de la sala, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del operador, Modelos locales, Control de Windows, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {"topic": "acceso_remoto"}`.
+- Secciones (las de la izquierda de Configuración): Video, Cámaras y entradas, Audio, Traducción, Transmisión, Grabación, Codificación, Invitados, Sala, Red de la sala, Pinggy, Cloudflare, Túnel propio (WireGuard), Asistente (MCP), Voz del operador, Modelos locales, Control del sistema, Apariencia, Plugins y descargas, Sistema y datos. Para el acceso desde internet: `help {"topic": "acceso_remoto"}`.
 - Para tener VARIAS configuraciones enteras (una por cliente, una de prueba, la demo) y pasar de una a otra: `help {"topic": "configuraciones"}`.)md"},
     {"configuraciones", "Configuraciones con nombre",
      "Varias configuraciones enteras (escenas, medios, plugins, botonera, Cuerpo, eventos), la demo, y pasar de una a otra sin copiar nada.",

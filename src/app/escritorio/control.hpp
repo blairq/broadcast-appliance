@@ -56,8 +56,11 @@ std::string base64(const unsigned char* d, size_t n);
 json esquema(json props, std::vector<std::string> req = {});
 /// Una herramienta para tools/list.
 json herramienta(const char* nombre, const char* descripcion, json esquema);
-/// «El control de Windows no tiene permiso para «que»…» (error).
+/// «El control del sistema no tiene permiso para «que»…» (error).
 json sinPermiso(const json& id, const char* que);
+/// Lo que contesta una herramienta que todavía no tiene motor en este sistema (las
+/// herramientas son las mismas en los tres: PLAN-CONTROL-SISTEMA).
+std::string todaviaNo(const std::string& herramienta);
 
 // Los catálogos y los que atienden de cada parte.
 json herramientasUia();
