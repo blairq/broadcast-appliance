@@ -325,6 +325,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // Un solo renderizador de gráficos para todos los que disparan uno: el
     // guion, el editor, el rotulador y el asistente.
     emisor_ = std::make_unique<graficos::Emisor>(rt.dataRoot());
+    connect(emisor_.get(), &graficos::Emisor::fallo, this, [this](const QString& m) { emit notify(m, "error"); });
     marca("emisor");
     // El guion del evento necesita la sala para los cues de orador.
     {

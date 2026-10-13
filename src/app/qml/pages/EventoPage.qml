@@ -950,7 +950,7 @@ Rectangle {
                             Toggle {
                                 checked: page.ev.ensayo
                                 enabled: page.ev.estado === "parado"
-                                onToggled: (w) => page.ev.setEnsayo(w)
+                                onToggled: (w) => page.ev.ensayo = w
                             }
                             Text {
                                 Layout.fillWidth: true
