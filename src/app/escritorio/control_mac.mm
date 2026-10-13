@@ -49,6 +49,7 @@
 #include <cmath>
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <set>
 #include <string>
 #include <thread>
@@ -736,6 +737,419 @@ json avisoSistema(const json& id, const json& a, const Permisos& p) {
         if (err) return resultadoTexto(id, "macOS no dejó mostrar el aviso: " + aU([err description]), true);
         return resultadoTexto(id, "Aviso mostrado.");
     }
+}
+
+// --- La UI de otros programas: Accesibilidad (AX), como UI Automation en Windows ---------
+
+namespace {
+
+std::mutex gUiMu;
+std::vector<AXUIElementRef> gLeidos; ///< los de la última system_ui_leer (retenidos), por número
+
+std::string axTexto(AXUIElementRef e, CFStringRef atributo) {
+    CFTypeRef v = nullptr;
+    if (AXUIElementCopyAttributeValue(e, atributo, &v) != kAXErrorSuccess || v == nullptr) return {};
+    std::string out;
+    if (CFGetTypeID(v) == CFStringGetTypeID()) out = aU((__bridge NSString*)v);
+    else if (CFGetTypeID(v) == CFNumberGetTypeID()) out = aU([(__bridge NSNumber*)v stringValue]);
+    CFRelease(v);
+    return out;
+}
+
+bool axBool(AXUIElementRef e, CFStringRef atributo, bool* tiene = nullptr) {
+    CFTypeRef v = nullptr;
+    const bool ok = AXUIElementCopyAttributeValue(e, atributo, &v) == kAXErrorSuccess && v != nullptr;
+    if (tiene) *tiene = ok;
+    bool r = false;
+    if (ok && CFGetTypeID(v) == CFBooleanGetTypeID()) r = CFBooleanGetValue((CFBooleanRef)v);
+    else if (ok && CFGetTypeID(v) == CFNumberGetTypeID()) r = [(__bridge NSNumber*)v boolValue];
+    if (v) CFRelease(v);
+    return r;
+}
+
+CGRect axMarco(AXUIElementRef e) {
+    CFTypeRef pos = nullptr, tam = nullptr;
+    CGPoint p{};
+    CGSize s{};
+    if (AXUIElementCopyAttributeValue(e, kAXPositionAttribute, &pos) == kAXErrorSuccess && pos) {
+        AXValueGetValue((AXValueRef)pos, (AXValueType)kAXValueCGPointType, &p);
+        CFRelease(pos);
+    }
+    if (AXUIElementCopyAttributeValue(e, kAXSizeAttribute, &tam) == kAXErrorSuccess && tam) {
+        AXValueGetValue((AXValueRef)tam, (AXValueType)kAXValueCGSizeType, &s);
+        CFRelease(tam);
+    }
+    return CGRectMake(p.x, p.y, s.width, s.height);
+}
+
+/// El rol en castellano (los mismos nombres que en Windows).
+std::string rolEs(const std::string& rol, const std::string& sub) {
+    if (sub == "AXTabButton") return "pestaña";
+    if (sub == "AXSecureTextField") return "campo";
+    static const std::map<std::string, std::string> m = {
+        {"AXButton", "boton"}, {"AXMenuButton", "boton"}, {"AXDisclosureTriangle", "boton"}, {"AXCheckBox", "casilla"},
+        {"AXRadioButton", "opcion"}, {"AXPopUpButton", "desplegable"}, {"AXComboBox", "desplegable"},
+        {"AXTextField", "campo"}, {"AXTextArea", "campo"}, {"AXSearchField", "campo"}, {"AXLink", "enlace"},
+        {"AXMenuItem", "opcion_menu"}, {"AXMenuBarItem", "barra_menu"}, {"AXMenu", "menu"}, {"AXTabGroup", "pestañas"},
+        {"AXSlider", "deslizador"}, {"AXIncrementor", "numero"}, {"AXRow", "item"}, {"AXCell", "celda"},
+        {"AXOutline", "arbol"}, {"AXList", "lista"}, {"AXTable", "tabla"}, {"AXStaticText", "texto"},
+        {"AXImage", "imagen"}, {"AXWebArea", "documento"}, {"AXToolbar", "barra_herramientas"},
+        {"AXScrollArea", "desplazable"}, {"AXScrollBar", "barra_desplazamiento"}, {"AXProgressIndicator", "progreso"},
+        {"AXGroup", "grupo"}, {"AXWindow", "ventana"}, {"AXSheet", "dialogo"}, {"AXDialog", "dialogo"},
+        {"AXColorWell", "boton"}, {"AXDateField", "campo"}, {"AXHeading", "titulo"}};
+    const auto it = m.find(rol);
+    return it != m.end() ? it->second : (rol.rfind("AX", 0) == 0 ? minusculas(rol.substr(2)) : rol);
+}
+
+bool rolTocable(const std::string& rol) {
+    static const std::set<std::string> t = {"AXButton", "AXMenuButton", "AXDisclosureTriangle", "AXCheckBox", "AXRadioButton",
+                                            "AXPopUpButton", "AXComboBox", "AXTextField", "AXTextArea", "AXSearchField",
+                                            "AXLink", "AXMenuItem", "AXMenuBarItem", "AXSlider", "AXIncrementor", "AXRow",
+                                            "AXCell", "AXColorWell", "AXDateField"};
+    return t.count(rol) > 0;
+}
+
+std::string nombreDe(AXUIElementRef e, const std::string& rol) {
+    std::string n = axTexto(e, kAXTitleAttribute);
+    if (n.empty()) n = axTexto(e, kAXDescriptionAttribute);
+    if (n.empty()) n = axTexto(e, CFSTR("AXLabel"));
+    if (n.empty() && (rol == "AXStaticText" || rol == "AXHeading")) n = axTexto(e, kAXValueAttribute);
+    if (n.empty()) n = axTexto(e, kAXHelpAttribute);
+    while (!n.empty() && isspace(static_cast<unsigned char>(n.back()))) n.pop_back();
+    return n.size() > 160 ? n.substr(0, 157) + "…" : n;
+}
+
+struct Lectura {
+    bool todos = false, conTexto = true;
+    int limite = 500, usados = 0;
+    bool cortado = false, navegador = false;
+    std::vector<std::pair<AXUIElementRef, json>> elementos;
+    std::vector<std::string> textos;
+    json desplazables = json::array();
+};
+
+void recorrerAx(Lectura& l, AXUIElementRef e, int prof, bool enPagina) {
+    if (prof > 40) return;
+    if (l.usados >= l.limite) {
+        l.cortado = true;
+        return;
+    }
+    const std::string rol = axTexto(e, kAXRoleAttribute), sub = axTexto(e, kAXSubroleAttribute);
+    if (rol == "AXWebArea") {
+        enPagina = true;
+        l.navegador = true;
+    }
+    const std::string nombre = nombreDe(e, rol);
+    const bool tocable = rolTocable(rol) || sub == "AXTabButton";
+    const bool informativo = rol == "AXStaticText" || rol == "AXImage" || rol == "AXHeading";
+    if (l.conTexto && (rol == "AXStaticText" || rol == "AXHeading")) {
+        const std::string t = axTexto(e, kAXValueAttribute);
+        if (!t.empty()) l.textos.push_back(t);
+    }
+    if (rol == "AXScrollArea") {
+        const CGRect r = axMarco(e);
+        l.desplazables.push_back({{"x", static_cast<int>(CGRectGetMidX(r))}, {"y", static_cast<int>(CGRectGetMidY(r))},
+                                  {"ancho", static_cast<int>(r.size.width)}, {"alto", static_cast<int>(r.size.height)}});
+    }
+    if (tocable || (l.todos && informativo && !nombre.empty())) {
+        const CGRect r = axMarco(e);
+        if (r.size.width > 0 && r.size.height > 0) {
+            json j{{"rol", rolEs(rol, sub)}, {"nombre", nombre}};
+            if (axBool(e, kAXFocusedAttribute)) j["foco"] = true;
+            const bool clave = sub == "AXSecureTextField";
+            if (clave) j["clave"] = true;
+            if (rol == "AXTextField" || rol == "AXTextArea" || rol == "AXSearchField" || rol == "AXComboBox" || rol == "AXPopUpButton") {
+                std::string v = clave ? std::string() : axTexto(e, kAXValueAttribute);
+                if (!clave) j["valor"] = v.empty() ? std::string("(vacío)") : (v.size() > 300 ? v.substr(0, 297) + "…" : v);
+            }
+            if (rol == "AXCheckBox" || (rol == "AXRadioButton" && sub != "AXTabButton")) j["marcado"] = axTexto(e, kAXValueAttribute) == "1";
+            if (sub == "AXTabButton" && axTexto(e, kAXValueAttribute) == "1") j["elegido"] = true;
+            bool tieneExp = false;
+            const bool exp = axBool(e, kAXExpandedAttribute, &tieneExp);
+            if (tieneExp) j["desplegado"] = exp;
+            if (axBool(e, kAXSelectedAttribute)) j["elegido"] = true;
+            bool tieneHab = false;
+            if (!axBool(e, kAXEnabledAttribute, &tieneHab) && tieneHab) j["habilitado"] = false;
+            if (rol == "AXSlider" || rol == "AXIncrementor") {
+                const std::string v = axTexto(e, kAXValueAttribute), mn = axTexto(e, kAXMinValueAttribute), mx = axTexto(e, kAXMaxValueAttribute);
+                if (!v.empty()) j["valor"] = std::atof(v.c_str());
+                if (!mn.empty()) j["min"] = std::atof(mn.c_str());
+                if (!mx.empty()) j["max"] = std::atof(mx.c_str());
+            }
+            if (enPagina) j["pagina"] = true;
+            j["x"] = static_cast<int>(CGRectGetMidX(r));
+            j["y"] = static_cast<int>(CGRectGetMidY(r));
+            j["ancho"] = static_cast<int>(r.size.width);
+            j["alto"] = static_cast<int>(r.size.height);
+            ++l.usados;
+            l.elementos.push_back({(AXUIElementRef)CFRetain(e), std::move(j)});
+        }
+    }
+    CFArrayRef hijos = nullptr;
+    if (AXUIElementCopyAttributeValue(e, kAXChildrenAttribute, (CFTypeRef*)&hijos) == kAXErrorSuccess && hijos) {
+        for (CFIndex i = 0; i < CFArrayGetCount(hijos) && l.usados < l.limite; ++i)
+            recorrerAx(l, (AXUIElementRef)CFArrayGetValueAtIndex(hijos, i), prof + 1, enPagina);
+        CFRelease(hijos);
+    }
+}
+
+/// La ventana pedida (`ventana`/`titulo`) o la que tiene el foco, como elemento de AX.
+AXUIElementRef ventanaAx(const json& a, std::string& titulo, std::string& app) {
+    pid_t pid = 0;
+    Ventana v;
+    json b;
+    if (a.contains("ventana")) b["id"] = a["ventana"];
+    if (a.contains("titulo")) b["titulo"] = a["titulo"];
+    if (!b.empty()) {
+        if (!buscarVentana(b, v)) return nullptr;
+        pid = v.pid;
+        titulo = tituloDe(v);
+        app = v.app;
+    } else if (NSRunningApplication* f = NSWorkspace.sharedWorkspace.frontmostApplication) {
+        pid = f.processIdentifier;
+        app = aU(f.localizedName);
+    }
+    if (pid == 0) return nullptr;
+    AXUIElementRef ap = AXUIElementCreateApplication(pid);
+    AXUIElementSetMessagingTimeout(ap, 2.0f);
+    // Chrome, Edge y las apps de Electron solo arman el árbol de la página si lo piden.
+    AXUIElementSetAttributeValue(ap, CFSTR("AXManualAccessibility"), kCFBooleanTrue);
+    AXUIElementRef w = nullptr;
+    if (!b.empty()) w = axDe(v);
+    if (w == nullptr) AXUIElementCopyAttributeValue(ap, kAXFocusedWindowAttribute, (CFTypeRef*)&w);
+    if (w == nullptr) AXUIElementCopyAttributeValue(ap, kAXMainWindowAttribute, (CFTypeRef*)&w);
+    CFRelease(ap);
+    if (w && titulo.empty()) titulo = axTexto(w, kAXTitleAttribute) + (app.empty() ? "" : " — " + app);
+    return w;
+}
+
+/// El elemento de los argumentos: `n` de la última lectura, o el primero cuyo nombre
+/// contiene `nombre` (y es del `rol`, si se dio); preferidos los tocables.
+AXUIElementRef elementoAx(const json& a, json& info, std::string& error) {
+    if (a.contains("n")) {
+        std::lock_guard<std::mutex> l(gUiMu);
+        const int n = a.value("n", 0);
+        if (n < 1 || n > static_cast<int>(gLeidos.size())) {
+            error = gLeidos.empty() ? "no hay una lectura: system_ui_leer primero" : "no hay un elemento " + std::to_string(n) + " en la última lectura";
+            return nullptr;
+        }
+        AXUIElementRef e = gLeidos[static_cast<size_t>(n - 1)];
+        const std::string rol = axTexto(e, kAXRoleAttribute);
+        info = {{"n", n}, {"rol", rolEs(rol, axTexto(e, kAXSubroleAttribute))}, {"nombre", nombreDe(e, rol)}};
+        return (AXUIElementRef)CFRetain(e);
+    }
+    const std::string nombre = minusculas(a.value("nombre", std::string())), rol = minusculas(a.value("rol", std::string()));
+    if (nombre.empty()) {
+        error = "falta `n` o `nombre`";
+        return nullptr;
+    }
+    std::string titulo, app;
+    AXUIElementRef w = ventanaAx(a, titulo, app);
+    if (w == nullptr) {
+        error = "no encontré esa ventana";
+        return nullptr;
+    }
+    Lectura l;
+    l.todos = true;
+    l.conTexto = false;
+    l.limite = 3000;
+    recorrerAx(l, w, 0, false);
+    CFRelease(w);
+    AXUIElementRef elegido = nullptr;
+    for (int pasada = 0; pasada < 2 && elegido == nullptr; ++pasada)
+        for (auto& [e, j] : l.elementos) {
+            const bool tocable = j.value("rol", std::string()) != "texto" && j.value("rol", std::string()) != "imagen";
+            if (pasada == 0 && !tocable) continue;
+            if (minusculas(j.value("nombre", std::string())).find(nombre) == std::string::npos) continue;
+            if (!rol.empty() && j.value("rol", std::string()) != rol) continue;
+            elegido = (AXUIElementRef)CFRetain(e);
+            info = j;
+            break;
+        }
+    for (auto& [e, j] : l.elementos) CFRelease(e);
+    if (elegido == nullptr) error = "no encontré «" + a.value("nombre", std::string()) + "» en esa ventana (system_ui_leer)";
+    return elegido;
+}
+
+} // namespace
+
+bool atenderUia(const json& id, const std::string& nombre, const json& a, const Permisos& p, json& out) {
+    if (nombre.rfind("system_ui_", 0) != 0) return false;
+    @autoreleasepool {
+        if (!accesibilidad()) return out = resultadoTexto(id, kSinAccesibilidad, true), true;
+        if (nombre == "system_ui_leer") {
+            if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
+            std::vector<json> pedidas;
+            if (a.value("todas", false)) {
+                pedidas.push_back(json::object()); // la del foco primero
+                NSRunningApplication* f = NSWorkspace.sharedWorkspace.frontmostApplication;
+                std::set<pid_t> vistos{f ? f.processIdentifier : 0};
+                for (const auto& v : ventanas())
+                    if (!vistos.count(v.pid)) {
+                        vistos.insert(v.pid);
+                        pedidas.push_back({{"ventana", static_cast<long long>(v.id)}});
+                    }
+            } else
+                pedidas.push_back(a);
+            const std::string filtro = minusculas(a.value("filtro", std::string()));
+            int limite = std::clamp(a.value("max", 500), 1, 3000);
+            std::vector<AXUIElementRef> quedan;
+            json vs = json::array();
+            bool cortado = false;
+            for (const auto& b : pedidas) {
+                if (limite <= 0) {
+                    cortado = true;
+                    break;
+                }
+                std::string titulo, app;
+                AXUIElementRef w = ventanaAx(b, titulo, app);
+                if (w == nullptr) continue;
+                Lectura l;
+                l.todos = a.value("todos", false);
+                l.conTexto = a.value("texto", true);
+                l.limite = limite;
+                recorrerAx(l, w, 0, false);
+                CFRelease(w);
+                json lista = json::array();
+                for (auto& [e, j] : l.elementos) {
+                    if (!filtro.empty() && minusculas(j.value("nombre", std::string())).find(filtro) == std::string::npos &&
+                        minusculas(j.value("valor", std::string())).find(filtro) == std::string::npos) {
+                        CFRelease(e);
+                        continue;
+                    }
+                    quedan.push_back(e);
+                    json x = j;
+                    x["n"] = static_cast<int>(quedan.size());
+                    lista.push_back(x);
+                }
+                limite -= l.usados;
+                cortado = cortado || l.cortado;
+                json v{{"ventana", titulo}, {"app", app}, {"elementos", lista}};
+                if (l.navegador) v["navegador"] = true;
+                if (!l.desplazables.empty()) v["desplazables"] = l.desplazables;
+                if (!l.textos.empty()) {
+                    std::string t;
+                    for (const auto& x : l.textos) {
+                        if (t.size() > 12000) {
+                            t += "…";
+                            break;
+                        }
+                        t += x + "\n";
+                    }
+                    v["texto"] = t;
+                }
+                if (lista.empty()) v["nota"] = "nada para tocar (una app que no habla Accesibilidad: system_pantalla)";
+                vs.push_back(v);
+            }
+            if (vs.empty()) return out = resultadoTexto(id, "no encontré esa ventana", true), true;
+            {
+                std::lock_guard<std::mutex> lk(gUiMu);
+                for (AXUIElementRef e : gLeidos) CFRelease(e);
+                gLeidos = std::move(quedan);
+            }
+            json d = vs.size() == 1 ? vs[0] : json{{"ventanas", vs}};
+            if (cortado) d["cortado"] = "se llegó al tope de elementos: `max`, `filtro` o una ventana sola";
+            return out = resultadoDatos(id, d), true;
+        }
+        if (nombre == "system_ui_clic") {
+            if (!p.mouse) return out = sinPermiso(id, "mouse"), true;
+            json info;
+            std::string error;
+            AXUIElementRef e = elementoAx(a, info, error);
+            if (e == nullptr) return out = resultadoTexto(id, error, true), true;
+            const CGRect r = axMarco(e);
+            const CGPoint c = CGPointMake(CGRectGetMidX(r), CGRectGetMidY(r));
+            std::string como;
+            const bool porMouse = a.value("con_mouse", false) || a.value("doble", false) || a.value("boton", std::string("izq")) == "der";
+            if (!porMouse && AXUIElementPerformAction(e, kAXPressAction) == kAXErrorSuccess) como = "su acción (presionar)";
+            else if (!porMouse && AXUIElementPerformAction(e, kAXPickAction) == kAXErrorSuccess) como = "su acción (elegir)";
+            else {
+                const Boton b = boton(a.value("boton", std::string("izq")));
+                mouse(kCGEventMouseMoved, c, kCGMouseButtonLeft);
+                mouse(b.abajo, c, b.b);
+                mouse(b.arriba, c, b.b);
+                if (a.value("doble", false)) {
+                    mouse(b.abajo, c, b.b, 2);
+                    mouse(b.arriba, c, b.b, 2);
+                }
+                como = "clic de mouse en su centro";
+            }
+            CFRelease(e);
+            return out = resultadoTexto(id, "Clic en " + info.value("rol", std::string()) + " «" + info.value("nombre", std::string()) +
+                                                "» (" + como + ")."),
+                   true;
+        }
+        if (nombre == "system_ui_escribir") {
+            if (!p.teclado) return out = sinPermiso(id, "teclado"), true;
+            json info;
+            std::string error;
+            AXUIElementRef e = elementoAx(a, info, error);
+            if (e == nullptr) return out = resultadoTexto(id, error, true), true;
+            const std::string texto = a.value("texto", std::string());
+            const bool reemplazar = a.value("reemplazar", false);
+            Boolean settable = false;
+            std::string como;
+            if (AXUIElementIsAttributeSettable(e, kAXValueAttribute, &settable) == kAXErrorSuccess && settable) {
+                const std::string nuevo = reemplazar ? texto : axTexto(e, kAXValueAttribute) + texto;
+                AXUIElementSetAttributeValue(e, kAXValueAttribute, (__bridge CFStringRef)aNS(nuevo));
+                como = "puso el valor";
+            } else {
+                AXUIElementSetAttributeValue(e, kAXFocusedAttribute, kCFBooleanTrue);
+                if (reemplazar) mandarTeclas("cmd+a");
+                escribirTexto(texto);
+                como = "lo escribió con el teclado";
+            }
+            if (a.value("enter", false)) {
+                AXUIElementSetAttributeValue(e, kAXFocusedAttribute, kCFBooleanTrue);
+                mandarTeclas("enter");
+            }
+            CFRelease(e);
+            return out = resultadoTexto(id, "Escrito en " + info.value("rol", std::string()) + " «" + info.value("nombre", std::string()) +
+                                                "» (" + como + ")."),
+                   true;
+        }
+        if (nombre == "system_ui_texto") {
+            if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
+            std::string titulo, app;
+            AXUIElementRef w = ventanaAx(a, titulo, app);
+            if (w == nullptr) return out = resultadoTexto(id, "no encontré esa ventana", true), true;
+            Lectura l;
+            l.todos = false;
+            l.conTexto = true;
+            l.limite = 3000;
+            recorrerAx(l, w, 0, false);
+            CFRelease(w);
+            for (auto& [e, j] : l.elementos) CFRelease(e);
+            const size_t max = static_cast<size_t>(std::clamp(a.value("max", 20000), 100, 200000));
+            std::string t;
+            for (const auto& x : l.textos) {
+                if (t.size() + x.size() > max) {
+                    t += "…";
+                    break;
+                }
+                t += x + "\n";
+            }
+            return out = resultadoDatos(id, {{"ventana", titulo}, {"texto", t}, {"caracteres", t.size()}}), true;
+        }
+        if (nombre == "system_ui_esperar") {
+            if (!p.pantalla) return out = sinPermiso(id, "pantalla"), true;
+            const int ms = std::clamp(a.value("ms", 10000), 0, 30000);
+            const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+            json b = a;
+            b.erase("n");
+            do {
+                json info;
+                std::string error;
+                if (AXUIElementRef e = elementoAx(b, info, error)) {
+                    CFRelease(e);
+                    return out = resultadoDatos(id, {{"aparecio", true}, {"elemento", info}}), true;
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(300));
+            } while (std::chrono::steady_clock::now() < fin);
+            return out = resultadoTexto(id, "No apareció «" + a.value("nombre", std::string()) + "» en " + std::to_string(ms) + " ms.", true), true;
+        }
+    }
+    return false;
 }
 
 json ventanasDeNavegador() {

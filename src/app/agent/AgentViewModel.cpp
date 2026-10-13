@@ -1099,7 +1099,7 @@ QVariantMap AgentViewModel::controlSistema() const {
     m["soportado"] = true;
 #elif defined(__APPLE__)
     m["sistema"] = "macOS";
-    m["soportado"] = true; // falta solo la UI de otros programas (system_ui_*: Accesibilidad, en camino)
+    m["soportado"] = true;
 #else
     m["sistema"] = "Linux";
     m["soportado"] = false;

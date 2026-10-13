@@ -63,4 +63,9 @@ Fuera de Windows compila y cada herramienta contesta «solo Windows».
   Probado: monitores, sistema, procesos, comando, ventanas, cursor, buscar, archivos,
   preferencias, estado de Chrome. Sin probar a mano (mueven el mouse o piden permisos de
   macOS): pantalla, mouse, teclado, ventana, aviso, abrir Chrome.
-- Falta: **Q3** system_ui_* en macOS (AX); **Q4** Linux (andan archivos y Chrome).
+- **Q3 hecho (macOS)**: system_ui_leer/clic/escribir/texto/esperar con Accesibilidad (AX):
+  los mismos roles en castellano y campos que UI Automation; el clic usa la acción del
+  elemento (AXPress, anda con la ventana tapada) o el mouse en su centro; en Chrome, Edge
+  y Electron se pide el árbol de la página (AXManualAccessibility). Sin probar a mano
+  (pide el permiso de Accesibilidad).
+- Falta: **Q4** Linux (andan archivos y Chrome).

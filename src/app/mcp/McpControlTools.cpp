@@ -45,8 +45,7 @@ void McpService::registerControlTools() {
 #elif defined(__APPLE__)
             d["sistema"] = "macOS";
             d["soportado"] = true;
-            d["nota"] = "en macOS faltan las de la UI de otros programas (system_ui_*, en camino); el resto anda. Pide "
-                        "los permisos «Accesibilidad» y «Grabación de pantalla» de macOS";
+            d["nota"] = "pide los permisos «Accesibilidad» y «Grabación de pantalla» de macOS la primera vez";
 #else
             d["sistema"] = "Linux";
             d["soportado"] = false;
