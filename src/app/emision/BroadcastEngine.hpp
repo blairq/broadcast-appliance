@@ -414,7 +414,8 @@ class BroadcastEngine {
     float sourceVolume(const std::string& name) const;
     bool setSourceMuted(const std::string& name, bool muted);
     bool sourceMuted(const std::string& name) const;
-    /// Pico mas reciente de la fuente en dBFS (-100 = silencio).
+    /// Pico mas reciente de la fuente en dBFS (-100 = silencio): lo que entrega la
+    /// entrada, vaya o no al Programa (el mismo de los vúmetros del Mezclador).
     float sourcePeakDb(const std::string& name) const;
     /// El pico de lo que ENTREGA la entrada (después de sus filtros y su rack, antes de su
     /// volumen), vaya o no a alguna salida: el vúmetro de su fila en la matriz.

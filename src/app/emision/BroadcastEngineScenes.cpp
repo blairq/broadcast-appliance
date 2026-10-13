@@ -971,6 +971,13 @@ bool BroadcastEngine::sourceMuted(const std::string& name) const {
 }
 
 float BroadcastEngine::sourcePeakDb(const std::string& name) const {
+    // Lo que entrega la entrada (después de su rack, vaya a donde vaya), como los
+    // vúmetros del Mezclador. El del bus Programa marcaba -100 con audio si la
+    // fuente no iba al Programa (un micrófono que sale solo por un parlante).
+    if (motor_)
+        if (const auto niveles = motor_->niveles())
+            for (const auto& n : *niveles)
+                if (!n.bus && n.id == name) return std::max(-100.0f, std::max(n.pico[0], n.pico[1]));
     const json& p = estadoMotor().value("programa", json::object());
     const json e = p.is_object() ? p.value("entradas", json::object()) : json::object();
     if (!e.contains(name)) return -100.0f;
