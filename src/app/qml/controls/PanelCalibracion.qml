@@ -71,6 +71,14 @@ Item {
         return ""
     }
     function aviso(e) { if (e !== "") Studio.notify(e, "error") }
+    // Clic derecho sobre algo del croquis: su menú (Quitar).
+    function menuDe(o, medido) { menuCroquis.obj = o; menuCroquis.medido = medido; menuCroquis.popup() }
+    // Quitar; si ya tiene mediciones, se pregunta (no entran más al análisis).
+    function menuQuitar(o, medido) {
+        if (!medido) { aviso(cal.quitar(o.id)); if (punto === o.id) punto = ""; return }
+        confirmarQuitar.obj = o
+        confirmarQuitar.open()
+    }
     function simulada() {
         const p = buscar(parlantes, parlante)
         return p && p.salida && p.salida.dispositivo === "sala-simulada"
@@ -452,6 +460,14 @@ Item {
                             id: plano
                             Layout.fillWidth: true
                             Layout.fillHeight: true
+                            // Suprimir o Backspace: quitar el punto elegido (con el foco en el croquis).
+                            Keys.onPressed: (e) => {
+                                if ((e.key === Qt.Key_Delete || e.key === Qt.Key_Backspace) && c.punto !== "") {
+                                    const o = c.buscar(c.puntos, c.punto)
+                                    if (o) c.menuQuitar(o, c.medido(o.id, "antes") || c.medido(o.id, "despues"))
+                                    e.accepted = true
+                                }
+                            }
                             readonly property real esc: Math.min(width / Math.max(1, c.sala.ancho), height / Math.max(1, c.sala.largo))
                             Rectangle {
                                 id: sala
@@ -472,31 +488,79 @@ Item {
                                     model: Math.floor(c.sala.ancho)
                                     Rectangle { required property int index; y: 0; x: (index + 1) * plano.esc; height: sala.height; width: 1; color: Qt.rgba(1, 1, 1, 0.04) }
                                 }
+                                // ¿Hay algo a menos de `r` píxeles? Un clic ahí no crea un punto nuevo
+                                // (era fácil errarle a uno y sembrar otro al lado).
+                                function cercaDeAlgo(px, py, r) {
+                                    for (const l of [c.puntos, c.parlantes])
+                                        for (const o of l) {
+                                            const dx = o.y * plano.esc - px, dy = o.x * plano.esc - py
+                                            if (dx * dx + dy * dy < r * r) return true
+                                        }
+                                    return false
+                                }
+                                // El punto que se crearía, a la vista antes del clic (en un lugar libre).
+                                HoverHandler { id: salaHov; enabled: c.hay }
+                                Rectangle {
+                                    readonly property bool libre: salaHov.hovered && !sala.cercaDeAlgo(salaHov.point.position.x, salaHov.point.position.y, 26)
+                                    visible: libre && !c.ocupado
+                                    width: 26; height: 26; radius: c.tipoPunto === "pared" ? 4 : 13
+                                    x: salaHov.point.position.x - width / 2
+                                    y: salaHov.point.position.y - height / 2
+                                    color: "transparent"
+                                    border.color: Qt.rgba(1, 1, 1, 0.35)
+                                    border.width: 1
+                                    Text { anchors.centerIn: parent; text: "+"; color: Qt.rgba(1, 1, 1, 0.5); font.pixelSize: 14 }
+                                }
                                 TapHandler {
                                     enabled: c.hay
-                                    onTapped: (ev) => c.aviso(c.cal.agregarPunto("", c.tipoPunto, ev.position.y / plano.esc, ev.position.x / plano.esc))
+                                    acceptedButtons: Qt.LeftButton
+                                    onTapped: (ev) => {
+                                        if (sala.cercaDeAlgo(ev.position.x, ev.position.y, 26)) return
+                                        c.aviso(c.cal.agregarPunto("", c.tipoPunto, ev.position.y / plano.esc, ev.position.x / plano.esc))
+                                    }
                                 }
                                 // Puntos.
                                 Repeater {
                                     model: c.puntos
-                                    delegate: Rectangle {
+                                    delegate: Item {
                                         id: pt
                                         required property var modelData
                                         required property int index
                                         readonly property bool hecho: c.medido(modelData.id, c.etapa)
-                                        width: 26; height: 26; radius: modelData.tipo === "pared" ? 4 : 13
+                                        readonly property bool encima: ptHov.hovered || ptArr.active
+                                        // Zona de agarre más grande que el dibujo (fácil de acertar).
+                                        width: 40; height: 40
                                         x: modelData.y * plano.esc - width / 2
                                         y: modelData.x * plano.esc - height / 2
-                                        color: hecho ? Qt.rgba(0.21, 0.77, 0.42, 0.85) : Qt.rgba(1, 1, 1, 0.12)
-                                        border.width: c.punto === modelData.id ? 3 : 1
-                                        border.color: c.punto === modelData.id ? Theme.accent : Qt.rgba(1, 1, 1, 0.5)
-                                        Text { anchors.centerIn: parent; text: modelData.id.substring(2); color: "white"
-                                               font { family: Theme.font; pixelSize: 11; weight: Font.Bold } }
-                                        HoverHandler { id: ptHov }
-                                        ToolTip.visible: ptHov.hovered; ToolTip.delay: 300
-                                        ToolTip.text: modelData.nombre + " (" + modelData.tipo + ")" + (hecho ? " — medido" : " — sin medir") + ". Arrastrá para moverlo."
-                                        TapHandler { onTapped: c.punto = pt.modelData.id }
+                                        z: encima ? 2 : 1
+                                        // Sombra al pasar por encima: se puede agarrar.
+                                        Rectangle {
+                                            anchors.centerIn: marca
+                                            visible: pt.encima
+                                            width: marca.width + 14; height: width; radius: marca.radius > 4 ? width / 2 : 8
+                                            color: Qt.rgba(0, 0, 0, 0.45)
+                                            border.color: Qt.rgba(1, 1, 1, 0.25)
+                                        }
+                                        Rectangle {
+                                            id: marca
+                                            anchors.centerIn: parent
+                                            width: pt.encima ? 30 : 26; height: width
+                                            radius: pt.modelData.tipo === "pared" ? 4 : width / 2
+                                            Behavior on width { NumberAnimation { duration: 100 } }
+                                            color: pt.hecho ? Qt.rgba(0.21, 0.77, 0.42, 0.85) : Qt.rgba(1, 1, 1, pt.encima ? 0.22 : 0.12)
+                                            border.width: c.punto === pt.modelData.id ? 3 : 1
+                                            border.color: c.punto === pt.modelData.id ? Theme.accent : Qt.rgba(1, 1, 1, pt.encima ? 0.9 : 0.5)
+                                            Text { anchors.centerIn: parent; text: pt.modelData.id.substring(2); color: "white"
+                                                   font { family: Theme.font; pixelSize: 11; weight: Font.Bold } }
+                                        }
+                                        HoverHandler { id: ptHov; cursorShape: ptArr.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
+                                        ToolTip.visible: ptHov.hovered && !ptArr.active; ToolTip.delay: 300
+                                        ToolTip.text: modelData.nombre + " (" + modelData.tipo + ")" + (hecho ? " — medido" : " — sin medir") +
+                                                      ". Arrastrá para moverlo; clic derecho para quitarlo."
+                                        TapHandler { acceptedButtons: Qt.LeftButton; onTapped: { c.punto = pt.modelData.id; plano.forceActiveFocus() } }
+                                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: c.menuDe(pt.modelData, pt.hecho) }
                                         DragHandler {
+                                            id: ptArr
                                             onActiveChanged: if (!active) c.aviso(c.cal.mover(pt.modelData.id, (pt.y + pt.height / 2) / plano.esc, (pt.x + pt.width / 2) / plano.esc))
                                         }
                                     }
@@ -504,19 +568,37 @@ Item {
                                 // Parlantes.
                                 Repeater {
                                     model: c.parlantes
-                                    delegate: Rectangle {
+                                    delegate: Item {
                                         id: pa
                                         required property var modelData
-                                        width: 30; height: 22; radius: 4
+                                        readonly property bool encima: paHov.hovered || paArr.active
+                                        width: 44; height: 36
                                         x: modelData.y * plano.esc - width / 2
                                         y: modelData.x * plano.esc - height / 2
-                                        color: c.parlante === modelData.id ? "#a78bfa" : Qt.rgba(0.65, 0.55, 0.98, 0.4)
-                                        border.color: "white"
-                                        Text { anchors.centerIn: parent; text: "◢◣"; color: "white"; font.pixelSize: 9 }
-                                        HoverHandler { id: paHov }
-                                        ToolTip.visible: paHov.hovered; ToolTip.text: modelData.nombre + " (arrastrá para ubicarlo)"
-                                        TapHandler { onTapped: c.parlante = pa.modelData.id }
+                                        z: encima ? 2 : 1
+                                        Rectangle {
+                                            anchors.centerIn: caja
+                                            visible: pa.encima
+                                            width: caja.width + 14; height: caja.height + 14; radius: 8
+                                            color: Qt.rgba(0, 0, 0, 0.45)
+                                            border.color: Qt.rgba(1, 1, 1, 0.25)
+                                        }
+                                        Rectangle {
+                                            id: caja
+                                            anchors.centerIn: parent
+                                            width: pa.encima ? 34 : 30; height: pa.encima ? 25 : 22; radius: 4
+                                            Behavior on width { NumberAnimation { duration: 100 } }
+                                            color: c.parlante === pa.modelData.id ? "#a78bfa" : Qt.rgba(0.65, 0.55, 0.98, pa.encima ? 0.65 : 0.4)
+                                            border.color: "white"
+                                            Text { anchors.centerIn: parent; text: "◢◣"; color: "white"; font.pixelSize: 9 }
+                                        }
+                                        HoverHandler { id: paHov; cursorShape: paArr.active ? Qt.ClosedHandCursor : Qt.OpenHandCursor }
+                                        ToolTip.visible: paHov.hovered && !paArr.active
+                                        ToolTip.text: modelData.nombre + " (arrastrá para ubicarlo; clic derecho para quitarlo)"
+                                        TapHandler { acceptedButtons: Qt.LeftButton; onTapped: c.parlante = pa.modelData.id }
+                                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: c.menuDe(pa.modelData, false) }
                                         DragHandler {
+                                            id: paArr
                                             onActiveChanged: if (!active) c.aviso(c.cal.mover(pa.modelData.id, (pa.y + pa.height / 2) / plano.esc, (pa.x + pa.width / 2) / plano.esc))
                                         }
                                     }
@@ -903,5 +985,26 @@ Item {
                 { t: "Calibrar mi SM58", p: "Quiero usar un SM58 para medir. Explicame cómo calibrarlo por sustitución si consigo un micrófono de medición, y qué límites tiene si no." }
             ]
         }
+    }
+
+    // El menú de un elemento del croquis (clic derecho).
+    Menu {
+        id: menuCroquis
+        property var obj: ({})
+        property bool medido: false
+        MenuItem { enabled: false; text: menuCroquis.obj.nombre || "" }
+        MenuItem { text: "Quitar"; onTriggered: c.menuQuitar(menuCroquis.obj, menuCroquis.medido) }
+    }
+    Dialog {
+        id: confirmarQuitar
+        property var obj: ({})
+        anchors.centerIn: parent
+        width: 420
+        modal: true
+        title: "¿Quitar «" + (obj.nombre || "") + "»?"
+        Label { width: confirmarQuitar.availableWidth; wrapMode: Text.WordWrap
+                text: "Ya tiene mediciones: dejan de entrar en el promedio y la propuesta (los archivos quedan en la carpeta de la sesión)." }
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: { c.aviso(c.cal.quitar(obj.id)); if (c.punto === obj.id) c.punto = "" }
     }
 }
