@@ -221,6 +221,31 @@ struct ba_analizador {
     float* frq = nullptr;
 };
 
+namespace {
+// Arma el analizador de LSP de cero con esta configuración. Reconfigurar en caliente
+// uno que ya venía procesando (set_rank/set_envelope + reconfigure) da niveles
+// absurdos compilado con gcc (Linux): +110 dB y la envolvente al revés; uno nuevo
+// anda en los tres sistemas. Configurar no es del hilo de audio: se puede reservar.
+bool armarAnalizador(ba_analizador* a, int rango, int ventana, int envolvente, float reactividad) {
+    a->a.destroy();
+    a->a.construct();
+    // Hasta FFT de 32768 (rango 15) y hasta 192 kHz; se refresca al menos 10 veces por segundo.
+    if (!a->a.init(static_cast<size_t>(a->canales), 15, 192000, 10.0f)) return false;
+    a->a.set_sample_rate(static_cast<size_t>(a->frecuencia));
+    a->a.set_rate(20.0f);
+    for (int c = 0; c < a->canales; ++c) a->a.enable_channel(static_cast<size_t>(c), true);
+    const int r = rango < 10 ? 10 : rango > 15 ? 15 : rango;
+    a->a.set_rank(static_cast<size_t>(r));
+    a->a.set_window(static_cast<size_t>(ventana));
+    a->a.set_envelope(static_cast<size_t>(envolvente));
+    a->a.set_reactivity(reactividad > 0 ? reactividad : 0.2f);
+    a->a.set_activity(true);
+    a->a.reconfigure();
+    a->n = 0; // las frecuencias se recalculan
+    return true;
+}
+} // namespace
+
 ba_analizador* ba_analizador_crear(int canales, int frecuencia, int rango) {
     iniciarDsp();
     ba_analizador* a = new (std::nothrow) ba_analizador();
@@ -228,29 +253,16 @@ ba_analizador* ba_analizador_crear(int canales, int frecuencia, int rango) {
     a->canales = canales < 1 ? 1 : canales;
     a->frecuencia = frecuencia;
     a->a.construct();
-    // Hasta FFT de 32768 (rango 15) y hasta 192 kHz; se refresca al menos 10 veces por segundo.
-    if (!a->a.init(static_cast<size_t>(a->canales), 15, 192000, 10.0f)) {
+    if (!armarAnalizador(a, rango, BA_VENTANA_HANN, BA_ENVOLVENTE_ROSA, 0.2f)) {
         a->a.destroy();
         delete a;
         return nullptr;
     }
-    a->a.set_sample_rate(static_cast<size_t>(frecuencia));
-    a->a.set_rate(20.0f);
-    for (int c = 0; c < a->canales; ++c) a->a.enable_channel(static_cast<size_t>(c), true);
-    ba_analizador_configurar(a, rango, BA_VENTANA_HANN, BA_ENVOLVENTE_ROSA, 0.2f);
-    a->a.set_activity(true);
     return a;
 }
 
 void ba_analizador_configurar(ba_analizador* a, int rango, int ventana, int envolvente, float reactividad) {
-    if (a == nullptr) return;
-    const int r = rango < 10 ? 10 : rango > 15 ? 15 : rango;
-    a->a.set_rank(static_cast<size_t>(r));
-    a->a.set_window(static_cast<size_t>(ventana));
-    a->a.set_envelope(static_cast<size_t>(envolvente));
-    a->a.set_reactivity(reactividad > 0 ? reactividad : 0.2f);
-    a->a.reconfigure();
-    a->n = 0; // las frecuencias se recalculan
+    if (a != nullptr) armarAnalizador(a, rango, ventana, envolvente, reactividad);
 }
 
 void ba_analizador_procesar(ba_analizador* a, const float* const* canales, size_t muestras) {
