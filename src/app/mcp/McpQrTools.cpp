@@ -59,6 +59,12 @@ void McpService::registerQrTools() {
                       "sala, teleprompter, rótulos), guardarlos en la biblioteca y exportarlos.");
     auto* q = static_cast<QrViewModel*>(vm_.qr());
     if (q == nullptr) return;
+    // Los tipos que existen (los de qr_listar): un tipo mal escrito se rechaza en la
+    // validación en vez de guardar en silencio el que hubiera quedado en el editor.
+    json tipos = json::array();
+    for (const QVariant& v : q->tipos())
+        tipos.push_back(v.toMap().value("id").toString().toStdString());
+    const json esquemaTipo = {{"type", "string"}, {"enum", tipos}, {"description", "uno de qr_listar (enlace para una url)"}};
 
     {
         Tool t;
@@ -166,7 +172,7 @@ void McpService::registerQrTools() {
             {"type", "object"},
             {"required", {"tipo"}},
             {"properties",
-             {{"tipo", {{"type", "string"}}},
+             {{"tipo", esquemaTipo},
               {"datos", {{"type", "object"}, {"description", "los campos del tipo (qr_listar)"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}}}}};
         t.examples = {
@@ -204,7 +210,7 @@ void McpService::registerQrTools() {
             {"required", {"nombre", "tipo"}},
             {"properties",
              {{"nombre", {{"type", "string"}, {"minLength", 1}}},
-              {"tipo", {{"type", "string"}}},
+              {"tipo", esquemaTipo},
               {"ambito", {{"type", "string"}, {"enum", {"global", "evento"}}, {"default", "global"}}},
               {"datos", {{"type", "object"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
@@ -267,7 +273,7 @@ void McpService::registerQrTools() {
             {"type", "object"},
             {"properties",
              {{"id", {{"type", "string"}}},
-              {"tipo", {{"type", "string"}}},
+              {"tipo", esquemaTipo},
               {"datos", {{"type", "object"}}},
               {"estilo", {{"type", "object"}, {"properties", esquemaEstilo()}}},
               {"nombre", {{"type", "string"}, {"description", "el del archivo"}}},
