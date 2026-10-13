@@ -10,8 +10,9 @@
 //                                      web la sirve directo, sin abrir el PDF)
 //
 // Cada documento: {id, archivo, titulo, descripcion, paginas, bytes, agregado_ms,
-// publico, puntos: [n del orden del día], secciones: [la clave de cada sección del
-// guion: el id del bloque, o su número]}. Relacionado con nada: es del evento en general.
+// pagina_tapa (la página de la carátula; 1 si no está), publico, puntos: [n del orden
+// del día], secciones: [la clave de cada sección del guion: el id del bloque, o su
+// número]}. Relacionado con nada: es del evento en general.
 //
 // Sin Qt: el índice y los archivos. Leer el PDF y hacer la carátula es de
 // DocumentosViewModel (Qt PDF). Ver docs/planes/PLAN-DOCUMENTOS-EVENTO.md.
@@ -49,7 +50,7 @@ class Documentos {
     /// publico, puntos, secciones}. Devuelve el id nuevo ("" y el motivo en `error`).
     std::string agregar(const std::filesystem::path& origen, const json& datos, std::int64_t ahoraMs, std::string* error);
     /// Cambia lo que venga en `cambios` (titulo, descripcion, publico, puntos, secciones,
-    /// paginas). "" o el error.
+    /// paginas, pagina_tapa). "" o el error.
     std::string editar(const std::string& id, const json& cambios);
     /// Lo saca del índice y manda el archivo y su miniatura a <evento>/Papelera/docs/.
     std::string quitar(const std::string& id);

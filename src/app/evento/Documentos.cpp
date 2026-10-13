@@ -33,6 +33,7 @@ void aplicar(json& d, const json& c) {
         if (c.contains(k) && c[k].is_string()) d[k] = c[k].get<std::string>().substr(0, k[0] == 't' ? 300 : 4000);
     if (c.contains("publico") && c["publico"].is_boolean()) d["publico"] = c["publico"];
     if (c.contains("paginas") && c["paginas"].is_number_integer()) d["paginas"] = c["paginas"];
+    if (c.contains("pagina_tapa") && c["pagina_tapa"].is_number_integer() && c["pagina_tapa"].get<int>() > 0) d["pagina_tapa"] = c["pagina_tapa"];
     if (c.contains("puntos") && c["puntos"].is_array()) {
         json p = json::array();
         for (const auto& x : c["puntos"])
@@ -105,7 +106,9 @@ json Documentos::publicos() const {
                {"puntos", d.value("puntos", json::array())},
                {"secciones", d.value("secciones", json::array())},
                {"pdf", "/evento/docs/" + id + ".pdf"}};
-        if (d.value("miniatura", false)) p["miniatura"] = "/evento/docs/" + id + ".jpg";
+        // ?v=: si cambian la página de la carátula, el navegador no se queda con la vieja.
+        if (d.value("miniatura", false))
+            p["miniatura"] = "/evento/docs/" + id + ".jpg?v=" + std::to_string(d.value("pagina_tapa", 1));
         out.push_back(p);
     }
     return out;

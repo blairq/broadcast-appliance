@@ -27,7 +27,8 @@ void McpService::registerDocumentosTools() {
         {"puntos", {{"type", "array"}, {"items", {{"type", "integer"}}}, {"description", "números de punto del orden del día"}}},
         {"secciones", {{"type", "array"}, {"items", {{"type", "string"}}},
                        {"description", "secciones del guion: el id del bloque (evento_ver) o su número"}}},
-        {"publico", {{"type", "boolean"}, {"description", "si la web del evento lo muestra y deja bajar (por defecto sí)"}}}};
+        {"publico", {{"type", "boolean"}, {"description", "si la web del evento lo muestra y deja bajar (por defecto sí)"}}},
+        {"pagina_tapa", {{"type", "integer"}, {"description", "la página del PDF que hace de carátula (1 = la primera); se rehace la miniatura"}}}};
     {
         Tool t;
         t.name = "documentos_listar";
@@ -92,7 +93,8 @@ void McpService::registerDocumentosTools() {
         t.title = "Describir o relacionar un documento";
         t.category = "documentos";
         t.description = "Cambia lo que se pase: `titulo`, `descripcion`, `publico`, `puntos` (del orden del día) y `secciones` "
-                        "(del guion; las listas reemplazan a las de antes). La web del evento se actualiza sola.";
+                        "(del guion; las listas reemplazan a las de antes), y `pagina_tapa` (otra página del PDF como "
+                        "carátula: rehace la miniatura). La web del evento se actualiza sola.";
         json props = relaciones;
         props["id"] = {{"type", "string"}};
         props["titulo"] = {{"type", "string"}};

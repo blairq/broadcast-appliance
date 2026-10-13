@@ -545,7 +545,7 @@ const Fila kPropias[] = {
     {"assistant_status", "estado del asistente que modelo motor"},
     {"documentos_listar", "documentos del evento pdf documentacion que documentos hay"},
     {"documento_agregar", "agregar pdf documento documentacion subir archivo caratula"},
-    {"documento_editar", "describir documento relacionar con punto del orden del dia seccion publicar"},
+    {"documento_editar", "describir documento relacionar con punto del orden del dia seccion publicar cambiar caratula miniatura pagina de tapa"},
     {"documento_quitar", "quitar sacar borrar documento"},
     {"documento_texto", "leer texto del pdf resumir documento"},
     {"documento_abrir", "abrir mostrar ver documento pdf en pantalla visor"},

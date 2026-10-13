@@ -42,8 +42,24 @@ struct Leido {
     bool miniatura = false;
 };
 
-/// Lee el PDF (o la imagen) y guarda su carátula en `mini` (JPG).
-Leido leer(const fs::path& archivo, const fs::path& mini) {
+/// Guarda la página `pagina` (desde 0) de `pdf` como carátula en `mini` (JPG).
+bool tapa(QPdfDocument& pdf, int pagina, const fs::path& mini) {
+    const QSizeF pt = pdf.pagePointSize(pagina);
+    const int alto = pt.width() > 0 ? static_cast<int>(kAnchoMiniatura * pt.height() / pt.width()) : kAnchoMiniatura * 1414 / 1000;
+    const QImage img = pdf.render(pagina, QSize(kAnchoMiniatura, alto));
+    if (img.isNull()) return false;
+    // Fondo blanco (las páginas sin fondo salen transparentes y en JPG, negras).
+    QImage blanco(img.size(), QImage::Format_RGB32);
+    blanco.fill(Qt::white);
+    {
+        QPainter pi(&blanco);
+        pi.drawImage(0, 0, img);
+    }
+    return blanco.save(qp(mini), "JPG", 82);
+}
+
+/// Lee el PDF (o la imagen) y guarda su carátula (la página `paginaTapa`, desde 1) en `mini` (JPG).
+Leido leer(const fs::path& archivo, const fs::path& mini, int paginaTapa) {
     Leido r;
     std::string ext = archivo.extension().string();
     std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
@@ -67,21 +83,7 @@ Leido leer(const fs::path& archivo, const fs::path& mini) {
     QString t;
     for (int p = 0; p < std::min(2, r.paginas) && t.size() < 1500; ++p) t += pdf.getAllText(p).text() + "\n";
     r.texto = t.simplified().left(1500).toStdString();
-    if (r.paginas > 0) {
-        const QSizeF pt = pdf.pagePointSize(0);
-        const int alto = pt.width() > 0 ? static_cast<int>(kAnchoMiniatura * pt.height() / pt.width()) : kAnchoMiniatura * 1414 / 1000;
-        QImage img = pdf.render(0, QSize(kAnchoMiniatura, alto));
-        if (!img.isNull()) {
-            // Fondo blanco (las páginas sin fondo salen transparentes y en JPG, negras).
-            QImage blanco(img.size(), QImage::Format_RGB32);
-            blanco.fill(Qt::white);
-            {
-                QPainter pi(&blanco);
-                pi.drawImage(0, 0, img);
-            }
-            r.miniatura = blanco.save(qp(mini), "JPG", 82);
-        }
-    }
+    if (r.paginas > 0) r.miniatura = tapa(pdf, std::clamp(paginaTapa, 1, r.paginas) - 1, mini);
     return r;
 }
 } // namespace
@@ -101,7 +103,7 @@ QVariantList DocumentosViewModel::listaUi() const {
     for (auto& x : l)
         if (x.value("miniatura", false))
             x["url_miniatura"] = QUrl::fromLocalFile(qp(d.miniatura(x.value("id", std::string())))).toString().toStdString() + "?" +
-                                 std::to_string(x.value("agregado_ms", 0LL));
+                                 std::to_string(x.value("agregado_ms", 0LL)) + "-" + std::to_string(x.value("pagina_tapa", 1));
     return aQv(l).toList();
 }
 
@@ -112,8 +114,10 @@ json DocumentosViewModel::agregar(const fs::path& archivo, const json& datos) {
     std::string error;
     const std::string id = d.agregar(archivo, datos, QDateTime::currentMSecsSinceEpoch(), &error);
     if (id.empty()) return {{"error", error}};
-    const Leido l = leer(d.ruta(id), d.miniatura(id));
+    const json pt = datos.value("pagina_tapa", json(1));
+    const Leido l = leer(d.ruta(id), d.miniatura(id), pt.is_number_integer() ? pt.get<int>() : 1);
     json cambios{{"paginas", l.paginas}};
+    if (pt.is_number_integer() && l.paginas > 0) cambios["pagina_tapa"] = std::clamp(pt.get<int>(), 1, l.paginas);
     // El título del PDF, si tiene uno de verdad y no lo pidieron otro.
     if (!datos.contains("titulo") && l.titulo.size() > 3 && l.titulo.rfind("Microsoft Word", 0) != 0 && l.titulo != "untitled")
         cambios["titulo"] = l.titulo;
@@ -126,7 +130,18 @@ json DocumentosViewModel::agregar(const fs::path& archivo, const json& datos) {
 }
 
 std::string DocumentosViewModel::editar(const std::string& id, const json& cambios) {
-    const std::string e = evento::Documentos(evento_()).editar(id, cambios);
+    evento::Documentos d(evento_());
+    // Otra página de carátula: se rehace la miniatura de esa página (y queda guardada).
+    if (cambios.contains("pagina_tapa")) {
+        const fs::path r = d.ruta(id);
+        if (r.empty()) return "no hay un documento «" + id + "»";
+        QPdfDocument pdf;
+        if (pdf.load(qp(r)) != QPdfDocument::Error::None) return "solo un PDF tiene páginas para elegir la carátula";
+        const int p = cambios["pagina_tapa"].is_number_integer() ? cambios["pagina_tapa"].get<int>() : 0;
+        if (p < 1 || p > pdf.pageCount()) return "la página tiene que ir de 1 a " + std::to_string(pdf.pageCount());
+        if (!tapa(pdf, p - 1, d.miniatura(id))) return "no se pudo hacer la carátula de la página " + std::to_string(p);
+    }
+    const std::string e = d.editar(id, cambios);
     if (e.empty()) emit cambio();
     return e;
 }

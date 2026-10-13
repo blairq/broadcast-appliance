@@ -1,4 +1,5 @@
-// La documentación del evento (PDF, sobre todo): las carátulas en una grilla, agregar
+// La documentación del evento (PDF, sobre todo): las carátulas en una grilla (con ◀ ▶
+// se elige qué página del PDF hace de carátula), agregar
 // (o arrastrar) archivos, y al elegir uno, su título, descripción, si es público y a
 // qué puntos del orden del día y secciones del guion corresponde. Sin relaciones es del
 // evento en general. La página web del evento la muestra y deja bajar.
@@ -112,6 +113,7 @@ Item {
                                         anchors.fill: parent
                                         source: modelData.url_miniatura || ""
                                         fillMode: Image.PreserveAspectFit
+                                        cache: false
                                         asynchronous: true
                                         visible: !!modelData.url_miniatura
                                     }
@@ -172,6 +174,41 @@ Item {
                 ColumnLayout {
                     width: edScroll.availableWidth
                     spacing: 8
+                    // La carátula: con ◀ ▶ se elige otra página del PDF (rehace la miniatura de la web).
+                    Rectangle {
+                        Layout.alignment: Qt.AlignHCenter
+                        Layout.preferredWidth: 170
+                        Layout.preferredHeight: 220
+                        radius: 4
+                        color: "white"
+                        clip: true
+                        Image {
+                            anchors.fill: parent
+                            source: pd.doc && pd.doc.url_miniatura ? pd.doc.url_miniatura : ""
+                            fillMode: Image.PreserveAspectFit
+                            cache: false
+                            asynchronous: true
+                        }
+                    }
+                    RowLayout {
+                        readonly property bool esPdf: !!pd.doc && /\.pdf$/i.test(pd.doc.archivo || "") && (pd.doc.paginas || 0) > 1
+                        readonly property int pag: pd.doc ? (pd.doc.pagina_tapa || 1) : 1
+                        visible: esPdf
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 6
+                        GlassButton {
+                            compact: true; text: "◀"; enabled: parent.pag > 1
+                            onClicked: pd.cambiar({ pagina_tapa: parent.pag - 1 })
+                        }
+                        Text {
+                            text: "Carátula: página " + parent.pag + " de " + (pd.doc ? pd.doc.paginas : 0)
+                            color: Theme.textDim; font.pixelSize: 11
+                        }
+                        GlassButton {
+                            compact: true; text: "▶"; enabled: !!pd.doc && parent.pag < pd.doc.paginas
+                            onClicked: pd.cambiar({ pagina_tapa: parent.pag + 1 })
+                        }
+                    }
                     Text { text: "Título"; color: Theme.textDim; font.pixelSize: 11 }
                     TextField {
                         Layout.fillWidth: true
