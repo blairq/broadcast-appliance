@@ -170,6 +170,9 @@ fase entre dos fuentes, búsqueda de acoples, y la «foto» del espectro en vivo
 - **M3** — Mediciones activas (respuesta de sala con RT60, ruido de fondo, perfil de
   micrófono, latencia, fase, acoples) con su MCP y sus gráficos superpuestos.
 - **M4** — Herramientas: botones del asistente con sus pedidos y «Abrir en LSP».
+- **C1–C4** — Calibración y ecualización de sala (multipunto, micrófonos sin
+  calibrar con sus límites, modos, retardos por parlante, verificación): ver
+  docs/planes/PLAN-CALIBRACION-SALA.md.
 
 Cada fase se prueba en la Mac y en la PC con Windows (CPU con la ventana abierta y
 16 canales: que no pase de lo que gasta hoy la página Audio).
