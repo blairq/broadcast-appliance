@@ -118,8 +118,8 @@ EOS
             FEATURES='clap crosscompile' CC="$LLVM/x86_64-w64-mingw32-clang" CXX="$CXX" AR="$LLVM/llvm-ar" \
             LD="$WRAP/ld" HOST_CC=gcc HOST_CXX=g++ >"$SRC/config.log" 2>&1
         # Todo estático (libc++ de MinGW incluida): la DLL no pide nada más que Windows.
-        # lsp-runtime-lib entra entera (--whole-archive): pide también ACM y MMIO de Windows.
-        LINK=(-shared -static -Wl,--gc-sections -lmsacm32 -lwinmm -lshlwapi -lole32 -luuid)
+        # lsp-runtime-lib entra entera (--whole-archive): pide también ACM, MMIO y WNet (mpr) de Windows.
+        LINK=(-shared -static -Wl,--gc-sections -lmsacm32 -lwinmm -lmpr -lshlwapi -lole32 -luuid)
         ;;
 esac
 grep -q "Configured OK" "$SRC/config.log" || { tail -20 "$SRC/config.log" >&2; log "ERROR al configurar LSP"; exit 1; }
