@@ -62,6 +62,7 @@
 
 #include "net/AccountGuides.hpp"
 #include "agent/AgentViewModel.hpp"
+#include "agent/EstadoIA.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
@@ -1008,6 +1009,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         traductor_ = std::make_unique<agent::Traductor>(rt.dataRoot(), *modelos_, *flujos_);
         marca("traductor");
     }
+    // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
+    estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(),
+                                                  traductor_.get());
     inputs_ = std::make_unique<InputsViewModel>(rt, *this);
     marca("inputs");
     // El PTZ de cada entrada (y Mejorar imagen): se entera enseguida de las
@@ -2160,6 +2164,7 @@ QObject* StudioViewModel::dispositivosQml() const { return dispositivos_.get(); 
 QObject* StudioViewModel::flujos() const { return flujos_.get(); }
 QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::traductor() const { return traductor_.get(); }
+QObject* StudioViewModel::estadoIA() const { return estadoIA_.get(); }
 QObject* StudioViewModel::superres() const { return superres_.get(); }
 QObject* StudioViewModel::bancoSrObj() const { return bancoSr_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

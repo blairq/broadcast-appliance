@@ -433,6 +433,19 @@ Las etiquetas son palabras con las que alguien apurado buscaria: que se ve, que 
 **Portable**: todas las rutas se guardan relativas a la configuración (`Media/logo.png`, también dentro de un pipeline: `location=Media/x.png`). La carpeta de datos entera se puede copiar a otra máquina tal cual. Al crear una fuente con una ruta relativa, se resuelve contra la configuración en uso.
 
 En la interfaz: Ajustes › Sistema › Configuraciones (usar, duplicar, renombrar, borrar, crear desde una demo).)md"},
+    {"puesta-en-marcha", "Poner en marcha la asistencia con IA",
+     "Qué activar y configurar, en qué orden, para que el asistente, la voz del operador, el dictado y las voces anden: modelos, micrófono, auriculares, voz hablada.",
+     R"md(Para alguien que no conoce el sistema, o cuando algo de IA o de voz no responde. **Empezá siempre por `ia_estado`**: dice qué falta, por qué y adónde ir (`pagina` y `seccion`, para `ui_show_page`). Es lo mismo que la pastilla «IA» del encabezado. Andá en este orden, de a un paso, y volvé a mirar `ia_estado` hasta que diga `todo_bien`.
+
+1. **El asistente** (pestaña Asistente). `assistant_status`: proveedor, si está instalado, si corre. `assistant_config {"provider", "model"}` para elegir; `assistant_install` si falta; `assistant_run` para arrancarlo. Con una cuenta (Claude o Gemini, sin clave de API) la primera vez hay que escribir `/login` en su terminal: eso lo hace el operador. Con clave de API, se pega en la pestaña Asistente (nunca por el chat). Si corre pero no ve el sistema, es el MCP: Configuración › Asistente (MCP).
+2. **El modelo local** (solo si el asistente usa el proveedor «local» o la voz del operador usa el modelo local). `modelo_local_estado` → `modelo_local_bajar` → `modelo_local_activar`. Bajar tarda: avisá cuánto pesa antes.
+3. **El micrófono del operador** (dictado con la tecla y «hablarle» al asistente). `voz_microfono` lista y elige. Si el reconocedor no está, `voz_ajustes` dice qué bajar. Probalo: que el operador dicte una frase con la tecla.
+4. **Los auriculares del operador**: por dónde oye la voz que contesta y lo que se escucha (PFL). `voz_automaticas {"auriculares": id}` (las salidas las da `audio_outputs`). Nunca los parlantes de la sala si hay micrófonos abiertos: acopla.
+5. **La voz que contesta** (que el asistente hable): `voz_ajustes` (elegir y bajar una voz en castellano rioplatense si hay) y probala con `voz_decir {"texto": "Hola, ya estoy andando"}` por los auriculares.
+6. **La voz del teleprompter** (si la van a usar): `voz_teleprompter`.
+7. **Traducción y subtítulos** (si hacen falta): `traducciones`, `traduccion_agregar`; los paquetes que falten se bajan desde Configuración › Traducción.
+
+Al terminar, contale al operador en dos renglones qué quedó andando y qué no se configuró a propósito.)md"},
     {"interfaz", "Interfaz y ventanas", "Paginas, avisos, dashboard, ventanas de salida.",
      R"md(- `ui_show_page {"page": "dashboard"|"escenas"|"sala"|"youtube"|"twitch"|"facebook"|"configuracion"}`, `ui_notify {"message"}`.
 - `dashboard_list`: tarjetas, fondo, ventanas de salida y monitores.
@@ -1073,6 +1086,12 @@ Si hay que conectar una plataforma, segui `help {"topic": "cuentas"}`: `accounts
 
 ## Audio de las fuentes
 Para mejorar como suena una fuente (ruido, voz apagada, eses, volumen) segui `help {"topic": "audio_rack"}`: medir con `audio_analyze` -> ajustar con `audio_gate`/`audio_compressor`/`audio_deesser`/`audio_eq`/`audio_multiband`/`audio_limiter` -> volver a medir. Siempre con numeros; cambios chicos si la fuente esta al aire.
+
+## Alguien que no conoce el sistema
+Si quien te habla no sabe por dónde empezar, o algo de voz o de IA no responde: `ia_estado` y la guía `help {"topic": "puesta-en-marcha"}`, en ese orden y de a un paso. Llevalo a cada lugar con `ui_show_page` (página y sección vienen en cada problema).
+
+## Arrancar de cero / un evento nuevo
+«Arrancar de cero», «un evento nuevo», «empezar algo nuevo» quiere decir **un evento aparte**, no modificar lo que está abierto: **nunca** borres ni cambies las escenas, los medios o la asamblea del evento actual para «empezar de nuevo». Preguntá si lo quiere desde cero (de fábrica), copiando el actual o desde uno anterior, y creálo aparte (`help {"topic": "configuraciones"}`: `configuracion_crear {"desde": "vacia"}` y `configuracion_cambiar`, que reinicia la app; después `evento_abrir {"nombre"}`). Lo del evento anterior queda intacto.
 
 ## Armar el guion de un evento
 Armar 40 cues a mano es el trabajo aburrido de un evento y es lo que mejor podes hacer vos. De una descripcion («acto por el 25 de mayo, 40 minutos, himno, dos discursos, video institucional, cierre») sale un guion entero:

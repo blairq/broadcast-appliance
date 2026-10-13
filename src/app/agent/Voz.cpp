@@ -321,6 +321,14 @@ void Voz::revisarCorrientes() {
 
 QString Voz::microfono() const { return QString::fromStdString(rt_.config().operatorAudio); }
 
+bool Voz::dictadoConMicrofono() const {
+    if (!microfono().isEmpty() || rt_.operatorFeed().hayMicrofono()) return true;
+    if (racks_ != nullptr)
+        for (const auto& f : racks_->fuentesConTexto())
+            if (f.value("modo", std::string()) == "dictado") return true;
+    return false;
+}
+
 QString Voz::setMicrofono(const QString& fuente) {
     if (!rt_.setOperatorFeed(rt_.config().operatorVideo, fuente.toStdString()))
         return "No existe la fuente «" + fuente + "».";

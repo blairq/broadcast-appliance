@@ -48,6 +48,7 @@ class Voz;
 class VozPrompter;
 class FlujosTexto;
 class Traductor;
+class EstadoIA;
 class Subtitulos;
 class VocesRack;
 class RotuloTraduccionConfig;
@@ -350,6 +351,9 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* voces READ voces CONSTANT)
     /// La traducción en vivo de las salidas de texto, con su glosario (agent/Traductor.hpp).
     Q_PROPERTY(QObject* traductor READ traductor CONSTANT)
+    /// Qué parte de la asistencia con IA no anda o falta configurar (agent/EstadoIA.hpp):
+    /// la pastilla «IA» del encabezado y la herramienta ia_estado.
+    Q_PROPERTY(QObject* estadoIA READ estadoIA CONSTANT)
     /// La superresolución de las entradas de red: motores, modelos, laboratorio (video/SuperRes.hpp).
     Q_PROPERTY(QObject* superres READ superres CONSTANT)
     /// El banco de pruebas de superresolución: qué puede usar esta máquina.
@@ -707,6 +711,8 @@ class StudioViewModel : public QObject {
     QObject* flujos() const;
     QObject* voces() const;
     QObject* traductor() const;
+    QObject* estadoIA() const;
+    agent::EstadoIA* estadoIAModelo() const { return estadoIA_.get(); }
     QObject* superres() const;
     QObject* bancoSrObj() const;
     video::BancoSuperRes* bancoSr() const { return bancoSr_.get(); }
@@ -972,6 +978,7 @@ class StudioViewModel : public QObject {
     bool modoTest_ = false;
     std::unique_ptr<agent::VocesRack> voces_;
     std::unique_ptr<agent::Traductor> traductor_;
+    std::unique_ptr<agent::EstadoIA> estadoIA_;
     std::unique_ptr<agent::Subtitulos> subtitulos_;
     std::unique_ptr<agent::SubtitulosCC> cc_;
     std::unique_ptr<video::SuperRes> superres_;

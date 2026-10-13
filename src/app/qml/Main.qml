@@ -501,6 +501,9 @@ ApplicationWindow {
         z: 50
         width: airState.width
         height: airState.height
+        // Un clic en el estado de emisión vuelve al Dashboard (debajo de la fila: la
+        // pastilla IA tiene su propio clic).
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.page = 0 }
         Row {
             id: airState
             spacing: 8
@@ -515,11 +518,12 @@ ApplicationWindow {
                 pulse: true
                 ToolTip.visible: pillMa.containsMouse && Studio.outputProblem !== ""
                 ToolTip.text: Studio.outputProblem
-                MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true }
+                MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
             }
             StatusPill { height: 16; visible: Studio.recording; text: "REC  " + Studio.recordTime; dot: Theme.accent; pulse: true }
+            // En las otras páginas, solo si algo de la IA no anda.
+            PastillaIA { height: 16; visible: total > 0 }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: win.page = 0 }
     }
 
     // --- Reloj del orador al aire (modo oradores), visible en todas las paginas ------

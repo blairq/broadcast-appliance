@@ -543,6 +543,8 @@ const Fila kPropias[] = {
 
     // --- Asistente y agentes -------------------------------------------------
     {"assistant_status", "estado del asistente que modelo motor"},
+    {"ia_estado", "que no anda de la inteligencia artificial que falta configurar por donde empiezo asistente "
+                  "offline voz del operador dictado modelo local microfono auriculares puesta en marcha"},
     {"assistant_config", "configurar asistente modelo motor clave"},
     {"assistant_install", "instalar asistente descargar motor"},
     {"assistant_run", "correr asistente pedirle algo"},
