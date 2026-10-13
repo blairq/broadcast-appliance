@@ -762,6 +762,19 @@ void McpService::registerModeloTools() {
     }
     {
         Tool t;
+        t.name = "voz_transcripcion_borrar";
+        t.title = "Borrar lo transcripto";
+        t.category = "agentes";
+        t.destructive = true;
+        t.description = "Vacía la transcripción continua guardada (lo que muestra Configuración → Voz). No toca lo grabado.";
+        t.run = [voz](const json&, Done done) {
+            voz->borrarTranscripcion();
+            done(ToolResult::ok("Transcripción borrada."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "voz_transcripcion";
         t.title = "Lo que se transcribio";
         t.category = "agentes";

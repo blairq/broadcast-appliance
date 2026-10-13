@@ -260,6 +260,23 @@ void McpService::registerPantallaTools() {
     }
     {
         Tool t;
+        t.name = "pantalla_olvidar";
+        t.title = "Olvidar una pantalla";
+        t.category = "pantallas";
+        t.destructive = true;
+        t.description = "Saca la pantalla de la lista de conocidas (con su nombre y lo fijado). Si vuelve a aparecer en "
+                        "la red, se la ve como nueva.";
+        t.inputSchema = {{"type", "object"}, {"required", {"pantalla"}}, {"properties", {{"pantalla", {{"type", "string"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            const QString id = idDePantalla(*p, QString::fromStdString(a["pantalla"].get<std::string>()));
+            if (id.isEmpty()) return done(ToolResult::error("No conozco la pantalla '" + a["pantalla"].get<std::string>() + "'."));
+            const QString err = p->olvidar(id);
+            done(err.isEmpty() ? ToolResult::ok("Olvidada.") : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "pantalla_renombrar";
         t.title = "Cambiarle el nombre a una pantalla";
         t.category = "pantallas";

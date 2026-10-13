@@ -173,6 +173,34 @@ void McpService::registerPrompterTools() {
     }
     {
         Tool t;
+        t.name = "prompter_archivos";
+        t.title = "Ordenar los discursos";
+        t.category = "prompter";
+        t.description = "Lo mismo que la lista de la página Prompter: `accion` carpeta (crea `nombre`), renombrar "
+                        "(`rel` → `nombre`), mover (`rel` a la carpeta `carpeta`, \"\" = la raíz) o borrar (`rel`).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"accion"}},
+                         {"properties",
+                          {{"accion", {{"type", "string"}, {"enum", {"carpeta", "renombrar", "mover", "borrar"}}}},
+                           {"rel", {{"type", "string"}}},
+                           {"nombre", {{"type", "string"}}},
+                           {"carpeta", {{"type", "string"}}}}}};
+        t.run = [p](const json& a, Done done) {
+            const std::string acc = a.value("accion", "");
+            const QString rel = QString::fromStdString(a.value("rel", std::string()));
+            const QString nombre = QString::fromStdString(a.value("nombre", std::string()));
+            QString err;
+            if (acc == "carpeta") err = p->crearCarpeta(nombre);
+            else if (acc == "renombrar") err = p->renombrar(rel, nombre);
+            else if (acc == "mover") err = p->mover(rel, QString::fromStdString(a.value("carpeta", std::string())));
+            else if (acc == "borrar") err = p->borrar(rel);
+            else err = "accion: carpeta, renombrar, mover o borrar";
+            done(err.isEmpty() ? ToolResult::ok("Listo.") : ToolResult::error(err.toStdString()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
         t.name = "prompter_cargar";
         t.title = "Mandar un discurso al teleprompter";
         t.category = "prompter";
