@@ -287,6 +287,15 @@ Item {
                     font { family: "JetBrains Mono"; pixelSize: 22; weight: Font.DemiBold }
                 }
             }
+            // Un cue con vista web (el teleprompter): abrirla para ver si carga y avanza.
+            GlassButton {
+                readonly property string url: parent.enMarcha && tarjeta.ev.actual.tipo ? tarjeta.ev.enlaceDeCue(tarjeta.ev.actual.tipo) : ""
+                visible: url !== ""
+                compact: true
+                text: "Ver el teleprompter ↗"
+                onClicked: Qt.openUrlExternally(url)
+                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La pantalla del orador en el navegador (" + url + ")"
+            }
             Text {
                 Layout.fillWidth: true
                 visible: parent.enMarcha

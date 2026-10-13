@@ -154,7 +154,20 @@ Dialog {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: modelData.titulo || modelData.clave; color: Theme.textDim; font.pixelSize: 11 }
+                        Text {
+                            text: (modelData.titulo || modelData.clave) + (modelData.tipo === "ms" ? " (milisegundos)" : "")
+                            color: Theme.textDim; font.pixelSize: 11
+                        }
+                        // Para qué sirve (de la ficha del gráfico), y lo que vale el tiempo.
+                        Text {
+                            Layout.fillWidth: true
+                            visible: text !== ""
+                            wrapMode: Text.WordWrap
+                            text: (modelData.ayuda || "") +
+                                  (modelData.clave === "salidaEn" ? (modelData.ayuda ? " " : "") +
+                                   "A ese momento arranca la salida y el gráfico se va solo; 0 = queda puesto hasta sacarlo." : "")
+                            color: Theme.textFaint; font.pixelSize: 10
+                        }
                         TextField {
                             Layout.fillWidth: true
                             color: Theme.text
@@ -176,7 +189,11 @@ Dialog {
                 spacing: 16
                 ColumnLayout {
                     spacing: 2
-                    Text { text: "Dura (segundos)"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text { text: "Cuánto dura en el guion (segundos)"; color: Theme.textDim; font.pixelSize: 11 }
+                    Text {
+                        text: "Para el reloj y la hora de fin; no cambia el gráfico ni el medio."
+                        color: Theme.textFaint; font.pixelSize: 10
+                    }
                     TextField {
                         Layout.preferredWidth: 110
                         text: dlg.c ? String(dlg.c.duracionSeg) : "0"
@@ -209,6 +226,13 @@ Dialog {
         GlassButton {
             text: "Poner al aire"; compact: true
             onClicked: dlg.ev.irA(dlg.bloque, dlg.cue)
+        }
+        GlassButton {
+            readonly property string url: dlg.c ? dlg.ev.enlaceDeCue(dlg.c.tipo) : ""
+            visible: url !== ""
+            text: "Ver el teleprompter ↗"; compact: true
+            onClicked: Qt.openUrlExternally(url)
+            ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La pantalla del orador en el navegador (" + url + ")"
         }
         Item { Layout.fillWidth: true }
         GlassButton { text: "Listo"; active: true; onClicked: dlg.close() }

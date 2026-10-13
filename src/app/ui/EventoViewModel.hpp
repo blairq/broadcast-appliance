@@ -262,6 +262,9 @@ class EventoViewModel : public QObject {
     /// discursos, los gráficos y sus fuentes, las fuentes de audio, quién está en la
     /// sala, las acciones de cada tipo). Vacía = se escribe (o es un sí/no o un número).
     Q_INVOKABLE QVariantList opcionesDeCampo(const QString& tipo, const QString& campo) const;
+    /// La vista web para ver si un cue anda (el teleprompter: la pantalla del orador,
+    /// que avanza sola), en esta máquina; "" si ese tipo no tiene vista.
+    Q_INVOKABLE QString enlaceDeCue(const QString& tipo) const;
     /// Cambia UN valor de los parametros de un cue de grafico, sin pisar los
     /// otros (que es lo que pasaria mandando `datos` entero).
     Q_INVOKABLE void setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor);

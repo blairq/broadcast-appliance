@@ -836,6 +836,12 @@ QVariantList EventoViewModel::opcionesDeCampo(const QString& tipo, const QString
     return out;
 }
 
+QString EventoViewModel::enlaceDeCue(const QString& tipo) const {
+    // El servidor de la sala, en esta máquina (la pantalla del orador solo lee: sin clave).
+    if (tipo == "teleprompter") return "http://127.0.0.1:" + QString::number(rt_.gateway().port) + "/prompter/";
+    return {};
+}
+
 void EventoViewModel::setValorDeCue(int bloque, int cue, const QString& clave, const QVariant& valor) {
     evento::Cue* c = cuePtr(bloque, cue);
     if (c == nullptr || clave.isEmpty()) return;

@@ -1071,6 +1071,13 @@ Rectangle {
                                 spacing: 6
                                 GlassButton { text: "Editar…"; compact: true; active: true; onClicked: cueDlg.abrir(page.selB, page.selC) }
                                 GlassButton { text: "Poner al aire"; compact: true; onClicked: page.ev.irA(page.selB, page.selC) }
+                                GlassButton {
+                                    readonly property string url: page.selCue ? page.ev.enlaceDeCue(page.selCue.tipo) : ""
+                                    visible: url !== ""
+                                    text: "Ver el teleprompter ↗"; compact: true
+                                    onClicked: Qt.openUrlExternally(url)
+                                    ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: "La pantalla del orador en el navegador: para ver si carga y avanza (" + url + ")"
+                                }
                             }
                         }
                     }

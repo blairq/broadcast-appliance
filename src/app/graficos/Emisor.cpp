@@ -43,7 +43,9 @@ class DibujoAire {
         std::uint64_t fuente = 0;
         int generacion = 0;
         QJsonObject pedido;
-        int total = 0;
+        /// Un cuadro por entrada: el milisegundo a dibujar, o -1 = el mismo de antes
+        /// (lo quieto entre la entrada y la salida: no se dibuja ni ocupa memoria).
+        std::vector<int> plan;
     };
     /// Una tanda dibujada (o el error), en el hilo del dibujo.
     using Tanda = std::function<void(const Pedido&, std::vector<QImage>, bool fin, QString error)>;
@@ -90,17 +92,30 @@ class DibujoAire {
                 p = std::move(cola_.front());
                 cola_.pop_front();
             }
-            for (int desde = 0; desde < p.total;) {
+            const int total = static_cast<int>(p.plan.size());
+            QImage ultimo;
+            for (int desde = 0; desde < total;) {
                 if (!vigente(p)) break; // otro pedido para esa fuente lo reemplazó
-                QVector<int> momentos;
                 // La primera tanda, chica: el gráfico entra enseguida y el resto llega andando.
+                // Una tanda junta hasta `tanda` cuadros a DIBUJAR (los repetidos van gratis).
                 const int tanda = desde == 0 ? kPrimeraTanda : kPorTanda;
-                for (int k = 0; k < tanda && desde < p.total; ++k, ++desde) momentos.append(desde * 1000 / kFps);
+                const int inicio = desde;
+                QVector<int> momentos;
+                while (desde < total && momentos.size() < tanda) {
+                    if (p.plan[static_cast<std::size_t>(desde)] >= 0) momentos.append(p.plan[static_cast<std::size_t>(desde)]);
+                    ++desde;
+                }
+                // Los repetidos que siguen, en la misma tanda (no esperan a otro dibujo).
+                while (desde < total && p.plan[static_cast<std::size_t>(desde)] < 0) ++desde;
                 QString err;
-                const auto parte = proc.tira(p.pedido, momentos, &err);
+                const auto parte = momentos.isEmpty() ? QVector<Cuadro>{} : proc.tira(p.pedido, momentos, &err);
                 std::vector<QImage> cuadros;
-                for (const auto& c : parte) cuadros.push_back(c.imagen);
-                tanda_(p, std::move(cuadros), desde >= p.total || !err.isEmpty(), err);
+                int k = 0;
+                for (int i = inicio; i < desde && err.isEmpty(); ++i) {
+                    if (p.plan[static_cast<std::size_t>(i)] >= 0 && k < parte.size()) ultimo = parte[k++].imagen;
+                    if (!ultimo.isNull()) cuadros.push_back(ultimo); // QImage comparte los datos
+                }
+                tanda_(p, std::move(cuadros), desde >= total || !err.isEmpty(), err);
                 if (!err.isEmpty()) break;
             }
         }
@@ -192,15 +207,35 @@ QString Emisor::reproducir(QJsonObject p, const QString& grafico, const QJsonObj
         }
     if (!existe) return "esa fuente de gráfico ya no está en ninguna escena";
 
-    duracionMs = std::clamp(duracionMs, 100, kMaxSegundos * 1000);
-    const int total = std::max(1, duracionMs * kFps / 1000);
+    // EL PLAN DE CUADROS. Con «cuándo se va» (salidaEn, un parámetro del gráfico): la
+    // entrada cuadro a cuadro, el cuadro quieto repetido hasta salidaEn y la salida
+    // entera. Antes se dibujaban solo `duracionMs` (2 s si la ficha no dice): una placa
+    // con salidaEn 4500 nunca llegaba a irse y quedaba congelada en pantalla. Sin
+    // salidaEn (o 0: se queda hasta que la saquen), `duracionMs` como siempre.
+    std::vector<int> plan;
+    const int salidaEn = p.value("parametros").toObject().value("salidaEn").toInt(0);
+    if (salidaEn > 0) {
+        const int salidaDur = std::clamp(p.value("declarativo").toObject().value("salida").toObject().value("duracion").toInt(800), 0, 5000);
+        const int salidaHasta = std::min(salidaEn, 120000) + salidaDur + 150;
+        // Lo que se mueve al entrar: hasta 3 s (o hasta que se va, si es antes).
+        const int entradaHasta = std::min(salidaEn, std::min(kMaxSegundos * 1000, 3000));
+        const int cuadros = salidaHasta * kFps / 1000 + 1;
+        for (int i = 0; i < cuadros; ++i) {
+            const int ms = i * 1000 / kFps;
+            plan.push_back(ms <= entradaHasta || ms >= salidaEn ? ms : -1);
+        }
+    } else {
+        duracionMs = std::clamp(duracionMs, 100, kMaxSegundos * 1000);
+        const int total = std::max(1, duracionMs * kFps / 1000);
+        for (int i = 0; i < total; ++i) plan.push_back(i * 1000 / kFps);
+    }
     // Se dibuja en otro hilo (DibujoAire): sale al aire con la primera tanda y el resto
     // se suma mientras se reproduce. Lo que falle después se avisa con `fallo`.
     prepararAire();
     const int gen = ++d_->generacion[fuente];
     d_->empezado[fuente] = false;
     d_->repetir[fuente] = repetir;
-    d_->aire->pedir({fuente, gen, std::move(p), total});
+    d_->aire->pedir({fuente, gen, std::move(p), std::move(plan)});
     d_->ultimos[fuente] = {grafico, valores};
     return {};
 }
