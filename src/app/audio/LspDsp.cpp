@@ -102,6 +102,16 @@ void cargar() {
     res(g_api.latenciaProcesar, "ba_latencia_procesar");
     res(g_api.latenciaResultado, "ba_latencia_resultado");
     res(g_api.latenciaLiberar, "ba_latencia_liberar");
+    res(g_api.medicionCrear, "ba_medicion_crear");
+    res(g_api.medicionArrancar, "ba_medicion_arrancar");
+    res(g_api.medicionProcesar, "ba_medicion_procesar");
+    res(g_api.medicionTerminada, "ba_medicion_terminada");
+    res(g_api.medicionDuracionMuestras, "ba_medicion_duracion_muestras");
+    res(g_api.medicionAnalizar, "ba_medicion_analizar");
+    res(g_api.medicionIr, "ba_medicion_ir");
+    res(g_api.medicionRespuesta, "ba_medicion_respuesta");
+    res(g_api.medicionRtBandas, "ba_medicion_rt_bandas");
+    res(g_api.medicionLiberar, "ba_medicion_liberar");
     if (falta) {
         g_error = g_ruta + " no tiene " + cual + " (¿de otra versión?)";
         return;

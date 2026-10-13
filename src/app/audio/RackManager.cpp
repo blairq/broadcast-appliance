@@ -1177,6 +1177,55 @@ std::string RackManager::addEntrada(const std::string& source, const std::string
     return id;
 }
 
+namespace {
+struct AnalisisLsp {
+    const char* id;
+    const char* plugin;
+    const char* nombre;
+    const char* para;
+};
+// Los plugins de medición de LSP (vienen en el bundle entero: tools/deps/lsp-*.sh).
+constexpr AnalisisLsp kAnalisisLsp[] = {
+    {"espectro", "in.lsp-plug.spectrum_analyzer_x2", "Spectrum Analyzer",
+     "espectro en vivo (FFT) de L y R, con retención y espectrograma"},
+    {"fase", "in.lsp-plug.phase_detector", "Phase Detector", "fase y retardo entre L y R (dos micrófonos, polaridad)"},
+    {"osciloscopio", "in.lsp-plug.oscilloscope_x2", "Oscilloscope", "la forma de onda de L y R (recortes, DC, XY)"},
+    {"latencia", "in.lsp-plug.latency_meter", "Latency Meter", "la latencia de ida y vuelta de un camino de audio"},
+    {"perfil", "in.lsp-plug.profiler_stereo", "Profiler",
+     "respuesta impulsiva, respuesta en frecuencia y RT60 con un barrido (suena)"},
+};
+} // namespace
+
+json RackManager::analisisLsp() {
+    json out = json::array();
+    for (const auto& a : kAnalisisLsp) out.push_back({{"id", a.id}, {"nombre", a.nombre}, {"para", a.para}});
+    return out;
+}
+
+std::string RackManager::abrirAnalisisLsp(const std::string& source, const std::string& cual) {
+    const AnalisisLsp* a = nullptr;
+    for (const auto& x : kAnalisisLsp)
+        if (cual == x.id) a = &x;
+    if (a == nullptr) return "no conozco el análisis «" + cual + "» (espectro, fase, osciloscopio, latencia, perfil)";
+    std::string e;
+    if (library(&e) == nullptr) return e.empty() ? "no están los plugins LSP" : e;
+    AudioRack* r = rack(source, true, &e);
+    if (r == nullptr) return e.empty() ? "esa fuente no tiene audio" : e;
+    std::string nodo;
+    for (const std::string& id : r->nodeIds())
+        if (ClapInstance* c = r->plugin(id); c != nullptr && c->desc().id == a->plugin) nodo = id;
+    if (nodo.empty()) {
+        nodo = r->addPlugin(a->plugin, a->nombre, "", &e, a->id);
+        if (nodo.empty()) return e.empty() ? std::string("no se pudo agregar ") + a->nombre : e;
+        markDirty();
+        emit changed();
+    }
+    ClapInstance* c = r->plugin(nodo);
+    if (c == nullptr) return "no quedó el módulo";
+    if (!c->openEditor(std::string(a->nombre) + " — " + source, &e)) return e.empty() ? "no abrió su interfaz" : e;
+    return {};
+}
+
 std::string RackManager::setEntradaFuente(const std::string& source, const std::string& nodo,
                                           const std::string& fuente) {
     std::string e = validarEntrada(source, fuente);

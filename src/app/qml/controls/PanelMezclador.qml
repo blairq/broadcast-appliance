@@ -70,10 +70,32 @@ Item {
         return w.length > 1 ? (w[0][0] + w[1][0]).toUpperCase() : (s.nombre || "?").substring(0, 3).toUpperCase()
     }
     function texto(db) { return db <= -99 ? "−∞" : (db > 0 ? "+" : "") + db.toFixed(1) }
+    function abrirLsp(entrada, cual) {
+        if (cual === "perfil") { confirmarPerfil.entrada = entrada; confirmarPerfil.open(); return }
+        const e = mz.abrirAnalisisLsp(entrada, cual)
+        if (e !== "") Studio.notify(e, "error")
+    }
     function mostrarEnMatriz(fila, bus) {
         m.matrizAbierta = true
         matriz.hFila = fila || ""
         matriz.hBus = bus || ""
+    }
+
+    // El Profiler emite un barrido por la salida que se elija en su interfaz: suena.
+    // Un diálogo propio (en una ventana suelta no está el de la principal).
+    Dialog {
+        id: confirmarPerfil
+        property string entrada: ""
+        anchors.centerIn: parent
+        modal: true
+        title: "El Profiler de LSP hace sonar un barrido"
+        Label {
+            width: 420
+            wrapMode: Text.WordWrap
+            text: "Abre el Profiler sobre «" + confirmarPerfil.entrada + "». Al medir, emite un barrido de 20 Hz a 20 kHz por donde salga esa entrada (puede sonar fuerte). Nada sale hasta que aprietes «Medir» en su interfaz."
+        }
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: { const e = m.mz.abrirAnalisisLsp(entrada, "perfil"); if (e !== "") Studio.notify(e, "error") }
     }
 
     // --- Una tira de entrada ---------------------------------------------------------
@@ -166,6 +188,25 @@ Item {
                         alTocar: () => { const e = Studio.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
                 Boton { texto: "AFV"; on: Studio.afv(t.nombre); colorOn: Theme.accent; ayuda: "Sigue al video: sube cuando su escena sale al aire"
                         alTocar: () => { Studio.setAfv(t.nombre, !Studio.afv(t.nombre)); m.leerTiras() } }
+            }
+            // Los analizadores de LSP sobre esta entrada (su interfaz, en una ventana aparte).
+            Boton {
+                id: lspBtn
+                Layout.fillWidth: true
+                texto: "LSP ▾"
+                ayuda: "Mirarla con los analizadores de LSP: espectro, fase, osciloscopio, latencia, perfil"
+                alTocar: () => lspMenu.popup(lspBtn, 0, lspBtn.height)
+                Menu {
+                    id: lspMenu
+                    Repeater {
+                        model: m.mz ? m.mz.analisisLsp : []
+                        delegate: MenuItem {
+                            required property var modelData
+                            text: modelData.nombre + " — " + modelData.para
+                            onTriggered: m.abrirLsp(t.nombre, modelData.id)
+                        }
+                    }
+                }
             }
             // Los envíos: a qué destinos va (clic: su fila en la matriz).
             Flow {

@@ -36,6 +36,7 @@ class AppRuntime;
 namespace ba::app::audio {
 
 class Matriz;
+class RackManager;
 
 class Mezclador : public QObject {
     Q_OBJECT
@@ -52,6 +53,8 @@ class Mezclador : public QObject {
     Q_PROPERTY(QVariantMap loudness READ loudness NOTIFY nivelesCambio)
     /// Si alguna vista lo está usando (el temporizador corre).
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
+    /// Los analizadores de LSP que se pueden abrir sobre una entrada: [{id, nombre, para}].
+    Q_PROPERTY(QVariantList analisisLsp READ analisisLsp CONSTANT)
 
    public:
     Mezclador(AppRuntime& rt, Matriz* matriz, QObject* parent = nullptr);
@@ -70,6 +73,11 @@ class Mezclador : public QObject {
     Q_INVOKABLE QVariantMap tira(const QString& nombre) const;
     /// A qué destinos va cada entrada: {nombre: [ids]} (para los chips de envío).
     Q_INVOKABLE QVariantMap envios() const;
+    QVariantList analisisLsp() const;
+    /// Abre sobre la entrada el analizador de LSP `cual` (espectro, fase,
+    /// osciloscopio, latencia, perfil) con su interfaz. "" si salió; si no, el motivo.
+    Q_INVOKABLE QString abrirAnalisisLsp(const QString& entrada, const QString& cual);
+    void setRacks(RackManager* r) { racks_ = r; }
 
     /// Lo mismo que ve la ventana, para el MCP: entradas (niveles y estado) y salidas.
     nlohmann::json estado() const;
@@ -87,6 +95,7 @@ class Mezclador : public QObject {
 
     AppRuntime& rt_;
     Matriz* matriz_ = nullptr;
+    RackManager* racks_ = nullptr;
     QTimer timer_;
     QSet<QObject*> usuarios_;
     QStringList entradas_;

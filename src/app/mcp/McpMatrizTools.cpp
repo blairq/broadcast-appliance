@@ -49,6 +49,31 @@ void McpService::registerMatrizTools() {
         };
         core_.addTool(std::move(t));
     }
+    if (auto* mz = qobject_cast<audio::Mezclador*>(vm_.mezcladorQml())) {
+        Tool t;
+        t.name = "mezclador_analisis_lsp";
+        t.title = "Abrir un analizador de LSP sobre una entrada";
+        t.category = "audio_rack";
+        t.description =
+            "Abre, sobre lo que sale de la `entrada`, el analizador de LSP `cual` con su interfaz (una ventana "
+            "aparte para el operador): espectro (Spectrum Analyzer), fase (Phase Detector: L contra R), "
+            "osciloscopio, latencia (Latency Meter) o perfil (Profiler: barrido, respuesta impulsiva y RT60; "
+            "SUENA). Si ya está en su rack lo reusa; si no, lo agrega al final (deja pasar el audio sin tocarlo).";
+        t.details = "La interfaz de LSP es para el operador: sus gráficos no vuelven por acá (LSP no publica sus "
+                    "medidores por CLAP). Para leer números usá mezclador_estado o audio_analyze.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"entrada", "cual"}},
+                         {"properties",
+                          {{"entrada", {{"type", "string"}, {"description", "una de mezclador_estado.entradas"}}},
+                           {"cual", {{"type", "string"}, {"enum", {"espectro", "fase", "osciloscopio", "latencia", "perfil"}}}}}}};
+        t.run = [mz](const json& a, Done done) {
+            const QString e = mz->abrirAnalisisLsp(QString::fromStdString(a["entrada"].get<std::string>()),
+                                                   QString::fromStdString(a["cual"].get<std::string>()));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult::ok("Abierto: la interfaz de LSP está en una ventana aparte."));
+        };
+        core_.addTool(std::move(t));
+    }
 
     {
         Tool t;

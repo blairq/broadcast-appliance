@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 /* Versión de esta API (sube si cambia algo de abajo) y de LSP. */
-#define BA_LSPDSP_VERSION 1
+#define BA_LSPDSP_VERSION 2
 BA_LSPDSP_API int ba_lspdsp_version(void);
 BA_LSPDSP_API const char* ba_lspdsp_version_lsp(void);
 
@@ -92,6 +92,53 @@ BA_LSPDSP_API void ba_latencia_procesar(ba_latencia* l, float* salida, const flo
 /* 1 si ya terminó; `ms` la latencia (o -1 si no la encontró). */
 BA_LSPDSP_API int ba_latencia_resultado(ba_latencia* l, float* ms);
 BA_LSPDSP_API void ba_latencia_liberar(ba_latencia* l);
+
+/* --- Medición acústica con barrido (lo del Profiler de LSP) ----------------------
+ * Un barrido senoidal exponencial (Farina, el SyncChirpProcessor de LSP) que se
+ * emite por `salida` y se captura por `entrada` en bloques (ResponseTaker, que
+ * compensa la latencia que se le da); al terminar, la deconvolución da la
+ * respuesta impulsiva (IR) y de ahí: RT60 (integración de Schroeder de LSP), la
+ * respuesta en frecuencia, el RT por banda de octava y la relación señal/ruido.
+ * Crear y analizar NO son del hilo de audio (reservan y calculan); procesar sí. */
+typedef struct ba_medicion ba_medicion;
+typedef struct {
+    float rt60_s;               /* RT del algoritmo pedido (EDT, T20 o T30), de toda la banda */
+    float correlacion;          /* de la recta del decaimiento (cerca de -1 = confiable) */
+    float limite_integracion_s; /* hasta dónde integró (donde la cola llega al ruido) */
+    int ruido_suficiente;       /* 1 si el ruido de fondo deja medir el RT (LSP) */
+    float directo_ms;           /* cuándo llega el sonido directo, desde el arranque del barrido */
+    float pico_db;              /* el pico de la IR (dB, relativo) */
+    float snr_db;               /* el pico contra el ruido de la cola de la IR */
+} ba_medicion_resultado;
+enum { BA_RT_EDT = 0, BA_RT_T20 = 3, BA_RT_T30 = 4 };
+/* duracion_s: el barrido (1 a 50 s); f_desde/f_hasta en Hz; amplitud lineal (0,5 =
+ * -6 dBFS); latencia_ms: la del camino salida→entrada (ba_latencia), para
+ * capturar en el lugar justo. */
+BA_LSPDSP_API ba_medicion* ba_medicion_crear(int frecuencia, float duracion_s, float f_desde, float f_hasta,
+                                             float amplitud, float latencia_ms);
+BA_LSPDSP_API void ba_medicion_arrancar(ba_medicion* m);
+/* Escribe en `salida` lo que hay que emitir y toma lo capturado de `entrada`. */
+BA_LSPDSP_API void ba_medicion_procesar(ba_medicion* m, float* salida, const float* entrada, size_t muestras);
+BA_LSPDSP_API int ba_medicion_terminada(ba_medicion* m);
+/* Cuántas muestras dura todo (barrido + pausas + cola): para saber cuánto falta. */
+BA_LSPDSP_API size_t ba_medicion_duracion_muestras(ba_medicion* m);
+/* Deconvoluciona y calcula (pesado). algoritmo: BA_RT_*. 0 si salió. */
+BA_LSPDSP_API int ba_medicion_analizar(ba_medicion* m, int algoritmo, ba_medicion_resultado* r);
+/* La IR desde `antes_ms` antes del sonido directo (lineal, normalizada al pico);
+ * devuelve cuántas muestras copió (hasta `max`). Después de analizar. */
+BA_LSPDSP_API size_t ba_medicion_ir(ba_medicion* m, float* dst, size_t max, float antes_ms);
+/* La respuesta en frecuencia (dB) en `n` puntos logarítmicos entre `desde` y
+ * `hasta` Hz, de la IR con una ventana de `ventana_ms` (corta: casi sin sala;
+ * larga: con la sala). Después de analizar. 0 si salió. */
+BA_LSPDSP_API int ba_medicion_respuesta(ba_medicion* m, float desde, float hasta, size_t n, float ventana_ms,
+                                        float* frq, float* db);
+/* EDT, T20 y T30 (s) por banda de octava (centros en Hz), de la IR filtrada e
+ * integrada hacia atrás (Schroeder, cortando donde la cola llega al ruido); un
+ * centro <= 0 es la banda ancha (sin filtro). -1 si
+ * no alcanza el rango. Después de analizar. 0 si salió. */
+BA_LSPDSP_API int ba_medicion_rt_bandas(ba_medicion* m, const float* centros, size_t n, float* edt, float* t20,
+                                        float* t30);
+BA_LSPDSP_API void ba_medicion_liberar(ba_medicion* m);
 
 #ifdef __cplusplus
 }

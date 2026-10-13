@@ -4,6 +4,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "audio/LoudnessPrograma.hpp"
 #include "audio/Matriz.hpp"
+#include "audio/RackManager.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "Motor.hpp"
 
@@ -164,6 +165,21 @@ QVariantMap Mezclador::envios() const {
     if (matriz_ == nullptr) return out;
     for (const QString& n : entradas_) out[n] = matriz_->enviosDe(n);
     return out;
+}
+
+QVariantList Mezclador::analisisLsp() const {
+    QVariantList out;
+    for (const auto& a : RackManager::analisisLsp())
+        out << QVariantMap{{"id", QString::fromStdString(a.value("id", std::string()))},
+                           {"nombre", QString::fromStdString(a.value("nombre", std::string()))},
+                           {"para", QString::fromStdString(a.value("para", std::string()))}};
+    return out;
+}
+
+QString Mezclador::abrirAnalisisLsp(const QString& entrada, const QString& cual) {
+    if (racks_ == nullptr) return "el audio de los racks no está disponible";
+    if (!entradas_.contains(entrada)) return "no hay una entrada con audio «" + entrada + "»";
+    return QString::fromStdString(racks_->abrirAnalisisLsp(entrada.toStdString(), cual.toStdString()));
 }
 
 nlohmann::json Mezclador::estado() const {

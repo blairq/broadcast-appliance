@@ -43,6 +43,17 @@ struct Api {
     void (*latenciaProcesar)(ba_latencia*, float* salida, const float* entrada, size_t muestras);
     int (*latenciaResultado)(ba_latencia*, float* ms);
     void (*latenciaLiberar)(ba_latencia*);
+    ba_medicion* (*medicionCrear)(int frecuencia, float duracion_s, float f_desde, float f_hasta, float amplitud,
+                                  float latencia_ms);
+    void (*medicionArrancar)(ba_medicion*);
+    void (*medicionProcesar)(ba_medicion*, float* salida, const float* entrada, size_t muestras);
+    int (*medicionTerminada)(ba_medicion*);
+    size_t (*medicionDuracionMuestras)(ba_medicion*);
+    int (*medicionAnalizar)(ba_medicion*, int algoritmo, ba_medicion_resultado* r);
+    size_t (*medicionIr)(ba_medicion*, float* dst, size_t max, float antes_ms);
+    int (*medicionRespuesta)(ba_medicion*, float desde, float hasta, size_t n, float ventana_ms, float* frq, float* db);
+    int (*medicionRtBandas)(ba_medicion*, const float* centros, size_t n, float* edt, float* t20, float* t30);
+    void (*medicionLiberar)(ba_medicion*);
 };
 
 /// La biblioteca (se abre la primera vez), o nullptr si no está o es de otra versión.
