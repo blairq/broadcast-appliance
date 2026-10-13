@@ -68,6 +68,10 @@ Rectangle {
         ApplicationWindow.window.pedirAlAsistente(texto)
     }
 
+    function bytesLegibles(b) {
+        if (b === undefined || b === null) return ""
+        return b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.round(b / 1e3) + " kB"
+    }
     function mmss(s) {
         const neg = s < 0
         const t = Math.abs(Math.round(s))
@@ -1460,6 +1464,8 @@ Rectangle {
                     Layout.fillWidth: true
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 13
                            text: modelData.nombre + (modelData.activa ? "  ● abierto" : "") + (modelData.plantilla ? "  (plantilla)" : "") }
+                    Text { color: Theme.textFaint; font.pixelSize: 11
+                           text: modelData.midiendo ? "midiendo…" : page.bytesLegibles(modelData.bytes) }
                     GlassButton {
                         compact: true; text: "Abrir"; visible: !modelData.activa
                         enabled: !(Studio.streaming || Studio.recording)

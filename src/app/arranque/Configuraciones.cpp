@@ -6,9 +6,12 @@
 #include "evento/FotosConfig.hpp"
 #include "platform/Paths.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QPointer>
+#include <QThreadPool>
 
 #include <algorithm>
 #include <fstream>
@@ -81,7 +84,48 @@ void sembrar(const fs::path& a) {
 } // namespace
 
 Configuraciones::Configuraciones(std::function<QString()> reiniciar, QObject* parent)
-    : QObject(parent), reiniciar_(std::move(reiniciar)) {}
+    : QObject(parent), reiniciar_(std::move(reiniciar)) {
+    // Cada vez que cambia la lista (crear, borrar, renombrar), se vuelve a medir.
+    connect(this, &Configuraciones::cambio, this, [this]() {
+        if (avisandoTamanos_) return; // el aviso de la medición misma
+        if (midiendo_) otraVez_ = true; // cambió mientras se medía: al terminar, de nuevo
+        else medir();
+    });
+    medir();
+}
+
+void Configuraciones::medir() {
+    if (midiendo_.exchange(true)) return;
+    QPointer<Configuraciones> yo(this);
+    const fs::path raiz = datos() / "Configuraciones";
+    QThreadPool::globalInstance()->start([yo, raiz]() {
+        std::map<std::string, Tamano> t;
+        std::error_code ec;
+        for (const auto& e : fs::directory_iterator(raiz, ec)) {
+            const std::string n = aU8(e.path().filename());
+            if (!e.is_directory() || n.empty() || n[0] == '.') continue;
+            t[n] = {bytesDe(e.path()), bytesDe(e.path() / "Recordings")};
+        }
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, t = std::move(t)]() mutable {
+                if (!yo) return;
+                {
+                    std::lock_guard<std::mutex> l(yo->tamanosM_);
+                    yo->tamanos_ = std::move(t);
+                }
+                yo->midiendo_ = false;
+                yo->avisandoTamanos_ = true;
+                emit yo->cambio();
+                yo->avisandoTamanos_ = false;
+                if (yo->otraVez_) {
+                    yo->otraVez_ = false;
+                    yo->medir();
+                }
+            },
+            Qt::QueuedConnection);
+    });
+}
 
 fs::path Configuraciones::datos() const { return ba::platform::dataRoot(); }
 fs::path Configuraciones::carpeta(const std::string& nombre) const { return datos() / "Configuraciones" / deU8(nombre); }
@@ -108,8 +152,13 @@ json Configuraciones::listar() const {
                        {"descripcion", meta.value("descripcion", std::string())},
                        {"creada_ms", meta.value("creada_ms", 0LL)},
                        {"desde", meta.value("desde", std::string())},
-                       {"plantilla", meta.value("plantilla", false)},
-                       {"bytes", bytesDe(e.path())}});
+                       {"plantilla", meta.value("plantilla", false)}});
+        std::lock_guard<std::mutex> l(tamanosM_);
+        if (const auto it = tamanos_.find(n); it != tamanos_.end()) {
+            out.back()["bytes"] = it->second.total;
+            out.back()["bytes_grabaciones"] = it->second.grabaciones;
+        } else
+            out.back()["midiendo"] = true; // todavía no se sabe cuánto ocupa
     }
     std::sort(out.begin(), out.end(), [](const json& a, const json& b) { return a["nombre"] < b["nombre"]; });
     return out;

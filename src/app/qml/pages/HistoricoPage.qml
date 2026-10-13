@@ -132,28 +132,60 @@ Rectangle {
                 ColumnLayout {
                     anchors { fill: parent; margins: 10 }
                     spacing: 4
-                    Text { text: "Carpetas"; color: Theme.textDim; font.pixelSize: 11 }
+                    // Los eventos guardados (cada uno con todo lo suyo) y cuánto ocupa cada uno;
+                    // debajo del abierto, sus subcarpetas (jornadas por año y mes).
+                    Text { text: "Eventos"; color: Theme.textDim; font.pixelSize: 11 }
                     ListView {
+                        id: listaEventos
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
-                        model: [""].concat(page.h ? page.h.carpetas : [])
+                        readonly property var cf: Studio.configuraciones
+                        readonly property string abierto: cf ? cf.activa : ""
+                        model: {
+                            const l = [{ grupo: "", texto: "Todos", nivel: 0 }]
+                            for (const e of (cf ? cf.lista : [])) {
+                                l.push({ grupo: "@" + e.nombre, texto: e.nombre, nivel: 0, ev: e })
+                                if (e.activa)
+                                    for (const c of (page.h ? page.h.carpetas : []))
+                                        l.push({ grupo: "@" + e.nombre + "/" + c, texto: "▸ " + c.split("/").pop(), nivel: c.split("/").length })
+                            }
+                            return l
+                        }
                         delegate: Rectangle {
                             required property var modelData
                             width: ListView.view.width
-                            height: 26
+                            height: modelData.ev ? 40 : 26
                             radius: 6
-                            color: page.grupo === modelData ? Qt.rgba(1, 0.42, 0.17, 0.18) : "transparent"
-                            Text {
+                            color: page.grupo === modelData.grupo ? Qt.rgba(1, 0.42, 0.17, 0.18) : "transparent"
+                            Column {
                                 anchors.verticalCenter: parent.verticalCenter
-                                x: 6 + (modelData === "" ? 0 : (modelData.split("/").length - 1) * 12)
-                                text: modelData === "" ? "Todos" : "▸ " + modelData.split("/").pop()
-                                color: page.grupo === modelData ? Theme.text : Theme.textDim
-                                font.pixelSize: 12
+                                x: 6 + modelData.nivel * 12
+                                width: parent.width - x - 6
+                                Text {
+                                    width: parent.width; elide: Text.ElideRight
+                                    text: modelData.texto + (modelData.ev && modelData.ev.activa ? "  ●" : "")
+                                    color: page.grupo === modelData.grupo ? Theme.text : Theme.textDim
+                                    font.pixelSize: 12; font.weight: modelData.ev ? Font.DemiBold : Font.Normal
+                                }
+                                Text {
+                                    visible: !!modelData.ev
+                                    width: parent.width; elide: Text.ElideRight
+                                    color: Theme.textFaint; font.pixelSize: 10
+                                    text: !modelData.ev ? "" : modelData.ev.midiendo ? "midiendo…"
+                                          : page.bytes(modelData.ev.bytes) + (modelData.ev.bytes_grabaciones > 0
+                                                ? " · " + page.bytes(modelData.ev.bytes_grabaciones) + " de grabaciones" : "")
+                                }
                             }
-                            MouseArea { anchors.fill: parent; onClicked: page.grupo = modelData }
+                            MouseArea { anchors.fill: parent; onClicked: page.grupo = modelData.grupo }
+                            ToolTip.visible: hov.hovered && !!modelData.ev; ToolTip.delay: 500
+                            ToolTip.text: modelData.ev ? "«" + modelData.ev.nombre + "»: todo lo suyo (escenas, medios, grabaciones…) ocupa " +
+                                                         page.bytes(modelData.ev.bytes) : ""
+                            HoverHandler { id: hov }
                         }
                     }
+                    GlassButton { compact: true; text: "Volver a medir"; Layout.fillWidth: true
+                                  onClicked: if (listaEventos.cf) listaEventos.cf.medir() }
                 }
             }
 
@@ -192,7 +224,7 @@ Rectangle {
                                     Rectangle { width: 8; height: 8; radius: 4; color: page.colorEstado(modelData.estado) }
                                     Text {
                                         Layout.fillWidth: true
-                                        text: modelData.nombre
+                                        text: modelData.nombre + (modelData.abierto === false ? "  ·  " + modelData.evento : "")
                                         elide: Text.ElideRight
                                         color: Theme.text; font { pixelSize: 13; weight: Font.Medium }
                                     }
@@ -208,6 +240,7 @@ Rectangle {
                                           + (modelData.resumen && modelData.resumen.transmisiones ? " · 📡 " + modelData.resumen.transmisiones : "")
                                           + (modelData.resumen && modelData.resumen.sellado ? " · sellado ✓" : "")
                                           + (modelData.resumen && modelData.resumen.acta ? " · acta" : "")
+                                          + (modelData.resumen ? " · " + page.bytes((modelData.resumen.bytes || 0) + (modelData.resumen.bytes_grabaciones || 0)) : "")
                                 }
                             }
                             MouseArea { anchors.fill: parent; onClicked: page.sel = modelData.carpeta }
@@ -307,7 +340,9 @@ Rectangle {
                                             ["Configuración", page.resumen.config ? "foto al empezar" + (page.resumen.sellado ? " y al cerrar" : "") : "—"],
                                             ["Sellado", page.resumen.sellado ? "sí (Verificar sellos)" : (page.resumen.enCurso ? "se sella al terminar" : "no")],
                                             ["Acta", page.resumen.acta ? "sí" : "no"],
-                                            ["Ocupa", page.bytes(page.resumen.bytes)]
+                                            ["Evento", (page.resumen.evento || "—") + (page.resumen.abierto === false ? " (no es el abierto)" : "")],
+                                            ["Ocupa", page.bytes((page.resumen.bytes || 0) + (page.resumen.bytes_grabaciones || 0)) +
+                                                      (page.resumen.bytes_grabaciones ? " (" + page.bytes(page.resumen.bytes_grabaciones) + " de grabaciones)" : "")]
                                         ]
                                         delegate: RowLayout {
                                             required property var modelData

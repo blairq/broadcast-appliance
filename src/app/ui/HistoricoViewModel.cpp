@@ -23,6 +23,7 @@
 #include "evento/CierreEvento.hpp"
 #include "evento/FotosConfig.hpp"
 #include "evento/Historico.hpp"
+#include "platform/Paths.hpp"
 #include "ui/EventoViewModel.hpp"
 
 namespace ba::app {
@@ -61,8 +62,40 @@ HistoricoViewModel::~HistoricoViewModel() {
     if (cancelarBusqueda_) cancelarBusqueda_->store(true);
 }
 
+namespace {
+fs::path deU8(const std::string& s) { return fs::path(std::u8string(s.begin(), s.end())); }
+std::string aU8(const fs::path& p) {
+    const std::u8string u = p.u8string();
+    return std::string(u.begin(), u.end());
+}
+fs::path raizEventos() { return ba::platform::dataRoot() / "Configuraciones"; }
+} // namespace
+
+HistoricoViewModel::Lugar HistoricoViewModel::lugar(const std::string& carpeta) const {
+    if (carpeta.rfind('@', 0) == 0) {
+        const auto barra = carpeta.find('/', 1);
+        const std::string ev = carpeta.substr(1, barra == std::string::npos ? std::string::npos : barra - 1);
+        const fs::path base = raizEventos() / deU8(ev);
+        return {base / "Eventos", base / "Config", barra == std::string::npos ? std::string() : carpeta.substr(barra + 1), ev,
+                false};
+    }
+    return {ev_.raizEventos(), ev_.carpetaConfig(), carpeta, ba::platform::configActiva(ba::platform::dataRoot()), true};
+}
+
+evento::DatosDelEvento HistoricoViewModel::datosDe(const std::string& carpeta) const {
+    const Lugar l = lugar(carpeta);
+    if (l.abierto) return ev_.datosEvento(carpeta);
+    return evento::EventoStore(l.raiz).datos(l.rel);
+}
+
 fs::path HistoricoViewModel::carpetaEvento(const std::string& carpeta) const {
-    return carpeta.empty() ? fs::path() : ev_.carpetaEvento(carpeta);
+    if (carpeta.empty()) return {};
+    const Lugar l = lugar(carpeta);
+    if (l.abierto) return ev_.carpetaEvento(carpeta);
+    if (l.rel.empty() || !evento::EventoStore::rutaValida(l.rel)) return {};
+    std::error_code ec;
+    const fs::path d = l.raiz / deU8(l.rel);
+    return fs::is_directory(d, ec) ? d : fs::path();
 }
 
 QStringList HistoricoViewModel::carpetas() const { return ev_.carpetas(); }
@@ -70,19 +103,31 @@ QStringList HistoricoViewModel::carpetas() const { return ev_.carpetas(); }
 QString HistoricoViewModel::enCurso() const { return ev_.enCurso().value("carpeta").toString(); }
 
 QVariantList HistoricoViewModel::eventos(const QString& grupo, const QString& texto) const {
+    // `grupo`: "" = todos los eventos de todas las carpetas; "@<evento>" = los de esa
+    // carpeta; "@<evento>/<sub>" o "<sub>" (la abierta) = los de esa subcarpeta.
     QVariantList out;
     const QString t = texto.trimmed().toLower();
-    for (const QVariant& v : ev_.eventos()) {
-        QVariantMap m = v.toMap();
-        const QString g = m["grupo"].toString(), c = m["carpeta"].toString();
-        if (!grupo.isEmpty() && g != grupo && !g.startsWith(grupo + "/")) continue;
-        if (!t.isEmpty() && !m["nombre"].toString().toLower().contains(t) && !c.toLower().contains(t)) continue;
-        const fs::path dir = ev_.carpetaEvento(c.toStdString());
-        if (!dir.empty()) {
-            const auto r = evento::Historico::resumen(dir);
-            m["resumen"] = aQv(r);
+    const std::string abierto = ba::platform::configActiva(ba::platform::dataRoot());
+    const auto agregar = [&](QVariantMap m, const QString& clave, const std::string& ev, bool esAbierto) {
+        const QString g = m["grupo"].toString();
+        const QString gEv = "@" + QString::fromStdString(ev);
+        if (!grupo.isEmpty()) {
+            if (grupo.startsWith('@')) {
+                if (grupo != gEv && !grupo.startsWith(gEv + "/")) return;
+                const QString sub = grupo.mid(gEv.size() + 1);
+                if (!sub.isEmpty() && g != sub && !g.startsWith(sub + "/")) return;
+            } else if (!esAbierto || (g != grupo && !g.startsWith(grupo + "/")))
+                return;
         }
-        const auto d = ev_.datosEvento(c.toStdString());
+        if (!t.isEmpty() && !m["nombre"].toString().toLower().contains(t) && !clave.toLower().contains(t) &&
+            !QString::fromStdString(ev).toLower().contains(t))
+            return;
+        m["carpeta"] = clave;
+        m["evento"] = QString::fromStdString(ev);
+        m["abierto"] = esAbierto;
+        const fs::path dir = carpetaEvento(clave.toStdString());
+        if (!dir.empty()) m["resumen"] = aQv(evento::Historico::resumen(dir));
+        const auto d = datosDe(clave.toStdString());
         m["estado"] = QString::fromStdString(d.estado);
         m["desde"] = hora(d.iniciadoMs, "dd/MM/yyyy HH:mm");
         m["hasta"] = hora(d.terminadoMs, "dd/MM/yyyy HH:mm");
@@ -92,6 +137,25 @@ QVariantList HistoricoViewModel::eventos(const QString& grupo, const QString& te
                                                    d.iniciadoMs) / 60000)
                                : 0;
         out << m;
+    };
+    for (const QVariant& v : ev_.eventos()) {
+        const QVariantMap m = v.toMap();
+        agregar(m, m["carpeta"].toString(), abierto, true);
+    }
+    // Los de los otros eventos (cada uno en su carpeta).
+    std::error_code ec;
+    for (const auto& e : fs::directory_iterator(raizEventos(), ec)) {
+        const std::string n = aU8(e.path().filename());
+        if (!e.is_directory() || n.empty() || n[0] == '.' || n == abierto) continue;
+        if (!grupo.isEmpty() && !grupo.startsWith('@')) continue; // una subcarpeta de la abierta
+        evento::EventoStore st(e.path() / "Eventos");
+        const std::string enCurso = st.enCurso();
+        for (const evento::Ficha& f : st.listar())
+            agregar(QVariantMap{{"grupo", QString::fromStdString(f.grupo)},
+                                {"enCurso", f.carpeta == enCurso},
+                                {"nombre", QString::fromStdString(f.nombre)},
+                                {"fecha", QString::fromStdString(f.fecha)}},
+                    QString::fromStdString("@" + n + "/" + f.carpeta), n, false);
     }
     // Lo más nuevo primero: por inicio, y los que nunca empezaron, por fecha.
     std::sort(out.begin(), out.end(), [](const QVariant& a, const QVariant& b) {
@@ -107,7 +171,10 @@ QVariantMap HistoricoViewModel::resumen(const QString& carpeta) const {
     const fs::path dir = carpetaEvento(carpeta.toStdString());
     if (dir.empty()) return {};
     QVariantMap m = aQv(evento::Historico::resumen(dir)).toMap();
-    const auto d = ev_.datosEvento(carpeta.toStdString());
+    const auto d = datosDe(carpeta.toStdString());
+    const Lugar lu = lugar(carpeta.toStdString());
+    m["evento"] = QString::fromStdString(lu.evento);
+    m["abierto"] = lu.abierto;
     m["carpeta"] = carpeta;
     m["ruta"] = QString::fromStdString(dir.string());
     m["estado"] = QString::fromStdString(d.estado);
@@ -197,6 +264,7 @@ nlohmann::json HistoricoViewModel::traerDelDiaJson(const std::string& carpeta, b
                                                   std::int64_t hastaMs) {
     const fs::path dir = carpetaEvento(carpeta);
     if (dir.empty()) return {{"error", "no hay un evento «" + carpeta + "»"}};
+    if (!lugar(carpeta).abierto) return {{"error", "es de otro evento: abrilo para traerle lo del día"}};
     if (desdeMs == 0) {
         // El día del evento: el de su inicio, su fecha o el de la jornada automática.
         const auto d = ev_.datosEvento(carpeta);
@@ -249,15 +317,21 @@ QString HistoricoViewModel::contenidoConfig(const QString& carpeta, const QStrin
     if (f.is_null()) return {};
     const auto a = f.value("archivos", nlohmann::json::object());
     if (!a.contains(archivo.toStdString())) return {};
-    evento::FotosConfig fotos(ev_.carpetaConfig(), ev_.raizEventos() / ".objetos");
+    const Lugar lu = lugar(carpeta.toStdString());
+    evento::FotosConfig fotos(lu.config, lu.raiz / ".objetos");
     return QString::fromStdString(fotos.leer(a[archivo.toStdString()].value("sha", std::string())).dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
 }
 
 QVariantList HistoricoViewModel::comparar(const QString& carpeta, const QString& foto, const QString& otro,
                                           const QString& otraFoto) const {
-    evento::FotosConfig fotos(ev_.carpetaConfig(), ev_.raizEventos() / ".objetos");
+    // El contenido de cada foto se lee por su sha del Eventos/.objetos de SU evento:
+    // se comparan fotos del mismo evento («actual» es la configuración del abierto).
+    const Lugar la = lugar(carpeta.toStdString());
+    const Lugar lb = otro.isEmpty() ? lugar(std::string()) : lugar(otro.toStdString());
+    if (la.raiz != lb.raiz) return {};
+    evento::FotosConfig fotos(la.config, la.raiz / ".objetos");
     const auto cargar = [&](const QString& c, const QString& f) -> nlohmann::json {
-        if (c.isEmpty() && f == "actual") return fotos.foto(QDateTime::currentMSecsSinceEpoch());
+        if (c.isEmpty() && f == "actual") return la.abierto ? fotos.foto(QDateTime::currentMSecsSinceEpoch()) : nullptr;
         const fs::path dir = carpetaEvento(c.toStdString());
         if (dir.empty()) return nullptr;
         return evento::FotosConfig::cargar(dir / "config" / ((f.isEmpty() ? QString("ultima") : f) + ".json").toStdString());
@@ -270,6 +344,8 @@ QVariantList HistoricoViewModel::comparar(const QString& carpeta, const QString&
 QString HistoricoViewModel::prepararRestauracion(const QString& carpeta, const QString& foto, const QStringList& archivos) {
     const fs::path dir = carpetaEvento(carpeta.toStdString());
     if (dir.empty()) return "No está ese evento.";
+    if (!lugar(carpeta.toStdString()).abierto)
+        return "Es de otro evento: abrilo para volver a esa configuración, o creá un evento nuevo desde esta foto.";
     const auto f = evento::FotosConfig::cargar(dir / "config" / ((foto.isEmpty() ? QString("inicio") : foto) + ".json").toStdString());
     if (f.is_null()) return "Ese evento no tiene esa foto de la configuración.";
     std::vector<std::string> l;
@@ -341,7 +417,7 @@ void HistoricoViewModel::exportar(const QString& carpeta, const QString& destino
         return;
     }
     const fs::path dst = (destino.isEmpty() ? carpetaDeExportar() : destino).toStdString();
-    const fs::path objetos = ev_.raizEventos() / ".objetos";
+    const fs::path objetos = lugar(carpeta.toStdString()).raiz / ".objetos";
     QPointer<HistoricoViewModel> self(this);
     QThreadPool::globalInstance()->start([self, dir, dst, objetos, carpeta, conGrabaciones]() {
         fs::path copia;

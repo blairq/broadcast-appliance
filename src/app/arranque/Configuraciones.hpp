@@ -36,7 +36,10 @@
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
+#include <atomic>
 #include <functional>
+#include <map>
+#include <mutex>
 #include <string>
 
 namespace ba::app {
@@ -98,10 +101,24 @@ class Configuraciones : public QObject {
     /// Reinicia con la que esté anotada (después de activar por MCP).
     QString reiniciar() { return reiniciar_ ? reiniciar_() : QStringLiteral("no se puede reiniciar desde acá"); }
 
+    /// Volver a medir cuánto ocupa cada evento (en otro hilo; avisa con cambio()).
+    Q_INVOKABLE void medir();
+
    signals:
     void cambio();
 
    private:
+    // Cuánto ocupa cada carpeta: se mide en otro hilo (con grabaciones grandes,
+    // recorrerla en cada lectura de la lista trababa la interfaz).
+    struct Tamano {
+        std::uintmax_t total = 0;
+        std::uintmax_t grabaciones = 0;
+    };
+    mutable std::mutex tamanosM_;
+    std::map<std::string, Tamano> tamanos_;
+    std::atomic<bool> midiendo_{false};
+    bool otraVez_ = false;         ///< cambió algo mientras se medía
+    bool avisandoTamanos_ = false; ///< el cambio() que sale de la medición (no vuelve a medir)
     std::filesystem::path datos() const;
     std::filesystem::path carpeta(const std::string& nombre) const;
     static std::string nombreValido(const std::string& nombre);

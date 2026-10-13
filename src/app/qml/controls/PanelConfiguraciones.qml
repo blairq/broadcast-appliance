@@ -41,7 +41,9 @@ ColumnLayout {
                     Text { text: modelData.nombre + (modelData.activa ? "  · abierto" : "") + (modelData.plantilla ? "  · plantilla" : ""); color: Theme.text
                            font { pixelSize: 14; weight: Font.DemiBold } }
                     Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.textFaint; font.pixelSize: 11
-                           text: (modelData.descripcion ? modelData.descripcion + " · " : "") + pc.tamano(modelData.bytes) +
+                           text: (modelData.descripcion ? modelData.descripcion + " · " : "") +
+                                 (modelData.midiendo ? "midiendo…" : "ocupa " + pc.tamano(modelData.bytes) +
+                                  (modelData.bytes_grabaciones > 0 ? " (" + pc.tamano(modelData.bytes_grabaciones) + " de grabaciones)" : "")) +
                                  (modelData.desde ? " · desde " + modelData.desde : "") }
                 }
                 GlassButton { compact: true; text: "Abrir"; visible: !modelData.activa; active: true

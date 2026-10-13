@@ -14,6 +14,8 @@
 // ============================================================================
 #pragma once
 
+#include "evento/EventoStore.hpp"
+
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -114,6 +116,17 @@ class HistoricoViewModel : public QObject {
     void exportado(const QString& carpeta, const QString& error, const QString& copia);
 
    private:
+    // Los registros de OTRAS carpetas de evento (cada evento tiene la suya) se nombran
+    // «@<evento>/<carpeta>»; los del abierto, con su carpeta a secas (como siempre).
+    struct Lugar {
+        std::filesystem::path raiz;   ///< su Eventos/
+        std::filesystem::path config; ///< su Config/
+        std::string rel;              ///< la carpeta del registro dentro de Eventos/
+        std::string evento;           ///< el nombre del evento (la carpeta de arriba)
+        bool abierto = true;          ///< es del evento abierto
+    };
+    Lugar lugar(const std::string& carpeta) const;
+    evento::DatosDelEvento datosDe(const std::string& carpeta) const;
     EventoViewModel& ev_;
     std::function<void(const json&)> aplicarAjustes_;
     std::function<std::vector<std::filesystem::path>()> carpetasGrabacion_;
