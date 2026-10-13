@@ -205,7 +205,8 @@ void McpService::registerUiTools() {
         // forma de mostrarlos (ni de verlos con capture_ui) sin tocar la pantalla.
         static const std::map<std::string, std::vector<std::string>> kPaneles{
             {"video", {"superresolucion", "entrada_virtual", "catalogo"}}, {"escenas", {"efectos"}},
-            {"historico", {"registro"}}};
+            {"historico", {"registro"}},
+            {"guion", {"guion", "padron", "publico", "orden", "web", "documentos"}}};
         Tool t;
         t.name = "ui_abrir_panel";
         t.title = "Abrir un panel o diálogo de una página";
@@ -214,7 +215,7 @@ void McpService::registerUiTools() {
                         "cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, "
                         "entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con "
                         "`fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde "
-                        "difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención). Para mirarlo, capture_ui.";
+                        "difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.";
         json enumPaginas = json::array();
         for (const auto& [p, l] : kPaneles) enumPaginas.push_back(p);
         t.inputSchema = {{"type", "object"},

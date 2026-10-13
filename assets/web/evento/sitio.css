@@ -306,3 +306,19 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* La documentación del evento (vivo.js: documentos, documentos-seccion, documentos-punto). */
+.documentos { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; padding: 0; margin: 0; }
+.doc { display: flex; flex-direction: column; text-decoration: none; color: inherit; border: 1px solid var(--border);
+  border-radius: var(--radius); background: var(--surface); overflow: hidden; transition: border-color .2s, transform .2s; }
+.doc:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+.doc-tapa { aspect-ratio: 4 / 3; background: #fff; overflow: hidden; display: grid; place-items: center;
+  color: #888; font: 600 14px var(--mono); border-bottom: 1px solid var(--border); }
+.doc-tapa img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.doc-cuerpo { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 14px 16px 16px; flex: 1; }
+.doc-cuerpo b { line-height: 1.25; font-size: 1.05em; }
+.doc-desc { color: var(--text-muted); font-size: .92em; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.doc .ceja { margin: auto 0 0; }
+.docs-punto { display: flex; flex-wrap: wrap; gap: 6px 12px; margin-top: 6px; }
+.docs-punto a { font-size: .9em; color: var(--acento, inherit); text-decoration: none; }
+.docs-punto a:hover { text-decoration: underline; }

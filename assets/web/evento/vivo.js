@@ -47,6 +47,12 @@
 //   asamblea-quorum  recinto  bloques
 //   Numeración: un [data-num] adentro de cada sección visible se numera solo («01», «02»…).
 //   Letras: un [data-letra] en cada tarjeta visible de unas .columnas se pone solo (A, B, C…).
+//   La documentación (PDF con su carátula): documentos (todos los públicos: la portada)
+//   documentos-seccion (los de la sección de esta página: <body data-seccion>)
+//   documentos-punto (los del punto del orden del día en tratamiento). Visibilidad: lo
+//   mismo («documentos», «documentos-seccion», «documentos-punto»). En el orden del día,
+//   cada punto lleva los suyos. Los datos: e.documentos [{id, titulo, descripcion,
+//   paginas, bytes, puntos, secciones, pdf, miniatura}] (y GET /api/v1/evento/documentos).
 // Enlaces: data-vivo-href="primera | anterior | proxima | publico".
 // Componentes: [data-acordeon] (preguntas), [data-menu] (menú del celular).
 //
@@ -328,6 +334,44 @@
       for (const it of items) el.appendChild(armar(it));
     }
   }
+  // --- La documentación ---------------------------------------------------------------
+  function kb(b) { return b > 1e6 ? (b / 1e6).toFixed(1).replace(".", ",") + " MB" : Math.max(1, Math.round((b || 0) / 1e3)) + " kB"; }
+  function tarjetaDoc(d) {
+    const a = document.createElement("a");
+    a.className = "doc"; a.href = d.pdf; a.target = "_blank"; a.rel = "noopener";
+    const tapa = document.createElement("span"); tapa.className = "doc-tapa";
+    if (d.miniatura) { const img = document.createElement("img"); img.src = d.miniatura; img.alt = ""; img.loading = "lazy"; tapa.appendChild(img); }
+    else tapa.textContent = "PDF";
+    const cuerpo = document.createElement("span"); cuerpo.className = "doc-cuerpo";
+    const t = document.createElement("b"); t.textContent = d.titulo;
+    cuerpo.appendChild(t);
+    if (d.descripcion) { const p = document.createElement("span"); p.className = "doc-desc"; p.textContent = d.descripcion; cuerpo.appendChild(p); }
+    const m = document.createElement("span"); m.className = "ceja";
+    m.textContent = ["PDF", d.paginas ? d.paginas + (d.paginas === 1 ? " página" : " páginas") : "", kb(d.bytes), "Descargar"].filter(Boolean).join(" · ");
+    cuerpo.appendChild(m);
+    a.append(tapa, cuerpo);
+    return a;
+  }
+  function puntoEnTratamiento(e) {
+    const a = e.asamblea && e.asamblea.punto;
+    if (a && a.n) return a.n;
+    const p = (e.ordenDelDia || []).find((x) => x.estado === "en_tratamiento");
+    return p ? p.n : 0;
+  }
+  function documentos(e) {
+    const ds = e.documentos || [];
+    si("documentos", ds.length > 0);
+    lista('[data-vivo="documentos"]', ds, tarjetaDoc);
+    const sec = miSeccion();
+    const delaSeccion = sec ? ds.filter((d) => (d.secciones || []).map(String).includes(String(sec))) : [];
+    si("documentos-seccion", delaSeccion.length > 0);
+    lista('[data-vivo="documentos-seccion"]', delaSeccion, tarjetaDoc);
+    const n = puntoEnTratamiento(e);
+    const delPunto = n ? ds.filter((d) => (d.puntos || []).includes(n)) : [];
+    si("documentos-punto", delPunto.length > 0);
+    lista('[data-vivo="documentos-punto"]', delPunto, tarjetaDoc);
+  }
+
   const ESTADO_PUNTO = { pendiente: "Pendiente", en_tratamiento: "En tratamiento", votado: "Votado", comision: "A comisión", retirado: "Retirado" };
   function datosDelSistema(e) {
     si("invitados", !!e.invitados);
@@ -360,6 +404,16 @@
       const m = document.createElement("span"); m.className = "ceja";
       m.textContent = [p.expediente ? "Expte. " + p.expediente : "", ESTADO_PUNTO[p.estado] || p.estado, p.resultado].filter(Boolean).join(" · ");
       t.append(b, m);
+      // Los documentos del punto (si los hay).
+      const docs = (e.documentos || []).filter((d) => (d.puntos || []).includes(p.n));
+      if (docs.length) {
+        const dl = document.createElement("span"); dl.className = "docs-punto";
+        for (const d of docs) {
+          const a = document.createElement("a"); a.href = d.pdf; a.target = "_blank"; a.rel = "noopener";
+          a.textContent = "📄 " + d.titulo; dl.appendChild(a);
+        }
+        t.appendChild(dl);
+      }
       li.append(n, t);
       return li;
     });
@@ -583,6 +637,7 @@
     }
     si("participar", !!e.publicoUrl);
     datosDelSistema(e);
+    documentos(e);
     asamblea(e); href("publico", e.publicoUrl || ""); si("votacion", !!e.votacionAbierta);
     pintarVivos(e.vivos || []);
     relojes();

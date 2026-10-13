@@ -465,6 +465,15 @@ Rectangle {
         // modelo. Están en los dos lados a propósito: acá mientras se arma el
         // evento, y allá con el aire encendido, donde hay que poder mirar la
         // cola sin perder de vista el guion.
+        // ui_abrir_panel {page: "guion", panel: "documentos"…}: la pestaña pedida.
+        Connections {
+            target: Studio
+            function onAbrirPanel(pagina, panel) {
+                if (pagina !== "guion") return
+                const i = ["guion", "padron", "publico", "orden", "web", "documentos"].indexOf(panel)
+                if (i >= 0) pestanas.currentIndex = i
+            }
+        }
         TabBar {
             id: pestanas
             visible: page.ev.abierto !== "" && !page.armando
@@ -484,6 +493,16 @@ Rectangle {
             }
             TabButton { text: "Orden del día" }
             TabButton { text: "Página web" }
+            TabButton { text: Studio.documentos && Studio.documentos.lista.length ? "Documentos (" + Studio.documentos.lista.length + ")" : "Documentos" }
+        }
+
+        // ---- Documentación del evento (PDF con carátula, por punto y sección) ----------
+        Panel {
+            visible: page.ev.abierto !== "" && !page.armando && pestanas.currentIndex === 5
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: "Documentación del evento"
+            PanelDocumentos { anchors.fill: parent; bloques: page.ev.guion.bloques || [] }
         }
 
         // ---- Página web del evento en vivo -----------------------------------------

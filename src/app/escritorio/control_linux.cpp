@@ -728,7 +728,8 @@ json datosSistema() {
     static const std::set<std::string> reales = {"ext4", "ext3", "btrfs", "xfs", "vfat", "exfat", "ntfs", "ntfs3", "f2fs", "zfs", "fuseblk"};
     std::set<std::string> vistos;
     for (std::string dev, punto, tipo, resto; mounts >> dev >> punto >> tipo && std::getline(mounts, resto);) {
-        if (!reales.count(tipo) || vistos.count(dev)) continue;
+        std::error_code ed;
+        if (!reales.count(tipo) || vistos.count(dev) || !fs::is_directory(punto, ed)) continue; // un archivo montado (Docker) no es un disco
         vistos.insert(dev);
         struct statvfs s{};
         if (statvfs(punto.c_str(), &s) != 0) continue;
