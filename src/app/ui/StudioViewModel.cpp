@@ -272,6 +272,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         publicarTally();
     });
     connect(conmutador_.get(), &escenas::Conmutador::afvCambio, this, &StudioViewModel::statusChanged);
+    connect(conmutador_.get(), &escenas::Conmutador::afvCambio, this, &StudioViewModel::afvChanged);
     props_ = std::make_unique<PropertiesModel>(rt);
     marca("props");
     conference_ = std::make_unique<ConferenceViewModel>(rt);
@@ -3661,6 +3662,12 @@ QString StudioViewModel::setTransicionEntrada(const QString& escena, const QStri
 bool StudioViewModel::afv(const QString& fuente) const { return conmutador_->afv(fuente.toStdString()); }
 
 void StudioViewModel::setAfv(const QString& fuente, bool sigue) { conmutador_->setAfv(fuente.toStdString(), sigue); }
+
+QStringList StudioViewModel::afvFuentes() const {
+    QStringList out;
+    for (const std::string& f : conmutador_->afvFuentes()) out << qs(f);
+    return out;
+}
 
 void StudioViewModel::tbar(double t, bool soltar) {
     if (const std::string e = conmutador_->tbar(t, soltar); !e.empty())

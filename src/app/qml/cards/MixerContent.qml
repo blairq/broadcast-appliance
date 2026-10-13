@@ -237,14 +237,14 @@ Item {
                 }
                 // AFV: el audio sigue al video (sube y baja con su escena).
                 Rectangle {
-                    property bool on: Studio.afv(name)
+                    readonly property bool on: Studio.afvFuentes.indexOf(name) >= 0
                     Layout.fillWidth: true
                     height: 18; radius: 6
                     color: on ? Qt.rgba(0.18, 0.44, 0.87, 0.7) : Qt.rgba(1, 1, 1, 0.05)
                     Text { anchors.centerIn: parent; text: "AFV"; color: parent.on ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                     MouseArea {
                         anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                        onClicked: { Studio.setAfv(name, !parent.on); parent.on = Studio.afv(name) }
+                        onClicked: Studio.setAfv(name, !parent.on)
                     }
                     ToolTip.visible: afvMa.containsMouse; ToolTip.delay: 500
                     ToolTip.text: "Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale"

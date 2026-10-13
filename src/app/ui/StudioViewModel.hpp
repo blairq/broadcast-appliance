@@ -780,6 +780,10 @@ class StudioViewModel : public QObject {
     /// Audio que sigue al video (AFV): la fuente sube cuando su escena entra al aire y baja cuando sale.
     Q_INVOKABLE bool afv(const QString& fuente) const;
     Q_INVOKABLE void setAfv(const QString& fuente, bool sigue);
+    /// Las fuentes con AFV, para enlazar en la vista (afv() es una llamada: no se
+    /// reevalúa y el botón no se enteraba de un cambio hecho en otra vista o por MCP).
+    Q_PROPERTY(QStringList afvFuentes READ afvFuentes NOTIFY afvChanged)
+    QStringList afvFuentes() const;
     QString escenaArmada() const;
     /// El conmutador de escenas (modelo): la GUI y el MCP cambian de escena por ahí.
     escenas::Conmutador& conmutador() { return *conmutador_; }
@@ -894,6 +898,7 @@ class StudioViewModel : public QObject {
     void medicionSincroLista(const QVariantMap& resultado);
     void balisticaChanged();
     void pflChanged();
+    void afvChanged();
     void themeChanged();
     /// Aviso para el operador: level = "info" | "ok" | "warn" | "error".
     void notify(const QString& message, const QString& level);
