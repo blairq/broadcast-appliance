@@ -796,6 +796,10 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             const std::string antes = ev.enCurso().value("carpeta").toString().toStdString();
             if (antes.empty() || !ev.terminarEvento()) return done(ToolResult::error("No había ningún evento en curso."));
             const std::string ahora = ev.enCurso().value("carpeta").toString().toStdString();
+            if (ahora == antes)
+                return done(ToolResult::ok("Se cerró " + antes + " y el evento automático lo volvió a abrir (es la "
+                                           "jornada de hoy). Para cerrarla del todo: evento_terminar con "
+                                           "`automatico`: false."));
             done(ToolResult::ok("Terminado: " + antes + (ahora.empty() ? std::string() : ". En curso ahora: " + ahora)));
         };
         core.addTool(std::move(t));
@@ -1256,6 +1260,9 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             "  pausar      frena el guion; el tiempo pausado NO cuenta como atraso\n"
             "  reanudar\n"
             "  parar       lo deja parado\n\n"
+            "`ensayo` es un modo que QUEDA como se lo dejo (como el boton Ensayo de la GUI): despues de "
+            "ensayar, para salir al aire de verdad hay que pasar `ensayo`: false (la respuesta dice en "
+            "`ensayo` como quedo).\n\n"
             "La respuesta trae el cue actual, el que sigue y el reloj: `desvioSeg` positivo = vamos "
             "tarde.\n\n"
             "Mientras el guion corre sin ensayo, el sistema entra en MODO EVENTO: la app le avisa al "
