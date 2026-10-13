@@ -93,6 +93,8 @@ fs::path DocumentosViewModel::carpeta() const { return evento::Documentos(evento
 
 json DocumentosViewModel::lista() const { return evento::Documentos(evento_()).lista(); }
 
+json DocumentosViewModel::documento(const std::string& id) const { return evento::Documentos(evento_()).documento(id); }
+
 QVariantList DocumentosViewModel::listaUi() const {
     const evento::Documentos d(evento_());
     json l = d.lista();

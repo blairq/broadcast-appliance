@@ -13,6 +13,8 @@
 #include "ui/DocumentosViewModel.hpp"
 #include "ui/StudioViewModel.hpp"
 
+#include <algorithm>
+
 namespace ba::app::mcp {
 
 void McpService::registerDocumentosTools() {
@@ -34,8 +36,30 @@ void McpService::registerDocumentosTools() {
         t.readOnly = true;
         t.description = "Los documentos del evento abierto: id, título, descripción, páginas, tamaño, si es público, a qué "
                         "puntos del orden del día y secciones del guion está relacionado y si tiene carátula. Sin relaciones "
-                        "es documentación del evento en general.";
-        t.run = [dv](const json&, Done done) { done(ToolResult().data({{"documentos", dv->lista()}, {"carpeta", dv->carpeta().string()}})); };
+                        "es documentación del evento en general. Con `punto` o `seccion`, solo los de ese punto del orden "
+                        "del día o esa sección del guion (lo mismo que muestra la web y la fila del punto).";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"punto", {{"type", "integer"}, {"description", "número de punto del orden del día"}}},
+                           {"seccion", {{"type", "string"}, {"description", "id del bloque del guion o su número"}}}}}};
+        t.run = [dv](const json& a, Done done) {
+            json l = dv->lista();
+            const auto tiene = [](const json& arr, const json& v) { return arr.is_array() && std::find(arr.begin(), arr.end(), v) != arr.end(); };
+            if (a.contains("punto") && a["punto"].is_number_integer()) {
+                json f = json::array();
+                for (const auto& d : l)
+                    if (tiene(d.value("puntos", json::array()), a["punto"])) f.push_back(d);
+                l = f;
+            }
+            if (a.contains("seccion") && (a["seccion"].is_string() || a["seccion"].is_number_integer())) {
+                const json k = a["seccion"].is_string() ? a["seccion"] : json(std::to_string(a["seccion"].get<int>()));
+                json f = json::array();
+                for (const auto& d : l)
+                    if (tiene(d.value("secciones", json::array()), k)) f.push_back(d);
+                l = f;
+            }
+            done(ToolResult().data({{"documentos", l}, {"carpeta", dv->carpeta().string()}}));
+        };
         core_.addTool(std::move(t));
     }
     {
@@ -93,6 +117,22 @@ void McpService::registerDocumentosTools() {
         t.run = [dv](const json& a, Done done) {
             if (const std::string e = dv->quitar(a.value("id", std::string())); !e.empty()) return done(ToolResult::error(e));
             done(ToolResult::ok("Quitado (está en la papelera del evento)."));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "documento_abrir";
+        t.title = "Abrir un documento en pantalla";
+        t.category = "documentos";
+        t.description = "Abre el documento con el visor del sistema (el visor de PDF), en esta máquina: lo mismo que el "
+                        "doble clic en la pestaña Documentos o el botón 📄 de un punto del orden del día.";
+        t.inputSchema = {{"type", "object"}, {"required", {"id"}}, {"properties", {{"id", {{"type", "string"}}}}}};
+        t.run = [dv](const json& a, Done done) {
+            const std::string id = a.value("id", std::string());
+            if (dv->documento(id).is_null()) return done(ToolResult::error("no hay un documento «" + id + "»"));
+            dv->abrirUi(QString::fromStdString(id));
+            done(ToolResult::ok("Abierto."));
         };
         core_.addTool(std::move(t));
     }

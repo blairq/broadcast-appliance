@@ -33,6 +33,8 @@ class DocumentosViewModel : public QObject {
     explicit DocumentosViewModel(std::function<std::filesystem::path()> evento, QObject* parent = nullptr);
 
     json lista() const;
+    /// Uno (null si no existe).
+    json documento(const std::string& id) const;
     QVariantList listaUi() const;
     /// Agrega un archivo (PDF o imagen): lo copia, lo lee y hace su miniatura.
     /// `datos`: {titulo, descripcion, publico, puntos, secciones}. {id, documento} o {error}.
