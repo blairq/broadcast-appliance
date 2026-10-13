@@ -56,6 +56,9 @@ cd "$SRC/lsp-plugins"
 
 # --- Configurar LSP con el compilador de la plataforma ------------------------
 FLAGS=(-std=c++17 -O2 -fvisibility=hidden -fno-exceptions -fno-rtti -fdata-sections -ffunction-sections)
+# Las bibliotecas de LSP van ADENTRO de la nuestra (no son DLL aparte): sin esto sus
+# headers marcan las clases como importadas de una DLL (Windows: LNK4217).
+FLAGS+=(-DLSP_COMMON_LIB_BUILTIN -DLSP_LLTL_LIB_BUILTIN -DLSP_RUNTIME_LIB_BUILTIN -DLSP_DSP_LIB_BUILTIN -DLSP_DSP_UNITS_BUILTIN)
 case "$PLAT" in
     macos-arm64)
         MAKE=gmake
@@ -115,7 +118,8 @@ EOS
             FEATURES='clap crosscompile' CC="$LLVM/x86_64-w64-mingw32-clang" CXX="$CXX" AR="$LLVM/llvm-ar" \
             LD="$WRAP/ld" HOST_CC=gcc HOST_CXX=g++ >"$SRC/config.log" 2>&1
         # Todo estático (libc++ de MinGW incluida): la DLL no pide nada más que Windows.
-        LINK=(-shared -static -Wl,--gc-sections -lshlwapi -lole32 -luuid)
+        # lsp-runtime-lib entra entera (--whole-archive): pide también ACM y MMIO de Windows.
+        LINK=(-shared -static -Wl,--gc-sections -lmsacm32 -lwinmm -lshlwapi -lole32 -luuid)
         ;;
 esac
 grep -q "Configured OK" "$SRC/config.log" || { tail -20 "$SRC/config.log" >&2; log "ERROR al configurar LSP"; exit 1; }
