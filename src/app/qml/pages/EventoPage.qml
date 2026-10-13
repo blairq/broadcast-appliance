@@ -112,9 +112,34 @@ Rectangle {
                 anchors.fill: parent
                 spacing: 12
 
+                // El evento abierto (con todo lo suyo: escenas, mezclador, medios, asamblea,
+                // web). Uno nuevo o abrir otro: cada uno tiene lo suyo, nunca se pisan.
+                ColumnLayout {
+                    spacing: 0
+                    Text { text: "EVENTO"; color: Theme.textFaint; font { pixelSize: 10; weight: Font.DemiBold; letterSpacing: 1 } }
+                    Text {
+                        text: Studio.configuraciones ? Studio.configuraciones.activa : ""
+                        color: Theme.text; font { pixelSize: 16; weight: Font.DemiBold }
+                        elide: Text.ElideRight
+                        Layout.maximumWidth: 260
+                    }
+                }
+                GlassButton {
+                    icon: "+"; text: "Evento nuevo…"
+                    onClicked: nuevoEventoDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Un evento aparte, con sus propias escenas, mezclador, medios, asamblea y web: desde cero, copiando este, desde uno anterior o desde una plantilla"
+                }
+                GlassButton {
+                    text: "Abrir otro…"
+                    onClicked: abrirEventoDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Pasar a otro evento (reinicia la app con todo lo suyo)"
+                }
+                Rectangle { width: 1; Layout.fillHeight: true; Layout.margins: 8; color: Qt.rgba(1, 1, 1, 0.1) }
                 ComboBox {
                     id: selector
-                    Layout.preferredWidth: 260
+                    Layout.preferredWidth: 220
                     model: page.ev.eventos
                     textRole: "nombre"
                     displayText: page.ev.abierto === "" ? "Elegí un evento…" : (page.ev.guion.nombre || page.ev.abierto)
@@ -131,8 +156,10 @@ Rectangle {
                     }
                 }
                 GlassButton {
-                    icon: "+"; text: "Evento"
+                    icon: "+"; text: "Guion"; compact: true
                     onClicked: nuevoDlg.open()
+                    ToolTip.visible: hovered; ToolTip.delay: 400
+                    ToolTip.text: "Otro guion dentro de este mismo evento (comparte escenas y medios). Para un evento aparte: «Evento nuevo…»"
                 }
                 // Armar contándolo, en vez de llenando un formulario. No es un
                 // motor aparte: es el asistente que ya existe, usando las
@@ -1312,7 +1339,7 @@ Rectangle {
         anchors.centerIn: parent
         width: 420
         modal: true
-        title: "Evento nuevo"
+        title: "Otro guion en este evento"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAboutToShow: { nombreCampo.text = ""; carpetaNueva.editText = "" }
         onAccepted: if (nombreCampo.text.trim() !== "") page.ev.crear(nombreCampo.text.trim(), carpetaNueva.editText.trim())
@@ -1322,8 +1349,8 @@ Rectangle {
             Text {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                text: "Se crea una carpeta con este nombre adentro de Eventos/, con lugar para su música, " +
-                      "sus videos y sus discursos."
+                text: "Un guion más dentro de este evento: usa sus mismas escenas, mezclador y medios. " +
+                      "Para un evento aparte, con lo suyo, es «Evento nuevo…»."
                 color: Theme.textDim
                 font.pixelSize: 12
             }
@@ -1341,6 +1368,116 @@ Rectangle {
                 editable: true
                 model: page.ev.carpetas
             }
+        }
+    }
+
+    // --- Evento nuevo: aparte, con todo lo suyo --------------------------------
+    Dialog {
+        id: nuevoEventoDlg
+        readonly property var cf: Studio.configuraciones
+        property string modo: "cero"
+        anchors.centerIn: parent
+        width: 500
+        modal: true
+        title: "Evento nuevo"
+        onAboutToShow: { nombreEv.text = ""; modo = "cero"; abrirlo.checked = !(Studio.streaming || Studio.recording) }
+        ColumnLayout {
+            width: nuevoEventoDlg.availableWidth
+            spacing: 8
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                text: "Un evento tiene TODO lo suyo: escenas, mezclador, medios, gráficos, distribución de la asamblea, " +
+                      "orden del día, votaciones, página web y guion. El evento abierto no se toca."
+            }
+            TextField { id: nombreEv; Layout.fillWidth: true; placeholderText: "Sesión ordinaria del 20 de octubre"; color: Theme.text }
+            ButtonGroup { id: grupoDesde }
+            RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "cero"; onClicked: nuevoEventoDlg.modo = "cero"
+                          text: "Desde cero (de fábrica: escenas base, sin medios ni asamblea)" }
+            RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "actual"; onClicked: nuevoEventoDlg.modo = "actual"
+                          text: "Copiando este («" + (nuevoEventoDlg.cf ? nuevoEventoDlg.cf.activa : "") + "», sin grabaciones ni historial)" }
+            RowLayout {
+                RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "anterior"; onClicked: nuevoEventoDlg.modo = "anterior"
+                              text: "Desde otro evento" }
+                ComboBox {
+                    id: anterior
+                    Layout.fillWidth: true
+                    enabled: nuevoEventoDlg.modo === "anterior"
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.lista.filter(e => !e.activa).map(e => e.nombre) : []
+                }
+            }
+            RowLayout {
+                RadioButton { ButtonGroup.group: grupoDesde; checked: nuevoEventoDlg.modo === "plantilla"; onClicked: nuevoEventoDlg.modo = "plantilla"
+                              text: "Desde una plantilla" }
+                ComboBox {
+                    id: plantilla
+                    Layout.fillWidth: true
+                    enabled: nuevoEventoDlg.modo === "plantilla"
+                    model: nuevoEventoDlg.cf ? nuevoEventoDlg.cf.plantillasUi().map(p => p.nombre) : []
+                }
+            }
+            CheckBox {
+                id: abrirlo
+                text: (Studio.streaming || Studio.recording) ? "Abrirlo ahora (no: hay algo al aire o grabando)" : "Abrirlo ahora (la app se reinicia con él)"
+                enabled: !(Studio.streaming || Studio.recording)
+            }
+            RowLayout {
+                Item { Layout.fillWidth: true }
+                GlassButton { compact: true; text: "Cancelar"; onClicked: nuevoEventoDlg.close() }
+                GlassButton {
+                    compact: true; active: true; text: "Crear"
+                    enabled: nombreEv.text.trim() !== "" && (nuevoEventoDlg.modo !== "anterior" || anterior.currentIndex >= 0)
+                             && (nuevoEventoDlg.modo !== "plantilla" || plantilla.currentIndex >= 0)
+                    onClicked: {
+                        const m = nuevoEventoDlg.modo
+                        const desde = m === "anterior" ? anterior.currentText : m === "plantilla" ? "plantilla:" + plantilla.currentText : m
+                        const e = nuevoEventoDlg.cf.nuevoEventoUi(nombreEv.text.trim(), desde, abrirlo.checked && !(Studio.streaming || Studio.recording))
+                        if (e !== "") { Studio.notify(e, "error"); return }
+                        if (!abrirlo.checked) Studio.notify("Evento «" + nombreEv.text.trim() + "» creado: abrilo con «Abrir otro…»", "info")
+                        nuevoEventoDlg.close()
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Abrir otro evento (reinicia con lo suyo) ---------------------------------
+    Dialog {
+        id: abrirEventoDlg
+        readonly property var cf: Studio.configuraciones
+        anchors.centerIn: parent
+        width: 500
+        modal: true
+        title: "Abrir otro evento"
+        ColumnLayout {
+            width: abrirEventoDlg.availableWidth
+            spacing: 6
+            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 12
+                   text: "Cada evento tiene sus escenas, mezclador, medios, asamblea y web. Abrir otro reinicia la app." }
+            Repeater {
+                model: abrirEventoDlg.cf ? abrirEventoDlg.cf.lista : []
+                delegate: RowLayout {
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Text { Layout.fillWidth: true; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 13
+                           text: modelData.nombre + (modelData.activa ? "  ● abierto" : "") + (modelData.plantilla ? "  (plantilla)" : "") }
+                    GlassButton {
+                        compact: true; text: "Abrir"; visible: !modelData.activa
+                        enabled: !(Studio.streaming || Studio.recording)
+                        onClicked: {
+                            const n = modelData.nombre
+                            abrirEventoDlg.close()
+                            ApplicationWindow.window.confirm({
+                                title: "¿Abrir «" + n + "»?",
+                                text: "La app se reinicia con ese evento (sus escenas, mezclador, medios y asamblea).",
+                                accept: "Abrir", reject: "Cancelar",
+                                action: function() { const e = abrirEventoDlg.cf.cambiarUi(n); if (e !== "") Studio.notify(e, "error") } })
+                        }
+                    }
+                }
+            }
+            Text { visible: (Studio.streaming || Studio.recording); color: Theme.amber; font.pixelSize: 12
+                   text: "Hay una transmisión o una grabación en curso: terminala para abrir otro evento." }
+            RowLayout { Item { Layout.fillWidth: true } GlassButton { compact: true; text: "Cerrar"; onClicked: abrirEventoDlg.close() } }
         }
     }
 

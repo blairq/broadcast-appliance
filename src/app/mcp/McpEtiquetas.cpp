@@ -543,6 +543,10 @@ const Fila kPropias[] = {
 
     // --- Asistente y agentes -------------------------------------------------
     {"assistant_status", "estado del asistente que modelo motor"},
+    {"evento_nuevo", "arrancar de cero evento nuevo empezar algo nuevo desde cero copiar el actual plantilla "
+                     "crear evento aparte sin tocar las escenas"},
+    {"evento_cambiar", "abrir otro evento cambiar de evento pasar a otro evento"},
+    {"eventos_listar", "que eventos hay lista de eventos plantillas"},
     {"ia_estado", "que no anda de la inteligencia artificial que falta configurar por donde empiezo asistente "
                   "offline voz del operador dictado modelo local microfono auriculares puesta en marcha"},
     {"assistant_config", "configurar asistente modelo motor clave"},

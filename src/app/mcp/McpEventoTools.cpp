@@ -263,7 +263,8 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
         t.name = "evento_abrir";
         t.title = "Abrir un evento";
         t.category = "evento";
-        t.description = "Abre un evento guardado, o crea uno nuevo si se pasa `nombre` en vez de `carpeta`.";
+        t.description = "Abre un guion guardado DENTRO del evento abierto (o crea otro guion ahí con `nombre`). Para "
+                        "un evento nuevo de verdad —sus propias escenas, mezclador, medios, asamblea— es evento_nuevo.";
         t.details =
             "Con `carpeta` abre uno que ya existe (el nombre exacto que devuelve evento_listar).\n"
             "Con `nombre` crea uno nuevo con ese titulo y lo deja abierto; si ya hay uno con ese nombre "

@@ -20,6 +20,82 @@ void McpService::registerConfiguracionesTools() {
                       "Configuraciones con nombre: cada una con sus escenas, medios, plugins, Cuerpo, botonera y "
                       "eventos, sin compartir nada; cambiar de una a otra no copia nada (reinicia la app).");
     const json nombre = {{"type", "string"}, {"description", "El nombre de la configuración."}};
+    // --- Eventos: cada carpeta es un evento con todo lo suyo (PLAN-EVENTO-TODO) ----------
+    core_.addCategory("eventos", "Eventos (cada uno con todo lo suyo)",
+                      "Cada evento tiene sus escenas, mezclador, medios, gráficos, asamblea, orden del día, web y "
+                      "guion. Crear uno nuevo nunca toca el abierto; abrir otro reinicia la app.");
+    {
+        Tool t;
+        t.name = "eventos_listar";
+        t.title = "Los eventos";
+        t.category = "eventos";
+        t.readOnly = true;
+        t.description = "Los eventos que hay (cuál está abierto, de dónde salió cada uno, cuánto ocupa, cuáles son "
+                        "plantilla) y las plantillas para crear uno nuevo.";
+        t.run = [cf](const json&, Done done) {
+            done(ToolResult().data({{"eventos", cf->listar()}, {"abierto", cf->activa()}, {"plantillas", cf->plantillas()}}));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_nuevo";
+        t.title = "Crear un evento nuevo (arrancar de cero o desde otro)";
+        t.category = "eventos";
+        t.description = "Crea un evento APARTE con todo lo suyo, sin tocar el abierto. Es lo que corresponde cuando "
+                        "piden «arrancar de cero», «un evento nuevo» o «algo nuevo». `desde`: «cero» (de fábrica), "
+                        "«actual» (copia del abierto: escenas, mezclador, medios, asamblea; sin grabaciones, sin "
+                        "historial, sin el orden del día ni las votaciones), el nombre de otro evento, "
+                        "«plantilla:<nombre>» (eventos_listar dice cuáles) o «evento:<carpeta>/<inicio|cierre|ultima>» "
+                        "(cómo estaba un evento cerrado del histórico). Si no dijeron desde dónde, preguntá. "
+                        "`abrir: true` pasa a él (reinicia la app: no con algo al aire).";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"nombre", "desde"}},
+                         {"properties",
+                          {{"nombre", {{"type", "string"}, {"description", "El nombre del evento."}}},
+                           {"desde", {{"type", "string"}}},
+                           {"descripcion", {{"type", "string"}}},
+                           {"abrir", {{"type", "boolean"}}}}}};
+        StudioViewModel* vm = &vm_;
+        t.run = [cf, vm](const json& a, Done done) {
+            const std::string n = a.value("nombre", std::string());
+            if (const std::string e = cf->nuevoEvento(n, a.value("desde", std::string("cero")), a.value("descripcion", std::string()));
+                !e.empty())
+                return done(ToolResult::error(e));
+            if (!a.value("abrir", false))
+                return done(ToolResult::ok("Creado «" + n + "». Para abrirlo: evento_cambiar (reinicia la app)."));
+            if (vm->alAire())
+                return done(ToolResult::ok("Creado «" + n + "», pero no lo abro: hay una transmisión o una grabación en "
+                                           "curso (abrirlo reinicia la app). Abrilo con evento_cambiar cuando termine."));
+            if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("Creado «" + n + "»: la app se reinicia con él."));
+            cf->reiniciar();
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "evento_cambiar";
+        t.title = "Abrir otro evento";
+        t.category = "eventos";
+        t.description = "Pasa al evento `nombre` (sus escenas, mezclador, medios, asamblea, web…): la app se REINICIA. "
+                        "No con una transmisión o una grabación en curso; pedile confirmación al operador antes.";
+        t.inputSchema = {{"type", "object"},
+                         {"required", {"nombre"}},
+                         {"properties", {{"nombre", {{"type", "string"}}}, {"aunque_este_al_aire", {{"type", "boolean"}}}}}};
+        StudioViewModel* vm = &vm_;
+        t.run = [cf, vm](const json& a, Done done) {
+            const std::string n = a.value("nombre", std::string());
+            if (n == cf->activa()) return done(ToolResult::error("ya es el evento abierto"));
+            if (vm->alAire() && !a.value("aunque_este_al_aire", false))
+                return done(ToolResult::error("hay una transmisión o una grabación en curso: abrir otro evento reinicia "
+                                              "la app y la corta. Esperá a que termine (o que el operador lo pida)."));
+            if (const std::string e = cf->activar(n); !e.empty()) return done(ToolResult::error(e));
+            done(ToolResult::ok("Abriendo «" + n + "»: la app se reinicia."));
+            cf->reiniciar();
+        };
+        core_.addTool(std::move(t));
+    }
     {
         Tool t;
         t.name = "configuraciones_listar";

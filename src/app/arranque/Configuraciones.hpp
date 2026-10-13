@@ -16,6 +16,15 @@
 //   - "evento:<carpeta>/<inicio|cierre|ultima>": la configuración con la que se hizo
 //     un evento (su foto de Config/, ver evento/FotosConfig) y los medios de la actual.
 // Cada una puede tener una descripción (configuracion.json en su carpeta).
+//
+// EVENTOS (docs/planes/PLAN-EVENTO-TODO.md): cada carpeta es UN evento con todo lo
+// suyo (escenas, mezclador, medios, asamblea, orden del día, web, guion). En la
+// interfaz se llaman «eventos»; nuevoEvento crea la carpeta y su evento en curso:
+//   - "cero": de fábrica;   "actual": copia del abierto;   "<carpeta>": de otro;
+//   - "plantilla:<nombre>": una demo del programa o una carpeta marcada como plantilla;
+//   - "evento:<carpeta>/<foto>": la configuración con que se hizo un evento cerrado.
+// Siempre SIN historial: ni grabaciones, ni eventos anteriores, ni el orden del día,
+// el quórum o las votaciones de la sesión de donde sale.
 // Las rutas que guardan son relativas a su carpeta (arranque/RutasPortables): se
 // pueden copiar a otra máquina tal cual.
 // ============================================================================
@@ -52,6 +61,14 @@ class Configuraciones : public QObject {
     /// Crea `nombre` desde `desde` (ver arriba). "" o el error.
     std::string crear(const std::string& nombre, const std::string& desde, const std::string& descripcion,
                       bool conGrabaciones = false);
+    /// Un evento nuevo: su carpeta (desde "cero", "actual", otra carpeta,
+    /// "plantilla:<nombre>" o "evento:<carpeta>/<foto>"), sin historial, con su evento
+    /// en curso ya creado. No la activa. "" o el error.
+    std::string nuevoEvento(const std::string& nombre, const std::string& desde, const std::string& descripcion = {});
+    /// Marcar una carpeta como plantilla (aparece en «Evento nuevo › desde plantilla»).
+    std::string marcarPlantilla(const std::string& nombre, bool plantilla);
+    /// Las plantillas: las demos del programa y las carpetas marcadas. [{nombre, descripcion, demo}].
+    json plantillas() const;
     /// Deja anotada `nombre` como activa (sin reiniciar). "" o el error.
     std::string activar(const std::string& nombre);
     std::string renombrar(const std::string& de, const std::string& a);
@@ -63,6 +80,10 @@ class Configuraciones : public QObject {
     QString activaUi() const { return QString::fromStdString(activa()); }
     QVariantList demosUi() const;
     Q_INVOKABLE QString crearUi(const QString& nombre, const QString& desde, const QString& descripcion);
+    /// Evento nuevo y, si `abrir`, pasar a él (reinicia).
+    Q_INVOKABLE QString nuevoEventoUi(const QString& nombre, const QString& desde, bool abrir);
+    Q_INVOKABLE QString marcarPlantillaUi(const QString& nombre, bool plantilla);
+    Q_INVOKABLE QVariantList plantillasUi() const;
     /// Activa y reinicia.
     Q_INVOKABLE QString cambiarUi(const QString& nombre);
     Q_INVOKABLE QString renombrarUi(const QString& de, const QString& a);

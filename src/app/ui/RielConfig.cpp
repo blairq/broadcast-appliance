@@ -45,8 +45,10 @@ const std::vector<Grupo>& catalogo() {
           {9, "audio", "🎚", "Audio: patchbay de módulos LSP por fuente"},
           {25, "botonera", "▣", "Botonera: superficie de control en una tablet (QR), Stream Deck o MIDI"}}},
         {"Contenido",
-         {{2, "sala", "☎", "Sala (lobby, invitados, chat)"},
-          {10, "guion", "≣", "Guion del evento: bloques, cues y tiempos"},
+         {{10, "guion", "≣",
+           "Evento: el abierto (con sus escenas, mezclador, medios y asamblea), su guion, padrón, orden del día y "
+           "web; evento nuevo o abrir otro"},
+          {2, "sala", "☎", "Sala (lobby, invitados, chat)"},
           {27, "historico", "⌛",
            "Histórico: todos los eventos, qué pasó en cada uno, con qué configuración, qué se grabó y transmitió"},
           {11, "graficos", "◈", "Gráficos animados: zócalos, placas y tickers"},

@@ -2,6 +2,7 @@
 
 #include "arranque/Configuraciones.hpp"
 
+#include "evento/EventoStore.hpp"
 #include "evento/FotosConfig.hpp"
 #include "platform/Paths.hpp"
 
@@ -44,13 +45,15 @@ std::uintmax_t bytesDe(const fs::path& dir) {
 }
 
 /// Copia una configuración entera, menos lo que no se lleva (grabaciones, lo que
-/// compartieron los invitados, lo preparado para restaurar).
-std::string copiar(const fs::path& de, const fs::path& a, bool conGrabaciones) {
+/// compartieron los invitados, lo preparado para restaurar). `sinHistorial` (un evento
+/// nuevo): tampoco sus eventos, lo exportado ni la sesión (orden del día, quórum, votos).
+std::string copiar(const fs::path& de, const fs::path& a, bool conGrabaciones, bool sinHistorial = false) {
     std::error_code ec;
     fs::create_directories(a, ec);
     for (const auto& e : fs::directory_iterator(de, ec)) {
         const std::string n = aU8(e.path().filename());
-        if (n == "configuracion.json" || n == "Shares" || n == "Logs" || (!conGrabaciones && n == "Recordings")) continue;
+        if (n == "configuracion.json" || n == "Shares" || n == "Logs" || n == "Runtime" || (!conGrabaciones && n == "Recordings")) continue;
+        if (sinHistorial && (n == "Eventos" || n == "Recordings" || n == "Exportado" || n == "Papelera")) continue;
         std::error_code e2;
         if (e.is_directory())
             fs::copy(e.path(), a / e.path().filename(), fs::copy_options::recursive | fs::copy_options::skip_existing, e2);
@@ -59,6 +62,9 @@ std::string copiar(const fs::path& de, const fs::path& a, bool conGrabaciones) {
         if (e2) return "no se pudo copiar " + n + ": " + e2.message();
     }
     fs::remove_all(a / "Config" / ".restaurar", ec);
+    if (sinHistorial)
+        for (const char* f : {"orden-del-dia.json", "quorum.json", "votaciones-oficiales.json", "al-aire.json"})
+            fs::remove(a / "Config" / f, ec);
     return {};
 }
 
@@ -101,6 +107,7 @@ json Configuraciones::listar() const {
                        {"descripcion", meta.value("descripcion", std::string())},
                        {"creada_ms", meta.value("creada_ms", 0LL)},
                        {"desde", meta.value("desde", std::string())},
+                       {"plantilla", meta.value("plantilla", false)},
                        {"bytes", bytesDe(e.path())}});
     }
     std::sort(out.begin(), out.end(), [](const json& a, const json& b) { return a["nombre"] < b["nombre"]; });
@@ -173,6 +180,81 @@ std::string Configuraciones::crear(const std::string& nombre, const std::string&
     return {};
 }
 
+std::string Configuraciones::nuevoEvento(const std::string& nombre, const std::string& desde,
+                                         const std::string& descripcion) {
+    if (const std::string e = nombreValido(nombre); !e.empty()) return e;
+    const fs::path dst = carpeta(nombre);
+    std::error_code ec;
+    if (fs::exists(dst, ec)) return "ya hay un evento «" + nombre + "»";
+    std::string err;
+    std::string origen = desde.empty() ? std::string("cero") : desde;
+    if (origen == "cero") {
+        fs::create_directories(dst / "Config", ec);
+        if (ec) return "no se pudo crear " + aU8(dst) + ": " + ec.message();
+    } else if (origen.rfind("plantilla:", 0) == 0 || origen.rfind("demo:", 0) == 0) {
+        const std::string n = origen.substr(origen.find(':') + 1);
+        const fs::path demo = ba::platform::bundleRoot() / "Demos" / deU8(n);
+        const fs::path de = fs::is_directory(demo, ec) ? demo : carpeta(n);
+        if (!fs::is_directory(de, ec)) return "no hay ninguna plantilla «" + n + "»";
+        err = copiar(de, dst, false, true);
+    } else if (origen.rfind("evento:", 0) == 0) {
+        err = crear(nombre, origen, descripcion); // la foto de Config/ de un evento cerrado
+        if (err.empty()) {
+            for (const char* d : {"Eventos", "Recordings", "Exportado"}) fs::remove_all(dst / d, ec);
+            for (const char* f : {"orden-del-dia.json", "quorum.json", "votaciones-oficiales.json", "al-aire.json"})
+                fs::remove(dst / "Config" / f, ec);
+        }
+    } else {
+        const fs::path de = origen == "actual" ? ba::platform::configRoot() : carpeta(origen);
+        if (!fs::is_directory(de, ec)) return "no hay ningún evento «" + origen + "»";
+        err = copiar(de, dst, false, true);
+    }
+    if (!err.empty()) {
+        fs::remove_all(dst, ec);
+        return err;
+    }
+    sembrar(dst);
+    // Su evento: el guion, el padrón, la web… en curso desde ya.
+    evento::EventoStore store(dst / "Eventos");
+    std::string e2;
+    const std::string ruta = store.crear(nombre, &e2);
+    if (ruta.empty()) {
+        fs::remove_all(dst, ec);
+        return "no se pudo crear su guion: " + e2;
+    }
+    store.iniciar(ruta, QDateTime::currentMSecsSinceEpoch(), &e2);
+    escribirJson(dst / "configuracion.json", {{"descripcion", descripcion},
+                                              {"creada_ms", QDateTime::currentMSecsSinceEpoch()},
+                                              {"desde", origen},
+                                              {"evento", ruta}});
+    emit cambio();
+    return {};
+}
+
+std::string Configuraciones::marcarPlantilla(const std::string& nombre, bool plantilla) {
+    std::error_code ec;
+    if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ningún evento «" + nombre + "»";
+    json meta = leerJson(carpeta(nombre) / "configuracion.json");
+    meta["plantilla"] = plantilla;
+    escribirJson(carpeta(nombre) / "configuracion.json", meta);
+    emit cambio();
+    return {};
+}
+
+json Configuraciones::plantillas() const {
+    json out = json::array();
+    for (const auto& d : demos())
+        out.push_back({{"nombre", d.value("nombre", std::string())},
+                       {"descripcion", d.value("descripcion", std::string())},
+                       {"demo", true}});
+    for (const auto& c : listar())
+        if (c.value("plantilla", false))
+            out.push_back({{"nombre", c.value("nombre", std::string())},
+                           {"descripcion", c.value("descripcion", std::string())},
+                           {"demo", false}});
+    return out;
+}
+
 std::string Configuraciones::activar(const std::string& nombre) {
     std::error_code ec;
     if (!fs::is_directory(carpeta(nombre), ec)) return "no hay ninguna configuración «" + nombre + "»";
@@ -227,6 +309,15 @@ QVariantList Configuraciones::demosUi() const { return aQvl(demos()); }
 QString Configuraciones::crearUi(const QString& n, const QString& d, const QString& desc) {
     return QString::fromStdString(crear(n.toStdString(), d.toStdString(), desc.toStdString()));
 }
+QString Configuraciones::nuevoEventoUi(const QString& n, const QString& desde, bool abrir) {
+    if (const std::string e = nuevoEvento(n.toStdString(), desde.toStdString()); !e.empty())
+        return QString::fromStdString(e);
+    return abrir ? cambiarUi(n) : QString();
+}
+QString Configuraciones::marcarPlantillaUi(const QString& n, bool p) {
+    return QString::fromStdString(marcarPlantilla(n.toStdString(), p));
+}
+QVariantList Configuraciones::plantillasUi() const { return aQvl(plantillas()); }
 QString Configuraciones::cambiarUi(const QString& n) {
     if (n.toStdString() == activa()) return "ya es la activa";
     if (const std::string e = activar(n.toStdString()); !e.empty()) return QString::fromStdString(e);
