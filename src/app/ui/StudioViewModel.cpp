@@ -1361,9 +1361,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
             publicarTally(); // lo que muestra una capa también está al aire
         });
         auto* cli = &static_cast<ConferenceViewModel*>(conference_.get())->client();
-        const auto aQt = [](const nlohmann::json& j) {
-            return QJsonDocument::fromJson(QByteArray::fromStdString(j.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
-        };
         // La botonera con el gateway (tablets: eventos, credenciales, emparejar): su modelo.
         botoneraGw_ = std::make_unique<control::BotoneraGateway>(*botonera_, *cli);
         connect(botoneraGw_.get(), &control::BotoneraGateway::aviso, this,

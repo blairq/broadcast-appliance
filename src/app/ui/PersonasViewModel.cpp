@@ -419,7 +419,7 @@ void PersonasViewModel::pedirAnalisis(const QString& feed, bool descartable, Ana
     const int w = img->width();
     const int h = img->height();
     d_->rec.pedir(std::move(bgra), w, h, descartable,
-                  [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos,
+                  [feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> vistos,
                                                               const QString& error) {
                       luego(std::move(vistos), *img, error);
                   });
@@ -432,7 +432,7 @@ void PersonasViewModel::reintentarAnalisis(const QString& feed, Analisis luego, 
         const int w = img->width(), h = img->height();
         d_->rec.pedir(
             std::move(bgra), w, h, false,
-            [this, feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> v, const QString& e) {
+            [feed, luego = std::move(luego), img](std::vector<Reconocedor::Visto> v, const QString& e) {
                 luego(std::move(v), *img, e);
             });
     } else if (intento < 10) {

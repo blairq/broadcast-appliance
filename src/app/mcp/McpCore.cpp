@@ -34,58 +34,6 @@ json rpcError(const json& id, int code, const std::string& message) {
     return json{{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", code}, {"message", message}}}};
 }
 
-std::string lower(std::string s) {
-    for (char& c : s)
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    return s;
-}
-
-/// Quita tildes comunes (busqueda tolerante: "transmision" == "transmisión").
-std::string fold(const std::string& s) {
-    static const std::pair<const char*, char> kMap[] = {{"á", 'a'}, {"é", 'e'}, {"í", 'i'}, {"ó", 'o'},
-                                                        {"ú", 'u'}, {"ñ", 'n'}, {"Á", 'a'}, {"É", 'e'},
-                                                        {"Í", 'i'}, {"Ó", 'o'}, {"Ú", 'u'}, {"Ñ", 'n'}};
-    std::string out = lower(s);
-    for (const auto& [from, to] : kMap) {
-        const std::string f = from;
-        size_t p = 0;
-        while ((p = out.find(f, p)) != std::string::npos) {
-            out.replace(p, f.size(), 1, to);
-            ++p;
-        }
-    }
-    return out;
-}
-
-std::vector<std::string> words(const std::string& s) {
-    std::vector<std::string> out;
-    std::string cur;
-    for (char c : fold(s)) {
-        if (std::isalnum(static_cast<unsigned char>(c)) || c == '_') {
-            cur.push_back(c);
-        } else if (!cur.empty()) {
-            out.push_back(cur);
-            cur.clear();
-        }
-    }
-    if (!cur.empty()) out.push_back(cur);
-    return out;
-}
-
-int score(const std::vector<std::string>& q, const std::string& title, const std::string& body) {
-    static const std::set<std::string> kStop{"un",   "una", "el",   "la",  "los", "las", "de", "del", "en",
-                                             "con",  "por", "para", "que", "y",   "o",   "a",  "al",  "mi",
-                                             "como", "se",  "lo",   "le",  "es",  "the", "to", "of",  "and"};
-    const std::string t = fold(title);
-    const std::string b = fold(body);
-    int s = 0;
-    for (const std::string& w : q) {
-        if (w.size() < 2 || kStop.count(w)) continue;
-        if (t.find(w) != std::string::npos) s += 5;
-        if (b.find(w) != std::string::npos) s += 1;
-    }
-    return s;
-}
 
 std::string typeName(const json& v) {
     if (v.is_string()) return "string";

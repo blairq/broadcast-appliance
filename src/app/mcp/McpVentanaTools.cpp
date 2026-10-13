@@ -549,7 +549,7 @@ void McpService::registerVentanaTools() {
                 w->setVisibility(QWindow::Windowed);
                 w->setScreen(q.p);
                 colocarMarco(w, zonaEn(q.p, QString::fromStdString(zona)),
-                             [w, etiqueta, pendientes, fallaron, listas, done, puestos](bool ok) {
+                             [etiqueta, pendientes, fallaron, listas, done, puestos](bool ok) {
                                  (ok ? listas : fallaron)->push_back(etiqueta);
                                  if (--*pendientes > 0) return;
 

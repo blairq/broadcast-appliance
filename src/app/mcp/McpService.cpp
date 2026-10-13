@@ -1142,7 +1142,7 @@ void McpService::registerTools() {
             {"properties", {{"name", {{"type", "string"}, {"description", "Nombre de la escena."}}}}},
             {"required", {"name"}}};
         t.examples = {R"({"name": "Entrevista"})"};
-        t.run = [&rt, &vm, sceneExists, noScene](const json& a, Done done) {
+        t.run = [&vm, sceneExists, noScene](const json& a, Done done) {
             const std::string name = a["name"];
             if (!sceneExists(name)) return done(noScene(name));
             if (const std::string e = vm.conmutador().poner(name); !e.empty())

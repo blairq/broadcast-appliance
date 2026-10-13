@@ -128,15 +128,6 @@ qr::Puntos puntosDe(const QString& s) {
     if (s == "muy-redondeados") return qr::Puntos::MuyRedondeados;
     return qr::Puntos::Cuadrados;
 }
-QString deP(qr::Puntos p) {
-    switch (p) {
-        case qr::Puntos::Redondeados: return "redondeados";
-        case qr::Puntos::Circulos: return "circulos";
-        case qr::Puntos::Separados: return "separados";
-        case qr::Puntos::MuyRedondeados: return "muy-redondeados";
-        default: return "cuadrados";
-    }
-}
 qr::Ojos ojosDe(const QString& s) { return s == "redondeados" ? qr::Ojos::Redondeados : qr::Ojos::Cuadrados; }
 qr::Marco marcoDe(const QString& s) {
     if (s == "simple") return qr::Marco::Simple;

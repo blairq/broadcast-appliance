@@ -54,7 +54,6 @@ void McpService::registerUiTools() {
         "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
         "(multiview en otro monitor).");
     core_.addCategory("sistema", "Sistema", "Videos disponibles, registros, salud, salir.");
-    AppRuntime& rt = rt_;
     StudioViewModel& vm = vm_;
     auto* self = this;
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
@@ -644,7 +643,7 @@ void McpService::registerUiTools() {
              {{"log", {{"type", "string"}, {"default", "app.log"}}},
               {"lines", {{"type", "integer"}, {"minimum", 1}, {"maximum", 2000}, {"default", 80}}},
               {"grep", {{"type", "string"}}}}}};
-        t.run = [&rt](const json& a, Done done) {
+        t.run = [](const json& a, Done done) {
             const QString dir = QString::fromStdString((ba::platform::dataRoot() / "Logs").string());
             const QString name = QString::fromStdString(a.value("log", std::string("app.log")));
             if (name.contains('/') || name.contains('\\') || name.contains(".."))
