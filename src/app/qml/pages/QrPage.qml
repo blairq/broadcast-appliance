@@ -452,11 +452,7 @@ Rectangle {
                     GlassButton {
                         Layout.fillWidth: true
                         compact: true; text: "Volver al estilo simple"
-                        onClicked: {
-                            page.q.setEstilo("primario", "#000000"); page.q.setEstilo("secundario", "")
-                            page.q.setEstilo("puntos", "cuadrados"); page.q.setEstilo("ojos", "cuadrados")
-                            page.q.setEstilo("marco", "ninguno"); page.q.setEstilo("icono", "")
-                        }
+                        onClicked: page.q.estiloSimple()
                         ToolTip.visible: hovered
                         ToolTip.text: "Negro, cuadrado y sin adornos: aburrido y siempre se lee"
                     }

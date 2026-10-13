@@ -509,6 +509,15 @@ void QrViewModel::setDato(const QString& clave, const QString& valor) {
     setTipo(d_->tipo);
 }
 
+void QrViewModel::estiloSimple() {
+    setEstilo("primario", "#000000");
+    setEstilo("secundario", "");
+    setEstilo("puntos", "cuadrados");
+    setEstilo("ojos", "cuadrados");
+    setEstilo("marco", "ninguno");
+    setEstilo("icono", "");
+}
+
 void QrViewModel::setEstilo(const QString& clave, const QVariant& valor) {
     if (d_->estilo.value(clave) == valor) return;
     d_->estilo[clave] = valor;
