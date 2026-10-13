@@ -3,9 +3,12 @@
 #include "ui/DocumentosViewModel.hpp"
 
 #include "evento/Documentos.hpp"
+#include "platform/Paths.hpp"
 
 #include <QDateTime>
 #include <QDesktopServices>
+#include <QDir>
+#include <QFileInfo>
 #include <QImage>
 #include <QImageReader>
 #include <QJsonDocument>
@@ -13,7 +16,9 @@
 #include <QPainter>
 #include <QPdfDocument>
 #include <QPdfSelection>
+#include <QPointer>
 #include <QUrl>
+#include <QUuid>
 
 #include <algorithm>
 
@@ -89,7 +94,7 @@ Leido leer(const fs::path& archivo, const fs::path& mini, int paginaTapa) {
 } // namespace
 
 DocumentosViewModel::DocumentosViewModel(std::function<fs::path()> evento, QObject* parent)
-    : QObject(parent), evento_(std::move(evento)) {}
+    : QObject(parent), evento_(std::move(evento)), aPdf_(new APdf(this)) {}
 
 fs::path DocumentosViewModel::carpeta() const { return evento::Documentos(evento_()).carpeta(); }
 
@@ -127,6 +132,36 @@ json DocumentosViewModel::agregar(const fs::path& archivo, const json& datos) {
     if (!l.texto.empty()) out["comienzo_del_texto"] = l.texto; // para escribir la descripción
     if (!l.miniatura) out["nota"] = "sin miniatura (no es un PDF ni una imagen, o no se pudo leer)";
     return out;
+}
+
+void DocumentosViewModel::agregarConvirtiendo(const fs::path& archivo, const json& datos, std::function<void(json)> listo) {
+    const QString origen = qp(archivo);
+    std::string e = archivo.extension().string();
+    std::transform(e.begin(), e.end(), e.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    // Un PDF o una imagen van tal cual (la imagen es su propia carátula); lo demás, a PDF.
+    const bool directo = e == ".pdf" || e == ".png" || e == ".jpg" || e == ".jpeg" || e == ".webp" || e == ".gif";
+    if (directo || !APdf::sabe(origen)) {
+        listo(agregar(archivo, datos));
+        return;
+    }
+    // Al temporal con el nombre original (queda así en docs/archivos/) y de ahí, a agregar.
+    const QString tmp = QString::fromStdU16String((ba::platform::dataRoot() / "Runtime" / "tmp" / "pdf").u16string()) + "/" +
+                        QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QDir().mkpath(tmp);
+    const QString pdf = tmp + "/" + QFileInfo(origen).completeBaseName() + ".pdf";
+    QPointer<DocumentosViewModel> yo(this);
+    aPdf_->archivo(origen, pdf, [yo, pdf, tmp, datos, listo](const QString& err) {
+        json r;
+        if (!err.isEmpty())
+            r = {{"error", "no se pudo pasar a PDF: " + err.toStdString()}};
+        else if (yo)
+            r = yo->agregar(fs::path(pdf.toStdU16String()), datos);
+        else
+            r = {{"error", "se cerró mientras convertía"}};
+        if (r.is_object() && !r.contains("error")) r["convertido"] = true;
+        QDir(tmp).removeRecursively();
+        listo(r);
+    });
 }
 
 std::string DocumentosViewModel::editar(const std::string& id, const json& cambios) {
@@ -170,8 +205,16 @@ QString DocumentosViewModel::agregarUi(const QStringList& archivos) {
     QStringList errores;
     for (const QString& a : archivos) {
         const QString local = a.startsWith("file:") ? QUrl(a).toLocalFile() : a;
-        const json r = agregar(fs::path(local.toStdU16String()), json::object());
-        if (r.contains("error")) errores << QString::fromStdString(r.value("error", std::string()));
+        const QString nombre = QFileInfo(local).fileName();
+        if (APdf::necesitaOffice(local) || local.endsWith(".md", Qt::CaseInsensitive) ||
+            local.endsWith(".txt", Qt::CaseInsensitive) || local.endsWith(".markdown", Qt::CaseInsensitive))
+            emit notify("Pasando «" + nombre + "» a PDF…", "info");
+        QPointer<DocumentosViewModel> yo(this);
+        agregarConvirtiendo(fs::path(local.toStdU16String()), json::object(), [yo, nombre](const json& r) {
+            if (yo && r.contains("error"))
+                emit yo->notify("No se pudo agregar «" + nombre + "»: " + QString::fromStdString(r.value("error", std::string())),
+                                "error");
+        });
     }
     return errores.join("; ");
 }

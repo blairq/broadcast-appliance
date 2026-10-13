@@ -14,6 +14,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include "evento/APdf.hpp"
+
 #include <nlohmann/json.hpp>
 
 #include <filesystem>
@@ -39,6 +41,12 @@ class DocumentosViewModel : public QObject {
     /// Agrega un archivo (PDF o imagen): lo copia, lo lee y hace su miniatura.
     /// `datos`: {titulo, descripcion, publico, puntos, secciones}. {id, documento} o {error}.
     json agregar(const std::filesystem::path& archivo, const json& datos);
+    /// Lo mismo para cualquier cosa que se pueda pasar a PDF (Word, planilla,
+    /// presentación, HTML, Markdown, texto: ver APdf): primero la convierte y después
+    /// la agrega. Asincrónico: `listo` recibe lo de agregar ({id, documento} o {error}).
+    void agregarConvirtiendo(const std::filesystem::path& archivo, const json& datos, std::function<void(json)> listo);
+    /// El conversor (lo usa también la herramienta pdf_convertir).
+    APdf& aPdf() { return *aPdf_; }
     std::string editar(const std::string& id, const json& cambios);
     std::string quitar(const std::string& id);
     /// El texto del documento, de la página `desde` a `hasta` (1 en adelante; 0 = hasta el final).
@@ -47,7 +55,8 @@ class DocumentosViewModel : public QObject {
     json publicos() const;
     std::filesystem::path carpeta() const;
 
-    /// Desde la interfaz: varios archivos (rutas o URL file://). Devuelve los errores ("" si ninguno).
+    /// Desde la interfaz: varios archivos (rutas o URL file://). Devuelve los errores ("" si
+    /// ninguno); los que hay que convertir avisan después (notify).
     Q_INVOKABLE QString agregarUi(const QStringList& archivos);
     Q_INVOKABLE QString editarUi(const QString& id, const QVariantMap& cambios);
     Q_INVOKABLE QString quitarUi(const QString& id);
@@ -57,9 +66,12 @@ class DocumentosViewModel : public QObject {
 
    signals:
     void cambio();
+    /// Un aviso para la interfaz (una conversión que terminó mal, o que está en curso).
+    void notify(const QString& texto, const QString& tipo);
 
    private:
     std::function<std::filesystem::path()> evento_;
+    APdf* aPdf_ = nullptr;
 };
 
 } // namespace ba::app

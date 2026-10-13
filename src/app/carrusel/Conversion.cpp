@@ -97,6 +97,66 @@ QString Conversor::soffice() {
     return {};
 }
 
+void Conversor::prepararOffice(QProcess& p, const QString& bin, const QString& archivo, const QString& salida,
+                               const QString& perfil) {
+#ifdef Q_OS_UNIX
+    // EL HIJO ARRANCA CON LAS SEÑALES LIMPIAS. LibreOffice se abre en dos
+    // procesos (soffice lanza soffice.bin) y espera a su propio hijo; nosotros
+    // corremos adentro de una app que tiene SIGCHLD y compañía tocados —libobs
+    // y Qt los manejan a su manera— y eso el hijo lo HEREDA. Con la máscara
+    // heredada, LibreOffice moría con `RuntimeException` de UNO y no escribía
+    // nada: desde una terminal, con el mismo comando y las mismas variables,
+    // convertía perfecto. Eso fue lo que lo delató.
+    p.setChildProcessModifier([] {
+        sigset_t ninguna;
+        sigemptyset(&ninguna);
+        sigprocmask(SIG_SETMASK, &ninguna, nullptr);
+        struct sigaction porDefecto {};
+        porDefecto.sa_handler = SIG_DFL;
+        sigemptyset(&porDefecto.sa_mask);
+        for (int s : {SIGCHLD, SIGPIPE, SIGTERM, SIGINT, SIGHUP, SIGUSR1, SIGUSR2})
+            sigaction(s, &porDefecto, nullptr);
+    });
+#endif
+    // El perfil va al temporal: sin esto, dos conversiones a la vez chocan por
+    // el mismo ~/.config y la segunda muere sin decir por qué.
+    p.setArguments(
+        {"--headless", "--norestore", "--invisible",
+         // CODIFICADA. `toString()` deja los espacios tal cual y la
+         // carpeta temporal lleva el nombre de la app: «Broadcast
+         // Appliance», con espacio. LibreOffice recibia
+         // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
+         // el perfil y se moria con un `RuntimeException` de UNO sin decir
+         // una palabra. Desde una terminal andaba, y el test tambien,
+         // porque ahi el nombre del programa no tiene espacios.
+         "-env:UserInstallation=" + QUrl::fromLocalFile(perfil).toString(QUrl::FullyEncoded),
+         "--convert-to", "pdf", "--outdir", salida, archivo});
+    p.setProgram(bin);
+
+    // ENTORNO LIMPIO, Y A PROPOSITO. El hijo heredaba el de la app entera
+    // —variables de libobs, de Qt, de cachés redirigidos al bundle— y eso
+    // alcanzaba para que LibreOffice muriera con `RuntimeException` de UNO sin
+    // escribir nada. Desde una terminal, mismo comando, convertía perfecto.
+    // Acá se le pasa lo mínimo que necesita cualquier programa y nada más:
+    // convertir un archivo no tiene por qué depender de cómo arrancó el
+    // aparato.
+    QProcessEnvironment limpio;
+    const QProcessEnvironment heredado = QProcessEnvironment::systemEnvironment();
+    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"), QStringLiteral("USER"),
+                             QStringLiteral("LOGNAME"), QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
+        if (heredado.contains(k)) limpio.insert(k, heredado.value(k));
+    if (!limpio.contains("HOME")) limpio.insert("HOME", perfil);
+    // Sin pantalla: es headless y pedirle una X que puede no estar es una
+    // fuente de fallas que no necesitamos.
+    limpio.insert("SAL_USE_VCLPLUGIN", "svp");
+    p.setProcessEnvironment(limpio);
+    // Todo por el mismo caño: LibreOffice reparte sus quejas entre salida y
+    // error sin criterio claro, y perder la mitad al diagnosticar es peor que
+    // mezclarlas.
+    p.setProcessChannelMode(QProcess::MergedChannels);
+
+}
+
 bool Conversor::ocupado() const { return d_->corriendo; }
 
 void Conversor::cancelar() {
@@ -154,61 +214,7 @@ void Conversor::convertir(const QString& archivo, const QString& destino, int an
     emit avance("Convirtiendo la presentación", 0, 0);
 
     d_->proc = new QProcess(this);
-#ifdef Q_OS_UNIX
-    // EL HIJO ARRANCA CON LAS SEÑALES LIMPIAS. LibreOffice se abre en dos
-    // procesos (soffice lanza soffice.bin) y espera a su propio hijo; nosotros
-    // corremos adentro de una app que tiene SIGCHLD y compañía tocados —libobs
-    // y Qt los manejan a su manera— y eso el hijo lo HEREDA. Con la máscara
-    // heredada, LibreOffice moría con `RuntimeException` de UNO y no escribía
-    // nada: desde una terminal, con el mismo comando y las mismas variables,
-    // convertía perfecto. Eso fue lo que lo delató.
-    d_->proc->setChildProcessModifier([] {
-        sigset_t ninguna;
-        sigemptyset(&ninguna);
-        sigprocmask(SIG_SETMASK, &ninguna, nullptr);
-        struct sigaction porDefecto {};
-        porDefecto.sa_handler = SIG_DFL;
-        sigemptyset(&porDefecto.sa_mask);
-        for (int s : {SIGCHLD, SIGPIPE, SIGTERM, SIGINT, SIGHUP, SIGUSR1, SIGUSR2})
-            sigaction(s, &porDefecto, nullptr);
-    });
-#endif
-    // El perfil va al temporal: sin esto, dos conversiones a la vez chocan por
-    // el mismo ~/.config y la segunda muere sin decir por qué.
-    d_->proc->setArguments(
-        {"--headless", "--norestore", "--invisible",
-         // CODIFICADA. `toString()` deja los espacios tal cual y la
-         // carpeta temporal lleva el nombre de la app: «Broadcast
-         // Appliance», con espacio. LibreOffice recibia
-         // `file:///tmp/Broadcast Appliance-xxxx/perfil`, no podia armar
-         // el perfil y se moria con un `RuntimeException` de UNO sin decir
-         // una palabra. Desde una terminal andaba, y el test tambien,
-         // porque ahi el nombre del programa no tiene espacios.
-         "-env:UserInstallation=" + QUrl::fromLocalFile(tmp + "/perfil").toString(QUrl::FullyEncoded),
-         "--convert-to", "pdf", "--outdir", tmp, archivo});
-    d_->proc->setProgram(bin);
-
-    // ENTORNO LIMPIO, Y A PROPOSITO. El hijo heredaba el de la app entera
-    // —variables de libobs, de Qt, de cachés redirigidos al bundle— y eso
-    // alcanzaba para que LibreOffice muriera con `RuntimeException` de UNO sin
-    // escribir nada. Desde una terminal, mismo comando, convertía perfecto.
-    // Acá se le pasa lo mínimo que necesita cualquier programa y nada más:
-    // convertir un archivo no tiene por qué depender de cómo arrancó el
-    // aparato.
-    QProcessEnvironment limpio;
-    const QProcessEnvironment heredado = QProcessEnvironment::systemEnvironment();
-    for (const QString& k : {QStringLiteral("PATH"), QStringLiteral("HOME"), QStringLiteral("USER"),
-                             QStringLiteral("LOGNAME"), QStringLiteral("TMPDIR"), QStringLiteral("LANG")})
-        if (heredado.contains(k)) limpio.insert(k, heredado.value(k));
-    if (!limpio.contains("HOME")) limpio.insert("HOME", tmp);
-    // Sin pantalla: es headless y pedirle una X que puede no estar es una
-    // fuente de fallas que no necesitamos.
-    limpio.insert("SAL_USE_VCLPLUGIN", "svp");
-    d_->proc->setProcessEnvironment(limpio);
-    // Todo por el mismo caño: LibreOffice reparte sus quejas entre salida y
-    // error sin criterio claro, y perder la mitad al diagnosticar es peor que
-    // mezclarlas.
-    d_->proc->setProcessChannelMode(QProcess::MergedChannels);
+    prepararOffice(*d_->proc, bin, archivo, tmp, tmp + "/perfil");
 
     const QString esperado = tmp + "/" + QFileInfo(archivo).completeBaseName() + ".pdf";
     connect(d_->proc, &QProcess::finished, this, [this, esperado](int, QProcess::ExitStatus) {

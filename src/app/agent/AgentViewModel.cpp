@@ -1501,6 +1501,18 @@ void AgentViewModel::aislarEnLaCarpetaDeDatos(term::Pty::Options& o, const QStri
     QDir().mkpath(profile + "/AppData/Local");
 #endif
     o.env["NPM_CONFIG_CACHE"] = root + "/Cache/npm";
+    // LOS TEMPORALES, TAMBIÉN EN LOS DATOS (el pendrive): Claude Code usa /tmp salvo
+    // CLAUDE_CODE_TMPDIR (salidas de tareas, PDF, vistas previas), y lo que corre en su
+    // consola, TMPDIR (Unix) o TMP/TEMP (Windows). Los sockets del sistema siguen en
+    // runtimeDir(), que no puede ir a un FAT/exFAT.
+    {
+        const QString tmp = root + "/Runtime/tmp/" + runtime;
+        QDir().mkpath(tmp);
+        o.env["CLAUDE_CODE_TMPDIR"] = tmp;
+        o.env["TMPDIR"] = tmp;
+        o.env["TMP"] = tmp;
+        o.env["TEMP"] = tmp;
+    }
 #ifdef __APPLE__
     // EL LLAVERO DE macOS, NUNCA. Claude Code guarda el login con `security` y solo si
     // falla pasa a <perfil>/.credentials.json. Con el HOME del perfil no hay llavero

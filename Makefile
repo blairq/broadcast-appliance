@@ -1113,7 +1113,8 @@ deps-lsp:
 CLAP_VER := 1.2.6
 CLAP_SHA := 6548b5831ad9e92551c752753e535b18fead4001165ef1df8e643efefa7133b7
 # --- LibreOffice (opcional) --------------------------------------------------
-# Solo para convertir .pptx a PDF y de ahi a imagenes (ver docs/funciones/CARRUSEL.md).
+# Para pasar a PDF: presentaciones (el carrusel, docs/funciones/CARRUSEL.md) y Word, planillas
+# y HTML (la documentación del evento, evento/APdf).
 # NO entra en `make deps`: hay que pedirlo, porque son ~420 MB por plataforma y
 # el que recibe PDF no lo necesita. El bundle lo incluye solo si esta.
 # En la Mac, el de macOS (el .dmg se monta con hdiutil: solo se arma ahi).

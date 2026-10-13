@@ -548,6 +548,7 @@ const Fila kPropias[] = {
     {"documento_editar", "describir documento relacionar con punto del orden del dia seccion publicar cambiar caratula miniatura pagina de tapa"},
     {"documento_quitar", "quitar sacar borrar documento"},
     {"documento_texto", "leer texto del pdf resumir documento"},
+    {"pdf_convertir", "convertir pasar a pdf exportar word docx excel planilla powerpoint html markdown texto imagen imprimir"},
     {"documento_abrir", "abrir mostrar ver documento pdf en pantalla visor"},
     {"evento_nuevo", "arrancar de cero evento nuevo empezar algo nuevo desde cero copiar el actual plantilla "
                      "crear evento aparte sin tocar las escenas"},

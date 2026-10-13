@@ -42,7 +42,9 @@ Item {
         id: elegir
         title: "Documentos para el evento"
         fileMode: FileDialog.OpenFiles
-        nameFilters: ["PDF e imágenes (*.pdf *.png *.jpg *.jpeg *.webp)", "Todos (*)"]
+        // Lo que no es PDF ni imagen se pasa a PDF al agregarlo (APdf: LibreOffice o Qt, del bundle).
+        nameFilters: ["Documentos (*.pdf *.doc *.docx *.odt *.rtf *.ppt *.pptx *.odp *.xls *.xlsx *.ods *.csv *.html *.htm *.md *.txt *.png *.jpg *.jpeg *.webp)",
+                      "PDF e imágenes (*.pdf *.png *.jpg *.jpeg *.webp)", "Todos (*)"]
         onAccepted: pd.agregar(selectedFiles.map(u => u.toString()))
     }
 
@@ -81,7 +83,8 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
                     color: Theme.textFaint
-                    text: "Arrastrá acá los PDF del evento (o «Agregar documentos…»). Cada uno guarda su carátula, y se puede "
+                    text: "Arrastrá acá los documentos del evento (o «Agregar documentos…»): un Word, una planilla o una "
+                          + "presentación se pasan solos a PDF. Cada uno guarda su carátula, y se puede "
                           + "relacionar con puntos del orden del día y secciones del guion: la página web del evento los muestra."
                 }
                 GridView {

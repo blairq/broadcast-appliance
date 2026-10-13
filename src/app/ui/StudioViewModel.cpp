@@ -1041,6 +1041,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     // La documentación del evento (docs/): cada cambio republica la web del evento.
     documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });
     if (evento_) connect(documentos_.get(), &DocumentosViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
+    connect(documentos_.get(), &DocumentosViewModel::notify, this, &StudioViewModel::notify);
     // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
     estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(),
                                                   traductor_.get());
