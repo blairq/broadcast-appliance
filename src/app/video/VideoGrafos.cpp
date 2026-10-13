@@ -1052,8 +1052,10 @@ void VideoGrafos::aplicar(const std::string& entrada) {
     }
     filtros["video"] = video;
     const std::string js = video.empty() ? std::string() : filtros.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
-    const auto ya = filtrosAplicados_.find(entrada);
-    if (ya == filtrosAplicados_.end() || ya->second != js) {
+    // Contra lo que la entrada tiene DE VERDAD (no contra lo último que se le mandó):
+    // si la fuente se rehízo (se sacó y se volvió a agregar con el mismo nombre),
+    // en la próxima revisión recupera sus tarjetas (el PTZ quedaba afuera para siempre).
+    {
         const json actual = json::parse(rt_.engine().sourceSettingsJson(entrada), nullptr, false);
         const json previo = actual.is_object() ? actual.value("filtros", json()) : json();
         const std::string previoJs = previo.is_string() ? previo.get<std::string>() : previo.is_null() ? "" : previo.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
@@ -1062,7 +1064,6 @@ void VideoGrafos::aplicar(const std::string& entrada) {
                                        "«" + entrada + "»: filtros en la entrada: " + js);
             rt_.updateSourceSettings(entrada, json{{"filtros", js}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
         }
-        filtrosAplicados_[entrada] = js;
     }
     // Las Salidas de esta entrada: que su escena lea el punto de la cadena del que cuelgan.
     for (const auto& n : grafo_.nodos()) {

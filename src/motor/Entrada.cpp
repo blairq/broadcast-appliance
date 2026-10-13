@@ -1453,9 +1453,20 @@ void Entrada::procesarMensaje(GstMessage* m) {
             return;
         case GST_MESSAGE_ERROR: {
             GError* e = nullptr;
-            gst_message_parse_error(m, &e, nullptr);
+            gchar* dbg = nullptr;
+            gst_message_parse_error(m, &e, &dbg);
             error_ = e != nullptr ? ba::diag::utf8Valido(e->message) : "error";
+            // Quién y por qué («Internal data stream error» solo no dice nada):
+            // el elemento y el motivo del detalle («reason not-negotiated (-4)»).
+            {
+                std::string quien = GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) != nullptr ? GST_OBJECT_NAME(GST_MESSAGE_SRC(m)) : "";
+                const std::string d = dbg != nullptr ? dbg : "";
+                const auto r = d.find("reason ");
+                if (r != std::string::npos) quien += (quien.empty() ? "" : ", ") + d.substr(r, d.find_first_of("\n)", r) - r + 1);
+                if (!quien.empty()) error_ += " [" + ba::diag::utf8Valido(quien) + "]";
+            }
             if (e != nullptr) g_error_free(e);
+            g_free(dbg);
             // Al registro: el error nuevo enseguida; el mismo, a lo sumo una vez por minuto.
             const std::uint64_t ahora = ahoraNs();
             if (error_ != errorAnotado_ || ahora - errorAnotadoNs_ > 60'000'000'000ULL) {

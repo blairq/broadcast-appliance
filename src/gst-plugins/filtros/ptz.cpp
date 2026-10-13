@@ -316,7 +316,7 @@ void antes(GstBaseTransform* bt, GstBuffer* b) {
     const bool identidad = p->zoom <= 1.0 + 1e-6 && !moviendo(p);
     GstEvent* aviso = avisoSiCambio(p);
     GST_OBJECT_UNLOCK(p);
-    gst_base_transform_set_passthrough(bt, identidad);
+    ba::filtros::pasante(bt, identidad);
     if (aviso != nullptr) gst_pad_push_event(GST_BASE_TRANSFORM_SRC_PAD(bt), aviso);
 }
 
@@ -501,10 +501,10 @@ GstPadProbeReturn alCuadroGl(GstPad*, GstPadProbeInfo* info, gpointer d) {
     }
     // QUIETO Y SIN ZOOM: ni gltransformation ni glshader dibujan (pasa la misma
     // textura). Eran una copia por cuadro en cada entrada para nada.
+    // (pasante() renegocia la asignación al cambiar: sin eso se caía al moverlo.)
     if (quieto != s->pasante) {
         s->pasante = quieto;
-        gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(s->transf), quieto);
-        gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(s->fijar), quieto);
+        for (GstElement* e : {s->transf, s->fijar}) ba::filtros::pasante(GST_BASE_TRANSFORM(e), quieto);
     }
     if (quieto) return GST_PAD_PROBE_OK;
     // Con ortho, la ventana de centro (x, y) y lado 1/zoom ocupa todo el cuadro:

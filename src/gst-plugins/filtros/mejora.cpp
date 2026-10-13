@@ -124,7 +124,7 @@ void antes(GstBaseTransform* bt, GstBuffer* b) {
     const bool nada = m->ruido <= 0 && m->color <= 0 && m->nitidez <= 0;
     if (nada) m->e->hayAnterior = false;
     GST_OBJECT_UNLOCK(m);
-    gst_base_transform_set_passthrough(bt, nada);
+    ba::filtros::pasante(bt, nada);
 }
 
 GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* in, GstVideoFrame* out) {

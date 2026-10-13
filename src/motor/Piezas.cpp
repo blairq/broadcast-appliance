@@ -2,6 +2,7 @@
 // src/motor/Piezas.cpp — ver Piezas.hpp
 // ============================================================================
 #include "Piezas.hpp"
+#include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
 
 #include <thread>
@@ -453,8 +454,15 @@ std::string origenDeCamara(const std::string& id, std::string modo, const Lienzo
             const bool es = camaraUsable(e) && ((id.empty() || id == "default") || mismaCamara(idDeCamara(dev, e), id));
             if (es && e != nullptr) {
 #if defined(__APPLE__)
+                // El índice, contado como lo cuenta avfvideosrc (por su uniqueID): el del
+                // dispositivo de GStreamer a veces viene en otro orden y abría OTRA cámara
+                // (con la Kandao enchufada, «Kandao» mostraba la FaceTime y al revés).
                 gint indice = -1;
-                g_object_get(e, "device-index", &indice, nullptr);
+                if (GstStructure* pr = gst_device_get_properties(dev)) {
+                    if (const gchar* uid = gst_structure_get_string(pr, "avf.unique_id")) indice = indiceCamaraMac(uid);
+                    gst_structure_free(pr);
+                }
+                if (indice < 0) g_object_get(e, "device-index", &indice, nullptr);
                 if (indice >= 0) o = "avfvideosrc device-index=" + std::to_string(indice);
 #elif defined(_WIN32)
                 o = "mfvideosrc device-path=" + entreComillas(idDeCamara(dev, e));

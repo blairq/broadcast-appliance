@@ -86,7 +86,7 @@ static void actualizarPasante(BaLegal* c) {
         std::lock_guard<std::mutex> l(*c->mu);
         pasa = !c->activo;
     }
-    gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(c), pasa);
+    ba::filtros::pasante(GST_BASE_TRANSFORM(c), pasa);
 }
 
 static GstFlowReturn transformar(GstVideoFilter* vf, GstVideoFrame* fr) {

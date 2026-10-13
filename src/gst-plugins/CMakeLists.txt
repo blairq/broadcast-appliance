@@ -199,6 +199,16 @@ if(TARGET gstbarostros)
 endif()
 add_test(NAME test_eventos COMMAND test_eventos)
 
+# baptzgl con el video andando: de quieto (pasante) a moverse y vuelta, sin caerse.
+add_executable(test_ptz_gl tests/test_ptz_gl.cpp)
+target_link_libraries(test_ptz_gl PRIVATE ba::gstreamer)
+if(DEFINED BA_GST_LIBDIR)
+    set_target_properties(test_ptz_gl PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
+endif()
+target_compile_definitions(test_ptz_gl PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
+add_dependencies(test_ptz_gl gstbafiltros)
+add_test(NAME test_ptz_gl COMMAND test_ptz_gl)
+
 # La superresolución cambiada ANDANDO desde otro hilo (las caídas del 2026-10-10).
 add_executable(test_superres_vivo tests/test_superres_vivo.cpp)
 target_link_libraries(test_superres_vivo PRIVATE ba::gstreamer)

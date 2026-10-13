@@ -478,7 +478,6 @@ class VideoGrafos : public QObject {
     /// cadena de su entrada; si cuelga del medio, el de su basalida.
     std::map<std::string, std::string> productorSalida_;
     std::function<double(const std::string&, int, int)> estimadorSr_;
-    std::map<std::string, std::string> filtrosAplicados_;    ///< entrada -> lo último que se le mandó
     std::string legalizar_ = "no";
     std::set<std::string> ptzHabilitado_; ///< entradas con el PTZ digital prendido (Cámaras PTZ)
 };
