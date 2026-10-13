@@ -93,6 +93,16 @@ json SesionRemota::integrante(const std::string& id) const {
     return json();
 }
 
+std::string SesionRemota::nombreDe(const std::string& id, const std::string& siNo) const {
+    const json i = integrante(id);
+    return i.is_object() ? i.value("nombre", siNo) : siNo;
+}
+
+std::string SesionRemota::bancaDe(const std::string& id) const {
+    const json i = integrante(id);
+    return i.is_object() ? i.value("banca", std::string()) : std::string();
+}
+
 void SesionRemota::anotar(const std::string& que, const std::string& id, const json& extra) {
     json e{{"ms", ahoraMs()}, {"que", que}, {"id", id}};
     const json i = integrante(id);
@@ -331,8 +341,7 @@ void SesionRemota::evento(const json& ev) {
             anotar("entro", id, {{"ip", e.ip}, {"lugar", e.lugar}, {"sigue_habilitado", e.habilitado}});
             mandarEstado(id);
             if (!e.habilitado) {
-                const json i = integrante(id);
-                emit aviso(QString::fromStdString(i.value("nombre", id) + " entró a la sesión y espera que lo habiliten"),
+                emit aviso(QString::fromStdString(nombreDe(id, id) + " entró a la sesión y espera que lo habiliten"),
                            "info");
             }
         } else {
@@ -345,8 +354,7 @@ void SesionRemota::evento(const json& ev) {
     } else if (tipo == "bloqueo") {
         e.bloqueadoHasta = ahoraMs() + ev.value("minutos", 15) * 60000LL;
         anotar("bloqueado", id, {{"minutos", ev.value("minutos", 15)}});
-        const json i = integrante(id);
-        emit aviso(QString::fromStdString("Acceso de " + i.value("nombre", id) +
+        emit aviso(QString::fromStdString("Acceso de " + nombreDe(id, id) +
                                           " bloqueado 15 minutos por PIN errado varias veces"),
                    "warning");
     } else if (tipo == "entrada") {
@@ -378,8 +386,7 @@ void SesionRemota::evento(const json& ev) {
             anotar(pedir ? "pidio_palabra" : "cancelo_pedido", id);
             emit pedidoPalabra(QString::fromStdString(id), pedir);
             if (pedir) {
-                const json i = integrante(id);
-                emit aviso(QString::fromStdString(i.value("nombre", id) + " (remoto) pidió la palabra"), "info");
+                emit aviso(QString::fromStdString(nombreDe(id, id) + " (remoto) pidió la palabra"), "info");
             }
         }
         if (t == "voto" && e.habilitado && e.conectado) {
@@ -734,8 +741,7 @@ json SesionRemota::votacion() const {
     json totales = json::object();
     for (const auto& o : vot_.opciones) totales[o.value("id", std::string())] = 0;
     for (const auto& [id, v] : vot_.votos) {
-        const json i = integrante(id);
-        votos.push_back({{"id", id}, {"nombre", i.value("nombre", std::string())}, {"banca", i.value("banca", std::string())},
+        votos.push_back({{"id", id}, {"nombre", nombreDe(id, id)}, {"banca", bancaDe(id)},
                          {"opcion", v.first}, {"ms", v.second}});
         totales[v.first] = totales.value(v.first, 0) + 1;
     }
@@ -755,9 +761,8 @@ json SesionRemota::resultadoCombinado(const json& nominalCentral) const {
     }
     json observaciones = json::array();
     for (const auto& [id, v] : vot_.votos) {
-        const json i = integrante(id);
-        const std::string b = i.value("banca", std::string());
-        json nuevo{{"banca", b}, {"nombre", i.value("nombre", std::string())}, {"voto", v.first}, {"origen", "remoto"}};
+        const std::string b = bancaDe(id);
+        json nuevo{{"banca", b}, {"nombre", nombreDe(id, id)}, {"voto", v.first}, {"origen", "remoto"}};
         auto it = porBanca.find(b);
         if (it != porBanca.end() && it->second.value("voto", std::string()) != v.first)
             observaciones.push_back("Banca " + b + ": votó «" + it->second.value("voto", std::string()) +

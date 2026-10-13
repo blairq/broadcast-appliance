@@ -214,6 +214,25 @@ int main(int argc, char** argv) {
     s.generar(ana, true);
     CHECK(s.revocar(ana) && !s.accesoGuardado(ana), "revocar borra el guardado");
 
+    // Juan votó por el celular y después lo borran del Cuerpo: la votación (que QML lee
+    // en cada cambio) y sus eventos no pueden tirar (json().value() sobre el que no
+    // está rompía el motor de QML y la app se caía en la emisión siguiente).
+    CHECK(cuerpo.borrar(juan), "se borra a Juan del Cuerpo");
+    bool tiro = false;
+    try {
+        const json v = s.votacion();
+        CHECK(v.value("votos", json::array()).size() == 1 && v["votos"][0].value("nombre", std::string()) == juan,
+              "su voto sigue, con el id por nombre");
+        s.resultadoCombinado(json::array());
+        s.votacionUi();
+        s.evento({{"tipo", "conexion"}, {"id", juan}, {"conectado", true}, {"lugar", "afuera"}});
+        s.evento({{"tipo", "entrada"}, {"id", juan}, {"msg", {{"type", "pedir"}}}});
+    } catch (const std::exception& e) {
+        tiro = true;
+        std::printf("  tiró: %s\n", e.what());
+    }
+    CHECK(!tiro, "un integrante borrado no hace tirar a la votación ni a sus eventos");
+
     std::printf(g_fallas ? "\n%d fallas\n" : "\ntodo ok\n", g_fallas);
     return g_fallas ? 1 : 0;
 }

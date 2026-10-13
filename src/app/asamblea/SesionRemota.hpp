@@ -237,7 +237,11 @@ class SesionRemota : public QObject {
     void cargar();
     void guardar() const;
     void anotar(const std::string& que, const std::string& integrante, const json& extra = {});
-    json integrante(const std::string& id) const;
+    json integrante(const std::string& id) const; ///< null si ya no está en el Cuerpo
+    /// Su nombre y su banca, o `siNo` / "" si lo borraron del Cuerpo (un voto, un aviso o
+    /// un evento suyo pueden llegar después: no hay que tirar con json().value()).
+    std::string nombreDe(const std::string& id, const std::string& siNo) const;
+    std::string bancaDe(const std::string& id) const;
     void mandarEstado(const std::string& id);
 
     const Cuerpo& cuerpo_;
