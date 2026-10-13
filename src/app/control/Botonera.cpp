@@ -838,7 +838,10 @@ json Botonera::plantillas() const {
                          {"descripcion", "La central de conferencia: la cara de cada banca donde está en la sala; un toque le "
                                          "da o le corta el audio, mantener la pone al aire; siguiente, cerrar todos"}},
                         {{"id", "prompter"}, {"nombre", "Prompter"},
-                         {"descripcion", "Correr y parar, velocidad, avisos al orador"}}});
+                         {"descripcion", "Correr y parar, velocidad, avisos al orador"}},
+                        {{"id", "pdf"}, {"nombre", "PDF"},
+                         {"descripcion", "Pasar las páginas del PDF de la escena, elegir otro de la documentación del "
+                                         "evento y poner la escena «PDF» al aire"}}});
 }
 
 json Botonera::armarPlantilla(const std::string& id) const {
@@ -1030,6 +1033,27 @@ json Botonera::armarPlantilla(const std::string& id) const {
         usar(boton(1, 1, "Un minuto", herr("prompter_control", {{"aviso", "Un minuto"}})));
         usar(boton(0, 2, "Sacar aviso", herr("prompter_control", {{"aviso", ""}})));
         usar(boton(3, 0, "PÁNICO", herr("prompter_control", {{"panico", true}}), json::array(), "#b71c1c"));
+    } else if (id == "pdf") {
+        // La fuente PDF de la escena (pdf_escena_*): páginas y, abajo, un botón por cada
+        // PDF de la documentación del evento.
+        nombre = "PDF";
+        const auto ds = g_.pdfs ? g_.pdfs() : std::vector<std::pair<std::string, std::string>>{};
+        columnas = 4;
+        filas = std::clamp(2 + static_cast<int>((std::min<std::size_t>(ds.size(), 16) + 3) / 4), 2, 6);
+        usar(boton(0, 0, "◀ Página", herr("pdf_escena_poner", {{"paso", -1}}), json::array(), "#1f5f8a"));
+        usar(boton(1, 0, "Página ▶", herr("pdf_escena_poner", {{"paso", 1}}), json::array(), "#1f8a3c"));
+        usar(boton(2, 0, "⏮ Primera", herr("pdf_escena_poner", {{"pagina", 1}})));
+        usar(boton(3, 0, "Última ⏭", herr("pdf_escena_poner", {{"pagina", 100000}})));
+        usar(boton(0, 1, "Escena PDF\n(armar)", herr("scene_preview", {{"name", "PDF"}}),
+                   {lig("aire/tally", "preview", "==", "PDF", "fondo", "#1f8a3c"),
+                    lig("aire/tally", "programa", "==", "PDF", "fondo", "#c62828")}));
+        usar(boton(1, 1, "TAKE", herr("scene_take"), json::array(), "#8e1b1b"));
+        int i = 0;
+        for (const auto& [docId, titulo] : ds) {
+            if (i >= (filas - 2) * 4) break;
+            usar(boton(i % 4, 2 + i / 4, titulo, herr("pdf_escena_poner", {{"documento", docId}})));
+            ++i;
+        }
     } else {
         return nullptr;
     }

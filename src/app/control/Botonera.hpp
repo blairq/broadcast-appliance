@@ -75,6 +75,8 @@ class Botonera : public QObject {
         std::function<std::vector<std::pair<std::string, std::string>>()> bancas;
         /// La grilla del recinto (asamblea/Cuerpo::recinto), para la plantilla Recinto.
         std::function<json()> recinto;
+        /// (id, título) de los PDF de la documentación del evento, para la plantilla PDF.
+        std::function<std::vector<std::pair<std::string, std::string>>()> pdfs;
         /// Una referencia de imagen («cuerpo:<banca>», «ptz:<cámara>/<posición>») como
         /// miniatura chica en data: URL ("" si no hay). Se llama al dibujar: con caché.
         std::function<std::string(const std::string& ref)> imagen;

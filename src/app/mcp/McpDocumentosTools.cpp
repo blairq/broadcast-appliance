@@ -12,6 +12,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"
 #include "ui/DocumentosViewModel.hpp"
+#include "ui/PdfEscena.hpp"
 #include "ui/StudioViewModel.hpp"
 
 #include <algorithm>
@@ -222,6 +223,65 @@ void McpService::registerDocumentosTools() {
             const json r = dv->texto(a.value("id", std::string()), a.value("desde", 1), a.value("hasta", 0));
             if (r.contains("error")) return done(ToolResult::error(r.value("error", std::string())));
             done(ToolResult().data(r));
+        };
+        core_.addTool(std::move(t));
+    }
+    // --- Un PDF en una escena (fuente ba_pdf): elegirlo y pasarle páginas ---------------
+    PdfEscena* pe = vm_.pdfEscena();
+    if (pe == nullptr) return;
+    {
+        Tool t;
+        t.name = "pdf_escena_ver";
+        t.title = "Los PDF en las escenas";
+        t.category = "documentos";
+        t.readOnly = true;
+        t.description = "Las fuentes PDF de las escenas (ba_pdf: un PDF a pantalla, una página por vez): qué documento y qué "
+                        "página muestra cada una (de cuántas), y los PDF de la documentación del evento que se pueden elegir. "
+                        "Para mostrar un PDF en vivo sin desarmarlo en láminas.";
+        t.run = [pe](const json&, Done done) { done(ToolResult().data(pe->estado())); };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pdf_escena_poner";
+        t.title = "Elegir el PDF o la página de una fuente PDF";
+        t.category = "documentos";
+        t.description = "En la fuente PDF `fuente` (sin ella, la primera): `documento` (el id de uno de la documentación del "
+                        "evento: pdf_escena_ver / documentos_listar) o `archivo` (la ruta de otro PDF), y/o `pagina` (1 = la "
+                        "primera) o `paso` (+1 la siguiente, -1 la anterior). Elegir un documento lo deja en la página 1. "
+                        "SE VE AL AIRE si esa escena está en el programa.";
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"fuente", {{"type", "string"}}},
+                           {"documento", {{"type", "string"}}},
+                           {"archivo", {{"type", "string"}}},
+                           {"pagina", {{"type", "integer"}, {"minimum", 1}}},
+                           {"paso", {{"type", "integer"}}}}}};
+        t.run = [pe](const json& a, Done done) {
+            const QString f = QString::fromStdString(a.value("fuente", std::string()));
+            QString e;
+            if (a.contains("documento")) e = pe->elegir(f, QString::fromStdString(a.value("documento", std::string())));
+            else if (a.contains("archivo")) e = pe->elegirArchivo(f, QString::fromStdString(a.value("archivo", std::string())));
+            if (e.isEmpty() && a.contains("pagina")) e = pe->irA(f, a.value("pagina", 1));
+            if (e.isEmpty() && a.contains("paso")) e = pe->paso(f, a.value("paso", 1));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(pe->estado()));
+        };
+        core_.addTool(std::move(t));
+    }
+    {
+        Tool t;
+        t.name = "pdf_escena_crear";
+        t.title = "Armar una escena para mostrar PDF";
+        t.category = "documentos";
+        t.description = "Crea la escena `nombre` (de fábrica «PDF») con una fuente PDF a pantalla completa (si ya existe, le "
+                        "agrega la fuente si no la tiene). Después: pdf_escena_poner para elegir el documento y pasar páginas, "
+                        "y la tarjeta «PDF» del tablero hace lo mismo a mano.";
+        t.inputSchema = {{"type", "object"}, {"properties", {{"nombre", {{"type", "string"}}}}}};
+        t.run = [pe](const json& a, Done done) {
+            const QString e = pe->crearEscena(QString::fromStdString(a.value("nombre", std::string("PDF"))));
+            if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
+            done(ToolResult().data(pe->estado()));
         };
         core_.addTool(std::move(t));
     }

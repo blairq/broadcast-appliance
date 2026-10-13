@@ -35,6 +35,7 @@ const Kind kKinds[] = {
     {"direccion", "Dirección"}, {"aire", "Aire"},         {"outputs", "Salidas"},   {"scenes", "Escenas"},    {"mixer", "Mezclador"},
     {"guests", "Invitados"},    {"health", "Sistema"},    {"monitor", "Monitor"},   {"sources", "Fuentes"},
     {"lobby", "Sala"},          {"speakers", "Oradores"}, {"carrusel", "Carrusel"}, {"ptz", "Control PTZ"},
+    {"pdf", "PDF"},
 };
 
 } // namespace
@@ -287,6 +288,8 @@ QSizeF tamanoInicial(const QString& kind) {
     if (kind == "carrusel") return {0.40, 0.30};
     // Alta: joystick, zoom y las posiciones guardadas debajo.
     if (kind == "ptz") return {0.24, 0.42};
+    // La lista de PDF a la izquierda y la página con sus flechas.
+    if (kind == "pdf") return {0.32, 0.36};
     return {0.28, 0.30};
 }
 

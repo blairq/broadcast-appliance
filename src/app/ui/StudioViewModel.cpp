@@ -64,6 +64,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/EstadoIA.hpp"
 #include "ui/DocumentosViewModel.hpp"
+#include "ui/PdfEscena.hpp"
 #include "agent/AlarmaSonora.hpp"
 #include "agent/SubtitulosCC.hpp"
 #include "agent/Vocabulario.hpp"
@@ -1043,6 +1044,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
     documentos_ = std::make_unique<DocumentosViewModel>([&rt]() { return rt.dataRoot(); });
     if (evento_) connect(documentos_.get(), &DocumentosViewModel::cambio, evento_.get(), &EventoViewModel::publicarWeb);
     connect(documentos_.get(), &DocumentosViewModel::notify, this, &StudioViewModel::notify);
+    // Los PDF en las escenas: la lista para elegir es la documentación del evento.
+    pdfEscena_ = std::make_unique<PdfEscena>(rt);
+    connect(documentos_.get(), &DocumentosViewModel::cambio, pdfEscena_.get(), &PdfEscena::refrescarDocumentos);
     // Lo que no anda de la IA, junto (la pastilla «IA» y ia_estado).
     estadoIA_ = std::make_unique<agent::EstadoIA>(agent_.get(), modelos_.get(), voz_.get(), vozPrompter_.get(),
                                                   traductor_.get());
@@ -1321,6 +1325,13 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(pare
         control::Botonera::Ganchos g;
         g.escenas = [this]() { return rt_.engine().sceneNames(); };
         g.fuentesAudio = [this]() { return rt_.engine().audioSources(); };
+        g.pdfs = [this]() {
+            std::vector<std::pair<std::string, std::string>> out;
+            if (pdfEscena_)
+                for (const QVariant& v : pdfEscena_->documentos())
+                    out.emplace_back(v.toMap().value("id").toString().toStdString(), v.toMap().value("titulo").toString().toStdString());
+            return out;
+        };
         g.bancas = [this]() {
             std::vector<std::pair<std::string, std::string>> out;
             for (const auto& i : cuerpo_->cuerpo().integrantes())
@@ -2200,6 +2211,7 @@ QObject* StudioViewModel::voces() const { return voces_.get(); }
 QObject* StudioViewModel::traductor() const { return traductor_.get(); }
 QObject* StudioViewModel::estadoIA() const { return estadoIA_.get(); }
 QObject* StudioViewModel::documentosQml() const { return documentos_.get(); }
+QObject* StudioViewModel::pdfEscenaQml() const { return pdfEscena_.get(); }
 QObject* StudioViewModel::superres() const { return superres_.get(); }
 QObject* StudioViewModel::bancoSrObj() const { return bancoSr_.get(); }
 QObject* StudioViewModel::despachadorQml() const { return despachador_.get(); }

@@ -549,6 +549,9 @@ const Fila kPropias[] = {
     {"documento_quitar", "quitar sacar borrar documento"},
     {"documento_texto", "leer texto del pdf resumir documento"},
     {"pdf_convertir", "convertir pasar a pdf exportar word docx excel planilla powerpoint html markdown texto imagen imprimir"},
+    {"pdf_escena_ver", "pdf en la escena mostrar pdf en pantalla que pagina"},
+    {"pdf_escena_poner", "pasar pagina pdf siguiente anterior elegir pdf mostrar documento en pantalla"},
+    {"pdf_escena_crear", "escena para pdf armar escena mostrar pdf"},
     {"documento_abrir", "abrir mostrar ver documento pdf en pantalla visor"},
     {"evento_nuevo", "arrancar de cero evento nuevo empezar algo nuevo desde cero copiar el actual plantilla "
                      "crear evento aparte sin tocar las escenas"},
