@@ -85,6 +85,9 @@ Item {
         matriz.hBus = bus || ""
     }
 
+    // Sincronizar un canal con su video (el mismo de la tarjeta y de «Sincronía y red»).
+    RetardoCanal { id: retardoPop; onAplicado: m.leerTiras() }
+
     // El Profiler emite un barrido por la salida que se elija en su interfaz: suena.
     // Un diálogo propio (en una ventana suelta no está el de la principal).
     Dialog {
@@ -193,6 +196,15 @@ Item {
                         alTocar: () => { const e = Studio.pflUi(t.nombre); if (e !== "") Studio.notify(e, "error"); m.leerTiras() } }
                 Boton { texto: "AFV"; on: Studio.afv(t.nombre); colorOn: Theme.accent; ayuda: "Sigue al video: sube cuando su escena sale al aire"
                         alTocar: () => { Studio.setAfv(t.nombre, !Studio.afv(t.nombre)); m.leerTiras() } }
+            }
+            // Sincronizar con el video (sincro labios): el retardo del canal.
+            Boton {
+                Layout.fillWidth: true
+                readonly property int ms: t.st.retardoMs || 0
+                texto: ms !== 0 ? "SINC " + (ms > 0 ? "+" : "") + ms + " ms" : "SINC"
+                on: ms !== 0; colorOn: "#8b5cf6"
+                ayuda: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
+                alTocar: () => retardoPop.abrir(t.nombre)
             }
             // Los analizadores de LSP sobre esta entrada (su interfaz, en una ventana aparte).
             Boton {

@@ -57,7 +57,18 @@ Item {
 
     // ⧉ El Mezclador entero en su propia ventana (entradas, salidas, matriz): para
     // otro monitor. Ahí se ve lo que sale de cada entrada y adónde va.
+    // Audio ›: la pestaña donde se configura cada entrada (su rack, filtros, la matriz).
     GlassButton {
+        anchors { top: parent.top; right: mezBtn.left; rightMargin: 6 }
+        z: 10
+        compact: true
+        text: "Audio ›"
+        onClicked: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("audio"))
+        ToolTip.visible: hovered; ToolTip.delay: 400
+        ToolTip.text: "La pestaña Audio: el rack y los filtros de cada entrada, la matriz y las salidas."
+    }
+    GlassButton {
+        id: mezBtn
         anchors { top: parent.top; right: parent.right }
         z: 10
         compact: true
@@ -211,6 +222,21 @@ Item {
                     ToolTip.text: "Audio que sigue al video: sube cuando entra al aire una escena con esta fuente y baja cuando sale"
                     MouseArea { id: afvMa; anchors.fill: parent; hoverEnabled: true; acceptedButtons: Qt.NoButton }
                 }
+                // Sincronizar con el video (sincro labios): el retardo del canal, a mano o con aplausos.
+                Rectangle {
+                    id: sincBtn
+                    property int ms: Studio.retardoUi(name)
+                    Layout.fillWidth: true
+                    height: 18; radius: 6
+                    color: ms !== 0 ? Qt.rgba(0.55, 0.36, 0.96, 0.6) : Qt.rgba(1, 1, 1, 0.05)
+                    Text { anchors.centerIn: parent; text: sincBtn.ms !== 0 ? (sincBtn.ms > 0 ? "+" : "") + sincBtn.ms + " ms" : "SINC"
+                           color: sincBtn.ms !== 0 ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
+                    MouseArea { id: sincMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
+                                onClicked: retardoPop.abrir(name) }
+                    Connections { target: retardoPop; function onAplicado(f, v) { if (f === name) sincBtn.ms = v } }
+                    ToolTip.visible: sincMa.containsMouse; ToolTip.delay: 500
+                    ToolTip.text: "Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)"
+                }
                 // El canal que manda el teclado se marca: sin esto, subir el
                 // volumen con las flechas es una apuesta.
                 Rectangle {
@@ -223,75 +249,13 @@ Item {
                 Text { Layout.fillWidth: true; text: name; color: Theme.textDim; elide: Text.ElideRight
                        horizontalAlignment: Text.AlignHCenter; font.pixelSize: 10
                        font.bold: tarjeta.activeFocus && index === tarjeta.elegido
-                       // Un clic: el retardo de este audio respecto de su video (sincro labios).
+                       // Un clic: sincronizarla con su video (como el botón de abajo).
                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                   onClicked: { retardoPop.fuente = name; retardoPop.ms = Studio.retardoUi(name); retardoPop.open() } } }
+                                   onClicked: retardoPop.abrir(name) } }
             }
         }
     }
 
-    // Retardo de un canal (sincro labios), como audio_sincro.
-    Popup {
-        id: retardoPop
-        property string fuente: ""
-        property int ms: 0
-        property bool midiendo: false
-        property string resultado: ""
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        modal: true
-        padding: 16
-        width: 380
-        background: Rectangle { color: Theme.panel; radius: Theme.radiusSmall; border.color: Theme.glassBorder }
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 8
-            Text { text: "Retardo de «" + retardoPop.fuente + "»"; color: Theme.text; font.pixelSize: 15; font.weight: Font.DemiBold }
-            Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
-                   text: "Positivo ATRASA el audio (lo normal con una cámara IP, que llega tarde). Mirá a alguien hablando y corregí hasta que coincidan los labios." }
-            RowLayout {
-                SpinBox { id: retMs; from: -5000; to: 5000; stepSize: 10; editable: true; value: retardoPop.ms; Layout.preferredWidth: 160 }
-                Text { text: "ms"; color: Theme.textDim }
-                Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "−40"; onClicked: retMs.value -= 40 }
-                GlassButton { compact: true; text: "+40"; onClicked: retMs.value += 40 }
-            }
-            // Medir con aplauso: mira lo que sale y propone el valor.
-            RowLayout {
-                Layout.fillWidth: true
-                GlassButton {
-                    compact: true; text: retardoPop.midiendo ? "Midiendo… aplaudí" : "Medir con aplauso"
-                    enabled: !retardoPop.midiendo
-                    onClicked: {
-                        const e = Studio.medirSincroUi(10)
-                        if (e !== "") { Studio.notify(e, "error"); return }
-                        retardoPop.midiendo = true; retardoPop.resultado = ""
-                    }
-                }
-                Text { Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 10
-                       text: retardoPop.resultado !== "" ? retardoPop.resultado
-                             : "Con la cámara en el programa: 10 s para aplaudir 4 o 5 veces frente a ella, separadas." }
-            }
-            Connections {
-                target: Studio
-                function onMedicionSincroLista(r) {
-                    if (!retardoPop.midiendo) return
-                    retardoPop.midiendo = false
-                    if (r.ok) {
-                        retMs.value = retardoPop.ms + r.retardo_ms
-                        retardoPop.resultado = (r.retardo_ms >= 0 ? "+" : "") + r.retardo_ms + " ms (" + r.aplausos + " aplausos, ±" +
-                                               r.dispersion_ms + " ms)" + (r.confiable ? "" : " — poco confiable: repetí")
-                    } else {
-                        retardoPop.resultado = "No se pudo: " + (r.problema || "no encontré aplausos")
-                    }
-                }
-            }
-            RowLayout {
-                Item { Layout.fillWidth: true }
-                GlassButton { compact: true; text: "Cancelar"; onClicked: retardoPop.close() }
-                GlassButton { compact: true; active: true; text: "Aplicar"
-                              onClicked: { const e = Studio.setRetardoUi(retardoPop.fuente, retMs.value); if (e !== "") Studio.notify(e, "error"); else retardoPop.close() } }
-            }
-        }
-    }
+    // Sincronizar un canal con su video (sincro labios), como audio_sincro.
+    RetardoCanal { id: retardoPop }
 }
