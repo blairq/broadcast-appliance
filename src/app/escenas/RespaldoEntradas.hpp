@@ -57,6 +57,7 @@ class RespaldoEntradas : public QObject {
     QStringList sinSenal_;
     QHash<QString, qint64> sinSenalDesde_; ///< entrada -> cuándo se perdió
     QSet<QString> hecho_;                  ///< entradas cuyo respaldo ya se aplicó en esta caída
+    QSet<QString> tuvoSenal_;              ///< las que tuvieron señal alguna vez: solo esas «se quedan sin»
 };
 
 } // namespace ba::app::escenas

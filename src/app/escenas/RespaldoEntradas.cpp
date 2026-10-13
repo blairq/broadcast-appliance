@@ -45,6 +45,8 @@ void RespaldoEntradas::revisar() {
         if (!video::VideoGrafos::tieneSenal(st)) sin << e;
     }
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+    for (const QString& e : video_.entradas())
+        if (!sin.contains(e)) tuvoSenal_.insert(e);
     for (const QString& e : sin)
         if (!sinSenalDesde_.contains(e)) sinSenalDesde_[e] = ahora;
     for (auto it = sinSenalDesde_.begin(); it != sinSenalDesde_.end();)
@@ -62,6 +64,7 @@ void RespaldoEntradas::revisar() {
     const nlohmann::json resp = leer();
     auto alAire = rt_.engine().sceneSources(rt_.engine().currentScene());
     for (const std::string& f : rt_.engine().fuentesDsk()) alAire.push_back(f); // el recuadro de LSA también
+    QStringList perdidas; // las de solo avisar, juntas en un aviso
     for (const QString& e : sin) {
         if (hecho_.contains(e)) continue;
         if (std::find(alAire.begin(), alAire.end(), e.toStdString()) == alAire.end()) continue;
@@ -80,10 +83,18 @@ void RespaldoEntradas::revisar() {
             const std::string err = conmutador_.armar(escena);
             emit aviso(err.empty() ? "«" + e + "» se quedó sin señal al aire: «" + qe + "» quedó armada (TAKE)"
                                    : "«" + e + "» se quedó sin señal al aire: " + QString::fromStdString(err));
-        } else {
-            emit aviso("«" + e + "» se quedó sin señal AL AIRE");
+        } else if (tuvoSenal_.contains(e)) {
+            // Solo la que tenía señal y la perdió: una entrada de invitado o de pantalla
+            // compartida vacía (nadie conectado, nadie compartiendo) es lo normal, no una
+            // alarma; la lista de las que no tienen señal está en el tablero (sinSenal).
+            perdidas << "«" + e + "»";
         }
     }
+    if (perdidas.size() == 1)
+        emit aviso(perdidas.first() + " se quedó sin señal AL AIRE");
+    else if (perdidas.size() > 1)
+        emit aviso(perdidas.mid(0, perdidas.size() - 1).join(", ") + " y " + perdidas.last() +
+                   " se quedaron sin señal AL AIRE");
 }
 
 } // namespace ba::app::escenas

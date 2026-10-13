@@ -328,6 +328,8 @@ class ConferenceViewModel : public QObject {
     QStringList slotNames_;
     qint64 lastSeq_ = 0;
     bool firstSnapshot_ = true;
+    qint64 avisoSinSalaMs_ = 0; ///< cuándo se avisó que la sala no responde (uno cada 30 s, no uno por pedido)
+    int authSeguidos_ = 0;      ///< 401 seguidos: el primero lo arregla el cliente releyendo el token
 };
 
 } // namespace ba::app

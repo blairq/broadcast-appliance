@@ -177,6 +177,12 @@ namespace {
 } // namespace
 
 StudioViewModel::StudioViewModel(AppRuntime& rt, QObject* parent) : QObject(parent), rt_(rt) {
+    // Cada aviso del operador (los de abajo a la derecha) queda en el registro: si no,
+    // solo los ve quien está mirando y no hay cómo saber cuáles se apilaron.
+    connect(this, &StudioViewModel::notify, this, [](const QString& texto, const QString& nivel) {
+        ba::diag::registro().linea(nivel == "error" ? ba::diag::Nivel::Aviso : ba::diag::Nivel::Info, "aviso-ui", 0,
+                                   (nivel + ": " + texto).toStdString());
+    });
     // La cola única de descargas (modelos, agentes, …): antes que quien baja algo.
     // Su historial es de la máquina (como Modelos/ y Agentes/), no de la configuración.
     net::Descargas::iniciar(ba::platform::dataRoot());

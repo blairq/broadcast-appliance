@@ -145,8 +145,25 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, QObject* parent)
     // Todo pedido que falla pasa por acá: el texto es el del modelo (el mismo
     // que lee el MCP).
     connect(client_.get(), &ConferenceClient::failed, this, [this](const QString& e) {
+        // Sin sala (se está reiniciando o se cayó) fallan todos los pedidos, también los
+        // periódicos: un aviso por caída, no una ráfaga (trababa la interfaz con avisos).
+        if (e == "offline") {
+            const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+            if (ahora - avisoSinSalaMs_ < 30000) return;
+            avisoSinSalaMs_ = ahora;
+        } else if (e == "auth" || e == "401") {
+            // La sala volvió con otro token: el cliente lo relee solo. Se avisa si sigue.
+            if (++authSeguidos_ < 2) return;
+        } else {
+            authSeguidos_ = 0;
+        }
         const std::string t = sala::explicarError(ss(e));
         emit notify(t == ss(e) ? "La sala respondio: " + e : frase(t), "error");
+    });
+    connect(client_.get(), &ConferenceClient::onlineChanged, this, [this](bool on) {
+        if (!on) return;
+        avisoSinSalaMs_ = 0; // volvió: la próxima caída se avisa enseguida
+        authSeguidos_ = 0;
     });
     // Estado de red: cada 5 s (cambia poco; no amerita un evento propio).
     const auto pollNetwork = [this]() {
