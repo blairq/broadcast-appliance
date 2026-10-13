@@ -242,6 +242,9 @@ def main():
         for x in casos:
             if "aceptables" not in x:
                 x["aceptables"] = [x["herramienta"]] if x["herramienta"] in conocidas else [tc.DERIVAR]
+            else:
+                # las aceptables que el perfil no tiene no cuentan; si no queda ninguna, derivar es lo correcto
+                x["aceptables"] = [a for a in x["aceptables"] if a in conocidas or a == tc.DERIVAR] or [tc.DERIVAR]
         if nombre == "banco" and args.limite_banco and len(casos) > args.limite_banco:
             paso = len(casos) / args.limite_banco
             casos = [casos[int(i * paso)] for i in range(args.limite_banco)]

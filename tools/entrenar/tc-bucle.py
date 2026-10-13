@@ -74,8 +74,11 @@ def autoexamen(corpus, dest, rnd, n=400):
     tcc = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(tcc)
     anot = json.loads(ANOT.read_text())
+    mias = set(tc.esquemas())
     filas = []
     for h, lista in sorted(anot.items()):
+        if h not in mias:
+            continue  # las que salieron del perfil: ahi derivar es lo correcto
         for a in lista:
             if not a.get("plantilla"):
                 continue
@@ -119,6 +122,8 @@ def arreglar(fallos, dir_):
     funcs = {f["function"]["name"]: f["function"] for f in tc.funciones()}
     por_h = {}
     for f in fallos:
+        if f["herramienta"] not in funcs:
+            continue
         por_h.setdefault(f["herramienta"], []).append(f)
     if not por_h:
         return 0
